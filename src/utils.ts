@@ -65,7 +65,7 @@ const copyHighlightedText = async () => {
           tell application "System Events" -- get process name of frontmost app
             keystroke "c" using {command down} -- simulate Cmd+C
           end tell
-          delay 0.3
+          delay 0.4
         '`
       );
     } else if (platform === "win32") {
@@ -121,7 +121,7 @@ export const pasteText = async (text: string): Promise<void> => {
             tell application "System Events" -- get process name of frontmost app
               keystroke "v" using {command down} -- simulate Cmd+V
             end tell
-            delay 0.3
+            delay 0.4
           '`
         );
       } else if (platform === "win32") {
@@ -140,4 +140,12 @@ export const pasteText = async (text: string): Promise<void> => {
       }).show();
     }
   });
+};
+
+export const removeLineBreaks = (text: string): string => {
+  return text.replace(/\n/g, "");
+};
+
+export const removeExtraSpaces = (text: string): string => {
+  return text.replace(/\s+/g, " ");
 };

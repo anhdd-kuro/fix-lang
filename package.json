@@ -10,9 +10,10 @@
   "type": "module",
   "scripts": {
     "start": "electron-vite preview",
+    "predev": "bun run build",
     "dev": "electron-vite dev",
-    "build:unpack": "electron-vite build && electron-builder --dir",
-    "build": "rm -rf release && electron-vite build && electron-builder"
+    "pack": "rm -rf release && electron-vite build && electron-builder",
+    "build": "rm -rf release && electron-vite build"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.3",

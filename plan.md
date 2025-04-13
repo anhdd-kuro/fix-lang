@@ -122,6 +122,9 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 
 ### 🧪 Phase 7: Polish & Enhancements
 
-- [ ] Add multiple prompt modes: grammar only / tone / shorten
-- [ ] Support multi-language input
-- [ ] Auto detect language
+- [ ] Add a small loading icon near the mouse during the API call.
+- [ ] Add the ability to save up to 20 versions of the original text and the corrected text.
+- [ ] Add a copy button at the top right of the original text and the corrected text.
+- [ ] Add multiple prompt modes: grammar only, tone, shorten.
+- [ ] Support multilingual input.
+- [ ] Auto-detect language

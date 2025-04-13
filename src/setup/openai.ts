@@ -1,8 +1,11 @@
 import { OpenAI } from "openai";
+import { removeLineBreaks } from "../utils";
 
 // Default system prompt if none is provided
-const DEFAULT_SYSTEM_PROMPT =
-  "You are a helpful English editor. Correct grammar and style mistakes in the text provided by the user. Respond only with the corrected text, without any introductory phrases or explanations.";
+const DEFAULT_SYSTEM_PROMPT = removeLineBreaks(`
+You are a helpful English editor. Correct grammar and style mistakes in the text provided by the user. Respond only with the corrected text, without any introductory phrases or explanations.
+Only fix the text, do not change its structure, such as line breaks, spaces, or symbols (especially ".md" like structure).
+`);
 
 /**
  * Fixes grammar and style for the given text using OpenAI API.
@@ -37,8 +40,8 @@ export const fixGrammar = async (
 
   try {
     console.log(
-      `Sending request to OpenAI with system prompt: "${systemPrompt}"`,
-      `User Prompt: "${userPrompt}"`
+      `Sending request to OpenAI with system prompt: \n "${systemPrompt}" \n`,
+      `User Prompt: \n "${userPrompt}" \n`
     );
     const res = await openai.chat.completions.create({
       model: "gpt-4o-mini", // Or your preferred model
