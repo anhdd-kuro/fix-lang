@@ -1,0 +1,32 @@
+# Fix Lang Project Rules
+
+## System
+
+- macOS Apple Silicon
+- Electron
+
+## Technical Stack
+
+- Electron
+- TypeScript
+- React
+- OpenAI API
+- Tailwind CSS
+- Vite
+- Bun
+
+## General Rules
+
+- Always start response with `My boss! I’ve already read the rules\n`
+- Always use `plan.md` to guide your work but not follow it very strictly
+- Update `plan.md` when necessary, found new issues, better solutions or new features
+
+## Coding Rules
+
+- Use TypeScript for all code
+- Use Tailwind CSS for styling
+- Prefer `type` over `interface`
+- Follow SOLID principles, keep code simple and maintainable and easy to test
+- Use descriptive variable names
+- Prefer `const` over `function` for declarations
+- Keep each file below 200 lines of codes if possible

@@ -108,14 +108,11 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 - [x] Add Ctrl+Shift+Z to undo
 - [x] Add Ctrl+Shift+A to retry
 
-### ✅ Phase 6: Packaging and Usage
+### ⚙️ Phase 6: Packaging and Usage
 
-- [x] Packaging app as `.dmg` (using electron-builder)
-- [x] Ensure app only runs locally with user's API key (implemented in openai.ts)
-- [x] Test on macOS (hotkey + OpenAI + clipboard)
-- [x] Create build script for easy packaging
-- [x] Add proper app icon
-- [x] Configure DMG window appearance
+- [ ] Packaging app as `.dmg`
+- [ ] Ensure app only runs locally with user’s API key
+- [ ] Test on macOS (hotkey + OpenAI + clipboard)
 
 ### 🧪 Phase 7: Polish & Enhancements
 
