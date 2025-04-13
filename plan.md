@@ -6,17 +6,20 @@
 ├── fix-lang/
 │   ├── package.json
 │   ├── tsconfig.json
-│   ├── plan.md
+│   ├── electron-vite.config.ts
 │   ├── src/
-│   │   ├── main.ts                # Main process (Electron entry point)
-│   │   ├── preload.ts             # For secure communication between renderer and main
-│   │   ├── renderer/              # UI part (optional for preview or setting)
+│   │   ├── main/                # Main process (Electron entry point)
+│   │   │   ├── main.ts
+│   │   ├── preload/
+│   │   │   ├── preload.ts  # For secure communication between renderer and main
+│   │   ├── renderer/            # UI part (optional for preview or setting)
 │   │   │   ├── index.html
 │   │   │   ├── index.tsx
-│   │   └── style.css
-│   ├── setup/
-│   │   ├── openai.ts             # API call to OpenAI
-│   │   └── hotkey.ts             # Global shortcut logic
+│   │   │   └── main.css
+│   │   ├── setup/
+│   │   │   ├── openai.ts             # API call to OpenAI
+│   │   │   └── hotkey.ts             # Global shortcut logic
+
 ```
 
 ## Technical Stack

@@ -1,11 +1,7 @@
-import {
-  globalShortcut,
-  clipboard,
-  BrowserWindow,
-  Notification,
-} from "electron";
+import { globalShortcut, BrowserWindow, Notification } from "electron";
 import { fixGrammar } from "./openai";
 import { store } from "../main";
+import { getHighlightedText, pasteText } from "../utils";
 
 // State to store the last operation's text for Undo/Retry
 let lastOriginalText: string | null = null;
@@ -18,83 +14,76 @@ let lastFixedText: string | null = null;
 export const registerHotkeys = (mainWindow: BrowserWindow): void => {
   console.log("Attempting to register hotkeys...");
 
-  // Get key bindings from the store
-  const bindings = store.get("keyBindings");
-  console.log("Using Key Bindings:", bindings);
+  registerFixShortcut(mainWindow);
+  registerUndoShortcut(mainWindow);
+  registerRetryShortcut(mainWindow);
+};
 
-  // Define shortcuts using stored bindings
-  const fixShortcut = bindings.fix; // e.g., 'Control+Shift+F'
-  const undoShortcut = bindings.undo; // e.g., 'Control+Shift+Z'
-  const retryShortcut = bindings.retry; // e.g., 'Control+Shift+A'
-
-  // -- Register Fix Shortcut --
+const registerFixShortcut = (mainWindow: BrowserWindow) => {
+  const fixShortcut = store.get("keyBindings").fix;
   const retFix = globalShortcut.register(fixShortcut, async () => {
     console.log(`${fixShortcut} is pressed`);
-    const text = clipboard.readText();
 
     // Get API Key from store
-    const apiKey = store.get("apiKey");
-    if (!apiKey) {
-      console.error("OpenAI API Key not set in settings. Cannot fix grammar.");
-      // Optionally show a notification to the user
-      new Notification({
-        title: "API Key Missing",
-        body: "Please set your OpenAI API Key in the settings.",
-      }).show();
-      return; // Stop execution if no API key
-    }
-
-    if (!text || !text.trim()) {
-      console.log("Clipboard is empty or contains only whitespace.");
-      return;
-    }
-    console.log(`Original text from clipboard: ${text}`);
     try {
+      const apiKey = getOpenAIKey();
+      const selectedText = await getHighlightedText();
+
+      if (!selectedText || !selectedText.trim()) {
+        console.log("No text selected or clipboard is empty.");
+        new Notification({
+          title: "Error",
+          body: "No text selected or clipboard is empty.",
+          urgency: "critical",
+        }).show();
+        return;
+      }
+
+      console.log(`Selected text: ${selectedText}`);
       // Call fixGrammar with the API key
-      const fixed = await fixGrammar(apiKey, text);
-      clipboard.writeText(fixed);
-      console.log("✅ Text corrected and copied to clipboard!");
+      const fixed = await fixGrammar(apiKey, selectedText);
+      // const fixed = "";
 
       // Store texts for potential Undo/Retry
-      lastOriginalText = text;
+      lastOriginalText = selectedText;
       lastFixedText = fixed;
+      await pasteText(fixed);
 
       // Send the original and fixed text to the renderer process for preview
       if (mainWindow && !mainWindow.isDestroyed()) {
         console.log("Sending text update via IPC to renderer...");
-        mainWindow.webContents.send("update-text", { original: text, fixed });
+        mainWindow.webContents.send("update-text", {
+          original: selectedText,
+          fixed,
+        });
       } else {
         console.warn(
           "Cannot send IPC message: mainWindow is null or destroyed."
         );
       }
-
-      // Optional: Show notification
-      // new Notification({ title: 'FixLang', body: 'Text corrected and copied!' }).show();
     } catch (error) {
-      console.error("Error during grammar fixing or IPC send:", error);
-      // Optional: Show error notification
+      handleError(error);
     }
   });
 
-  if (!retFix) {
-    console.error(`Failed to register fix shortcut: ${fixShortcut}`);
-  } else if (!globalShortcut.isRegistered(fixShortcut)) {
-    console.error(
-      `Shortcut ${fixShortcut} registration reported success but is not registered.`
-    );
-  } else {
-    console.log(`Global shortcut ${fixShortcut} registered successfully.`);
-  }
+  checkShortcut(retFix);
+};
 
-  // -- Register Undo Shortcut --
+const checkShortcut = (shortcut: boolean) => {
+  if (!shortcut) {
+    console.error(`Shortcut ${shortcut} is not set in settings.`);
+    handleError(new Error(`Shortcut ${shortcut} is not set in settings.`));
+    return false;
+  }
+  console.log(`Global shortcut ${shortcut} registered successfully.`);
+  return true;
+};
+
+const registerUndoShortcut = (mainWindow: BrowserWindow) => {
+  const undoShortcut = store.get("keyBindings").undo; // e.g., 'Control+Shift+Z'
   const retUndo = globalShortcut.register(undoShortcut, () => {
     console.log(`${undoShortcut} (Undo) is pressed`);
     if (lastOriginalText !== null) {
-      console.log("Restoring original text to clipboard...");
-      clipboard.writeText(lastOriginalText);
-      console.log("✅ Original text restored to clipboard.");
-
       // Update UI to show original text in both panes (or clear fixed pane)
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("update-text", {
@@ -102,43 +91,28 @@ export const registerHotkeys = (mainWindow: BrowserWindow): void => {
           fixed: "",
         }); // Clear fixed text on undo
       }
-
-      // Clear last state after undoing to prevent multiple undos without new operation
-      // lastOriginalText = null; // Optional: Uncomment to allow only one undo
-      // lastFixedText = null;
+      lastFixedText = null;
     } else {
       console.log("Nothing to undo.");
     }
   });
 
-  if (!retUndo) {
-    console.error(`Failed to register undo shortcut: ${undoShortcut}`);
-  } else {
-    console.log(`Global shortcut ${undoShortcut} registered successfully.`);
-  }
+  checkShortcut(retUndo);
+};
 
-  // -- Register Retry Shortcut --
+const registerRetryShortcut = (mainWindow: BrowserWindow) => {
+  const retryShortcut = store.get("keyBindings").retry; // e.g., 'Control+Shift+A'
   const retRetry = globalShortcut.register(retryShortcut, async () => {
     console.log(`${retryShortcut} (Retry) is pressed`);
     if (lastOriginalText !== null) {
       console.log("Retrying last correction...");
 
       // Get API Key from store
-      const apiKey = store.get("apiKey");
-      if (!apiKey) {
-        console.error("OpenAI API Key not set in settings. Cannot retry.");
-        new Notification({
-          title: "API Key Missing",
-          body: "Cannot retry. Please set your OpenAI API Key in the settings.",
-        }).show();
-        return; // Stop execution if no API key
-      }
 
       try {
+        const apiKey = getOpenAIKey();
         // Call fixGrammar with the API key and last original text
         const newFixed = await fixGrammar(apiKey, lastOriginalText);
-        clipboard.writeText(newFixed);
-        console.log("✅ Text re-corrected and copied to clipboard!");
 
         // Update lastFixedText with the new result
         lastFixedText = newFixed;
@@ -151,22 +125,32 @@ export const registerHotkeys = (mainWindow: BrowserWindow): void => {
           });
         }
       } catch (error) {
-        console.error("Error during retry correction:", error);
+        handleError(error);
       }
     } else {
       console.log("No previous correction to retry.");
     }
   });
 
-  if (!retRetry) {
-    console.error(`Failed to register retry shortcut: ${retryShortcut}`);
-  } else {
-    console.log(`Global shortcut ${retryShortcut} registered successfully.`);
-  }
+  checkShortcut(retRetry);
+};
 
-  console.log(
-    `Hotkeys registered: Fix (${fixShortcut}), Undo (${undoShortcut}), Retry (${retryShortcut})`
-  );
+const handleError = (error: any) => {
+  console.error("Error during grammar fixing or IPC send:", error);
+  // Optional: Show error notification
+  new Notification({
+    title: "Error",
+    body: "Failed to correct text. Please try again.",
+    urgency: "critical",
+  }).show();
+};
+
+const getOpenAIKey = () => {
+  const apiKey = store.get("apiKey");
+  if (!apiKey) {
+    throw new Error("OpenAI API Key not set in settings.");
+  }
+  return apiKey;
 };
 
 /**

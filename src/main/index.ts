@@ -2,6 +2,10 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import path from "node:path";
 import Store from "electron-store";
 import { registerHotkeys, unregisterHotkeys } from "../setup/hotkey";
+import {
+  isMacOSAccessibilityGranted,
+  promptAccessibilityPermission,
+} from "../utils";
 
 // Define the type for the store schema
 type KeyBindings = {
@@ -98,6 +102,15 @@ const createWindow = () => {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   const mainWindow = createWindow(); // Get the main window instance
+  app.setAccessibilitySupportEnabled(true);
+  if (process.platform === "darwin") {
+    if (!isMacOSAccessibilityGranted()) {
+      console.warn("Accessibility permission not granted.");
+      promptAccessibilityPermission();
+      // return;
+    }
+  }
+
   registerHotkeys(mainWindow); // Register global shortcuts, passing the window
 
   app.on("activate", () => {

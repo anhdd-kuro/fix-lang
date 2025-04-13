@@ -41,7 +41,7 @@ export const fixGrammar = async (
       `User Prompt: "${userPrompt}"`
     );
     const res = await openai.chat.completions.create({
-      model: "gpt-4o", // Or your preferred model
+      model: "gpt-4o-mini", // Or your preferred model
       messages: [
         { role: "system", content: systemPrompt }, // Use the provided or default system prompt
         { role: "user", content: userPrompt },
