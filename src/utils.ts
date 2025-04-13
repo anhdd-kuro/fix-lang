@@ -44,6 +44,31 @@ export const promptAccessibilityPermission = () => {
 export const wait = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
+export const waitForClipboardChange = async ({
+  timeout = 3 * 1000,
+  oldValue = clipboard.readText(),
+}: {
+  timeout?: number;
+  oldValue?: string;
+} = {}): Promise<string> => {
+  const start = Date.now();
+  console.log("Waiting for clipboard change!");
+  console.log("Old value:", oldValue);
+  while (Date.now() - start < timeout) {
+    const newValue = clipboard.readText();
+    if (newValue !== oldValue) {
+      console.log(`Total time taken: ${Date.now() - start}ms`);
+      return newValue;
+    }
+    await wait(50);
+  }
+
+  console.log(
+    `No clipboard changes detected. Total time taken: ${Date.now() - start}ms`
+  );
+  return oldValue;
+};
+
 export const getHighlightedText = async (): Promise<string> => {
   let text = "";
 
@@ -57,15 +82,14 @@ export const getHighlightedText = async (): Promise<string> => {
 
 const copyHighlightedText = async () => {
   const platform = process.platform;
-
   try {
     if (platform === "darwin") {
       execSync(
         `osascript -e '
+          delay 0.3 -- wait for previous action to complete
           tell application "System Events" -- get process name of frontmost app
-            keystroke "c" using {command down} -- simulate Cmd+C
+            keystroke "c" using command down -- simulate Cmd+C
           end tell
-          delay 0.4
         '`
       );
     } else if (platform === "win32") {
@@ -75,16 +99,12 @@ const copyHighlightedText = async () => {
     } else {
       execSync(`xdotool key ctrl+c`);
     }
-
-    const newText = clipboard.readText();
-    console.log("📋 New clipboard text:", newText);
-
-    return newText;
+    return await waitForClipboardChange();
   } catch (err) {
     console.error("❌ Error getting selected text:", err);
     new Notification({
       title: "Error",
-      body: "Failed to get selected text. Please try again.",
+      body: "Failed to get the selected text. Please try again.",
       urgency: "critical",
     }).show();
     return "";
