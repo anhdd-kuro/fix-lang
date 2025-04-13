@@ -3,8 +3,8 @@ import { removeLineBreaks } from "../utils";
 
 // Default system prompt if none is provided
 const DEFAULT_SYSTEM_PROMPT = removeLineBreaks(`
-You are a helpful English editor. Correct grammar and style mistakes in the text provided by the user. Respond only with the corrected text, without any introductory phrases or explanations.
-Only fix the text, do not change its structure, such as line breaks, spaces, or symbols (especially ".md" like structure).
+You are an English editor. Correct grammar and style. Reply with the fixed text only, no explanations.
+Keep the original structure (line breaks, spaces, symbols, including ".md" structure).
 `);
 
 /**
@@ -50,7 +50,7 @@ export const fixGrammar = async (
         { role: "user", content: userPrompt },
       ],
       temperature: 0.2, // Lower temperature for more deterministic corrections
-      max_tokens: 1000, // Adjust as needed based on expected text length
+      max_completion_tokens: 1000, // Adjust as needed based on expected text length
       n: 1, // We only need one correction
       stop: null, // Let the model decide when to stop
     });
