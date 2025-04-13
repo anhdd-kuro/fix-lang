@@ -86,7 +86,7 @@ const copyHighlightedText = async () => {
     if (platform === "darwin") {
       execSync(
         `osascript -e '
-          delay 0.3 -- wait for previous action to complete
+          delay 0.35 -- wait for previous action to complete
           tell application "System Events" -- get process name of frontmost app
             keystroke "c" using command down -- simulate Cmd+C
           end tell
