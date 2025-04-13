@@ -1,5 +1,6 @@
 import { defineConfig } from "electron-vite";
-import path from "path";
+import path, { resolve } from "path";
+import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   main: {
@@ -8,36 +9,33 @@ export default defineConfig({
       rollupOptions: {
         external: ["electron"],
         input: {
-          main: path.resolve(__dirname, "src/main.ts")
-        }
-      }
-    }
+          index: resolve(__dirname, "src/main/index.ts"),
+        },
+      },
+    },
   },
   preload: {
     build: {
       outDir: "out/preload",
       rollupOptions: {
         input: {
-          preload: path.resolve(__dirname, "src/preload.ts")
-        }
-      }
-    }
+          index: resolve(__dirname, "src/preload/index.ts"),
+        },
+      },
+    },
   },
   renderer: {
-    root: path.resolve(__dirname),
+    root: "src/renderer",
+    plugins: [tailwindcss()],
     build: {
       outDir: "out/renderer",
       assetsDir: ".", // Place assets in the root of outDir
-      rollupOptions: {
-        input: {
-          index: path.resolve(__dirname, "index.html")
-        }
-      }
+      rollupOptions: {},
     },
     resolve: {
       alias: {
-        "@": path.resolve(__dirname, "src/renderer")
-      }
-    }
-  }
+        "@": path.resolve(__dirname, "src/renderer"),
+      },
+    },
+  },
 });

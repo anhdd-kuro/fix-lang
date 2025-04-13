@@ -1,4 +1,4 @@
-# 📌 Project Plan: Fixkey Clone (Local macOS App with OpenAI)
+# 📌 Project Plan: FixLang (Local macOS App with OpenAI)
 
 ## 📁 Project Structure
 

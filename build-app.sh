@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Build and package the Fixkey Clone app
+# Build and package the FixLang app
 # This script automates the build and packaging process
 
-echo "🚀 Starting Fixkey Clone build process..."
+echo "🚀 Starting FixLang build process..."
 
 # Check if Node.js is installed
 if ! command -v node &> /dev/null; then
@@ -31,7 +31,7 @@ npm run build:dist
 if [ $? -eq 0 ]; then
     echo "✅ Build successful!"
     echo "📦 Packaged application is available in the release directory."
-    
+
     # Open the release directory
     open release
 else

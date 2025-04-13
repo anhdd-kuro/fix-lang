@@ -9,6 +9,9 @@ type TextUpdatePayload = {
   fixed: string;
 };
 
+// Log that preload script is being executed
+console.log('Preload script is being executed');
+
 // Expose a controlled API to the renderer process
 contextBridge.exposeInMainWorld('electronAPI', {
   /**
@@ -71,4 +74,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // setSettings: (settings) => ipcRenderer.invoke('set-settings', settings),
 });
 
-console.log('Preload script executed and electronAPI exposed.');
+console.log('Preload script executed and electronAPI exposed with the following methods:');
+console.log('- onUpdateText');
+console.log('- getApiKey');
+console.log('- setApiKey');
+console.log('- getKeyBindings');
+console.log('- setKeyBindings');

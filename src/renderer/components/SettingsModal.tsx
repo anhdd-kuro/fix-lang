@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
+import { KeyBinding } from "./KeyBinding";
 
 type SettingsModalProps = {
   isOpen: boolean;
@@ -17,37 +18,63 @@ type KeyBindings = {
  */
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   // State for the API Key input field
-  const [apiKeyInput, setApiKeyInput] = useState<string>('');
+  const [apiKeyInput, setApiKeyInput] = useState<string>("");
   const [keyBindings, setKeyBindings] = useState<KeyBindings | null>(null);
-  const [keyBindingsStatus, setKeyBindingsStatus] = useState<string>('');
-  const [saveStatus, setSaveStatus] = useState<string>(''); // For feedback
+  const [keyBindingsStatus, setKeyBindingsStatus] = useState<string>("");
+  const [saveStatus, setSaveStatus] = useState<string>(""); // For feedback
+
+  // Check if electronAPI is available
+  useEffect(() => {
+    // Check if electronAPI is available in the window object
+    if (!window.electronAPI) {
+      console.error("electronAPI is not available in window object");
+      setSaveStatus("Error: API not available. App may need to be restarted.");
+    } else {
+      console.log(
+        "electronAPI is available with methods:",
+        Object.keys(window.electronAPI)
+      );
+
+      // Check if specific methods exist
+      if (!window.electronAPI.getApiKey) {
+        console.error("getApiKey method is missing from electronAPI");
+      }
+      if (!window.electronAPI.setApiKey) {
+        console.error("setApiKey method is missing from electronAPI");
+      }
+    }
+  }, []);
 
   // Fetch API Key and Key Bindings when modal opens
   useEffect(() => {
     if (isOpen) {
-      setSaveStatus(''); // Clear status on open
-      setKeyBindingsStatus(''); // Clear key binding status
-      console.log('SettingsModal: Fetching API key and Key Bindings...');
+      setSaveStatus(""); // Clear status on open
+      setKeyBindingsStatus(""); // Clear key binding status
+      console.log("SettingsModal: Fetching API key and Key Bindings...");
 
       // Fetch API Key
-      window.electronAPI?.getApiKey()
-        .then(key => {
-          console.log(`SettingsModal: Received key (length: ${key?.length ?? 0})`);
-          setApiKeyInput(key || ''); // Set input value, default to empty string
+      window.electronAPI
+        ?.getApiKey()
+        .then((key) => {
+          console.log(
+            `SettingsModal: Received key (length: ${key?.length ?? 0})`
+          );
+          setApiKeyInput(key || ""); // Set input value, default to empty string
         })
-        .catch(error => {
-          console.error('SettingsModal: Error fetching API key:', error);
-          setSaveStatus('Error fetching key');
+        .catch((error) => {
+          console.error("SettingsModal: Error fetching API key:", error);
+          setSaveStatus("Error fetching key");
         });
 
       // Fetch Key Bindings
-      window.electronAPI?.getKeyBindings()
-        .then(bindings => {
-          console.log('SettingsModal: Received key bindings:', bindings);
+      window.electronAPI
+        ?.getKeyBindings()
+        .then((bindings) => {
+          console.log("SettingsModal: Received key bindings:", bindings);
           setKeyBindings(bindings);
         })
-        .catch(error => {
-          console.error('SettingsModal: Error fetching key bindings:', error);
+        .catch((error) => {
+          console.error("SettingsModal: Error fetching key bindings:", error);
           // Handle error appropriately, maybe show a message
         });
     }
@@ -56,69 +83,101 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   // Handle changes to the input field
   const handleApiKeyChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setApiKeyInput(event.target.value);
-    setSaveStatus(''); // Clear status on change
+    setSaveStatus(""); // Clear status on change
   };
 
   // Handle saving the API Key when the input loses focus
   const handleApiKeyBlur = async () => {
     if (!window.electronAPI?.setApiKey) {
-      console.error('setApiKey function not available on electronAPI');
-      setSaveStatus('Error: Cannot save key');
+      console.error("setApiKey function not available on electronAPI");
+      setSaveStatus("Error: Cannot save key");
       return;
     }
-    // Only save if the input has a value (or allow clearing)
-    console.log(`SettingsModal: Attempting to save API key (length: ${apiKeyInput.length})`);
-    setSaveStatus('Saving...');
+
+    // Basic validation
+    if (
+      apiKeyInput &&
+      !apiKeyInput.startsWith("sk-") &&
+      apiKeyInput.length > 0
+    ) {
+      console.warn("API key doesn't start with 'sk-', might not be valid");
+      // We'll still try to save it, but warn the user
+      setSaveStatus("Warning: Key format may be invalid, but saving anyway...");
+    } else {
+      setSaveStatus("Saving...");
+    }
+
+    console.log(
+      `SettingsModal: Attempting to save API key (length: ${apiKeyInput.length})`
+    );
+
     try {
+      // Add a small delay to ensure UI updates before the potentially blocking IPC call
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       const result = await window.electronAPI.setApiKey(apiKeyInput);
+
       if (result.success) {
-        console.log('SettingsModal: API Key saved successfully.');
-        setSaveStatus('Saved!');
+        console.log("SettingsModal: API Key saved successfully.");
+        setSaveStatus("Saved!");
+
+        // Verify the key was saved by retrieving it again
+        const verifiedKey = await window.electronAPI.getApiKey();
+        if (verifiedKey !== apiKeyInput) {
+          console.error("SettingsModal: API Key verification failed");
+          setSaveStatus("Warning: Key saved but verification failed");
+        }
       } else {
-        console.error('SettingsModal: Failed to save API Key:', result.error);
-        setSaveStatus(`Error: ${result.error || 'Unknown error'}`);
+        console.error("SettingsModal: Failed to save API Key:", result.error);
+        setSaveStatus(`Error: ${result.error || "Unknown error"}`);
       }
     } catch (error) {
-      console.error('SettingsModal: Error calling setApiKey:', error);
-      setSaveStatus('Error saving key');
+      console.error("SettingsModal: Error calling setApiKey:", error);
+      setSaveStatus("Error saving key");
     }
   };
 
   // Handle changes to key binding inputs
-  const handleKeyBindingChange = (event: React.ChangeEvent<HTMLInputElement>, action: keyof KeyBindings) => {
+  const handleKeyBindingChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+    action: keyof KeyBindings
+  ) => {
     const newValue = event.target.value;
-    setKeyBindings(prev => (prev ? { ...prev, [action]: newValue } : null));
-    setKeyBindingsStatus(''); // Clear status on change
+    setKeyBindings((prev) => (prev ? { ...prev, [action]: newValue } : null));
+    setKeyBindingsStatus(""); // Clear status on change
   };
 
   // Handle saving key bindings when an input loses focus
   const handleKeyBindingBlur = async () => {
     if (!keyBindings) {
-      console.error('Cannot save null key bindings');
-      setKeyBindingsStatus('Error: No bindings loaded');
+      console.error("Cannot save null key bindings");
+      setKeyBindingsStatus("Error: No bindings loaded");
       return;
     }
     if (!window.electronAPI?.setKeyBindings) {
-      console.error('setKeyBindings function not available on electronAPI');
-      setKeyBindingsStatus('Error: Cannot save bindings');
+      console.error("setKeyBindings function not available on electronAPI");
+      setKeyBindingsStatus("Error: Cannot save bindings");
       return;
     }
-    
+
     // TODO: Add validation for Electron Accelerator format before saving
-    console.log('SettingsModal: Attempting to save key bindings:', keyBindings);
-    setKeyBindingsStatus('Saving...');
+    console.log("SettingsModal: Attempting to save key bindings:", keyBindings);
+    setKeyBindingsStatus("Saving...");
     try {
       const result = await window.electronAPI.setKeyBindings(keyBindings);
       if (result.success) {
-        console.log('SettingsModal: Key bindings saved successfully.');
-        setKeyBindingsStatus('Saved! Restart required.');
+        console.log("SettingsModal: Key bindings saved successfully.");
+        setKeyBindingsStatus("Saved! Restart required.");
       } else {
-        console.error('SettingsModal: Failed to save key bindings:', result.error);
-        setKeyBindingsStatus(`Error: ${result.error || 'Unknown error'}`);
+        console.error(
+          "SettingsModal: Failed to save key bindings:",
+          result.error
+        );
+        setKeyBindingsStatus(`Error: ${result.error || "Unknown error"}`);
       }
     } catch (error) {
-      console.error('SettingsModal: Error calling setKeyBindings:', error);
-      setKeyBindingsStatus('Error saving bindings');
+      console.error("SettingsModal: Error calling setKeyBindings:", error);
+      setKeyBindingsStatus("Error saving bindings");
     }
   };
 
@@ -146,7 +205,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         {/* Settings Content Goes Here */}
         <div className="space-y-4">
           <div>
-            <label htmlFor="apiKey" className="block text-sm font-medium text-gray-300 mb-1">
+            <label
+              htmlFor="apiKey"
+              className="block text-sm font-medium text-gray-300 mb-1"
+            >
               OpenAI API Key
             </label>
             <input
@@ -159,78 +221,65 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
               onBlur={handleApiKeyBlur} // Save on blur
             />
             <p className="text-xs text-gray-500 mt-1">
-              Stored securely. Used for OpenAI requests. <span className="text-blue-400 font-medium">{saveStatus}</span>
+              Stored securely. Used for OpenAI requests.
+              <span className="text-blue-400 font-medium">{saveStatus}</span>
             </p>
           </div>
 
-          <div>
-            <h3 className="text-lg font-medium text-gray-300 mb-2">Key Bindings</h3>
-            <p className="text-sm text-gray-400">
-              Fix: <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl</kbd> + <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Shift</kbd> + <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">F</kbd>
-            </p>
-            <p className="text-sm text-gray-400">
-              Undo: <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl</kbd> + <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Shift</kbd> + <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Z</kbd>
-            </p>
-            <p className="text-sm text-gray-400">
-              Retry: <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl</kbd> + <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Shift</kbd> + <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">A</kbd>
-            </p>
+          <section className="flex flex-col gap-2">
+            <h3 className="text-lg font-medium text-gray-300 mb-2">
+              Key Bindings
+            </h3>
+            <KeyBinding
+              label="Fix"
+              keysBinding={["Control", "Shift", "F"]}
+              onChange={(keysBinding) => {
+                const newKeyBindings = keysBinding.join("+");
+                setKeyBindings((prev) =>
+                  prev
+                    ? { ...prev, fix: newKeyBindings }
+                    : { fix: newKeyBindings, undo: "", retry: "" }
+                );
+                setKeyBindingsStatus(""); // Clear status on change
+              }}
+            />
+            <KeyBinding
+              label="Undo"
+              keysBinding={["Control", "Shift", "Z"]}
+              onChange={(keysBinding) => {
+                const newKeyBindings = keysBinding.join("+");
+                setKeyBindings((prev) =>
+                  prev
+                    ? { ...prev, undo: newKeyBindings }
+                    : { undo: newKeyBindings, fix: "", retry: "" }
+                );
+                setKeyBindingsStatus(""); // Clear status on change
+              }}
+            />
+            <KeyBinding
+              label="Retry"
+              keysBinding={["Control", "Shift", "A"]}
+              onChange={(keysBinding) => {
+                const newKeyBindings = keysBinding.join("+");
+                setKeyBindings((prev) =>
+                  prev
+                    ? { ...prev, retry: newKeyBindings }
+                    : { retry: newKeyBindings, fix: "", undo: "" }
+                );
+                setKeyBindingsStatus(""); // Clear status on change
+              }}
+            />
             {/* TODO: Add functionality to change key bindings */}
-          </div>
+          </section>
 
           <div>
-            <h3 className="text-lg font-medium text-gray-300 mb-2">Custom Prompts</h3>
-            <p className="text-sm text-gray-400">Manage and select different system prompts for OpenAI.</p>
-            {/* TODO: Add prompt management UI */}
-          </div>
-
-          {/* --- Key Bindings --- */}
-          <div>
-            <h4 className="text-lg font-semibold text-gray-100 mb-3">Key Bindings</h4>
-            {keyBindings ? (
-              <>
-                <div className="mb-3">
-                  <label htmlFor="fixBinding" className="block text-sm font-medium text-gray-300 mb-1">Fix Grammar</label>
-                  <input
-                    type="text"
-                    id="fixBinding"
-                    value={keyBindings.fix}
-                    onChange={(e) => handleKeyBindingChange(e, 'fix')}
-                    onBlur={handleKeyBindingBlur}
-                    className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
-                    placeholder="Control+Shift+F"
-                  />
-                </div>
-                <div className="mb-3">
-                  <label htmlFor="undoBinding" className="block text-sm font-medium text-gray-300 mb-1">Undo Last Fix</label>
-                  <input
-                    type="text"
-                    id="undoBinding"
-                    value={keyBindings.undo}
-                    onChange={(e) => handleKeyBindingChange(e, 'undo')}
-                    onBlur={handleKeyBindingBlur}
-                    className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
-                    placeholder="Control+Shift+Z"
-                  />
-                </div>
-                <div className="mb-3">
-                  <label htmlFor="retryBinding" className="block text-sm font-medium text-gray-300 mb-1">Retry Last Fix</label>
-                  <input
-                    type="text"
-                    id="retryBinding"
-                    value={keyBindings.retry}
-                    onChange={(e) => handleKeyBindingChange(e, 'retry')}
-                    onBlur={handleKeyBindingBlur}
-                    className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
-                    placeholder="Control+Shift+A"
-                  />
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-gray-500">Loading bindings...</p>
-            )}
-            <p className="text-xs text-gray-500 mt-1">
-              Changes require an app restart. <span className="text-blue-400 font-medium">{keyBindingsStatus}</span>
+            <h3 className="text-lg font-medium text-gray-300 mb-2">
+              Custom Prompts
+            </h3>
+            <p className="text-sm text-gray-400">
+              Manage and select different system prompts for OpenAI.
             </p>
+            {/* TODO: Add prompt management UI */}
           </div>
 
           <div className="mt-6 flex justify-end">

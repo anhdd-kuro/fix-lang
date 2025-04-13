@@ -1,4 +1,4 @@
-# Fixkey Clone
+# FixLang
 
 A local macOS app that uses OpenAI to fix grammar and improve writing style. This app runs entirely on your local machine and uses your own OpenAI API key.
 
@@ -17,7 +17,7 @@ A local macOS app that uses OpenAI to fix grammar and improve writing style. Thi
 
 1. Download the latest `.dmg` file from the releases page
 2. Open the `.dmg` file
-3. Drag the Fixkey Clone app to your Applications folder
+3. Drag the FixLang app to your Applications folder
 4. Open the app and enter your OpenAI API key in the settings
 
 ### Building from Source
