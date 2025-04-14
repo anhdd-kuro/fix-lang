@@ -23,7 +23,7 @@ export const KeyBinding = ({
       {/* TODO: Add functionality to change key bindings */}
       <button
         type="button"
-        className="ml-auto px-2 py-1.5 text-xs font-semibold text-gray-800 bg-blue-500 text-white rounded-lg"
+        className="ml-auto px-2 py-1.5 text-xs font-semibold bg-blue-500 text-white rounded-lg"
         onClick={() => onChange([])}
       >
         Change

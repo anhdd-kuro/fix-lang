@@ -1,6 +1,6 @@
 export const makeDefaultSystemPrompt = (languages?: string) => {
   const generalRules = `
-    Preserve original formatting (line breaks, spaces, symbols, markdown, code blocks, etc).
+    Preserve original formatting (line breaks, spaces, symbols, markdown, code blocks, etc). Do not add extra spaces.
     Respond with the corrected text only, no explanations.
   `;
 
@@ -24,8 +24,8 @@ export const makeDefaultSystemPrompt = (languages?: string) => {
 };
 
 export const DEFAULT_IMPROVE_PROMPT = `
-Improve grammar, style, and clarity while keeping the meaning. Make it more natural and concise.
-Complete or clarify only when confident of context.
+Try to improve the input based on the context while preserving its meaning. Make it more natural and concise..
+But don't overdo it, don't add new ideas or context.
 `;
 
 export const DEFAULT_SHORTEN_PROMPT = `

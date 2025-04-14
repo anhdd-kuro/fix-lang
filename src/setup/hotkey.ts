@@ -47,6 +47,13 @@ const registerFixShortcut = (mainWindow: BrowserWindow) => {
       // Store texts for potential Undo/Retry
       lastOriginalText = selectedText;
       lastFixedText = fixed;
+      if (fixed === selectedText) {
+        new Notification({
+          title: "Good job!",
+          body: "Your text is already correct. No changes have been made.",
+        }).show();
+      }
+
       await pasteText(fixed);
 
       // Send the original and fixed text to the renderer process for preview
