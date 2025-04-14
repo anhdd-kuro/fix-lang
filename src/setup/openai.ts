@@ -1,5 +1,5 @@
 import { OpenAI } from "openai";
-import { DEFAULT_IMPROVE_PROMPT, DEFAULT_SYSTEM_PROMPT } from "~/prompts";
+import { DEFAULT_IMPROVE_PROMPT, makeDefaultSystemPrompt } from "~/prompts";
 import { removeExtraSpacesKeepLines } from "~/utils";
 
 /**
@@ -13,8 +13,8 @@ export const fixGrammar = async (
   apiKey: string,
   text: string,
   systemPrompt: string = `
-    ${DEFAULT_SYSTEM_PROMPT}
-    ${DEFAULT_IMPROVE_PROMPT}
+  ${makeDefaultSystemPrompt()}
+  ${DEFAULT_IMPROVE_PROMPT}
   `
 ): Promise<string> => {
   // Check if API key is provided
