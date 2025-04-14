@@ -162,10 +162,9 @@ export const pasteText = async (text: string): Promise<void> => {
   });
 };
 
-export const removeLineBreaks = (text: string): string => {
-  return text.replace(/\n/g, "");
-};
-
-export const removeExtraSpaces = (text: string): string => {
-  return text.replace(/\s+/g, " ").trim();
+export const removeExtraSpacesKeepLines = (text: string): string => {
+  return text
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .join("\n");
 };

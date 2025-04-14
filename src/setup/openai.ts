@@ -1,6 +1,6 @@
 import { OpenAI } from "openai";
 import { DEFAULT_IMPROVE_PROMPT, DEFAULT_SYSTEM_PROMPT } from "~/prompts";
-import { removeExtraSpaces, removeLineBreaks } from "~/utils";
+import { removeExtraSpacesKeepLines } from "~/utils";
 
 /**
  * Fixes grammar and style for the given text using OpenAI API.
@@ -46,7 +46,7 @@ export const fixGrammar = async (
       messages: [
         {
           role: "system",
-          content: removeExtraSpaces(removeLineBreaks(systemPrompt)),
+          content: removeExtraSpacesKeepLines(systemPrompt),
         }, // Use the provided or default system prompt
         { role: "user", content: userPrompt },
       ],
