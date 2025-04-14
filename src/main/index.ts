@@ -124,8 +124,8 @@ app.whenReady().then(() => {
 
 // Quit when all windows are closed, except on macOS.
 app.on("window-all-closed", () => {
-  unregisterHotkeys(); // Unregister shortcuts when closing
   if (process.platform !== "darwin") {
+    unregisterHotkeys(); // Unregister shortcuts when closing
     app.quit();
   }
 });
