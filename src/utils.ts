@@ -162,9 +162,38 @@ export const pasteText = async (text: string): Promise<void> => {
   });
 };
 
-export const removeExtraSpacesKeepLines = (text: string): string => {
-  return text
-    .split("\n")
-    .map((line) => line.replace(/\s+/g, " ").trim())
-    .join("\n");
-};
+export class StringPrettifier extends String {
+  value: string;
+  constructor(text: string) {
+    super(text);
+    this.value = text;
+  }
+
+  removeExtraSpaces(): StringPrettifier {
+    const cleaned = this.value
+      .split("\n")
+      .map((line) => line.replace(/\s+/g, " ").trim())
+      .join("\n");
+
+    return new StringPrettifier(cleaned);
+  }
+
+  removeEmptyLines(): StringPrettifier {
+    const newValue = this.value;
+    const linesSplitted = newValue.split("\n");
+    const emptyLinesRemoved = linesSplitted.reduce<string[]>((acc, line) => {
+      const isEmpty = `${line}`.trim() === "";
+
+      if (isEmpty) {
+        if (acc.length === 0 || acc[acc.length - 1] !== "") {
+          acc.push("");
+        }
+      } else {
+        acc.push(line);
+      }
+      return acc;
+    }, []);
+
+    return new StringPrettifier(emptyLinesRemoved.join("\n"));
+  }
+}

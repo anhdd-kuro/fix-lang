@@ -1,6 +1,6 @@
 import { OpenAI } from "openai";
 import { DEFAULT_IMPROVE_PROMPT, makeDefaultSystemPrompt } from "~/prompts";
-import { removeExtraSpacesKeepLines } from "~/utils";
+import { StringPrettifier } from "~/utils";
 import LanguageDetect from "languagedetect";
 
 const lngDetector = new LanguageDetect();
@@ -32,14 +32,21 @@ export const fixGrammar = async (
 
   // Detect language
   const languages = lngDetector.detect(text);
+  console.log(`🚀 \n - languages:`, languages);
   const mostConfidentLanguages = languages.flatMap(([lang, confidence]) =>
-    confidence >= 0.3 ? lang : []
+    confidence >= 0.5 ? lang : []
   );
   const promptLang =
     mostConfidentLanguages.length > 0
       ? [...new Set(["english", ...mostConfidentLanguages])].join(", ")
       : "";
-  const systemPrompt = makeDefaultSystemPrompt(promptLang);
+
+  const systemPrompt = new StringPrettifier(`
+    ${makeDefaultSystemPrompt(promptLang)}
+    ${DEFAULT_IMPROVE_PROMPT}
+  `)
+    .removeExtraSpaces()
+    .removeEmptyLines().value;
 
   // Construct the user prompt - asking to fix the provided text
   const userPrompt = `Fix the following text:
@@ -56,7 +63,7 @@ export const fixGrammar = async (
       messages: [
         {
           role: "system",
-          content: removeExtraSpacesKeepLines(systemPrompt),
+          content: systemPrompt,
         }, // Use the provided or default system prompt
         { role: "user", content: userPrompt },
       ],

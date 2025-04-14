@@ -12,7 +12,7 @@
     "start": "electron-vite preview",
     "predev": "bun run build",
     "dev": "electron-vite dev",
-    "pack": "rm -rf release && electron-vite build && electron-builder",
+    "pack": "rm -rf release && electron-vite build && electron-builder --mac",
     "build": "rm -rf release && electron-vite build"
   },
   "devDependencies": {
@@ -58,9 +58,9 @@
         "zip"
       ],
       "category": "public.app-category.productivity",
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "darkModeSupport": true
+      "darkModeSupport": true,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": true
     },
     "dmg": {
       "contents": [
