@@ -1,11 +1,6 @@
 import { OpenAI } from "openai";
-import { removeLineBreaks } from "../utils";
-
-// Default system prompt if none is provided
-const DEFAULT_SYSTEM_PROMPT = removeLineBreaks(`
-You are an English editor. Correct grammar and style. Reply with the fixed text only, no explanations.
-Keep the original structure (line breaks, spaces, symbols, including ".md" structure).
-`);
+import { DEFAULT_IMPROVE_PROMPT, DEFAULT_SYSTEM_PROMPT } from "~/prompts";
+import { removeExtraSpaces, removeLineBreaks } from "~/utils";
 
 /**
  * Fixes grammar and style for the given text using OpenAI API.
@@ -17,7 +12,10 @@ Keep the original structure (line breaks, spaces, symbols, including ".md" struc
 export const fixGrammar = async (
   apiKey: string,
   text: string,
-  systemPrompt: string = DEFAULT_SYSTEM_PROMPT
+  systemPrompt: string = `
+    ${DEFAULT_SYSTEM_PROMPT}
+    ${DEFAULT_IMPROVE_PROMPT}
+  `
 ): Promise<string> => {
   // Check if API key is provided
   if (!apiKey) {
@@ -46,7 +44,10 @@ export const fixGrammar = async (
     const res = await openai.chat.completions.create({
       model: "gpt-4o-mini", // Or your preferred model
       messages: [
-        { role: "system", content: systemPrompt }, // Use the provided or default system prompt
+        {
+          role: "system",
+          content: removeExtraSpaces(removeLineBreaks(systemPrompt)),
+        }, // Use the provided or default system prompt
         { role: "user", content: userPrompt },
       ],
       temperature: 0.2, // Lower temperature for more deterministic corrections

@@ -167,5 +167,5 @@ export const removeLineBreaks = (text: string): string => {
 };
 
 export const removeExtraSpaces = (text: string): string => {
-  return text.replace(/\s+/g, " ");
+  return text.replace(/\s+/g, " ").trim();
 };

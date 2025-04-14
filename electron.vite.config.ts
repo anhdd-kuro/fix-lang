@@ -1,9 +1,11 @@
 import { defineConfig } from "electron-vite";
 import path, { resolve } from "path";
 import tailwindcss from "@tailwindcss/vite";
+import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
   main: {
+    plugins: [tsconfigPaths()],
     build: {
       outDir: "out/main",
       rollupOptions: {
@@ -15,6 +17,7 @@ export default defineConfig({
     },
   },
   preload: {
+    plugins: [tsconfigPaths()],
     build: {
       outDir: "out/preload",
       rollupOptions: {
@@ -26,7 +29,7 @@ export default defineConfig({
   },
   renderer: {
     root: "src/renderer",
-    plugins: [tailwindcss()],
+    plugins: [tailwindcss(), tsconfigPaths()],
     build: {
       outDir: "out/renderer",
       assetsDir: ".", // Place assets in the root of outDir

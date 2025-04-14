@@ -151,7 +151,7 @@ ipcMain.handle("get-api-key", async () => {
 });
 
 // Handle request to set the API key
-ipcMain.handle("set-api-key", async (event, apiKey: string) => {
+ipcMain.handle("set-api-key", async (_event, apiKey: string) => {
   try {
     if (typeof apiKey !== "string") {
       throw new Error("Invalid API key provided. Must be a string.");
