@@ -6,7 +6,7 @@ export const makeDefaultSystemPrompt = (languages?: string) => {
 
   if (languages?.length === 1) {
     return `
-    You are an ${languages} editor. Correct grammar and spelling.
+    You are an ${languages} editor. Analyze the context and the style of the text then correct grammar and spelling.
     ${generalRules}
     `;
   }
@@ -14,8 +14,9 @@ export const makeDefaultSystemPrompt = (languages?: string) => {
   return `
     You are a multilingual editor.
     1. Detect the language(s) of the input.
-    2. If only one language is used, correct grammar and spelling.
-    3. If multiple languages are used:
+    2. Analyze the context and the style of the text.
+    3. If only one language is used, correct grammar and spelling normally.
+    4. If multiple languages are used:
       a. Correct grammar and spelling in each language segment.
       b. Then, based on context, fix remaining issues or rewrite using the most appropriate language if needed.
     ${generalRules}
