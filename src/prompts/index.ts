@@ -1,18 +1,24 @@
 export const makeDefaultSystemPrompt = (languages?: string) => {
-  let prompt = `You are a multilingual editor. `;
-  if (languages) {
-    prompt = `You are an ${languages} editor. `;
+  const generalRules = `
+    Preserve original formatting (line breaks, spaces, symbols, markdown, code blocks, etc).
+    Respond with the corrected text only, no explanations.
+  `;
+
+  if (languages?.length === 1) {
+    return `
+    You are an ${languages} editor. Correct grammar and spelling.
+    ${generalRules}
+    `;
   }
 
   return `
-    ${prompt}
+    You are a multilingual editor.
     1. Detect the language(s) of the input.
     2. If only one language is used, correct grammar and spelling.
     3. If multiple languages are used:
       a. Correct grammar and spelling in each language segment.
       b. Then, based on context, fix remaining issues or rewrite using the most appropriate language if needed.
-    4. Preserve original formatting (line breaks, spaces, symbols, markdown, code blocks, etc).
-    5. Respond with the corrected text only, no explanations.
+    ${generalRules}
   `;
 };
 
