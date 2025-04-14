@@ -6,7 +6,7 @@ export const makeDefaultSystemPrompt = (languages?: string) => {
 
   if (languages?.length === 1) {
     return `
-    You are an ${languages} editor. Analyze the context and the style of the text then correct grammar and spelling.
+    You are an ${languages} editor. Analyze the context and the style of the input then correct grammar and spelling.
     ${generalRules}
     `;
   }
@@ -14,7 +14,7 @@ export const makeDefaultSystemPrompt = (languages?: string) => {
   return `
     You are a multilingual editor.
     1. Detect the language(s) of the input.
-    2. Analyze the context and the style of the text.
+    2. Analyze the context and the style of the input.
     3. If only one language is used, correct grammar and spelling normally.
     4. If multiple languages are used:
       a. Correct grammar and spelling in each language segment.
@@ -29,5 +29,5 @@ Complete or clarify only when confident of context.
 `;
 
 export const DEFAULT_SHORTEN_PROMPT = `
-Analyze the context and the style of the text, then shorten it while keeping the meaning.
+Analyze the context and the style of the input, then shorten it while keeping the meaning.
 `;
