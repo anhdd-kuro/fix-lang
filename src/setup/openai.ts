@@ -1,6 +1,9 @@
 import { OpenAI } from "openai";
 import { DEFAULT_IMPROVE_PROMPT, makeDefaultSystemPrompt } from "~/prompts";
 import { removeExtraSpacesKeepLines } from "~/utils";
+import LanguageDetect from "languagedetect";
+
+const lngDetector = new LanguageDetect();
 
 /**
  * Fixes grammar and style for the given text using OpenAI API.
@@ -11,11 +14,7 @@ import { removeExtraSpacesKeepLines } from "~/utils";
  */
 export const fixGrammar = async (
   apiKey: string,
-  text: string,
-  systemPrompt: string = `
-  ${makeDefaultSystemPrompt()}
-  ${DEFAULT_IMPROVE_PROMPT}
-  `
+  text: string
 ): Promise<string> => {
   // Check if API key is provided
   if (!apiKey) {
@@ -30,6 +29,17 @@ export const fixGrammar = async (
 
   // Initialize OpenAI client *locally* with the provided key
   const openai = new OpenAI({ apiKey });
+
+  // Detect language
+  const languages = lngDetector.detect(text);
+  const mostConfidentLanguages = languages.flatMap(([lang, confidence]) =>
+    confidence >= 0.3 ? lang : []
+  );
+  const promptLang =
+    mostConfidentLanguages.length > 0
+      ? [...new Set(["english", ...mostConfidentLanguages])].join(", ")
+      : "";
+  const systemPrompt = makeDefaultSystemPrompt(promptLang);
 
   // Construct the user prompt - asking to fix the provided text
   const userPrompt = `Fix the following text:

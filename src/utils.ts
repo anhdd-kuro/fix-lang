@@ -86,7 +86,7 @@ const copyHighlightedText = async () => {
     if (platform === "darwin") {
       execSync(
         `osascript -e '
-          delay 0.35 -- wait for previous action to complete
+          delay 0.4 -- wait for previous action to complete
           tell application "System Events" -- get process name of frontmost app
             keystroke "c" using command down -- simulate Cmd+C
           end tell
@@ -141,7 +141,7 @@ export const pasteText = async (text: string): Promise<void> => {
             tell application "System Events" -- get process name of frontmost app
               keystroke "v" using {command down} -- simulate Cmd+V
             end tell
-            delay 0.4
+            delay 0.5
           '`
         );
       } else if (platform === "win32") {
