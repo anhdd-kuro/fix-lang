@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from "electron";
 import path from "node:path";
 import Store from "electron-store";
 import { registerHotkeys, unregisterHotkeys } from "../setup/hotkey";
@@ -60,6 +60,82 @@ try {
   );
 }
 
+/**
+ * App tray and menu references for macOS
+ */
+let appTray: Tray | null = null;
+let trayMenu: Menu | null = null;
+
+/**
+ * Dynamically builds the tray menu based on current settings
+ * @returns {Menu} Electron Menu instance
+ */
+const buildTrayMenu = (): Electron.Menu => {
+  // TODO: Fetch dynamic settings if needed
+  return Menu.buildFromTemplate([
+    {
+      label: "Open Settings",
+      click: () => {
+        // Send IPC or open settings window
+        BrowserWindow.getAllWindows()[0]?.webContents.send("open-settings");
+      },
+    },
+    {
+      label: "Quick Review Last Correction",
+      click: () => {
+        BrowserWindow.getAllWindows()[0]?.webContents.send("quick-review");
+      },
+    },
+    { type: "separator" },
+    {
+      label: "Quick Settings",
+      submenu: [
+        {
+          label: "Tone",
+          click: () =>
+            BrowserWindow.getAllWindows()[0]?.webContents.send(
+              "quick-setting",
+              "tone"
+            ),
+        },
+        {
+          label: "Model",
+          click: () =>
+            BrowserWindow.getAllWindows()[0]?.webContents.send(
+              "quick-setting",
+              "model"
+            ),
+        },
+        {
+          label: "Prompt",
+          click: () =>
+            BrowserWindow.getAllWindows()[0]?.webContents.send(
+              "quick-setting",
+              "prompt"
+            ),
+        },
+      ],
+    },
+    { type: "separator" },
+    {
+      label: "Quit",
+      click: () => {
+        app.quit();
+      },
+    },
+  ]);
+};
+
+/**
+ * Updates the tray menu dynamically (call when settings change)
+ */
+const updateTrayMenu = () => {
+  if (appTray) {
+    trayMenu = buildTrayMenu();
+    appTray.setContextMenu(trayMenu);
+  }
+};
+
 const createWindow = () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -78,7 +154,7 @@ const createWindow = () => {
   // In development, load Vite dev server URL (if using Vite for UI)
   if (process.env.NODE_ENV === "development") {
     console.log("Development mode: Loading Vite dev server");
-    mainWindow.loadURL("http://localhost:5173"); // Default Vite port
+    mainWindow.loadURL("http://localhost:5175"); // Default Vite port
     // Open DevTools in development
     mainWindow.webContents.openDevTools();
   } else {
@@ -103,11 +179,32 @@ const createWindow = () => {
 app.whenReady().then(() => {
   const mainWindow = createWindow(); // Get the main window instance
   app.setAccessibilitySupportEnabled(true);
+
+  // --- macOS Tray and Menu Logic ---
   if (process.platform === "darwin") {
     if (!isMacOSAccessibilityGranted()) {
       console.warn("Accessibility permission not granted.");
       promptAccessibilityPermission();
-      // return;
+    }
+    try {
+      const trayIconPath = require("path").join(
+        __dirname,
+        "../../assets/icon-16.png"
+      );
+      const trayIcon = nativeImage.createFromPath(trayIconPath);
+      appTray = new Tray(trayIcon);
+      appTray.setToolTip("FixLang");
+      trayMenu = buildTrayMenu();
+      appTray.setContextMenu(trayMenu);
+      // Optionally: handle click to show/hide main window
+      appTray.on("click", () => {
+        const win = BrowserWindow.getAllWindows()[0];
+        if (win) {
+          win.isVisible() ? win.hide() : win.show();
+        }
+      });
+    } catch (err) {
+      console.error("Failed to initialize app tray:", err);
     }
   }
 
@@ -119,6 +216,11 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
+  });
+
+  // Listen for settings changes to update tray menu dynamically
+  ipcMain.on("settings-updated", () => {
+    updateTrayMenu();
   });
 });
 

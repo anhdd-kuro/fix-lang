@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
-import SettingsModal from "./components/SettingsModal"; // Import the modal component
+import React, { useState, useEffect, useRef } from "react";
+import SettingsModal from "./components/SettingsModal";
+import MouseLoadingSpinner from "./components/MouseLoadingSpinner";
 
 type AppProps = {};
 
@@ -26,44 +27,61 @@ const GearIcon = () => (
   </svg>
 );
 
+/**
+ * Main App component for FixLang Preview UI.
+ * Handles API call loading spinner near the mouse, settings modal, and text display.
+ */
 const App: React.FC<AppProps> = () => {
-  // State to hold the text
+  // State for text areas
   const [originalText, setOriginalText] = useState<string>("");
   const [fixedText, setFixedText] = useState<string>("");
-  // State to control settings modal visibility
+  // Settings modal visibility
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  // Loading state for API call
+  const [loading, setLoading] = useState<boolean>(false);
 
-  // Listen for text updates from the main process via preload script
+  // Listen for text updates from main process via preload script
   useEffect(() => {
-    // Check if the API is available (it should be in Electron context)
     if (window.electronAPI?.onUpdateText) {
-      console.log("Renderer: Setting up IPC listener for text updates...");
-      // Register the callback and get the cleanup function
       const removeListener = window.electronAPI.onUpdateText(
         ({ original, fixed }) => {
-          console.log("Renderer: Received text update via IPC:");
-          console.log("Original:", original);
-          console.log("Fixed:", fixed);
           setOriginalText(original);
           setFixedText(fixed);
         }
       );
-
-      // Cleanup function to remove the listener when the component unmounts
-      return () => {
-        console.log("Renderer: Cleaning up IPC listener.");
-        removeListener();
-      };
-    } else {
-      console.warn(
-        "Renderer: window.electronAPI.onUpdateText is not available. IPC setup skipped."
-      );
-      // Handle cases where the app might run outside Electron or preload fails
+      return () => removeListener();
     }
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, []);
+
+  // Error state for IPC issues
+  const [error, setError] = useState<string>("");
+
+  // Listen for IPC events from Electron main/preload
+  useEffect(() => {
+    // Start loading on shortcut/API call
+    const removeStartLoading = window.electronAPI?.onStartLoading?.(() => {
+      console.log("Preload: Starting loading...");
+      setLoading(true);
+    });
+
+    const removeUpdateText = window.electronAPI?.onUpdateText?.(
+      ({ original, fixed }) => {
+        setOriginalText(original);
+        setFixedText(fixed);
+        setLoading(false);
+      }
+    );
+    return () => {
+      removeStartLoading?.();
+      removeUpdateText?.();
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-6 font-sans flex flex-col">
+      {/* Loading spinner near the mouse, visible only during API call */}
+      <MouseLoadingSpinner visible={loading} />
+
       {/* Header with Settings Button */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-blue-400">FixLang Preview</h1>
@@ -94,7 +112,7 @@ const App: React.FC<AppProps> = () => {
             className="w-full p-3 bg-gray-800 border border-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-gray-100 resize-none"
             placeholder="Text before correction appears here..."
             value={originalText}
-            readOnly // For now, make it read-only until interaction logic is added
+            readOnly
           />
         </div>
 
@@ -116,7 +134,13 @@ const App: React.FC<AppProps> = () => {
           />
         </div>
       </div>
-      {/* TODO: Add buttons for actions like Retry, Accept, etc. */}
+      {/* Error message from IPC, if any */}
+      {error && (
+        <div className="mt-4 text-red-400 text-center" role="alert">
+          {error}
+        </div>
+      )}
+
       {/* Settings Modal - Rendered conditionally */}
       <SettingsModal
         isOpen={isSettingsOpen}

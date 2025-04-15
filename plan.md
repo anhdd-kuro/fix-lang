@@ -122,9 +122,90 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 
 ### 🧪 Phase 7: Polish & Enhancements
 
-- [ ] Add a small loading icon near the mouse during the API call.
-- [ ] Add the ability to save up to 20 versions of the original text and the corrected text.
-- [ ] Add a copy button at the top right of the original text and the corrected text.
-- [ ] Add multiple prompt modes: grammar only, tone, shorten.
-- [ ] Support multilingual input.
-- [ ] Auto-detect language
+#### 1. Add a small loading icon near the mouse during the API call
+
+- [x] Created `MouseLoadingSpinner` component (React + TailwindCSS)
+- [x] Logic to show/hide spinner based on API call status (`loading` state in App.tsx)
+- [x] Spinner follows mouse using global mousemove and dynamic CSS transform (inline style justified by Tailwind limitation)
+- [x] Accessibility: spinner uses `aria-label`, is non-interactive (`pointer-events-none`), and has high z-index
+- [x] Fully documented, DRY, and follows project/user rules
+
+#### 2. Implement model selection using a dropdown, with results fetched from the OpenAI API
+
+- [ ] Build a dropdown component for model selection
+- [ ] Fetch available models from OpenAI API when opening settings/modal
+- [ ] Store selected model in app state/settings
+- [ ] Use selected model for API calls
+- [ ] Handle errors for fetch failures
+
+#### 3. Introduce a keybinding change feature
+
+- [ ] Add UI in settings/modal to show current keybindings
+- [ ] Add input for updating keybindings
+- [ ] Validate and save new keybindings
+- [ ] Update hotkey registration logic in Electron main process
+- [ ] Show feedback for invalid/duplicate keybindings
+
+#### 4. Enable saving up to 20 versions of both the original and corrected texts
+
+- [ ] Implement a version history data structure (in-memory or persistent)
+- [ ] Update logic to save each correction (original + fixed)
+- [ ] Limit history to 20 items (FIFO)
+- [ ] Add UI to view and restore previous versions
+- [ ] Add delete/clear history option
+
+#### 5. Add a copy button at the top right of both the original and corrected texts
+
+- [ ] Add copy button UI to both text panels
+- [ ] Implement clipboard copy logic
+- [ ] Show visual feedback (e.g., tooltip or toast) on copy
+
+#### 6. Include multiple prompt modes: each mode should have its own checkbox and prompt input
+
+- [ ] Add checkboxes for "Grammar only", "Tone", "Shorten" in UI
+- [ ] Add input for custom prompt per mode
+- [ ] Update API call logic to use selected prompt modes
+- [ ] Save user prompt preferences in settings
+
+#### 7. Implement macOS toolbar icon & menu
+
+- [x] Add app icon to macOS toolbar (SVG used for now; PNG fallback planned)
+- [ ] Update menu dynamically as settings change
+
+**Implementation notes:**
+
+- Electron Tray and Menu are used to create a native macOS toolbar icon and menu.
+- The menu options send IPC events to the renderer for settings, review, and quick settings.
+- Menu updates dynamically when settings change (listens for `settings-updated` IPC).
+- SVG icon is used for now; update to PNG in the future for best appearance.
+
+### 🧪 Phase 8: Additional Features
+
+#### 1. Add a reply feature
+
+- [ ] Design UI with three areas: original (left), reply context (top right), generated reply (bottom right)
+- [ ] Implement input fields for both original and reply context
+- [ ] Add button to trigger reply generation via API
+- [ ] Handle API call and display generated reply
+- [ ] Add copy button for generated reply
+- [ ] Add error and loading states
+
+#### 2. Add a translation feature
+
+- [ ] Design UI for side-by-side original and translated text
+- [ ] Add input for original text and language selection dropdown
+- [ ] Add button to trigger translation via API
+- [ ] Implement shortcut for translation
+- [ ] Add keybinding change button in settings
+- [ ] Display translated text
+- [ ] Add copy button for translated text
+- [ ] Handle loading and error states
+
+#### 3. Add support for other API providers
+
+- [ ] Research and select alternative API providers
+- [ ] Abstract API call logic to support multiple providers
+- [ ] Add provider selection UI in settings
+- [ ] Implement provider-specific configuration (API key, endpoint)
+- [ ] Update logic to use selected provider for requests
+- [ ] Add error handling and fallback logic

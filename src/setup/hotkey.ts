@@ -40,9 +40,12 @@ const registerFixShortcut = (mainWindow: BrowserWindow) => {
       }
 
       console.log(`Selected text: ${selectedText}`);
-      // Call fixGrammar with the API key
+      // Send 'start-loading' to renderer before calling fixGrammar
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("start-loading");
+      }
+
       const fixed = await fixGrammar(apiKey, selectedText);
-      // const fixed = "";
 
       // Store texts for potential Undo/Retry
       lastOriginalText = selectedText;
@@ -63,6 +66,7 @@ const registerFixShortcut = (mainWindow: BrowserWindow) => {
           original: selectedText,
           fixed,
         });
+        mainWindow.webContents.send("stop-loading");
       } else {
         console.warn(
           "Cannot send IPC message: mainWindow is null or destroyed."
