@@ -5,7 +5,7 @@
 import { app, BrowserWindow, Tray, Menu, nativeImage } from "electron";
 import path from "node:path";
 
-const trayIconPath = path.join(__dirname, "../../assets/icon-32.png");
+const trayIconPath = path.join(__dirname, "../../assets/icon-16.png");
 
 let appTray: Tray | null = null;
 let trayMenu: Menu | null = null;

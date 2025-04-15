@@ -12,14 +12,14 @@ export const makeDefaultSystemPrompt = ({
 
   if (input.length <= 20) {
     return `
-      You are a multilingual editor. Analyze the context and the style of the input then correct grammar, word choice, and spelling.
+      You are a multilingual editor. Analyze the context and style of the input, then correct grammar, word choice, and spelling.
       ${generalRules}
     `;
   }
 
   if (languages?.length === 1) {
     return `
-    You are an ${languages} editor. Analyze the context and the style of the input then correct grammar, word choice, and spelling.
+    You are an ${languages} editor. Analyze the context and style of the input, then correct grammar, word choice, and spelling.
     ${generalRules}
     `;
   }
@@ -37,10 +37,10 @@ export const makeDefaultSystemPrompt = ({
 };
 
 export const DEFAULT_IMPROVE_PROMPT = `
-Try to improve the input based on the context while preserving its meaning. Make it more natural and concise..
+Try to enhance the input based on the context while maintaining its meaning. Make it more natural and concise.
 But don't overdo it, don't add new ideas or context.
 `;
 
 export const DEFAULT_SHORTEN_PROMPT = `
-Analyze the context and the style of the input, then shorten it while keeping the meaning.
+Analyze the context and style of the input, then shorten it while preserving its meaning.
 `;
