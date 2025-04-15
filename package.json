@@ -46,7 +46,7 @@
     "productName": "FixLang",
     "directories": {
       "output": "release",
-      "buildResources": "assets"
+      "buildResources": "resources"
     },
     "files": [
       "out/**/*",

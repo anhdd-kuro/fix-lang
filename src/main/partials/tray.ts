@@ -3,9 +3,8 @@
  * @description Tray icon, menu, and related logic for FixLang.
  */
 import { app, BrowserWindow, Tray, Menu, nativeImage } from "electron";
-import path from "node:path";
-
-const trayIconPath = path.join(__dirname, "../../assets/icon-16.png");
+import appIcon from "../../../resources/icon-16.png?asset";
+import { getMainWindow } from "./mainWindow";
 
 let appTray: Tray | null = null;
 let trayMenu: Menu | null = null;
@@ -72,13 +71,14 @@ export const updateTrayMenu = () => {
 
 export const setupTray = () => {
   try {
-    const trayIcon = nativeImage.createFromPath(trayIconPath);
+    const trayIcon = nativeImage.createFromPath(appIcon);
     appTray = new Tray(trayIcon);
     appTray.setToolTip("FixLang");
     updateTrayMenu();
     appTray.on("click", () => {
-      const win = BrowserWindow.getAllWindows()[0];
-      if (win) win.isVisible() ? win.hide() : win.show();
+      const mainWindow = getMainWindow();
+      if (mainWindow)
+        mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
     });
   } catch (err) {
     console.error("Failed to initialize app tray:", err);

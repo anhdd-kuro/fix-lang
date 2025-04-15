@@ -7,7 +7,7 @@ type AppProps = {};
 // Simple Gear SVG Icon Component
 const GearIcon = () => (
   <svg
-    xmlns="http://www.w3.org/2000/svg"
+    xmlns="http://www.w3.org/2000/icon.icns"
     className="h-6 w-6"
     fill="none"
     viewBox="0 0 24 24"

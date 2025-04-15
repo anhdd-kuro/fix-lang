@@ -13,40 +13,23 @@ import { registerIpcHandlers } from "./partials/ipc";
 initializeOverlayWindow();
 registerIpcHandlers();
 
-const createWindow = () => {
-  // Create the browser window.
-  const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
-    webPreferences: {
-      preload: path.join(__dirname, "../../out/preload/index.mjs"), // Correct path to the compiled preload script
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false,
-    },
-  });
+import { createMainWindow } from "./partials/mainWindow";
 
-  // Load index.html of the app.
-  // In production, load the built index.html file
-  // In development, load Vite dev server URL (if using Vite for UI)
+const createWindow = () => {
+  // Create and get the singleton main window instance
+  const mainWindow = createMainWindow();
+
   if (process.env.NODE_ENV === "development") {
     console.log("Development mode: Loading Vite dev server");
-    mainWindow.loadURL("http://localhost:5175"); // Default Vite port
-    // Open DevTools in development
+    mainWindow.loadURL("http://localhost:5175");
     mainWindow.webContents.openDevTools();
   } else {
     console.log("Production mode: Loading built file");
-    // electron-vite builds to the 'out/renderer' directory
-    // The correct path should be relative to the main.js file location
     const rendererPath = path.join(__dirname, "../renderer/index.html");
     console.log("Loading renderer from: " + rendererPath);
     mainWindow.loadFile(rendererPath);
   }
 
-  // Open the DevTools if needed.
-  // mainWindow.webContents.openDevTools();
-
-  // Return the window instance so it can be used elsewhere if needed
   return mainWindow;
 };
 
@@ -63,6 +46,7 @@ app.whenReady().then(() => {
       console.warn("Accessibility permission not granted.");
       promptAccessibilityPermission();
     }
+    app.dock?.show();
     setupTray();
   }
 
