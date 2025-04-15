@@ -1,12 +1,25 @@
-export const makeDefaultSystemPrompt = (languages?: string) => {
+export const makeDefaultSystemPrompt = ({
+  languages,
+  input,
+}: {
+  languages?: string;
+  input: string;
+}) => {
   const generalRules = `
     Preserve original formatting (line breaks, spaces, symbols, markdown, code blocks, etc). Do not add extra spaces.
     Respond with the corrected text only, no explanations.
   `;
 
+  if (input.length <= 20) {
+    return `
+      You are a multilingual editor. Analyze the context and the style of the input then correct grammar, word choice, and spelling.
+      ${generalRules}
+    `;
+  }
+
   if (languages?.length === 1) {
     return `
-    You are an ${languages} editor. Analyze the context and the style of the input then correct grammar and spelling.
+    You are an ${languages} editor. Analyze the context and the style of the input then correct grammar, word choice, and spelling.
     ${generalRules}
     `;
   }
@@ -15,9 +28,9 @@ export const makeDefaultSystemPrompt = (languages?: string) => {
     You are a multilingual editor.
     1. Detect the language(s) of the input.
     2. Analyze the context and the style of the input.
-    3. If only one language is used, correct grammar and spelling normally.
+    3. If only one language is used, correct grammar, word choice, and spelling normally.
     4. If multiple languages are used:
-      a. Correct grammar and spelling in each language segment.
+      a. Correct grammar, word choice, and spelling in each language segment.
       b. Then, based on context, fix remaining issues or rewrite using the most appropriate language if needed.
     ${generalRules}
   `;

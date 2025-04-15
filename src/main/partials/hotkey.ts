@@ -1,7 +1,8 @@
 import { globalShortcut, BrowserWindow, Notification } from "electron";
 import { fixGrammar } from "./openai";
-import { store } from "../main";
-import { getHighlightedText, pasteText } from "../utils";
+import { getHighlightedText, pasteText } from "../../utils";
+import { store } from "~/main/partials/store";
+import { showOverlaySpinner, hideOverlaySpinner } from "./overlayWindow";
 
 // State to store the last operation's text for Undo/Retry
 let lastOriginalText: string | null = null;
@@ -45,6 +46,7 @@ const registerFixShortcut = (mainWindow: BrowserWindow) => {
         mainWindow.webContents.send("start-loading");
       }
 
+      showOverlaySpinner();
       const fixed = await fixGrammar(apiKey, selectedText);
 
       // Store texts for potential Undo/Retry
@@ -66,13 +68,18 @@ const registerFixShortcut = (mainWindow: BrowserWindow) => {
           original: selectedText,
           fixed,
         });
+        // Hide spinner overlay for renderer UI
         mainWindow.webContents.send("stop-loading");
       } else {
         console.warn(
           "Cannot send IPC message: mainWindow is null or destroyed."
         );
       }
+      // Always hide global spinner overlay (robust)
+      hideOverlaySpinner();
     } catch (error) {
+      // Hide spinner overlay even on error
+      hideOverlaySpinner();
       handleError(error);
     }
   });
@@ -118,11 +125,15 @@ const registerRetryShortcut = (mainWindow: BrowserWindow) => {
     if (lastOriginalText !== null) {
       console.log("Retrying last correction...");
 
-      // Get API Key from store
+      // Show global spinner overlay for retry (independent of mainWindow)
+      showOverlaySpinner();
+      // Send 'start-loading' to renderer for UI if available
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("start-loading");
+      }
 
       try {
         const apiKey = getOpenAIKey();
-        // Call fixGrammar with the API key and last original text
         const newFixed = await fixGrammar(apiKey, lastOriginalText);
 
         // Update lastFixedText with the new result
@@ -134,8 +145,18 @@ const registerRetryShortcut = (mainWindow: BrowserWindow) => {
             original: lastOriginalText,
             fixed: newFixed,
           });
+          // Hide spinner overlay for renderer UI
+          mainWindow.webContents.send("stop-loading");
         }
+        // Always hide global spinner overlay
+        hideOverlaySpinner();
       } catch (error) {
+        // Hide spinner overlay even on error
+        hideOverlaySpinner();
+        // Ensure spinner overlay is hidden on error as well
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("stop-loading");
+        }
         handleError(error);
       }
     } else {

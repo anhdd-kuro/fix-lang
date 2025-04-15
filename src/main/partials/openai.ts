@@ -42,14 +42,14 @@ export const fixGrammar = async (
       : "";
 
   const systemPrompt = new StringPrettifier(`
-    ${makeDefaultSystemPrompt(promptLang)}
+    ${makeDefaultSystemPrompt({ languages: promptLang, input: text })}
     ${DEFAULT_IMPROVE_PROMPT}
   `)
     .removeExtraSpaces()
     .removeEmptyLines().value;
 
   // Construct the user prompt - asking to fix the provided text
-  const userPrompt = `Fix the following text:
+  const userPrompt = `Fix the following input:
   ${text}
   `.trim();
 

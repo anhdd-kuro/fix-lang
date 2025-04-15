@@ -124,11 +124,16 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 
 #### 1. Add a small loading icon near the mouse during the API call
 
-- [x] Created `MouseLoadingSpinner` component (React + TailwindCSS)
-- [x] Logic to show/hide spinner based on API call status (`loading` state in App.tsx)
-- [x] Spinner follows mouse using global mousemove and dynamic CSS transform (inline style justified by Tailwind limitation)
-- [x] Accessibility: spinner uses `aria-label`, is non-interactive (`pointer-events-none`), and has high z-index
-- [x] Fully documented, DRY, and follows project/user rules
+- [x] 1. Create a new transparent, always-on-top, frameless BrowserWindow in Electron main process
+- [x] 2. Make the overlay window click-through (so it doesn’t block interaction with other apps)
+- [x] 3. Render a minimal React page in the overlay window that displays the spinner
+- [x] 4. Track the global mouse position using Electron’s `screen.getCursorScreenPoint()`
+- [x] 5. Move the overlay window to follow the mouse cursor in real-time
+- [x] 6. Synchronize spinner visibility with the main app’s loading state (IPC communication)
+- [x] 7. Ensure overlay window closes/hides when not needed
+- [x] 8. Document the overlay logic, limitations, and accessibility considerations in plan.md
+
+> **Note:** Overlay spinner is robust, decoupled from mainWindow, and fully documented as of 2025-04-15.
 
 #### 2. Implement model selection using a dropdown, with results fetched from the OpenAI API
 
@@ -180,6 +185,10 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 - SVG icon is used for now; update to PNG in the future for best appearance.
 
 ### 🧪 Phase 8: Additional Features
+
+#### 0. Core Refactors and Infrastructure
+
+- [x] Refactor global spinner overlay: now controlled by main process, decoupled from mainWindow, robust for all shortcut operations (2025-04-15)
 
 #### 1. Add a reply feature
 

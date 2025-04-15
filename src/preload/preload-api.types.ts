@@ -43,5 +43,7 @@ export type ElectronAPI = {
   /**
    * Stores the provided key bindings object in the main process.
    */
-  setKeyBindings: (bindings: KeyBindings) => Promise<{ success: boolean; error?: string }>;
+  setKeyBindings: (
+    bindings: KeyBindings
+  ) => Promise<{ success: boolean; error?: string }>;
 };

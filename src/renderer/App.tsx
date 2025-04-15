@@ -79,9 +79,6 @@ const App: React.FC<AppProps> = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-6 font-sans flex flex-col">
-      {/* Loading spinner near the mouse, visible only during API call */}
-      <MouseLoadingSpinner visible={loading} />
-
       {/* Header with Settings Button */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-blue-400">FixLang Preview</h1>

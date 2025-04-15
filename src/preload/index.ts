@@ -38,12 +38,35 @@ contextBridge.exposeInMainWorld("electronAPI", {
    * Registers a callback for the 'start-loading' event from main process.
    * Allows renderer to show spinner when shortcut is triggered.
    */
+  /**
+   * Registers a callback for the 'start-loading' event from main process.
+   * Shows the global spinner overlay when triggered.
+   */
   onStartLoading: (callback: () => void) => {
-    const listener = () => callback();
+    const listener = () => {
+      ipcRenderer.send("show-spinner");
+      callback();
+    };
     ipcRenderer.on("start-loading", listener);
     return () => {
       ipcRenderer.removeListener("start-loading", listener);
       console.log("Preload: Removed start-loading listener.");
+    };
+  },
+
+  /**
+   * Registers a callback for the 'stop-loading' event from main process.
+   * Hides the global spinner overlay when triggered.
+   */
+  onStopLoading: (callback: () => void) => {
+    const listener = () => {
+      ipcRenderer.send("hide-spinner");
+      callback();
+    };
+    ipcRenderer.on("stop-loading", listener);
+    return () => {
+      ipcRenderer.removeListener("stop-loading", listener);
+      console.log("Preload: Removed stop-loading listener.");
     };
   },
 

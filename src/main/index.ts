@@ -1,140 +1,17 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from "electron";
+import { app, BrowserWindow, ipcMain } from "electron"; // Main Electron imports
 import path from "node:path";
-import Store from "electron-store";
-import { registerHotkeys, unregisterHotkeys } from "../setup/hotkey";
+import { registerHotkeys, unregisterHotkeys } from "./partials/hotkey";
 import {
   isMacOSAccessibilityGranted,
   promptAccessibilityPermission,
 } from "../utils";
+import { initializeOverlayWindow } from "./partials/overlayWindow";
+import { setupTray, updateTrayMenu } from "./partials/tray";
+import { registerIpcHandlers } from "./partials/ipc";
 
-// Define the type for the store schema
-type KeyBindings = {
-  fix: string;
-  undo: string;
-  retry: string;
-};
-
-type SettingsStore = {
-  apiKey: string;
-  keyBindings: KeyBindings;
-};
-
-// Define the schema for electron-store
-const schema = {
-  apiKey: {
-    type: "string",
-    default: process.env.OPENAI_API_KEY, // Default to empty string
-  },
-  keyBindings: {
-    type: "object",
-    properties: {
-      fix: { type: "string", default: "Control+Shift+F" },
-      undo: { type: "string", default: "Control+Shift+Z" },
-      retry: { type: "string", default: "Control+Shift+A" },
-    },
-    default: {
-      fix: "Control+Shift+F",
-      undo: "Control+Shift+Z",
-      retry: "Control+Shift+A",
-    },
-  },
-};
-
-// Initialize electron-store with encryption for sensitive data
-export const store = new Store<SettingsStore>({
-  schema,
-  encryptionKey: "fixlang-secure-encryption-key", // Add encryption for sensitive data
-  clearInvalidConfig: true, // Clear invalid configuration
-  watch: true, // Watch for changes to the store
-});
-
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
-try {
-  const electronSquirrelStartup = require("electron-squirrel-startup");
-  if (electronSquirrelStartup) {
-    app.quit();
-  }
-} catch (error) {
-  console.warn(
-    "electron-squirrel-startup module not found, skipping startup check"
-  );
-}
-
-/**
- * App tray and menu references for macOS
- */
-let appTray: Tray | null = null;
-let trayMenu: Menu | null = null;
-
-/**
- * Dynamically builds the tray menu based on current settings
- * @returns {Menu} Electron Menu instance
- */
-const buildTrayMenu = (): Electron.Menu => {
-  // TODO: Fetch dynamic settings if needed
-  return Menu.buildFromTemplate([
-    {
-      label: "Open Settings",
-      click: () => {
-        // Send IPC or open settings window
-        BrowserWindow.getAllWindows()[0]?.webContents.send("open-settings");
-      },
-    },
-    {
-      label: "Quick Review Last Correction",
-      click: () => {
-        BrowserWindow.getAllWindows()[0]?.webContents.send("quick-review");
-      },
-    },
-    { type: "separator" },
-    {
-      label: "Quick Settings",
-      submenu: [
-        {
-          label: "Tone",
-          click: () =>
-            BrowserWindow.getAllWindows()[0]?.webContents.send(
-              "quick-setting",
-              "tone"
-            ),
-        },
-        {
-          label: "Model",
-          click: () =>
-            BrowserWindow.getAllWindows()[0]?.webContents.send(
-              "quick-setting",
-              "model"
-            ),
-        },
-        {
-          label: "Prompt",
-          click: () =>
-            BrowserWindow.getAllWindows()[0]?.webContents.send(
-              "quick-setting",
-              "prompt"
-            ),
-        },
-      ],
-    },
-    { type: "separator" },
-    {
-      label: "Quit",
-      click: () => {
-        app.quit();
-      },
-    },
-  ]);
-};
-
-/**
- * Updates the tray menu dynamically (call when settings change)
- */
-const updateTrayMenu = () => {
-  if (appTray) {
-    trayMenu = buildTrayMenu();
-    appTray.setContextMenu(trayMenu);
-  }
-};
+// --- Global Overlay Spinner ---
+initializeOverlayWindow();
+registerIpcHandlers();
 
 const createWindow = () => {
   // Create the browser window.
@@ -186,26 +63,7 @@ app.whenReady().then(() => {
       console.warn("Accessibility permission not granted.");
       promptAccessibilityPermission();
     }
-    try {
-      const trayIconPath = require("path").join(
-        __dirname,
-        "../../assets/icon-16.png"
-      );
-      const trayIcon = nativeImage.createFromPath(trayIconPath);
-      appTray = new Tray(trayIcon);
-      appTray.setToolTip("FixLang");
-      trayMenu = buildTrayMenu();
-      appTray.setContextMenu(trayMenu);
-      // Optionally: handle click to show/hide main window
-      appTray.on("click", () => {
-        const win = BrowserWindow.getAllWindows()[0];
-        if (win) {
-          win.isVisible() ? win.hide() : win.show();
-        }
-      });
-    } catch (err) {
-      console.error("Failed to initialize app tray:", err);
-    }
+    setupTray();
   }
 
   registerHotkeys(mainWindow); // Register global shortcuts, passing the window
@@ -237,98 +95,3 @@ app.on("will-quit", () => {
   // Unregister all shortcuts on quit to be safe
   unregisterHotkeys();
 });
-
-// --- IPC Handlers for Settings ---
-
-// Handle request to get the API key
-ipcMain.handle("get-api-key", async () => {
-  try {
-    const apiKey = store.get("apiKey");
-    console.log(`IPC: Retrieved API Key (length): ${apiKey?.length ?? 0}`);
-    return apiKey || ""; // Ensure we always return a string
-  } catch (error) {
-    console.error("IPC Error getting API Key:", error);
-    return ""; // Return empty string on error
-  }
-});
-
-// Handle request to set the API key
-ipcMain.handle("set-api-key", async (_event, apiKey: string) => {
-  try {
-    if (typeof apiKey !== "string") {
-      throw new Error("Invalid API key provided. Must be a string.");
-    }
-
-    // Validate API key format (basic check for sk- prefix)
-    if (apiKey && !apiKey.startsWith("sk-") && apiKey.length > 0) {
-      console.warn("API key doesn't start with 'sk-', but proceeding anyway");
-    }
-
-    // Save the API key to the store
-    store.set("apiKey", apiKey);
-
-    // Verify the key was saved correctly
-    const savedKey = store.get("apiKey");
-    if (savedKey !== apiKey) {
-      throw new Error(
-        "API key verification failed. Key was not saved correctly."
-      );
-    }
-
-    console.log(`IPC: API Key updated successfully (length: ${apiKey.length})`);
-    return { success: true };
-  } catch (error) {
-    console.error("IPC Error setting API Key:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
-});
-
-// Handle request to get key bindings
-ipcMain.handle("get-key-bindings", async () => {
-  try {
-    const bindings = store.get("keyBindings");
-    console.log("IPC: Retrieved Key Bindings:", bindings);
-    // Ensure we return the default if somehow it's not stored correctly (though schema default should prevent this)
-    return bindings || schema.keyBindings.default;
-  } catch (error) {
-    console.error("IPC Error getting Key Bindings:", error);
-    return schema.keyBindings.default; // Return default on error
-  }
-});
-
-// Handle request to set key bindings
-ipcMain.handle("set-key-bindings", async (event, bindings: KeyBindings) => {
-  try {
-    // Basic validation (can be expanded)
-    if (
-      !bindings ||
-      typeof bindings !== "object" ||
-      !bindings.fix ||
-      !bindings.undo ||
-      !bindings.retry
-    ) {
-      throw new Error("Invalid key bindings object received.");
-    }
-    // TODO: Add validation for Electron Accelerator format if desired
-
-    store.set("keyBindings", bindings);
-    console.log("IPC: Key Bindings updated:", bindings);
-    // NOTE: Hotkeys are NOT automatically re-registered here.
-    // Changes will apply on next app start.
-    return { success: true };
-  } catch (error) {
-    console.error("IPC Error setting Key Bindings:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
-});
-
-// --- App Lifecycle ---
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.
