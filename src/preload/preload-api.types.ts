@@ -7,7 +7,9 @@ import type { Model } from "openai/resources.mjs";
 
 export type TextUpdatePayload = {
   original: string;
-  fixed: string;
+  corrected: string;
+  promptTokens: number | null;
+  completionTokens: number | null;
 };
 
 export type KeyBindings = {

@@ -46,7 +46,10 @@ export const SettingKeyBinding: React.FC = () => {
     }
 
     // TODO: Add validation for Electron Accelerator format before saving
-    console.log("SettingKeyBinding: Attempting to save key bindings:", keyBindings);
+    console.log(
+      "SettingKeyBinding: Attempting to save key bindings:",
+      keyBindings
+    );
     setKeyBindingsStatus("Saving...");
     try {
       const result = await window.electronAPI.setKeyBindings(keyBindings);
@@ -122,15 +125,6 @@ export const SettingKeyBinding: React.FC = () => {
           {keyBindingsStatus}
         </p>
       )}
-      <div className="mt-4">
-        <button
-          type="button"
-          onClick={handleKeyBindingBlur}
-          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          Save Key Bindings
-        </button>
-      </div>
     </section>
   );
 };

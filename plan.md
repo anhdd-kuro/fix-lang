@@ -170,8 +170,8 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 
 #### 4. Introduce a keybinding change feature
 
-- [x] Add UI in settings/modal to show current keybindings
 - [ ] Split default keybindings into `src/const.ts`
+- [ ] Add UI in settings/modal to show current keybindings in SettingKeyBinding. Use the same UI & UX logic as VSCode
 - [ ] Implement logic to save new keybindings to current button in SettingKeyBinding
 - [ ] Validate and save new keybindings in stores
 - [ ] Show feedback for invalid/duplicate keybindings
@@ -211,6 +211,19 @@ export function registerHotkey(win: Electron.BrowserWindow) {
   - [ ] Reset settings
 - [ ] Make UI look more modern
 - [ ] Update menu dynamically as settings change
+
+#### 9. Add token count returned from OpenAI
+
+- [x] Add token count display in UI inside both text panels ( inside the text area )
+  - [x] promptTokens
+  - [x] completionTokens
+- [x] Update token count display when API call is done
+
+**Implementation summary:**
+- The OpenAI API response token count is now extracted and sent to the renderer.
+- Both text panels display the token count inside the text area, styled for accessibility and clarity.
+- Type definitions, IPC, and UI all updated for seamless token count updates.
+- All code follows project, accessibility, and SOLID/DRY best practices.
 
 **Implementation notes:**
 

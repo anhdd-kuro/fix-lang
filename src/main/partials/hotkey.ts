@@ -48,26 +48,28 @@ const registerFixShortcut = (mainWindow: BrowserWindow) => {
       }
 
       showOverlaySpinner();
-      const fixed = await fixGrammar(apiKey, selectedText);
+      const result = await fixGrammar(apiKey, selectedText);
 
       // Store texts for potential Undo/Retry
       lastOriginalText = selectedText;
-      lastFixedText = fixed;
-      if (fixed === selectedText) {
+      lastFixedText = result.correctedText;
+      if (result.correctedText === selectedText) {
         new Notification({
           title: "Good job!",
           body: "Your text is already correct. No changes have been made.",
         }).show();
       }
 
-      await pasteText(fixed);
+      await pasteText(result.correctedText);
 
-      // Send the original and fixed text to the renderer process for preview
+      // Send the original and corrected text to the renderer process for preview
       if (mainWindow && !mainWindow.isDestroyed()) {
         console.log("Sending text update via IPC to renderer...");
         mainWindow.webContents.send("update-text", {
           original: selectedText,
-          fixed,
+          corrected: result.correctedText,
+          promptTokens: result.promptTokens,
+          completionTokens: result.completionTokens,
         });
         // Hide spinner overlay for renderer UI
         mainWindow.webContents.send("stop-loading");
@@ -108,6 +110,8 @@ const registerUndoShortcut = (mainWindow: BrowserWindow) => {
         mainWindow.webContents.send("update-text", {
           original: lastOriginalText,
           fixed: "",
+          promptTokens: null,
+          completionTokens: null,
         }); // Clear fixed text on undo
       }
       lastFixedText = null;
@@ -138,7 +142,7 @@ const registerRetryShortcut = (mainWindow: BrowserWindow) => {
         const newFixed = await fixGrammar(apiKey, lastOriginalText);
 
         // Update lastFixedText with the new result
-        lastFixedText = newFixed;
+        lastFixedText = newFixed.correctedText;
 
         // Send update to renderer
         if (mainWindow && !mainWindow.isDestroyed()) {
