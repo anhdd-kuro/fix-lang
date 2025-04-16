@@ -15,6 +15,13 @@ console.log("Preload script is being executed");
 // Expose a controlled API to the renderer process
 contextBridge.exposeInMainWorld("electronAPI", {
   /**
+   * Fetches the list of available OpenAI models using the stored API key.
+   * @returns A promise resolving to { success: boolean, models?: Model[], error?: string }
+   */
+  fetchOpenAIModels: async () => {
+    return await ipcRenderer.invoke("fetch-openai-models");
+  },
+  /**
    * Registers a callback function to be executed when the 'update-text' IPC message
    * is received from the main process.
    * @param callback The function to call with the received text payload.

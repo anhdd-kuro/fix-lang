@@ -8,6 +8,21 @@ import { KeyBindings } from "./store";
 import { updateTrayMenu } from "./tray";
 
 export const registerIpcHandlers = () => {
+  ipcMain.handle("fetch-openai-models", async () => {
+    try {
+      const apiKey = store.get("apiKey");
+      if (!apiKey) throw new Error("API key not set");
+      // Lazy import to avoid circular dependency
+      const { fetchOpenAIModels } = await import("./openai");
+      const models = await fetchOpenAIModels(apiKey);
+      return { success: true, models };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  });
   ipcMain.handle("get-api-key", async () => {
     try {
       const apiKey = store.get("apiKey");
@@ -23,7 +38,10 @@ export const registerIpcHandlers = () => {
       store.set("apiKey", apiKey);
       return { success: true };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
     }
   });
 
@@ -32,17 +50,25 @@ export const registerIpcHandlers = () => {
       const bindings = store.get("keyBindings");
       return bindings;
     } catch (error) {
-      return { fix: "Control+Shift+F", undo: "Control+Shift+Z", retry: "Control+Shift+A" };
+      return {
+        fix: "Control+Shift+F",
+        undo: "Control+Shift+Z",
+        retry: "Control+Shift+A",
+      };
     }
   });
 
   ipcMain.handle("set-key-bindings", async (_event, bindings: KeyBindings) => {
     try {
-      if (!bindings || typeof bindings !== "object") throw new Error("Invalid key bindings");
+      if (!bindings || typeof bindings !== "object")
+        throw new Error("Invalid key bindings");
       store.set("keyBindings", bindings);
       return { success: true };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
     }
   });
 
