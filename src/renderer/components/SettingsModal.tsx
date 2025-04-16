@@ -30,11 +30,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   >([]);
   const [selectedModel, setSelectedModel] =
     useState<string>(DEFAULT_OPENAI_MODEL);
+
   const [modelsLoading, setModelsLoading] = useState<boolean>(false);
   const [modelsError, setModelsError] = useState<string>("");
 
   // Fetch models from OpenAI API
-  const fetchModels = async () => {
+  const fetchModels = async (refetch = false) => {
     setModelsLoading(true);
     setModelsError("");
     try {
@@ -43,13 +44,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         setModelsLoading(false);
         return;
       }
-      const result = await window.electronAPI.fetchOpenAIModels();
+      const result = await window.electronAPI.fetchOpenAIModels(refetch);
       if (result.success) {
         setModels(result.models ?? []);
-        // Optionally set default selection if not set
-        if (!selectedModel && result.models && result.models.length > 0) {
-          setSelectedModel(result.models[0].id);
-        }
       } else {
         setModelsError(result.error || "Failed to fetch models");
       }
@@ -60,23 +57,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  // Load models when modal opens
   useEffect(() => {
-    if (isOpen) {
-      fetchModels();
-      // Load selected model from localStorage (persisted)
-      const cachedModel = localStorage.getItem("fixlang-selected-model");
-      if (cachedModel) setSelectedModel(cachedModel);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
-
-  // Persist selected model to localStorage
-  useEffect(() => {
-    if (selectedModel) {
-      localStorage.setItem("fixlang-selected-model", selectedModel);
-    }
-  }, [selectedModel]);
+    fetchModels();
+    window.electronAPI?.getSelectedModel?.().then((model) => {
+      if (model) {
+        setSelectedModel(model);
+      }
+    });
+  }, []);
 
   // Check if electronAPI is available
   useEffect(() => {
@@ -171,6 +159,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       const result = await window.electronAPI.setApiKey(apiKeyInput);
+      await fetchModels(true);
 
       if (result.success) {
         console.log("SettingsModal: API Key saved successfully.");
@@ -310,11 +299,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                   id="model-select"
                   className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   aria-label="Select OpenAI Model"
-                  value={selectedModel}
+                  value={models.length > 0 ? selectedModel : ""}
                   onChange={async (e) => {
                     const modelId = e.target.value;
                     setSelectedModel(modelId);
-                    localStorage.setItem("fixlang-selected-model", modelId);
                     if (window.electronAPI?.setSelectedModel) {
                       try {
                         await window.electronAPI.setSelectedModel(modelId);
@@ -347,7 +335,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                   aria-label="Refetch models"
                   title="Refetch models"
                   className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  onClick={fetchModels}
+                  onClick={() => fetchModels(true)}
                   disabled={modelsLoading}
                 >
                   &#x21bb;

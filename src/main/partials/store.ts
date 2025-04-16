@@ -2,7 +2,8 @@
  * @file store.ts
  * @description Electron Store schema, types, and initialization for settings and key bindings.
  */
-import Store from "electron-store";
+import ElectronStore from "electron-store";
+import Store, { Schema } from "electron-store";
 import { Model } from "openai/resources.mjs";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
 
@@ -14,10 +15,8 @@ export type KeyBindings = {
 
 export type SettingsStore = {
   apiKey: string;
-  models: {
-    models: Model[];
-    selectedModel: string;
-  };
+  models: Model[];
+  selectedModel: string;
   keyBindings: KeyBindings;
 };
 
@@ -26,27 +25,20 @@ const schema = {
     type: "string",
     default: process.env.OPENAI_API_KEY,
   },
+  selectedModel: { type: "string", default: DEFAULT_OPENAI_MODEL },
   models: {
-    type: "object",
-    properties: {
-      models: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            id: { type: "string" },
-            object: { type: "string" },
-            created: { type: "number" },
-            owned_by: { type: "string" },
-          },
-        },
+    type: "array",
+    items: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        object: { type: "string" },
+        created: { type: "number" },
+        owned_by: { type: "string" },
       },
-      selectedModel: { type: "string", default: DEFAULT_OPENAI_MODEL },
+      required: ["id"],
     },
-    default: {
-      models: [],
-      selectedModel: DEFAULT_OPENAI_MODEL,
-    },
+    default: [],
   },
   keyBindings: {
     type: "object",
@@ -61,7 +53,7 @@ const schema = {
       retry: "Control+Shift+A",
     },
   },
-};
+} satisfies Schema<SettingsStore>;
 
 export const store = new Store<SettingsStore>({
   schema,

@@ -2,6 +2,7 @@
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 
 import { contextBridge, ipcRenderer } from "electron";
+import { ElectronAPI } from "./preload-api.types";
 
 // Define the shape of the data expected from the main process
 type TextUpdatePayload = {
@@ -18,8 +19,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
    * Fetches the list of available OpenAI models using the stored API key.
    * @returns A promise resolving to { success: boolean, models?: Model[], error?: string }
    */
-  fetchOpenAIModels: async () => {
-    return await ipcRenderer.invoke("fetch-openai-models");
+  fetchOpenAIModels: async (refetch?: boolean) => {
+    return await ipcRenderer.invoke("fetch-openai-models", refetch);
   },
 
   setSelectedModel: async (modelId: string) => {
@@ -133,7 +134,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // --- Potential Future Additions ---
   // getSettings: () => ipcRenderer.invoke('get-settings'),
   // setSettings: (settings) => ipcRenderer.invoke('set-settings', settings),
-});
+} satisfies ElectronAPI);
 
 console.log(
   "Preload script executed and electronAPI exposed with the following methods:"
@@ -143,3 +144,6 @@ console.log("- getApiKey");
 console.log("- setApiKey");
 console.log("- getKeyBindings");
 console.log("- setKeyBindings");
+console.log("- fetchOpenAIModels");
+console.log("- setSelectedModel");
+console.log("- getSelectedModel");

@@ -7,24 +7,9 @@ import { store } from "./store";
 import { KeyBindings } from "./store";
 import { updateTrayMenu } from "./tray";
 import { fetchOpenAIModels } from "./openai";
+import { DEFAULT_OPENAI_MODEL } from "~/const";
 
 export const registerIpcHandlers = () => {
-  ipcMain.handle("fetch-openai-models", async () => {
-    try {
-      const apiKey = store.get("apiKey");
-      if (!apiKey) throw new Error("API key not set");
-      const models = await fetchOpenAIModels(apiKey);
-      const latestSortedModels = models.sort((a, b) => b.created - a.created);
-      store.set("models", { models: latestSortedModels });
-
-      return { success: true, models: latestSortedModels };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
-  });
   ipcMain.handle("get-api-key", async () => {
     try {
       const apiKey = store.get("apiKey");
@@ -60,6 +45,51 @@ export const registerIpcHandlers = () => {
     }
   });
 
+  ipcMain.handle("fetch-openai-models", async (_event, refetch = false) => {
+    try {
+      const apiKey = store.get("apiKey");
+      if (!apiKey) throw new Error("API key not set");
+
+      const fetchedModels = store.get("models");
+      if (
+        Array.isArray(fetchedModels) &&
+        fetchedModels.length > 0 &&
+        !refetch
+      ) {
+        return { success: true, models: fetchedModels };
+      }
+
+      const models = await fetchOpenAIModels(apiKey);
+      console.log(`🚀 \n - ipcMain.handle \n - models:`, models);
+      // Defensive: Only set if models is an array
+      if (Array.isArray(models)) {
+        const latestSortedModels = models.sort((a, b) => b.created - a.created);
+        store.set("models", latestSortedModels);
+        return { success: true, models: latestSortedModels };
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        return {
+          success: false,
+          error: error.message,
+        };
+      }
+
+      return {
+        success: false,
+        error: "Unknown error",
+      };
+    }
+  });
+
+  ipcMain.handle("get-selected-model", async () => {
+    try {
+      return store.get("selectedModel");
+    } catch (error) {
+      return DEFAULT_OPENAI_MODEL;
+    }
+  });
+
   ipcMain.handle("set-selected-model", async (_event, modelId: string) => {
     try {
       if (typeof modelId !== "string" || !modelId)
@@ -71,14 +101,6 @@ export const registerIpcHandlers = () => {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       };
-    }
-  });
-
-  ipcMain.handle("get-selected-model", async () => {
-    try {
-      return store.get("selectedModel") || "gpt-4o-mini";
-    } catch (error) {
-      return "gpt-4o-mini";
     }
   });
 

@@ -3,6 +3,8 @@
  * Import this type in both preload and global electron.d.ts for DRY and type-safe IPC.
  */
 
+import { Model } from "openai/resources.mjs";
+
 export type TextUpdatePayload = {
   original: string;
   fixed: string;
@@ -18,20 +20,16 @@ export type ElectronAPI = {
   /**
    * Fetches available OpenAI models via main process.
    */
-  fetchOpenAIModels: () => Promise<{
+  fetchOpenAIModels: (refetch?: boolean) => Promise<{
     success: boolean;
-    models?: {
-      id: string;
-      object: string;
-      created: number;
-      owned_by: string;
-    }[];
+    models?: Model[];
     error?: string;
   }>;
 
   setSelectedModel: (
     modelId: string
   ) => Promise<{ success: boolean; error?: string }>;
+
   getSelectedModel: () => Promise<string>;
 
   /**
@@ -43,6 +41,8 @@ export type ElectronAPI = {
    * Registers a callback for the 'start-loading' event from main process.
    */
   onStartLoading: (callback: () => void) => () => void;
+
+  onStopLoading: (callback: () => void) => () => void;
 
   /**
    * Fetches the stored OpenAI API key from the main process.

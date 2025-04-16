@@ -92,8 +92,12 @@ export const fixGrammar = async (
       `Sending request to OpenAI with system prompt: \n "${systemPrompt}" \n`,
       `User Prompt: \n "${userPrompt}" \n`
     );
+    const selectedModel = store.get("selectedModel");
+    if (!selectedModel) {
+      throw new Error("You have to select a model first.");
+    }
     const res = await openai.chat.completions.create({
-      model: store.get("models").selectedModel || DEFAULT_OPENAI_MODEL,
+      model: selectedModel,
       messages: [
         {
           role: "system",
