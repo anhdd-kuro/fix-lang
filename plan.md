@@ -220,6 +220,7 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 - [x] Update token count display when API call is done
 
 **Implementation summary:**
+
 - The OpenAI API response token count is now extracted and sent to the renderer.
 - Both text panels display the token count inside the text area, styled for accessibility and clarity.
 - Type definitions, IPC, and UI all updated for seamless token count updates.
