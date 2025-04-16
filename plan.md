@@ -170,11 +170,12 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 
 #### 4. Introduce a keybinding change feature
 
-- [ ] Add UI in settings/modal to show current keybindings
-- [ ] Add input for updating keybindings
-- [ ] Validate and save new keybindings
-- [ ] Update hotkey registration logic in Electron main process
+- [x] Add UI in settings/modal to show current keybindings
+- [ ] Split default keybindings into `src/const.ts`
+- [ ] Implement logic to save new keybindings to current button in SettingKeyBinding
+- [ ] Validate and save new keybindings in stores
 - [ ] Show feedback for invalid/duplicate keybindings
+- [ ] Add reset keybindings button
 
 #### 5. Enable saving up to 20 versions of both the original and corrected texts
 
@@ -190,16 +191,25 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 - [x] Implement clipboard copy logic
 - [x] Show visual feedback (e.g., tooltip or toast) on copy
 
-#### 7. Include multiple prompt modes: each mode should have its own checkbox and prompt input
+#### 7. Include multiple prompt modes in SettingsPrompt
 
-- [ ] Add checkboxes for "Grammar only", "Tone", "Shorten" in UI
-- [ ] Add input for custom prompt per mode
-- [ ] Update API call logic to use selected prompt modes
-- [ ] Save user prompt preferences in settings
+- [ ] Add UI for prompt modes
+  - [ ] Add input for custom "system prompt"
+  - [ ] Add checkboxes for "Grammar only" and "Shorten" (default: "Grammar only")
+  - [ ] Add input for custom "Tone" (default: empty)
+- [ ] Implement UI logic
+  - [ ] Save user settings in store
+  - [ ] Update API call logic to use these settings
 
 #### 8. Implement macOS toolbar icon & menu
 
-- [x] Add app icon to macOS toolbar (SVG used for now; PNG fallback planned)
+- [x] Add app icon to macOS toolbar
+- [ ] Add functionality to menu items, UI can be simple for now
+  - [ ] Quit
+  - [ ] Change models
+  - [ ] Change keybindings
+  - [ ] Reset settings
+- [ ] Make UI look more modern
 - [ ] Update menu dynamically as settings change
 
 **Implementation notes:**
