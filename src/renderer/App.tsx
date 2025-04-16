@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import CopyButton from "./components/CopyButton";
 import { SettingsModal } from "./components/SettingsModal";
 
 // Simple Gear SVG Icon Component
@@ -77,7 +78,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-6 font-sans flex flex-col">
       {/* Header with Settings Button */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-10">
         <h1 className="text-3xl font-bold text-blue-400">FixLang Preview</h1>
         <button
           type="button"
@@ -93,13 +94,18 @@ const App: React.FC = () => {
       {/* Text Areas */}
       <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Original Text Area */}
-        <div>
+        <div className="relative">
           <label
             htmlFor="originalText"
             className="block text-sm font-medium text-gray-400 mb-2"
           >
             Original Text
           </label>
+          <CopyButton
+            value={originalText}
+            label="Copy original text"
+            className="absolute -top-[1em] right-0 z-10"
+          />
           <textarea
             id="originalText"
             rows={10}
@@ -111,13 +117,18 @@ const App: React.FC = () => {
         </div>
 
         {/* Fixed Text Area */}
-        <div>
+        <div className="relative">
           <label
             htmlFor="fixedText"
             className="block text-sm font-medium text-gray-400 mb-2"
           >
             Corrected Text
           </label>
+          <CopyButton
+            value={fixedText}
+            label="Copy corrected text"
+            className="absolute -top-[1em] right-0 z-10"
+          />
           <textarea
             id="fixedText"
             rows={10}

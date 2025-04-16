@@ -186,9 +186,9 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 
 #### 6. Add a copy button at the top right of both the original and corrected texts
 
-- [ ] Add copy button UI to both text panels
-- [ ] Implement clipboard copy logic
-- [ ] Show visual feedback (e.g., tooltip or toast) on copy
+- [x] Add copy button UI to both text panels
+- [x] Implement clipboard copy logic
+- [x] Show visual feedback (e.g., tooltip or toast) on copy
 
 #### 7. Include multiple prompt modes: each mode should have its own checkbox and prompt input
 
