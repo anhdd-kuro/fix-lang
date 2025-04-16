@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { KeyBinding } from "./KeyBinding";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
+import { KeyBinding } from "./KeyBinding";
 
 type SettingsModalProps = {
   isOpen: boolean;

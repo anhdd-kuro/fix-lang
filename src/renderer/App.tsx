@@ -1,8 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import SettingsModal from "./components/SettingsModal";
-import MouseLoadingSpinner from "./components/MouseLoadingSpinner";
-
-type AppProps = {};
 
 // Simple Gear SVG Icon Component
 const GearIcon = () => (
@@ -31,14 +28,14 @@ const GearIcon = () => (
  * Main App component for FixLang Preview UI.
  * Handles API call loading spinner near the mouse, settings modal, and text display.
  */
-const App: React.FC<AppProps> = () => {
+const App: React.FC = () => {
   // State for text areas
   const [originalText, setOriginalText] = useState<string>("");
   const [fixedText, setFixedText] = useState<string>("");
   // Settings modal visibility
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   // Loading state for API call
-  const [loading, setLoading] = useState<boolean>(false);
+  const [_loading, setLoading] = useState<boolean>(false);
 
   // Listen for text updates from main process via preload script
   useEffect(() => {
@@ -54,7 +51,7 @@ const App: React.FC<AppProps> = () => {
   }, []);
 
   // Error state for IPC issues
-  const [error, setError] = useState<string>("");
+  const [error, _setError] = useState<string>("");
 
   // Listen for IPC events from Electron main/preload
   useEffect(() => {

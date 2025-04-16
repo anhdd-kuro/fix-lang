@@ -3,11 +3,11 @@
  * @description IPC handlers for settings and key bindings.
  */
 import { ipcMain } from "electron";
-import { store } from "./store";
-import { KeyBindings } from "./store";
-import { updateTrayMenu } from "./tray";
-import { fetchOpenAIModels } from "./openai";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
+import { fetchOpenAIModels } from "./openai";
+import { store } from "./store";
+import { updateTrayMenu } from "./tray";
+import type { KeyBindings } from "./store";
 
 export const registerIpcHandlers = () => {
   ipcMain.handle("get-api-key", async () => {
@@ -15,6 +15,7 @@ export const registerIpcHandlers = () => {
       const apiKey = store.get("apiKey");
       return apiKey || "";
     } catch (error) {
+      console.error("Failed to get API key:", error);
       return "";
     }
   });
@@ -37,6 +38,7 @@ export const registerIpcHandlers = () => {
       const bindings = store.get("keyBindings");
       return bindings;
     } catch (error) {
+      console.error("Failed to get key bindings:", error);
       return {
         fix: "Control+Shift+F",
         undo: "Control+Shift+Z",
@@ -86,6 +88,7 @@ export const registerIpcHandlers = () => {
     try {
       return store.get("selectedModel");
     } catch (error) {
+      console.error("Failed to get selected model:", error);
       return DEFAULT_OPENAI_MODEL;
     }
   });

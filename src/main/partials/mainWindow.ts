@@ -3,9 +3,10 @@
  * @description Main window singleton logic for FixLang Electron app.
  * Handles creation, access, and management of the main BrowserWindow.
  */
-import appIcon from "../../../resources/icon.ico?asset";
-import { app, BrowserWindow, BrowserWindowConstructorOptions } from "electron";
 import path from "node:path";
+import { app, BrowserWindow } from "electron";
+import appIcon from "../../../resources/icon.ico?asset";
+import type { BrowserWindowConstructorOptions } from "electron";
 
 let mainWindow: BrowserWindow | null = null;
 

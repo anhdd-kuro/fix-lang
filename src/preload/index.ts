@@ -2,7 +2,7 @@
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 
 import { contextBridge, ipcRenderer } from "electron";
-import { ElectronAPI } from "./preload-api.types";
+import type { ElectronAPI, KeyBindings } from "./preload-api.types";
 
 // Define the shape of the data expected from the main process
 type TextUpdatePayload = {
@@ -113,7 +113,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
    * Fetches the stored key bindings from the main process.
    * @returns A promise that resolves with the key bindings object.
    */
-  getKeyBindings: (): Promise<any> => {
+  getKeyBindings: (): Promise<KeyBindings> => {
     // Using 'any' for now, will be typed via electron.d.ts
     console.log("Preload: Invoking get-key-bindings");
     return ipcRenderer.invoke("get-key-bindings");
@@ -125,7 +125,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
    * @returns A promise that resolves with an object indicating success or failure.
    */
   setKeyBindings: (
-    bindings: any
+    bindings: KeyBindings
   ): Promise<{ success: boolean; error?: string }> => {
     console.log("Preload: Invoking set-key-bindings with:", bindings);
     return ipcRenderer.invoke("set-key-bindings", bindings);

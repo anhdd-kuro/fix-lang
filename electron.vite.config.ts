@@ -1,6 +1,6 @@
-import { defineConfig } from "electron-vite";
 import path, { resolve } from "path";
 import tailwindcss from "@tailwindcss/vite";
+import { defineConfig } from "electron-vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 export const rendererPort = 5175;

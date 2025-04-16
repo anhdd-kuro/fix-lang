@@ -3,8 +3,8 @@
  * @description Tray icon, menu, and related logic for FixLang.
  */
 import { app, BrowserWindow, Tray, Menu, nativeImage } from "electron";
-import appIcon from "./tray.png?asset";
 import { getMainWindow } from "./mainWindow";
+import appIcon from "./tray.png?asset";
 
 let appTray: Tray | null = null;
 let trayMenu: Menu | null = null;
@@ -24,8 +24,10 @@ export const setupTray = () => {
     updateTrayMenu();
     appTray.on("click", () => {
       const mainWindow = getMainWindow();
-      if (mainWindow)
-        mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
+      if (mainWindow) {
+        if (mainWindow.isVisible()) mainWindow.hide();
+        else mainWindow.show();
+      }
     });
   } catch (err) {
     console.error("Failed to initialize app tray:", err);

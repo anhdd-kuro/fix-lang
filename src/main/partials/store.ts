@@ -2,10 +2,10 @@
  * @file store.ts
  * @description Electron Store schema, types, and initialization for settings and key bindings.
  */
-import ElectronStore from "electron-store";
-import Store, { Schema } from "electron-store";
-import { Model } from "openai/resources.mjs";
+import Store from "electron-store";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
+import type { Schema } from "electron-store";
+import type { Model } from "openai/resources.mjs";
 
 export type KeyBindings = {
   fix: string;

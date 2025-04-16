@@ -1,4 +1,4 @@
-import { Model } from "openai/resources.mjs";
+import type { Model } from "openai/resources.mjs";
 
 /**
  * Default OpenAI model to use for text fixing.

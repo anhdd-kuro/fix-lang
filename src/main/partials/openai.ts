@@ -1,9 +1,8 @@
+import LanguageDetect from "languagedetect";
 import { OpenAI } from "openai";
 import { DEFAULT_IMPROVE_PROMPT, makeDefaultSystemPrompt } from "~/prompts";
 import { StringPrettifier } from "~/utils";
-import LanguageDetect from "languagedetect";
 import { store } from "./store";
-import { DEFAULT_OPENAI_MODEL } from "~/const";
 
 const lngDetector = new LanguageDetect();
 

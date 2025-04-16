@@ -1,19 +1,18 @@
-import { app, BrowserWindow, ipcMain } from "electron"; // Main Electron imports
 import path from "node:path";
-import { registerHotkeys, unregisterHotkeys } from "./partials/hotkey";
+import { app, BrowserWindow, ipcMain } from "electron"; // Main Electron imports
 import {
   isMacOSAccessibilityGranted,
   promptAccessibilityPermission,
 } from "../utils";
+import { registerHotkeys, unregisterHotkeys } from "./partials/hotkey";
+import { registerIpcHandlers } from "./partials/ipc";
+import { createMainWindow } from "./partials/mainWindow";
 import { initializeOverlayWindow } from "./partials/overlayWindow";
 import { setupTray, updateTrayMenu } from "./partials/tray";
-import { registerIpcHandlers } from "./partials/ipc";
 
 // --- Global Overlay Spinner ---
 initializeOverlayWindow();
 registerIpcHandlers();
-
-import { createMainWindow } from "./partials/mainWindow";
 
 const createWindow = () => {
   // Create and get the singleton main window instance

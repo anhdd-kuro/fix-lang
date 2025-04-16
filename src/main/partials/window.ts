@@ -2,8 +2,8 @@
  * @file window.ts
  * @description Main window creation/config for FixLang.
  */
-import { BrowserWindow } from "electron";
 import path from "node:path";
+import { BrowserWindow } from "electron";
 
 export const createWindow = () => {
   const mainWindow = new BrowserWindow({

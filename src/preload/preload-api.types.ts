@@ -3,7 +3,7 @@
  * Import this type in both preload and global electron.d.ts for DRY and type-safe IPC.
  */
 
-import { Model } from "openai/resources.mjs";
+import type { Model } from "openai/resources.mjs";
 
 export type TextUpdatePayload = {
   original: string;

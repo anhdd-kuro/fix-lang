@@ -1,8 +1,9 @@
-import { globalShortcut, BrowserWindow, Notification } from "electron";
-import { fixGrammar } from "./openai";
-import { getHighlightedText, pasteText } from "../../utils";
+import { globalShortcut, Notification } from "electron";
 import { store } from "~/main/partials/store";
+import { fixGrammar } from "./openai";
 import { showOverlaySpinner, hideOverlaySpinner } from "./overlayWindow";
+import { getHighlightedText, pasteText } from "../../utils";
+import type { BrowserWindow } from "electron";
 
 // State to store the last operation's text for Undo/Retry
 let lastOriginalText: string | null = null;
@@ -167,7 +168,7 @@ const registerRetryShortcut = (mainWindow: BrowserWindow) => {
   checkShortcut(retRetry);
 };
 
-const handleError = (error: any) => {
+const handleError = (error: unknown) => {
   console.error("Error during grammar fixing or IPC send:", error);
   // Optional: Show error notification
   new Notification({
