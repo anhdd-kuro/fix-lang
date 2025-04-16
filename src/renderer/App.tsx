@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import SettingsModal from "./components/SettingsModal";
+import { SettingsModal } from "./components/SettingsModal";
 
 // Simple Gear SVG Icon Component
 const GearIcon = () => (

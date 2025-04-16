@@ -1,229 +1,24 @@
-import React, { useState, useEffect } from "react";
-import { DEFAULT_OPENAI_MODEL } from "~/const";
-import { KeyBinding } from "./KeyBinding";
+import React, { useState } from "react";
+import { SettingGeneral } from "./SettingGeneral";
+import { SettingKeyBinding } from "./SettingKeyBinding";
+import { SettingPrompt } from "./SettingPrompt";
+import { SettingTabBtn } from "./SettingTabBtn";
 
 type SettingsModalProps = {
   isOpen: boolean;
   onClose: () => void;
 };
 
-type KeyBindings = {
-  fix: string;
-  undo: string;
-  retry: string;
-};
-
 /**
  * A modal component for application settings.
- * Allows setting the OpenAI API Key.
+ * Contains tabs for different settings categories.
  */
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  // State for the API Key input field
-  const [apiKeyInput, setApiKeyInput] = useState<string>("");
-  const [keyBindings, setKeyBindings] = useState<KeyBindings | null>(null);
-  const [keyBindingsStatus, setKeyBindingsStatus] = useState<string>("");
-  const [saveStatus, setSaveStatus] = useState<string>(""); // For feedback
-
-  // --- Model selection state ---
-  const [models, setModels] = useState<
-    { id: string; object: string; created: number; owned_by: string }[]
-  >([]);
-  const [selectedModel, setSelectedModel] =
-    useState<string>(DEFAULT_OPENAI_MODEL);
-
-  const [modelsLoading, setModelsLoading] = useState<boolean>(false);
-  const [modelsError, setModelsError] = useState<string>("");
-
-  // Fetch models from OpenAI API
-  const fetchModels = async (refetch = false) => {
-    setModelsLoading(true);
-    setModelsError("");
-    try {
-      if (!window.electronAPI?.fetchOpenAIModels) {
-        setModelsError("electronAPI.fetchOpenAIModels not available");
-        setModelsLoading(false);
-        return;
-      }
-      const result = await window.electronAPI.fetchOpenAIModels(refetch);
-      if (result.success) {
-        setModels(result.models ?? []);
-      } else {
-        setModelsError(result.error || "Failed to fetch models");
-      }
-    } catch (error) {
-      setModelsError(error instanceof Error ? error.message : "Unknown error");
-    } finally {
-      setModelsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchModels();
-    window.electronAPI?.getSelectedModel?.().then((model) => {
-      if (model) {
-        setSelectedModel(model);
-      }
-    });
-  }, []);
-
-  // Check if electronAPI is available
-  useEffect(() => {
-    // Check if electronAPI is available in the window object
-    if (!window.electronAPI) {
-      console.error("electronAPI is not available in window object");
-      setSaveStatus("Error: API not available. App may need to be restarted.");
-    } else {
-      console.log(
-        "electronAPI is available with methods:",
-        Object.keys(window.electronAPI)
-      );
-
-      // Check if specific methods exist
-      if (!window.electronAPI.getApiKey) {
-        console.error("getApiKey method is missing from electronAPI");
-      }
-      if (!window.electronAPI.setApiKey) {
-        console.error("setApiKey method is missing from electronAPI");
-      }
-    }
-  }, []);
-
-  // Fetch API Key and Key Bindings when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setSaveStatus(""); // Clear status on open
-      setKeyBindingsStatus(""); // Clear key binding status
-      console.log("SettingsModal: Fetching API key and Key Bindings...");
-
-      // Fetch API Key
-      window.electronAPI
-        ?.getApiKey()
-        .then((key) => {
-          console.log(
-            `SettingsModal: Received key (length: ${key?.length ?? 0})`
-          );
-          setApiKeyInput(key || ""); // Set input value, default to empty string
-        })
-        .catch((error) => {
-          console.error("SettingsModal: Error fetching API key:", error);
-          setSaveStatus("Error fetching key");
-        });
-
-      // Fetch Key Bindings
-      window.electronAPI
-        ?.getKeyBindings()
-        .then((bindings) => {
-          console.log("SettingsModal: Received key bindings:", bindings);
-          setKeyBindings(bindings);
-        })
-        .catch((error) => {
-          console.error("SettingsModal: Error fetching key bindings:", error);
-          // Handle error appropriately, maybe show a message
-        });
-    }
-  }, [isOpen]); // Dependency array includes isOpen
-
-  // Handle changes to the input field
-  const handleApiKeyChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setApiKeyInput(event.target.value);
-    setSaveStatus(""); // Clear status on change
-  };
-
-  // Handle saving the API Key when the input loses focus
-  const handleApiKeyBlur = async () => {
-    if (!window.electronAPI?.setApiKey) {
-      console.error("setApiKey function not available on electronAPI");
-      setSaveStatus("Error: Cannot save key");
-      return;
-    }
-
-    // Basic validation
-    if (
-      apiKeyInput &&
-      !apiKeyInput.startsWith("sk-") &&
-      apiKeyInput.length > 0
-    ) {
-      console.warn("API key doesn't start with 'sk-', might not be valid");
-      // We'll still try to save it, but warn the user
-      setSaveStatus("Warning: Key format may be invalid, but saving anyway...");
-    } else {
-      setSaveStatus("Saving...");
-    }
-
-    console.log(
-      `SettingsModal: Attempting to save API key (length: ${apiKeyInput.length})`
-    );
-
-    try {
-      // Add a small delay to ensure UI updates before the potentially blocking IPC call
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      const result = await window.electronAPI.setApiKey(apiKeyInput);
-      await fetchModels(true);
-
-      if (result.success) {
-        console.log("SettingsModal: API Key saved successfully.");
-        setSaveStatus("Saved!");
-
-        // Verify the key was saved by retrieving it again
-        const verifiedKey = await window.electronAPI.getApiKey();
-        if (verifiedKey !== apiKeyInput) {
-          console.error("SettingsModal: API Key verification failed");
-          setSaveStatus("Warning: Key saved but verification failed");
-        }
-      } else {
-        console.error("SettingsModal: Failed to save API Key:", result.error);
-        setSaveStatus(`Error: ${result.error || "Unknown error"}`);
-      }
-    } catch (error) {
-      console.error("SettingsModal: Error calling setApiKey:", error);
-      setSaveStatus("Error saving key");
-    }
-  };
-
-  // Handle changes to key binding inputs
-  const handleKeyBindingChange = (
-    event: React.ChangeEvent<HTMLInputElement>,
-    action: keyof KeyBindings
-  ) => {
-    const newValue = event.target.value;
-    setKeyBindings((prev) => (prev ? { ...prev, [action]: newValue } : null));
-    setKeyBindingsStatus(""); // Clear status on change
-  };
-
-  // Handle saving key bindings when an input loses focus
-  const handleKeyBindingBlur = async () => {
-    if (!keyBindings) {
-      console.error("Cannot save null key bindings");
-      setKeyBindingsStatus("Error: No bindings loaded");
-      return;
-    }
-    if (!window.electronAPI?.setKeyBindings) {
-      console.error("setKeyBindings function not available on electronAPI");
-      setKeyBindingsStatus("Error: Cannot save bindings");
-      return;
-    }
-
-    // TODO: Add validation for Electron Accelerator format before saving
-    console.log("SettingsModal: Attempting to save key bindings:", keyBindings);
-    setKeyBindingsStatus("Saving...");
-    try {
-      const result = await window.electronAPI.setKeyBindings(keyBindings);
-      if (result.success) {
-        console.log("SettingsModal: Key bindings saved successfully.");
-        setKeyBindingsStatus("Saved! Restart required.");
-      } else {
-        console.error(
-          "SettingsModal: Failed to save key bindings:",
-          result.error
-        );
-        setKeyBindingsStatus(`Error: ${result.error || "Unknown error"}`);
-      }
-    } catch (error) {
-      console.error("SettingsModal: Error calling setKeyBindings:", error);
-      setKeyBindingsStatus("Error saving bindings");
-    }
-  };
+export const SettingsModal: React.FC<SettingsModalProps> = ({
+  isOpen,
+  onClose,
+}) => {
+  // Tab state: 0=General, 1=Key Bindings, 2=Prompt
+  const [activeTab, setActiveTab] = useState<number>(0);
 
   // Don't render if not open
   if (!isOpen) {
@@ -231,8 +26,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm bg-opacity-50 flex justify-center items-center z-50">
+      <div className="bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md h-[60vh] min-h-120 max-h-200">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-blue-300">Settings</h2>
           <button
@@ -246,183 +41,133 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* Settings Content Goes Here */}
-        <div className="space-y-4">
-          {/* OpenAI API Key Input */}
-          <div className="mb-6">
-            <label
-              htmlFor="api-key-input"
-              className="block text-sm font-medium text-gray-300 mb-1"
-            >
-              OpenAI API Key
-            </label>
-            <input
-              id="api-key-input"
-              type="password"
-              className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="sk-..."
-              aria-label="OpenAI API Key"
-              value={apiKeyInput}
-              onChange={handleApiKeyChange}
-              onBlur={handleApiKeyBlur}
-              autoComplete="off"
+        {/* Tab Navigation (DaisyUI/Tailwind) */}
+        <div className="mb-6">
+          <div role="tablist" className="flex gap-4 w-full rounded-lg p-1">
+            <SettingTabBtn
+              icon={
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+              }
+              label="General"
+              active={activeTab === 0}
+              ariaControls="settings-general"
+              tabIndex={0}
+              id="tab-general"
+              onClick={() => setActiveTab(0)}
             />
-            {saveStatus && (
-              <p
-                className={`text-xs mt-1 ${
-                  saveStatus.startsWith("Error")
-                    ? "text-red-400"
-                    : saveStatus.startsWith("Warning")
-                    ? "text-yellow-400"
-                    : "text-green-400"
-                }`}
-                role="status"
-              >
-                {saveStatus}
-              </p>
-            )}
-            <p className="text-xs text-gray-500 mt-1">
-              Your API key is stored locally and never shared.
-            </p>
+            <SettingTabBtn
+              icon={
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+                  />
+                </svg>
+              }
+              label="Key Bindings"
+              active={activeTab === 1}
+              ariaControls="settings-keybindings"
+              tabIndex={0}
+              id="tab-keybindings"
+              onClick={() => setActiveTab(1)}
+            />
+            <SettingTabBtn
+              icon={
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                  />
+                </svg>
+              }
+              label="Prompt"
+              active={activeTab === 2}
+              ariaControls="settings-prompt"
+              tabIndex={0}
+              id="tab-prompt"
+              onClick={() => setActiveTab(2)}
+            />
           </div>
-          {/* Model Selection Dropdown */}
-          {apiKeyInput && (
-            <div>
-              <label
-                htmlFor="model-select"
-                className="block text-sm font-medium text-gray-300 mb-1"
-              >
-                OpenAI Model
-              </label>
-              <div className="flex gap-2 items-center">
-                <select
-                  id="model-select"
-                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  aria-label="Select OpenAI Model"
-                  value={models.length > 0 ? selectedModel : ""}
-                  onChange={async (e) => {
-                    const modelId = e.target.value;
-                    setSelectedModel(modelId);
-                    if (window.electronAPI?.setSelectedModel) {
-                      try {
-                        await window.electronAPI.setSelectedModel(modelId);
-                      } catch (error) {
-                        console.error(
-                          "Failed to persist selected model to main process:",
-                          error
-                        );
-                      }
-                    }
-                  }}
-                  disabled={modelsLoading || !!modelsError}
-                >
-                  {modelsLoading && <option>Loading models...</option>}
-                  {!modelsLoading && models.length === 0 && (
-                    <option>No models found</option>
-                  )}
-                  {!modelsLoading &&
-                    models.map((model) => (
-                      <option key={model.id} value={model.id}>
-                        {model.id}{" "}
-                        {model.owned_by !== "openai"
-                          ? `(${model.owned_by})`
-                          : ""}
-                      </option>
-                    ))}
-                </select>
-                <button
-                  type="button"
-                  aria-label="Refetch models"
-                  title="Refetch models"
-                  className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  onClick={() => fetchModels(true)}
-                  disabled={modelsLoading}
-                >
-                  &#x21bb;
-                </button>
-              </div>
-              {modelsError && (
-                <p className="text-xs text-red-400 mt-1" role="alert">
-                  {modelsError}
-                </p>
-              )}
-              <p className="text-xs text-gray-500 mt-1">
-                Model is used for all OpenAI requests. Your API key determines
-                available models.
-              </p>
-            </div>
-          )}
-          <div>
-            <section className="flex flex-col gap-2">
-              <h3 className="text-lg font-medium text-gray-300 mb-2">
-                Key Bindings
-              </h3>
-              <KeyBinding
-                label="Fix"
-                keysBinding={["Control", "Shift", "F"]}
-                onChange={(keysBinding) => {
-                  const newKeyBindings = keysBinding.join("+");
-                  setKeyBindings((prev) =>
-                    prev
-                      ? { ...prev, fix: newKeyBindings }
-                      : { fix: newKeyBindings, undo: "", retry: "" }
-                  );
-                  setKeyBindingsStatus(""); // Clear status on change
-                }}
-              />
-              <KeyBinding
-                label="Undo"
-                keysBinding={["Control", "Shift", "Z"]}
-                onChange={(keysBinding) => {
-                  const newKeyBindings = keysBinding.join("+");
-                  setKeyBindings((prev) =>
-                    prev
-                      ? { ...prev, undo: newKeyBindings }
-                      : { undo: newKeyBindings, fix: "", retry: "" }
-                  );
-                  setKeyBindingsStatus(""); // Clear status on change
-                }}
-              />
-              <KeyBinding
-                label="Retry"
-                keysBinding={["Control", "Shift", "A"]}
-                onChange={(keysBinding) => {
-                  const newKeyBindings = keysBinding.join("+");
-                  setKeyBindings((prev) =>
-                    prev
-                      ? { ...prev, retry: newKeyBindings }
-                      : { retry: newKeyBindings, fix: "", undo: "" }
-                  );
-                  setKeyBindingsStatus(""); // Clear status on change
-                }}
-              />
-              {/* TODO: Add functionality to change key bindings */}
-            </section>
+        </div>
 
-            <div>
-              <h3 className="text-lg font-medium text-gray-300 mb-2">
-                Custom Prompts
-              </h3>
-              <p className="text-sm text-gray-400">
-                Manage and select different system prompts for OpenAI.
-              </p>
-              {/* TODO: Add prompt management UI */}
-            </div>
+        {/* Tab Panels */}
+        <div>
+          {/* General Tab */}
+          <div
+            id="settings-general"
+            role="tabpanel"
+            aria-labelledby="tab-general"
+            hidden={activeTab !== 0}
+          >
+            <SettingGeneral />
+          </div>
 
-            <div className="mt-6 flex justify-end">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800"
-              >
-                Close
-              </button>
-            </div>
+          {/* Key Bindings Tab */}
+          <div
+            id="settings-keybindings"
+            role="tabpanel"
+            aria-labelledby="tab-keybindings"
+            hidden={activeTab !== 1}
+          >
+            <SettingKeyBinding />
+          </div>
+
+          {/* Prompt Tab */}
+          <div
+            id="settings-prompt"
+            role="tabpanel"
+            aria-labelledby="tab-prompt"
+            hidden={activeTab !== 2}
+          >
+            <SettingPrompt />
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+            >
+              Close
+            </button>
           </div>
         </div>
       </div>
     </div>
   );
 };
-
-export default SettingsModal;

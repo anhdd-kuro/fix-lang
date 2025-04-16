@@ -154,7 +154,21 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 - [x] Add refetch models button.
 - [x] Ensure dropdown is accessible (aria-label, keyboard navigation, etc).
 
-#### 3. Introduce a keybinding change feature
+#### 3. Split modal setting options into tabs
+
+- [x] Analyze current SettingsModal implementation and list all settings
+- [x] Decide tab structure and assign settings to each tab
+- [x] Implement tab navigation UI (DaisyUI/Tailwind)
+- [x] Refactor modal content into tab panels:
+  - [x] Tab 1: General (API key, Model)
+  - [x] Tab 2: Key Bindings
+  - [x] Tab 3: Prompt (custom prompt settings)
+- [x] Ensure accessibility and responsive design
+- [x] Test tab switching and settings functionality
+- [x] Update documentation and code comments
+- [x] Mark completed steps in plan.md
+
+#### 4. Introduce a keybinding change feature
 
 - [ ] Add UI in settings/modal to show current keybindings
 - [ ] Add input for updating keybindings
@@ -162,7 +176,7 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 - [ ] Update hotkey registration logic in Electron main process
 - [ ] Show feedback for invalid/duplicate keybindings
 
-#### 4. Enable saving up to 20 versions of both the original and corrected texts
+#### 5. Enable saving up to 20 versions of both the original and corrected texts
 
 - [ ] Implement a version history data structure (in-memory or persistent)
 - [ ] Update logic to save each correction (original + fixed)
@@ -170,20 +184,20 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 - [ ] Add UI to view and restore previous versions
 - [ ] Add delete/clear history option
 
-#### 5. Add a copy button at the top right of both the original and corrected texts
+#### 6. Add a copy button at the top right of both the original and corrected texts
 
 - [ ] Add copy button UI to both text panels
 - [ ] Implement clipboard copy logic
 - [ ] Show visual feedback (e.g., tooltip or toast) on copy
 
-#### 6. Include multiple prompt modes: each mode should have its own checkbox and prompt input
+#### 7. Include multiple prompt modes: each mode should have its own checkbox and prompt input
 
 - [ ] Add checkboxes for "Grammar only", "Tone", "Shorten" in UI
 - [ ] Add input for custom prompt per mode
 - [ ] Update API call logic to use selected prompt modes
 - [ ] Save user prompt preferences in settings
 
-#### 7. Implement macOS toolbar icon & menu
+#### 8. Implement macOS toolbar icon & menu
 
 - [x] Add app icon to macOS toolbar (SVG used for now; PNG fallback planned)
 - [ ] Update menu dynamically as settings change
