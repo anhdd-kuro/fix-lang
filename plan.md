@@ -145,14 +145,14 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 
 ##### 2.2 Implement dropdown UI in SettingsModal (NEXT)
 
-- [ ] Add a dropdown UI for model selection in the settings modal (`SettingsModal.tsx`).
-- [ ] Fetch available models from OpenAI API via `electronAPI.fetchOpenAIModels` on mount.
-- [ ] Populate dropdown options with model names (id, owner, etc).
-- [ ] Handle selection and store selected model in app state/settings (persist until refetch or app restart).
-- [ ] Use selected model for API calls.
-- [ ] Add error handling for fetch failures (show error in UI, allow retry).
-- [ ] Add refetch models button.
-- [ ] Ensure dropdown is accessible (aria-label, keyboard navigation, etc).
+- [x] Add a dropdown UI for model selection in the settings modal (`SettingsModal.tsx`).
+- [x] Fetch available models from OpenAI API via `electronAPI.fetchOpenAIModels` on mount.
+- [x] Populate dropdown options with model names (id, owner, etc).
+- [x] Handle selection and store selected model in app state/settings (persist until refetch or app restart).
+- [x] Use selected model for API calls.
+- [x] Add error handling for fetch failures (show error in UI, allow retry).
+- [x] Add refetch models button.
+- [x] Ensure dropdown is accessible (aria-label, keyboard navigation, etc).
 
 #### 3. Introduce a keybinding change feature
 

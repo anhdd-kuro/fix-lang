@@ -2,6 +2,8 @@ import { OpenAI } from "openai";
 import { DEFAULT_IMPROVE_PROMPT, makeDefaultSystemPrompt } from "~/prompts";
 import { StringPrettifier } from "~/utils";
 import LanguageDetect from "languagedetect";
+import { store } from "./store";
+import { DEFAULT_OPENAI_MODEL } from "~/const";
 
 const lngDetector = new LanguageDetect();
 
@@ -91,7 +93,7 @@ export const fixGrammar = async (
       `User Prompt: \n "${userPrompt}" \n`
     );
     const res = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Or your preferred model
+      model: store.get("models").selectedModel || DEFAULT_OPENAI_MODEL,
       messages: [
         {
           role: "system",

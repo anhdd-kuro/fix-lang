@@ -6,16 +6,18 @@ import { ipcMain } from "electron";
 import { store } from "./store";
 import { KeyBindings } from "./store";
 import { updateTrayMenu } from "./tray";
+import { fetchOpenAIModels } from "./openai";
 
 export const registerIpcHandlers = () => {
   ipcMain.handle("fetch-openai-models", async () => {
     try {
       const apiKey = store.get("apiKey");
       if (!apiKey) throw new Error("API key not set");
-      // Lazy import to avoid circular dependency
-      const { fetchOpenAIModels } = await import("./openai");
       const models = await fetchOpenAIModels(apiKey);
-      return { success: true, models };
+      const latestSortedModels = models.sort((a, b) => b.created - a.created);
+      store.set("models", { models: latestSortedModels });
+
+      return { success: true, models: latestSortedModels };
     } catch (error) {
       return {
         success: false,
@@ -55,6 +57,28 @@ export const registerIpcHandlers = () => {
         undo: "Control+Shift+Z",
         retry: "Control+Shift+A",
       };
+    }
+  });
+
+  ipcMain.handle("set-selected-model", async (_event, modelId: string) => {
+    try {
+      if (typeof modelId !== "string" || !modelId)
+        throw new Error("Invalid model id");
+      store.set("selectedModel", modelId);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  });
+
+  ipcMain.handle("get-selected-model", async () => {
+    try {
+      return store.get("selectedModel") || "gpt-4o-mini";
+    } catch (error) {
+      return "gpt-4o-mini";
     }
   });
 

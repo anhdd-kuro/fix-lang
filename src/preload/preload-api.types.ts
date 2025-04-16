@@ -16,6 +16,25 @@ export type KeyBindings = {
 
 export type ElectronAPI = {
   /**
+   * Fetches available OpenAI models via main process.
+   */
+  fetchOpenAIModels: () => Promise<{
+    success: boolean;
+    models?: {
+      id: string;
+      object: string;
+      created: number;
+      owned_by: string;
+    }[];
+    error?: string;
+  }>;
+
+  setSelectedModel: (
+    modelId: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  getSelectedModel: () => Promise<string>;
+
+  /**
    * Registers a callback for the 'update-text' event from main process.
    */
   onUpdateText: (callback: (payload: TextUpdatePayload) => void) => () => void;

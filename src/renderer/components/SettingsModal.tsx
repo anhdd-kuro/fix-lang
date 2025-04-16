@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { KeyBinding } from "./KeyBinding";
+import { DEFAULT_OPENAI_MODEL } from "~/const";
 
 type SettingsModalProps = {
   isOpen: boolean;
@@ -22,6 +23,60 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const [keyBindings, setKeyBindings] = useState<KeyBindings | null>(null);
   const [keyBindingsStatus, setKeyBindingsStatus] = useState<string>("");
   const [saveStatus, setSaveStatus] = useState<string>(""); // For feedback
+
+  // --- Model selection state ---
+  const [models, setModels] = useState<
+    { id: string; object: string; created: number; owned_by: string }[]
+  >([]);
+  const [selectedModel, setSelectedModel] =
+    useState<string>(DEFAULT_OPENAI_MODEL);
+  const [modelsLoading, setModelsLoading] = useState<boolean>(false);
+  const [modelsError, setModelsError] = useState<string>("");
+
+  // Fetch models from OpenAI API
+  const fetchModels = async () => {
+    setModelsLoading(true);
+    setModelsError("");
+    try {
+      if (!window.electronAPI?.fetchOpenAIModels) {
+        setModelsError("electronAPI.fetchOpenAIModels not available");
+        setModelsLoading(false);
+        return;
+      }
+      const result = await window.electronAPI.fetchOpenAIModels();
+      if (result.success) {
+        setModels(result.models ?? []);
+        // Optionally set default selection if not set
+        if (!selectedModel && result.models && result.models.length > 0) {
+          setSelectedModel(result.models[0].id);
+        }
+      } else {
+        setModelsError(result.error || "Failed to fetch models");
+      }
+    } catch (error) {
+      setModelsError(error instanceof Error ? error.message : "Unknown error");
+    } finally {
+      setModelsLoading(false);
+    }
+  };
+
+  // Load models when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchModels();
+      // Load selected model from localStorage (persisted)
+      const cachedModel = localStorage.getItem("fixlang-selected-model");
+      if (cachedModel) setSelectedModel(cachedModel);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  // Persist selected model to localStorage
+  useEffect(() => {
+    if (selectedModel) {
+      localStorage.setItem("fixlang-selected-model", selectedModel);
+    }
+  }, [selectedModel]);
 
   // Check if electronAPI is available
   useEffect(() => {
@@ -204,92 +259,177 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
         {/* Settings Content Goes Here */}
         <div className="space-y-4">
-          <div>
+          {/* OpenAI API Key Input */}
+          <div className="mb-6">
             <label
-              htmlFor="apiKey"
+              htmlFor="api-key-input"
               className="block text-sm font-medium text-gray-300 mb-1"
             >
               OpenAI API Key
             </label>
             <input
-              type="password" // Use password type for sensitive keys
-              id="apiKey"
-              className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              id="api-key-input"
+              type="password"
+              className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="sk-..."
-              value={apiKeyInput} // Bind value to state
-              onChange={handleApiKeyChange} // Update state on change
-              onBlur={handleApiKeyBlur} // Save on blur
+              aria-label="OpenAI API Key"
+              value={apiKeyInput}
+              onChange={handleApiKeyChange}
+              onBlur={handleApiKeyBlur}
+              autoComplete="off"
             />
+            {saveStatus && (
+              <p
+                className={`text-xs mt-1 ${
+                  saveStatus.startsWith("Error")
+                    ? "text-red-400"
+                    : saveStatus.startsWith("Warning")
+                    ? "text-yellow-400"
+                    : "text-green-400"
+                }`}
+                role="status"
+              >
+                {saveStatus}
+              </p>
+            )}
             <p className="text-xs text-gray-500 mt-1">
-              Stored securely. Used for OpenAI requests.
-              <span className="text-blue-400 font-medium">{saveStatus}</span>
+              Your API key is stored locally and never shared.
             </p>
           </div>
-
-          <section className="flex flex-col gap-2">
-            <h3 className="text-lg font-medium text-gray-300 mb-2">
-              Key Bindings
-            </h3>
-            <KeyBinding
-              label="Fix"
-              keysBinding={["Control", "Shift", "F"]}
-              onChange={(keysBinding) => {
-                const newKeyBindings = keysBinding.join("+");
-                setKeyBindings((prev) =>
-                  prev
-                    ? { ...prev, fix: newKeyBindings }
-                    : { fix: newKeyBindings, undo: "", retry: "" }
-                );
-                setKeyBindingsStatus(""); // Clear status on change
-              }}
-            />
-            <KeyBinding
-              label="Undo"
-              keysBinding={["Control", "Shift", "Z"]}
-              onChange={(keysBinding) => {
-                const newKeyBindings = keysBinding.join("+");
-                setKeyBindings((prev) =>
-                  prev
-                    ? { ...prev, undo: newKeyBindings }
-                    : { undo: newKeyBindings, fix: "", retry: "" }
-                );
-                setKeyBindingsStatus(""); // Clear status on change
-              }}
-            />
-            <KeyBinding
-              label="Retry"
-              keysBinding={["Control", "Shift", "A"]}
-              onChange={(keysBinding) => {
-                const newKeyBindings = keysBinding.join("+");
-                setKeyBindings((prev) =>
-                  prev
-                    ? { ...prev, retry: newKeyBindings }
-                    : { retry: newKeyBindings, fix: "", undo: "" }
-                );
-                setKeyBindingsStatus(""); // Clear status on change
-              }}
-            />
-            {/* TODO: Add functionality to change key bindings */}
-          </section>
-
+          {/* Model Selection Dropdown */}
+          {apiKeyInput && (
+            <div>
+              <label
+                htmlFor="model-select"
+                className="block text-sm font-medium text-gray-300 mb-1"
+              >
+                OpenAI Model
+              </label>
+              <div className="flex gap-2 items-center">
+                <select
+                  id="model-select"
+                  className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label="Select OpenAI Model"
+                  value={selectedModel}
+                  onChange={async (e) => {
+                    const modelId = e.target.value;
+                    setSelectedModel(modelId);
+                    localStorage.setItem("fixlang-selected-model", modelId);
+                    if (window.electronAPI?.setSelectedModel) {
+                      try {
+                        await window.electronAPI.setSelectedModel(modelId);
+                      } catch (error) {
+                        console.error(
+                          "Failed to persist selected model to main process:",
+                          error
+                        );
+                      }
+                    }
+                  }}
+                  disabled={modelsLoading || !!modelsError}
+                >
+                  {modelsLoading && <option>Loading models...</option>}
+                  {!modelsLoading && models.length === 0 && (
+                    <option>No models found</option>
+                  )}
+                  {!modelsLoading &&
+                    models.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.id}{" "}
+                        {model.owned_by !== "openai"
+                          ? `(${model.owned_by})`
+                          : ""}
+                      </option>
+                    ))}
+                </select>
+                <button
+                  type="button"
+                  aria-label="Refetch models"
+                  title="Refetch models"
+                  className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  onClick={fetchModels}
+                  disabled={modelsLoading}
+                >
+                  &#x21bb;
+                </button>
+              </div>
+              {modelsError && (
+                <p className="text-xs text-red-400 mt-1" role="alert">
+                  {modelsError}
+                </p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Model is used for all OpenAI requests. Your API key determines
+                available models.
+              </p>
+            </div>
+          )}
           <div>
-            <h3 className="text-lg font-medium text-gray-300 mb-2">
-              Custom Prompts
-            </h3>
-            <p className="text-sm text-gray-400">
-              Manage and select different system prompts for OpenAI.
-            </p>
-            {/* TODO: Add prompt management UI */}
-          </div>
+            <section className="flex flex-col gap-2">
+              <h3 className="text-lg font-medium text-gray-300 mb-2">
+                Key Bindings
+              </h3>
+              <KeyBinding
+                label="Fix"
+                keysBinding={["Control", "Shift", "F"]}
+                onChange={(keysBinding) => {
+                  const newKeyBindings = keysBinding.join("+");
+                  setKeyBindings((prev) =>
+                    prev
+                      ? { ...prev, fix: newKeyBindings }
+                      : { fix: newKeyBindings, undo: "", retry: "" }
+                  );
+                  setKeyBindingsStatus(""); // Clear status on change
+                }}
+              />
+              <KeyBinding
+                label="Undo"
+                keysBinding={["Control", "Shift", "Z"]}
+                onChange={(keysBinding) => {
+                  const newKeyBindings = keysBinding.join("+");
+                  setKeyBindings((prev) =>
+                    prev
+                      ? { ...prev, undo: newKeyBindings }
+                      : { undo: newKeyBindings, fix: "", retry: "" }
+                  );
+                  setKeyBindingsStatus(""); // Clear status on change
+                }}
+              />
+              <KeyBinding
+                label="Retry"
+                keysBinding={["Control", "Shift", "A"]}
+                onChange={(keysBinding) => {
+                  const newKeyBindings = keysBinding.join("+");
+                  setKeyBindings((prev) =>
+                    prev
+                      ? { ...prev, retry: newKeyBindings }
+                      : { retry: newKeyBindings, fix: "", undo: "" }
+                  );
+                  setKeyBindingsStatus(""); // Clear status on change
+                }}
+              />
+              {/* TODO: Add functionality to change key bindings */}
+            </section>
 
-          <div className="mt-6 flex justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800"
-            >
-              Close
-            </button>
+            <div>
+              <h3 className="text-lg font-medium text-gray-300 mb-2">
+                Custom Prompts
+              </h3>
+              <p className="text-sm text-gray-400">
+                Manage and select different system prompts for OpenAI.
+              </p>
+              {/* TODO: Add prompt management UI */}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       </div>

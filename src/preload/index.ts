@@ -21,6 +21,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
   fetchOpenAIModels: async () => {
     return await ipcRenderer.invoke("fetch-openai-models");
   },
+
+  setSelectedModel: async (modelId: string) => {
+    return await ipcRenderer.invoke("set-selected-model", modelId);
+  },
+
+  getSelectedModel: async () => {
+    return await ipcRenderer.invoke("get-selected-model");
+  },
   /**
    * Registers a callback function to be executed when the 'update-text' IPC message
    * is received from the main process.

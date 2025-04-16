@@ -3,6 +3,8 @@
  * @description Electron Store schema, types, and initialization for settings and key bindings.
  */
 import Store from "electron-store";
+import { Model } from "openai/resources.mjs";
+import { DEFAULT_OPENAI_MODEL } from "~/const";
 
 export type KeyBindings = {
   fix: string;
@@ -12,6 +14,10 @@ export type KeyBindings = {
 
 export type SettingsStore = {
   apiKey: string;
+  models: {
+    models: Model[];
+    selectedModel: string;
+  };
   keyBindings: KeyBindings;
 };
 
@@ -19,6 +25,28 @@ const schema = {
   apiKey: {
     type: "string",
     default: process.env.OPENAI_API_KEY,
+  },
+  models: {
+    type: "object",
+    properties: {
+      models: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            object: { type: "string" },
+            created: { type: "number" },
+            owned_by: { type: "string" },
+          },
+        },
+      },
+      selectedModel: { type: "string", default: DEFAULT_OPENAI_MODEL },
+    },
+    default: {
+      models: [],
+      selectedModel: DEFAULT_OPENAI_MODEL,
+    },
   },
   keyBindings: {
     type: "object",
