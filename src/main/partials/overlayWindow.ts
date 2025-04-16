@@ -1,5 +1,5 @@
-import { BrowserWindow, app, screen, ipcMain } from "electron";
-import path from "node:path";
+import { BrowserWindow, app, screen } from "electron";
+import spinnerOverlayHtml from "./overlay.html?asset";
 
 /**
  * === Global Mouse Loading Spinner Overlay ===
@@ -65,12 +65,7 @@ export const createOverlayWindow = (): BrowserWindow => {
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   // Enable click-through so overlay never blocks mouse events (production)
   overlayWindow.setIgnoreMouseEvents(true, { forward: true });
-  // Load the minimal spinner overlay HTML
-  const htmlPath = path.join(
-    app.getAppPath(),
-    "src/main/partials/overlay.html"
-  );
-  overlayWindow.loadFile(htmlPath);
+  overlayWindow.loadFile(spinnerOverlayHtml);
 
   overlayWindow.once("ready-to-show", () => {
     console.log("Overlay window created", overlayWindow);

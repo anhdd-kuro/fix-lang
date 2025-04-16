@@ -3,11 +3,34 @@
  * @description Tray icon, menu, and related logic for FixLang.
  */
 import { app, BrowserWindow, Tray, Menu, nativeImage } from "electron";
-import appIcon from "../../../resources/icon-16.png?asset";
+import appIcon from "./tray.png?asset";
 import { getMainWindow } from "./mainWindow";
 
 let appTray: Tray | null = null;
 let trayMenu: Menu | null = null;
+
+export const updateTrayMenu = () => {
+  if (appTray) {
+    trayMenu = buildTrayMenu();
+    appTray.setContextMenu(trayMenu);
+  }
+};
+
+export const setupTray = () => {
+  try {
+    const trayIcon = nativeImage.createFromPath(appIcon);
+    appTray = new Tray(trayIcon);
+    appTray.setToolTip("FixLang");
+    updateTrayMenu();
+    appTray.on("click", () => {
+      const mainWindow = getMainWindow();
+      if (mainWindow)
+        mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
+    });
+  } catch (err) {
+    console.error("Failed to initialize app tray:", err);
+  }
+};
 
 export const buildTrayMenu = (): Electron.Menu =>
   Menu.buildFromTemplate([
@@ -61,26 +84,3 @@ export const buildTrayMenu = (): Electron.Menu =>
       },
     },
   ]);
-
-export const updateTrayMenu = () => {
-  if (appTray) {
-    trayMenu = buildTrayMenu();
-    appTray.setContextMenu(trayMenu);
-  }
-};
-
-export const setupTray = () => {
-  try {
-    const trayIcon = nativeImage.createFromPath(appIcon);
-    appTray = new Tray(trayIcon);
-    appTray.setToolTip("FixLang");
-    updateTrayMenu();
-    appTray.on("click", () => {
-      const mainWindow = getMainWindow();
-      if (mainWindow)
-        mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
-    });
-  } catch (err) {
-    console.error("Failed to initialize app tray:", err);
-  }
-};
