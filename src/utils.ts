@@ -44,31 +44,6 @@ export const promptAccessibilityPermission = () => {
 export const wait = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-export const waitForClipboardChange = async ({
-  timeout = 3 * 1000,
-  oldValue = clipboard.readText(),
-}: {
-  timeout?: number;
-  oldValue?: string;
-} = {}): Promise<string> => {
-  const start = Date.now();
-  console.log("Waiting for clipboard change!");
-  console.log("Old value:", oldValue);
-  while (Date.now() - start < timeout) {
-    const newValue = clipboard.readText();
-    if (newValue !== oldValue) {
-      console.log(`Total time taken: ${Date.now() - start}ms`);
-      return newValue;
-    }
-    await wait(50);
-  }
-
-  console.log(
-    `No clipboard changes detected. Total time taken: ${Date.now() - start}ms`
-  );
-  return oldValue;
-};
-
 export const getHighlightedText = async (): Promise<string> => {
   let text = "";
 
@@ -86,8 +61,10 @@ const copyHighlightedText = async () => {
     if (platform === "darwin") {
       execSync(
         `osascript -e '
-          delay 0.5 -- wait for previous action to complete
+          delay 0.1 -- wait for previous keybinding action to complete
           tell application "System Events" -- get process name of frontmost app
+            keystroke "c" using command down -- simulate Cmd+C
+            delay 0.1 -- Do twice to make sure clipboard is updated
             keystroke "c" using command down -- simulate Cmd+C
           end tell
         '`
@@ -99,7 +76,7 @@ const copyHighlightedText = async () => {
     } else {
       execSync(`xdotool key ctrl+c`);
     }
-    return await waitForClipboardChange();
+    return clipboard.readText();
   } catch (err) {
     console.error("❌ Error getting selected text:", err);
     new Notification({
@@ -197,3 +174,28 @@ export class StringPrettifier extends String {
     return new StringPrettifier(emptyLinesRemoved.join("\n"));
   }
 }
+
+export const waitForClipboardChange = async ({
+  timeout = 3 * 1000,
+  oldValue = clipboard.readText(),
+}: {
+  timeout?: number;
+  oldValue?: string;
+} = {}): Promise<string> => {
+  const start = Date.now();
+  console.log("Waiting for clipboard change!");
+  console.log("Old value:", oldValue);
+  while (Date.now() - start < timeout) {
+    const newValue = clipboard.readText();
+    if (newValue !== oldValue) {
+      console.log(`Total time taken: ${Date.now() - start}ms`);
+      return newValue;
+    }
+    await wait(50);
+  }
+
+  console.log(
+    `No clipboard changes detected. Total time taken: ${Date.now() - start}ms`
+  );
+  return oldValue;
+};

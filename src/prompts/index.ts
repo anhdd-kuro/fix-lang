@@ -6,8 +6,8 @@ export const makeDefaultSystemPrompt = ({
   input: string;
 }) => {
   const generalRules = `
-    Preserve original formatting (line breaks, spaces, symbols, markdown, code blocks, etc). Do not add extra spaces.
-    Respond with the corrected text only, no explanations.
+    Preserve original formatting (symbols, markdown, code blocks, etc). Do not add extra spaces.
+    Respond with the result text only.
   `;
 
   if (input.length <= 20) {
@@ -31,7 +31,7 @@ export const makeDefaultSystemPrompt = ({
     3. If only one language is used, correct grammar, word choice, and spelling normally.
     4. If multiple languages are used:
       a. Correct grammar, word choice, and spelling in each language segment.
-      b. Then, based on context, fix remaining issues or rewrite using the most appropriate language if needed.
+      b. Then, based on the context, fix any remaining issues or rewrite using the most appropriate language if needed.
     ${generalRules}
   `;
 };

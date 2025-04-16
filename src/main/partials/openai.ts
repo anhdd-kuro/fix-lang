@@ -45,18 +45,6 @@ export const fetchOpenAIModels = async (
  * @param systemPrompt Optional custom system prompt for the OpenAI API.
  * @returns A promise that resolves with the fixed text.
  */
-/**
- * Fixes grammar and style for the given text using OpenAI API.
- * @param apiKey The OpenAI API key to use for this request.
- * @param text The text to fix.
- * @returns A promise that resolves with the fixed text and token count.
- */
-/**
- * Fixes grammar and style for the given text using OpenAI API.
- * @param apiKey The OpenAI API key to use for this request.
- * @param text The text to fix.
- * @returns A promise that resolves with the fixed text and token usage (promptTokens, completionTokens).
- */
 export const fixGrammar = async (
   apiKey: string,
   text: string
@@ -117,10 +105,10 @@ export const fixGrammar = async (
         {
           role: "system",
           content: systemPrompt,
-        }, // Use the provided or default system prompt
+        },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.2, // Lower temperature for more deterministic corrections
+      temperature: 0.3, // Lower temperature for more deterministic corrections
       max_completion_tokens: 1000, // Adjust as needed based on expected text length
       n: 1, // We only need one correction
       stop: null, // Let the model decide when to stop
