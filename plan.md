@@ -211,13 +211,17 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 
 #### 7. Include multiple prompt modes in SettingsPrompt
 
-- [ ] Add UI for prompt modes
-  - [ ] Add input for custom "system prompt"
-  - [ ] Add checkboxes for "Grammar only" and "Shorten" (default: "Grammar only")
-  - [ ] Add input for custom "Tone" (default: empty)
-- [ ] Implement UI logic
-  - [ ] Save user settings in store
-  - [ ] Update API call logic to use these settings
+- [x] Add UI for custom prompt
+  - [x] Add input for custom "system prompt"
+  - [x] Add input for custom "user prompt"
+  - [x] Add checkboxes for "Grammar", "Shorten" (default: only Grammar be checked which equal to current logic)
+  - [x] Add input for custom "Tone" (default: empty)
+- [x] Implement UI logic
+  - [x] Save user settings in apiStore
+  - [x] When shortening is enabled, update API call logic to include shorten prompt in `src/prompts/index.ts`
+  - [x] For Tone
+    - [x] Add makeTonePrompt function in `src/prompts/index.ts`. Function will have one parameter: tone. Return string like `Rewrite the following text in ${tone} tone` but feel free improve it.
+    - [x] Update API call logic to use makeTonePrompt which will use saved tone in store
 
 #### 8. Implement macOS toolbar icon & menu
 

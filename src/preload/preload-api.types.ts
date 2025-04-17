@@ -82,4 +82,26 @@ export type ElectronAPI = {
    * Resets key bindings to default values in the main process.
    */
   resetKeyBindings: () => Promise<KeyBindings>;
+
+  /**
+   * Retrieves custom prompt settings from main process.
+   */
+  getPromptSettings: () => Promise<{
+    customSystemPrompt: string;
+    customUserPrompt: string;
+    withGrammar: boolean;
+    withShorten: boolean;
+    tone: string;
+  }>;
+
+  /**
+   * Stores custom prompt settings in main process.
+   */
+  setPromptSettings: (settings: {
+    customSystemPrompt: string;
+    customUserPrompt: string;
+    withGrammar: boolean;
+    withShorten: boolean;
+    tone: string;
+  }) => Promise<{ success: boolean; error?: string }>;
 };

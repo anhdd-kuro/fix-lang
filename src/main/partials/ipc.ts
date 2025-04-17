@@ -134,6 +134,51 @@ export const registerIpcHandlers = () => {
     }
   });
 
+  // --- Prompt Settings IPC Handlers ---
+  ipcMain.handle("get-prompt-settings", async () => {
+    try {
+      return {
+        customSystemPrompt: store.get("customSystemPrompt"),
+        customUserPrompt: store.get("customUserPrompt"),
+        withGrammar: store.get("withGrammar"),
+        withShorten: store.get("withShorten"),
+        tone: store.get("tone"),
+      };
+    } catch (error) {
+      console.error("Failed to get prompt settings:", error);
+      return {
+        customSystemPrompt: "",
+        customUserPrompt: "",
+        withGrammar: true,
+        withShorten: false,
+        tone: "",
+      };
+    }
+  });
+
+  ipcMain.handle("set-prompt-settings", async (_event, settings) => {
+    try {
+      const {
+        customSystemPrompt,
+        customUserPrompt,
+        withGrammar,
+        withShorten,
+        tone,
+      } = settings;
+      store.set("customSystemPrompt", customSystemPrompt);
+      store.set("customUserPrompt", customUserPrompt);
+      store.set("withGrammar", withGrammar);
+      store.set("withShorten", withShorten);
+      store.set("tone", tone);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  });
+
   ipcMain.on("settings-updated", () => {
     updateTrayMenu();
   });

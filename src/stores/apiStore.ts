@@ -17,6 +17,11 @@ export type SettingsStore = {
   apiKey: string;
   models: Model[];
   selectedModel: string;
+  customSystemPrompt: string;
+  customUserPrompt: string;
+  withGrammar: boolean;
+  withShorten: boolean;
+  tone: string;
 };
 
 const schema = {
@@ -39,6 +44,11 @@ const schema = {
     },
     default: [],
   },
+  customSystemPrompt: { type: "string", default: "" },
+  customUserPrompt: { type: "string", default: "" },
+  withGrammar: { type: "boolean", default: true },
+  withShorten: { type: "boolean", default: false },
+  tone: { type: "string", default: "" },
 } satisfies Schema<SettingsStore>;
 
 export const store = new Store<SettingsStore>({

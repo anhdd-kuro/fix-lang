@@ -27,7 +27,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm bg-opacity-50 flex justify-center items-center z-50">
-      <div className="flex flex-col bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md h-[60vh] min-h-120 max-h-200">
+      <div className="flex flex-col bg-gray-800 p-6 rounded-lg shadow-xl w-2/3 max-w-200 h-[80vh] min-h-120 max-h-200 overflow-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-blue-300">Settings</h2>
           <button
@@ -128,34 +128,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Tab Panels */}
         <div className="flex-1 flex flex-col">
           {/* General Tab */}
-          <div
-            id="settings-general"
-            role="tabpanel"
-            aria-labelledby="tab-general"
-            hidden={activeTab !== 0}
-          >
-            <SettingGeneral />
-          </div>
+          {activeTab === 0 && (
+            <div
+              id="settings-general"
+              role="tabpanel"
+              aria-labelledby="tab-general"
+            >
+              <SettingGeneral />
+            </div>
+          )}
 
           {/* Key Bindings Tab */}
-          <div
-            id="settings-keybindings"
-            role="tabpanel"
-            aria-labelledby="tab-keybindings"
-            hidden={activeTab !== 1}
-          >
-            <SettingKeyBinding />
-          </div>
+          {activeTab === 1 && (
+            <div
+              id="settings-keybindings"
+              role="tabpanel"
+              aria-labelledby="tab-keybindings"
+            >
+              <SettingKeyBinding />
+            </div>
+          )}
 
           {/* Prompt Tab */}
-          <div
-            id="settings-prompt"
-            role="tabpanel"
-            aria-labelledby="tab-prompt"
-            hidden={activeTab !== 2}
-          >
-            <SettingPrompt />
-          </div>
+          {activeTab === 2 && (
+            <div
+              id="settings-prompt"
+              role="tabpanel"
+              aria-labelledby="tab-prompt"
+            >
+              <SettingPrompt />
+            </div>
+          )}
 
           <div className="mt-auto flex justify-end">
             <button

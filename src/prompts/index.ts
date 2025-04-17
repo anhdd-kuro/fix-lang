@@ -44,3 +44,11 @@ But don't overdo it, don't add new ideas or context.
 export const DEFAULT_SHORTEN_PROMPT = `
 Analyze the context and style of the input, then shorten it while preserving its meaning.
 `;
+
+/**
+ * Generates a tone adjustment prompt for the given tone.
+ * @param tone The desired tone (e.g., 'formal', 'casual').
+ * @returns Prompt string instructing the model to rewrite in the specified tone.
+ */
+export const makeTonePrompt = (tone: string): string =>
+  `Rewrite the following text in ${tone} tone.`;

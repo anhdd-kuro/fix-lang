@@ -1,6 +1,11 @@
 import LanguageDetect from "languagedetect";
 import { OpenAI } from "openai";
-import { DEFAULT_IMPROVE_PROMPT, makeDefaultSystemPrompt } from "~/prompts";
+import {
+  DEFAULT_IMPROVE_PROMPT,
+  DEFAULT_SHORTEN_PROMPT,
+  makeDefaultSystemPrompt,
+  makeTonePrompt,
+} from "~/prompts";
 import { StringPrettifier } from "~/utils";
 import { store } from "../../stores/apiStore";
 
@@ -78,17 +83,33 @@ export const fixGrammar = async (
       ? [...new Set(["english", ...mostConfidentLanguages])].join(", ")
       : "";
 
-  const systemPrompt = new StringPrettifier(`
-    ${makeDefaultSystemPrompt({ languages: promptLang, input: text })}
-    ${DEFAULT_IMPROVE_PROMPT}
-  `)
+  // Retrieve prompt settings
+  const customSystemPrompt = store.get("customSystemPrompt") as string;
+  const customUserPrompt = store.get("customUserPrompt") as string;
+  const withGrammar = store.get("withGrammar") as boolean;
+  const withShorten = store.get("withShorten") as boolean;
+  const tone = store.get("tone") as string;
+
+  // Build system prompt parts
+  const systemParts: string[] = [DEFAULT_IMPROVE_PROMPT];
+  if (customSystemPrompt) {
+    systemParts.push(customSystemPrompt);
+  } else {
+    systemParts.push(
+      makeDefaultSystemPrompt({ languages: promptLang, input: text })
+    );
+    if (withShorten) systemParts.push(DEFAULT_SHORTEN_PROMPT);
+    if (tone) systemParts.push(makeTonePrompt(tone));
+  }
+
+  const systemPrompt = new StringPrettifier(systemParts.join("\n"))
     .removeExtraSpaces()
     .removeEmptyLines().value;
 
   // Construct the user prompt - asking to fix the provided text
-  const userPrompt = `Fix the following input:
-  ${text}
-  `.trim();
+  const userPrompt = customUserPrompt
+    ? `${customUserPrompt}\n${text}`.trim()
+    : `Fix the following input:\n${text}`.trim();
 
   try {
     console.log(

@@ -147,9 +147,28 @@ contextBridge.exposeInMainWorld("electronAPI", {
    */
   resumeHotkeys: (): Promise<void> => ipcRenderer.invoke("resume-hotkeys"),
 
-  // --- Potential Future Additions ---
-  // getSettings: () => ipcRenderer.invoke('get-settings'),
-  // setSettings: (settings) => ipcRenderer.invoke('set-settings', settings),
+  /**
+   * Retrieves custom prompt settings from the main process.
+   */
+  getPromptSettings: (): Promise<{
+    customSystemPrompt: string;
+    customUserPrompt: string;
+    withGrammar: boolean;
+    withShorten: boolean;
+    tone: string;
+  }> => ipcRenderer.invoke("get-prompt-settings"),
+
+  /**
+   * Stores custom prompt settings in the main process.
+   */
+  setPromptSettings: (settings: {
+    customSystemPrompt: string;
+    customUserPrompt: string;
+    withGrammar: boolean;
+    withShorten: boolean;
+    tone: string;
+  }): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("set-prompt-settings", settings),
 } satisfies ElectronAPI);
 
 console.log(
