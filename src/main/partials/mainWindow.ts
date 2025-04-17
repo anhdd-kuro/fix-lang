@@ -44,6 +44,7 @@ export const createMainWindow = (
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
+      devTools: true,
       ...options?.webPreferences,
     },
     ...options,

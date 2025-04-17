@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom/client";
-import CopyButton from "../MainWindow/components/CopyButton";
+import CopyButton from "../components/CopyButton";
 import "../main.css"; // Import Tailwind CSS entry point
 
 const rootElement = document.getElementById("root");

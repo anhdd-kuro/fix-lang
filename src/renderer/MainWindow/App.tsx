@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import CopyButton from "./components/CopyButton";
-import HistoryReviewModal from "./components/HistoryReviewModal";
-import { SettingsModal } from "./components/SettingsModal";
+import HistoryReviewModal from "../components/HistoryReviewModal";
+import { SettingsModal } from "../components/SettingsModal";
+import { TextAreaBox } from "../components/TextAreaBox";
 
 // Simple Gear SVG Icon Component
 const GearIcon = () => (
@@ -54,7 +54,10 @@ const App: React.FC = () => {
   // History panel visibility
   const [historyOpen, setHistoryOpen] = useState<boolean>(true);
   const [showHistoryReview, setShowHistoryReview] = useState<boolean>(false);
-  const [lastHistoryData, setLastHistoryData] = useState<{ original: string; corrected: string }>({ original: "", corrected: "" });
+  const [lastHistoryData, setLastHistoryData] = useState<{
+    original: string;
+    corrected: string;
+  }>({ original: "", corrected: "" });
 
   // Listen for text updates from main process via preload script
   useEffect(() => {
@@ -226,74 +229,24 @@ const App: React.FC = () => {
         </div>
 
         {/* Text Areas */}
-        <div className="flex flex-col gap-10">
+        <div className="flex flex-col gap-10 flex-1">
           {/* Original Text Area */}
-          <div className="relative">
-            <label
-              htmlFor="originalText"
-              className="block text-sm font-medium text-gray-400 mb-2"
-            >
-              Original Text
-            </label>
-            <CopyButton
-              value={originalText}
-              label="Copy original text"
-              className="absolute -top-[1em] right-0 z-10"
-            />
-            <div className="relative">
-              <textarea
-                id="originalText"
-                rows={10}
-                className="w-full pt-2 px-2 pb-4 bg-gray-800 border border-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-gray-100 resize-none"
-                placeholder="Text before correction appears here..."
-                value={originalText}
-                readOnly
-                aria-label="Original text area"
-              />
-              {/* Prompt token count display for original text */}
-              <TextCount
-                textOrCount={promptTokens}
-                className="absolute bottom-0 right-0"
-                aria-live="polite"
-                aria-label="Prompt tokens for original text"
-                titleAttribute="Input + Prompt tokens"
-              />
-            </div>
-          </div>
+          <TextAreaBox
+            label="Original Text"
+            value={originalText}
+            onChange={setOriginalText}
+            textCount={promptTokens}
+            className="flex-1"
+          />
 
           {/* Fixed Text Area */}
-          <div className="relative">
-            <label
-              htmlFor="fixedText"
-              className="block text-sm font-medium text-gray-400 mb-2"
-            >
-              Result Text
-            </label>
-            <CopyButton
-              value={fixedText}
-              label="Copy result text"
-              className="absolute -top-[1em] right-0 z-10"
-            />
-            <div className="relative">
-              <textarea
-                id="fixedText"
-                rows={10}
-                className="w-full pt-2 px-2 pb-4 bg-gray-800 border border-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-gray-100 resize-none"
-                placeholder="Result text appears here..."
-                value={fixedText}
-                readOnly // For now, make it read-only
-                aria-label="Result text area"
-              />
-              {/* Completion token count display for result text */}
-              <TextCount
-                textOrCount={completionTokens}
-                className="absolute bottom-0 right-0 "
-                aria-live="polite"
-                aria-label="Completion tokens for result text"
-                titleAttribute="Returned from api"
-              />
-            </div>
-          </div>
+          <TextAreaBox
+            label="Result Text"
+            value={fixedText}
+            onChange={setFixedText}
+            textCount={completionTokens}
+            className="flex-1"
+          />
         </div>
         {/* Error message from IPC, if any */}
         {error && (
@@ -305,6 +258,7 @@ const App: React.FC = () => {
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
           initialTab={initialSettingsTab}
+          onOverlayClick={() => setIsSettingsOpen(false)}
         />
         <HistoryReviewModal
           isOpen={showHistoryReview}
@@ -313,34 +267,6 @@ const App: React.FC = () => {
         />
       </main>
     </div>
-  );
-};
-
-const TextCount = ({
-  textOrCount,
-  className,
-  label = "Tokens used:",
-  titleAttribute,
-}: {
-  textOrCount: string | number | null;
-  className?: string;
-  label?: string;
-  titleAttribute?: string;
-}) => {
-  if (textOrCount === null) {
-    return null;
-  }
-
-  return (
-    <span
-      className={`text-xs text-gray-400 p-2 rounded-md cursor-help ${className}`}
-      aria-live="polite"
-      aria-label="Text length"
-      title={titleAttribute}
-    >
-      {label}{" "}
-      {typeof textOrCount === "number" ? textOrCount : textOrCount.length}
-    </span>
   );
 };
 
