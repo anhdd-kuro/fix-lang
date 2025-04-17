@@ -13,6 +13,13 @@ export type KeyBindings = {
   retry: string;
 };
 
+// New type for version entries
+export type VersionEntry = {
+  original: string;
+  corrected: string;
+  timestamp: string;
+};
+
 export type SettingsStore = {
   apiKey: string;
   models: Model[];
@@ -23,6 +30,7 @@ export type SettingsStore = {
   withGrammar: boolean;
   withShorten: boolean;
   tone: string;
+  history: VersionEntry[];  // persistent correction history
 };
 
 const schema = {
@@ -51,6 +59,7 @@ const schema = {
   withShorten: { type: "boolean", default: false },
   tone: { type: "string", default: "" },
   temperature: { type: "number", default: 0.3 },
+  history: { type: "array", default: [] },
 } satisfies Schema<SettingsStore>;
 
 export const store = new Store<SettingsStore>({

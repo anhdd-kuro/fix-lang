@@ -8,6 +8,7 @@ import {
 } from "~/prompts";
 import { StringPrettifier } from "~/utils";
 import { store } from "../../stores/apiStore";
+import type { VersionEntry } from "../../stores/apiStore";
 
 const lngDetector = new LanguageDetect();
 
@@ -151,6 +152,21 @@ export const fixGrammar = async (
     }
 
     console.log("Received corrected text from OpenAI.");
+    // Save to history (keep max 20 entries)
+    try {
+      const entry: VersionEntry = {
+        original: text,
+        corrected: correctedText,
+        timestamp: new Date().toISOString(),
+      };
+      const history = (store.get("history") as VersionEntry[]) ?? [];
+      history.unshift(entry);
+      if (history.length > 20) history.pop();
+      store.set("history", history);
+    } catch (e) {
+      console.error("Failed to save history entry:", e);
+    }
+
     return { correctedText, promptTokens, completionTokens };
   } catch (error) {
     console.error("Error calling OpenAI API:", error);

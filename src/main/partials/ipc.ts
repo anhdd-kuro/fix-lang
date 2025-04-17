@@ -183,6 +183,28 @@ export const registerIpcHandlers = () => {
     }
   });
 
+  // --- Version History IPC Handlers ---
+  ipcMain.handle("get-history", async () => {
+    try {
+      return store.get("history");
+    } catch (error) {
+      console.error("Failed to get history:", error);
+      return [];
+    }
+  });
+
+  ipcMain.handle("clear-history", async () => {
+    try {
+      store.set("history", []);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  });
+
   ipcMain.on("settings-updated", () => {
     updateTrayMenu();
   });

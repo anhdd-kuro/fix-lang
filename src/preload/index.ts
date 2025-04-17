@@ -2,7 +2,7 @@
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 
 import { contextBridge, ipcRenderer } from "electron";
-import type { ElectronAPI, KeyBindings } from "./preload-api.types";
+import type { ElectronAPI, KeyBindings, VersionEntry } from "./preload-api.types";
 
 // Define the shape of the data expected from the main process
 type TextUpdatePayload = {
@@ -173,6 +173,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
     }
   ): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("set-prompt-settings", settings),
+
+  /**
+   * Retrieves version history of corrections
+   */
+  getHistory: (): Promise<VersionEntry[]> => ipcRenderer.invoke("get-history"),
+
+  /**
+   * Clears all saved correction history
+   */
+  clearHistory: (): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("clear-history"),
 } satisfies ElectronAPI);
 
 console.log(

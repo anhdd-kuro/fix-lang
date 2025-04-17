@@ -197,11 +197,14 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 
 #### 5. Enable saving up to 20 versions of both the original and corrected texts
 
-- [ ] Implement a version history data structure (in-memory or persistent)
-- [ ] Update logic to save each correction (original + fixed)
-- [ ] Limit history to 20 items (FIFO)
-- [ ] Add UI to view and restore previous versions
-- [ ] Add delete/clear history option
+- [x] Implement a version history data structure (in-memory or persistent in store)
+- [x] Update logic to save each correction (original + fixed)
+- [x] Limit history to 20 items (FIFO)
+- [x] Add UI to view and restore previous versions
+- [x] Add delete/clear history option
+- [x] Add button to close history panel positioned in top right of history panel.
+- [x] After panel closed, only show open button at top left of window
+- [x] Add slide animation for history panel
 
 #### 6. Add a copy button at the top right of both the original and corrected texts
 
@@ -222,17 +225,51 @@ export function registerHotkey(win: Electron.BrowserWindow) {
   - [x] For Tone
     - [x] Add makeTonePrompt function in `src/prompts/index.ts`. Function will have one parameter: tone. Return string like `Rewrite the following text in ${tone} tone` but feel free improve it.
     - [x] Update API call logic to use makeTonePrompt which will use saved tone in store
+- [x] Add small input field next to checkboxes to control random level ( temperature in term of OpenAI API )
 
 #### 8. Implement macOS toolbar icon & menu
 
-- [x] Add app icon to macOS toolbar
-- [ ] Add functionality to menu items, UI can be simple for now
-  - [ ] Quit
-  - [ ] Change models
-  - [ ] Change keybindings
-  - [ ] Reset settings
-- [ ] Make UI look more modern
-- [ ] Update menu dynamically as settings change
+8.1. Initialize Tray & Base Menu
+
+- [x] Instantiate `new Tray(icon)` in `app.whenReady()`
+- [ ] Build a base `Menu` template with:
+  - “Quit”
+  - Divider
+  - “Settings…”
+  - Submenu placeholder for Quick‑Settings
+- [ ] Attach `tray.setContextMenu(menu)`
+
+8.2. Quick‑Settings Submenu
+
+- Models
+  - [ ] “Change Model…” → IPC `"open-model-dialog"` → renderer shows model selector
+  - [ ] “Refresh Models” → IPC `"refresh-models"`
+- Key Bindings
+  - [ ] “Change Keybindings…” → IPC `"open-keybindings-dialog"`
+- Prompt Settings
+  - [ ] “Prompt Settings…” → IPC `"open-prompt-dialog"`
+- Version History
+  - [ ] “Review Last Correction” → IPC `"open-history-dialog"`
+
+8.3. Review Last Correction Modal
+
+- [ ] IPC handler `"get-last-history"` in main → returns `{ original, fixed }`
+- [ ] Renderer modal with two text panels (vertical), copy buttons
+
+8.4. Notifications on Settings Change
+
+- [ ] In main, listen for `settings-updated` event
+- [ ] Call `new Notification({title, body})` summarizing change
+
+8.5. Dynamic Menu Updates
+
+- [ ] On `settings-updated`, re‑build menu template to reflect e.g. current model name
+- [ ] Update Tray with new context menu
+
+8.6. UI Polish
+
+- [ ] Tailwind/DaisyUI styling for dialogs and menu items
+- [ ] Consistent icons and accessible labels
 
 #### 9. Add token count returned from OpenAI
 

@@ -18,6 +18,18 @@ export type KeyBindings = {
   retry: string;
 };
 
+/**
+ * Entry in version history of corrections.
+ */
+export type VersionEntry = {
+  /** Original text before correction */
+  original: string;
+  /** Corrected text after processing */
+  corrected: string;
+  /** ISO timestamp when correction occurred */
+  timestamp: string;
+};
+
 export type ElectronAPI = {
   /**
    * Fetches available OpenAI models via main process.
@@ -106,4 +118,14 @@ export type ElectronAPI = {
     tone: string;
     temperature: number;
   }) => Promise<{ success: boolean; error?: string }>;
+
+  /**
+   * Retrieves the history of corrections (up to 20 entries).
+   */
+  getHistory: () => Promise<VersionEntry[]>;
+
+  /**
+   * Clears all saved correction history.
+   */
+  clearHistory: () => Promise<{ success: boolean; error?: string }>;
 };
