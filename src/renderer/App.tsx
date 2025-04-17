@@ -83,7 +83,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-6 font-sans flex flex-col">
       {/* Header with Settings Button */}
-      <div className="flex justify-between items-center mb-10">
+      <div className="flex justify-between items-center mb-12">
         <h1 className="text-3xl font-bold text-blue-400">FixLang Preview</h1>
         <button
           type="button"
@@ -97,7 +97,7 @@ const App: React.FC = () => {
       </div>
 
       {/* Text Areas */}
-      <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-10">
         {/* Original Text Area */}
         <div className="relative">
           <label

@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { KeyBinding } from "./KeyBinding";
 
-/**
- * Key bindings tab for setting shortcut keys.
- */
 type KeyBindings = {
   fix: string;
   undo: string;
@@ -13,11 +9,18 @@ type KeyBindings = {
 export const SettingKeyBinding: React.FC = () => {
   const [keyBindings, setKeyBindings] = useState<KeyBindings | null>(null);
   const [keyBindingsStatus, setKeyBindingsStatus] = useState<string>("");
+  const [errors, setErrors] = useState<Record<keyof KeyBindings, string>>({
+    fix: "",
+    undo: "",
+    retry: "",
+  });
 
   // Fetch Key Bindings when component mounts
   useEffect(() => {
     setKeyBindingsStatus(""); // Clear key binding status
     console.log("SettingKeyBinding: Fetching Key Bindings...");
+
+    window.electronAPI?.pauseHotkeys();
 
     // Fetch Key Bindings
     window.electronAPI
@@ -30,90 +33,131 @@ export const SettingKeyBinding: React.FC = () => {
         console.error("SettingKeyBinding: Error fetching key bindings:", error);
         // Handle error appropriately, maybe show a message
       });
+
+    return () => {
+      window.electronAPI?.resumeHotkeys();
+    };
   }, []);
 
-  // Handle saving key bindings
-  const handleKeyBindingBlur = async () => {
-    if (!keyBindings) {
-      console.error("Cannot save null key bindings");
-      setKeyBindingsStatus("Error: No bindings loaded");
-      return;
+  // Handle capturing hotkey input
+  const handleKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    cmd: keyof KeyBindings
+  ) => {
+    e.preventDefault();
+    const parts: string[] = [];
+    if (e.ctrlKey) parts.push("Control");
+    if (e.metaKey) parts.push("Meta");
+    if (e.altKey) parts.push("Alt");
+    if (e.shiftKey) parts.push("Shift");
+    const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+    if (!["Control", "Meta", "Alt", "Shift"].includes(key)) parts.push(key);
+    const newCombo = parts.join("+");
+    let errorMsg = "";
+    if (
+      parts.length === 0 ||
+      !parts.some((p) => !["Control", "Meta", "Alt", "Shift"].includes(p))
+    ) {
+      errorMsg = "Include a non-modifier key";
+    } else {
+      const duplicate = (
+        Object.keys(keyBindings || {}) as (keyof KeyBindings)[]
+      ).find((k) => k !== cmd && keyBindings && keyBindings[k] === newCombo);
+      if (duplicate) errorMsg = `Duplicate with ${duplicate}`;
     }
-    if (!window.electronAPI?.setKeyBindings) {
-      console.error("setKeyBindings function not available on electronAPI");
-      setKeyBindingsStatus("Error: Cannot save bindings");
-      return;
-    }
+    setErrors((prev) => ({ ...prev, [cmd]: errorMsg }));
+    if (!errorMsg)
+      setKeyBindings((prev) => (prev ? { ...prev, [cmd]: newCombo } : null));
+  };
 
-    // TODO: Add validation for Electron Accelerator format before saving
-    console.log(
-      "SettingKeyBinding: Attempting to save key bindings:",
-      keyBindings
-    );
-    setKeyBindingsStatus("Saving...");
+  // Apply new keybindings: validate, persist, and re-register shortcuts
+  const handleApply = async () => {
+    // Validate
+    const firstError = (
+      Object.entries(errors) as [keyof KeyBindings, string][]
+    ).find(([_, msg]) => msg);
+    if (firstError) {
+      setKeyBindingsStatus(`Error: ${firstError[1]}`);
+      return;
+    }
+    if (!keyBindings) return;
+    setKeyBindingsStatus("Applying...");
+    // Pause existing shortcuts during update
+    await window.electronAPI.pauseHotkeys();
     try {
       const result = await window.electronAPI.setKeyBindings(keyBindings);
       if (result.success) {
-        console.log("SettingKeyBinding: Key bindings saved successfully.");
-        setKeyBindingsStatus("Saved! Restart required.");
+        setKeyBindingsStatus("Applied! Shortcuts updated.");
       } else {
-        console.error(
-          "SettingKeyBinding: Failed to save key bindings:",
-          result.error
-        );
-        setKeyBindingsStatus(`Error: ${result.error || "Unknown error"}`);
+        setKeyBindingsStatus(`Error: ${result.error || "Unknown"}`);
       }
-    } catch (error) {
-      console.error("SettingKeyBinding: Error calling setKeyBindings:", error);
-      setKeyBindingsStatus("Error saving bindings");
+    } catch {
+      setKeyBindingsStatus("Error applying keybindings");
+    } finally {
+      await window.electronAPI.resumeHotkeys();
+    }
+  };
+
+  // Handle reset to defaults: pause shortcuts, reset store, resume shortcuts
+  const handleReset = async () => {
+    setKeyBindingsStatus("Resetting...");
+    await window.electronAPI.pauseHotkeys();
+    try {
+      const defaults = await window.electronAPI.resetKeyBindings();
+      setKeyBindings(defaults);
+      setErrors({ fix: "", undo: "", retry: "" });
+      setKeyBindingsStatus("Reset! Shortcuts restored.");
+    } catch {
+      setKeyBindingsStatus("Error resetting");
+    } finally {
+      await window.electronAPI.resumeHotkeys();
     }
   };
 
   return (
     <section className="flex flex-col gap-2">
       <h3 className="text-lg font-medium text-gray-300 mb-2">Key Bindings</h3>
-      <KeyBinding
-        label="Fix"
-        keysBinding={["Control", "Shift", "F"]}
-        onChange={(keysBinding) => {
-          const newKeyBindings = keysBinding.join("+");
-          setKeyBindings((prev) =>
-            prev
-              ? { ...prev, fix: newKeyBindings }
-              : { fix: newKeyBindings, undo: "", retry: "" }
-          );
-          setKeyBindingsStatus("");
-        }}
-      />
-      <KeyBinding
-        label="Undo"
-        keysBinding={["Control", "Shift", "Z"]}
-        onChange={(keysBinding) => {
-          const newKeyBindings = keysBinding.join("+");
-          setKeyBindings((prev) =>
-            prev
-              ? { ...prev, undo: newKeyBindings }
-              : { undo: newKeyBindings, fix: "", retry: "" }
-          );
-          setKeyBindingsStatus("");
-        }}
-      />
-      <KeyBinding
-        label="Retry"
-        keysBinding={["Control", "Shift", "A"]}
-        onChange={(keysBinding) => {
-          const newKeyBindings = keysBinding.join("+");
-          setKeyBindings((prev) =>
-            prev
-              ? { ...prev, retry: newKeyBindings }
-              : { retry: newKeyBindings, fix: "", undo: "" }
-          );
-          setKeyBindingsStatus("");
-        }}
-      />
+      {keyBindings &&
+        (["fix", "undo", "retry"] as (keyof KeyBindings)[]).map((cmd) => (
+          <div key={cmd} className="flex items-center gap-2">
+            <label
+              htmlFor={`hotkey-${cmd}`}
+              className="w-20 text-gray-300 capitalize"
+            >
+              {cmd}
+            </label>
+            <input
+              id={`hotkey-${cmd}`}
+              type="text"
+              value={keyBindings[cmd]}
+              onKeyDown={(e) => handleKeyDown(e, cmd)}
+              placeholder="Press shortcut"
+              className={`flex-1 px-2 py-1 bg-gray-700 text-white rounded ${
+                errors[cmd] ? "border border-red-400" : "border border-gray-600"
+              }`}
+              aria-label={`Hotkey for ${cmd}`}
+            />
+          </div>
+        ))}
+      <div className="flex flex-col gap-4 mt-4">
+        <button
+          type="button"
+          onClick={handleApply}
+          className="px-3 py-2 text-xs font-semibold bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Apply
+        </button>
+        <button
+          type="button"
+          onClick={handleReset}
+          className="px-3 py-2 text-xs font-semibold bg-neutral-500 text-white rounded hover:bg-neutral-400"
+        >
+          Reset to defaults
+        </button>
+      </div>
       {keyBindingsStatus && (
         <p
-          className={`text-xs mt-1 ${
+          className={`text-xs mt-1 text-center ${
             keyBindingsStatus.startsWith("Error")
               ? "text-red-400"
               : keyBindingsStatus.startsWith("Warning")

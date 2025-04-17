@@ -4,10 +4,13 @@
  */
 import { ipcMain } from "electron";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
+import { keybindingStore } from "~/stores/keybindingStore";
+import { registerHotkeys, unregisterHotkeys } from "./hotkey";
+import { getMainWindow } from "./mainWindow";
 import { fetchOpenAIModels } from "./openai";
-import { store } from "./store";
 import { updateTrayMenu } from "./tray";
-import type { KeyBindings } from "./store";
+import { store } from "../../stores/apiStore";
+import type { KeyBindings } from "../../stores/apiStore";
 
 export const registerIpcHandlers = () => {
   ipcMain.handle("get-api-key", async () => {
@@ -35,16 +38,40 @@ export const registerIpcHandlers = () => {
 
   ipcMain.handle("get-key-bindings", async () => {
     try {
-      const bindings = store.get("keyBindings");
-      return bindings;
+      return keybindingStore.getKeyBindings();
     } catch (error) {
       console.error("Failed to get key bindings:", error);
+      // Fallback to default keybindings on error
+      return keybindingStore.getKeyBindings();
+    }
+  });
+
+  ipcMain.handle("set-key-bindings", async (_event, bindings: KeyBindings) => {
+    try {
+      if (!bindings || typeof bindings !== "object")
+        throw new Error("Invalid key bindings");
+      keybindingStore.setKeyBindings(bindings);
+      return { success: true };
+    } catch (error) {
       return {
-        fix: "Control+Shift+F",
-        undo: "Control+Shift+Z",
-        retry: "Control+Shift+A",
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
+  });
+
+  ipcMain.handle("reset-key-bindings", async () => {
+    keybindingStore.resetKeyBindings();
+    return keybindingStore.getKeyBindings();
+  });
+
+  ipcMain.handle("pause-hotkeys", async () => {
+    unregisterHotkeys();
+  });
+
+  ipcMain.handle("resume-hotkeys", async () => {
+    const win = getMainWindow();
+    if (win) registerHotkeys(win);
   });
 
   ipcMain.handle("fetch-openai-models", async (_event, refetch = false) => {
@@ -98,20 +125,6 @@ export const registerIpcHandlers = () => {
       if (typeof modelId !== "string" || !modelId)
         throw new Error("Invalid model id");
       store.set("selectedModel", modelId);
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
-  });
-
-  ipcMain.handle("set-key-bindings", async (_event, bindings: KeyBindings) => {
-    try {
-      if (!bindings || typeof bindings !== "object")
-        throw new Error("Invalid key bindings");
-      store.set("keyBindings", bindings);
       return { success: true };
     } catch (error) {
       return {

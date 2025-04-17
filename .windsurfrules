@@ -7,19 +7,25 @@
 
 ## Technical Stack
 
-- Electron
+- Electron JS
 - TypeScript
 - React
 - OpenAI API
 - Tailwind CSS
 - Vite
-- Bun
+- Bun as package manager
 
 ## General Rules
 
-- Always start response with `My boss! I’ve already read the rules\n`
+- Always start response with `I’ve already read the rules\n`
+- Always analyze the task before starting
+  - Plan how to implement
+  - Break down the task into smaller steps
+  - Add task to `plan.md` as TODO list
 - Always use `plan.md` to guide your work but not follow it very strictly
-- Update `plan.md` when necessary, found new issues, better solutions or new features
+- Always analyze `src/main/index.ts`, `src/preload/index.ts`, `electron.vite.config.ts` before starting to know the code base structure
+- Look inside `package.json` to know the dependencies before asking to install packages
+- Mark the task in `plan.md` as complete when you finish it with a summary of the implementation and accessibility notes
 
 ## Coding Rules
 
@@ -29,4 +35,4 @@
 - Follow SOLID principles, keep code simple and maintainable and easy to test
 - Use descriptive variable names
 - Prefer `const` over `function` for declarations
-- Keep each file below 200 lines of codes if possible
+- Keep files below 200 lines of codes, split into smaller files if necessary

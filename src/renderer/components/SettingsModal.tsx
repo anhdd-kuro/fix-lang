@@ -27,7 +27,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md h-[60vh] min-h-120 max-h-200">
+      <div className="flex flex-col bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md h-[60vh] min-h-120 max-h-200">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-blue-300">Settings</h2>
           <button
@@ -43,7 +43,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Tab Navigation (DaisyUI/Tailwind) */}
         <div className="mb-6">
-          <div role="tablist" className="flex gap-4 w-full rounded-lg p-1">
+          <div role="tablist" className="flex gap-6 w-full rounded-lg p-1">
             <SettingTabBtn
               icon={
                 <svg
@@ -126,7 +126,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Tab Panels */}
-        <div>
+        <div className="flex-1 flex flex-col">
           {/* General Tab */}
           <div
             id="settings-general"
@@ -157,7 +157,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <SettingPrompt />
           </div>
 
-          <div className="mt-6 flex justify-end">
+          <div className="mt-auto flex justify-end">
             <button
               type="button"
               onClick={onClose}

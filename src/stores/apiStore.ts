@@ -17,7 +17,6 @@ export type SettingsStore = {
   apiKey: string;
   models: Model[];
   selectedModel: string;
-  keyBindings: KeyBindings;
 };
 
 const schema = {
@@ -39,19 +38,6 @@ const schema = {
       required: ["id"],
     },
     default: [],
-  },
-  keyBindings: {
-    type: "object",
-    properties: {
-      fix: { type: "string", default: "Control+Shift+F" },
-      undo: { type: "string", default: "Control+Shift+Z" },
-      retry: { type: "string", default: "Control+Shift+A" },
-    },
-    default: {
-      fix: "Control+Shift+F",
-      undo: "Control+Shift+Z",
-      retry: "Control+Shift+A",
-    },
   },
 } satisfies Schema<SettingsStore>;
 

@@ -170,12 +170,31 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 
 #### 4. Introduce a keybinding change feature
 
-- [ ] Split default keybindings into `src/const.ts`
-- [ ] Add UI in settings/modal to show current keybindings in SettingKeyBinding. Use the same UI & UX logic as VSCode
-- [ ] Implement logic to save new keybindings to current button in SettingKeyBinding
-- [ ] Validate and save new keybindings in stores
-- [ ] Show feedback for invalid/duplicate keybindings
-- [ ] Add reset keybindings button
+- [ ] 4.1 Extract default keybindings into `src/const.ts`
+  - [ ] 4.1.1 Define `DEFAULT_KEY_BINDINGS` in `src/const.ts`
+  - [ ] 4.1.2 Refactor `store.ts` to import and use `DEFAULT_KEY_BINDINGS`
+- [ ] 4.2 Create `KeybindingStore` in `src/stores/keybindingStore.ts` for state management and persistence
+  - [ ] 4.2.1 Initialize `electron-store` in `KeybindingStore`
+  - [ ] 4.2.2 Implement `get`, `set`, and `reset` methods
+  - [ ] 4.2.3 Write unit tests for `KeybindingStore`
+- [ ] 4.3 Enhance `SettingKeyBinding` UI in settings modal
+  - [ ] 4.3.1 Display current keybindings in a list
+  - [ ] 4.3.2 Build editable hotkey input component following VSCode UX
+- [ ] 4.4 Implement hotkey capture logic to update keybindings in `SettingKeyBinding`
+  - [ ] 4.4.1 Capture key combinations on focus and keydown events
+  - [ ] 4.4.2 Debounce input updates for improved UX
+- [ ] 4.5 Add validation in `KeybindingStore` to detect invalid combos and duplicates
+  - [ ] 4.5.1 Validate accelerator format against Electron rules
+  - [ ] 4.5.2 Prevent duplicate key combinations across commands
+- [ ] 4.6 Show inline feedback for invalid or duplicate keybindings
+  - [ ] 4.6.1 Display contextual error/warning messages near inputs
+  - [ ] 4.6.2 Use color codes (red for errors, yellow for warnings)
+- [ ] 4.7 Persist updated keybindings in store (e.g., `electron-store`)
+  - [ ] 4.7.1 Invoke `KeybindingStore.setKeyBindings` on save/blur
+  - [ ] 4.7.2 Confirm persistence via `KeybindingStore.getKeyBindings`
+- [ ] 4.8 Add "Reset to defaults" button in UI and logic to restore default mappings
+  - [ ] 4.8.1 Add reset button to `SettingKeyBinding` UI
+  - [ ] 4.8.2 Implement `KeybindingStore.reset` to restore `DEFAULT_KEY_BINDINGS`
 
 #### 5. Enable saving up to 20 versions of both the original and corrected texts
 

@@ -7,7 +7,9 @@ import type { ElectronAPI, KeyBindings } from "./preload-api.types";
 // Define the shape of the data expected from the main process
 type TextUpdatePayload = {
   original: string;
-  fixed: string;
+  corrected: string;
+  promptTokens: number | null;
+  completionTokens: number | null;
 };
 
 // Log that preload script is being executed
@@ -50,10 +52,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
     };
   },
 
-  /**
-   * Registers a callback for the 'start-loading' event from main process.
-   * Allows renderer to show spinner when shortcut is triggered.
-   */
   /**
    * Registers a callback for the 'start-loading' event from main process.
    * Shows the global spinner overlay when triggered.
@@ -124,12 +122,30 @@ contextBridge.exposeInMainWorld("electronAPI", {
    * @param bindings The key bindings object (e.g., { fix: 'Ctrl+F', undo: 'Ctrl+Z', retry: 'Ctrl+R' }).
    * @returns A promise that resolves with an object indicating success or failure.
    */
-  setKeyBindings: (
+  setKeyBindings: async (
     bindings: KeyBindings
   ): Promise<{ success: boolean; error?: string }> => {
     console.log("Preload: Invoking set-key-bindings with:", bindings);
-    return ipcRenderer.invoke("set-key-bindings", bindings);
+    const result = await ipcRenderer.invoke("set-key-bindings", bindings);
+    ipcRenderer.send("settings-updated");
+    return result;
   },
+
+  /**
+   * Resets key bindings to default values in the main process.
+   */
+  resetKeyBindings: (): Promise<KeyBindings> =>
+    ipcRenderer.invoke("reset-key-bindings"),
+
+  /**
+   * Temporarily pause global shortcuts during editing.
+   */
+  pauseHotkeys: (): Promise<void> => ipcRenderer.invoke("pause-hotkeys"),
+
+  /**
+   * Resume global shortcuts after editing.
+   */
+  resumeHotkeys: (): Promise<void> => ipcRenderer.invoke("resume-hotkeys"),
 
   // --- Potential Future Additions ---
   // getSettings: () => ipcRenderer.invoke('get-settings'),
@@ -139,11 +155,3 @@ contextBridge.exposeInMainWorld("electronAPI", {
 console.log(
   "Preload script executed and electronAPI exposed with the following methods:"
 );
-console.log("- onUpdateText");
-console.log("- getApiKey");
-console.log("- setApiKey");
-console.log("- getKeyBindings");
-console.log("- setKeyBindings");
-console.log("- fetchOpenAIModels");
-console.log("- setSelectedModel");
-console.log("- getSelectedModel");

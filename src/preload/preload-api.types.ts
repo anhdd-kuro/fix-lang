@@ -67,4 +67,19 @@ export type ElectronAPI = {
   setKeyBindings: (
     bindings: KeyBindings
   ) => Promise<{ success: boolean; error?: string }>;
+
+  /**
+   * Temporarily pause global shortcuts during editing.
+   */
+  pauseHotkeys: () => Promise<void>;
+
+  /**
+   * Resume global shortcuts after editing.
+   */
+  resumeHotkeys: () => Promise<void>;
+
+  /**
+   * Resets key bindings to default values in the main process.
+   */
+  resetKeyBindings: () => Promise<KeyBindings>;
 };

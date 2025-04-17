@@ -1,5 +1,6 @@
 import { globalShortcut, Notification } from "electron";
-import { store } from "~/main/partials/store";
+import { store } from "~/stores/apiStore";
+import { keybindingStore } from "~/stores/keybindingStore";
 import { fixGrammar } from "./openai";
 import { showOverlaySpinner, hideOverlaySpinner } from "./overlayWindow";
 import { getHighlightedText, pasteText } from "../../utils";
@@ -22,7 +23,7 @@ export const registerHotkeys = (mainWindow: BrowserWindow): void => {
 };
 
 const registerFixShortcut = (mainWindow: BrowserWindow) => {
-  const fixShortcut = store.get("keyBindings").fix;
+  const fixShortcut = keybindingStore.getKeyBindings().fix;
   const retFix = globalShortcut.register(fixShortcut, async () => {
     console.log(`${fixShortcut} is pressed`);
 
@@ -101,7 +102,7 @@ const checkShortcut = (shortcut: boolean) => {
 };
 
 const registerUndoShortcut = (mainWindow: BrowserWindow) => {
-  const undoShortcut = store.get("keyBindings").undo; // e.g., 'Control+Shift+Z'
+  const undoShortcut = keybindingStore.getKeyBindings().undo; // e.g., 'Control+Shift+Z'
   const retUndo = globalShortcut.register(undoShortcut, () => {
     console.log(`${undoShortcut} (Undo) is pressed`);
     if (lastOriginalText !== null) {
@@ -124,7 +125,7 @@ const registerUndoShortcut = (mainWindow: BrowserWindow) => {
 };
 
 const registerRetryShortcut = (mainWindow: BrowserWindow) => {
-  const retryShortcut = store.get("keyBindings").retry; // e.g., 'Control+Shift+A'
+  const retryShortcut = keybindingStore.getKeyBindings().retry; // e.g., 'Control+Shift+A'
   const retRetry = globalShortcut.register(retryShortcut, async () => {
     console.log(`${retryShortcut} (Retry) is pressed`);
     if (lastOriginalText !== null) {
@@ -191,7 +192,7 @@ const getOpenAIKey = () => {
 };
 
 /**
- * Unregisters all global shortcuts when the app quits.
+ * Un-registers all global shortcuts when the app quits.
  */
 export const unregisterHotkeys = () => {
   globalShortcut.unregisterAll();
