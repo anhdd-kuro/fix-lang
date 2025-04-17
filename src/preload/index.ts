@@ -156,18 +156,22 @@ contextBridge.exposeInMainWorld("electronAPI", {
     withGrammar: boolean;
     withShorten: boolean;
     tone: string;
+    temperature: number;
   }> => ipcRenderer.invoke("get-prompt-settings"),
 
   /**
    * Stores custom prompt settings in the main process.
    */
-  setPromptSettings: (settings: {
-    customSystemPrompt: string;
-    customUserPrompt: string;
-    withGrammar: boolean;
-    withShorten: boolean;
-    tone: string;
-  }): Promise<{ success: boolean; error?: string }> =>
+  setPromptSettings: (
+    settings: {
+      customSystemPrompt: string;
+      customUserPrompt: string;
+      withGrammar: boolean;
+      withShorten: boolean;
+      tone: string;
+      temperature: number;
+    }
+  ): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("set-prompt-settings", settings),
 } satisfies ElectronAPI);
 

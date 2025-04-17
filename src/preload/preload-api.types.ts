@@ -92,6 +92,7 @@ export type ElectronAPI = {
     withGrammar: boolean;
     withShorten: boolean;
     tone: string;
+    temperature: number;
   }>;
 
   /**
@@ -103,5 +104,6 @@ export type ElectronAPI = {
     withGrammar: boolean;
     withShorten: boolean;
     tone: string;
+    temperature: number;
   }) => Promise<{ success: boolean; error?: string }>;
 };

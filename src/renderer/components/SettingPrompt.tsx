@@ -9,6 +9,7 @@ const SettingPrompt: React.FC = () => {
   const [withGrammar, setWithGrammar] = useState<boolean>(true);
   const [withShorten, setWithShorten] = useState<boolean>(false);
   const [tone, setTone] = useState<string>("");
+  const [temperature, setTemperature] = useState<number>(0.3);
   const [saveStatus, setSaveStatus] = useState<string>("");
 
   // Load saved settings
@@ -19,6 +20,7 @@ const SettingPrompt: React.FC = () => {
       setWithGrammar(settings.withGrammar);
       setWithShorten(settings.withShorten);
       setTone(settings.tone);
+      setTemperature(settings.temperature);
     });
   }, []);
 
@@ -30,6 +32,7 @@ const SettingPrompt: React.FC = () => {
       withGrammar,
       withShorten,
       tone,
+      temperature,
     });
     if (result?.success) {
       setSaveStatus("Saved!");
@@ -89,6 +92,20 @@ const SettingPrompt: React.FC = () => {
             className="form-checkbox h-4 w-4 text-blue-500"
           />
           <span className="ml-2">Shorten</span>
+        </label>
+        <label className="inline-flex items-center text-gray-300">
+          <span className="mx-2">Temperature</span>
+          <input
+            id="temperature-input"
+            type="number"
+            min="0"
+            max="1"
+            step="0.05"
+            value={temperature}
+            onChange={(e) => setTemperature(parseFloat(e.target.value) || 0)}
+            className="w-16 p-1 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            aria-label="Temperature"
+          />
         </label>
       </div>
 

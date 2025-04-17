@@ -17,6 +17,7 @@ export type SettingsStore = {
   apiKey: string;
   models: Model[];
   selectedModel: string;
+  temperature: number;
   customSystemPrompt: string;
   customUserPrompt: string;
   withGrammar: boolean;
@@ -49,6 +50,7 @@ const schema = {
   withGrammar: { type: "boolean", default: true },
   withShorten: { type: "boolean", default: false },
   tone: { type: "string", default: "" },
+  temperature: { type: "number", default: 0.3 },
 } satisfies Schema<SettingsStore>;
 
 export const store = new Store<SettingsStore>({

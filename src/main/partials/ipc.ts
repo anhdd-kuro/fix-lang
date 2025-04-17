@@ -143,6 +143,7 @@ export const registerIpcHandlers = () => {
         withGrammar: store.get("withGrammar"),
         withShorten: store.get("withShorten"),
         tone: store.get("tone"),
+        temperature: store.get("temperature"),
       };
     } catch (error) {
       console.error("Failed to get prompt settings:", error);
@@ -152,6 +153,7 @@ export const registerIpcHandlers = () => {
         withGrammar: true,
         withShorten: false,
         tone: "",
+        temperature: store.get("temperature") as number,
       };
     }
   });
@@ -164,12 +166,14 @@ export const registerIpcHandlers = () => {
         withGrammar,
         withShorten,
         tone,
+        temperature,
       } = settings;
       store.set("customSystemPrompt", customSystemPrompt);
       store.set("customUserPrompt", customUserPrompt);
       store.set("withGrammar", withGrammar);
       store.set("withShorten", withShorten);
       store.set("tone", tone);
+      store.set("temperature", temperature);
       return { success: true };
     } catch (error) {
       return {

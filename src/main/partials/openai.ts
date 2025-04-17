@@ -89,6 +89,8 @@ export const fixGrammar = async (
   const withGrammar = store.get("withGrammar") as boolean;
   const withShorten = store.get("withShorten") as boolean;
   const tone = store.get("tone") as string;
+  // Retrieve randomization level (temperature)
+  const temperature = store.get("temperature") as number;
 
   // Build system prompt parts
   const systemParts: string[] = [DEFAULT_IMPROVE_PROMPT];
@@ -129,7 +131,7 @@ export const fixGrammar = async (
         },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.3, // Lower temperature for more deterministic corrections
+      temperature, // Randomization level from settings
       max_completion_tokens: 1000, // Adjust as needed based on expected text length
       n: 1, // We only need one correction
       stop: null, // Let the model decide when to stop
