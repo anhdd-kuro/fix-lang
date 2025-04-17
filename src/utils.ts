@@ -55,7 +55,7 @@ export const getHighlightedText = async (): Promise<string> => {
   return text;
 };
 
-const copyHighlightedText = async () => {
+export const copyHighlightedText = async () => {
   const platform = process.platform;
   try {
     if (platform === "darwin") {
@@ -64,8 +64,8 @@ const copyHighlightedText = async () => {
           delay 0.1 -- wait for previous keybinding action to complete
           tell application "System Events" -- get process name of frontmost app
             keystroke "c" using command down -- simulate Cmd+C
-            delay 0.1 -- Do twice to make sure clipboard is updated
-            keystroke "c" using command down -- simulate Cmd+C
+            keystroke "c" using command down -- simulate Cmd+C -- Do twice to make sure clipboard is updated
+            delay 0.2
           end tell
         '`
       );
@@ -98,7 +98,7 @@ const restoreClipboardAfterAction = async (
     console.error("❌ Error during action:", err);
     new Notification({
       title: "Error",
-      body: "Failed to perform action. Please try again.",
+      body: "Failed to perform the action.Please try again.",
       urgency: "critical",
     }).show();
   } finally {
@@ -115,10 +115,11 @@ export const pasteText = async (text: string): Promise<void> => {
       if (platform === "darwin") {
         execSync(
           `osascript -e '
+            delay 0.1
             tell application "System Events" -- get process name of frontmost app
               keystroke "v" using {command down} -- simulate Cmd+V
             end tell
-            delay 0.5
+            delay 0.1
           '`
         );
       } else if (platform === "win32") {
