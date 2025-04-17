@@ -180,9 +180,9 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 - [x] 4.3 Enhance `SettingKeyBinding` UI in settings modal
   - [x] 4.3.1 Display current keybindings in a list
   - [x] 4.3.2 Build editable hotkey input component following VSCode UX
-- [ ] 4.4 Implement hotkey capture logic to update keybindings in `SettingKeyBinding`
+- [x] 4.4 Implement hotkey capture logic to update keybindings in `SettingKeyBinding`
   - [x] 4.4.1 Capture key combinations on focus and keydown events
-  - [ ] 4.4.2 Debounce input updates for improved UX
+  - [x] 4.4.2 Debounce input updates for improved UX
 - [x] 4.5 Temporarily disable existing shortcuts during keybinding update
 - [x] 4.6 Add validation in `KeybindingStore` to detect invalid combos and duplicates
 - [x] 4.7 Show inline feedback for invalid or duplicate keybindings
