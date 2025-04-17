@@ -191,7 +191,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Text Areas */}
-        <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-10">
+        <div className="flex flex-col gap-10">
           {/* Original Text Area */}
           <div className="relative">
             <label
@@ -232,11 +232,11 @@ const App: React.FC = () => {
               htmlFor="fixedText"
               className="block text-sm font-medium text-gray-400 mb-2"
             >
-              Corrected Text
+              Result Text
             </label>
             <CopyButton
               value={fixedText}
-              label="Copy corrected text"
+              label="Copy result text"
               className="absolute -top-[1em] right-0 z-10"
             />
             <div className="relative">
@@ -244,17 +244,17 @@ const App: React.FC = () => {
                 id="fixedText"
                 rows={10}
                 className="w-full pt-2 px-2 pb-4 bg-gray-800 border border-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-gray-100 resize-none"
-                placeholder="Corrected text appears here..."
+                placeholder="Result text appears here..."
                 value={fixedText}
                 readOnly // For now, make it read-only
-                aria-label="Corrected text area"
+                aria-label="Result text area"
               />
-              {/* Completion token count display for corrected text */}
+              {/* Completion token count display for result text */}
               <TextCount
                 textOrCount={completionTokens}
                 className="absolute bottom-0 right-0 "
                 aria-live="polite"
-                aria-label="Completion tokens for corrected text"
+                aria-label="Completion tokens for result text"
                 titleAttribute="Returned from api"
               />
             </div>
