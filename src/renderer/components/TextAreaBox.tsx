@@ -23,17 +23,17 @@ export const TextAreaBox = ({
   const id = useId();
 
   return (
-    <div className={`relative flex flex-col ${className}`}>
+    <div className={`relative flex flex-col text-xs md:text-base ${className}`}>
       <div className="flex justify-between items-center">
-        <label htmlFor={id} className="block text-gray-400 mb-2 font-bold">
+        <label htmlFor={id} className="block text-gray-400 mb-1 font-bold">
           {label}
         </label>
         <CopyButton value={value} label="Copy result text" />
       </div>
       <textarea
         id={id}
-        rows={rows ?? 8}
-        className={`w-full flex-1 mt-4 pt-2 px-2 pb-4 bg-gray-800 border border-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-gray-100 resize-none`}
+        rows={rows ?? 4}
+        className={`w-full flex-1 mt-2 p-2 bg-gray-800 border border-gray-700 rounded focus:ring-blue-500 focus:border-blue-500 text-gray-100 resize-none `}
         placeholder={placeholder}
         value={value}
         readOnly={readOnly}
@@ -71,7 +71,7 @@ const TextCount = ({
 
   return (
     <span
-      className={`text-xs text-gray-400 p-2 rounded-md cursor-help ${className}`}
+      className={`text-xs text-gray-400 p-1 rounded cursor-help ${className}`}
       aria-live="polite"
       aria-label="Text length"
       title={titleAttribute}
