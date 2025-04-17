@@ -110,13 +110,13 @@ const SettingPrompt: React.FC = () => {
         <button
           type="button"
           onClick={handleSave}
-          className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+          className="px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 w-full"
         >
           Save
         </button>
         {saveStatus && (
           <span
-            className={`text-sm ${saveStatus.startsWith("Error") ? "text-red-400" : "text-green-400"}`}
+            className={`text-sm ${saveStatus.startsWith("Error") ? "text-red-400" : "text-green-600"}`}
           >
             {saveStatus}
           </span>

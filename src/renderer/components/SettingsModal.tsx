@@ -159,16 +159,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <SettingPrompt />
             </div>
           )}
-
-          <div className="mt-auto flex justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800"
-            >
-              Close
-            </button>
-          </div>
         </div>
       </div>
     </div>
