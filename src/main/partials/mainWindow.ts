@@ -36,8 +36,8 @@ export const createMainWindow = (
     return mainWindow;
   }
   const win = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1000,
+    height: 800,
     icon: appIcon,
     webPreferences: {
       preload: path.join(app.getAppPath(), "out/preload/index.mjs"),
@@ -49,7 +49,22 @@ export const createMainWindow = (
     ...options,
   });
   setMainWindow(win);
+
+  const rendererPath = path.join(
+    __dirname,
+    "../renderer/MainWindow/index.html"
+  );
+  win.loadFile(rendererPath);
   return win;
+};
+
+export const initializeMainWindow = () => {
+  app.whenReady().then(() => {
+    createMainWindow();
+  });
+  app.on("will-quit", () => {
+    destroyMainWindow();
+  });
 };
 
 /**

@@ -128,4 +128,54 @@ export type ElectronAPI = {
    * Clears all saved correction history.
    */
   clearHistory: () => Promise<{ success: boolean; error?: string }>;
+
+  /**
+   * Retrieves the last correction entry.
+   */
+  getLastHistory: () => Promise<{
+    original: string;
+    corrected: string;
+  }>;
+
+  /**
+   * Registers a callback for opening the main settings modal.
+   */
+  onOpenSettings: (callback: () => void) => () => void;
+
+  /**
+   * Registers a callback for "open-model-dialog" events.
+   */
+  onOpenModelDialog: (callback: () => void) => () => void;
+
+  /**
+   * Registers a callback for "refresh-models" events.
+   */
+  onRefreshModels: (callback: () => void) => () => void;
+
+  /**
+   * Registers a callback for opening keybindings dialog.
+   */
+  onOpenKeybindingsDialog: (callback: () => void) => () => void;
+
+  /**
+   * Registers a callback for opening prompt settings dialog.
+   */
+  onOpenPromptDialog: (callback: () => void) => () => void;
+
+  /**
+   * Registers a callback for opening history dialog.
+   */
+  onOpenHistoryDialog: (callback: () => void) => () => void;
+
+  /**
+   * Registers a callback for showing the tray window with view and initial tab.
+   */
+  onTrayOpen: (
+    callback: (args: { view: string; initialTab?: number }) => void
+  ) => () => void;
+
+  /**
+   * Hides the tray window.
+   */
+  hideTray: () => void;
 };

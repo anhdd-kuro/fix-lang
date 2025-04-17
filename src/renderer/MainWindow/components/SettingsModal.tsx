@@ -7,6 +7,8 @@ import { SettingTabBtn } from "./SettingTabBtn";
 type SettingsModalProps = {
   isOpen: boolean;
   onClose: () => void;
+  /** Initial active tab: 0=General,1=KeyBindings,2=Prompt */
+  initialTab?: number;
 };
 
 /**
@@ -16,9 +18,10 @@ type SettingsModalProps = {
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
+  initialTab = 0,
 }) => {
   // Tab state: 0=General, 1=Key Bindings, 2=Prompt
-  const [activeTab, setActiveTab] = useState<number>(0);
+  const [activeTab, setActiveTab] = useState<number>(initialTab);
 
   // Don't render if not open
   if (!isOpen) {

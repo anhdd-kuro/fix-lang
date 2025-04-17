@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import CopyButton from "./components/CopyButton";
+import HistoryReviewModal from "./components/HistoryReviewModal";
 import { SettingsModal } from "./components/SettingsModal";
 
 // Simple Gear SVG Icon Component
@@ -39,6 +40,7 @@ type VersionEntry = {
 const App: React.FC = () => {
   // History of past corrections
   const [history, setHistory] = useState<VersionEntry[]>([]);
+  const [initialSettingsTab, setInitialSettingsTab] = useState<number>(0);
   // State for text areas
   const [originalText, setOriginalText] = useState<string>("");
   const [fixedText, setFixedText] = useState<string>("");
@@ -51,6 +53,8 @@ const App: React.FC = () => {
   const [_loading, setLoading] = useState<boolean>(false);
   // History panel visibility
   const [historyOpen, setHistoryOpen] = useState<boolean>(true);
+  const [showHistoryReview, setShowHistoryReview] = useState<boolean>(false);
+  const [lastHistoryData, setLastHistoryData] = useState<{ original: string; corrected: string }>({ original: "", corrected: "" });
 
   // Listen for text updates from main process via preload script
   useEffect(() => {
@@ -88,6 +92,37 @@ const App: React.FC = () => {
     return () => {
       removeStartLoading?.();
       removeUpdateText?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    const offOpenSettings = window.electronAPI.onOpenSettings?.(() => {
+      setInitialSettingsTab(0);
+      setIsSettingsOpen(true);
+    });
+    const offModel = window.electronAPI.onOpenModelDialog?.(() => {
+      setInitialSettingsTab(0);
+      setIsSettingsOpen(true);
+    });
+    const offKey = window.electronAPI.onOpenKeybindingsDialog?.(() => {
+      setInitialSettingsTab(1);
+      setIsSettingsOpen(true);
+    });
+    const offPrompt = window.electronAPI.onOpenPromptDialog?.(() => {
+      setInitialSettingsTab(2);
+      setIsSettingsOpen(true);
+    });
+    const offHistory = window.electronAPI.onOpenHistoryDialog?.(async () => {
+      const data = await window.electronAPI.getLastHistory();
+      setLastHistoryData(data);
+      setShowHistoryReview(true);
+    });
+    return () => {
+      offOpenSettings?.();
+      offModel?.();
+      offKey?.();
+      offPrompt?.();
+      offHistory?.();
     };
   }, []);
 
@@ -269,6 +304,12 @@ const App: React.FC = () => {
         <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
+          initialTab={initialSettingsTab}
+        />
+        <HistoryReviewModal
+          isOpen={showHistoryReview}
+          data={lastHistoryData}
+          onClose={() => setShowHistoryReview(false)}
         />
       </main>
     </div>

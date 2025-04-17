@@ -8,9 +8,8 @@ import { keybindingStore } from "~/stores/keybindingStore";
 import { registerHotkeys, unregisterHotkeys } from "./hotkey";
 import { getMainWindow } from "./mainWindow";
 import { fetchOpenAIModels } from "./openai";
-import { updateTrayMenu } from "./tray";
 import { store } from "../../stores/apiStore";
-import type { KeyBindings } from "../../stores/apiStore";
+import type { KeyBindings, VersionEntry } from "../../stores/apiStore";
 
 export const registerIpcHandlers = () => {
   ipcMain.handle("get-api-key", async () => {
@@ -134,6 +133,41 @@ export const registerIpcHandlers = () => {
     }
   });
 
+  ipcMain.handle("get-last-history", async () => {
+    try {
+      const history = store.get("history") as VersionEntry[];
+      const last = history[history.length - 1];
+      return {
+        original: last?.original ?? "",
+        corrected: last?.corrected ?? "",
+      };
+    } catch (error) {
+      console.error("Failed to get last history:", error);
+      return { original: "", corrected: "" };
+    }
+  });
+
+  ipcMain.handle("get-history", async () => {
+    try {
+      return store.get("history");
+    } catch (error) {
+      console.error("Failed to get history:", error);
+      return [];
+    }
+  });
+
+  ipcMain.handle("clear-history", async () => {
+    try {
+      store.set("history", []);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  });
+
   // --- Prompt Settings IPC Handlers ---
   ipcMain.handle("get-prompt-settings", async () => {
     try {
@@ -181,31 +215,5 @@ export const registerIpcHandlers = () => {
         error: error instanceof Error ? error.message : "Unknown error",
       };
     }
-  });
-
-  // --- Version History IPC Handlers ---
-  ipcMain.handle("get-history", async () => {
-    try {
-      return store.get("history");
-    } catch (error) {
-      console.error("Failed to get history:", error);
-      return [];
-    }
-  });
-
-  ipcMain.handle("clear-history", async () => {
-    try {
-      store.set("history", []);
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
-  });
-
-  ipcMain.on("settings-updated", () => {
-    updateTrayMenu();
   });
 };

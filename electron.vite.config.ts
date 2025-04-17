@@ -7,7 +7,7 @@ export const rendererPort = 5175;
 
 export default defineConfig({
   main: {
-    plugins: [tsconfigPaths()],
+    plugins: [tsconfigPaths(), tailwindcss()],
     build: {
       outDir: "out/main",
       rollupOptions: {
@@ -39,7 +39,12 @@ export default defineConfig({
     build: {
       outDir: "out/renderer",
       assetsDir: ".", // Place assets in the root of outDir
-      rollupOptions: {},
+      rollupOptions: {
+        input: {
+          main: resolve(__dirname, "src/renderer/MainWindow/index.html"),
+          tray: resolve(__dirname, "src/renderer/TrayWindow/index.html"),
+        },
+      },
     },
     resolve: {
       alias: {

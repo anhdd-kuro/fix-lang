@@ -2,7 +2,11 @@
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 
 import { contextBridge, ipcRenderer } from "electron";
-import type { ElectronAPI, KeyBindings, VersionEntry } from "./preload-api.types";
+import type {
+  ElectronAPI,
+  KeyBindings,
+  VersionEntry,
+} from "./preload-api.types";
 
 // Define the shape of the data expected from the main process
 type TextUpdatePayload = {
@@ -162,16 +166,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
   /**
    * Stores custom prompt settings in the main process.
    */
-  setPromptSettings: (
-    settings: {
-      customSystemPrompt: string;
-      customUserPrompt: string;
-      withGrammar: boolean;
-      withShorten: boolean;
-      tone: string;
-      temperature: number;
-    }
-  ): Promise<{ success: boolean; error?: string }> =>
+  setPromptSettings: (settings: {
+    customSystemPrompt: string;
+    customUserPrompt: string;
+    withGrammar: boolean;
+    withShorten: boolean;
+    tone: string;
+    temperature: number;
+  }): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("set-prompt-settings", settings),
 
   /**
@@ -180,10 +182,83 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getHistory: (): Promise<VersionEntry[]> => ipcRenderer.invoke("get-history"),
 
   /**
+   * Retrieves the last correction entry.
+   */
+  getLastHistory: (): Promise<{ original: string; corrected: string }> =>
+    ipcRenderer.invoke("get-last-history"),
+
+  /**
    * Clears all saved correction history
    */
   clearHistory: (): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("clear-history"),
+
+  /**
+   * Registers a callback for opening the main settings modal.
+   */
+  onOpenSettings: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on("open-settings", listener);
+    return () => ipcRenderer.removeListener("open-settings", listener);
+  },
+  /**
+   * Registers a callback for "open-model-dialog" events.
+   */
+  onOpenModelDialog: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on("open-model-dialog", listener);
+    return () => ipcRenderer.removeListener("open-model-dialog", listener);
+  },
+  /**
+   * Registers a callback for "refresh-models" events.
+   */
+  onRefreshModels: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on("refresh-models", listener);
+    return () => ipcRenderer.removeListener("refresh-models", listener);
+  },
+  /**
+   * Registers a callback for opening keybindings dialog.
+   */
+  onOpenKeybindingsDialog: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on("open-keybindings-dialog", listener);
+    return () =>
+      ipcRenderer.removeListener("open-keybindings-dialog", listener);
+  },
+  /**
+   * Registers a callback for opening prompt settings dialog.
+   */
+  onOpenPromptDialog: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on("open-prompt-dialog", listener);
+    return () => ipcRenderer.removeListener("open-prompt-dialog", listener);
+  },
+  /**
+   * Registers a callback for opening history dialog.
+   */
+  onOpenHistoryDialog: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on("open-history-dialog", listener);
+    return () => ipcRenderer.removeListener("open-history-dialog", listener);
+  },
+  /**
+   * Registers a callback for the 'tray-open' event with view and initialTab.
+   */
+  onTrayOpen: (
+    callback: (args: { view: string; initialTab?: number }) => void
+  ) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      args: { view: string; initialTab?: number }
+    ) => callback(args);
+    ipcRenderer.on("tray-open", listener);
+    return () => ipcRenderer.removeListener("tray-open", listener);
+  },
+  /**
+   * Hides the tray window.
+   */
+  hideTray: (): void => ipcRenderer.send("hide-tray"),
 } satisfies ElectronAPI);
 
 console.log(
