@@ -1,5 +1,5 @@
-import { execSync } from "child_process";
-import { clipboard, dialog, shell, Notification } from "electron";
+import { exec, execSync } from "child_process";
+import { clipboard, dialog, shell } from "electron";
 
 export const isMacOSAccessibilityGranted = (): boolean => {
   if (process.platform !== "darwin") return true;
@@ -45,98 +45,58 @@ export const wait = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 export const getHighlightedText = async (): Promise<string> => {
-  let text = "";
-
-  await restoreClipboardAfterAction(async () => {
-    text = await copyHighlightedText();
-    return;
-  });
-
-  return text;
-};
-
-export const copyHighlightedText = async () => {
-  const platform = process.platform;
-  try {
-    if (platform === "darwin") {
-      execSync(
-        `osascript -e '
-          delay 0.1 -- wait for previous keybinding action to complete
-          tell application "System Events" -- get process name of frontmost app
-            keystroke "c" using command down -- simulate Cmd+C
-            keystroke "c" using command down -- simulate Cmd+C -- Do twice to make sure clipboard is updated
-            delay 0.2
-          end tell
-        '`
-      );
-    } else if (platform === "win32") {
-      execSync(
-        'powershell -command "$wshell = New-Object -ComObject wscript.shell; $wshell.SendKeys(\\"^c\\")"'
-      );
-    } else {
-      execSync(`xdotool key ctrl+c`);
-    }
-    return clipboard.readText();
-  } catch (err) {
-    console.error("❌ Error getting selected text:", err);
-    new Notification({
-      title: "Error",
-      body: "Failed to get the selected text. Please try again.",
-      urgency: "critical",
-    }).show();
-    return "";
-  }
-};
-
-const restoreClipboardAfterAction = async (
-  action: () => void | Promise<void>
-) => {
   const previousClipboardContent = clipboard.readText();
   try {
-    await action();
-  } catch (err) {
-    console.error("❌ Error during action:", err);
-    new Notification({
-      title: "Error",
-      body: "Failed to perform the action.Please try again.",
-      urgency: "critical",
-    }).show();
+    const selectedText = await copyHighlightedText();
+    return selectedText;
+  } catch (error) {
+    console.error(error);
+    throw new Error("Failed to get highlighted text");
   } finally {
     clipboard.writeText(previousClipboardContent);
   }
 };
 
-export const pasteText = async (text: string): Promise<void> => {
-  await restoreClipboardAfterAction(() => {
-    clipboard.writeText(text);
-    const platform = process.platform;
+const copyHighlightedText = () => {
+  return new Promise<string>((resolve, reject) => {
+    const script = `
+      tell application "System Events"
+        keystroke "c" using command down
+        delay 0.1
+      end tell
+      return the clipboard
+    `;
 
-    try {
-      if (platform === "darwin") {
-        execSync(
-          `osascript -e '
-            delay 0.1
-            tell application "System Events" -- get process name of frontmost app
-              keystroke "v" using {command down} -- simulate Cmd+V
-            end tell
-            delay 0.1
-          '`
-        );
-      } else if (platform === "win32") {
-        execSync(
-          'powershell -command "$wshell = New-Object -ComObject wscript.shell; $wshell.SendKeys("^v")"'
-        );
-      } else {
-        execSync(`xdotool key ctrl+v`);
+    exec(`osascript -e '${script}'`, (error, stdout) => {
+      if (error) {
+        reject(`Error: ${error.message}`);
+        return;
       }
-    } catch (err) {
-      console.error("❌ Error pasting text:", err);
-      new Notification({
-        title: "Error",
-        body: "Failed to paste text. Please try again.",
-        urgency: "critical",
-      }).show();
-    }
+      resolve(stdout.trim());
+    });
+  });
+};
+
+export const pasteText = (text: string): Promise<void> => {
+  const previousClipboardContent = clipboard.readText();
+  return new Promise((resolve, reject) => {
+    clipboard.writeText(text);
+    const script = `
+      tell application "System Events"
+        keystroke "v" using command down
+        delay 0.1
+      end tell
+    `;
+
+    exec(`osascript -e '${script}'`, (error) => {
+      if (error) {
+        reject(`Error: ${error.message}`);
+        clipboard.writeText(previousClipboardContent);
+        return;
+      }
+      resolve();
+      clipboard.writeText(previousClipboardContent);
+    });
   });
 };
 

@@ -4,22 +4,53 @@
 
 ```plaintext
 ├── fix-lang/
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── electron-vite.config.ts
-│   ├── src/
-│   │   ├── main/                # Main process (Electron entry point)
-│   │   │   ├── main.ts
-│   │   ├── preload/
-│   │   │   ├── preload.ts  # For secure communication between renderer and main
-│   │   ├── renderer/            # UI part (optional for preview or setting)
-│   │   │   ├── index.html
-│   │   │   ├── index.tsx
-│   │   │   └── main.css
-│   │   ├── setup/
-│   │   │   ├── openai.ts             # API call to OpenAI
-│   │   │   └── hotkey.ts             # Global shortcut logic
-
+│   ├── .env                              # Environment variables (API keys, etc)
+│   ├── README.md                         # Project overview & setup instructions
+│   ├── bun.lock                          # Bun lockfile for reproducible installs
+│   ├── electron.d.ts                     # TypeScript definitions for Electron
+│   ├── electron.vite.config.ts           # Vite configuration for Electron
+│   ├── eslint.config.js                  # ESLint rules & setup
+│   ├── global.d.ts                       # Global TypeScript declarations
+│   ├── package.json                      # Project metadata & npm scripts
+│   ├── plan.md                           # Project planning document
+│   ├── resources/                        # Static assets (icons, images)
+│   ├── release/                          # Release builds & packaging configs
+│   ├── out/                              # Compiled output directory
+│   ├── node_modules/                     # Installed dependencies
+│   ├── tsconfig.json                     # TypeScript compiler settings
+│   │
+│   └── src/
+│       ├── const.ts                      # Application constants
+│       ├── main/                         # Main process (Electron entry point)
+│       │   ├── index.ts
+│       │   └── partials/
+│       │       ├── hotkey.ts
+│       │       ├── ipc.ts
+│       │       ├── mainWindow.ts
+│       │       ├── openai.ts
+│       │       ├── overlayWindow.ts
+│       │       ├── tray.ts
+│       │       ├── overlay.html
+│       │       └── tray.png
+│       ├── preload/                      # Preload scripts for secure communication
+│       │   ├── index.ts
+│       │   └── preload-api.types.ts
+│       ├── prompts/                      # Prompt templates for OpenAI
+│       │   └── index.ts
+│       ├── renderer/                     # UI layers (React + Tailwind)
+│       │   ├── MainWindow/
+│       │   │   ├── App.tsx
+│       │   │   ├── index.tsx
+│       │   │   └── index.html
+│       │   ├── TrayWindow/
+│       │   │   ├── index.tsx
+│       │   │   └── index.html
+│       │   ├── components/               # Reusable UI components
+│       │   └── main.css                  # Global styles
+│       ├── stores/                       # State management
+│       │   ├── apiStore.ts
+│       │   └── keybindingStore.ts
+│       └── utils.ts                      # Utility functions
 ```
 
 ## Technical Stack
