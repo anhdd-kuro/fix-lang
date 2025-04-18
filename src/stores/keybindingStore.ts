@@ -19,10 +19,12 @@ class KeybindingStore {
   }
 
   /**
-   * Retrieves the current key bindings.
+   * Retrieves the current key bindings, merging with defaults to fill missing entries.
    */
   getKeyBindings(): KeyBindings {
-    return this.store.get("keyBindings", DEFAULT_KEY_BINDINGS);
+    const stored = this.store.get("keyBindings", DEFAULT_KEY_BINDINGS);
+    // Merge with defaults to ensure all keys exist
+    return { ...DEFAULT_KEY_BINDINGS, ...stored };
   }
 
   /**
@@ -30,6 +32,10 @@ class KeybindingStore {
    */
   setKeyBindings(bindings: KeyBindings): void {
     this.store.set("keyBindings", bindings);
+    console.log(
+      `🚀 \n - KeybindingStore \n - setKeyBindings \n - bindings:`,
+      bindings
+    );
   }
 
   /**

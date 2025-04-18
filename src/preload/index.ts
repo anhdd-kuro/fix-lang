@@ -264,6 +264,61 @@ contextBridge.exposeInMainWorld("electronAPI", {
    * Hides the tray window.
    */
   hideTray: (): void => ipcRenderer.send("hide-tray"),
+
+  /**
+   * Retrieves the stored translation target language.
+   */
+  getTranslationTargetLang: (): Promise<string> =>
+    ipcRenderer.invoke("get-translation-target-lang"),
+
+  /**
+   * Sets the translation target language.
+   */
+  setTranslationTargetLang: (
+    lang: string
+  ): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("set-translation-target-lang", lang),
+
+  /**
+   * Requests translation of the given text.
+   */
+  translate: (
+    text: string,
+    targetLang: string
+  ): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("translate-text", text, targetLang),
+
+  /**
+   * Registers a callback for translation results.
+   */
+  onTranslationResult: (
+    callback: (payload: {
+      translatedText: string;
+      promptTokens: number | null;
+      completionTokens: number | null;
+    }) => void
+  ): (() => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      payload: {
+        translatedText: string;
+        promptTokens: number | null;
+        completionTokens: number | null;
+      }
+    ) => callback(payload);
+    ipcRenderer.on("translation-result", listener);
+    return () => ipcRenderer.removeListener("translation-result", listener);
+  },
+
+  /**
+   * Registers a callback for translation errors.
+   */
+  onTranslationError: (callback: (error: string) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, error: string) =>
+      callback(error);
+    ipcRenderer.on("translation-error", listener);
+    return () => ipcRenderer.removeListener("translation-error", listener);
+  },
 } satisfies ElectronAPI);
 
 console.log(

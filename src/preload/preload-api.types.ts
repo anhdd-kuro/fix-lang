@@ -16,6 +16,8 @@ export type KeyBindings = {
   fix: string;
   undo: string;
   retry: string;
+  /** Keybinding for translation */
+  translate: string;
 };
 
 /**
@@ -178,4 +180,33 @@ export type ElectronAPI = {
    * Hides the tray window.
    */
   hideTray: () => void;
+
+  /**
+   * Retrieves the stored translation target language.
+   */
+  getTranslationTargetLang: () => Promise<string>;
+
+  /**
+   * Sets the stored translation target language.
+   */
+  setTranslationTargetLang: (
+    lang: string
+  ) => Promise<{ success: boolean; error?: string }>;
+
+  /**
+   * Sends a translation request for the given text to main process.
+   */
+  translate: (text: string, targetLang: string) => Promise<{ success: boolean; error?: string }>;
+
+  /**
+   * Registers callback for translation results from main process.
+   */
+  onTranslationResult: (
+    callback: (payload: { translatedText: string; promptTokens: number | null; completionTokens: number | null }) => void
+  ) => () => void;
+
+  /**
+   * Registers callback for translation errors from main process.
+   */
+  onTranslationError: (callback: (error: string) => void) => () => void;
 };

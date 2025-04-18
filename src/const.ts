@@ -13,4 +13,5 @@ export const DEFAULT_KEY_BINDINGS: KeyBindings = {
   fix: "Control+Shift+F",
   undo: "Control+Shift+Z",
   retry: "Control+Shift+A",
+  translate: "Control+Shift+T",
 };

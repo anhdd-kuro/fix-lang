@@ -9,6 +9,10 @@ export const SettingGeneral: React.FC = () => {
   const [apiKeyInput, setApiKeyInput] = useState<string>("");
   const [saveStatus, setSaveStatus] = useState<string>("");
 
+  // State for the Translation Language input field
+  const [translationLang, setTranslationLang] = useState<string>("");
+  const [langStatus, setLangStatus] = useState<string>("");
+
   // Initialize component
   useEffect(() => {
     // Fetch API Key
@@ -23,6 +27,21 @@ export const SettingGeneral: React.FC = () => {
       .catch((error) => {
         console.error("SettingGeneral: Error fetching API key:", error);
         setSaveStatus("Error fetching key");
+      });
+
+    // Fetch Translation Language
+    window.electronAPI
+      ?.getTranslationTargetLang()
+      .then((lang) => {
+        console.log(`SettingGeneral: Received translation language: ${lang}`);
+        setTranslationLang(lang || ""); // Set input value
+      })
+      .catch((error) => {
+        console.error(
+          "SettingGeneral: Error fetching translation language:",
+          error
+        );
+        setLangStatus("Error fetching language");
       });
   }, []);
 
@@ -83,6 +102,52 @@ export const SettingGeneral: React.FC = () => {
     }
   };
 
+  // Handle changes to the Translation Language input field
+  const handleLangChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setTranslationLang(event.target.value);
+    setLangStatus(""); // Clear status on change
+  };
+
+  // Handle saving the Translation Language when the input loses focus
+  const handleLangBlur = async () => {
+    if (!window.electronAPI?.setTranslationTargetLang) {
+      console.error(
+        "setTranslationTargetLang function not available on electronAPI"
+      );
+      setLangStatus("Error: Cannot save language");
+      return;
+    }
+
+    console.log(
+      `SettingGeneral: Attempting to save translation language: ${translationLang}`
+    );
+
+    try {
+      // Add a small delay to ensure UI updates before the potentially blocking IPC call
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const result =
+        await window.electronAPI.setTranslationTargetLang(translationLang);
+
+      if (result.success) {
+        console.log("SettingGeneral: Translation language saved successfully.");
+        setLangStatus("Saved!");
+      } else {
+        console.error(
+          "SettingGeneral: Failed to save translation language:",
+          result.error
+        );
+        setLangStatus(`Error: ${result.error || "Unknown error"}`);
+      }
+    } catch (error) {
+      console.error(
+        "SettingGeneral: Error calling setTranslationTargetLang:",
+        error
+      );
+      setLangStatus("Error saving language");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className="mb-4">
@@ -115,6 +180,33 @@ export const SettingGeneral: React.FC = () => {
         </p>
       </div>
       <ModelSelect />
+      {/* Translation Target Language */}
+      <div className="mt-4">
+        <label
+          htmlFor="translation-lang"
+          className="block text-sm font-medium text-gray-300 mb-1"
+        >
+          Translation Target Language
+        </label>
+        <input
+          id="translation-lang"
+          type="text"
+          className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          value={translationLang}
+          onChange={handleLangChange}
+          onBlur={handleLangBlur}
+          placeholder={navigator.language || "en"}
+          aria-label="Translation Target Language"
+        />
+        {langStatus && (
+          <p
+            className={`text-xs mt-1 ${langStatus.startsWith("Error") ? "text-red-400" : "text-green-400"}`}
+            role="status"
+          >
+            {langStatus}
+          </p>
+        )}
+      </div>
     </div>
   );
 };

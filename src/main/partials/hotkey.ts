@@ -1,14 +1,14 @@
-import { globalShortcut, Notification } from "electron";
+import { globalShortcut, Notification, app } from "electron";
 import { store } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
-import { fixGrammar } from "./openai";
+import { fixGrammar, translateText } from "./openai";
 import { showOverlaySpinner, hideOverlaySpinner } from "./overlayWindow";
 import { getHighlightedText, pasteText } from "../../utils";
 import type { BrowserWindow } from "electron";
 
 // State to store the last operation's text for Undo/Retry
 let lastOriginalText: string | null = null;
-let lastFixedText: string | null = null;
+let _lastFixedText: string | null = null;
 
 /**
  * Registers global shortcuts for the application.
@@ -20,6 +20,7 @@ export const registerHotkeys = (mainWindow: BrowserWindow): void => {
   registerFixShortcut(mainWindow);
   registerUndoShortcut(mainWindow);
   registerRetryShortcut(mainWindow);
+  registerTranslateShortcut(mainWindow);
 };
 
 const registerFixShortcut = (mainWindow: BrowserWindow) => {
@@ -53,7 +54,7 @@ const registerFixShortcut = (mainWindow: BrowserWindow) => {
 
       // Store texts for potential Undo/Retry
       lastOriginalText = selectedText;
-      lastFixedText = result.correctedText;
+      _lastFixedText = result.correctedText;
       if (result.correctedText === selectedText) {
         new Notification({
           title: "Good job!",
@@ -115,7 +116,7 @@ const registerUndoShortcut = (mainWindow: BrowserWindow) => {
           completionTokens: null,
         }); // Clear fixed text on undo
       }
-      lastFixedText = null;
+      _lastFixedText = null;
     } else {
       console.log("Nothing to undo.");
     }
@@ -143,7 +144,7 @@ const registerRetryShortcut = (mainWindow: BrowserWindow) => {
         const newFixed = await fixGrammar(apiKey, lastOriginalText);
 
         // Update lastFixedText with the new result
-        lastFixedText = newFixed.correctedText;
+        _lastFixedText = newFixed.correctedText;
 
         // Send update to renderer
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -171,6 +172,48 @@ const registerRetryShortcut = (mainWindow: BrowserWindow) => {
   });
 
   checkShortcut(retRetry);
+};
+
+/**
+ * Registers the global shortcut for translation.
+ */
+const registerTranslateShortcut = (_mainWindow: BrowserWindow) => {
+  const translateShortcut = keybindingStore.getKeyBindings().translate;
+  // Skip registration if undefined or empty to avoid errors
+  if (!translateShortcut) {
+    console.warn(
+      "[Hotkey] translate shortcut is undefined, skipping registration."
+    );
+    return;
+  }
+  // Use system locale when no custom target language set
+  const storedLang = store.get("translationTargetLang") as string;
+  const targetLang = storedLang || app.getLocale();
+  const ret = globalShortcut.register(translateShortcut, async () => {
+    console.log(`${translateShortcut} is pressed (Translate)`);
+    try {
+      const apiKey = getOpenAIKey();
+      const selectedText = await getHighlightedText();
+      const lang = targetLang;
+      if (!selectedText || !selectedText.trim()) {
+        new Notification({ title: "Error", body: "No text selected." }).show();
+        return;
+      }
+      const result = await translateText(apiKey, selectedText, lang);
+      // Show notification with translated text (truncated)
+      new Notification({
+        title: `Translated (${lang})`,
+        body: result.translatedText,
+      }).show();
+    } catch (error) {
+      new Notification({
+        title: "Translation Error",
+        body: error instanceof Error ? error.message : "Unknown error",
+        urgency: "critical",
+      }).show();
+    }
+  });
+  checkShortcut(ret);
 };
 
 const handleError = (error: unknown) => {

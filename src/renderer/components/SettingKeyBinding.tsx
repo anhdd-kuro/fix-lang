@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from "react";
-
-type KeyBindings = {
-  fix: string;
-  undo: string;
-  retry: string;
-};
+import type { KeyBindings } from "~/preload/preload-api.types";
 
 export const SettingKeyBinding: React.FC = () => {
   const [keyBindings, setKeyBindings] = useState<KeyBindings | null>(null);
@@ -13,6 +8,7 @@ export const SettingKeyBinding: React.FC = () => {
     fix: "",
     undo: "",
     retry: "",
+    translate: "",
   });
 
   // Fetch Key Bindings when component mounts
@@ -105,7 +101,7 @@ export const SettingKeyBinding: React.FC = () => {
     try {
       const defaults = await window.electronAPI.resetKeyBindings();
       setKeyBindings(defaults);
-      setErrors({ fix: "", undo: "", retry: "" });
+      setErrors({ fix: "", undo: "", retry: "", translate: "" });
       setKeyBindingsStatus("Reset! Shortcuts restored.");
     } catch {
       setKeyBindingsStatus("Error resetting");
@@ -118,27 +114,31 @@ export const SettingKeyBinding: React.FC = () => {
     <section className="flex flex-col gap-2">
       <h3 className="text-lg font-medium text-gray-300 mb-2">Key Bindings</h3>
       {keyBindings &&
-        (["fix", "undo", "retry"] as (keyof KeyBindings)[]).map((cmd) => (
-          <div key={cmd} className="flex items-center gap-2">
-            <label
-              htmlFor={`hotkey-${cmd}`}
-              className="w-20 text-gray-300 capitalize"
-            >
-              {cmd}
-            </label>
-            <input
-              id={`hotkey-${cmd}`}
-              type="text"
-              value={keyBindings[cmd]}
-              onKeyDown={(e) => handleKeyDown(e, cmd)}
-              placeholder="Press shortcut"
-              className={`flex-1 px-2 py-1 bg-gray-700 text-white rounded ${
-                errors[cmd] ? "border border-red-400" : "border border-gray-600"
-              }`}
-              aria-label={`Hotkey for ${cmd}`}
-            />
-          </div>
-        ))}
+        (["fix", "undo", "retry", "translate"] as (keyof KeyBindings)[]).map(
+          (cmd) => (
+            <div key={cmd} className="flex items-center gap-2">
+              <label
+                htmlFor={`hotkey-${cmd}`}
+                className="w-20 text-gray-300 capitalize"
+              >
+                {cmd}
+              </label>
+              <input
+                id={`hotkey-${cmd}`}
+                type="text"
+                value={keyBindings[cmd]}
+                onKeyDown={(e) => handleKeyDown(e, cmd)}
+                placeholder="Press shortcut"
+                className={`flex-1 px-2 py-1 bg-gray-700 text-white rounded ${
+                  errors[cmd]
+                    ? "border border-red-400"
+                    : "border border-gray-600"
+                }`}
+                aria-label={`Hotkey for ${cmd}`}
+              />
+            </div>
+          )
+        )}
       <div className="flex flex-col gap-4 mt-4">
         <button
           type="button"

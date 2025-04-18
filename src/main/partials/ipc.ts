@@ -2,12 +2,12 @@
  * @file ipc.ts
  * @description IPC handlers for settings and key bindings.
  */
-import { ipcMain, Notification, BrowserWindow } from "electron";
+import { ipcMain, Notification, BrowserWindow, screen } from "electron";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { registerHotkeys, unregisterHotkeys } from "./hotkey";
 import { getMainWindow } from "./mainWindow";
-import { fetchOpenAIModels } from "./openai";
+import { fetchOpenAIModels, translateText } from "./openai";
 import { store } from "../../stores/apiStore";
 import type { KeyBindings, VersionEntry } from "../../stores/apiStore";
 
@@ -223,6 +223,51 @@ export const registerIpcHandlers = () => {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       };
+    }
+  });
+
+  // --- Translation Target IPC Handlers ---
+  ipcMain.handle("get-translation-target-lang", async () => {
+    try {
+      return (store.get("translationTargetLang") as string) || "";
+    } catch (error) {
+      console.error("Failed to get translation target language:", error);
+      return "";
+    }
+  });
+
+  ipcMain.handle("set-translation-target-lang", async (_event, lang: string) => {
+    try {
+      if (typeof lang !== "string") throw new Error("Invalid language");
+      store.set("translationTargetLang", lang);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  });
+
+  // --- Translation IPC Handler ---
+  ipcMain.handle("translate-text", async (_event, text: string, targetLang: string) => {
+    try {
+      // Notify renderer to start loading spinner
+      getMainWindow()?.webContents.send("start-loading");
+      const apiKey = store.get("apiKey") as string;
+      const result = await translateText(apiKey, text, targetLang);
+      // Get cursor position to position popup
+      const { x, y } = screen.getCursorScreenPoint();
+      // Send translation response via IPC with coordinates
+      getMainWindow()?.webContents.send("translation-result", { ...result, x, y });
+      getMainWindow()?.webContents.send("stop-loading");
+      return { success: true };
+    } catch (error) {
+      console.error("Translation failed:", error);
+      getMainWindow()?.webContents.send("stop-loading");
+      const { x, y } = screen.getCursorScreenPoint();
+      getMainWindow()?.webContents.send("translation-error", { error: error instanceof Error ? error.message : "Unknown error", x, y });
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
   });
 

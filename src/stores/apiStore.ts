@@ -11,6 +11,7 @@ export type KeyBindings = {
   fix: string;
   undo: string;
   retry: string;
+  translate: string; // keyboard shortcut for translation
 };
 
 // New type for version entries
@@ -31,6 +32,7 @@ export type SettingsStore = {
   withShorten: boolean;
   tone: string;
   history: VersionEntry[];  // persistent correction history
+  translationTargetLang: string; // persistent translation target language
 };
 
 const schema = {
@@ -60,6 +62,7 @@ const schema = {
   tone: { type: "string", default: "" },
   temperature: { type: "number", default: 0.3 },
   history: { type: "array", default: [] },
+  translationTargetLang: { type: "string", default: "" },
 } satisfies Schema<SettingsStore>;
 
 export const store = new Store<SettingsStore>({
