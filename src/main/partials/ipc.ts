@@ -2,7 +2,7 @@
  * @file ipc.ts
  * @description IPC handlers for settings and key bindings.
  */
-import { ipcMain, Notification } from "electron";
+import { ipcMain, Notification, BrowserWindow } from "electron";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { registerHotkeys, unregisterHotkeys } from "./hotkey";
@@ -136,10 +136,14 @@ export const registerIpcHandlers = () => {
   ipcMain.handle("get-last-history", async () => {
     try {
       const history = store.get("history") as VersionEntry[];
-      const last = history[history.length - 1];
+      const sortedHistoryByTimestampDesc = history.sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      const latest = sortedHistoryByTimestampDesc.at(0);
       return {
-        original: last?.original ?? "",
-        corrected: last?.corrected ?? "",
+        original: latest?.original ?? "",
+        corrected: latest?.corrected ?? "",
       };
     } catch (error) {
       console.error("Failed to get last history:", error);
@@ -149,7 +153,12 @@ export const registerIpcHandlers = () => {
 
   ipcMain.handle("get-history", async () => {
     try {
-      return store.get("history");
+      const history = store.get("history") as VersionEntry[];
+      const sortedHistoryByTimestampDesc = history.sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      return sortedHistoryByTimestampDesc;
     } catch (error) {
       console.error("Failed to get history:", error);
       return [];
@@ -224,5 +233,9 @@ export const registerIpcHandlers = () => {
       title: "Settings Updated",
       body: "Your settings have been saved.",
     }).show();
+    // Notify all renderer windows to refresh settings
+    BrowserWindow.getAllWindows().forEach((win) => {
+      if (!win.isDestroyed()) win.webContents.send("settings-updated");
+    });
   });
 };
