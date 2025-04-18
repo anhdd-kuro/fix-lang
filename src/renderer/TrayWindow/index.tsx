@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import "../main.css"; // Import Tailwind CSS entry point
+import { ModelSelect } from "../components/ModelSelect";
 import { TextAreaBox } from "../components/TextAreaBox";
 
 const rootElement = document.getElementById("root");
@@ -37,6 +38,7 @@ const TrayWindowMain: React.FC = () => {
               placeholder="Corrected text"
             />
           </div>
+          <ModelSelect />
         </div>
       </div>
     </div>

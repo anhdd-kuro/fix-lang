@@ -263,44 +263,20 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 8.1. Initialize Tray & Base Menu
 
 - [x] Instantiate `new Tray(icon)` in `app.whenReady()`
-- [ ] Build a base `Menu` template with:
-  - “Quit”
-  - Divider
-  - “Settings…”
-  - Submenu placeholder for Quick‑Settings
-- [ ] Attach `tray.setContextMenu(menu)`
 
-8.2. Quick‑Settings Submenu
+8.2. Review Last Correction Modal
 
-- Models
-  - [ ] “Change Model…” → IPC `"open-model-dialog"` → renderer shows model selector
-  - [ ] “Refresh Models” → IPC `"refresh-models"`
-- Key Bindings
-  - [ ] “Change Keybindings…” → IPC `"open-keybindings-dialog"`
-- Prompt Settings
-  - [ ] “Prompt Settings…” → IPC `"open-prompt-dialog"`
-- Version History
-  - [ ] “Review Last Correction” → IPC `"open-history-dialog"`
+- [x] IPC handler `"get-last-history"` in main → returns `{ original, fixed }`
+- [x] Renderer modal with two text panels (vertical), copy buttons
 
-8.3. Review Last Correction Modal
+8.3. Notifications on Settings Change
 
-- [ ] IPC handler `"get-last-history"` in main → returns `{ original, fixed }`
-- [ ] Renderer modal with two text panels (vertical), copy buttons
+- [x] In main, listen for `settings-updated` event
+- [x] Call `new Notification({title, body})` summarizing change
 
-8.4. Notifications on Settings Change
+8.4. Add change models
 
-- [ ] In main, listen for `settings-updated` event
-- [ ] Call `new Notification({title, body})` summarizing change
-
-8.5. Dynamic Menu Updates
-
-- [ ] On `settings-updated`, re‑build menu template to reflect e.g. current model name
-- [ ] Update Tray with new context menu
-
-8.6. UI Polish
-
-- [ ] Tailwind/DaisyUI styling for dialogs and menu items
-- [ ] Consistent icons and accessible labels
+- [x] Add change models select & refresh button
 
 #### 9. Add token count returned from OpenAI
 

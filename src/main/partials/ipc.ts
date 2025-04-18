@@ -2,7 +2,7 @@
  * @file ipc.ts
  * @description IPC handlers for settings and key bindings.
  */
-import { ipcMain } from "electron";
+import { ipcMain, Notification } from "electron";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { registerHotkeys, unregisterHotkeys } from "./hotkey";
@@ -215,5 +215,14 @@ export const registerIpcHandlers = () => {
         error: error instanceof Error ? error.message : "Unknown error",
       };
     }
+  });
+
+  // Listen for settings-updated events and notify user
+  ipcMain.on("settings-updated", () => {
+    console.log("Settings updated");
+    new Notification({
+      title: "Settings Updated",
+      body: "Your settings have been saved.",
+    }).show();
   });
 };

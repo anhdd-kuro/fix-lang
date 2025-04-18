@@ -30,7 +30,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 
   setSelectedModel: async (modelId: string) => {
-    return await ipcRenderer.invoke("set-selected-model", modelId);
+    const result = await ipcRenderer.invoke("set-selected-model", modelId);
+    ipcRenderer.send("settings-updated");
+    return result;
   },
 
   getSelectedModel: async () => {
@@ -166,15 +168,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
   /**
    * Stores custom prompt settings in the main process.
    */
-  setPromptSettings: (settings: {
+  setPromptSettings: async (settings: {
     customSystemPrompt: string;
     customUserPrompt: string;
     withGrammar: boolean;
     withShorten: boolean;
     tone: string;
     temperature: number;
-  }): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke("set-prompt-settings", settings),
+  }): Promise<{ success: boolean; error?: string }> => {
+    const result = await ipcRenderer.invoke("set-prompt-settings", settings);
+    ipcRenderer.send("settings-updated");
+    return result;
+  },
 
   /**
    * Retrieves version history of corrections

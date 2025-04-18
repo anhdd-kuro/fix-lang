@@ -18,6 +18,10 @@
 ## General Rules
 
 - Always start response with `I’ve already read the rules\n`
+- Always look for `Project Structure` section inside `plan.md` before implementing and searching to know the structure of the project
+- Always search from Memories first before starting to search the code base
+- Always save best practices, patterns, and solutions in Memories future use
+- When you search for some files many times, save them in Memories for future use
 - Always analyze the task before starting
   - Plan how to implement
   - Break down the task into smaller steps

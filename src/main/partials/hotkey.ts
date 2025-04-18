@@ -178,7 +178,10 @@ const handleError = (error: unknown) => {
   // Optional: Show error notification
   new Notification({
     title: "Error",
-    body: "Failed to correct text. Please try again.",
+    body:
+      error instanceof Error
+        ? error.message
+        : "Failed to correct text. Please try again.",
     urgency: "critical",
   }).show();
 };
