@@ -133,7 +133,7 @@ export const fixGrammar = async (
         { role: "user", content: userPrompt },
       ],
       temperature, // Randomization level from settings
-      max_completion_tokens: 1000, // Adjust as needed based on expected text length
+      max_completion_tokens: 10000, // Adjust as needed based on expected text length
       n: 1, // We only need one correction
       stop: null, // Let the model decide when to stop
     });
