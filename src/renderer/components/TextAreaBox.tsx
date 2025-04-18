@@ -44,7 +44,7 @@ export const TextAreaBox = ({
       {textCount && (
         <TextCount
           textOrCount={textCount}
-          className="absolute bottom-0 right-0"
+          className="absolute bottom-0 right-0 text-shadow"
           aria-live="polite"
           aria-label="Prompt tokens for original text"
           titleAttribute="Input + Prompt tokens"

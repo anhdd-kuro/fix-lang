@@ -2,41 +2,41 @@
 
 ## System
 
-- macOS Apple Silicon
+- macOS (Apple Silicon)
 - Electron
 
 ## Technical Stack
 
-- Electron JS
+- Electron
 - TypeScript
 - React
 - OpenAI API
 - Tailwind CSS
 - Vite
-- Bun as package manager
+- Bun (package manager)
 
 ## General Rules
 
-- Always start response with `I’ve already read the rules\n`
-- Always look for `Project Structure` section inside `plan.md` before implementing and searching to know the structure of the project
-- Always search from Memories first before starting to search the code base
-- Always save best practices, patterns, and solutions in Memories future use
-- When you search for some files many times, save them in Memories for future use
-- Always analyze the task before starting
-  - Plan how to implement
-  - Break down the task into smaller steps
-  - Add task to `plan.md` as TODO list
-- Always use `plan.md` to guide your work but not follow it very strictly
-- Always analyze `src/main/index.ts`, `src/preload/index.ts`, `electron.vite.config.ts` before starting to know the code base structure
-- Look inside `package.json` to know the dependencies before asking to install packages
-- Mark the task in `plan.md` as complete when you finish it with a summary of the implementation and accessibility notes
+- Always start responses with `I’ve already read the rules\n`
+- Check the `Project Structure` section in `plan.md` before implementing or searching to understand the project structure
+- Search Memories first before exploring the codebase
+- Store best practices, patterns, and solutions in Memories for future use
+- If you repeatedly search for certain files, add them to Memories for future reference
+- Analyze each task before starting:
+  - Plan the implementation
+  - Break the task into smaller steps
+  - Add the task to `plan.md` as a TODO list
+- Use `plan.md` as a guide, but don’t follow it too rigidly
+- Review `src/main/index.ts`, `src/preload/index.ts`, and `electron.vite.config.ts` to understand the codebase structure before starting
+- Check `package.json` to review dependencies before requesting package installations
+- Mark the task in `plan.md` complete upon finishing, including a summary of the implementation and any accessibility notes
 
 ## Coding Rules
 
 - Use TypeScript for all code
 - Use Tailwind CSS for styling
 - Prefer `type` over `interface`
-- Follow SOLID principles, keep code simple and maintainable and easy to test
+- Follow SOLID principles; keep code simple, maintainable, and testable
 - Use descriptive variable names
 - Prefer `const` over `function` for declarations
-- Keep files below 200 lines of codes, split into smaller files if necessary
+- Keep files under 200 lines; split into smaller files if necessary
