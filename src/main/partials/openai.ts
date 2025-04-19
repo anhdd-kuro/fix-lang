@@ -3,6 +3,7 @@ import { OpenAI } from "openai";
 import {
   DEFAULT_IMPROVE_PROMPT,
   DEFAULT_SHORTEN_PROMPT,
+  DEFAULT_TRANSLATE_PROMPT,
   makeDefaultSystemPrompt,
   makeTonePrompt,
 } from "~/prompts";
@@ -198,7 +199,10 @@ export const translateText = async (
   const userPrompt = `Translate the following text to ${targetLang}:\n${text}`;
   const res = await openai.chat.completions.create({
     model: store.get("selectedModel"),
-    messages: [{ role: "user", content: userPrompt }],
+    messages: [
+      { role: "system", content: DEFAULT_TRANSLATE_PROMPT },
+      { role: "user", content: userPrompt },
+    ],
     temperature: 0,
   });
   const translated = res.choices[0]?.message?.content?.trim();

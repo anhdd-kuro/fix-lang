@@ -45,6 +45,14 @@ export const DEFAULT_SHORTEN_PROMPT = `
 Analyze the context and style of the input, then shorten it while preserving its meaning.
 `;
 
+export const DEFAULT_TRANSLATE_PROMPT = `
+Translate the given text into the specified target language, preserving its context, tone, and style.
+Mark any items that need clarification—abbreviations, technical terms, idioms, etc.—with a superscript number (e.g., “Foo(*1)”).
+Retain idioms in their original form within quotation marks.
+At the end of your translation, list each footnote in the format “*number: [word] means [explanation]”.
+Respond only with the translated text and its corresponding footnotes.
+`;
+
 /**
  * Generates a tone adjustment prompt for the given tone.
  * @param tone The desired tone (e.g., 'formal', 'casual').
