@@ -12,6 +12,11 @@ export type KeyBindings = {
   undo: string;
   retry: string;
   translate: string; // keyboard shortcut for translation
+  summarize: string; // condense selected text into a brief summary
+  paraphrase: string; // restate in different words
+  explain: string; // give a clearer, step-by-step explanation
+  expand: string; // elaborate or add detail
+  shorten: string; // make the text more concise
 };
 
 // New type for version entries

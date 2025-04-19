@@ -14,4 +14,11 @@ export const DEFAULT_KEY_BINDINGS: KeyBindings = {
   undo: "Control+Shift+Z",
   retry: "Control+Shift+A",
   translate: "Control+Shift+T",
+
+  // new ones:
+  summarize: "Control+Shift+S", // condense selected text into a brief summary
+  paraphrase: "Control+Shift+P", // restate in different words
+  explain: "Control+Shift+E", // give a clearer, step‑by‑step explanation
+  expand: "Control+Shift+X", // elaborate or add detail
+  shorten: "Control+Shift+H", // make the text more concise
 };

@@ -236,4 +236,9 @@ export type ElectronAPI = {
    * Copies given text to clipboard.
    */
   copyToClipboard: (text: string) => Promise<{ success: boolean }>;
+
+  /**
+   * Requests application to quit.
+   */
+  quitApp: () => void;
 };

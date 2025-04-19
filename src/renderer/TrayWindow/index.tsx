@@ -41,6 +41,15 @@ const TrayWindowMain: React.FC = () => {
           <ModelSelect />
         </div>
       </div>
+      <div className="mt-4 flex justify-center">
+        <button
+          type="button"
+          className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-4 rounded"
+          onClick={() => window.electronAPI.quitApp()}
+        >
+          Quit Application
+        </button>
+      </div>
     </div>
   );
 };

@@ -4,6 +4,7 @@
  */
 import {
   ipcMain,
+  app,
   Notification,
   BrowserWindow,
   screen,
@@ -196,6 +197,11 @@ export const registerIpcHandlers = () => {
   ipcMain.handle("copy-to-clipboard", async (_event, text: string) => {
     clipboard.writeText(text);
     return { success: true };
+  });
+
+  // Add quit-app IPC listener
+  ipcMain.on("quit-app", () => {
+    app.quit();
   });
 
   // --- Prompt Settings IPC Handlers ---

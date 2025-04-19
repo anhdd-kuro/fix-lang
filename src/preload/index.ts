@@ -387,8 +387,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   /**
    * Copies given text to clipboard.
    */
-  copyToClipboard: (text: string): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke("copy-to-clipboard", text),
+  copyToClipboard: (text: string): Promise<{ success: boolean }> => {
+    console.log("Preload: Invoking copy-to-clipboard");
+    return ipcRenderer.invoke("copy-to-clipboard", text);
+  },
+
+  quitApp: (): void => ipcRenderer.send("quit-app"),
 } satisfies ElectronAPI);
 
 console.log(
