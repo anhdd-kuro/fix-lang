@@ -320,12 +320,12 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 - [x] Add system prompt for translation.
 - [x] Add keybinding to trigger translation via API (default: Control+Shift+T).
 - [x] Add button in settings to change keybinding.
-- [ ] Show translated popup window with copy and close buttons near the mouse cursor.
+- [x] Show translated popup window with copy and close buttons near the mouse cursor.
   - Reference TrayWindow to learn how to create a new window.
   - Dynamically update window position based on mouse cursor to avoid hiding it when near screen edges.
   - Dynamically set window size based on content, with a max width of 400px and max height of 300px.
-- [ ] Split history into translation and correction.
-- [ ] Handle loading and error states.
+- [x] Split history into translation and correction.
+- [x] Handle loading and error states (spinner in popup and retry on error).
 
 #### 3. Add support for other API providers
 

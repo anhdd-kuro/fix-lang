@@ -2,12 +2,19 @@
  * @file ipc.ts
  * @description IPC handlers for settings and key bindings.
  */
-import { ipcMain, Notification, BrowserWindow, screen } from "electron";
+import {
+  ipcMain,
+  Notification,
+  BrowserWindow,
+  screen,
+  clipboard,
+} from "electron";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { registerHotkeys, unregisterHotkeys } from "./hotkey";
 import { getMainWindow } from "./mainWindow";
 import { fetchOpenAIModels, translateText } from "./openai";
+import { showTranslationWindow } from "./translationWindow";
 import { store } from "../../stores/apiStore";
 import type { KeyBindings, VersionEntry } from "../../stores/apiStore";
 
@@ -165,6 +172,10 @@ export const registerIpcHandlers = () => {
     }
   });
 
+  ipcMain.handle("get-translation-history", async () => {
+    return store.get("translations");
+  });
+
   ipcMain.handle("clear-history", async () => {
     try {
       store.set("history", []);
@@ -175,6 +186,16 @@ export const registerIpcHandlers = () => {
         error: error instanceof Error ? error.message : "Unknown error",
       };
     }
+  });
+
+  ipcMain.handle("clear-translation-history", async () => {
+    store.set("translations", []);
+    return { success: true };
+  });
+
+  ipcMain.handle("copy-to-clipboard", async (_event, text: string) => {
+    clipboard.writeText(text);
+    return { success: true };
   });
 
   // --- Prompt Settings IPC Handlers ---
@@ -236,40 +257,81 @@ export const registerIpcHandlers = () => {
     }
   });
 
-  ipcMain.handle("set-translation-target-lang", async (_event, lang: string) => {
-    try {
-      if (typeof lang !== "string") throw new Error("Invalid language");
-      store.set("translationTargetLang", lang);
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
+  ipcMain.handle(
+    "set-translation-target-lang",
+    async (_event, lang: string) => {
+      try {
+        if (typeof lang !== "string") throw new Error("Invalid language");
+        store.set("translationTargetLang", lang);
+        return { success: true };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
+      }
     }
-  });
+  );
 
   // --- Translation IPC Handler ---
-  ipcMain.handle("translate-text", async (_event, text: string, targetLang: string) => {
-    try {
-      // Notify renderer to start loading spinner
-      getMainWindow()?.webContents.send("start-loading");
-      const apiKey = store.get("apiKey") as string;
-      const result = await translateText(apiKey, text, targetLang);
-      // Get cursor position to position popup
-      const { x, y } = screen.getCursorScreenPoint();
-      // Send translation response via IPC with coordinates
-      getMainWindow()?.webContents.send("translation-result", { ...result, x, y });
-      getMainWindow()?.webContents.send("stop-loading");
-      return { success: true };
-    } catch (error) {
-      console.error("Translation failed:", error);
-      getMainWindow()?.webContents.send("stop-loading");
-      const { x, y } = screen.getCursorScreenPoint();
-      getMainWindow()?.webContents.send("translation-error", { error: error instanceof Error ? error.message : "Unknown error", x, y });
-      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+  ipcMain.handle(
+    "translate-text",
+    async (_event, text: string, targetLang: string) => {
+      try {
+        // Capture cursor position; window will display on completion
+        const { x, y } = screen.getCursorScreenPoint();
+        getMainWindow()?.webContents.send("start-loading");
+        const apiKey = store.get("apiKey") as string;
+        const result = await translateText(apiKey, text, targetLang);
+        // Get cursor for popup and update popup
+        showTranslationWindow({
+          ...result,
+          originalText: text,
+          targetLang,
+          loading: false,
+          x,
+          y,
+        });
+        // Store translation in history
+        const transEntry: VersionEntry = {
+          original: text,
+          corrected: result.translatedText,
+          timestamp: new Date().toISOString(),
+        };
+        const existing = store.get("translations") as VersionEntry[];
+        store.set("translations", [...existing, transEntry]);
+        // Send update to main window preview
+        getMainWindow()?.webContents.send("update-text", {
+          original: text,
+          corrected: result.translatedText,
+          promptTokens: result.promptTokens,
+          completionTokens: result.completionTokens,
+        });
+        getMainWindow()?.webContents.send("stop-loading");
+        return { success: true };
+      } catch (error) {
+        console.error("Translation failed:", error);
+        getMainWindow()?.webContents.send("stop-loading");
+        const { x, y } = screen.getCursorScreenPoint();
+        // Show error state in popup
+        showTranslationWindow({
+          translatedText: "",
+          error: error instanceof Error ? error.message : "Unknown error",
+          originalText: text,
+          targetLang,
+          loading: false,
+          promptTokens: null,
+          completionTokens: null,
+          x,
+          y,
+        });
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
+      }
     }
-  });
+  );
 
   // Listen for settings-updated events and notify user
   ipcMain.on("settings-updated", () => {

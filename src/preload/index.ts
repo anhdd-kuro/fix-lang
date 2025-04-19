@@ -19,6 +19,24 @@ type TextUpdatePayload = {
 // Log that preload script is being executed
 console.log("Preload script is being executed");
 
+// Global cache for translation-data payload
+let translationDataCache: {
+  translatedText: string;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  x: number;
+  y: number;
+  originalText?: string;
+  targetLang?: string;
+  loading?: boolean;
+  error?: string;
+} | null = null;
+
+// Update cache on each translation-data event
+ipcRenderer.on("translation-data", (_event, payload) => {
+  translationDataCache = payload;
+});
+
 // Expose a controlled API to the renderer process
 contextBridge.exposeInMainWorld("electronAPI", {
   /**
@@ -199,6 +217,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("clear-history"),
 
   /**
+   * Retrieves translation history entries
+   */
+  getTranslationHistory: (): Promise<VersionEntry[]> =>
+    ipcRenderer.invoke("get-translation-history"),
+
+  /**
+   * Clears translation history
+   */
+  clearTranslationHistory: (): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("clear-translation-history"),
+
+  /**
    * Registers a callback for opening the main settings modal.
    */
   onOpenSettings: (callback: () => void) => {
@@ -319,6 +349,46 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("translation-error", listener);
     return () => ipcRenderer.removeListener("translation-error", listener);
   },
+
+  /**
+   * Registers a callback for raw translation data (for popup window).
+   */
+  onTranslationData: (
+    callback: (payload: {
+      translatedText: string;
+      promptTokens: number | null;
+      completionTokens: number | null;
+      x: number;
+      y: number;
+    }) => void
+  ): (() => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      payload: {
+        translatedText: string;
+        promptTokens: number | null;
+        completionTokens: number | null;
+        x: number;
+        y: number;
+      }
+    ) => callback(payload);
+    ipcRenderer.on("translation-data", listener);
+    // Immediately invoke callback if cache exists
+    if (translationDataCache) callback(translationDataCache);
+    return () => ipcRenderer.removeListener("translation-data", listener);
+  },
+
+  /**
+   * Requests translation window to close.
+   */
+  closeTranslationWindow: (): void =>
+    ipcRenderer.send("close-translation-window"),
+
+  /**
+   * Copies given text to clipboard.
+   */
+  copyToClipboard: (text: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("copy-to-clipboard", text),
 } satisfies ElectronAPI);
 
 console.log(

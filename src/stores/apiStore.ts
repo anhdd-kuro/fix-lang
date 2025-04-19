@@ -19,6 +19,8 @@ export type VersionEntry = {
   original: string;
   corrected: string;
   timestamp: string;
+  promptTokens?: number | null;
+  completionTokens?: number | null;
 };
 
 export type SettingsStore = {
@@ -31,8 +33,10 @@ export type SettingsStore = {
   withGrammar: boolean;
   withShorten: boolean;
   tone: string;
-  history: VersionEntry[];  // persistent correction history
+  history: VersionEntry[]; // persistent correction history
   translationTargetLang: string; // persistent translation target language
+  /** Persistent translation history entries */
+  translations: VersionEntry[];
 };
 
 const schema = {
@@ -63,6 +67,21 @@ const schema = {
   temperature: { type: "number", default: 0.3 },
   history: { type: "array", default: [] },
   translationTargetLang: { type: "string", default: "" },
+  translations: {
+    type: "array",
+    items: {
+      type: "object",
+      properties: {
+        original: { type: "string" },
+        corrected: { type: "string" },
+        timestamp: { type: "string" },
+        promptTokens: { type: ["number", "null"] },
+        completionTokens: { type: ["number", "null"] },
+      },
+      required: ["original", "corrected", "timestamp"],
+    },
+    default: [],
+  },
 } satisfies Schema<SettingsStore>;
 
 export const store = new Store<SettingsStore>({

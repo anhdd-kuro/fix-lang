@@ -127,9 +127,19 @@ export type ElectronAPI = {
   getHistory: () => Promise<VersionEntry[]>;
 
   /**
-   * Clears all saved correction history.
+   * Retrieves translation history entries
+   */
+  getTranslationHistory: () => Promise<VersionEntry[]>;
+
+  /**
+   * Clears correction history
    */
   clearHistory: () => Promise<{ success: boolean; error?: string }>;
+
+  /**
+   * Clears translation history
+   */
+  clearTranslationHistory: () => Promise<{ success: boolean; error?: string }>;
 
   /**
    * Retrieves the last correction entry.
@@ -209,4 +219,21 @@ export type ElectronAPI = {
    * Registers callback for translation errors from main process.
    */
   onTranslationError: (callback: (error: string) => void) => () => void;
+
+  /**
+   * Registers a callback for raw translation data (for popup window).
+   */
+  onTranslationData: (
+    callback: (payload: { translatedText: string; promptTokens: number | null; completionTokens: number | null; x: number; y: number }) => void
+  ) => () => void;
+
+  /**
+   * Requests translation window to close.
+   */
+  closeTranslationWindow: () => void;
+
+  /**
+   * Copies given text to clipboard.
+   */
+  copyToClipboard: (text: string) => Promise<{ success: boolean }>;
 };

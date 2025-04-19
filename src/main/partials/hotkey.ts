@@ -1,10 +1,12 @@
-import { globalShortcut, Notification, app } from "electron";
+import { globalShortcut, Notification, app, screen } from "electron";
 import { store } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { fixGrammar, translateText } from "./openai";
 import { showOverlaySpinner, hideOverlaySpinner } from "./overlayWindow";
+import { showTranslationWindow } from "./translationWindow";
 import { getHighlightedText, pasteText } from "../../utils";
 import type { BrowserWindow } from "electron";
+import type { VersionEntry } from "~/stores/apiStore";
 
 // State to store the last operation's text for Undo/Retry
 let lastOriginalText: string | null = null;
@@ -177,7 +179,7 @@ const registerRetryShortcut = (mainWindow: BrowserWindow) => {
 /**
  * Registers the global shortcut for translation.
  */
-const registerTranslateShortcut = (_mainWindow: BrowserWindow) => {
+const registerTranslateShortcut = (mainWindow: BrowserWindow) => {
   const translateShortcut = keybindingStore.getKeyBindings().translate;
   // Skip registration if undefined or empty to avoid errors
   if (!translateShortcut) {
@@ -191,26 +193,60 @@ const registerTranslateShortcut = (_mainWindow: BrowserWindow) => {
   const targetLang = storedLang || app.getLocale();
   const ret = globalShortcut.register(translateShortcut, async () => {
     console.log(`${translateShortcut} is pressed (Translate)`);
+    const apiKey = getOpenAIKey();
+    const selectedText = await getHighlightedText();
+    const lang = targetLang;
+    if (!selectedText || !selectedText.trim()) {
+      new Notification({ title: "Error", body: "No text selected." }).show();
+      return;
+    }
+    // Capture cursor position for positioning the popup on completion
+    const { x, y } = screen.getCursorScreenPoint();
+    // Show overlay spinner in main window
+    if (mainWindow && !mainWindow.isDestroyed())
+      mainWindow.webContents.send("start-loading");
+    showOverlaySpinner();
     try {
-      const apiKey = getOpenAIKey();
-      const selectedText = await getHighlightedText();
-      const lang = targetLang;
-      if (!selectedText || !selectedText.trim()) {
-        new Notification({ title: "Error", body: "No text selected." }).show();
-        return;
-      }
       const result = await translateText(apiKey, selectedText, lang);
-      // Show notification with translated text (truncated)
-      new Notification({
-        title: `Translated (${lang})`,
-        body: result.translatedText,
-      }).show();
+      // Update popup with result
+      showTranslationWindow({
+        ...result,
+        originalText: selectedText,
+        targetLang: lang,
+        loading: false,
+        x,
+        y,
+      });
+      // Persist translation to store
+      const transEntry: VersionEntry = {
+        original: selectedText,
+        corrected: result.translatedText,
+        timestamp: new Date().toISOString(),
+      };
+      const allTrans = store.get("translations") as VersionEntry[];
+      store.set("translations", [...allTrans, transEntry]);
+      // Update main window text areas
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("update-text", {
+          original: selectedText,
+          corrected: result.translatedText,
+          promptTokens: result.promptTokens,
+          completionTokens: result.completionTokens,
+        });
+      }
     } catch (error) {
       new Notification({
-        title: "Translation Error",
-        body: error instanceof Error ? error.message : "Unknown error",
+        title: "Error",
+        body:
+          error instanceof Error
+            ? error.message
+            : "Failed to translate text. Please try again.",
         urgency: "critical",
       }).show();
+    } finally {
+      if (mainWindow && !mainWindow.isDestroyed())
+        mainWindow.webContents.send("stop-loading");
+      hideOverlaySpinner();
     }
   });
   checkShortcut(ret);

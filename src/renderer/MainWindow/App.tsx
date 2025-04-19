@@ -31,6 +31,8 @@ type VersionEntry = {
   original: string;
   corrected: string;
   timestamp: string;
+  promptTokens?: number;
+  completionTokens?: number;
 };
 
 /**
@@ -38,8 +40,14 @@ type VersionEntry = {
  * Handles API call loading spinner near the mouse, settings modal, and text display.
  */
 const App: React.FC = () => {
-  // History of past corrections
+  // History of past corrections and translations
   const [history, setHistory] = useState<VersionEntry[]>([]);
+  const [translationHistory, setTranslationHistory] = useState<VersionEntry[]>(
+    []
+  );
+  const [historyTab, setHistoryTab] = useState<"corrections" | "translations">(
+    "corrections"
+  );
   const [initialSettingsTab, setInitialSettingsTab] = useState<number>(0);
   // State for text areas
   const [originalText, setOriginalText] = useState<string>("");
@@ -129,56 +137,76 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Fetch history on mount and when fixedText changes
+  // Fetch both histories on mount or when texts change
   useEffect(() => {
     window.electronAPI
       .getHistory()
       .then((h) => setHistory(h))
-      .catch((e) => console.error("Failed to load history", e));
+      .catch((e) => console.error("Failed to load correction history", e));
+    window.electronAPI
+      .getTranslationHistory()
+      .then((t) => setTranslationHistory(t))
+      .catch((e) => console.error("Failed to load translation history", e));
   }, [fixedText]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans flex">
       {/* Sidebar history panel */}
       <aside
-        className={`flex flex-col bg-gray-800 border-r border-gray-700 h-screen relative transform transition-all duration-300 ease-in-out group *:transition-opacity *:duration-300 ${historyOpen ? "p-4 translate-x-0 w-64 " : "-translate-x-full w-0 overflow-hidden px-0 py-4 *:opacity-0"}`}
+        className={`relative z-10 flex flex-col bg-gray-800 border-r border-gray-700 h-screen transform transition-all duration-300 ease-in-out group *:transition-opacity *:duration-300 ${historyOpen ? "p-4 translate-x-0 w-64 " : "-translate-x-full w-0 overflow-hidden px-0 py-4 *:opacity-0"}`}
       >
         <div className="flex justify-between items-center mb-2 sticky top-0 bg-gray-800">
-          <h2 className="text-lg font-semibold text-gray-200">History</h2>
-          {/* Close button (visible on hover) */}
-          <button
-            type="button"
-            onClick={() => setHistoryOpen(false)}
-            className="absolute right-0 py-2 px-4 bg-gray-700 text-gray-200 hover:bg-gray-600 rounded-lg transition-opacity duration-200"
-            aria-label="Close history panel"
-          >
-            &larr;
-          </button>
+          <div className="flex items-center space-x-4">
+            <button
+              type="button"
+              className={`px-2 py-1 rounded ${historyTab === "corrections" ? "bg-blue-600 text-white" : "text-gray-400"}`}
+              onClick={() => setHistoryTab("corrections")}
+            >
+              Corrections
+            </button>
+            <button
+              type="button"
+              className={`px-2 py-1 rounded ${historyTab === "translations" ? "bg-blue-600 text-white" : "text-gray-400"}`}
+              onClick={() => setHistoryTab("translations")}
+            >
+              Translations
+            </button>
+          </div>
         </div>
         <ul className="divide-y divide-gray-700 flex-1 overflow-y-auto">
-          {history.map((entry, idx) => (
-            <li
-              key={idx}
-              className="py-2 hover:bg-gray-700 cursor-pointer px-2"
-              onClick={() => {
-                setOriginalText(entry.original);
-                setFixedText(entry.corrected);
-              }}
-            >
-              <div className="text-sm text-gray-400">
-                {new Date(entry.timestamp).toLocaleString()}
-              </div>
-              <div className="text-sm text-gray-100">
-                {entry.original.slice(0, 50)}...
-              </div>
-            </li>
-          ))}
+          {(historyTab === "corrections" ? history : translationHistory).map(
+            (entry, idx) => (
+              <li
+                key={idx}
+                className="py-2 hover:bg-gray-700 cursor-pointer px-2"
+                onClick={() => {
+                  setOriginalText(entry.original);
+                  setFixedText(entry.corrected);
+                  setPromptTokens(entry.promptTokens ?? null);
+                  setCompletionTokens(entry.completionTokens ?? null);
+                }}
+              >
+                <div className="text-sm text-gray-400">
+                  {new Date(entry.timestamp).toLocaleString()}
+                </div>
+                <div className="text-sm text-gray-100">
+                  {entry.original.slice(0, 50)}...
+                </div>
+              </li>
+            )
+          )}
         </ul>
         <button
           type="button"
-          onClick={() =>
-            window.electronAPI.clearHistory().then(() => setHistory([]))
-          }
+          onClick={() => {
+            if (historyTab === "corrections") {
+              window.electronAPI.clearHistory().then(() => setHistory([]));
+            } else {
+              window.electronAPI
+                .clearTranslationHistory()
+                .then(() => setTranslationHistory([]));
+            }
+          }}
           className="flex items-center gap-2 text-sm text-red-400 hover:text-red-600 ml-auto mt-4 justify-end"
         >
           <svg
@@ -201,21 +229,31 @@ const App: React.FC = () => {
       </aside>
       {/* Main content area */}
       <main className="flex-1 p-6 flex flex-col relative">
-        {/* Open history panel button */}
-        {!historyOpen && (
-          <button
-            type="button"
-            onClick={() => setHistoryOpen(true)}
-            className="absolute left-4 top-4 p-2 px-4 text-gray-400 hover:text-white rounded-lg bg-gray-700"
-            aria-label="Open history panel"
+        {/* Toggle history panel button */}
+        <button
+          type="button"
+          onClick={() => setHistoryOpen(!historyOpen)}
+          className="absolute left-4 top-4 p-2 text-gray-400 hover:text-white rounded-lg bg-gray-700"
+          aria-label="Toggle history panel"
+        >
+          <svg
+            className={`size-4 transform transition-transform duration-200 ${historyOpen ? "rotate-180" : ""}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
           >
-            &rarr;
-          </button>
-        )}
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+        </button>
         {/* Header with Settings Button */}
         <div className="mb-12">
           <h1 className="text-3xl font-bold text-blue-400 text-center">
-            FixLang Preview
+            Last Action Preview
           </h1>
           <button
             type="button"

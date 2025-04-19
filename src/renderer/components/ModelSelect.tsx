@@ -5,13 +5,16 @@ import { DEFAULT_OPENAI_MODEL } from "~/const";
  * Shared component for OpenAI model selection with refresh.
  */
 export const ModelSelect: React.FC = () => {
-  const [models, setModels] = useState<{
-    id: string;
-    object: string;
-    created: number;
-    owned_by: string;
-  }[]>([]);
-  const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_OPENAI_MODEL);
+  const [models, setModels] = useState<
+    {
+      id: string;
+      object: string;
+      created: number;
+      owned_by: string;
+    }[]
+  >([]);
+  const [selectedModel, setSelectedModel] =
+    useState<string>(DEFAULT_OPENAI_MODEL);
   const [modelsLoading, setModelsLoading] = useState<boolean>(false);
   const [modelsError, setModelsError] = useState<string>("");
 
@@ -74,11 +77,14 @@ export const ModelSelect: React.FC = () => {
           disabled={modelsLoading || !!modelsError}
         >
           {modelsLoading && <option>Loading models...</option>}
-          {!modelsLoading && models.length === 0 && <option>No models found</option>}
+          {!modelsLoading && models.length === 0 && (
+            <option>No models found</option>
+          )}
           {!modelsLoading &&
             models.map((model) => (
               <option key={model.id} value={model.id}>
-                {model.id} {model.owned_by !== "openai" ? `(${model.owned_by})` : ""}
+                {model.id}{" "}
+                {model.owned_by !== "openai" ? `(${model.owned_by})` : ""}
               </option>
             ))}
         </select>
@@ -99,7 +105,8 @@ export const ModelSelect: React.FC = () => {
         </p>
       )}
       <p className="text-xs text-gray-500 mt-1">
-        Model is used for all OpenAI requests. Your API key determines available models.
+        Model is used for all OpenAI requests. Your API key determines available
+        models.
       </p>
     </div>
   );
