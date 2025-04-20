@@ -7,7 +7,8 @@ let translationWindow: BrowserWindow | null = null;
  * Creates the translation window if it doesn't exist.
  */
 export function createTranslationWindow() {
-  if (translationWindow) return translationWindow;
+  if (translationWindow && !translationWindow.isDestroyed())
+    return translationWindow;
   translationWindow = new BrowserWindow({
     width: 500,
     height: 350,
@@ -42,6 +43,9 @@ export function createTranslationWindow() {
     destroyTranslationWindow();
   });
 
+  translationWindow.on("closed", () => {
+    translationWindow = null;
+  });
   return translationWindow;
 }
 

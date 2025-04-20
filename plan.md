@@ -305,16 +305,7 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 
 - [x] Refactor global spinner overlay: now controlled by main process, decoupled from mainWindow, robust for all shortcut operations (2025-04-15)
 
-#### 1. Add a reply feature
-
-- [ ] Design UI with three areas: original (left), reply context (top right), generated reply (bottom right)
-- [ ] Implement input fields for both original and reply context
-- [ ] Add button to trigger reply generation via API
-- [ ] Handle API call and display generated reply
-- [ ] Add copy button for generated reply
-- [ ] Add error and loading states
-
-#### 2. Add a translation feature
+#### 1. Add a translation feature
 
 - [x] Add input for destination language. Use system language by default.
 - [x] Add system prompt for translation.
@@ -327,7 +318,7 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 - [x] Split history into translation and correction.
 - [x] Handle loading and error states (spinner in popup and retry on error).
 
-#### 3. Add support for other API providers
+#### 2. Add support for other API providers
 
 - [ ] Research and select alternative API providers
 - [ ] Abstract API call logic to support multiple providers
