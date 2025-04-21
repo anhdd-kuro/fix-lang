@@ -89,9 +89,6 @@ export function showTranslationWindow(payload: TranslationPayload) {
     // Send payload after UI is ready
     win.webContents.send("translation-data", payload);
     win.showInactive();
-    if (process.env.NODE_ENV === "development") {
-      win.webContents.openDevTools();
-    }
   });
 }
 

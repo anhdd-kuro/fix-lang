@@ -392,6 +392,33 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return ipcRenderer.invoke("copy-to-clipboard", text);
   },
 
+  /**
+   * Requests summarization of the given text.
+   */
+  summarize: (
+    text: string,
+    maxInput: number
+  ): Promise<{ success: boolean; summarizedText: string; promptTokens: number | null; completionTokens: number | null; error?: string }> =>
+    ipcRenderer.invoke("summarize", text, maxInput),
+
+  /**
+   * Registers a callback for the 'summary-data' event from main process.
+   */
+  onSummaryData: (
+    callback: (
+      payload: {
+        summarizedText: string;
+        promptTokens: number | null;
+        completionTokens: number | null;
+        x: number;
+        y: number;
+      }
+    ) => void
+  ): () => void => {
+    ipcRenderer.on("summary-data", (_event, payload) => callback(payload));
+    return () => ipcRenderer.removeAllListeners("summary-data");
+  },
+
   quitApp: (): void => ipcRenderer.send("quit-app"),
 } satisfies ElectronAPI);
 

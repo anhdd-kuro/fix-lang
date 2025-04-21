@@ -18,6 +18,8 @@ export type KeyBindings = {
   retry: string;
   /** Keybinding for translation */
   translate: string;
+  /** Keybinding for summarize */
+  summarize: string;
 };
 
 /**
@@ -59,6 +61,11 @@ export type ElectronAPI = {
   onStartLoading: (callback: () => void) => () => void;
 
   onStopLoading: (callback: () => void) => () => void;
+
+  /**
+   * Registers a callback for the 'summary-data' event from main process.
+   */
+  onSummaryData: (callback: (payload: { summarizedText: string; promptTokens: number | null; completionTokens: number | null; x: number; y: number; }) => void) => () => void;
 
   /**
    * Fetches the stored OpenAI API key from the main process.
@@ -207,6 +214,14 @@ export type ElectronAPI = {
    * Sends a translation request for the given text to main process.
    */
   translate: (text: string, targetLang: string) => Promise<{ success: boolean; error?: string }>;
+
+  /**
+   * Requests summarization of the given text.
+   */
+  summarize: (
+    text: string,
+    maxInput: number
+  ) => Promise<{ success: boolean; summarizedText: string; promptTokens: number | null; completionTokens: number | null; error?: string }>;
 
   /**
    * Registers callback for translation results from main process.

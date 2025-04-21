@@ -53,6 +53,10 @@ At the end of your translation, list each footnote in the format “*number: [wo
 Respond only with the translated text and its corresponding footnotes.
 `;
 
+export const DEFAULT_SUMMARIZE_PROMPT = `
+Summarize the following text into a concise, clear summary without additional commentary.
+Respond only with the summary.`;
+
 /**
  * Generates a tone adjustment prompt for the given tone.
  * @param tone The desired tone (e.g., 'formal', 'casual').

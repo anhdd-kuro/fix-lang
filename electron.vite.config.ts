@@ -47,6 +47,7 @@ export default defineConfig({
             __dirname,
             "src/renderer/TranslationWindow/index.html"
           ),
+          summary: resolve(__dirname, "src/renderer/SummaryWindow/index.html"),
         },
       },
     },

@@ -1,11 +1,17 @@
-import { globalShortcut, Notification, app, screen } from "electron";
+import {
+  app,
+  globalShortcut,
+  Notification,
+  screen,
+  BrowserWindow,
+} from "electron";
 import { store } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
-import { fixGrammar, translateText } from "./openai";
+import { fixGrammar, translateText, summarizeText } from "../ai.request";
 import { showOverlaySpinner, hideOverlaySpinner } from "./overlayWindow";
+import { showSummaryWindow } from "./summaryWindow";
 import { showTranslationWindow } from "./translationWindow";
 import { getHighlightedText, pasteText } from "../../utils";
-import type { BrowserWindow } from "electron";
 import type { VersionEntry } from "~/stores/apiStore";
 
 // State to store the last operation's text for Undo/Retry
@@ -23,6 +29,8 @@ export const registerHotkeys = (mainWindow: BrowserWindow): void => {
   registerUndoShortcut(mainWindow);
   registerRetryShortcut(mainWindow);
   registerTranslateShortcut(mainWindow);
+  registerSummarizeShortcut(mainWindow);
+  registerDevToolsShortcut();
 };
 
 const registerFixShortcut = (mainWindow: BrowserWindow) => {
@@ -252,6 +260,42 @@ const registerTranslateShortcut = (mainWindow: BrowserWindow) => {
   checkShortcut(ret);
 };
 
+// Registers the global shortcut for summarize.
+const registerSummarizeShortcut = (_mainWindow: BrowserWindow): void => {
+  const summarizeShortcut = keybindingStore.getKeyBindings().summarize;
+  if (!summarizeShortcut) return;
+  const ret = globalShortcut.register(summarizeShortcut, async () => {
+    console.log(`${summarizeShortcut} pressed (Summarize)`);
+    try {
+      const apiKey = getOpenAIKey();
+      const selectedText = await getHighlightedText();
+      if (!selectedText || !selectedText.trim()) {
+        new Notification({ title: "Error", body: "No text selected." }).show();
+        return;
+      }
+      const { x, y } = screen.getCursorScreenPoint();
+      showOverlaySpinner();
+      const result = await summarizeText(
+        apiKey,
+        selectedText,
+        store.get("maxSummaryTokens") as number
+      );
+      hideOverlaySpinner();
+      showSummaryWindow({
+        summarizedText: result.summarizedText,
+        promptTokens: result.promptTokens,
+        completionTokens: result.completionTokens,
+        x,
+        y,
+      });
+    } catch (error) {
+      hideOverlaySpinner();
+      handleError(error);
+    }
+  });
+  checkShortcut(ret);
+};
+
 const handleError = (error: unknown) => {
   console.error("Error during grammar fixing or IPC send:", error);
   // Optional: Show error notification
@@ -271,6 +315,17 @@ const getOpenAIKey = () => {
     throw new Error("OpenAI API Key not set in settings.");
   }
   return apiKey;
+};
+
+/**
+ * Opens/toggles DevTools for the focused window on F12.
+ */
+const registerDevToolsShortcut = (): void => {
+  const ret = globalShortcut.register("F12", () => {
+    const win = BrowserWindow.getFocusedWindow();
+    if (win) win.webContents.toggleDevTools();
+  });
+  checkShortcut(ret);
 };
 
 /**

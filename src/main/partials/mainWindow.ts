@@ -61,10 +61,7 @@ export const createMainWindow = (
 
 export const initializeMainWindow = () => {
   app.whenReady().then(() => {
-    const win = createMainWindow();
-    if (process.env.NODE_ENV === "development") {
-      win.webContents.openDevTools();
-    }
+    createMainWindow();
   });
   app.on("will-quit", () => {
     destroyMainWindow();

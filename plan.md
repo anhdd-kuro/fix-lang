@@ -326,3 +326,15 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 - [ ] Implement provider-specific configuration (API key, endpoint)
 - [ ] Update logic to use selected provider for requests
 - [ ] Add error handling and fallback logic
+
+#### 3. Add summarize feature
+
+- [x] Add keybinding to trigger summarize via API (default: Control+Shift+S).
+- [x] Add button in settings to change keybinding.
+- [x] Add max input setting for summarize.
+- [x] Add system prompt for summarize.
+- [x] Show summarized popup window with copy and close buttons near the mouse cursor.
+  - Reference TranslationWindow to learn how to create a new window. ( but we only need result text )
+  - Dynamically update window position based on mouse cursor to avoid hiding it when near screen edges.
+  - Dynamically set window size based on content, with a max width of 400px and max height of 300px.
+- [x] Handle loading and error states (spinner in popup and retry on error).

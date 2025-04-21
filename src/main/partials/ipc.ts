@@ -14,9 +14,9 @@ import { DEFAULT_OPENAI_MODEL } from "~/const";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { registerHotkeys, unregisterHotkeys } from "./hotkey";
 import { getMainWindow } from "./mainWindow";
-import { fetchOpenAIModels, translateText } from "./openai";
 import { showTranslationWindow } from "./translationWindow";
 import { store } from "../../stores/apiStore";
+import { fetchOpenAIModels, translateText, summarizeText } from "../ai.request";
 import type { KeyBindings, VersionEntry } from "../../stores/apiStore";
 
 export const registerIpcHandlers = () => {
@@ -334,6 +334,45 @@ export const registerIpcHandlers = () => {
         return {
           success: false,
           error: error instanceof Error ? error.message : "Unknown error",
+        };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    "translate",
+    async (_event, text: string, targetLang: string) => {
+      try {
+        const apiKey = store.get("apiKey");
+        if (!apiKey) throw new Error("API key not set");
+        await translateText(apiKey, text, targetLang);
+        return { success: true };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    "summarize",
+    async (_event, text: string, maxInput: number) => {
+      try {
+        const apiKey = store.get("apiKey");
+        if (!apiKey) throw new Error("API key not set");
+        const result = await summarizeText(apiKey, text, maxInput);
+        return {
+          success: true,
+          summarizedText: result.summarizedText,
+          promptTokens: result.promptTokens,
+          completionTokens: result.completionTokens,
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
         };
       }
     }
