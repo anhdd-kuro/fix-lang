@@ -54,8 +54,13 @@ Respond only with the translated text and its corresponding footnotes.
 `;
 
 export const DEFAULT_SUMMARIZE_PROMPT = `
-Summarize the following text into a concise, clear summary without additional commentary.
-Respond only with the summary.`;
+Summarize the following text into a concise, clear summary without additional commentary, using the following guidelines:
+1. Read the text carefully to understand the main ideas and supporting details.
+2. Identify the key points that are most relevant to the user's query.
+3. Write a summary that is concise and clear, using simple language and avoiding jargon or technical terms.
+4. Organize the summary in a logical way, starting with the main ideas and then providing supporting details.
+5. Proofread your summary to ensure that it is grammatically correct and free of errors.
+6. Respond only with the summary.`;
 
 /**
  * Generates a tone adjustment prompt for the given tone.
