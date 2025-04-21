@@ -200,23 +200,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 
   /**
-   * Retrieves version history of corrections
-   */
-  getHistory: (): Promise<VersionEntry[]> => ipcRenderer.invoke("get-history"),
-
-  /**
-   * Retrieves the last correction entry.
-   */
-  getLastHistory: (): Promise<{ original: string; corrected: string }> =>
-    ipcRenderer.invoke("get-last-history"),
-
-  /**
-   * Clears all saved correction history
-   */
-  clearHistory: (): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke("clear-history"),
-
-  /**
    * Retrieves translation history entries
    */
   getTranslationHistory: (): Promise<VersionEntry[]> =>
@@ -420,6 +403,85 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 
   quitApp: (): void => ipcRenderer.send("quit-app"),
+
+  // --- Correct feature ---
+  getCorrectSettings: (): Promise<{ tone: string; paraphrase: boolean }> =>
+    ipcRenderer.invoke("get-correct-settings"),
+  setCorrectSettings: (
+    settings: { tone: string; paraphrase: boolean }
+  ): Promise<{ success: boolean }> => ipcRenderer.invoke("set-correct-settings", settings),
+  getCorrectHistory: (): Promise<VersionEntry[]> =>
+    ipcRenderer.invoke("get-correct-history"),
+  clearCorrectHistory: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("clear-correct-history"),
+
+  // --- Summarize feature ---
+  getSummarizeSettings: (): Promise<{ minLength: number; maxLength: number }> =>
+    ipcRenderer.invoke("get-summarize-settings"),
+  setSummarizeSettings: (
+    settings: { minLength: number; maxLength: number }
+  ): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("set-summarize-settings", settings),
+  getSummarizeHistory: (): Promise<VersionEntry[]> =>
+    ipcRenderer.invoke("get-summarize-history"),
+  clearSummarizeHistory: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("clear-summarize-history"),
+
+  // --- Translate feature ---
+  getTranslateSettings: (): Promise<{ destinationLang: string; includeExplanation: boolean }> =>
+    ipcRenderer.invoke("get-translate-settings"),
+  setTranslateSettings: (
+    settings: { destinationLang: string; includeExplanation: boolean }
+  ): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("set-translate-settings", settings),
+
+  // --- Explain feature ---
+  getExplainSettings: (): Promise<{ level: string; includeResources: boolean }> =>
+    ipcRenderer.invoke("get-explain-settings"),
+  setExplainSettings: (
+    settings: { level: string; includeResources: boolean }
+  ): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("set-explain-settings", settings),
+  getExplainHistory: (): Promise<VersionEntry[]> =>
+    ipcRenderer.invoke("get-explain-history"),
+  clearExplainHistory: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("clear-explain-history"),
+
+  // --- Expand feature ---
+  getExpandSettings: (): Promise<{ minLength: number; maxLength: number }> =>
+    ipcRenderer.invoke("get-expand-settings"),
+  setExpandSettings: (
+    settings: { minLength: number; maxLength: number }
+  ): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("set-expand-settings", settings),
+  getExpandHistory: (): Promise<VersionEntry[]> =>
+    ipcRenderer.invoke("get-expand-history"),
+  clearExpandHistory: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("clear-expand-history"),
+
+  // --- Shorten feature ---
+  getShortenSettings: (): Promise<{ minLength: number; maxLength: number }> =>
+    ipcRenderer.invoke("get-shorten-settings"),
+  setShortenSettings: (
+    settings: { minLength: number; maxLength: number }
+  ): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("set-shorten-settings", settings),
+  getShortenHistory: (): Promise<VersionEntry[]> =>
+    ipcRenderer.invoke("get-shorten-history"),
+  clearShortenHistory: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("clear-shorten-history"),
+
+  // --- PromptGen feature ---
+  getPromptgenSettings: (): Promise<{ minLength: number; maxLength: number; nsfw: boolean }> =>
+    ipcRenderer.invoke("get-promptgen-settings"),
+  setPromptgenSettings: (
+    settings: { minLength: number; maxLength: number; nsfw: boolean }
+  ): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("set-promptgen-settings", settings),
+  getPromptgenHistory: (): Promise<VersionEntry[]> =>
+    ipcRenderer.invoke("get-promptgen-history"),
+  clearPromptgenHistory: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("clear-promptgen-history"),
 } satisfies ElectronAPI);
 
 console.log(

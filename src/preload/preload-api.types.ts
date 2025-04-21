@@ -129,32 +129,14 @@ export type ElectronAPI = {
   }) => Promise<{ success: boolean; error?: string }>;
 
   /**
-   * Retrieves the history of corrections (up to 20 entries).
-   */
-  getHistory: () => Promise<VersionEntry[]>;
-
-  /**
    * Retrieves translation history entries
    */
   getTranslationHistory: () => Promise<VersionEntry[]>;
 
   /**
-   * Clears correction history
-   */
-  clearHistory: () => Promise<{ success: boolean; error?: string }>;
-
-  /**
    * Clears translation history
    */
   clearTranslationHistory: () => Promise<{ success: boolean; error?: string }>;
-
-  /**
-   * Retrieves the last correction entry.
-   */
-  getLastHistory: () => Promise<{
-    original: string;
-    corrected: string;
-  }>;
 
   /**
    * Registers a callback for opening the main settings modal.
@@ -256,4 +238,47 @@ export type ElectronAPI = {
    * Requests application to quit.
    */
   quitApp: () => void;
+
+  // --- Correct feature ---
+  getCorrectSettings: () => Promise<{
+    tone: string;
+    paraphrase: boolean;
+  }>;
+  setCorrectSettings: (settings: { tone: string; paraphrase: boolean }) => Promise<{ success: boolean }>;
+  getCorrectHistory: () => Promise<VersionEntry[]>;
+  clearCorrectHistory: () => Promise<{ success: boolean }>;
+
+  // --- Summarize feature ---
+  getSummarizeSettings: () => Promise<{ minLength: number; maxLength: number }>;
+  setSummarizeSettings: (settings: { minLength: number; maxLength: number }) => Promise<{ success: boolean }>;
+  getSummarizeHistory: () => Promise<VersionEntry[]>;
+  clearSummarizeHistory: () => Promise<{ success: boolean }>;
+
+  // --- Translate feature settings ---
+  getTranslateSettings: () => Promise<{ destinationLang: string; includeExplanation: boolean }>;
+  setTranslateSettings: (settings: { destinationLang: string; includeExplanation: boolean }) => Promise<{ success: boolean }>;
+
+  // --- Explain feature ---
+  getExplainSettings: () => Promise<{ level: string; includeResources: boolean }>;
+  setExplainSettings: (settings: { level: string; includeResources: boolean }) => Promise<{ success: boolean }>;
+  getExplainHistory: () => Promise<VersionEntry[]>;
+  clearExplainHistory: () => Promise<{ success: boolean }>;
+
+  // --- Expand feature ---
+  getExpandSettings: () => Promise<{ minLength: number; maxLength: number }>;
+  setExpandSettings: (settings: { minLength: number; maxLength: number }) => Promise<{ success: boolean }>;
+  getExpandHistory: () => Promise<VersionEntry[]>;
+  clearExpandHistory: () => Promise<{ success: boolean }>;
+
+  // --- Shorten feature ---
+  getShortenSettings: () => Promise<{ minLength: number; maxLength: number }>;
+  setShortenSettings: (settings: { minLength: number; maxLength: number }) => Promise<{ success: boolean }>;
+  getShortenHistory: () => Promise<VersionEntry[]>;
+  clearShortenHistory: () => Promise<{ success: boolean }>;
+
+  // --- PromptGen feature ---
+  getPromptgenSettings: () => Promise<{ minLength: number; maxLength: number; nsfw: boolean }>;
+  setPromptgenSettings: (settings: { minLength: number; maxLength: number; nsfw: boolean }) => Promise<{ success: boolean }>;
+  getPromptgenHistory: () => Promise<VersionEntry[]>;
+  clearPromptgenHistory: () => Promise<{ success: boolean }>;
 };

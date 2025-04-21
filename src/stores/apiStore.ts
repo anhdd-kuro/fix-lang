@@ -17,6 +17,7 @@ export type KeyBindings = {
   explain: string; // give a clearer, step-by-step explanation
   expand: string; // elaborate or add detail
   shorten: string; // make the text more concise
+  promptGen: string; // generate a new prompt based on current selection
 };
 
 // New type for version entries
@@ -40,8 +41,19 @@ export type SettingsStore = {
   tone: string;
   history: VersionEntry[]; // persistent correction history
   translationTargetLang: string; // persistent translation target language
-  /** Persistent translation history entries */
-  translations: VersionEntry[];
+  translations: VersionEntry[]; // persistent translation history entries
+  historySummarize: VersionEntry[];
+  historyExplain: VersionEntry[];
+  historyExpand: VersionEntry[];
+  historyShorten: VersionEntry[];
+  historyPromptGen: VersionEntry[];
+  settingsCorrect: { tone: string; paraphrase: boolean };
+  settingsSummarize: { minLength: number; maxLength: number };
+  settingsTranslate: { destinationLang: string; includeExplanation: boolean };
+  settingsExplain: { level: "Expert" | "Professional" | "Casual" | "Beginner" | "Child"; includeResources: boolean };
+  settingsExpand: { minLength: number; maxLength: number };
+  settingsShorten: { minLength: number; maxLength: number };
+  settingsPromptGen: { minLength: number; maxLength: number; nsfw: boolean };
 };
 
 const schema = {
@@ -86,6 +98,68 @@ const schema = {
       required: ["original", "corrected", "timestamp"],
     },
     default: [],
+  },
+  historySummarize: { type: "array", default: [] },
+  historyExplain: { type: "array", default: [] },
+  historyExpand: { type: "array", default: [] },
+  historyShorten: { type: "array", default: [] },
+  historyPromptGen: { type: "array", default: [] },
+  settingsCorrect: {
+    type: "object",
+    properties: {
+      tone: { type: "string", default: "" },
+      paraphrase: { type: "boolean", default: false },
+    },
+    default: { tone: "", paraphrase: false },
+  },
+  settingsSummarize: {
+    type: "object",
+    properties: {
+      minLength: { type: "number", default: 0 },
+      maxLength: { type: "number", default: 0 },
+    },
+    default: { minLength: 0, maxLength: 0 },
+  },
+  settingsTranslate: {
+    type: "object",
+    properties: {
+      destinationLang: { type: "string", default: "" },
+      includeExplanation: { type: "boolean", default: false },
+    },
+    default: { destinationLang: "", includeExplanation: false },
+  },
+  settingsExplain: {
+    type: "object",
+    properties: {
+      level: { type: "string", default: "Beginner" },
+      includeResources: { type: "boolean", default: false },
+    },
+    default: { level: "Beginner", includeResources: false },
+  },
+  settingsExpand: {
+    type: "object",
+    properties: {
+      minLength: { type: "number", default: 0 },
+      maxLength: { type: "number", default: 0 },
+    },
+    default: { minLength: 0, maxLength: 0 },
+  },
+  settingsShorten: {
+    type: "object",
+    properties: {
+      minLength: { type: "number", default: 0 },
+      maxLength: { type: "number", default: 0 },
+    },
+    default: { minLength: 0, maxLength: 0 },
+  },
+  settingsPromptGen: {
+    type: "object",
+    properties: {
+      minLength: { type: "number", default: 0 },
+      maxLength: { type: "number", default: 0 },
+      nsfw: { type: "boolean", default: false },
+    },
+    default: { minLength: 0, maxLength: 0, nsfw: false },
   },
 } satisfies Schema<SettingsStore>;
 

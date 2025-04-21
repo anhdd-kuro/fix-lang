@@ -1,8 +1,15 @@
 import React, { useState } from "react";
+import { SettingCorrect } from "./SettingCorrect";
+import { SettingExpand } from "./SettingExpand";
+import { SettingExplain } from "./SettingExplain";
 import { SettingGeneral } from "./SettingGeneral";
 import { SettingKeyBinding } from "./SettingKeyBinding";
 import { SettingPrompt } from "./SettingPrompt";
+import { SettingPromptGen } from "./SettingPromptGen";
+import { SettingShorten } from "./SettingShorten";
+import { SettingSummarize } from "./SettingSummarize";
 import { SettingTabBtn } from "./SettingTabBtn";
+import { SettingTranslate } from "./SettingTranslate";
 
 type SettingsModalProps = {
   isOpen: boolean;
@@ -57,7 +64,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Tab Navigation (DaisyUI/Tailwind) */}
         <div className="mb-6">
-          <div role="tablist" className="flex gap-6 w-full rounded-lg p-1">
+          <div
+            role="tablist"
+            className="grid grid-cols-5 gap-x-4 gap-y-2 w-full rounded-lg p-1"
+          >
             <SettingTabBtn
               icon={
                 <svg
@@ -107,39 +117,87 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               label="Key Bindings"
               active={activeTab === 1}
               ariaControls="settings-keybindings"
-              tabIndex={0}
+              tabIndex={1}
               id="tab-keybindings"
               onClick={() => setActiveTab(1)}
             />
             <SettingTabBtn
-              icon={
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                  />
-                </svg>
-              }
-              label="Prompt"
+              icon={<></>}
+              label="Correct"
               active={activeTab === 2}
-              ariaControls="settings-prompt"
-              tabIndex={0}
-              id="tab-prompt"
+              ariaControls="settings-correct"
+              tabIndex={2}
+              id="tab-correct"
               onClick={() => setActiveTab(2)}
+            />
+            <SettingTabBtn
+              icon={<></>}
+              label="Summarize"
+              active={activeTab === 3}
+              ariaControls="settings-summarize"
+              tabIndex={3}
+              id="tab-summarize"
+              onClick={() => setActiveTab(3)}
+            />
+            <SettingTabBtn
+              icon={<></>}
+              label="Translate"
+              active={activeTab === 4}
+              ariaControls="settings-translate"
+              tabIndex={4}
+              id="tab-translate"
+              onClick={() => setActiveTab(4)}
+            />
+            <SettingTabBtn
+              icon={<></>}
+              label="Explain"
+              active={activeTab === 5}
+              ariaControls="settings-explain"
+              tabIndex={5}
+              id="tab-explain"
+              onClick={() => setActiveTab(5)}
+            />
+            <SettingTabBtn
+              icon={<></>}
+              label="Expand"
+              active={activeTab === 6}
+              ariaControls="settings-expand"
+              tabIndex={6}
+              id="tab-expand"
+              onClick={() => setActiveTab(6)}
+            />
+            <SettingTabBtn
+              icon={<></>}
+              label="Shorten"
+              active={activeTab === 7}
+              ariaControls="settings-shorten"
+              tabIndex={7}
+              id="tab-shorten"
+              onClick={() => setActiveTab(7)}
+            />
+            <SettingTabBtn
+              icon={<></>}
+              label="PromptGen"
+              active={activeTab === 8}
+              ariaControls="settings-promptgen"
+              tabIndex={8}
+              id="tab-promptgen"
+              onClick={() => setActiveTab(8)}
+            />
+            <SettingTabBtn
+              icon={<></>}
+              label="Global Prompts"
+              active={activeTab === 9}
+              ariaControls="settings-prompt"
+              tabIndex={9}
+              id="tab-prompt"
+              onClick={() => setActiveTab(9)}
             />
           </div>
         </div>
 
         {/* Tab Panels */}
         <div className="flex-1 flex flex-col">
-          {/* General Tab */}
           {activeTab === 0 && (
             <div
               id="settings-general"
@@ -149,8 +207,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <SettingGeneral />
             </div>
           )}
-
-          {/* Key Bindings Tab */}
           {activeTab === 1 && (
             <div
               id="settings-keybindings"
@@ -160,9 +216,70 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <SettingKeyBinding />
             </div>
           )}
-
-          {/* Prompt Tab */}
           {activeTab === 2 && (
+            <div
+              id="settings-correct"
+              role="tabpanel"
+              aria-labelledby="tab-correct"
+            >
+              <SettingCorrect />
+            </div>
+          )}
+          {activeTab === 3 && (
+            <div
+              id="settings-summarize"
+              role="tabpanel"
+              aria-labelledby="tab-summarize"
+            >
+              <SettingSummarize />
+            </div>
+          )}
+          {activeTab === 4 && (
+            <div
+              id="settings-translate"
+              role="tabpanel"
+              aria-labelledby="tab-translate"
+            >
+              <SettingTranslate />
+            </div>
+          )}
+          {activeTab === 5 && (
+            <div
+              id="settings-explain"
+              role="tabpanel"
+              aria-labelledby="tab-explain"
+            >
+              <SettingExplain />
+            </div>
+          )}
+          {activeTab === 6 && (
+            <div
+              id="settings-expand"
+              role="tabpanel"
+              aria-labelledby="tab-expand"
+            >
+              <SettingExpand />
+            </div>
+          )}
+          {activeTab === 7 && (
+            <div
+              id="settings-shorten"
+              role="tabpanel"
+              aria-labelledby="tab-shorten"
+            >
+              <SettingShorten />
+            </div>
+          )}
+          {activeTab === 8 && (
+            <div
+              id="settings-promptgen"
+              role="tabpanel"
+              aria-labelledby="tab-promptgen"
+            >
+              <SettingPromptGen />
+            </div>
+          )}
+          {activeTab === 9 && (
             <div
               id="settings-prompt"
               role="tabpanel"

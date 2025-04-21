@@ -17,7 +17,7 @@ import { getMainWindow } from "./mainWindow";
 import { showTranslationWindow } from "./translationWindow";
 import { store } from "../../stores/apiStore";
 import { fetchOpenAIModels, translateText, summarizeText } from "../ai.request";
-import type { KeyBindings, VersionEntry } from "../../stores/apiStore";
+import type { KeyBindings, VersionEntry, SettingsStore } from "../../stores/apiStore";
 
 export const registerIpcHandlers = () => {
   ipcMain.handle("get-api-key", async () => {
@@ -377,6 +377,139 @@ export const registerIpcHandlers = () => {
       }
     }
   );
+
+  // --- Correct Settings & History IPC Handlers ---
+  ipcMain.handle("get-correct-settings", async () => {
+    return store.get("settingsCorrect") as SettingsStore["settingsCorrect"];
+  });
+
+  ipcMain.handle("set-correct-settings", async (_event, settings) => {
+    store.set("settingsCorrect", settings);
+    return { success: true };
+  });
+
+  ipcMain.handle("get-correct-history", async () => {
+    return store.get("history") as VersionEntry[];
+  });
+
+  ipcMain.handle("clear-correct-history", async () => {
+    store.set("history", []);
+    return { success: true };
+  });
+
+  // --- Summarize Settings & History IPC Handlers ---
+  ipcMain.handle("get-summarize-settings", async () => {
+    return store.get("settingsSummarize") as SettingsStore["settingsSummarize"];
+  });
+
+  ipcMain.handle("set-summarize-settings", async (_event, settings) => {
+    store.set("settingsSummarize", settings);
+    return { success: true };
+  });
+
+  ipcMain.handle("get-summarize-history", async () => {
+    return store.get("historySummarize") as VersionEntry[];
+  });
+
+  ipcMain.handle("clear-summarize-history", async () => {
+    store.set("historySummarize", []);
+    return { success: true };
+  });
+
+  // --- Translate Settings & History IPC Handlers ---
+  ipcMain.handle("get-translate-settings", async () => {
+    return store.get("settingsTranslate") as SettingsStore["settingsTranslate"];
+  });
+
+  ipcMain.handle("set-translate-settings", async (_event, settings) => {
+    store.set("settingsTranslate", settings);
+    return { success: true };
+  });
+
+  ipcMain.handle("get-translate-history", async () => {
+    return store.get("translations") as VersionEntry[];
+  });
+
+  ipcMain.handle("clear-translate-history", async () => {
+    store.set("translations", []);
+    return { success: true };
+  });
+
+  // --- Explain Settings & History IPC Handlers ---
+  ipcMain.handle("get-explain-settings", async () => {
+    return store.get("settingsExplain") as SettingsStore["settingsExplain"];
+  });
+
+  ipcMain.handle("set-explain-settings", async (_event, settings) => {
+    store.set("settingsExplain", settings);
+    return { success: true };
+  });
+
+  ipcMain.handle("get-explain-history", async () => {
+    return store.get("historyExplain") as VersionEntry[];
+  });
+
+  ipcMain.handle("clear-explain-history", async () => {
+    store.set("historyExplain", []);
+    return { success: true };
+  });
+
+  // --- Expand Settings & History IPC Handlers ---
+  ipcMain.handle("get-expand-settings", async () => {
+    return store.get("settingsExpand") as SettingsStore["settingsExpand"];
+  });
+
+  ipcMain.handle("set-expand-settings", async (_event, settings) => {
+    store.set("settingsExpand", settings);
+    return { success: true };
+  });
+
+  ipcMain.handle("get-expand-history", async () => {
+    return store.get("historyExpand") as VersionEntry[];
+  });
+
+  ipcMain.handle("clear-expand-history", async () => {
+    store.set("historyExpand", []);
+    return { success: true };
+  });
+
+  // --- Shorten Settings & History IPC Handlers ---
+  ipcMain.handle("get-shorten-settings", async () => {
+    return store.get("settingsShorten") as SettingsStore["settingsShorten"];
+  });
+
+  ipcMain.handle("set-shorten-settings", async (_event, settings) => {
+    store.set("settingsShorten", settings);
+    return { success: true };
+  });
+
+  ipcMain.handle("get-shorten-history", async () => {
+    return store.get("historyShorten") as VersionEntry[];
+  });
+
+  ipcMain.handle("clear-shorten-history", async () => {
+    store.set("historyShorten", []);
+    return { success: true };
+  });
+
+  // --- PromptGen Settings & History IPC Handlers ---
+  ipcMain.handle("get-promptgen-settings", async () => {
+    return store.get("settingsPromptGen") as SettingsStore["settingsPromptGen"];
+  });
+
+  ipcMain.handle("set-promptgen-settings", async (_event, settings) => {
+    store.set("settingsPromptGen", settings);
+    return { success: true };
+  });
+
+  ipcMain.handle("get-promptgen-history", async () => {
+    return store.get("historyPromptGen") as VersionEntry[];
+  });
+
+  ipcMain.handle("clear-promptgen-history", async () => {
+    store.set("historyPromptGen", []);
+    return { success: true };
+  });
 
   // Listen for settings-updated events and notify user
   ipcMain.on("settings-updated", () => {

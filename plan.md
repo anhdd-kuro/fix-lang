@@ -338,3 +338,72 @@ export function registerHotkey(win: Electron.BrowserWindow) {
   - Dynamically update window position based on mouse cursor to avoid hiding it when near screen edges.
   - Dynamically set window size based on content, with a max width of 400px and max height of 300px.
 - [x] Handle loading and error states (spinner in popup and retry on error).
+
+#### 4. Add explain feature
+
+- [ ] Add keybinding to trigger explanation via API (default: Control+Shift+E).
+- [ ] Add button in settings to change keybinding for explain.
+- [ ] Add system prompt for explanation in prompts/index.ts.
+- [ ] Show explanation popup window with copy and close buttons near the cursor.
+  - Dynamically position and size window (max 400×300px).
+- [ ] Handle loading and error states (spinner and retry).
+
+#### 5. Add expand feature
+
+- [ ] Add keybinding to trigger expansion via API (default: Control+Shift+X).
+- [ ] Add button in settings to change keybinding for expand.
+- [ ] Add system prompt for expand in prompts/index.ts.
+- [ ] Show expansion popup window with copy and close buttons near the cursor.
+  - Dynamically position and size window (max 400×300px).
+- [ ] Handle loading and error states (spinner and retry).
+
+#### 6. Add shorten feature
+
+- [ ] Add keybinding to trigger shortening via API (default: Control+Shift+H).
+- [ ] Add button in settings to change keybinding for shorten.
+- [ ] Add system prompt for shorten in prompts/index.ts.
+- [ ] Show shortening popup window with copy and close buttons near the cursor.
+  - Dynamically position and size window (max 400×300px).
+- [ ] Handle loading and error states (spinner and retry).
+
+#### 7. Add promptGen feature
+
+- [ ] Add keybinding to trigger prompt generation via API (default: Control+Shift+G).
+- [ ] Add button in settings to change keybinding for promptGen.
+- [ ] Add system prompt template for prompt generation in prompts/index.ts.
+- [ ] Show generated prompt in popup window with copy and close buttons near the cursor.
+  - Dynamically position and size window (max 400×300px).
+- [ ] Handle loading and error states (spinner and retry).
+
+#### Refactor to separate tab settings for each feature
+
+- [ ] Add global custom rules in the General tab that apply to all features
+  - These rules will be added to all features' system prompts
+- [x] Refactor `SettingsModal.tsx` to add individual tabs for Explain, Expand, Shorten, PromptGen, Correct, Summarize, and Translate
+- [x] Refactor so each feature has its own store, including:
+  - [x] Keybindings
+  - [x] History
+  - [x] Custom prompts
+- [ ] Individual settings per feature:
+  - [ ] Correct
+    - [ ] Tone input
+    - [ ] Paraphrase (try to use different words that are more concise based on context)
+  - [ ] Summarize
+    - [ ] Minimum length
+    - [ ] Maximum length
+  - [ ] Translate
+    - [ ] Destination language
+    - [ ] Include explanation checkbox
+  - [ ] Explain
+    - [ ] Response level: Expert, Professional, Casual, Beginner, Child
+    - [ ] Include suggestion resources checkbox
+  - [ ] Expand
+    - [ ] Minimum length
+    - [ ] Maximum length
+  - [ ] Shorten
+    - [ ] Minimum length
+    - [ ] Maximum length
+  - [ ] PromptGen
+    - [ ] Minimum length
+    - [ ] Maximum length
+    - [ ] NSFW checkbox

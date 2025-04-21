@@ -124,8 +124,9 @@ const App: React.FC = () => {
       setIsSettingsOpen(true);
     });
     const offHistory = window.electronAPI.onOpenHistoryDialog?.(async () => {
-      const data = await window.electronAPI.getLastHistory();
-      setLastHistoryData(data);
+      const history = await window.electronAPI.getCorrectHistory();
+      const last = history[history.length - 1] || { original: "", corrected: "" };
+      setLastHistoryData(last);
       setShowHistoryReview(true);
     });
     return () => {
@@ -140,7 +141,7 @@ const App: React.FC = () => {
   // Fetch both histories on mount or when texts change
   useEffect(() => {
     window.electronAPI
-      .getHistory()
+      .getCorrectHistory()
       .then((h) => setHistory(h))
       .catch((e) => console.error("Failed to load correction history", e));
     window.electronAPI
@@ -200,7 +201,7 @@ const App: React.FC = () => {
           type="button"
           onClick={() => {
             if (historyTab === "corrections") {
-              window.electronAPI.clearHistory().then(() => setHistory([]));
+              window.electronAPI.clearCorrectHistory().then(() => setHistory([]));
             } else {
               window.electronAPI
                 .clearTranslationHistory()
