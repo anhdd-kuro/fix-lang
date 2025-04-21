@@ -12,6 +12,17 @@ export const SettingCorrect: React.FC = () => {
     });
   }, []);
 
+  // Sync settings on updates
+  useEffect(() => {
+    const off = window.electronAPI.onSettingsUpdated?.(() => {
+      window.electronAPI.getCorrectSettings().then((settings) => {
+        setTone(settings.tone);
+        setParaphrase(settings.paraphrase);
+      });
+    });
+    return () => off?.();
+  }, []);
+
   const handleSave = async () => {
     const result = await window.electronAPI.setCorrectSettings({ tone, paraphrase });
     if (result.success) {

@@ -14,6 +14,17 @@ export const SettingPromptGen: React.FC = () => {
     });
   }, []);
 
+  useEffect(() => {
+    const off = window.electronAPI.onSettingsUpdated?.(() => {
+      window.electronAPI.getPromptgenSettings().then((settings) => {
+        setMinLength(settings.minLength);
+        setMaxLength(settings.maxLength);
+        setNsfw(settings.nsfw);
+      });
+    });
+    return () => off?.();
+  }, []);
+
   const handleSave = async () => {
     const result = await window.electronAPI.setPromptgenSettings({ minLength, maxLength, nsfw });
     if (result.success) {

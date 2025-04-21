@@ -12,6 +12,16 @@ export const SettingExplain: React.FC = () => {
     });
   }, []);
 
+  useEffect(() => {
+    const off = window.electronAPI.onSettingsUpdated?.(() => {
+      window.electronAPI.getExplainSettings().then((settings) => {
+        setLevel(settings.level);
+        setIncludeResources(settings.includeResources);
+      });
+    });
+    return () => off?.();
+  }, []);
+
   const handleSave = async () => {
     const result = await window.electronAPI.setExplainSettings({ level, includeResources });
     if (result.success) {

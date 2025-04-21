@@ -12,7 +12,7 @@ import { showOverlaySpinner, hideOverlaySpinner } from "./overlayWindow";
 import { showSummaryWindow } from "./summaryWindow";
 import { showTranslationWindow } from "./translationWindow";
 import { getHighlightedText, pasteText } from "../../utils";
-import type { VersionEntry } from "~/stores/apiStore";
+import type { VersionEntry, SettingsStore } from "~/stores/apiStore";
 
 // State to store the last operation's text for Undo/Retry
 let lastOriginalText: string | null = null;
@@ -196,14 +196,13 @@ const registerTranslateShortcut = (mainWindow: BrowserWindow) => {
     );
     return;
   }
-  // Use system locale when no custom target language set
-  const storedLang = store.get("translationTargetLang") as string;
-  const targetLang = storedLang || app.getLocale();
   const ret = globalShortcut.register(translateShortcut, async () => {
     console.log(`${translateShortcut} is pressed (Translate)`);
     const apiKey = getOpenAIKey();
     const selectedText = await getHighlightedText();
-    const lang = targetLang;
+    // Dynamically read the latest translation target from settings
+    const settings = store.get("settingsTranslate") as SettingsStore["settingsTranslate"];
+    const lang = settings.destinationLang || app.getLocale();
     if (!selectedText || !selectedText.trim()) {
       new Notification({ title: "Error", body: "No text selected." }).show();
       return;

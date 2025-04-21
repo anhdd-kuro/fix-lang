@@ -12,6 +12,16 @@ export const SettingTranslate: React.FC = () => {
     });
   }, []);
 
+  useEffect(() => {
+    const off = window.electronAPI.onSettingsUpdated?.(() => {
+      window.electronAPI.getTranslateSettings().then((settings) => {
+        setDestinationLang(settings.destinationLang);
+        setIncludeExplanation(settings.includeExplanation);
+      });
+    });
+    return () => off?.();
+  }, []);
+
   const handleSave = async () => {
     const result = await window.electronAPI.setTranslateSettings({ destinationLang, includeExplanation });
     if (result.success) { setStatus("Saved!"); setTimeout(() => setStatus(""), 2000); }

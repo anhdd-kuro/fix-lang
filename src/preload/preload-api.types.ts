@@ -195,14 +195,15 @@ export type ElectronAPI = {
   /**
    * Sends a translation request for the given text to main process.
    */
-  translate: (text: string, targetLang: string) => Promise<{ success: boolean; error?: string }>;
+  translate: (
+    text: string
+  ) => Promise<{ success: boolean; error?: string }>;
 
   /**
    * Requests summarization of the given text.
    */
   summarize: (
-    text: string,
-    maxInput: number
+    text: string
   ) => Promise<{ success: boolean; summarizedText: string; promptTokens: number | null; completionTokens: number | null; error?: string }>;
 
   /**
@@ -256,7 +257,7 @@ export type ElectronAPI = {
 
   // --- Translate feature settings ---
   getTranslateSettings: () => Promise<{ destinationLang: string; includeExplanation: boolean }>;
-  setTranslateSettings: (settings: { destinationLang: string; includeExplanation: boolean }) => Promise<{ success: boolean }>;
+  setTranslateSettings: (settings: { destinationLang: string; includeExplanation: boolean }) => Promise<{ success: boolean; error?: string }>;
 
   // --- Explain feature ---
   getExplainSettings: () => Promise<{ level: string; includeResources: boolean }>;
@@ -281,4 +282,9 @@ export type ElectronAPI = {
   setPromptgenSettings: (settings: { minLength: number; maxLength: number; nsfw: boolean }) => Promise<{ success: boolean }>;
   getPromptgenHistory: () => Promise<VersionEntry[]>;
   clearPromptgenHistory: () => Promise<{ success: boolean }>;
+
+  /**
+   * Registers a callback for settings updated event from main process.
+   */
+  onSettingsUpdated: (callback: () => void) => () => void;
 };

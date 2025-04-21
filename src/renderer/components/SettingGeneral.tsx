@@ -13,6 +13,9 @@ export const SettingGeneral: React.FC = () => {
   const [translationLang, setTranslationLang] = useState<string>("");
   const [langStatus, setLangStatus] = useState<string>("");
 
+  // Track unsaved changes
+  const [hasChanges, setHasChanges] = useState(false);
+
   // Initialize component
   useEffect(() => {
     // Fetch API Key
@@ -29,19 +32,21 @@ export const SettingGeneral: React.FC = () => {
         setSaveStatus("Error fetching key");
       });
 
-    // Fetch Translation Language
+    // Fetch Translation Settings
     window.electronAPI
-      ?.getTranslationTargetLang()
-      .then((lang) => {
-        console.log(`SettingGeneral: Received translation language: ${lang}`);
-        setTranslationLang(lang || ""); // Set input value
+      ?.getTranslateSettings()
+      .then(({ destinationLang }) => {
+        console.log(
+          `SettingGeneral: Received translation language: ${destinationLang}`
+        );
+        setTranslationLang(destinationLang || "");
       })
       .catch((error) => {
         console.error(
-          "SettingGeneral: Error fetching translation language:",
+          "SettingGeneral: Error fetching translation settings:",
           error
         );
-        setLangStatus("Error fetching language");
+        setLangStatus("Error fetching settings");
       });
   }, []);
 
@@ -49,6 +54,7 @@ export const SettingGeneral: React.FC = () => {
   const handleApiKeyChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setApiKeyInput(event.target.value);
     setSaveStatus(""); // Clear status on change
+    setHasChanges(true);
   };
 
   // Handle saving the API Key when the input loses focus
@@ -106,13 +112,14 @@ export const SettingGeneral: React.FC = () => {
   const handleLangChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setTranslationLang(event.target.value);
     setLangStatus(""); // Clear status on change
+    setHasChanges(true);
   };
 
   // Handle saving the Translation Language when the input loses focus
   const handleLangBlur = async () => {
-    if (!window.electronAPI?.setTranslationTargetLang) {
+    if (!window.electronAPI?.setTranslateSettings) {
       console.error(
-        "setTranslationTargetLang function not available on electronAPI"
+        "setTranslateSettings function not available on electronAPI"
       );
       setLangStatus("Error: Cannot save language");
       return;
@@ -126,8 +133,10 @@ export const SettingGeneral: React.FC = () => {
       // Add a small delay to ensure UI updates before the potentially blocking IPC call
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      const result =
-        await window.electronAPI.setTranslationTargetLang(translationLang);
+      const result = await window.electronAPI.setTranslateSettings({
+        destinationLang: translationLang,
+        includeExplanation: false,
+      });
 
       if (result.success) {
         console.log("SettingGeneral: Translation language saved successfully.");
@@ -141,11 +150,18 @@ export const SettingGeneral: React.FC = () => {
       }
     } catch (error) {
       console.error(
-        "SettingGeneral: Error calling setTranslationTargetLang:",
+        "SettingGeneral: Error calling setTranslateSettings:",
         error
       );
       setLangStatus("Error saving language");
     }
+  };
+
+  // Save both settings
+  const handleSaveAll = async () => {
+    await handleApiKeyBlur();
+    await handleLangBlur();
+    setHasChanges(false);
   };
 
   return (
@@ -163,7 +179,6 @@ export const SettingGeneral: React.FC = () => {
           className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={apiKeyInput}
           onChange={handleApiKeyChange}
-          onBlur={handleApiKeyBlur}
           placeholder="Enter your OpenAI API key"
           aria-label="OpenAI API Key"
         />
@@ -194,7 +209,6 @@ export const SettingGeneral: React.FC = () => {
           className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={translationLang}
           onChange={handleLangChange}
-          onBlur={handleLangBlur}
           placeholder={navigator.language || "en"}
           aria-label="Translation Target Language"
         />
@@ -206,6 +220,17 @@ export const SettingGeneral: React.FC = () => {
             {langStatus}
           </p>
         )}
+      </div>
+      {/* Save Button */}
+      <div className="mt-4">
+        <button
+          type="button"
+          disabled={!hasChanges}
+          onClick={handleSaveAll}
+          className={`px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50 w-full`}
+        >
+          Save
+        </button>
       </div>
     </div>
   );

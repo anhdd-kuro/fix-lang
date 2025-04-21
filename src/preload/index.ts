@@ -296,10 +296,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
    * Requests translation of the given text.
    */
   translate: (
-    text: string,
-    targetLang: string
+    text: string
   ): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke("translate-text", text, targetLang),
+    ipcRenderer.invoke("translate-text", text),
 
   /**
    * Registers a callback for translation results.
@@ -379,10 +378,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
    * Requests summarization of the given text.
    */
   summarize: (
-    text: string,
-    maxInput: number
+    text: string
   ): Promise<{ success: boolean; summarizedText: string; promptTokens: number | null; completionTokens: number | null; error?: string }> =>
-    ipcRenderer.invoke("summarize", text, maxInput),
+    ipcRenderer.invoke("summarize", text),
 
   /**
    * Registers a callback for the 'summary-data' event from main process.
@@ -407,9 +405,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // --- Correct feature ---
   getCorrectSettings: (): Promise<{ tone: string; paraphrase: boolean }> =>
     ipcRenderer.invoke("get-correct-settings"),
-  setCorrectSettings: (
+  setCorrectSettings: async (
     settings: { tone: string; paraphrase: boolean }
-  ): Promise<{ success: boolean }> => ipcRenderer.invoke("set-correct-settings", settings),
+  ): Promise<{ success: boolean }> => {
+    const result = await ipcRenderer.invoke("set-correct-settings", settings);
+    ipcRenderer.send("settings-updated");
+    return result;
+  },
   getCorrectHistory: (): Promise<VersionEntry[]> =>
     ipcRenderer.invoke("get-correct-history"),
   clearCorrectHistory: (): Promise<{ success: boolean }> =>
@@ -418,10 +420,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // --- Summarize feature ---
   getSummarizeSettings: (): Promise<{ minLength: number; maxLength: number }> =>
     ipcRenderer.invoke("get-summarize-settings"),
-  setSummarizeSettings: (
+  setSummarizeSettings: async (
     settings: { minLength: number; maxLength: number }
-  ): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke("set-summarize-settings", settings),
+  ): Promise<{ success: boolean }> => {
+    const result = await ipcRenderer.invoke("set-summarize-settings", settings);
+    ipcRenderer.send("settings-updated");
+    return result;
+  },
   getSummarizeHistory: (): Promise<VersionEntry[]> =>
     ipcRenderer.invoke("get-summarize-history"),
   clearSummarizeHistory: (): Promise<{ success: boolean }> =>
@@ -430,18 +435,24 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // --- Translate feature ---
   getTranslateSettings: (): Promise<{ destinationLang: string; includeExplanation: boolean }> =>
     ipcRenderer.invoke("get-translate-settings"),
-  setTranslateSettings: (
+  setTranslateSettings: async (
     settings: { destinationLang: string; includeExplanation: boolean }
-  ): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke("set-translate-settings", settings),
+  ): Promise<{ success: boolean }> => {
+    const result = await ipcRenderer.invoke("set-translate-settings", settings);
+    ipcRenderer.send("settings-updated");
+    return result;
+  },
 
   // --- Explain feature ---
   getExplainSettings: (): Promise<{ level: string; includeResources: boolean }> =>
     ipcRenderer.invoke("get-explain-settings"),
-  setExplainSettings: (
+  setExplainSettings: async (
     settings: { level: string; includeResources: boolean }
-  ): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke("set-explain-settings", settings),
+  ): Promise<{ success: boolean }> => {
+    const result = await ipcRenderer.invoke("set-explain-settings", settings);
+    ipcRenderer.send("settings-updated");
+    return result;
+  },
   getExplainHistory: (): Promise<VersionEntry[]> =>
     ipcRenderer.invoke("get-explain-history"),
   clearExplainHistory: (): Promise<{ success: boolean }> =>
@@ -450,10 +461,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // --- Expand feature ---
   getExpandSettings: (): Promise<{ minLength: number; maxLength: number }> =>
     ipcRenderer.invoke("get-expand-settings"),
-  setExpandSettings: (
+  setExpandSettings: async (
     settings: { minLength: number; maxLength: number }
-  ): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke("set-expand-settings", settings),
+  ): Promise<{ success: boolean }> => {
+    const result = await ipcRenderer.invoke("set-expand-settings", settings);
+    ipcRenderer.send("settings-updated");
+    return result;
+  },
   getExpandHistory: (): Promise<VersionEntry[]> =>
     ipcRenderer.invoke("get-expand-history"),
   clearExpandHistory: (): Promise<{ success: boolean }> =>
@@ -462,10 +476,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // --- Shorten feature ---
   getShortenSettings: (): Promise<{ minLength: number; maxLength: number }> =>
     ipcRenderer.invoke("get-shorten-settings"),
-  setShortenSettings: (
+  setShortenSettings: async (
     settings: { minLength: number; maxLength: number }
-  ): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke("set-shorten-settings", settings),
+  ): Promise<{ success: boolean }> => {
+    const result = await ipcRenderer.invoke("set-shorten-settings", settings);
+    ipcRenderer.send("settings-updated");
+    return result;
+  },
   getShortenHistory: (): Promise<VersionEntry[]> =>
     ipcRenderer.invoke("get-shorten-history"),
   clearShortenHistory: (): Promise<{ success: boolean }> =>
@@ -474,14 +491,22 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // --- PromptGen feature ---
   getPromptgenSettings: (): Promise<{ minLength: number; maxLength: number; nsfw: boolean }> =>
     ipcRenderer.invoke("get-promptgen-settings"),
-  setPromptgenSettings: (
+  setPromptgenSettings: async (
     settings: { minLength: number; maxLength: number; nsfw: boolean }
-  ): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke("set-promptgen-settings", settings),
+  ): Promise<{ success: boolean }> => {
+    const result = await ipcRenderer.invoke("set-promptgen-settings", settings);
+    ipcRenderer.send("settings-updated");
+    return result;
+  },
   getPromptgenHistory: (): Promise<VersionEntry[]> =>
     ipcRenderer.invoke("get-promptgen-history"),
   clearPromptgenHistory: (): Promise<{ success: boolean }> =>
     ipcRenderer.invoke("clear-promptgen-history"),
+
+  onSettingsUpdated: (callback: () => void): (() => void) => {
+    ipcRenderer.on("settings-updated", () => callback());
+    return () => ipcRenderer.removeListener("settings-updated", () => callback());
+  },
 } satisfies ElectronAPI);
 
 console.log(

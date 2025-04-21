@@ -12,6 +12,16 @@ export const SettingSummarize: React.FC = () => {
     });
   }, []);
 
+  useEffect(() => {
+    const off = window.electronAPI.onSettingsUpdated?.(() => {
+      window.electronAPI.getSummarizeSettings().then(({ minLength, maxLength }) => {
+        setMinLength(minLength);
+        setMaxLength(maxLength);
+      });
+    });
+    return () => off?.();
+  }, []);
+
   const handleSave = async () => {
     const result = await window.electronAPI.setSummarizeSettings({
       minLength,

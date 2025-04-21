@@ -282,18 +282,19 @@ export const registerIpcHandlers = () => {
   // --- Translation IPC Handler ---
   ipcMain.handle(
     "translate-text",
-    async (_event, text: string, targetLang: string) => {
+    async (_event, text: string) => {
       try {
         // Capture cursor position; window will display on completion
         const { x, y } = screen.getCursorScreenPoint();
         getMainWindow()?.webContents.send("start-loading");
         const apiKey = store.get("apiKey") as string;
-        const result = await translateText(apiKey, text, targetLang);
+        const settings = store.get("settingsTranslate") as SettingsStore["settingsTranslate"];
+        const result = await translateText(apiKey, text, settings.destinationLang);
         // Get cursor for popup and update popup
         showTranslationWindow({
           ...result,
           originalText: text,
-          targetLang,
+          targetLang: settings.destinationLang,
           loading: false,
           x,
           y,
@@ -320,11 +321,12 @@ export const registerIpcHandlers = () => {
         getMainWindow()?.webContents.send("stop-loading");
         const { x, y } = screen.getCursorScreenPoint();
         // Show error state in popup
+        const settings = store.get("settingsTranslate") as SettingsStore["settingsTranslate"];
         showTranslationWindow({
           translatedText: "",
           error: error instanceof Error ? error.message : "Unknown error",
           originalText: text,
-          targetLang,
+          targetLang: settings.destinationLang,
           loading: false,
           promptTokens: null,
           completionTokens: null,
@@ -341,11 +343,12 @@ export const registerIpcHandlers = () => {
 
   ipcMain.handle(
     "translate",
-    async (_event, text: string, targetLang: string) => {
+    async (_event, text: string) => {
       try {
         const apiKey = store.get("apiKey");
         if (!apiKey) throw new Error("API key not set");
-        await translateText(apiKey, text, targetLang);
+        const settings = store.get("settingsTranslate") as SettingsStore["settingsTranslate"];
+        await translateText(apiKey, text, settings.destinationLang);
         return { success: true };
       } catch (error) {
         return {
@@ -358,11 +361,12 @@ export const registerIpcHandlers = () => {
 
   ipcMain.handle(
     "summarize",
-    async (_event, text: string, maxInput: number) => {
+    async (_event, text: string) => {
       try {
         const apiKey = store.get("apiKey");
         if (!apiKey) throw new Error("API key not set");
-        const result = await summarizeText(apiKey, text, maxInput);
+        const settings = store.get("settingsSummarize") as SettingsStore["settingsSummarize"];
+        const result = await summarizeText(apiKey, text, settings.maxLength);
         return {
           success: true,
           summarizedText: result.summarizedText,
