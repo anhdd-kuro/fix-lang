@@ -15,8 +15,6 @@ export type KeyBindings = {
   summarize: string; // condense selected text into a brief summary
   paraphrase: string; // restate in different words
   explain: string; // give a clearer, step-by-step explanation
-  expand: string; // elaborate or add detail
-  shorten: string; // make the text more concise
   promptGen: string; // generate a new prompt based on current selection
 };
 
@@ -44,15 +42,11 @@ export type SettingsStore = {
   translations: VersionEntry[]; // persistent translation history entries
   historySummarize: VersionEntry[];
   historyExplain: VersionEntry[];
-  historyExpand: VersionEntry[];
-  historyShorten: VersionEntry[];
   historyPromptGen: VersionEntry[];
   settingsCorrect: { tone: string; paraphrase: boolean };
   settingsSummarize: { minLength: number; maxLength: number };
   settingsTranslate: { destinationLang: string; includeExplanation: boolean };
   settingsExplain: { level: "Expert" | "Professional" | "Casual" | "Beginner" | "Child"; includeResources: boolean };
-  settingsExpand: { minLength: number; maxLength: number };
-  settingsShorten: { minLength: number; maxLength: number };
   settingsPromptGen: { minLength: number; maxLength: number; nsfw: boolean };
 };
 
@@ -101,8 +95,6 @@ const schema = {
   },
   historySummarize: { type: "array", default: [] },
   historyExplain: { type: "array", default: [] },
-  historyExpand: { type: "array", default: [] },
-  historyShorten: { type: "array", default: [] },
   historyPromptGen: { type: "array", default: [] },
   settingsCorrect: {
     type: "object",
@@ -135,22 +127,6 @@ const schema = {
       includeResources: { type: "boolean", default: false },
     },
     default: { level: "Beginner", includeResources: false },
-  },
-  settingsExpand: {
-    type: "object",
-    properties: {
-      minLength: { type: "number", default: 0 },
-      maxLength: { type: "number", default: 0 },
-    },
-    default: { minLength: 0, maxLength: 0 },
-  },
-  settingsShorten: {
-    type: "object",
-    properties: {
-      minLength: { type: "number", default: 0 },
-      maxLength: { type: "number", default: 0 },
-    },
-    default: { minLength: 0, maxLength: 0 },
   },
   settingsPromptGen: {
     type: "object",

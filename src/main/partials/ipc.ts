@@ -458,44 +458,6 @@ export const registerIpcHandlers = () => {
     return { success: true };
   });
 
-  // --- Expand Settings & History IPC Handlers ---
-  ipcMain.handle("get-expand-settings", async () => {
-    return store.get("settingsExpand") as SettingsStore["settingsExpand"];
-  });
-
-  ipcMain.handle("set-expand-settings", async (_event, settings) => {
-    store.set("settingsExpand", settings);
-    return { success: true };
-  });
-
-  ipcMain.handle("get-expand-history", async () => {
-    return store.get("historyExpand") as VersionEntry[];
-  });
-
-  ipcMain.handle("clear-expand-history", async () => {
-    store.set("historyExpand", []);
-    return { success: true };
-  });
-
-  // --- Shorten Settings & History IPC Handlers ---
-  ipcMain.handle("get-shorten-settings", async () => {
-    return store.get("settingsShorten") as SettingsStore["settingsShorten"];
-  });
-
-  ipcMain.handle("set-shorten-settings", async (_event, settings) => {
-    store.set("settingsShorten", settings);
-    return { success: true };
-  });
-
-  ipcMain.handle("get-shorten-history", async () => {
-    return store.get("historyShorten") as VersionEntry[];
-  });
-
-  ipcMain.handle("clear-shorten-history", async () => {
-    store.set("historyShorten", []);
-    return { success: true };
-  });
-
   // --- PromptGen Settings & History IPC Handlers ---
   ipcMain.handle("get-promptgen-settings", async () => {
     return store.get("settingsPromptGen") as SettingsStore["settingsPromptGen"];

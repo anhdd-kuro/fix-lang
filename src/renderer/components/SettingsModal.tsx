@@ -1,12 +1,9 @@
 import React, { useState } from "react";
 import { SettingCorrect } from "./SettingCorrect";
-import { SettingExpand } from "./SettingExpand";
-import { SettingExplain } from "./SettingExplain";
 import { SettingGeneral } from "./SettingGeneral";
 import { SettingKeyBinding } from "./SettingKeyBinding";
 import { SettingPrompt } from "./SettingPrompt";
 import { SettingPromptGen } from "./SettingPromptGen";
-import { SettingShorten } from "./SettingShorten";
 import { SettingSummarize } from "./SettingSummarize";
 import { SettingTabBtn } from "./SettingTabBtn";
 import { SettingTranslate } from "./SettingTranslate";
@@ -150,48 +147,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             />
             <SettingTabBtn
               icon={<></>}
-              label="Explain"
+              label="PromptGen"
               active={activeTab === 5}
-              ariaControls="settings-explain"
+              ariaControls="settings-promptgen"
               tabIndex={5}
-              id="tab-explain"
+              id="tab-promptgen"
               onClick={() => setActiveTab(5)}
             />
             <SettingTabBtn
               icon={<></>}
-              label="Expand"
-              active={activeTab === 6}
-              ariaControls="settings-expand"
-              tabIndex={6}
-              id="tab-expand"
-              onClick={() => setActiveTab(6)}
-            />
-            <SettingTabBtn
-              icon={<></>}
-              label="Shorten"
-              active={activeTab === 7}
-              ariaControls="settings-shorten"
-              tabIndex={7}
-              id="tab-shorten"
-              onClick={() => setActiveTab(7)}
-            />
-            <SettingTabBtn
-              icon={<></>}
-              label="PromptGen"
-              active={activeTab === 8}
-              ariaControls="settings-promptgen"
-              tabIndex={8}
-              id="tab-promptgen"
-              onClick={() => setActiveTab(8)}
-            />
-            <SettingTabBtn
-              icon={<></>}
               label="Global Prompts"
-              active={activeTab === 9}
+              active={activeTab === 6}
               ariaControls="settings-prompt"
-              tabIndex={9}
+              tabIndex={6}
               id="tab-prompt"
-              onClick={() => setActiveTab(9)}
+              onClick={() => setActiveTab(6)}
             />
           </div>
         </div>
@@ -245,33 +215,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           )}
           {activeTab === 5 && (
             <div
-              id="settings-explain"
-              role="tabpanel"
-              aria-labelledby="tab-explain"
-            >
-              <SettingExplain />
-            </div>
-          )}
-          {activeTab === 6 && (
-            <div
-              id="settings-expand"
-              role="tabpanel"
-              aria-labelledby="tab-expand"
-            >
-              <SettingExpand />
-            </div>
-          )}
-          {activeTab === 7 && (
-            <div
-              id="settings-shorten"
-              role="tabpanel"
-              aria-labelledby="tab-shorten"
-            >
-              <SettingShorten />
-            </div>
-          )}
-          {activeTab === 8 && (
-            <div
               id="settings-promptgen"
               role="tabpanel"
               aria-labelledby="tab-promptgen"
@@ -279,7 +222,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <SettingPromptGen />
             </div>
           )}
-          {activeTab === 9 && (
+          {activeTab === 6 && (
             <div
               id="settings-prompt"
               role="tabpanel"

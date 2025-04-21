@@ -18,7 +18,5 @@ export const DEFAULT_KEY_BINDINGS: KeyBindings = {
   // new ones:
   summarize: "Control+Shift+S", // condense selected text into a brief summary
   explain: "Control+Shift+E", // give a clearer, step‑by‑step explanation
-  expand: "Control+Shift+X", // elaborate or add detail
-  shorten: "Control+Shift+H", // make the text more concise
   promptGen: "Control+Shift+G", // generate a new prompt based on current selection
 };
