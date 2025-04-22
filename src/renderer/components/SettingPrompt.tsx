@@ -60,7 +60,7 @@ const SettingPrompt: React.FC = () => {
 
       <div className="flex flex-col gap-2">
         <label htmlFor="user-prompt" className="text-gray-300 text-sm">
-          User Prompt
+          User Prompt Prefix
         </label>
         <textarea
           id="user-prompt"
@@ -68,20 +68,11 @@ const SettingPrompt: React.FC = () => {
           value={userPrompt}
           onChange={(e) => setUserPrompt(e.target.value)}
           placeholder="Enter custom user prompt. Leave blank for default."
-          aria-label="User prompt"
+          aria-label="User prompt prefix"
         />
       </div>
 
       <div className="flex items-center gap-4">
-        <label className="inline-flex items-center text-gray-300">
-          <input
-            type="checkbox"
-            checked={withGrammar}
-            onChange={() => setWithGrammar(!withGrammar)}
-            className="form-checkbox h-4 w-4 text-blue-500"
-          />
-          <span className="ml-2">Grammar</span>
-        </label>
         <label className="inline-flex items-center text-gray-300">
           <input
             type="checkbox"

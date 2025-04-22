@@ -1,12 +1,20 @@
 import React, { useState } from "react";
+import { twJoin } from "tailwind-merge";
 import { SettingCorrect } from "./SettingCorrect";
 import { SettingGeneral } from "./SettingGeneral";
 import { SettingKeyBinding } from "./SettingKeyBinding";
 import { SettingPrompt } from "./SettingPrompt";
 import { SettingPromptGen } from "./SettingPromptGen";
 import { SettingSummarize } from "./SettingSummarize";
-import { SettingTabBtn } from "./SettingTabBtn";
 import { SettingTranslate } from "./SettingTranslate";
+
+// Define the tab configuration type
+type SettingsTab = {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  component: React.ReactNode;
+};
 
 type SettingsModalProps = {
   isOpen: boolean;
@@ -27,8 +35,90 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   initialTab = 0,
   onOverlayClick,
 }) => {
-  // Tab state: 0=General, 1=Key Bindings, 2=Prompt
+  // Define all tab configurations - you can easily reorder these tabs by changing their position in the array
+  const tabs: SettingsTab[] = [
+    {
+      id: "general",
+      label: "General",
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+          />
+        </svg>
+      ),
+      component: <SettingGeneral />,
+    },
+    {
+      id: "keybindings",
+      label: "Key Bindings",
+      icon: (
+        <svg
+          className="h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+          />
+        </svg>
+      ),
+      component: <SettingKeyBinding />,
+    },
+    {
+      id: "prompt",
+      label: "Global Prompts",
+      icon: <></>,
+      component: <SettingPrompt />,
+    },
+    {
+      id: "correct",
+      label: "Correct",
+      icon: <></>,
+      component: <SettingCorrect />,
+    },
+    {
+      id: "summarize",
+      label: "Summarize",
+      icon: <></>,
+      component: <SettingSummarize />,
+    },
+    {
+      id: "translate",
+      label: "Translate",
+      icon: <></>,
+      component: <SettingTranslate />,
+    },
+    {
+      id: "promptgen",
+      label: "PromptGen",
+      icon: <></>,
+      component: <SettingPromptGen />,
+    },
+  ];
+
+  // Tab state now uses the initialTab to index into the tabs array
   const [activeTab, setActiveTab] = useState<number>(initialTab);
+
   const handleClick = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     if (e.target === e.currentTarget) {
       onOverlayClick?.();
@@ -59,177 +149,59 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
-        {/* Tab Navigation (DaisyUI/Tailwind) */}
+        {/* Tab Navigation */}
         <div className="mb-6">
           <div
-            role="tablist"
             className="grid grid-cols-5 gap-x-4 gap-y-2 w-full rounded-lg p-1"
+            role="tablist"
+            aria-label="Settings tabs"
           >
-            <SettingTabBtn
-              icon={
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+            {tabs.map((tab, index) => {
+              const isActive = activeTab === index;
+              const btnClass = twJoin(
+                "tab transition-all duration-200 rounded-md font-medium text-sm flex items-center justify-center gap-1 py-1 min-w-min",
+                isActive
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "text-gray-300 hover:bg-gray-600 hover:text-gray-100"
+              );
+
+              return (
+                <button
+                  key={tab.id}
+                  role="tab"
+                  id={`tab-${tab.id}`}
+                  {...(isActive
+                    ? { "aria-selected": true }
+                    : { "aria-selected": false })}
+                  aria-controls={`settings-${tab.id}`}
+                  tabIndex={isActive ? 0 : -1}
+                  className={btnClass}
+                  onClick={() => setActiveTab(index)}
+                  type="button"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-              }
-              label="General"
-              active={activeTab === 0}
-              ariaControls="settings-general"
-              tabIndex={0}
-              id="tab-general"
-              onClick={() => setActiveTab(0)}
-            />
-            <SettingTabBtn
-              icon={
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
-                  />
-                </svg>
-              }
-              label="Key Bindings"
-              active={activeTab === 1}
-              ariaControls="settings-keybindings"
-              tabIndex={1}
-              id="tab-keybindings"
-              onClick={() => setActiveTab(1)}
-            />
-            <SettingTabBtn
-              icon={<></>}
-              label="Global Prompts"
-              active={activeTab === 2}
-              ariaControls="settings-prompt"
-              tabIndex={2}
-              id="tab-prompt"
-              onClick={() => setActiveTab(2)}
-            />
-            <SettingTabBtn
-              icon={<></>}
-              label="Correct"
-              active={activeTab === 3}
-              ariaControls="settings-correct"
-              tabIndex={3}
-              id="tab-correct"
-              onClick={() => setActiveTab(3)}
-            />
-            <SettingTabBtn
-              icon={<></>}
-              label="Summarize"
-              active={activeTab === 4}
-              ariaControls="settings-summarize"
-              tabIndex={4}
-              id="tab-summarize"
-              onClick={() => setActiveTab(4)}
-            />
-            <SettingTabBtn
-              icon={<></>}
-              label="Translate"
-              active={activeTab === 5}
-              ariaControls="settings-translate"
-              tabIndex={5}
-              id="tab-translate"
-              onClick={() => setActiveTab(5)}
-            />
-            <SettingTabBtn
-              icon={<></>}
-              label="PromptGen"
-              active={activeTab === 6}
-              ariaControls="settings-promptgen"
-              tabIndex={6}
-              id="tab-promptgen"
-              onClick={() => setActiveTab(6)}
-            />
+                  {tab.icon}
+                  <span className="whitespace-nowrap">{tab.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* Tab Panels */}
         <div className="flex-1 flex flex-col">
-          {activeTab === 0 && (
-            <div
-              id="settings-general"
-              role="tabpanel"
-              aria-labelledby="tab-general"
-            >
-              <SettingGeneral />
-            </div>
-          )}
-          {activeTab === 1 && (
-            <div
-              id="settings-keybindings"
-              role="tabpanel"
-              aria-labelledby="tab-keybindings"
-            >
-              <SettingKeyBinding />
-            </div>
-          )}
-          {activeTab === 2 && (
-            <div
-              id="settings-prompt"
-              role="tabpanel"
-              aria-labelledby="tab-prompt"
-            >
-              <SettingPrompt />
-            </div>
-          )}
-          {activeTab === 3 && (
-            <div
-              id="settings-correct"
-              role="tabpanel"
-              aria-labelledby="tab-correct"
-            >
-              <SettingCorrect />
-            </div>
-          )}
-          {activeTab === 4 && (
-            <div
-              id="settings-summarize"
-              role="tabpanel"
-              aria-labelledby="tab-summarize"
-            >
-              <SettingSummarize />
-            </div>
-          )}
-          {activeTab === 5 && (
-            <div
-              id="settings-translate"
-              role="tabpanel"
-              aria-labelledby="tab-translate"
-            >
-              <SettingTranslate />
-            </div>
-          )}
-          {activeTab === 6 && (
-            <div
-              id="settings-promptgen"
-              role="tabpanel"
-              aria-labelledby="tab-promptgen"
-            >
-              <SettingPromptGen />
-            </div>
+          {tabs.map(
+            (tab, index) =>
+              activeTab === index && (
+                <div
+                  key={tab.id}
+                  id={`settings-${tab.id}`}
+                  role="tabpanel"
+                  aria-labelledby={`tab-${tab.id}`}
+                  tabIndex={0}
+                >
+                  {tab.component}
+                </div>
+              )
           )}
         </div>
       </div>
