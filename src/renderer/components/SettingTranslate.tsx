@@ -62,6 +62,7 @@ export const SettingTranslate: React.FC = () => {
         <span className="ml-2">Include Explanation</span>
       </label>
       <button
+        type="button"
         onClick={handleSave}
         className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
       >
