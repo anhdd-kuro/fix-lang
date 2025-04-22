@@ -120,47 +120,47 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             />
             <SettingTabBtn
               icon={<></>}
-              label="Correct"
+              label="Global Prompts"
               active={activeTab === 2}
-              ariaControls="settings-correct"
+              ariaControls="settings-prompt"
               tabIndex={2}
-              id="tab-correct"
+              id="tab-prompt"
               onClick={() => setActiveTab(2)}
             />
             <SettingTabBtn
               icon={<></>}
-              label="Summarize"
+              label="Correct"
               active={activeTab === 3}
-              ariaControls="settings-summarize"
+              ariaControls="settings-correct"
               tabIndex={3}
-              id="tab-summarize"
+              id="tab-correct"
               onClick={() => setActiveTab(3)}
             />
             <SettingTabBtn
               icon={<></>}
-              label="Translate"
+              label="Summarize"
               active={activeTab === 4}
-              ariaControls="settings-translate"
+              ariaControls="settings-summarize"
               tabIndex={4}
-              id="tab-translate"
+              id="tab-summarize"
               onClick={() => setActiveTab(4)}
             />
             <SettingTabBtn
               icon={<></>}
-              label="PromptGen"
+              label="Translate"
               active={activeTab === 5}
-              ariaControls="settings-promptgen"
+              ariaControls="settings-translate"
               tabIndex={5}
-              id="tab-promptgen"
+              id="tab-translate"
               onClick={() => setActiveTab(5)}
             />
             <SettingTabBtn
               icon={<></>}
-              label="Global Prompts"
+              label="PromptGen"
               active={activeTab === 6}
-              ariaControls="settings-prompt"
+              ariaControls="settings-promptgen"
               tabIndex={6}
-              id="tab-prompt"
+              id="tab-promptgen"
               onClick={() => setActiveTab(6)}
             />
           </div>
@@ -188,6 +188,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           )}
           {activeTab === 2 && (
             <div
+              id="settings-prompt"
+              role="tabpanel"
+              aria-labelledby="tab-prompt"
+            >
+              <SettingPrompt />
+            </div>
+          )}
+          {activeTab === 3 && (
+            <div
               id="settings-correct"
               role="tabpanel"
               aria-labelledby="tab-correct"
@@ -195,7 +204,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <SettingCorrect />
             </div>
           )}
-          {activeTab === 3 && (
+          {activeTab === 4 && (
             <div
               id="settings-summarize"
               role="tabpanel"
@@ -204,7 +213,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <SettingSummarize />
             </div>
           )}
-          {activeTab === 4 && (
+          {activeTab === 5 && (
             <div
               id="settings-translate"
               role="tabpanel"
@@ -213,22 +222,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <SettingTranslate />
             </div>
           )}
-          {activeTab === 5 && (
+          {activeTab === 6 && (
             <div
               id="settings-promptgen"
               role="tabpanel"
               aria-labelledby="tab-promptgen"
             >
               <SettingPromptGen />
-            </div>
-          )}
-          {activeTab === 6 && (
-            <div
-              id="settings-prompt"
-              role="tabpanel"
-              aria-labelledby="tab-prompt"
-            >
-              <SettingPrompt />
             </div>
           )}
         </div>
