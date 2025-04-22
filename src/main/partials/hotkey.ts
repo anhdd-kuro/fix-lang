@@ -32,8 +32,6 @@ export const registerHotkeys = (mainWindow: BrowserWindow): void => {
   console.log("Attempting to register hotkeys...");
 
   registerFixShortcut(mainWindow);
-  registerUndoShortcut(mainWindow);
-  registerRetryShortcut(mainWindow);
   registerTranslateShortcut(mainWindow);
   registerSummarizeShortcut(mainWindow);
   registerPromptGenShortcut(mainWindow);
@@ -41,7 +39,7 @@ export const registerHotkeys = (mainWindow: BrowserWindow): void => {
 };
 
 const registerFixShortcut = (mainWindow: BrowserWindow) => {
-  const fixShortcut = keybindingStore.getKeyBindings().fix;
+  const fixShortcut = keybindingStore.getKeyBindings().correction;
   const retFix = globalShortcut.register(fixShortcut, async () => {
     console.log(`${fixShortcut} is pressed`);
 
@@ -117,78 +115,6 @@ const checkShortcut = (shortcut: boolean) => {
   }
   console.log(`Global shortcut ${shortcut} registered successfully.`);
   return true;
-};
-
-const registerUndoShortcut = (mainWindow: BrowserWindow) => {
-  const undoShortcut = keybindingStore.getKeyBindings().undo; // e.g., 'Control+Shift+Z'
-  const retUndo = globalShortcut.register(undoShortcut, () => {
-    console.log(`${undoShortcut} (Undo) is pressed`);
-    if (lastOriginalText !== null) {
-      // Update UI to show original text in both panes (or clear fixed pane)
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("update-text", {
-          original: lastOriginalText,
-          fixed: "",
-          promptTokens: null,
-          completionTokens: null,
-        }); // Clear fixed text on undo
-      }
-      _lastFixedText = null;
-    } else {
-      console.log("Nothing to undo.");
-    }
-  });
-
-  checkShortcut(retUndo);
-};
-
-const registerRetryShortcut = (mainWindow: BrowserWindow) => {
-  const retryShortcut = keybindingStore.getKeyBindings().retry; // e.g., 'Control+Shift+A'
-  const retRetry = globalShortcut.register(retryShortcut, async () => {
-    console.log(`${retryShortcut} (Retry) is pressed`);
-    if (lastOriginalText !== null) {
-      console.log("Retrying last correction...");
-
-      // Show global spinner overlay for retry (independent of mainWindow)
-      showOverlaySpinner();
-      // Send 'start-loading' to renderer for UI if available
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("start-loading");
-      }
-
-      try {
-        const apiKey = getOpenAIKey();
-        const newFixed = await fixGrammar(apiKey, lastOriginalText);
-
-        // Update lastFixedText with the new result
-        _lastFixedText = newFixed.correctedText;
-
-        // Send update to renderer
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send("update-text", {
-            original: lastOriginalText,
-            fixed: newFixed,
-          });
-          // Hide spinner overlay for renderer UI
-          mainWindow.webContents.send("stop-loading");
-        }
-        // Always hide global spinner overlay
-        hideOverlaySpinner();
-      } catch (error) {
-        // Hide spinner overlay even on error
-        hideOverlaySpinner();
-        // Ensure spinner overlay is hidden on error as well
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send("stop-loading");
-        }
-        handleError(error);
-      }
-    } else {
-      console.log("No previous correction to retry.");
-    }
-  });
-
-  checkShortcut(retRetry);
 };
 
 /**
@@ -330,7 +256,7 @@ const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
         apiKey,
         text: selectedText,
         minLength: promptgenSettings.minLength,
-        maxLength: promptgenSettings.maxLength, 
+        maxLength: promptgenSettings.maxLength,
         batchCount: promptgenSettings.batchCount,
         nsfw: promptgenSettings.nsfw,
         context: promptgenSettings.context || "",

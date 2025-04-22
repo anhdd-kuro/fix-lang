@@ -3,8 +3,8 @@ import {
   isMacOSAccessibilityGranted,
   promptAccessibilityPermission,
 } from "../utils";
+import { registerIpcHandlers } from "./ipc";
 import { registerHotkeys, unregisterHotkeys } from "./partials/hotkey";
-import { registerIpcHandlers } from "./partials/ipc";
 import { initializeMainWindow, getMainWindow } from "./partials/mainWindow";
 import { initializeOverlayWindow } from "./partials/overlayWindow";
 import { setupTray, initializeTrayWindow } from "./partials/tray";

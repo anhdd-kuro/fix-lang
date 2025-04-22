@@ -1,0 +1,13 @@
+/**
+ * @file index.ts
+ * @description Exports all IPC feature handlers
+ */
+
+// Export all feature handlers
+export * from "./api";
+export * from "./correction";
+export * from "./promptgen";
+export * from "./settings";
+export * from "./summarization";
+export * from "./translation";
+export * from "./ui";

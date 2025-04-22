@@ -1,0 +1,87 @@
+/**
+ * @file api.ts
+ * @description IPC handlers for OpenAI API related functionality
+ */
+import { ipcMain } from "electron";
+import { DEFAULT_OPENAI_MODEL } from "~/const";
+import { store } from "~/stores/apiStore";
+import { fetchOpenAIModels } from "../../ai.request";
+
+/**
+ * Registers API-related IPC handlers
+ */
+export const registerApiHandlers = () => {
+  // API key handlers
+  ipcMain.handle("get-api-key", async () => {
+    try {
+      const apiKey = store.get("apiKey");
+      return apiKey || "";
+    } catch (error) {
+      console.error("Failed to get API key:", error);
+      return "";
+    }
+  });
+
+  ipcMain.handle("set-api-key", async (_event, apiKey: string) => {
+    try {
+      if (typeof apiKey !== "string") throw new Error("Invalid API key");
+      store.set("apiKey", apiKey);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  });
+
+  // OpenAI model handlers
+  ipcMain.handle("fetch-openai-models", async (_event, refetch = false) => {
+    try {
+      // Check if we already have models in the store and refetch is false
+      const storedModels = store.get("models");
+      if (storedModels?.length > 0 && !refetch) {
+        console.log("Using cached models from store");
+        return storedModels;
+      }
+
+      console.log("Fetching OpenAI models...");
+      const apiKey = store.get("apiKey");
+      if (!apiKey) {
+        console.error("No API key found in store");
+        return [];
+      }
+
+      const models = await fetchOpenAIModels(apiKey);
+      console.log(`Fetched ${models.length} models from OpenAI`);
+      
+      // Store the fetched models
+      store.set("models", models);
+      return models;
+    } catch (error) {
+      console.error("Error in fetch-openai-models handler:", error);
+      return [];
+    }
+  });
+
+  ipcMain.handle("get-selected-model", () => {
+    try {
+      return store.get("selectedModel") || DEFAULT_OPENAI_MODEL;
+    } catch (error) {
+      console.error("Error getting selected model:", error);
+      return DEFAULT_OPENAI_MODEL;
+    }
+  });
+
+  ipcMain.handle("set-selected-model", (_event, model: string) => {
+    try {
+      store.set("selectedModel", model);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  });
+};
