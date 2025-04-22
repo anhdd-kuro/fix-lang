@@ -1,5 +1,5 @@
 /**
- * @file promptgen.ts
+ * @file promptGen.ts
  * @description IPC handlers for prompt generation functionality
  */
 import { ipcMain, clipboard } from "electron";
@@ -10,13 +10,13 @@ import { store } from "~/stores/apiStore";
 /**
  * Registers prompt generation-related IPC handlers
  */
-export const registerPromptgenHandlers = () => {
-  // Get promptgen settings
-  ipcMain.handle("get-promptgen-settings", async () => {
+export const registerPromptGenHandlers = () => {
+  // Get promptGen settings
+  ipcMain.handle("get-promptGen-settings", async () => {
     try {
-      return store.get("settingsPromptgen");
+      return store.get("settingsPromptGen");
     } catch (error) {
-      console.error("Error getting promptgen settings:", error);
+      console.error("Error getting promptGen settings:", error);
       return {
         minLength: 50,
         maxLength: 150,
@@ -28,10 +28,10 @@ export const registerPromptgenHandlers = () => {
     }
   });
 
-  // Set promptgen settings
-  ipcMain.handle("set-promptgen-settings", async (_event, settings) => {
+  // Set promptGen settings
+  ipcMain.handle("set-promptGen-settings", async (_event, settings) => {
     try {
-      store.set("settingsPromptgen", settings);
+      store.set("settingsPromptGen", settings);
       return { success: true };
     } catch (error) {
       return {
@@ -41,20 +41,20 @@ export const registerPromptgenHandlers = () => {
     }
   });
 
-  // Get promptgen history
-  ipcMain.handle("get-promptgen-history", async () => {
+  // Get promptGen history
+  ipcMain.handle("get-promptGen-history", async () => {
     try {
-      return store.get("historyPromptgen") || [];
+      return store.get("historyPromptGen") || [];
     } catch (error) {
-      console.error("Error getting promptgen history:", error);
+      console.error("Error getting promptGen history:", error);
       return [];
     }
   });
 
-  // Clear promptgen history
-  ipcMain.handle("clear-promptgen-history", async () => {
+  // Clear promptGen history
+  ipcMain.handle("clear-promptGen-history", async () => {
     try {
-      store.set("historyPromptgen", []);
+      store.set("historyPromptGen", []);
       return { success: true };
     } catch (error) {
       return {
@@ -66,7 +66,6 @@ export const registerPromptgenHandlers = () => {
 
   // Note: Prompt generation is handled directly through the keyboard shortcut handler in hotkey.ts
   // No IPC handler is needed for generating prompts since it's not called from the renderer
-
 
   // Copy generated prompt to clipboard
   ipcMain.handle("copy-generated-prompt", async (_event, text: string) => {

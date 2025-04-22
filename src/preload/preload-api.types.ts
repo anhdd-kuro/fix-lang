@@ -20,7 +20,7 @@ export type KeyBindings = {
   /** Keybinding for summarize */
   summarize: string;
   /** Keybinding for prompt generation */
-  promptgen: string;
+  promptGen: string;
 };
 
 /**
@@ -283,7 +283,7 @@ export type ElectronAPI = {
   getLastHistory: () => Promise<{ original: string; corrected: string }>;
 
   // --- PromptGen feature ---
-  getPromptgenSettings: () => Promise<{
+  getPromptGenSettings: () => Promise<{
     minLength: number;
     maxLength: number;
     batchCount: number;
@@ -291,7 +291,7 @@ export type ElectronAPI = {
     context: string;
     autoCopy: boolean;
   }>;
-  setPromptgenSettings: (settings: {
+  setPromptGenSettings: (settings: {
     minLength: number;
     maxLength: number;
     batchCount: number;
@@ -299,11 +299,11 @@ export type ElectronAPI = {
     context: string;
     autoCopy: boolean;
   }) => Promise<{ success: boolean }>;
-  getPromptgenHistory: () => Promise<VersionEntry[]>;
-  clearPromptgenHistory: () => Promise<{ success: boolean }>;
+  getPromptGenHistory: () => Promise<VersionEntry[]>;
+  clearPromptGenHistory: () => Promise<{ success: boolean }>;
 
   /**
-   * Registers a callback for promptgen-data event from main process.
+   * Registers a callback for promptGen-data event from main process.
    */
   onPromptGenData: (
     callback: (payload: {
@@ -321,7 +321,7 @@ export type ElectronAPI = {
   closePromptGenWindow: () => void;
 
   /**
-   * Removes the promptgen-data event listener.
+   * Removes the promptGen-data event listener.
    */
   removePromptGenDataListener: (
     callback: (payload: {

@@ -5,9 +5,9 @@ import type { VersionEntry } from "../preload-api.types";
 /**
  * Exposes prompt generation functionality to the renderer process
  */
-export const promptgenFeature = {
+export const promptGenFeature = {
   /**
-   * Registers a callback for promptgen-data event from main process.
+   * Registers a callback for promptGen-data event from main process.
    */
   onPromptGenData: (
     callback: (payload: {
@@ -28,9 +28,9 @@ export const promptgenFeature = {
         y: number;
       }
     ) => callback(payload);
-    ipcRenderer.on("promptgen-data", listener);
+    ipcRenderer.on("promptGen-data", listener);
     return () => {
-      ipcRenderer.removeListener("promptgen-data", listener);
+      ipcRenderer.removeListener("promptGen-data", listener);
     };
   },
 
@@ -38,24 +38,24 @@ export const promptgenFeature = {
    * Closes the prompt generation window.
    */
   closePromptGenWindow: (): void => {
-    ipcRenderer.send("close-promptgen-window");
+    ipcRenderer.send("close-promptGen-window");
   },
 
   /**
-   * Closes the prompt generation window and removes all promptgen-data listeners.
+   * Closes the prompt generation window and removes all promptGen-data listeners.
    * Note: This is a more aggressive approach that removes all listeners,
    * which is appropriate during window closure.
    */
   removePromptGenDataListener: (): void => {
     // Simply remove all listeners for this event
-    ipcRenderer.removeAllListeners("promptgen-data");
-    console.log("Removed all promptgen-data listeners");
+    ipcRenderer.removeAllListeners("promptGen-data");
+    console.log("Removed all promptGen-data listeners");
   },
 
   /**
    * Retrieves prompt generation settings from the main process.
    */
-  getPromptgenSettings: (): Promise<{
+  getPromptGenSettings: (): Promise<{
     minLength: number;
     maxLength: number;
     batchCount: number;
@@ -63,13 +63,13 @@ export const promptgenFeature = {
     context: string;
     autoCopy: boolean;
   }> => {
-    return ipcRenderer.invoke("get-promptgen-settings");
+    return ipcRenderer.invoke("get-promptGen-settings");
   },
 
   /**
    * Stores prompt generation settings in the main process.
    */
-  setPromptgenSettings: (settings: {
+  setPromptGenSettings: (settings: {
     minLength: number;
     maxLength: number;
     batchCount: number;
@@ -77,20 +77,20 @@ export const promptgenFeature = {
     context: string;
     autoCopy: boolean;
   }): Promise<{ success: boolean }> => {
-    return ipcRenderer.invoke("set-promptgen-settings", settings);
+    return ipcRenderer.invoke("set-promptGen-settings", settings);
   },
 
   /**
    * Retrieves the prompt generation history entries
    */
-  getPromptgenHistory: (): Promise<VersionEntry[]> => {
-    return ipcRenderer.invoke("get-promptgen-history");
+  getPromptGenHistory: (): Promise<VersionEntry[]> => {
+    return ipcRenderer.invoke("get-promptGen-history");
   },
 
   /**
    * Clears prompt generation history
    */
-  clearPromptgenHistory: (): Promise<{ success: boolean }> => {
-    return ipcRenderer.invoke("clear-promptgen-history");
+  clearPromptGenHistory: (): Promise<{ success: boolean }> => {
+    return ipcRenderer.invoke("clear-promptGen-history");
   },
 };

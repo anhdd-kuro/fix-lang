@@ -109,7 +109,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       component: <SettingTranslate />,
     },
     {
-      id: "promptgen",
+      id: "promptGen",
       label: "PromptGen",
       icon: <></>,
       component: <SettingPromptGen />,

@@ -39,7 +39,7 @@ export function createPromptGenWindow() {
     visibleOnFullScreen: true,
   });
 
-  ipcMain.on("close-promptgen-window", () => promptGenWindow?.hide());
+  ipcMain.on("close-promptGen-window", () => promptGenWindow?.hide());
   app.on("will-quit", () => {
     destroyPromptGenWindow();
   });
@@ -70,7 +70,7 @@ export function showPromptGenWindow(payload: PromptGenPayload) {
   const html = path.join(__dirname, "../renderer/PromptGenWindow/index.html");
   win.loadFile(html);
   win.webContents.once("did-finish-load", () => {
-    win.webContents.send("promptgen-data", payload);
+    win.webContents.send("promptGen-data", payload);
     win.show();
     win.focus();
   });

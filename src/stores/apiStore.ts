@@ -11,7 +11,7 @@ export type KeyBindings = {
   correction: string;
   translate: string; // keyboard shortcut for translation
   summarize: string; // condense selected text into a brief summary
-  promptgen: string; // generate a new prompt based on current selection
+  promptGen: string; // generate a new prompt based on current selection
 };
 
 // New type for version entries
@@ -54,7 +54,7 @@ export type SettingsStore = {
     minLength: number;
     maxLength: number;
   };
-  settingsPromptgen: {
+  settingsPromptGen: {
     minLength: number;
     maxLength: number;
     batchCount: number;
@@ -67,7 +67,7 @@ export type SettingsStore = {
   history: VersionEntry[]; // corrections history
   translations: VersionEntry[];
   historySummarize: VersionEntry[];
-  historyPromptgen: VersionEntry[];
+  historyPromptGen: VersionEntry[];
 
   // Legacy fields (for backward compatibility)
   customSystemPrompt: string;
@@ -108,7 +108,7 @@ const schema = {
     default: {
       customSystemPrompt: "",
       customUserPrompt: "",
-      tone: ""
+      tone: "",
     },
   },
   // Legacy fields (for backward compatibility)
@@ -136,7 +136,7 @@ const schema = {
     default: [],
   },
   historySummarize: { type: "array", default: [] },
-  historyPromptgen: { type: "array", default: [] },
+  historyPromptGen: { type: "array", default: [] },
   settingsCorrect: {
     type: "object",
     properties: {
@@ -168,7 +168,7 @@ const schema = {
     },
     default: { destinationLang: "", includeExplanation: false },
   },
-  settingsPromptgen: {
+  settingsPromptGen: {
     type: "object",
     properties: {
       minLength: { type: "number", default: 50 },
@@ -184,7 +184,7 @@ const schema = {
       batchCount: 5,
       nsfw: true,
       context: "",
-      autoCopy: false
+      autoCopy: false,
     },
   },
 } satisfies Schema<SettingsStore>;

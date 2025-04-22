@@ -5,7 +5,7 @@
 import {
   registerApiHandlers,
   registerCorrectionHandlers,
-  registerPromptgenHandlers,
+  registerPromptGenHandlers,
   registerSettingsHandlers,
   registerSummarizationHandlers,
   registerTranslationHandlers,
@@ -23,7 +23,7 @@ export const registerIpcHandlers = (): void => {
   registerCorrectionHandlers();
   registerTranslationHandlers();
   registerSummarizationHandlers();
-  registerPromptgenHandlers();
+  registerPromptGenHandlers();
 
   console.log("All IPC handlers registered successfully");
 };

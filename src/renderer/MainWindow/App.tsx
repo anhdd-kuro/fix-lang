@@ -42,11 +42,13 @@ type VersionEntry = {
 const App: React.FC = () => {
   // History of past corrections and translations
   const [history, setHistory] = useState<VersionEntry[]>([]);
-  const [translationHistory, setTranslationHistory] = useState<VersionEntry[]>([]);
+  const [translationHistory, setTranslationHistory] = useState<VersionEntry[]>(
+    []
+  );
   const [summarizeHistory, setSummarizeHistory] = useState<VersionEntry[]>([]);
-  const [promptgenHistory, setPromptgenHistory] = useState<VersionEntry[]>([]);
+  const [promptGenHistory, setPromptGenHistory] = useState<VersionEntry[]>([]);
   // Using a string union for better scalability with core features
-  type HistoryType = "corrections" | "translations" | "summarize" | "promptgen";
+  type HistoryType = "corrections" | "translations" | "summarize" | "promptGen";
   const [historyType, setHistoryType] = useState<HistoryType>("corrections");
 
   // Options for history selector - representing our four main features
@@ -54,7 +56,7 @@ const App: React.FC = () => {
     { value: "corrections", label: "Corrections" },
     { value: "translations", label: "Translations" },
     { value: "summarize", label: "Summarize" },
-    { value: "promptgen", label: "Prompt Generator" },
+    { value: "promptGen", label: "Prompt Generator" },
   ];
   const [initialSettingsTab, setInitialSettingsTab] = useState<number>(0);
   // State for text areas
@@ -166,16 +168,20 @@ const App: React.FC = () => {
         console.log("Loaded summarize history:", s?.length || 0, "entries");
         setSummarizeHistory(s || []);
       })
-      .catch((e: Error) => console.error("Failed to load summarize history", e));
-    
-    // Load promptgen history (specify VersionEntry[] type for type safety)  
+      .catch((e: Error) =>
+        console.error("Failed to load summarize history", e)
+      );
+
+    // Load promptGen history (specify VersionEntry[] type for type safety)
     window.electronAPI
-      .getPromptgenHistory()
+      .getPromptGenHistory()
       .then((p: VersionEntry[]) => {
-        console.log("Loaded promptgen history:", p?.length || 0, "entries");
-        setPromptgenHistory(p || []);
+        console.log("Loaded promptGen history:", p?.length || 0, "entries");
+        setPromptGenHistory(p || []);
       })
-      .catch((e: Error) => console.error("Failed to load promptgen history", e));
+      .catch((e: Error) =>
+        console.error("Failed to load promptGen history", e)
+      );
   }, [fixedText]);
 
   return (
@@ -208,8 +214,8 @@ const App: React.FC = () => {
               ? translationHistory
               : historyType === "summarize"
                 ? summarizeHistory
-                : historyType === "promptgen"
-                  ? promptgenHistory
+                : historyType === "promptGen"
+                  ? promptGenHistory
                   : []
           ).map((entry, idx) => (
             <li
@@ -250,10 +256,10 @@ const App: React.FC = () => {
                   .clearSummarizeHistory()
                   .then(() => setSummarizeHistory([]));
                 break;
-              case "promptgen":
+              case "promptGen":
                 window.electronAPI
-                  .clearPromptgenHistory()
-                  .then(() => setPromptgenHistory([]));
+                  .clearPromptGenHistory()
+                  .then(() => setPromptGenHistory([]));
                 break;
               default:
                 console.error(`Unknown history type: ${historyType}`);

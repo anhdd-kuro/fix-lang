@@ -7,7 +7,7 @@ import {
   correctionFeature,
   translationFeature,
   summarizationFeature,
-  promptgenFeature,
+  promptGenFeature,
   settingsFeature,
   uiFeature,
 } from "./features";
@@ -22,7 +22,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...correctionFeature,
   ...translationFeature,
   ...summarizationFeature,
-  ...promptgenFeature,
+  ...promptGenFeature,
   ...settingsFeature,
   ...uiFeature,
 } satisfies ElectronAPI);

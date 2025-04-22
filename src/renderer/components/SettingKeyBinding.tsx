@@ -8,7 +8,7 @@ export const SettingKeyBinding: React.FC = () => {
     correction: "",
     translate: "",
     summarize: "",
-    promptgen: "",
+    promptGen: "",
   });
 
   // Fetch Key Bindings when component mounts
@@ -105,7 +105,7 @@ export const SettingKeyBinding: React.FC = () => {
         correction: "",
         translate: "",
         summarize: "",
-        promptgen: "",
+        promptGen: "",
       });
       setKeyBindingsStatus("Reset! Shortcuts restored.");
     } catch {
@@ -124,7 +124,7 @@ export const SettingKeyBinding: React.FC = () => {
               "correction",
               "translate",
               "summarize",
-              "promptgen",
+              "promptGen",
             ] as (keyof KeyBindings)[]
           ).map((cmd) => (
             <li key={cmd} className="flex items-center gap-6">

@@ -19,7 +19,7 @@ export const SettingPromptGen: React.FC = () => {
     const loadSettings = async () => {
       try {
         setIsLoading(true);
-        const settings = await window.electronAPI.getPromptgenSettings();
+        const settings = await window.electronAPI.getPromptGenSettings();
         setMinLength(settings.minLength);
         setMaxLength(settings.maxLength);
         setBatchCount(settings.batchCount);
@@ -68,7 +68,7 @@ export const SettingPromptGen: React.FC = () => {
 
       // Save to store
       const result =
-        await window.electronAPI.setPromptgenSettings(defaultSettings);
+        await window.electronAPI.setPromptGenSettings(defaultSettings);
 
       if (result.success) {
         setStatus("Reset to defaults!");
@@ -95,7 +95,7 @@ export const SettingPromptGen: React.FC = () => {
     }
 
     try {
-      const result = await window.electronAPI.setPromptgenSettings({
+      const result = await window.electronAPI.setPromptGenSettings({
         minLength,
         maxLength,
         batchCount,
@@ -143,13 +143,13 @@ export const SettingPromptGen: React.FC = () => {
         <div className="grid grid-cols-3 gap-6">
           <div className="flex flex-col gap-2">
             <label
-              htmlFor="promptgen-min"
+              htmlFor="promptGen-min"
               className="block text-gray-300 text-sm"
             >
               Min Length
             </label>
             <input
-              id="promptgen-min"
+              id="promptGen-min"
               type="number"
               name="minLength"
               required
@@ -162,13 +162,13 @@ export const SettingPromptGen: React.FC = () => {
           </div>
           <div className="flex flex-col gap-2">
             <label
-              htmlFor="promptgen-max"
+              htmlFor="promptGen-max"
               className="block text-gray-300 text-sm"
             >
               Max Length
             </label>
             <input
-              id="promptgen-max"
+              id="promptGen-max"
               type="number"
               name="maxLength"
               required
@@ -181,7 +181,7 @@ export const SettingPromptGen: React.FC = () => {
           </div>
           <div className="flex flex-col gap-2">
             <label
-              htmlFor="promptgen-batch"
+              htmlFor="promptGen-batch"
               className="block text-gray-300 text-sm cursor-help"
               aria-label="Number of prompts to generate"
               title="Number of prompts to generate"
@@ -189,7 +189,7 @@ export const SettingPromptGen: React.FC = () => {
               Batch Count
             </label>
             <input
-              id="promptgen-batch"
+              id="promptGen-batch"
               type="number"
               name="batchCount"
               required
@@ -206,7 +206,7 @@ export const SettingPromptGen: React.FC = () => {
       <fieldset className="flex flex-col gap-4 mt-4">
         <div className="flex flex-col gap-2">
           <label
-            htmlFor="promptgen-context"
+            htmlFor="promptGen-context"
             className="block text-gray-300 text-sm"
           >
             Custom Context
@@ -246,7 +246,7 @@ export const SettingPromptGen: React.FC = () => {
             </div>
           </div>
           <textarea
-            id="promptgen-context"
+            id="promptGen-context"
             name="context"
             aria-label="Custom context for prompt generation"
             value={context}

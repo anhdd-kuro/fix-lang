@@ -26,7 +26,7 @@ export const registerSettingsHandlers = () => {
           correction: "Control+Shift+F",
           translate: "Control+Shift+T",
           summarize: "Control+Shift+S",
-          promptgen: "Control+Shift+G",
+          promptGen: "Control+Shift+G",
         };
       }
     }
@@ -68,7 +68,7 @@ export const registerSettingsHandlers = () => {
           correction: "Control+Shift+F",
           translate: "Control+Shift+T",
           summarize: "Control+Shift+S",
-          promptgen: "Control+Shift+G",
+          promptGen: "Control+Shift+G",
         };
       }
     }

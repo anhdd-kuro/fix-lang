@@ -2,7 +2,7 @@
  * @file summarization.ts
  * @description IPC handlers for text summarization functionality
  */
-import { ipcMain } from "electron";
+import { ipcMain, BrowserWindow } from "electron";
 import { store } from "~/stores/apiStore";
 import { summarizeText } from "../../ai.request/summarize";
 import type { VersionEntry } from "~/stores/apiStore";
@@ -98,6 +98,13 @@ export const registerSummarizationHandlers = () => {
           historySummarize.unshift(entry);
           if (historySummarize.length > 20) historySummarize.pop();
           store.set("historySummarize", historySummarize);
+          
+          // Notify all windows of history update
+          BrowserWindow.getAllWindows().forEach((window) => {
+            if (!window.isDestroyed()) {
+              window.webContents.send("summarize-history-updated");
+            }
+          });
         } catch (e) {
           console.error("Failed to save summarize history entry:", e);
         }

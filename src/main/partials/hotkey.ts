@@ -230,6 +230,14 @@ const registerSummarizeShortcut = (_mainWindow: BrowserWindow): void => {
         historySummarize.unshift(entry);
         if (historySummarize.length > 20) historySummarize.pop();
         store.set("historySummarize", historySummarize);
+
+        // Notify all windows of history update
+        BrowserWindow.getAllWindows().forEach((window) => {
+          if (!window.isDestroyed()) {
+            window.webContents.send("summarize-history-updated");
+          }
+        });
+
         console.log(`Saved summarize entry to history`);
       } catch (e) {
         console.error("Failed to save summarize history entry from hotkey:", e);
@@ -252,7 +260,7 @@ const registerSummarizeShortcut = (_mainWindow: BrowserWindow): void => {
 
 // Registers the global shortcut for prompt generation
 const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
-  const promptGenShortcut = keybindingStore.getKeyBindings().promptgen;
+  const promptGenShortcut = keybindingStore.getKeyBindings().promptGen;
   if (!promptGenShortcut) return;
 
   const ret = globalShortcut.register(promptGenShortcut, async () => {
@@ -267,7 +275,7 @@ const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
       const { x, y } = screen.getCursorScreenPoint();
       showOverlaySpinner();
       // Get all required settings
-      const promptgenSettings = store.get("settingsPromptgen");
+      const promptGenSettings = store.get("settingsPromptGen");
       const model = store.get("selectedModel") as string;
       const temperature = store.get("temperature") as number;
 
@@ -276,7 +284,7 @@ const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
         text: selectedText,
         model,
         temperature,
-        ...promptgenSettings,
+        ...promptGenSettings,
       });
       hideOverlaySpinner();
 
@@ -293,9 +301,17 @@ const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
           };
 
           const history =
-            (store.get("historyPromptgen") as VersionEntry[]) ?? [];
+            (store.get("historyPromptGen") as VersionEntry[]) ?? [];
           // Add new entries at the beginning
-          store.set("historyPromptgen", [entry, ...history].slice(0, 50));
+          store.set("historyPromptGen", [entry, ...history].slice(0, 50));
+
+          // Notify all windows of history update
+          BrowserWindow.getAllWindows().forEach((window) => {
+            if (!window.isDestroyed()) {
+              window.webContents.send("promptGen-history-updated");
+            }
+          });
+
           console.log(
             `Saved ${result.prompts.length} prompt generation to history`
           );
@@ -313,7 +329,7 @@ const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
         completionTokens: result.completionTokens,
         x,
         y,
-        autoCopy: promptgenSettings.autoCopy || false,
+        autoCopy: promptGenSettings.autoCopy || false,
       });
     } catch (error) {
       hideOverlaySpinner();
