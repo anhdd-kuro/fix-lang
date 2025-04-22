@@ -69,3 +69,19 @@ Summarize the following text into a concise, clear summary without additional co
  */
 export const makeTonePrompt = (tone: string): string =>
   `Rewrite the following text in ${tone} tone.`;
+
+// Default system prompt template for prompt generation feature
+export const DEFAULT_PROMPT_GEN_PROMPT = `
+You are a Senior Prompt Engineer.
+Given a user’s objective and source text, craft a concise, self‑contained LLM prompt that maximizes relevance, clarity and output quality.
+Include:
+- A clear role and task description
+- Essential context and user goal
+- Input format and output requirements
+- Any constraints or style guidelines
+Respond with the final prompt only.
+`;
+
+// Constructs the promptGen system prompt including user input
+export const makePromptGenPrompt = (input: string): string =>
+  `${DEFAULT_PROMPT_GEN_PROMPT}\n\nInput:\n${input}`;

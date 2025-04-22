@@ -41,13 +41,18 @@ export type SettingsStore = {
   translationTargetLang: string; // persistent translation target language
   translations: VersionEntry[]; // persistent translation history entries
   historySummarize: VersionEntry[];
-  historyExplain: VersionEntry[];
   historyPromptGen: VersionEntry[];
   settingsCorrect: { tone: string; paraphrase: boolean };
   settingsSummarize: { minLength: number; maxLength: number };
   settingsTranslate: { destinationLang: string; includeExplanation: boolean };
-  settingsExplain: { level: "Expert" | "Professional" | "Casual" | "Beginner" | "Child"; includeResources: boolean };
-  settingsPromptGen: { minLength: number; maxLength: number; nsfw: boolean };
+  settingsPromptGen: {
+    minLength: number;
+    maxLength: number;
+    batchCount: number;
+    nsfw: boolean;
+    context: string;
+    autoCopy: boolean;
+  };
 };
 
 const schema = {
@@ -94,7 +99,6 @@ const schema = {
     default: [],
   },
   historySummarize: { type: "array", default: [] },
-  historyExplain: { type: "array", default: [] },
   historyPromptGen: { type: "array", default: [] },
   settingsCorrect: {
     type: "object",
@@ -120,22 +124,16 @@ const schema = {
     },
     default: { destinationLang: "", includeExplanation: false },
   },
-  settingsExplain: {
-    type: "object",
-    properties: {
-      level: { type: "string", default: "Beginner" },
-      includeResources: { type: "boolean", default: false },
-    },
-    default: { level: "Beginner", includeResources: false },
-  },
   settingsPromptGen: {
     type: "object",
     properties: {
-      minLength: { type: "number", default: 0 },
-      maxLength: { type: "number", default: 0 },
-      nsfw: { type: "boolean", default: false },
+      minLength: { type: "number", default: 50 },
+      maxLength: { type: "number", default: 150 },
+      batchCount: { type: "number", default: 5 },
+      nsfw: { type: "boolean", default: true },
+      context: { type: "string", default: "" },
+      autoCopy: { type: "boolean", default: false },
     },
-    default: { minLength: 0, maxLength: 0, nsfw: false },
   },
 } satisfies Schema<SettingsStore>;
 

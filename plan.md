@@ -350,16 +350,16 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 
 #### 5. Add promptGen feature
 
-- [ ] Add keybinding to trigger prompt generation via API (default: Control+Shift+G).
-- [ ] Add button in settings to change keybinding for promptGen.
-- [ ] Add system prompt template for prompt generation in prompts/index.ts.
-- [ ] Show generated prompt in popup window with copy and close buttons near the cursor.
+- [x] Add keybinding to trigger prompt generation via API (default: Control+Shift+G).
+- [x] Add button in settings to change keybinding for promptGen.
+- [x] Add system prompt template for prompt generation in prompts/index.ts.
+- [x] Show generated prompt in popup window with copy and close buttons near the cursor.
   - Dynamically position and size window (max 400×300px).
-- [ ] Handle loading and error states (spinner and retry).
+- [x] Handle loading and error states (spinner and retry).
 
 #### Refactor to separate tab settings for each feature
 
-- [ ] Add global custom rules in the General tab that apply to all features
+- [x] Add global custom rules in the General tab that apply to all features
   - These rules will be added to all features' system prompts
 - [x] Refactor `SettingsModal.tsx` to add individual tabs for Explain, Expand, Shorten, PromptGen, Correct, Summarize, and Translate
 - [x] Refactor so each feature has its own store, including:
@@ -379,7 +379,8 @@ export function registerHotkey(win: Electron.BrowserWindow) {
   - [ ] Paraphrase
     - [ ] Minimum length
     - [ ] Maximum length
-  - [ ] PromptGen
-    - [ ] Minimum length
-    - [ ] Maximum length
-    - [ ] NSFW checkbox
+  - [x] PromptGen
+    - [x] Minimum length (default: 50)
+    - [x] Maximum length (default: 150)
+    - [x] NSFW checkbox
+    - [x] Batch count (default: 5)

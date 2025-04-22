@@ -16,8 +16,17 @@ import { registerHotkeys, unregisterHotkeys } from "./hotkey";
 import { getMainWindow } from "./mainWindow";
 import { showTranslationWindow } from "./translationWindow";
 import { store } from "../../stores/apiStore";
-import { fetchOpenAIModels, translateText, summarizeText } from "../ai.request";
-import type { KeyBindings, VersionEntry, SettingsStore } from "../../stores/apiStore";
+import {
+  fetchOpenAIModels,
+  translateText,
+  summarizeText,
+  generatePrompt,
+} from "../ai.request";
+import type {
+  KeyBindings,
+  VersionEntry,
+  SettingsStore,
+} from "../../stores/apiStore";
 
 export const registerIpcHandlers = () => {
   ipcMain.handle("get-api-key", async () => {
@@ -280,107 +289,110 @@ export const registerIpcHandlers = () => {
   );
 
   // --- Translation IPC Handler ---
-  ipcMain.handle(
-    "translate-text",
-    async (_event, text: string) => {
-      try {
-        // Capture cursor position; window will display on completion
-        const { x, y } = screen.getCursorScreenPoint();
-        getMainWindow()?.webContents.send("start-loading");
-        const apiKey = store.get("apiKey") as string;
-        const settings = store.get("settingsTranslate") as SettingsStore["settingsTranslate"];
-        const result = await translateText(apiKey, text, settings.destinationLang);
-        // Get cursor for popup and update popup
-        showTranslationWindow({
-          ...result,
-          originalText: text,
-          targetLang: settings.destinationLang,
-          loading: false,
-          x,
-          y,
-        });
-        // Store translation in history
-        const transEntry: VersionEntry = {
-          original: text,
-          corrected: result.translatedText,
-          timestamp: new Date().toISOString(),
-        };
-        const existing = store.get("translations") as VersionEntry[];
-        store.set("translations", [...existing, transEntry]);
-        // Send update to main window preview
-        getMainWindow()?.webContents.send("update-text", {
-          original: text,
-          corrected: result.translatedText,
-          promptTokens: result.promptTokens,
-          completionTokens: result.completionTokens,
-        });
-        getMainWindow()?.webContents.send("stop-loading");
-        return { success: true };
-      } catch (error) {
-        console.error("Translation failed:", error);
-        getMainWindow()?.webContents.send("stop-loading");
-        const { x, y } = screen.getCursorScreenPoint();
-        // Show error state in popup
-        const settings = store.get("settingsTranslate") as SettingsStore["settingsTranslate"];
-        showTranslationWindow({
-          translatedText: "",
-          error: error instanceof Error ? error.message : "Unknown error",
-          originalText: text,
-          targetLang: settings.destinationLang,
-          loading: false,
-          promptTokens: null,
-          completionTokens: null,
-          x,
-          y,
-        });
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        };
-      }
+  ipcMain.handle("translate-text", async (_event, text: string) => {
+    try {
+      // Capture cursor position; window will display on completion
+      const { x, y } = screen.getCursorScreenPoint();
+      getMainWindow()?.webContents.send("start-loading");
+      const apiKey = store.get("apiKey") as string;
+      const settings = store.get(
+        "settingsTranslate"
+      ) as SettingsStore["settingsTranslate"];
+      const result = await translateText(
+        apiKey,
+        text,
+        settings.destinationLang
+      );
+      // Get cursor for popup and update popup
+      showTranslationWindow({
+        ...result,
+        originalText: text,
+        targetLang: settings.destinationLang,
+        loading: false,
+        x,
+        y,
+      });
+      // Store translation in history
+      const transEntry: VersionEntry = {
+        original: text,
+        corrected: result.translatedText,
+        timestamp: new Date().toISOString(),
+      };
+      const existing = store.get("translations") as VersionEntry[];
+      store.set("translations", [...existing, transEntry]);
+      // Send update to main window preview
+      getMainWindow()?.webContents.send("update-text", {
+        original: text,
+        corrected: result.translatedText,
+        promptTokens: result.promptTokens,
+        completionTokens: result.completionTokens,
+      });
+      getMainWindow()?.webContents.send("stop-loading");
+      return { success: true };
+    } catch (error) {
+      console.error("Translation failed:", error);
+      getMainWindow()?.webContents.send("stop-loading");
+      const { x, y } = screen.getCursorScreenPoint();
+      // Show error state in popup
+      const settings = store.get(
+        "settingsTranslate"
+      ) as SettingsStore["settingsTranslate"];
+      showTranslationWindow({
+        translatedText: "",
+        error: error instanceof Error ? error.message : "Unknown error",
+        originalText: text,
+        targetLang: settings.destinationLang,
+        loading: false,
+        promptTokens: null,
+        completionTokens: null,
+        x,
+        y,
+      });
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
     }
-  );
+  });
 
-  ipcMain.handle(
-    "translate",
-    async (_event, text: string) => {
-      try {
-        const apiKey = store.get("apiKey");
-        if (!apiKey) throw new Error("API key not set");
-        const settings = store.get("settingsTranslate") as SettingsStore["settingsTranslate"];
-        await translateText(apiKey, text, settings.destinationLang);
-        return { success: true };
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : String(error),
-        };
-      }
+  ipcMain.handle("translate", async (_event, text: string) => {
+    try {
+      const apiKey = store.get("apiKey");
+      if (!apiKey) throw new Error("API key not set");
+      const settings = store.get(
+        "settingsTranslate"
+      ) as SettingsStore["settingsTranslate"];
+      await translateText(apiKey, text, settings.destinationLang);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
     }
-  );
+  });
 
-  ipcMain.handle(
-    "summarize",
-    async (_event, text: string) => {
-      try {
-        const apiKey = store.get("apiKey");
-        if (!apiKey) throw new Error("API key not set");
-        const settings = store.get("settingsSummarize") as SettingsStore["settingsSummarize"];
-        const result = await summarizeText(apiKey, text, settings.maxLength);
-        return {
-          success: true,
-          summarizedText: result.summarizedText,
-          promptTokens: result.promptTokens,
-          completionTokens: result.completionTokens,
-        };
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : String(error),
-        };
-      }
+  ipcMain.handle("summarize", async (_event, text: string) => {
+    try {
+      const apiKey = store.get("apiKey");
+      if (!apiKey) throw new Error("API key not set");
+      const settings = store.get(
+        "settingsSummarize"
+      ) as SettingsStore["settingsSummarize"];
+      const result = await summarizeText(apiKey, text, settings.maxLength);
+      return {
+        success: true,
+        summarizedText: result.summarizedText,
+        promptTokens: result.promptTokens,
+        completionTokens: result.completionTokens,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
     }
-  );
+  });
 
   // --- Correct Settings & History IPC Handlers ---
   ipcMain.handle("get-correct-settings", async () => {
@@ -439,28 +451,10 @@ export const registerIpcHandlers = () => {
     return { success: true };
   });
 
-  // --- Explain Settings & History IPC Handlers ---
-  ipcMain.handle("get-explain-settings", async () => {
-    return store.get("settingsExplain") as SettingsStore["settingsExplain"];
-  });
-
-  ipcMain.handle("set-explain-settings", async (_event, settings) => {
-    store.set("settingsExplain", settings);
-    return { success: true };
-  });
-
-  ipcMain.handle("get-explain-history", async () => {
-    return store.get("historyExplain") as VersionEntry[];
-  });
-
-  ipcMain.handle("clear-explain-history", async () => {
-    store.set("historyExplain", []);
-    return { success: true };
-  });
-
   // --- PromptGen Settings & History IPC Handlers ---
   ipcMain.handle("get-promptgen-settings", async () => {
-    return store.get("settingsPromptGen") as SettingsStore["settingsPromptGen"];
+    const setting = store.get("settingsPromptGen");
+    return setting;
   });
 
   ipcMain.handle("set-promptgen-settings", async (_event, settings) => {
@@ -469,12 +463,44 @@ export const registerIpcHandlers = () => {
   });
 
   ipcMain.handle("get-promptgen-history", async () => {
-    return store.get("historyPromptGen") as VersionEntry[];
+    return store.get("historyPromptGen");
   });
 
   ipcMain.handle("clear-promptgen-history", async () => {
     store.set("historyPromptGen", []);
     return { success: true };
+  });
+
+  // Prompt generation IPC handler
+  ipcMain.handle("generate-prompt", async (_event, text: string) => {
+    try {
+      const apiKey = store.get("apiKey");
+      if (!apiKey) throw new Error("API key not set");
+      
+      // Get all required settings
+      const promptgenSettings = store.get("settingsPromptGen");
+      const model = store.get("selectedModel") as string;
+      const temperature = store.get("temperature") as number;
+
+      const result = await generatePrompt({
+        apiKey,
+        text,
+        minLength: promptgenSettings.minLength,
+        maxLength: promptgenSettings.maxLength,
+        batchCount: promptgenSettings.batchCount,
+        nsfw: promptgenSettings.nsfw,
+        context: promptgenSettings.context || "",
+        model,
+        temperature,
+      });
+      
+      return { success: true, ...result, autoCopy: promptgenSettings.autoCopy || false };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
   });
 
   // Listen for settings-updated events and notify user

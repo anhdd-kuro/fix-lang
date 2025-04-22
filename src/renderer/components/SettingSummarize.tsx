@@ -14,10 +14,12 @@ export const SettingSummarize: React.FC = () => {
 
   useEffect(() => {
     const off = window.electronAPI.onSettingsUpdated?.(() => {
-      window.electronAPI.getSummarizeSettings().then(({ minLength, maxLength }) => {
-        setMinLength(minLength);
-        setMaxLength(maxLength);
-      });
+      window.electronAPI
+        .getSummarizeSettings()
+        .then(({ minLength, maxLength }) => {
+          setMinLength(minLength);
+          setMaxLength(maxLength);
+        });
     });
     return () => off?.();
   }, []);
@@ -37,7 +39,6 @@ export const SettingSummarize: React.FC = () => {
 
   return (
     <section className="flex flex-col gap-4">
-      <h3 className="text-lg font-medium text-gray-300">Summarize Settings</h3>
       <div className="flex gap-2">
         <div>
           <label

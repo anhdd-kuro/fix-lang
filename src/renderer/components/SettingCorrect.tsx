@@ -24,7 +24,10 @@ export const SettingCorrect: React.FC = () => {
   }, []);
 
   const handleSave = async () => {
-    const result = await window.electronAPI.setCorrectSettings({ tone, paraphrase });
+    const result = await window.electronAPI.setCorrectSettings({
+      tone,
+      paraphrase,
+    });
     if (result.success) {
       setStatus("Saved!");
       setTimeout(() => setStatus(""), 2000);
@@ -35,7 +38,6 @@ export const SettingCorrect: React.FC = () => {
 
   return (
     <section className="flex flex-col gap-4">
-      <h3 className="text-lg font-medium text-gray-300">Correct Settings</h3>
       <div className="flex flex-col gap-2">
         <label className="text-gray-300 text-sm">Tone</label>
         <textarea

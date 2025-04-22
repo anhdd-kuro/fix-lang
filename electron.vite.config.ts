@@ -48,6 +48,7 @@ export default defineConfig({
             "src/renderer/TranslationWindow/index.html"
           ),
           summary: resolve(__dirname, "src/renderer/SummaryWindow/index.html"),
+          promptgen: resolve(__dirname, "src/renderer/PromptGenWindow/index.html"),
         },
       },
     },

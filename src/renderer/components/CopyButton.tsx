@@ -1,17 +1,12 @@
 import React from "react";
 import { twJoin } from "tailwind-merge";
 
-/**
- * Accessible copy-to-clipboard button for text areas.
- * @param {string} value - The text to copy.
- * @param {string} label - ARIA label for accessibility.
- * @param {string} [className] - Optional extra class names.
- */
 const CopyButton: React.FC<{
   value: string;
   label: string;
   className?: string;
-}> = ({ value, label, className = "" }) => {
+  showLabel?: boolean;
+}> = ({ value, label, className = "", showLabel = false }) => {
   const [copied, setCopied] = React.useState(false);
   const handleCopy = async () => {
     try {
@@ -31,11 +26,14 @@ const CopyButton: React.FC<{
       onClick={handleCopy}
       aria-label={label}
       title={label}
-      className={`${className} cursor-pointer ${positionClass} size-6`}
+      className={`${className} cursor-pointer ${positionClass} min-w-6 min-h-6`}
     >
+      {showLabel && (
+        <span className="whitespace-nowrap mr-8 text-xs">{label}</span>
+      )}
       <ClipboardIcon
         className={twJoin(
-          "stroke-gray-500 transition-all duration-300 ease-in-out absolute top-0 left-0 size-full"
+          "stroke-gray-500 transition-all duration-300 ease-in-out absolute top-0 right-0 size-6"
         )}
         style={{
           strokeDasharray: 50,
@@ -44,7 +42,7 @@ const CopyButton: React.FC<{
       />
       <CheckIcon
         className={twJoin(
-          "stroke-green-600 transition-all duration-300 ease-in-out absolute top-0 left-0 size-full"
+          "stroke-green-600 transition-all duration-300 ease-in-out absolute top-0 right-0 size-6"
         )}
         style={{
           strokeDasharray: 50,

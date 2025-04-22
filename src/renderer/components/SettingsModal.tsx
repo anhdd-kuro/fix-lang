@@ -45,7 +45,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       className="fixed inset-0 bg-black/60 backdrop-blur-sm bg-opacity-50 flex justify-center items-center z-50"
       onClick={handleClick}
     >
-      <div className="flex flex-col bg-gray-800 p-6 rounded-lg shadow-xl w-2/3 max-w-200 h-[80vh] min-h-120 max-h-200 overflow-auto">
+      <div className="flex flex-col bg-gray-800 p-6 rounded-lg shadow-xl w-3/4 max-w-200 h-[85vh] min-h-120 max-h-250 overflow-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-blue-300">Settings</h2>
           <button

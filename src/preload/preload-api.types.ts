@@ -18,8 +18,11 @@ export type KeyBindings = {
   retry: string;
   /** Keybinding for translation */
   translate: string;
+  /** Keybinding for prompt generation */
   /** Keybinding for summarize */
   summarize: string;
+  /** Keybinding for prompt generation */
+  promptGen: string;
 };
 
 /**
@@ -65,7 +68,15 @@ export type ElectronAPI = {
   /**
    * Registers a callback for the 'summary-data' event from main process.
    */
-  onSummaryData: (callback: (payload: { summarizedText: string; promptTokens: number | null; completionTokens: number | null; x: number; y: number; }) => void) => () => void;
+  onSummaryData: (
+    callback: (payload: {
+      summarizedText: string;
+      promptTokens: number | null;
+      completionTokens: number | null;
+      x: number;
+      y: number;
+    }) => void
+  ) => () => void;
 
   /**
    * Fetches the stored OpenAI API key from the main process.
@@ -195,22 +206,28 @@ export type ElectronAPI = {
   /**
    * Sends a translation request for the given text to main process.
    */
-  translate: (
-    text: string
-  ) => Promise<{ success: boolean; error?: string }>;
+  translate: (text: string) => Promise<{ success: boolean; error?: string }>;
 
   /**
    * Requests summarization of the given text.
    */
-  summarize: (
-    text: string
-  ) => Promise<{ success: boolean; summarizedText: string; promptTokens: number | null; completionTokens: number | null; error?: string }>;
+  summarize: (text: string) => Promise<{
+    success: boolean;
+    summarizedText: string;
+    promptTokens: number | null;
+    completionTokens: number | null;
+    error?: string;
+  }>;
 
   /**
    * Registers callback for translation results from main process.
    */
   onTranslationResult: (
-    callback: (payload: { translatedText: string; promptTokens: number | null; completionTokens: number | null }) => void
+    callback: (payload: {
+      translatedText: string;
+      promptTokens: number | null;
+      completionTokens: number | null;
+    }) => void
   ) => () => void;
 
   /**
@@ -222,7 +239,13 @@ export type ElectronAPI = {
    * Registers a callback for raw translation data (for popup window).
    */
   onTranslationData: (
-    callback: (payload: { translatedText: string; promptTokens: number | null; completionTokens: number | null; x: number; y: number }) => void
+    callback: (payload: {
+      translatedText: string;
+      promptTokens: number | null;
+      completionTokens: number | null;
+      x: number;
+      y: number;
+    }) => void
   ) => () => void;
 
   /**
@@ -245,43 +268,82 @@ export type ElectronAPI = {
     tone: string;
     paraphrase: boolean;
   }>;
-  setCorrectSettings: (settings: { tone: string; paraphrase: boolean }) => Promise<{ success: boolean }>;
+  setCorrectSettings: (settings: {
+    tone: string;
+    paraphrase: boolean;
+  }) => Promise<{ success: boolean }>;
   getCorrectHistory: () => Promise<VersionEntry[]>;
   clearCorrectHistory: () => Promise<{ success: boolean }>;
 
-  // --- Summarize feature ---
-  getSummarizeSettings: () => Promise<{ minLength: number; maxLength: number }>;
-  setSummarizeSettings: (settings: { minLength: number; maxLength: number }) => Promise<{ success: boolean }>;
-  getSummarizeHistory: () => Promise<VersionEntry[]>;
-  clearSummarizeHistory: () => Promise<{ success: boolean }>;
-
-  // --- Translate feature settings ---
-  getTranslateSettings: () => Promise<{ destinationLang: string; includeExplanation: boolean }>;
-  setTranslateSettings: (settings: { destinationLang: string; includeExplanation: boolean }) => Promise<{ success: boolean; error?: string }>;
-
-  // --- Explain feature ---
-  getExplainSettings: () => Promise<{ level: string; includeResources: boolean }>;
-  setExplainSettings: (settings: { level: string; includeResources: boolean }) => Promise<{ success: boolean }>;
-  getExplainHistory: () => Promise<VersionEntry[]>;
-  clearExplainHistory: () => Promise<{ success: boolean }>;
-
-  // --- Expand feature ---
-  getExpandSettings: () => Promise<{ minLength: number; maxLength: number }>;
-  setExpandSettings: (settings: { minLength: number; maxLength: number }) => Promise<{ success: boolean }>;
-  getExpandHistory: () => Promise<VersionEntry[]>;
-  clearExpandHistory: () => Promise<{ success: boolean }>;
-
-  // --- Shorten feature ---
-  getShortenSettings: () => Promise<{ minLength: number; maxLength: number }>;
-  setShortenSettings: (settings: { minLength: number; maxLength: number }) => Promise<{ success: boolean }>;
-  getShortenHistory: () => Promise<VersionEntry[]>;
-  clearShortenHistory: () => Promise<{ success: boolean }>;
-
   // --- PromptGen feature ---
-  getPromptgenSettings: () => Promise<{ minLength: number; maxLength: number; nsfw: boolean }>;
-  setPromptgenSettings: (settings: { minLength: number; maxLength: number; nsfw: boolean }) => Promise<{ success: boolean }>;
+  getPromptgenSettings: () => Promise<{
+    minLength: number;
+    maxLength: number;
+    batchCount: number;
+    nsfw: boolean;
+    context: string;
+    autoCopy: boolean;
+  }>;
+  setPromptgenSettings: (settings: {
+    minLength: number;
+    maxLength: number;
+    batchCount: number;
+    nsfw: boolean;
+    context: string;
+    autoCopy: boolean;
+  }) => Promise<{ success: boolean }>;
   getPromptgenHistory: () => Promise<VersionEntry[]>;
   clearPromptgenHistory: () => Promise<{ success: boolean }>;
+
+  /**
+   * Registers a callback for promptgen-data event from main process.
+   */
+  onPromptGenData: (
+    callback: (payload: {
+      prompts: string[];
+      promptTokens: number | null;
+      completionTokens: number | null;
+      x: number;
+      y: number;
+    }) => void
+  ) => () => void;
+
+  /**
+   * Closes the prompt generation window.
+   */
+  closePromptGenWindow: () => void;
+
+  /**
+   * Removes the promptgen-data event listener.
+   */
+  removePromptGenDataListener: (
+    callback: (payload: {
+      prompts: string[];
+      promptTokens: number | null;
+      completionTokens: number | null;
+      x: number;
+      y: number;
+    }) => void
+  ) => void;
+
+  // --- Translate feature settings ---
+  getTranslateSettings: () => Promise<{
+    destinationLang: string;
+    includeExplanation: boolean;
+  }>;
+  setTranslateSettings: (settings: {
+    destinationLang: string;
+    includeExplanation: boolean;
+  }) => Promise<{ success: boolean; error?: string }>;
+
+  // --- Summarize feature ---
+  getSummarizeSettings: () => Promise<{ minLength: number; maxLength: number }>;
+  setSummarizeSettings: (settings: {
+    minLength: number;
+    maxLength: number;
+  }) => Promise<{ success: boolean }>;
+  getSummarizeHistory: () => Promise<VersionEntry[]>;
+  clearSummarizeHistory: () => Promise<{ success: boolean }>;
 
   /**
    * Registers a callback for settings updated event from main process.

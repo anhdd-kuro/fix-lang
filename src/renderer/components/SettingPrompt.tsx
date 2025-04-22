@@ -44,8 +44,6 @@ const SettingPrompt: React.FC = () => {
 
   return (
     <section className="flex flex-col gap-4">
-      <h3 className="text-lg font-medium text-gray-300">Custom Prompts</h3>
-
       <div className="flex flex-col gap-2">
         <label htmlFor="system-prompt" className="text-gray-300 text-sm">
           System Prompt

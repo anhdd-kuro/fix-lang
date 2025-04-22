@@ -37,7 +37,7 @@ export const createMainWindow = (
   }
   const win = new BrowserWindow({
     width: 1000,
-    height: 800,
+    height: 900,
     icon: appIcon,
     webPreferences: {
       preload: path.join(app.getAppPath(), "out/preload/index.mjs"),

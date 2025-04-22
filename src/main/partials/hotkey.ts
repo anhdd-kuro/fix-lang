@@ -7,8 +7,14 @@ import {
 } from "electron";
 import { store } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
-import { fixGrammar, translateText, summarizeText } from "../ai.request";
+import {
+  fixGrammar,
+  translateText,
+  summarizeText,
+  generatePrompt,
+} from "../ai.request";
 import { showOverlaySpinner, hideOverlaySpinner } from "./overlayWindow";
+import { showPromptGenWindow } from "./promptGenWindow";
 import { showSummaryWindow } from "./summaryWindow";
 import { showTranslationWindow } from "./translationWindow";
 import { getHighlightedText, pasteText } from "../../utils";
@@ -30,6 +36,7 @@ export const registerHotkeys = (mainWindow: BrowserWindow): void => {
   registerRetryShortcut(mainWindow);
   registerTranslateShortcut(mainWindow);
   registerSummarizeShortcut(mainWindow);
+  registerPromptGenShortcut(mainWindow);
   registerDevToolsShortcut();
 };
 
@@ -201,7 +208,9 @@ const registerTranslateShortcut = (mainWindow: BrowserWindow) => {
     const apiKey = getOpenAIKey();
     const selectedText = await getHighlightedText();
     // Dynamically read the latest translation target from settings
-    const settings = store.get("settingsTranslate") as SettingsStore["settingsTranslate"];
+    const settings = store.get(
+      "settingsTranslate"
+    ) as SettingsStore["settingsTranslate"];
     const lang = settings.destinationLang || app.getLocale();
     if (!selectedText || !selectedText.trim()) {
       new Notification({ title: "Error", body: "No text selected." }).show();
@@ -286,6 +295,56 @@ const registerSummarizeShortcut = (_mainWindow: BrowserWindow): void => {
         completionTokens: result.completionTokens,
         x,
         y,
+      });
+    } catch (error) {
+      hideOverlaySpinner();
+      handleError(error);
+    }
+  });
+  checkShortcut(ret);
+};
+
+// Registers the global shortcut for prompt generation
+const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
+  const promptGenShortcut = keybindingStore.getKeyBindings().promptGen;
+  if (!promptGenShortcut) return;
+
+  const ret = globalShortcut.register(promptGenShortcut, async () => {
+    console.log(`${promptGenShortcut} pressed (PromptGen)`);
+    try {
+      const apiKey = getOpenAIKey();
+      const selectedText = await getHighlightedText();
+      if (!selectedText || !selectedText.trim()) {
+        new Notification({ title: "Error", body: "No text selected." }).show();
+        return;
+      }
+      const { x, y } = screen.getCursorScreenPoint();
+      showOverlaySpinner();
+      // Get all required settings
+      const promptgenSettings = store.get("settingsPromptGen");
+      const model = store.get("selectedModel") as string;
+      const temperature = store.get("temperature") as number;
+
+      // Create settings object matching PromptGenSettings type
+      const result = await generatePrompt({
+        apiKey,
+        text: selectedText,
+        minLength: promptgenSettings.minLength,
+        maxLength: promptgenSettings.maxLength, 
+        batchCount: promptgenSettings.batchCount,
+        nsfw: promptgenSettings.nsfw,
+        context: promptgenSettings.context || "",
+        model,
+        temperature,
+      });
+      hideOverlaySpinner();
+      showPromptGenWindow({
+        prompts: result.prompts,
+        promptTokens: result.promptTokens,
+        completionTokens: result.completionTokens,
+        x,
+        y,
+        autoCopy: promptgenSettings.autoCopy || false,
       });
     } catch (error) {
       hideOverlaySpinner();

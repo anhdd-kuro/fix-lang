@@ -23,16 +23,25 @@ export const SettingTranslate: React.FC = () => {
   }, []);
 
   const handleSave = async () => {
-    const result = await window.electronAPI.setTranslateSettings({ destinationLang, includeExplanation });
-    if (result.success) { setStatus("Saved!"); setTimeout(() => setStatus(""), 2000); }
-    else setStatus("Error");
+    const result = await window.electronAPI.setTranslateSettings({
+      destinationLang,
+      includeExplanation,
+    });
+    if (result.success) {
+      setStatus("Saved!");
+      setTimeout(() => setStatus(""), 2000);
+    } else setStatus("Error");
   };
 
   return (
     <section className="flex flex-col gap-4">
-      <h3 className="text-lg font-medium text-gray-300">Translate Settings</h3>
       <div>
-        <label htmlFor="translate-destination-lang" className="block text-gray-300 text-sm">Destination Language</label>
+        <label
+          htmlFor="translate-destination-lang"
+          className="block text-gray-300 text-sm"
+        >
+          Destination Language
+        </label>
         <input
           id="translate-destination-lang"
           title="Destination language for translation"
@@ -44,10 +53,18 @@ export const SettingTranslate: React.FC = () => {
         />
       </div>
       <label className="inline-flex items-center text-gray-300">
-        <input type="checkbox" checked={includeExplanation} onChange={() => setIncludeExplanation(!includeExplanation)} className="form-checkbox" />
+        <input
+          type="checkbox"
+          checked={includeExplanation}
+          onChange={() => setIncludeExplanation(!includeExplanation)}
+          className="form-checkbox"
+        />
         <span className="ml-2">Include Explanation</span>
       </label>
-      <button onClick={handleSave} className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+      <button
+        onClick={handleSave}
+        className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+      >
         {status || "Save"}
       </button>
     </section>

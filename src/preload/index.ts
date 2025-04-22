@@ -295,9 +295,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   /**
    * Requests translation of the given text.
    */
-  translate: (
-    text: string
-  ): Promise<{ success: boolean; error?: string }> =>
+  translate: (text: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("translate-text", text),
 
   /**
@@ -379,23 +377,26 @@ contextBridge.exposeInMainWorld("electronAPI", {
    */
   summarize: (
     text: string
-  ): Promise<{ success: boolean; summarizedText: string; promptTokens: number | null; completionTokens: number | null; error?: string }> =>
-    ipcRenderer.invoke("summarize", text),
+  ): Promise<{
+    success: boolean;
+    summarizedText: string;
+    promptTokens: number | null;
+    completionTokens: number | null;
+    error?: string;
+  }> => ipcRenderer.invoke("summarize", text),
 
   /**
    * Registers a callback for the 'summary-data' event from main process.
    */
   onSummaryData: (
-    callback: (
-      payload: {
-        summarizedText: string;
-        promptTokens: number | null;
-        completionTokens: number | null;
-        x: number;
-        y: number;
-      }
-    ) => void
-  ): () => void => {
+    callback: (payload: {
+      summarizedText: string;
+      promptTokens: number | null;
+      completionTokens: number | null;
+      x: number;
+      y: number;
+    }) => void
+  ): (() => void) => {
     ipcRenderer.on("summary-data", (_event, payload) => callback(payload));
     return () => ipcRenderer.removeAllListeners("summary-data");
   },
@@ -405,9 +406,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // --- Correct feature ---
   getCorrectSettings: (): Promise<{ tone: string; paraphrase: boolean }> =>
     ipcRenderer.invoke("get-correct-settings"),
-  setCorrectSettings: async (
-    settings: { tone: string; paraphrase: boolean }
-  ): Promise<{ success: boolean }> => {
+  setCorrectSettings: async (settings: {
+    tone: string;
+    paraphrase: boolean;
+  }): Promise<{ success: boolean }> => {
     const result = await ipcRenderer.invoke("set-correct-settings", settings);
     ipcRenderer.send("settings-updated");
     return result;
@@ -420,9 +422,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // --- Summarize feature ---
   getSummarizeSettings: (): Promise<{ minLength: number; maxLength: number }> =>
     ipcRenderer.invoke("get-summarize-settings"),
-  setSummarizeSettings: async (
-    settings: { minLength: number; maxLength: number }
-  ): Promise<{ success: boolean }> => {
+  setSummarizeSettings: async (settings: {
+    minLength: number;
+    maxLength: number;
+  }): Promise<{ success: boolean }> => {
     const result = await ipcRenderer.invoke("set-summarize-settings", settings);
     ipcRenderer.send("settings-updated");
     return result;
@@ -433,79 +436,90 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("clear-summarize-history"),
 
   // --- Translate feature ---
-  getTranslateSettings: (): Promise<{ destinationLang: string; includeExplanation: boolean }> =>
-    ipcRenderer.invoke("get-translate-settings"),
-  setTranslateSettings: async (
-    settings: { destinationLang: string; includeExplanation: boolean }
-  ): Promise<{ success: boolean }> => {
+  getTranslateSettings: (): Promise<{
+    destinationLang: string;
+    includeExplanation: boolean;
+  }> => ipcRenderer.invoke("get-translate-settings"),
+  setTranslateSettings: async (settings: {
+    destinationLang: string;
+    includeExplanation: boolean;
+  }): Promise<{ success: boolean }> => {
     const result = await ipcRenderer.invoke("set-translate-settings", settings);
     ipcRenderer.send("settings-updated");
     return result;
   },
 
-  // --- Explain feature ---
-  getExplainSettings: (): Promise<{ level: string; includeResources: boolean }> =>
-    ipcRenderer.invoke("get-explain-settings"),
-  setExplainSettings: async (
-    settings: { level: string; includeResources: boolean }
-  ): Promise<{ success: boolean }> => {
-    const result = await ipcRenderer.invoke("set-explain-settings", settings);
-    ipcRenderer.send("settings-updated");
-    return result;
-  },
-  getExplainHistory: (): Promise<VersionEntry[]> =>
-    ipcRenderer.invoke("get-explain-history"),
-  clearExplainHistory: (): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke("clear-explain-history"),
-
-  // --- Expand feature ---
-  getExpandSettings: (): Promise<{ minLength: number; maxLength: number }> =>
-    ipcRenderer.invoke("get-expand-settings"),
-  setExpandSettings: async (
-    settings: { minLength: number; maxLength: number }
-  ): Promise<{ success: boolean }> => {
-    const result = await ipcRenderer.invoke("set-expand-settings", settings);
-    ipcRenderer.send("settings-updated");
-    return result;
-  },
-  getExpandHistory: (): Promise<VersionEntry[]> =>
-    ipcRenderer.invoke("get-expand-history"),
-  clearExpandHistory: (): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke("clear-expand-history"),
-
-  // --- Shorten feature ---
-  getShortenSettings: (): Promise<{ minLength: number; maxLength: number }> =>
-    ipcRenderer.invoke("get-shorten-settings"),
-  setShortenSettings: async (
-    settings: { minLength: number; maxLength: number }
-  ): Promise<{ success: boolean }> => {
-    const result = await ipcRenderer.invoke("set-shorten-settings", settings);
-    ipcRenderer.send("settings-updated");
-    return result;
-  },
-  getShortenHistory: (): Promise<VersionEntry[]> =>
-    ipcRenderer.invoke("get-shorten-history"),
-  clearShortenHistory: (): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke("clear-shorten-history"),
-
   // --- PromptGen feature ---
-  getPromptgenSettings: (): Promise<{ minLength: number; maxLength: number; nsfw: boolean }> =>
-    ipcRenderer.invoke("get-promptgen-settings"),
-  setPromptgenSettings: async (
-    settings: { minLength: number; maxLength: number; nsfw: boolean }
-  ): Promise<{ success: boolean }> => {
+  getPromptgenSettings: (): Promise<{
+    minLength: number;
+    maxLength: number;
+    batchCount: number;
+    nsfw: boolean;
+    context: string;
+    autoCopy: boolean;
+  }> => ipcRenderer.invoke("get-promptgen-settings"),
+
+  setPromptgenSettings: async (settings: {
+    minLength: number;
+    maxLength: number;
+    batchCount: number;
+    nsfw: boolean;
+    context: string;
+    autoCopy: boolean;
+  }): Promise<{ success: boolean }> => {
     const result = await ipcRenderer.invoke("set-promptgen-settings", settings);
     ipcRenderer.send("settings-updated");
     return result;
   },
+
   getPromptgenHistory: (): Promise<VersionEntry[]> =>
     ipcRenderer.invoke("get-promptgen-history"),
+
   clearPromptgenHistory: (): Promise<{ success: boolean }> =>
     ipcRenderer.invoke("clear-promptgen-history"),
 
   onSettingsUpdated: (callback: () => void): (() => void) => {
     ipcRenderer.on("settings-updated", () => callback());
-    return () => ipcRenderer.removeListener("settings-updated", () => callback());
+    return () =>
+      ipcRenderer.removeListener("settings-updated", () => callback());
+  },
+
+  /**
+   * Registers a callback for promptgen-data event from main process.
+   */
+  onPromptGenData: (
+    callback: (payload: {
+      prompts: string[];
+      promptTokens: number | null;
+      completionTokens: number | null;
+      x: number;
+      y: number;
+    }) => void
+  ): (() => void) => {
+    ipcRenderer.on("promptgen-data", (_event, payload) => callback(payload));
+    return () => ipcRenderer.removeAllListeners("promptgen-data");
+  },
+
+  /**
+   * Closes the prompt generation window.
+   */
+  closePromptGenWindow: (): void => ipcRenderer.send("close-promptgen-window"),
+
+  /**
+   * Removes the promptgen-data event listener.
+   */
+  removePromptGenDataListener: (
+    callback: (payload: {
+      prompts: string[];
+      promptTokens: number | null;
+      completionTokens: number | null;
+      x: number;
+      y: number;
+    }) => void
+  ): void => {
+    ipcRenderer.removeListener("promptgen-data", (_event, payload) =>
+      callback(payload)
+    );
   },
 } satisfies ElectronAPI);
 
