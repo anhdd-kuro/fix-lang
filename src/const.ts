@@ -10,13 +10,8 @@ import type { KeyBindings } from "~/stores/apiStore";
 export const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini" satisfies Model["id"];
 
 export const DEFAULT_KEY_BINDINGS: KeyBindings = {
-  fix: "Control+Shift+F",
-  undo: "Control+Shift+Z",
-  retry: "Control+Shift+A",
+  correction: "Control+Shift+F",
   translate: "Control+Shift+T",
-  paraphrase: "Control+Shift+P", // restate in different words
-  // new ones:
   summarize: "Control+Shift+S", // condense selected text into a brief summary
-  explain: "Control+Shift+E", // give a clearer, step‑by‑step explanation
   promptGen: "Control+Shift+G", // generate a new prompt based on current selection
 };

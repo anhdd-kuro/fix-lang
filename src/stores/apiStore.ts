@@ -8,13 +8,9 @@ import type { Schema } from "electron-store";
 import type { Model } from "openai/resources.mjs";
 
 export type KeyBindings = {
-  fix: string;
-  undo: string;
-  retry: string;
+  correction: string;
   translate: string; // keyboard shortcut for translation
   summarize: string; // condense selected text into a brief summary
-  paraphrase: string; // restate in different words
-  explain: string; // give a clearer, step-by-step explanation
   promptGen: string; // generate a new prompt based on current selection
 };
 
