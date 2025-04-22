@@ -38,7 +38,7 @@ export const SettingTranslate: React.FC = () => {
       <div>
         <label
           htmlFor="translate-destination-lang"
-          className="block text-gray-300 text-sm"
+          className="block text-gray-300 text-sm mb-2"
         >
           Destination Language
         </label>
