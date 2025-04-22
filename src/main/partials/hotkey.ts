@@ -79,6 +79,9 @@ const registerFixShortcut = (mainWindow: BrowserWindow) => {
 
       await pasteText(result.correctedText);
 
+      // History management is now handled directly in the fix-grammar IPC handler
+      // No need to manage history here
+
       // Send the original and corrected text to the renderer process for preview
       if (mainWindow && !mainWindow.isDestroyed()) {
         console.log("Sending text update via IPC to renderer...");
@@ -291,7 +294,7 @@ const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
       // Save to history if generation was successful
       if (result.prompts.length > 0) {
         try {
-          // Save generated prompts to history
+          // Save generated prompts to history directly
           const entry = {
             original: selectedText,
             corrected: result.prompts.join("\n"),
@@ -300,11 +303,12 @@ const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
             completionTokens: result.completionTokens,
           };
 
-          const history =
-            (store.get("historyPromptGen") as VersionEntry[]) ?? [];
-          // Add new entries at the beginning
-          store.set("historyPromptGen", [entry, ...history].slice(0, 50));
-
+          // Directly manage history in the store
+          const history = (store.get("historyPromptGen") as VersionEntry[]) ?? [];
+          // Add new entry at the beginning
+          const newHistory = [entry, ...history].slice(0, 50);
+          store.set("historyPromptGen", newHistory);
+          
           // Notify all windows of history update
           BrowserWindow.getAllWindows().forEach((window) => {
             if (!window.isDestroyed()) {

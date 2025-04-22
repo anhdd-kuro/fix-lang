@@ -2,7 +2,7 @@
  * @file translation.ts
  * @description IPC handlers for text translation functionality
  */
-import { ipcMain, clipboard } from "electron";
+import { ipcMain, clipboard, BrowserWindow } from "electron";
 import { store } from "~/stores/apiStore";
 import { translateText } from "../../ai.request/translate";
 import { showTranslationWindow } from "../../partials/translationWindow";
@@ -29,7 +29,7 @@ export const registerTranslationHandlers = () => {
       };
     }
   });
-  
+
   // Alias for get-translation-settings to match preload API naming
   ipcMain.handle("get-translate-settings", async () => {
     try {
@@ -79,6 +79,14 @@ export const registerTranslationHandlers = () => {
   ipcMain.handle("clear-translation-history", async () => {
     try {
       store.set("translations", []);
+
+      // Notify all windows that the translation history has been updated
+      BrowserWindow.getAllWindows().forEach((window) => {
+        if (!window.isDestroyed()) {
+          window.webContents.send("translation-history-updated");
+        }
+      });
+
       return { success: true };
     } catch (error) {
       return {
@@ -123,11 +131,17 @@ export const registerTranslationHandlers = () => {
             promptTokens: result.promptTokens,
             completionTokens: result.completionTokens,
           };
-          const translations =
-            (store.get("translations") as VersionEntry[]) ?? [];
+          const translations = store.get("translations") ?? [];
           translations.unshift(entry);
           if (translations.length > 20) translations.pop();
           store.set("translations", translations);
+
+          // Notify all windows that the translation history has been updated
+          BrowserWindow.getAllWindows().forEach((window) => {
+            if (!window.isDestroyed()) {
+              window.webContents.send("translation-history-updated");
+            }
+          });
         } catch (e) {
           console.error("Failed to save translation history entry:", e);
         }
@@ -166,7 +180,7 @@ export const registerTranslationHandlers = () => {
           x: params.x,
           y: params.y,
           promptTokens: null,
-          completionTokens: null
+          completionTokens: null,
         });
         return true;
       } catch (error) {

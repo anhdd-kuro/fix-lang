@@ -2,10 +2,9 @@
  * @file promptGen.ts
  * @description IPC handlers for prompt generation functionality
  */
-import { ipcMain, clipboard } from "electron";
+import { ipcMain, clipboard, BrowserWindow } from "electron";
 import { store } from "~/stores/apiStore";
 // Note: generatePrompt is only used in hotkey.ts
-// Note: VersionEntry is only needed for history operations in hotkey.ts
 
 /**
  * Registers prompt generation-related IPC handlers
@@ -55,6 +54,16 @@ export const registerPromptGenHandlers = () => {
   ipcMain.handle("clear-promptGen-history", async () => {
     try {
       store.set("historyPromptGen", []);
+
+      // Notify all windows of history update
+      BrowserWindow.getAllWindows().forEach(
+        (window: Electron.BrowserWindow) => {
+          if (!window.isDestroyed()) {
+            window.webContents.send("promptGen-history-updated");
+          }
+        }
+      );
+
       return { success: true };
     } catch (error) {
       return {
@@ -63,6 +72,8 @@ export const registerPromptGenHandlers = () => {
       };
     }
   });
+
+  // Note: Prompt generation and history management is handled in hotkey.ts directly
 
   // Note: Prompt generation is handled directly through the keyboard shortcut handler in hotkey.ts
   // No IPC handler is needed for generating prompts since it's not called from the renderer

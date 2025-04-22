@@ -19,8 +19,8 @@ export function createTranslationWindow() {
     skipTaskbar: true,
     backgroundColor: "#1e2939",
     icon: appIcon,
-    title: "Translation",
     titleBarStyle: "default",
+    title: "Translation",
     frame: true,
     webPreferences: {
       preload: path.join(app.getAppPath(), "out/preload/index.mjs"),

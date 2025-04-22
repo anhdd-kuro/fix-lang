@@ -2,7 +2,7 @@
  * @file correction.ts
  * @description IPC handlers for text correction functionality
  */
-import { ipcMain } from "electron";
+import { ipcMain, BrowserWindow } from "electron";
 import { store } from "~/stores/apiStore";
 import { fixGrammar } from "../../ai.request/correction";
 import type { VersionEntry } from "~/stores/apiStore";
@@ -25,7 +25,7 @@ export const registerCorrectionHandlers = () => {
       };
     }
   });
-  
+
   // Alias for get-correction-settings to match preload API naming
   ipcMain.handle("get-correct-settings", async () => {
     try {
@@ -42,17 +42,20 @@ export const registerCorrectionHandlers = () => {
   });
 
   // Set correction settings
-  ipcMain.handle("set-correction-settings", async (_event: Electron.IpcMainInvokeEvent, settings) => {
-    try {
-      store.set("settingsCorrect", settings);
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
+  ipcMain.handle(
+    "set-correction-settings",
+    async (_event: Electron.IpcMainInvokeEvent, settings) => {
+      try {
+        store.set("settingsCorrect", settings);
+        return { success: true };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
+      }
     }
-  });
+  );
 
   // Get correction history
   ipcMain.handle("get-history", async () => {
@@ -65,19 +68,30 @@ export const registerCorrectionHandlers = () => {
   });
 
   // Get correction history (alternative endpoint)
-  ipcMain.handle("get-correct-history", async (_event: Electron.IpcMainInvokeEvent) => {
-    try {
-      return store.get("history") as VersionEntry[];
-    } catch (error) {
-      console.error("Error getting correction history:", error);
-      return [];
+  ipcMain.handle(
+    "get-correct-history",
+    async (_event: Electron.IpcMainInvokeEvent) => {
+      try {
+        return store.get("history") as VersionEntry[];
+      } catch (error) {
+        console.error("Error getting correction history:", error);
+        return [];
+      }
     }
-  });
+  );
 
   // Clear correction history
   ipcMain.handle("clear-history", async () => {
     try {
       store.set("history", []);
+
+      // Notify all windows of history update
+      BrowserWindow.getAllWindows().forEach((window) => {
+        if (!window.isDestroyed()) {
+          window.webContents.send("correction-history-updated");
+        }
+      });
+
       return { success: true };
     } catch (error) {
       return {
@@ -86,6 +100,8 @@ export const registerCorrectionHandlers = () => {
       };
     }
   });
+
+  // Note: History management is now directly integrated in the fix-grammar handler
 
   // Get last correction entry
   ipcMain.handle("get-last-history", async () => {
@@ -101,7 +117,10 @@ export const registerCorrectionHandlers = () => {
   // Direct grammar fix request (usually from main window or overlays)
   ipcMain.handle(
     "fix-grammar",
-    async (_event: Electron.IpcMainInvokeEvent, text: string): Promise<{
+    async (
+      _event: Electron.IpcMainInvokeEvent,
+      text: string
+    ): Promise<{
       success: boolean;
       correctedText?: string;
       error?: string;
@@ -119,6 +138,31 @@ export const registerCorrectionHandlers = () => {
         }
 
         const result = await fixGrammar(apiKey, text);
+
+        // Save to history directly inside the handler
+        try {
+          const entry: VersionEntry = {
+            original: text,
+            corrected: result.correctedText,
+            timestamp: new Date().toISOString(),
+            promptTokens: result.promptTokens,
+            completionTokens: result.completionTokens,
+          };
+          const history = (store.get("history") as VersionEntry[]) ?? [];
+          history.unshift(entry);
+          if (history.length > 20) history.pop();
+          store.set("history", history);
+
+          // Notify all windows of history update
+          BrowserWindow.getAllWindows().forEach((window) => {
+            if (!window.isDestroyed()) {
+              window.webContents.send("correction-history-updated");
+            }
+          });
+        } catch (e) {
+          console.error("Failed to save correction history entry:", e);
+        }
+
         return {
           success: true,
           correctedText: result.correctedText,
