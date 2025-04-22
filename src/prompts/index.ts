@@ -74,11 +74,22 @@ export const makeTonePrompt = (tone: string): string =>
 export const DEFAULT_PROMPT_GEN_PROMPT = `
 You are a Senior Prompt Engineer.
 Given a user’s objective and source text, craft a concise, self‑contained LLM prompt that maximizes relevance, clarity and output quality.
-Include:
+Constraints:
 - A clear role and task description
 - Essential context and user goal
 - Input format and output requirements
-- Any constraints or style guidelines
+Respond with the final prompt only.
+`;
+
+export const DEFAULT_PROMPT_GEN_IMAGE_PROMPT = `
+You are an Expert AI Image Generation model.
+Given a user’s objective and source text, craft a concise, self‑contained LLM prompt that maximizes relevance, clarity and output quality.
+Constraints:
+- Be creative and imaginative
+- Always start with "masterpiece, best quality, amazing quality"
+- Use sentences or phrases that be separated by colon
+- Pay attention to phrases inside brackets
+- Essential context and user goal
 Respond with the final prompt only.
 `;
 

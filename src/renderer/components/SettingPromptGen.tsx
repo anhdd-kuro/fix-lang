@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { DEFAULT_PROMPT_GEN_PROMPT } from "../../prompts";
+import Tooltip from "./Tooltip";
+import {
+  DEFAULT_PROMPT_GEN_PROMPT,
+  DEFAULT_PROMPT_GEN_IMAGE_PROMPT,
+} from "../../prompts";
 
 export const SettingPromptGen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -210,24 +214,32 @@ export const SettingPromptGen: React.FC = () => {
               (Override default system prompt with your own)
             </span>
           </label>
-          <div className="flex justify-between items-center text-xs text-gray-400 mb-1">
-            <div className="flex items-center gap-2">
-              <span>Default System Prompt</span>
-              <div className="relative group cursor-help">
-                <div className="w-4 h-4 rounded-full bg-gray-700 flex items-center justify-center text-gray-300 border border-gray-600">
-                  <span className="text-xs">?</span>
-                </div>
-                <div className="absolute left-0 mt-2 py-2 px-4 w-80 max-w-xs bg-gray-800 border border-gray-700 rounded shadow-lg z-10 text-gray-300 hidden group-hover:block">
-                  <pre className="text-xs whitespace-pre-wrap break-words">
-                    {DEFAULT_PROMPT_GEN_PROMPT.trim()}
-                  </pre>
-                </div>
-              </div>
+          <div className="flex flex-col gap-2 mb-2">
+            {/* Text prompt template row */}
+            <div className="flex items-center gap-2 text-xs text-gray-400">
+              <span>Default Text Prompt Template</span>
+              <Tooltip tooltipText={DEFAULT_PROMPT_GEN_PROMPT} />
               <button
                 type="button"
                 className="text-blue-400 hover:text-blue-300"
                 onClick={() => setContext(DEFAULT_PROMPT_GEN_PROMPT.trim())}
-                title="Copy the default prompt to the textarea for editing"
+                title="Use default text prompt template"
+              >
+                Use as Template
+              </button>
+            </div>
+
+            {/* Image prompt template row */}
+            <div className="flex items-center gap-2 text-xs text-gray-400">
+              <span>Image Prompt Template</span>
+              <Tooltip tooltipText={DEFAULT_PROMPT_GEN_IMAGE_PROMPT} />
+              <button
+                type="button"
+                className="text-blue-400 hover:text-blue-300"
+                onClick={() =>
+                  setContext(DEFAULT_PROMPT_GEN_IMAGE_PROMPT.trim())
+                }
+                title="Use image prompt template"
               >
                 Use as Template
               </button>
