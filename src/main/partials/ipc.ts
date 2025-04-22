@@ -216,12 +216,18 @@ export const registerIpcHandlers = () => {
   // --- Prompt Settings IPC Handlers ---
   ipcMain.handle("get-prompt-settings", async () => {
     try {
+      // Get settings from the new globalSettings object
+      const globalSettings = store.get("globalSettings") as {
+        customSystemPrompt: string;
+        customUserPrompt: string;
+        tone: string;
+      };
+
+      // Return a settings object with defaults if any property is missing
       return {
-        customSystemPrompt: store.get("customSystemPrompt"),
-        customUserPrompt: store.get("customUserPrompt"),
-        withGrammar: store.get("withGrammar"),
-        withShorten: store.get("withShorten"),
-        tone: store.get("tone"),
+        customSystemPrompt: globalSettings?.customSystemPrompt || "",
+        customUserPrompt: globalSettings?.customUserPrompt || "",
+        tone: globalSettings?.tone || "",
         temperature: store.get("temperature"),
       };
     } catch (error) {
@@ -247,6 +253,15 @@ export const registerIpcHandlers = () => {
         tone,
         temperature,
       } = settings;
+
+      // Save to the new globalSettings object
+      store.set("globalSettings", {
+        customSystemPrompt,
+        customUserPrompt,
+        tone,
+      });
+
+      // Also set to legacy fields for backward compatibility
       store.set("customSystemPrompt", customSystemPrompt);
       store.set("customUserPrompt", customUserPrompt);
       store.set("withGrammar", withGrammar);
@@ -476,7 +491,7 @@ export const registerIpcHandlers = () => {
     try {
       const apiKey = store.get("apiKey");
       if (!apiKey) throw new Error("API key not set");
-      
+
       // Get all required settings
       const promptgenSettings = store.get("settingsPromptGen");
       const model = store.get("selectedModel") as string;
@@ -493,8 +508,12 @@ export const registerIpcHandlers = () => {
         model,
         temperature,
       });
-      
-      return { success: true, ...result, autoCopy: promptgenSettings.autoCopy || false };
+
+      return {
+        success: true,
+        ...result,
+        autoCopy: promptgenSettings.autoCopy || false,
+      };
     } catch (error) {
       return {
         success: false,

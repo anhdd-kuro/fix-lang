@@ -1,5 +1,6 @@
 import { OpenAI } from "openai";
 import { DEFAULT_SUMMARIZE_PROMPT } from "~/prompts";
+import { applyGlobalSettings } from "~/prompts/utils";
 import { store } from "../../stores/apiStore";
 
 /**
@@ -21,10 +22,13 @@ export const summarizeText = async (
   if (!text || !text.trim())
     return { summarizedText: text, promptTokens: null, completionTokens: null };
   const openai = new OpenAI({ apiKey });
+  // Apply global settings to the default summarize prompt
+  const systemPrompt = applyGlobalSettings(DEFAULT_SUMMARIZE_PROMPT);
+
   const res = await openai.chat.completions.create({
     model: store.get("selectedModel"),
     messages: [
-      { role: "system", content: DEFAULT_SUMMARIZE_PROMPT },
+      { role: "system", content: systemPrompt },
       { role: "user", content: text },
     ],
     temperature: store.get("temperature") as number,

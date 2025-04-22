@@ -1,6 +1,6 @@
 import { OpenAI } from "openai";
-import { makeTonePrompt, DEFAULT_CUSTOM_PROMPT } from "~/prompts";
-import { StringPrettifier } from "~/utils";
+import { DEFAULT_CUSTOM_PROMPT } from "~/prompts";
+import { applyGlobalSettings } from "~/prompts/utils";
 import { store } from "../../stores/apiStore";
 import type { VersionEntry } from "../../stores/apiStore";
 
@@ -38,34 +38,22 @@ export const fixGrammar = async (
   // Extract only what we need
   const paraphrasePrompt = correctSettings.paraphrasePrompt;
   const userCustomInput = correctSettings.userInput;
-  const tone = store.get("tone") as string;
   // Retrieve randomization level (temperature)
   const temperature = store.get("temperature") as number;
 
-  // Build system prompt parts
-  const systemParts: string[] = [];
-
-  // First priority: user's custom system prompt
+  // Determine base system prompt
+  let baseSystemPrompt = DEFAULT_CUSTOM_PROMPT;
   if (userCustomInput) {
-    systemParts.push(userCustomInput);
-  } else {
-    // Default prompt if no custom input
-    systemParts.push(DEFAULT_CUSTOM_PROMPT);
+    baseSystemPrompt = userCustomInput;
   }
 
   // Add paraphrase prompt if available
   if (paraphrasePrompt) {
-    systemParts.push(paraphrasePrompt);
+    baseSystemPrompt = `${baseSystemPrompt}\n${paraphrasePrompt}`;
   }
 
-  // Add tone instructions if specified
-  if (tone) {
-    systemParts.push(makeTonePrompt(tone));
-  }
-
-  const systemPrompt = new StringPrettifier(systemParts.join("\n"))
-    .removeExtraSpaces()
-    .removeEmptyLines().value;
+  // Apply global settings to the base system prompt
+  const systemPrompt = applyGlobalSettings(baseSystemPrompt);
 
   // Construct the user prompt - asking to fix the provided text
   const userPrompt = `Fix the following input:\n${text}`.trim();

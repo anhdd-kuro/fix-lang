@@ -1,5 +1,6 @@
 import { OpenAI } from "openai";
 import { DEFAULT_TRANSLATE_PROMPT } from "~/prompts";
+import { applyGlobalSettings } from "~/prompts/utils";
 import { store } from "../../stores/apiStore";
 
 /**
@@ -23,10 +24,13 @@ export const translateText = async (
   const openai = new OpenAI({ apiKey });
   // Construct prompt for translation
   const userPrompt = `Translate the following text to ${targetLang}:\n${text}`;
+  // Apply global settings to the default translate prompt
+  const systemPrompt = applyGlobalSettings(DEFAULT_TRANSLATE_PROMPT);
+
   const res = await openai.chat.completions.create({
     model: store.get("selectedModel"),
     messages: [
-      { role: "system", content: DEFAULT_TRANSLATE_PROMPT },
+      { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
     temperature: 0,

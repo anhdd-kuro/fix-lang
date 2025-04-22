@@ -23,11 +23,19 @@ export type VersionEntry = {
   completionTokens?: number | null;
 };
 
+export type GlobalSettings = {
+  customSystemPrompt: string;
+  customUserPrompt: string;
+  tone: string;
+};
+
 export type SettingsStore = {
   apiKey: string;
   models: Model[];
   selectedModel: string;
   temperature: number;
+  globalSettings: GlobalSettings;
+  // Legacy fields (for backward compatibility)
   customSystemPrompt: string;
   customUserPrompt: string;
   withGrammar: boolean;
@@ -76,6 +84,15 @@ const schema = {
     },
     default: [],
   },
+  globalSettings: {
+    type: "object",
+    properties: {
+      customSystemPrompt: { type: "string", default: "" },
+      customUserPrompt: { type: "string", default: "" },
+      tone: { type: "string", default: "" },
+    },
+  },
+  // Legacy fields (for backward compatibility)
   customSystemPrompt: { type: "string", default: "" },
   customUserPrompt: { type: "string", default: "" },
   withGrammar: { type: "boolean", default: true },

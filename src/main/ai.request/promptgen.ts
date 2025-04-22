@@ -1,6 +1,6 @@
 import { OpenAI } from "openai";
 import { DEFAULT_PROMPT_GEN_PROMPT } from "~/prompts";
-import { StringPrettifier } from "~/utils";
+import { applyGlobalSettings } from "~/prompts/utils";
 
 /**
  * Settings for prompt generation
@@ -45,8 +45,8 @@ export const generatePrompt = async (
 
   const openai = new OpenAI({ apiKey });
 
-  // Prepare system prompt with constraints
-  const systemPrompt = `
+  // Prepare base system prompt with constraints
+  const baseSystemPrompt = `
     ${settings.context ? settings.context.trim() : DEFAULT_PROMPT_GEN_PROMPT}
 
     Constraints:
@@ -54,14 +54,15 @@ export const generatePrompt = async (
     ${nsfw ? "" : "- Do not generate NSFW, inappropriate, or adult content."}
   `;
 
+  // Apply global settings to the base system prompt
+  const systemPrompt = applyGlobalSettings(baseSystemPrompt);
+
   const res = await openai.chat.completions.create({
     model: model,
     messages: [
       {
         role: "system",
-        content: new StringPrettifier(systemPrompt)
-          .removeExtraSpaces()
-          .removeEmptyLines().value,
+        content: systemPrompt,
       },
       { role: "user", content: `Input:\n${text}` },
     ],
