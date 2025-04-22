@@ -42,7 +42,12 @@ export type SettingsStore = {
   translations: VersionEntry[]; // persistent translation history entries
   historySummarize: VersionEntry[];
   historyPromptGen: VersionEntry[];
-  settingsCorrect: { tone: string; paraphrase: boolean };
+  settingsCorrect: {
+    paraphrase: boolean;
+    withShorten: boolean;
+    paraphrasePrompt: string;
+    userInput: string;
+  };
   settingsSummarize: { minLength: number; maxLength: number };
   settingsTranslate: { destinationLang: string; includeExplanation: boolean };
   settingsPromptGen: {
@@ -103,10 +108,17 @@ const schema = {
   settingsCorrect: {
     type: "object",
     properties: {
-      tone: { type: "string", default: "" },
       paraphrase: { type: "boolean", default: false },
+      withShorten: { type: "boolean", default: false },
+      paraphrasePrompt: { type: "string", default: "" },
+      userInput: { type: "string", default: "" },
     },
-    default: { tone: "", paraphrase: false },
+    default: {
+      paraphrase: false,
+      withShorten: false,
+      paraphrasePrompt: "",
+      userInput: "",
+    },
   },
   settingsSummarize: {
     type: "object",

@@ -29,7 +29,12 @@ export const correctionFeature = {
   /**
    * Retrieves correction settings from the main process.
    */
-  getCorrectSettings: (): Promise<{ tone: string; paraphrase: boolean }> => {
+  getCorrectSettings: (): Promise<{ 
+    paraphrase: boolean;
+    withShorten: boolean;
+    paraphrasePrompt: string;
+    userInput: string;
+  }> => {
     return ipcRenderer.invoke("get-correct-settings");
   },
 
@@ -37,8 +42,10 @@ export const correctionFeature = {
    * Stores correction settings in the main process.
    */
   setCorrectSettings: (settings: {
-    tone: string;
     paraphrase: boolean;
+    withShorten: boolean;
+    paraphrasePrompt: string;
+    userInput: string;
   }): Promise<{ success: boolean }> => {
     return ipcRenderer.invoke("set-correct-settings", settings);
   },

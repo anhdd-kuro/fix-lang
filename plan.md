@@ -341,12 +341,15 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 
 #### 4. Merge Expand & Shorten into Paraphrase @[src]
 
-- [ ] Consolidate keybindings: use `paraphrase` (Control+Shift+P) for both expand and shorten.
-- [ ] Add toggle in settings UI to choose between “Expand” or “Shorten” mode.
-- [ ] Implement `makeParaphrasePrompt(text: string, mode: 'expand' | 'shorten')` in `src/prompts/index.ts`.
-- [ ] Expose IPC `paraphrase(text, mode)` and handle in main.
-- [ ] Show paraphrase popup with copy/close near cursor; dynamic position & size (max 400×300px).
-- [ ] Handle loading & error states (spinner, retry).
+- [x] Consolidate keybindings: use `paraphrase` (Control+Shift+P) for both expand and shorten.
+- [x] Add toggle in settings UI to choose between "Expand" or "Shorten" mode.
+- [x] Implement paraphrase options in the Correct Settings tab.
+- [x] Create separate prompt templates for Same Length, Shorten, Expand, and Custom paraphrase options.
+- [x] Implement UI for selecting paraphrase mode with radio buttons.
+- [x] Add custom prompt input field for user-defined paraphrase instructions.
+- [x] Remove tone setting from Correct tab (using global tone setting instead).
+- [x] Update the grammar.ts to use the new paraphrase settings structure.
+- [x] Handle loading & error states (spinner, retry).
 
 #### 5. Add promptGen feature
 
@@ -367,9 +370,9 @@ export function registerHotkey(win: Electron.BrowserWindow) {
   - [x] History
   - [x] Custom prompts
 - [ ] Individual settings per feature:
-  - [ ] Correct
-    - [ ] Tone input
-    - [ ] Paraphrase (try to use different words that are more concise based on context)
+  - [x] Correct
+    - [x] Paraphrase modes (Same Length, Shorten, Expand, Custom)
+    - [x] Custom paraphrase prompt
   - [ ] Summarize
     - [ ] Minimum length
     - [ ] Maximum length

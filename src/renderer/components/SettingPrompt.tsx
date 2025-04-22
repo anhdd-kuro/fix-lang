@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from "react";
 
 /**
- * Prompt settings tab for managing custom prompts.
+ * Prompt settings tab for managing custom global prompts.
  */
 const SettingPrompt: React.FC = () => {
   const [systemPrompt, setSystemPrompt] = useState<string>("");
   const [userPrompt, setUserPrompt] = useState<string>("");
-  const [withGrammar, setWithGrammar] = useState<boolean>(true);
-  const [withShorten, setWithShorten] = useState<boolean>(false);
   const [tone, setTone] = useState<string>("");
   const [temperature, setTemperature] = useState<number>(0.3);
   const [saveStatus, setSaveStatus] = useState<string>("");
@@ -17,20 +15,17 @@ const SettingPrompt: React.FC = () => {
     window.electronAPI?.getPromptSettings().then((settings) => {
       setSystemPrompt(settings.customSystemPrompt);
       setUserPrompt(settings.customUserPrompt);
-      setWithGrammar(settings.withGrammar);
-      setWithShorten(settings.withShorten);
       setTone(settings.tone);
       setTemperature(settings.temperature);
     });
   }, []);
 
-  // TODO: Add Save/Apply buttons and integrate logic
   const handleSave = async () => {
     const result = await window.electronAPI?.setPromptSettings({
       customSystemPrompt: systemPrompt,
       customUserPrompt: userPrompt,
-      withGrammar,
-      withShorten,
+      withGrammar: true, // No longer configurable in UI, always enabled
+      withShorten: false, // Moved to correct settings
       tone,
       temperature,
     });
@@ -74,16 +69,7 @@ const SettingPrompt: React.FC = () => {
 
       <div className="flex items-center gap-4">
         <label className="inline-flex items-center text-gray-300">
-          <input
-            type="checkbox"
-            checked={withShorten}
-            onChange={() => setWithShorten(!withShorten)}
-            className="form-checkbox h-4 w-4 text-blue-500"
-          />
-          <span className="ml-2">Shorten</span>
-        </label>
-        <label className="inline-flex items-center text-gray-300">
-          <span className="mx-2">Temperature</span>
+          <span className="mr-2">Temperature</span>
           <input
             id="temperature-input"
             type="number"

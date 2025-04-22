@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { twJoin } from "tailwind-merge";
-import { SettingCorrect } from "./SettingCorrect";
+import { SettingCorrection } from "./SettingCorrection";
 import { SettingGeneral } from "./SettingGeneral";
 import { SettingKeyBinding } from "./SettingKeyBinding";
 import { SettingPrompt } from "./SettingPrompt";
@@ -91,10 +91,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       component: <SettingPrompt />,
     },
     {
-      id: "correct",
-      label: "Correct",
+      id: "correction",
+      label: "Correction",
       icon: <></>,
-      component: <SettingCorrect />,
+      component: <SettingCorrection />,
     },
     {
       id: "summarize",

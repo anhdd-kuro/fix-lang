@@ -1,16 +1,8 @@
-import LanguageDetect from "languagedetect";
 import { OpenAI } from "openai";
-import {
-  DEFAULT_IMPROVE_PROMPT,
-  DEFAULT_SHORTEN_PROMPT,
-  makeDefaultSystemPrompt,
-  makeTonePrompt,
-} from "~/prompts";
+import { makeTonePrompt, DEFAULT_CUSTOM_PROMPT } from "~/prompts";
 import { StringPrettifier } from "~/utils";
 import { store } from "../../stores/apiStore";
 import type { VersionEntry } from "../../stores/apiStore";
-
-const lngDetector = new LanguageDetect();
 
 /**
  * Fixes grammar and style for the given text using OpenAI API.
@@ -41,36 +33,34 @@ export const fixGrammar = async (
   // Initialize OpenAI client *locally* with the provided key
   const openai = new OpenAI({ apiKey });
 
-  // Detect language
-  const languages = lngDetector.detect(text);
-  console.log(`🚀 \n - languages:`, languages);
-  const mostConfidentLanguages = languages.flatMap(([lang, confidence]) =>
-    confidence >= 0.5 ? lang : []
-  );
-  const promptLang =
-    mostConfidentLanguages.length > 0
-      ? [...new Set(["english", ...mostConfidentLanguages])].join(", ")
-      : "";
-
-  // Retrieve prompt settings
-  const customSystemPrompt = store.get("customSystemPrompt") as string;
-  const customUserPrompt = store.get("customUserPrompt") as string;
-  const withGrammar = store.get("withGrammar") as boolean;
-  const withShorten = store.get("withShorten") as boolean;
+  // Get correct settings
+  const correctSettings = store.get("settingsCorrect");
+  // Extract only what we need
+  const paraphrasePrompt = correctSettings.paraphrasePrompt;
+  const userCustomInput = correctSettings.userInput;
   const tone = store.get("tone") as string;
   // Retrieve randomization level (temperature)
   const temperature = store.get("temperature") as number;
 
   // Build system prompt parts
-  const systemParts: string[] = [DEFAULT_IMPROVE_PROMPT];
-  if (customSystemPrompt) {
-    systemParts.push(customSystemPrompt);
+  const systemParts: string[] = [];
+
+  // First priority: user's custom system prompt
+  if (userCustomInput) {
+    systemParts.push(userCustomInput);
   } else {
-    systemParts.push(
-      makeDefaultSystemPrompt({ languages: promptLang, input: text })
-    );
-    if (withShorten) systemParts.push(DEFAULT_SHORTEN_PROMPT);
-    if (tone) systemParts.push(makeTonePrompt(tone));
+    // Default prompt if no custom input
+    systemParts.push(DEFAULT_CUSTOM_PROMPT);
+  }
+
+  // Add paraphrase prompt if available
+  if (paraphrasePrompt) {
+    systemParts.push(paraphrasePrompt);
+  }
+
+  // Add tone instructions if specified
+  if (tone) {
+    systemParts.push(makeTonePrompt(tone));
   }
 
   const systemPrompt = new StringPrettifier(systemParts.join("\n"))
@@ -78,9 +68,7 @@ export const fixGrammar = async (
     .removeEmptyLines().value;
 
   // Construct the user prompt - asking to fix the provided text
-  const userPrompt = customUserPrompt
-    ? `${customUserPrompt}\n${text}`.trim()
-    : `Fix the following input:\n${text}`.trim();
+  const userPrompt = `Fix the following input:\n${text}`.trim();
 
   try {
     console.log(

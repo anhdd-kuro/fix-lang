@@ -265,12 +265,16 @@ export type ElectronAPI = {
 
   // --- Correct feature ---
   getCorrectSettings: () => Promise<{
-    tone: string;
     paraphrase: boolean;
+    withShorten: boolean;
+    paraphrasePrompt: string;
+    userInput: string;
   }>;
   setCorrectSettings: (settings: {
-    tone: string;
     paraphrase: boolean;
+    withShorten: boolean;
+    paraphrasePrompt: string;
+    userInput: string;
   }) => Promise<{ success: boolean }>;
   getCorrectHistory: () => Promise<VersionEntry[]>;
   clearCorrectHistory: () => Promise<{ success: boolean }>;

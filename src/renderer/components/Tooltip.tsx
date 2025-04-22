@@ -20,13 +20,12 @@ type TooltipProps = {
 const Tooltip: React.FC<TooltipProps> = ({
   tooltipText,
   width = "w-80",
-  maxHeight,
   activator,
   className = "",
 }) => {
   // Default question mark icon if no activator provided
   const defaultActivator = (
-    <div className="w-4 h-4 rounded-full bg-gray-700 flex items-center justify-center text-gray-300 border border-gray-600">
+    <div className="size-4 rounded-full bg-gray-700 flex items-center justify-center text-gray-300 border border-gray-600">
       <span className="text-xs">?</span>
     </div>
   );
@@ -35,7 +34,7 @@ const Tooltip: React.FC<TooltipProps> = ({
     <div className={`relative group cursor-help ${className}`}>
       {activator || defaultActivator}
       <div
-        className={`absolute left-0 mt-2 py-2 px-4 ${width} max-w-xs bg-gray-800 border border-gray-700 rounded shadow-lg z-10 text-gray-300 hidden group-hover:block ${maxHeight ? maxHeight : ""}`}
+        className={`absolute left-0 mt-2 py-2 px-4 ${width} max-w-xs bg-gray-800 border border-gray-700 rounded shadow-lg z-10 text-gray-300 hidden group-hover:block h-max`}
       >
         <pre className="text-xs whitespace-pre-wrap break-words">
           {tooltipText.trim()}
