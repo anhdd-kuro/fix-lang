@@ -215,7 +215,7 @@ const registerSummarizeShortcut = (_mainWindow: BrowserWindow): void => {
         store.get("maxSummaryTokens") as number
       );
       hideOverlaySpinner();
-      
+
       // Save summarization to history
       try {
         const entry = {
@@ -225,7 +225,8 @@ const registerSummarizeShortcut = (_mainWindow: BrowserWindow): void => {
           promptTokens: result.promptTokens,
           completionTokens: result.completionTokens,
         };
-        const historySummarize = (store.get("historySummarize") as VersionEntry[]) ?? [];
+        const historySummarize =
+          (store.get("historySummarize") as VersionEntry[]) ?? [];
         historySummarize.unshift(entry);
         if (historySummarize.length > 20) historySummarize.pop();
         store.set("historySummarize", historySummarize);
@@ -233,7 +234,7 @@ const registerSummarizeShortcut = (_mainWindow: BrowserWindow): void => {
       } catch (e) {
         console.error("Failed to save summarize history entry from hotkey:", e);
       }
-      
+
       showSummaryWindow({
         summarizedText: result.summarizedText,
         promptTokens: result.promptTokens,
@@ -278,28 +279,34 @@ const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
         ...promptgenSettings,
       });
       hideOverlaySpinner();
-      
+
       // Save to history if generation was successful
       if (result.prompts.length > 0) {
         try {
           // Save generated prompts to history
-          const entries = result.prompts.map((prompt) => ({
+          const entry = {
             original: selectedText,
-            corrected: prompt,
+            corrected: result.prompts.join("\n"),
             timestamp: new Date().toISOString(),
             promptTokens: result.promptTokens,
             completionTokens: result.completionTokens,
-          }));
+          };
 
-          const history = (store.get("historyPromptgen") as VersionEntry[]) ?? [];
+          const history =
+            (store.get("historyPromptgen") as VersionEntry[]) ?? [];
           // Add new entries at the beginning
-          store.set("historyPromptgen", [...entries, ...history].slice(0, 50));
-          console.log(`Saved ${entries.length} prompt generation entries to history`);
+          store.set("historyPromptgen", [entry, ...history].slice(0, 50));
+          console.log(
+            `Saved ${result.prompts.length} prompt generation to history`
+          );
         } catch (e) {
-          console.error("Failed to save prompt generation history from hotkey:", e);
+          console.error(
+            "Failed to save prompt generation history from hotkey:",
+            e
+          );
         }
       }
-      
+
       showPromptGenWindow({
         prompts: result.prompts,
         promptTokens: result.promptTokens,
