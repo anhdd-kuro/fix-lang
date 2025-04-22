@@ -251,7 +251,7 @@ export const SettingPromptGen: React.FC = () => {
             aria-label="Custom context for prompt generation"
             value={context}
             onChange={(e) => setContext(e.target.value)}
-            className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 min-h-20 text-xs"
+            className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 min-h-20 text-sm"
             placeholder="Leave empty to use default, or enter your own system prompt"
             rows={4}
           />

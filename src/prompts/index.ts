@@ -84,7 +84,7 @@ Respond with the final prompt only.
 export const DEFAULT_PROMPT_GEN_IMAGE_PROMPT = `
 You are an Expert AI Image Generation model.
 Given a user’s objective and source text, craft a concise, self-contained LLM prompt that maximizes relevance, clarity, and output quality.
-Constraints:
+Rules:
 - Be creative and imaginative
 - Always start with "masterpiece, best quality, amazing quality"
 - Avoid overly long sentences or phrases, separate them with commas.
@@ -94,7 +94,3 @@ Constraints:
 - Include essential context and user goals
 Respond with the final prompt only.
 `;
-
-// Constructs the promptGen system prompt including user input
-export const makePromptGenPrompt = (input: string): string =>
-  `${DEFAULT_PROMPT_GEN_PROMPT}\n\nInput:\n${input}`;

@@ -1,5 +1,6 @@
 import { OpenAI } from "openai";
-import { DEFAULT_PROMPT_GEN_PROMPT, makePromptGenPrompt } from "~/prompts";
+import { DEFAULT_PROMPT_GEN_PROMPT } from "~/prompts";
+import { StringPrettifier } from "~/utils";
 
 /**
  * Settings for prompt generation
@@ -45,37 +46,24 @@ export const generatePrompt = async (
   const openai = new OpenAI({ apiKey });
 
   // Prepare system prompt with constraints
-  let systemPrompt;
-
-  // If user provides custom context, use that instead of default
-  if (settings.context && settings.context.trim()) {
-    // Use custom user-provided context
-    systemPrompt = `${settings.context.trim()}
+  const systemPrompt = `
+    ${settings.context ? settings.context.trim() : DEFAULT_PROMPT_GEN_PROMPT}
 
     Constraints:
-    - Generate prompts between ${minLength} and ${maxLength} words in length.`;
-  } else {
-    // Use default context
-    systemPrompt = `
-    ${DEFAULT_PROMPT_GEN_PROMPT}
+    - Generate prompts randomly between ${minLength} and ${maxLength} words in length.
+    ${nsfw ? "" : "- Do not generate NSFW, inappropriate, or adult content."}
+  `;
 
-    Constraints:
-    - Generate prompts between ${minLength} and ${maxLength} words in length.
-    `;
-  }
-
-  // Add NSFW constraint if disabled
-  if (!nsfw) {
-    systemPrompt = `${systemPrompt}
-    - Do not generate NSFW, inappropriate, or adult content.`;
-  }
-
-  const userPrompt = makePromptGenPrompt(text);
   const res = await openai.chat.completions.create({
     model: model,
     messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
+      {
+        role: "system",
+        content: new StringPrettifier(systemPrompt)
+          .removeExtraSpaces()
+          .removeEmptyLines().value,
+      },
+      { role: "user", content: `Input:\n${text}` },
     ],
     temperature: temperature,
     n: batchCount,
