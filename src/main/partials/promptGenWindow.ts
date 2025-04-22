@@ -18,10 +18,10 @@ export function createPromptGenWindow() {
   promptGenWindow = new BrowserWindow({
     width: 600,
     height: 500,
-    transparent: false,
+    transparent: true,
     show: false,
     alwaysOnTop: true,
-    skipTaskbar: false,
+    skipTaskbar: true,
     backgroundColor: "#1e2939",
     icon: appIcon,
     titleBarStyle: "default",

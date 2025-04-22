@@ -11,6 +11,7 @@ import {
   registerTranslationHandlers,
   registerUiHandlers,
 } from "./features";
+import { setupHistoryManagerHandlers } from "./features/historyManager";
 
 /**
  * Registers all IPC handlers for the application
@@ -20,6 +21,11 @@ export const registerIpcHandlers = (): void => {
   registerUiHandlers();
   registerApiHandlers();
   registerSettingsHandlers();
+
+  // Setup centralized history management but keep feature-specific handlers
+  setupHistoryManagerHandlers();
+
+  // Register feature-specific handlers
   registerCorrectionHandlers();
   registerTranslationHandlers();
   registerSummarizationHandlers();

@@ -10,6 +10,7 @@ import {
   promptGenFeature,
   settingsFeature,
   uiFeature,
+  historyFeature,
 } from "./features";
 import type { ElectronAPI } from "./preload-api.types";
 
@@ -18,6 +19,7 @@ console.log("Preload script is being executed");
 
 // Expose a controlled API to the renderer process
 contextBridge.exposeInMainWorld("electronAPI", {
+  history: historyFeature,
   ...apiFeature,
   ...correctionFeature,
   ...translationFeature,

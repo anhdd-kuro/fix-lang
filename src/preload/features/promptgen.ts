@@ -93,4 +93,15 @@ export const promptGenFeature = {
   clearPromptGenHistory: (): Promise<{ success: boolean }> => {
     return ipcRenderer.invoke("clear-promptGen-history");
   },
+
+  /**
+   * Registers a callback for promptGen history updates
+   */
+  onPromptGenHistoryUpdated: (callback: () => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent) => callback();
+    ipcRenderer.on("promptGen-history-updated", listener);
+    return () => {
+      ipcRenderer.removeListener("promptGen-history-updated", listener);
+    };
+  },
 };

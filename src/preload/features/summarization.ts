@@ -52,7 +52,10 @@ export const summarizationFeature = {
   /**
    * Retrieves summarization settings from the main process.
    */
-  getSummarizeSettings: (): Promise<{ minLength: number; maxLength: number }> => {
+  getSummarizeSettings: (): Promise<{
+    minLength: number;
+    maxLength: number;
+  }> => {
     return ipcRenderer.invoke("get-summarize-settings");
   },
 
@@ -78,5 +81,16 @@ export const summarizationFeature = {
    */
   clearSummarizeHistory: (): Promise<{ success: boolean }> => {
     return ipcRenderer.invoke("clear-summarize-history");
+  },
+
+  /**
+   * Registers a callback for summarize history updates
+   */
+  onSummarizeHistoryUpdated: (callback: () => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent) => callback();
+    ipcRenderer.on("summarize-history-updated", listener);
+    return () => {
+      ipcRenderer.removeListener("summarize-history-updated", listener);
+    };
   },
 };

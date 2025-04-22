@@ -1,5 +1,6 @@
 import path from "path";
 import { BrowserWindow, screen, ipcMain, app } from "electron";
+import appIcon from "../../../resources/icon.ico?asset";
 
 let translationWindow: BrowserWindow | null = null;
 
@@ -13,11 +14,14 @@ export function createTranslationWindow() {
     width: 500,
     height: 350,
     transparent: true,
-    titleBarStyle: "hiddenInset",
     show: false,
     alwaysOnTop: true,
     skipTaskbar: true,
     backgroundColor: "#1e2939",
+    icon: appIcon,
+    title: "Translation",
+    titleBarStyle: "default",
+    frame: true,
     webPreferences: {
       preload: path.join(app.getAppPath(), "out/preload/index.mjs"),
       contextIsolation: true,

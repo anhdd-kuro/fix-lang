@@ -29,7 +29,7 @@ export const correctionFeature = {
   /**
    * Retrieves correction settings from the main process.
    */
-  getCorrectSettings: (): Promise<{ 
+  getCorrectSettings: (): Promise<{
     paraphrase: boolean;
     withShorten: boolean;
     paraphrasePrompt: string;

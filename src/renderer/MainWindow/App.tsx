@@ -2,6 +2,42 @@ import React, { useState, useEffect } from "react";
 import HistoryReviewModal from "../components/HistoryReviewModal";
 import { SettingsModal } from "../components/SettingsModal";
 import { TextAreaBox } from "../components/TextAreaBox";
+import type {
+  HistoryType,
+  VersionEntry,
+} from "../../preload/preload-api.types";
+
+// Define UI-specific history type for frontend use
+type UiHistoryType = "corrections" | "translations" | "summarize" | "promptGen";
+
+// Define history features configuration (duplicate from shared config)
+// This is safer than importing the actual HISTORY_FEATURES array which might contain non-UI code
+const HISTORY_FEATURES = [
+  {
+    id: "correction" as const,
+    uiKey: "corrections" as const,
+    label: "Corrections",
+  },
+  {
+    id: "translation" as const,
+    uiKey: "translations" as const,
+    label: "Translations",
+  },
+  {
+    id: "summarize" as const,
+    uiKey: "summarize" as const,
+    label: "Summarize",
+  },
+  {
+    id: "promptGen" as const,
+    uiKey: "promptGen" as const,
+    label: "Prompt Generator",
+  },
+];
+
+// Import only the HistoryType, not VersionEntry since we have a local one
+
+// Using the centralized type definitions from historyStore
 
 // Simple Gear SVG Icon Component
 const GearIcon = () => (
@@ -26,38 +62,47 @@ const GearIcon = () => (
   </svg>
 );
 
-// Version entry type for history
-type VersionEntry = {
-  original: string;
-  corrected: string;
-  timestamp: string;
-  promptTokens?: number;
-  completionTokens?: number;
-};
+// (We're using the VersionEntry type defined at the top of the file)
 
 /**
  * Main App component for FixLang Preview UI.
  * Handles API call loading spinner near the mouse, settings modal, and text display.
  */
-const App: React.FC = () => {
-  // History of past corrections and translations
-  const [history, setHistory] = useState<VersionEntry[]>([]);
-  const [translationHistory, setTranslationHistory] = useState<VersionEntry[]>(
-    []
-  );
-  const [summarizeHistory, setSummarizeHistory] = useState<VersionEntry[]>([]);
-  const [promptGenHistory, setPromptGenHistory] = useState<VersionEntry[]>([]);
-  // Using a string union for better scalability with core features
-  type HistoryType = "corrections" | "translations" | "summarize" | "promptGen";
-  const [historyType, setHistoryType] = useState<HistoryType>("corrections");
+// Helper to map UI history types to API history types
+const mapHistoryType = (uiKey: UiHistoryType): HistoryType => {
+  const feature = HISTORY_FEATURES.find((f) => f.uiKey === uiKey);
+  if (!feature) {
+    console.error(`History feature with UI key ${uiKey} not found`);
+    return "correction"; // Default fallback
+  }
+  return feature.id;
+};
 
-  // Options for history selector - representing our four main features
-  const historyOptions: { value: HistoryType; label: string }[] = [
-    { value: "corrections", label: "Corrections" },
-    { value: "translations", label: "Translations" },
-    { value: "summarize", label: "Summarize" },
-    { value: "promptGen", label: "Prompt Generator" },
-  ];
+const App: React.FC = () => {
+  // History state for all features using a unified approach
+  const [histories, setHistories] = useState<
+    Record<HistoryType, VersionEntry[]>
+  >({
+    correction: [],
+    translation: [],
+    summarize: [],
+    promptGen: [],
+  });
+
+  // History type selector state
+  const [historyType, setHistoryType] = useState<UiHistoryType>("corrections");
+
+  // Helper to get the current history based on selected type
+  const getCurrentHistory = (): VersionEntry[] => {
+    const featureId = mapHistoryType(historyType);
+    return histories[featureId] || [];
+  };
+
+  // Options for history selector - using our local configuration
+  const historyOptions: { value: UiHistoryType; label: string }[] =
+    HISTORY_FEATURES.map((feature) => {
+      return { value: feature.uiKey, label: feature.label };
+    });
   const [initialSettingsTab, setInitialSettingsTab] = useState<number>(0);
   // State for text areas
   const [originalText, setOriginalText] = useState<string>("");
@@ -110,9 +155,38 @@ const App: React.FC = () => {
         setLoading(false);
       }
     );
+
+    // Set up history update listeners for all features using our unified API
+    const historyTypes: HistoryType[] = HISTORY_FEATURES.map(
+      (feature) => feature.id
+    );
+    const historyListeners = historyTypes.map((type) => {
+      return window.electronAPI.history[type].onHistoryUpdated(() => {
+        console.log(`Received ${type} history update event`);
+        window.electronAPI.history[type]
+          .getHistory()
+          .then((entries: VersionEntry[]) => {
+            console.log(
+              `Updated ${type} history:`,
+              entries?.length || 0,
+              "entries"
+            );
+            setHistories((prev) => ({
+              ...prev,
+              [type]: entries || [],
+            }));
+          })
+          .catch((err: Error) =>
+            console.error(`Failed to fetch updated ${type} history`, err)
+          );
+      });
+    });
+
     return () => {
       removeStartLoading?.();
       removeUpdateText?.();
+      // Clean up all history listeners
+      historyListeners.forEach((removeListener) => removeListener?.());
     };
   }, []);
 
@@ -152,37 +226,41 @@ const App: React.FC = () => {
   }, []);
 
   // Fetch both histories on mount or when texts change
+  // Load all histories when component mounts or when text is fixed
   useEffect(() => {
-    window.electronAPI
-      .getCorrectHistory()
-      .then((h) => setHistory(h))
-      .catch((e) => console.error("Failed to load correction history", e));
-    window.electronAPI
-      .getTranslationHistory()
-      .then((t) => setTranslationHistory(t))
-      .catch((e) => console.error("Failed to load translation history", e));
-    // Load summarize history (specify VersionEntry[] type for type safety)
-    window.electronAPI
-      .getSummarizeHistory()
-      .then((s: VersionEntry[]) => {
-        console.log("Loaded summarize history:", s?.length || 0, "entries");
-        setSummarizeHistory(s || []);
-      })
-      .catch((e: Error) =>
-        console.error("Failed to load summarize history", e)
+    // Use Promise.all to load all histories in parallel
+    const historyTypes: HistoryType[] = HISTORY_FEATURES.map(
+      (feature) => feature.id
+    );
+
+    Promise.all(
+      historyTypes.map((type) =>
+        window.electronAPI.history[type]
+          .getHistory()
+          .then((entries: VersionEntry[]) => ({ type, entries }))
+          .catch((error: Error) => {
+            console.error(`Failed to load ${type} history:`, error);
+            return { type, entries: [] as VersionEntry[] };
+          })
+      )
+    ).then((results) => {
+      // Build a new histories object using the results
+      const newHistories = { ...histories };
+
+      results.forEach(
+        ({ type, entries }: { type: HistoryType; entries: VersionEntry[] }) => {
+          console.log(
+            `Loaded ${type} history:`,
+            entries?.length || 0,
+            "entries"
+          );
+          newHistories[type] = entries || [];
+        }
       );
 
-    // Load promptGen history (specify VersionEntry[] type for type safety)
-    window.electronAPI
-      .getPromptGenHistory()
-      .then((p: VersionEntry[]) => {
-        console.log("Loaded promptGen history:", p?.length || 0, "entries");
-        setPromptGenHistory(p || []);
-      })
-      .catch((e: Error) =>
-        console.error("Failed to load promptGen history", e)
-      );
-  }, [fixedText]);
+      setHistories(newHistories);
+    });
+  }, [fixedText, histories]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans flex">
@@ -195,7 +273,7 @@ const App: React.FC = () => {
             <select
               id="history-selector"
               value={historyType}
-              onChange={(e) => setHistoryType(e.target.value as HistoryType)}
+              onChange={(e) => setHistoryType(e.target.value as UiHistoryType)}
               className="w-full bg-gray-700 text-white border border-gray-600 rounded py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               aria-label="Select history type"
             >
@@ -208,16 +286,7 @@ const App: React.FC = () => {
           </div>
         </div>
         <ul className="divide-y divide-gray-700 flex-1 overflow-y-auto">
-          {(historyType === "corrections"
-            ? history
-            : historyType === "translations"
-              ? translationHistory
-              : historyType === "summarize"
-                ? summarizeHistory
-                : historyType === "promptGen"
-                  ? promptGenHistory
-                  : []
-          ).map((entry, idx) => (
+          {getCurrentHistory().map((entry, idx) => (
             <li
               key={idx}
               className="py-2 hover:bg-gray-700 cursor-pointer px-2"
@@ -240,30 +309,18 @@ const App: React.FC = () => {
         <button
           type="button"
           onClick={() => {
-            switch (historyType) {
-              case "corrections":
-                window.electronAPI
-                  .clearCorrectHistory()
-                  .then(() => setHistory([]));
-                break;
-              case "translations":
-                window.electronAPI
-                  .clearTranslationHistory()
-                  .then(() => setTranslationHistory([]));
-                break;
-              case "summarize":
-                window.electronAPI
-                  .clearSummarizeHistory()
-                  .then(() => setSummarizeHistory([]));
-                break;
-              case "promptGen":
-                window.electronAPI
-                  .clearPromptGenHistory()
-                  .then(() => setPromptGenHistory([]));
-                break;
-              default:
-                console.error(`Unknown history type: ${historyType}`);
-            }
+            const featureId = mapHistoryType(historyType);
+            window.electronAPI.history[featureId]
+              .clearHistory()
+              .then(() => {
+                setHistories((prev) => ({
+                  ...prev,
+                  [featureId]: [],
+                }));
+              })
+              .catch((err: Error) =>
+                console.error(`Failed to clear ${featureId} history`, err)
+              );
           }}
           className="flex items-center gap-2 text-sm text-red-400 hover:text-red-600 ml-auto mt-4 justify-end"
         >

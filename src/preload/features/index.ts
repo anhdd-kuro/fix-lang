@@ -6,3 +6,4 @@ export * from "./summarization";
 export * from "./promptGen";
 export * from "./settings";
 export * from "./ui";
+export * from "./history";

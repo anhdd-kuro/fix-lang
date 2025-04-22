@@ -2,8 +2,11 @@
  * Shared type definition for all APIs exposed by Electron preload script.
  * Import this type in both preload and global electron.d.ts for DRY and type-safe IPC.
  */
-
+import type { HistoryType, HistoryEntry } from "./features/history";
 import type { Model } from "openai/resources.mjs";
+
+// Re-export the history type for use in renderer
+export type { HistoryType };
 
 export type TextUpdatePayload = {
   original: string;
@@ -24,18 +27,29 @@ export type KeyBindings = {
 };
 
 /**
- * Entry in version history of corrections.
+ * Interface for unified history operations on a specific feature
  */
-export type VersionEntry = {
-  /** Original text before correction */
-  original: string;
-  /** Corrected text after processing */
-  corrected: string;
-  /** ISO timestamp when correction occurred */
-  timestamp: string;
+export type HistoryOperations = {
+  /** Gets history entries for this feature */
+  getHistory: () => Promise<HistoryEntry[]>;
+  /** Clears history for this feature */
+  clearHistory: () => Promise<{ success: boolean }>;
+  /** Registers a callback for history updates */
+  onHistoryUpdated: (callback: () => void) => () => void;
 };
 
+/**
+ * Entry in version history of corrections.
+ * Re-exported from the history feature
+ */
+export type VersionEntry = HistoryEntry;
+
 export type ElectronAPI = {
+  /**
+   * Unified history management interfaces for all features
+   */
+  history: Record<HistoryType, HistoryOperations>;
+
   /**
    * Fetches available OpenAI models via main process.
    */
@@ -303,6 +317,11 @@ export type ElectronAPI = {
   clearPromptGenHistory: () => Promise<{ success: boolean }>;
 
   /**
+   * Registers a callback for promptGen history updates
+   */
+  onPromptGenHistoryUpdated: (callback: () => void) => () => void;
+
+  /**
    * Registers a callback for promptGen-data event from main process.
    */
   onPromptGenData: (
@@ -351,6 +370,11 @@ export type ElectronAPI = {
   }) => Promise<{ success: boolean }>;
   getSummarizeHistory: () => Promise<VersionEntry[]>;
   clearSummarizeHistory: () => Promise<{ success: boolean }>;
+
+  /**
+   * Registers a callback for summarize history updates
+   */
+  onSummarizeHistoryUpdated: (callback: () => void) => () => void;
 
   /**
    * Registers a callback for settings updated event from main process.

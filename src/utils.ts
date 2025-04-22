@@ -62,12 +62,13 @@ const copyHighlightedText = () => {
     const script = `
       tell application "System Events"
         keystroke "c" using command down
-        delay 0.1
+        delay 0.3
       end tell
       return the clipboard
     `;
 
     exec(`osascript -e '${script}'`, (error, stdout) => {
+      console.log(`🚀 \n - exec \n - stdout:`, stdout);
       if (error) {
         reject(`Error: ${error.message}`);
         return;
