@@ -42,12 +42,20 @@ type VersionEntry = {
 const App: React.FC = () => {
   // History of past corrections and translations
   const [history, setHistory] = useState<VersionEntry[]>([]);
-  const [translationHistory, setTranslationHistory] = useState<VersionEntry[]>(
-    []
-  );
-  const [historyTab, setHistoryTab] = useState<"corrections" | "translations">(
-    "corrections"
-  );
+  const [translationHistory, setTranslationHistory] = useState<VersionEntry[]>([]);
+  const [summarizeHistory, setSummarizeHistory] = useState<VersionEntry[]>([]);
+  const [promptgenHistory, setPromptgenHistory] = useState<VersionEntry[]>([]);
+  // Using a string union for better scalability with core features
+  type HistoryType = "corrections" | "translations" | "summarize" | "promptgen";
+  const [historyType, setHistoryType] = useState<HistoryType>("corrections");
+
+  // Options for history selector - representing our four main features
+  const historyOptions: { value: HistoryType; label: string }[] = [
+    { value: "corrections", label: "Corrections" },
+    { value: "translations", label: "Translations" },
+    { value: "summarize", label: "Summarize" },
+    { value: "promptgen", label: "Prompt Generator" },
+  ];
   const [initialSettingsTab, setInitialSettingsTab] = useState<number>(0);
   // State for text areas
   const [originalText, setOriginalText] = useState<string>("");
@@ -125,7 +133,10 @@ const App: React.FC = () => {
     });
     const offHistory = window.electronAPI.onOpenHistoryDialog?.(async () => {
       const history = await window.electronAPI.getCorrectHistory();
-      const last = history[history.length - 1] || { original: "", corrected: "" };
+      const last = history[history.length - 1] || {
+        original: "",
+        corrected: "",
+      };
       setLastHistoryData(last);
       setShowHistoryReview(true);
     });
@@ -148,6 +159,23 @@ const App: React.FC = () => {
       .getTranslationHistory()
       .then((t) => setTranslationHistory(t))
       .catch((e) => console.error("Failed to load translation history", e));
+    // Load summarize history (specify VersionEntry[] type for type safety)
+    window.electronAPI
+      .getSummarizeHistory()
+      .then((s: VersionEntry[]) => {
+        console.log("Loaded summarize history:", s?.length || 0, "entries");
+        setSummarizeHistory(s || []);
+      })
+      .catch((e: Error) => console.error("Failed to load summarize history", e));
+    
+    // Load promptgen history (specify VersionEntry[] type for type safety)  
+    window.electronAPI
+      .getPromptgenHistory()
+      .then((p: VersionEntry[]) => {
+        console.log("Loaded promptgen history:", p?.length || 0, "entries");
+        setPromptgenHistory(p || []);
+      })
+      .catch((e: Error) => console.error("Failed to load promptgen history", e));
   }, [fixedText]);
 
   return (
@@ -156,56 +184,79 @@ const App: React.FC = () => {
       <aside
         className={`relative z-10 flex flex-col bg-gray-800 border-r border-gray-700 h-screen transform transition-all duration-300 ease-in-out group *:transition-opacity *:duration-300 ${historyOpen ? "p-4 translate-x-0 w-64 " : "-translate-x-full w-0 overflow-hidden px-0 py-4 *:opacity-0"}`}
       >
-        <div className="flex justify-between items-center mb-2 sticky top-0 bg-gray-800">
-          <div className="flex items-center space-x-4">
-            <button
-              type="button"
-              className={`px-2 py-1 rounded ${historyTab === "corrections" ? "bg-blue-600 text-white" : "text-gray-400"}`}
-              onClick={() => setHistoryTab("corrections")}
+        <div className="flex justify-between items-center mb-4 sticky top-0 bg-gray-800 z-10">
+          <div className="w-full">
+            <select
+              id="history-selector"
+              value={historyType}
+              onChange={(e) => setHistoryType(e.target.value as HistoryType)}
+              className="w-full bg-gray-700 text-white border border-gray-600 rounded py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              aria-label="Select history type"
             >
-              Corrections
-            </button>
-            <button
-              type="button"
-              className={`px-2 py-1 rounded ${historyTab === "translations" ? "bg-blue-600 text-white" : "text-gray-400"}`}
-              onClick={() => setHistoryTab("translations")}
-            >
-              Translations
-            </button>
+              {historyOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
         <ul className="divide-y divide-gray-700 flex-1 overflow-y-auto">
-          {(historyTab === "corrections" ? history : translationHistory).map(
-            (entry, idx) => (
-              <li
-                key={idx}
-                className="py-2 hover:bg-gray-700 cursor-pointer px-2"
-                onClick={() => {
-                  setOriginalText(entry.original);
-                  setFixedText(entry.corrected);
-                  setPromptTokens(entry.promptTokens ?? null);
-                  setCompletionTokens(entry.completionTokens ?? null);
-                }}
-              >
-                <div className="text-sm text-gray-400">
-                  {new Date(entry.timestamp).toLocaleString()}
-                </div>
-                <div className="text-sm text-gray-100">
-                  {entry.original.slice(0, 50)}...
-                </div>
-              </li>
-            )
-          )}
+          {(historyType === "corrections"
+            ? history
+            : historyType === "translations"
+              ? translationHistory
+              : historyType === "summarize"
+                ? summarizeHistory
+                : historyType === "promptgen"
+                  ? promptgenHistory
+                  : []
+          ).map((entry, idx) => (
+            <li
+              key={idx}
+              className="py-2 hover:bg-gray-700 cursor-pointer px-2"
+              onClick={() => {
+                setOriginalText(entry.original);
+                setFixedText(entry.corrected);
+                setPromptTokens(entry.promptTokens ?? null);
+                setCompletionTokens(entry.completionTokens ?? null);
+              }}
+            >
+              <div className="text-sm text-gray-400">
+                {new Date(entry.timestamp).toLocaleString()}
+              </div>
+              <div className="text-sm text-gray-100">
+                {entry.original.slice(0, 50)}...
+              </div>
+            </li>
+          ))}
         </ul>
         <button
           type="button"
           onClick={() => {
-            if (historyTab === "corrections") {
-              window.electronAPI.clearCorrectHistory().then(() => setHistory([]));
-            } else {
-              window.electronAPI
-                .clearTranslationHistory()
-                .then(() => setTranslationHistory([]));
+            switch (historyType) {
+              case "corrections":
+                window.electronAPI
+                  .clearCorrectHistory()
+                  .then(() => setHistory([]));
+                break;
+              case "translations":
+                window.electronAPI
+                  .clearTranslationHistory()
+                  .then(() => setTranslationHistory([]));
+                break;
+              case "summarize":
+                window.electronAPI
+                  .clearSummarizeHistory()
+                  .then(() => setSummarizeHistory([]));
+                break;
+              case "promptgen":
+                window.electronAPI
+                  .clearPromptgenHistory()
+                  .then(() => setPromptgenHistory([]));
+                break;
+              default:
+                console.error(`Unknown history type: ${historyType}`);
             }
           }}
           className="flex items-center gap-2 text-sm text-red-400 hover:text-red-600 ml-auto mt-4 justify-end"

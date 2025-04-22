@@ -11,7 +11,7 @@ export type KeyBindings = {
   correction: string;
   translate: string; // keyboard shortcut for translation
   summarize: string; // condense selected text into a brief summary
-  promptGen: string; // generate a new prompt based on current selection
+  promptgen: string; // generate a new prompt based on current selection
 };
 
 // New type for version entries
@@ -30,31 +30,31 @@ export type GlobalSettings = {
 };
 
 export type SettingsStore = {
+  // Core API settings
   apiKey: string;
   models: Model[];
   selectedModel: string;
   temperature: number;
+
+  // Global settings that apply across features
   globalSettings: GlobalSettings;
-  // Legacy fields (for backward compatibility)
-  customSystemPrompt: string;
-  customUserPrompt: string;
-  withGrammar: boolean;
-  withShorten: boolean;
-  tone: string;
-  history: VersionEntry[]; // persistent correction history
-  translationTargetLang: string; // persistent translation target language
-  translations: VersionEntry[]; // persistent translation history entries
-  historySummarize: VersionEntry[];
-  historyPromptGen: VersionEntry[];
+
+  // Feature-specific settings
   settingsCorrect: {
     paraphrase: boolean;
     withShorten: boolean;
     paraphrasePrompt: string;
     userInput: string;
   };
-  settingsSummarize: { minLength: number; maxLength: number };
-  settingsTranslate: { destinationLang: string; includeExplanation: boolean };
-  settingsPromptGen: {
+  settingsTranslate: {
+    destinationLang: string;
+    includeExplanation: boolean;
+  };
+  settingsSummarize: {
+    minLength: number;
+    maxLength: number;
+  };
+  settingsPromptgen: {
     minLength: number;
     maxLength: number;
     batchCount: number;
@@ -62,6 +62,20 @@ export type SettingsStore = {
     context: string;
     autoCopy: boolean;
   };
+
+  // History for each feature
+  history: VersionEntry[]; // corrections history
+  translations: VersionEntry[];
+  historySummarize: VersionEntry[];
+  historyPromptgen: VersionEntry[];
+
+  // Legacy fields (for backward compatibility)
+  customSystemPrompt: string;
+  customUserPrompt: string;
+  withGrammar: boolean;
+  withShorten: boolean;
+  tone: string;
+  translationTargetLang: string; // deprecated, use settingsTranslate.destinationLang
 };
 
 const schema = {
@@ -91,6 +105,11 @@ const schema = {
       customUserPrompt: { type: "string", default: "" },
       tone: { type: "string", default: "" },
     },
+    default: {
+      customSystemPrompt: "",
+      customUserPrompt: "",
+      tone: ""
+    },
   },
   // Legacy fields (for backward compatibility)
   customSystemPrompt: { type: "string", default: "" },
@@ -117,7 +136,7 @@ const schema = {
     default: [],
   },
   historySummarize: { type: "array", default: [] },
-  historyPromptGen: { type: "array", default: [] },
+  historyPromptgen: { type: "array", default: [] },
   settingsCorrect: {
     type: "object",
     properties: {
@@ -149,7 +168,7 @@ const schema = {
     },
     default: { destinationLang: "", includeExplanation: false },
   },
-  settingsPromptGen: {
+  settingsPromptgen: {
     type: "object",
     properties: {
       minLength: { type: "number", default: 50 },
@@ -158,6 +177,14 @@ const schema = {
       nsfw: { type: "boolean", default: true },
       context: { type: "string", default: "" },
       autoCopy: { type: "boolean", default: false },
+    },
+    default: {
+      minLength: 50,
+      maxLength: 150,
+      batchCount: 5,
+      nsfw: true,
+      context: "",
+      autoCopy: false
     },
   },
 } satisfies Schema<SettingsStore>;

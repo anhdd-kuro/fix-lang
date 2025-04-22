@@ -25,6 +25,21 @@ export const registerCorrectionHandlers = () => {
       };
     }
   });
+  
+  // Alias for get-correction-settings to match preload API naming
+  ipcMain.handle("get-correct-settings", async () => {
+    try {
+      return store.get("settingsCorrect");
+    } catch (error) {
+      console.error("Error getting correct settings:", error);
+      return {
+        paraphrase: false,
+        withShorten: false,
+        paraphrasePrompt: "",
+        userInput: "",
+      };
+    }
+  });
 
   // Set correction settings
   ipcMain.handle("set-correction-settings", async (_event: Electron.IpcMainInvokeEvent, settings) => {

@@ -15,12 +15,32 @@ export const registerTranslationHandlers = () => {
   // Get translation settings
   ipcMain.handle("get-translation-settings", async () => {
     try {
-      return store.get("settingsTranslate") || {
+      return (
+        store.get("settingsTranslate") || {
+          destinationLang: "",
+          includeExplanation: false,
+        }
+      );
+    } catch (error) {
+      console.error("Error getting translation settings:", error);
+      return {
         destinationLang: "",
         includeExplanation: false,
       };
+    }
+  });
+  
+  // Alias for get-translation-settings to match preload API naming
+  ipcMain.handle("get-translate-settings", async () => {
+    try {
+      return (
+        store.get("settingsTranslate") || {
+          destinationLang: "",
+          includeExplanation: false,
+        }
+      );
     } catch (error) {
-      console.error("Error getting translation settings:", error);
+      console.error("Error getting translate settings:", error);
       return {
         destinationLang: "",
         includeExplanation: false,
@@ -71,7 +91,11 @@ export const registerTranslationHandlers = () => {
   // Translate text
   ipcMain.handle(
     "translate-text",
-    async (_event, text: string, targetLang: string): Promise<{
+    async (
+      _event,
+      text: string,
+      targetLang: string
+    ): Promise<{
       success: boolean;
       translatedText?: string;
       error?: string;
@@ -89,7 +113,7 @@ export const registerTranslationHandlers = () => {
         }
 
         const result = await translateText(apiKey, text, targetLang);
-        
+
         // Save translation to history
         try {
           const entry: VersionEntry = {
@@ -99,7 +123,8 @@ export const registerTranslationHandlers = () => {
             promptTokens: result.promptTokens,
             completionTokens: result.completionTokens,
           };
-          const translations = (store.get("translations") as VersionEntry[]) ?? [];
+          const translations =
+            (store.get("translations") as VersionEntry[]) ?? [];
           translations.unshift(entry);
           if (translations.length > 20) translations.pop();
           store.set("translations", translations);
@@ -126,14 +151,23 @@ export const registerTranslationHandlers = () => {
   // Show translation window
   ipcMain.handle(
     "show-translation-window",
-    async (_event, params: {
-      text: string;
-      x: number;
-      y: number;
-    }): Promise<boolean> => {
+    async (
+      _event,
+      params: {
+        text: string;
+        x: number;
+        y: number;
+      }
+    ): Promise<boolean> => {
       try {
         // Ensure the function returns a boolean
-        showTranslationWindow(params.text, params.x, params.y);
+        showTranslationWindow({
+          translatedText: params.text,
+          x: params.x,
+          y: params.y,
+          promptTokens: null,
+          completionTokens: null
+        });
         return true;
       } catch (error) {
         console.error("Error showing translation window:", error);

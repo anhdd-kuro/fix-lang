@@ -20,7 +20,7 @@ export type KeyBindings = {
   /** Keybinding for summarize */
   summarize: string;
   /** Keybinding for prompt generation */
-  promptGen: string;
+  promptgen: string;
 };
 
 /**

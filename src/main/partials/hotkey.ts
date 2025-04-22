@@ -215,6 +215,25 @@ const registerSummarizeShortcut = (_mainWindow: BrowserWindow): void => {
         store.get("maxSummaryTokens") as number
       );
       hideOverlaySpinner();
+      
+      // Save summarization to history
+      try {
+        const entry = {
+          original: selectedText,
+          corrected: result.summarizedText,
+          timestamp: new Date().toISOString(),
+          promptTokens: result.promptTokens,
+          completionTokens: result.completionTokens,
+        };
+        const historySummarize = (store.get("historySummarize") as VersionEntry[]) ?? [];
+        historySummarize.unshift(entry);
+        if (historySummarize.length > 20) historySummarize.pop();
+        store.set("historySummarize", historySummarize);
+        console.log(`Saved summarize entry to history`);
+      } catch (e) {
+        console.error("Failed to save summarize history entry from hotkey:", e);
+      }
+      
       showSummaryWindow({
         summarizedText: result.summarizedText,
         promptTokens: result.promptTokens,
@@ -232,7 +251,7 @@ const registerSummarizeShortcut = (_mainWindow: BrowserWindow): void => {
 
 // Registers the global shortcut for prompt generation
 const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
-  const promptGenShortcut = keybindingStore.getKeyBindings().promptGen;
+  const promptGenShortcut = keybindingStore.getKeyBindings().promptgen;
   if (!promptGenShortcut) return;
 
   const ret = globalShortcut.register(promptGenShortcut, async () => {
@@ -247,23 +266,40 @@ const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
       const { x, y } = screen.getCursorScreenPoint();
       showOverlaySpinner();
       // Get all required settings
-      const promptgenSettings = store.get("settingsPromptGen");
+      const promptgenSettings = store.get("settingsPromptgen");
       const model = store.get("selectedModel") as string;
       const temperature = store.get("temperature") as number;
 
-      // Create settings object matching PromptGenSettings type
       const result = await generatePrompt({
         apiKey,
         text: selectedText,
-        minLength: promptgenSettings.minLength,
-        maxLength: promptgenSettings.maxLength,
-        batchCount: promptgenSettings.batchCount,
-        nsfw: promptgenSettings.nsfw,
-        context: promptgenSettings.context || "",
         model,
         temperature,
+        ...promptgenSettings,
       });
       hideOverlaySpinner();
+      
+      // Save to history if generation was successful
+      if (result.prompts.length > 0) {
+        try {
+          // Save generated prompts to history
+          const entries = result.prompts.map((prompt) => ({
+            original: selectedText,
+            corrected: prompt,
+            timestamp: new Date().toISOString(),
+            promptTokens: result.promptTokens,
+            completionTokens: result.completionTokens,
+          }));
+
+          const history = (store.get("historyPromptgen") as VersionEntry[]) ?? [];
+          // Add new entries at the beginning
+          store.set("historyPromptgen", [...entries, ...history].slice(0, 50));
+          console.log(`Saved ${entries.length} prompt generation entries to history`);
+        } catch (e) {
+          console.error("Failed to save prompt generation history from hotkey:", e);
+        }
+      }
+      
       showPromptGenWindow({
         prompts: result.prompts,
         promptTokens: result.promptTokens,

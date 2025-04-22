@@ -42,14 +42,21 @@ export const registerApiHandlers = () => {
       const storedModels = store.get("models");
       if (storedModels?.length > 0 && !refetch) {
         console.log("Using cached models from store");
-        return storedModels;
+        return { 
+          success: true, 
+          models: storedModels 
+        };
       }
 
       console.log("Fetching OpenAI models...");
       const apiKey = store.get("apiKey");
       if (!apiKey) {
         console.error("No API key found in store");
-        return [];
+        return { 
+          success: false, 
+          error: "API key not set", 
+          models: [] 
+        };
       }
 
       const models = await fetchOpenAIModels(apiKey);
@@ -57,10 +64,18 @@ export const registerApiHandlers = () => {
       
       // Store the fetched models
       store.set("models", models);
-      return models;
+      return { 
+        success: true, 
+        models: models 
+      };
     } catch (error) {
       console.error("Error in fetch-openai-models handler:", error);
-      return [];
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { 
+        success: false, 
+        error: errorMessage, 
+        models: [] 
+      };
     }
   });
 

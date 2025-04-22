@@ -21,11 +21,12 @@ export const registerSettingsHandlers = () => {
         return keybindingStore.getKeyBindings();
       } catch (error) {
         console.error("Failed to get key bindings:", error);
+        // Using the same defaults as in const.ts (source of truth)
         return {
-          correction: "CommandOrControl+Shift+C",
-          translate: "CommandOrControl+Shift+T",
-          summarize: "CommandOrControl+Shift+S",
-          promptGen: "CommandOrControl+Shift+P",
+          correction: "Control+Shift+F",
+          translate: "Control+Shift+T",
+          summarize: "Control+Shift+S",
+          promptgen: "Control+Shift+G",
         };
       }
     }
@@ -62,11 +63,12 @@ export const registerSettingsHandlers = () => {
         return keybindingStore.getKeyBindings();
       } catch (error) {
         console.error("Failed to reset key bindings:", error);
+        // Using the same defaults as in const.ts (source of truth)
         return {
-          correction: "CommandOrControl+Shift+C",
-          translate: "CommandOrControl+Shift+T",
-          summarize: "CommandOrControl+Shift+S",
-          promptGen: "CommandOrControl+Shift+P",
+          correction: "Control+Shift+F",
+          translate: "Control+Shift+T",
+          summarize: "Control+Shift+S",
+          promptgen: "Control+Shift+G",
         };
       }
     }
