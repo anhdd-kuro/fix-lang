@@ -25,6 +25,7 @@ export function createTrayWindow(): BrowserWindow {
     alwaysOnTop: true,
     skipTaskbar: true,
     transparent: true,
+    backgroundColor: "#1e2939",
     hasShadow: false,
     webPreferences: {
       preload: path.join(app.getAppPath(), "out/preload/index.mjs"),

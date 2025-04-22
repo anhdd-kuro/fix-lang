@@ -419,6 +419,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   clearCorrectHistory: (): Promise<{ success: boolean }> =>
     ipcRenderer.invoke("clear-correct-history"),
 
+  /**
+   * Retrieves the last correction history entry (most recent).
+   */
+  getLastHistory: (): Promise<{ original: string; corrected: string }> =>
+    ipcRenderer.invoke("get-last-history"),
+
   // --- Summarize feature ---
   getSummarizeSettings: (): Promise<{ minLength: number; maxLength: number }> =>
     ipcRenderer.invoke("get-summarize-settings"),

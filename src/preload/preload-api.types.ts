@@ -275,6 +275,11 @@ export type ElectronAPI = {
   getCorrectHistory: () => Promise<VersionEntry[]>;
   clearCorrectHistory: () => Promise<{ success: boolean }>;
 
+  /**
+   * Retrieves the last correction history entry (most recent).
+   */
+  getLastHistory: () => Promise<{ original: string; corrected: string }>;
+
   // --- PromptGen feature ---
   getPromptgenSettings: () => Promise<{
     minLength: number;
