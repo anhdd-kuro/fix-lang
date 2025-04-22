@@ -13,12 +13,10 @@ export type TextUpdatePayload = {
 };
 
 export type KeyBindings = {
-  fix: string;
-  undo: string;
-  retry: string;
+  /** Keybinding for correction */
+  correction: string;
   /** Keybinding for translation */
   translate: string;
-  /** Keybinding for prompt generation */
   /** Keybinding for summarize */
   summarize: string;
   /** Keybinding for prompt generation */

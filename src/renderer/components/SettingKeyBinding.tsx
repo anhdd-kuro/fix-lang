@@ -5,9 +5,7 @@ export const SettingKeyBinding: React.FC = () => {
   const [keyBindings, setKeyBindings] = useState<KeyBindings | null>(null);
   const [keyBindingsStatus, setKeyBindingsStatus] = useState<string>("");
   const [errors, setErrors] = useState<Record<keyof KeyBindings, string>>({
-    fix: "",
-    undo: "",
-    retry: "",
+    correction: "",
     translate: "",
     summarize: "",
     promptGen: "",
@@ -104,9 +102,7 @@ export const SettingKeyBinding: React.FC = () => {
       const defaults = await window.electronAPI.resetKeyBindings();
       setKeyBindings(defaults);
       setErrors({
-        fix: "",
-        undo: "",
-        retry: "",
+        correction: "",
         translate: "",
         summarize: "",
         promptGen: "",
@@ -121,37 +117,39 @@ export const SettingKeyBinding: React.FC = () => {
 
   return (
     <section className="flex flex-col gap-6">
-      {keyBindings &&
-        (
-          [
-            "fix",
-            "undo",
-            "retry",
-            "translate",
-            "summarize",
-            "promptGen",
-          ] as (keyof KeyBindings)[]
-        ).map((cmd) => (
-          <div key={cmd} className="flex items-center gap-2">
-            <label
-              htmlFor={`hotkey-${cmd}`}
-              className="w-20 text-gray-300 capitalize"
-            >
-              {cmd}
-            </label>
-            <input
-              id={`hotkey-${cmd}`}
-              type="text"
-              value={keyBindings[cmd]}
-              onKeyDown={(e) => handleKeyDown(e, cmd)}
-              placeholder="Press shortcut"
-              className={`flex-1 px-2 py-1 bg-gray-700 text-white rounded ${
-                errors[cmd] ? "border border-red-400" : "border border-gray-600"
-              }`}
-              aria-label={`Hotkey for ${cmd}`}
-            />
-          </div>
-        ))}
+      <ul className="flex flex-col gap-6">
+        {keyBindings &&
+          (
+            [
+              "correction",
+              "translate",
+              "summarize",
+              "promptGen",
+            ] as (keyof KeyBindings)[]
+          ).map((cmd) => (
+            <li key={cmd} className="flex items-center gap-6">
+              <label
+                htmlFor={`hotkey-${cmd}`}
+                className="w-20 text-gray-300 capitalize"
+              >
+                {cmd}
+              </label>
+              <input
+                id={`hotkey-${cmd}`}
+                type="text"
+                value={keyBindings[cmd]}
+                onKeyDown={(e) => handleKeyDown(e, cmd)}
+                placeholder="Press shortcut"
+                className={`flex-1 px-2 py-1 bg-gray-700 text-white rounded ${
+                  errors[cmd]
+                    ? "border border-red-400"
+                    : "border border-gray-600"
+                }`}
+                aria-label={`Hotkey for ${cmd}`}
+              />
+            </li>
+          ))}
+      </ul>
       <div className="flex flex-col gap-4 mt-4">
         <button
           type="button"
