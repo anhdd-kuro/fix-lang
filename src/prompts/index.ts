@@ -6,7 +6,7 @@ export const makeDefaultSystemPrompt = ({
   input: string;
 }) => {
   const generalRules = `
-    Preserve original formatting (symbols, markdown, code blocks, etc). Do not add extra spaces.
+    Preserve original formatting (symbols, markdown, code blocks, etc). Do not add extra spaces. Separate sentences with periods.
     Respond with the result text only.
   `;
 
@@ -83,13 +83,15 @@ Respond with the final prompt only.
 
 export const DEFAULT_PROMPT_GEN_IMAGE_PROMPT = `
 You are an Expert AI Image Generation model.
-Given a user’s objective and source text, craft a concise, self‑contained LLM prompt that maximizes relevance, clarity and output quality.
+Given a user’s objective and source text, craft a concise, self-contained LLM prompt that maximizes relevance, clarity, and output quality.
 Constraints:
 - Be creative and imaginative
 - Always start with "masterpiece, best quality, amazing quality"
-- Use sentences or phrases that be separated by colon
-- Pay attention to phrases inside brackets
-- Essential context and user goal
+- Avoid overly long sentences or phrases, separate them with commas.
+- Prefer keywords and short phrases separated by commas.
+- Avoid using special characters
+- Pay attention to user input and phrases inside brackets
+- Include essential context and user goals
 Respond with the final prompt only.
 `;
 

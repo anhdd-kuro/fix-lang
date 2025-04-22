@@ -251,7 +251,7 @@ export const SettingPromptGen: React.FC = () => {
             aria-label="Custom context for prompt generation"
             value={context}
             onChange={(e) => setContext(e.target.value)}
-            className="w-full p-1 bg-gray-700 border border-gray-600 rounded text-gray-100 min-h-20"
+            className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 min-h-20 text-xs"
             placeholder="Leave empty to use default, or enter your own system prompt"
             rows={4}
           />
@@ -290,14 +290,14 @@ export const SettingPromptGen: React.FC = () => {
           type="submit"
           className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
         >
-          Save
+          {status || "Save"}
         </button>
         <button
           type="button"
           onClick={handleReset}
           className="px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
         >
-          {status || "Reset to Default"}
+          Reset to Default
         </button>
       </div>
     </form>

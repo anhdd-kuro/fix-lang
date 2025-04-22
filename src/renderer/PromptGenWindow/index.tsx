@@ -36,9 +36,9 @@ const PromptGenWindow: React.FC = () => {
   if (!data) return null;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-white">
+    <div className="flex flex-col h-screen bg-gray-900 text-white px-4 py-2">
       {/* Title bar - this will be draggable due to Electron's native window frame */}
-      <h2 className="font-semibold px-4 py-1 text-sm">
+      <h2 className="font-semibold text-sm">
         Generated Prompts ({data.prompts.length})
       </h2>
 
@@ -59,25 +59,23 @@ const PromptGenWindow: React.FC = () => {
             />
           </div>
         ))}
+      </div>
 
-        <div className="flex justify-between items-center sticky bottom-0 bg-gray-800 p-3 rounded-md shadow-md border border-gray-700">
-          <div className="text-xs text-gray-400">
-            {data.promptTokens && (
-              <span>Prompt tokens: {data.promptTokens}</span>
-            )}
-            {" | "}
-            {data.completionTokens && (
-              <span className="ml-2">
-                Completion tokens: {data.completionTokens}
-              </span>
-            )}
-          </div>
-          <CopyButton
-            value={data.prompts.join("\n\n")}
-            label="Copy All"
-            showLabel
-          />
+      <div className="flex justify-between items-center sticky bottom-0 bg-gray-800 p-3 rounded-md shadow-md border border-gray-700">
+        <div className="text-xs text-gray-400">
+          {data.promptTokens && <span>Prompt tokens: {data.promptTokens}</span>}
+          {" | "}
+          {data.completionTokens && (
+            <span className="ml-2">
+              Completion tokens: {data.completionTokens}
+            </span>
+          )}
         </div>
+        <CopyButton
+          value={data.prompts.join("\n\n")}
+          label="Copy All"
+          showLabel
+        />
       </div>
     </div>
   );
