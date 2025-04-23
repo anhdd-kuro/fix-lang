@@ -32,4 +32,3 @@ contextBridge.exposeInMainWorld("electronAPI", {
 console.log(
   "Preload script executed and electronAPI exposed with the following methods:"
 );
-console.log(Object.keys(window.electronAPI).join("\n"));

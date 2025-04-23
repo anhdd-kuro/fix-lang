@@ -4,9 +4,7 @@
  */
 import { ipcMain } from "electron";
 import { store } from "~/stores/apiStore";
-import { addHistoryEntry } from "~/stores/historyStore";
 import { summarizeText } from "../../ai.request/summarize";
-import type { HistoryEntry } from "~/stores/historyStore";
 
 /**
  * Registers summarization-related IPC handlers
@@ -70,25 +68,6 @@ export const registerSummarizationHandlers = () => {
         }
 
         const result = await summarizeText(apiKey, text, maxInput);
-
-        // Save summarization to history using centralized history manager
-        try {
-          const entry: HistoryEntry = {
-            original: text,
-            corrected: result.summarizedText,
-            timestamp: new Date().toISOString(),
-            promptTokens: result.promptTokens,
-            completionTokens: result.completionTokens,
-          };
-
-          // Use the centralized history manager
-          addHistoryEntry("summarize", entry, 20);
-
-          // No need to notify windows manually as it's handled by centralized history manager
-        } catch (e) {
-          console.error("Failed to save summarize history entry:", e);
-        }
-
         return {
           success: true,
           summarizedText: result.summarizedText,

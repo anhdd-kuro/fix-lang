@@ -16,20 +16,20 @@ const PromptGenWindow: React.FC = () => {
   const [data, setData] = useState<PromptGenData | null>(null);
 
   useEffect(() => {
-    const handleData = (payload: PromptGenData) => {
+    window.electronAPI.onPromptGenData((payload) => {
+      console.log(
+        `🚀 \n - window.electronAPI.onPromptGenData \n - payload:`,
+        payload
+      );
       setData(payload);
 
-      // Auto-copy prompts to clipboard if enabled
       if (payload.autoCopy && payload.prompts.length > 0) {
         const allPrompts = payload.prompts.join("\n\n");
         window.electronAPI.copyToClipboard(allPrompts);
-        // Could show a notification toast here if desired
       }
-    };
-
-    window.electronAPI.onPromptGenData(handleData);
+    });
     return () => {
-      window.electronAPI.removePromptGenDataListener(handleData);
+      window.electronAPI.removePromptGenDataListener();
     };
   }, []);
 

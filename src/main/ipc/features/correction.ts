@@ -4,9 +4,7 @@
  */
 import { ipcMain } from "electron";
 import { store } from "~/stores/apiStore";
-import { addHistoryEntry } from "~/stores/historyStore";
 import { fixGrammar } from "../../ai.request/correction";
-import type { HistoryEntry } from "~/stores/historyStore";
 
 /**
  * Registers correction-related IPC handlers
@@ -84,24 +82,6 @@ export const registerCorrectionHandlers = () => {
         }
 
         const result = await fixGrammar(apiKey, text);
-
-        // Save to history using the centralized history manager
-        try {
-          const entry: HistoryEntry = {
-            original: text,
-            corrected: result.correctedText,
-            timestamp: new Date().toISOString(),
-            promptTokens: result.promptTokens ?? 0,
-            completionTokens: result.completionTokens ?? 0,
-          };
-
-          // Use the centralized history manager
-          addHistoryEntry("corrections", entry, 20);
-
-          // No need to notify windows manually as it's handled by centralized history manager
-        } catch (e) {
-          console.error("Failed to save correction history entry:", e);
-        }
 
         return {
           success: true,

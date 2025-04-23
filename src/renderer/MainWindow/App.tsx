@@ -111,13 +111,15 @@ const App: React.FC = () => {
       setHistory(history);
     });
 
-    const offHistory = window.electronAPI.onHistoryUpdate?.((payload) => {
-      console.log("onHistoryUpdate", payload);
-      setHistory(payload.entries);
-    });
+    const removeHistoryListener = window.electronAPI.onHistoryUpdate?.(
+      (payload) => {
+        console.log("onHistoryUpdate", payload);
+        setHistory(payload.entries);
+      }
+    );
 
     return () => {
-      offHistory?.();
+      removeHistoryListener?.();
     };
   }, [historyType]);
 

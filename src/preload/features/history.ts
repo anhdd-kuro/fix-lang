@@ -36,13 +36,23 @@ const createHistoryFeature = () => {
       });
     },
 
+    getLastActionHistory: (): Promise<HistoryEntry | null> => {
+      return ipcRenderer.invoke("get-last-action-history");
+    },
+
+    setLastActionHistory: (
+      entry: HistoryEntry
+    ): Promise<{ success: boolean }> => {
+      return ipcRenderer.invoke("set-last-action-history", entry);
+    },
+
     onHistoryUpdate: (callback: (payload: SyncHistoryResponse) => void) => {
       const listener = (
         _event: Electron.IpcRendererEvent,
         payload: SyncHistoryResponse
       ) => callback(payload);
       ipcRenderer.on("sync-history", listener);
-      console.log("onHistoryUpdate callback");
+      console.log("onHistoryUpdate registered");
 
       // Return a cleanup function
       return () => {

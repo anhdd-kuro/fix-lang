@@ -9,6 +9,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const unsubscribe = window.electronAPI.onTranslationData((payload) => {
+      console.log("onTranslationData received");
       setData(payload);
     });
     return () => unsubscribe();
@@ -17,33 +18,28 @@ const App: React.FC = () => {
   console.log("Translation window data:", data);
   if (!data) return null;
 
-  // Loading state
-  if (data.loading) {
-    return (
-      <div className="flex items-center justify-center  w-screen h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col relative px-2 pb-2 backdrop-blur-2xl shadow-lg overflow-auto w-screen h-screen text-white">
-      <textarea
-        className="prose dark:prose-invert text-xs whitespace-pre-wrap overflow-auto w-full flex-1 p-1 focus:outline-none focus:border-none mt-8"
-        value={data.translatedText}
-        readOnly
-        placeholder="Translated Text"
-      />
-      <div className="flex justify-between mt-2 text-xs text-gray-500">
-        <p>Prompt Tokens: {data.promptTokens ?? "-"}</p>
-        <p>Completion Tokens: {data.completionTokens ?? "-"}</p>
-      </div>
-      <div className="flex absolute top-2 right-2 gap-1">
-        <CopyButton
+    <div className="flex flex-col h-screen text-white px-4 py-2">
+      {/* Main content */}
+      <div className="flex flex-col mt-2 flex-1 overflow-auto">
+        <textarea
+          className="prose dark:prose-invert text-xs whitespace-pre-wrap overflow-auto w-full flex-1 p-2 bg-gray-800 rounded border border-gray-700 focus:outline-none focus:border-blue-500"
           value={data.translatedText}
-          label="Copy translated text size-6"
+          readOnly
+          placeholder="Translated Text"
         />
+
+        <div className="flex justify-between mt-2 text-xs text-gray-500">
+          <p>Prompt Tokens: {data.promptTokens ?? "-"}</p>
+          <p>Completion Tokens: {data.completionTokens ?? "-"}</p>
+        </div>
       </div>
+
+      <CopyButton
+        value={data.translatedText}
+        label="Copy"
+        className="absolute top-2 right-4"
+      />
     </div>
   );
 };

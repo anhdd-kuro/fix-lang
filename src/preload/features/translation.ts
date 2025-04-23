@@ -1,24 +1,6 @@
 // Translation-related preload functionality
 import { ipcRenderer } from "electron";
 
-// Global cache for translation-data payload
-let translationDataCache: {
-  translatedText: string;
-  promptTokens: number | null;
-  completionTokens: number | null;
-  x: number;
-  y: number;
-  originalText?: string;
-  targetLang?: string;
-  loading?: boolean;
-  error?: string;
-} | null = null;
-
-// Update cache on each translation-data event
-ipcRenderer.on("translation-data", (_event, payload) => {
-  translationDataCache = payload;
-});
-
 /**
  * Exposes translation-related functionality to the renderer process
  */
@@ -94,11 +76,6 @@ export const translationFeature = {
       y: number;
     }) => void
   ): (() => void) => {
-    // First, if we already have cached data, call the callback immediately
-    if (translationDataCache) {
-      callback(translationDataCache);
-    }
-
     // Then set up the listener for future updates
     const listener = (
       _event: Electron.IpcRendererEvent,
@@ -111,8 +88,11 @@ export const translationFeature = {
       }
     ) => callback(payload);
     ipcRenderer.on("translation-data", listener);
+    console.log("onTranslationData registered");
+
     return () => {
       ipcRenderer.removeListener("translation-data", listener);
+      console.log("onTranslationData removed");
     };
   },
 

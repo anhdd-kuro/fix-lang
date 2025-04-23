@@ -16,7 +16,7 @@ export function createSummaryWindow() {
   summaryWindow = new BrowserWindow({
     width: 400,
     height: 300,
-    transparent: true,
+    transparent: false,
     titleBarStyle: "hiddenInset",
     show: false,
     alwaysOnTop: true,
@@ -63,7 +63,7 @@ export function showSummaryWindow(payload: SummaryPayload) {
   const html = path.join(__dirname, "../renderer/SummaryWindow/index.html");
   win.loadFile(html);
   win.webContents.once("did-finish-load", () => {
-    win.webContents.send("summary-data", payload);
     win.showInactive();
+    win.webContents.send("summary-data", payload);
   });
 }

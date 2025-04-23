@@ -40,13 +40,6 @@ export const registerPromptGenHandlers = () => {
     }
   });
 
-  // Note: All history-related IPC handlers have been moved to the centralized history.ts module
-
-  // Note: Prompt generation and history management is handled in hotkey.ts directly
-
-  // Note: Prompt generation is handled directly through the keyboard shortcut handler in hotkey.ts
-  // No IPC handler is needed for generating prompts since it's not called from the renderer
-
   // Copy generated prompt to clipboard
   ipcMain.handle("copy-generated-prompt", async (_event, text: string) => {
     try {

@@ -13,14 +13,14 @@ export function createTranslationWindow() {
   translationWindow = new BrowserWindow({
     width: 500,
     height: 350,
-    transparent: true,
+    transparent: false,
     show: false,
     alwaysOnTop: true,
     skipTaskbar: true,
     backgroundColor: "#1e2939",
     icon: appIcon,
     titleBarStyle: "default",
-    title: "Translation",
+    title: "Translation Result",
     frame: true,
     webPreferences: {
       preload: path.join(app.getAppPath(), "out/preload/index.mjs"),
@@ -48,7 +48,7 @@ export function createTranslationWindow() {
   });
 
   translationWindow.on("closed", () => {
-    translationWindow = null;
+    destroyTranslationWindow();
   });
   return translationWindow;
 }
@@ -76,6 +76,7 @@ export const destroyTranslationWindow = () => {
 };
 
 export function showTranslationWindow(payload: TranslationPayload) {
+  console.log("showTranslationWindow called with:", payload);
   const win = createTranslationWindow();
   const { width, height } = win.getBounds();
   const display = screen.getPrimaryDisplay().bounds;
@@ -90,9 +91,11 @@ export function showTranslationWindow(payload: TranslationPayload) {
   const html = path.join(__dirname, "../renderer/TranslationWindow/index.html");
   win.loadFile(html);
   win.webContents.once("did-finish-load", () => {
+    console.log("Translation window loaded");
     // Send payload after UI is ready
-    win.webContents.send("translation-data", payload);
     win.showInactive();
+    win.focus(); // Focus the window to ensure title bar is visible
+    win.webContents.send("translation-data", payload);
   });
 }
 

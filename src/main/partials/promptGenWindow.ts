@@ -18,7 +18,7 @@ export function createPromptGenWindow() {
   promptGenWindow = new BrowserWindow({
     width: 600,
     height: 500,
-    transparent: true,
+    transparent: false,
     show: false,
     alwaysOnTop: true,
     skipTaskbar: true,
@@ -30,9 +30,9 @@ export function createPromptGenWindow() {
     webPreferences: {
       preload: path.join(app.getAppPath(), "out/preload/index.mjs"),
       contextIsolation: true,
-      devTools: true,
       nodeIntegration: false,
       sandbox: false,
+      devTools: true,
     },
   });
   promptGenWindow.setVisibleOnAllWorkspaces(true, {
@@ -45,7 +45,7 @@ export function createPromptGenWindow() {
   });
 
   promptGenWindow.on("closed", () => {
-    promptGenWindow = null;
+    destroyPromptGenWindow();
   });
   return promptGenWindow;
 }
@@ -70,8 +70,8 @@ export function showPromptGenWindow(payload: PromptGenPayload) {
   const html = path.join(__dirname, "../renderer/PromptGenWindow/index.html");
   win.loadFile(html);
   win.webContents.once("did-finish-load", () => {
-    win.webContents.send("promptGen-data", payload);
-    win.show();
+    win.showInactive();
     win.focus();
+    win.webContents.send("promptGen-data", payload);
   });
 }

@@ -3,8 +3,10 @@ import {
   addHistoryEntry,
   clearHistory,
   getHistory,
+  getLastActionHistory,
   overrideHistory,
   removeHistoryEntry,
+  setLastActionHistory,
 } from "~/stores/historyStore";
 import type { HistoryEntry, HistoryFeatureId } from "~/stores/historyStore";
 
@@ -24,10 +26,6 @@ type SyncHistoryPayload = {
     }
   | {
       type: "sync";
-    }
-  | {
-      type: "last-action";
-      entry: HistoryEntry;
     }
 );
 
@@ -53,7 +51,8 @@ export const syncHistory = (payload: SyncHistoryPayload) => {
     ...payload,
     entries: getHistory(payload.featureId),
   };
-  console.log("syncHistory", webContentsPayload);
+  setLastActionHistory(webContentsPayload.entries[0]);
+  console.log("syncHistory - webContentsPayload");
 
   BrowserWindow.getAllWindows().forEach((window) => {
     if (!window.isDestroyed()) {
@@ -123,26 +122,20 @@ export function setupHistoryManagerHandlers() {
     }
   });
 
-  ipcMain.handle(
-    "get-last-action-history",
-    async (_event, featureId: HistoryFeatureId) => {
-      try {
-        return getHistory(featureId);
-      } catch (error) {
-        console.error("Error getting last action history:", error);
-        return null;
-      }
+  ipcMain.handle("get-last-action-history", async (_event) => {
+    try {
+      return getLastActionHistory();
+    } catch (error) {
+      console.error("Error getting last action history:", error);
+      return null;
     }
-  );
+  });
 
   ipcMain.handle(
     "set-last-action-history",
-    async (
-      _event,
-      { featureId, entry }: { featureId: HistoryFeatureId; entry: HistoryEntry }
-    ) => {
+    async (_event, { entry }: { entry: HistoryEntry }) => {
       try {
-        syncHistory({ type: "last-action", featureId, entry });
+        setLastActionHistory(entry);
         return { success: true };
       } catch (error) {
         console.error("Error setting last action history:", error);

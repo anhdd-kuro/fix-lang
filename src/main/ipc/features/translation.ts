@@ -4,10 +4,8 @@
  */
 import { ipcMain, clipboard } from "electron";
 import { store } from "~/stores/apiStore";
-import { addHistoryEntry } from "~/stores/historyStore";
 import { translateText } from "../../ai.request/translate";
 import { showTranslationWindow } from "../../partials/translationWindow";
-import type { HistoryEntry } from "~/stores/historyStore";
 
 /**
  * Registers translation-related IPC handlers
@@ -70,7 +68,7 @@ export const registerTranslationHandlers = () => {
 
   // Translate text
   ipcMain.handle(
-    "translate-text",
+    "translation-data",
     async (
       _event,
       text: string,
@@ -83,6 +81,7 @@ export const registerTranslationHandlers = () => {
       completionTokens?: number | null;
     }> => {
       try {
+        console.log("Translation request received:", { text, targetLang });
         if (!text || text.trim() === "") {
           return { success: false, error: "No text provided" };
         }
@@ -94,29 +93,11 @@ export const registerTranslationHandlers = () => {
 
         const result = await translateText(apiKey, text, targetLang);
 
-        // Save translation to history using the centralized history manager
-        try {
-          const entry: HistoryEntry = {
-            original: text,
-            corrected: result.translatedText,
-            timestamp: new Date().toISOString(),
-            promptTokens: result.promptTokens,
-            completionTokens: result.completionTokens,
-          };
-
-          // Use the centralized history manager
-          addHistoryEntry("translations", entry, 20);
-
-          // No need to notify windows manually as it's handled by centralized history manager
-        } catch (e) {
-          console.error("Failed to save translation history entry:", e);
-        }
-
         return {
           success: true,
           translatedText: result.translatedText,
-          promptTokens: result.promptTokens,
-          completionTokens: result.completionTokens,
+          promptTokens: result.promptTokens ?? 0,
+          completionTokens: result.completionTokens ?? 0,
         };
       } catch (error) {
         console.error("Error translating text:", error);

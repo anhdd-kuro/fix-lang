@@ -15,6 +15,7 @@ export const promptGenFeature = {
       completionTokens: number | null;
       x: number;
       y: number;
+      autoCopy: boolean;
     }) => void
   ): (() => void) => {
     const listener = (
@@ -25,6 +26,7 @@ export const promptGenFeature = {
         completionTokens: number | null;
         x: number;
         y: number;
+        autoCopy: boolean;
       }
     ) => callback(payload);
     ipcRenderer.on("promptGen-data", listener);

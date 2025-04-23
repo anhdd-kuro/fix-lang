@@ -9,12 +9,14 @@ const rootElement = document.getElementById("root");
 const TrayWindowMain: React.FC = () => {
   const [lastHistory, setLastHistory] = useState<{
     original: string;
-    corrected: string;
-  }>({ original: "", corrected: "" });
+    result: string;
+  }>({ original: "", result: "" });
 
   // Listen for tray requests from main
   useEffect(() => {
-    window.electronAPI.getLastHistory().then((data) => setLastHistory(data));
+    window.electronAPI
+      .getLastActionHistory()
+      .then((data) => setLastHistory(data ?? { original: "", result: "" }));
   }, []);
 
   return (
@@ -32,10 +34,10 @@ const TrayWindowMain: React.FC = () => {
           </div>
           <div className="flex-1 flex flex-col">
             <TextAreaBox
-              label="Corrected"
-              value={lastHistory.corrected}
+              label="Result"
+              value={lastHistory.result}
               readOnly
-              placeholder="Corrected text"
+              placeholder="Result text"
             />
           </div>
           <ModelSelect />
