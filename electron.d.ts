@@ -1,6 +1,6 @@
 // electron.d.ts
 
-import type { ElectronAPI } from "./src/preload/preload-api.types";
+import type { ElectronAPI } from "./src/preload";
 
 // Extend the global Window interface
 declare global {

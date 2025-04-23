@@ -12,7 +12,16 @@ import {
   uiFeature,
   historyFeature,
 } from "./features";
-import type { ElectronAPI } from "./preload-api.types";
+import type {
+  ApiFeature,
+  CorrectionFeature,
+  HistoryFeature,
+  PromptGenFeature,
+  SettingsFeature,
+  SummarizationFeature,
+  TranslationFeature,
+  UIFeature,
+} from "./features";
 
 // Log that preload script is being executed
 console.log("Preload script is being executed");
@@ -32,3 +41,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
 console.log(
   "Preload script executed and electronAPI exposed with the following methods:"
 );
+
+export type ElectronAPI = HistoryFeature &
+  SummarizationFeature &
+  PromptGenFeature &
+  CorrectionFeature &
+  TranslationFeature &
+  ApiFeature &
+  SettingsFeature &
+  UIFeature;

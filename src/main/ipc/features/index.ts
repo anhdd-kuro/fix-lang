@@ -1,9 +1,3 @@
-/**
- * @file index.ts
- * @description Exports all IPC feature handlers
- */
-
-// Export all feature handlers
 export * from "./api";
 export * from "./correction";
 export * from "./history";

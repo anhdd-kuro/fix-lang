@@ -162,3 +162,11 @@ export const store = new Store<SettingsStore>({
   clearInvalidConfig: true,
   watch: true,
 });
+
+export const getOpenAIKey = () => {
+  const apiKey = store.get("apiKey");
+  if (!apiKey) {
+    throw new Error("OpenAI API Key not set in settings.");
+  }
+  return apiKey;
+};
