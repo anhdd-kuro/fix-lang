@@ -3,6 +3,7 @@
  * @description IPC handlers for application settings
  */
 import { ipcMain, Notification } from "electron";
+import { DEFAULT_KEY_BINDINGS } from "~/const";
 import { registerHotkeys, unregisterHotkeys } from "~/main/keybindings";
 import { store } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
@@ -22,12 +23,7 @@ export const registerSettingsHandlers = () => {
       } catch (error) {
         console.error("Failed to get key bindings:", error);
         // Using the same defaults as in const.ts (source of truth)
-        return {
-          correction: "Control+Shift+F",
-          translate: "Control+Shift+T",
-          summarize: "Control+Shift+S",
-          promptGen: "Control+Shift+G",
-        };
+        return DEFAULT_KEY_BINDINGS;
       }
     }
   );
@@ -64,12 +60,7 @@ export const registerSettingsHandlers = () => {
       } catch (error) {
         console.error("Failed to reset key bindings:", error);
         // Using the same defaults as in const.ts (source of truth)
-        return {
-          correction: "Control+Shift+F",
-          translate: "Control+Shift+T",
-          summarize: "Control+Shift+S",
-          promptGen: "Control+Shift+G",
-        };
+        return DEFAULT_KEY_BINDINGS;
       }
     }
   );
