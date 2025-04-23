@@ -20,7 +20,6 @@ export function createPromptGenWindow() {
     height: 500,
     transparent: false,
     show: false,
-    alwaysOnTop: true,
     skipTaskbar: true,
     backgroundColor: "#1e2939",
     icon: appIcon,

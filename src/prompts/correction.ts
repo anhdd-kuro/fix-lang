@@ -23,9 +23,10 @@ export const makeDefaultSystemPrompt = ({
 };
 
 const GENERAL_RULES = `
-Preserve original formatting (symbols, markdown, code blocks, etc). Do not add extra spaces. Separate sentences with periods.
-Only make changes that respect the original intent.
-Respond with the result text only.
+Constraints:
+- Preserve original formatting (symbols, markdown, code blocks, etc). Do not add extra spaces. Separate sentences with periods.
+- Only make changes that respect the original intent.
+- Respond with the result text only.
 `;
 
 export const DEFAULT_CUSTOM_PROMPT = `

@@ -19,7 +19,6 @@ export function createSummaryWindow() {
     transparent: false,
     titleBarStyle: "hiddenInset",
     show: false,
-    alwaysOnTop: true,
     skipTaskbar: true,
     backgroundColor: "#1e2939",
     webPreferences: {

@@ -37,15 +37,15 @@ Respond with the final prompt only.
 `;
 
 export const DEFAULT_PROMPT_GEN_IMAGE_PROMPT = `
-You are an Expert AI Image Generation model.
+You are an expert AI image generation model.
 Given a user’s objective and source text, craft a concise, self-contained LLM prompt that maximizes relevance, clarity, and output quality.
 Rules:
-- Be creative and imaginative
-- Always start with "masterpiece, best quality, amazing quality"
+- Be creative and imaginative.
+- Always start with masterpiece, best quality, amazing quality.
 - Avoid overly long sentences or phrases, separate them with commas.
-- Prefer keywords and short phrases separated by commas.
-- Avoid using special characters
-- Pay attention to user input and phrases inside brackets
-- Include essential context and user goals
-Respond with the final prompt only.
+- Avoid using special characters.
+- Pay attention to user input and phrases inside brackets, especially character names.
+- Keep character names keywords in their original form.
+- Balance detail between character and background.
+- Respond with the final prompt only.
 `;

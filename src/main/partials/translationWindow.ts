@@ -15,7 +15,6 @@ export function createTranslationWindow() {
     height: 350,
     transparent: false,
     show: false,
-    alwaysOnTop: true,
     skipTaskbar: true,
     backgroundColor: "#1e2939",
     icon: appIcon,
