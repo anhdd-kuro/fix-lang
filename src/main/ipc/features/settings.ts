@@ -3,9 +3,9 @@
  * @description IPC handlers for application settings
  */
 import { ipcMain, Notification } from "electron";
+import { registerHotkeys, unregisterHotkeys } from "~/main/keybindings";
 import { store } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
-import { registerHotkeys, unregisterHotkeys } from "../../partials/hotkey";
 import { getMainWindow } from "../../partials/mainWindow";
 import type { KeyBindings } from "~/stores/apiStore";
 

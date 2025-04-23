@@ -30,8 +30,11 @@ export const promptGenFeature = {
       }
     ) => callback(payload);
     ipcRenderer.on("promptGen-data", listener);
+    console.log("onPromptGenData registered");
+
     return () => {
       ipcRenderer.removeListener("promptGen-data", listener);
+      console.log("onPromptGenData removed");
     };
   },
 
