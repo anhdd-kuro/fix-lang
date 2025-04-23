@@ -2,10 +2,11 @@
  * @file summarization.ts
  * @description IPC handlers for text summarization functionality
  */
-import { ipcMain, BrowserWindow } from "electron";
+import { ipcMain } from "electron";
 import { store } from "~/stores/apiStore";
+import { addHistoryEntry } from "~/stores/historyStore";
 import { summarizeText } from "../../ai.request/summarize";
-import type { VersionEntry } from "~/stores/apiStore";
+import type { HistoryEntry } from "~/stores/historyStore";
 
 /**
  * Registers summarization-related IPC handlers
@@ -42,28 +43,7 @@ export const registerSummarizationHandlers = () => {
     }
   });
 
-  // Get summarize history
-  ipcMain.handle("get-summarize-history", async () => {
-    try {
-      return store.get("historySummarize") || [];
-    } catch (error) {
-      console.error("Error getting summarize history:", error);
-      return [];
-    }
-  });
-
-  // Clear summarize history
-  ipcMain.handle("clear-summarize-history", async () => {
-    try {
-      store.set("historySummarize", []);
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
-  });
+  // Note: All history-related IPC handlers have been moved to the centralized history.ts module
 
   // Summarize text
   ipcMain.handle(
@@ -91,26 +71,20 @@ export const registerSummarizationHandlers = () => {
 
         const result = await summarizeText(apiKey, text, maxInput);
 
-        // Save summarization to history
+        // Save summarization to history using centralized history manager
         try {
-          const entry: VersionEntry = {
+          const entry: HistoryEntry = {
             original: text,
             corrected: result.summarizedText,
             timestamp: new Date().toISOString(),
             promptTokens: result.promptTokens,
             completionTokens: result.completionTokens,
           };
-          const historySummarize = store.get("historySummarize") ?? [];
-          historySummarize.unshift(entry);
-          if (historySummarize.length > 20) historySummarize.pop();
-          store.set("historySummarize", historySummarize);
 
-          // Notify all windows of history update
-          BrowserWindow.getAllWindows().forEach((window) => {
-            if (!window.isDestroyed()) {
-              window.webContents.send("summarize-history-updated");
-            }
-          });
+          // Use the centralized history manager
+          addHistoryEntry("summarize", entry, 20);
+
+          // No need to notify windows manually as it's handled by centralized history manager
         } catch (e) {
           console.error("Failed to save summarize history entry:", e);
         }

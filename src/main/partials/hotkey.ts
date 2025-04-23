@@ -18,7 +18,8 @@ import { showPromptGenWindow } from "./promptGenWindow";
 import { showSummaryWindow } from "./summaryWindow";
 import { showTranslationWindow } from "./translationWindow";
 import { getHighlightedText, pasteText } from "../../utils";
-import type { VersionEntry, SettingsStore } from "~/stores/apiStore";
+import { syncHistory } from "../ipc/features/history";
+import type { SettingsStore } from "~/stores/apiStore";
 
 // State to store the last operation's text for Undo/Retry
 let lastOriginalText: string | null = null;
@@ -79,19 +80,18 @@ const registerFixShortcut = (mainWindow: BrowserWindow) => {
 
       await pasteText(result.correctedText);
 
-      // History management is now handled directly in the fix-grammar IPC handler
-      // No need to manage history here
-
-      // Send the original and corrected text to the renderer process for preview
       if (mainWindow && !mainWindow.isDestroyed()) {
-        console.log("Sending text update via IPC to renderer...");
-        mainWindow.webContents.send("update-text", {
-          original: selectedText,
-          corrected: result.correctedText,
-          promptTokens: result.promptTokens,
-          completionTokens: result.completionTokens,
+        syncHistory({
+          entry: {
+            original: selectedText,
+            corrected: result.correctedText,
+            promptTokens: result.promptTokens ?? 0,
+            completionTokens: result.completionTokens ?? 0,
+            timestamp: new Date().toISOString(),
+          },
+          type: "add",
+          featureId: "corrections",
         });
-        // Hide spinner overlay for renderer UI
         mainWindow.webContents.send("stop-loading");
       } else {
         console.warn(
@@ -162,23 +162,17 @@ const registerTranslateShortcut = (mainWindow: BrowserWindow) => {
         x,
         y,
       });
-      // Persist translation to store
-      const transEntry: VersionEntry = {
-        original: selectedText,
-        corrected: result.translatedText,
-        timestamp: new Date().toISOString(),
-      };
-      const allTrans = store.get("translations") as VersionEntry[];
-      store.set("translations", [...allTrans, transEntry]);
-      // Update main window text areas
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("update-text", {
+      syncHistory({
+        entry: {
           original: selectedText,
           corrected: result.translatedText,
-          promptTokens: result.promptTokens,
-          completionTokens: result.completionTokens,
-        });
-      }
+          promptTokens: result.promptTokens ?? 0,
+          completionTokens: result.completionTokens ?? 0,
+          timestamp: new Date().toISOString(),
+        },
+        type: "add",
+        featureId: "translations",
+      });
     } catch (error) {
       new Notification({
         title: "Error",
@@ -219,39 +213,23 @@ const registerSummarizeShortcut = (_mainWindow: BrowserWindow): void => {
       );
       hideOverlaySpinner();
 
-      // Save summarization to history
-      try {
-        const entry = {
-          original: selectedText,
-          corrected: result.summarizedText,
-          timestamp: new Date().toISOString(),
-          promptTokens: result.promptTokens,
-          completionTokens: result.completionTokens,
-        };
-        const historySummarize =
-          (store.get("historySummarize") as VersionEntry[]) ?? [];
-        historySummarize.unshift(entry);
-        if (historySummarize.length > 20) historySummarize.pop();
-        store.set("historySummarize", historySummarize);
-
-        // Notify all windows of history update
-        BrowserWindow.getAllWindows().forEach((window) => {
-          if (!window.isDestroyed()) {
-            window.webContents.send("summarize-history-updated");
-          }
-        });
-
-        console.log(`Saved summarize entry to history`);
-      } catch (e) {
-        console.error("Failed to save summarize history entry from hotkey:", e);
-      }
-
       showSummaryWindow({
         summarizedText: result.summarizedText,
         promptTokens: result.promptTokens,
         completionTokens: result.completionTokens,
         x,
         y,
+      });
+      syncHistory({
+        entry: {
+          original: selectedText,
+          corrected: result.summarizedText,
+          promptTokens: result.promptTokens ?? 0,
+          completionTokens: result.completionTokens ?? 0,
+          timestamp: new Date().toISOString(),
+        },
+        type: "add",
+        featureId: "summarize",
       });
     } catch (error) {
       hideOverlaySpinner();
@@ -291,42 +269,6 @@ const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
       });
       hideOverlaySpinner();
 
-      // Save to history if generation was successful
-      if (result.prompts.length > 0) {
-        try {
-          // Save generated prompts to history directly
-          const entry = {
-            original: selectedText,
-            corrected: result.prompts.join("\n"),
-            timestamp: new Date().toISOString(),
-            promptTokens: result.promptTokens,
-            completionTokens: result.completionTokens,
-          };
-
-          // Directly manage history in the store
-          const history = (store.get("historyPromptGen") as VersionEntry[]) ?? [];
-          // Add new entry at the beginning
-          const newHistory = [entry, ...history].slice(0, 50);
-          store.set("historyPromptGen", newHistory);
-          
-          // Notify all windows of history update
-          BrowserWindow.getAllWindows().forEach((window) => {
-            if (!window.isDestroyed()) {
-              window.webContents.send("promptGen-history-updated");
-            }
-          });
-
-          console.log(
-            `Saved ${result.prompts.length} prompt generation to history`
-          );
-        } catch (e) {
-          console.error(
-            "Failed to save prompt generation history from hotkey:",
-            e
-          );
-        }
-      }
-
       showPromptGenWindow({
         prompts: result.prompts,
         promptTokens: result.promptTokens,
@@ -334,6 +276,17 @@ const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
         x,
         y,
         autoCopy: promptGenSettings.autoCopy || false,
+      });
+      syncHistory({
+        entry: {
+          original: selectedText,
+          corrected: result.prompts[0],
+          promptTokens: result.promptTokens ?? 0,
+          completionTokens: result.completionTokens ?? 0,
+          timestamp: new Date().toISOString(),
+        },
+        type: "add",
+        featureId: "promptGen",
       });
     } catch (error) {
       hideOverlaySpinner();

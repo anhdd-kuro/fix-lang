@@ -5,6 +5,7 @@
 import {
   registerApiHandlers,
   registerCorrectionHandlers,
+  setupHistoryManagerHandlers,
   registerPromptGenHandlers,
   registerSettingsHandlers,
   registerSummarizationHandlers,
@@ -20,6 +21,9 @@ export const registerIpcHandlers = (): void => {
   registerUiHandlers();
   registerApiHandlers();
   registerSettingsHandlers();
+
+  // Register centralized history handler first (dependency for feature handlers)
+  setupHistoryManagerHandlers();
 
   // Register feature-specific handlers
   registerCorrectionHandlers();

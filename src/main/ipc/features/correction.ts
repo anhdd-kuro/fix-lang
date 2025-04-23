@@ -2,10 +2,11 @@
  * @file correction.ts
  * @description IPC handlers for text correction functionality
  */
-import { ipcMain, BrowserWindow } from "electron";
+import { ipcMain } from "electron";
 import { store } from "~/stores/apiStore";
+import { addHistoryEntry } from "~/stores/historyStore";
 import { fixGrammar } from "../../ai.request/correction";
-import type { VersionEntry } from "~/stores/apiStore";
+import type { HistoryEntry } from "~/stores/historyStore";
 
 /**
  * Registers correction-related IPC handlers
@@ -57,62 +58,7 @@ export const registerCorrectionHandlers = () => {
     }
   );
 
-  // Get correction history
-  ipcMain.handle("get-history", async () => {
-    try {
-      return store.get("history") || [];
-    } catch (error) {
-      console.error("Error getting correction history:", error);
-      return [];
-    }
-  });
-
-  // Get correction history (alternative endpoint)
-  ipcMain.handle(
-    "get-correct-history",
-    async (_event: Electron.IpcMainInvokeEvent) => {
-      try {
-        return store.get("history") as VersionEntry[];
-      } catch (error) {
-        console.error("Error getting correction history:", error);
-        return [];
-      }
-    }
-  );
-
-  // Clear correction history
-  ipcMain.handle("clear-history", async () => {
-    try {
-      store.set("history", []);
-
-      // Notify all windows of history update
-      BrowserWindow.getAllWindows().forEach((window) => {
-        if (!window.isDestroyed()) {
-          window.webContents.send("correction-history-updated");
-        }
-      });
-
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
-  });
-
-  // Note: History management is now directly integrated in the fix-grammar handler
-
-  // Get last correction entry
-  ipcMain.handle("get-last-history", async () => {
-    try {
-      const history = store.get("history") as VersionEntry[];
-      return history.length > 0 ? history[0] : null;
-    } catch (error) {
-      console.error("Error getting last history entry:", error);
-      return null;
-    }
-  });
+  // Note: All history-related IPC handlers have been moved to the centralized history.ts module
 
   // Direct grammar fix request (usually from main window or overlays)
   ipcMain.handle(
@@ -124,8 +70,8 @@ export const registerCorrectionHandlers = () => {
       success: boolean;
       correctedText?: string;
       error?: string;
-      promptTokens?: number | null;
-      completionTokens?: number | null;
+      promptTokens?: number;
+      completionTokens?: number;
     }> => {
       try {
         if (!text || text.trim() === "") {
@@ -139,26 +85,20 @@ export const registerCorrectionHandlers = () => {
 
         const result = await fixGrammar(apiKey, text);
 
-        // Save to history directly inside the handler
+        // Save to history using the centralized history manager
         try {
-          const entry: VersionEntry = {
+          const entry: HistoryEntry = {
             original: text,
             corrected: result.correctedText,
             timestamp: new Date().toISOString(),
-            promptTokens: result.promptTokens,
-            completionTokens: result.completionTokens,
+            promptTokens: result.promptTokens ?? 0,
+            completionTokens: result.completionTokens ?? 0,
           };
-          const history = (store.get("history") as VersionEntry[]) ?? [];
-          history.unshift(entry);
-          if (history.length > 20) history.pop();
-          store.set("history", history);
 
-          // Notify all windows of history update
-          BrowserWindow.getAllWindows().forEach((window) => {
-            if (!window.isDestroyed()) {
-              window.webContents.send("correction-history-updated");
-            }
-          });
+          // Use the centralized history manager
+          addHistoryEntry("corrections", entry, 20);
+
+          // No need to notify windows manually as it's handled by centralized history manager
         } catch (e) {
           console.error("Failed to save correction history entry:", e);
         }
@@ -166,8 +106,8 @@ export const registerCorrectionHandlers = () => {
         return {
           success: true,
           correctedText: result.correctedText,
-          promptTokens: result.promptTokens,
-          completionTokens: result.completionTokens,
+          promptTokens: result.promptTokens ?? 0,
+          completionTokens: result.completionTokens ?? 0,
         };
       } catch (error) {
         console.error("Error fixing grammar:", error);

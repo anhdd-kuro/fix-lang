@@ -2,11 +2,12 @@
  * @file translation.ts
  * @description IPC handlers for text translation functionality
  */
-import { ipcMain, clipboard, BrowserWindow } from "electron";
+import { ipcMain, clipboard } from "electron";
 import { store } from "~/stores/apiStore";
+import { addHistoryEntry } from "~/stores/historyStore";
 import { translateText } from "../../ai.request/translate";
 import { showTranslationWindow } from "../../partials/translationWindow";
-import type { VersionEntry } from "~/stores/apiStore";
+import type { HistoryEntry } from "~/stores/historyStore";
 
 /**
  * Registers translation-related IPC handlers
@@ -65,36 +66,7 @@ export const registerTranslationHandlers = () => {
     }
   });
 
-  // Get translation history
-  ipcMain.handle("get-translation-history", async () => {
-    try {
-      return store.get("translations") || [];
-    } catch (error) {
-      console.error("Error getting translation history:", error);
-      return [];
-    }
-  });
-
-  // Clear translation history
-  ipcMain.handle("clear-translation-history", async () => {
-    try {
-      store.set("translations", []);
-
-      // Notify all windows that the translation history has been updated
-      BrowserWindow.getAllWindows().forEach((window) => {
-        if (!window.isDestroyed()) {
-          window.webContents.send("translation-history-updated");
-        }
-      });
-
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
-  });
+  // Note: All history-related IPC handlers have been moved to the centralized history.ts module
 
   // Translate text
   ipcMain.handle(
@@ -122,26 +94,20 @@ export const registerTranslationHandlers = () => {
 
         const result = await translateText(apiKey, text, targetLang);
 
-        // Save translation to history
+        // Save translation to history using the centralized history manager
         try {
-          const entry: VersionEntry = {
+          const entry: HistoryEntry = {
             original: text,
             corrected: result.translatedText,
             timestamp: new Date().toISOString(),
             promptTokens: result.promptTokens,
             completionTokens: result.completionTokens,
           };
-          const translations = store.get("translations") ?? [];
-          translations.unshift(entry);
-          if (translations.length > 20) translations.pop();
-          store.set("translations", translations);
 
-          // Notify all windows that the translation history has been updated
-          BrowserWindow.getAllWindows().forEach((window) => {
-            if (!window.isDestroyed()) {
-              window.webContents.send("translation-history-updated");
-            }
-          });
+          // Use the centralized history manager
+          addHistoryEntry("translations", entry, 20);
+
+          // No need to notify windows manually as it's handled by centralized history manager
         } catch (e) {
           console.error("Failed to save translation history entry:", e);
         }

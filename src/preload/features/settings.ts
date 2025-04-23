@@ -1,6 +1,6 @@
 // Settings-related preload functionality
 import { ipcRenderer } from "electron";
-import type { KeyBindings } from "../preload-api.types";
+import type { KeyBindings } from "~/stores/apiStore";
 
 /**
  * Exposes settings-related functionality to the renderer process
@@ -84,3 +84,5 @@ export const settingsFeature = {
     };
   },
 };
+
+export type SettingsFeature = typeof settingsFeature;

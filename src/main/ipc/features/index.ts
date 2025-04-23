@@ -6,6 +6,7 @@
 // Export all feature handlers
 export * from "./api";
 export * from "./correction";
+export * from "./history";
 export * from "./promptGen";
 export * from "./settings";
 export * from "./summarization";

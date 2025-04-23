@@ -1,6 +1,5 @@
 // PromptGen-related preload functionality
 import { ipcRenderer } from "electron";
-import type { VersionEntry } from "../preload-api.types";
 
 /**
  * Exposes prompt generation functionality to the renderer process
@@ -79,29 +78,6 @@ export const promptGenFeature = {
   }): Promise<{ success: boolean }> => {
     return ipcRenderer.invoke("set-promptGen-settings", settings);
   },
-
-  /**
-   * Retrieves the prompt generation history entries
-   */
-  getPromptGenHistory: (): Promise<VersionEntry[]> => {
-    return ipcRenderer.invoke("get-promptGen-history");
-  },
-
-  /**
-   * Clears prompt generation history
-   */
-  clearPromptGenHistory: (): Promise<{ success: boolean }> => {
-    return ipcRenderer.invoke("clear-promptGen-history");
-  },
-
-  /**
-   * Registers a callback for promptGen history updates
-   */
-  onPromptGenHistoryUpdated: (callback: () => void): (() => void) => {
-    const listener = (_event: Electron.IpcRendererEvent) => callback();
-    ipcRenderer.on("promptGen-history-updated", listener);
-    return () => {
-      ipcRenderer.removeListener("promptGen-history-updated", listener);
-    };
-  },
 };
+
+export type PromptGenFeature = typeof promptGenFeature;

@@ -2,10 +2,7 @@ import React, { useState, useEffect } from "react";
 import HistoryReviewModal from "../components/HistoryReviewModal";
 import { SettingsModal } from "../components/SettingsModal";
 import { TextAreaBox } from "../components/TextAreaBox";
-import type {
-  HistoryType,
-  VersionEntry,
-} from "../../preload/preload-api.types";
+import type { HistoryEntry, HistoryStoreType } from "~/stores/historyStore";
 
 // Define UI-specific history type for frontend use
 type UiHistoryType = "corrections" | "translations" | "summarize" | "promptGen";
@@ -14,12 +11,12 @@ type UiHistoryType = "corrections" | "translations" | "summarize" | "promptGen";
 // This is safer than importing the actual HISTORY_FEATURES array which might contain non-UI code
 const HISTORY_FEATURES = [
   {
-    id: "correction" as const,
+    id: "corrections" as const,
     uiKey: "corrections" as const,
     label: "Corrections",
   },
   {
-    id: "translation" as const,
+    id: "translations" as const,
     uiKey: "translations" as const,
     label: "Translations",
   },
@@ -33,7 +30,7 @@ const HISTORY_FEATURES = [
     uiKey: "promptGen" as const,
     label: "Prompt Generator",
   },
-];
+] satisfies { id: HistoryStoreType; uiKey: UiHistoryType; label: string }[];
 
 // Import only the HistoryType, not VersionEntry since we have a local one
 
@@ -69,34 +66,21 @@ const GearIcon = () => (
  * Handles API call loading spinner near the mouse, settings modal, and text display.
  */
 // Helper to map UI history types to API history types
-const mapHistoryType = (uiKey: UiHistoryType): HistoryType => {
+const mapHistoryType = (uiKey: UiHistoryType): HistoryStoreType => {
   const feature = HISTORY_FEATURES.find((f) => f.uiKey === uiKey);
   if (!feature) {
     console.error(`History feature with UI key ${uiKey} not found`);
-    return "correction"; // Default fallback
+    return "corrections"; // Default fallback
   }
   return feature.id;
 };
 
 const App: React.FC = () => {
   // History state for all features using a unified approach
-  const [histories, setHistories] = useState<
-    Record<HistoryType, VersionEntry[]>
-  >({
-    correction: [],
-    translation: [],
-    summarize: [],
-    promptGen: [],
-  });
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   // History type selector state
   const [historyType, setHistoryType] = useState<UiHistoryType>("corrections");
-
-  // Helper to get the current history based on selected type
-  const getCurrentHistory = (): VersionEntry[] => {
-    const featureId = mapHistoryType(historyType);
-    return histories[featureId] || [];
-  };
 
   // Options for history selector - using our local configuration
   const historyOptions: { value: UiHistoryType; label: string }[] =
@@ -122,73 +106,20 @@ const App: React.FC = () => {
     corrected: string;
   }>({ original: "", corrected: "" });
 
-  // Listen for text updates from main process via preload script
   useEffect(() => {
-    if (window.electronAPI?.onUpdateText) {
-      const removeListener = window.electronAPI.onUpdateText(
-        ({ original, corrected, promptTokens, completionTokens }) => {
-          setOriginalText(original);
-          setFixedText(corrected);
-          setPromptTokens(promptTokens ?? null);
-          setCompletionTokens(completionTokens ?? null);
-        }
-      );
-      return () => removeListener();
-    }
-  }, []);
-
-  // Error state for IPC issues
-  const [error, _setError] = useState<string>("");
-
-  // Listen for IPC events from Electron main/preload
-  useEffect(() => {
-    // Start loading on shortcut/API call
-    const removeStartLoading = window.electronAPI?.onStartLoading?.(() => {
-      console.log("Preload: Starting loading...");
-      setLoading(true);
+    window.electronAPI.getHistory(historyType).then((history) => {
+      setHistory(history);
     });
 
-    const removeUpdateText = window.electronAPI?.onUpdateText?.(
-      ({ original, corrected }) => {
-        setOriginalText(original);
-        setFixedText(corrected);
-        setLoading(false);
-      }
-    );
-
-    // Set up history update listeners for all features using our unified API
-    const historyTypes: HistoryType[] = HISTORY_FEATURES.map(
-      (feature) => feature.id
-    );
-    const historyListeners = historyTypes.map((type) => {
-      return window.electronAPI.history[type].onHistoryUpdated(() => {
-        console.log(`Received ${type} history update event`);
-        window.electronAPI.history[type]
-          .getHistory()
-          .then((entries: VersionEntry[]) => {
-            console.log(
-              `Updated ${type} history:`,
-              entries?.length || 0,
-              "entries"
-            );
-            setHistories((prev) => ({
-              ...prev,
-              [type]: entries || [],
-            }));
-          })
-          .catch((err: Error) =>
-            console.error(`Failed to fetch updated ${type} history`, err)
-          );
-      });
+    const offHistory = window.electronAPI.onHistoryUpdate?.((payload) => {
+      console.log("onHistoryUpdate", payload);
+      setHistory(payload.entries);
     });
 
     return () => {
-      removeStartLoading?.();
-      removeUpdateText?.();
-      // Clean up all history listeners
-      historyListeners.forEach((removeListener) => removeListener?.());
+      offHistory?.();
     };
-  }, []);
+  }, [historyType]);
 
   useEffect(() => {
     const offOpenSettings = window.electronAPI.onOpenSettings?.(() => {
@@ -208,7 +139,7 @@ const App: React.FC = () => {
       setIsSettingsOpen(true);
     });
     const offHistory = window.electronAPI.onOpenHistoryDialog?.(async () => {
-      const history = await window.electronAPI.getCorrectHistory();
+      const history = await window.electronAPI.getHistory("corrections");
       const last = history[history.length - 1] || {
         original: "",
         corrected: "",
@@ -224,43 +155,6 @@ const App: React.FC = () => {
       offHistory?.();
     };
   }, []);
-
-  // Fetch both histories on mount or when texts change
-  // Load all histories when component mounts or when text is fixed
-  useEffect(() => {
-    // Use Promise.all to load all histories in parallel
-    const historyTypes: HistoryType[] = HISTORY_FEATURES.map(
-      (feature) => feature.id
-    );
-
-    Promise.all(
-      historyTypes.map((type) =>
-        window.electronAPI.history[type]
-          .getHistory()
-          .then((entries: VersionEntry[]) => ({ type, entries }))
-          .catch((error: Error) => {
-            console.error(`Failed to load ${type} history:`, error);
-            return { type, entries: [] as VersionEntry[] };
-          })
-      )
-    ).then((results) => {
-      // Build a new histories object using the results
-      const newHistories = { ...histories };
-
-      results.forEach(
-        ({ type, entries }: { type: HistoryType; entries: VersionEntry[] }) => {
-          console.log(
-            `Loaded ${type} history:`,
-            entries?.length || 0,
-            "entries"
-          );
-          newHistories[type] = entries || [];
-        }
-      );
-
-      setHistories(newHistories);
-    });
-  }, [fixedText, histories]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans flex">
@@ -286,7 +180,7 @@ const App: React.FC = () => {
           </div>
         </div>
         <ul className="divide-y divide-gray-700 flex-1 overflow-y-auto">
-          {getCurrentHistory().map((entry, idx) => (
+          {history.map((entry, idx) => (
             <li
               key={idx}
               className="py-2 hover:bg-gray-700 cursor-pointer px-2"
@@ -310,13 +204,10 @@ const App: React.FC = () => {
           type="button"
           onClick={() => {
             const featureId = mapHistoryType(historyType);
-            window.electronAPI.history[featureId]
-              .clearHistory()
+            window.electronAPI
+              .clearHistory(featureId)
               .then(() => {
-                setHistories((prev) => ({
-                  ...prev,
-                  [featureId]: [],
-                }));
+                setHistory([]);
               })
               .catch((err: Error) =>
                 console.error(`Failed to clear ${featureId} history`, err)
@@ -401,12 +292,6 @@ const App: React.FC = () => {
             className="flex-1"
           />
         </div>
-        {/* Error message from IPC, if any */}
-        {error && (
-          <div className="mt-4 text-red-400 text-center" role="alert">
-            {error}
-          </div>
-        )}
         <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}

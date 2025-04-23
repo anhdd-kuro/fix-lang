@@ -1,85 +1,58 @@
 // Unified history-related preload functionality
 import { ipcRenderer } from "electron";
-
-/**
- * A type representing the available history types in the application
- */
-export type HistoryType =
-  | "correction"
-  | "translation"
-  | "summarize"
-  | "promptGen";
-
-// History entry type directly defined here to avoid circular imports
-export type HistoryEntry = {
-  original: string;
-  corrected: string;
-  timestamp: string;
-  promptTokens?: number;
-  completionTokens?: number;
-};
+import type { SyncHistoryResponse } from "~/main/ipc/features";
+import type { HistoryEntry, HistoryStoreType } from "~/stores/historyStore";
 
 /**
  * Creates a set of history management functions for a specific feature
  * @param featureId - The ID of the history feature to manage
  */
-const createHistoryFeature = (type: HistoryType) => {
-  // Special case handling for promptGen to match existing handlers
-  // that use promptGen (with capital G) instead of prompt-gen
-  let kebabType;
-  if (type === "promptGen") {
-    kebabType = "promptGen"; // Preserve the capital G for this specific case
-  } else {
-    // Regular kebab-case conversion for other types
-    kebabType = type.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
-  }
-
-  // For backwards compatibility with existing IPC handlers
-  // Some handlers don't follow the pattern exactly
-  const getHistoryHandler =
-    type === "correction" ? "get-correct-history" : `get-${kebabType}-history`;
-
-  const clearHistoryHandler =
-    type === "correction"
-      ? "clear-correct-history"
-      : `clear-${kebabType}-history`;
-
-  const updateEvent = `${kebabType}-history-updated`;
-
+const createHistoryFeature = () => {
   return {
     /**
      * Retrieves the history entries for this feature
      */
-    getHistory: (): Promise<HistoryEntry[]> => {
-      return ipcRenderer.invoke(getHistoryHandler);
+    getHistory: (type: HistoryStoreType): Promise<HistoryEntry[]> => {
+      return ipcRenderer.invoke("get-history", type);
     },
 
     /**
      * Clears the history for this feature
      */
-    clearHistory: (): Promise<{ success: boolean }> => {
-      return ipcRenderer.invoke(clearHistoryHandler);
+    clearHistory: (type: HistoryStoreType): Promise<{ success: boolean }> => {
+      return ipcRenderer.invoke("clear-history", type);
     },
 
     /**
-     * Registers a callback for history update events
+     * Adds a new history entry
      */
-    onHistoryUpdated: (callback: () => void): (() => void) => {
-      const listener = (_event: Electron.IpcRendererEvent) => callback();
-      ipcRenderer.on(updateEvent, listener);
+    addHistoryEntry: (
+      entry: HistoryEntry,
+      type: HistoryStoreType
+    ): Promise<{ success: boolean }> => {
+      return ipcRenderer.invoke("add-history", {
+        featureId: type,
+        entry,
+      });
+    },
+
+    onHistoryUpdate: (callback: (payload: SyncHistoryResponse) => void) => {
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        payload: SyncHistoryResponse
+      ) => callback(payload);
+      ipcRenderer.on("sync-history", listener);
+      console.log("onHistoryUpdate callback");
+
+      // Return a cleanup function
       return () => {
-        ipcRenderer.removeListener(updateEvent, listener);
+        ipcRenderer.removeListener("sync-history", listener);
+        console.log("Preload: Removed sync-history listener.");
       };
     },
   };
 };
 
-/**
- * Exposes history management functionality for all features
- */
-export const historyFeature = {
-  correction: createHistoryFeature("correction"),
-  translation: createHistoryFeature("translation"),
-  summarize: createHistoryFeature("summarize"),
-  promptGen: createHistoryFeature("promptGen"),
-};
+export const historyFeature = createHistoryFeature();
+
+export type HistoryFeature = ReturnType<typeof createHistoryFeature>;

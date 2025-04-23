@@ -1,6 +1,5 @@
 // Translation-related preload functionality
 import { ipcRenderer } from "electron";
-import type { VersionEntry } from "../preload-api.types";
 
 // Global cache for translation-data payload
 let translationDataCache: {
@@ -125,20 +124,6 @@ export const translationFeature = {
   },
 
   /**
-   * Retrieves the translation history entries
-   */
-  getTranslationHistory: (): Promise<VersionEntry[]> => {
-    return ipcRenderer.invoke("get-translation-history");
-  },
-
-  /**
-   * Clears translation history
-   */
-  clearTranslationHistory: (): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke("clear-translation-history");
-  },
-
-  /**
    * Retrieves translation settings from the main process.
    */
   getTranslateSettings: (): Promise<{
@@ -158,3 +143,5 @@ export const translationFeature = {
     return ipcRenderer.invoke("set-translate-settings", settings);
   },
 };
+
+export type TranslationFeature = typeof translationFeature;

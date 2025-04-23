@@ -52,3 +52,5 @@ export const apiFeature = {
     return ipcRenderer.invoke("set-api-key", apiKey);
   },
 };
+
+export type ApiFeature = typeof apiFeature;

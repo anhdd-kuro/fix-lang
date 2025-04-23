@@ -19,7 +19,7 @@ console.log("Preload script is being executed");
 
 // Expose a controlled API to the renderer process
 contextBridge.exposeInMainWorld("electronAPI", {
-  history: historyFeature,
+  ...historyFeature,
   ...apiFeature,
   ...correctionFeature,
   ...translationFeature,

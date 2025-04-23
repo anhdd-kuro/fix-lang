@@ -1,6 +1,5 @@
 // Summarization-related preload functionality
 import { ipcRenderer } from "electron";
-import type { VersionEntry } from "../preload-api.types";
 
 /**
  * Exposes summarization-related functionality to the renderer process
@@ -68,29 +67,6 @@ export const summarizationFeature = {
   }): Promise<{ success: boolean }> => {
     return ipcRenderer.invoke("set-summarize-settings", settings);
   },
-
-  /**
-   * Retrieves the summarization history entries
-   */
-  getSummarizeHistory: (): Promise<VersionEntry[]> => {
-    return ipcRenderer.invoke("get-summarize-history");
-  },
-
-  /**
-   * Clears summarization history
-   */
-  clearSummarizeHistory: (): Promise<{ success: boolean }> => {
-    return ipcRenderer.invoke("clear-summarize-history");
-  },
-
-  /**
-   * Registers a callback for summarize history updates
-   */
-  onSummarizeHistoryUpdated: (callback: () => void): (() => void) => {
-    const listener = (_event: Electron.IpcRendererEvent) => callback();
-    ipcRenderer.on("summarize-history-updated", listener);
-    return () => {
-      ipcRenderer.removeListener("summarize-history-updated", listener);
-    };
-  },
 };
+
+export type SummarizationFeature = typeof summarizationFeature;

@@ -132,7 +132,7 @@ export const uiFeature = {
   copyToClipboard: (text: string): Promise<{ success: boolean }> => {
     return ipcRenderer.invoke("copy-to-clipboard", text);
   },
-  
+
   /**
    * Quits the application
    */
@@ -140,3 +140,5 @@ export const uiFeature = {
     ipcRenderer.send("quit-app");
   },
 };
+
+export type UIFeature = typeof uiFeature;

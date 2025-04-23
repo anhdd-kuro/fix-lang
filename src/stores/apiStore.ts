@@ -14,15 +14,6 @@ export type KeyBindings = {
   promptGen: string; // generate a new prompt based on current selection
 };
 
-// New type for version entries
-export type VersionEntry = {
-  original: string;
-  corrected: string;
-  timestamp: string;
-  promptTokens?: number | null;
-  completionTokens?: number | null;
-};
-
 export type GlobalSettings = {
   customSystemPrompt: string;
   customUserPrompt: string;
@@ -62,12 +53,6 @@ export type SettingsStore = {
     context: string;
     autoCopy: boolean;
   };
-
-  // History for each feature
-  history: VersionEntry[]; // corrections history
-  translations: VersionEntry[];
-  historySummarize: VersionEntry[];
-  historyPromptGen: VersionEntry[];
 
   // Legacy fields (for backward compatibility)
   customSystemPrompt: string;
@@ -118,25 +103,7 @@ const schema = {
   withShorten: { type: "boolean", default: false },
   tone: { type: "string", default: "" },
   temperature: { type: "number", default: 0.3 },
-  history: { type: "array", default: [] },
   translationTargetLang: { type: "string", default: "" },
-  translations: {
-    type: "array",
-    items: {
-      type: "object",
-      properties: {
-        original: { type: "string" },
-        corrected: { type: "string" },
-        timestamp: { type: "string" },
-        promptTokens: { type: ["number", "null"] },
-        completionTokens: { type: ["number", "null"] },
-      },
-      required: ["original", "corrected", "timestamp"],
-    },
-    default: [],
-  },
-  historySummarize: { type: "array", default: [] },
-  historyPromptGen: { type: "array", default: [] },
   settingsCorrect: {
     type: "object",
     properties: {
