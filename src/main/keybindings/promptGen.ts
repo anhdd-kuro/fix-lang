@@ -49,7 +49,9 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
       syncHistory({
         entry: {
           original: selectedText,
-          corrected: result.prompts[0],
+          corrected: result.prompts
+            .map((p, i) => `Prompt ${i + 1}: \n${p}`)
+            .join("\n-------------------\n"),
           promptTokens: result.promptTokens ?? 0,
           completionTokens: result.completionTokens ?? 0,
           timestamp: new Date().toISOString(),
