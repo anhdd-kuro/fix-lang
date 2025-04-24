@@ -6,7 +6,7 @@ export const SettingTranslate: React.FC = () => {
   const [status, setStatus] = useState("");
 
   useEffect(() => {
-    window.electronAPI.getTranslateSettings().then((settings) => {
+    window.electronAPI.getTranslationSettings().then((settings) => {
       setDestinationLang(settings.destinationLang);
       setIncludeExplanation(settings.includeExplanation);
     });
@@ -14,7 +14,7 @@ export const SettingTranslate: React.FC = () => {
 
   useEffect(() => {
     const off = window.electronAPI.onSettingsUpdated?.(() => {
-      window.electronAPI.getTranslateSettings().then((settings) => {
+      window.electronAPI.getTranslationSettings().then((settings) => {
         setDestinationLang(settings.destinationLang);
         setIncludeExplanation(settings.includeExplanation);
       });
@@ -23,7 +23,7 @@ export const SettingTranslate: React.FC = () => {
   }, []);
 
   const handleSave = async () => {
-    const result = await window.electronAPI.setTranslateSettings({
+    const result = await window.electronAPI.setTranslationSettings({
       destinationLang,
       includeExplanation,
     });

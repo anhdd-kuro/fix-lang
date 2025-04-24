@@ -106,21 +106,21 @@ export const translationFeature = {
   /**
    * Retrieves translation settings from the main process.
    */
-  getTranslateSettings: (): Promise<{
+  getTranslationSettings: (): Promise<{
     destinationLang: string;
     includeExplanation: boolean;
   }> => {
-    return ipcRenderer.invoke("get-translate-settings");
+    return ipcRenderer.invoke("get-translation-settings");
   },
 
   /**
    * Stores translation settings in the main process.
    */
-  setTranslateSettings: (settings: {
+  setTranslationSettings: (settings: {
     destinationLang: string;
     includeExplanation: boolean;
   }): Promise<{ success: boolean }> => {
-    return ipcRenderer.invoke("set-translate-settings", settings);
+    return ipcRenderer.invoke("set-translation-settings", settings);
   },
 };
 

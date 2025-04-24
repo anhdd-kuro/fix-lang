@@ -1,15 +1,20 @@
-import { DEFAULT_TRANSLATE_PROMPT } from "~/prompts";
+import {
+  TRANSLATE_WITH_EXPLANATION_PROMPT,
+  TRANSLATE_WITHOUT_EXPLANATION_PROMPT,
+} from "~/prompts";
 import { makeAIRequest } from "./shared";
 
 /**
  * Translates the given text into the target language using OpenAI API.
  * @param text The text to translate.
  * @param targetLang The destination language (e.g., "fr", "Japanese").
+ * @param includeExplanation Whether to include explanations for terms that might need clarification.
  * @returns A promise with the translated text and token information.
  */
 export const translateText = async (
   text: string,
-  targetLang: string
+  targetLang: string,
+  includeExplanation = false
 ): Promise<{
   translatedText: string;
   promptTokens: number | null;
@@ -25,7 +30,9 @@ export const translateText = async (
   try {
     // Use shared makeAIRequest function with fixed temperature for translations
     const response = await makeAIRequest({
-      systemPrompt: DEFAULT_TRANSLATE_PROMPT,
+      systemPrompt: includeExplanation
+        ? TRANSLATE_WITH_EXPLANATION_PROMPT
+        : TRANSLATE_WITHOUT_EXPLANATION_PROMPT,
       userPrompt,
       temperature: 0, // Translations should be deterministic
     });

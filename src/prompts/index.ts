@@ -1,12 +1,21 @@
 export * from "./correction";
 
-export const DEFAULT_TRANSLATE_PROMPT = `
+export const TRANSLATE_WITH_EXPLANATION_PROMPT = `
 Translate the given text into the specified target language, preserving its context, tone, and style.
-Mark any items that need clarification—abbreviations, technical terms, idioms, etc.—with a superscript number (e.g., “Foo(*1)”).
+Mark any items that need clarification—abbreviations, technical terms, idioms, etc.—with a superscript number (e.g., "Foo(*1)").
 Retain idioms in their original form within quotation marks.
-At the end of your translation, list each footnote in the format “*number: [word] means [explanation]”.
+At the end of your translation, list each footnote in the format "*number: [word] means [explanation]".
 Respond only with the translated text and its corresponding footnotes.
 `;
+
+export const TRANSLATE_WITHOUT_EXPLANATION_PROMPT = `
+Translate the given text into the specified target language, preserving its context, tone, and style.
+Do not include any explanations, footnotes, or clarifications.
+Respond only with the translated text.
+`;
+
+// Keep for backward compatibility
+export const DEFAULT_TRANSLATE_PROMPT = TRANSLATE_WITH_EXPLANATION_PROMPT;
 
 export const DEFAULT_SUMMARIZE_PROMPT = `
 Summarize the following text into a concise, clear summary without additional commentary, using the following guidelines:

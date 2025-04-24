@@ -1,3 +1,4 @@
+import { Notification } from "electron";
 import { DEFAULT_CUSTOM_PROMPT } from "~/prompts";
 import { makeAIRequest } from "./shared";
 import { store } from "../../stores/apiStore";
@@ -16,6 +17,10 @@ export const fixGrammar = async (
 }> => {
   if (!text || !text.trim()) {
     console.log("fixGrammar called with empty or whitespace-only text.");
+    new Notification({
+      title: "Empty Input",
+      body: "fixGrammar called with empty or whitespace-only text.",
+    }).show();
     return { correctedText: text, promptTokens: null, completionTokens: null };
   }
 

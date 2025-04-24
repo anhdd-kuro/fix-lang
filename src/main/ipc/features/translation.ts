@@ -29,24 +29,6 @@ export const registerTranslationHandlers = () => {
     }
   });
 
-  // Alias for get-translation-settings to match preload API naming
-  ipcMain.handle("get-translate-settings", async () => {
-    try {
-      return (
-        store.get("settingsTranslate") || {
-          destinationLang: "",
-          includeExplanation: false,
-        }
-      );
-    } catch (error) {
-      console.error("Error getting translate settings:", error);
-      return {
-        destinationLang: "",
-        includeExplanation: false,
-      };
-    }
-  });
-
   // Set translation settings
   ipcMain.handle("set-translation-settings", async (_event, settings) => {
     try {
@@ -91,7 +73,17 @@ export const registerTranslationHandlers = () => {
           return { success: false, error: "API key not set" };
         }
 
-        const result = await translateText(apiKey, text, targetLang);
+        // Get translation settings to determine if explanations should be included
+        const settings = (store.get("settingsTranslate") as {
+          destinationLang: string;
+          includeExplanation: boolean;
+        }) || { destinationLang: "", includeExplanation: false };
+
+        const result = await translateText(
+          text,
+          targetLang,
+          settings.includeExplanation
+        );
 
         return {
           success: true,
