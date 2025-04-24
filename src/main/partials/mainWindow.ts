@@ -51,6 +51,11 @@ export const createMainWindow = (
   });
   setMainWindow(win);
 
+  // Set mainWindow to null when the window is closed
+  win.on("closed", () => {
+    mainWindow = null;
+  });
+
   const rendererPath = path.join(
     __dirname,
     "../renderer/MainWindow/index.html"

@@ -24,6 +24,7 @@ import {
   initializeOverlayWindow,
   initializeTrayWindow,
   setupTray,
+  createMainWindow,
 } from "./partials";
 
 const registerIpcHandlers = (): void => {
@@ -78,14 +79,27 @@ function initializeApp() {
     }
 
     registerHotkeys(mainWindow); // Register global shortcuts, passing the window
+  });
 
-    app.on("activate", () => {
-      // On OS X it's common to re-create a window in the app when the
-      // dock icon is clicked and there are no other windows open.
-      if (BrowserWindow.getAllWindows().length === 0) {
-        initializeMainWindow();
-      }
-    });
+  // Handle macOS dock icon clicks - placed outside whenReady to ensure it's always registered
+  app.on("activate", () => {
+    // First check if any windows exist at all (to keep BrowserWindow in use)
+    if (BrowserWindow.getAllWindows().length === 0) {
+      // No windows at all, create a new one
+      createMainWindow();
+      return;
+    }
+
+    // Check if we have a valid main window reference
+    const mainWindow = getMainWindow();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      // Window exists but might be hidden - show and focus it
+      mainWindow.show();
+      mainWindow.focus();
+    } else {
+      // No valid main window exists, create a new one
+      createMainWindow();
+    }
   });
 
   // Quit when all windows are closed, except on macOS.

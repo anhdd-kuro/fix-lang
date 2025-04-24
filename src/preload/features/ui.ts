@@ -139,6 +139,13 @@ export const uiFeature = {
   quitApp: (): void => {
     ipcRenderer.send("quit-app");
   },
+
+  /**
+   * Shows the main window with settings tab open
+   */
+  showMainWindowSettings: (): void => {
+    ipcRenderer.send("show-main-window-settings");
+  },
 };
 
 export type UIFeature = typeof uiFeature;

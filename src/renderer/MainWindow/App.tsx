@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import HistoryReviewModal from "../components/HistoryReviewModal";
+import { SettingsButton } from "../components/SettingsIcon";
 import { SettingsModal } from "../components/SettingsModal";
 import { TextAreaBox } from "../components/TextAreaBox";
 import type { HistoryEntry, HistoryStoreType } from "~/stores/historyStore";
@@ -35,29 +36,6 @@ const HISTORY_FEATURES = [
 // Import only the HistoryType, not VersionEntry since we have a local one
 
 // Using the centralized type definitions from historyStore
-
-// Simple Gear SVG Icon Component
-const GearIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/icon.icns"
-    className="h-6 w-6"
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={2}
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-    />
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-    />
-  </svg>
-);
 
 // (We're using the VersionEntry type defined at the top of the file)
 
@@ -97,7 +75,7 @@ const App: React.FC = () => {
   // Settings modal visibility
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   // Loading state for API call
-  const [_loading, setLoading] = useState<boolean>(false);
+  const [_loading, _setLoading] = useState<boolean>(false);
   // History panel visibility
   const [historyOpen, setHistoryOpen] = useState<boolean>(true);
   const [showHistoryReview, setShowHistoryReview] = useState<boolean>(false);
@@ -149,12 +127,17 @@ const App: React.FC = () => {
       setLastHistoryData(last);
       setShowHistoryReview(true);
     });
+    
+    // The onOpenSettings handler above already takes care of this
+    // No need for additional listeners
+    
     return () => {
       offOpenSettings?.();
       offModel?.();
       offKey?.();
       offPrompt?.();
       offHistory?.();
+      // No additional cleanup needed
     };
   }, []);
 
@@ -263,15 +246,9 @@ const App: React.FC = () => {
           <h1 className="text-3xl font-bold text-blue-400 text-center">
             Last Action Preview
           </h1>
-          <button
-            type="button"
-            onClick={() => setIsSettingsOpen(true)}
-            className="absolute right-4 top-4 p-2 text-gray-400 hover:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded-full"
-            aria-label="Open settings"
-            title="Open settings"
-          >
-            <GearIcon />
-          </button>
+          <div className="absolute top-3 right-3">
+            <SettingsButton onClick={() => setIsSettingsOpen(true)} />
+          </div>
         </div>
 
         {/* Text Areas */}
