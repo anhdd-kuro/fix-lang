@@ -9,7 +9,7 @@ const SettingGlobalPrompt: React.FC = () => {
     customSystemPrompt: "",
     customUserPrompt: "",
     tone: "",
-    temperature: 0.3,
+    temperature: 1,
     top_p: 1.0,
     maxTokens: 10000,
   });

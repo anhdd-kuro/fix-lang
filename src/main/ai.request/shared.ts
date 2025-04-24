@@ -79,7 +79,7 @@ export const makeAIRequest = async (
 
   // Get global settings for AI parameters
   const globalSettings = store.get("globalSettings");
-  const temperature = options.temperature || globalSettings?.temperature || 0.3;
+  const temperature = options.temperature || globalSettings?.temperature || 1;
   const top_p = options.top_p || globalSettings?.top_p || 1.0;
   const maxTokens = options.maxTokens || globalSettings?.maxTokens || 10000;
 

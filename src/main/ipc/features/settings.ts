@@ -105,7 +105,7 @@ export const registerSettingsHandlers = () => {
           customSystemPrompt: globalSettings?.customSystemPrompt || "",
           customUserPrompt: globalSettings?.customUserPrompt || "",
           tone: globalSettings?.tone || "",
-          temperature: globalSettings?.temperature || 0.3,
+          temperature: globalSettings?.temperature || 1,
           top_p: globalSettings?.top_p || 1.0,
           maxTokens: globalSettings?.maxTokens || 10000,
         };
@@ -115,7 +115,6 @@ export const registerSettingsHandlers = () => {
           customSystemPrompt: "",
           customUserPrompt: "",
           tone: "",
-          temperature: 0.3,
         };
       }
     }

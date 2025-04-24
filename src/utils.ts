@@ -61,8 +61,9 @@ const copyHighlightedText = () => {
   return new Promise<string>((resolve, reject) => {
     const script = `
       tell application "System Events"
+        delay 0.1
         keystroke "c" using command down
-        delay 0.3
+        delay 0.1
       end tell
       return the clipboard
     `;
