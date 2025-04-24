@@ -19,6 +19,8 @@ export type GlobalSettings = {
   customUserPrompt: string;
   tone: string;
   temperature: number;
+  top_p: number;
+  maxTokens: number;
 };
 
 export type SettingsStore = {
@@ -88,12 +90,16 @@ const schema = {
       customUserPrompt: { type: "string", default: "" },
       tone: { type: "string", default: "" },
       temperature: { type: "number", default: 0.3 },
+      top_p: { type: "number", default: 1.0 },
+      maxTokens: { type: "number", default: 10000 },
     },
     default: {
       customSystemPrompt: "",
       customUserPrompt: "",
       tone: "",
       temperature: 0.3,
+      top_p: 1.0,
+      maxTokens: 10000,
     },
   },
   // Legacy fields (for backward compatibility)

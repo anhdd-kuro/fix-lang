@@ -96,6 +96,8 @@ export const registerSettingsHandlers = () => {
           customUserPrompt: string;
           tone: string;
           temperature: number;
+          top_p: number;
+          maxTokens: number;
         };
 
         // Return a settings object with defaults if any property is missing
@@ -104,6 +106,8 @@ export const registerSettingsHandlers = () => {
           customUserPrompt: globalSettings?.customUserPrompt || "",
           tone: globalSettings?.tone || "",
           temperature: globalSettings?.temperature || 0.3,
+          top_p: globalSettings?.top_p || 1.0,
+          maxTokens: globalSettings?.maxTokens || 10000,
         };
       } catch (error) {
         console.error("Failed to get prompt settings:", error);
@@ -126,11 +130,19 @@ export const registerSettingsHandlers = () => {
         customUserPrompt: string;
         tone: string;
         temperature: number;
+        top_p: number;
+        maxTokens: number;
       }
     ) => {
       try {
-        const { customSystemPrompt, customUserPrompt, tone, temperature } =
-          settings;
+        const {
+          customSystemPrompt,
+          customUserPrompt,
+          tone,
+          temperature,
+          top_p,
+          maxTokens,
+        } = settings;
 
         // Save to the globalSettings object
         store.set("globalSettings", {
@@ -138,6 +150,8 @@ export const registerSettingsHandlers = () => {
           customUserPrompt,
           tone,
           temperature,
+          top_p,
+          maxTokens,
         });
 
         // Also set to legacy fields for backward compatibility

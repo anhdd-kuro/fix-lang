@@ -53,6 +53,8 @@ export const settingsFeature = {
     customUserPrompt: string;
     tone: string;
     temperature: number;
+    top_p: number;
+    maxTokens: number;
   }> => ipcRenderer.invoke("get-prompt-settings"),
 
   /**
@@ -63,6 +65,8 @@ export const settingsFeature = {
     customUserPrompt: string;
     tone: string;
     temperature: number;
+    top_p: number;
+    maxTokens: number;
   }): Promise<{ success: boolean; error?: string }> => {
     const result = await ipcRenderer.invoke("set-prompt-settings", settings);
     ipcRenderer.send("settings-updated");

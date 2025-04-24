@@ -76,9 +76,11 @@ export const makeAIRequest = async <T = string>(
     throw new Error("You have to select a model first.");
   }
 
-  // Determine temperature to use
+  // Get global settings for AI parameters
   const globalSettings = store.get("globalSettings");
   const temperature = options.temperature || globalSettings?.temperature || 0.3;
+  const top_p = options.top_p || globalSettings?.top_p || 1.0;
+  const maxTokens = options.maxTokens || globalSettings?.maxTokens || 10000;
 
   try {
     // Create messages array if not provided
@@ -96,7 +98,8 @@ export const makeAIRequest = async <T = string>(
       model,
       messages,
       temperature,
-      max_tokens: options.maxTokens || 10000,
+      top_p,
+      max_tokens: maxTokens,
       n: options.n || 1,
       stop: options.stop,
     });
@@ -135,7 +138,9 @@ export type AIRequestOptions = {
   model?: string;
   /** Temperature for sampling (if not specified, pulls from store) */
   temperature?: number;
-  /** Maximum tokens to generate */
+  /** Top_p for nucleus sampling (if not specified, pulls from store) */
+  top_p?: number;
+  /** Maximum tokens to generate (if not specified, pulls from store) */
   maxTokens?: number;
   /** Number of responses to generate */
   n?: number;

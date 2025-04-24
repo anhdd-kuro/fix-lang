@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { twJoin } from "tailwind-merge";
 import { SettingCorrection } from "./SettingCorrection";
 import { SettingGeneral } from "./SettingGeneral";
+import { SettingGlobalPrompt } from "./SettingGlobalPrompt";
 import { SettingKeyBinding } from "./SettingKeyBinding";
-import { SettingPrompt } from "./SettingPrompt";
 import { SettingPromptGen } from "./SettingPromptGen";
 import { SettingSummarize } from "./SettingSummarize";
 import { SettingTranslate } from "./SettingTranslate";
@@ -42,7 +42,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       label: "General",
       icon: (
         <svg
-          xmlns="http://www.w3.org/2000/svg"
           className="h-4 w-4"
           fill="none"
           viewBox="0 0 24 24"
@@ -85,10 +84,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       component: <SettingKeyBinding />,
     },
     {
-      id: "prompt",
+      id: "global-prompt",
       label: "Global Prompts",
       icon: <></>,
-      component: <SettingPrompt />,
+      component: <SettingGlobalPrompt />,
     },
     {
       id: "correction",
