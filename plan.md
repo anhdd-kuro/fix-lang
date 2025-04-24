@@ -351,19 +351,19 @@ export function registerHotkey(win: Electron.BrowserWindow) {
   - [x] Keybindings
   - [x] History
   - [x] Custom prompts
-- [ ] Individual settings per feature:
+- [x] Individual settings per feature:
   - [x] Correct
     - [x] Paraphrase modes (Same Length, Shorten, Expand, Custom)
     - [x] Custom paraphrase prompt
-  - [ ] Summarize
-    - [ ] Minimum length
-    - [ ] Maximum length
-  - [ ] Translate
-    - [ ] Destination language
-    - [ ] Include explanation checkbox
-  - [ ] Paraphrase
-    - [ ] Minimum length
-    - [ ] Maximum length
+  - [x] Summarize
+    - [x] Minimum length
+    - [x] Maximum length
+  - [x] Translate
+    - [x] Destination language
+    - [x] Include explanation checkbox
+  - [x] Paraphrase
+    - [x] Minimum length
+    - [x] Maximum length
   - [x] PromptGen
     - [x] Minimum length (default: 50)
     - [x] Maximum length (default: 150)

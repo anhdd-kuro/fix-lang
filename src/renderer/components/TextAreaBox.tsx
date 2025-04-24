@@ -41,15 +41,13 @@ export const TextAreaBox = ({
         onChange={(e) => onChange?.(e.target.value)}
       />
       {/* Prompt token count display for original text */}
-      {textCount && (
-        <TextCount
-          textOrCount={textCount}
-          className="absolute bottom-0 right-0 text-shadow"
-          aria-live="polite"
-          aria-label="Prompt tokens for original text"
-          titleAttribute="Input + Prompt tokens"
-        />
-      )}
+      <TextCount
+        textOrCount={textCount}
+        className="text-shadow-white ml-auto"
+        aria-live="polite"
+        aria-label="Prompt tokens for original text"
+        titleAttribute="Input + Prompt tokens"
+      />
     </div>
   );
 };
@@ -60,15 +58,11 @@ const TextCount = ({
   label = "Tokens used:",
   titleAttribute,
 }: {
-  textOrCount: string | number | null;
+  textOrCount: string | number | null | undefined;
   className?: string;
   label?: string;
   titleAttribute?: string;
 }) => {
-  if (textOrCount === null) {
-    return null;
-  }
-
   return (
     <span
       className={`text-xs text-gray-400 p-1 rounded cursor-help ${className}`}
@@ -77,7 +71,7 @@ const TextCount = ({
       title={titleAttribute}
     >
       {label}{" "}
-      {typeof textOrCount === "number" ? textOrCount : textOrCount.length}
+      {typeof textOrCount === "number" ? textOrCount : textOrCount?.length || 0}
     </span>
   );
 };
