@@ -6,6 +6,7 @@
  * across individual feature implementations. It also incorporates utility functions
  * previously in prompts/utils.ts to provide a single source of truth for OpenAI interactions.
  */
+import { Notification } from "electron";
 import { OpenAI } from "openai";
 import { makeTonePrompt } from "~/prompts/index";
 import { store } from "~/stores/apiStore";
@@ -53,9 +54,9 @@ export const applyGlobalSettings = (systemPrompt: string): string => {
  * @param options Configuration options for the AI request
  * @returns Promise with the AI response and token information
  */
-export const makeAIRequest = async <T = string>(
+export const makeAIRequest = async (
   options: AIRequestOptions
-): Promise<AIRequestResponse<T>> => {
+): Promise<AIRequestResponse<string[]>> => {
   // Get API key from store
   const apiKey = store.get("apiKey") as string;
   if (!apiKey) {
@@ -99,28 +100,45 @@ export const makeAIRequest = async <T = string>(
       messages,
       temperature,
       top_p,
-      max_tokens: maxTokens,
+      max_completion_tokens: maxTokens,
       n: options.n || 1,
       stop: options.stop,
     });
 
-    // Extract response and token information
-    const content =
-      options.n && options.n > 1
-        ? (res.choices
-            .map((choice) => choice.message?.content?.trim())
-            .filter(Boolean) as unknown as T)
-        : (res.choices[0]?.message?.content?.trim() as unknown as T);
-
-    if (!content) {
-      throw new Error("Failed to get content from OpenAI response.");
-    }
-
+    // Extract token information first
     const promptTokens = res.usage?.prompt_tokens ?? null;
     const completionTokens = res.usage?.completion_tokens ?? null;
 
+    // Process the response content
+    let processedContent: string[] = [];
+
+    // If multiple responses were requested
+    if (options.n && options.n > 1) {
+      // Extract all responses
+      const contents = res.choices
+        .flatMap((choice) =>
+          choice.message?.content ? choice.message.content.trim() : []
+        )
+        .filter(Boolean);
+
+      // Check if we got something
+      if (!contents || contents.length === 0) {
+        throw new Error("Failed to get content from OpenAI response.");
+      }
+
+      // Return as the expected type
+      processedContent = [...contents];
+    } else processedContent = [res.choices[0]?.message?.content?.trim() || ""];
+
+    // Cast to the expected return type
+    const content = processedContent;
+
     return { content, promptTokens, completionTokens };
   } catch (error) {
+    new Notification({
+      title: "Error calling OpenAI API",
+      body: error instanceof Error ? error.message : String(error),
+    }).show();
     console.error("Error calling OpenAI API:", error);
     throw error;
   }

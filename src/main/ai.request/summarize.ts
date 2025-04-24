@@ -28,7 +28,7 @@ export const summarizeText = async (
     });
 
     return {
-      summarizedText: response.content,
+      summarizedText: response.content.join("\n\n"),
       promptTokens: response.promptTokens,
       completionTokens: response.completionTokens,
     };

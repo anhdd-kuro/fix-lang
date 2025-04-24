@@ -43,7 +43,7 @@ export const generatePrompt = async (
 
   try {
     // Use shared makeAIRequest function
-    const response = await makeAIRequest<string[]>({
+    const response = await makeAIRequest({
       systemPrompt: baseSystemPrompt,
       userPrompt: `Input:\n${text}`,
       model,

@@ -57,6 +57,7 @@ export function destroyPromptGenWindow() {
 }
 
 export function showPromptGenWindow(payload: PromptGenPayload) {
+  console.log("showPromptGenWindow called with:", payload);
   const win = createPromptGenWindow();
   const { width, height } = win.getBounds();
   const display = screen.getPrimaryDisplay().bounds;
@@ -69,8 +70,7 @@ export function showPromptGenWindow(payload: PromptGenPayload) {
   const html = path.join(__dirname, "../renderer/PromptGenWindow/index.html");
   win.loadFile(html);
   win.webContents.once("did-finish-load", () => {
-    win.showInactive();
-    win.focus();
+    win.show();
     win.webContents.send("promptGen-data", payload);
   });
 }

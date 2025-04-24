@@ -44,9 +44,8 @@ export const fixGrammar = async (
       systemPrompt: baseSystemPrompt,
       userPrompt,
     });
-
     return {
-      correctedText: response.content,
+      correctedText: response.content.join("\n\n"),
       promptTokens: response.promptTokens,
       completionTokens: response.completionTokens,
     };

@@ -31,7 +31,7 @@ export const translateText = async (
     });
 
     return {
-      translatedText: response.content,
+      translatedText: response.content.join("\n\n"),
       promptTokens: response.promptTokens,
       completionTokens: response.completionTokens,
     };
