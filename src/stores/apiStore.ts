@@ -18,6 +18,7 @@ export type GlobalSettings = {
   customSystemPrompt: string;
   customUserPrompt: string;
   tone: string;
+  temperature: number;
 };
 
 export type SettingsStore = {
@@ -25,7 +26,6 @@ export type SettingsStore = {
   apiKey: string;
   models: Model[];
   selectedModel: string;
-  temperature: number;
 
   // Global settings that apply across features
   globalSettings: GlobalSettings;
@@ -57,8 +57,6 @@ export type SettingsStore = {
   // Legacy fields (for backward compatibility)
   customSystemPrompt: string;
   customUserPrompt: string;
-  withGrammar: boolean;
-  withShorten: boolean;
   tone: string;
   translationTargetLang: string; // deprecated, use settingsTranslate.destinationLang
 };
@@ -89,20 +87,20 @@ const schema = {
       customSystemPrompt: { type: "string", default: "" },
       customUserPrompt: { type: "string", default: "" },
       tone: { type: "string", default: "" },
+      temperature: { type: "number", default: 0.3 },
     },
     default: {
       customSystemPrompt: "",
       customUserPrompt: "",
       tone: "",
+      temperature: 0.3,
     },
   },
   // Legacy fields (for backward compatibility)
   customSystemPrompt: { type: "string", default: "" },
   customUserPrompt: { type: "string", default: "" },
-  withGrammar: { type: "boolean", default: true },
-  withShorten: { type: "boolean", default: false },
   tone: { type: "string", default: "" },
-  temperature: { type: "number", default: 0.3 },
+  // temperature moved to globalSettings
   translationTargetLang: { type: "string", default: "" },
   settingsCorrect: {
     type: "object",

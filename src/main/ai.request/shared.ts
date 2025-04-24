@@ -14,40 +14,6 @@ import type { ChatCompletionMessageParam } from "openai/resources";
 import type { GlobalSettings } from "~/stores/apiStore";
 
 /**
- * Options for common AI request operations
- */
-export type AIRequestOptions = {
-  /** System prompt to guide the AI's behavior */
-  systemPrompt: string;
-  /** User message to send to the AI */
-  userPrompt: string;
-  /** OpenAI model to use (if not specified, pulls from store) */
-  model?: string;
-  /** Temperature for sampling (if not specified, pulls from store) */
-  temperature?: number;
-  /** Maximum tokens to generate */
-  maxTokens?: number;
-  /** Number of responses to generate */
-  n?: number;
-  /** Custom messages if needed (overrides system/user prompt params) */
-  messages?: ChatCompletionMessageParam[];
-  /** Stop sequences */
-  stop?: string[] | null;
-};
-
-/**
- * Response structure for AI request operations
- */
-export type AIRequestResponse<T = string> = {
-  /** Generated content */
-  content: T;
-  /** Number of tokens used in the prompt */
-  promptTokens: number | null;
-  /** Number of tokens used in the completion */
-  completionTokens: number | null;
-};
-
-/**
  * Retrieves global prompt settings from the store
  * @returns GlobalSettings object with all current settings
  */
@@ -111,10 +77,8 @@ export const makeAIRequest = async <T = string>(
   }
 
   // Determine temperature to use
-  const temperature =
-    options.temperature !== undefined
-      ? options.temperature
-      : (store.get("temperature") as number);
+  const globalSettings = store.get("globalSettings");
+  const temperature = options.temperature || globalSettings?.temperature || 0.3;
 
   try {
     // Create messages array if not provided
@@ -157,4 +121,38 @@ export const makeAIRequest = async <T = string>(
     console.error("Error calling OpenAI API:", error);
     throw error;
   }
+};
+
+/**
+ * Options for common AI request operations
+ */
+export type AIRequestOptions = {
+  /** System prompt to guide the AI's behavior */
+  systemPrompt: string;
+  /** User message to send to the AI */
+  userPrompt: string;
+  /** OpenAI model to use (if not specified, pulls from store) */
+  model?: string;
+  /** Temperature for sampling (if not specified, pulls from store) */
+  temperature?: number;
+  /** Maximum tokens to generate */
+  maxTokens?: number;
+  /** Number of responses to generate */
+  n?: number;
+  /** Custom messages if needed (overrides system/user prompt params) */
+  messages?: ChatCompletionMessageParam[];
+  /** Stop sequences */
+  stop?: string[] | null;
+};
+
+/**
+ * Response structure for AI request operations
+ */
+export type AIRequestResponse<T = string> = {
+  /** Generated content */
+  content: T;
+  /** Number of tokens used in the prompt */
+  promptTokens: number | null;
+  /** Number of tokens used in the completion */
+  completionTokens: number | null;
 };

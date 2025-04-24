@@ -51,8 +51,6 @@ export const settingsFeature = {
   getPromptSettings: (): Promise<{
     customSystemPrompt: string;
     customUserPrompt: string;
-    withGrammar: boolean;
-    withShorten: boolean;
     tone: string;
     temperature: number;
   }> => ipcRenderer.invoke("get-prompt-settings"),
@@ -63,8 +61,6 @@ export const settingsFeature = {
   setPromptSettings: async (settings: {
     customSystemPrompt: string;
     customUserPrompt: string;
-    withGrammar: boolean;
-    withShorten: boolean;
     tone: string;
     temperature: number;
   }): Promise<{ success: boolean; error?: string }> => {
