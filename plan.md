@@ -6,51 +6,33 @@
 ├── fix-lang/
 │   ├── .env                              # Environment variables (API keys, etc)
 │   ├── README.md                         # Project overview & setup instructions
-│   ├── bun.lock                          # Bun lockfile for reproducible installs
-│   ├── electron.d.ts                     # TypeScript definitions for Electron
-│   ├── electron.vite.config.ts           # Vite configuration for Electron
-│   ├── eslint.config.js                  # ESLint rules & setup
-│   ├── global.d.ts                       # Global TypeScript declarations
 │   ├── package.json                      # Project metadata & npm scripts
-│   ├── plan.md                           # Project planning document
+│   ├── electron.vite.config.ts           # Vite configuration for Electron
+│   ├── tsconfig.json                     # TypeScript compiler settings
 │   ├── resources/                        # Static assets (icons, images)
 │   ├── release/                          # Release builds & packaging configs
-│   ├── out/                              # Compiled output directory
-│   ├── node_modules/                     # Installed dependencies
-│   ├── tsconfig.json                     # TypeScript compiler settings
 │   │
 │   └── src/
 │       ├── const.ts                      # Application constants
+│       ├── utils.ts                      # Utility functions
 │       ├── main/                         # Main process (Electron entry point)
-│       │   ├── index.ts
-│       │   └── partials/
-│       │       ├── hotkey.ts
-│       │       ├── ipc.ts
-│       │       ├── mainWindow.ts
-│       │       ├── openai.ts
-│       │       ├── overlayWindow.ts
-│       │       ├── tray.ts
-│       │       ├── overlay.html
-│       │       └── tray.png
+│       │   ├── ai.request/               # AI request handlers
+│       │   ├── ipc/                      # IPC communication
+│       │   │   └── features/             # Feature-specific IPC handlers
+│       │   ├── keybindings/              # Global shortcut handlers
+│       │   └── partials/                 # Window management
 │       ├── preload/                      # Preload scripts for secure communication
-│       │   ├── index.ts
-│       │   └── preload-api.types.ts
+│       │   └── features/                 # Feature-specific preload scripts
 │       ├── prompts/                      # Prompt templates for OpenAI
-│       │   └── index.ts
 │       ├── renderer/                     # UI layers (React + Tailwind)
-│       │   ├── MainWindow/
-│       │   │   ├── App.tsx
-│       │   │   ├── index.tsx
-│       │   │   └── index.html
-│       │   ├── TrayWindow/
-│       │   │   ├── index.tsx
-│       │   │   └── index.html
+│       │   ├── MainWindow/               # Main application window
+│       │   ├── PromptGenWindow/          # Prompt generation window
+│       │   ├── SummaryWindow/            # Summary result window
+│       │   ├── TranslationWindow/        # Translation result window
+│       │   ├── TrayWindow/               # System tray window
 │       │   ├── components/               # Reusable UI components
 │       │   └── main.css                  # Global styles
-│       ├── stores/                       # State management
-│       │   ├── apiStore.ts
-│       │   └── keybindingStore.ts
-│       └── utils.ts                      # Utility functions
+│       └── stores/                       # State management
 ```
 
 ## Technical Stack

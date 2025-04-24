@@ -18,10 +18,11 @@
 ## General Rules
 
 - Always start responses with `I’ve already read the rules\n`
-- Check the `Project Structure` section in `plan.md` before implementing or searching to understand the project structure
+- Always read `plan.md` before writing any code
+- After adding a major feature or completing a milestone, update `plan.md`
 - Search Memories first before exploring the codebase
-- Store best practices, patterns, and solutions in Memories for future use
-- If you repeatedly search for certain files, add them to Memories for future reference
+- Actively store best practices, patterns, and solutions in Memories for future use
+- If you repeatedly search for certain files or patterns, add them to Memories for future reference
 - Analyze each task before starting:
   - Plan the implementation
   - Break the task into smaller steps
@@ -39,4 +40,4 @@
 - Follow SOLID principles; keep code simple, maintainable, and testable
 - Use descriptive variable names
 - Prefer `const` over `function` for declarations
-- Keep files under 200 lines; split into smaller files if necessary
+- Keep files under 200 lines, split into smaller files if necessary
