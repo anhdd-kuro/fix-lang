@@ -1,5 +1,5 @@
 import { globalShortcut, Notification, screen } from "electron";
-import { getOpenAIKey, store } from "~/stores/apiStore";
+import { store } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { getHighlightedText } from "../../utils";
 import { generatePrompt } from "../ai.request";
@@ -16,7 +16,6 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
   const ret = globalShortcut.register(promptGenShortcut, async () => {
     console.log(`${promptGenShortcut} pressed (PromptGen)`);
     try {
-      const apiKey = getOpenAIKey();
       const selectedText = await getHighlightedText();
       if (!selectedText || !selectedText.trim()) {
         new Notification({ title: "Error", body: "No text selected." }).show();
@@ -30,7 +29,6 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
       const temperature = store.get("temperature") as number;
 
       const result = await generatePrompt({
-        apiKey,
         text: selectedText,
         model,
         temperature,

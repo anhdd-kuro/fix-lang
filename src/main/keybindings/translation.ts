@@ -1,5 +1,5 @@
 import { app, globalShortcut, Notification, screen } from "electron";
-import { getOpenAIKey, store } from "~/stores/apiStore";
+import { store } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { getHighlightedText } from "../../utils";
 import { translateText } from "../ai.request";
@@ -21,7 +21,6 @@ export const registerTranslateShortcut = (mainWindow: BrowserWindow) => {
   }
   const ret = globalShortcut.register(translateShortcut, async () => {
     console.log(`${translateShortcut} is pressed (Translate)`);
-    const apiKey = getOpenAIKey();
     const selectedText = await getHighlightedText();
     // Dynamically read the latest translation target from settings
     const settings = store.get(
@@ -39,7 +38,7 @@ export const registerTranslateShortcut = (mainWindow: BrowserWindow) => {
       mainWindow.webContents.send("start-loading");
     showOverlaySpinner();
     try {
-      const result = await translateText(apiKey, selectedText, lang);
+      const result = await translateText(selectedText, lang);
       // Update popup with result
       showTranslationWindow({
         ...result,

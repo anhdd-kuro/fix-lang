@@ -1,5 +1,5 @@
 import { globalShortcut, Notification, screen } from "electron";
-import { store, getOpenAIKey } from "~/stores/apiStore";
+import { store } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { getHighlightedText } from "../../utils";
 import { summarizeText } from "../ai.request";
@@ -15,7 +15,6 @@ export const registerSummarizeShortcut = (_mainWindow: BrowserWindow): void => {
   const ret = globalShortcut.register(summarizeShortcut, async () => {
     console.log(`${summarizeShortcut} pressed (Summarize)`);
     try {
-      const apiKey = getOpenAIKey();
       const selectedText = await getHighlightedText();
       if (!selectedText || !selectedText.trim()) {
         new Notification({ title: "Error", body: "No text selected." }).show();
@@ -24,7 +23,6 @@ export const registerSummarizeShortcut = (_mainWindow: BrowserWindow): void => {
       const { x, y } = screen.getCursorScreenPoint();
       showOverlaySpinner();
       const result = await summarizeText(
-        apiKey,
         selectedText,
         store.get("maxSummaryTokens") as number
       );

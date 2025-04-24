@@ -1,12 +1,10 @@
-import { OpenAI } from "openai";
 import { DEFAULT_PROMPT_GEN_PROMPT } from "~/prompts";
-import { applyGlobalSettings } from "~/prompts/utils";
+import { makeAIRequest } from "./shared";
 
 /**
  * Settings for prompt generation
  */
 export type PromptGenSettings = {
-  apiKey: string;
   text: string;
   minLength: number;
   maxLength: number;
@@ -27,23 +25,12 @@ export const generatePrompt = async (
   promptTokens: number | null;
   completionTokens: number | null;
 }> => {
-  const {
-    apiKey,
-    text,
-    minLength,
-    maxLength,
-    nsfw,
-    batchCount,
-    model,
-    temperature,
-  } = settings;
+  const { text, minLength, maxLength, nsfw, batchCount, model, temperature } =
+    settings;
 
-  if (!apiKey) throw new Error("OpenAI API key is missing.");
   if (!text || !text.trim()) {
     return { prompts: [], promptTokens: null, completionTokens: null };
   }
-
-  const openai = new OpenAI({ apiKey });
 
   // Prepare base system prompt with constraints
   const baseSystemPrompt = `
@@ -54,32 +41,23 @@ export const generatePrompt = async (
     ${nsfw ? "" : "- Do not generate NSFW, inappropriate, or adult content."}
   `;
 
-  // Apply global settings to the base system prompt
-  const systemPrompt = applyGlobalSettings(baseSystemPrompt);
+  try {
+    // Use shared makeAIRequest function
+    const response = await makeAIRequest<string[]>({
+      systemPrompt: baseSystemPrompt,
+      userPrompt: `Input:\n${text}`,
+      model,
+      temperature,
+      n: batchCount,
+    });
 
-  const res = await openai.chat.completions.create({
-    model: model,
-    messages: [
-      {
-        role: "system",
-        content: systemPrompt,
-      },
-      { role: "user", content: `Input:\n${text}` },
-    ],
-    temperature: temperature,
-    n: batchCount,
-  });
-  const prompts = res.choices
-    .slice(0, batchCount)
-    .map((choice) => choice.message?.content?.trim())
-    .filter((content): content is string => content !== undefined);
-
-  const promptTokens = res.usage?.prompt_tokens ?? null;
-  const completionTokens = res.usage?.completion_tokens ?? null;
-
-  if (!prompts.length) {
-    throw new Error("Failed to generate prompts from OpenAI response.");
+    return {
+      prompts: response.content,
+      promptTokens: response.promptTokens,
+      completionTokens: response.completionTokens,
+    };
+  } catch (error) {
+    console.error("Error in generatePrompt:", error);
+    throw error;
   }
-
-  return { prompts, promptTokens, completionTokens };
 };

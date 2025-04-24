@@ -1,16 +1,13 @@
-import { OpenAI } from "openai";
 import { DEFAULT_SUMMARIZE_PROMPT } from "~/prompts";
-import { applyGlobalSettings } from "~/prompts/utils";
-import { store } from "../../stores/apiStore";
+import { makeAIRequest } from "./shared";
 
 /**
  * Summarizes the given text using OpenAI API.
- * @param apiKey The OpenAI API key.
  * @param text The text to summarize.
  * @param maxInput The maximum number of tokens to use for the summary.
+ * @returns A promise with the summarized text and token information.
  */
 export const summarizeText = async (
-  apiKey: string,
   text: string,
   maxInput: number
 ): Promise<{
@@ -18,25 +15,25 @@ export const summarizeText = async (
   promptTokens: number | null;
   completionTokens: number | null;
 }> => {
-  if (!apiKey) throw new Error("OpenAI API key is missing.");
-  if (!text || !text.trim())
+  if (!text || !text.trim()) {
     return { summarizedText: text, promptTokens: null, completionTokens: null };
-  const openai = new OpenAI({ apiKey });
-  // Apply global settings to the default summarize prompt
-  const systemPrompt = applyGlobalSettings(DEFAULT_SUMMARIZE_PROMPT);
+  }
 
-  const res = await openai.chat.completions.create({
-    model: store.get("selectedModel"),
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: text },
-    ],
-    temperature: store.get("temperature") as number,
-    max_tokens: maxInput,
-  });
-  const summary = res.choices[0]?.message?.content?.trim();
-  const promptTokens = res.usage?.prompt_tokens ?? null;
-  const completionTokens = res.usage?.completion_tokens ?? null;
-  if (!summary) throw new Error("Failed to get summary from OpenAI response.");
-  return { summarizedText: summary, promptTokens, completionTokens };
+  try {
+    // Use shared makeAIRequest function
+    const response = await makeAIRequest({
+      systemPrompt: DEFAULT_SUMMARIZE_PROMPT,
+      userPrompt: text, // For summaries, the entire text is the user prompt
+      maxTokens: maxInput,
+    });
+
+    return {
+      summarizedText: response.content,
+      promptTokens: response.promptTokens,
+      completionTokens: response.completionTokens,
+    };
+  } catch (error) {
+    console.error("Error in summarizeText:", error);
+    throw error;
+  }
 };

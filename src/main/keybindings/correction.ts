@@ -1,5 +1,5 @@
 import { globalShortcut, Notification } from "electron";
-import { getOpenAIKey } from "~/stores/apiStore";
+// No apiStore import needed as api key is handled in shared.ts
 import { keybindingStore } from "~/stores/keybindingStore";
 import { getHighlightedText, pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
@@ -13,9 +13,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
   const retFix = globalShortcut.register(fixShortcut, async () => {
     console.log(`${fixShortcut} is pressed`);
 
-    // Get API Key from store
     try {
-      const apiKey = getOpenAIKey();
       const selectedText = await getHighlightedText();
 
       if (!selectedText || !selectedText.trim()) {
@@ -35,7 +33,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
       }
 
       showOverlaySpinner();
-      const result = await fixGrammar(apiKey, selectedText);
+      const result = await fixGrammar(selectedText);
 
       if (result.correctedText === selectedText) {
         new Notification({
