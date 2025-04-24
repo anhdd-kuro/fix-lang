@@ -18,14 +18,7 @@ const SettingGlobalPrompt: React.FC = () => {
   // Load saved settings
   useEffect(() => {
     window.electronAPI?.getPromptSettings().then((loadedSettings) => {
-      setSettings({
-        customSystemPrompt: loadedSettings.customSystemPrompt,
-        customUserPrompt: loadedSettings.customUserPrompt,
-        tone: loadedSettings.tone,
-        temperature: loadedSettings.temperature,
-        top_p: loadedSettings.top_p,
-        maxTokens: loadedSettings.maxTokens,
-      });
+      setSettings(loadedSettings);
     });
   }, []);
 
