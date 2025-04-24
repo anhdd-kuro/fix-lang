@@ -127,10 +127,10 @@ const App: React.FC = () => {
       setLastHistoryData(last);
       setShowHistoryReview(true);
     });
-    
+
     // The onOpenSettings handler above already takes care of this
     // No need for additional listeners
-    
+
     return () => {
       offOpenSettings?.();
       offModel?.();
@@ -275,7 +275,6 @@ const App: React.FC = () => {
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
           initialTab={initialSettingsTab}
-          onOverlayClick={() => setIsSettingsOpen(false)}
         />
         <HistoryReviewModal
           isOpen={showHistoryReview}
