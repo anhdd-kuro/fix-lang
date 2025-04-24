@@ -4,7 +4,9 @@ import { DEFAULT_OPENAI_MODEL } from "~/const";
 /**
  * Shared component for OpenAI model selection with refresh.
  */
-export const ModelSelect: React.FC = () => {
+export const ModelSelect: React.FC<{
+  onChange?: (modelId: string) => void;
+}> = ({ onChange }) => {
   const [models, setModels] = useState<
     {
       id: string;
@@ -43,6 +45,12 @@ export const ModelSelect: React.FC = () => {
   const handleModelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const modelId = e.target.value;
     setSelectedModel(modelId);
+
+    // Notify parent component of the change if a callback is provided
+    if (onChange) {
+      onChange(modelId);
+    }
+
     if (window.electronAPI?.setSelectedModel) {
       try {
         await window.electronAPI.setSelectedModel(modelId);

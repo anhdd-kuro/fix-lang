@@ -87,8 +87,6 @@ export const SettingGeneral: React.FC = () => {
     }
   };
 
-
-
   // Save settings
   const handleSaveAll = async () => {
     await handleApiKeyBlur();
@@ -125,7 +123,7 @@ export const SettingGeneral: React.FC = () => {
           Your API key is stored locally and never sent to our servers.
         </p>
       </div>
-      <ModelSelect />
+      <ModelSelect onChange={() => setHasChanges(true)} />
       {/* Save Button */}
       <div className="mt-4">
         <button
