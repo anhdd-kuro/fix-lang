@@ -93,7 +93,10 @@ export const makeAIRequest = async (
     ];
 
     console.log(
-      `Sending request to OpenAI with model: ${model}, temperature: ${temperature}`
+      `Sending request to OpenAI with model: ${model}, temperature: ${temperature}, top_p: ${top_p}, max_completion_tokens: ${maxTokens}
+      System Prompt: ${finalSystemPrompt}
+      User Prompt: ${options.userPrompt}
+    `.trim()
     );
 
     // Make the API request

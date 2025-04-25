@@ -37,7 +37,7 @@ export const generatePrompt = async (
     ${options.context?.trim() || currentSettings.context.trim() || DEFAULT_PROMPT_GEN_PROMPT.trim()}
 
     Constraints:
-    - Generate prompts randomly between ${minLength} and ${maxLength} words in length.
+    - Each prompt should be randomly between ${minLength} and ${maxLength} words in length.
     ${nsfw ? "" : "- Do not generate NSFW, inappropriate, or adult content."}
   `;
 
