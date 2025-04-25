@@ -24,6 +24,19 @@ const createHistoryFeature = () => {
     },
 
     /**
+     * Removes a single history entry
+     */
+    removeHistoryEntry: (
+      type: HistoryStoreType,
+      entry: HistoryEntry
+    ): Promise<{ success: boolean }> => {
+      return ipcRenderer.invoke("remove-history-entry", {
+        featureId: type,
+        entry,
+      });
+    },
+
+    /**
      * Adds a new history entry
      */
     addHistoryEntry: (

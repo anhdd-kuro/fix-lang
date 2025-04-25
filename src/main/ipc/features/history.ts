@@ -91,6 +91,28 @@ export function setupHistoryManagerHandlers() {
     }
   );
 
+  ipcMain.handle(
+    "remove-history-entry",
+    async (
+      _event,
+      {
+        featureId,
+        entry,
+      }: {
+        featureId: HistoryFeatureId;
+        entry: HistoryEntry;
+      }
+    ) => {
+      try {
+        syncHistory({ type: "remove", featureId, entry });
+        return { success: true };
+      } catch (error) {
+        console.error(`Failed to remove history entry for ${featureId}:`, error);
+        return { success: false, error: (error as Error).message };
+      }
+    }
+  );
+
   ipcMain.handle("get-history", async (_event, featureId: HistoryFeatureId) => {
     try {
       return getHistory(featureId);
