@@ -1,5 +1,6 @@
 import { DEFAULT_SUMMARIZE_PROMPT } from "~/prompts";
 import { makeAIRequest } from "./shared";
+import { store } from "../../stores/apiStore";
 
 /**
  * Summarizes the given text using OpenAI API.
@@ -19,13 +20,20 @@ export const summarizeText = async (
     return { summarizedText: text, promptTokens: null, completionTokens: null };
   }
 
+  // Get feature-specific model if set
+  const summarizeSettings = store.get("settingsSummarize");
+  const featureModel = summarizeSettings.model;
+
   try {
     // Use shared makeAIRequest function
     const response = await makeAIRequest({
       systemPrompt: DEFAULT_SUMMARIZE_PROMPT,
       userPrompt: text, // For summaries, the entire text is the user prompt
       maxTokens: maxInput,
+      model: featureModel, // Use feature-specific model if set
     });
+
+    console.log(`Summarize used model: ${featureModel || "default"}`);
 
     return {
       summarizedText: response.content.join("\n\n"),

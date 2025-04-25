@@ -3,6 +3,7 @@ import {
   TRANSLATE_WITHOUT_EXPLANATION_PROMPT,
 } from "~/prompts";
 import { makeAIRequest } from "./shared";
+import { store } from "../../stores/apiStore";
 
 /**
  * Translates the given text into the target language using OpenAI API.
@@ -24,6 +25,10 @@ export const translateText = async (
     return { translatedText: text, promptTokens: null, completionTokens: null };
   }
 
+  // Get feature-specific model if set
+  const translateSettings = store.get("settingsTranslate");
+  const featureModel = translateSettings.model;
+
   // Construct prompt for translation
   const userPrompt = `Translate the following text to ${targetLang}:\n${text}`;
 
@@ -35,7 +40,10 @@ export const translateText = async (
         : TRANSLATE_WITHOUT_EXPLANATION_PROMPT,
       userPrompt,
       temperature: 0, // Translations should be deterministic
+      model: featureModel, // Use feature-specific model if set
     });
+
+    console.log(`Translation used model: ${featureModel || "default"}`);
 
     return {
       translatedText: response.content.join("\n\n"),

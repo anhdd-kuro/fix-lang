@@ -42,9 +42,9 @@ export const registerApiHandlers = () => {
       const storedModels = store.get("models");
       if (storedModels?.length > 0 && !refetch) {
         console.log("Using cached models from store");
-        return { 
-          success: true, 
-          models: storedModels 
+        return {
+          success: true,
+          models: storedModels,
         };
       }
 
@@ -52,29 +52,30 @@ export const registerApiHandlers = () => {
       const apiKey = store.get("apiKey");
       if (!apiKey) {
         console.error("No API key found in store");
-        return { 
-          success: false, 
-          error: "API key not set", 
-          models: [] 
+        return {
+          success: false,
+          error: "API key not set",
+          models: [],
         };
       }
 
       const models = await fetchOpenAIModels(apiKey);
       console.log(`Fetched ${models.length} models from OpenAI`);
-      
+
       // Store the fetched models
       store.set("models", models);
-      return { 
-        success: true, 
-        models: models 
+      return {
+        success: true,
+        models: models,
       };
     } catch (error) {
       console.error("Error in fetch-openai-models handler:", error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      return { 
-        success: false, 
-        error: errorMessage, 
-        models: [] 
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      return {
+        success: false,
+        error: errorMessage,
+        models: [],
       };
     }
   });
@@ -99,4 +100,24 @@ export const registerApiHandlers = () => {
       };
     }
   });
+
+  // Feature-specific model settings
+  ipcMain.handle("get-feature-model", (_event, feature: string) => {
+    const model = store.get<string>(`${feature}.model`);
+    return model || store.get<string>("selectedModel") || DEFAULT_OPENAI_MODEL;
+  });
+  ipcMain.handle(
+    "set-feature-model",
+    (_event, feature: string, model: string) => {
+      try {
+        store.set(`${feature}.model`, model);
+        return { success: true };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
+      }
+    }
+  );
 };

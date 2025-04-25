@@ -6,13 +6,13 @@ import { makeAIRequest } from "./shared";
  */
 export type PromptGenSettings = {
   text: string;
-  minLength: number;
-  maxLength: number;
-  batchCount: number;
-  nsfw: boolean;
+  minLength?: number;
+  maxLength?: number;
+  batchCount?: number;
+  nsfw?: boolean;
   context?: string;
-  model: string;
-  temperature: number;
+  model?: string;
+  temperature?: number;
 };
 
 /**

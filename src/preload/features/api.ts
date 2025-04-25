@@ -51,6 +51,20 @@ export const apiFeature = {
     );
     return ipcRenderer.invoke("set-api-key", apiKey);
   },
+
+  /**
+   * Gets the model for a specific feature or returns the general default.
+   */
+  getFeatureModel: async (feature: string): Promise<string> => {
+    return await ipcRenderer.invoke("get-feature-model", feature);
+  },
+
+  /**
+   * Sets the model for a specific feature.
+   */
+  setFeatureModel: async (feature: string, model: string): Promise<{ success: boolean; error?: string }> => {
+    return await ipcRenderer.invoke("set-feature-model", feature, model);
+  },
 };
 
 export type ApiFeature = typeof apiFeature;

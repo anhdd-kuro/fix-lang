@@ -65,6 +65,7 @@ export const promptGenFeature = {
     batchCount: number;
     nsfw: boolean;
     context: string;
+    model: string;
     autoCopy: boolean;
   }> => {
     return ipcRenderer.invoke("get-promptGen-settings");
@@ -79,6 +80,7 @@ export const promptGenFeature = {
     batchCount: number;
     nsfw: boolean;
     context: string;
+    model: string;
     autoCopy: boolean;
   }): Promise<{ success: boolean }> => {
     return ipcRenderer.invoke("set-promptGen-settings", settings);

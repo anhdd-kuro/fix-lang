@@ -13,6 +13,7 @@ export const correctionFeature = {
     withShorten: boolean;
     paraphrasePrompt: string;
     userInput: string;
+    model?: string;
   }> => {
     return ipcRenderer.invoke("get-correct-settings");
   },
@@ -22,6 +23,7 @@ export const correctionFeature = {
     withShorten: boolean;
     paraphrasePrompt: string;
     userInput: string;
+    model?: string;
   }): Promise<{ success: boolean }> => {
     return ipcRenderer.invoke("set-correct-settings", settings);
   },

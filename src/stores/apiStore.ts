@@ -38,14 +38,17 @@ export type SettingsStore = {
     withShorten: boolean;
     paraphrasePrompt: string;
     userInput: string;
+    model: string;
   };
   settingsTranslate: {
     destinationLang: string;
     includeExplanation: boolean;
+    model: string;
   };
   settingsSummarize: {
     minLength: number;
     maxLength: number;
+    model: string;
   };
   settingsPromptGen: {
     minLength: number;
@@ -54,6 +57,7 @@ export type SettingsStore = {
     nsfw: boolean;
     context: string;
     autoCopy: boolean;
+    model: string;
   };
 
   // Legacy fields (for backward compatibility)
@@ -115,12 +119,14 @@ const schema = {
       withShorten: { type: "boolean", default: false },
       paraphrasePrompt: { type: "string", default: "" },
       userInput: { type: "string", default: "" },
+      model: { type: "string", default: "" },
     },
     default: {
       paraphrase: false,
       withShorten: false,
       paraphrasePrompt: "",
       userInput: "",
+      model: DEFAULT_OPENAI_MODEL,
     },
   },
   settingsSummarize: {
@@ -128,16 +134,22 @@ const schema = {
     properties: {
       minLength: { type: "number", default: 0 },
       maxLength: { type: "number", default: 0 },
+      model: { type: "string", default: "" },
     },
-    default: { minLength: 0, maxLength: 0 },
+    default: { minLength: 0, maxLength: 0, model: DEFAULT_OPENAI_MODEL },
   },
   settingsTranslate: {
     type: "object",
     properties: {
       destinationLang: { type: "string", default: "" },
       includeExplanation: { type: "boolean", default: false },
+      model: { type: "string", default: "" },
     },
-    default: { destinationLang: "", includeExplanation: false },
+    default: {
+      destinationLang: "",
+      includeExplanation: false,
+      model: DEFAULT_OPENAI_MODEL,
+    },
   },
   settingsPromptGen: {
     type: "object",
@@ -148,6 +160,7 @@ const schema = {
       nsfw: { type: "boolean", default: true },
       context: { type: "string", default: "" },
       autoCopy: { type: "boolean", default: false },
+      model: { type: "string", default: "" },
     },
     default: {
       minLength: 50,
@@ -156,6 +169,7 @@ const schema = {
       nsfw: true,
       context: "",
       autoCopy: false,
+      model: DEFAULT_OPENAI_MODEL,
     },
   },
 } satisfies Schema<SettingsStore>;

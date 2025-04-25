@@ -109,6 +109,7 @@ export const translationFeature = {
   getTranslationSettings: (): Promise<{
     destinationLang: string;
     includeExplanation: boolean;
+    model?: string;
   }> => {
     return ipcRenderer.invoke("get-translation-settings");
   },
@@ -119,6 +120,7 @@ export const translationFeature = {
   setTranslationSettings: (settings: {
     destinationLang: string;
     includeExplanation: boolean;
+    model?: string;
   }): Promise<{ success: boolean }> => {
     return ipcRenderer.invoke("set-translation-settings", settings);
   },

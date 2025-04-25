@@ -84,7 +84,7 @@ const TrayWindowMain: React.FC = () => {
               placeholder="Result text"
             />
           </div>
-          <ModelSelect />
+          <ModelSelect saveOnChange />
         </div>
       </div>
       <div className="mt-4 flex justify-center">

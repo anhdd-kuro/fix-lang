@@ -58,7 +58,7 @@ export const makeAIRequest = async (
   options: AIRequestOptions
 ): Promise<AIRequestResponse<string[]>> => {
   // Get API key from store
-  const apiKey = store.get("apiKey") as string;
+  const apiKey = store.get("apiKey");
   if (!apiKey) {
     throw new Error("OpenAI API key is missing.");
   }
@@ -72,10 +72,12 @@ export const makeAIRequest = async (
     : applyGlobalSettings(options.systemPrompt);
 
   // Determine which model to use
-  const model = options.model || (store.get("selectedModel") as string);
+  const model = options.model || store.get("selectedModel");
   if (!model) {
     throw new Error("You have to select a model first.");
   }
+
+  console.log(`Using model for request: ${model}`);
 
   // Get global settings for AI parameters
   const globalSettings = store.get("globalSettings");

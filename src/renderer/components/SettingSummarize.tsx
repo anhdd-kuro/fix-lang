@@ -1,34 +1,58 @@
 import React, { useState, useEffect } from "react";
+import { DEFAULT_OPENAI_MODEL } from "~/const";
+import { ModelSelect } from "./ModelSelect";
+
+// Define a type and default settings for summarize settings
+type SummarizeSettings = {
+  minLength: number;
+  maxLength: number;
+  model: string;
+};
+
+const defaultSettings: SummarizeSettings = {
+  minLength: 0,
+  maxLength: 0,
+  model: DEFAULT_OPENAI_MODEL,
+};
 
 export const SettingSummarize: React.FC = () => {
-  const [minLength, setMinLength] = useState(0);
-  const [maxLength, setMaxLength] = useState(0);
+  const [summarizeSettings, setSummarizeSettings] = useState<SummarizeSettings>(defaultSettings);
   const [status, setStatus] = useState<string>("");
+  const [_isLoading, setIsLoading] = useState(false);
 
+  const loadSettings = async () => {
+    try {
+      setIsLoading(true);
+      const settings = await window.electronAPI.getSummarizeSettings();
+      // Ensure all required properties exist in the settings
+      const completeSettings: SummarizeSettings = {
+        minLength: settings.minLength || 0,
+        maxLength: settings.maxLength || 0,
+        model: settings.model || DEFAULT_OPENAI_MODEL,
+      };
+      setSummarizeSettings(completeSettings);
+    } catch (err) {
+      console.error("Failed to load Summarize settings:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load initial settings
   useEffect(() => {
-    window.electronAPI.getSummarizeSettings().then((settings) => {
-      setMinLength(settings.minLength);
-      setMaxLength(settings.maxLength);
-    });
+    loadSettings();
   }, []);
 
+  // Sync settings on updates
   useEffect(() => {
     const off = window.electronAPI.onSettingsUpdated?.(() => {
-      window.electronAPI
-        .getSummarizeSettings()
-        .then(({ minLength, maxLength }) => {
-          setMinLength(minLength);
-          setMaxLength(maxLength);
-        });
+      loadSettings();
     });
     return () => off?.();
   }, []);
 
   const handleSave = async () => {
-    const result = await window.electronAPI.setSummarizeSettings({
-      minLength,
-      maxLength,
-    });
+    const result = await window.electronAPI.setSummarizeSettings(summarizeSettings);
     if (result.success) {
       setStatus("Saved!");
       setTimeout(() => setStatus(""), 2000);
@@ -39,6 +63,17 @@ export const SettingSummarize: React.FC = () => {
 
   return (
     <section className="flex flex-col gap-4">
+      {/* Model Selection */}
+      <ModelSelect
+        featureId="settingsSummarize"
+        useFeatureModel={true}
+        onChange={(modelId) => 
+          setSummarizeSettings({
+            ...summarizeSettings,
+            model: modelId
+          })
+        }
+      />
       <div className="flex gap-2">
         <div>
           <label
@@ -52,8 +87,11 @@ export const SettingSummarize: React.FC = () => {
             title="Minimum summary length"
             placeholder="Enter min length"
             type="number"
-            value={minLength}
-            onChange={(e) => setMinLength(Number(e.target.value))}
+            value={summarizeSettings.minLength}
+            onChange={(e) => setSummarizeSettings({
+              ...summarizeSettings,
+              minLength: parseInt(e.target.value) || 0
+            })}
             className="w-20 p-1 bg-gray-700 border border-gray-600 rounded text-gray-100"
           />
         </div>
@@ -69,8 +107,11 @@ export const SettingSummarize: React.FC = () => {
             title="Maximum summary length"
             placeholder="Enter max length"
             type="number"
-            value={maxLength}
-            onChange={(e) => setMaxLength(Number(e.target.value))}
+            value={summarizeSettings.maxLength}
+            onChange={(e) => setSummarizeSettings({
+              ...summarizeSettings,
+              maxLength: parseInt(e.target.value) || 0
+            })}
             className="w-20 p-1 bg-gray-700 border border-gray-600 rounded text-gray-100"
           />
         </div>

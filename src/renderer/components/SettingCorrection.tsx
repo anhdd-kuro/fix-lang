@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { DEFAULT_OPENAI_MODEL } from "~/const";
+import { ModelSelect } from "./ModelSelect";
 import Tooltip from "./Tooltip";
 import {
   DEFAULT_CUSTOM_PROMPT,
@@ -14,58 +16,61 @@ type CorrectSettings = {
   withShorten: boolean;
   paraphrasePrompt: string;
   userInput: string;
+  model: string;
+};
+
+const defaultSettings: CorrectSettings = {
+  paraphrase: false,
+  withShorten: false,
+  paraphrasePrompt: "",
+  userInput: "",
+  model: DEFAULT_OPENAI_MODEL,
 };
 
 export const SettingCorrection: React.FC = () => {
-  const [paraphrase, setParaphrase] = useState<boolean>(false);
+  const [correctSettings, setCorrectSettings] =
+    useState<CorrectSettings>(defaultSettings);
   const [paraphraseMode, setParaphraseMode] =
     useState<ParaphraseMode>("same-length");
-  const [paraphrasePrompt, setParaphrasePrompt] = useState<string>("");
-  const [userInput, setUserInput] = useState<string>("");
-  const [_withShorten, setWithShorten] = useState<boolean>(false);
   const [status, setStatus] = useState<string>("");
+  const [_isLoading, setIsLoading] = useState<boolean>(true);
+
+  const loadSettings = async () => {
+    try {
+      setIsLoading(true);
+      const settings = await window.electronAPI.getCorrectSettings();
+      // Ensure all required properties exist in the settings
+      const completeSettings: CorrectSettings = {
+        paraphrase: settings.paraphrase ?? false,
+        withShorten: settings.withShorten ?? false,
+        paraphrasePrompt: settings.paraphrasePrompt ?? "",
+        userInput: settings.userInput ?? "",
+        model: settings.model ?? DEFAULT_OPENAI_MODEL,
+      };
+      setCorrectSettings(completeSettings);
+
+      // Set paraphrase mode based on loaded settings
+      if (settings.withShorten) {
+        setParaphraseMode("shorten");
+      } else if (settings.paraphrase && settings.paraphrasePrompt) {
+        setParaphraseMode("custom");
+      }
+    } catch (err) {
+      console.error("Failed to load Correction settings:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Load initial settings
   useEffect(() => {
-    window.electronAPI
-      .getCorrectSettings()
-      .then((settings: CorrectSettings) => {
-        setParaphrase(settings.paraphrase);
-        // Set default mode to shorten if withShorten is true
-        if (settings.withShorten) {
-          setParaphraseMode("shorten");
-          setWithShorten(true);
-        }
-        // If there's a paraphrase prompt saved, load it and set mode based on content
-        if (settings.paraphrasePrompt) {
-          setParaphrasePrompt(settings.paraphrasePrompt);
-          if (settings.paraphrase) {
-            setParaphraseMode("custom");
-          }
-        }
-
-        // Load user input if available
-        if (settings.userInput) {
-          setUserInput(settings.userInput);
-        }
-      });
+    loadSettings();
   }, []);
 
   // Sync settings on updates
   useEffect(() => {
     const off = window.electronAPI.onSettingsUpdated?.(() => {
-      window.electronAPI
-        .getCorrectSettings()
-        .then((settings: CorrectSettings) => {
-          setParaphrase(settings.paraphrase);
-          setWithShorten(settings.withShorten);
-          if (settings.paraphrasePrompt) {
-            setParaphrasePrompt(settings.paraphrasePrompt);
-          }
-          if (settings.userInput) {
-            setUserInput(settings.userInput);
-          }
-        });
+      loadSettings();
     });
     return () => off?.();
   }, []);
@@ -76,7 +81,7 @@ export const SettingCorrection: React.FC = () => {
 
     // Set appropriate paraphrasePrompt based on selected mode
     let promptToSave = "";
-    if (paraphrase) {
+    if (correctSettings.paraphrase) {
       switch (paraphraseMode) {
         case "same-length":
           promptToSave = DEFAULT_PARAPHRASE_SAME_LENGTH_PROMPT.trim();
@@ -88,17 +93,20 @@ export const SettingCorrection: React.FC = () => {
           promptToSave = DEFAULT_PARAPHRASE_EXPAND_PROMPT.trim();
           break;
         case "custom":
-          promptToSave = paraphrasePrompt;
+          promptToSave = correctSettings.paraphrasePrompt;
           break;
       }
     }
 
-    const result = await window.electronAPI.setCorrectSettings({
-      paraphrase,
+    // Create updated settings object
+    const updatedSettings: CorrectSettings = {
+      ...correctSettings,
       withShorten: withShortenValue,
       paraphrasePrompt: promptToSave,
-      userInput,
-    });
+      model: correctSettings.model,
+    };
+
+    const result = await window.electronAPI.setCorrectSettings(updatedSettings);
 
     if (result.success) {
       setStatus("Saved!");
@@ -119,7 +127,19 @@ export const SettingCorrection: React.FC = () => {
       <fieldset className="flex flex-col gap-4">
         <legend className="sr-only">Correction Settings</legend>
 
-        <div className="flex flex-col gap-4 mb-4">
+        {/* Model Selection */}
+        <ModelSelect
+          featureId="settingsCorrect"
+          useFeatureModel={true}
+          onChange={(modelId) =>
+            setCorrectSettings({
+              ...correctSettings,
+              model: modelId,
+            })
+          }
+        />
+
+        <div className="flex flex-col gap-4 my-4">
           <label htmlFor="user-input" className="text-gray-300 text-sm">
             Custom System Prompt
             <span className="text-xs text-gray-400 ml-2">
@@ -137,7 +157,12 @@ export const SettingCorrection: React.FC = () => {
             <button
               type="button"
               className="text-blue-400 hover:text-blue-300"
-              onClick={() => setUserInput(DEFAULT_CUSTOM_PROMPT.trim())}
+              onClick={() =>
+                setCorrectSettings({
+                  ...correctSettings,
+                  userInput: DEFAULT_CUSTOM_PROMPT.trim(),
+                })
+              }
               title="Use default system prompt as template"
             >
               Use as Template
@@ -146,8 +171,13 @@ export const SettingCorrection: React.FC = () => {
 
           <textarea
             id="user-input"
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
+            value={correctSettings.userInput}
+            onChange={(e) =>
+              setCorrectSettings({
+                ...correctSettings,
+                userInput: e.target.value,
+              })
+            }
             className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 min-h-20 text-sm"
             placeholder="Enter custom system prompt to override the default one"
             rows={4}
@@ -159,8 +189,13 @@ export const SettingCorrection: React.FC = () => {
           <label className="inline-flex items-center text-gray-300">
             <input
               type="checkbox"
-              checked={paraphrase}
-              onChange={() => setParaphrase(!paraphrase)}
+              checked={correctSettings.paraphrase}
+              onChange={() =>
+                setCorrectSettings({
+                  ...correctSettings,
+                  paraphrase: !correctSettings.paraphrase,
+                })
+              }
               className="form-checkbox h-4 w-4 text-blue-500"
             />
             <span className="mx-2">
@@ -172,7 +207,7 @@ export const SettingCorrection: React.FC = () => {
           </label>
         </div>
 
-        {paraphrase && (
+        {correctSettings.paraphrase && (
           <fieldset className="ml-6 flex flex-col gap-4 border border-gray-700 p-4">
             <legend>Paraphrase Options</legend>
 
@@ -249,7 +284,10 @@ export const SettingCorrection: React.FC = () => {
                       type="button"
                       className="text-blue-400 hover:text-blue-300"
                       onClick={() =>
-                        setParaphrasePrompt(DEFAULT_CUSTOM_PROMPT.trim())
+                        setCorrectSettings({
+                          ...correctSettings,
+                          paraphrasePrompt: DEFAULT_CUSTOM_PROMPT.trim(),
+                        })
                       }
                       title="Use default prompt template"
                     >
@@ -260,8 +298,13 @@ export const SettingCorrection: React.FC = () => {
 
                 <textarea
                   id="custom-prompt"
-                  value={paraphrasePrompt}
-                  onChange={(e) => setParaphrasePrompt(e.target.value)}
+                  value={correctSettings.paraphrasePrompt}
+                  onChange={(e) =>
+                    setCorrectSettings({
+                      ...correctSettings,
+                      paraphrasePrompt: e.target.value,
+                    })
+                  }
                   className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 min-h-20 text-sm"
                   placeholder="Enter your custom instructions for paraphrasing"
                   rows={4}

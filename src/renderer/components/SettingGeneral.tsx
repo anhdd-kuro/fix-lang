@@ -123,7 +123,10 @@ export const SettingGeneral: React.FC = () => {
           Your API key is stored locally and never sent to our servers.
         </p>
       </div>
+
+      {/* Model Selection */}
       <ModelSelect onChange={() => setHasChanges(true)} />
+
       {/* Save Button */}
       <div className="mt-4">
         <button

@@ -3,10 +3,22 @@ import { DEFAULT_OPENAI_MODEL } from "~/const";
 
 /**
  * Shared component for OpenAI model selection with refresh.
+ *
+ * @param onChange - Callback when model changes
+ * @param featureId - Optional feature ID for feature-specific model settings
+ * @param useFeatureModel - Whether to use feature-specific model selection
  */
 export const ModelSelect: React.FC<{
   onChange?: (modelId: string) => void;
-}> = ({ onChange }) => {
+  featureId?: string;
+  useFeatureModel?: boolean;
+  saveOnChange?: boolean;
+}> = ({
+  onChange,
+  featureId,
+  useFeatureModel = false,
+  saveOnChange = false,
+}) => {
   const [models, setModels] = useState<
     {
       id: string;
@@ -17,6 +29,8 @@ export const ModelSelect: React.FC<{
   >([]);
   const [selectedModel, setSelectedModel] =
     useState<string>(DEFAULT_OPENAI_MODEL);
+  // Store the currently saved feature-specific model to detect changes and enable reset
+  const [savedFeatureModel, setSavedFeatureModel] = useState<string>("");
   const [modelsLoading, setModelsLoading] = useState<boolean>(false);
   const [modelsError, setModelsError] = useState<string>("");
 
@@ -51,21 +65,60 @@ export const ModelSelect: React.FC<{
       onChange(modelId);
     }
 
-    if (window.electronAPI?.setSelectedModel) {
-      try {
+    try {
+      if (useFeatureModel && featureId && window.electronAPI?.setFeatureModel) {
+        // If this is a feature-specific model selector, save to that feature
+        if (saveOnChange) {
+          await window.electronAPI.setFeatureModel(featureId, modelId);
+          console.log(
+            `Feature-specific model for ${featureId} set to: ${modelId}`
+          );
+        }
+      } else if (window.electronAPI?.setSelectedModel) {
+        // Otherwise save as the default model
         await window.electronAPI.setSelectedModel(modelId);
-      } catch (err) {
-        console.error("ModelSelect: Failed to persist selected model", err);
+        console.log(`Default model set to: ${modelId}`);
       }
+    } catch (err) {
+      console.error("ModelSelect: Failed to persist model setting", err);
     }
   };
 
   useEffect(() => {
     fetchModels();
-    window.electronAPI?.getSelectedModel?.().then((m) => {
-      if (m) setSelectedModel(m);
-    });
-  }, []);
+
+    const loadModelSetting = async () => {
+      try {
+        if (
+          useFeatureModel &&
+          featureId &&
+          window.electronAPI?.getFeatureModel
+        ) {
+          // Get feature-specific model if this is a feature model selector
+          const featureModel =
+            await window.electronAPI.getFeatureModel(featureId);
+          if (featureModel) {
+            setSelectedModel(featureModel);
+            setSavedFeatureModel(featureModel);
+            console.log(
+              `Loaded feature model for ${featureId}: ${featureModel}`
+            );
+          }
+        } else if (window.electronAPI?.getSelectedModel) {
+          // Otherwise get the default model
+          const defaultModel = await window.electronAPI.getSelectedModel();
+          if (defaultModel) {
+            setSelectedModel(defaultModel);
+            console.log(`Loaded default model: ${defaultModel}`);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading model settings:", err);
+      }
+    };
+
+    loadModelSetting();
+  }, [featureId, useFeatureModel]);
 
   return (
     <div className="mb-4">
@@ -106,6 +159,38 @@ export const ModelSelect: React.FC<{
         >
           &#x21bb;
         </button>
+
+        {/* Add reset button for feature-specific models */}
+        {useFeatureModel && featureId && (
+          <button
+            type="button"
+            aria-label="Reset to default model"
+            title="Reset to default model"
+            className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400"
+            onClick={async () => {
+              if (window.electronAPI?.setFeatureModel) {
+                try {
+                  // Set to empty string to use default model
+                  await window.electronAPI.setFeatureModel(featureId, "");
+                  setSavedFeatureModel("");
+                  // Get the default model to display
+                  const defaultModel =
+                    await window.electronAPI.getSelectedModel();
+                  setSelectedModel(defaultModel || DEFAULT_OPENAI_MODEL);
+                  console.log(`Reset ${featureId} to use default model`);
+
+                  // Notify parent of change
+                  if (onChange) onChange(defaultModel || DEFAULT_OPENAI_MODEL);
+                } catch (err) {
+                  console.error("Error resetting to default model:", err);
+                }
+              }
+            }}
+            disabled={!savedFeatureModel} // Only enable if a feature-specific model is set
+          >
+            Reset
+          </button>
+        )}
       </div>
       {modelsError && (
         <p className="text-xs text-red-400 mt-1" role="alert">
@@ -113,8 +198,9 @@ export const ModelSelect: React.FC<{
         </p>
       )}
       <p className="text-xs text-gray-500 mt-1">
-        Model is used for all OpenAI requests. Your API key determines available
-        models.
+        {useFeatureModel
+          ? "Feature-specific model that overrides the default. Leave unchanged to use the default model."
+          : "Default model used for all OpenAI requests unless overridden by feature settings."}
       </p>
     </div>
   );

@@ -24,8 +24,9 @@ export const fixGrammar = async (
     return { correctedText: text, promptTokens: null, completionTokens: null };
   }
 
-  // Get correct settings
+  // Get correct settings and feature-specific model
   const correctSettings = store.get("settingsCorrect");
+  const featureModel = correctSettings.model;
   const paraphrasePrompt = correctSettings.paraphrasePrompt;
   const userCustomInput = correctSettings.userInput;
 
@@ -48,7 +49,10 @@ export const fixGrammar = async (
     const response = await makeAIRequest({
       systemPrompt: baseSystemPrompt,
       userPrompt,
+      model: featureModel, // Use feature-specific model if set (will fall back to default if empty)
     });
+
+    console.log(`Correction used model: ${featureModel || "default"}`);
     return {
       correctedText: response.content.join("\n\n"),
       promptTokens: response.promptTokens,

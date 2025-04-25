@@ -1,40 +1,79 @@
 import React, { useState, useEffect } from "react";
+import { DEFAULT_OPENAI_MODEL } from "~/const";
+import { ModelSelect } from "./ModelSelect";
+
+// Define a type and default settings for translation settings
+type TranslateSettings = {
+  destinationLang: string;
+  includeExplanation: boolean;
+  model: string;
+};
+
+const defaultSettings: TranslateSettings = {
+  destinationLang: "",
+  includeExplanation: false,
+  model: DEFAULT_OPENAI_MODEL,
+};
 
 export const SettingTranslate: React.FC = () => {
-  const [destinationLang, setDestinationLang] = useState("");
-  const [includeExplanation, setIncludeExplanation] = useState(false);
+  const [translateSettings, setTranslateSettings] = useState<TranslateSettings>(defaultSettings);
   const [status, setStatus] = useState("");
+  const [_isLoading, setIsLoading] = useState(false);
 
+  const loadSettings = async () => {
+    try {
+      setIsLoading(true);
+      const settings = await window.electronAPI.getTranslationSettings();
+      // Ensure all required properties exist in the settings
+      const completeSettings: TranslateSettings = {
+        destinationLang: settings.destinationLang || "",
+        includeExplanation: settings.includeExplanation || false,
+        model: settings.model || DEFAULT_OPENAI_MODEL,
+      };
+      setTranslateSettings(completeSettings);
+    } catch (err) {
+      console.error("Failed to load Translation settings:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load initial settings
   useEffect(() => {
-    window.electronAPI.getTranslationSettings().then((settings) => {
-      setDestinationLang(settings.destinationLang);
-      setIncludeExplanation(settings.includeExplanation);
-    });
+    loadSettings();
   }, []);
 
+  // Sync settings on updates
   useEffect(() => {
     const off = window.electronAPI.onSettingsUpdated?.(() => {
-      window.electronAPI.getTranslationSettings().then((settings) => {
-        setDestinationLang(settings.destinationLang);
-        setIncludeExplanation(settings.includeExplanation);
-      });
+      loadSettings();
     });
     return () => off?.();
   }, []);
 
   const handleSave = async () => {
-    const result = await window.electronAPI.setTranslationSettings({
-      destinationLang,
-      includeExplanation,
-    });
+    const result = await window.electronAPI.setTranslationSettings(translateSettings);
     if (result.success) {
       setStatus("Saved!");
       setTimeout(() => setStatus(""), 2000);
-    } else setStatus("Error");
+    } else {
+      setStatus("Error");
+    }
   };
 
   return (
     <section className="flex flex-col gap-4">
+      {/* Model Selection */}
+      <ModelSelect
+        featureId="settingsTranslate"
+        useFeatureModel={true}
+        onChange={(modelId) => 
+          setTranslateSettings({
+            ...translateSettings,
+            model: modelId
+          })
+        }
+      />
       <div>
         <label
           htmlFor="translate-destination-lang"
@@ -47,16 +86,22 @@ export const SettingTranslate: React.FC = () => {
           title="Destination language for translation"
           placeholder="Enter target language"
           type="text"
-          value={destinationLang}
-          onChange={(e) => setDestinationLang(e.target.value)}
+          value={translateSettings.destinationLang}
+          onChange={(e) => setTranslateSettings({
+            ...translateSettings,
+            destinationLang: e.target.value
+          })}
           className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100"
         />
       </div>
       <label className="inline-flex items-center text-gray-300">
         <input
           type="checkbox"
-          checked={includeExplanation}
-          onChange={() => setIncludeExplanation(!includeExplanation)}
+          checked={translateSettings.includeExplanation}
+          onChange={() => setTranslateSettings({
+            ...translateSettings,
+            includeExplanation: !translateSettings.includeExplanation
+          })}
           className="form-checkbox"
         />
         <span className="ml-2">Include Explanation</span>

@@ -1,18 +1,33 @@
 import React, { useState, useEffect } from "react";
+import { DEFAULT_OPENAI_MODEL } from "~/const";
+import { ModelSelect } from "./ModelSelect";
 import Tooltip from "./Tooltip";
 import {
   DEFAULT_PROMPT_GEN_PROMPT,
   DEFAULT_PROMPT_GEN_IMAGE_PROMPT,
 } from "../../prompts";
 
+const defaultSettings = {
+  minLength: 50,
+  maxLength: 150,
+  batchCount: 5,
+  nsfw: true,
+  context: "",
+  model: DEFAULT_OPENAI_MODEL,
+  autoCopy: false,
+};
+
 export const SettingPromptGen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const [minLength, setMinLength] = useState<number | null>(null);
-  const [maxLength, setMaxLength] = useState<number | null>(null);
-  const [batchCount, setBatchCount] = useState<number | null>(null);
-  const [nsfw, setNsfw] = useState<boolean | null>(null);
-  const [context, setContext] = useState<string>("");
-  const [autoCopy, setAutoCopy] = useState<boolean>(false);
+  const [promptGenSettings, setPromptGenSettings] = useState<{
+    minLength: number;
+    maxLength: number;
+    batchCount: number;
+    nsfw: boolean;
+    context: string;
+    model: string;
+    autoCopy: boolean;
+  }>(defaultSettings);
 
   // Get initial values from store and listen for updates
   useEffect(() => {
@@ -20,12 +35,32 @@ export const SettingPromptGen: React.FC = () => {
       try {
         setIsLoading(true);
         const settings = await window.electronAPI.getPromptGenSettings();
-        setMinLength(settings.minLength);
-        setMaxLength(settings.maxLength);
-        setBatchCount(settings.batchCount);
-        setNsfw(settings.nsfw);
-        setContext(settings.context || "");
-        setAutoCopy(settings.autoCopy || false);
+        setPromptGenSettings(settings);
+      } catch (err) {
+        console.error("Failed to load PromptGen settings:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Load initial settings
+    loadSettings();
+
+    // Listen for settings updates
+    const off = window.electronAPI.onSettingsUpdated?.(() => {
+      loadSettings();
+    });
+
+    return () => off?.();
+  }, []);
+
+  // Get initial values from store and listen for updates
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setIsLoading(true);
+        const settings = await window.electronAPI.getPromptGenSettings();
+        setPromptGenSettings(settings);
       } catch (err) {
         console.error("Failed to load PromptGen settings:", err);
       } finally {
@@ -48,23 +83,7 @@ export const SettingPromptGen: React.FC = () => {
 
   const handleReset = async () => {
     try {
-      // Default values from schema
-      const defaultSettings = {
-        minLength: 50,
-        maxLength: 150,
-        batchCount: 5,
-        nsfw: true,
-        context: "",
-        autoCopy: false,
-      };
-
-      // Update local state
-      setMinLength(defaultSettings.minLength);
-      setMaxLength(defaultSettings.maxLength);
-      setBatchCount(defaultSettings.batchCount);
-      setNsfw(defaultSettings.nsfw);
-      setContext(defaultSettings.context);
-      setAutoCopy(defaultSettings.autoCopy);
+      setPromptGenSettings(defaultSettings);
 
       // Save to store
       const result =
@@ -85,24 +104,18 @@ export const SettingPromptGen: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (
-      minLength === null ||
-      maxLength === null ||
-      batchCount === null ||
-      nsfw === null
+      promptGenSettings.minLength === null ||
+      promptGenSettings.maxLength === null ||
+      promptGenSettings.batchCount === null ||
+      promptGenSettings.nsfw === null
     ) {
       setStatus("Error: Settings not loaded");
       return;
     }
 
     try {
-      const result = await window.electronAPI.setPromptGenSettings({
-        minLength,
-        maxLength,
-        batchCount,
-        nsfw,
-        context,
-        autoCopy,
-      });
+      const result =
+        await window.electronAPI.setPromptGenSettings(promptGenSettings);
       if (result.success) {
         setStatus("Saved!");
         setTimeout(() => setStatus(""), 2000);
@@ -125,10 +138,10 @@ export const SettingPromptGen: React.FC = () => {
 
   // Ensure we have loaded values before rendering form
   if (
-    minLength === null ||
-    maxLength === null ||
-    nsfw === null ||
-    batchCount === null
+    promptGenSettings.minLength === null ||
+    promptGenSettings.maxLength === null ||
+    promptGenSettings.nsfw === null ||
+    promptGenSettings.batchCount === null
   ) {
     return (
       <div className="flex justify-center items-center p-8 text-gray-300">
@@ -139,6 +152,15 @@ export const SettingPromptGen: React.FC = () => {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col">
+      {/* Model Selection */}
+      <ModelSelect
+        featureId="settingsPromptGen"
+        useFeatureModel={true}
+        onChange={(modelId) =>
+          setPromptGenSettings({ ...promptGenSettings, model: modelId })
+        }
+      />
+
       <fieldset className="flex flex-col gap-4">
         <div className="grid grid-cols-3 gap-6">
           <div className="flex flex-col gap-2">
@@ -154,8 +176,13 @@ export const SettingPromptGen: React.FC = () => {
               name="minLength"
               required
               aria-label="PromptGen minimum length"
-              value={minLength}
-              onChange={(e) => setMinLength(Number(e.target.value))}
+              value={promptGenSettings.minLength}
+              onChange={(e) =>
+                setPromptGenSettings({
+                  ...promptGenSettings,
+                  minLength: Number(e.target.value),
+                })
+              }
               className="w-full p-1 bg-gray-700 border border-gray-600 rounded text-gray-100"
               placeholder="Min"
             />
@@ -173,8 +200,13 @@ export const SettingPromptGen: React.FC = () => {
               name="maxLength"
               required
               aria-label="PromptGen maximum length"
-              value={maxLength}
-              onChange={(e) => setMaxLength(Number(e.target.value))}
+              value={promptGenSettings.maxLength}
+              onChange={(e) =>
+                setPromptGenSettings({
+                  ...promptGenSettings,
+                  maxLength: Number(e.target.value),
+                })
+              }
               className="w-full p-1 bg-gray-700 border border-gray-600 rounded text-gray-100"
               placeholder="Max"
             />
@@ -193,8 +225,13 @@ export const SettingPromptGen: React.FC = () => {
               type="number"
               name="batchCount"
               required
-              value={batchCount}
-              onChange={(e) => setBatchCount(Number(e.target.value))}
+              value={promptGenSettings.batchCount}
+              onChange={(e) =>
+                setPromptGenSettings({
+                  ...promptGenSettings,
+                  batchCount: Number(e.target.value),
+                })
+              }
               className="w-20 p-1 bg-gray-700 border border-gray-600 rounded text-gray-100"
               placeholder="Count"
               min="1"
@@ -222,7 +259,12 @@ export const SettingPromptGen: React.FC = () => {
               <button
                 type="button"
                 className="text-blue-400 hover:text-blue-300"
-                onClick={() => setContext(DEFAULT_PROMPT_GEN_PROMPT.trim())}
+                onClick={() =>
+                  setPromptGenSettings({
+                    ...promptGenSettings,
+                    context: DEFAULT_PROMPT_GEN_PROMPT.trim(),
+                  })
+                }
                 title="Use default text prompt template"
               >
                 Use as Template
@@ -237,7 +279,10 @@ export const SettingPromptGen: React.FC = () => {
                 type="button"
                 className="text-blue-400 hover:text-blue-300"
                 onClick={() =>
-                  setContext(DEFAULT_PROMPT_GEN_IMAGE_PROMPT.trim())
+                  setPromptGenSettings({
+                    ...promptGenSettings,
+                    context: DEFAULT_PROMPT_GEN_IMAGE_PROMPT.trim(),
+                  })
                 }
                 title="Use image prompt template"
               >
@@ -249,8 +294,13 @@ export const SettingPromptGen: React.FC = () => {
             id="promptGen-context"
             name="context"
             aria-label="Custom context for prompt generation"
-            value={context}
-            onChange={(e) => setContext(e.target.value)}
+            value={promptGenSettings.context}
+            onChange={(e) =>
+              setPromptGenSettings({
+                ...promptGenSettings,
+                context: e.target.value,
+              })
+            }
             className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 min-h-20 text-sm"
             placeholder="Leave empty to use default, or enter your own system prompt"
             rows={4}
@@ -262,8 +312,13 @@ export const SettingPromptGen: React.FC = () => {
             <input
               type="checkbox"
               name="nsfw"
-              checked={nsfw}
-              onChange={() => setNsfw(!nsfw)}
+              checked={promptGenSettings.nsfw}
+              onChange={() =>
+                setPromptGenSettings({
+                  ...promptGenSettings,
+                  nsfw: !promptGenSettings.nsfw,
+                })
+              }
               className="form-checkbox h-4 w-4 text-blue-500"
             />
             <span className="ml-2">Allow NSFW</span>
@@ -273,8 +328,13 @@ export const SettingPromptGen: React.FC = () => {
             <input
               type="checkbox"
               name="autoCopy"
-              checked={autoCopy}
-              onChange={() => setAutoCopy(!autoCopy)}
+              checked={promptGenSettings.autoCopy}
+              onChange={() =>
+                setPromptGenSettings({
+                  ...promptGenSettings,
+                  autoCopy: !promptGenSettings.autoCopy,
+                })
+              }
               className="form-checkbox h-4 w-4 text-blue-500"
             />
             <span className="ml-2">Auto-copy to clipboard</span>

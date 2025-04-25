@@ -10,7 +10,6 @@ export type PromptGenPayload = {
   completionTokens: number | null;
   x: number;
   y: number;
-  autoCopy: boolean;
 };
 
 export function createPromptGenWindow() {
