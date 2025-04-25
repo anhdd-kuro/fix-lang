@@ -14,7 +14,7 @@ import { store } from "../../stores/apiStore";
  */
 export const translateText = async (
   text: string,
-  targetLang: string,
+  targetLang?: string,
   includeExplanation = false
 ): Promise<{
   translatedText: string;
@@ -30,7 +30,7 @@ export const translateText = async (
   const featureModel = translateSettings.model;
 
   // Construct prompt for translation
-  const userPrompt = `Translate the following text to ${targetLang}:\n${text}`;
+  const userPrompt = `Translate the following text to ${targetLang || translateSettings.destinationLang}:\n${text}`;
 
   try {
     // Use shared makeAIRequest function with fixed temperature for translations
@@ -39,7 +39,7 @@ export const translateText = async (
         ? TRANSLATE_WITH_EXPLANATION_PROMPT
         : TRANSLATE_WITHOUT_EXPLANATION_PROMPT,
       userPrompt,
-      temperature: 0, // Translations should be deterministic
+      temperature: 0.5, // Translations should be deterministic
       model: featureModel, // Use feature-specific model if set
     });
 

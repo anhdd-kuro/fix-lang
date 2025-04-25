@@ -76,12 +76,7 @@ export const registerCorrectionHandlers = () => {
           return { success: false, error: "No text provided" };
         }
 
-        const apiKey = store.get("apiKey") as string;
-        if (!apiKey) {
-          return { success: false, error: "API key not set" };
-        }
-
-        const result = await fixGrammar(apiKey, text);
+        const result = await fixGrammar(text);
 
         return {
           success: true,

@@ -5,17 +5,21 @@ import { store } from "../../stores/apiStore";
 /**
  * Summarizes the given text using OpenAI API.
  * @param text The text to summarize.
- * @param maxInput The maximum number of tokens to use for the summary.
+ * @param options Optional configuration options.
  * @returns A promise with the summarized text and token information.
  */
 export const summarizeText = async (
   text: string,
-  maxInput: number
+  options?: {
+    maxLength?: number;
+  }
 ): Promise<{
   summarizedText: string;
   promptTokens: number | null;
   completionTokens: number | null;
 }> => {
+  const currentSettings = store.get("settingsSummarize");
+
   if (!text || !text.trim()) {
     return { summarizedText: text, promptTokens: null, completionTokens: null };
   }
@@ -29,7 +33,7 @@ export const summarizeText = async (
     const response = await makeAIRequest({
       systemPrompt: DEFAULT_SUMMARIZE_PROMPT,
       userPrompt: text, // For summaries, the entire text is the user prompt
-      maxTokens: maxInput,
+      maxTokens: options?.maxLength || currentSettings.maxLength,
       model: featureModel, // Use feature-specific model if set
     });
 

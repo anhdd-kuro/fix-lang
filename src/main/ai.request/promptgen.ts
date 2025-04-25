@@ -1,4 +1,5 @@
 import { DEFAULT_PROMPT_GEN_PROMPT } from "~/prompts";
+import { store } from "~/stores/apiStore";
 import { makeAIRequest } from "./shared";
 
 /**
@@ -19,22 +20,21 @@ export type PromptGenSettings = {
  * Generates a specialized prompt based on input text and settings.
  */
 export const generatePrompt = async (
-  settings: PromptGenSettings
+  options: PromptGenSettings
 ): Promise<{
   prompts: string[];
   promptTokens: number | null;
   completionTokens: number | null;
 }> => {
-  const { text, minLength, maxLength, nsfw, batchCount, model, temperature } =
-    settings;
-
-  if (!text || !text.trim()) {
-    return { prompts: [], promptTokens: null, completionTokens: null };
-  }
+  const currentSettings = store.get("settingsPromptGen");
+  const minLength = options.minLength || currentSettings.minLength || 0;
+  const maxLength = options.maxLength || currentSettings.maxLength || 0;
+  const nsfw = options.nsfw || currentSettings.nsfw || false;
+  const text = options.text;
 
   // Prepare base system prompt with constraints
   const baseSystemPrompt = `
-    ${settings.context ? settings.context.trim() : DEFAULT_PROMPT_GEN_PROMPT}
+    ${options.context?.trim() || currentSettings.context.trim() || DEFAULT_PROMPT_GEN_PROMPT.trim()}
 
     Constraints:
     - Generate prompts randomly between ${minLength} and ${maxLength} words in length.
@@ -46,9 +46,8 @@ export const generatePrompt = async (
     const response = await makeAIRequest({
       systemPrompt: baseSystemPrompt,
       userPrompt: `Input:\n${text}`,
-      model,
-      temperature,
-      n: batchCount,
+      ...options,
+      ...currentSettings,
     });
 
     return {

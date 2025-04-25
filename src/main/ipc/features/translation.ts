@@ -68,22 +68,7 @@ export const registerTranslationHandlers = () => {
           return { success: false, error: "No text provided" };
         }
 
-        const apiKey = store.get("apiKey") as string;
-        if (!apiKey) {
-          return { success: false, error: "API key not set" };
-        }
-
-        // Get translation settings to determine if explanations should be included
-        const settings = (store.get("settingsTranslate") as {
-          destinationLang: string;
-          includeExplanation: boolean;
-        }) || { destinationLang: "", includeExplanation: false };
-
-        const result = await translateText(
-          text,
-          targetLang,
-          settings.includeExplanation
-        );
+        const result = await translateText(text, targetLang);
 
         return {
           success: true,

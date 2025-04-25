@@ -48,8 +48,7 @@ export const registerSummarizationHandlers = () => {
     "summarize-text",
     async (
       _event,
-      text: string,
-      maxInput = 500
+      text: string
     ): Promise<{
       success: boolean;
       summarizedText?: string;
@@ -62,12 +61,7 @@ export const registerSummarizationHandlers = () => {
           return { success: false, error: "No text provided" };
         }
 
-        const apiKey = store.get("apiKey") as string;
-        if (!apiKey) {
-          return { success: false, error: "API key not set" };
-        }
-
-        const result = await summarizeText(apiKey, text, maxInput);
+        const result = await summarizeText(text);
         return {
           success: true,
           summarizedText: result.summarizedText,
