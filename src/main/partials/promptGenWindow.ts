@@ -68,11 +68,10 @@ export function showPromptGenWindow(payload: PromptGenPayload) {
   win.setPosition(posX, posY, false);
   const html = path.join(__dirname, "../renderer/PromptGenWindow/index.html");
   win.loadFile(html);
-  win.webContents.once("did-finish-load", () => {
+  win.once("ready-to-show", () => {
     win.show();
-  });
-  // Send payload after UI is ready
-  win.webContents.on("dom-ready", () => {
+
+    // Send payload after UI is ready
     win.webContents.send("promptGen-data", payload);
   });
 }

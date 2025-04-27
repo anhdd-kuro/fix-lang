@@ -89,13 +89,9 @@ export function showTranslationWindow(payload: TranslationPayload) {
   // Reload UI and wait for renderer to finish loading
   const html = path.join(__dirname, "../renderer/TranslationWindow/index.html");
   win.loadFile(html);
-  win.webContents.once("did-finish-load", () => {
-    console.log("Translation window loaded");
-    win.show();
-  });
-  // Send payload after UI is ready
-  win.webContents.on("dom-ready", () => {
+  win.once("ready-to-show", () => {
     win.webContents.send("translation-data", payload);
+    win.show();
   });
 }
 
