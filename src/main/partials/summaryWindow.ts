@@ -62,7 +62,10 @@ export function showSummaryWindow(payload: SummaryPayload) {
   const html = path.join(__dirname, "../renderer/SummaryWindow/index.html");
   win.loadFile(html);
   win.webContents.once("did-finish-load", () => {
-    win.showInactive();
+    win.show();
+  });
+  // Send payload after UI is ready
+  win.webContents.on("dom-ready", () => {
     win.webContents.send("summary-data", payload);
   });
 }

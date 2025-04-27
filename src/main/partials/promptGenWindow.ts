@@ -70,6 +70,9 @@ export function showPromptGenWindow(payload: PromptGenPayload) {
   win.loadFile(html);
   win.webContents.once("did-finish-load", () => {
     win.show();
+  });
+  // Send payload after UI is ready
+  win.webContents.on("dom-ready", () => {
     win.webContents.send("promptGen-data", payload);
   });
 }

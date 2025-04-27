@@ -91,9 +91,10 @@ export function showTranslationWindow(payload: TranslationPayload) {
   win.loadFile(html);
   win.webContents.once("did-finish-load", () => {
     console.log("Translation window loaded");
-    // Send payload after UI is ready
-    win.showInactive();
-    win.focus(); // Focus the window to ensure title bar is visible
+    win.show();
+  });
+  // Send payload after UI is ready
+  win.webContents.on("dom-ready", () => {
     win.webContents.send("translation-data", payload);
   });
 }
