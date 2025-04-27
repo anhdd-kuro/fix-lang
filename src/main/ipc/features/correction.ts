@@ -56,6 +56,22 @@ export const registerCorrectionHandlers = () => {
     }
   );
 
+  // Alias for set-correction-settings to match preload API naming
+  ipcMain.handle(
+    "set-correct-settings",
+    async (_event: Electron.IpcMainInvokeEvent, settings) => {
+      try {
+        store.set("settingsCorrect", settings);
+        return { success: true };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
+      }
+    }
+  );
+
   // Note: All history-related IPC handlers have been moved to the centralized history.ts module
 
   // Direct grammar fix request (usually from main window or overlays)
