@@ -22,8 +22,10 @@ export const registerSummarizeShortcut = (_mainWindow: BrowserWindow): void => {
       }
       const { x, y } = screen.getCursorScreenPoint();
       showOverlaySpinner();
+      const summarizeSettings = store.get("settingsSummarize");
       const result = await summarizeText(selectedText, {
         maxLength: store.get("maxSummaryTokens") as number,
+        targetLanguage: summarizeSettings.targetLanguage,
       });
       hideOverlaySpinner();
 

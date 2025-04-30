@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { DEFAULT_OPENAI_MODEL } from "~/const";
+import { DEFAULT_OPENAI_MODEL, DEFAULT_LANGUAGE } from "~/const";
 import { ModelSelect } from "./ModelSelect";
 
 // Define a type and default settings for summarize settings
@@ -7,12 +7,14 @@ type SummarizeSettings = {
   minLength: number;
   maxLength: number;
   model: string;
+  targetLanguage: string;
 };
 
 const defaultSettings: SummarizeSettings = {
   minLength: 0,
   maxLength: 0,
   model: DEFAULT_OPENAI_MODEL,
+  targetLanguage: DEFAULT_LANGUAGE,
 };
 
 export const SettingSummarize: React.FC = () => {
@@ -29,6 +31,7 @@ export const SettingSummarize: React.FC = () => {
         minLength: settings.minLength || 0,
         maxLength: settings.maxLength || 0,
         model: settings.model || DEFAULT_OPENAI_MODEL,
+        targetLanguage: settings.targetLanguage || DEFAULT_LANGUAGE,
       };
       setSummarizeSettings(completeSettings);
     } catch (err) {
@@ -74,6 +77,26 @@ export const SettingSummarize: React.FC = () => {
           })
         }
       />
+      <div>
+        <label
+          htmlFor="summarize-target-language"
+          className="block text-gray-300 text-sm mb-1"
+        >
+          Target Language
+        </label>
+        <input
+          id="summarize-target-language"
+          title="Target language for summary"
+          placeholder="Enter target language"
+          type="text"
+          value={summarizeSettings.targetLanguage}
+          onChange={(e) => setSummarizeSettings({
+            ...summarizeSettings,
+            targetLanguage: e.target.value
+          })}
+          className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100"
+        />
+      </div>
       <div className="flex gap-2">
         <div>
           <label

@@ -13,6 +13,7 @@ export const summarizeText = async (
   text: string,
   options?: {
     maxLength?: number;
+    targetLanguage?: string;
   }
 ): Promise<{
   summarizedText: string;
@@ -34,12 +35,13 @@ export const summarizeText = async (
   // Get feature-specific model if set
   const summarizeSettings = store.get("settingsSummarize");
   const featureModel = summarizeSettings.model;
+  const targetLanguage = options?.targetLanguage || summarizeSettings.targetLanguage || "English";
 
   try {
     // Use shared makeAIRequest function
     const response = await makeAIRequest({
       systemPrompt: DEFAULT_SUMMARIZE_PROMPT,
-      userPrompt: text, // For summaries, the entire text is the user prompt
+      userPrompt: `${text}\n\nPlease summarize in ${targetLanguage}.`, // For summaries, the entire text is the user prompt
       maxTokens: options?.maxLength || currentSettings.maxLength,
       model: featureModel, // Use feature-specific model if set
     });

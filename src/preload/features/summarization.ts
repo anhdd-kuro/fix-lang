@@ -55,6 +55,7 @@ export const summarizationFeature = {
     minLength: number;
     maxLength: number;
     model?: string;
+    targetLanguage?: string;
   }> => {
     return ipcRenderer.invoke("get-summarize-settings");
   },
@@ -66,6 +67,7 @@ export const summarizationFeature = {
     minLength: number;
     maxLength: number;
     model?: string;
+    targetLanguage?: string;
   }): Promise<{ success: boolean }> => {
     return ipcRenderer.invoke("set-summarize-settings", settings);
   },

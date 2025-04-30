@@ -3,7 +3,7 @@
  * @description Electron Store schema, types, and initialization for settings and key bindings.
  */
 import Store from "electron-store";
-import { DEFAULT_OPENAI_MODEL } from "~/const";
+import { DEFAULT_OPENAI_MODEL, DEFAULT_LANGUAGE } from "~/const";
 import type { Schema } from "electron-store";
 import type { Model } from "openai/resources.mjs";
 
@@ -49,6 +49,7 @@ export type SettingsStore = {
     minLength: number;
     maxLength: number;
     model: string;
+    targetLanguage: string;
   };
   settingsPromptGen: {
     minLength: number;
@@ -134,9 +135,15 @@ const schema = {
     properties: {
       minLength: { type: "number", default: 0 },
       maxLength: { type: "number", default: 0 },
-      model: { type: "string", default: "" },
+      model: { type: "string", default: DEFAULT_OPENAI_MODEL },
+      targetLanguage: { type: "string", default: DEFAULT_LANGUAGE },
     },
-    default: { minLength: 0, maxLength: 0, model: DEFAULT_OPENAI_MODEL },
+    default: {
+      minLength: 0,
+      maxLength: 0,
+      model: DEFAULT_OPENAI_MODEL,
+      targetLanguage: DEFAULT_LANGUAGE,
+    },
   },
   settingsTranslate: {
     type: "object",
