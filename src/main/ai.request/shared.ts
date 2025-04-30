@@ -6,12 +6,14 @@
  * across individual feature implementations. It also incorporates utility functions
  * previously in prompts/utils.ts to provide a single source of truth for OpenAI interactions.
  */
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { generateText } from "ai";
 import { Notification } from "electron";
 import { OpenAI } from "openai";
 import { makeTonePrompt } from "~/prompts/index";
 import { store } from "~/stores/apiStore";
 import { StringPrettifier } from "~/utils";
-import type { ChatCompletionMessageParam } from "openai/resources";
+import type { CoreMessage } from "ai";
 import type { GlobalSettings } from "~/stores/apiStore";
 
 /**
@@ -20,6 +22,45 @@ import type { GlobalSettings } from "~/stores/apiStore";
  */
 export const getGlobalPromptSettings = (): GlobalSettings => {
   return store.get("globalSettings") as GlobalSettings;
+};
+
+export type Model = {
+  id: string;
+  name: string;
+  created: number;
+  pricing: {
+    prompt: string;
+    completion: string;
+    image: string;
+    request: string;
+    input_cache_read: string;
+    input_cache_write: string;
+    web_search: string;
+    internal_reasoning: string;
+  };
+};
+
+export const fetchAvailableModels = async (
+  apiKey: string
+): Promise<Model[]> => {
+  /**
+   * List available models (GET /models)
+   * @see: https://openrouter.ai/docs/api-reference/list-available-models
+   */
+  const response = await fetch("https://openrouter.ai/api/v1/models", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  });
+
+  const models = (await response.json()).data as Model[];
+  const sortedByLatestReleaseThenName = models.sort((a, b) => {
+    const dateA = new Date(a.created);
+    const dateB = new Date(b.created);
+    return dateB.getTime() - dateA.getTime() && a.name.localeCompare(b.name);
+  });
+  return sortedByLatestReleaseThenName;
 };
 
 /**
@@ -64,7 +105,7 @@ export const makeAIRequest = async (
   }
 
   // Initialize OpenAI client locally with the provided key
-  const openai = new OpenAI({ apiKey });
+  // const openai = new OpenAI({ apiKey });
 
   // Apply global settings to the system prompt (if not using custom messages)
   const finalSystemPrompt = options.messages
@@ -87,10 +128,12 @@ export const makeAIRequest = async (
 
   try {
     // Create messages array if not provided
-    const messages = options.messages || [
-      { role: "system", content: finalSystemPrompt },
-      { role: "user", content: options.userPrompt },
-    ];
+    const messages =
+      options.messages ||
+      ([
+        { role: "system", content: finalSystemPrompt },
+        { role: "user", content: options.userPrompt },
+      ] as CoreMessage[]);
 
     console.log(
       `Sending request to OpenAI with model: ${model}, temperature: ${temperature}, top_p: ${top_p}, max_completion_tokens: ${maxTokens}
@@ -99,28 +142,41 @@ export const makeAIRequest = async (
     `.trim()
     );
 
-    // Make the API request
-    const res = await openai.chat.completions.create({
-      model,
-      messages,
-      temperature,
-      top_p,
-      max_completion_tokens: maxTokens,
-      n: options.n || 1,
-      stop: options.stop,
+    const openRouter = createOpenRouter({ apiKey });
+    const modelOpenRouter = openRouter(model, {
+      extraBody: {
+        temperature,
+        top_p,
+        max_completion_tokens: maxTokens,
+        n: options.n || 1,
+        stop: options.stop,
+      },
     });
+    const genResponse = await generateText({
+      model: modelOpenRouter,
+      messages,
+    });
+    const { usage, text } = genResponse;
 
+    const resBody = genResponse.response.body;
     // Extract token information first
-    const promptTokens = res.usage?.prompt_tokens ?? null;
-    const completionTokens = res.usage?.completion_tokens ?? null;
+    const promptTokens = usage?.promptTokens ?? null;
+    const completionTokens = usage?.completionTokens ?? null;
 
     // Process the response content
-    let processedContent: string[] = [];
+    let processedContent: string[] = [text];
 
     // If multiple responses were requested
-    if (options.n && options.n > 1) {
+    if (
+      options.n &&
+      options.n > 1 &&
+      resBody &&
+      typeof resBody === "object" &&
+      "choices" in resBody &&
+      Array.isArray(resBody.choices)
+    ) {
       // Extract all responses
-      const contents = res.choices
+      const contents = resBody.choices
         .flatMap((choice) =>
           choice.message?.content ? choice.message.content.trim() : []
         )
@@ -133,7 +189,7 @@ export const makeAIRequest = async (
 
       // Return as the expected type
       processedContent = [...contents];
-    } else processedContent = [res.choices[0]?.message?.content?.trim() || ""];
+    }
 
     // Cast to the expected return type
     const content = processedContent;
@@ -146,6 +202,38 @@ export const makeAIRequest = async (
     }).show();
     console.error("Error calling OpenAI API:", error);
     throw error;
+  }
+};
+
+/**
+ * Fetches available OpenAI models using the provided API key.
+ * @param apiKey The OpenAI API key to use for this request.
+ * @returns A promise that resolves with an array of model objects (id, object, created, owned_by, etc)
+ */
+export const fetchOpenAIModels = async (
+  apiKey: string
+): Promise<
+  { id: string; object: string; created: number; owned_by: string }[]
+> => {
+  if (!apiKey) {
+    throw new Error("OpenAI API key is missing.");
+  }
+  try {
+    const openai = new OpenAI({ apiKey });
+    // https://platform.openai.com/docs/api-reference/models/list
+    const response = await openai.models.list();
+    // Return only essential fields for dropdown
+    return response.data.map(({ id, object, created, owned_by }) => ({
+      id,
+      object,
+      created,
+      owned_by,
+    }));
+  } catch (error) {
+    console.error("Error fetching OpenAI models:", error);
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to fetch OpenAI models."
+    );
   }
 };
 
@@ -168,7 +256,7 @@ export type AIRequestOptions = {
   /** Number of responses to generate */
   n?: number;
   /** Custom messages if needed (overrides system/user prompt params) */
-  messages?: ChatCompletionMessageParam[];
+  messages?: CoreMessage[];
   /** Stop sequences */
   stop?: string[] | null;
 };

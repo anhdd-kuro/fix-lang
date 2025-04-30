@@ -5,7 +5,7 @@
 import { ipcMain } from "electron";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
 import { store } from "~/stores/apiStore";
-import { fetchOpenAIModels } from "../../ai.request";
+import { fetchAvailableModels } from "../../ai.request";
 
 /**
  * Registers API-related IPC handlers
@@ -36,7 +36,7 @@ export const registerApiHandlers = () => {
   });
 
   // OpenAI model handlers
-  ipcMain.handle("fetch-openai-models", async (_event, refetch = false) => {
+  ipcMain.handle("fetch-ai-models", async (_event, refetch = false) => {
     try {
       // Check if we already have models in the store and refetch is false
       const storedModels = store.get("models");
@@ -59,14 +59,14 @@ export const registerApiHandlers = () => {
         };
       }
 
-      const models = await fetchOpenAIModels(apiKey);
-      console.log(`Fetched ${models.length} models from OpenAI`);
+      const models = await fetchAvailableModels(apiKey);
+      console.log(`Fetched ${models.length} models from OpenRouter`);
 
       // Store the fetched models
       store.set("models", models);
       return {
         success: true,
-        models: models,
+        models,
       };
     } catch (error) {
       console.error("Error in fetch-openai-models handler:", error);

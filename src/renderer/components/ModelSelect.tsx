@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from "react";
+import { format } from "date-fns";
+import React, { useState, useEffect, useMemo } from "react";
+import Select from "react-select";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
+import type { Model } from "~/main/ai.request";
 
 /**
  * Shared component for OpenAI model selection with refresh.
@@ -19,14 +22,7 @@ export const ModelSelect: React.FC<{
   useFeatureModel = false,
   saveOnChange = false,
 }) => {
-  const [models, setModels] = useState<
-    {
-      id: string;
-      object: string;
-      created: number;
-      owned_by: string;
-    }[]
-  >([]);
+  const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] =
     useState<string>(DEFAULT_OPENAI_MODEL);
   // Store the currently saved feature-specific model to detect changes and enable reset
@@ -38,14 +34,14 @@ export const ModelSelect: React.FC<{
     setModelsLoading(true);
     setModelsError("");
     try {
-      if (!window.electronAPI?.fetchOpenAIModels) {
-        setModelsError("electronAPI.fetchOpenAIModels not available");
+      if (!window.electronAPI?.fetchAIModels) {
+        setModelsError("electronAPI.fetchAIModels not available");
         setModelsLoading(false);
         return;
       }
-      const result = await window.electronAPI.fetchOpenAIModels(refetch);
-      if (result.success) {
-        setModels(result.models ?? []);
+      const result = await window.electronAPI.fetchAIModels(refetch);
+      if (result.success && result.models) {
+        setModels(result.models);
       } else {
         setModelsError(result.error || "Failed to fetch models");
       }
@@ -56,28 +52,27 @@ export const ModelSelect: React.FC<{
     }
   };
 
-  const handleModelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const modelId = e.target.value;
-    setSelectedModel(modelId);
+  const handleModelChange = async (value: string) => {
+    setSelectedModel(value);
 
     // Notify parent component of the change if a callback is provided
     if (onChange) {
-      onChange(modelId);
+      onChange(value);
     }
 
     try {
       if (useFeatureModel && featureId && window.electronAPI?.setFeatureModel) {
         // If this is a feature-specific model selector, save to that feature
         if (saveOnChange) {
-          await window.electronAPI.setFeatureModel(featureId, modelId);
+          await window.electronAPI.setFeatureModel(featureId, value);
           console.log(
-            `Feature-specific model for ${featureId} set to: ${modelId}`
+            `Feature-specific model for ${featureId} set to: ${value}`
           );
         }
       } else if (window.electronAPI?.setSelectedModel) {
         // Otherwise save as the default model
-        await window.electronAPI.setSelectedModel(modelId);
-        console.log(`Default model set to: ${modelId}`);
+        await window.electronAPI.setSelectedModel(value);
+        console.log(`Default model set to: ${value}`);
       }
     } catch (err) {
       console.error("ModelSelect: Failed to persist model setting", err);
@@ -120,35 +115,89 @@ export const ModelSelect: React.FC<{
     loadModelSetting();
   }, [featureId, useFeatureModel]);
 
+  const options = useMemo(
+    () =>
+      models.map((model) => {
+        const createdAt = format(new Date(model.created * 1000), "yyyy-MM-dd");
+        const modelId = model.id;
+        const pricingPerMillionToken = (
+          +model.pricing.prompt * 1_000_000
+        ).toLocaleString("en-US", {
+          style: "currency",
+          currency: "USD",
+          minimumFractionDigits: 2,
+        });
+        return {
+          value: model.id,
+          label: `${modelId} (${createdAt}, ${pricingPerMillionToken} / 1M tokens)`,
+        };
+      }),
+    [models]
+  );
+
   return (
     <div className="mb-4">
       <label
         htmlFor="model-select"
         className="block text-sm font-medium text-gray-300 mb-1"
       >
-        OpenAI Model
+        AI Model
       </label>
       <div className="flex gap-2 items-center">
-        <select
+        <Select
           id="model-select"
-          className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          inputId="model-input"
+          className="w-full"
           aria-label="Select OpenAI Model"
-          value={models.length > 0 ? selectedModel : ""}
-          onChange={handleModelChange}
-          disabled={modelsLoading || !!modelsError}
-        >
-          {modelsLoading && <option>Loading models...</option>}
-          {!modelsLoading && models.length === 0 && (
-            <option>No models found</option>
-          )}
-          {!modelsLoading &&
-            models.map((model) => (
-              <option key={model.id} value={model.id}>
-                {model.id}{" "}
-                {model.owned_by !== "openai" ? `(${model.owned_by})` : ""}
-              </option>
-            ))}
-        </select>
+          value={
+            models.length > 0
+              ? { value: selectedModel, label: selectedModel }
+              : null
+          }
+          onChange={(option) => option && handleModelChange(option.value)}
+          options={options}
+          isDisabled={modelsLoading || !!modelsError}
+          placeholder={modelsLoading ? "Loading models..." : "Select model"}
+          noOptionsMessage={() => "No models found"}
+          styles={{
+            control: (base) => ({
+              ...base,
+              backgroundColor: "rgb(55, 65, 81)", // bg-gray-700
+              borderColor: "rgb(75, 85, 99)", // border-gray-600
+              "&:hover": {
+                borderColor: "rgb(107, 114, 128)", // border-gray-500
+              },
+              boxShadow: "none",
+            }),
+            menu: (base) => ({
+              ...base,
+              backgroundColor: "rgb(55, 65, 81)", // bg-gray-700
+              zIndex: 10,
+              borderRadius: "8px",
+            }),
+            option: (base, { isFocused, isSelected }) => ({
+              ...base,
+              fontSize: "12px",
+              backgroundColor: isSelected
+                ? "rgb(59, 130, 246)" // bg-blue-500
+                : isFocused
+                  ? "rgb(75, 85, 99)" // bg-gray-600
+                  : "rgb(55, 65, 81)", // bg-gray-700
+              color: "rgb(243, 244, 246)", // text-gray-100
+              "&:active": {
+                backgroundColor: "rgb(96, 165, 250)", // bg-blue-400
+              },
+            }),
+            singleValue: (base) => ({
+              ...base,
+              color: "rgb(243, 244, 246)", // text-gray-100
+            }),
+            input: (base) => ({
+              ...base,
+              color: "rgb(243, 244, 246)", // text-gray-100
+            }),
+          }}
+        />
         <button
           type="button"
           aria-label="Refetch models"

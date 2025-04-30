@@ -1,5 +1,6 @@
 // API-related preload functionality
 import { ipcRenderer } from "electron";
+import type { Model } from "~/main/ai.request";
 
 /**
  * Exposes API-related functionality to the renderer process
@@ -9,8 +10,14 @@ export const apiFeature = {
    * Fetches the list of available OpenAI models using the stored API key.
    * @returns A promise resolving to { success: boolean, models?: Model[], error?: string }
    */
-  fetchOpenAIModels: async (refetch?: boolean) => {
-    return await ipcRenderer.invoke("fetch-openai-models", refetch);
+  fetchAIModels: async (
+    refetch?: boolean
+  ): Promise<{
+    success: boolean;
+    models?: Model[];
+    error?: string;
+  }> => {
+    return await ipcRenderer.invoke("fetch-ai-models", refetch);
   },
 
   /**
@@ -62,7 +69,10 @@ export const apiFeature = {
   /**
    * Sets the model for a specific feature.
    */
-  setFeatureModel: async (feature: string, model: string): Promise<{ success: boolean; error?: string }> => {
+  setFeatureModel: async (
+    feature: string,
+    model: string
+  ): Promise<{ success: boolean; error?: string }> => {
     return await ipcRenderer.invoke("set-feature-model", feature, model);
   },
 };
