@@ -1,6 +1,7 @@
 import { format } from "date-fns";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Select from "react-select";
+import { twJoin } from "tailwind-merge";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
 import type { Model } from "~/main/ai.request";
 
@@ -30,7 +31,7 @@ export const ModelSelect: React.FC<{
   const [modelsLoading, setModelsLoading] = useState<boolean>(false);
   const [modelsError, setModelsError] = useState<string>("");
 
-  const fetchModels = async (refetch = false) => {
+  const fetchModels = useCallback(async (refetch = false) => {
     setModelsLoading(true);
     setModelsError("");
     try {
@@ -50,7 +51,31 @@ export const ModelSelect: React.FC<{
     } finally {
       setModelsLoading(false);
     }
-  };
+  }, []);
+
+  const loadModelSetting = useCallback(async () => {
+    try {
+      if (useFeatureModel && featureId && window.electronAPI?.getFeatureModel) {
+        // Get feature-specific model if this is a feature model selector
+        const featureModel =
+          await window.electronAPI.getFeatureModel(featureId);
+        if (featureModel) {
+          setSelectedModel(featureModel);
+          setSavedFeatureModel(featureModel);
+          console.log(`Loaded feature model for ${featureId}: ${featureModel}`);
+        }
+      } else if (window.electronAPI?.getSelectedModel) {
+        // Otherwise get the default model
+        const defaultModel = await window.electronAPI.getSelectedModel();
+        if (defaultModel) {
+          setSelectedModel(defaultModel);
+          console.log(`Loaded default model: ${defaultModel}`);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading model settings:", err);
+    }
+  }, [featureId, useFeatureModel]);
 
   const handleModelChange = async (value: string) => {
     setSelectedModel(value);
@@ -81,39 +106,8 @@ export const ModelSelect: React.FC<{
 
   useEffect(() => {
     fetchModels();
-
-    const loadModelSetting = async () => {
-      try {
-        if (
-          useFeatureModel &&
-          featureId &&
-          window.electronAPI?.getFeatureModel
-        ) {
-          // Get feature-specific model if this is a feature model selector
-          const featureModel =
-            await window.electronAPI.getFeatureModel(featureId);
-          if (featureModel) {
-            setSelectedModel(featureModel);
-            setSavedFeatureModel(featureModel);
-            console.log(
-              `Loaded feature model for ${featureId}: ${featureModel}`
-            );
-          }
-        } else if (window.electronAPI?.getSelectedModel) {
-          // Otherwise get the default model
-          const defaultModel = await window.electronAPI.getSelectedModel();
-          if (defaultModel) {
-            setSelectedModel(defaultModel);
-            console.log(`Loaded default model: ${defaultModel}`);
-          }
-        }
-      } catch (err) {
-        console.error("Error loading model settings:", err);
-      }
-    };
-
     loadModelSetting();
-  }, [featureId, useFeatureModel]);
+  }, [featureId, useFeatureModel, fetchModels, loadModelSetting]);
 
   const options = useMemo(
     () =>
@@ -129,7 +123,7 @@ export const ModelSelect: React.FC<{
         });
         return {
           value: model.id,
-          label: `${modelId} (${createdAt}, ${pricingPerMillionToken} / 1M tokens)`,
+          label: `${modelId}, ${createdAt}, ${pricingPerMillionToken} / 1M tokens`,
         };
       }),
     [models]
@@ -175,19 +169,6 @@ export const ModelSelect: React.FC<{
               zIndex: 10,
               borderRadius: "8px",
             }),
-            option: (base, { isFocused, isSelected }) => ({
-              ...base,
-              fontSize: "12px",
-              backgroundColor: isSelected
-                ? "rgb(59, 130, 246)" // bg-blue-500
-                : isFocused
-                  ? "rgb(75, 85, 99)" // bg-gray-600
-                  : "rgb(55, 65, 81)", // bg-gray-700
-              color: "rgb(243, 244, 246)", // text-gray-100
-              "&:active": {
-                backgroundColor: "rgb(96, 165, 250)", // bg-blue-400
-              },
-            }),
             singleValue: (base) => ({
               ...base,
               color: "rgb(243, 244, 246)", // text-gray-100
@@ -196,6 +177,42 @@ export const ModelSelect: React.FC<{
               ...base,
               color: "rgb(243, 244, 246)", // text-gray-100
             }),
+          }}
+          components={{
+            Option: ({ data, isFocused, isSelected, innerProps }) => {
+              const { label } = data;
+              const [modelId, createdAt, pricingPerMillionToken] = label
+                .trim()
+                .split(",");
+
+              return (
+                <p
+                  className={twJoin(
+                    "flex gap-2 px-4 py-1 text-white cursor-pointer",
+                    isSelected ? "bg-blue-500" : isFocused ? "bg-gray-600" : ""
+                  )}
+                  {...innerProps}
+                >
+                  {modelId}
+                  <span
+                    className={twJoin(
+                      "text-xs text-white rounded px-2 py-1",
+                      isFocused || isSelected ? "bg-gray-800" : "bg-gray-600"
+                    )}
+                  >
+                    {createdAt}
+                  </span>
+                  <span
+                    className={twJoin(
+                      "text-xs text-white rounded px-2 py-1",
+                      isFocused || isSelected ? "bg-gray-800" : "bg-gray-600"
+                    )}
+                  >
+                    {pricingPerMillionToken}
+                  </span>
+                </p>
+              );
+            },
           }}
         />
         <button

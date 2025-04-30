@@ -56,9 +56,11 @@ export const fetchAvailableModels = async (
 
   const models = (await response.json()).data as Model[];
   const sortedByLatestReleaseThenName = models.sort((a, b) => {
-    const dateA = new Date(a.created);
-    const dateB = new Date(b.created);
-    return dateB.getTime() - dateA.getTime() && a.name.localeCompare(b.name);
+    const resultByCreated = b.created - a.created;
+    if (resultByCreated !== 0) return resultByCreated;
+    const resultByIdLength = a.id.length - b.id.length;
+    if (resultByIdLength !== 0) return resultByIdLength;
+    return a.id.localeCompare(b.id);
   });
   return sortedByLatestReleaseThenName;
 };
