@@ -1,3 +1,4 @@
+import { DEFAULT_OPENAI_MODEL } from "~/const";
 import {
   TRANSLATE_WITH_EXPLANATION_PROMPT,
   TRANSLATE_WITHOUT_EXPLANATION_PROMPT,
@@ -18,11 +19,17 @@ export const translateText = async (
   includeExplanation = false
 ): Promise<{
   translatedText: string;
-  promptTokens: number | null;
-  completionTokens: number | null;
+  promptTokens: number;
+  completionTokens: number;
+  model: string;
 }> => {
   if (!text || !text.trim()) {
-    return { translatedText: text, promptTokens: null, completionTokens: null };
+    return {
+      translatedText: text,
+      promptTokens: 0,
+      completionTokens: 0,
+      model: DEFAULT_OPENAI_MODEL,
+    };
   }
 
   // Get feature-specific model if set
@@ -39,7 +46,6 @@ export const translateText = async (
         ? TRANSLATE_WITH_EXPLANATION_PROMPT
         : TRANSLATE_WITHOUT_EXPLANATION_PROMPT,
       userPrompt,
-      temperature: 0.5, // Translations should be deterministic
       model: featureModel, // Use feature-specific model if set
     });
 
@@ -47,8 +53,7 @@ export const translateText = async (
 
     return {
       translatedText: response.content.join("\n\n"),
-      promptTokens: response.promptTokens,
-      completionTokens: response.completionTokens,
+      ...response,
     };
   } catch (error) {
     console.error("Error in translateText:", error);

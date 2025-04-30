@@ -66,12 +66,18 @@ const App: React.FC = () => {
   const [lastHistoryData, setLastHistoryData] = useState<{
     original: string;
     corrected: string;
-  }>({ original: "", corrected: "" });
+    model?: string;
+    promptTokens?: number;
+    completionTokens?: number;
+  }>({
+    original: "",
+    corrected: "",
+    model: "",
+    promptTokens: 0,
+    completionTokens: 0,
+  });
+  console.log(`🚀 \n - lastHistoryData:`, lastHistoryData);
   const [historyOpen, setHistoryOpen] = useState<boolean>(true);
-  const [originalText, setOriginalText] = useState<string>("");
-  const [fixedText, setFixedText] = useState<string>("");
-  const [promptTokens, setPromptTokens] = useState<number | null>(null);
-  const [completionTokens, setCompletionTokens] = useState<number | null>(null);
   // Loading state for API call
   const [_loading, _setLoading] = useState<boolean>(false);
 
@@ -151,7 +157,7 @@ const App: React.FC = () => {
             </select>
           </div>
         </div>
-        <ul className="divide-y divide-gray-700 overflow-y-auto max-h-[calc(100vh-200px)]">
+        <ul className="divide-y divide-gray-700 overflow-y-auto max-h-[calc(100vh-200px)] mb-4 flex-1">
           {history.map((entry, idx) => (
             <li
               key={idx}
@@ -161,10 +167,13 @@ const App: React.FC = () => {
                 <div
                   className="flex-1 cursor-pointer"
                   onClick={() => {
-                    setOriginalText(entry.original);
-                    setFixedText(entry.corrected);
-                    setPromptTokens(entry.promptTokens ?? null);
-                    setCompletionTokens(entry.completionTokens ?? null);
+                    setLastHistoryData({
+                      original: entry.original,
+                      corrected: entry.corrected,
+                      model: entry.model,
+                      promptTokens: entry.promptTokens,
+                      completionTokens: entry.completionTokens,
+                    });
                   }}
                 >
                   <div className="text-sm text-gray-400">
@@ -184,16 +193,22 @@ const App: React.FC = () => {
                     // Find next entry to select
                     const nextEntry = history[idx + 1] || history[idx - 1];
                     if (nextEntry) {
-                      setOriginalText(nextEntry.original);
-                      setFixedText(nextEntry.corrected);
-                      setPromptTokens(nextEntry.promptTokens ?? null);
-                      setCompletionTokens(nextEntry.completionTokens ?? null);
+                      setLastHistoryData({
+                        original: nextEntry.original,
+                        corrected: nextEntry.corrected,
+                        model: nextEntry.model,
+                        promptTokens: nextEntry.promptTokens ?? 0,
+                        completionTokens: nextEntry.completionTokens ?? 0,
+                      });
                     } else {
                       // If no other entries, clear the text areas
-                      setOriginalText("");
-                      setFixedText("");
-                      setPromptTokens(null);
-                      setCompletionTokens(null);
+                      setLastHistoryData({
+                        original: "",
+                        corrected: "",
+                        model: "",
+                        promptTokens: 0,
+                        completionTokens: 0,
+                      });
                     }
                     window.electronAPI.removeHistoryEntry(historyType, entry);
                   }}
@@ -210,16 +225,12 @@ const App: React.FC = () => {
               .clearHistory(featureId)
               .then(() => {
                 setHistory([]);
-                setOriginalText("");
-                setFixedText("");
-                setPromptTokens(null);
-                setCompletionTokens(null);
               })
               .catch((err: Error) =>
                 console.error(`Failed to clear ${featureId} history`, err)
               );
           }}
-          className="ml-auto mt-4"
+          className="ml-auto mt-auto"
           showLabel
           size="md"
         />
@@ -262,18 +273,23 @@ const App: React.FC = () => {
           {/* Original Text Area */}
           <TextAreaBox
             label="Original Text"
-            value={originalText}
-            onChange={setOriginalText}
-            textCount={promptTokens}
+            value={lastHistoryData.original}
+            onChange={(value) =>
+              setLastHistoryData({ ...lastHistoryData, original: value })
+            }
+            textCount={lastHistoryData.promptTokens}
+            model={lastHistoryData.model}
             className="flex-1"
           />
 
           {/* Fixed Text Area */}
           <TextAreaBox
             label="Result Text"
-            value={fixedText}
-            onChange={setFixedText}
-            textCount={completionTokens}
+            value={lastHistoryData.corrected}
+            onChange={(value) =>
+              setLastHistoryData({ ...lastHistoryData, corrected: value })
+            }
+            textCount={lastHistoryData.completionTokens}
             className="flex-1"
           />
         </div>

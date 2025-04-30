@@ -97,9 +97,7 @@ export const applyGlobalSettings = (systemPrompt: string): string => {
  * @param options Configuration options for the AI request
  * @returns Promise with the AI response and token information
  */
-export const makeAIRequest = async (
-  options: AIRequestOptions
-): Promise<AIRequestResponse<string[]>> => {
+export const makeAIRequest = async (options: AIRequestOptions) => {
   // Get API key from store
   const apiKey = store.get("apiKey");
   if (!apiKey) {
@@ -196,7 +194,7 @@ export const makeAIRequest = async (
     // Cast to the expected return type
     const content = processedContent;
 
-    return { content, promptTokens, completionTokens };
+    return { content, promptTokens, completionTokens, model };
   } catch (error) {
     new Notification({
       title: "Error calling OpenAI API",
@@ -266,11 +264,4 @@ export type AIRequestOptions = {
 /**
  * Response structure for AI request operations
  */
-export type AIRequestResponse<T = string> = {
-  /** Generated content */
-  content: T;
-  /** Number of tokens used in the prompt */
-  promptTokens: number | null;
-  /** Number of tokens used in the completion */
-  completionTokens: number | null;
-};
+export type AIRequestResponse = ReturnType<typeof makeAIRequest>;

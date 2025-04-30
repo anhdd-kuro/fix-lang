@@ -10,6 +10,7 @@ export const TextAreaBox = ({
   placeholder,
   rows,
   readOnly,
+  model,
 }: {
   label: string;
   value: string;
@@ -19,6 +20,7 @@ export const TextAreaBox = ({
   placeholder?: string;
   rows?: number;
   readOnly?: boolean;
+  model?: string;
 }) => {
   const id = useId();
 
@@ -40,14 +42,18 @@ export const TextAreaBox = ({
         aria-label={label}
         onChange={(e) => onChange?.(e.target.value)}
       />
-      {/* Prompt token count display for original text */}
-      <TextCount
-        textOrCount={textCount}
-        className="text-shadow-white ml-auto"
-        aria-live="polite"
-        aria-label="Prompt tokens for original text"
-        titleAttribute="Input + Prompt tokens"
-      />
+      <div className="flex justify-between items-center">
+        {model && <p>Model: {model}</p>}
+
+        {/* Prompt token count display for original text */}
+        <TextCount
+          textOrCount={textCount}
+          className="text-shadow-white ml-auto"
+          aria-live="polite"
+          aria-label="Prompt tokens for original text"
+          titleAttribute="Input + Prompt tokens"
+        />
+      </div>
     </div>
   );
 };

@@ -10,6 +10,7 @@ type PromptGenData = {
   autoCopy?: boolean;
   x: number;
   y: number;
+  model?: string;
 };
 
 const PromptGenWindow: React.FC = () => {
@@ -70,6 +71,8 @@ const PromptGenWindow: React.FC = () => {
               Completion tokens: {data.completionTokens}
             </span>
           )}
+          {" | "}
+          {data.model && <span className="ml-2">Model: {data.model}</span>}
         </div>
         <CopyButton
           value={data.prompts.join("\n\n")}

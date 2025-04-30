@@ -44,6 +44,7 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
           promptTokens: result.promptTokens ?? 0,
           completionTokens: result.completionTokens ?? 0,
           timestamp: new Date().toISOString(),
+          model: result.model,
         },
         type: "add",
         featureId: "promptGen",

@@ -1,4 +1,5 @@
 import { Notification } from "electron";
+import { DEFAULT_OPENAI_MODEL } from "~/const";
 import { DEFAULT_CUSTOM_PROMPT } from "~/prompts";
 import { makeAIRequest } from "./shared";
 import { store } from "../../stores/apiStore";
@@ -12,8 +13,9 @@ export const fixGrammar = async (
   text: string
 ): Promise<{
   correctedText: string;
-  promptTokens: number | null;
-  completionTokens: number | null;
+  promptTokens: number;
+  completionTokens: number;
+  model: string;
 }> => {
   if (!text || !text.trim()) {
     console.log("fixGrammar called with empty or whitespace-only text.");
@@ -21,7 +23,12 @@ export const fixGrammar = async (
       title: "Empty Input",
       body: "fixGrammar called with empty or whitespace-only text.",
     }).show();
-    return { correctedText: text, promptTokens: null, completionTokens: null };
+    return {
+      correctedText: text,
+      promptTokens: 0,
+      completionTokens: 0,
+      model: DEFAULT_OPENAI_MODEL,
+    };
   }
 
   // Get correct settings and feature-specific model
@@ -55,8 +62,7 @@ export const fixGrammar = async (
     console.log(`Correction used model: ${featureModel || "default"}`);
     return {
       correctedText: response.content.join("\n\n"),
-      promptTokens: response.promptTokens,
-      completionTokens: response.completionTokens,
+      ...response,
     };
   } catch (error) {
     console.error("Error in fixGrammar:", error);

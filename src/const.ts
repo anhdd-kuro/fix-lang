@@ -7,7 +7,7 @@ import type { KeyBindings } from "~/stores/apiStore";
  * @see https://platform.openai.com/docs/pricing
  * @see https://platform.openai.com/docs/models
  */
-export const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini" satisfies Model["id"];
+export const DEFAULT_OPENAI_MODEL = "openai/gpt-4.1-mini" satisfies Model["id"];
 
 export const DEFAULT_KEY_BINDINGS: KeyBindings = {
   correction: "Control+Shift+F",

@@ -22,10 +22,9 @@ export const registerSummarizeShortcut = (_mainWindow: BrowserWindow): void => {
       }
       const { x, y } = screen.getCursorScreenPoint();
       showOverlaySpinner();
-      const result = await summarizeText(
-        selectedText,
-        store.get("maxSummaryTokens") as number
-      );
+      const result = await summarizeText(selectedText, {
+        maxLength: store.get("maxSummaryTokens") as number,
+      });
       hideOverlaySpinner();
 
       showSummaryWindow({
@@ -42,6 +41,7 @@ export const registerSummarizeShortcut = (_mainWindow: BrowserWindow): void => {
           promptTokens: result.promptTokens ?? 0,
           completionTokens: result.completionTokens ?? 0,
           timestamp: new Date().toISOString(),
+          model: result.model,
         },
         type: "add",
         featureId: "summarize",

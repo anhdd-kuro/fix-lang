@@ -11,7 +11,8 @@ const TrayWindowMain: React.FC = () => {
   const [lastHistory, setLastHistory] = useState<{
     original: string;
     result: string;
-  }>({ original: "", result: "" });
+    model?: string;
+  }>({ original: "", result: "", model: "" });
 
   // Listen for tray requests from main
   useEffect(() => {
@@ -19,7 +20,7 @@ const TrayWindowMain: React.FC = () => {
       .getLastActionHistory()
       .then((data) => {
         if (!data) {
-          setLastHistory({ original: "", result: "" });
+          setLastHistory({ original: "", result: "", model: "" });
           return;
         }
 
@@ -35,6 +36,7 @@ const TrayWindowMain: React.FC = () => {
           setLastHistory({
             original: entry.original || "",
             result: entry.corrected || "",
+            model: data.model,
           });
         }
         // If it's directly a HistoryEntry
@@ -42,16 +44,17 @@ const TrayWindowMain: React.FC = () => {
           setLastHistory({
             original: data.original || "",
             result: data.corrected || "",
+            model: data.model,
           });
         }
         // Unknown structure, use empty values
         else {
-          setLastHistory({ original: "", result: "" });
+          setLastHistory({ original: "", result: "", model: "" });
         }
       })
       .catch((error) => {
         console.error("Error fetching last action history:", error);
-        setLastHistory({ original: "", result: "" });
+        setLastHistory({ original: "", result: "", model: "" });
       });
   }, []);
 
@@ -74,6 +77,7 @@ const TrayWindowMain: React.FC = () => {
               value={lastHistory.original}
               readOnly
               placeholder="Original text"
+              model={lastHistory.model}
             />
           </div>
           <div className="flex-1 flex flex-col">
@@ -82,6 +86,7 @@ const TrayWindowMain: React.FC = () => {
               value={lastHistory.result}
               readOnly
               placeholder="Result text"
+              model={lastHistory.model}
             />
           </div>
           <ModelSelect saveOnChange />

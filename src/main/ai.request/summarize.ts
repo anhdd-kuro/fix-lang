@@ -1,3 +1,4 @@
+import { DEFAULT_OPENAI_MODEL } from "~/const";
 import { DEFAULT_SUMMARIZE_PROMPT } from "~/prompts";
 import { makeAIRequest } from "./shared";
 import { store } from "../../stores/apiStore";
@@ -15,13 +16,19 @@ export const summarizeText = async (
   }
 ): Promise<{
   summarizedText: string;
-  promptTokens: number | null;
-  completionTokens: number | null;
+  promptTokens: number;
+  completionTokens: number;
+  model: string;
 }> => {
   const currentSettings = store.get("settingsSummarize");
 
   if (!text || !text.trim()) {
-    return { summarizedText: text, promptTokens: null, completionTokens: null };
+    return {
+      summarizedText: text,
+      promptTokens: 0,
+      completionTokens: 0,
+      model: DEFAULT_OPENAI_MODEL,
+    };
   }
 
   // Get feature-specific model if set
@@ -41,8 +48,7 @@ export const summarizeText = async (
 
     return {
       summarizedText: response.content.join("\n\n"),
-      promptTokens: response.promptTokens,
-      completionTokens: response.completionTokens,
+      ...response,
     };
   } catch (error) {
     console.error("Error in summarizeText:", error);

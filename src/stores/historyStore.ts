@@ -7,6 +7,7 @@ export type HistoryEntry = {
   timestamp: string;
   promptTokens?: number;
   completionTokens?: number;
+  model?: string;
 };
 
 type LastActionHistory = {

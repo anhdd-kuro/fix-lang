@@ -23,8 +23,9 @@ export const generatePrompt = async (
   options: PromptGenSettings
 ): Promise<{
   prompts: string[];
-  promptTokens: number | null;
-  completionTokens: number | null;
+  promptTokens: number;
+  completionTokens: number;
+  model: string;
 }> => {
   const currentSettings = store.get("settingsPromptGen");
   const minLength = options.minLength || currentSettings.minLength || 0;
@@ -52,8 +53,7 @@ export const generatePrompt = async (
 
     return {
       prompts: response.content,
-      promptTokens: response.promptTokens,
-      completionTokens: response.completionTokens,
+      ...response,
     };
   } catch (error) {
     console.error("Error in generatePrompt:", error);

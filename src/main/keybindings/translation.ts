@@ -55,6 +55,7 @@ export const registerTranslateShortcut = (mainWindow: BrowserWindow) => {
           promptTokens: result.promptTokens ?? 0,
           completionTokens: result.completionTokens ?? 0,
           timestamp: new Date().toISOString(),
+          model: result.model,
         },
         type: "add",
         featureId: "translations",

@@ -3,7 +3,7 @@ import CopyButton from "./CopyButton";
 
 type HistoryReviewModalProps = {
   isOpen: boolean;
-  data: { original: string; corrected: string };
+  data: { original: string; corrected: string; modelId?: string };
   onClose: () => void;
 };
 
@@ -16,7 +16,14 @@ const HistoryReviewModal: React.FC<HistoryReviewModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50">
       <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-2/3 max-w-2xl max-h-[90vh] overflow-auto">
-        <h2 className="text-xl text-gray-200 mb-4">Last Correction</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl text-gray-200">Last Correction</h2>
+          {data.modelId && (
+            <span className="text-sm text-gray-400">
+              Model: {data.modelId}
+            </span>
+          )}
+        </div>
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 flex flex-col">
             <h3 className="text-lg text-gray-300 mb-2">Original</h3>
