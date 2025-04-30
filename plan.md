@@ -302,12 +302,7 @@ export function registerHotkey(win: Electron.BrowserWindow) {
 
 #### 2. Add support for other API providers
 
-- [ ] Research and select alternative API providers
-- [ ] Abstract API call logic to support multiple providers
-- [ ] Add provider selection UI in settings
-- [ ] Implement provider-specific configuration (API key, endpoint)
-- [ ] Update logic to use selected provider for requests
-- [ ] Add error handling and fallback logic
+- [x] Implement OpenRouter for multiple providers
 
 #### 3. Add summarize feature
 
