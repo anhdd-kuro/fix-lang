@@ -42,7 +42,7 @@ export const TextAreaBox = ({
         aria-label={label}
         onChange={(e) => onChange?.(e.target.value)}
       />
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center text-xs text-gray-400">
         {model && <p>Model: {model}</p>}
 
         {/* Prompt token count display for original text */}
