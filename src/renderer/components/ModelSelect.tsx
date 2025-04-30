@@ -191,9 +191,10 @@ export const ModelSelect: React.FC<{
                     "flex gap-2 px-4 py-1 text-white cursor-pointer",
                     isSelected ? "bg-blue-500" : isFocused ? "bg-gray-600" : ""
                   )}
+                  title={label}
                   {...innerProps}
                 >
-                  {modelId}
+                  <span className="truncate">{modelId}</span>
                   <span
                     className={twJoin(
                       "text-xs text-white rounded px-2 py-1",

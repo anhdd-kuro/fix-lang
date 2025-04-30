@@ -156,6 +156,10 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
       model: modelOpenRouter,
       messages,
     });
+    console.log(
+      `🚀 \n - makeAIRequest \n - genResponse:`,
+      JSON.stringify(genResponse, null, 2)
+    );
     const { usage, text } = genResponse;
 
     const resBody = genResponse.response.body;
