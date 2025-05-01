@@ -157,7 +157,7 @@ const App: React.FC = () => {
             </select>
           </div>
         </div>
-        <ul className="divide-y divide-gray-700 overflow-y-auto max-h-[calc(100vh-200px)] mb-4 flex-1">
+        <ul className="divide-y divide-gray-700 overflow-y-auto mb-4 flex-1">
           {history.map((entry, idx) => (
             <li
               key={idx}
@@ -179,12 +179,18 @@ const App: React.FC = () => {
                   <div className="text-sm text-gray-400">
                     {new Date(entry.timestamp).toLocaleString()}
                   </div>
-                  <div
-                    className="text-sm text-gray-100 line-clamp-2"
+                  <p
+                    className="text-sm text-gray-100 line-clamp-1"
                     title={entry.original}
                   >
                     {entry.original.slice(0, 50)}...
-                  </div>
+                  </p>
+                  <p
+                    className="text-sm text-gray-100 line-clamp-1"
+                    title={entry.model}
+                  >
+                    {entry.model}
+                  </p>
                 </div>
                 <TrashButton
                   className="invisible absolute right-2 top-2 group-hover/history-entry:visible"
