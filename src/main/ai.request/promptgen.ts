@@ -1,5 +1,6 @@
 import { DEFAULT_PROMPT_GEN_PROMPT } from "~/prompts";
 import { store } from "~/stores/apiStore";
+import { StringPrettifier } from "~/utils";
 import { makeAIRequest } from "./shared";
 
 /**
@@ -37,15 +38,17 @@ export const generatePrompt = async (
   const baseSystemPrompt = `
     ${options.context?.trim() || currentSettings.context.trim() || DEFAULT_PROMPT_GEN_PROMPT.trim()}
 
-    Constraints:
-    - The final output should be randomly between ${minLength} and ${maxLength} words in length.
+    Additional instructions:
+    - The final response should be around ${minLength} ~ ${maxLength} words in length.
     ${nsfw ? "" : "- Do not generate NSFW, inappropriate, or adult content."}
   `;
 
   try {
     // Use shared makeAIRequest function
     const response = await makeAIRequest({
-      systemPrompt: baseSystemPrompt,
+      systemPrompt: new StringPrettifier(baseSystemPrompt)
+        .removeExtraSpaces()
+        .removeExtraSpaces().value,
       userPrompt: `Input:\n${text}`,
       ...options,
       ...currentSettings,
