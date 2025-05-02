@@ -24,11 +24,14 @@ export const getGlobalPromptSettings = (): GlobalSettings => {
   return store.get("globalSettings") as GlobalSettings;
 };
 
+export type ModelSource = 'openrouter' | 'openai' | 'local';
+
 export type Model = {
   id: string;
   name: string;
   created: number;
-  pricing: {
+  source: ModelSource;
+  pricing?: {
     prompt: string;
     completion: string;
     image: string;
@@ -37,6 +40,16 @@ export type Model = {
     input_cache_write: string;
     web_search: string;
     internal_reasoning: string;
+  };
+  local?: {
+    path: string;
+    size?: number;
+    parameters?: {
+      temperature?: number;
+      top_p?: number;
+      repeat_penalty?: number;
+      [key: string]: unknown;
+    };
   };
 };
 

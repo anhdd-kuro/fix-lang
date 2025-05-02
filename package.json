@@ -63,6 +63,7 @@
     "electron-store": "^10.0.1",
     "languagedetect": "^2.0.0",
     "node-mac-permissions": "^2.5.0",
+    "ollama": "^0.5.15",
     "openai": "^4.96.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
