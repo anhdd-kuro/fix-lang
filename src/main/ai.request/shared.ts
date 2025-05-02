@@ -26,7 +26,6 @@ export const getGlobalPromptSettings = (): GlobalSettings => {
   return store.get("globalSettings") as GlobalSettings;
 };
 
-
 export const fetchAvailableModels = async (
   apiKey: string
 ): Promise<Model[]> => {
@@ -264,8 +263,8 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
     return {
       content: [text],
       prompts: [text], // For compatibility with existing code
-      promptTokens: null, // Local models don't provide token information
-      completionTokens: null,
+      promptTokens: 0, // Local models don't provide token information
+      completionTokens: 0,
       model: modelId,
     };
   } catch (error) {
@@ -441,4 +440,4 @@ export type AIRequestResponse = {
   completionTokens: number | null;
   model: string;
   prompts?: string[];
-}
+};

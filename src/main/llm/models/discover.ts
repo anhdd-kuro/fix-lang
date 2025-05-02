@@ -119,8 +119,35 @@ function generateModelDescription(model: ModelMetadata): string {
  */
 export async function getLocalModels(): Promise<Model[]> {
   try {
+    console.log("[DEBUG] Starting local model discovery...");
+    console.log("[DEBUG] Creating Ollama client instance...");
     const ollamaClient = new OllamaClient();
+    
+    console.log("[DEBUG] Attempting to connect to Ollama at http://localhost:11434");
+    
+    // Let's test the Ollama server separately first
+    try {
+      const testResponse = await fetch("http://localhost:11434/api/tags", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(2000), // 2 second timeout
+      });
+      
+      if (testResponse.ok) {
+        const testData = await testResponse.json();
+        console.log("[DEBUG] Direct connection to Ollama successful", 
+          testData.models ? `Found ${testData.models.length} models directly` : "No models in direct response");
+        console.log("[DEBUG] Raw Ollama response:", JSON.stringify(testData, null, 2));
+      } else {
+        console.log(`[DEBUG] Direct connection to Ollama failed: HTTP ${testResponse.status}`);
+      }
+    } catch (directErr) {
+      console.log("[DEBUG] Direct connection to Ollama failed with error:", directErr);
+    }
+    
+    console.log("[DEBUG] Now trying through the OllamaClient class...");
     const ollamaModels = await ollamaClient.listModels();
+    console.log("[DEBUG] OllamaClient.listModels() returned:", JSON.stringify(ollamaModels, null, 2));
 
     if (!ollamaModels || ollamaModels.length === 0) {
       // If Ollama is not running or no models, return empty array

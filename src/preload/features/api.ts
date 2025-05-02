@@ -77,11 +77,21 @@ export const apiFeature = {
   },
 
   /**
-   * Opens the model manager UI for local LLMs
-   * @returns A promise that resolves when the model manager window is opened
+   * Shows the model manager dialog
+   * This triggers the display of the ModelManagerDialog component in the renderer
+   * @returns A promise that resolves with a success flag
    */
-  openModelManager: async (): Promise<void> => {
-    return await ipcRenderer.invoke("open-model-manager");
+  openModelManager: async (): Promise<{ success: boolean }> => {
+    // Instead of waiting for main process, we'll directly trigger the UI
+    // by dispatching a custom event that our component listens for
+    window.dispatchEvent(new CustomEvent("openModelManager"));
+
+    // For compatibility, still call the IPC handler but don't wait for it
+    ipcRenderer.invoke("open-model-manager").catch((error) => {
+      console.warn("Failed to notify main process about model manager:", error);
+    });
+
+    return { success: true };
   },
 
   /**
@@ -116,9 +126,40 @@ export const apiFeature = {
       description: string;
       size: number;
       tags: string[];
+      requirements?: {
+        minRam?: number;
+        minDisk?: number;
+        gpu?: boolean;
+      };
     }[]
   > => {
     return await ipcRenderer.invoke("get-recommended-models");
+  },
+
+  /**
+   * Checks if the user's system is compatible with a specific model
+   * @param modelName The name of the model to check compatibility for
+   * @returns A promise that resolves with compatibility information
+   */
+  checkModelCompatibility: async (
+    modelName: string
+  ): Promise<{
+    success: boolean;
+    compatibility?: {
+      compatible: boolean;
+      issues: string[];
+      recommendations: string[];
+      details: {
+        availableRam: number;
+        availableDisk: number;
+        cpuCores: number;
+        hasGpu: boolean;
+        gpuInfo?: string;
+      };
+    };
+    error?: string;
+  }> => {
+    return await ipcRenderer.invoke("check-model-compatibility", modelName);
   },
 };
 

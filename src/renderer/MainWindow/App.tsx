@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import HistoryReviewModal from "../components/HistoryReviewModal";
+import ModelManagerDialog from "../components/ModelManagerDialog";
 import { SettingsButton } from "../components/SettingsIcon";
 import { SettingsModal } from "../components/SettingsModal";
 import { TextAreaBox } from "../components/TextAreaBox";
@@ -63,6 +64,7 @@ const App: React.FC = () => {
   const [initialSettingsTab, setInitialSettingsTab] = useState<number>(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [showHistoryReview, setShowHistoryReview] = useState<boolean>(false);
+  const [showModelManager, setShowModelManager] = useState<boolean>(false);
   const [lastHistoryData, setLastHistoryData] = useState<{
     original: string;
     corrected: string;
@@ -93,8 +95,22 @@ const App: React.FC = () => {
       }
     );
 
+    // Listen for model manager open requests triggered via IPC
+    const openModelManagerHandler = () => {
+      setShowModelManager(true);
+      return { success: true };
+    };
+
+    // Register a listener for openModelManager calls
+    const modelManagerEventName = "openModelManager";
+    window.addEventListener(modelManagerEventName, openModelManagerHandler);
+
     return () => {
       removeHistoryListener?.();
+      window.removeEventListener(
+        modelManagerEventName,
+        openModelManagerHandler
+      );
     };
   }, [historyType]);
 
@@ -308,6 +324,10 @@ const App: React.FC = () => {
           isOpen={showHistoryReview}
           data={lastHistoryData}
           onClose={() => setShowHistoryReview(false)}
+        />
+        <ModelManagerDialog
+          isOpen={showModelManager}
+          onClose={() => setShowModelManager(false)}
         />
       </main>
     </div>
