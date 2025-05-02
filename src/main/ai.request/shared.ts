@@ -10,11 +10,11 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
 import { Notification } from "electron";
 import { OpenAI } from "openai";
-import { InferenceService } from "~/main/llm/inference/service";
 import { getLocalModels } from "~/main/llm/models/discover";
 import { makeTonePrompt } from "~/prompts/index";
 import { store } from "~/stores/apiStore";
 import { StringPrettifier } from "~/utils";
+import { ollamaClient } from "../llm";
 import type { CoreMessage } from "ai";
 import type { GlobalSettings, Model } from "~/stores/apiStore";
 
@@ -187,11 +187,8 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
     throw new Error(`Model ${modelId} not found in model registry.`);
   }
 
-  // Check if the model is local or remote
-  // Check if this is a local model by explicitly using the Model interface
-  const modelObj = selectedModel;
-
-  if (modelObj && modelObj.local) {
+  if (selectedModel.local) {
+    console.log(`[DEBUG CRITICAL] Routing to local Ollama inference`);
     return makeLocalAIRequest({
       ...options,
       model: modelId,
@@ -229,33 +226,67 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
   );
 
   try {
-    // Initialize the inference service
-    const inferenceService = new InferenceService();
+    // Log the request details
+    console.log(
+      `[DEBUG CRITICAL] Local inference request for model ID: ${modelId}`
+    );
 
-    const messages = options.messages || [];
+    // Create messages array, ensuring we have actual content
+    let messages = options.messages || [];
 
+    // Get available local models to find the correct model ID
+    const localModels = await getLocalModels();
+
+    // For development, allow fallback to a known working model if the requested one isn't found
+    if (!localModels.some((model) => model.id === modelId)) {
+      throw new Error(`Model ${modelId} not found in local models.`);
+    }
+
+    console.log(`[DEBUG CRITICAL] Final model ID for Ollama: ${modelId}`);
+
+    // Ensure we have at least one message
+    if (messages.length === 0 && options.userPrompt) {
+      // If we have no messages but have user prompt, create a simple messages array
+      messages = [
+        {
+          role: "system",
+          content: options.systemPrompt || "You are a helpful assistant.",
+        },
+        { role: "user", content: options.userPrompt },
+      ];
+    }
+
+    console.log(
+      `[DEBUG CRITICAL] Sending ${messages.length} messages to Ollama model`
+    );
+
+    const serializedMessages = messages.map((msg) => ({
+      role:
+        msg.role === "assistant"
+          ? "assistant"
+          : msg.role === "system"
+            ? "system"
+            : "user",
+      content:
+        typeof msg.content === "string"
+          ? msg.content
+          : JSON.stringify(msg.content),
+    }));
     // Make the request to the local LLM
-    const response = await inferenceService.chat({
-      messages: messages.map((msg) => ({
-        role:
-          msg.role === "assistant"
-            ? "assistant"
-            : msg.role === "system"
-              ? "system"
-              : "user",
-        content:
-          typeof msg.content === "string"
-            ? msg.content
-            : JSON.stringify(msg.content),
-      })),
-      modelId,
+    const response = await ollamaClient.chat({
+      messages: serializedMessages,
+      model: modelId,
       options: {
-        temperature: options.temperature,
-        top_p: options.top_p,
-        num_predict: options.maxTokens,
+        temperature: options.temperature || 0.7,
+        top_p: options.top_p || 0.9,
+        num_predict: options.maxTokens || 1024,
       },
     });
 
+    console.log(
+      "[DEBUG CRITICAL] Ollama response total duration:",
+      response.total_duration
+    );
     // Extract the response content
     const text = response.message.content;
 
@@ -269,19 +300,6 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
     };
   } catch (error) {
     console.error("Local LLM request failed:", error);
-
-    // Fall back to OpenAI/OpenRouter if configured and API key exists
-    const apiKey = store.get("apiKey");
-    if (apiKey) {
-      console.log(
-        "Falling back to remote model due to local inference failure"
-      );
-      return makeRemoteAIRequest({
-        ...options,
-        model: store.get("selectedModel"), // Use default model for fallback
-      });
-    }
-
     throw error;
   }
 };

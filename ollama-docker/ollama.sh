@@ -57,11 +57,15 @@ function check_status() {
 }
 
 function pull_model() {
-  # For MVP, we're only using deepseek-r1:7b
-  local MODEL="deepseek-r1:7b"
+  local DEFAULT_MODEL="deepseek-r1:7b"
+  local MODEL=$1
 
-  echo "📥 Pulling model: $MODEL (MVP test model)"
-  echo "⏳ This might take a while to download (approximately 7.5 GB)..."
+  if [ -z "$MODEL" ]; then
+    MODEL=$DEFAULT_MODEL
+    echo "📥 Pulling default model: $MODEL"
+  fi
+
+  echo "📥 Pulling model: $MODEL"
 
   # Check if model is already pulled
   if curl -s http://localhost:11434/api/tags | grep -q "$MODEL"; then
@@ -75,9 +79,15 @@ function pull_model() {
 }
 
 function run_model() {
-  # For MVP, we're only using deepseek-r1:7b
-  local MODEL="deepseek-r1:7b"
-  local PROMPT=$1
+  local DEFAULT_MODEL="deepseek-r1:7b"
+  local MODEL=$1
+
+  if [ -z "$MODEL" ]; then
+    MODEL=$DEFAULT_MODEL
+    echo "🧠 Running default model: $MODEL"
+  fi
+
+  local PROMPT=$2
 
   if [ -z "$PROMPT" ]; then
     echo "⛔ Error: Prompt is required."
@@ -91,7 +101,7 @@ function run_model() {
     pull_model
   fi
 
-  echo "🧠 Running deepseek-r1:7b model with your prompt"
+  echo "🧠 Running $MODEL model with your prompt"
   curl -X POST http://localhost:11434/api/generate -d "{\"model\":\"$MODEL\",\"prompt\":\"$PROMPT\"}"
   echo -e "\n✅ Done."
 }
@@ -110,20 +120,18 @@ case "$1" in
     check_status
     ;;
   pull)
-    # For MVP, we're only using deepseek-r1:7b, so no model name parameter needed
-    pull_model
+    pull_model "$2"
     ;;
   run)
-    # For MVP, we're only using deepseek-r1:7b, so no model name parameter needed
-    run_model "$2"
+    run_model "$2" "$3"
     ;;
   *)
     echo "Usage: ./ollama.sh [start|stop|status|pull|run PROMPT]"
     echo "  start  - Start the Ollama container"
     echo "  stop   - Stop the Ollama container"
     echo "  status - Check if Ollama is running and list available models"
-    echo "  pull   - Pull the deepseek-r1:7b model (MVP default)"
-    echo "  run    - Run a query with deepseek-r1:7b (e.g., ./ollama.sh run \"Write a hello world in Python\")"
+    echo "  pull   - Pull the model (default: deepseek-r1:7b)"
+    echo "  run    - Run a query with the model (default: deepseek-r1:7b)"
     echo ""
     echo "Note: This script is configured specifically for the FixLang MVP with deepseek-r1:7b model."
     exit 1

@@ -5,12 +5,12 @@
 import { ipcMain } from "electron";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
 import { fetchAvailableModels } from "~/main/ai.request";
+import { ollamaClient } from "~/main/llm";
 import { checkModelCompatibility } from "~/main/llm/models/compatibility";
 import {
   findRecommendedModel,
   getRecommendedModels,
 } from "~/main/llm/models/recommended";
-import { OllamaClient } from "~/main/llm/ollama/client";
 import { store } from "~/stores/apiStore";
 
 /**
@@ -70,9 +70,28 @@ export const registerApiHandlers = (): void => {
     return store.get("selectedModel") || DEFAULT_OPENAI_MODEL;
   });
 
-  ipcMain.handle("set-selected-model", (_event, modelId) => {
+  ipcMain.handle("set-selected-model", async (_event, modelId) => {
     try {
+      console.log(`[DEBUG IPC] Setting selected model via IPC to: ${modelId}`);
+
+      // Sanity check - verify this model exists
+      const models = store.get("models") || [];
+      const model = models.find((m) => m.id === modelId);
+      console.log(`[DEBUG IPC] Model found in registry: ${!!model}`);
+      if (model) {
+        console.log(
+          `[DEBUG IPC] Model details: local=${!!model.local}, name=${model.name}`
+        );
+      }
+
+      // Save to store
       store.set("selectedModel", modelId);
+
+      // Double-check it was saved correctly
+      const savedModel = store.get("selectedModel");
+      console.log(`[DEBUG IPC] Verified saved model ID: ${savedModel}`);
+      console.log(`[DEBUG IPC] Models match: ${savedModel === modelId}`);
+
       return { success: true };
     } catch (error) {
       console.error("Error setting selected model:", error);
@@ -122,7 +141,6 @@ export const registerApiHandlers = (): void => {
       console.log(`Pulling local model: ${modelName}`);
 
       // Check if Ollama is running and available
-      const ollamaClient = new OllamaClient();
 
       // First check if model is compatible with the system
       const recommendedModel = findRecommendedModel(modelName);
@@ -147,7 +165,7 @@ export const registerApiHandlers = (): void => {
       }
 
       // Proceed with the model pull
-      const result = await ollamaClient.pullModel(modelName);
+      const result = await ollamaClient.pull(modelName);
       return result;
     } catch (error) {
       console.error("Error pulling local model:", error);
@@ -161,8 +179,7 @@ export const registerApiHandlers = (): void => {
   ipcMain.handle("delete-local-model", async (_event, modelName) => {
     try {
       console.log(`Deleting local model: ${modelName}`);
-      const ollamaClient = new OllamaClient();
-      const result = await ollamaClient.deleteModel(modelName);
+      const result = await ollamaClient.delete(modelName);
       return result;
     } catch (error) {
       console.error("Error deleting local model:", error);

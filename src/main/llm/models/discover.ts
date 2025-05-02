@@ -4,7 +4,7 @@
  */
 import fs from "fs";
 import path from "path";
-import { OllamaClient } from "../ollama/client";
+import { ollamaClient } from "../ollama/client";
 import type { Model } from "~/stores/apiStore";
 
 /**
@@ -121,35 +121,46 @@ export async function getLocalModels(): Promise<Model[]> {
   try {
     console.log("[DEBUG] Starting local model discovery...");
     console.log("[DEBUG] Creating Ollama client instance...");
-    const ollamaClient = new OllamaClient();
-    
-    console.log("[DEBUG] Attempting to connect to Ollama at http://localhost:11434");
-    
+
+    console.log(
+      "[DEBUG] Attempting to connect to Ollama at http://localhost:11434"
+    );
+
     // Let's test the Ollama server separately first
     try {
-      const testResponse = await fetch("http://localhost:11434/api/tags", {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(2000), // 2 second timeout
-      });
-      
-      if (testResponse.ok) {
-        const testData = await testResponse.json();
-        console.log("[DEBUG] Direct connection to Ollama successful", 
-          testData.models ? `Found ${testData.models.length} models directly` : "No models in direct response");
-        console.log("[DEBUG] Raw Ollama response:", JSON.stringify(testData, null, 2));
+      const listResponse = await ollamaClient.list();
+
+      if (listResponse.models.length > 0) {
+        console.log(
+          "[DEBUG] Direct connection to Ollama successful",
+          listResponse.models
+            ? `Found ${listResponse.models.length} models directly`
+            : "No models in direct response"
+        );
+        console.log(
+          "[DEBUG] Raw Ollama response:",
+          JSON.stringify(listResponse, null, 2)
+        );
       } else {
-        console.log(`[DEBUG] Direct connection to Ollama failed: HTTP ${testResponse.status}`);
+        console.log(
+          `[DEBUG] Direct connection to Ollama failed: ${listResponse}`
+        );
       }
     } catch (directErr) {
-      console.log("[DEBUG] Direct connection to Ollama failed with error:", directErr);
+      console.log(
+        "[DEBUG] Direct connection to Ollama failed with error:",
+        directErr
+      );
     }
-    
-    console.log("[DEBUG] Now trying through the OllamaClient class...");
-    const ollamaModels = await ollamaClient.listModels();
-    console.log("[DEBUG] OllamaClient.listModels() returned:", JSON.stringify(ollamaModels, null, 2));
 
-    if (!ollamaModels || ollamaModels.length === 0) {
+    console.log("[DEBUG] Now trying through the OllamaClient class...");
+    const ollamaModels = await ollamaClient.list();
+    console.log(
+      "[DEBUG] OllamaClient.listModels() returned:",
+      JSON.stringify(ollamaModels, null, 2)
+    );
+
+    if (!ollamaModels || ollamaModels.models.length === 0) {
       // If Ollama is not running or no models, return empty array
       console.log("No local models found or Ollama is not running");
       return [];
@@ -158,9 +169,9 @@ export async function getLocalModels(): Promise<Model[]> {
     const localModels: Model[] = [];
 
     // Log the total number of models found in Ollama
-    console.log(`Found ${ollamaModels.length} total Ollama models`);
+    console.log(`Found ${ollamaModels.models.length} total Ollama models`);
 
-    for (const model of ollamaModels) {
+    for (const model of ollamaModels.models) {
       // Model name format: owner/model:tag
       const modelName = model.name.split(":")[0]; // remove tag if present
 
@@ -171,7 +182,7 @@ export async function getLocalModels(): Promise<Model[]> {
       }
 
       // Generate a consistent ID (replace all special chars with hyphens)
-      const id = `local-${model.name.replace(/[/:.-]/g, "-")}`;
+      const id = model.name;
       // Get context length for logging (not stored in model object)
       estimateContextLength(model);
 
@@ -186,7 +197,7 @@ export async function getLocalModels(): Promise<Model[]> {
         name: modelName,
         pricing: undefined, // Local models have no pricing
         local: {
-          size: model.parameters?.parameter_size || 0,
+          size: model.size || 0,
           path: model.name,
           parameters: {
             temperature: 0.7,
@@ -213,11 +224,10 @@ export async function getLocalModels(): Promise<Model[]> {
  */
 export async function checkModelStatus(modelId: string): Promise<ModelStatus> {
   try {
-    const ollamaClient = new OllamaClient();
-    const models = await ollamaClient.listModels();
+    const models = await ollamaClient.list();
 
     // Check if model exists in Ollama
-    const exists = models.some(
+    const exists = models.models.some(
       (model: ModelMetadata) => model.name === modelId
     );
     return exists ? "available" : "not-found";
@@ -240,6 +250,7 @@ function extractModelSize(modelName: string): number | undefined {
     }
     return undefined;
   } catch (error) {
+    console.error("Failed to extract model size:", error);
     return undefined;
   }
 }
@@ -302,6 +313,7 @@ function isModelDirectory(dirPath: string): boolean {
         file.includes("config.json")
     );
   } catch (error) {
+    console.error(`Error checking directory ${dirPath}:`, error);
     return false;
   }
 }

@@ -11,12 +11,13 @@ services:
     restart: unless-stopped
     environment:
       - OLLAMA_MODELS=/root/.ollama/models
+      - OLLAMA_DEBUG=1
     deploy:
       resources:
         # Optimized for deepseek-r1:7b model
         limits:
           memory: 10G # For running the 7B parameter model
-          cpus: '4'
+          cpus: 8
         reservations:
           memory: 6G # Minimum for good performance
 
