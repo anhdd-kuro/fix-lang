@@ -6,6 +6,7 @@ type SettingsButtonProps = {
   className?: string;
   iconClassName?: string;
   onClick?: () => void;
+  title?: string;
 };
 
 /**
@@ -16,6 +17,7 @@ export const SettingsButton: React.FC<SettingsButtonProps> = ({
   className = "",
   iconClassName = "size-6",
   onClick,
+  title = "Open settings",
 }) => (
   <button
     type="button"
@@ -24,8 +26,8 @@ export const SettingsButton: React.FC<SettingsButtonProps> = ({
       "text-gray-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md cursor-pointer",
       className
     )}
-    aria-label="Open settings"
-    title="Open settings"
+    aria-label={title}
+    title={title}
   >
     <GearIcon className={iconClassName} />
   </button>

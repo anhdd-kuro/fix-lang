@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Select from "react-select";
 import { twJoin } from "tailwind-merge";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
+import SettingsButton from "./SettingsIcon";
 import type { Model } from "~/stores/apiStore";
 
 // Define the extended option type for the select component
@@ -11,7 +12,7 @@ type ModelSelectOption = {
   label: string;
   isLocal: boolean;
   modelSize?: number;
-}
+};
 
 /**
  * Shared component for OpenAI model selection with refresh.
@@ -271,11 +272,8 @@ export const ModelSelect: React.FC<{
 
         {/* Add button to manage local models if any exist */}
         {models.some((model) => model.local !== undefined) && (
-          <button
-            type="button"
-            aria-label="Manage Local Models"
-            title="Install or remove local models"
-            className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 text-xs md:text-sm whitespace-nowrap"
+          <SettingsButton
+            title="Manage local models"
             onClick={() => {
               // We'll implement this in the next step
               if (window.electronAPI?.openModelManager) {
@@ -284,11 +282,7 @@ export const ModelSelect: React.FC<{
                 alert("Model management is not available yet");
               }
             }}
-            disabled={modelsLoading}
-          >
-            <span className="hidden sm:inline">Manage Local Models</span>
-            <span className="sm:hidden">Local</span>
-          </button>
+          />
         )}
 
         {/* Add reset button for feature-specific models */}
