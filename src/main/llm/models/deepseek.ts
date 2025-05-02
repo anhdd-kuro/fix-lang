@@ -1,13 +1,13 @@
-import type { Model } from '../../ai.request/shared';
+import type { Model } from "~/stores/apiStore";
 
 export const DEEPSEEK_MODELS = {
-  'deepseek-coder:6.7b': {
-    id: 'deepseek-coder-6.7b',
-    name: 'DeepSeek Coder 6.7B',
+  "deepseek-coder:6.7b": {
+    id: "deepseek-coder-6.7b",
+    name: "DeepSeek Coder 6.7B",
     created: Date.now(),
-    source: 'local' as const,
+    source: "local" as const,
     local: {
-      path: 'deepseek-coder:6.7b',
+      path: "deepseek-coder:6.7b",
       size: 6.7,
       parameters: {
         temperature: 0.7,
@@ -16,13 +16,13 @@ export const DEEPSEEK_MODELS = {
       },
     },
   },
-  'deepseek-coder:33b': {
-    id: 'deepseek-coder-33b',
-    name: 'DeepSeek Coder 33B',
+  "deepseek-coder:33b": {
+    id: "deepseek-coder-33b",
+    name: "DeepSeek Coder 33B",
     created: Date.now(),
-    source: 'local' as const,
+    source: "local" as const,
     local: {
-      path: 'deepseek-coder:33b',
+      path: "deepseek-coder:33b",
       size: 33,
       parameters: {
         temperature: 0.7,

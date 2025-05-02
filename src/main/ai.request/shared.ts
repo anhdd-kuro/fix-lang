@@ -13,8 +13,9 @@ import { OpenAI } from "openai";
 import { makeTonePrompt } from "~/prompts/index";
 import { store } from "~/stores/apiStore";
 import { StringPrettifier } from "~/utils";
+import { InferenceService } from "~/main/llm/inference/service";
 import type { CoreMessage } from "ai";
-import type { GlobalSettings } from "~/stores/apiStore";
+import type { GlobalSettings, Model } from "~/stores/apiStore";
 
 /**
  * Retrieves global prompt settings from the store
@@ -22,35 +23,6 @@ import type { GlobalSettings } from "~/stores/apiStore";
  */
 export const getGlobalPromptSettings = (): GlobalSettings => {
   return store.get("globalSettings") as GlobalSettings;
-};
-
-export type ModelSource = 'openrouter' | 'openai' | 'local';
-
-export type Model = {
-  id: string;
-  name: string;
-  created: number;
-  source: ModelSource;
-  pricing?: {
-    prompt: string;
-    completion: string;
-    image: string;
-    request: string;
-    input_cache_read: string;
-    input_cache_write: string;
-    web_search: string;
-    internal_reasoning: string;
-  };
-  local?: {
-    path: string;
-    size?: number;
-    parameters?: {
-      temperature?: number;
-      top_p?: number;
-      repeat_penalty?: number;
-      [key: string]: unknown;
-    };
-  };
 };
 
 export const fetchAvailableModels = async (
@@ -111,27 +83,18 @@ export const applyGlobalSettings = (systemPrompt: string): string => {
  * @returns Promise with the AI response and token information
  */
 export const makeAIRequest = async (options: AIRequestOptions) => {
-  // Get API key from store
-  const apiKey = store.get("apiKey");
-  if (!apiKey) {
-    throw new Error("OpenAI API key is missing.");
-  }
-
-  // Initialize OpenAI client locally with the provided key
-  // const openai = new OpenAI({ apiKey });
-
   // Apply global settings to the system prompt (if not using custom messages)
   const finalSystemPrompt = options.messages
     ? ""
     : applyGlobalSettings(options.systemPrompt);
 
   // Determine which model to use
-  const model = options.model || store.get("selectedModel");
-  if (!model) {
+  const modelId = options.model || store.get("selectedModel");
+  if (!modelId) {
     throw new Error("You have to select a model first.");
   }
 
-  console.log(`Using model for request: ${model}`);
+  console.log(`Using model for request: ${modelId}`);
 
   // Get global settings for AI parameters
   const globalSettings = store.get("globalSettings");
@@ -139,38 +102,157 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
   const top_p = options.top_p || globalSettings?.top_p || 1.0;
   const maxTokens = options.maxTokens || globalSettings?.maxTokens || 10000;
 
-  try {
-    // Create messages array if not provided
-    const messages =
-      options.messages ||
-      ([
-        { role: "system", content: finalSystemPrompt },
-        { role: "user", content: options.userPrompt },
-      ] as CoreMessage[]);
+  // Create messages array if not provided
+  const messages =
+    options.messages ||
+    ([
+      { role: "system", content: finalSystemPrompt },
+      { role: "user", content: options.userPrompt },
+    ] as CoreMessage[]);
 
+  // Get all models from store
+  const models = store.get("models") || [];
+  const selectedModel = models.find((m) => m.id === modelId);
+
+  if (!selectedModel) {
+    throw new Error(`Model ${modelId} not found in model registry.`);
+  }
+
+  // Check if the model is local or remote
+  // Check if this is a local model by explicitly using the Model interface
+  const modelObj = selectedModel;
+
+  if (modelObj && modelObj.local) {
+    return makeLocalAIRequest({
+      ...options,
+      model: modelId,
+      messages,
+      temperature,
+      top_p,
+      maxTokens,
+    });
+  }
+
+  // For remote models (OpenAI/OpenRouter)
+  return makeRemoteAIRequest({
+    ...options,
+    model: modelId,
+    messages,
+    temperature,
+    top_p,
+    maxTokens,
+  });
+};
+
+/**
+ * Makes an AI request using local LLM with Ollama
+ * @param options Configuration options for the AI request
+ * @returns Promise with the AI response and token information
+ */
+export const makeLocalAIRequest = async (options: AIRequestOptions) => {
+  const modelId = options.model as string;
+
+  console.log(
+    `Sending request to local LLM with model: ${modelId}, temperature: ${options.temperature}
+    System Prompt: ${options.systemPrompt || ""}
+    User Prompt: ${options.userPrompt || ""}
+  `.trim()
+  );
+
+  try {
+    // Initialize the inference service
+    const inferenceService = new InferenceService();
+
+    const messages = options.messages || [];
+
+    // Make the request to the local LLM
+    const response = await inferenceService.chat({
+      messages: messages.map((msg) => ({
+        role:
+          msg.role === "assistant"
+            ? "assistant"
+            : msg.role === "system"
+              ? "system"
+              : "user",
+        content:
+          typeof msg.content === "string"
+            ? msg.content
+            : JSON.stringify(msg.content),
+      })),
+      modelId,
+      options: {
+        temperature: options.temperature,
+        top_p: options.top_p,
+        num_predict: options.maxTokens,
+      },
+    });
+
+    // Extract the response content
+    const text = response.message.content;
+
+    // Return in a format compatible with the OpenAI response format
+    return {
+      content: [text],
+      prompts: [text], // For compatibility with existing code
+      promptTokens: null, // Local models don't provide token information
+      completionTokens: null,
+      model: modelId,
+    };
+  } catch (error) {
+    console.error("Local LLM request failed:", error);
+
+    // Fall back to OpenAI/OpenRouter if configured and API key exists
+    const apiKey = store.get("apiKey");
+    if (apiKey) {
+      console.log(
+        "Falling back to remote model due to local inference failure"
+      );
+      return makeRemoteAIRequest({
+        ...options,
+        model: store.get("selectedModel"), // Use default model for fallback
+      });
+    }
+
+    throw error;
+  }
+};
+
+/**
+ * Makes an AI request using OpenAI API with centralized settings management
+ * @param options Configuration options for the AI request
+ * @returns Promise with the AI response and token information
+ */
+export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
+  // Get API key from store
+  const apiKey = store.get("apiKey");
+  if (!apiKey) {
+    throw new Error("OpenAI API key is missing.");
+  }
+
+  try {
     console.log(
-      `Sending request to OpenAI with model: ${model}, temperature: ${temperature}, top_p: ${top_p}, max_completion_tokens: ${maxTokens}
-      System Prompt: ${finalSystemPrompt}
-      User Prompt: ${options.userPrompt}
+      `Sending request to OpenRouter with model: ${options.model}, temperature: ${options.temperature}, top_p: ${options.top_p}, max_completion_tokens: ${options.maxTokens}
+      System Prompt: ${options.systemPrompt || ""}
+      User Prompt: ${options.userPrompt || ""}
     `.trim()
     );
 
     const openRouter = createOpenRouter({ apiKey });
-    const modelOpenRouter = openRouter(model, {
+    const modelOpenRouter = openRouter(options.model as string, {
       extraBody: {
-        temperature,
-        top_p,
-        max_completion_tokens: maxTokens,
+        temperature: options.temperature,
+        top_p: options.top_p,
+        max_completion_tokens: options.maxTokens,
         n: options.n || 1,
         stop: options.stop,
       },
     });
     const genResponse = await generateText({
       model: modelOpenRouter,
-      messages,
+      messages: options.messages || [],
     });
     console.log(
-      `🚀 \n - makeAIRequest \n - genResponse:`,
+      `🚀 \n - makeRemoteAIRequest \n - genResponse:`,
       JSON.stringify(genResponse, null, 2)
     );
     const { usage, text } = genResponse;
@@ -199,25 +281,27 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
         )
         .filter(Boolean);
 
-      // Check if we got something
-      if (!contents || contents.length === 0) {
-        throw new Error("Failed to get content from OpenAI response.");
+      if (contents.length > 0) {
+        processedContent = contents;
       }
-
-      // Return as the expected type
-      processedContent = [...contents];
     }
 
-    // Cast to the expected return type
-    const content = processedContent;
-
-    return { content, promptTokens, completionTokens, model };
+    // Return the processed content and token information
+    return {
+      content: processedContent,
+      prompts: processedContent, // For compatibility with existing code
+      promptTokens,
+      completionTokens,
+      model: options.model as string,
+    };
   } catch (error) {
+    console.error("makeRemoteAIRequest error:", error);
     new Notification({
-      title: "Error calling OpenAI API",
-      body: error instanceof Error ? error.message : String(error),
+      title: "API Error",
+      body: `Failed to get response from API: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
     }).show();
-    console.error("Error calling OpenAI API:", error);
     throw error;
   }
 };
@@ -281,4 +365,10 @@ export type AIRequestOptions = {
 /**
  * Response structure for AI request operations
  */
-export type AIRequestResponse = ReturnType<typeof makeAIRequest>;
+export interface AIRequestResponse {
+  content: string[];
+  promptTokens: number | null;
+  completionTokens: number | null;
+  model: string;
+  prompts?: string[];
+}

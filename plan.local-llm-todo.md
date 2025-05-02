@@ -37,70 +37,73 @@ Key technical considerations include using 4-bit quantized models for efficiency
 
 ### Phase 2: Core Implementation
 
-- [ ] Update model types:
-  - [ ] Add `ModelSource` type to `shared.ts`
-  - [ ] Extend `Model` type to include local model properties
-  - [ ] Update existing model references to handle the new properties
-- [ ] Implement Ollama inference service:
-  - [ ] Create OllamaInferenceService class
-  - [ ] Implement chat/completion methods using Ollama API
-  - [ ] Add error handling and retries
-  - [ ] Add temperature and other parameter controls
-- [ ] Implement Ollama model management:
-  - [ ] Create `src/main/llm/ollama/client.ts` with API methods
-  - [ ] Implement listModels, pullModel, deleteModel functions
-  - [ ] Add error handling and retries
-- [ ] Create model discovery utilities:
-  - [ ] Implement `src/main/llm/models/discover.ts`
-  - [ ] Create functions to scan directories for model files
-  - [ ] Add model metadata extraction functionality
-- [ ] Update AI request logic:
-  - [ ] Modify `makeAIRequest` in `shared.ts` to handle local models
-  - [ ] Create `makeLocalAIRequest` function
-  - [ ] Implement appropriate error handling and fallbacks
+- [x] Update model types:
+  - [x] Add `ModelSource` type to `shared.ts`
+  - [x] Extend `Model` type to include local model properties
+  - [x] Update existing model references to handle the new properties
+- [x] Implement Ollama inference service:
+  - [x] Create OllamaInferenceService class
+  - [x] Implement chat/completion methods using Ollama API
+  - [x] Add error handling and retries with backoff
+  - [x] Add temperature and other parameter controls
+  - [x] Implement metrics tracking for inference operations
+  - [x] Add proper TypeScript types and streaming support
+- [x] Implement Ollama model management:
+  - [x] Create `src/main/llm/ollama/client.ts` with API methods
+  - [x] Implement listModels, pullModel, deleteModel functions
+  - [x] Add error handling and retries
+- [x] Create model discovery utilities:
+  - [x] Implement `src/main/llm/models/discover.ts`
+  - [x] Create functions to scan directories for model files
+  - [x] Add model metadata extraction functionality
+- [x] Update AI request logic:
+  - [x] Modify `makeAIRequest` in `shared.ts` to handle local models
+  - [x] Create `makeLocalAIRequest` function
+  - [x] Implement appropriate error handling and fallbacks
 
-### Phase 3: UI and Settings Integration
+### Phase 3: UI and Model Selection Integration
 
-- [ ] Update settings schema:
-  - [ ] Add localLLM settings object to `SettingsStore` type
-  - [ ] Update schema in `apiStore.ts`
-  - [ ] Implement migration for existing users
-- [ ] Create settings UI:
-  - [ ] Create `src/renderer/components/SettingsLocalLLM.tsx`
-  - [ ] Add model directory configuration UI
-  - [ ] Add performance settings controls
-  - [ ] Implement model selection UI
 - [ ] Update model selection component:
-  - [ ] Modify to display model source with icons
-  - [ ] Show relevant stats for different model types
-  - [ ] Add contextual settings based on model type
-- [ ] Implement preload API:
-  - [ ] Create `src/preload/features/localLLM.ts`
-  - [ ] Implement required API methods
-  - [ ] Update `src/preload/index.ts` to include new feature
-- [ ] Add IPC handlers:
-  - [ ] Create `src/main/ipc/features/localLLM.ts`
-  - [ ] Implement handlers for local LLM operations
-  - [ ] Register handlers in main process
-  - [ ] Add to the registerIpcHandlers function in `src/main/index.ts`
+  - [ ] Modify existing model selector to display local models alongside OpenRouter models
+  - [ ] Add visual indicators for local models (e.g., "Local" badge)
+  - [ ] Show relevant stats for local models (e.g., size in parameters)
+- [ ] Update models registration:
+  - [ ] Add local models to the regular model list in `apiStore.ts`
+  - [ ] Ensure model IDs for local models use a consistent prefix for identification
+  - [ ] Allow local models to be selected like any other model
+- [ ] Implement Ollama model discovery:
+  - [ ] Add background process to detect installed Ollama models
+  - [ ] Create utility to fetch and update available models list
+  - [ ] Implement model list refreshing mechanism
+- [ ] Update model fetching function:
+  - [ ] Modify `fetchAvailableModels` to include local models
+  - [ ] Integrate with Ollama model discovery
+  - [ ] Sort and present models in a unified list
+- [ ] Update UI indicators:
+  - [ ] Show model source (local vs. cloud) in UI components
+  - [ ] Add status indicators for model availability
+  - [ ] Display appropriate error messages for unavailable models
 
-### Phase 4: Model Management and Downloads
+### Phase 4: Model Management Integration
 
-- [ ] Create model download utilities:
-  - [ ] Create model management UI:
-  - [ ] Create ModelManager component
-  - [ ] Implement model listing and status display
-  - [ ] Add pull/delete model functionality
-  - [ ] Add loading states and error handling
-- [ ] Create model hub UI:
-  - [ ] Add recommended models list with metadata
-  - [ ] Implement direct download functionality
-  - [ ] Create model management UI (delete, verify)
-- [ ] Implement system requirements checker:
-  - [ ] Create utility to check RAM availability
-  - [ ] Add GPU compatibility detection
-  - [ ] Implement disk space verification
-  - [ ] Add warning system for inadequate resources
+- [ ] Implement model management utilities:
+  - [ ] Create a "Manage Local Models" option in the model dropdown
+  - [ ] Implement Ollama model pull functionality
+  - [ ] Add model deletion capability
+  - [ ] Show download progress indicators
+- [ ] Create recommended models list:
+  - [ ] Add a curated list of recommended local models
+  - [ ] Display model size, capabilities, and requirements
+  - [ ] Implement one-click installation
+- [ ] Add system compatibility checking:
+  - [ ] Create utility to check system compatibility before model download
+  - [ ] Display RAM and disk requirements
+  - [ ] Show warnings for inadequate system resources
+  - [ ] Provide recommendations for alternative models if needed
+- [ ] Implement status monitoring:
+  - [ ] Add real-time status monitoring for model downloads
+  - [ ] Create error recovery mechanisms
+  - [ ] Implement automatic model verification after download
 
 ### Phase 5: Feature Integration
 

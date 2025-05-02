@@ -26,11 +26,11 @@
 - Analyze each task before starting:
   - Plan the implementation
   - Break the task into smaller steps
-  - Add the task to `plan.md` as a TODO list
+  - Add the task to `plan.md` or related files as a TODO list
 - Use `plan.md` as a guide, but don’t follow it too rigidly
 - Review `src/main/index.ts`, `src/preload/index.ts`, and `electron.vite.config.ts` to understand the codebase structure before starting
 - Check `package.json` to review dependencies before requesting package installations
-- Mark the task in `plan.md` complete upon finishing, including a summary of the implementation and any accessibility notes
+- Mark the task in `plan.md` or related files complete upon finishing, including a summary of the implementation and any accessibility notes
 
 ## Coding Rules
 

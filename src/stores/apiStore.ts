@@ -5,7 +5,32 @@
 import Store from "electron-store";
 import { DEFAULT_OPENAI_MODEL, DEFAULT_LANGUAGE } from "~/const";
 import type { Schema } from "electron-store";
-import type { Model } from "openai/resources.mjs";
+
+export type Model = {
+  id: string;
+  name: string;
+  created: number;
+  pricing?: {
+    prompt: string;
+    completion: string;
+    image: string;
+    request: string;
+    input_cache_read: string;
+    input_cache_write: string;
+    web_search: string;
+    internal_reasoning: string;
+  };
+  local?: {
+    path: string;
+    size?: number;
+    parameters?: {
+      temperature?: number;
+      top_p?: number;
+      repeat_penalty?: number;
+      [key: string]: unknown;
+    };
+  };
+};
 
 export type KeyBindings = {
   correction: string;

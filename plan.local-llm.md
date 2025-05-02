@@ -200,100 +200,137 @@ export const registerOllamaModel = async (model: OllamaModel) => {
 };
 ```
 
-## Phase 3: UI and Settings Integration
+## Phase 3: UI and Model Selection Integration
 
-### 3.1 Update Settings Schema
+### 3.1 Update Model Type Definition
 
-Modify `src/stores/apiStore.ts` to add local LLM settings:
+Ensure the `Model` type in `src/stores/apiStore.ts` includes local model information:
 
 ```typescript
-export type SettingsStore = {
-  // ... existing fields
-
-  // Local LLM settings
-  localLLM: {
-    modelsDirectory: string;
-    defaultContextLength: number;
-    defaultTemperature: number;
-    enableGPU: boolean;
-    maxRAMUsage: number; // In GB
+export type Model = {
+  id: string;
+  name: string;
+  created: number;
+  source: 'openrouter' | 'openai' | 'local'; // Add source property
+  pricing?: {
+    prompt: string;
+    completion: string;
+    // other pricing fields...
   };
-};
-
-const schema = {
-  // ... existing schema
-
-  localLLM: {
-    type: "object",
-    properties: {
-      modelsDirectory: { type: "string", default: "" },
-      defaultContextLength: { type: "number", default: 2048 },
-      defaultTemperature: { type: "number", default: 0.7 },
-      enableGPU: { type: "boolean", default: false },
-      maxRAMUsage: { type: "number", default: 4 },
-    },
-    default: {
-      modelsDirectory: "",
-      defaultContextLength: 2048,
-      defaultTemperature: 0.7,
-      enableGPU: false,
-      maxRAMUsage: 4,
-    },
-  },
+  local?: {
+    path: string;
+    size?: number;
+    parameters?: {
+      temperature?: number;
+      top_p?: number;
+      repeat_penalty?: number;
+      [key: string]: unknown;
+    };
+  };
 };
 ```
 
-### 3.2 Create Local LLM Settings UI
+### 3.2 Integrate Local Models into Existing Model Flow
 
-Create a new settings component in `src/renderer/components/SettingsLocalLLM.tsx`:
-
-1. Add UI for configuring model directory
-2. Add controls for performance settings (RAM usage, GPU)
-3. Implement a model browser/selector for locally available models
-
-### 3.3 Update Model Selection UI
-
-Modify the existing model selection UI to:
-
-1. Display model source (OpenAI/Local) with appropriate icons
-2. Show relevant stats for local models (size, quantization)
-3. Provide contextual settings based on selected model type
-
-### 3.4 Add Preload and IPC Handlers
-
-Create new handlers for local LLM functionality:
+Modify the model fetching function to include local models:
 
 ```typescript
-// src/preload/features/localLLM.ts
-export const localLLMFeature = {
-  getLocalModels: (): Promise<Model[]> => {
-    return ipcRenderer.invoke("get-local-models");
-  },
+// src/main/ai.request/shared.ts
+import { getLocalModels } from '../llm/models/discover';
 
-  scanForLocalModels: (): Promise<{ success: boolean; models?: Model[]; error?: string }> => {
-    return ipcRenderer.invoke("scan-for-local-models");
-  },
-
-  getLocalLLMSettings: (): Promise<LocalLLMSettings> => {
-    return ipcRenderer.invoke("get-local-llm-settings");
-  },
-
-  setLocalLLMSettings: (settings: LocalLLMSettings): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke("set-local-llm-settings", settings);
+export const fetchAvailableModels = async (apiKey: string): Promise<Model[]> => {
+  try {
+    // Fetch models from OpenRouter/OpenAI
+    const response = await fetch("https://openrouter.ai/api/v1/models", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    });
+    const remoteModels = (await response.json()).data as Model[];
+    
+    // Get local models from Ollama
+    const localModels = await getLocalModels();
+    
+    // Combine and sort all models
+    const allModels = [...remoteModels, ...localModels].sort((a, b) => {
+      // Sort by source first (local models first, then remote)
+      if (a.source === 'local' && b.source !== 'local') return -1;
+      if (a.source !== 'local' && b.source === 'local') return 1;
+      
+      // Then by created date
+      return b.created - a.created;
+    });
+    
+    return allModels;
+  } catch (error) {
+    console.error('Error fetching models:', error);
+    
+    // If remote fetch fails, return only local models
+    return await getLocalModels();
   }
 };
+```
 
-// src/main/ipc/features/localLLM.ts
-export const registerLocalLLMHandlers = () => {
-  ipcMain.handle("get-local-models", async () => {
-    // Implementation
-  });
+### 3.3 Update Model Selection Component
 
-  ipcMain.handle("scan-for-local-models", async () => {
-    // Implementation
-  });
+Modify the existing model selection UI to show appropriate badges and info for local models:
 
-  // Additional handlers
+```typescript
+// src/renderer/components/ModelSelect.tsx
+import { useState, useEffect } from 'react';
+import { Model } from '~/stores/apiStore';
+
+export const ModelSelect = () => {
+  // Existing code...
+
+  return (
+    <div className="model-select">
+      <h3>Select Model</h3>
+      {loading ? (
+        <p>Loading models...</p>
+      ) : (
+        <div>
+          <select
+            value={selectedModel}
+            onChange={(e) => handleModelChange(e.target.value)}
+          >
+            <option value="">Select a model</option>
+            
+            {models.map(model => (
+              <option key={model.id} value={model.id}>
+                {model.name}
+                {model.source === 'local' && ` (${model.local?.size || '?'}B, Local)`}
+              </option>
+            ))}
+          </select>
+          
+          {selectedModel && (
+            <div className="model-info">
+              {/* Show source badge */}
+              {models.find(m => m.id === selectedModel)?.source === 'local' ? (
+                <span className="badge local">Local</span>
+              ) : (
+                <span className="badge cloud">Cloud</span>
+              )}
+              
+              {/* Other model details */}
+            </div>
+          )}
+          
+          {/* Add a button to manage local models if any local models exist */}
+          {models.some(m => m.source === 'local') && (
+            <button 
+              onClick={() => window.electronAPI.openModelManager()}
+              className="manage-models-btn"
+            >
+              Manage Local Models
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 };
 ```
 
