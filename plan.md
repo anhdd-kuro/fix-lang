@@ -20,6 +20,7 @@
 │       │   ├── ipc/                      # IPC communication
 │       │   │   └── features/             # Feature-specific IPC handlers
 │       │   ├── keybindings/              # Global shortcut handlers
+│       │   ├── llm/                      # Local LLM management
 │       │   └── partials/                 # Window management
 │       ├── preload/                      # Preload scripts for secure communication
 │       │   └── features/                 # Feature-specific preload scripts

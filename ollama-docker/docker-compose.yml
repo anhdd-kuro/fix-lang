@@ -17,7 +17,7 @@ services:
         # Optimized for deepseek-r1:7b model
         limits:
           memory: 10G # For running the 7B parameter model
-          cpus: 8
+          cpus: 0.8 # ~80% of CPU
         reservations:
           memory: 6G # Minimum for good performance
 
