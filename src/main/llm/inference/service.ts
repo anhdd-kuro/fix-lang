@@ -1,7 +1,6 @@
-import { OllamaClient } from "../ollama/client";
 import { getDeepSeekModel, isDeepSeekModel } from "../models/deepseek";
-import { Message } from "ollama";
-import { Options } from "ollama";
+import { OllamaClient } from "../ollama/client";
+import type { Message, Options  } from "ollama";
 
 export class InferenceService {
   private client: OllamaClient;

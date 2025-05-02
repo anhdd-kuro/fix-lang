@@ -3,7 +3,15 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Select from "react-select";
 import { twJoin } from "tailwind-merge";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
-import type { Model } from "~/main/ai.request";
+import type { Model } from "~/stores/apiStore";
+
+// Define the extended option type for the select component
+type ModelSelectOption = {
+  value: string;
+  label: string;
+  isLocal: boolean;
+  modelSize?: number;
+}
 
 /**
  * Shared component for OpenAI model selection with refresh.
@@ -109,21 +117,38 @@ export const ModelSelect: React.FC<{
     loadModelSetting();
   }, [featureId, useFeatureModel, fetchModels, loadModelSetting]);
 
-  const options = useMemo(
+  const modelOptions = useMemo<ModelSelectOption[]>(
     () =>
       models.map((model) => {
         const createdAt = format(new Date(model.created * 1000), "yyyy-MM-dd");
         const modelId = model.id;
-        const pricingPerMillionToken = (
-          +model.pricing.prompt * 1_000_000
-        ).toLocaleString("en-US", {
-          style: "currency",
-          currency: "USD",
-          minimumFractionDigits: 2,
-        });
+
+        // Check if this is a local model
+        const isLocalModel = model.local !== undefined;
+
+        let label = "";
+
+        if (isLocalModel) {
+          // Format for local models - show size if available
+          const modelSize = model.local?.size ? `${model.local.size}B` : "";
+          label = `${modelId}, ${createdAt}, ${modelSize || "Local LLM"}`;
+        } else {
+          // Format for cloud models - show pricing
+          const pricingPerMillionToken = (
+            +(model.pricing?.prompt || 0) * 1_000_000
+          ).toLocaleString("en-US", {
+            style: "currency",
+            currency: "USD",
+            minimumFractionDigits: 2,
+          });
+          label = `${modelId}, ${createdAt}, ${pricingPerMillionToken} / 1M tokens`;
+        }
+
         return {
           value: model.id,
-          label: `${modelId}, ${createdAt}, ${pricingPerMillionToken} / 1M tokens`,
+          label,
+          isLocal: isLocalModel,
+          modelSize: model.local?.size,
         };
       }),
     [models]
@@ -149,7 +174,7 @@ export const ModelSelect: React.FC<{
               : null
           }
           onChange={(option) => option && handleModelChange(option.value)}
-          options={options}
+          options={modelOptions}
           isDisabled={modelsLoading || !!modelsError}
           placeholder={modelsLoading ? "Loading models..." : "Select model"}
           noOptionsMessage={() => "No models found"}
@@ -180,10 +205,10 @@ export const ModelSelect: React.FC<{
           }}
           components={{
             Option: ({ data, isFocused, isSelected, innerProps }) => {
-              const { label } = data;
-              const [modelId, createdAt, pricingPerMillionToken] = label
-                .trim()
-                .split(",");
+              // Cast to our known type
+              const typedData = data as ModelSelectOption;
+              const { label, isLocal } = typedData;
+              const [modelId, createdAt, thirdPart] = label.trim().split(",");
 
               return (
                 <p
@@ -203,13 +228,30 @@ export const ModelSelect: React.FC<{
                   >
                     {createdAt}
                   </span>
+                  {/* Display different third part based on model type */}
                   <span
                     className={twJoin(
                       "text-xs text-white rounded px-2 py-1",
-                      isFocused || isSelected ? "bg-gray-800" : "bg-gray-600"
+                      isLocal
+                        ? isFocused || isSelected
+                          ? "bg-green-800"
+                          : "bg-green-700"
+                        : isFocused || isSelected
+                          ? "bg-gray-800"
+                          : "bg-gray-600"
                     )}
                   >
-                    {pricingPerMillionToken}
+                    {isLocal ? (
+                      <>
+                        <span
+                          className="inline-block w-2 h-2 rounded-full bg-green-400 mr-1"
+                          title="Local model"
+                        ></span>
+                        {thirdPart}
+                      </>
+                    ) : (
+                      thirdPart
+                    )}
                   </span>
                 </p>
               );
@@ -226,6 +268,28 @@ export const ModelSelect: React.FC<{
         >
           &#x21bb;
         </button>
+
+        {/* Add button to manage local models if any exist */}
+        {models.some((model) => model.local !== undefined) && (
+          <button
+            type="button"
+            aria-label="Manage Local Models"
+            title="Install or remove local models"
+            className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 text-xs md:text-sm whitespace-nowrap"
+            onClick={() => {
+              // We'll implement this in the next step
+              if (window.electronAPI?.openModelManager) {
+                window.electronAPI.openModelManager();
+              } else {
+                alert("Model management is not available yet");
+              }
+            }}
+            disabled={modelsLoading}
+          >
+            <span className="hidden sm:inline">Manage Local Models</span>
+            <span className="sm:hidden">Local</span>
+          </button>
+        )}
 
         {/* Add reset button for feature-specific models */}
         {useFeatureModel && featureId && (

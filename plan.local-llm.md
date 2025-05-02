@@ -248,24 +248,24 @@ export const fetchAvailableModels = async (apiKey: string): Promise<Model[]> => 
       },
     });
     const remoteModels = (await response.json()).data as Model[];
-    
+
     // Get local models from Ollama
     const localModels = await getLocalModels();
-    
+
     // Combine and sort all models
     const allModels = [...remoteModels, ...localModels].sort((a, b) => {
       // Sort by source first (local models first, then remote)
       if (a.source === 'local' && b.source !== 'local') return -1;
       if (a.source !== 'local' && b.source === 'local') return 1;
-      
+
       // Then by created date
       return b.created - a.created;
     });
-    
+
     return allModels;
   } catch (error) {
     console.error('Error fetching models:', error);
-    
+
     // If remote fetch fails, return only local models
     return await getLocalModels();
   }
@@ -296,7 +296,7 @@ export const ModelSelect = () => {
             onChange={(e) => handleModelChange(e.target.value)}
           >
             <option value="">Select a model</option>
-            
+
             {models.map(model => (
               <option key={model.id} value={model.id}>
                 {model.name}
@@ -304,7 +304,7 @@ export const ModelSelect = () => {
               </option>
             ))}
           </select>
-          
+
           {selectedModel && (
             <div className="model-info">
               {/* Show source badge */}
@@ -313,14 +313,14 @@ export const ModelSelect = () => {
               ) : (
                 <span className="badge cloud">Cloud</span>
               )}
-              
+
               {/* Other model details */}
             </div>
           )}
-          
+
           {/* Add a button to manage local models if any local models exist */}
           {models.some(m => m.source === 'local') && (
-            <button 
+            <button
               onClick={() => window.electronAPI.openModelManager()}
               className="manage-models-btn"
             >

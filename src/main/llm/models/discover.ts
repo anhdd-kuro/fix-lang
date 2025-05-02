@@ -4,10 +4,27 @@
  */
 import fs from "fs";
 import path from "path";
-import { InferenceService } from "../inference/service";
 import { OllamaClient } from "../ollama/client";
-import { DEEPSEEK_MODELS, DeepSeekModelId } from "./deepseek";
-import { Model } from "~/stores/apiStore";
+import type { Model } from "~/stores/apiStore";
+
+/**
+ * Format model size into a human-readable string (e.g., 7B, 13B)
+ * @param sizeInParams Size in parameters, as a number
+ * @returns Formatted size string
+ */
+function formatModelSize(sizeInParams?: number): string {
+  if (!sizeInParams) return "Unknown";
+
+  // Convert to billions and format
+  const sizeInB = sizeInParams / 1_000_000_000;
+  if (sizeInB >= 1) {
+    return `${Math.round(sizeInB)}B`; // e.g., 7B, 13B
+  } else {
+    // For smaller models (millions)
+    const sizeInM = sizeInParams / 1_000_000;
+    return `${Math.round(sizeInM)}M`; // e.g., 125M, 350M
+  }
+}
 
 /**
  * Default directories to scan for models
@@ -22,13 +39,13 @@ const DEFAULT_MODEL_DIRECTORIES = [
 /**
  * Metadata for a discovered model
  */
-export interface ModelMetadata {
+export type ModelMetadata = {
   name: string;
   size?: number;
   family?: string;
   quantization?: string;
-  parameters?: Record<string, any>;
-}
+  parameters?: Record<string, unknown> & { parameter_size?: number };
+};
 
 /**
  * The status of a model
@@ -36,32 +53,114 @@ export interface ModelMetadata {
 export type ModelStatus = "available" | "downloading" | "not-found";
 
 /**
- * Get information about all locally available models
+ * List of supported local model families
+ * This can be expanded as we add support for more model families
+ */
+const SUPPORTED_MODEL_FAMILIES = [
+  "deepseek", // DeepSeek Coder/Chat models
+  "llama", // LLaMA models
+  "mistral", // Mistral models
+  "phi", // Microsoft Phi models
+];
+
+/**
+ * Check if a model belongs to a supported family
+ * @param modelName The name of the model to check
+ * @returns True if the model is supported
+ */
+function isSupportedModelFamily(modelName: string): boolean {
+  return SUPPORTED_MODEL_FAMILIES.some((family) =>
+    modelName.toLowerCase().includes(family)
+  );
+}
+
+/**
+ * Estimate model context size based on parameter size or name
+ * @param model Ollama model information
+ * @returns Estimated context length
+ */
+function estimateContextLength(model: ModelMetadata): number {
+  // If parameter size is available, use it to estimate context
+  if (model.parameters?.parameter_size) {
+    const paramSize = model.parameters?.parameter_size;
+    if (paramSize >= 30_000_000_000) return 32768; // 30B+ models
+    if (paramSize >= 10_000_000_000) return 16384; // 10B+ models
+    if (paramSize >= 7_000_000_000) return 8192; // 7B+ models
+    return 4096; // Default for smaller models
+  }
+
+  // Otherwise try to guess from the name
+  const modelName = model.name.toLowerCase();
+  if (modelName.includes("32k") || modelName.includes("32768")) return 32768;
+  if (modelName.includes("16k") || modelName.includes("16384")) return 16384;
+  if (modelName.includes("8k") || modelName.includes("8192")) return 8192;
+
+  return 4096; // Default context window
+}
+
+/**
+ * Generate a user-friendly description for a local model
+ * @param model The Ollama model
+ * @returns A formatted description string
+ */
+function generateModelDescription(model: ModelMetadata): string {
+  const modelName = model.name.split(":")[0];
+  const size = model.parameters?.parameter_size
+    ? formatModelSize(model.parameters.parameter_size)
+    : "Unknown size";
+  const contextLength = estimateContextLength(model);
+
+  return `${modelName} (Local, ${size}, ${contextLength} ctx)`;
+}
+
+/**
+ * Fetch all local models from Ollama
+ * @returns Array of local models formatted for display
  */
 export async function getLocalModels(): Promise<Model[]> {
   try {
     const ollamaClient = new OllamaClient();
     const ollamaModels = await ollamaClient.listModels();
 
-    // Convert Ollama models to our Model type
-    const models: Model[] = ollamaModels.map((ollamaModel: any) => {
-      // Check if this is a DeepSeek model we know about
-      const modelName = ollamaModel.name;
-      if (modelName in DEEPSEEK_MODELS) {
-        // Return our pre-configured DeepSeek model
-        return DEEPSEEK_MODELS[modelName as DeepSeekModelId];
+    if (!ollamaModels || ollamaModels.length === 0) {
+      // If Ollama is not running or no models, return empty array
+      console.log("No local models found or Ollama is not running");
+      return [];
+    }
+
+    const localModels: Model[] = [];
+
+    // Log the total number of models found in Ollama
+    console.log(`Found ${ollamaModels.length} total Ollama models`);
+
+    for (const model of ollamaModels) {
+      // Model name format: owner/model:tag
+      const modelName = model.name.split(":")[0]; // remove tag if present
+
+      // Skip unsupported models
+      if (!isSupportedModelFamily(modelName)) {
+        console.log(`Skipping unsupported model family: ${modelName}`);
+        continue;
       }
 
-      // For unknown models, create a basic Model entry
-      return {
-        id: ollamaModel.name,
-        name: ollamaModel.name,
+      // Generate a consistent ID (replace all special chars with hyphens)
+      const id = `local-${model.name.replace(/[/:.-]/g, "-")}`;
+      // Get context length for logging (not stored in model object)
+      estimateContextLength(model);
+
+      // Create a model object that exactly matches the Model type
+      // Generate model description (for logging only, not stored in the model object)
+      const description = generateModelDescription(model);
+      console.debug(`Model description: ${description}`);
+
+      const formattedModel: Model = {
+        id,
         created: Date.now(),
-        source: "local",
+        name: modelName,
+        pricing: undefined, // Local models have no pricing
         local: {
-          path: ollamaModel.name,
-          // Try to extract size from model name (e.g., llama2:7b -> 7)
-          size: extractModelSize(ollamaModel.name),
+          size: model.parameters?.parameter_size || 0,
+          path: model.name,
           parameters: {
             temperature: 0.7,
             top_p: 0.95,
@@ -69,13 +168,16 @@ export async function getLocalModels(): Promise<Model[]> {
           },
         },
       };
-    });
 
-    return models;
-  } catch (error) {
-    console.error("Failed to get local models:", error);
-    // Return just our known DeepSeek models if Ollama API fails
-    return Object.values(DEEPSEEK_MODELS);
+      localModels.push(formattedModel);
+    }
+
+    console.log(`Found ${localModels.length} supported local models`);
+    return localModels;
+  } catch (err) {
+    console.error("Failed to get local models:", err);
+    // Return empty array instead of throwing
+    return [];
   }
 }
 
@@ -88,10 +190,12 @@ export async function checkModelStatus(modelId: string): Promise<ModelStatus> {
     const models = await ollamaClient.listModels();
 
     // Check if model exists in Ollama
-    const exists = models.some((model: any) => model.name === modelId);
+    const exists = models.some(
+      (model: ModelMetadata) => model.name === modelId
+    );
     return exists ? "available" : "not-found";
-  } catch (error) {
-    console.error(`Failed to check status of model ${modelId}:`, error);
+  } catch (err) {
+    console.error(`Failed to check status of model ${modelId}:`, err);
     return "not-found";
   }
 }

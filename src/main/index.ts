@@ -18,6 +18,7 @@ import {
   registerUiHandlers,
 } from "./ipc/features";
 import { registerHotkeys, unregisterHotkeys } from "./keybindings";
+import { startModelMonitoring } from "./llm/models/monitor";
 import {
   initializeMainWindow,
   getMainWindow,
@@ -47,6 +48,9 @@ const registerIpcHandlers = (): void => {
 
 function initializeApp() {
   console.log("Initializing application...");
+  
+  // Start local LLM model monitoring
+  startModelMonitoring();
 
   // --- Global Overlay Spinner ---
   initializeOverlayWindow();

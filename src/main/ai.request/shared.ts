@@ -10,10 +10,11 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
 import { Notification } from "electron";
 import { OpenAI } from "openai";
+import { InferenceService } from "~/main/llm/inference/service";
+import { getLocalModels } from "~/main/llm/models/discover";
 import { makeTonePrompt } from "~/prompts/index";
 import { store } from "~/stores/apiStore";
 import { StringPrettifier } from "~/utils";
-import { InferenceService } from "~/main/llm/inference/service";
 import type { CoreMessage } from "ai";
 import type { GlobalSettings, Model } from "~/stores/apiStore";
 
@@ -25,29 +26,98 @@ export const getGlobalPromptSettings = (): GlobalSettings => {
   return store.get("globalSettings") as GlobalSettings;
 };
 
+
 export const fetchAvailableModels = async (
   apiKey: string
 ): Promise<Model[]> => {
-  /**
-   * List available models (GET /models)
-   * @see: https://openrouter.ai/docs/api-reference/list-available-models
-   */
-  const response = await fetch("https://openrouter.ai/api/v1/models", {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-    },
-  });
+  // Get previously cached models (if any)
+  const cachedModels = (store.get("models") as Model[]) || [];
+  let cloudModels: Model[] = [];
+  let localModels: Model[] = [];
 
-  const models = (await response.json()).data as Model[];
-  const sortedByLatestReleaseThenName = models.sort((a, b) => {
+  // First get local models - these should work even without API key
+  try {
+    localModels = await getLocalModels();
+    console.log(`Found ${localModels.length} local models`);
+  } catch (error) {
+    console.error("Error fetching local models:", error);
+    // Use cached local models if fresh fetch fails
+    localModels = cachedModels.filter((model) => model.local) || [];
+    console.log(`Using ${localModels.length} cached local models`);
+  }
+
+  // Only try to fetch cloud models if we have an API key
+  if (apiKey) {
+    try {
+      /**
+       * List available models (GET /models)
+       * @see: https://openrouter.ai/docs/api-reference/list-available-models
+       */
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+      const response = await fetch("https://openrouter.ai/api/v1/models", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(
+          `API returned ${response.status}: ${response.statusText}`
+        );
+      }
+
+      // Get cloud models from OpenRouter
+      cloudModels = (await response.json()).data as Model[];
+      console.log(`Found ${cloudModels.length} cloud models`);
+    } catch (error) {
+      console.error("Error fetching cloud models:", error);
+      // Use cached cloud models if fresh fetch fails
+      cloudModels = cachedModels.filter((model) => !model.local) || [];
+      console.log(`Using ${cloudModels.length} cached cloud models`);
+    }
+  } else {
+    console.log("No API key provided, skipping cloud model fetch");
+    // Use cached cloud models if API key is missing
+    cloudModels = cachedModels.filter((model) => !model.local) || [];
+    console.log(
+      `Using ${cloudModels.length} cached cloud models due to missing API key`
+    );
+  }
+
+  // Combine cloud and local models
+  const allModels = [...cloudModels, ...localModels];
+
+  // Sort models (local models first, then by created date)
+  const sortedModels = allModels.sort((a, b) => {
+    // First sort by source (local first)
+    const aIsLocal = a.local !== undefined;
+    const bIsLocal = b.local !== undefined;
+    if (aIsLocal && !bIsLocal) return -1;
+    if (!aIsLocal && bIsLocal) return 1;
+
+    // Then by created date (newest first)
     const resultByCreated = b.created - a.created;
     if (resultByCreated !== 0) return resultByCreated;
+
+    // Then by ID length (shorter first) and alphabetically
     const resultByIdLength = a.id.length - b.id.length;
     if (resultByIdLength !== 0) return resultByIdLength;
     return a.id.localeCompare(b.id);
   });
-  return sortedByLatestReleaseThenName;
+
+  // Cache the sorted models for future use
+  if (sortedModels.length > 0) {
+    store.set("models", sortedModels);
+    console.log(`Cached ${sortedModels.length} models for future use`);
+  }
+
+  return sortedModels;
 };
 
 /**
@@ -365,7 +435,7 @@ export type AIRequestOptions = {
 /**
  * Response structure for AI request operations
  */
-export interface AIRequestResponse {
+export type AIRequestResponse = {
   content: string[];
   promptTokens: number | null;
   completionTokens: number | null;

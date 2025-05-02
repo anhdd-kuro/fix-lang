@@ -63,26 +63,26 @@ Key technical considerations include using 4-bit quantized models for efficiency
 
 ### Phase 3: UI and Model Selection Integration
 
-- [ ] Update model selection component:
-  - [ ] Modify existing model selector to display local models alongside OpenRouter models
-  - [ ] Add visual indicators for local models (e.g., "Local" badge)
-  - [ ] Show relevant stats for local models (e.g., size in parameters)
-- [ ] Update models registration:
-  - [ ] Add local models to the regular model list in `apiStore.ts`
-  - [ ] Ensure model IDs for local models use a consistent prefix for identification
-  - [ ] Allow local models to be selected like any other model
-- [ ] Implement Ollama model discovery:
-  - [ ] Add background process to detect installed Ollama models
-  - [ ] Create utility to fetch and update available models list
-  - [ ] Implement model list refreshing mechanism
-- [ ] Update model fetching function:
-  - [ ] Modify `fetchAvailableModels` to include local models
-  - [ ] Integrate with Ollama model discovery
-  - [ ] Sort and present models in a unified list
-- [ ] Update UI indicators:
-  - [ ] Show model source (local vs. cloud) in UI components
-  - [ ] Add status indicators for model availability
-  - [ ] Display appropriate error messages for unavailable models
+- [x] Update model selection component:
+  - [x] Modify existing model selector to display local models alongside OpenRouter models
+  - [x] Add visual indicators for local models (e.g., "Local" badge)
+  - [x] Show relevant stats for local models (e.g., size in parameters)
+- [x] Update models registration:
+  - [x] Add local models to the regular model list in `apiStore.ts`
+  - [x] Ensure model IDs for local models use a consistent prefix for identification
+  - [x] Allow local models to be selected like any other model
+- [x] Implement Ollama model discovery:
+  - [x] Add background process to detect installed Ollama models
+  - [x] Create utility to fetch and update available models list
+  - [x] Implement model list refreshing mechanism
+- [x] Update model fetching function:
+  - [x] Modify `fetchAvailableModels` to include local models
+  - [x] Integrate with Ollama model discovery
+  - [x] Sort and present models in a unified list
+- [x] Update UI indicators:
+  - [x] Show model source (local vs. cloud) in UI components
+  - [x] Add status indicators for model availability
+  - [x] Display appropriate error messages for unavailable models
 
 ### Phase 4: Model Management Integration
 

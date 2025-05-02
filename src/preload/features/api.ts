@@ -1,6 +1,6 @@
 // API-related preload functionality
 import { ipcRenderer } from "electron";
-import type { Model } from "~/main/ai.request";
+import type { Model } from "~/stores/apiStore";
 
 /**
  * Exposes API-related functionality to the renderer process
@@ -74,6 +74,51 @@ export const apiFeature = {
     model: string
   ): Promise<{ success: boolean; error?: string }> => {
     return await ipcRenderer.invoke("set-feature-model", feature, model);
+  },
+
+  /**
+   * Opens the model manager UI for local LLMs
+   * @returns A promise that resolves when the model manager window is opened
+   */
+  openModelManager: async (): Promise<void> => {
+    return await ipcRenderer.invoke("open-model-manager");
+  },
+
+  /**
+   * Pulls a local model from Ollama
+   * @param modelName The name of the model to pull (e.g., "deepseek-coder:6.7b")
+   * @returns A promise that resolves with status of the pull operation
+   */
+  pullLocalModel: async (
+    modelName: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    return await ipcRenderer.invoke("pull-local-model", modelName);
+  },
+
+  /**
+   * Deletes a local model from Ollama
+   * @param modelName The name of the model to delete
+   * @returns A promise that resolves with status of the delete operation
+   */
+  deleteLocalModel: async (
+    modelName: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    return await ipcRenderer.invoke("delete-local-model", modelName);
+  },
+
+  /**
+   * Gets the list of recommended local models
+   * @returns A promise that resolves with an array of recommended model information
+   */
+  getRecommendedModels: async (): Promise<
+    {
+      name: string;
+      description: string;
+      size: number;
+      tags: string[];
+    }[]
+  > => {
+    return await ipcRenderer.invoke("get-recommended-models");
   },
 };
 
