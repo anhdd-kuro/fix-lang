@@ -53,28 +53,6 @@ export type ModelMetadata = {
 export type ModelStatus = "available" | "downloading" | "not-found";
 
 /**
- * List of supported local model families
- * This can be expanded as we add support for more model families
- */
-const SUPPORTED_MODEL_FAMILIES = [
-  "deepseek", // DeepSeek Coder/Chat models
-  "llama", // LLaMA models
-  "mistral", // Mistral models
-  "phi", // Microsoft Phi models
-];
-
-/**
- * Check if a model belongs to a supported family
- * @param modelName The name of the model to check
- * @returns True if the model is supported
- */
-function isSupportedModelFamily(modelName: string): boolean {
-  return SUPPORTED_MODEL_FAMILIES.some((family) =>
-    modelName.toLowerCase().includes(family)
-  );
-}
-
-/**
  * Estimate model context size based on parameter size or name
  * @param model Ollama model information
  * @returns Estimated context length
@@ -174,13 +152,6 @@ export async function getLocalModels(): Promise<Model[]> {
     for (const model of ollamaModels.models) {
       // Model name format: owner/model:tag
       const modelName = model.name.split(":")[0]; // remove tag if present
-
-      // Skip unsupported models
-      if (!isSupportedModelFamily(modelName)) {
-        console.log(`Skipping unsupported model family: ${modelName}`);
-        continue;
-      }
-
       // Generate a consistent ID (replace all special chars with hyphens)
       const id = model.name;
       // Get context length for logging (not stored in model object)
@@ -199,18 +170,16 @@ export async function getLocalModels(): Promise<Model[]> {
         local: {
           size: model.size || 0,
           path: model.name,
-          parameters: {
-            temperature: 0.7,
-            top_p: 0.95,
-            repeat_penalty: 1.1,
-          },
         },
       };
 
       localModels.push(formattedModel);
     }
 
-    console.log(`Found ${localModels.length} supported local models`);
+    console.log(
+      `Found ${localModels.length} supported local models`,
+      localModels
+    );
     return localModels;
   } catch (err) {
     console.error("Failed to get local models:", err);

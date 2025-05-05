@@ -100,7 +100,7 @@ export const SettingGeneral: React.FC = () => {
           htmlFor="api-key-input"
           className="block text-sm font-medium text-gray-300 mb-1"
         >
-          OpenAI API Key
+          API Key
         </label>
         <input
           id="api-key-input"
@@ -108,8 +108,8 @@ export const SettingGeneral: React.FC = () => {
           className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={apiKeyInput}
           onChange={handleApiKeyChange}
-          placeholder="Enter your OpenAI API key"
-          aria-label="OpenAI API Key"
+          placeholder="Enter your API key"
+          aria-label="API Key"
         />
         {saveStatus && (
           <p

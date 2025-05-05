@@ -33,8 +33,7 @@ export const ModelSelect: React.FC<{
   saveOnChange = false,
 }) => {
   const [models, setModels] = useState<Model[]>([]);
-  const [selectedModel, setSelectedModel] =
-    useState<string>(DEFAULT_OPENAI_MODEL);
+  const [selectedModel, setSelectedModel] = useState<string>("");
   // Store the currently saved feature-specific model to detect changes and enable reset
   const [savedFeatureModel, setSavedFeatureModel] = useState<string>("");
   const [modelsLoading, setModelsLoading] = useState<boolean>(false);
@@ -271,11 +270,11 @@ export const ModelSelect: React.FC<{
         </button>
 
         {/* Add button to manage local models if any exist */}
-        {models.some((model) => model.local !== undefined) && (
+        {models.find((model) => model.local !== undefined) && (
           <SettingsButton
             title="Manage local models"
+            iconClassName="stroke-green-500"
             onClick={() => {
-              // We'll implement this in the next step
               if (window.electronAPI?.openModelManager) {
                 window.electronAPI.openModelManager();
               } else {

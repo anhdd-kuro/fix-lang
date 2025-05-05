@@ -44,9 +44,9 @@ type GearIconProps = {
  * Gear/Settings SVG icon component
  * Provides just the SVG icon without any container or click handlers
  */
-export const GearIcon: React.FC<GearIconProps> = ({ className = "size-6" }) => (
+export const GearIcon: React.FC<GearIconProps> = ({ className }) => (
   <svg
-    className={className}
+    className={twJoin("size-6", className)}
     fill="none"
     viewBox="0 0 24 24"
     stroke="currentColor"
