@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import "../main.css"; // Import Tailwind CSS entry point
 import ReactDOM from "react-dom/client";
 import CopyButton from "../components/CopyButton";
-import type { TranslationPayload } from "~/main/partials/translationWindow";
+import type { TranslationPayload } from "~/main/webViewWindows/translationWindow";
 
 const App: React.FC = () => {
   const [data, setData] = useState<TranslationPayload | null>(null);

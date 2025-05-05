@@ -5,8 +5,8 @@ import { getHighlightedText } from "../../utils";
 import { translateText } from "../ai.request";
 import { checkShortcut } from "./utils";
 import { syncHistory } from "../ipc/features/history";
-import { showOverlaySpinner, hideOverlaySpinner } from "../partials";
-import { showTranslationWindow } from "../partials/translationWindow";
+import { showOverlaySpinner, hideOverlaySpinner } from "../webViewWindows";
+import { showTranslationWindow } from "../webViewWindows/translationWindow";
 import type { BrowserWindow } from "electron";
 import type { SettingsStore } from "~/stores/apiStore";
 

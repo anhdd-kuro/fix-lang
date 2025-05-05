@@ -90,8 +90,10 @@ export function showTranslationWindow(payload: TranslationPayload) {
   const html = path.join(__dirname, "../renderer/TranslationWindow/index.html");
   win.loadFile(html);
   win.once("ready-to-show", () => {
-    win.webContents.send("translation-data", payload);
     win.show();
+    setTimeout(() => {
+      win.webContents.send("translation-data", payload);
+    }, 300);
   });
 }
 

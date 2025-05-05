@@ -10,7 +10,10 @@ import {
   dialog,
   shell,
 } from "electron";
-import { getMainWindow, createMainWindow } from "../../partials/mainWindow";
+import {
+  getMainWindow,
+  createMainWindow,
+} from "../../webViewWindows/mainWindow";
 
 /**
  * Registers UI-related IPC handlers

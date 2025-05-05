@@ -56,13 +56,13 @@ export const generatePrompt = async (
 
     // Extract required values from response
     const { content, promptTokens, completionTokens, model } = response;
-    
+
     return {
       prompts: content,
       // Convert null values to 0 for compatibility
       promptTokens: promptTokens || 0,
       completionTokens: completionTokens || 0,
-      model
+      model,
     };
   } catch (error) {
     console.error("Error in generatePrompt:", error);

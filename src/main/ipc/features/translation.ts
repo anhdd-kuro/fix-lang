@@ -5,7 +5,7 @@
 import { ipcMain, clipboard } from "electron";
 import { store } from "~/stores/apiStore";
 import { translateText } from "../../ai.request/translate";
-import { showTranslationWindow } from "../../partials/translationWindow";
+import { showTranslationWindow } from "../../webViewWindows/translationWindow";
 
 /**
  * Registers translation-related IPC handlers

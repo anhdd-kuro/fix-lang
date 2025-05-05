@@ -26,7 +26,7 @@ import {
   initializeTrayWindow,
   setupTray,
   createMainWindow,
-} from "./partials";
+} from "./webViewWindows";
 
 const registerIpcHandlers = (): void => {
   // Register all feature handlers in a specific order (UI-first approach)
@@ -48,7 +48,7 @@ const registerIpcHandlers = (): void => {
 
 function initializeApp() {
   console.log("Initializing application...");
-  
+
   // Start local LLM model monitoring
   startModelMonitoring();
 

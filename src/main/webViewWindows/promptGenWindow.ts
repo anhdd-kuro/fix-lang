@@ -71,7 +71,8 @@ export function showPromptGenWindow(payload: PromptGenPayload) {
   win.once("ready-to-show", () => {
     win.show();
 
-    // Send payload after UI is ready
-    win.webContents.send("promptGen-data", payload);
+    setTimeout(() => {
+      win.webContents.send("promptGen-data", payload);
+    }, 300);
   });
 }

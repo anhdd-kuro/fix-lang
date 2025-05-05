@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import "../main.css";
 import ReactDOM from "react-dom/client";
 import CopyButton from "../components/CopyButton";
-import type { SummaryPayload } from "~/main/partials/summaryWindow";
+import type { SummaryPayload } from "~/main/webViewWindows/summaryWindow";
 
 const App: React.FC = () => {
   const [data, setData] = useState<SummaryPayload | null>(null);

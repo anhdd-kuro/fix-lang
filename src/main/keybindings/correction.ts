@@ -4,7 +4,7 @@ import { keybindingStore } from "~/stores/keybindingStore";
 import { getHighlightedText, pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
 import { syncHistory } from "../ipc/features/history";
-import { hideOverlaySpinner, showOverlaySpinner } from "../partials";
+import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
 import { checkShortcut, handleError } from "./utils";
 import type { BrowserWindow } from "electron";
 

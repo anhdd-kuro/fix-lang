@@ -5,8 +5,8 @@ import { getHighlightedText } from "../../utils";
 import { summarizeText } from "../ai.request";
 import { checkShortcut, handleError } from "./utils";
 import { syncHistory } from "../ipc/features/history";
-import { showOverlaySpinner, hideOverlaySpinner } from "../partials";
-import { showSummaryWindow } from "../partials/summaryWindow";
+import { showOverlaySpinner, hideOverlaySpinner } from "../webViewWindows";
+import { showSummaryWindow } from "../webViewWindows/summaryWindow";
 import type { BrowserWindow } from "electron";
 
 export const registerSummarizeShortcut = (_mainWindow: BrowserWindow): void => {

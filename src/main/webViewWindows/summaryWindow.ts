@@ -64,7 +64,8 @@ export function showSummaryWindow(payload: SummaryPayload) {
   win.once("ready-to-show", () => {
     win.show();
 
-    // Send payload after UI is ready
-    win.webContents.send("summary-data", payload);
+    setTimeout(() => {
+      win.webContents.send("summary-data", payload);
+    }, 300);
   });
 }

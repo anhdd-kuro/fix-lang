@@ -7,7 +7,7 @@ import { DEFAULT_KEY_BINDINGS } from "~/const";
 import { registerHotkeys, unregisterHotkeys } from "~/main/keybindings";
 import { store } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
-import { getMainWindow } from "../../partials/mainWindow";
+import { getMainWindow } from "../../webViewWindows/mainWindow";
 import type { KeyBindings } from "~/stores/apiStore";
 
 /**

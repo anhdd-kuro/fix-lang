@@ -4,8 +4,8 @@ import { getHighlightedText } from "../../utils";
 import { generatePrompt } from "../ai.request";
 import { checkShortcut, handleError } from "./utils";
 import { syncHistory } from "../ipc/features/history";
-import { showOverlaySpinner, hideOverlaySpinner } from "../partials";
-import { showPromptGenWindow } from "../partials/promptGenWindow";
+import { showOverlaySpinner, hideOverlaySpinner } from "../webViewWindows";
+import { showPromptGenWindow } from "../webViewWindows/promptGenWindow";
 import type { BrowserWindow } from "electron";
 
 export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
