@@ -3,6 +3,7 @@ import {
   TRANSLATE_WITH_EXPLANATION_PROMPT,
   TRANSLATE_WITHOUT_EXPLANATION_PROMPT,
 } from "~/prompts";
+import { StringPrettifier } from "~/utils";
 import { makeAIRequest } from "./shared";
 import { store } from "../../stores/apiStore";
 
@@ -38,13 +39,21 @@ export const translateText = async (
 
   // Construct prompt for translation
   const userPrompt = `Translate the following text to ${targetLang || translateSettings.destinationLang}:\n${text}`;
+  const systemPrompt = new StringPrettifier(`
+   ${
+     includeExplanation
+       ? TRANSLATE_WITH_EXPLANATION_PROMPT
+       : TRANSLATE_WITHOUT_EXPLANATION_PROMPT
+   }
+   Ignore user input language.
+  `)
+    .removeEmptyLines()
+    .removeExtraSpaces().value;
 
   try {
     // Use shared makeAIRequest function with fixed temperature for translations
     const response = await makeAIRequest({
-      systemPrompt: includeExplanation
-        ? TRANSLATE_WITH_EXPLANATION_PROMPT
-        : TRANSLATE_WITHOUT_EXPLANATION_PROMPT,
+      systemPrompt,
       userPrompt,
       model: featureModel, // Use feature-specific model if set
     });
