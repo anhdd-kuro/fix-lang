@@ -34,6 +34,7 @@ export const ModelSelect: React.FC<{
 }) => {
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("");
+  console.log(`🚀 \n - selectedModel:`, selectedModel);
   // Store the currently saved feature-specific model to detect changes and enable reset
   const [savedFeatureModel, setSavedFeatureModel] = useState<string>("");
   const [modelsLoading, setModelsLoading] = useState<boolean>(false);
@@ -120,7 +121,17 @@ export const ModelSelect: React.FC<{
   const modelOptions = useMemo<ModelSelectOption[]>(
     () =>
       models.map((model) => {
-        const createdAt = format(new Date(model.created * 1000), "yyyy-MM-dd");
+        // Handle both Unix seconds and milliseconds timestamps
+        const normalizeTimestamp = (timestamp: number) => {
+          // Check if this is likely seconds (10 digits) vs milliseconds (13 digits)
+          // Unix timestamps in seconds typically have 10 digits (until around year 2286)
+          const isLikelySeconds = Math.floor(Math.log10(timestamp) + 1) <= 10;
+          return isLikelySeconds ? timestamp * 1000 : timestamp;
+        };
+        const createdAt = format(
+          new Date(normalizeTimestamp(model.created)),
+          "yyyy-MM-dd"
+        );
         const modelId = model.id;
 
         // Check if this is a local model
@@ -169,8 +180,9 @@ export const ModelSelect: React.FC<{
           className="w-full"
           aria-label="Select OpenAI Model"
           value={
-            models.length > 0
-              ? { value: selectedModel, label: selectedModel }
+            models.length > 0 && selectedModel
+              ? modelOptions.find((option) => option.value === selectedModel) ||
+                null
               : null
           }
           onChange={(option) => option && handleModelChange(option.value)}

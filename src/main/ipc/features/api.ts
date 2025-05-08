@@ -104,13 +104,20 @@ export const registerApiHandlers = (): void => {
 
   // Feature-specific model settings
   ipcMain.handle("get-feature-model", (_event, feature) => {
-    const model = store.get(`${feature}Model`);
-    return model || store.get("selectedModel") || DEFAULT_OPENAI_MODEL;
+    const featureSetting = store.get(`${feature}`);
+    if (
+      featureSetting &&
+      typeof featureSetting === "object" &&
+      "model" in featureSetting
+    )
+      return featureSetting.model;
+
+    return store.get("selectedModel");
   });
 
   ipcMain.handle("set-feature-model", async (_event, feature, model) => {
     try {
-      store.set(`${feature}Model`, model);
+      store.set(`${feature}`, { model });
       console.log(`Set ${feature} model to: ${model}`);
       return { success: true };
     } catch (error) {
