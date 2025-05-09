@@ -8,6 +8,7 @@ export type HistoryEntry = {
   promptTokens?: number;
   completionTokens?: number;
   model?: string;
+  featureType?: HistoryFeatureId; // Track which feature this entry belongs to
 };
 
 type LastActionHistory = {

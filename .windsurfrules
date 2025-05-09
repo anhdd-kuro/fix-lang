@@ -18,6 +18,7 @@
 ## General Rules
 
 - Always start responses with `I’ve already read the rules\n`
+- Alway check `package.json` before install new packages
 
 ## Coding Rules
 

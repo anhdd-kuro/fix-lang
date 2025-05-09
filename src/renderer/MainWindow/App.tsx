@@ -1,4 +1,6 @@
+import { format } from "date-fns";
 import React, { useState, useEffect } from "react";
+import Select from "react-select";
 import HistoryReviewModal from "../components/HistoryReviewModal";
 import ModelManagerDialog from "../components/ModelManagerDialog";
 import { SettingsButton } from "../components/SettingsIcon";
@@ -52,8 +54,12 @@ const App: React.FC = () => {
   // History state for all features using a unified approach
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
-  // History type selector state
-  const [historyType, setHistoryType] = useState<UiHistoryType>("corrections");
+  // History type selector state (now supporting multiple selections)
+  const [historyTypes, setHistoryTypes] = useState<UiHistoryType[]>(
+    HISTORY_FEATURES.map((f) => f.uiKey)
+  );
+  const [activeHistoryType, setActiveHistoryType] =
+    useState<UiHistoryType>("corrections");
 
   // Options for history selector - using our local configuration
   const historyOptions: { value: UiHistoryType; label: string }[] =
@@ -65,18 +71,13 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [showHistoryReview, setShowHistoryReview] = useState<boolean>(false);
   const [showModelManager, setShowModelManager] = useState<boolean>(false);
-  const [lastHistoryData, setLastHistoryData] = useState<{
-    original: string;
-    corrected: string;
-    model?: string;
-    promptTokens?: number;
-    completionTokens?: number;
-  }>({
+  const [lastHistoryData, setLastHistoryData] = useState<HistoryEntry>({
     original: "",
     corrected: "",
     model: "",
     promptTokens: 0,
     completionTokens: 0,
+    timestamp: new Date().toISOString(),
   });
   console.log(`🚀 \n - lastHistoryData:`, lastHistoryData);
   const [historyOpen, setHistoryOpen] = useState<boolean>(true);
@@ -84,14 +85,37 @@ const App: React.FC = () => {
   const [_loading, _setLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    window.electronAPI.getHistory(historyType).then((history) => {
-      setHistory(history);
-    });
+    // Modified to handle multiple history types
+    const fetchAllHistories = async () => {
+      const allHistories: HistoryEntry[] = [];
+
+      for (const type of historyTypes) {
+        const typeHistory = await window.electronAPI.getHistory(type);
+
+        // Add feature identifier to each entry
+        const historyWithFeature = typeHistory.map((entry) => ({
+          ...entry,
+          featureType: type, // Add feature type for display
+        }));
+        allHistories.push(...historyWithFeature);
+      }
+
+      // Sort by timestamp (newest first)
+      allHistories.sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+
+      setHistory(allHistories);
+    };
+
+    fetchAllHistories();
 
     const removeHistoryListener = window.electronAPI.onHistoryUpdate?.(
       (payload) => {
         console.log("onHistoryUpdate", payload);
-        setHistory(payload.entries);
+        // Refresh all histories when any history is updated
+        fetchAllHistories();
       }
     );
 
@@ -112,20 +136,47 @@ const App: React.FC = () => {
         openModelManagerHandler
       );
     };
-  }, [historyType]);
+  }, [historyTypes]);
 
   useEffect(() => {
+    // Not using handleCopy inside the effect, moved it outside
+    const _handleCopy = (_text: string) => {
+      // Function moved outside effect
+    };
+
+    const handleSettings = (type?: number) => {
+      setInitialSettingsTab(type || 0);
+      setIsSettingsOpen(true);
+
+      // Refresh histories after settings change
+      const fetchAllHistories = async () => {
+        const allHistories: HistoryEntry[] = [];
+
+        for (const type of historyTypes) {
+          const typeHistory = await window.electronAPI.getHistory(type);
+          const historyWithFeature = typeHistory.map((entry) => ({
+            ...entry,
+            featureType: type,
+          }));
+          allHistories.push(...historyWithFeature);
+        }
+
+        allHistories.sort(
+          (a, b) =>
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+
+        setHistory(allHistories);
+      };
+
+      fetchAllHistories();
+    };
+
     const offOpenSettings = window.electronAPI.onOpenSettings?.(() => {
-      setInitialSettingsTab(0);
-      setIsSettingsOpen(true);
-    });
-    const offModel = window.electronAPI.onOpenModelDialog?.(() => {
-      setInitialSettingsTab(0);
-      setIsSettingsOpen(true);
+      handleSettings();
     });
     const offKey = window.electronAPI.onOpenKeybindingsDialog?.(() => {
-      setInitialSettingsTab(1);
-      setIsSettingsOpen(true);
+      handleSettings(1);
     });
     const offPrompt = window.electronAPI.onOpenPromptDialog?.(() => {
       setInitialSettingsTab(2);
@@ -143,12 +194,11 @@ const App: React.FC = () => {
 
     return () => {
       offOpenSettings?.();
-      offModel?.();
       offKey?.();
       offPrompt?.();
       offHistory?.();
     };
-  }, []);
+  }, [historyTypes]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans flex">
@@ -158,19 +208,72 @@ const App: React.FC = () => {
       >
         <div className="flex justify-between items-center mb-4 sticky top-0 bg-gray-800 z-10">
           <div className="w-full">
-            <select
+            <Select
               id="history-selector"
-              value={historyType}
-              onChange={(e) => setHistoryType(e.target.value as UiHistoryType)}
-              className="w-full bg-gray-700 text-white border border-gray-600 rounded py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              isMulti
+              value={historyOptions.filter((opt) =>
+                historyTypes.includes(opt.value)
+              )}
+              onChange={(newValue) => {
+                const selectedTypes = (newValue as typeof historyOptions).map(
+                  (v) => v.value
+                );
+                setHistoryTypes(
+                  selectedTypes.length ? selectedTypes : ["corrections"]
+                );
+                if (
+                  selectedTypes.length &&
+                  !selectedTypes.includes(activeHistoryType)
+                ) {
+                  setActiveHistoryType(selectedTypes[0]);
+                }
+              }}
+              options={historyOptions}
               aria-label="Select history type"
-            >
-              {historyOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              className="w-full text-xs"
+              classNamePrefix="react-select"
+              theme={(theme) => ({
+                ...theme,
+                colors: {
+                  ...theme.colors,
+                  primary: "#2563eb",
+                  primary75: "#3b82f6",
+                  primary50: "#60a5fa",
+                  primary25: "#93c5fd",
+                  neutral0: "#1f2937",
+                  neutral5: "#374151",
+                  neutral10: "#4b5563",
+                  neutral20: "#6b7280",
+                  neutral30: "#9ca3af",
+                  neutral40: "#d1d5db",
+                  neutral50: "#e5e7eb",
+                  neutral60: "#f3f4f6",
+                  neutral70: "#f9fafb",
+                  neutral80: "#ffffff",
+                  neutral90: "#ffffff",
+                },
+              })}
+              styles={{
+                control: (base) => ({
+                  ...base,
+                  backgroundColor: "#1f2937",
+                  borderColor: "#4b5563",
+                }),
+                menu: (base) => ({
+                  ...base,
+                  backgroundColor: "#3A475A",
+                }),
+                option: (base, state) => ({
+                  ...base,
+                  backgroundColor: state.isFocused ? "#2563eb" : "#3A475A",
+                  color: "#ffffff",
+                }),
+                singleValue: (base) => ({
+                  ...base,
+                  color: "#ffffff",
+                }),
+              }}
+            />
           </div>
         </div>
         <ul className="divide-y divide-gray-700 overflow-y-auto mb-4 flex-1">
@@ -184,16 +287,24 @@ const App: React.FC = () => {
                   className="flex-1 cursor-pointer"
                   onClick={() => {
                     setLastHistoryData({
-                      original: entry.original,
-                      corrected: entry.corrected,
-                      model: entry.model,
-                      promptTokens: entry.promptTokens,
-                      completionTokens: entry.completionTokens,
+                      ...history[0],
+                      timestamp: new Date().toISOString(),
                     });
                   }}
                 >
-                  <div className="text-sm text-gray-400">
-                    {new Date(entry.timestamp).toLocaleString()}
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-gray-400">
+                      {format(new Date(entry.timestamp), "MM/dd HH:mm")}
+                    </span>
+                    <span className="px-1.5 py-0.5 bg-blue-600 text-white rounded-full ml-auto">
+                      {
+                        historyOptions.find(
+                          (opt) =>
+                            opt.value ===
+                            (entry.featureType || activeHistoryType)
+                        )?.label
+                      }
+                    </span>
                   </div>
                   <p
                     className="text-sm text-gray-100 line-clamp-1"
@@ -209,18 +320,15 @@ const App: React.FC = () => {
                   </p>
                 </div>
                 <TrashButton
-                  className="invisible absolute right-2 top-2 group-hover/history-entry:visible"
+                  className="invisible absolute right-2 bottom-2 group-hover/history-entry:visible"
                   onClick={(e) => {
                     e.stopPropagation();
                     // Find next entry to select
                     const nextEntry = history[idx + 1] || history[idx - 1];
                     if (nextEntry) {
                       setLastHistoryData({
-                        original: nextEntry.original,
-                        corrected: nextEntry.corrected,
-                        model: nextEntry.model,
-                        promptTokens: nextEntry.promptTokens ?? 0,
-                        completionTokens: nextEntry.completionTokens ?? 0,
+                        ...nextEntry,
+                        timestamp: new Date().toISOString(),
                       });
                     } else {
                       // If no other entries, clear the text areas
@@ -230,9 +338,13 @@ const App: React.FC = () => {
                         model: "",
                         promptTokens: 0,
                         completionTokens: 0,
+                        timestamp: new Date().toISOString(),
                       });
                     }
-                    window.electronAPI.removeHistoryEntry(historyType, entry);
+                    window.electronAPI.removeHistoryEntry(
+                      entry.featureType || activeHistoryType,
+                      entry
+                    );
                   }}
                   size="sm"
                 />
@@ -242,7 +354,7 @@ const App: React.FC = () => {
         </ul>
         <TrashButton
           onClick={() => {
-            const featureId = mapHistoryType(historyType);
+            const featureId = mapHistoryType(activeHistoryType);
             window.electronAPI
               .clearHistory(featureId)
               .then(() => {
@@ -297,7 +409,11 @@ const App: React.FC = () => {
             label="Original Text"
             value={lastHistoryData.original}
             onChange={(value) =>
-              setLastHistoryData({ ...lastHistoryData, original: value })
+              setLastHistoryData({
+                ...lastHistoryData,
+                original: value,
+                timestamp: new Date().toISOString(),
+              })
             }
             textCount={lastHistoryData.promptTokens}
             model={lastHistoryData.model}
@@ -309,7 +425,11 @@ const App: React.FC = () => {
             label="Result Text"
             value={lastHistoryData.corrected}
             onChange={(value) =>
-              setLastHistoryData({ ...lastHistoryData, corrected: value })
+              setLastHistoryData({
+                ...lastHistoryData,
+                corrected: value,
+                timestamp: new Date().toISOString(),
+              })
             }
             textCount={lastHistoryData.completionTokens}
             className="flex-1"
