@@ -15,8 +15,8 @@ export type PromptGenPayload = {
 export function createPromptGenWindow() {
   if (promptGenWindow && !promptGenWindow.isDestroyed()) return promptGenWindow;
   promptGenWindow = new BrowserWindow({
-    width: 600,
-    height: 500,
+    width: 1000,
+    height: 600,
     transparent: false,
     show: false,
     skipTaskbar: true,

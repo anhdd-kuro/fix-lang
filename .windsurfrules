@@ -7,7 +7,7 @@
 
 ## Technical Stack
 
-- Electron
+- Electron JS
 - TypeScript
 - React
 - OpenAI API
@@ -18,19 +18,6 @@
 ## General Rules
 
 - Always start responses with `I’ve already read the rules\n`
-- Always read `plan.md` before writing any code
-- After adding a major feature or completing a milestone, update `plan.md`
-- Search Memories first before exploring the codebase
-- Actively store best practices, patterns, and solutions in Memories for future use
-- If you repeatedly search for certain files or patterns, add them to Memories for future reference
-- Analyze each task before starting:
-  - Plan the implementation
-  - Break the task into smaller steps
-  - Add the task to `plan.md` or related files as a TODO list
-- Use `plan.md` as a guide, but don’t follow it too rigidly
-- Review `src/main/index.ts`, `src/preload/index.ts`, and `electron.vite.config.ts` to understand the codebase structure before starting
-- Check `package.json` to review dependencies before requesting package installations
-- Mark the task in `plan.md` or related files complete upon finishing, including a summary of the implementation and any accessibility notes
 
 ## Coding Rules
 
