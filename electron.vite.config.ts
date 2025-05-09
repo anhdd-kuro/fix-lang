@@ -1,6 +1,7 @@
 import path, { resolve } from "path";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "electron-vite";
+import commonjs from "vite-plugin-commonjs";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 export const rendererPort = 5175;
@@ -31,7 +32,7 @@ export default defineConfig({
   },
   renderer: {
     root: "src/renderer",
-    plugins: [tailwindcss(), tsconfigPaths()],
+    plugins: [tailwindcss(), tsconfigPaths(), commonjs()],
     server: {
       port: rendererPort,
       strictPort: false, // allow fallback if port in use

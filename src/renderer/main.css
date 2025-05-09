@@ -4,4 +4,21 @@
   button {
     cursor: pointer;
   }
+
+  input::-webkit-calendar-picker-indicator {
+    display: none !important;
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 2em var(--color-neutral-700) inset !important;
+    -webkit-text-fill-color: var(--color-white) !important;
+    background-color: var(--color-neutral-700) !important;
+    border-width: 0px !important;
+    outline: 2px solid var(--color-blue-600) !important;
+    color: var(--color-white) !important;
+    caret-color: var(--color-white) !important;
+  }
 }

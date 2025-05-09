@@ -51,6 +51,7 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.31.1",
     "vite": "6.3.3",
+    "vite-plugin-commonjs": "^0.10.4",
     "vite-plugin-electron": "^0.29.0",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "3.1.2"
@@ -63,6 +64,7 @@
     "dotenv": "^16.5.0",
     "electron-squirrel-startup": "^1.0.1",
     "electron-store": "^10.0.1",
+    "fuse.js": "^7.1.0",
     "languagedetect": "^2.0.0",
     "node-mac-permissions": "^2.5.0",
     "ollama": "^0.5.15",

@@ -1,12 +1,14 @@
-import { format } from "date-fns";
-import React, { useState, useEffect } from "react";
-import Select from "react-select";
+import { addDays, format } from "date-fns";
+import React, { useState, useEffect, useDeferredValue } from "react";
+import HistoryEntryItem from "../components/HistoryEntryItem";
 import HistoryReviewModal from "../components/HistoryReviewModal";
 import ModelManagerDialog from "../components/ModelManagerDialog";
+import SearchInput from "../components/SearchInput";
 import { SettingsButton } from "../components/SettingsIcon";
 import { SettingsModal } from "../components/SettingsModal";
 import { TextAreaBox } from "../components/TextAreaBox";
 import { TrashButton } from "../components/TrashButton";
+import useFuzzySearch from "../hooks/useFuzzySearch";
 import type { HistoryEntry, HistoryStoreType } from "~/stores/historyStore";
 
 // Define UI-specific history type for frontend use
@@ -54,18 +56,13 @@ const App: React.FC = () => {
   // History state for all features using a unified approach
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
-  // History type selector state (now supporting multiple selections)
-  const [historyTypes, setHistoryTypes] = useState<UiHistoryType[]>(
-    HISTORY_FEATURES.map((f) => f.uiKey)
-  );
-  const [activeHistoryType, setActiveHistoryType] =
-    useState<UiHistoryType>("corrections");
+  // Search state for fuzzy search
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
-  // Options for history selector - using our local configuration
-  const historyOptions: { value: UiHistoryType; label: string }[] =
-    HISTORY_FEATURES.map((feature) => {
-      return { value: feature.uiKey, label: feature.label.split(" ")[0] };
-    });
+  // We're now showing all history and filtering with search, so we only need
+  // activeHistoryType for the clear history function
+  const [activeHistoryType] = useState<UiHistoryType>("corrections");
 
   const [initialSettingsTab, setInitialSettingsTab] = useState<number>(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
@@ -85,17 +82,18 @@ const App: React.FC = () => {
   const [_loading, _setLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    // Modified to handle multiple history types
+    // Fetch all histories from all features
     const fetchAllHistories = async () => {
       const allHistories: HistoryEntry[] = [];
 
-      for (const type of historyTypes) {
-        const typeHistory = await window.electronAPI.getHistory(type);
+      // Get history for all features
+      for (const feature of HISTORY_FEATURES) {
+        const typeHistory = await window.electronAPI.getHistory(feature.uiKey);
 
         // Add feature identifier to each entry
         const historyWithFeature = typeHistory.map((entry) => ({
           ...entry,
-          featureType: type, // Add feature type for display
+          featureType: feature.uiKey, // Add feature type for display
         }));
         allHistories.push(...historyWithFeature);
       }
@@ -136,14 +134,9 @@ const App: React.FC = () => {
         openModelManagerHandler
       );
     };
-  }, [historyTypes]);
+  }, []);
 
   useEffect(() => {
-    // Not using handleCopy inside the effect, moved it outside
-    const _handleCopy = (_text: string) => {
-      // Function moved outside effect
-    };
-
     const handleSettings = (type?: number) => {
       setInitialSettingsTab(type || 0);
       setIsSettingsOpen(true);
@@ -152,11 +145,14 @@ const App: React.FC = () => {
       const fetchAllHistories = async () => {
         const allHistories: HistoryEntry[] = [];
 
-        for (const type of historyTypes) {
-          const typeHistory = await window.electronAPI.getHistory(type);
+        // Get history for all features
+        for (const feature of HISTORY_FEATURES) {
+          const typeHistory = await window.electronAPI.getHistory(
+            feature.uiKey
+          );
           const historyWithFeature = typeHistory.map((entry) => ({
             ...entry,
-            featureType: type,
+            featureType: feature.uiKey,
           }));
           allHistories.push(...historyWithFeature);
         }
@@ -198,7 +194,13 @@ const App: React.FC = () => {
       offPrompt?.();
       offHistory?.();
     };
-  }, [historyTypes]);
+  }, []);
+
+  const filteredHistory = useFuzzySearch(
+    history,
+    searchQuery,
+    HISTORY_FEATURES
+  );
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans flex">
@@ -208,153 +210,73 @@ const App: React.FC = () => {
       >
         <div className="flex justify-between items-center mb-4 sticky top-0 bg-gray-800 z-10">
           <div className="w-full">
-            <Select
-              id="history-selector"
-              isMulti
-              value={historyOptions.filter((opt) =>
-                historyTypes.includes(opt.value)
-              )}
-              onChange={(newValue) => {
-                const selectedTypes = (newValue as typeof historyOptions).map(
-                  (v) => v.value
-                );
-                setHistoryTypes(
-                  selectedTypes.length ? selectedTypes : ["corrections"]
-                );
-                if (
-                  selectedTypes.length &&
-                  !selectedTypes.includes(activeHistoryType)
-                ) {
-                  setActiveHistoryType(selectedTypes[0]);
-                }
-              }}
-              options={historyOptions}
-              aria-label="Select history type"
-              className="w-full text-xs"
-              classNamePrefix="react-select"
-              theme={(theme) => ({
-                ...theme,
-                colors: {
-                  ...theme.colors,
-                  primary: "#2563eb",
-                  primary75: "#3b82f6",
-                  primary50: "#60a5fa",
-                  primary25: "#93c5fd",
-                  neutral0: "#1f2937",
-                  neutral5: "#374151",
-                  neutral10: "#4b5563",
-                  neutral20: "#6b7280",
-                  neutral30: "#9ca3af",
-                  neutral40: "#d1d5db",
-                  neutral50: "#e5e7eb",
-                  neutral60: "#f3f4f6",
-                  neutral70: "#f9fafb",
-                  neutral80: "#ffffff",
-                  neutral90: "#ffffff",
-                },
-              })}
-              styles={{
-                control: (base) => ({
-                  ...base,
-                  backgroundColor: "#1f2937",
-                  borderColor: "#4b5563",
-                }),
-                menu: (base) => ({
-                  ...base,
-                  backgroundColor: "#3A475A",
-                }),
-                option: (base, state) => ({
-                  ...base,
-                  backgroundColor: state.isFocused ? "#2563eb" : "#3A475A",
-                  color: "#ffffff",
-                }),
-                singleValue: (base) => ({
-                  ...base,
-                  color: "#ffffff",
-                }),
-              }}
+            <SearchInput
+              onSearch={setSearchQuery}
+              placeholder="Search history..."
+              className="w-full"
+              debounceMs={300}
+              suggestions={[
+                ...HISTORY_FEATURES.map((feature) => feature.label),
+                // Today and yesterday
+                format(new Date(), "MM/dd"),
+                format(addDays(new Date(), -1), "MM/dd"),
+              ]}
+              dataListId="history-search-suggestions"
             />
           </div>
         </div>
         <ul className="divide-y divide-gray-700 overflow-y-auto mb-4 flex-1">
-          {history.map((entry, idx) => (
+          {/* Use our custom fuzzy search hook to filter history entries */}
+          {filteredHistory.map((entry: HistoryEntry, idx: number) => (
             <li
               key={idx}
               className="py-2 hover:bg-gray-700 px-2 relative group/history-entry"
             >
-              <div className="flex justify-between items-start gap-2">
-                <div
-                  className="flex-1 cursor-pointer"
-                  onClick={() => {
+              <HistoryEntryItem
+                entry={entry}
+                featureMap={HISTORY_FEATURES}
+                activeHistoryType={activeHistoryType}
+                onSelect={(selectedEntry) => {
+                  setLastHistoryData({
+                    ...selectedEntry,
+                    timestamp: new Date().toISOString(),
+                  });
+                }}
+                onDelete={(entryToDelete, featureType) => {
+                  // Find next entry to select
+                  const nextEntry = history[idx + 1] || history[idx - 1];
+                  if (nextEntry) {
                     setLastHistoryData({
-                      ...history[0],
+                      ...nextEntry,
                       timestamp: new Date().toISOString(),
                     });
-                  }}
-                >
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="text-gray-400">
-                      {format(new Date(entry.timestamp), "MM/dd HH:mm")}
-                    </span>
-                    <span className="px-1.5 py-0.5 bg-blue-600 text-white rounded-sm ml-auto">
-                      {
-                        historyOptions.find(
-                          (opt) =>
-                            opt.value ===
-                            (entry.featureType || activeHistoryType)
-                        )?.label
-                      }
-                    </span>
-                  </div>
-                  <p
-                    className="text-sm text-gray-100 line-clamp-1"
-                    title={entry.original}
-                  >
-                    {entry.original.slice(0, 50)}...
-                  </p>
-                  <p
-                    className="text-sm text-gray-100 line-clamp-1"
-                    title={entry.model}
-                  >
-                    {entry.model}
-                  </p>
-                </div>
-                <TrashButton
-                  className="invisible absolute right-2 bottom-2 group-hover/history-entry:visible"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // Find next entry to select
-                    const nextEntry = history[idx + 1] || history[idx - 1];
-                    if (nextEntry) {
-                      setLastHistoryData({
-                        ...nextEntry,
-                        timestamp: new Date().toISOString(),
-                      });
-                    } else {
-                      // If no other entries, clear the text areas
-                      setLastHistoryData({
-                        original: "",
-                        corrected: "",
-                        model: "",
-                        promptTokens: 0,
-                        completionTokens: 0,
-                        timestamp: new Date().toISOString(),
-                      });
-                    }
-                    window.electronAPI.removeHistoryEntry(
-                      entry.featureType || activeHistoryType,
-                      entry
-                    );
-                  }}
-                  size="sm"
-                />
-              </div>
+                  } else {
+                    // If no other entries, clear the text areas
+                    setLastHistoryData({
+                      original: "",
+                      corrected: "",
+                      model: "",
+                      promptTokens: 0,
+                      completionTokens: 0,
+                      timestamp: new Date().toISOString(),
+                    });
+                  }
+                  // Cast featureType to HistoryStoreType for type safety
+                  window.electronAPI.removeHistoryEntry(
+                    mapHistoryType(featureType as UiHistoryType),
+                    entryToDelete
+                  );
+                }}
+              />
             </li>
           ))}
         </ul>
         <TrashButton
           onClick={() => {
-            const featureId = mapHistoryType(activeHistoryType);
+            // Use active history type or default to corrections
+            const featureId = mapHistoryType(
+              activeHistoryType || "corrections"
+            );
             window.electronAPI
               .clearHistory(featureId)
               .then(() => {
