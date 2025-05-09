@@ -64,7 +64,7 @@ const App: React.FC = () => {
   // Options for history selector - using our local configuration
   const historyOptions: { value: UiHistoryType; label: string }[] =
     HISTORY_FEATURES.map((feature) => {
-      return { value: feature.uiKey, label: feature.label };
+      return { value: feature.uiKey, label: feature.label.split(" ")[0] };
     });
 
   const [initialSettingsTab, setInitialSettingsTab] = useState<number>(0);
@@ -296,7 +296,7 @@ const App: React.FC = () => {
                     <span className="text-gray-400">
                       {format(new Date(entry.timestamp), "MM/dd HH:mm")}
                     </span>
-                    <span className="px-1.5 py-0.5 bg-blue-600 text-white rounded-full ml-auto">
+                    <span className="px-1.5 py-0.5 bg-blue-600 text-white rounded-sm ml-auto">
                       {
                         historyOptions.find(
                           (opt) =>
