@@ -93,7 +93,7 @@ export function clearHistory(featureId: HistoryFeatureId): void {
 export function addHistoryEntry(
   featureId: HistoryFeatureId,
   entry: HistoryEntry,
-  maxEntries = 50
+  maxEntries = 100
 ): void {
   const history = getHistory(featureId);
 

@@ -206,7 +206,7 @@ const schema = {
   },
 } satisfies Schema<SettingsStore>;
 
-export const store = new Store<SettingsStore>({
+export const apiStore = new Store<SettingsStore>({
   schema,
   encryptionKey: "fixlang-secure-encryption-key",
   clearInvalidConfig: true,
@@ -214,7 +214,7 @@ export const store = new Store<SettingsStore>({
 });
 
 export const getOpenAIKey = () => {
-  const apiKey = store.get("apiKey");
+  const apiKey = apiStore.get("apiKey");
   if (!apiKey) {
     throw new Error("OpenAI API Key not set in settings.");
   }
