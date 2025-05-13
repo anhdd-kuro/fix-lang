@@ -3,9 +3,9 @@ import {
   TRANSLATE_WITH_EXPLANATION_PROMPT,
   TRANSLATE_WITHOUT_EXPLANATION_PROMPT,
 } from "~/prompts";
+import { getProfileSetting } from "~/stores/apiStore";
 import { StringPrettifier } from "~/utils";
 import { makeAIRequest } from "./shared";
-import { store } from "../../stores/apiStore";
 
 /**
  * Translates the given text into the target language using OpenAI API.
@@ -33,8 +33,8 @@ export const translateText = async (
     };
   }
 
-  // Get feature-specific model if set
-  const translateSettings = store.get("settingsTranslate");
+  // Get feature-specific model from current profile
+  const translateSettings = getProfileSetting("settingsTranslate");
   const featureModel = translateSettings.model;
 
   // Construct prompt for translation

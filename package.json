@@ -58,6 +58,7 @@
   },
   "dependencies": {
     "@rollup/plugin-commonjs": "^28.0.3",
+    "@types/uuid": "^10.0.0",
     "applescript": "^1.0.0",
     "clipboardy": "^4.0.0",
     "date-fns": "^4.1.0",
@@ -70,7 +71,8 @@
     "ollama": "^0.5.15",
     "openai": "^4.96.2",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "uuid": "^11.1.0"
   },
   "build": {
     "appId": "com.fixlang.app",

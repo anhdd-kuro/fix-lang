@@ -4,6 +4,7 @@ export * from "./correction";
 export * from "./translation";
 export * from "./summarization";
 export * from "./promptGen";
+export * from "./profiles";
 export * from "./settings";
 export * from "./ui";
 export * from "./history";

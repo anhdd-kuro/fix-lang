@@ -4,7 +4,7 @@
  */
 import { app, BrowserWindow } from "electron";
 import { fetchAvailableModels } from "~/main/ai.request/shared";
-import { store } from "~/stores/apiStore";
+import { apiStore, getCurrentProfileSettings } from "~/stores/apiStore";
 import { getLocalModels } from "./discover";
 import type { Model } from "~/stores/apiStore";
 
@@ -91,7 +91,7 @@ async function checkForModelChanges(): Promise<void> {
     console.log("Checking for local model changes...");
 
     // Get current models from store
-    const storedModels = (store.get("models") as Model[]) || [];
+    const storedModels = (apiStore.get("models") as Model[]) || [];
     const storedLocalModels = storedModels.filter((model) => model.local);
 
     // Get latest models from Ollama
@@ -110,11 +110,11 @@ async function checkForModelChanges(): Promise<void> {
       );
 
       // Re-fetch all models (both cloud and local)
-      const apiKey = store.get("apiKey") || "";
+      const apiKey = getCurrentProfileSettings().apiKey;
       const allModels = await fetchAvailableModels(apiKey);
 
       // Update the store with the latest models
-      store.set("models", allModels);
+      apiStore.set("models", allModels);
 
       // Send notification to the renderer process if main window exists
       const mainWindow = getMainWindow();

@@ -8,6 +8,7 @@ import {
   translationFeature,
   summarizationFeature,
   promptGenFeature,
+  profilesFeature,
   settingsFeature,
   uiFeature,
   historyFeature,
@@ -16,6 +17,7 @@ import type {
   ApiFeature,
   CorrectionFeature,
   HistoryFeature,
+  ProfilesFeature,
   PromptGenFeature,
   SettingsFeature,
   SummarizationFeature,
@@ -34,6 +36,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...translationFeature,
   ...summarizationFeature,
   ...promptGenFeature,
+  ...profilesFeature,
   ...settingsFeature,
   ...uiFeature,
 } satisfies ElectronAPI);
@@ -48,5 +51,6 @@ export type ElectronAPI = HistoryFeature &
   CorrectionFeature &
   TranslationFeature &
   ApiFeature &
+  ProfilesFeature &
   SettingsFeature &
   UIFeature;

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import "../main.css"; // Import Tailwind CSS entry point
 import { ModelSelect } from "../components/ModelSelect";
+import ProfileSelector from "../components/ProfileSelector";
 import { SettingsButton } from "../components/SettingsIcon";
 import { TextAreaBox } from "../components/TextAreaBox";
 
@@ -89,7 +90,26 @@ const TrayWindowMain: React.FC = () => {
               model={lastHistory.model}
             />
           </div>
-          <ModelSelect saveOnChange />
+          <div className="flex flex-col justify-between items-center gap-2 mt-2 mb-1">
+            <div className="flex items-center gap-2">
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                />
+              </svg>
+              <ProfileSelector />
+            </div>
+
+            <ModelSelect saveOnChange showAdditionalInfo={false} />
+          </div>
         </div>
       </div>
       <div className="mt-4 flex justify-center">

@@ -1,5 +1,6 @@
 import { globalShortcut, BrowserWindow } from "electron";
 import { registerCorrectionShortcut } from "./correction";
+import { registerProfileSwitchShortcut } from "./profileSwitch";
 import { registerPromptGenShortcut } from "./promptGen";
 import { registerSummarizeShortcut } from "./summarize";
 import { registerTranslateShortcut } from "./translation";
@@ -24,6 +25,7 @@ export const registerHotkeys = (mainWindow: BrowserWindow): void => {
   registerTranslateShortcut(mainWindow);
   registerSummarizeShortcut(mainWindow);
   registerPromptGenShortcut(mainWindow);
+  registerProfileSwitchShortcut(); // Register the profile switch shortcut
   registerDevToolsShortcut();
 };
 

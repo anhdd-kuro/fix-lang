@@ -3,7 +3,7 @@
  * @description IPC handlers for prompt generation functionality
  */
 import { ipcMain, clipboard } from "electron";
-import { store } from "~/stores/apiStore";
+import { getProfileSetting, updateProfileSetting } from "~/stores/apiStore";
 // Note: generatePrompt is only used in hotkey.ts
 
 /**
@@ -13,7 +13,7 @@ export const registerPromptGenHandlers = () => {
   // Get promptGen settings
   ipcMain.handle("get-promptGen-settings", async () => {
     try {
-      return store.get("settingsPromptGen");
+      return getProfileSetting("settingsPromptGen");
     } catch (error) {
       console.error("Error getting promptGen settings:", error);
       return {
@@ -30,8 +30,8 @@ export const registerPromptGenHandlers = () => {
   // Set promptGen settings
   ipcMain.handle("set-promptGen-settings", async (_event, settings) => {
     try {
-      store.set("settingsPromptGen", settings);
-      return { success: true };
+      const result = updateProfileSetting("settingsPromptGen", settings);
+      return result;
     } catch (error) {
       return {
         success: false,

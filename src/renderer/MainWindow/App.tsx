@@ -58,7 +58,7 @@ const App: React.FC = () => {
 
   // Search state for fuzzy search
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const _deferredSearchQuery = useDeferredValue(searchQuery);
 
   // We're now showing all history and filtering with search, so we only need
   // activeHistoryType for the clear history function
@@ -314,12 +314,12 @@ const App: React.FC = () => {
             />
           </svg>
         </button>
-        {/* Header with Settings Button */}
+        {/* Header with Profile Selector and Settings Button */}
         <div className="mb-12">
           <h1 className="text-3xl font-bold text-blue-400 text-center">
             Last Action Preview
           </h1>
-          <div className="absolute top-3 right-3">
+          <div className="absolute top-3 right-3 flex items-center gap-3">
             <SettingsButton onClick={() => setIsSettingsOpen(true)} />
           </div>
         </div>

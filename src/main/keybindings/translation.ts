@@ -1,5 +1,5 @@
 import { app, globalShortcut, Notification, screen } from "electron";
-import { store } from "~/stores/apiStore";
+import { apiStore } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { getHighlightedText } from "../../utils";
 import { translateText } from "../ai.request";
@@ -23,7 +23,7 @@ export const registerTranslateShortcut = (mainWindow: BrowserWindow) => {
     console.log(`${translateShortcut} is pressed (Translate)`);
     const selectedText = await getHighlightedText();
     // Dynamically read the latest translation target from settings
-    const settings = store.get(
+    const settings = apiStore.get(
       "settingsTranslate"
     ) as SettingsStore["settingsTranslate"];
     const lang = settings.destinationLang || app.getLocale();

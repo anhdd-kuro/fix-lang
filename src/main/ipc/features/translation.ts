@@ -3,7 +3,7 @@
  * @description IPC handlers for text translation functionality
  */
 import { ipcMain, clipboard } from "electron";
-import { store } from "~/stores/apiStore";
+import { getProfileSetting, updateProfileSetting } from "~/stores/apiStore";
 import { translateText } from "../../ai.request/translate";
 import { showTranslationWindow } from "../../webViewWindows/translationWindow";
 
@@ -14,12 +14,10 @@ export const registerTranslationHandlers = () => {
   // Get translation settings
   ipcMain.handle("get-translation-settings", async () => {
     try {
-      return (
-        store.get("settingsTranslate") || {
-          destinationLang: "",
-          includeExplanation: false,
-        }
-      );
+      return getProfileSetting("settingsTranslate") || {
+        destinationLang: "",
+        includeExplanation: false,
+      };
     } catch (error) {
       console.error("Error getting translation settings:", error);
       return {
@@ -32,12 +30,8 @@ export const registerTranslationHandlers = () => {
   // Set translation settings
   ipcMain.handle("set-translation-settings", async (_event, settings) => {
     try {
-      store.set("settingsTranslate", settings);
-      // Also update the standalone translationTargetLang for backwards compatibility
-      if (settings.destinationLang) {
-        store.set("translationTargetLang", settings.destinationLang);
-      }
-      return { success: true };
+      const result = updateProfileSetting("settingsTranslate", settings);
+      return result;
     } catch (error) {
       return {
         success: false,

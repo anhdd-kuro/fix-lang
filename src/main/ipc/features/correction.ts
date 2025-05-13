@@ -3,7 +3,7 @@
  * @description IPC handlers for text correction functionality
  */
 import { ipcMain } from "electron";
-import { store } from "~/stores/apiStore";
+import { getProfileSetting, updateProfileSetting } from "~/stores/apiStore";
 import { fixGrammar } from "../../ai.request/correction";
 
 /**
@@ -13,7 +13,7 @@ export const registerCorrectionHandlers = () => {
   // Get correction settings
   ipcMain.handle("get-correction-settings", async () => {
     try {
-      return store.get("settingsCorrect");
+      return getProfileSetting("settingsCorrect");
     } catch (error) {
       console.error("Error getting correction settings:", error);
       return {
@@ -28,7 +28,7 @@ export const registerCorrectionHandlers = () => {
   // Alias for get-correction-settings to match preload API naming
   ipcMain.handle("get-correct-settings", async () => {
     try {
-      return store.get("settingsCorrect");
+      return getProfileSetting("settingsCorrect");
     } catch (error) {
       console.error("Error getting correct settings:", error);
       return {
@@ -45,8 +45,8 @@ export const registerCorrectionHandlers = () => {
     "set-correction-settings",
     async (_event: Electron.IpcMainInvokeEvent, settings) => {
       try {
-        store.set("settingsCorrect", settings);
-        return { success: true };
+        const result = updateProfileSetting("settingsCorrect", settings);
+        return result;
       } catch (error) {
         return {
           success: false,
@@ -61,8 +61,8 @@ export const registerCorrectionHandlers = () => {
     "set-correct-settings",
     async (_event: Electron.IpcMainInvokeEvent, settings) => {
       try {
-        store.set("settingsCorrect", settings);
-        return { success: true };
+        const result = updateProfileSetting("settingsCorrect", settings);
+        return result;
       } catch (error) {
         return {
           success: false,

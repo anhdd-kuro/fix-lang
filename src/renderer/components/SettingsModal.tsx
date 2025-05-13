@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { twJoin } from "tailwind-merge";
+import ProfileManager from "./ProfileManager";
 import { SettingCorrection } from "./SettingCorrection";
 import { SettingGeneral } from "./SettingGeneral";
 import { SettingGlobalPrompt } from "./SettingGlobalPrompt";
@@ -37,6 +38,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   // Define all tab configurations - you can easily reorder these tabs by changing their position in the array
   const tabs: SettingsTab[] = [
+    {
+      id: "profiles",
+      label: "Profiles",
+      icon: (
+        <svg
+          className="h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+          />
+        </svg>
+      ),
+      component: <ProfileManager />,
+    },
     {
       id: "general",
       label: "General",

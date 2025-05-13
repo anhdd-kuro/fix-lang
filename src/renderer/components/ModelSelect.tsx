@@ -26,11 +26,13 @@ export const ModelSelect: React.FC<{
   featureId?: string;
   useFeatureModel?: boolean;
   saveOnChange?: boolean;
+  showAdditionalInfo?: boolean;
 }> = ({
   onChange,
   featureId,
   useFeatureModel = false,
   saveOnChange = false,
+  showAdditionalInfo = true,
 }) => {
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("");
@@ -136,6 +138,14 @@ export const ModelSelect: React.FC<{
 
         // Check if this is a local model
         const isLocalModel = model.local !== undefined;
+        if (!showAdditionalInfo) {
+          return {
+            value: modelId,
+            isLocal: isLocalModel,
+            label: modelId,
+            modelSize: model.local?.size,
+          };
+        }
 
         let label = "";
 
@@ -154,7 +164,6 @@ export const ModelSelect: React.FC<{
           });
           label = `${modelId}, ${createdAt}, ${pricingPerMillionToken} / 1M tokens`;
         }
-
         return {
           value: model.id,
           label,
@@ -162,7 +171,7 @@ export const ModelSelect: React.FC<{
           modelSize: model.local?.size,
         };
       }),
-    [models]
+    [models, showAdditionalInfo]
   );
 
   return (

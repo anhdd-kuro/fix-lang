@@ -3,7 +3,7 @@
  * @description IPC handlers for text summarization functionality
  */
 import { ipcMain } from "electron";
-import { store } from "~/stores/apiStore";
+import { getProfileSetting, updateProfileSetting } from "~/stores/apiStore";
 import { summarizeText } from "../../ai.request/summarize";
 
 /**
@@ -13,12 +13,10 @@ export const registerSummarizationHandlers = () => {
   // Get summarize settings
   ipcMain.handle("get-summarize-settings", async () => {
     try {
-      return (
-        store.get("settingsSummarize") || {
-          minLength: 0,
-          maxLength: 0,
-        }
-      );
+      return getProfileSetting("settingsSummarize") || {
+        minLength: 0,
+        maxLength: 0,
+      };
     } catch (error) {
       console.error("Error getting summarize settings:", error);
       return {
@@ -31,8 +29,8 @@ export const registerSummarizationHandlers = () => {
   // Set summarize settings
   ipcMain.handle("set-summarize-settings", async (_event, settings) => {
     try {
-      store.set("settingsSummarize", settings);
-      return { success: true };
+      const result = updateProfileSetting("settingsSummarize", settings);
+      return result;
     } catch (error) {
       return {
         success: false,

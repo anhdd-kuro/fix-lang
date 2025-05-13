@@ -12,7 +12,7 @@ import { Notification } from "electron";
 import { OpenAI } from "openai";
 import { getLocalModels } from "~/main/llm/models/discover";
 import { makeTonePrompt } from "~/prompts/index";
-import { store } from "~/stores/apiStore";
+import { apiStore } from "~/stores/apiStore";
 import { StringPrettifier } from "~/utils";
 import { ollamaClient } from "../llm";
 import type { CoreMessage } from "ai";
@@ -23,14 +23,14 @@ import type { GlobalSettings, Model } from "~/stores/apiStore";
  * @returns GlobalSettings object with all current settings
  */
 export const getGlobalPromptSettings = (): GlobalSettings => {
-  return store.get("globalSettings") as GlobalSettings;
+  return apiStore.get("globalSettings") as GlobalSettings;
 };
 
 export const fetchAvailableModels = async (
   apiKey: string
 ): Promise<Model[]> => {
   // Get previously cached models (if any)
-  const cachedModels = (store.get("models") as Model[]) || [];
+  const cachedModels = (apiStore.get("models") as Model[]) || [];
   let cloudModels: Model[] = [];
   let localModels: Model[] = [];
 
@@ -112,7 +112,7 @@ export const fetchAvailableModels = async (
 
   // Cache the sorted models for future use
   if (sortedModels.length > 0) {
-    store.set("models", sortedModels);
+    apiStore.set("models", sortedModels);
     console.log(`Cached ${sortedModels.length} models for future use`);
   }
 
@@ -158,7 +158,7 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
     : applyGlobalSettings(options.systemPrompt);
 
   // Determine which model to use
-  const modelId = options.model || store.get("selectedModel");
+  const modelId = options.model || apiStore.get("selectedModel");
   if (!modelId) {
     throw new Error("You have to select a model first.");
   }
@@ -166,7 +166,7 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
   console.log(`Using model for request: ${modelId}`);
 
   // Get global settings for AI parameters
-  const globalSettings = store.get("globalSettings");
+  const globalSettings = apiStore.get("globalSettings");
   const temperature = options.temperature || globalSettings?.temperature || 1;
   const top_p = options.top_p || globalSettings?.top_p || 1.0;
   const maxTokens = options.maxTokens || globalSettings?.maxTokens || 10000;
@@ -180,7 +180,7 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
     ] as CoreMessage[]);
 
   // Get all models from store
-  const models = store.get("models") || [];
+  const models = apiStore.get("models") || [];
   const selectedModel = models.find((m) => m.id === modelId);
 
   if (!selectedModel) {
@@ -311,7 +311,7 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
  */
 export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
   // Get API key from store
-  const apiKey = store.get("apiKey");
+  const apiKey = apiStore.get("apiKey");
   if (!apiKey) {
     throw new Error("OpenAI API key is missing.");
   }

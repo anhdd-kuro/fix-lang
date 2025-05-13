@@ -1,7 +1,7 @@
 import { DEFAULT_OPENAI_MODEL } from "~/const";
 import { DEFAULT_SUMMARIZE_PROMPT } from "~/prompts";
+import { getProfileSetting } from "~/stores/apiStore";
 import { makeAIRequest } from "./shared";
-import { store } from "../../stores/apiStore";
 
 /**
  * Summarizes the given text using OpenAI API.
@@ -21,7 +21,7 @@ export const summarizeText = async (
   completionTokens: number;
   model: string;
 }> => {
-  const currentSettings = store.get("settingsSummarize");
+  const currentSettings = getProfileSetting("settingsSummarize");
 
   if (!text || !text.trim()) {
     return {
@@ -32,10 +32,11 @@ export const summarizeText = async (
     };
   }
 
-  // Get feature-specific model if set
-  const summarizeSettings = store.get("settingsSummarize");
+  // Get feature-specific model from current profile
+  const summarizeSettings = getProfileSetting("settingsSummarize");
   const featureModel = summarizeSettings.model;
-  const targetLanguage = options?.targetLanguage || summarizeSettings.targetLanguage || "English";
+  const targetLanguage =
+    options?.targetLanguage || summarizeSettings.targetLanguage || "English";
 
   try {
     // Use shared makeAIRequest function

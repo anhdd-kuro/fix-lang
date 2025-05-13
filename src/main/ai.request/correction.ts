@@ -1,8 +1,8 @@
 import { Notification } from "electron";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
 import { DEFAULT_CUSTOM_PROMPT } from "~/prompts";
+import { getProfileSetting } from "~/stores/apiStore";
 import { makeAIRequest } from "./shared";
-import { store } from "../../stores/apiStore";
 
 /**
  * Fixes grammar and style for the given text using OpenAI API.
@@ -31,8 +31,8 @@ export const fixGrammar = async (
     };
   }
 
-  // Get correct settings and feature-specific model
-  const correctSettings = store.get("settingsCorrect");
+  // Get correct settings and feature-specific model from the current profile
+  const correctSettings = getProfileSetting("settingsCorrect");
   const featureModel = correctSettings.model;
   const paraphrasePrompt = correctSettings.paraphrasePrompt;
   const userCustomInput = correctSettings.userInput;

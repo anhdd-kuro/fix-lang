@@ -16,4 +16,5 @@ export const DEFAULT_KEY_BINDINGS: KeyBindings = {
   translate: "Control+Shift+T",
   summarize: "Control+Shift+S", // condense selected text into a brief summary
   promptGen: "Control+Shift+G", // generate a new prompt based on current selection
+  profileSwitch: "Control+Shift+P", // switch to next profile in rotation
 };

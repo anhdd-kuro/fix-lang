@@ -5,7 +5,7 @@
 import { ipcMain, Notification } from "electron";
 import { DEFAULT_KEY_BINDINGS } from "~/const";
 import { registerHotkeys, unregisterHotkeys } from "~/main/keybindings";
-import { store } from "~/stores/apiStore";
+import { getProfileSetting, updateProfileSetting } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { getMainWindow } from "../../webViewWindows/mainWindow";
 import type { KeyBindings } from "~/stores/apiStore";
@@ -90,8 +90,8 @@ export const registerSettingsHandlers = () => {
     "get-prompt-settings",
     async (_event: Electron.IpcMainInvokeEvent) => {
       try {
-        // Get settings from the globalSettings object
-        const globalSettings = store.get("globalSettings") as {
+        // Get settings from the current profile's globalSettings object
+        const globalSettings = getProfileSetting("globalSettings") as {
           customSystemPrompt: string;
           customUserPrompt: string;
           tone: string;
@@ -143,8 +143,8 @@ export const registerSettingsHandlers = () => {
           maxTokens,
         } = settings;
 
-        // Save to the globalSettings object
-        store.set("globalSettings", {
+        // Save to the current profile's globalSettings object
+        const result = updateProfileSetting("globalSettings", {
           customSystemPrompt,
           customUserPrompt,
           tone,
@@ -152,12 +152,8 @@ export const registerSettingsHandlers = () => {
           top_p,
           maxTokens,
         });
-
-        // Also set to legacy fields for backward compatibility
-        store.set("customSystemPrompt", customSystemPrompt);
-        store.set("customUserPrompt", customUserPrompt);
-        store.set("tone", tone);
-        return { success: true };
+        
+        return result;
       } catch (error) {
         return {
           success: false,

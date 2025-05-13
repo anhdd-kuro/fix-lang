@@ -1,5 +1,5 @@
 import { DEFAULT_PROMPT_GEN_PROMPT } from "~/prompts";
-import { store } from "~/stores/apiStore";
+import { getProfileSetting } from "~/stores/apiStore";
 import { StringPrettifier } from "~/utils";
 import { makeAIRequest } from "./shared";
 
@@ -28,7 +28,7 @@ export const generatePrompt = async (
   completionTokens: number;
   model: string;
 }> => {
-  const currentSettings = store.get("settingsPromptGen");
+  const currentSettings = getProfileSetting("settingsPromptGen");
   const minLength = options.minLength || currentSettings.minLength || 0;
   const maxLength = options.maxLength || currentSettings.maxLength || 0;
   const nsfw = options.nsfw || currentSettings.nsfw || false;

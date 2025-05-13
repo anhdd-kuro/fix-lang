@@ -1,5 +1,5 @@
 import { globalShortcut, Notification, screen } from "electron";
-import { store } from "~/stores/apiStore";
+import { apiStore } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { getHighlightedText } from "../../utils";
 import { summarizeText } from "../ai.request";
@@ -22,9 +22,9 @@ export const registerSummarizeShortcut = (_mainWindow: BrowserWindow): void => {
       }
       const { x, y } = screen.getCursorScreenPoint();
       showOverlaySpinner();
-      const summarizeSettings = store.get("settingsSummarize");
+      const summarizeSettings = apiStore.get("settingsSummarize");
       const result = await summarizeText(selectedText, {
-        maxLength: store.get("maxSummaryTokens") as number,
+        maxLength: apiStore.get("maxSummaryTokens") as number,
         targetLanguage: summarizeSettings.targetLanguage,
       });
       hideOverlaySpinner();

@@ -11,7 +11,7 @@ import {
   findRecommendedModel,
   getRecommendedModels,
 } from "~/main/llm/models/recommended";
-import { store } from "~/stores/apiStore";
+import { apiStore } from "~/stores/apiStore";
 
 /**
  * Registers API-related IPC handlers
@@ -19,13 +19,13 @@ import { store } from "~/stores/apiStore";
 export const registerApiHandlers = (): void => {
   // API key handling
   ipcMain.handle("get-api-key", () => {
-    return store.get("apiKey") || "";
+    return apiStore.get("apiKey") || "";
   });
 
   ipcMain.handle("set-api-key", (_event, apiKey) => {
     try {
       // Set the API key in the store
-      store.set("apiKey", apiKey);
+      apiStore.set("apiKey", apiKey);
       console.log("API key saved successfully");
       return { success: true };
     } catch (error) {
@@ -41,11 +41,11 @@ export const registerApiHandlers = (): void => {
   ipcMain.handle("fetch-ai-models", async () => {
     try {
       // Fetch models from API
-      const apiKey = store.get("apiKey") || "";
+      const apiKey = apiStore.get("apiKey") || "";
       const models = await fetchAvailableModels(apiKey);
 
       // Store the models in the store
-      store.set("models", models);
+      apiStore.set("models", models);
 
       return {
         success: true,
@@ -62,12 +62,12 @@ export const registerApiHandlers = (): void => {
 
   // Fallback to cached models if API call fails
   ipcMain.handle("get-cached-models", () => {
-    const models = store.get("models") || [];
+    const models = apiStore.get("models") || [];
     return models;
   });
 
   ipcMain.handle("get-selected-model", () => {
-    return store.get("selectedModel") || DEFAULT_OPENAI_MODEL;
+    return apiStore.get("selectedModel") || DEFAULT_OPENAI_MODEL;
   });
 
   ipcMain.handle("set-selected-model", async (_event, modelId) => {
@@ -75,7 +75,7 @@ export const registerApiHandlers = (): void => {
       console.log(`[DEBUG IPC] Setting selected model via IPC to: ${modelId}`);
 
       // Sanity check - verify this model exists
-      const models = store.get("models") || [];
+      const models = apiStore.get("models") || [];
       const model = models.find((m) => m.id === modelId);
       console.log(`[DEBUG IPC] Model found in registry: ${!!model}`);
       if (model) {
@@ -85,10 +85,10 @@ export const registerApiHandlers = (): void => {
       }
 
       // Save to store
-      store.set("selectedModel", modelId);
+      apiStore.set("selectedModel", modelId);
 
       // Double-check it was saved correctly
-      const savedModel = store.get("selectedModel");
+      const savedModel = apiStore.get("selectedModel");
       console.log(`[DEBUG IPC] Verified saved model ID: ${savedModel}`);
       console.log(`[DEBUG IPC] Models match: ${savedModel === modelId}`);
 
@@ -104,7 +104,7 @@ export const registerApiHandlers = (): void => {
 
   // Feature-specific model settings
   ipcMain.handle("get-feature-model", (_event, feature) => {
-    const featureSetting = store.get(`${feature}`);
+    const featureSetting = apiStore.get(`${feature}`);
     if (
       featureSetting &&
       typeof featureSetting === "object" &&
@@ -112,12 +112,12 @@ export const registerApiHandlers = (): void => {
     )
       return featureSetting.model;
 
-    return store.get("selectedModel");
+    return apiStore.get("selectedModel");
   });
 
   ipcMain.handle("set-feature-model", async (_event, feature, model) => {
     try {
-      store.set(`${feature}`, { model });
+      apiStore.set(`${feature}`, { model });
       console.log(`Set ${feature} model to: ${model}`);
       return { success: true };
     } catch (error) {
