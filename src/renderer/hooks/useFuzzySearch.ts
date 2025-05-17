@@ -68,7 +68,12 @@ export function useFuzzySearch(
     const fuse = new Fuse<HistoryEntry>(history, fuseConfig);
 
     // Return the search results
-    return fuse.search(searchQuery).map((result) => result.item);
+    const result = fuse.search(searchQuery).map((result) => result.item);
+    const sortedLastByTimestamp = result.sort(
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+    return sortedLastByTimestamp;
   }, [history, searchQuery, fuseConfig]);
 
   return filteredHistory;

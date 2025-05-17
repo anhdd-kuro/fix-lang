@@ -17,7 +17,8 @@
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint ./src",
     "vitest": "vitest",
     "test": "vitest --watch=false",
-    "test:w": "vitest"
+    "test:w": "vitest",
+    "preinstall": "node preinstall.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.1",

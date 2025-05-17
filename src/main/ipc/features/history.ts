@@ -107,7 +107,10 @@ export function setupHistoryManagerHandlers() {
         syncHistory({ type: "remove", featureId, entry });
         return { success: true };
       } catch (error) {
-        console.error(`Failed to remove history entry for ${featureId}:`, error);
+        console.error(
+          `Failed to remove history entry for ${featureId}:`,
+          error
+        );
         return { success: false, error: (error as Error).message };
       }
     }
@@ -115,7 +118,12 @@ export function setupHistoryManagerHandlers() {
 
   ipcMain.handle("get-history", async (_event, featureId: HistoryFeatureId) => {
     try {
-      return getHistory(featureId);
+      const history = getHistory(featureId);
+      const sortedLastByTimestamp = history.sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      return sortedLastByTimestamp;
     } catch (error) {
       console.error("Error getting history:", error);
       return [];
