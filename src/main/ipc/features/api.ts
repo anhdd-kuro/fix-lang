@@ -12,6 +12,7 @@ import {
   getRecommendedModels,
 } from "~/main/llm/models/recommended";
 import { apiStore } from "~/stores/apiStore";
+import type { Model } from "~/stores/apiStore";
 
 /**
  * Registers API-related IPC handlers
@@ -41,7 +42,7 @@ export const registerApiHandlers = (): void => {
   ipcMain.handle("fetch-ai-models", async () => {
     try {
       // Fetch models from API
-      const apiKey = apiStore.get("apiKey") || "";
+      const apiKey = (apiStore.get("apiKey") as string) || "";
       const models = await fetchAvailableModels(apiKey);
 
       // Store the models in the store
@@ -75,12 +76,12 @@ export const registerApiHandlers = (): void => {
       console.log(`[DEBUG IPC] Setting selected model via IPC to: ${modelId}`);
 
       // Sanity check - verify this model exists
-      const models = apiStore.get("models") || [];
+      const models = (apiStore.get("models") as Model[]) || [];
       const model = models.find((m) => m.id === modelId);
       console.log(`[DEBUG IPC] Model found in registry: ${!!model}`);
       if (model) {
         console.log(
-          `[DEBUG IPC] Model details: local=${!!model.local}, name=${model.name}`
+          `[DEBUG IPC] Model details: local=${!!model.local}, name=${model.name}`,
         );
       }
 
@@ -156,7 +157,7 @@ export const registerApiHandlers = (): void => {
         if (!compatibility.compatible) {
           console.warn(
             `System compatibility issues for model ${modelName}:`,
-            compatibility.issues.join(", ")
+            compatibility.issues.join(", "),
           );
 
           // We could return the issues here, but for now, we'll just log and proceed

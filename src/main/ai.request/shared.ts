@@ -15,8 +15,12 @@ import { makeTonePrompt } from "~/prompts/index";
 import { apiStore } from "~/stores/apiStore";
 import { StringPrettifier } from "~/utils";
 import { ollamaClient } from "../llm";
-import type { CoreMessage } from "ai";
 import type { GlobalSettings, Model } from "~/stores/apiStore";
+
+type CoreMessage = {
+  role: "system" | "user" | "assistant" | "tool";
+  content: unknown;
+};
 
 /**
  * Retrieves global prompt settings from the store
@@ -27,7 +31,7 @@ export const getGlobalPromptSettings = (): GlobalSettings => {
 };
 
 export const fetchAvailableModels = async (
-  apiKey: string
+  apiKey: string,
 ): Promise<Model[]> => {
   // Get previously cached models (if any)
   const cachedModels = (apiStore.get("models") as Model[]) || [];
@@ -67,7 +71,7 @@ export const fetchAvailableModels = async (
 
       if (!response.ok) {
         throw new Error(
-          `API returned ${response.status}: ${response.statusText}`
+          `API returned ${response.status}: ${response.statusText}`,
         );
       }
 
@@ -85,7 +89,7 @@ export const fetchAvailableModels = async (
     // Use cached cloud models if API key is missing
     cloudModels = cachedModels.filter((model) => !model.local) || [];
     console.log(
-      `Using ${cloudModels.length} cached cloud models due to missing API key`
+      `Using ${cloudModels.length} cached cloud models due to missing API key`,
     );
   }
 
@@ -158,7 +162,8 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
     : applyGlobalSettings(options.systemPrompt);
 
   // Determine which model to use
-  const modelId = options.model || apiStore.get("selectedModel");
+  const modelId =
+    options.model || (apiStore.get("selectedModel") as string | undefined);
   if (!modelId) {
     throw new Error("You have to select a model first.");
   }
@@ -166,10 +171,11 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
   console.log(`Using model for request: ${modelId}`);
 
   // Get global settings for AI parameters
-  const globalSettings = apiStore.get("globalSettings");
-  const temperature = options.temperature || globalSettings?.temperature || 1;
-  const top_p = options.top_p || globalSettings?.top_p || 1.0;
-  const maxTokens = options.maxTokens || globalSettings?.maxTokens || 10000;
+  const globalSettings =
+    (apiStore.get("globalSettings") as GlobalSettings | undefined) || undefined;
+  const temperature = options.temperature ?? globalSettings?.temperature ?? 1;
+  const top_p = options.top_p ?? globalSettings?.top_p ?? 1.0;
+  const maxTokens = options.maxTokens ?? globalSettings?.maxTokens ?? 10000;
 
   // Create messages array if not provided
   const messages =
@@ -180,7 +186,7 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
     ] as CoreMessage[]);
 
   // Get all models from store
-  const models = apiStore.get("models") || [];
+  const models = (apiStore.get("models") as Model[]) || [];
   const selectedModel = models.find((m) => m.id === modelId);
 
   if (!selectedModel) {
@@ -222,13 +228,13 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
     `Sending request to local LLM with model: ${modelId}, temperature: ${options.temperature}
     System Prompt: ${options.systemPrompt || ""}
     User Prompt: ${options.userPrompt || ""}
-  `.trim()
+  `.trim(),
   );
 
   try {
     // Log the request details
     console.log(
-      `[DEBUG CRITICAL] Local inference request for model ID: ${modelId}`
+      `[DEBUG CRITICAL] Local inference request for model ID: ${modelId}`,
     );
 
     // Create messages array, ensuring we have actual content
@@ -257,7 +263,7 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
     }
 
     console.log(
-      `[DEBUG CRITICAL] Sending ${messages.length} messages to Ollama model`
+      `[DEBUG CRITICAL] Sending ${messages.length} messages to Ollama model`,
     );
 
     const serializedMessages = messages.map((msg) => ({
@@ -285,7 +291,7 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
 
     console.log(
       "[DEBUG CRITICAL] Ollama response total duration:",
-      response.total_duration
+      response.total_duration,
     );
     // Extract the response content
     const text = response.message.content;
@@ -311,7 +317,7 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
  */
 export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
   // Get API key from store
-  const apiKey = apiStore.get("apiKey");
+  const apiKey = apiStore.get("apiKey") as string;
   if (!apiKey) {
     throw new Error("OpenAI API key is missing.");
   }
@@ -321,7 +327,7 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
       `Sending request to OpenRouter with model: ${options.model}, temperature: ${options.temperature}, top_p: ${options.top_p}, max_completion_tokens: ${options.maxTokens}
       System Prompt: ${options.systemPrompt || ""}
       User Prompt: ${options.userPrompt || ""}
-    `.trim()
+    `.trim(),
     );
 
     const openRouter = createOpenRouter({ apiKey });
@@ -336,18 +342,21 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
     });
     const genResponse = await generateText({
       model: modelOpenRouter,
-      messages: options.messages || [],
+      messages: (options.messages || []) as never,
     });
     console.log(
       `🚀 \n - makeRemoteAIRequest \n - genResponse:`,
-      JSON.stringify(genResponse, null, 2)
+      JSON.stringify(genResponse, null, 2),
     );
     const { usage, text } = genResponse;
 
     const resBody = genResponse.response.body;
-    // Extract token information first
-    const promptTokens = usage?.promptTokens ?? null;
-    const completionTokens = usage?.completionTokens ?? null;
+    const normalizedUsage = usage as {
+      promptTokens?: number;
+      completionTokens?: number;
+    };
+    const promptTokens = normalizedUsage?.promptTokens ?? null;
+    const completionTokens = normalizedUsage?.completionTokens ?? null;
 
     // Process the response content
     let processedContent: string[] = [text];
@@ -364,7 +373,7 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
       // Extract all responses
       const contents = resBody.choices
         .flatMap((choice) =>
-          choice.message?.content ? choice.message.content.trim() : []
+          choice.message?.content ? choice.message.content.trim() : [],
         )
         .filter(Boolean);
 
@@ -399,7 +408,7 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
  * @returns A promise that resolves with an array of model objects (id, object, created, owned_by, etc)
  */
 export const fetchOpenAIModels = async (
-  apiKey: string
+  apiKey: string,
 ): Promise<
   { id: string; object: string; created: number; owned_by: string }[]
 > => {
@@ -420,7 +429,7 @@ export const fetchOpenAIModels = async (
   } catch (error) {
     console.error("Error fetching OpenAI models:", error);
     throw new Error(
-      error instanceof Error ? error.message : "Failed to fetch OpenAI models."
+      error instanceof Error ? error.message : "Failed to fetch OpenAI models.",
     );
   }
 };

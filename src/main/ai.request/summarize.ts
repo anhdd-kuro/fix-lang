@@ -14,7 +14,7 @@ export const summarizeText = async (
   options?: {
     maxLength?: number;
     targetLanguage?: string;
-  }
+  },
 ): Promise<{
   summarizedText: string;
   promptTokens: number;
@@ -51,7 +51,9 @@ export const summarizeText = async (
 
     return {
       summarizedText: response.content.join("\n\n"),
-      ...response,
+      promptTokens: response.promptTokens ?? 0,
+      completionTokens: response.completionTokens ?? 0,
+      model: response.model,
     };
   } catch (error) {
     console.error("Error in summarizeText:", error);

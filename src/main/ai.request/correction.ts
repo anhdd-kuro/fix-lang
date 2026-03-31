@@ -10,7 +10,7 @@ import { makeAIRequest } from "./shared";
  * @returns A promise that resolves with the fixed text and token information.
  */
 export const fixGrammar = async (
-  text: string
+  text: string,
 ): Promise<{
   correctedText: string;
   promptTokens: number;
@@ -62,7 +62,9 @@ export const fixGrammar = async (
     console.log(`Correction used model: ${featureModel || "default"}`);
     return {
       correctedText: response.content.join("\n\n"),
-      ...response,
+      promptTokens: response.promptTokens ?? 0,
+      completionTokens: response.completionTokens ?? 0,
+      model: response.model,
     };
   } catch (error) {
     console.error("Error in fixGrammar:", error);

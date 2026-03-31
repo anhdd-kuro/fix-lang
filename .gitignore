@@ -6,3 +6,5 @@ out
 release
 .DS_Store
 .shopify
+.gitnexus
+coverage

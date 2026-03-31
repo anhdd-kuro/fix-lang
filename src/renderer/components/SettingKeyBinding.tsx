@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import type { KeyBindings } from "~/preload/preload-api.types";
+import type { KeyBindings } from "~/stores/apiStore";
 
 export const SettingKeyBinding: React.FC = () => {
   const [keyBindings, setKeyBindings] = useState<KeyBindings | null>(null);
@@ -9,6 +9,7 @@ export const SettingKeyBinding: React.FC = () => {
     translate: "",
     summarize: "",
     promptGen: "",
+    profileSwitch: "",
   });
 
   // Fetch Key Bindings when component mounts
@@ -38,7 +39,7 @@ export const SettingKeyBinding: React.FC = () => {
   // Handle capturing hotkey input
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
-    cmd: keyof KeyBindings
+    cmd: keyof KeyBindings,
   ) => {
     e.preventDefault();
     const parts: string[] = [];
@@ -106,6 +107,7 @@ export const SettingKeyBinding: React.FC = () => {
         translate: "",
         summarize: "",
         promptGen: "",
+        profileSwitch: "",
       });
       setKeyBindingsStatus("Reset! Shortcuts restored.");
     } catch {

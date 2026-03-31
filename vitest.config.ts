@@ -14,6 +14,7 @@ export default defineConfig({
       "build",
       "out",
       "resources",
+      ".opencode",
     ],
     coverage: {
       provider: "v8",
@@ -21,6 +22,7 @@ export default defineConfig({
       include: ["./src/**/**"],
     },
     testTimeout: 1000 * 10,
+    passWithNoTests: true,
   },
   resolve: {
     alias: {

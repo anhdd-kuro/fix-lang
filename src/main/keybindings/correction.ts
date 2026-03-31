@@ -3,9 +3,9 @@ import { globalShortcut, Notification } from "electron";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { getHighlightedText, pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
+import { checkShortcut, handleError } from "./utils";
 import { syncHistory } from "../ipc/features/history";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
-import { checkShortcut, handleError } from "./utils";
 import type { BrowserWindow } from "electron";
 
 export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
@@ -60,7 +60,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         mainWindow.webContents.send("stop-loading");
       } else {
         console.warn(
-          "Cannot send IPC message: mainWindow is null or destroyed."
+          "Cannot send IPC message: mainWindow is null or destroyed.",
         );
       }
       // Always hide global spinner overlay (robust)

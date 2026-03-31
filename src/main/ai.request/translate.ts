@@ -17,7 +17,7 @@ import { makeAIRequest } from "./shared";
 export const translateText = async (
   text: string,
   targetLang?: string,
-  includeExplanation = false
+  includeExplanation = false,
 ): Promise<{
   translatedText: string;
   promptTokens: number;
@@ -62,7 +62,9 @@ export const translateText = async (
 
     return {
       translatedText: response.content.join("\n\n"),
-      ...response,
+      promptTokens: response.promptTokens ?? 0,
+      completionTokens: response.completionTokens ?? 0,
+      model: response.model,
     };
   } catch (error) {
     console.error("Error in translateText:", error);
