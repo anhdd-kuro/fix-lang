@@ -11,7 +11,11 @@ import {
   findRecommendedModel,
   getRecommendedModels,
 } from "~/main/llm/models/recommended";
-import { apiStore } from "~/stores/apiStore";
+import {
+  apiStore,
+  getProfileSetting,
+  updateProfileSetting,
+} from "~/stores/apiStore";
 import type { Model } from "~/stores/apiStore";
 
 /**
@@ -20,14 +24,35 @@ import type { Model } from "~/stores/apiStore";
 export const registerApiHandlers = (): void => {
   // API key handling
   ipcMain.handle("get-api-key", () => {
-    return apiStore.get("apiKey") || "";
+    return getProfileSetting("apiKey") || apiStore.get("apiKey") || "";
   });
 
   ipcMain.handle("set-api-key", (_event, apiKey) => {
     try {
-      // Set the API key in the store
+      // Save to profile settings first, keep legacy fallback key for compatibility
+      const result = updateProfileSetting("apiKey", apiKey);
+      if (!result.success) {
+        return result;
+      }
       apiStore.set("apiKey", apiKey);
-      console.log("API key saved successfully");
+      console.log(
+        "API key saved successfully",
+        JSON.stringify({
+          profileKeyLength:
+            (getProfileSetting("apiKey") as string)?.length || 0,
+          legacyKeyLength: (apiStore.get("apiKey") as string)?.length || 0,
+        }),
+      );
+
+      void fetchAvailableModels(apiKey)
+        .then((models) => {
+          apiStore.set("models", models);
+          console.log(`Refetched ${models.length} models after API key save`);
+        })
+        .catch((error) => {
+          console.error("Failed to refetch models after API key save:", error);
+        });
+
       return { success: true };
     } catch (error) {
       console.error("Error saving API key:", error);
@@ -42,7 +67,10 @@ export const registerApiHandlers = (): void => {
   ipcMain.handle("fetch-ai-models", async () => {
     try {
       // Fetch models from API
-      const apiKey = (apiStore.get("apiKey") as string) || "";
+      const apiKey =
+        (getProfileSetting("apiKey") as string) ||
+        (apiStore.get("apiKey") as string) ||
+        "";
       const models = await fetchAvailableModels(apiKey);
 
       // Store the models in the store

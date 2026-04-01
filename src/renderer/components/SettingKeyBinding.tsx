@@ -44,16 +44,16 @@ export const SettingKeyBinding: React.FC = () => {
     e.preventDefault();
     const parts: string[] = [];
     if (e.ctrlKey) parts.push("Control");
-    if (e.metaKey) parts.push("Meta");
+    if (e.metaKey) parts.push("Command");
     if (e.altKey) parts.push("Alt");
     if (e.shiftKey) parts.push("Shift");
     const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
-    if (!["Control", "Meta", "Alt", "Shift"].includes(key)) parts.push(key);
+    if (!["Control", "Command", "Alt", "Shift"].includes(key)) parts.push(key);
     const newCombo = parts.join("+");
     let errorMsg = "";
     if (
       parts.length === 0 ||
-      !parts.some((p) => !["Control", "Meta", "Alt", "Shift"].includes(p))
+      !parts.some((p) => !["Control", "Command", "Alt", "Shift"].includes(p))
     ) {
       errorMsg = "Include a non-modifier key";
     } else {
@@ -127,6 +127,7 @@ export const SettingKeyBinding: React.FC = () => {
               "translate",
               "summarize",
               "promptGen",
+              "profileSwitch",
             ] as (keyof KeyBindings)[]
           ).map((cmd) => (
             <li key={cmd} className="flex items-center gap-6">

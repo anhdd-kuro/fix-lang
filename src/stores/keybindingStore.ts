@@ -2,6 +2,18 @@ import Store from "electron-store";
 import { DEFAULT_KEY_BINDINGS } from "~/const";
 import type { KeyBindings } from "~/stores/apiStore";
 
+const normalizeAccelerator = (accelerator: string): string => {
+  return accelerator
+    .replace(/CommandOrControl/gi, "CommandOrControl")
+    .replace(/Command/gi, "Command")
+    .replace(/Control/gi, "Control")
+    .replace(/Ctrl/gi, "Control")
+    .replace(/Meta/gi, "Command")
+    .replace(/Option/gi, "Alt")
+    .replace(/\s+/g, "")
+    .replace(/\+{2,}/g, "+");
+};
+
 /**
  * KeybindingStore for managing key bindings persistence.
  */
@@ -23,8 +35,15 @@ class KeybindingStore {
    */
   getKeyBindings(): KeyBindings {
     const stored = this.store.get("keyBindings", DEFAULT_KEY_BINDINGS);
-    // Merge with defaults to ensure all keys exist
-    return { ...DEFAULT_KEY_BINDINGS, ...stored };
+    const merged = { ...DEFAULT_KEY_BINDINGS, ...stored };
+
+    return {
+      correction: normalizeAccelerator(merged.correction),
+      translate: normalizeAccelerator(merged.translate),
+      summarize: normalizeAccelerator(merged.summarize),
+      promptGen: normalizeAccelerator(merged.promptGen),
+      profileSwitch: normalizeAccelerator(merged.profileSwitch),
+    };
   }
 
   /**
@@ -34,7 +53,7 @@ class KeybindingStore {
     this.store.set("keyBindings", bindings);
     console.log(
       `🚀 \n - KeybindingStore \n - setKeyBindings \n - bindings:`,
-      bindings
+      bindings,
     );
   }
 

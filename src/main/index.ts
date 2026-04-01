@@ -2,6 +2,9 @@
  * @file init.ts
  * @description Application initialization and lifecycle management
  */
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { app, BrowserWindow } from "electron";
 import {
   isMacOSAccessibilityGranted,
@@ -29,12 +32,74 @@ import {
   createMainWindow,
 } from "./webViewWindows";
 
+const LOG_DIR = path.join(os.homedir(), ".fixlang", "log");
+const LOG_FILE = path.join(
+  LOG_DIR,
+  `runtime-${new Date().toISOString().replace(/:/g, "-")}.log`,
+);
+
+const serializeLogArg = (arg: unknown): string => {
+  if (arg instanceof Error) {
+    return `${arg.name}: ${arg.message}\n${arg.stack || ""}`;
+  }
+  if (typeof arg === "string") return arg;
+  try {
+    return JSON.stringify(arg);
+  } catch {
+    return String(arg);
+  }
+};
+
+const appendRuntimeLog = (level: string, ...args: unknown[]): void => {
+  try {
+    fs.mkdirSync(LOG_DIR, { recursive: true });
+    const timestamp = new Date().toISOString();
+    const line = `[${timestamp}] [${level}] ${args
+      .map((arg) => serializeLogArg(arg))
+      .join(" ")}\n`;
+    fs.appendFileSync(LOG_FILE, line);
+  } catch {
+    // no-op
+  }
+};
+
+const setupRuntimeLogging = (): void => {
+  const originalLog = console.log;
+  const originalWarn = console.warn;
+  const originalError = console.error;
+
+  console.log = (...args: unknown[]) => {
+    appendRuntimeLog("INFO", ...args);
+    originalLog(...args);
+  };
+
+  console.warn = (...args: unknown[]) => {
+    appendRuntimeLog("WARN", ...args);
+    originalWarn(...args);
+  };
+
+  console.error = (...args: unknown[]) => {
+    appendRuntimeLog("ERROR", ...args);
+    originalError(...args);
+  };
+
+  process.on("uncaughtException", (error) => {
+    appendRuntimeLog("FATAL", "uncaughtException", error);
+  });
+
+  process.on("unhandledRejection", (reason) => {
+    appendRuntimeLog("FATAL", "unhandledRejection", reason);
+  });
+
+  appendRuntimeLog("INFO", `runtime log initialized at ${LOG_FILE}`);
+};
+
 const registerIpcHandlers = (): void => {
   // Register all feature handlers in a specific order (UI-first approach)
   registerUiHandlers();
   registerApiHandlers();
   registerSettingsHandlers();
-  
+
   // Register profile handlers (should be before other features that might use profiles)
   registerProfileHandlers();
 
@@ -51,6 +116,7 @@ const registerIpcHandlers = (): void => {
 };
 
 function initializeApp() {
+  setupRuntimeLogging();
   console.log("Initializing application...");
 
   // Start local LLM model monitoring
@@ -62,18 +128,17 @@ function initializeApp() {
   // Tray window for inline settings/history
   initializeTrayWindow();
 
-  // Register all IPC handlers
-  registerIpcHandlers();
-
-  // Initialize main application window
-  initializeMainWindow();
-
   // This method will be called when Electron has finished
   // initialization and is ready to create browser windows.
   // Some APIs can only be used after this event occurs.
   app.whenReady().then(() => {
-    const mainWindow = getMainWindow();
-    if (!mainWindow) return;
+    // Register all IPC handlers
+    registerIpcHandlers();
+
+    // Initialize main application window
+    initializeMainWindow();
+
+    const mainWindow = createMainWindow();
     app.setAccessibilitySupportEnabled(true);
 
     // --- macOS Tray and Menu Logic ---

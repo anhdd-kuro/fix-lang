@@ -12,7 +12,7 @@ import { Notification } from "electron";
 import { OpenAI } from "openai";
 import { getLocalModels } from "~/main/llm/models/discover";
 import { makeTonePrompt } from "~/prompts/index";
-import { apiStore } from "~/stores/apiStore";
+import { apiStore, getProfileSetting } from "~/stores/apiStore";
 import { StringPrettifier } from "~/utils";
 import { ollamaClient } from "../llm";
 import type { GlobalSettings, Model } from "~/stores/apiStore";
@@ -316,10 +316,20 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
  * @returns Promise with the AI response and token information
  */
 export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
-  // Get API key from store
-  const apiKey = apiStore.get("apiKey") as string;
+  // Get API key from current profile first, fallback to legacy root key
+  const profileApiKey = (getProfileSetting("apiKey") as string) || "";
+  const legacyApiKey = (apiStore.get("apiKey") as string) || "";
+  const apiKey = profileApiKey || legacyApiKey;
+  console.log(
+    "OpenRouter API key source",
+    JSON.stringify({
+      profileKeyLength: profileApiKey.length,
+      legacyKeyLength: legacyApiKey.length,
+      usingProfileKey: !!profileApiKey,
+    }),
+  );
   if (!apiKey) {
-    throw new Error("OpenAI API key is missing.");
+    throw new Error("OpenRouter API key is missing.");
   }
 
   try {
@@ -330,7 +340,7 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
     `.trim(),
     );
 
-    const openRouter = createOpenRouter({ apiKey });
+    const openRouter = createOpenRouter({ apiKey: apiKey.trim() });
     const modelOpenRouter = openRouter(options.model as string, {
       extraBody: {
         temperature: options.temperature,
@@ -407,32 +417,6 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
  * @param apiKey The OpenAI API key to use for this request.
  * @returns A promise that resolves with an array of model objects (id, object, created, owned_by, etc)
  */
-export const fetchOpenAIModels = async (
-  apiKey: string,
-): Promise<
-  { id: string; object: string; created: number; owned_by: string }[]
-> => {
-  if (!apiKey) {
-    throw new Error("OpenAI API key is missing.");
-  }
-  try {
-    const openai = new OpenAI({ apiKey });
-    // https://platform.openai.com/docs/api-reference/models/list
-    const response = await openai.models.list();
-    // Return only essential fields for dropdown
-    return response.data.map(({ id, object, created, owned_by }) => ({
-      id,
-      object,
-      created,
-      owned_by,
-    }));
-  } catch (error) {
-    console.error("Error fetching OpenAI models:", error);
-    throw new Error(
-      error instanceof Error ? error.message : "Failed to fetch OpenAI models.",
-    );
-  }
-};
 
 /**
  * Options for common AI request operations
