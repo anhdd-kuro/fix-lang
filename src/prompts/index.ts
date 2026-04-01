@@ -1,16 +1,16 @@
 export * from "./correction";
 
 export const TRANSLATE_WITH_EXPLANATION_PROMPT = `
-Translate the given text into the specified target language, preserving its context, tone, and style.
-Mark any items that need clarification—abbreviations, technical terms, idioms, etc.—with a superscript number (e.g., "Foo(*1)").
-Retain idioms in their original form within quotation marks.
-At the end of your translation, list each footnote in the format "*number: [word] means [explanation]".
-Respond only with the translated text and its corresponding footnotes.
+Translate the input into the specified target language while preserving its meaning, context, tone, and style.
+For any item that may need clarification—such as an abbreviation, technical term, or idiom—add a superscript number (for example, "Foo(*1)").
+Keep idioms in their original form inside quotation marks.
+After the translation, list each footnote using this format: "*number: [word] means [explanation]".
+Respond only with the translated text followed by its footnotes.
 `;
 
 export const TRANSLATE_WITHOUT_EXPLANATION_PROMPT = `
-Translate the given text into the specified target language, preserving its context, tone, and style.
-Do not include any explanations, footnotes, or clarifications.
+Translate the input into the specified target language while preserving its meaning, context, tone, and style.
+Do not include explanations, footnotes, or clarifications.
 Respond only with the translated text.
 `;
 
@@ -18,12 +18,13 @@ Respond only with the translated text.
 export const DEFAULT_TRANSLATE_PROMPT = TRANSLATE_WITH_EXPLANATION_PROMPT;
 
 export const DEFAULT_SUMMARIZE_PROMPT = `
-Summarize the following text into a concise, clear summary without additional commentary, using the following guidelines:
-1. Read the text carefully to understand the main ideas and supporting details.
-2. Identify the key points that are most relevant to the user's query.
-3. Write a summary that is concise and clear, using simple language and avoiding jargon or technical terms.
-4. Organize the summary in a logical way, starting with the main ideas and then providing supporting details.
-5. Proofread your summary to ensure that it is grammatically correct and free of errors.
+Summarize the input into a concise, clear summary without adding commentary.
+Guidelines:
+1. Identify the main ideas and the most relevant supporting details.
+2. Focus on the points that matter most to the user's request.
+3. Use clear, simple language and avoid unnecessary jargon.
+4. Organize the summary logically, starting with the main ideas and then the supporting details.
+5. Ensure the final summary is grammatically correct and easy to read.
 6. Respond only with the summary.`;
 
 /**
@@ -32,29 +33,29 @@ Summarize the following text into a concise, clear summary without additional co
  * @returns Prompt string instructing the model to rewrite in the specified tone.
  */
 export const makeTonePrompt = (tone: string): string =>
-  `Rewrite the following text in ${tone} tone.`;
+  `Rewrite the input in a ${tone} tone.`;
 
 // Default system prompt template for prompt generation feature
 export const DEFAULT_PROMPT_GEN_PROMPT = `
-You are a Senior Prompt Engineer.
-Given a user’s objective and source text, craft a concise, self‑contained LLM prompt that maximizes relevance, clarity and output quality.
-Constraints:
-- A clear role and task description
-- Essential context and user goal
-- Input format and output requirements
+You are a senior prompt engineer.
+Given the user's objective and source text, write a concise, self-contained LLM prompt that maximizes relevance, clarity, and output quality.
+Requirements:
+- Include a clear role and task description.
+- Include the essential context and the user's goal.
+- Specify the input format and output requirements.
 Respond with the final prompt only.
 `;
 
 export const DEFAULT_PROMPT_GEN_IMAGE_PROMPT = `
-You are an expert AI image generation model.
-Given a user’s objective and source text, craft a concise, self-contained LLM prompt that maximizes relevance, clarity, and output quality.
+You are an expert at writing prompts for AI image generation.
+Given the user's objective and source text, write a concise, self-contained prompt that maximizes relevance, clarity, and output quality.
 Rules:
 - Be creative and imaginative.
-- Always start with masterpiece, best quality, amazing quality.
-- Avoid overly long sentences or phrases, separate them with commas.
-- Avoid using special characters.
-- Pay attention to user input and phrases inside brackets, especially character names.
-- Keep character names keywords in their original form.
-- Balance detail between character and background.
+- Always begin with: masterpiece, best quality, amazing quality.
+- Keep the prompt concise; use commas to separate ideas instead of long sentences.
+- Do not use special characters.
+- Pay close attention to user input and to any phrases inside brackets, especially character names.
+- Keep character-name keywords in their original form.
+- Balance the level of detail between the character and the background.
 - Respond with the final prompt only.
 `;
