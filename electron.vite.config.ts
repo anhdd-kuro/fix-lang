@@ -46,12 +46,11 @@ export default defineConfig({
           tray: resolve(__dirname, "src/renderer/TrayWindow/index.html"),
           translation: resolve(
             __dirname,
-            "src/renderer/TranslationWindow/index.html"
+            "src/renderer/TranslationWindow/index.html",
           ),
-          summary: resolve(__dirname, "src/renderer/SummaryWindow/index.html"),
           promptGen: resolve(
             __dirname,
-            "src/renderer/PromptGenWindow/index.html"
+            "src/renderer/PromptGenWindow/index.html",
           ),
         },
       },

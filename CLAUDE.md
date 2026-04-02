@@ -1,4 +1,5 @@
 <!-- gitnexus:start -->
+
 # GitNexus — Code Intelligence
 
 This project is indexed by GitNexus as **fix-lang** (396 symbols, 914 relationships, 26 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
@@ -35,35 +36,36 @@ This project is indexed by GitNexus as **fix-lang** (396 symbols, 914 relationsh
 
 ## Tools Quick Reference
 
-| Tool | When to use | Command |
-|------|-------------|---------|
-| `query` | Find code by concept | `gitnexus_query({query: "auth validation"})` |
-| `context` | 360-degree view of one symbol | `gitnexus_context({name: "validateUser"})` |
-| `impact` | Blast radius before editing | `gitnexus_impact({target: "X", direction: "upstream"})` |
-| `detect_changes` | Pre-commit scope check | `gitnexus_detect_changes({scope: "staged"})` |
-| `rename` | Safe multi-file rename | `gitnexus_rename({symbol_name: "old", new_name: "new", dry_run: true})` |
-| `cypher` | Custom graph queries | `gitnexus_cypher({query: "MATCH ..."})` |
+| Tool             | When to use                   | Command                                                                 |
+| ---------------- | ----------------------------- | ----------------------------------------------------------------------- |
+| `query`          | Find code by concept          | `gitnexus_query({query: "auth validation"})`                            |
+| `context`        | 360-degree view of one symbol | `gitnexus_context({name: "validateUser"})`                              |
+| `impact`         | Blast radius before editing   | `gitnexus_impact({target: "X", direction: "upstream"})`                 |
+| `detect_changes` | Pre-commit scope check        | `gitnexus_detect_changes({scope: "staged"})`                            |
+| `rename`         | Safe multi-file rename        | `gitnexus_rename({symbol_name: "old", new_name: "new", dry_run: true})` |
+| `cypher`         | Custom graph queries          | `gitnexus_cypher({query: "MATCH ..."})`                                 |
 
 ## Impact Risk Levels
 
-| Depth | Meaning | Action |
-|-------|---------|--------|
-| d=1 | WILL BREAK — direct callers/importers | MUST update these |
-| d=2 | LIKELY AFFECTED — indirect deps | Should test |
-| d=3 | MAY NEED TESTING — transitive | Test if critical path |
+| Depth | Meaning                               | Action                |
+| ----- | ------------------------------------- | --------------------- |
+| d=1   | WILL BREAK — direct callers/importers | MUST update these     |
+| d=2   | LIKELY AFFECTED — indirect deps       | Should test           |
+| d=3   | MAY NEED TESTING — transitive         | Test if critical path |
 
 ## Resources
 
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/fix-lang/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/fix-lang/clusters` | All functional areas |
-| `gitnexus://repo/fix-lang/processes` | All execution flows |
-| `gitnexus://repo/fix-lang/process/{name}` | Step-by-step execution trace |
+| Resource                                  | Use for                                  |
+| ----------------------------------------- | ---------------------------------------- |
+| `gitnexus://repo/fix-lang/context`        | Codebase overview, check index freshness |
+| `gitnexus://repo/fix-lang/clusters`       | All functional areas                     |
+| `gitnexus://repo/fix-lang/processes`      | All execution flows                      |
+| `gitnexus://repo/fix-lang/process/{name}` | Step-by-step execution trace             |
 
 ## Self-Check Before Finishing
 
 Before completing any code modification task, verify:
+
 1. `gitnexus_impact` was run for all modified symbols
 2. No HIGH/CRITICAL risk warnings were ignored
 3. `gitnexus_detect_changes()` confirms changes match expected scope
@@ -89,13 +91,55 @@ To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.
 
 ## CLI
 
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+| Task                                         | Read this skill file                                        |
+| -------------------------------------------- | ----------------------------------------------------------- |
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md`       |
+| Blast radius / "What breaks if I change X?"  | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?"             | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md`       |
+| Rename / extract / split / refactor          | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md`     |
+| Tools, resources, schema reference           | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md`           |
+| Index, status, clean, wiki CLI commands      | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md`             |
 
 <!-- gitnexus:end -->
+
+# Project Notes
+
+## Correction Presets
+
+- Correction settings are preset-based: `settingsCorrect = { presets, selectedPresetId }`.
+- Built-in presets:
+  - `Correction` -> `Ctrl+Shift+F`
+  - `Summarize` -> `Ctrl+Shift+S`
+  - `Prompt optimization` -> `Ctrl+Shift+D`
+- Correction preset hotkeys belong to the `Correction` settings UI, not the generic `Key Bindings` UI.
+- The generic `Key Bindings` UI still manages only static app shortcuts.
+
+## Hotkey Rules
+
+- Any change to correction presets that affects hotkeys must reload global shortcuts immediately.
+- Profile switching must also reload global shortcuts so preset-specific correction bindings stay in sync.
+- Correction preset hotkeys must not conflict with:
+  - other correction presets
+  - `translate`, `promptGen`, or `profileSwitch`
+
+## Prompt Optimization Bundling
+
+- Prompt Master is bundled into the app from repo-local files:
+  - `src/prompts/prompt-master-skill.md`
+  - `src/prompts/prompt-master-templates.md`
+  - `src/prompts/prompt-master-patterns.md`
+- Strategic Compact is also bundled for the built-in summarize preset:
+  - `src/prompts/strategic-compact-skill.md`
+- `DEFAULT_PROMPT_OPTIMIZATION_PROMPT` in `src/prompts/correction.ts` is composed from those raw markdown files.
+- `DEFAULT_SUMMARIZE_PRESET_PROMPT` in `src/prompts/correction.ts` is composed from the bundled Strategic Compact skill markdown.
+- The runtime prompt framing in `src/main/ai.request/correction.ts` passes the selected model ID so Prompt Master can optimize for the right model family instead of assuming ChatGPT.
+
+## Summarize Replacement
+
+- The standalone summarize settings tab and standalone summarize hotkey path were removed from the active app flow.
+- Summarize now runs through the preset-based correction system as a built-in preset.
+
+## Packaging
+
+- Local packaging/install command: `pnpm pack:install`
+- Installed app target: `/Applications/FixLang.app`

@@ -40,7 +40,6 @@ class KeybindingStore {
     return {
       correction: normalizeAccelerator(merged.correction),
       translate: normalizeAccelerator(merged.translate),
-      summarize: normalizeAccelerator(merged.summarize),
       promptGen: normalizeAccelerator(merged.promptGen),
       profileSwitch: normalizeAccelerator(merged.profileSwitch),
     };

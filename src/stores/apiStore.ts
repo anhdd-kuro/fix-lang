@@ -4,6 +4,14 @@
  */
 import Store from "electron-store";
 import { DEFAULT_LANGUAGE, DEFAULT_OPENAI_MODEL } from "~/const";
+import {
+  DEFAULT_CORRECTION_PRESET_ID,
+  DEFAULT_CUSTOM_PROMPT,
+  DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+  DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
+  DEFAULT_SUMMARIZE_PRESET_ID,
+  DEFAULT_SUMMARIZE_PRESET_PROMPT,
+} from "~/prompts";
 import type { Schema } from "electron-store";
 
 export type Model = {
@@ -35,9 +43,23 @@ export type Model = {
 export type KeyBindings = {
   correction: string;
   translate: string; // keyboard shortcut for translation
-  summarize: string; // condense selected text into a brief summary
   promptGen: string; // generate a new prompt based on current selection
   profileSwitch: string; // switch to next profile in rotation
+};
+
+export type CorrectionPreset = {
+  id: string;
+  name: string;
+  hotkey: string;
+  systemPrompt: string;
+  model: string;
+  isBuiltIn: boolean;
+  applyGlobalPromptSettings: boolean;
+};
+
+export type CorrectionSettings = {
+  presets: CorrectionPreset[];
+  selectedPresetId: string;
 };
 
 export type GlobalSettings = {
@@ -71,13 +93,7 @@ export type SettingsStore = {
   globalSettings: GlobalSettings;
 
   // Feature-specific settings
-  settingsCorrect: {
-    paraphrase: boolean;
-    withShorten: boolean;
-    paraphrasePrompt: string;
-    userInput: string;
-    model: string;
-  };
+  settingsCorrect: CorrectionSettings;
   settingsTranslate: {
     destinationLang: string;
     includeExplanation: boolean;
@@ -108,6 +124,149 @@ export type SettingsStore = {
   customUserPrompt: string;
   tone: string;
   translationTargetLang: string; // deprecated, use settingsTranslate.destinationLang
+};
+
+type LegacyCorrectionSettings = {
+  paraphrase?: boolean;
+  withShorten?: boolean;
+  paraphrasePrompt?: string;
+  userInput?: string;
+  model?: string;
+};
+
+const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
+  {
+    id: DEFAULT_CORRECTION_PRESET_ID,
+    name: "Correction",
+    hotkey: "Control+Shift+F",
+    systemPrompt: DEFAULT_CUSTOM_PROMPT.trim(),
+    model: DEFAULT_OPENAI_MODEL,
+    isBuiltIn: true,
+    applyGlobalPromptSettings: true,
+  },
+  {
+    id: DEFAULT_SUMMARIZE_PRESET_ID,
+    name: "Summarize",
+    hotkey: "Control+Shift+S",
+    systemPrompt: DEFAULT_SUMMARIZE_PRESET_PROMPT,
+    model: DEFAULT_OPENAI_MODEL,
+    isBuiltIn: true,
+    applyGlobalPromptSettings: false,
+  },
+  {
+    id: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+    name: "Prompt optimization",
+    hotkey: "Control+Shift+D",
+    systemPrompt: DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
+    model: DEFAULT_OPENAI_MODEL,
+    isBuiltIn: true,
+    applyGlobalPromptSettings: false,
+  },
+];
+
+export const getDefaultCorrectionSettings = (): CorrectionSettings => ({
+  presets: makeDefaultCorrectionPresets(),
+  selectedPresetId: DEFAULT_CORRECTION_PRESET_ID,
+});
+
+const buildLegacyCorrectionPrompt = (
+  legacy: LegacyCorrectionSettings,
+): string => {
+  const sections = [legacy.userInput?.trim() || DEFAULT_CUSTOM_PROMPT.trim()];
+
+  if (legacy.paraphrasePrompt?.trim()) {
+    sections.push(legacy.paraphrasePrompt.trim());
+  }
+
+  return sections.join("\n\n");
+};
+
+export const normalizeCorrectionSettings = (
+  value: unknown,
+): CorrectionSettings => {
+  const defaults = getDefaultCorrectionSettings();
+  const defaultById = new Map(
+    defaults.presets.map((preset) => [preset.id, preset]),
+  );
+
+  if (!value || typeof value !== "object") {
+    return defaults;
+  }
+
+  const raw = value as Partial<CorrectionSettings> & LegacyCorrectionSettings;
+
+  const getTrimmedString = (candidate: unknown): string | undefined => {
+    return typeof candidate === "string" ? candidate.trim() : undefined;
+  };
+
+  if (!Array.isArray(raw.presets)) {
+    const migratedCorrectionPreset = {
+      ...defaults.presets[0],
+      systemPrompt: buildLegacyCorrectionPrompt(raw),
+      model: raw.model?.trim() || defaults.presets[0].model,
+    } satisfies CorrectionPreset;
+
+    return {
+      presets: [migratedCorrectionPreset, defaults.presets[1]],
+      selectedPresetId: migratedCorrectionPreset.id,
+    };
+  }
+
+  const seenIds = new Set<string>();
+  const normalizedPresets = raw.presets.flatMap((preset, index) => {
+    if (!preset || typeof preset !== "object") {
+      return [];
+    }
+
+    const candidate = preset as Partial<CorrectionPreset>;
+    const fallback = defaultById.get(candidate.id?.trim() || "");
+    const id = candidate.id?.trim() || `preset-${index + 1}`;
+
+    if (seenIds.has(id)) {
+      return [];
+    }
+
+    seenIds.add(id);
+
+    return [
+      {
+        id,
+        name: candidate.name?.trim() || fallback?.name || `Preset ${index + 1}`,
+        hotkey: getTrimmedString(candidate.hotkey) ?? fallback?.hotkey ?? "",
+        systemPrompt:
+          candidate.systemPrompt?.trim() ||
+          fallback?.systemPrompt ||
+          DEFAULT_CUSTOM_PROMPT.trim(),
+        model:
+          candidate.model?.trim() || fallback?.model || DEFAULT_OPENAI_MODEL,
+        isBuiltIn: fallback ? true : Boolean(candidate.isBuiltIn),
+        applyGlobalPromptSettings:
+          typeof candidate.applyGlobalPromptSettings === "boolean"
+            ? candidate.applyGlobalPromptSettings
+            : (fallback?.applyGlobalPromptSettings ?? true),
+      } satisfies CorrectionPreset,
+    ];
+  });
+
+  const presets = [
+    ...defaults.presets.map(
+      (defaultPreset) =>
+        normalizedPresets.find((preset) => preset.id === defaultPreset.id) ||
+        defaultPreset,
+    ),
+    ...normalizedPresets.filter((preset) => !defaultById.has(preset.id)),
+  ];
+
+  const selectedPresetId =
+    typeof raw.selectedPresetId === "string" &&
+    presets.some((preset) => preset.id === raw.selectedPresetId)
+      ? raw.selectedPresetId
+      : presets[0]?.id || DEFAULT_CORRECTION_PRESET_ID;
+
+  return {
+    presets,
+    selectedPresetId,
+  };
 };
 
 const schema = {
@@ -171,19 +330,29 @@ const schema = {
             settingsCorrect: {
               type: "object",
               properties: {
-                paraphrase: { type: "boolean", default: false },
-                withShorten: { type: "boolean", default: false },
-                paraphrasePrompt: { type: "string", default: "" },
-                userInput: { type: "string", default: "" },
-                model: { type: "string", default: "" },
+                selectedPresetId: {
+                  type: "string",
+                  default: DEFAULT_CORRECTION_PRESET_ID,
+                },
+                presets: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      id: { type: "string" },
+                      name: { type: "string" },
+                      hotkey: { type: "string" },
+                      systemPrompt: { type: "string" },
+                      model: { type: "string" },
+                      isBuiltIn: { type: "boolean" },
+                      applyGlobalPromptSettings: { type: "boolean" },
+                    },
+                    required: ["id", "name", "hotkey", "systemPrompt", "model"],
+                  },
+                  default: makeDefaultCorrectionPresets(),
+                },
               },
-              default: {
-                paraphrase: false,
-                withShorten: false,
-                paraphrasePrompt: "",
-                userInput: "",
-                model: DEFAULT_OPENAI_MODEL,
-              },
+              default: getDefaultCorrectionSettings(),
             },
             settingsSummarize: {
               type: "object",
@@ -266,7 +435,7 @@ export const getOpenAIKey = () => {
  */
 export const createProfile = (
   name = "Default Profile",
-  description = ""
+  description = "",
 ): Profile => {
   const now = new Date().toISOString();
 
@@ -353,9 +522,16 @@ export const getCurrentProfileSettings = (): SettingsStore => {
  * @returns The requested setting from the current profile
  */
 export const getProfileSetting = <K extends keyof SettingsStore>(
-  settingType: K
+  settingType: K,
 ): SettingsStore[K] => {
   const settings = getCurrentProfileSettings();
+
+  if (settingType === "settingsCorrect") {
+    return normalizeCorrectionSettings(
+      settings[settingType],
+    ) as SettingsStore[K];
+  }
+
   return settings[settingType];
 };
 
@@ -365,7 +541,7 @@ export const getProfileSetting = <K extends keyof SettingsStore>(
  * @returns Success status and error message if applicable
  */
 export const applyProfile = (
-  profileId: string
+  profileId: string,
 ): { success: boolean; error?: string } => {
   try {
     const profile = getProfileById(profileId);
@@ -396,9 +572,14 @@ export const applyProfile = (
  */
 export const updateProfileSetting = <K extends keyof SettingsStore>(
   settingType: K,
-  value: SettingsStore[K]
+  value: SettingsStore[K],
 ): { success: boolean; error?: string } => {
   try {
+    const normalizedValue =
+      settingType === "settingsCorrect"
+        ? (normalizeCorrectionSettings(value) as SettingsStore[K])
+        : value;
+
     const currentProfileId = apiStore.get("currentProfileId", "");
 
     // If no active profile, create a new default profile
@@ -407,7 +588,7 @@ export const updateProfileSetting = <K extends keyof SettingsStore>(
       apiStore.set("currentProfileId", newProfile.id);
 
       // Update the newly created profile
-      return updateProfileSetting(settingType, value);
+      return updateProfileSetting(settingType, normalizedValue);
     }
 
     const profiles = getProfiles();
@@ -419,7 +600,7 @@ export const updateProfileSetting = <K extends keyof SettingsStore>(
       apiStore.set("currentProfileId", newProfile.id);
 
       // Update the newly created profile
-      return updateProfileSetting(settingType, value);
+      return updateProfileSetting(settingType, normalizedValue);
     }
 
     // Create updated profile with the new setting
@@ -428,7 +609,7 @@ export const updateProfileSetting = <K extends keyof SettingsStore>(
       updatedAt: new Date().toISOString(),
       settings: {
         ...profiles[profileIndex].settings,
-        [settingType]: value,
+        [settingType]: normalizedValue,
       },
     };
 
@@ -458,7 +639,7 @@ export const updateProfileSetting = <K extends keyof SettingsStore>(
 export const updateProfile = (
   profileId: string,
   name?: string,
-  description?: string
+  description?: string,
 ): Profile | null => {
   const profiles = getProfiles();
   const profileIndex = profiles.findIndex((p) => p.id === profileId);
@@ -502,7 +683,7 @@ export const deleteProfile = (profileId: string): boolean => {
   if (getCurrentProfileId() === profileId) {
     apiStore.set(
       "currentProfileId",
-      filteredProfiles.length > 0 ? filteredProfiles[0].id : ""
+      filteredProfiles.length > 0 ? filteredProfiles[0].id : "",
     );
   }
 

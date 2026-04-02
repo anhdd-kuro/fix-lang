@@ -17,7 +17,6 @@ import {
   registerProfileHandlers,
   registerPromptGenHandlers,
   registerSettingsHandlers,
-  registerSummarizationHandlers,
   registerTranslationHandlers,
   registerUiHandlers,
 } from "./ipc/features";
@@ -109,7 +108,6 @@ const registerIpcHandlers = (): void => {
   // Register feature-specific handlers
   registerCorrectionHandlers();
   registerTranslationHandlers();
-  registerSummarizationHandlers();
   registerPromptGenHandlers();
 
   console.log("All IPC handlers registered successfully");

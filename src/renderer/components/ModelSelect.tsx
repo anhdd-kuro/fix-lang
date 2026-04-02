@@ -27,12 +27,16 @@ export const ModelSelect: React.FC<{
   useFeatureModel?: boolean;
   saveOnChange?: boolean;
   showAdditionalInfo?: boolean;
+  selectedModelId?: string;
+  persistSelection?: boolean;
 }> = ({
   onChange,
   featureId,
   useFeatureModel = false,
   saveOnChange = false,
   showAdditionalInfo = true,
+  selectedModelId,
+  persistSelection = true,
 }) => {
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("");
@@ -96,13 +100,17 @@ export const ModelSelect: React.FC<{
       onChange(value);
     }
 
+    if (!persistSelection) {
+      return;
+    }
+
     try {
       if (useFeatureModel && featureId && window.electronAPI?.setFeatureModel) {
         // If this is a feature-specific model selector, save to that feature
         if (saveOnChange) {
           await window.electronAPI.setFeatureModel(featureId, value);
           console.log(
-            `Feature-specific model for ${featureId} set to: ${value}`
+            `Feature-specific model for ${featureId} set to: ${value}`,
           );
         }
       } else if (window.electronAPI?.setSelectedModel) {
@@ -117,8 +125,25 @@ export const ModelSelect: React.FC<{
 
   useEffect(() => {
     fetchModels();
+    if (selectedModelId) {
+      setSelectedModel(selectedModelId);
+      return;
+    }
+
     loadModelSetting();
-  }, [featureId, useFeatureModel, fetchModels, loadModelSetting]);
+  }, [
+    featureId,
+    useFeatureModel,
+    fetchModels,
+    loadModelSetting,
+    selectedModelId,
+  ]);
+
+  useEffect(() => {
+    if (selectedModelId) {
+      setSelectedModel(selectedModelId);
+    }
+  }, [selectedModelId]);
 
   const modelOptions = useMemo<ModelSelectOption[]>(
     () =>
@@ -132,7 +157,7 @@ export const ModelSelect: React.FC<{
         };
         const createdAt = format(
           new Date(normalizeTimestamp(model.created)),
-          "yyyy-MM-dd"
+          "yyyy-MM-dd",
         );
         const modelId = model.id;
 
@@ -171,7 +196,7 @@ export const ModelSelect: React.FC<{
           modelSize: model.local?.size,
         };
       }),
-    [models, showAdditionalInfo]
+    [models, showAdditionalInfo],
   );
 
   return (
@@ -235,7 +260,7 @@ export const ModelSelect: React.FC<{
                 <p
                   className={twJoin(
                     "flex gap-2 px-4 py-1 text-white cursor-pointer",
-                    isSelected ? "bg-blue-500" : isFocused ? "bg-gray-600" : ""
+                    isSelected ? "bg-blue-500" : isFocused ? "bg-gray-600" : "",
                   )}
                   title={label}
                   {...innerProps}
@@ -244,7 +269,7 @@ export const ModelSelect: React.FC<{
                   <span
                     className={twJoin(
                       "text-xs text-white rounded px-2 py-1",
-                      isFocused || isSelected ? "bg-gray-800" : "bg-gray-600"
+                      isFocused || isSelected ? "bg-gray-800" : "bg-gray-600",
                     )}
                   >
                     {createdAt}
@@ -259,7 +284,7 @@ export const ModelSelect: React.FC<{
                           : "bg-green-700"
                         : isFocused || isSelected
                           ? "bg-gray-800"
-                          : "bg-gray-600"
+                          : "bg-gray-600",
                     )}
                   >
                     {isLocal ? (

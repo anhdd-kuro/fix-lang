@@ -2,9 +2,9 @@ import { globalShortcut, BrowserWindow } from "electron";
 import { registerCorrectionShortcut } from "./correction";
 import { registerProfileSwitchShortcut } from "./profileSwitch";
 import { registerPromptGenShortcut } from "./promptGen";
-import { registerSummarizeShortcut } from "./summarize";
 import { registerTranslateShortcut } from "./translation";
 import { checkShortcut } from "./utils";
+import { getMainWindow } from "../webViewWindows/mainWindow";
 
 const registerDevToolsShortcut = (): void => {
   const ret = globalShortcut.register("F12", () => {
@@ -23,10 +23,18 @@ export const registerHotkeys = (mainWindow: BrowserWindow): void => {
 
   registerCorrectionShortcut(mainWindow);
   registerTranslateShortcut(mainWindow);
-  registerSummarizeShortcut(mainWindow);
   registerPromptGenShortcut(mainWindow);
   registerProfileSwitchShortcut(); // Register the profile switch shortcut
   registerDevToolsShortcut();
+};
+
+export const reloadHotkeys = (): void => {
+  unregisterHotkeys();
+
+  const mainWindow = getMainWindow();
+  if (mainWindow) {
+    registerHotkeys(mainWindow);
+  }
 };
 
 /**

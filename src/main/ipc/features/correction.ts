@@ -3,7 +3,12 @@
  * @description IPC handlers for text correction functionality
  */
 import { ipcMain } from "electron";
-import { getProfileSetting, updateProfileSetting } from "~/stores/apiStore";
+import { reloadHotkeys } from "~/main/keybindings";
+import {
+  getDefaultCorrectionSettings,
+  getProfileSetting,
+  updateProfileSetting,
+} from "~/stores/apiStore";
 import { fixGrammar } from "../../ai.request/correction";
 
 /**
@@ -17,10 +22,7 @@ export const registerCorrectionHandlers = () => {
     } catch (error) {
       console.error("Error getting correction settings:", error);
       return {
-        paraphrase: false,
-        withShorten: false,
-        paraphrasePrompt: "",
-        userInput: "",
+        ...getDefaultCorrectionSettings(),
       };
     }
   });
@@ -32,10 +34,7 @@ export const registerCorrectionHandlers = () => {
     } catch (error) {
       console.error("Error getting correct settings:", error);
       return {
-        paraphrase: false,
-        withShorten: false,
-        paraphrasePrompt: "",
-        userInput: "",
+        ...getDefaultCorrectionSettings(),
       };
     }
   });
@@ -46,6 +45,9 @@ export const registerCorrectionHandlers = () => {
     async (_event: Electron.IpcMainInvokeEvent, settings) => {
       try {
         const result = updateProfileSetting("settingsCorrect", settings);
+        if (result.success) {
+          reloadHotkeys();
+        }
         return result;
       } catch (error) {
         return {
@@ -53,7 +55,7 @@ export const registerCorrectionHandlers = () => {
           error: error instanceof Error ? error.message : "Unknown error",
         };
       }
-    }
+    },
   );
 
   // Alias for set-correction-settings to match preload API naming
@@ -62,6 +64,9 @@ export const registerCorrectionHandlers = () => {
     async (_event: Electron.IpcMainInvokeEvent, settings) => {
       try {
         const result = updateProfileSetting("settingsCorrect", settings);
+        if (result.success) {
+          reloadHotkeys();
+        }
         return result;
       } catch (error) {
         return {
@@ -69,7 +74,7 @@ export const registerCorrectionHandlers = () => {
           error: error instanceof Error ? error.message : "Unknown error",
         };
       }
-    }
+    },
   );
 
   // Note: All history-related IPC handlers have been moved to the centralized history.ts module
@@ -79,26 +84,32 @@ export const registerCorrectionHandlers = () => {
     "fix-grammar",
     async (
       _event: Electron.IpcMainInvokeEvent,
-      text: string
+      payload: { text: string; presetId?: string },
     ): Promise<{
       success: boolean;
       correctedText?: string;
       error?: string;
       promptTokens?: number;
       completionTokens?: number;
+      presetId?: string;
+      presetName?: string;
     }> => {
       try {
+        const { text, presetId } = payload;
+
         if (!text || text.trim() === "") {
           return { success: false, error: "No text provided" };
         }
 
-        const result = await fixGrammar(text);
+        const result = await fixGrammar(text, presetId);
 
         return {
           success: true,
           correctedText: result.correctedText,
           promptTokens: result.promptTokens ?? 0,
           completionTokens: result.completionTokens ?? 0,
+          presetId: result.presetId,
+          presetName: result.presetName,
         };
       } catch (error) {
         console.error("Error fixing grammar:", error);
@@ -107,6 +118,6 @@ export const registerCorrectionHandlers = () => {
           error: error instanceof Error ? error.message : "Unknown error",
         };
       }
-    }
+    },
   );
 };

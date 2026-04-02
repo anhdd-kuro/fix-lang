@@ -1,4 +1,5 @@
 <!-- gitnexus:start -->
+
 # GitNexus — Code Intelligence
 
 This project is indexed by GitNexus as **fix-lang** (396 symbols, 914 relationships, 26 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
@@ -35,35 +36,36 @@ This project is indexed by GitNexus as **fix-lang** (396 symbols, 914 relationsh
 
 ## Tools Quick Reference
 
-| Tool | When to use | Command |
-|------|-------------|---------|
-| `query` | Find code by concept | `gitnexus_query({query: "auth validation"})` |
-| `context` | 360-degree view of one symbol | `gitnexus_context({name: "validateUser"})` |
-| `impact` | Blast radius before editing | `gitnexus_impact({target: "X", direction: "upstream"})` |
-| `detect_changes` | Pre-commit scope check | `gitnexus_detect_changes({scope: "staged"})` |
-| `rename` | Safe multi-file rename | `gitnexus_rename({symbol_name: "old", new_name: "new", dry_run: true})` |
-| `cypher` | Custom graph queries | `gitnexus_cypher({query: "MATCH ..."})` |
+| Tool             | When to use                   | Command                                                                 |
+| ---------------- | ----------------------------- | ----------------------------------------------------------------------- |
+| `query`          | Find code by concept          | `gitnexus_query({query: "auth validation"})`                            |
+| `context`        | 360-degree view of one symbol | `gitnexus_context({name: "validateUser"})`                              |
+| `impact`         | Blast radius before editing   | `gitnexus_impact({target: "X", direction: "upstream"})`                 |
+| `detect_changes` | Pre-commit scope check        | `gitnexus_detect_changes({scope: "staged"})`                            |
+| `rename`         | Safe multi-file rename        | `gitnexus_rename({symbol_name: "old", new_name: "new", dry_run: true})` |
+| `cypher`         | Custom graph queries          | `gitnexus_cypher({query: "MATCH ..."})`                                 |
 
 ## Impact Risk Levels
 
-| Depth | Meaning | Action |
-|-------|---------|--------|
-| d=1 | WILL BREAK — direct callers/importers | MUST update these |
-| d=2 | LIKELY AFFECTED — indirect deps | Should test |
-| d=3 | MAY NEED TESTING — transitive | Test if critical path |
+| Depth | Meaning                               | Action                |
+| ----- | ------------------------------------- | --------------------- |
+| d=1   | WILL BREAK — direct callers/importers | MUST update these     |
+| d=2   | LIKELY AFFECTED — indirect deps       | Should test           |
+| d=3   | MAY NEED TESTING — transitive         | Test if critical path |
 
 ## Resources
 
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/fix-lang/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/fix-lang/clusters` | All functional areas |
-| `gitnexus://repo/fix-lang/processes` | All execution flows |
-| `gitnexus://repo/fix-lang/process/{name}` | Step-by-step execution trace |
+| Resource                                  | Use for                                  |
+| ----------------------------------------- | ---------------------------------------- |
+| `gitnexus://repo/fix-lang/context`        | Codebase overview, check index freshness |
+| `gitnexus://repo/fix-lang/clusters`       | All functional areas                     |
+| `gitnexus://repo/fix-lang/processes`      | All execution flows                      |
+| `gitnexus://repo/fix-lang/process/{name}` | Step-by-step execution trace             |
 
 ## Self-Check Before Finishing
 
 Before completing any code modification task, verify:
+
 1. `gitnexus_impact` was run for all modified symbols
 2. No HIGH/CRITICAL risk warnings were ignored
 3. `gitnexus_detect_changes()` confirms changes match expected scope
@@ -89,13 +91,91 @@ To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.
 
 ## CLI
 
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+| Task                                         | Read this skill file                                        |
+| -------------------------------------------- | ----------------------------------------------------------- |
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md`       |
+| Blast radius / "What breaks if I change X?"  | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?"             | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md`       |
+| Rename / extract / split / refactor          | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md`     |
+| Tools, resources, schema reference           | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md`           |
+| Index, status, clean, wiki CLI commands      | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md`             |
 
 <!-- gitnexus:end -->
+
+# Linear workflow reference
+
+Use Linear MCP for issue tracking in this project.
+
+## Workspace objects
+
+- Team name: `Anhdd-kuro`
+- Team ID: `a62ae0cf-9767-4e41-a1b4-b688561ae14f`
+- Team key: `ANH`
+- Project name: `Fix lang`
+- Project ID: `25977001-3183-4366-811a-0b42f32baabd`
+
+## Suggested flow
+
+1. Create or find the issue in team `Anhdd-kuro` under project `Fix lang`.
+2. Move the issue to `In Progress` when work starts.
+3. Complete the code change and verification.
+4. Commit and push only when the user explicitly asks.
+5. Move the issue to `Done` after the requested work is finished.
+
+## Useful issue states
+
+- `Backlog`
+- `Todo`
+- `In Progress`
+- `In Review`
+- `Done`
+- `Canceled`
+- `Duplicate`
+
+# Project Notes
+
+## Correction Presets
+
+- Correction settings are now preset-based, not a single config object.
+- Store shape: `settingsCorrect = { presets: CorrectionPreset[], selectedPresetId: string }`.
+- Built-in presets:
+  - `Correction` -> `Ctrl+Shift+F`
+  - `Summarize` -> `Ctrl+Shift+S`
+  - `Prompt optimization` -> `Ctrl+Shift+D`
+- Correction preset hotkeys are configured in the `Correction` settings screen, not the generic `Key Bindings` screen.
+- Static app shortcuts still live in `keybindingStore` and the `Key Bindings` screen:
+  - `translate`
+  - `promptGen`
+  - `profileSwitch`
+
+## Hotkey Behavior
+
+- Correction preset hotkeys must be reloaded after:
+  - saving correction preset settings
+  - profile switching
+- Correction preset hotkeys must be validated against both:
+  - other correction presets
+  - static app hotkeys in `keybindingStore`
+
+## Prompt Optimization Preset
+
+- The prompt-optimization preset uses bundled Prompt Master content from repo files, not `~/.agents/...` at runtime.
+- Bundled prompt assets:
+  - `src/prompts/prompt-master-skill.md`
+  - `src/prompts/prompt-master-templates.md`
+  - `src/prompts/prompt-master-patterns.md`
+  - `src/prompts/strategic-compact-skill.md`
+- `src/prompts/correction.ts` concatenates those files into `DEFAULT_PROMPT_OPTIMIZATION_PROMPT` using `?raw` imports.
+- `src/prompts/correction.ts` also exposes `DEFAULT_SUMMARIZE_PRESET_PROMPT` from bundled Strategic Compact content.
+- The runtime request path in `src/main/ai.request/correction.ts` also passes the selected model ID into the one-shot optimization prompt so Prompt Master can route guidance per model family.
+
+## Summarize Merge
+
+- Summarize is no longer a standalone settings tab or static global shortcut.
+- The old summarize path was replaced by the built-in `Summarize` preset inside the Correction preset system.
+- Summarize results are still written to the `summarize` history bucket for continuity.
+
+## Packaging
+
+- Rebuild and install locally with `pnpm pack:install`.
+- The installed app path is `/Applications/FixLang.app`.

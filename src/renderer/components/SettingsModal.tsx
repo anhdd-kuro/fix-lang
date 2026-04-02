@@ -6,7 +6,6 @@ import { SettingGeneral } from "./SettingGeneral";
 import { SettingGlobalPrompt } from "./SettingGlobalPrompt";
 import { SettingKeyBinding } from "./SettingKeyBinding";
 import { SettingPromptGen } from "./SettingPromptGen";
-import { SettingSummarize } from "./SettingSummarize";
 import { SettingTranslate } from "./SettingTranslate";
 
 // Define the tab configuration type
@@ -117,12 +116,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       component: <SettingCorrection />,
     },
     {
-      id: "summarize",
-      label: "Summarize",
-      icon: <></>,
-      component: <SettingSummarize />,
-    },
-    {
       id: "translate",
       label: "Translate",
       icon: <></>,
@@ -182,7 +175,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 "tab transition-all duration-200 rounded-md font-medium text-sm flex items-center justify-center gap-1 py-1 min-w-min",
                 isActive
                   ? "bg-blue-600 text-white shadow-md"
-                  : "text-gray-300 hover:bg-gray-600 hover:text-gray-100"
+                  : "text-gray-300 hover:bg-gray-600 hover:text-gray-100",
               );
 
               return (
@@ -221,7 +214,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 >
                   {tab.component}
                 </div>
-              )
+              ),
           )}
         </div>
       </div>

@@ -4,6 +4,7 @@
  */
 
 import { globalShortcut, Notification } from "electron";
+import { getMainWindow } from "~/main/webViewWindows/mainWindow";
 import { switchToNextProfile } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { checkShortcut } from "./utils";
@@ -22,11 +23,17 @@ export const registerProfileSwitchShortcut = (): void => {
 
   const ret = globalShortcut.register(accelerator, async () => {
     console.log("Profile switch shortcut triggered");
-    
+
     try {
       const nextProfile = switchToNextProfile();
-      
+
       if (nextProfile) {
+        globalShortcut.unregisterAll();
+        const mainWindow = getMainWindow();
+        if (mainWindow) {
+          const { registerHotkeys } = await import("./index");
+          registerHotkeys(mainWindow);
+        }
         new Notification({
           title: "Profile Switched",
           body: `Switched to profile: ${nextProfile.name}`,

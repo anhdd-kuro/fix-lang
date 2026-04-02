@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from "react";
 import type { KeyBindings } from "~/stores/apiStore";
 
+type VisibleKeyBinding = Exclude<keyof KeyBindings, "correction">;
+
+const DISPLAYED_KEY_BINDINGS: VisibleKeyBinding[] = [
+  "translate",
+  "promptGen",
+  "profileSwitch",
+];
+
 export const SettingKeyBinding: React.FC = () => {
   const [keyBindings, setKeyBindings] = useState<KeyBindings | null>(null);
   const [keyBindingsStatus, setKeyBindingsStatus] = useState<string>("");
-  const [errors, setErrors] = useState<Record<keyof KeyBindings, string>>({
-    correction: "",
+  const [errors, setErrors] = useState<Record<VisibleKeyBinding, string>>({
     translate: "",
-    summarize: "",
     promptGen: "",
     profileSwitch: "",
   });
@@ -39,7 +45,7 @@ export const SettingKeyBinding: React.FC = () => {
   // Handle capturing hotkey input
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
-    cmd: keyof KeyBindings,
+    cmd: VisibleKeyBinding,
   ) => {
     e.preventDefault();
     const parts: string[] = [];
@@ -57,9 +63,9 @@ export const SettingKeyBinding: React.FC = () => {
     ) {
       errorMsg = "Include a non-modifier key";
     } else {
-      const duplicate = (
-        Object.keys(keyBindings || {}) as (keyof KeyBindings)[]
-      ).find((k) => k !== cmd && keyBindings && keyBindings[k] === newCombo);
+      const duplicate = (DISPLAYED_KEY_BINDINGS as VisibleKeyBinding[]).find(
+        (k) => k !== cmd && keyBindings && keyBindings[k] === newCombo,
+      );
       if (duplicate) errorMsg = `Duplicate with ${duplicate}`;
     }
     setErrors((prev) => ({ ...prev, [cmd]: errorMsg }));
@@ -71,7 +77,7 @@ export const SettingKeyBinding: React.FC = () => {
   const handleApply = async () => {
     // Validate
     const firstError = (
-      Object.entries(errors) as [keyof KeyBindings, string][]
+      Object.entries(errors) as [VisibleKeyBinding, string][]
     ).find(([_, msg]) => msg);
     if (firstError) {
       setKeyBindingsStatus(`Error: ${firstError[1]}`);
@@ -103,9 +109,7 @@ export const SettingKeyBinding: React.FC = () => {
       const defaults = await window.electronAPI.resetKeyBindings();
       setKeyBindings(defaults);
       setErrors({
-        correction: "",
         translate: "",
-        summarize: "",
         promptGen: "",
         profileSwitch: "",
       });
@@ -121,15 +125,7 @@ export const SettingKeyBinding: React.FC = () => {
     <section className="flex flex-col gap-6">
       <ul className="flex flex-col gap-6">
         {keyBindings &&
-          (
-            [
-              "correction",
-              "translate",
-              "summarize",
-              "promptGen",
-              "profileSwitch",
-            ] as (keyof KeyBindings)[]
-          ).map((cmd) => (
+          DISPLAYED_KEY_BINDINGS.map((cmd) => (
             <li key={cmd} className="flex items-center gap-6">
               <label
                 htmlFor={`hotkey-${cmd}`}

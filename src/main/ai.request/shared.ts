@@ -159,7 +159,9 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
   // Apply global settings to the system prompt (if not using custom messages)
   const finalSystemPrompt = options.messages
     ? ""
-    : applyGlobalSettings(options.systemPrompt);
+    : options.skipGlobalSettings
+      ? options.systemPrompt
+      : applyGlobalSettings(options.systemPrompt);
 
   // Determine which model to use
   const modelId =
@@ -440,6 +442,8 @@ export type AIRequestOptions = {
   messages?: CoreMessage[];
   /** Stop sequences */
   stop?: string[] | null;
+  /** Skip global prompt overrides for this request */
+  skipGlobalSettings?: boolean;
 };
 
 /**

@@ -3,6 +3,7 @@
  * @description IPC handlers for profile management
  */
 import { ipcMain, Notification } from "electron";
+import { reloadHotkeys } from "~/main/keybindings";
 import {
   getProfiles,
   getCurrentProfileId,
@@ -65,15 +66,18 @@ export const registerProfileHandlers = () => {
   // Create profile from current settings
   ipcMain.handle(
     "create-profile",
-    async (_event, { name, description }: { name: string; description?: string }) => {
+    async (
+      _event,
+      { name, description }: { name: string; description?: string },
+    ) => {
       try {
         const profile = createProfile(name, description);
-        
+
         new Notification({
           title: "Profile Created",
           body: `Profile "${name}" has been created and activated.`,
         }).show();
-        
+
         return {
           success: true,
           profile,
@@ -85,7 +89,7 @@ export const registerProfileHandlers = () => {
           error: error instanceof Error ? error.message : "Unknown error",
         };
       }
-    }
+    },
   );
 
   // Apply profile
@@ -94,16 +98,17 @@ export const registerProfileHandlers = () => {
     async (_event, { profileId }: { profileId: string }) => {
       try {
         const result = applyProfile(profileId);
-        
+
         if (result.success) {
+          reloadHotkeys();
           const profile = getProfileById(profileId);
-          
+
           new Notification({
             title: "Profile Applied",
             body: `Profile "${profile?.name}" has been activated.`,
           }).show();
         }
-        
+
         return result;
       } catch (error) {
         console.error("Failed to apply profile:", error);
@@ -112,7 +117,7 @@ export const registerProfileHandlers = () => {
           error: error instanceof Error ? error.message : "Unknown error",
         };
       }
-    }
+    },
   );
 
   // Update profile
@@ -124,23 +129,23 @@ export const registerProfileHandlers = () => {
         profileId,
         name,
         description,
-      }: { profileId: string; name?: string; description?: string }
+      }: { profileId: string; name?: string; description?: string },
     ) => {
       try {
         const updatedProfile = updateProfile(profileId, name, description);
-        
+
         if (updatedProfile) {
           new Notification({
             title: "Profile Updated",
             body: `Profile "${updatedProfile.name}" has been updated.`,
           }).show();
-          
+
           return {
             success: true,
             profile: updatedProfile,
           };
         }
-        
+
         return {
           success: false,
           error: "Profile not found",
@@ -152,7 +157,7 @@ export const registerProfileHandlers = () => {
           error: error instanceof Error ? error.message : "Unknown error",
         };
       }
-    }
+    },
   );
 
   // Delete profile
@@ -162,14 +167,14 @@ export const registerProfileHandlers = () => {
       try {
         const profile = getProfileById(profileId);
         const success = deleteProfile(profileId);
-        
+
         if (success && profile) {
           new Notification({
             title: "Profile Deleted",
             body: `Profile "${profile.name}" has been deleted.`,
           }).show();
         }
-        
+
         return {
           success,
         };
@@ -180,26 +185,27 @@ export const registerProfileHandlers = () => {
           error: error instanceof Error ? error.message : "Unknown error",
         };
       }
-    }
+    },
   );
 
   // Switch to next profile
   ipcMain.handle("switch-to-next-profile", async () => {
     try {
       const nextProfile = switchToNextProfile();
-      
+
       if (nextProfile) {
+        reloadHotkeys();
         new Notification({
           title: "Profile Switched",
           body: `Profile "${nextProfile.name}" has been activated.`,
         }).show();
-        
+
         return {
           success: true,
           profile: nextProfile,
         };
       }
-      
+
       return {
         success: false,
         error: "No profiles available",
@@ -220,7 +226,7 @@ export const registerProfileHandlers = () => {
       try {
         // Parse the JSON profile
         const profileData = JSON.parse(profileJson) as Profile;
-        
+
         // Validate that it has the required structure
         if (!profileData.id || !profileData.name || !profileData.settings) {
           return {
@@ -228,16 +234,16 @@ export const registerProfileHandlers = () => {
             error: "Invalid profile format",
           };
         }
-        
+
         // Add the profile to the store
         const profiles = getProfiles();
-        
+
         // Check if profile with same ID already exists
         if (profiles.some((p) => p.id === profileData.id)) {
           // Generate a new ID for this profile
           profileData.id = crypto.randomUUID();
         }
-        
+
         // Ensure timestamps exist
         if (!profileData.createdAt) {
           profileData.createdAt = new Date().toISOString();
@@ -245,19 +251,19 @@ export const registerProfileHandlers = () => {
         if (!profileData.updatedAt) {
           profileData.updatedAt = new Date().toISOString();
         }
-        
+
         // Add to profiles and save
         profiles.push(profileData);
-        
+
         // Save updated profiles
         const apiStore = (await import("~/stores/apiStore")).apiStore;
         apiStore.set("profiles", profiles);
-        
+
         new Notification({
           title: "Profile Imported",
           body: `Profile "${profileData.name}" has been imported.`,
         }).show();
-        
+
         return {
           success: true,
           profile: profileData,
@@ -266,10 +272,11 @@ export const registerProfileHandlers = () => {
         console.error("Failed to import profile:", error);
         return {
           success: false,
-          error: error instanceof Error ? error.message : "Failed to import profile",
+          error:
+            error instanceof Error ? error.message : "Failed to import profile",
         };
       }
-    }
+    },
   );
 
   // Export profile to JSON
@@ -278,14 +285,14 @@ export const registerProfileHandlers = () => {
     async (_event, { profileId }: { profileId: string }) => {
       try {
         const profile = getProfileById(profileId);
-        
+
         if (!profile) {
           return {
             success: false,
             error: "Profile not found",
           };
         }
-        
+
         return {
           success: true,
           profileJson: JSON.stringify(profile, null, 2),
@@ -297,7 +304,7 @@ export const registerProfileHandlers = () => {
           error: error instanceof Error ? error.message : "Unknown error",
         };
       }
-    }
+    },
   );
 
   // Notification for profile updates

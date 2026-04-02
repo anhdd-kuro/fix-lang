@@ -6,7 +6,6 @@ import {
   apiFeature,
   correctionFeature,
   translationFeature,
-  summarizationFeature,
   promptGenFeature,
   profilesFeature,
   settingsFeature,
@@ -20,7 +19,6 @@ import type {
   ProfilesFeature,
   PromptGenFeature,
   SettingsFeature,
-  SummarizationFeature,
   TranslationFeature,
   UIFeature,
 } from "./features";
@@ -34,7 +32,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...apiFeature,
   ...correctionFeature,
   ...translationFeature,
-  ...summarizationFeature,
   ...promptGenFeature,
   ...profilesFeature,
   ...settingsFeature,
@@ -42,11 +39,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
 } satisfies ElectronAPI);
 
 console.log(
-  "Preload script executed and electronAPI exposed with the following methods:"
+  "Preload script executed and electronAPI exposed with the following methods:",
 );
 
 export type ElectronAPI = HistoryFeature &
-  SummarizationFeature &
   PromptGenFeature &
   CorrectionFeature &
   TranslationFeature &

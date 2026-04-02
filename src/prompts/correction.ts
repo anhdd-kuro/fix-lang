@@ -1,3 +1,8 @@
+import promptMasterPatternsMarkdown from "./prompt-master-patterns.md?raw";
+import promptMasterSkillMarkdown from "./prompt-master-skill.md?raw";
+import promptMasterTemplatesMarkdown from "./prompt-master-templates.md?raw";
+import strategicCompactSkillMarkdown from "./strategic-compact-skill.md?raw";
+
 export const makeDefaultSystemPrompt = ({
   languages,
   input,
@@ -71,3 +76,22 @@ Requirements:
 Output:
 - Return only the paraphrased text.
 `;
+
+export const DEFAULT_CORRECTION_PRESET_ID = "correction";
+export const DEFAULT_SUMMARIZE_PRESET_ID = "summarize";
+export const DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID = "prompt-optimization";
+
+export const DEFAULT_SUMMARIZE_PRESET_PROMPT =
+  strategicCompactSkillMarkdown.trim();
+
+export const DEFAULT_PROMPT_OPTIMIZATION_PROMPT = [
+  promptMasterSkillMarkdown.trim(),
+  "",
+  "---",
+  "",
+  promptMasterTemplatesMarkdown.trim(),
+  "",
+  "---",
+  "",
+  promptMasterPatternsMarkdown.trim(),
+].join("\n");

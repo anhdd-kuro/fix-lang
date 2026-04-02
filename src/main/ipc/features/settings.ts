@@ -4,10 +4,9 @@
  */
 import { ipcMain, Notification } from "electron";
 import { DEFAULT_KEY_BINDINGS } from "~/const";
-import { registerHotkeys, unregisterHotkeys } from "~/main/keybindings";
+import { reloadHotkeys, unregisterHotkeys } from "~/main/keybindings";
 import { getProfileSetting, updateProfileSetting } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
-import { getMainWindow } from "../../webViewWindows/mainWindow";
 import type { KeyBindings } from "~/stores/apiStore";
 
 /**
@@ -25,7 +24,7 @@ export const registerSettingsHandlers = () => {
         // Using the same defaults as in const.ts (source of truth)
         return DEFAULT_KEY_BINDINGS;
       }
-    }
+    },
   );
 
   ipcMain.handle(
@@ -33,10 +32,7 @@ export const registerSettingsHandlers = () => {
     async (_event: Electron.IpcMainInvokeEvent, bindings: KeyBindings) => {
       try {
         keybindingStore.setKeyBindings(bindings);
-        // Re-register hotkeys with new bindings
-        unregisterHotkeys();
-        const mainWindow = getMainWindow();
-        if (mainWindow) registerHotkeys(mainWindow);
+        reloadHotkeys();
         return { success: true };
       } catch (error) {
         return {
@@ -44,7 +40,7 @@ export const registerSettingsHandlers = () => {
           error: error instanceof Error ? error.message : "Unknown error",
         };
       }
-    }
+    },
   );
 
   ipcMain.handle(
@@ -52,17 +48,14 @@ export const registerSettingsHandlers = () => {
     async (_event: Electron.IpcMainInvokeEvent) => {
       try {
         keybindingStore.resetKeyBindings();
-        // Re-register hotkeys with default bindings
-        unregisterHotkeys();
-        const mainWindow = getMainWindow();
-        if (mainWindow) registerHotkeys(mainWindow);
+        reloadHotkeys();
         return keybindingStore.getKeyBindings();
       } catch (error) {
         console.error("Failed to reset key bindings:", error);
         // Using the same defaults as in const.ts (source of truth)
         return DEFAULT_KEY_BINDINGS;
       }
-    }
+    },
   );
 
   // Hotkey pause/resume
@@ -72,17 +65,16 @@ export const registerSettingsHandlers = () => {
       console.log("Pausing global hotkeys during edit");
       unregisterHotkeys();
       return; // Explicit return to fix lint issue
-    }
+    },
   );
 
   ipcMain.handle(
     "resume-hotkeys",
     async (_event: Electron.IpcMainInvokeEvent) => {
       console.log("Resuming global hotkeys after edit");
-      const mainWindow = getMainWindow();
-      if (mainWindow) registerHotkeys(mainWindow);
+      reloadHotkeys();
       return; // Explicit return to fix lint issue
-    }
+    },
   );
 
   // Prompt settings handlers
@@ -117,7 +109,7 @@ export const registerSettingsHandlers = () => {
           tone: "",
         };
       }
-    }
+    },
   );
 
   ipcMain.handle(
@@ -131,7 +123,7 @@ export const registerSettingsHandlers = () => {
         temperature: number;
         top_p: number;
         maxTokens: number;
-      }
+      },
     ) => {
       try {
         const {
@@ -152,7 +144,7 @@ export const registerSettingsHandlers = () => {
           top_p,
           maxTokens,
         });
-        
+
         return result;
       } catch (error) {
         return {
@@ -160,7 +152,7 @@ export const registerSettingsHandlers = () => {
           error: error instanceof Error ? error.message : "Unknown error",
         };
       }
-    }
+    },
   );
 
   // Settings notifications
