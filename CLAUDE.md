@@ -1,3 +1,9 @@
+# FixLang — Claude Context
+
+FixLang is a macOS app that uses OpenAI to fix grammar and improve writing style via text selection corrections. Built with Electron, React, TypeScript, and Vite.
+
+---
+
 <!-- gitnexus:start -->
 
 # GitNexus — Code Intelligence
@@ -102,44 +108,186 @@ To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.
 
 <!-- gitnexus:end -->
 
-# Project Notes
+---
 
-## Correction Presets
+## Commands
 
-- Correction settings are preset-based: `settingsCorrect = { presets, selectedPresetId }`.
-- Built-in presets:
-  - `Correction` -> `Ctrl+Shift+F`
-  - `Summarize` -> `Ctrl+Shift+S`
-  - `Prompt optimization` -> `Ctrl+Shift+D`
-- Correction preset hotkeys belong to the `Correction` settings UI, not the generic `Key Bindings` UI.
-- The generic `Key Bindings` UI still manages only static app shortcuts.
+```bash
+pnpm dev                    # Start dev server with hot reload (electron-vite)
+pnpm build                  # Build for production (electron-vite)
+pnpm pack:mac               # Build and package macOS app (dmg, zip) → release/
+pnpm pack:install           # Build, package, and install to /Applications/FixLang.app
+pnpm start                  # Preview production build with electron
+pnpm test                   # Run vitest suite once (no watch)
+pnpm test:w                 # Run vitest in watch mode
+pnpm lint                   # Run ESLint with cache
+pnpm vitest                 # Vitest CLI (can add flags like --coverage)
+```
 
-## Hotkey Rules
+## Project Structure
 
-- Any change to correction presets that affects hotkeys must reload global shortcuts immediately.
-- Profile switching must also reload global shortcuts so preset-specific correction bindings stay in sync.
-- Correction preset hotkeys must not conflict with:
-  - other correction presets
-  - `translate`, `promptGen`, or `profileSwitch`
+```
+src/
+  main/                     # Electron main process (IPC handlers, window lifecycle)
+    ai.request/             # AI service integration (OpenAI, OpenRouter, Ollama)
+    settings/               # Settings persistence (electron-store)
+    window/                 # Window management (menu, shortcuts, lifecycle)
+    index.ts                # Main entry point, window creation
+  renderer/                 # React UI (correction UI, settings screens)
+    components/             # Reusable components (SettingsForm, ProfileSelector)
+    screens/                # Page-level components (CorrectionScreen, SettingsUI)
+    hooks/                  # Custom React hooks for state, API calls
+    index.tsx               # React root
+  preload/                  # Preload script (IPC bridge for renderer ↔ main)
+    index.ts                # Exposes safe IPC APIs to renderer
+  stores/                   # Zustand state management (correction history, UI state)
+  prompts/                  # Bundled prompt assets for AI requests
+    correction.ts           # Prompt composition (Prompt Master, Strategic Compact)
+    prompt-master-*.md      # Bundled Prompt Master skill content
+    strategic-compact-*.md  # Bundled Strategic Compact skill content
+  utils.ts                  # Shared utilities (validation, formatting, helpers)
+  const.ts                  # Constants (window dimensions, config defaults)
+  workflow/                 # Workflow execution layer (not active in current flow)
 
-## Prompt Optimization Bundling
+vitest.config.ts            # Vitest configuration with coverage
+tsconfig.json               # TypeScript strict mode (target: es2020, jsx: react)
+electron.vite.config.ts     # Electron-vite config (main + renderer build)
+eslint.config.js            # ESLint rules (prettier, tailwindcss, import)
+package.json                # Dependencies: React 19, Electron 41, Vite 7, TypeScript 5.8
+pnpm-lock.yaml              # Locked dependency versions
+```
 
-- Prompt Master is bundled into the app from repo-local files:
-  - `src/prompts/prompt-master-skill.md`
-  - `src/prompts/prompt-master-templates.md`
-  - `src/prompts/prompt-master-patterns.md`
-- Strategic Compact is also bundled for the built-in summarize preset:
-  - `src/prompts/strategic-compact-skill.md`
-- `DEFAULT_PROMPT_OPTIMIZATION_PROMPT` in `src/prompts/correction.ts` is composed from those raw markdown files.
-- `DEFAULT_SUMMARIZE_PRESET_PROMPT` in `src/prompts/correction.ts` is composed from the bundled Strategic Compact skill markdown.
-- The runtime prompt framing in `src/main/ai.request/correction.ts` passes the selected model ID so Prompt Master can optimize for the right model family instead of assuming ChatGPT.
+## Tech Stack
 
-## Summarize Replacement
+- **Runtime**: Electron 41.1, Node.js/Bun
+- **Frontend**: React 19.2.4, TypeScript 5.8
+- **Styling**: Tailwind CSS 4.2, react-select for dropdowns
+- **Build**: Electron-vite 5.0, Vite 7.3
+- **Testing**: Vitest 3.2.4, JSDOM, Coverage (v8)
+- **AI Integration**: OpenAI SDK 6.33, OpenRouter provider, Ollama SDK
+- **State**: Zustand (client-side), electron-store (persistent)
+- **Linting**: ESLint 9.39, Prettier 3.8
+- **macOS Integration**: applescript, clipboardy, node-mac-permissions
 
-- The standalone summarize settings tab and standalone summarize hotkey path were removed from the active app flow.
-- Summarize now runs through the preset-based correction system as a built-in preset.
+## Code Style
 
-## Packaging
+```typescript
+// ✅ DO: Named exports, explicit return types, const for functions
+export const formatPrompt = (text: string): string => {
+  return text.trim();
+};
 
-- Local packaging/install command: `pnpm pack:install`
-- Installed app target: `/Applications/FixLang.app`
+// ❌ DON'T: Default exports, implicit `any` types
+export default function (text) {
+  return text.trim();
+}
+```
+
+**Type Safety:**
+
+- `strict: true` in tsconfig.json — no implicit `any`
+- Always type function parameters and return values
+- Use `unknown` + type guard instead of `any` (with comment explaining why)
+
+**Naming Conventions:**
+
+- PascalCase: Components, types, classes
+- camelCase: functions, variables, imports
+- SCREAMING_SNAKE_CASE: constants (e.g., `DEFAULT_PROMPT_OPTIMIZATION_PROMPT`)
+- Prefixes for booleans: `is`, `has`, `should`, `can`
+
+**React Components:**
+
+- Functional components only (no class components)
+- Props destructured inline: `({ prop1, prop2 }: Props)`
+- Hooks: use stable dependency arrays in useEffect, useCallback
+- Memoization: use React.memo only if prop comparison is expensive
+
+## Workflow
+
+**Branches:**
+
+- Main branch: `main` — always deployable
+- Feature work: `feature/description` or `fix/description`
+- Create branch from `main` and push to origin before opening PR
+
+**Commits:**
+
+- Conventional Commits format: `type(scope): message`
+  - `feat(correction): add summarize preset`
+  - `fix(hotkey): reload bindings after profile switch`
+  - `chore(deps): upgrade typescript to 5.8`
+  - `docs(claude): update context file`
+
+**PRs & Merging:**
+
+- Always squash merge to keep main history clean
+- CI must pass before merge (linting, tests, type check)
+- Link Linear issues in PR body: `Closes ANH-123`
+
+## Boundaries
+
+✅ **Always:**
+
+- Run `gitnexus_impact` before modifying any exported function or class
+- Run `gitnexus_detect_changes()` before committing
+- Test UI changes in dev mode (`pnpm dev`) before packaging
+- Check CI logs if build fails unexpectedly
+- Keep corrections bundled locally (no external network fetches for prompts)
+
+⚠️ **Ask first:**
+
+- Adding new npm dependencies (may bloat bundle)
+- Modifying electron main process (affects app lifecycle)
+- Changing AI provider integration (affects user configuration)
+- Modifying prompt bundling workflow (affects build time)
+
+🚫 **Never:**
+
+- Commit secrets, API keys, or `.env` file contents
+- Commit `node_modules`, `out/`, `release/`, or `.DS_Store`
+- Use `any` types without a comment explaining unavoidable reason
+- Modify Electron version without testing app packaging
+- Add synchronous I/O calls in main process (use async/await)
+- Bypass IPC security — always validate messages in preload
+- Change hotkey system without updating CLAUDE.md hotkey rules
+
+## Known Gotchas
+
+### Correction Preset Hotkey Reload
+
+When a user:
+
+1. Saves correction preset settings
+2. Switches profiles
+
+The app **must reload hotkeys immediately** to reflect preset changes. Stale hotkey bindings will cause corrections to fail silently.
+
+### Prompt Bundling vs. Runtime Discovery
+
+Prompt Master and Strategic Compact are **bundled into the app at build time** (not loaded from `~/.agents/skills/`). If you update bundled prompt files:
+
+1. Update `src/prompts/prompt-master-*.md` or `src/prompts/strategic-compact-*.md`
+2. Rebuild app: `pnpm pack:mac`
+3. Reinstall: `pnpm pack:install`
+
+Runtime changes to `~/.agents/...` files will **NOT** affect the app.
+
+### Preset Hotkey Conflict Validation
+
+Correction preset hotkeys must avoid conflicts with:
+
+- Other correction presets
+- Static app hotkeys: `translate`, `promptGen`, `profileSwitch`
+
+Validation must happen **before saving** in the Correction settings UI.
+
+### Profile Switching and State Sync
+
+Profile switching triggers:
+
+- Hotkey reload (for preset-specific bindings)
+- Settings UI refresh
+- History clear or reload (depending on per-profile history setting)
+
+All three must complete atomically, or users see stale state.

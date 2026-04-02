@@ -1,3 +1,9 @@
+# FixLang — Claude Context
+
+FixLang is a macOS app that uses OpenAI to fix grammar and improve writing style via text selection corrections. Built with Electron, React, TypeScript, and Vite.
+
+---
+
 <!-- gitnexus:start -->
 
 # GitNexus — Code Intelligence
@@ -102,80 +108,186 @@ To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.
 
 <!-- gitnexus:end -->
 
-# Linear workflow reference
+---
 
-Use Linear MCP for issue tracking in this project.
+## Commands
 
-## Workspace objects
+```bash
+pnpm dev                    # Start dev server with hot reload (electron-vite)
+pnpm build                  # Build for production (electron-vite)
+pnpm pack:mac               # Build and package macOS app (dmg, zip) → release/
+pnpm pack:install           # Build, package, and install to /Applications/FixLang.app
+pnpm start                  # Preview production build with electron
+pnpm test                   # Run vitest suite once (no watch)
+pnpm test:w                 # Run vitest in watch mode
+pnpm lint                   # Run ESLint with cache
+pnpm vitest                 # Vitest CLI (can add flags like --coverage)
+```
 
-- Team name: `Anhdd-kuro`
-- Team ID: `a62ae0cf-9767-4e41-a1b4-b688561ae14f`
-- Team key: `ANH`
-- Project name: `Fix lang`
-- Project ID: `25977001-3183-4366-811a-0b42f32baabd`
+## Project Structure
 
-## Suggested flow
+```
+src/
+  main/                     # Electron main process (IPC handlers, window lifecycle)
+    ai.request/             # AI service integration (OpenAI, OpenRouter, Ollama)
+    settings/               # Settings persistence (electron-store)
+    window/                 # Window management (menu, shortcuts, lifecycle)
+    index.ts                # Main entry point, window creation
+  renderer/                 # React UI (correction UI, settings screens)
+    components/             # Reusable components (SettingsForm, ProfileSelector)
+    screens/                # Page-level components (CorrectionScreen, SettingsUI)
+    hooks/                  # Custom React hooks for state, API calls
+    index.tsx               # React root
+  preload/                  # Preload script (IPC bridge for renderer ↔ main)
+    index.ts                # Exposes safe IPC APIs to renderer
+  stores/                   # Zustand state management (correction history, UI state)
+  prompts/                  # Bundled prompt assets for AI requests
+    correction.ts           # Prompt composition (Prompt Master, Strategic Compact)
+    prompt-master-*.md      # Bundled Prompt Master skill content
+    strategic-compact-*.md  # Bundled Strategic Compact skill content
+  utils.ts                  # Shared utilities (validation, formatting, helpers)
+  const.ts                  # Constants (window dimensions, config defaults)
+  workflow/                 # Workflow execution layer (not active in current flow)
 
-1. Create or find the issue in team `Anhdd-kuro` under project `Fix lang`.
-2. Move the issue to `In Progress` when work starts.
-3. Complete the code change and verification.
-4. Commit and push only when the user explicitly asks.
-5. Move the issue to `Done` after the requested work is finished.
+vitest.config.ts            # Vitest configuration with coverage
+tsconfig.json               # TypeScript strict mode (target: es2020, jsx: react)
+electron.vite.config.ts     # Electron-vite config (main + renderer build)
+eslint.config.js            # ESLint rules (prettier, tailwindcss, import)
+package.json                # Dependencies: React 19, Electron 41, Vite 7, TypeScript 5.8
+pnpm-lock.yaml              # Locked dependency versions
+```
 
-## Useful issue states
+## Tech Stack
 
-- `Backlog`
-- `Todo`
-- `In Progress`
-- `In Review`
-- `Done`
-- `Canceled`
-- `Duplicate`
+- **Runtime**: Electron 41.1, Node.js/Bun
+- **Frontend**: React 19.2.4, TypeScript 5.8
+- **Styling**: Tailwind CSS 4.2, react-select for dropdowns
+- **Build**: Electron-vite 5.0, Vite 7.3
+- **Testing**: Vitest 3.2.4, JSDOM, Coverage (v8)
+- **AI Integration**: OpenAI SDK 6.33, OpenRouter provider, Ollama SDK
+- **State**: Zustand (client-side), electron-store (persistent)
+- **Linting**: ESLint 9.39, Prettier 3.8
+- **macOS Integration**: applescript, clipboardy, node-mac-permissions
 
-# Project Notes
+## Code Style
 
-## Correction Presets
+```typescript
+// ✅ DO: Named exports, explicit return types, const for functions
+export const formatPrompt = (text: string): string => {
+  return text.trim();
+};
 
-- Correction settings are now preset-based, not a single config object.
-- Store shape: `settingsCorrect = { presets: CorrectionPreset[], selectedPresetId: string }`.
-- Built-in presets:
-  - `Correction` -> `Ctrl+Shift+F`
-  - `Summarize` -> `Ctrl+Shift+S`
-  - `Prompt optimization` -> `Ctrl+Shift+D`
-- Correction preset hotkeys are configured in the `Correction` settings screen, not the generic `Key Bindings` screen.
-- Static app shortcuts still live in `keybindingStore` and the `Key Bindings` screen:
-  - `translate`
-  - `promptGen`
-  - `profileSwitch`
+// ❌ DON'T: Default exports, implicit `any` types
+export default function (text) {
+  return text.trim();
+}
+```
 
-## Hotkey Behavior
+**Type Safety:**
 
-- Correction preset hotkeys must be reloaded after:
-  - saving correction preset settings
-  - profile switching
-- Correction preset hotkeys must be validated against both:
-  - other correction presets
-  - static app hotkeys in `keybindingStore`
+- `strict: true` in tsconfig.json — no implicit `any`
+- Always type function parameters and return values
+- Use `unknown` + type guard instead of `any` (with comment explaining why)
 
-## Prompt Optimization Preset
+**Naming Conventions:**
 
-- The prompt-optimization preset uses bundled Prompt Master content from repo files, not `~/.agents/...` at runtime.
-- Bundled prompt assets:
-  - `src/prompts/prompt-master-skill.md`
-  - `src/prompts/prompt-master-templates.md`
-  - `src/prompts/prompt-master-patterns.md`
-  - `src/prompts/strategic-compact-skill.md`
-- `src/prompts/correction.ts` concatenates those files into `DEFAULT_PROMPT_OPTIMIZATION_PROMPT` using `?raw` imports.
-- `src/prompts/correction.ts` also exposes `DEFAULT_SUMMARIZE_PRESET_PROMPT` from bundled Strategic Compact content.
-- The runtime request path in `src/main/ai.request/correction.ts` also passes the selected model ID into the one-shot optimization prompt so Prompt Master can route guidance per model family.
+- PascalCase: Components, types, classes
+- camelCase: functions, variables, imports
+- SCREAMING_SNAKE_CASE: constants (e.g., `DEFAULT_PROMPT_OPTIMIZATION_PROMPT`)
+- Prefixes for booleans: `is`, `has`, `should`, `can`
 
-## Summarize Merge
+**React Components:**
 
-- Summarize is no longer a standalone settings tab or static global shortcut.
-- The old summarize path was replaced by the built-in `Summarize` preset inside the Correction preset system.
-- Summarize results are still written to the `summarize` history bucket for continuity.
+- Functional components only (no class components)
+- Props destructured inline: `({ prop1, prop2 }: Props)`
+- Hooks: use stable dependency arrays in useEffect, useCallback
+- Memoization: use React.memo only if prop comparison is expensive
 
-## Packaging
+## Workflow
 
-- Rebuild and install locally with `pnpm pack:install`.
-- The installed app path is `/Applications/FixLang.app`.
+**Branches:**
+
+- Main branch: `main` — always deployable
+- Feature work: `feature/description` or `fix/description`
+- Create branch from `main` and push to origin before opening PR
+
+**Commits:**
+
+- Conventional Commits format: `type(scope): message`
+  - `feat(correction): add summarize preset`
+  - `fix(hotkey): reload bindings after profile switch`
+  - `chore(deps): upgrade typescript to 5.8`
+  - `docs(claude): update context file`
+
+**PRs & Merging:**
+
+- Always squash merge to keep main history clean
+- CI must pass before merge (linting, tests, type check)
+- Link Linear issues in PR body: `Closes ANH-123`
+
+## Boundaries
+
+✅ **Always:**
+
+- Run `gitnexus_impact` before modifying any exported function or class
+- Run `gitnexus_detect_changes()` before committing
+- Test UI changes in dev mode (`pnpm dev`) before packaging
+- Check CI logs if build fails unexpectedly
+- Keep corrections bundled locally (no external network fetches for prompts)
+
+⚠️ **Ask first:**
+
+- Adding new npm dependencies (may bloat bundle)
+- Modifying electron main process (affects app lifecycle)
+- Changing AI provider integration (affects user configuration)
+- Modifying prompt bundling workflow (affects build time)
+
+🚫 **Never:**
+
+- Commit secrets, API keys, or `.env` file contents
+- Commit `node_modules`, `out/`, `release/`, or `.DS_Store`
+- Use `any` types without a comment explaining unavoidable reason
+- Modify Electron version without testing app packaging
+- Add synchronous I/O calls in main process (use async/await)
+- Bypass IPC security — always validate messages in preload
+- Change hotkey system without updating CLAUDE.md hotkey rules
+
+## Known Gotchas
+
+### Correction Preset Hotkey Reload
+
+When a user:
+
+1. Saves correction preset settings
+2. Switches profiles
+
+The app **must reload hotkeys immediately** to reflect preset changes. Stale hotkey bindings will cause corrections to fail silently.
+
+### Prompt Bundling vs. Runtime Discovery
+
+Prompt Master and Strategic Compact are **bundled into the app at build time** (not loaded from `~/.agents/skills/`). If you update bundled prompt files:
+
+1. Update `src/prompts/prompt-master-*.md` or `src/prompts/strategic-compact-*.md`
+2. Rebuild app: `pnpm pack:mac`
+3. Reinstall: `pnpm pack:install`
+
+Runtime changes to `~/.agents/...` files will **NOT** affect the app.
+
+### Preset Hotkey Conflict Validation
+
+Correction preset hotkeys must avoid conflicts with:
+
+- Other correction presets
+- Static app hotkeys: `translate`, `promptGen`, `profileSwitch`
+
+Validation must happen **before saving** in the Correction settings UI.
+
+### Profile Switching and State Sync
+
+Profile switching triggers:
+
+- Hotkey reload (for preset-specific bindings)
+- Settings UI refresh
+- History clear or reload (depending on per-profile history setting)
+
+All three must complete atomically, or users see stale state.
