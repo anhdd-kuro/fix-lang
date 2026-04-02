@@ -15,6 +15,11 @@ import { makeTonePrompt } from "~/prompts/index";
 import { apiStore, getProfileSetting } from "~/stores/apiStore";
 import { StringPrettifier } from "~/utils";
 import { ollamaClient } from "../llm";
+import {
+  buildCachedMessages,
+  extractCacheUsage,
+  resolveCacheProvider,
+} from "./cache-strategy";
 import type { GlobalSettings, Model } from "~/stores/apiStore";
 
 type CoreMessage = {
@@ -343,7 +348,8 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
     );
 
     const openRouter = createOpenRouter({ apiKey: apiKey.trim() });
-    const modelOpenRouter = openRouter(options.model as string, {
+    const modelId = options.model as string;
+    const modelOpenRouter = openRouter(modelId, {
       extraBody: {
         temperature: options.temperature,
         top_p: options.top_p,
@@ -352,9 +358,21 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
         stop: options.stop,
       },
     });
+
+    // Apply provider-aware prompt caching to the system message when supported
+    const rawMessages = options.messages;
+    if (!rawMessages || rawMessages.length === 0) {
+      throw new Error("makeRemoteAIRequest requires non-empty messages.");
+    }
+    const cacheProvider = resolveCacheProvider(modelId);
+    const cachedMessages = buildCachedMessages(
+      rawMessages as { role: string; content: unknown }[],
+      cacheProvider,
+    );
+
     const genResponse = await generateText({
       model: modelOpenRouter,
-      messages: (options.messages || []) as never,
+      messages: cachedMessages as never,
     });
     console.log(
       `🚀 \n - makeRemoteAIRequest \n - genResponse:`,
@@ -369,6 +387,18 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
     };
     const promptTokens = normalizedUsage?.promptTokens ?? null;
     const completionTokens = normalizedUsage?.completionTokens ?? null;
+
+    // Extract cache-usage metadata from raw OpenRouter response body
+    const rawUsage =
+      resBody && typeof resBody === "object" && "usage" in resBody
+        ? (resBody as Record<string, unknown>)["usage"]
+        : undefined;
+    const { cachedTokens, cacheWriteTokens } = extractCacheUsage(rawUsage);
+    if (cachedTokens > 0 || cacheWriteTokens > 0) {
+      console.log(
+        `[cache] provider=${cacheProvider} read=${cachedTokens} write=${cacheWriteTokens}`,
+      );
+    }
 
     // Process the response content
     let processedContent: string[] = [text];
@@ -401,6 +431,8 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
       promptTokens,
       completionTokens,
       model: options.model as string,
+      cachedTokens,
+      cacheWriteTokens,
     };
   } catch (error) {
     console.error("makeRemoteAIRequest error:", error);
@@ -455,4 +487,8 @@ export type AIRequestResponse = {
   completionTokens: number | null;
   model: string;
   prompts?: string[];
+  /** Tokens served from prompt cache (Anthropic/Gemini) */
+  cachedTokens?: number;
+  /** Tokens written to prompt cache (Anthropic/Gemini) */
+  cacheWriteTokens?: number;
 };
