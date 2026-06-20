@@ -215,12 +215,12 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
   return (
     <div className={`flex flex-col ${className}`}>
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-medium text-white">Profiles</h3>
+        <h3 className="text-lg font-medium text-label-primary">Profiles</h3>
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => setIsCreateDialogOpen(true)}
-            className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700"
+            className="px-3 py-1.5 bg-accent text-label-primary text-sm font-medium rounded hover:bg-accent-hover"
             disabled={isLoading}
           >
             New Profile
@@ -228,7 +228,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
           <button
             type="button"
             onClick={() => setIsImportDialogOpen(true)}
-            className="px-3 py-1.5 bg-gray-600 text-white text-sm font-medium rounded hover:bg-gray-700"
+            className="px-3 py-1.5 bg-control text-label-primary text-sm font-medium rounded hover:bg-control"
             disabled={isLoading}
           >
             Import
@@ -244,12 +244,12 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
 
       {isLoading ? (
         <div className="flex justify-center items-center h-24">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-accent"></div>
         </div>
       ) : (
         <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
           {profiles.length === 0 ? (
-            <div className="text-gray-400 text-center py-8">
+            <div className="text-label-secondary text-center py-8">
               No profiles found. Create a new profile to get started.
             </div>
           ) : (
@@ -258,19 +258,19 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
                 key={profile.id}
                 className={`border rounded p-3 ${
                   profile.id === currentProfileId
-                    ? "border-blue-500 bg-blue-900/20"
-                    : "border-gray-700 bg-gray-800"
+                    ? "border-accent bg-accent/10"
+                    : "border-separator/60 bg-control"
                 }`}
               >
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <h4 className="font-medium text-white">{profile.name}</h4>
+                    <h4 className="font-medium text-label-primary">{profile.name}</h4>
                     {profile.description && (
-                      <p className="text-sm text-gray-400 mt-1">
+                      <p className="text-sm text-label-secondary mt-1">
                         {profile.description}
                       </p>
                     )}
-                    <div className="text-xs text-gray-500 mt-1">
+                    <div className="text-xs text-label-secondary mt-1">
                       Updated: {new Date(profile.updatedAt).toLocaleString()}
                     </div>
                   </div>
@@ -279,7 +279,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
                       <button
                         type="button"
                         onClick={() => handleApplyProfile(profile.id)}
-                        className="px-2.5 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700"
+                        className="px-2.5 py-1 bg-accent text-label-primary text-xs font-medium rounded hover:bg-accent-hover"
                       >
                         Apply
                       </button>
@@ -287,7 +287,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
                     <button
                       type="button"
                       onClick={() => handleExportProfile(profile.id)}
-                      className="px-2.5 py-1 bg-gray-600 text-white text-xs font-medium rounded hover:bg-gray-700"
+                      className="px-2.5 py-1 bg-control text-label-primary text-xs font-medium rounded hover:bg-control"
                     >
                       Export
                     </button>
@@ -295,7 +295,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
                       <button
                         type="button"
                         onClick={() => handleDeleteProfile(profile.id)}
-                        className="px-2.5 py-1 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700"
+                        className="px-2.5 py-1 bg-red-600 text-label-primary text-xs font-medium rounded hover:bg-red-700"
                       >
                         Delete
                       </button>
@@ -318,7 +318,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
           <div>
             <label
               htmlFor="profileName"
-              className="block text-sm font-medium text-gray-300 mb-1"
+              className="block text-sm font-medium text-label-primary mb-1"
             >
               Profile Name *
             </label>
@@ -328,7 +328,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
               value={newProfileName}
               onChange={(e) => setNewProfileName(e.target.value)}
               placeholder="My Profile"
-              className="w-full px-3 py-2 text-white bg-gray-800 rounded border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 text-label-primary bg-control rounded border border-separator/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus:border-transparent"
               required
             />
           </div>
@@ -336,7 +336,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
           <div>
             <label
               htmlFor="profileDescription"
-              className="block text-sm font-medium text-gray-300 mb-1"
+              className="block text-sm font-medium text-label-primary mb-1"
             >
               Description (Optional)
             </label>
@@ -345,7 +345,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
               value={newProfileDescription}
               onChange={(e) => setNewProfileDescription(e.target.value)}
               placeholder="Profile description..."
-              className="w-full px-3 py-2 text-white bg-gray-800 rounded border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 text-label-primary bg-control rounded border border-separator/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus:border-transparent"
               rows={3}
             />
           </div>
@@ -354,14 +354,14 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
             <button
               type="button"
               onClick={() => setIsCreateDialogOpen(false)}
-              className="px-4 py-2 bg-gray-700 text-white font-medium rounded hover:bg-gray-600"
+              className="px-4 py-2 bg-control text-label-primary font-medium rounded hover:bg-control-hover"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleCreateProfile}
-              className="px-4 py-2 bg-blue-600 text-white font-medium rounded hover:bg-blue-700"
+              className="px-4 py-2 bg-accent text-label-primary font-medium rounded hover:bg-accent-hover"
               disabled={!newProfileName.trim()}
             >
               Create
@@ -380,7 +380,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
           <div>
             <label
               htmlFor="exportJson"
-              className="block text-sm font-medium text-gray-300 mb-1"
+              className="block text-sm font-medium text-label-primary mb-1"
             >
               Profile JSON
             </label>
@@ -388,7 +388,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
               id="exportJson"
               value={exportProfileJson}
               readOnly
-              className="w-full px-3 py-2 text-white bg-gray-800 rounded border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 text-label-primary bg-control rounded border border-separator/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus:border-transparent"
               rows={10}
             />
           </div>
@@ -397,14 +397,14 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
             <button
               type="button"
               onClick={() => setIsExportDialogOpen(false)}
-              className="px-4 py-2 bg-gray-700 text-white font-medium rounded hover:bg-gray-600"
+              className="px-4 py-2 bg-control text-label-primary font-medium rounded hover:bg-control-hover"
             >
               Close
             </button>
             <button
               type="button"
               onClick={() => handleCopyToClipboard(exportProfileJson)}
-              className="px-4 py-2 bg-blue-600 text-white font-medium rounded hover:bg-blue-700"
+              className="px-4 py-2 bg-accent text-label-primary font-medium rounded hover:bg-accent-hover"
             >
               Copy to Clipboard
             </button>
@@ -422,7 +422,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
           <div>
             <label
               htmlFor="importJson"
-              className="block text-sm font-medium text-gray-300 mb-1"
+              className="block text-sm font-medium text-label-primary mb-1"
             >
               Paste Profile JSON
             </label>
@@ -431,7 +431,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
               value={importProfileJson}
               onChange={(e) => setImportProfileJson(e.target.value)}
               placeholder="Paste profile JSON here..."
-              className="w-full px-3 py-2 text-white bg-gray-800 rounded border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 text-label-primary bg-control rounded border border-separator/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus:border-transparent"
               rows={10}
             />
           </div>
@@ -440,14 +440,14 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
             <button
               type="button"
               onClick={() => setIsImportDialogOpen(false)}
-              className="px-4 py-2 bg-gray-700 text-white font-medium rounded hover:bg-gray-600"
+              className="px-4 py-2 bg-control text-label-primary font-medium rounded hover:bg-control-hover"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleImportProfile}
-              className="px-4 py-2 bg-blue-600 text-white font-medium rounded hover:bg-blue-700"
+              className="px-4 py-2 bg-accent text-label-primary font-medium rounded hover:bg-accent-hover"
               disabled={!importProfileJson.trim()}
             >
               Import

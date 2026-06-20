@@ -130,7 +130,7 @@ export const SettingPromptGen: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center p-8 text-gray-300">
+      <div className="flex justify-center items-center p-8 text-label-primary">
         Loading settings...
       </div>
     );
@@ -144,7 +144,7 @@ export const SettingPromptGen: React.FC = () => {
     promptGenSettings.batchCount === null
   ) {
     return (
-      <div className="flex justify-center items-center p-8 text-gray-300">
+      <div className="flex justify-center items-center p-8 text-label-primary">
         Failed to load settings
       </div>
     );
@@ -166,7 +166,7 @@ export const SettingPromptGen: React.FC = () => {
           <div className="flex flex-col gap-2">
             <label
               htmlFor="promptGen-min"
-              className="block text-gray-300 text-sm"
+              className="block text-label-primary text-sm"
             >
               Min Length
             </label>
@@ -183,14 +183,14 @@ export const SettingPromptGen: React.FC = () => {
                   minLength: Number(e.target.value),
                 })
               }
-              className="w-full p-1 bg-gray-700 border border-gray-600 rounded text-gray-100"
+              className="w-full p-1 bg-control border border-separator/60 rounded text-label-primary"
               placeholder="Min"
             />
           </div>
           <div className="flex flex-col gap-2">
             <label
               htmlFor="promptGen-max"
-              className="block text-gray-300 text-sm"
+              className="block text-label-primary text-sm"
             >
               Max Length
             </label>
@@ -207,14 +207,14 @@ export const SettingPromptGen: React.FC = () => {
                   maxLength: Number(e.target.value),
                 })
               }
-              className="w-full p-1 bg-gray-700 border border-gray-600 rounded text-gray-100"
+              className="w-full p-1 bg-control border border-separator/60 rounded text-label-primary"
               placeholder="Max"
             />
           </div>
           <div className="flex flex-col gap-2">
             <label
               htmlFor="promptGen-batch"
-              className="block text-gray-300 text-sm cursor-help"
+              className="block text-label-primary text-sm cursor-help"
               aria-label="Number of prompts to generate"
               title="Number of prompts to generate"
             >
@@ -232,7 +232,7 @@ export const SettingPromptGen: React.FC = () => {
                   batchCount: Number(e.target.value),
                 })
               }
-              className="w-20 p-1 bg-gray-700 border border-gray-600 rounded text-gray-100"
+              className="w-20 p-1 bg-control border border-separator/60 rounded text-label-primary"
               placeholder="Count"
               min="1"
             />
@@ -244,21 +244,21 @@ export const SettingPromptGen: React.FC = () => {
         <div className="flex flex-col gap-2">
           <label
             htmlFor="promptGen-context"
-            className="block text-gray-300 text-sm"
+            className="block text-label-primary text-sm"
           >
             Custom Context
-            <span className="text-xs text-gray-400 ml-2">
+            <span className="text-xs text-label-secondary ml-2">
               (Override default system prompt with your own)
             </span>
           </label>
           <div className="flex flex-col gap-2 mb-2">
             {/* Text prompt template row */}
-            <div className="flex items-center gap-2 text-xs text-gray-400">
+            <div className="flex items-center gap-2 text-xs text-label-secondary">
               <span>Default Text Prompt Template</span>
               <Tooltip tooltipText={DEFAULT_PROMPT_GEN_PROMPT} />
               <button
                 type="button"
-                className="text-blue-400 hover:text-blue-300"
+                className="text-accent hover:text-accent-hover"
                 onClick={() =>
                   setPromptGenSettings({
                     ...promptGenSettings,
@@ -272,12 +272,12 @@ export const SettingPromptGen: React.FC = () => {
             </div>
 
             {/* Image prompt template row */}
-            <div className="flex items-center gap-2 text-xs text-gray-400">
+            <div className="flex items-center gap-2 text-xs text-label-secondary">
               <span>Image Prompt Template</span>
               <Tooltip tooltipText={DEFAULT_PROMPT_GEN_IMAGE_PROMPT} />
               <button
                 type="button"
-                className="text-blue-400 hover:text-blue-300"
+                className="text-accent hover:text-accent-hover"
                 onClick={() =>
                   setPromptGenSettings({
                     ...promptGenSettings,
@@ -301,14 +301,14 @@ export const SettingPromptGen: React.FC = () => {
                 context: e.target.value,
               })
             }
-            className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 min-h-20 text-sm"
+            className="w-full p-2 bg-control border border-separator/60 rounded text-label-primary min-h-20 text-sm"
             placeholder="Leave empty to use default, or enter your own system prompt"
             rows={4}
           />
         </div>
 
         <div className="flex flex-col gap-2 mt-4">
-          <label className="inline-flex items-center text-gray-300">
+          <label className="inline-flex items-center text-label-primary">
             <input
               type="checkbox"
               name="nsfw"
@@ -319,12 +319,12 @@ export const SettingPromptGen: React.FC = () => {
                   nsfw: !promptGenSettings.nsfw,
                 })
               }
-              className="form-checkbox h-4 w-4 text-blue-500"
+              className="form-checkbox h-4 w-4 text-accent"
             />
             <span className="ml-2">Allow NSFW</span>
           </label>
 
-          <label className="inline-flex items-center text-gray-300">
+          <label className="inline-flex items-center text-label-primary">
             <input
               type="checkbox"
               name="autoCopy"
@@ -335,10 +335,10 @@ export const SettingPromptGen: React.FC = () => {
                   autoCopy: !promptGenSettings.autoCopy,
                 })
               }
-              className="form-checkbox h-4 w-4 text-blue-500"
+              className="form-checkbox h-4 w-4 text-accent"
             />
             <span className="ml-2">Auto-copy to clipboard</span>
-            <span className="ml-2 text-xs text-gray-400">
+            <span className="ml-2 text-xs text-label-secondary">
               (Copies all prompts automatically when generated)
             </span>
           </label>
@@ -348,14 +348,14 @@ export const SettingPromptGen: React.FC = () => {
       <div className="flex flex-col gap-2 mt-8">
         <button
           type="submit"
-          className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          className="px-3 py-2 bg-accent text-label-primary rounded hover:bg-accent-hover"
         >
           {status || "Save"}
         </button>
         <button
           type="button"
           onClick={handleReset}
-          className="px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+          className="px-3 py-2 bg-control text-label-primary rounded hover:bg-control"
         >
           Reset to Default
         </button>

@@ -26,8 +26,12 @@ import { test, expect } from "@playwright/test";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Resolve to the built main-process entry from the project root
-const MAIN_JS = path.resolve(__dirname, "../out/main/index.js");
+// Launch via the project root so Electron reads package.json and sets
+// app.getAppPath() → PROJECT_ROOT. The production code constructs the preload
+// path as path.join(app.getAppPath(), "out/preload/index.js"), which is only
+// correct when getAppPath() returns the project root — not the out/main/
+// directory that results from passing the .js entry directly.
+const PROJECT_ROOT = path.resolve(__dirname, "..");
 
 // The overlay BrowserWindow is created at exactly 20×20.
 // We guard against capturing a wrong window by requiring the found window
@@ -40,7 +44,8 @@ test.setTimeout(60_000);
 
 test("overlay window renders native dark restyle and matches screenshot", async () => {
   const app = await electron.launch({
-    args: [MAIN_JS],
+    args: [PROJECT_ROOT],
+    cwd: PROJECT_ROOT,
     env: {
       ...process.env,
       NODE_ENV: "test",

@@ -98,14 +98,14 @@ export const SettingGeneral: React.FC = () => {
       <div className="mb-4">
         <label
           htmlFor="api-key-input"
-          className="block text-sm font-medium text-gray-300 mb-1"
+          className="block text-sm font-medium text-label-primary mb-1"
         >
           API Key
         </label>
         <input
           id="api-key-input"
           type="password"
-          className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full p-2 bg-control border border-separator/60 rounded text-label-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
           value={apiKeyInput}
           onChange={handleApiKeyChange}
           placeholder="Enter your API key"
@@ -119,7 +119,7 @@ export const SettingGeneral: React.FC = () => {
             {saveStatus}
           </p>
         )}
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-label-secondary mt-1">
           Your API key is stored locally and never sent to our servers.
         </p>
       </div>
@@ -133,7 +133,7 @@ export const SettingGeneral: React.FC = () => {
           type="button"
           disabled={!hasChanges}
           onClick={handleSaveAll}
-          className={`px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50 w-full`}
+          className={`px-4 py-2 rounded bg-accent text-label-primary disabled:opacity-50 w-full`}
         >
           Save
         </button>

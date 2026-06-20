@@ -23,7 +23,12 @@ import { test, expect } from "@playwright/test";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const MAIN_JS = path.resolve(__dirname, "../out/main/index.js");
+// Launch via the project root so Electron reads package.json and sets
+// app.getAppPath() → PROJECT_ROOT. The production code constructs the preload
+// path as path.join(app.getAppPath(), "out/preload/index.js"), which is only
+// correct when getAppPath() returns the project root — not the out/main/
+// directory that results from passing the .js entry directly.
+const PROJECT_ROOT = path.resolve(__dirname, "..");
 
 // Tray window declared as 300×600 in tray.ts. innerWidth/Height excludes OS chrome.
 // Use generous thresholds: ≥200px wide AND < 600px wide (well below main's 990px).
@@ -35,7 +40,8 @@ test.setTimeout(60_000);
 
 test("tray window renders without crashing and matches screenshot", async () => {
   const app = await electron.launch({
-    args: [MAIN_JS],
+    args: [PROJECT_ROOT],
+    cwd: PROJECT_ROOT,
     env: {
       ...process.env,
       NODE_ENV: "test",

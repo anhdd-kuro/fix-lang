@@ -32,12 +32,11 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
         onClick={() => onSelect(entry)}
       >
         <div className="flex items-center gap-2 text-xs">
-          <span className="text-gray-400">
+          <span className="text-label-secondary">
             {format(new Date(entry.timestamp), "MM/dd HH:mm")}
           </span>
-          <span className="px-1.5 py-0.5 bg-blue-600 text-white rounded-sm ml-auto">
+          <span className="px-1.5 py-0.5 bg-accent text-label-primary rounded-sm ml-auto text-[0.692rem]">
             {
-              // Get feature label by ID
               featureMap.find(
                 (feature) =>
                   feature.uiKey === (entry.featureType || activeHistoryType)
@@ -46,13 +45,13 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
           </span>
         </div>
         <p
-          className="text-sm text-gray-100 line-clamp-1"
+          className="text-[0.846rem] text-label-primary line-clamp-1"
           title={entry.original}
         >
           {entry.original.slice(0, 50)}...
         </p>
         <p
-          className="text-sm text-gray-100 line-clamp-1"
+          className="text-[0.846rem] text-label-secondary line-clamp-1"
           title={entry.model}
         >
           {entry.model}

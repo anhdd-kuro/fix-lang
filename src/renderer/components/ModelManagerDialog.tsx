@@ -3,6 +3,10 @@
  * @description Modal dialog for managing local LLM models
  */
 import { useCallback, useEffect, useState } from "react";
+import { Button } from "./Button";
+import { Dialog } from "./Dialog";
+import { ListRow } from "./ListRow";
+import { Tab } from "./Tab";
 import type { Model } from "~/stores/apiStore";
 
 // Define the model installation status for UI feedback
@@ -170,231 +174,206 @@ export default function ModelManagerDialog({
     }
   }, [isOpen, loadModels]);
 
-  // Early return if dialog is not open
-  if (!isOpen) return null;
+  const modelTabs = [
+    { id: "installed", label: "Installed Models" },
+    { id: "recommended", label: "Recommended Models" },
+  ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-700">
-          <h2 className="text-xl font-semibold text-white">
+    <>
+      <Dialog
+        isOpen={isOpen}
+        onClose={onClose}
+        title={
+          <span className="flex items-center gap-3">
             Manage Local LLM Models
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white"
-            aria-label="Close"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-gray-700">
-          <button
-            className={`px-4 py-2 ${
-              activeTab === "installed"
-                ? "border-b-2 border-blue-500 text-blue-400"
-                : "text-gray-400 hover:text-white"
-            }`}
-            onClick={() => setActiveTab("installed")}
-          >
-            Installed Models
-          </button>
-          <button
-            className={`px-4 py-2 ${
-              activeTab === "recommended"
-                ? "border-b-2 border-blue-500 text-blue-400"
-                : "text-gray-400 hover:text-white"
-            }`}
-            onClick={() => setActiveTab("recommended")}
-          >
-            Recommended Models
-          </button>
-          <div className="ml-auto px-4 py-2">
             <button
+              type="button"
               onClick={refreshModels}
               disabled={isRefreshing}
-              className={`text-gray-300 hover:text-white ${
+              className={`text-label-secondary hover:text-label-primary transition-colors text-lg ${
                 isRefreshing ? "animate-spin" : ""
               }`}
               title="Refresh models"
             >
               ↻
             </button>
-          </div>
+          </span>
+        }
+        widthClassName="max-w-4xl w-full"
+        maxHeightClassName="max-h-[90vh]"
+      >
+        {/* Tab navigation */}
+        <div className="mb-4">
+          <Tab
+            tabs={modelTabs}
+            activeId={activeTab}
+            onSelect={(id) =>
+              setActiveTab(id as "installed" | "recommended")
+            }
+          />
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-auto p-4">
-          {isLoading ? (
-            <div className="flex justify-center items-center h-full">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            </div>
-          ) : activeTab === "installed" ? (
-            /* Installed Models Tab */
-            <div>
-              {localModels.length === 0 ? (
-                <div className="text-center text-gray-400 py-8">
-                  <p>No local models installed</p>
-                  <button
-                    onClick={() => setActiveTab("recommended")}
-                    className="mt-2 text-blue-400 hover:underline"
+        {isLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
+          </div>
+        ) : activeTab === "installed" ? (
+          <div>
+            {localModels.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-8 text-label-secondary">
+                <p>No local models installed</p>
+                <Button
+                  variant="default"
+                  onClick={() => setActiveTab("recommended")}
+                >
+                  Browse recommended models
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {localModels.map((model) => (
+                  <ListRow
+                    key={model.id}
+                    className="rounded-[6px] border border-separator/40"
+                    trailing={
+                      <Button
+                        variant="destructive"
+                        onClick={() =>
+                          setDeleteConfirmation({
+                            isOpen: true,
+                            modelName: model.local?.path,
+                          })
+                        }
+                        aria-label={`Delete ${model.name}`}
+                      >
+                        Delete
+                      </Button>
+                    }
                   >
-                    Browse recommended models
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {localModels.map((model) => (
-                    <div
-                      key={model.id}
-                      className="border border-gray-700 rounded-lg p-4 bg-gray-800 hover:bg-gray-750"
-                    >
-                      <div className="flex justify-between">
-                        <h3 className="text-lg font-medium text-white">
-                          {model.name}
-                        </h3>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() =>
-                              setDeleteConfirmation({
-                                isOpen: true,
-                                modelName: model.local?.path,
-                              })
-                            }
-                            className="text-red-400 hover:text-red-300"
-                            title="Delete model"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </div>
-                      <div className="mt-2 text-sm text-gray-400">
-                        <div>
-                          Path:{" "}
-                          <span className="text-gray-300">
-                            {model.local?.path}
-                          </span>
-                        </div>
-                        {model.local?.size && (
-                          <div>
-                            Size:{" "}
-                            <span className="text-gray-300">
-                              {formatSize(model.local.size)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium text-label-primary">
+                        {model.name}
+                      </span>
+                      <span className="text-[0.769rem] text-label-secondary truncate">
+                        {model.local?.path}
+                      </span>
+                      {model.local?.size && (
+                        <span className="text-[0.769rem] text-label-secondary">
+                          {formatSize(model.local.size)}
+                        </span>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Recommended Models Tab */
-            <div>
-              {recommendedModels.length === 0 ? (
-                <div className="text-center text-gray-400 py-8">
-                  <p>No recommended models available</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-4">
-                  {recommendedModels.map((model) => (
-                    <div
-                      key={model.name}
-                      className="border border-gray-700 rounded-lg p-4 bg-gray-800 hover:bg-gray-750"
-                    >
-                      <div className="flex justify-between">
-                        <h3 className="text-lg font-medium text-white">
-                          {model.name}
-                        </h3>
-                        <div>
-                          <button
-                            onClick={() => installModel(model.name)}
-                            disabled={model.status === "installing"}
-                            className={`px-3 py-1 rounded text-sm ${
-                              model.status === "success"
-                                ? "bg-green-600 text-white cursor-default"
-                                : model.status === "installing"
-                                  ? "bg-blue-600 text-white animate-pulse cursor-wait"
-                                  : model.status === "error"
-                                    ? "bg-red-600 text-white hover:bg-red-700"
-                                    : "bg-blue-500 text-white hover:bg-blue-600"
-                            }`}
-                          >
-                            {model.status === "success"
-                              ? "Installed"
-                              : model.status === "installing"
-                                ? "Installing..."
-                                : model.status === "error"
-                                  ? "Retry"
-                                  : "Install"}
-                          </button>
-                        </div>
-                      </div>
-                      <p className="mt-2 text-gray-300">{model.description}</p>
-                      <div className="mt-2 flex flex-wrap gap-2">
+                  </ListRow>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            {recommendedModels.length === 0 ? (
+              <div className="flex flex-col items-center py-8 text-label-secondary">
+                <p>No recommended models available</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {recommendedModels.map((model) => (
+                  <ListRow
+                    key={model.name}
+                    className="rounded-[6px] border border-separator/40 flex-col items-start py-3"
+                    trailing={
+                      <Button
+                        variant={
+                          model.status === "error" ? "destructive" : "prominent"
+                        }
+                        onClick={() => installModel(model.name)}
+                        disabled={model.status === "installing"}
+                        className={
+                          model.status === "installing"
+                            ? "animate-pulse cursor-wait"
+                            : model.status === "success"
+                              ? "opacity-60 pointer-events-none"
+                              : ""
+                        }
+                      >
+                        {model.status === "success"
+                          ? "Installed"
+                          : model.status === "installing"
+                            ? "Installing…"
+                            : model.status === "error"
+                              ? "Retry"
+                              : "Install"}
+                      </Button>
+                    }
+                  >
+                    <div className="flex flex-col gap-1 w-full">
+                      <span className="font-medium text-label-primary">
+                        {model.name}
+                      </span>
+                      <p className="text-[0.846rem] text-label-secondary">
+                        {model.description}
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
                         {model.tags.map((tag) => (
                           <span
                             key={tag}
-                            className="px-2 py-1 bg-gray-700 rounded-full text-xs text-gray-300"
+                            className="px-1.5 py-0.5 bg-separator/30 rounded-full text-[0.692rem] text-label-secondary"
                           >
                             {tag}
                           </span>
                         ))}
                       </div>
-                      <div className="mt-2 text-sm text-gray-400">
-                        <span>Size: {formatSize(model.size)}</span>
-                      </div>
+                      <span className="text-[0.769rem] text-label-secondary">
+                        {formatSize(model.size)}
+                      </span>
                       {model.status === "error" && model.error && (
-                        <div className="mt-2 text-sm text-red-400">
+                        <span className="text-[0.769rem] text-[color:var(--color-danger-hover)]">
                           Error: {model.error}
-                        </div>
+                        </span>
                       )}
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Delete Confirmation Dialog */}
-        {deleteConfirmation.isOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-            <div className="bg-gray-800 rounded-lg shadow-xl p-6 max-w-md w-full">
-              <h3 className="text-xl font-semibold text-white mb-4">
-                Confirm Deletion
-              </h3>
-              <p className="text-gray-300 mb-6">
-                Are you sure you want to delete model{" "}
-                <span className="font-semibold">
-                  {deleteConfirmation.modelName}
-                </span>
-                ? This action cannot be undone.
-              </p>
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={() => setDeleteConfirmation({ isOpen: false })}
-                  className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() =>
-                    deleteModel(deleteConfirmation.modelName || "")
-                  }
-                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                >
-                  Delete
-                </button>
+                  </ListRow>
+                ))}
               </div>
-            </div>
+            )}
           </div>
         )}
-      </div>
-    </div>
+      </Dialog>
+
+      {/* Delete Confirmation — nested Dialog */}
+      <Dialog
+        isOpen={deleteConfirmation.isOpen}
+        onClose={() => setDeleteConfirmation({ isOpen: false })}
+        title="Confirm Deletion"
+        widthClassName="max-w-md w-full"
+        footer={
+          <>
+            <Button
+              variant="default"
+              onClick={() => setDeleteConfirmation({ isOpen: false })}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() =>
+                deleteModel(deleteConfirmation.modelName ?? "")
+              }
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[0.846rem] text-label-primary">
+          Are you sure you want to delete model{" "}
+          <span className="font-semibold">
+            {deleteConfirmation.modelName}
+          </span>
+          ? This action cannot be undone.
+        </p>
+      </Dialog>
+    </>
   );
 }

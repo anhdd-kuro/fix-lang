@@ -33,7 +33,7 @@ const CopyButton: React.FC<{
       )}
       <ClipboardIcon
         className={twJoin(
-          "stroke-gray-500 transition-all duration-300 ease-in-out absolute top-0 right-0 size-6"
+          "stroke-label-secondary transition-all duration-300 ease-in-out absolute top-0 right-0 size-6"
         )}
         style={{
           strokeDasharray: 50,
@@ -42,7 +42,7 @@ const CopyButton: React.FC<{
       />
       <CheckIcon
         className={twJoin(
-          "stroke-green-600 transition-all duration-300 ease-in-out absolute top-0 right-0 size-6"
+          "stroke-accent transition-all duration-300 ease-in-out absolute top-0 right-0 size-6"
         )}
         style={{
           strokeDasharray: 50,

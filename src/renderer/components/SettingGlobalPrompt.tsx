@@ -48,12 +48,12 @@ const SettingGlobalPrompt: React.FC = () => {
   return (
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <label htmlFor="system-prompt" className="text-gray-300 text-sm">
+        <label htmlFor="system-prompt" className="text-label-primary text-sm">
           System Prompt
         </label>
         <textarea
           id="system-prompt"
-          className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full p-2 bg-control border border-separator/60 rounded text-label-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
           value={settings.customSystemPrompt}
           onChange={(e) => updateSetting("customSystemPrompt", e.target.value)}
           placeholder="Enter custom system prompt. Leave blank for default."
@@ -62,12 +62,12 @@ const SettingGlobalPrompt: React.FC = () => {
       </div>
 
       <div className="flex flex-col gap-2">
-        <label htmlFor="user-prompt" className="text-gray-300 text-sm">
+        <label htmlFor="user-prompt" className="text-label-primary text-sm">
           User Prompt Prefix
         </label>
         <textarea
           id="user-prompt"
-          className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full p-2 bg-control border border-separator/60 rounded text-label-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
           value={settings.customUserPrompt}
           onChange={(e) => updateSetting("customUserPrompt", e.target.value)}
           placeholder="Enter custom user prompt. Leave blank for default."
@@ -78,7 +78,7 @@ const SettingGlobalPrompt: React.FC = () => {
       <fieldset className="flex gap-8 *:w-content flex-wrap">
         {/* Temperature input */}
         <div className="flex items-center gap-2">
-          <label className="inline-flex items-center text-gray-300">
+          <label className="inline-flex items-center text-label-primary">
             <span className="mr-2">Temperature</span>
             <input
               id="temperature-input"
@@ -90,16 +90,16 @@ const SettingGlobalPrompt: React.FC = () => {
               onChange={(e) =>
                 updateSetting("temperature", parseFloat(e.target.value) || 0)
               }
-              className="w-16 p-1 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-16 p-1 bg-control border border-separator/60 rounded text-label-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
               aria-label="Temperature"
             />
           </label>
-          <div className="text-xs text-gray-400">(0-1)</div>
+          <div className="text-xs text-label-secondary">(0-1)</div>
         </div>
 
         {/* Top_p input */}
         <div className="flex items-center gap-2">
-          <label className="inline-flex items-center text-gray-300">
+          <label className="inline-flex items-center text-label-primary">
             <span className="mr-2">Top P</span>
             <input
               id="top-p-input"
@@ -111,16 +111,16 @@ const SettingGlobalPrompt: React.FC = () => {
               onChange={(e) =>
                 updateSetting("top_p", parseFloat(e.target.value) || 0)
               }
-              className="w-16 p-1 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-16 p-1 bg-control border border-separator/60 rounded text-label-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
               aria-label="Top P"
             />
           </label>
-          <div className="text-xs text-gray-400">(0-1)</div>
+          <div className="text-xs text-label-secondary">(0-1)</div>
         </div>
 
         {/* Max tokens input */}
         <div className="flex items-center gap-2">
-          <label className="inline-flex items-center text-gray-300">
+          <label className="inline-flex items-center text-label-primary">
             <span className="mr-2">Max Tokens</span>
             <input
               id="max-tokens-input"
@@ -132,7 +132,7 @@ const SettingGlobalPrompt: React.FC = () => {
               onChange={(e) =>
                 updateSetting("maxTokens", parseInt(e.target.value) || 10000)
               }
-              className="w-20 p-1 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-20 p-1 bg-control border border-separator/60 rounded text-label-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
               aria-label="Max Tokens"
             />
           </label>
@@ -140,12 +140,12 @@ const SettingGlobalPrompt: React.FC = () => {
       </fieldset>
 
       <div className="flex flex-col gap-2">
-        <label htmlFor="tone-input" className="text-gray-300 text-sm">
+        <label htmlFor="tone-input" className="text-label-primary text-sm">
           Tone
         </label>
         <textarea
           id="tone-input"
-          className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full p-2 bg-control border border-separator/60 rounded text-label-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
           value={settings.tone}
           onChange={(e) => updateSetting("tone", e.target.value)}
           placeholder="'formal', 'casual', 'friendly' or leave blank for default."
@@ -157,7 +157,7 @@ const SettingGlobalPrompt: React.FC = () => {
         <button
           type="button"
           onClick={handleSave}
-          className="px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 w-full"
+          className="px-3 py-2 bg-accent text-label-primary text-sm rounded hover:bg-accent-hover w-full"
         >
           {saveStatus || "Save"}
         </button>

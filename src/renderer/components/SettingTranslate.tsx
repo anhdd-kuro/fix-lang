@@ -78,7 +78,7 @@ export const SettingTranslate: React.FC = () => {
       <div>
         <label
           htmlFor="translate-destination-lang"
-          className="block text-gray-300 text-sm mb-2"
+          className="block text-label-primary text-sm mb-2"
         >
           Destination Language
         </label>
@@ -92,10 +92,10 @@ export const SettingTranslate: React.FC = () => {
             ...translateSettings,
             destinationLang: e.target.value
           })}
-          className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100"
+          className="w-full p-2 bg-control border border-separator/60 rounded text-label-primary"
         />
       </div>
-      <label className="inline-flex items-center text-gray-300">
+      <label className="inline-flex items-center text-label-primary">
         <input
           type="checkbox"
           checked={translateSettings.includeExplanation}
@@ -110,7 +110,7 @@ export const SettingTranslate: React.FC = () => {
       <button
         type="button"
         onClick={handleSave}
-        className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        className="px-3 py-2 bg-accent text-label-primary rounded hover:bg-accent-hover"
       >
         {status || "Save"}
       </button>
