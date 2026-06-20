@@ -20,8 +20,8 @@ export type ButtonProps = {
  *
  * Variants:
  *   default     — control-surface bg, label-primary text. Standard action.
- *   prominent   — accent bg, white text. Primary call-to-action.
- *   destructive — muted red tint on control, label-primary text. Destructive action.
+ *   prominent   — accent bg, label-primary text. Primary call-to-action.
+ *   destructive — danger bg (foundation token), label-primary text. Destructive action.
  *
  * Sizing mirrors native macOS: ~22px height at 13px root (h-[1.7rem] ≈ 22px),
  * 6px radius (rounded-[6px]) matching NSButton bezel.
@@ -43,9 +43,9 @@ export const Button: React.FC<ButtonProps> = ({
     default:
       "bg-control hover:bg-control-hover text-label-primary border border-separator/60",
     prominent:
-      "bg-accent hover:bg-accent-hover text-white border border-transparent",
+      "bg-accent hover:bg-accent-hover text-label-primary border border-transparent",
     destructive:
-      "bg-[#3a1a1a] hover:bg-[#4a2020] text-label-primary border border-separator/60",
+      "bg-danger hover:bg-danger-hover text-label-primary border border-separator/60",
   };
 
   return (
