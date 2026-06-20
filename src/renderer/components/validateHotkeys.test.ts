@@ -4,9 +4,9 @@
  * Pure Vitest — no Electron, no IPC, no React, no mocks needed.
  */
 import { describe, expect, it } from "vitest";
+import { DEFAULT_KEY_BINDINGS } from "~/const";
 import { validateHotkeys } from "./validateHotkeys";
 import type { CorrectionPreset, KeyBindings } from "~/stores/apiStore";
-import { DEFAULT_KEY_BINDINGS } from "~/const";
 
 // ---------------------------------------------------------------------------
 // Helpers
