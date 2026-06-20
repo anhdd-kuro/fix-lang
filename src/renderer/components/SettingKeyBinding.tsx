@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { validateHotkeys } from "./validateHotkeys";
 import type { KeyBindings } from "~/stores/apiStore";
 
 type VisibleKeyBinding = keyof KeyBindings;
@@ -74,7 +75,7 @@ export const SettingKeyBinding: React.FC = () => {
 
   // Apply new keybindings: validate, persist, and re-register shortcuts
   const handleApply = async () => {
-    // Validate
+    // Validate inline per-field errors (duplicate promptGen/profileSwitch, missing modifier).
     const firstError = (
       Object.entries(errors) as [VisibleKeyBinding, string][]
     ).find(([_, msg]) => msg);
@@ -83,6 +84,18 @@ export const SettingKeyBinding: React.FC = () => {
       return;
     }
     if (!keyBindings) return;
+
+    // Validate against correction preset hotkeys: fetch current presets and
+    // check whether the new app keybindings clash with any existing preset.
+    const correctionSettings = await window.electronAPI.getCorrectSettings();
+    const conflict = validateHotkeys(correctionSettings.presets, keyBindings);
+    if (conflict) {
+      setKeyBindingsStatus(
+        `Error: "${conflict.hotkey}" conflicts with correction preset "${conflict.presetOrKey}".`,
+      );
+      return;
+    }
+
     setKeyBindingsStatus("Applying...");
     // Pause existing shortcuts during update
     await window.electronAPI.pauseHotkeys();

@@ -11,16 +11,8 @@ import {
   DEFAULT_TRANSLATE_PRESET_PROMPT,
 } from "~/prompts/correction";
 import { ModelSelect } from "./ModelSelect";
-import type {
-  CorrectionPreset,
-  CorrectionSettings,
-  KeyBindings,
-} from "~/stores/apiStore";
-
-const STATIC_APP_HOTKEYS: (keyof Pick<
-  KeyBindings,
-  "promptGen" | "profileSwitch"
->)[] = ["promptGen", "profileSwitch"];
+import { validateHotkeys } from "./validateHotkeys";
+import type { CorrectionPreset, CorrectionSettings } from "~/stores/apiStore";
 
 const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> => ({
   [DEFAULT_CORRECTION_PRESET_ID]: {
@@ -92,20 +84,14 @@ const captureHotkey = (
   return parts.join("+");
 };
 
-const getValidationError = (
+/**
+ * Validates form fields (name + systemPrompt) on each preset.
+ * Returns the first error message, or null if all fields are valid.
+ * Hotkey conflict validation is handled separately by validateHotkeys().
+ */
+const validateFormFields = (
   settings: CorrectionSettings,
-  keyBindings: KeyBindings | null,
 ): string | null => {
-  const seenHotkeys = new Map<string, string>();
-  const reservedHotkeys = new Map<string, string>();
-
-  STATIC_APP_HOTKEYS.forEach((key) => {
-    const shortcut = keyBindings?.[key]?.trim();
-    if (shortcut) {
-      reservedHotkeys.set(shortcut, key);
-    }
-  });
-
   for (const preset of settings.presets) {
     if (!preset.name.trim()) {
       return "Every preset needs a name.";
@@ -114,22 +100,6 @@ const getValidationError = (
     if (!preset.systemPrompt.trim()) {
       return `Preset "${preset.name}" needs a system prompt.`;
     }
-
-    if (!preset.hotkey.trim()) {
-      continue;
-    }
-
-    const reservedBinding = reservedHotkeys.get(preset.hotkey);
-    if (reservedBinding) {
-      return `Hotkey for "${preset.name}" conflicts with ${reservedBinding}.`;
-    }
-
-    const duplicate = seenHotkeys.get(preset.hotkey);
-    if (duplicate) {
-      return `Duplicate hotkey between "${duplicate}" and "${preset.name}".`;
-    }
-
-    seenHotkeys.set(preset.hotkey, preset.name);
   }
 
   return null;
@@ -257,14 +227,24 @@ export const SettingCorrection: React.FC = () => {
   const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const latestKeyBindings = await window.electronAPI.getKeyBindings();
+    // Form validation: name + systemPrompt fields must be non-empty.
+    const formError = validateFormFields(correctionSettings);
+    if (formError) {
+      setStatus(`Error: ${formError}`);
+      return;
+    }
 
-    const validationError = getValidationError(
-      correctionSettings,
+    // Hotkey conflict validation: fetch latest app keybindings and check
+    // all preset hotkeys against each other and against promptGen/profileSwitch.
+    const latestKeyBindings = await window.electronAPI.getKeyBindings();
+    const conflict = validateHotkeys(
+      correctionSettings.presets,
       latestKeyBindings,
     );
-    if (validationError) {
-      setStatus(`Error: ${validationError}`);
+    if (conflict) {
+      setStatus(
+        `Error: Hotkey "${conflict.hotkey}" used by both "${conflict.presetOrKey}" and "${conflict.conflictsWith}".`,
+      );
       return;
     }
 
