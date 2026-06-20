@@ -26,6 +26,14 @@ const __dirname = path.dirname(__filename);
 // Resolve to the built main-process entry from the project root
 const MAIN_JS = path.resolve(__dirname, "../out/main/index.js");
 
+// Expected dimensions of the main window (from mainWindow.ts: width:1000, height:900).
+// window.innerWidth/Height excludes the OS titlebar chrome, so measured values are
+// slightly smaller than the BrowserWindow constructor sizes. We use conservative
+// thresholds that still clearly separate main (1000×~868) from tray (~300×600)
+// and overlay (20×20).
+const MAIN_WINDOW_MIN_WIDTH = 990;
+const MAIN_WINDOW_MIN_HEIGHT = 800;
+
 // Individual test timeout — Electron startup can take several seconds
 test.setTimeout(60_000);
 
@@ -42,27 +50,65 @@ test("main window renders without crashing and matches screenshot", async () => 
   });
 
   try {
-    // Collect all windows that open; the main window title is "FixLang"
-    // We wait for ANY window first, then find the largest one (main UI).
-    const firstWin = await app.firstWindow();
+    // Wait for at least one window to exist
+    await app.firstWindow();
 
-    // Allow time for all windows to fully initialise
-    await firstWin.waitForLoadState("domcontentloaded");
+    // Give the app a moment for all windows (overlay, tray, main) to initialise
+    // before scanning. overlayWindow and trayWindow are created before main window
+    // in whenReady(), so we wait for all of them to settle.
+    await new Promise<void>((resolve) => setTimeout(resolve, 1500));
 
-    // Pick the main window by checking all open windows for the largest one
-    // (overlay and tray windows are small; main window is 1000x900)
+    // Deterministically select the main window by viewport size.
+    //
+    // Window inventory when app starts:
+    //   overlayWindow — 20×20 (spinner, hidden, frameless)
+    //   trayWindow    — small (~320px wide)
+    //   mainWindow    — 1000×900 (the React UI we want to screenshot)
+    //
+    // Selecting by size is robust: no reliance on title strings, URL paths,
+    // or #root existence (overlay.html also has no #root but could match falsely).
     const allWindows = app.windows();
-    let mainWindow = firstWin;
+    let mainWindow = null;
+
     for (const win of allWindows) {
-      // evaluate runs in the renderer; we want the window with a full React root
-      const hasRoot = await win
-        .evaluate(() => document.querySelector("#root") !== null)
-        .catch(() => false);
-      if (hasRoot) {
+      const size = await win
+        .evaluate(
+          (): { width: number; height: number } => ({
+            width: window.innerWidth,
+            height: window.innerHeight,
+          })
+        )
+        .catch(() => ({ width: 0, height: 0 }));
+
+      if (
+        size.width >= MAIN_WINDOW_MIN_WIDTH &&
+        size.height >= MAIN_WINDOW_MIN_HEIGHT
+      ) {
         mainWindow = win;
         break;
       }
     }
+
+    // Hard guard: fail loudly if no 1000×900 window was found.
+    // This prevents a wrong (tiny) baseline from being silently committed.
+    if (mainWindow === null) {
+      const sizes = await Promise.all(
+        allWindows.map((w) =>
+          w
+            .evaluate(
+              (): string => `${window.innerWidth}x${window.innerHeight}`
+            )
+            .catch(() => "error")
+        )
+      );
+      throw new Error(
+        `Could not find main window (need ≥${MAIN_WINDOW_MIN_WIDTH}×${MAIN_WINDOW_MIN_HEIGHT}). ` +
+          `Found windows with sizes: [${sizes.join(", ")}]. ` +
+          `Run 'bun run build' first, then retry.`
+      );
+    }
+
+    await mainWindow.waitForLoadState("domcontentloaded");
 
     // Disable CSS animations/transitions for pixel-stable captures
     await mainWindow.addStyleTag({
@@ -78,6 +124,23 @@ test("main window renders without crashing and matches screenshot", async () => 
 
     // Brief pause for JS-driven layout to settle after animation kill
     await mainWindow.waitForTimeout(300);
+
+    // Final dimension assertion — fails loudly before screenshot if something changed.
+    // Uses the same thresholds as the selection step above.
+    const finalSize = await mainWindow.evaluate(
+      (): { width: number; height: number } => ({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      })
+    );
+    expect(
+      finalSize.width,
+      `Main window width must be ≥${MAIN_WINDOW_MIN_WIDTH}px (got ${finalSize.width})`
+    ).toBeGreaterThanOrEqual(MAIN_WINDOW_MIN_WIDTH);
+    expect(
+      finalSize.height,
+      `Main window height must be ≥${MAIN_WINDOW_MIN_HEIGHT}px (got ${finalSize.height})`
+    ).toBeGreaterThanOrEqual(MAIN_WINDOW_MIN_HEIGHT);
 
     // Capture and compare against stored baseline
     await expect(mainWindow).toHaveScreenshot("main-window.png");
