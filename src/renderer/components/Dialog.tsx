@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { twMerge } from "tailwind-merge";
 
 export type DialogProps = {
@@ -40,9 +40,24 @@ export const Dialog: React.FC<DialogProps> = ({
   children,
   footer,
   className,
-  widthClassName = "w-3/4 max-w-[800px]",
+  widthClassName = "w-3/4 max-w-[61.5rem]",
   maxHeightClassName = "max-h-[85vh]",
 }) => {
+  // Escape-to-close — port of pre-#30 Dialog behavior; ADR 0001 CSS-only means
+  // restyle must not remove keyboard behavior that existed before.
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === "Escape") {
+        onClose?.();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>): void => {
