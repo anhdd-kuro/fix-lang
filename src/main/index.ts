@@ -143,7 +143,11 @@ function initializeApp() {
     if (process.platform === "darwin") {
       if (!isMacOSAccessibilityGranted()) {
         console.warn("Accessibility permission not granted.");
-        promptAccessibilityPermission();
+        // Skip blocking dialog during e2e tests — FIXLANG_E2E=1 suppresses the modal
+        // so Playwright _electron can receive window events without a sync dialog stalling startup.
+        if (!process.env.FIXLANG_E2E) {
+          promptAccessibilityPermission();
+        }
       }
       app.dock?.show();
       setupTray();
