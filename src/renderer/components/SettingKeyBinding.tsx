@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
 import type { KeyBindings } from "~/stores/apiStore";
 
-type VisibleKeyBinding = Exclude<keyof KeyBindings, "correction">;
+type VisibleKeyBinding = keyof KeyBindings;
 
 const DISPLAYED_KEY_BINDINGS: VisibleKeyBinding[] = [
-  "translate",
   "promptGen",
   "profileSwitch",
 ];
@@ -13,7 +12,6 @@ export const SettingKeyBinding: React.FC = () => {
   const [keyBindings, setKeyBindings] = useState<KeyBindings | null>(null);
   const [keyBindingsStatus, setKeyBindingsStatus] = useState<string>("");
   const [errors, setErrors] = useState<Record<VisibleKeyBinding, string>>({
-    translate: "",
     promptGen: "",
     profileSwitch: "",
   });
@@ -110,7 +108,6 @@ export const SettingKeyBinding: React.FC = () => {
       const defaults = await window.electronAPI.resetKeyBindings();
       setKeyBindings(defaults);
       setErrors({
-        translate: "",
         promptGen: "",
         profileSwitch: "",
       });

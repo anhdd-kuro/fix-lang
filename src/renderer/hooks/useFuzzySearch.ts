@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import type { HistoryEntry } from "~/stores/historyStore";
 
 // Define UI-specific history type for frontend use
-type UiHistoryType = "corrections" | "translations" | "summarize" | "promptGen";
+type UiHistoryType = "corrections" | "summarize" | "promptGen";
 
 // Use a shared config type to avoid duplicating the config
 type FuseConfig = {

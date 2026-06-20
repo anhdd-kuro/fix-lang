@@ -16,9 +16,9 @@ import type { BrowserWindow } from "electron";
 export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
   const correctionSettings = getProfileSetting("settingsCorrect");
   const registeredShortcuts = new Set<string>();
-  const { translate, promptGen, profileSwitch } =
+  const { promptGen, profileSwitch } =
     keybindingStore.getKeyBindings();
-  const reservedShortcuts = new Set([translate, promptGen, profileSwitch]);
+  const reservedShortcuts = new Set([promptGen, profileSwitch]);
 
   correctionSettings.presets.forEach((preset) => {
     const shortcut = preset.hotkey?.trim();

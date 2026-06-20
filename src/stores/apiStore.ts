@@ -11,6 +11,8 @@ import {
   DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
   DEFAULT_SUMMARIZE_PRESET_ID,
   DEFAULT_SUMMARIZE_PRESET_PROMPT,
+  DEFAULT_TRANSLATE_PRESET_ID,
+  DEFAULT_TRANSLATE_PRESET_PROMPT,
 } from "~/prompts";
 import type { Schema } from "electron-store";
 
@@ -41,8 +43,6 @@ export type Model = {
 };
 
 export type KeyBindings = {
-  correction: string;
-  translate: string; // keyboard shortcut for translation
   promptGen: string; // generate a new prompt based on current selection
   profileSwitch: string; // switch to next profile in rotation
 };
@@ -85,11 +85,6 @@ export type SettingsStore = {
 
   // Feature-specific settings
   settingsCorrect: CorrectionSettings;
-  settingsTranslate: {
-    destinationLang: string;
-    includeExplanation: boolean;
-    model: string;
-  };
   settingsSummarize: {
     minLength: number;
     maxLength: number;
@@ -114,7 +109,6 @@ export type SettingsStore = {
   customSystemPrompt: string;
   customUserPrompt: string;
   tone: string;
-  translationTargetLang: string; // deprecated, use settingsTranslate.destinationLang
 };
 
 type LegacyCorrectionSettings = {
@@ -147,6 +141,14 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     name: "Prompt optimization",
     hotkey: "Control+Shift+D",
     systemPrompt: DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
+    model: DEFAULT_OPENAI_MODEL,
+    isBuiltIn: true,
+  },
+  {
+    id: DEFAULT_TRANSLATE_PRESET_ID,
+    name: "Translate",
+    hotkey: "Control+Shift+T",
+    systemPrompt: DEFAULT_TRANSLATE_PRESET_PROMPT.trim(),
     model: DEFAULT_OPENAI_MODEL,
     isBuiltIn: true,
   },
@@ -303,8 +305,6 @@ const schema = {
             customSystemPrompt: { type: "string", default: "" },
             customUserPrompt: { type: "string", default: "" },
             tone: { type: "string", default: "" },
-            // temperature moved to globalSettings
-            translationTargetLang: { type: "string", default: "" },
             settingsCorrect: {
               type: "object",
               properties: {
@@ -346,19 +346,6 @@ const schema = {
                 maxLength: 0,
                 model: DEFAULT_OPENAI_MODEL,
                 targetLanguage: DEFAULT_LANGUAGE,
-              },
-            },
-            settingsTranslate: {
-              type: "object",
-              properties: {
-                destinationLang: { type: "string", default: "" },
-                includeExplanation: { type: "boolean", default: false },
-                model: { type: "string", default: "" },
-              },
-              default: {
-                destinationLang: "",
-                includeExplanation: false,
-                model: DEFAULT_OPENAI_MODEL,
               },
             },
             settingsPromptGen: {

@@ -5,7 +5,6 @@ import { SettingCorrection } from "./SettingCorrection";
 import { SettingGeneral } from "./SettingGeneral";
 import { SettingKeyBinding } from "./SettingKeyBinding";
 import { SettingPromptGen } from "./SettingPromptGen";
-import { SettingTranslate } from "./SettingTranslate";
 
 // Define the tab configuration type
 type SettingsTab = {
@@ -107,12 +106,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       label: "Correction",
       icon: <></>,
       component: <SettingCorrection />,
-    },
-    {
-      id: "translate",
-      label: "Translate",
-      icon: <></>,
-      component: <SettingTranslate />,
     },
     {
       id: "promptGen",

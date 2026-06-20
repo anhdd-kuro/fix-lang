@@ -12,7 +12,7 @@ import useFuzzySearch from "../hooks/useFuzzySearch";
 import type { HistoryEntry, HistoryStoreType } from "~/stores/historyStore";
 
 // Define UI-specific history type for frontend use
-type UiHistoryType = "corrections" | "translations" | "summarize" | "promptGen";
+type UiHistoryType = "corrections" | "summarize" | "promptGen";
 
 // Define history features configuration (duplicate from shared config)
 // This is safer than importing the actual HISTORY_FEATURES array which might contain non-UI code
@@ -21,11 +21,6 @@ const HISTORY_FEATURES = [
     id: "corrections" as const,
     uiKey: "corrections" as const,
     label: "Corrections",
-  },
-  {
-    id: "translations" as const,
-    uiKey: "translations" as const,
-    label: "Translations",
   },
   {
     id: "summarize" as const,

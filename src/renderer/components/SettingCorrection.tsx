@@ -7,6 +7,8 @@ import {
   DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
   DEFAULT_SUMMARIZE_PRESET_ID,
   DEFAULT_SUMMARIZE_PRESET_PROMPT,
+  DEFAULT_TRANSLATE_PRESET_ID,
+  DEFAULT_TRANSLATE_PRESET_PROMPT,
 } from "~/prompts/correction";
 import { ModelSelect } from "./ModelSelect";
 import type {
@@ -17,8 +19,8 @@ import type {
 
 const STATIC_APP_HOTKEYS: (keyof Pick<
   KeyBindings,
-  "translate" | "promptGen" | "profileSwitch"
->)[] = ["translate", "promptGen", "profileSwitch"];
+  "promptGen" | "profileSwitch"
+>)[] = ["promptGen", "profileSwitch"];
 
 const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> => ({
   [DEFAULT_CORRECTION_PRESET_ID]: {
@@ -42,6 +44,14 @@ const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> => ({
     name: "Summarize",
     hotkey: "Control+Shift+S",
     systemPrompt: DEFAULT_SUMMARIZE_PRESET_PROMPT,
+    model: DEFAULT_OPENAI_MODEL,
+    isBuiltIn: true,
+  },
+  [DEFAULT_TRANSLATE_PRESET_ID]: {
+    id: DEFAULT_TRANSLATE_PRESET_ID,
+    name: "Translate",
+    hotkey: "Control+Shift+T",
+    systemPrompt: DEFAULT_TRANSLATE_PRESET_PROMPT.trim(),
     model: DEFAULT_OPENAI_MODEL,
     isBuiltIn: true,
   },

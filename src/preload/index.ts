@@ -5,7 +5,6 @@ import { contextBridge } from "electron";
 import {
   apiFeature,
   correctionFeature,
-  translationFeature,
   promptGenFeature,
   profilesFeature,
   settingsFeature,
@@ -19,7 +18,6 @@ import type {
   ProfilesFeature,
   PromptGenFeature,
   SettingsFeature,
-  TranslationFeature,
   UIFeature,
 } from "./features";
 
@@ -31,7 +29,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...historyFeature,
   ...apiFeature,
   ...correctionFeature,
-  ...translationFeature,
   ...promptGenFeature,
   ...profilesFeature,
   ...settingsFeature,
@@ -45,7 +42,6 @@ console.log(
 export type ElectronAPI = HistoryFeature &
   PromptGenFeature &
   CorrectionFeature &
-  TranslationFeature &
   ApiFeature &
   ProfilesFeature &
   SettingsFeature &

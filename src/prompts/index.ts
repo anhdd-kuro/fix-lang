@@ -1,28 +1,5 @@
 export * from "./correction";
 
-export const TRANSLATE_WITH_EXPLANATION_PROMPT = `
-Task: Translate the input into the specified target language.
-Requirements:
-- Preserve the original meaning, context, tone, and style.
-- If any abbreviation, technical term, idiom, or other item may need clarification, mark it with a superscript number, for example: "Foo(*1)".
-- Keep idioms in their original form inside quotation marks.
-Output:
-- Return only the translated text.
-- After the translation, list each footnote in this format: "*number: [word] means [explanation]".
-`;
-
-export const TRANSLATE_WITHOUT_EXPLANATION_PROMPT = `
-Task: Translate the input into the specified target language.
-Requirements:
-- Preserve the original meaning, context, tone, and style.
-- Do not include explanations, footnotes, or clarifications.
-Output:
-- Return only the translated text.
-`;
-
-// Keep for backward compatibility
-export const DEFAULT_TRANSLATE_PROMPT = TRANSLATE_WITH_EXPLANATION_PROMPT;
-
 export const DEFAULT_SUMMARIZE_PROMPT = `
 Task: Summarize the input.
 Requirements:

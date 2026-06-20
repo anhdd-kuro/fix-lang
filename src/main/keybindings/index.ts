@@ -2,7 +2,6 @@ import { globalShortcut, BrowserWindow } from "electron";
 import { registerCorrectionShortcut } from "./correction";
 import { registerProfileSwitchShortcut } from "./profileSwitch";
 import { registerPromptGenShortcut } from "./promptGen";
-import { registerTranslateShortcut } from "./translation";
 import { checkShortcut } from "./utils";
 import { getMainWindow } from "../webViewWindows/mainWindow";
 
@@ -22,7 +21,6 @@ export const registerHotkeys = (mainWindow: BrowserWindow): void => {
   console.log("Attempting to register hotkeys...");
 
   registerCorrectionShortcut(mainWindow);
-  registerTranslateShortcut(mainWindow);
   registerPromptGenShortcut(mainWindow);
   registerProfileSwitchShortcut(); // Register the profile switch shortcut
   registerDevToolsShortcut();

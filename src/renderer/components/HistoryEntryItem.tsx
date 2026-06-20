@@ -4,7 +4,7 @@ import { TrashButton } from "./TrashButton";
 import type { HistoryEntry, HistoryStoreType } from "~/stores/historyStore";
 
 // Define UI-specific history type for frontend use
-type UiHistoryType = "corrections" | "translations" | "summarize" | "promptGen";
+type UiHistoryType = "corrections" | "summarize" | "promptGen";
 
 type HistoryEntryItemProps = {
   entry: HistoryEntry;
