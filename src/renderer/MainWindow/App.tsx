@@ -2,6 +2,7 @@ import { addDays, format } from "date-fns";
 import React, { useState, useEffect, useDeferredValue } from "react";
 import HistoryEntryItem from "../components/HistoryEntryItem";
 import HistoryReviewModal from "../components/HistoryReviewModal";
+import { ListRow } from "../components/ListRow";
 import ModelManagerDialog from "../components/ModelManagerDialog";
 import SearchInput from "../components/SearchInput";
 import { SettingsButton } from "../components/SettingsIcon";
@@ -225,11 +226,18 @@ const App: React.FC = () => {
             />
           </div>
         </div>
-        <ul className="divide-y divide-separator/40 overflow-y-auto mb-4 flex-1">
+        <ul className="overflow-y-auto mb-4 flex-1">
           {filteredHistory.map((entry: HistoryEntry, idx: number) => (
-            <li
+            <ListRow
               key={idx}
-              className="relative group/history-entry"
+              as="li"
+              onClick={() =>
+                setLastHistoryData({
+                  ...entry,
+                  timestamp: new Date().toISOString(),
+                })
+              }
+              className="relative group/history-entry py-2"
             >
               <HistoryEntryItem
                 entry={entry}
@@ -264,7 +272,7 @@ const App: React.FC = () => {
                   );
                 }}
               />
-            </li>
+            </ListRow>
           ))}
         </ul>
         <TrashButton
