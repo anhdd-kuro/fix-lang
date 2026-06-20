@@ -106,11 +106,11 @@ describe("buildCachedMessages", () => {
     const systemMsg = result.find((m) => m.role === "system");
     expect(Array.isArray(systemMsg?.content)).toBe(true);
 
-    const blocks = systemMsg?.content as Array<{
+    const blocks = systemMsg?.content as {
       type: string;
       text: string;
       cache_control: { type: string };
-    }>;
+    }[];
     expect(blocks[0].type).toBe("text");
     expect(blocks[0].text).toBe("You are a helpful assistant.");
     expect(blocks[0].cache_control).toEqual({ type: "ephemeral" });
@@ -122,11 +122,11 @@ describe("buildCachedMessages", () => {
     const systemMsg = result.find((m) => m.role === "system");
     expect(Array.isArray(systemMsg?.content)).toBe(true);
 
-    const blocks = systemMsg?.content as Array<{
+    const blocks = systemMsg?.content as {
       type: string;
       text: string;
       cache_control: { type: string };
-    }>;
+    }[];
     expect(blocks[0].type).toBe("text");
     expect(blocks[0].text).toBe("You are a helpful assistant.");
     expect(blocks[0].cache_control).toEqual({ type: "ephemeral" });
@@ -154,7 +154,7 @@ describe("buildCachedMessages", () => {
   it("handles non-string system content by JSON-serializing it", () => {
     const msgs = [{ role: "system", content: { key: "value" } }];
     const result = buildCachedMessages(msgs, CacheProvider.ANTHROPIC);
-    const blocks = result[0].content as Array<{ text: string }>;
+    const blocks = result[0].content as { text: string }[];
     expect(blocks[0].text).toBe('{"key":"value"}');
   });
 
@@ -176,11 +176,11 @@ describe("buildCachedMessages", () => {
       },
     ];
     const result = buildCachedMessages(msgs, CacheProvider.ANTHROPIC);
-    const blocks = result[0].content as Array<{
+    const blocks = result[0].content as {
       type: string;
       text: string;
       cache_control?: { type: string };
-    }>;
+    }[];
     expect(blocks).toHaveLength(2);
     expect(blocks[0].text).toBe("Block one");
     expect(blocks[0].cache_control).toBeUndefined();

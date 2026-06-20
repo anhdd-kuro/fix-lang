@@ -26,25 +26,11 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({
     lg: "text-base py-2 px-4"
   };
 
-  // Fetch profiles on component mount
-  useEffect(() => {
-    fetchProfiles();
-    
-    // Set up listener for profile updates
-    const cleanup = window.electronAPI.onProfileUpdated?.(() => {
-      fetchProfiles();
-    });
-    
-    return () => {
-      cleanup?.();
-    };
-  }, []);
-
   const fetchProfiles = async () => {
     try {
       setIsLoading(true);
       const result = await window.electronAPI.getProfiles();
-      
+
       if (result.profiles) {
         setProfiles(result.profiles);
         setCurrentProfileId(result.currentProfileId || "");
@@ -55,6 +41,21 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({
       setIsLoading(false);
     }
   };
+
+  // Fetch profiles on component mount
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchProfiles();
+
+    // Set up listener for profile updates
+    const cleanup = window.electronAPI.onProfileUpdated?.(() => {
+      fetchProfiles();
+    });
+
+    return () => {
+      cleanup?.();
+    };
+  }, []);
 
   const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newProfileId = e.target.value;

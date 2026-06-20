@@ -124,6 +124,7 @@ export const ModelSelect: React.FC<{
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchModels();
     if (selectedModelId) {
       setSelectedModel(selectedModelId);
@@ -141,6 +142,7 @@ export const ModelSelect: React.FC<{
 
   useEffect(() => {
     if (selectedModelId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedModel(selectedModelId);
     }
   }, [selectedModelId]);
@@ -172,7 +174,7 @@ export const ModelSelect: React.FC<{
           };
         }
 
-        let label = "";
+        let label: string;
 
         if (isLocalModel) {
           // Format for local models - show size if available

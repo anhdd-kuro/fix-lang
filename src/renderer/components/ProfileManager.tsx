@@ -20,20 +20,6 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
   const [exportProfileName, setExportProfileName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch profiles on component mount
-  useEffect(() => {
-    fetchProfiles();
-
-    // Set up listener for profile updates
-    const cleanup = window.electronAPI.onProfileUpdated?.(() => {
-      fetchProfiles();
-    });
-
-    return () => {
-      cleanup?.();
-    };
-  }, []);
-
   const fetchProfiles = async () => {
     try {
       setIsLoading(true);
@@ -54,6 +40,21 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       setIsLoading(false);
     }
   };
+
+  // Fetch profiles on component mount
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchProfiles();
+
+    // Set up listener for profile updates
+    const cleanup = window.electronAPI.onProfileUpdated?.(() => {
+      fetchProfiles();
+    });
+
+    return () => {
+      cleanup?.();
+    };
+  }, []);
 
   const handleCreateProfile = async () => {
     if (!newProfileName.trim()) {

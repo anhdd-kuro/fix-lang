@@ -51,7 +51,7 @@ export const getHighlightedText = async (): Promise<string> => {
     return selectedText;
   } catch (error) {
     console.error(error);
-    throw new Error("Failed to get highlighted text");
+    throw new Error("Failed to get highlighted text", { cause: error });
   } finally {
     clipboard.writeText(previousClipboardContent);
   }

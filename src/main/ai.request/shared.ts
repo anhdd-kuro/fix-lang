@@ -48,8 +48,8 @@ export const fetchAvailableModels = async (
 ): Promise<Model[]> => {
   // Get previously cached models (if any)
   const cachedModels = (apiStore.get("models") as Model[]) || [];
-  let cloudModels: Model[] = [];
-  let localModels: Model[] = [];
+  let cloudModels: Model[];
+  let localModels: Model[];
 
   // First get local models - these should work even without API key
   try {

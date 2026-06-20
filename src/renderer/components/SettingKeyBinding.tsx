@@ -20,6 +20,7 @@ export const SettingKeyBinding: React.FC = () => {
 
   // Fetch Key Bindings when component mounts
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setKeyBindingsStatus(""); // Clear key binding status
     console.log("SettingKeyBinding: Fetching Key Bindings...");
 

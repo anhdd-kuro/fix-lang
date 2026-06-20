@@ -40,6 +40,7 @@ export const SettingTranslate: React.FC = () => {
 
   // Load initial settings
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadSettings();
   }, []);
 
