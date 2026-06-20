@@ -342,7 +342,7 @@ export const SettingCorrection: React.FC = () => {
                           {preset.hotkey || "No hotkey assigned"}
                         </p>
                       </div>
-                      <span className="rounded-full bg-gray-700 px-2 py-1 text-[11px] text-gray-200">
+                      <span className="rounded-full bg-gray-700 px-2 py-1 text-[0.85rem] text-gray-200">
                         {preset.isBuiltIn ? "Built-in" : "Custom"}
                       </span>
                     </div>
