@@ -31,9 +31,6 @@ export default [
       "extensions/scan-product/node_modules/",
       "extensions/scan-product/dist/",
       ".graphqlrc.ts",
-      // Stash-orphaned untracked files not on any committed branch.
-      "src/main/webViewWindows/openai.test.ts",
-      "src/main/partials/openai.ts",
     ],
   },
   {
