@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom/client";
-import "../main.css"; // Import Tailwind CSS entry point
+import "../main.css";
+import { Button } from "../components/Button";
 import { ModelSelect } from "../components/ModelSelect";
 import ProfileSelector from "../components/ProfileSelector";
 import { SettingsButton } from "../components/SettingsIcon";
@@ -60,17 +61,19 @@ const TrayWindowMain: React.FC = () => {
   }, []);
 
   return (
-    <div className="bg-gray-800 backdrop-blur-sm text-gray-100 p-2 rounded-lg w-full h-screen">
-      <div className="bg-gray-800 text-gray-100 p-4 rounded-lg w-full relative">
-        {/* Settings button positioned at top right */}
+    <div className="bg-window text-label-primary p-2 rounded-lg w-full h-screen overflow-y-auto">
+      <div className="bg-window p-4 rounded-lg w-full relative">
+        {/* Settings button — top right */}
         <div className="absolute top-2 right-2">
           <SettingsButton
             onClick={() => window.electronAPI.showMainWindowSettings()}
-            className="text-gray-400 hover:text-white"
+            className="text-label-secondary hover:text-label-primary"
             iconClassName="size-5"
           />
         </div>
-        <h3 className="text-sm">Last Action</h3>
+        <h3 className="text-[0.846rem] font-semibold text-label-primary">
+          Last Action
+        </h3>
         <div className="flex flex-col gap-4 mt-2">
           <div className="flex-1 flex flex-col">
             <TextAreaBox
@@ -90,10 +93,10 @@ const TrayWindowMain: React.FC = () => {
               model={lastHistory.model}
             />
           </div>
-          <div className="flex flex-col justify-between items-center gap-2 mt-2 mb-1">
+          <div className="flex flex-col items-center gap-2 mt-2 mb-1">
             <div className="flex items-center gap-2">
               <svg
-                className="h-4 w-4"
+                className="h-4 w-4 text-label-secondary"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -112,14 +115,17 @@ const TrayWindowMain: React.FC = () => {
           </div>
         </div>
       </div>
-      <div className="mt-4 flex justify-center">
-        <button
-          type="button"
-          className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-4 rounded"
+
+      {/* Separator */}
+      <div className="mx-4 my-2 h-px bg-separator" aria-hidden="true" />
+
+      <div className="flex justify-center pb-2">
+        <Button
+          variant="destructive"
           onClick={() => window.electronAPI.quitApp()}
         >
           Quit Application
-        </button>
+        </Button>
       </div>
     </div>
   );

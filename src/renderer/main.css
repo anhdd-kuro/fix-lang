@@ -15,6 +15,10 @@
   /* Accent — hardcoded macOS dark blue (system accent unavailable in renderer) */
   --color-accent: #0a84ff;
   --color-accent-hover: #3d9bff;
+
+  /* Danger — foundation-token extension introduced with destructive Button (#28) */
+  --color-danger: #3a1a1a;
+  --color-danger-hover: #4a2020;
 }
 
 @layer base {
