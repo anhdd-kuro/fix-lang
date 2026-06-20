@@ -3,7 +3,6 @@ import { twJoin } from "tailwind-merge";
 import ProfileManager from "./ProfileManager";
 import { SettingCorrection } from "./SettingCorrection";
 import { SettingGeneral } from "./SettingGeneral";
-import { SettingKeyBinding } from "./SettingKeyBinding";
 import { SettingPromptGen } from "./SettingPromptGen";
 
 // Define the tab configuration type
@@ -17,7 +16,7 @@ type SettingsTab = {
 type SettingsModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  /** Initial active tab: 0=General,1=KeyBindings,2=Prompt */
+  /** Initial active tab index (0-based). Tabs: Profiles, General, Correction, PromptGen. */
   initialTab?: number;
   /** Callback when overlay is clicked */
   onOverlayClick?: () => void;
@@ -82,26 +81,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       component: <SettingGeneral />,
     },
     {
-      id: "keybindings",
-      label: "Key Bindings",
-      icon: (
-        <svg
-          className="h-4 w-4"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
-          />
-        </svg>
-      ),
-      component: <SettingKeyBinding />,
-    },
-    {
       id: "correction",
       label: "Correction",
       icon: <></>,
@@ -151,7 +130,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Tab Navigation */}
         <div className="mb-6">
           <div
-            className="grid grid-cols-5 gap-x-4 gap-y-2 w-full rounded-lg p-1"
+            className="grid grid-cols-4 gap-x-4 gap-y-2 w-full rounded-lg p-1"
             role="tablist"
             aria-label="Settings tabs"
           >

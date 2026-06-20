@@ -277,8 +277,8 @@ export const SettingCorrection: React.FC = () => {
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-6">
       <div className="rounded-lg border border-gray-700 bg-gray-800/60 p-4 text-sm text-gray-300">
-        Correction presets have their own hotkeys here. Translation, prompt
-        generator, and profile switch shortcuts stay in the Key Bindings screen.
+        Correction preset hotkeys are edited here. The prompt generator and
+        profile switch shortcuts are in the PromptGen and Profiles tabs.
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">

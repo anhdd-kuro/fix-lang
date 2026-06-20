@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { validateHotkeys } from "./validateHotkeys";
 import type { CorrectionPreset, KeyBindings } from "~/stores/apiStore";
+import { DEFAULT_KEY_BINDINGS } from "~/const";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -148,5 +149,28 @@ describe("validateHotkeys", () => {
     const result = validateHotkeys(presets, { promptGen: "", profileSwitch: "" });
 
     expect(result).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// KeyBindings type-shape guard (#45)
+// Verifies DEFAULT_KEY_BINDINGS has exactly {promptGen, profileSwitch}.
+// Catches accidental re-widening of the KeyBindings type.
+// ---------------------------------------------------------------------------
+
+describe("DEFAULT_KEY_BINDINGS shape", () => {
+  it("has exactly promptGen and profileSwitch keys", () => {
+    const keys = Object.keys(DEFAULT_KEY_BINDINGS).sort();
+    expect(keys).toEqual(["profileSwitch", "promptGen"]);
+  });
+
+  it("DEFAULT_KEY_BINDINGS satisfies KeyBindings type (both fields are non-empty strings)", () => {
+    // This is also a TypeScript compile-time check via the `satisfies` in const.ts,
+    // but we verify at runtime too.
+    const bindings: KeyBindings = DEFAULT_KEY_BINDINGS;
+    expect(typeof bindings.promptGen).toBe("string");
+    expect(bindings.promptGen.length).toBeGreaterThan(0);
+    expect(typeof bindings.profileSwitch).toBe("string");
+    expect(bindings.profileSwitch.length).toBeGreaterThan(0);
   });
 });
