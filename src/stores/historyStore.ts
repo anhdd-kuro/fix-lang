@@ -18,7 +18,6 @@ type LastActionHistory = {
 
 export type HistoryStore = {
   corrections: HistoryEntry[];
-  translations: HistoryEntry[];
   summarize: HistoryEntry[];
   promptGen: HistoryEntry[];
   lastActionHistory: LastActionHistory;
@@ -29,10 +28,6 @@ export type HistoryStoreType = keyof HistoryStore;
 // Create schema based on the shared type definition
 const historySchema: Schema<HistoryStore> = {
   corrections: {
-    type: "array",
-    default: [],
-  },
-  translations: {
     type: "array",
     default: [],
   },

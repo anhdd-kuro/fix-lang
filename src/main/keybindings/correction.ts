@@ -85,6 +85,8 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
               model: result.model,
             },
             type: "add",
+            // Translate preset intentionally routes to the "corrections" bucket.
+            // All presets except Summarize share the corrections history bucket.
             featureId:
               preset.id === DEFAULT_SUMMARIZE_PRESET_ID
                 ? "summarize"

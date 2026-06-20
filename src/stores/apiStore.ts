@@ -196,8 +196,10 @@ export const normalizeCorrectionSettings = (
       model: raw.model?.trim() || defaults.presets[0].model,
     } satisfies CorrectionPreset;
 
+    // Return all built-in defaults; only the correction preset gets the migrated prompt.
+    // Using slice(1) ensures summarize, prompt-optimization, and translate are all included.
     return {
-      presets: [migratedCorrectionPreset, defaults.presets[1]],
+      presets: [migratedCorrectionPreset, ...defaults.presets.slice(1)],
       selectedPresetId: migratedCorrectionPreset.id,
     };
   }

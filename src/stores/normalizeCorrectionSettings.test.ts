@@ -254,3 +254,44 @@ describe("getDefaultCorrectionSettings — returns 4 built-in presets including 
     ]);
   });
 });
+
+describe("normalizeCorrectionSettings — legacy path (no presets array)", () => {
+  it("returns all 4 built-in presets when input has no presets array", () => {
+    // Simulates a very old profile that predates the preset system (no presets key at all)
+    const result = normalizeCorrectionSettings({});
+    expect(result.presets).toHaveLength(4);
+    const ids = result.presets.map((p) => p.id);
+    expect(ids).toContain("correction");
+    expect(ids).toContain("summarize");
+    expect(ids).toContain("prompt-optimization");
+    expect(ids).toContain(DEFAULT_TRANSLATE_PRESET_ID);
+  });
+
+  it("returns all 4 built-in presets when input is null", () => {
+    const result = normalizeCorrectionSettings(null);
+    expect(result.presets).toHaveLength(4);
+    expect(result.presets.find((p) => p.id === DEFAULT_TRANSLATE_PRESET_ID)).toBeDefined();
+  });
+
+  it("returns all 4 built-in presets when input is undefined", () => {
+    const result = normalizeCorrectionSettings(undefined);
+    expect(result.presets).toHaveLength(4);
+    expect(result.presets.find((p) => p.id === DEFAULT_TRANSLATE_PRESET_ID)).toBeDefined();
+  });
+
+  it("migrates legacy userInput into correction preset systemPrompt", () => {
+    // Old-style stored object with userInput but no presets
+    const result = normalizeCorrectionSettings({ userInput: "Custom prompt text" });
+    const correctionPreset = result.presets.find((p) => p.id === "correction");
+    expect(correctionPreset?.systemPrompt).toContain("Custom prompt text");
+  });
+
+  it("includes all 4 built-in presets in order including translate at position 3", () => {
+    const result = normalizeCorrectionSettings({});
+    const ids = result.presets.map((p) => p.id);
+    expect(ids[0]).toBe("correction");
+    expect(ids[1]).toBe("summarize");
+    expect(ids[2]).toBe("prompt-optimization");
+    expect(ids[3]).toBe(DEFAULT_TRANSLATE_PRESET_ID);
+  });
+});
