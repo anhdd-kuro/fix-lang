@@ -204,7 +204,10 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-window text-label-primary font-sans flex">
+    <div
+      data-testid="main-window-root"
+      className="min-h-screen bg-window text-label-primary font-sans flex"
+    >
       {/* Sidebar history panel */}
       <aside
         className={`relative z-10 flex flex-col bg-control border-r border-separator h-screen transform transition-all duration-300 ease-in-out group *:transition-opacity *:duration-300 ${historyOpen ? "p-4 translate-x-0 w-64 " : "-translate-x-full w-0 overflow-hidden px-0 py-4 *:opacity-0"}`}

@@ -23,8 +23,12 @@ import { test, expect } from "@playwright/test";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Resolve to the built main-process entry from the project root
-const MAIN_JS = path.resolve(__dirname, "../out/main/index.js");
+// Launch via the project root so Electron reads package.json and sets
+// app.getAppPath() → PROJECT_ROOT. The production code constructs the preload
+// path as path.join(app.getAppPath(), "out/preload/index.js"), which is only
+// correct when getAppPath() returns the project root — not the out/main/
+// directory that results from passing the .js entry directly.
+const PROJECT_ROOT = path.resolve(__dirname, "..");
 
 // Expected dimensions of the main window (from mainWindow.ts: width:1000, height:900).
 // window.innerWidth/Height excludes the OS titlebar chrome, so measured values are
@@ -39,7 +43,8 @@ test.setTimeout(60_000);
 
 test("main window renders without crashing and matches screenshot", async () => {
   const app = await electron.launch({
-    args: [MAIN_JS],
+    args: [PROJECT_ROOT],
+    cwd: PROJECT_ROOT,
     env: {
       ...process.env,
       NODE_ENV: "test",
@@ -109,6 +114,15 @@ test("main window renders without crashing and matches screenshot", async () => 
     }
 
     await mainWindow.waitForLoadState("domcontentloaded");
+
+    // Wait until React has actually rendered the MainWindow App.
+    // [data-testid="main-window-root"] is the root div of App.tsx — it only
+    // exists once React mounts. Without this wait the screenshot races
+    // domcontentloaded and captures a blank-white #root.
+    await mainWindow.waitForSelector('[data-testid="main-window-root"]', {
+      state: "visible",
+      timeout: 15_000,
+    });
 
     // Disable CSS animations/transitions for pixel-stable captures
     await mainWindow.addStyleTag({
