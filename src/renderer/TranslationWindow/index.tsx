@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import "../main.css"; // Import Tailwind CSS entry point
 import ReactDOM from "react-dom/client";
 import CopyButton from "../components/CopyButton";
+import { TextArea } from "../components/TextArea";
 import type { TranslationPayload } from "~/main/webViewWindows/translationWindow";
 
 const App: React.FC = () => {
@@ -15,31 +16,43 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  console.log("Translation window data:", data);
-  if (!data) return null;
-
   return (
-    <div className="flex flex-col h-screen text-white px-4 py-2">
+    <div
+      data-testid="translation-window-root"
+      className="flex flex-col h-screen bg-window text-label-primary px-4 py-3"
+    >
       {/* Main content */}
-      <div className="flex flex-col mt-2 flex-1 overflow-auto">
-        <textarea
-          className="prose dark:prose-invert text-xs whitespace-pre-wrap overflow-auto w-full flex-1 p-2 bg-gray-800 rounded border border-gray-700 focus:outline-none focus:border-blue-500"
-          value={data.translatedText}
+      <div className="flex flex-col flex-1 overflow-auto gap-2">
+        <TextArea
+          value={data?.translatedText ?? ""}
           readOnly
           placeholder="Translated Text"
+          rows={8}
+          className="flex-1"
+          textareaClassName="h-full resize-none"
+          headerAction={
+            data ? (
+              <CopyButton
+                value={data.translatedText}
+                label="Copy translation"
+              />
+            ) : undefined
+          }
+          footer={
+            data ? (
+              <>
+                <span className="text-label-tertiary text-[0.769rem]">
+                  Prompt: {data.promptTokens ?? "-"}
+                </span>
+                <span className="mx-1 text-separator">·</span>
+                <span className="text-label-tertiary text-[0.769rem]">
+                  Completion: {data.completionTokens ?? "-"}
+                </span>
+              </>
+            ) : undefined
+          }
         />
-
-        <div className="flex justify-between mt-2 text-xs text-gray-500">
-          <p>Prompt Tokens: {data.promptTokens ?? "-"}</p>
-          <p>Completion Tokens: {data.completionTokens ?? "-"}</p>
-        </div>
       </div>
-
-      <CopyButton
-        value={data.translatedText}
-        label="Copy"
-        className="absolute top-2 right-4"
-      />
     </div>
   );
 };
