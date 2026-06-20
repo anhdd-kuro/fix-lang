@@ -1,27 +1,23 @@
 import { format } from "date-fns";
 import React from "react";
 import { TrashButton } from "./TrashButton";
-import type { HistoryEntry, HistoryStoreType } from "~/stores/historyStore";
-
-// Define UI-specific history type for frontend use
-type UiHistoryType = "corrections" | "translations" | "summarize" | "promptGen";
+import type { HistoryEntry, HistoryFeatureId } from "~/stores/historyStore";
 
 type HistoryEntryItemProps = {
   entry: HistoryEntry;
-  featureMap: {
-    id: HistoryStoreType;
-    uiKey: UiHistoryType;
-    label: string;
-  }[];
-  activeHistoryType: UiHistoryType;
   onSelect: (entry: HistoryEntry) => void;
-  onDelete: (entry: HistoryEntry, featureType: string) => void;
+  onDelete: (entry: HistoryEntry, featureId: HistoryFeatureId) => void;
 };
+
+/**
+ * Derive the store bucket for delete/remove operations from the entry itself.
+ * PromptGen entries live in the promptGen bucket; all others in corrections.
+ */
+const getFeatureId = (entry: HistoryEntry): HistoryFeatureId =>
+  entry.presetName === "PromptGen" ? "promptGen" : "corrections";
 
 const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
   entry,
-  featureMap,
-  activeHistoryType,
   onSelect,
   onDelete,
 }) => {
@@ -36,13 +32,7 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
             {format(new Date(entry.timestamp), "MM/dd HH:mm")}
           </span>
           <span className="px-1.5 py-0.5 bg-blue-600 text-white rounded-sm ml-auto">
-            {
-              // Get feature label by ID
-              featureMap.find(
-                (feature) =>
-                  feature.uiKey === (entry.featureType || activeHistoryType)
-              )?.label || "Unknown"
-            }
+            {entry.presetName ?? "Unknown"}
           </span>
         </div>
         <p
@@ -62,7 +52,7 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
         className="invisible absolute right-2 bottom-2 group-hover/history-entry:visible"
         onClick={(e) => {
           e.stopPropagation();
-          onDelete(entry, entry.featureType || activeHistoryType);
+          onDelete(entry, getFeatureId(entry));
         }}
         size="sm"
       />

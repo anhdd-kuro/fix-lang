@@ -3,9 +3,6 @@ import Fuse from "fuse.js";
 import { useMemo } from "react";
 import type { HistoryEntry } from "~/stores/historyStore";
 
-// Define UI-specific history type for frontend use
-type UiHistoryType = "corrections" | "translations" | "summarize" | "promptGen";
-
 // Use a shared config type to avoid duplicating the config
 type FuseConfig = {
   keys: (string | { name: string; getFn: (item: HistoryEntry) => string })[];
@@ -16,15 +13,11 @@ type FuseConfig = {
   useExtendedSearch?: boolean;
 };
 
-// Define the hook for fuzzy searching history entries
+// Define the hook for fuzzy searching history entries.
+// presetName is now a direct string field on HistoryEntry, so no featureMap lookup is needed.
 export function useFuzzySearch(
   history: HistoryEntry[],
-  searchQuery: string,
-  featureMap: {
-    id: string;
-    uiKey: UiHistoryType;
-    label: string;
-  }[]
+  searchQuery: string
 ): HistoryEntry[] {
   // Default configuration for Fuse.js
   const fuseConfig: FuseConfig = useMemo(() => {
@@ -33,20 +26,11 @@ export function useFuzzySearch(
         "original", // Search in original text
         "corrected", // Search in corrected text
         "model", // Search by model name
+        "presetName", // Search by preset name
         {
           name: "timestamp",
           getFn: (entry: HistoryEntry) =>
             format(new Date(entry.timestamp), "MM/dd HH:mm"),
-        },
-        {
-          name: "featureType",
-          getFn: (entry: HistoryEntry) => {
-            // Search by feature name (not just ID)
-            const feature = featureMap.find(
-              (f) => f.uiKey === entry.featureType
-            );
-            return feature?.label || String(entry.featureType || "");
-          },
         },
       ],
       includeScore: true,
@@ -55,7 +39,7 @@ export function useFuzzySearch(
       ignoreLocation: true, // Better for searching through large text
       useExtendedSearch: true, // Allow for more advanced search patterns
     };
-  }, [featureMap]);
+  }, []);
 
   // Use useMemo to avoid recreating the filtered list on every render
   const filteredHistory = useMemo(() => {

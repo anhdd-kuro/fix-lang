@@ -1,8 +1,5 @@
 import { globalShortcut, Notification } from "electron";
-import {
-  DEFAULT_CORRECTION_PRESET_ID,
-  DEFAULT_SUMMARIZE_PRESET_ID,
-} from "~/prompts";
+import { DEFAULT_CORRECTION_PRESET_ID } from "~/prompts";
 // No apiStore import needed as api key is handled in shared.ts
 import { getProfileSetting } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
@@ -83,12 +80,10 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
               completionTokens: result.completionTokens ?? 0,
               timestamp: new Date().toISOString(),
               model: result.model,
+              presetName: result.presetName,
             },
             type: "add",
-            featureId:
-              preset.id === DEFAULT_SUMMARIZE_PRESET_ID
-                ? "summarize"
-                : "corrections",
+            featureId: "corrections",
           });
           mainWindow.webContents.send("stop-loading");
         } else {

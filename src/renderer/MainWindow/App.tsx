@@ -9,60 +9,36 @@ import { SettingsModal } from "../components/SettingsModal";
 import { TextAreaBox } from "../components/TextAreaBox";
 import { TrashButton } from "../components/TrashButton";
 import useFuzzySearch from "../hooks/useFuzzySearch";
-import type { HistoryEntry, HistoryStoreType } from "~/stores/historyStore";
+import type { HistoryEntry, HistoryFeatureId } from "~/stores/historyStore";
 
-// Define UI-specific history type for frontend use
-type UiHistoryType = "corrections" | "translations" | "summarize" | "promptGen";
-
-// Define history features configuration (duplicate from shared config)
-// This is safer than importing the actual HISTORY_FEATURES array which might contain non-UI code
-const HISTORY_FEATURES = [
-  {
-    id: "corrections" as const,
-    uiKey: "corrections" as const,
-    label: "Corrections",
-  },
-  {
-    id: "translations" as const,
-    uiKey: "translations" as const,
-    label: "Translations",
-  },
-  {
-    id: "summarize" as const,
-    uiKey: "summarize" as const,
-    label: "Summarize",
-  },
-  {
-    id: "promptGen" as const,
-    uiKey: "promptGen" as const,
-    label: "Prompt Generator",
-  },
-] satisfies { id: HistoryStoreType; uiKey: UiHistoryType; label: string }[];
+/**
+ * Derive unique preset names from loaded history entries (corrections bucket),
+ * preserving first-seen order. PromptGen is appended last as a fixed entry.
+ */
+const deriveAvailableFilters = (entries: HistoryEntry[]): string[] => {
+  const seen = new Set<string>();
+  for (const e of entries) {
+    if (e.presetName && e.presetName !== "PromptGen") {
+      seen.add(e.presetName);
+    }
+  }
+  return [...seen, "PromptGen"];
+};
 
 /**
  * Main App component for FixLang Preview UI.
  * Handles API call loading spinner near the mouse, settings modal, and text display.
  */
-const mapHistoryType = (uiKey: UiHistoryType): HistoryStoreType => {
-  const feature = HISTORY_FEATURES.find((f) => f.uiKey === uiKey);
-  if (!feature) {
-    console.error(`History feature with UI key ${uiKey} not found`);
-    return "corrections"; // Default fallback
-  }
-  return feature.id;
-};
-
 const App: React.FC = () => {
-  // History state for all features using a unified approach
+  // History state — flat list combining corrections + promptGen buckets
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   // Search state for fuzzy search
   const [searchQuery, setSearchQuery] = useState<string>("");
   const _deferredSearchQuery = useDeferredValue(searchQuery);
 
-  // We're now showing all history and filtering with search, so we only need
-  // activeHistoryType for the clear history function
-  const [activeHistoryType] = useState<UiHistoryType>("corrections");
+  // Active preset name filter — null means "show all"
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
   const [initialSettingsTab, setInitialSettingsTab] = useState<number>(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
@@ -82,29 +58,22 @@ const App: React.FC = () => {
   const [_loading, _setLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    // Fetch all histories from all features
+    // Fetch corrections + promptGen buckets and combine into a single sorted list
     const fetchAllHistories = async () => {
-      const allHistories: HistoryEntry[] = [];
+      const [corrections, promptGen] = await Promise.all([
+        window.electronAPI.getHistory("corrections"),
+        window.electronAPI.getHistory("promptGen"),
+      ]);
 
-      // Get history for all features
-      for (const feature of HISTORY_FEATURES) {
-        const typeHistory = await window.electronAPI.getHistory(feature.uiKey);
-
-        // Add feature identifier to each entry
-        const historyWithFeature = typeHistory.map((entry) => ({
-          ...entry,
-          featureType: feature.uiKey, // Add feature type for display
-        }));
-        allHistories.push(...historyWithFeature);
-      }
+      const combined: HistoryEntry[] = [...corrections, ...promptGen];
 
       // Sort by timestamp (newest first)
-      allHistories.sort(
+      combined.sort(
         (a, b) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
 
-      setHistory(allHistories);
+      setHistory(combined);
     };
 
     fetchAllHistories();
@@ -123,7 +92,6 @@ const App: React.FC = () => {
       return { success: true };
     };
 
-    // Register a listener for openModelManager calls
     const modelManagerEventName = "openModelManager";
     window.addEventListener(modelManagerEventName, openModelManagerHandler);
 
@@ -137,34 +105,22 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const fetchAllHistories = async () => {
+      const [corrections, promptGen] = await Promise.all([
+        window.electronAPI.getHistory("corrections"),
+        window.electronAPI.getHistory("promptGen"),
+      ]);
+      const combined: HistoryEntry[] = [...corrections, ...promptGen];
+      combined.sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      setHistory(combined);
+    };
+
     const handleSettings = (type?: number) => {
       setInitialSettingsTab(type || 0);
       setIsSettingsOpen(true);
-
-      // Refresh histories after settings change
-      const fetchAllHistories = async () => {
-        const allHistories: HistoryEntry[] = [];
-
-        // Get history for all features
-        for (const feature of HISTORY_FEATURES) {
-          const typeHistory = await window.electronAPI.getHistory(
-            feature.uiKey
-          );
-          const historyWithFeature = typeHistory.map((entry) => ({
-            ...entry,
-            featureType: feature.uiKey,
-          }));
-          allHistories.push(...historyWithFeature);
-        }
-
-        allHistories.sort(
-          (a, b) =>
-            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        );
-
-        setHistory(allHistories);
-      };
-
       fetchAllHistories();
     };
 
@@ -196,11 +152,16 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const filteredHistory = useFuzzySearch(
-    history,
-    searchQuery,
-    HISTORY_FEATURES
-  );
+  // Derive available filter tabs dynamically from loaded history
+  const availableFilters = deriveAvailableFilters(history);
+
+  // Apply preset-name filter first, then fuzzy search on top
+  const preFilteredHistory =
+    activeFilter === null
+      ? history
+      : history.filter((e) => e.presetName === activeFilter);
+
+  const filteredHistory = useFuzzySearch(preFilteredHistory, searchQuery);
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans flex">
@@ -216,7 +177,7 @@ const App: React.FC = () => {
               className="w-full"
               debounceMs={300}
               suggestions={[
-                ...HISTORY_FEATURES.map((feature) => feature.label),
+                ...availableFilters,
                 // Today and yesterday
                 format(new Date(), "MM/dd"),
                 format(addDays(new Date(), -1), "MM/dd"),
@@ -225,6 +186,32 @@ const App: React.FC = () => {
             />
           </div>
         </div>
+
+        {/* Dynamic filter tabs — built from preset names present in data */}
+        {availableFilters.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            <button
+              type="button"
+              onClick={() => setActiveFilter(null)}
+              className={`px-2 py-0.5 text-xs rounded-sm ${activeFilter === null ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600"}`}
+            >
+              All
+            </button>
+            {availableFilters.map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() =>
+                  setActiveFilter(activeFilter === name ? null : name)
+                }
+                className={`px-2 py-0.5 text-xs rounded-sm ${activeFilter === name ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600"}`}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        )}
+
         <ul className="divide-y divide-gray-700 overflow-y-auto mb-4 flex-1">
           {/* Use our custom fuzzy search hook to filter history entries */}
           {filteredHistory.map((entry: HistoryEntry, idx: number) => (
@@ -234,15 +221,13 @@ const App: React.FC = () => {
             >
               <HistoryEntryItem
                 entry={entry}
-                featureMap={HISTORY_FEATURES}
-                activeHistoryType={activeHistoryType}
                 onSelect={(selectedEntry) => {
                   setLastHistoryData({
                     ...selectedEntry,
                     timestamp: new Date().toISOString(),
                   });
                 }}
-                onDelete={(entryToDelete, featureType) => {
+                onDelete={(entryToDelete, featureId) => {
                   // Find next entry to select
                   const nextEntry = history[idx + 1] || history[idx - 1];
                   if (nextEntry) {
@@ -261,11 +246,7 @@ const App: React.FC = () => {
                       timestamp: new Date().toISOString(),
                     });
                   }
-                  // Cast featureType to HistoryStoreType for type safety
-                  window.electronAPI.removeHistoryEntry(
-                    mapHistoryType(featureType as UiHistoryType),
-                    entryToDelete
-                  );
+                  window.electronAPI.removeHistoryEntry(featureId, entryToDelete);
                 }}
               />
             </li>
@@ -273,14 +254,20 @@ const App: React.FC = () => {
         </ul>
         <TrashButton
           onClick={() => {
-            // Use active history type or default to corrections
-            const featureId = mapHistoryType(
-              activeHistoryType || "corrections"
-            );
+            // Clear the active filter's bucket, or corrections when showing all
+            const featureId: HistoryFeatureId =
+              activeFilter === "PromptGen" ? "promptGen" : "corrections";
             window.electronAPI
               .clearHistory(featureId)
               .then(() => {
-                setHistory([]);
+                // Remove cleared entries from local state
+                if (activeFilter === null) {
+                  setHistory([]);
+                } else {
+                  setHistory((prev) =>
+                    prev.filter((e) => e.presetName !== activeFilter)
+                  );
+                }
               })
               .catch((err: Error) =>
                 console.error(`Failed to clear ${featureId} history`, err)

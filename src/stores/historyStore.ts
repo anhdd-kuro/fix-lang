@@ -9,6 +9,7 @@ export type HistoryEntry = {
   completionTokens?: number;
   model?: string;
   featureType?: HistoryFeatureId; // Track which feature this entry belongs to
+  presetName?: string; // Snapshot of the producing preset's name at write time; optional so legacy entries remain valid
 };
 
 type LastActionHistory = {
@@ -18,25 +19,18 @@ type LastActionHistory = {
 
 export type HistoryStore = {
   corrections: HistoryEntry[];
-  translations: HistoryEntry[];
-  summarize: HistoryEntry[];
   promptGen: HistoryEntry[];
   lastActionHistory: LastActionHistory;
 };
 
 export type HistoryStoreType = keyof HistoryStore;
 
-// Create schema based on the shared type definition
+// Create schema based on the shared type definition.
+// translations and summarize keys have been retired — entries for those features
+// now use the corrections bucket with a presetName snapshot.
+// electron-store silently ignores any stale data under those keys in the JSON file.
 const historySchema: Schema<HistoryStore> = {
   corrections: {
-    type: "array",
-    default: [],
-  },
-  translations: {
-    type: "array",
-    default: [],
-  },
-  summarize: {
     type: "array",
     default: [],
   },
@@ -80,7 +74,8 @@ export const historyStore = new Store<HistoryStore>({
   fileExtension: "json",
 });
 
-export type HistoryFeatureId = keyof HistoryStore;
+// Narrowed to only the two valid feature buckets. lastActionHistory is not a feature bucket.
+export type HistoryFeatureId = "corrections" | "promptGen";
 
 export function getHistory(featureId: HistoryFeatureId): HistoryEntry[] {
   return historyStore.get(featureId) as HistoryEntry[];
@@ -134,3 +129,16 @@ export function getLastActionHistory(): LastActionHistory | null {
 export function clearLastActionHistory(): void {
   historyStore.set("lastActionHistory", {});
 }
+
+/**
+ * Pure helper — filters a flat array of history entries by preset name snapshot.
+ * Entries without a presetName (legacy entries) are never returned by a named filter.
+ * This function has no electron dependency and is the primary test seam for the
+ * per-preset filter feature.
+ */
+export const filterHistoryByPreset = (
+  entries: HistoryEntry[],
+  presetName: string
+): HistoryEntry[] => {
+  return entries.filter((e) => e.presetName === presetName);
+};
