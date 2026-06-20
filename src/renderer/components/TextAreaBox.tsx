@@ -25,9 +25,9 @@ export const TextAreaBox = ({
   const id = useId();
 
   return (
-    <div className={`relative flex flex-col text-xs md:text-base ${className}`}>
+    <div className={`relative flex flex-col text-[0.846rem] ${className}`}>
       <div className="flex justify-between items-center">
-        <label htmlFor={id} className="block text-gray-400 mb-1 font-bold">
+        <label htmlFor={id} className="block text-label-secondary mb-1 font-medium">
           {label}
         </label>
         <CopyButton value={value} label="Copy result text" />
@@ -35,20 +35,20 @@ export const TextAreaBox = ({
       <textarea
         id={id}
         rows={rows ?? 4}
-        className={`w-full flex-1 mt-2 p-2 bg-gray-800 border border-gray-700 rounded focus:ring-blue-500 focus:border-blue-500 text-gray-100 resize-none `}
+        className="w-full flex-1 mt-2 p-2 bg-control border border-separator/60 rounded-[6px] text-label-primary resize-none focus-visible:outline-none"
         placeholder={placeholder}
         value={value}
         readOnly={readOnly}
         aria-label={label}
         onChange={(e) => onChange?.(e.target.value)}
       />
-      <div className="flex justify-between items-center text-xs text-gray-400">
+      <div className="flex justify-between items-center text-[0.769rem] text-label-secondary">
         {model && <p>Model: {model}</p>}
 
         {/* Prompt token count display for original text */}
         <TextCount
           textOrCount={textCount}
-          className="text-shadow-white ml-auto"
+          className="ml-auto"
           aria-live="polite"
           aria-label="Prompt tokens for original text"
           titleAttribute="Input + Prompt tokens"
@@ -71,7 +71,7 @@ const TextCount = ({
 }) => {
   return (
     <span
-      className={`text-xs text-gray-400 p-1 rounded cursor-help ${className}`}
+      className={`text-[0.769rem] text-label-secondary p-1 rounded cursor-help ${className}`}
       aria-live="polite"
       aria-label="Text length"
       title={titleAttribute}

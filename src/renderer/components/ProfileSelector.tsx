@@ -79,10 +79,10 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({
 
   return (
     <div className={`${className} flex items-center gap-2`}>
-      <label htmlFor="profile-selector" className="text-gray-300 flex items-center gap-1.5">
+      <label htmlFor="profile-selector" className="text-label-primary flex items-center gap-1.5">
         <span className="hidden sm:inline">Profile:</span>
         {isLoading && (
-          <span className="size-3.5 border-t-2 border-r-2 border-blue-500 rounded-full animate-spin"></span>
+          <span className="size-3.5 border-t-2 border-r-2 border-accent rounded-full animate-spin"></span>
         )}
       </label>
       <select
@@ -90,7 +90,7 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({
         value={currentProfileId}
         onChange={handleChange}
         disabled={isLoading}
-        className={`${sizeStyles[size]} bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:ring-2 focus:ring-blue-500`}
+        className={`${sizeStyles[size]} bg-control border border-separator/60 rounded text-label-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50`}
         aria-label="Select profile"
       >
         {profiles.map((profile) => (

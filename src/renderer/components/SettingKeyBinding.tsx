@@ -130,7 +130,7 @@ export const SettingKeyBinding: React.FC = () => {
             <li key={cmd} className="flex items-center gap-6">
               <label
                 htmlFor={`hotkey-${cmd}`}
-                className="w-20 text-gray-300 capitalize"
+                className="w-20 text-label-primary capitalize"
               >
                 {cmd}
               </label>
@@ -140,10 +140,10 @@ export const SettingKeyBinding: React.FC = () => {
                 value={keyBindings[cmd]}
                 onKeyDown={(e) => handleKeyDown(e, cmd)}
                 placeholder="Press shortcut"
-                className={`flex-1 px-2 py-1 bg-gray-700 text-white rounded ${
+                className={`flex-1 px-2 py-1 bg-control text-label-primary rounded ${
                   errors[cmd]
                     ? "border border-red-400"
-                    : "border border-gray-600"
+                    : "border border-separator/60"
                 }`}
                 aria-label={`Hotkey for ${cmd}`}
               />
@@ -154,14 +154,14 @@ export const SettingKeyBinding: React.FC = () => {
         <button
           type="button"
           onClick={handleApply}
-          className="px-3 py-2 text-xs font-semibold bg-blue-500 text-white rounded hover:bg-blue-600"
+          className="px-3 py-2 text-xs font-semibold bg-accent text-label-primary rounded hover:bg-accent"
         >
           Apply
         </button>
         <button
           type="button"
           onClick={handleReset}
-          className="px-3 py-2 text-xs font-semibold bg-neutral-500 text-white rounded hover:bg-neutral-400"
+          className="px-3 py-2 text-xs font-semibold bg-control text-label-primary rounded hover:bg-control-hover"
         >
           Reset to defaults
         </button>

@@ -203,12 +203,12 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 font-sans flex">
+    <div className="min-h-screen bg-window text-label-primary font-sans flex">
       {/* Sidebar history panel */}
       <aside
-        className={`relative z-10 flex flex-col bg-gray-800 border-r border-gray-700 h-screen transform transition-all duration-300 ease-in-out group *:transition-opacity *:duration-300 ${historyOpen ? "p-4 translate-x-0 w-64 " : "-translate-x-full w-0 overflow-hidden px-0 py-4 *:opacity-0"}`}
+        className={`relative z-10 flex flex-col bg-control border-r border-separator h-screen transform transition-all duration-300 ease-in-out group *:transition-opacity *:duration-300 ${historyOpen ? "p-4 translate-x-0 w-64 " : "-translate-x-full w-0 overflow-hidden px-0 py-4 *:opacity-0"}`}
       >
-        <div className="flex justify-between items-center mb-4 sticky top-0 bg-gray-800 z-10">
+        <div className="flex justify-between items-center mb-4 sticky top-0 bg-control z-10">
           <div className="w-full">
             <SearchInput
               onSearch={setSearchQuery}
@@ -225,12 +225,11 @@ const App: React.FC = () => {
             />
           </div>
         </div>
-        <ul className="divide-y divide-gray-700 overflow-y-auto mb-4 flex-1">
-          {/* Use our custom fuzzy search hook to filter history entries */}
+        <ul className="divide-y divide-separator/40 overflow-y-auto mb-4 flex-1">
           {filteredHistory.map((entry: HistoryEntry, idx: number) => (
             <li
               key={idx}
-              className="py-2 hover:bg-gray-700 px-2 relative group/history-entry"
+              className="relative group/history-entry"
             >
               <HistoryEntryItem
                 entry={entry}
@@ -243,7 +242,6 @@ const App: React.FC = () => {
                   });
                 }}
                 onDelete={(entryToDelete, featureType) => {
-                  // Find next entry to select
                   const nextEntry = history[idx + 1] || history[idx - 1];
                   if (nextEntry) {
                     setLastHistoryData({
@@ -251,7 +249,6 @@ const App: React.FC = () => {
                       timestamp: new Date().toISOString(),
                     });
                   } else {
-                    // If no other entries, clear the text areas
                     setLastHistoryData({
                       original: "",
                       corrected: "",
@@ -261,7 +258,6 @@ const App: React.FC = () => {
                       timestamp: new Date().toISOString(),
                     });
                   }
-                  // Cast featureType to HistoryStoreType for type safety
                   window.electronAPI.removeHistoryEntry(
                     mapHistoryType(featureType as UiHistoryType),
                     entryToDelete
@@ -273,7 +269,6 @@ const App: React.FC = () => {
         </ul>
         <TrashButton
           onClick={() => {
-            // Use active history type or default to corrections
             const featureId = mapHistoryType(
               activeHistoryType || "corrections"
             );
@@ -297,7 +292,7 @@ const App: React.FC = () => {
         <button
           type="button"
           onClick={() => setHistoryOpen(!historyOpen)}
-          className="absolute left-4 top-4 p-2 text-gray-400 hover:text-white rounded-lg bg-gray-700"
+          className="absolute left-4 top-4 p-2 text-label-secondary hover:text-label-primary rounded-[6px] bg-control hover:bg-control-hover transition-colors"
           aria-label="Toggle history panel"
         >
           <svg
@@ -314,9 +309,9 @@ const App: React.FC = () => {
             />
           </svg>
         </button>
-        {/* Header with Profile Selector and Settings Button */}
+        {/* Header */}
         <div className="mb-12">
-          <h1 className="text-3xl font-bold text-blue-400 text-center">
+          <h1 className="text-3xl font-bold text-label-primary text-center">
             Last Action Preview
           </h1>
           <div className="absolute top-3 right-3 flex items-center gap-3">
@@ -326,7 +321,6 @@ const App: React.FC = () => {
 
         {/* Text Areas */}
         <div className="flex flex-col gap-10 flex-1">
-          {/* Original Text Area */}
           <TextAreaBox
             label="Original Text"
             value={lastHistoryData.original}
@@ -342,7 +336,6 @@ const App: React.FC = () => {
             className="flex-1"
           />
 
-          {/* Fixed Text Area */}
           <TextAreaBox
             label="Result Text"
             value={lastHistoryData.corrected}

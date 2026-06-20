@@ -21,7 +21,7 @@ export const TrashButton: React.FC<TrashButtonProps> = ({
       type="button"
       onClick={onClick}
       className={twJoin(
-        "text-red-500 hover:text-red-400 p-1 transition-colors flex items-center gap-2",
+        "text-[color:var(--color-danger-hover)] hover:text-label-primary p-1 transition-colors flex items-center gap-2",
         className
       )}
       aria-label="Delete entry"

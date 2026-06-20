@@ -278,36 +278,36 @@ export const SettingCorrection: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="p-8 text-center text-gray-300">Loading presets...</div>
+      <div className="p-8 text-center text-label-primary">Loading presets...</div>
     );
   }
 
   if (!activePreset) {
     return (
-      <div className="p-8 text-center text-gray-300">No presets found.</div>
+      <div className="p-8 text-center text-label-primary">No presets found.</div>
     );
   }
 
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-6">
-      <div className="rounded-lg border border-gray-700 bg-gray-800/60 p-4 text-sm text-gray-300">
+      <div className="rounded-lg border border-separator/60 bg-control/60 p-4 text-sm text-label-primary">
         Correction presets have their own hotkeys here. Translation, prompt
         generator, and profile switch shortcuts stay in the Key Bindings screen.
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="rounded-lg border border-gray-700 bg-gray-800/70 p-3">
+        <aside className="rounded-lg border border-separator/60 bg-control/70 p-3">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div>
-              <h3 className="text-sm font-semibold text-gray-100">Presets</h3>
-              <p className="text-xs text-gray-400">
+              <h3 className="text-sm font-semibold text-label-primary">Presets</h3>
+              <p className="text-xs text-label-secondary">
                 Select a preset to edit its prompt and hotkey.
               </p>
             </div>
             <button
               type="button"
               onClick={handleAddPreset}
-              className="h-9 rounded-md bg-blue-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 motion-reduce:transition-none"
+              className="h-9 rounded-md bg-accent px-3 text-xs font-semibold text-label-primary transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 motion-reduce:transition-none"
             >
               Add preset
             </button>
@@ -327,22 +327,22 @@ export const SettingCorrection: React.FC = () => {
                         selectedPresetId: preset.id,
                       }))
                     }
-                    className={`w-full rounded-lg border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 motion-reduce:transition-none ${
+                    className={`w-full rounded-lg border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 motion-reduce:transition-none ${
                       isSelected
-                        ? "border-blue-500 bg-blue-500/10"
-                        : "border-gray-700 bg-gray-900/40 hover:border-gray-600 hover:bg-gray-800"
+                        ? "border-accent bg-accent/10"
+                        : "border-separator/60 bg-window/40 hover:border-separator/60 hover:bg-control"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-gray-100">
+                        <p className="truncate text-sm font-medium text-label-primary">
                           {preset.name}
                         </p>
-                        <p className="mt-1 truncate text-xs text-gray-400">
+                        <p className="mt-1 truncate text-xs text-label-secondary">
                           {preset.hotkey || "No hotkey assigned"}
                         </p>
                       </div>
-                      <span className="rounded-full bg-gray-700 px-2 py-1 text-[0.85rem] text-gray-200">
+                      <span className="rounded-full bg-control px-2 py-1 text-[0.85rem] text-label-primary">
                         {preset.isBuiltIn ? "Built-in" : "Custom"}
                       </span>
                     </div>
@@ -353,13 +353,13 @@ export const SettingCorrection: React.FC = () => {
           </ul>
         </aside>
 
-        <section className="rounded-lg border border-gray-700 bg-gray-800/70 p-4">
+        <section className="rounded-lg border border-separator/60 bg-control/70 p-4">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-base font-semibold text-gray-100">
+              <h3 className="text-base font-semibold text-label-primary">
                 {activePreset.name}
               </h3>
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-label-secondary">
                 Configure the prompt, model, and shortcut for this preset.
               </p>
             </div>
@@ -368,7 +368,7 @@ export const SettingCorrection: React.FC = () => {
               <button
                 type="button"
                 onClick={handleDuplicatePreset}
-                className="h-9 rounded-md border border-gray-600 px-3 text-xs font-semibold text-gray-200 transition-colors hover:border-gray-500 hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 motion-reduce:transition-none"
+                className="h-9 rounded-md border border-separator/60 px-3 text-xs font-semibold text-label-primary transition-colors hover:border-separator/40 hover:bg-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 motion-reduce:transition-none"
               >
                 Duplicate
               </button>
@@ -376,7 +376,7 @@ export const SettingCorrection: React.FC = () => {
                 type="button"
                 onClick={handleResetBuiltIn}
                 disabled={!activePreset.isBuiltIn}
-                className="h-9 rounded-md border border-gray-600 px-3 text-xs font-semibold text-gray-200 transition-colors hover:border-gray-500 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 motion-reduce:transition-none"
+                className="h-9 rounded-md border border-separator/60 px-3 text-xs font-semibold text-label-primary transition-colors hover:border-separator/40 hover:bg-control disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 motion-reduce:transition-none"
               >
                 Reset built-in
               </button>
@@ -393,7 +393,7 @@ export const SettingCorrection: React.FC = () => {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="flex flex-col gap-2">
-              <label htmlFor="preset-name" className="text-sm text-gray-300">
+              <label htmlFor="preset-name" className="text-sm text-label-primary">
                 Preset name
               </label>
               <input
@@ -403,12 +403,12 @@ export const SettingCorrection: React.FC = () => {
                 onChange={(event) =>
                   updatePreset(activePreset.id, { name: event.target.value })
                 }
-                className="h-10 rounded-md border border-gray-600 bg-gray-700 px-3 text-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                className="h-10 rounded-md border border-separator/60 bg-control px-3 text-label-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label htmlFor="preset-hotkey" className="text-sm text-gray-300">
+              <label htmlFor="preset-hotkey" className="text-sm text-label-primary">
                 Hotkey
               </label>
               <input
@@ -428,16 +428,16 @@ export const SettingCorrection: React.FC = () => {
                 }}
                 placeholder="Press shortcut"
                 readOnly
-                className="h-10 rounded-md border border-gray-600 bg-gray-700 px-3 text-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                className="h-10 rounded-md border border-separator/60 bg-control px-3 text-label-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
               />
               <button
                 type="button"
                 onClick={() => updatePreset(activePreset.id, { hotkey: "" })}
-                className="self-start rounded-md border border-gray-600 px-3 py-2 text-xs font-semibold text-gray-200 transition-colors hover:border-gray-500 hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 motion-reduce:transition-none"
+                className="self-start rounded-md border border-separator/60 px-3 py-2 text-xs font-semibold text-label-primary transition-colors hover:border-separator/40 hover:bg-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 motion-reduce:transition-none"
               >
                 Clear hotkey
               </button>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-label-secondary">
                 Press a shortcut here, or clear it to disable the preset hotkey.
               </p>
             </div>
@@ -453,7 +453,7 @@ export const SettingCorrection: React.FC = () => {
             />
           </div>
 
-          <label className="mt-4 flex items-center gap-3 text-sm text-gray-300">
+          <label className="mt-4 flex items-center gap-3 text-sm text-label-primary">
             <input
               type="checkbox"
               checked={activePreset.applyGlobalPromptSettings}
@@ -463,13 +463,13 @@ export const SettingCorrection: React.FC = () => {
                     !activePreset.applyGlobalPromptSettings,
                 })
               }
-              className="h-4 w-4 rounded border-gray-500 bg-gray-700 text-blue-500"
+              className="h-4 w-4 rounded border-separator/40 bg-control text-accent"
             />
             Apply global prompt overrides from the Global Prompts tab
           </label>
 
           <div className="mt-4 flex flex-col gap-2">
-            <label htmlFor="system-prompt" className="text-sm text-gray-300">
+            <label htmlFor="system-prompt" className="text-sm text-label-primary">
               System prompt
             </label>
             <textarea
@@ -481,7 +481,7 @@ export const SettingCorrection: React.FC = () => {
                 })
               }
               rows={16}
-              className="min-h-72 rounded-md border border-gray-600 bg-gray-700 p-3 text-sm text-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              className="min-h-72 rounded-md border border-separator/60 bg-control p-3 text-sm text-label-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
             />
           </div>
         </section>
@@ -490,7 +490,7 @@ export const SettingCorrection: React.FC = () => {
       <div className="flex items-center justify-end gap-3">
         <button
           type="submit"
-          className="h-10 rounded-md bg-blue-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 motion-reduce:transition-none"
+          className="h-10 rounded-md bg-accent px-4 text-sm font-semibold text-label-primary transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 motion-reduce:transition-none"
         >
           Save presets
         </button>
