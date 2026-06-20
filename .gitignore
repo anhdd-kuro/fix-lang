@@ -8,3 +8,6 @@ release
 .shopify
 .gitnexus
 coverage
+# Playwright
+playwright-report/
+test-results/
