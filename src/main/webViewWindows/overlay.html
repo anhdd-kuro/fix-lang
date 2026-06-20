@@ -6,6 +6,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mouse Loading Spinner Overlay</title>
   <style>
+    /*
+     * Foundation design tokens — manually mirrored from src/renderer/main.css @theme.
+     * IMPORTANT: overlay.html is raw HTML with no Tailwind/@theme pipeline.
+     * These values MUST be kept in manual sync with the @theme block in main.css
+     * whenever foundation tokens change (see ADR 0001).
+     *
+     * Canonical source: src/renderer/main.css
+     */
+
+    :root {
+      /* Backgrounds — Apple dark window/control levels */
+      --color-window: #1e1e1e;        /* NSWindow dark background */
+      --color-control: #2d2d2d;       /* raised control surface */
+      --color-control-hover: #3a3a3a;
+      --color-separator: #38383a;     /* hairline dividers */
+
+      /* Label hierarchy — Apple opacity ladder on white */
+      --color-label-primary: rgba(255, 255, 255, 1);
+      --color-label-secondary: rgba(255, 255, 255, 0.55);
+      --color-label-tertiary: rgba(255, 255, 255, 0.25);
+
+      /* Accent — hardcoded macOS dark blue (system accent unavailable in renderer) */
+      --color-accent: #0a84ff;
+      --color-accent-hover: #3d9bff;
+
+      /* Typography — macOS system font stack */
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+
+      /* Spinner geometry */
+      --border-width: 4px;
+    }
+
+    html {
+      font-size: 13px; /* macOS control text density; mirrors html{font-size:13px} in main.css */
+    }
+
     html,
     body {
       width: 100%;
@@ -22,14 +58,31 @@
       justify-content: center;
     }
 
-    :root {
-      --border-width: 4px;
+    /* Accent focus ring — mirrors :focus-visible rule in main.css */
+    :focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 50%, transparent);
+    }
+
+    /* Thin overlay scrollbars — macOS translucent style; mirrors main.css */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
     }
 
     .loader {
       width: 100%;
       height: 100%;
-      border: var(--border-width) solid #FFF;
+      border: var(--border-width) solid var(--color-label-primary);
       border-radius: 50%;
       position: relative;
       transform: rotate(45deg);
@@ -42,7 +95,7 @@
       box-sizing: border-box;
       inset: calc(-1 * var(--border-width));
       border-radius: 50%;
-      border: var(--border-width) solid oklch(0.56 0.17 262.15);
+      border: var(--border-width) solid var(--color-accent);
       animation: prixClipFix 2s infinite linear;
     }
 
