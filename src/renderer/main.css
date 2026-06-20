@@ -1,8 +1,59 @@
 @import "tailwindcss";
 
+@theme {
+  /* Backgrounds — Apple dark window/control levels */
+  --color-window: #1e1e1e; /* NSWindow dark background */
+  --color-control: #2d2d2d; /* raised control surface */
+  --color-control-hover: #3a3a3a;
+  --color-separator: #38383a; /* hairline dividers */
+
+  /* Label hierarchy — Apple opacity ladder on white */
+  --color-label-primary: rgba(255, 255, 255, 1);
+  --color-label-secondary: rgba(255, 255, 255, 0.55);
+  --color-label-tertiary: rgba(255, 255, 255, 0.25);
+
+  /* Accent — hardcoded macOS dark blue (system accent unavailable in renderer) */
+  --color-accent: #0a84ff;
+  --color-accent-hover: #3d9bff;
+}
+
 @layer base {
+  html {
+    font-size: 13px; /* macOS control text density; rem scale shrinks proportionally */
+  }
+
+  :root {
+    font-family:
+      -apple-system,
+      BlinkMacSystemFont,
+      "SF Pro Text",
+      system-ui,
+      sans-serif;
+  }
+
   button {
     cursor: pointer;
+  }
+
+  /* Accent focus ring — replaces browser default outline with 3px accent-blue glow */
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 50%, transparent);
+  }
+
+  /* Thin overlay scrollbars — macOS translucent style */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
   }
 
   input::-webkit-calendar-picker-indicator {
@@ -13,12 +64,12 @@
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus,
   input:-webkit-autofill:active {
-    -webkit-box-shadow: 0 0 0 2em var(--color-neutral-700) inset !important;
-    -webkit-text-fill-color: var(--color-white) !important;
-    background-color: var(--color-neutral-700) !important;
+    -webkit-box-shadow: 0 0 0 2em var(--color-control) inset !important;
+    -webkit-text-fill-color: var(--color-label-primary) !important;
+    background-color: var(--color-control) !important;
     border-width: 0px !important;
-    outline: 2px solid var(--color-blue-600) !important;
-    color: var(--color-white) !important;
-    caret-color: var(--color-white) !important;
+    outline: 2px solid var(--color-accent) !important;
+    color: var(--color-label-primary) !important;
+    caret-color: var(--color-label-primary) !important;
   }
 }
