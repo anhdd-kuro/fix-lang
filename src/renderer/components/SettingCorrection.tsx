@@ -28,7 +28,6 @@ const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> => ({
     systemPrompt: DEFAULT_CUSTOM_PROMPT.trim(),
     model: DEFAULT_OPENAI_MODEL,
     isBuiltIn: true,
-    applyGlobalPromptSettings: true,
   },
   [DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID]: {
     id: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
@@ -37,7 +36,6 @@ const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> => ({
     systemPrompt: DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
     model: DEFAULT_OPENAI_MODEL,
     isBuiltIn: true,
-    applyGlobalPromptSettings: false,
   },
   [DEFAULT_SUMMARIZE_PRESET_ID]: {
     id: DEFAULT_SUMMARIZE_PRESET_ID,
@@ -46,7 +44,6 @@ const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> => ({
     systemPrompt: DEFAULT_SUMMARIZE_PRESET_PROMPT,
     model: DEFAULT_OPENAI_MODEL,
     isBuiltIn: true,
-    applyGlobalPromptSettings: false,
   },
 });
 
@@ -62,7 +59,6 @@ const makeCustomPreset = (count: number): CorrectionPreset => ({
   systemPrompt: DEFAULT_CUSTOM_PROMPT.trim(),
   model: DEFAULT_OPENAI_MODEL,
   isBuiltIn: false,
-  applyGlobalPromptSettings: true,
 });
 
 const captureHotkey = (
@@ -453,20 +449,59 @@ export const SettingCorrection: React.FC = () => {
             />
           </div>
 
-          <label className="mt-4 flex items-center gap-3 text-sm text-gray-300">
-            <input
-              type="checkbox"
-              checked={activePreset.applyGlobalPromptSettings}
-              onChange={() =>
-                updatePreset(activePreset.id, {
-                  applyGlobalPromptSettings:
-                    !activePreset.applyGlobalPromptSettings,
-                })
-              }
-              className="h-4 w-4 rounded border-gray-500 bg-gray-700 text-blue-500"
-            />
-            Apply global prompt overrides from the Global Prompts tab
-          </label>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="preset-temperature" className="text-sm text-gray-300">
+                Temperature
+              </label>
+              <input
+                id="preset-temperature"
+                type="number"
+                min={0}
+                max={2}
+                step={0.05}
+                placeholder="Default (1)"
+                value={activePreset.temperature ?? ""}
+                onChange={(event) => {
+                  const raw = event.target.value;
+                  const parsed = parseFloat(raw);
+                  updatePreset(activePreset.id, {
+                    temperature: raw === "" || isNaN(parsed) ? undefined : parsed,
+                  });
+                }}
+                className="h-10 rounded-md border border-gray-600 bg-gray-700 px-3 text-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              />
+              <p className="text-xs text-gray-400">
+                Leave blank to use the default (1). Range: 0–2.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="preset-max-tokens" className="text-sm text-gray-300">
+                Max Tokens
+              </label>
+              <input
+                id="preset-max-tokens"
+                type="number"
+                min={100}
+                max={32000}
+                step={500}
+                placeholder="Default (10000)"
+                value={activePreset.maxTokens ?? ""}
+                onChange={(event) => {
+                  const raw = event.target.value;
+                  const parsed = parseInt(raw, 10);
+                  updatePreset(activePreset.id, {
+                    maxTokens: raw === "" || isNaN(parsed) ? undefined : parsed,
+                  });
+                }}
+                className="h-10 rounded-md border border-gray-600 bg-gray-700 px-3 text-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              />
+              <p className="text-xs text-gray-400">
+                Leave blank to use the default (10000). Range: 100–32000.
+              </p>
+            </div>
+          </div>
 
           <div className="mt-4 flex flex-col gap-2">
             <label htmlFor="system-prompt" className="text-sm text-gray-300">

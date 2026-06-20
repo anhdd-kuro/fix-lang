@@ -54,21 +54,15 @@ export type CorrectionPreset = {
   systemPrompt: string;
   model: string;
   isBuiltIn: boolean;
-  applyGlobalPromptSettings: boolean;
+  /** Optional per-preset temperature override; undefined means use the request default (1). */
+  temperature?: number;
+  /** Optional per-preset maxTokens override; undefined means use the request default (10000). */
+  maxTokens?: number;
 };
 
 export type CorrectionSettings = {
   presets: CorrectionPreset[];
   selectedPresetId: string;
-};
-
-export type GlobalSettings = {
-  customSystemPrompt: string;
-  customUserPrompt: string;
-  tone: string;
-  temperature: number;
-  top_p: number;
-  maxTokens: number;
 };
 
 /**
@@ -88,9 +82,6 @@ export type SettingsStore = {
   apiKey: string;
   models: Model[];
   selectedModel: string;
-
-  // Global settings that apply across features
-  globalSettings: GlobalSettings;
 
   // Feature-specific settings
   settingsCorrect: CorrectionSettings;
@@ -142,7 +133,6 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     systemPrompt: DEFAULT_CUSTOM_PROMPT.trim(),
     model: DEFAULT_OPENAI_MODEL,
     isBuiltIn: true,
-    applyGlobalPromptSettings: true,
   },
   {
     id: DEFAULT_SUMMARIZE_PRESET_ID,
@@ -151,7 +141,6 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     systemPrompt: DEFAULT_SUMMARIZE_PRESET_PROMPT,
     model: DEFAULT_OPENAI_MODEL,
     isBuiltIn: true,
-    applyGlobalPromptSettings: false,
   },
   {
     id: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
@@ -160,7 +149,6 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     systemPrompt: DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
     model: DEFAULT_OPENAI_MODEL,
     isBuiltIn: true,
-    applyGlobalPromptSettings: false,
   },
 ];
 
@@ -228,6 +216,17 @@ export const normalizeCorrectionSettings = (
 
     seenIds.add(id);
 
+    // Extract optional numeric fields — non-numeric values are silently dropped
+    const rawCandidate = candidate as Record<string, unknown>;
+    const temperature =
+      typeof rawCandidate.temperature === "number"
+        ? rawCandidate.temperature
+        : undefined;
+    const maxTokens =
+      typeof rawCandidate.maxTokens === "number"
+        ? rawCandidate.maxTokens
+        : undefined;
+
     return [
       {
         id,
@@ -240,10 +239,8 @@ export const normalizeCorrectionSettings = (
         model:
           candidate.model?.trim() || fallback?.model || DEFAULT_OPENAI_MODEL,
         isBuiltIn: fallback ? true : Boolean(candidate.isBuiltIn),
-        applyGlobalPromptSettings:
-          typeof candidate.applyGlobalPromptSettings === "boolean"
-            ? candidate.applyGlobalPromptSettings
-            : (fallback?.applyGlobalPromptSettings ?? true),
+        ...(temperature !== undefined ? { temperature } : {}),
+        ...(maxTokens !== undefined ? { maxTokens } : {}),
       } satisfies CorrectionPreset,
     ];
   });
@@ -303,25 +300,6 @@ const schema = {
               },
               default: [],
             },
-            globalSettings: {
-              type: "object",
-              properties: {
-                customSystemPrompt: { type: "string", default: "" },
-                customUserPrompt: { type: "string", default: "" },
-                tone: { type: "string", default: "" },
-                temperature: { type: "number", default: 1 },
-                top_p: { type: "number", default: 1.0 },
-                maxTokens: { type: "number", default: 10000 },
-              },
-              default: {
-                customSystemPrompt: "",
-                customUserPrompt: "",
-                tone: "",
-                temperature: 1,
-                top_p: 1.0,
-                maxTokens: 10000,
-              },
-            },
             customSystemPrompt: { type: "string", default: "" },
             customUserPrompt: { type: "string", default: "" },
             tone: { type: "string", default: "" },
@@ -345,7 +323,8 @@ const schema = {
                       systemPrompt: { type: "string" },
                       model: { type: "string" },
                       isBuiltIn: { type: "boolean" },
-                      applyGlobalPromptSettings: { type: "boolean" },
+                      temperature: { type: "number" },
+                      maxTokens: { type: "number" },
                     },
                     required: ["id", "name", "hotkey", "systemPrompt", "model"],
                   },

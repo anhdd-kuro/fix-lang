@@ -5,7 +5,6 @@
 import { ipcMain, Notification } from "electron";
 import { DEFAULT_KEY_BINDINGS } from "~/const";
 import { reloadHotkeys, unregisterHotkeys } from "~/main/keybindings";
-import { getProfileSetting, updateProfileSetting } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import type { KeyBindings } from "~/stores/apiStore";
 
@@ -74,84 +73,6 @@ export const registerSettingsHandlers = () => {
       console.log("Resuming global hotkeys after edit");
       reloadHotkeys();
       return; // Explicit return to fix lint issue
-    },
-  );
-
-  // Prompt settings handlers
-  ipcMain.handle(
-    "get-prompt-settings",
-    async (_event: Electron.IpcMainInvokeEvent) => {
-      try {
-        // Get settings from the current profile's globalSettings object
-        const globalSettings = getProfileSetting("globalSettings") as {
-          customSystemPrompt: string;
-          customUserPrompt: string;
-          tone: string;
-          temperature: number;
-          top_p: number;
-          maxTokens: number;
-        };
-
-        // Return a settings object with defaults if any property is missing
-        return {
-          customSystemPrompt: globalSettings?.customSystemPrompt || "",
-          customUserPrompt: globalSettings?.customUserPrompt || "",
-          tone: globalSettings?.tone || "",
-          temperature: globalSettings?.temperature || 1,
-          top_p: globalSettings?.top_p || 1.0,
-          maxTokens: globalSettings?.maxTokens || 10000,
-        };
-      } catch (error) {
-        console.error("Failed to get prompt settings:", error);
-        return {
-          customSystemPrompt: "",
-          customUserPrompt: "",
-          tone: "",
-        };
-      }
-    },
-  );
-
-  ipcMain.handle(
-    "set-prompt-settings",
-    async (
-      _event: Electron.IpcMainInvokeEvent,
-      settings: {
-        customSystemPrompt: string;
-        customUserPrompt: string;
-        tone: string;
-        temperature: number;
-        top_p: number;
-        maxTokens: number;
-      },
-    ) => {
-      try {
-        const {
-          customSystemPrompt,
-          customUserPrompt,
-          tone,
-          temperature,
-          top_p,
-          maxTokens,
-        } = settings;
-
-        // Save to the current profile's globalSettings object
-        const result = updateProfileSetting("globalSettings", {
-          customSystemPrompt,
-          customUserPrompt,
-          tone,
-          temperature,
-          top_p,
-          maxTokens,
-        });
-
-        return result;
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        };
-      }
     },
   );
 

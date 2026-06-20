@@ -3,7 +3,6 @@ import { twJoin } from "tailwind-merge";
 import ProfileManager from "./ProfileManager";
 import { SettingCorrection } from "./SettingCorrection";
 import { SettingGeneral } from "./SettingGeneral";
-import { SettingGlobalPrompt } from "./SettingGlobalPrompt";
 import { SettingKeyBinding } from "./SettingKeyBinding";
 import { SettingPromptGen } from "./SettingPromptGen";
 import { SettingTranslate } from "./SettingTranslate";
@@ -102,12 +101,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </svg>
       ),
       component: <SettingKeyBinding />,
-    },
-    {
-      id: "global-prompt",
-      label: "Global Prompts",
-      icon: <></>,
-      component: <SettingGlobalPrompt />,
     },
     {
       id: "correction",

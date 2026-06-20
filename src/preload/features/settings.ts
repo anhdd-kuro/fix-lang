@@ -46,34 +46,6 @@ export const settingsFeature = {
   resumeHotkeys: (): Promise<void> => ipcRenderer.invoke("resume-hotkeys"),
 
   /**
-   * Retrieves custom prompt settings from the main process.
-   */
-  getPromptSettings: (): Promise<{
-    customSystemPrompt: string;
-    customUserPrompt: string;
-    tone: string;
-    temperature: number;
-    top_p: number;
-    maxTokens: number;
-  }> => ipcRenderer.invoke("get-prompt-settings"),
-
-  /**
-   * Stores custom prompt settings in the main process.
-   */
-  setPromptSettings: async (settings: {
-    customSystemPrompt: string;
-    customUserPrompt: string;
-    tone: string;
-    temperature: number;
-    top_p: number;
-    maxTokens: number;
-  }): Promise<{ success: boolean; error?: string }> => {
-    const result = await ipcRenderer.invoke("set-prompt-settings", settings);
-    ipcRenderer.send("settings-updated");
-    return result;
-  },
-
-  /**
    * Registers a callback for the 'settings-updated' event from main process.
    */
   onSettingsUpdated: (callback: () => void): (() => void) => {

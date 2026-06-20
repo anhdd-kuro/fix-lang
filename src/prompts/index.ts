@@ -35,14 +35,6 @@ Output:
 - Return only the summary.
 `;
 
-/**
- * Generates a tone adjustment prompt for the given tone.
- * @param tone The desired tone (e.g., 'formal', 'casual').
- * @returns Prompt string instructing the model to rewrite in the specified tone.
- */
-export const makeTonePrompt = (tone: string): string =>
-  `Rewrite the input in a ${tone} tone while preserving its meaning.`;
-
 // Default system prompt template for prompt generation feature
 export const DEFAULT_PROMPT_GEN_PROMPT = `
 You are a senior prompt engineer.
