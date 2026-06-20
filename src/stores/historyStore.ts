@@ -8,7 +8,6 @@ export type HistoryEntry = {
   promptTokens?: number;
   completionTokens?: number;
   model?: string;
-  featureType?: HistoryFeatureId; // Track which feature this entry belongs to
   presetName?: string; // Snapshot of the producing preset's name at write time; optional so legacy entries remain valid
 };
 

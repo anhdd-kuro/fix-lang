@@ -1,5 +1,5 @@
 import { addDays, format } from "date-fns";
-import React, { useState, useEffect, useDeferredValue } from "react";
+import React, { useState, useEffect, useCallback, useDeferredValue } from "react";
 import HistoryEntryItem from "../components/HistoryEntryItem";
 import HistoryReviewModal from "../components/HistoryReviewModal";
 import ModelManagerDialog from "../components/ModelManagerDialog";
@@ -57,32 +57,37 @@ const App: React.FC = () => {
   // Loading state for API call
   const [_loading, _setLoading] = useState<boolean>(false);
 
+  // Single stable reference shared by both useEffects and the clear handler.
+  // Fetches both store buckets, merges, and sorts into the history state.
+  const fetchAllHistories = useCallback(async (): Promise<void> => {
+    const [corrections, promptGen] = await Promise.all([
+      window.electronAPI.getHistory("corrections"),
+      window.electronAPI.getHistory("promptGen"),
+    ]);
+
+    const combined: HistoryEntry[] = [...corrections, ...promptGen];
+
+    // Sort by timestamp (newest first)
+    combined.sort(
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+
+    setHistory(combined);
+  }, []);
+
   useEffect(() => {
-    // Fetch corrections + promptGen buckets and combine into a single sorted list
-    const fetchAllHistories = async () => {
-      const [corrections, promptGen] = await Promise.all([
-        window.electronAPI.getHistory("corrections"),
-        window.electronAPI.getHistory("promptGen"),
-      ]);
-
-      const combined: HistoryEntry[] = [...corrections, ...promptGen];
-
-      // Sort by timestamp (newest first)
-      combined.sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
-
-      setHistory(combined);
-    };
-
-    fetchAllHistories();
+    // Wrap in a local void callback so the linter sees setState called from
+    // a callback rather than synchronously at effect top-level.
+    void (async () => {
+      await fetchAllHistories();
+    })();
 
     const removeHistoryListener = window.electronAPI.onHistoryUpdate?.(
       (payload) => {
         console.log("onHistoryUpdate", payload);
         // Refresh all histories when any history is updated
-        fetchAllHistories();
+        void fetchAllHistories();
       }
     );
 
@@ -102,22 +107,9 @@ const App: React.FC = () => {
         openModelManagerHandler
       );
     };
-  }, []);
+  }, [fetchAllHistories]);
 
   useEffect(() => {
-    const fetchAllHistories = async () => {
-      const [corrections, promptGen] = await Promise.all([
-        window.electronAPI.getHistory("corrections"),
-        window.electronAPI.getHistory("promptGen"),
-      ]);
-      const combined: HistoryEntry[] = [...corrections, ...promptGen];
-      combined.sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
-      setHistory(combined);
-    };
-
     const handleSettings = (type?: number) => {
       setInitialSettingsTab(type || 0);
       setIsSettingsOpen(true);
@@ -150,7 +142,7 @@ const App: React.FC = () => {
       offPrompt?.();
       offHistory?.();
     };
-  }, []);
+  }, [fetchAllHistories]);
 
   // Derive available filter tabs dynamically from loaded history
   const availableFilters = deriveAvailableFilters(history);
@@ -254,21 +246,15 @@ const App: React.FC = () => {
         </ul>
         <TrashButton
           onClick={() => {
-            // Clear the active filter's bucket, or corrections when showing all
+            // Clear the active filter's bucket, or corrections when showing all.
+            // Re-fetch both buckets after clear so UI exactly mirrors store state —
+            // avoids divergence from optimistic filtering (corrections bucket holds
+            // all non-PromptGen presets, so clearing it removes more than one filter).
             const featureId: HistoryFeatureId =
               activeFilter === "PromptGen" ? "promptGen" : "corrections";
             window.electronAPI
               .clearHistory(featureId)
-              .then(() => {
-                // Remove cleared entries from local state
-                if (activeFilter === null) {
-                  setHistory([]);
-                } else {
-                  setHistory((prev) =>
-                    prev.filter((e) => e.presetName !== activeFilter)
-                  );
-                }
-              })
+              .then(() => fetchAllHistories())
               .catch((err: Error) =>
                 console.error(`Failed to clear ${featureId} history`, err)
               );
