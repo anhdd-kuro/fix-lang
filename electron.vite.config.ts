@@ -24,6 +24,7 @@ export default defineConfig({
     build: {
       outDir: "out/preload",
       rollupOptions: {
+        external: ["electron"],
         input: {
           index: resolve(__dirname, "src/preload/index.ts"),
         },

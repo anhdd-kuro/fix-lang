@@ -28,7 +28,7 @@ export function createTrayWindow(): BrowserWindow {
     backgroundColor: "#1e2939",
     hasShadow: false,
     webPreferences: {
-      preload: path.join(app.getAppPath(), "out/preload/index.mjs"),
+      preload: path.join(app.getAppPath(), "out/preload/index.js"),
       contextIsolation: true,
       devTools: true,
       nodeIntegration: false,

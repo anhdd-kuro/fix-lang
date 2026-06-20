@@ -32,7 +32,15 @@ type CoreMessage = {
  * @returns GlobalSettings object with all current settings
  */
 export const getGlobalPromptSettings = (): GlobalSettings => {
-  return apiStore.get("globalSettings") as GlobalSettings;
+  const settings = getProfileSetting("globalSettings") as GlobalSettings | undefined;
+  return settings ?? {
+    customSystemPrompt: "",
+    customUserPrompt: "",
+    tone: "",
+    temperature: 1,
+    top_p: 1.0,
+    maxTokens: 10000,
+  };
 };
 
 export const fetchAvailableModels = async (
@@ -178,11 +186,10 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
   console.log(`Using model for request: ${modelId}`);
 
   // Get global settings for AI parameters
-  const globalSettings =
-    (apiStore.get("globalSettings") as GlobalSettings | undefined) || undefined;
-  const temperature = options.temperature ?? globalSettings?.temperature ?? 1;
-  const top_p = options.top_p ?? globalSettings?.top_p ?? 1.0;
-  const maxTokens = options.maxTokens ?? globalSettings?.maxTokens ?? 10000;
+  const globalSettings = getGlobalPromptSettings();
+  const temperature = options.temperature ?? globalSettings.temperature ?? 1;
+  const top_p = options.top_p ?? globalSettings.top_p ?? 1.0;
+  const maxTokens = options.maxTokens ?? globalSettings.maxTokens ?? 10000;
 
   // Create messages array if not provided
   const messages =

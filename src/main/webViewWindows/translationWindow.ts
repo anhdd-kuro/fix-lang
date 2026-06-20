@@ -22,7 +22,7 @@ export function createTranslationWindow() {
     title: "Translation Result",
     frame: true,
     webPreferences: {
-      preload: path.join(app.getAppPath(), "out/preload/index.mjs"),
+      preload: path.join(app.getAppPath(), "out/preload/index.js"),
       contextIsolation: true,
       devTools: true,
       nodeIntegration: false,

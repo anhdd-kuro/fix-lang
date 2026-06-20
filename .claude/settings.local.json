@@ -1,3 +1,26 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(rtk ls *)",
+      "Bash(rtk read *)",
+      "Bash(rtk grep *)",
+      "Bash(rtk tsc *)",
+      "Bash(rtk pnpm *)",
+      "Bash(pnpm pack:mac)",
+      "Bash(unzip -t ~/Library/Caches/electron/acb2ae8fcda87c592baa86a981e0a485c8956cfcd1d794d8d38403b40074ce54/electron-v41.1.0-darwin-arm64.zip)",
+      "Bash(unzip -l ~/Library/Caches/electron/acb2ae8fcda87c592baa86a981e0a485c8956cfcd1d794d8d38403b40074ce54/electron-v41.1.0-darwin-arm64.zip)",
+      "Bash(unzip -t ~/Library/Caches/electron/electron-v41.1.0-darwin-arm64.zip)",
+      "Bash(rm -f ~/Library/Caches/electron/electron-v41.1.0-darwin-arm64.zip)",
+      "Bash(rtk curl *)",
+      "Bash(pnpm pack:install)",
+      "Bash(rtk find *)",
+      "Bash(xattr -l /Users/anhdd-kuro/Documents/kuro/tools/fix-lang/node_modules/.pnpm/app-builder-bin@5.0.0-alpha.12/node_modules/app-builder-bin/mac/arm64/app-builder)",
+      "Bash(xattr -l \"/Users/anhdd-kuro/Documents/kuro/tools/fix-lang/node_modules/.pnpm/app-builder-bin@5.0.0-alpha.12/node_modules/app-builder-bin/mac/app-builder_arm64\")",
+      "Bash(timeout 5 \"/Users/anhdd-kuro/Documents/kuro/tools/fix-lang/node_modules/.pnpm/app-builder-bin@5.0.0-alpha.12/node_modules/app-builder-bin/mac/app-builder_arm64\" --help)",
+      "Bash(gtimeout 5 \"/Users/anhdd-kuro/Documents/kuro/tools/fix-lang/node_modules/.pnpm/app-builder-bin@5.0.0-alpha.12/node_modules/app-builder-bin/mac/app-builder_arm64\" --help)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(rtk git *)"
+    ]
+  },
   "enableAllProjectMcpServers": false
 }
