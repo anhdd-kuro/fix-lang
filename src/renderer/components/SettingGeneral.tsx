@@ -16,6 +16,12 @@ export const SettingGeneral: React.FC = () => {
   // Track unsaved changes
   const [hasChanges, setHasChanges] = useState(false);
 
+  // OpenRouter provisioning (admin) key — never round-tripped to the renderer.
+  // The input is write-only; we only track whether a key is set (masked state).
+  const [provisioningInput, setProvisioningInput] = useState<string>("");
+  const [provisioningStatus, setProvisioningStatus] = useState<string>("");
+  const [provisioningKeySet, setProvisioningKeySet] = useState<boolean>(false);
+
   // Initialize component
   useEffect(() => {
     // Fetch API Key
@@ -30,6 +36,17 @@ export const SettingGeneral: React.FC = () => {
       .catch((error) => {
         console.error("SettingGeneral: Error fetching API key:", error);
         setSaveStatus("Error fetching key");
+      });
+
+    // Masked provisioning-key state (never fetch the plaintext key).
+    window.electronAPI
+      ?.hasProvisioningKey?.()
+      .then((isSet) => setProvisioningKeySet(Boolean(isSet)))
+      .catch((error) => {
+        console.error(
+          "SettingGeneral: Error checking provisioning key state:",
+          error
+        );
       });
   }, []);
 
@@ -132,6 +149,63 @@ export const SettingGeneral: React.FC = () => {
     }
   };
 
+  // Save the OpenRouter provisioning key (encrypted via safeStorage in main).
+  const handleSaveProvisioningKey = async () => {
+    if (!window.electronAPI?.setProvisioningKey) {
+      setProvisioningStatus("Error: Cannot save provisioning key");
+      return;
+    }
+    if (provisioningInput.trim().length === 0) {
+      setProvisioningStatus("Error: Provisioning key must not be empty");
+      return;
+    }
+    // Soft prefix check, mirroring the API key 'sk-' warning.
+    if (!provisioningInput.trim().startsWith("sk-or-")) {
+      setProvisioningStatus(
+        "Warning: Key format may be invalid, but saving anyway..."
+      );
+    } else {
+      setProvisioningStatus("Saving...");
+    }
+
+    try {
+      const result =
+        await window.electronAPI.setProvisioningKey(provisioningInput);
+      if (result.success) {
+        setProvisioningStatus("Saved!");
+        setProvisioningKeySet(true);
+        // Clear the input so the secret does not linger in renderer state/DOM.
+        setProvisioningInput("");
+      } else {
+        setProvisioningStatus(`Error: ${result.error || "Unknown error"}`);
+      }
+    } catch (error) {
+      console.error("SettingGeneral: Error saving provisioning key:", error);
+      setProvisioningStatus("Error saving provisioning key");
+    }
+  };
+
+  // Clear the stored provisioning key.
+  const handleClearProvisioningKey = async () => {
+    if (!window.electronAPI?.clearProvisioningKey) {
+      setProvisioningStatus("Error: Cannot clear provisioning key");
+      return;
+    }
+    try {
+      const result = await window.electronAPI.clearProvisioningKey();
+      if (result.success) {
+        setProvisioningInput("");
+        setProvisioningKeySet(false);
+        setProvisioningStatus("Cleared.");
+      } else {
+        setProvisioningStatus(`Error: ${result.error || "Failed to clear"}`);
+      }
+    } catch (error) {
+      console.error("SettingGeneral: Error clearing provisioning key:", error);
+      setProvisioningStatus("Error clearing provisioning key");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className="mb-4">
@@ -160,6 +234,68 @@ export const SettingGeneral: React.FC = () => {
         )}
         <p className="text-xs text-gray-500 mt-1">
           Your API key is stored locally and never sent to our servers.
+        </p>
+      </div>
+
+      {/* OpenRouter Provisioning (admin) Key */}
+      <div className="mb-4 border-t border-gray-700 pt-4">
+        <label
+          htmlFor="provisioning-key-input"
+          className="block text-sm font-medium text-gray-300 mb-1"
+        >
+          OpenRouter Provisioning Key
+        </label>
+        <p
+          className={`text-xs mb-1 ${provisioningKeySet ? "text-green-400" : "text-gray-400"}`}
+          role="status"
+        >
+          {provisioningKeySet ? "Key is set" : "No key set"}
+        </p>
+        <input
+          id="provisioning-key-input"
+          type="password"
+          autoComplete="off"
+          className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          value={provisioningInput}
+          onChange={(event) => {
+            setProvisioningInput(event.target.value);
+            setProvisioningStatus("");
+          }}
+          placeholder={
+            provisioningKeySet
+              ? "Enter a new key to replace the stored one"
+              : "Enter your OpenRouter provisioning key"
+          }
+          aria-label="OpenRouter Provisioning Key"
+        />
+        {provisioningStatus && (
+          <p
+            className={`text-xs mt-1 ${provisioningStatus.startsWith("Error") ? "text-red-400" : provisioningStatus.startsWith("Warning") ? "text-yellow-400" : "text-green-400"}`}
+            role="status"
+          >
+            {provisioningStatus}
+          </p>
+        )}
+        <div className="mt-2 flex gap-2">
+          <button
+            type="button"
+            onClick={handleSaveProvisioningKey}
+            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500"
+          >
+            Save key
+          </button>
+          <button
+            type="button"
+            disabled={!provisioningKeySet}
+            onClick={handleClearProvisioningKey}
+            className="rounded border border-red-500/50 px-3 py-1.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+          >
+            Clear
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 mt-1">
+          Stored encrypted by your OS (Keychain on macOS). High-privilege key —
+          keep it secret. It is never shown again after saving.
         </p>
       </div>
 

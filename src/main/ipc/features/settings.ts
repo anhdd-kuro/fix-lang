@@ -6,6 +6,11 @@ import { ipcMain, Notification } from "electron";
 import { DEFAULT_KEY_BINDINGS } from "~/const";
 import { reloadHotkeys, unregisterHotkeys } from "~/main/keybindings";
 import { keybindingStore } from "~/stores/keybindingStore";
+import {
+  clearProvisioningKey,
+  hasProvisioningKey,
+  setProvisioningKey,
+} from "~/stores/provisioningKeyStore";
 import type { KeyBindings } from "~/stores/apiStore";
 
 /**
@@ -74,6 +79,34 @@ export const registerSettingsHandlers = () => {
       reloadHotkeys();
       return; // Explicit return to fix lint issue
     },
+  );
+
+  // ---------------------------------------------------------------------------
+  // OpenRouter provisioning (admin) key — safeStorage-backed (issue #55).
+  // The decrypted key NEVER crosses to the renderer; only set/clear/has are
+  // exposed. No "get-provisioning-key" IPC by design — in-main callers (#59)
+  // use getProvisioningKey() directly. The key is never logged.
+  // ---------------------------------------------------------------------------
+  ipcMain.handle(
+    "set-provisioning-key",
+    async (_event: Electron.IpcMainInvokeEvent, raw: unknown) => {
+      // Defense-in-depth: re-validate the IPC payload type in main (preload
+      // also guards). Reject non-strings without touching the store.
+      if (typeof raw !== "string") {
+        return { success: false, error: "Invalid key" };
+      }
+      return setProvisioningKey(raw);
+    },
+  );
+
+  ipcMain.handle(
+    "clear-provisioning-key",
+    async (_event: Electron.IpcMainInvokeEvent) => clearProvisioningKey(),
+  );
+
+  ipcMain.handle(
+    "has-provisioning-key",
+    async (_event: Electron.IpcMainInvokeEvent) => hasProvisioningKey(),
   );
 
   // Settings notifications

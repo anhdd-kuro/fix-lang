@@ -46,6 +46,34 @@ export const settingsFeature = {
   resumeHotkeys: (): Promise<void> => ipcRenderer.invoke("resume-hotkeys"),
 
   /**
+   * Store the OpenRouter provisioning (admin) key securely (safeStorage in
+   * main). Validates the argument is a string here (preload boundary) before
+   * invoking; rejects non-strings without crossing IPC. The plaintext key is
+   * sent to main only to be encrypted — it is never returned to the renderer.
+   */
+  setProvisioningKey: (
+    key: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (typeof key !== "string") {
+      return Promise.resolve({ success: false, error: "Invalid key" });
+    }
+    return ipcRenderer.invoke("set-provisioning-key", key);
+  },
+
+  /**
+   * Remove the stored OpenRouter provisioning key.
+   */
+  clearProvisioningKey: (): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("clear-provisioning-key"),
+
+  /**
+   * Whether a provisioning key is currently stored. Drives the masked UI state;
+   * the actual key value is never exposed to the renderer.
+   */
+  hasProvisioningKey: (): Promise<boolean> =>
+    ipcRenderer.invoke("has-provisioning-key"),
+
+  /**
    * Registers a callback for the 'settings-updated' event from main process.
    */
   onSettingsUpdated: (callback: () => void): (() => void) => {
