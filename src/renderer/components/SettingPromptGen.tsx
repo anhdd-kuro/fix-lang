@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
+import { HotkeyInput } from "./HotkeyInput";
 import { ModelSelect } from "./ModelSelect";
 import Tooltip from "./Tooltip";
 import {
@@ -343,6 +344,17 @@ export const SettingPromptGen: React.FC = () => {
             </span>
           </label>
         </div>
+      </fieldset>
+
+      {/* Prompt Generator Shortcut — co-located per issue #45 */}
+      <fieldset className="flex flex-col gap-3 mt-6 rounded-lg border border-gray-700 bg-gray-800/60 p-4">
+        <legend className="text-sm font-semibold text-gray-300 px-1">
+          Prompt Generator Shortcut
+        </legend>
+        <HotkeyInput
+          hotkeyKey="promptGen"
+          label="Shortcut to open Prompt Generator"
+        />
       </fieldset>
 
       <div className="flex flex-col gap-2 mt-8">

@@ -7,18 +7,12 @@ import {
   DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
   DEFAULT_SUMMARIZE_PRESET_ID,
   DEFAULT_SUMMARIZE_PRESET_PROMPT,
+  DEFAULT_TRANSLATE_PRESET_ID,
+  DEFAULT_TRANSLATE_PRESET_PROMPT,
 } from "~/prompts/correction";
 import { ModelSelect } from "./ModelSelect";
-import type {
-  CorrectionPreset,
-  CorrectionSettings,
-  KeyBindings,
-} from "~/stores/apiStore";
-
-const STATIC_APP_HOTKEYS: (keyof Pick<
-  KeyBindings,
-  "translate" | "promptGen" | "profileSwitch"
->)[] = ["translate", "promptGen", "profileSwitch"];
+import { validateHotkeys } from "./validateHotkeys";
+import type { CorrectionPreset, CorrectionSettings } from "~/stores/apiStore";
 
 const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> => ({
   [DEFAULT_CORRECTION_PRESET_ID]: {
@@ -28,7 +22,6 @@ const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> => ({
     systemPrompt: DEFAULT_CUSTOM_PROMPT.trim(),
     model: DEFAULT_OPENAI_MODEL,
     isBuiltIn: true,
-    applyGlobalPromptSettings: true,
   },
   [DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID]: {
     id: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
@@ -37,7 +30,6 @@ const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> => ({
     systemPrompt: DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
     model: DEFAULT_OPENAI_MODEL,
     isBuiltIn: true,
-    applyGlobalPromptSettings: false,
   },
   [DEFAULT_SUMMARIZE_PRESET_ID]: {
     id: DEFAULT_SUMMARIZE_PRESET_ID,
@@ -46,7 +38,14 @@ const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> => ({
     systemPrompt: DEFAULT_SUMMARIZE_PRESET_PROMPT,
     model: DEFAULT_OPENAI_MODEL,
     isBuiltIn: true,
-    applyGlobalPromptSettings: false,
+  },
+  [DEFAULT_TRANSLATE_PRESET_ID]: {
+    id: DEFAULT_TRANSLATE_PRESET_ID,
+    name: "Translate",
+    hotkey: "Control+Shift+T",
+    systemPrompt: DEFAULT_TRANSLATE_PRESET_PROMPT.trim(),
+    model: DEFAULT_OPENAI_MODEL,
+    isBuiltIn: true,
   },
 });
 
@@ -62,7 +61,6 @@ const makeCustomPreset = (count: number): CorrectionPreset => ({
   systemPrompt: DEFAULT_CUSTOM_PROMPT.trim(),
   model: DEFAULT_OPENAI_MODEL,
   isBuiltIn: false,
-  applyGlobalPromptSettings: true,
 });
 
 const captureHotkey = (
@@ -86,20 +84,14 @@ const captureHotkey = (
   return parts.join("+");
 };
 
-const getValidationError = (
+/**
+ * Validates form fields (name + systemPrompt) on each preset.
+ * Returns the first error message, or null if all fields are valid.
+ * Hotkey conflict validation is handled separately by validateHotkeys().
+ */
+const validateFormFields = (
   settings: CorrectionSettings,
-  keyBindings: KeyBindings | null,
 ): string | null => {
-  const seenHotkeys = new Map<string, string>();
-  const reservedHotkeys = new Map<string, string>();
-
-  STATIC_APP_HOTKEYS.forEach((key) => {
-    const shortcut = keyBindings?.[key]?.trim();
-    if (shortcut) {
-      reservedHotkeys.set(shortcut, key);
-    }
-  });
-
   for (const preset of settings.presets) {
     if (!preset.name.trim()) {
       return "Every preset needs a name.";
@@ -108,22 +100,6 @@ const getValidationError = (
     if (!preset.systemPrompt.trim()) {
       return `Preset "${preset.name}" needs a system prompt.`;
     }
-
-    if (!preset.hotkey.trim()) {
-      continue;
-    }
-
-    const reservedBinding = reservedHotkeys.get(preset.hotkey);
-    if (reservedBinding) {
-      return `Hotkey for "${preset.name}" conflicts with ${reservedBinding}.`;
-    }
-
-    const duplicate = seenHotkeys.get(preset.hotkey);
-    if (duplicate) {
-      return `Duplicate hotkey between "${duplicate}" and "${preset.name}".`;
-    }
-
-    seenHotkeys.set(preset.hotkey, preset.name);
   }
 
   return null;
@@ -244,21 +220,38 @@ export const SettingCorrection: React.FC = () => {
       return;
     }
 
-    updatePreset(activePreset.id, defaultPreset);
+    // Built-in defaults omit temperature/maxTokens; spreading them alone would
+    // retain any user override (merge keeps omitted keys). Explicitly clear the
+    // optional AI params so Reset truly restores the built-in state.
+    updatePreset(activePreset.id, {
+      ...defaultPreset,
+      temperature: defaultPreset.temperature,
+      maxTokens: defaultPreset.maxTokens,
+    });
     setStatus("");
   };
 
   const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const latestKeyBindings = await window.electronAPI.getKeyBindings();
+    // Form validation: name + systemPrompt fields must be non-empty.
+    const formError = validateFormFields(correctionSettings);
+    if (formError) {
+      setStatus(`Error: ${formError}`);
+      return;
+    }
 
-    const validationError = getValidationError(
-      correctionSettings,
+    // Hotkey conflict validation: fetch latest app keybindings and check
+    // all preset hotkeys against each other and against promptGen/profileSwitch.
+    const latestKeyBindings = await window.electronAPI.getKeyBindings();
+    const conflict = validateHotkeys(
+      correctionSettings.presets,
       latestKeyBindings,
     );
-    if (validationError) {
-      setStatus(`Error: ${validationError}`);
+    if (conflict) {
+      setStatus(
+        `Error: Hotkey "${conflict.hotkey}" used by both "${conflict.presetOrKey}" and "${conflict.conflictsWith}".`,
+      );
       return;
     }
 
@@ -291,8 +284,8 @@ export const SettingCorrection: React.FC = () => {
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-6">
       <div className="rounded-lg border border-gray-700 bg-gray-800/60 p-4 text-sm text-gray-300">
-        Correction presets have their own hotkeys here. Translation, prompt
-        generator, and profile switch shortcuts stay in the Key Bindings screen.
+        Correction preset hotkeys are edited here. The prompt generator and
+        profile switch shortcuts are in the PromptGen and Profiles tabs.
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
@@ -453,20 +446,59 @@ export const SettingCorrection: React.FC = () => {
             />
           </div>
 
-          <label className="mt-4 flex items-center gap-3 text-sm text-gray-300">
-            <input
-              type="checkbox"
-              checked={activePreset.applyGlobalPromptSettings}
-              onChange={() =>
-                updatePreset(activePreset.id, {
-                  applyGlobalPromptSettings:
-                    !activePreset.applyGlobalPromptSettings,
-                })
-              }
-              className="h-4 w-4 rounded border-gray-500 bg-gray-700 text-blue-500"
-            />
-            Apply global prompt overrides from the Global Prompts tab
-          </label>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="preset-temperature" className="text-sm text-gray-300">
+                Temperature
+              </label>
+              <input
+                id="preset-temperature"
+                type="number"
+                min={0}
+                max={2}
+                step={0.05}
+                placeholder="Default (1)"
+                value={activePreset.temperature ?? ""}
+                onChange={(event) => {
+                  const raw = event.target.value;
+                  const parsed = parseFloat(raw);
+                  updatePreset(activePreset.id, {
+                    temperature: raw === "" || isNaN(parsed) ? undefined : parsed,
+                  });
+                }}
+                className="h-10 rounded-md border border-gray-600 bg-gray-700 px-3 text-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              />
+              <p className="text-xs text-gray-400">
+                Leave blank to use the default (1). Range: 0–2.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="preset-max-tokens" className="text-sm text-gray-300">
+                Max Tokens
+              </label>
+              <input
+                id="preset-max-tokens"
+                type="number"
+                min={100}
+                max={32000}
+                step={500}
+                placeholder="Default (10000)"
+                value={activePreset.maxTokens ?? ""}
+                onChange={(event) => {
+                  const raw = event.target.value;
+                  const parsed = parseInt(raw, 10);
+                  updatePreset(activePreset.id, {
+                    maxTokens: raw === "" || isNaN(parsed) ? undefined : parsed,
+                  });
+                }}
+                className="h-10 rounded-md border border-gray-600 bg-gray-700 px-3 text-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              />
+              <p className="text-xs text-gray-400">
+                Leave blank to use the default (10000). Range: 100–32000.
+              </p>
+            </div>
+          </div>
 
           <div className="mt-4 flex flex-col gap-2">
             <label htmlFor="system-prompt" className="text-sm text-gray-300">

@@ -11,6 +11,8 @@ import {
   DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
   DEFAULT_SUMMARIZE_PRESET_ID,
   DEFAULT_SUMMARIZE_PRESET_PROMPT,
+  DEFAULT_TRANSLATE_PRESET_ID,
+  DEFAULT_TRANSLATE_PRESET_PROMPT,
 } from "~/prompts";
 import type { Schema } from "electron-store";
 
@@ -41,8 +43,6 @@ export type Model = {
 };
 
 export type KeyBindings = {
-  correction: string;
-  translate: string; // keyboard shortcut for translation
   promptGen: string; // generate a new prompt based on current selection
   profileSwitch: string; // switch to next profile in rotation
 };
@@ -54,21 +54,15 @@ export type CorrectionPreset = {
   systemPrompt: string;
   model: string;
   isBuiltIn: boolean;
-  applyGlobalPromptSettings: boolean;
+  /** Optional per-preset temperature override; undefined means use the request default (1). */
+  temperature?: number;
+  /** Optional per-preset maxTokens override; undefined means use the request default (10000). */
+  maxTokens?: number;
 };
 
 export type CorrectionSettings = {
   presets: CorrectionPreset[];
   selectedPresetId: string;
-};
-
-export type GlobalSettings = {
-  customSystemPrompt: string;
-  customUserPrompt: string;
-  tone: string;
-  temperature: number;
-  top_p: number;
-  maxTokens: number;
 };
 
 /**
@@ -89,16 +83,8 @@ export type SettingsStore = {
   models: Model[];
   selectedModel: string;
 
-  // Global settings that apply across features
-  globalSettings: GlobalSettings;
-
   // Feature-specific settings
   settingsCorrect: CorrectionSettings;
-  settingsTranslate: {
-    destinationLang: string;
-    includeExplanation: boolean;
-    model: string;
-  };
   settingsSummarize: {
     minLength: number;
     maxLength: number;
@@ -123,7 +109,6 @@ export type SettingsStore = {
   customSystemPrompt: string;
   customUserPrompt: string;
   tone: string;
-  translationTargetLang: string; // deprecated, use settingsTranslate.destinationLang
 };
 
 type LegacyCorrectionSettings = {
@@ -134,6 +119,71 @@ type LegacyCorrectionSettings = {
   model?: string;
 };
 
+/**
+ * Shape of the retired standalone-Translate feature's settings, carried over
+ * when an existing user upgrades to the preset-based model. All fields optional
+ * because legacy stores may be partial.
+ */
+export type LegacyTranslateSettings = {
+  destinationLang?: string;
+  includeExplanation?: boolean;
+  model?: string;
+  /** Old keyBindings.translate accelerator, if still present in the store. */
+  hotkey?: string;
+};
+
+/**
+ * Build the system prompt for a migrated Translate preset: the bundled JP↔EN
+ * prompt, augmented with the user's legacy target language / explanation
+ * preference so their configured behavior is preserved on upgrade.
+ */
+const buildMigratedTranslatePrompt = (
+  legacy: LegacyTranslateSettings,
+): string => {
+  const base = DEFAULT_TRANSLATE_PRESET_PROMPT.trim();
+  const destinationLang = legacy.destinationLang?.trim();
+  if (!destinationLang) {
+    return base;
+  }
+  const explanation = legacy.includeExplanation
+    ? " Include a brief explanation of the translation."
+    : "";
+  return `${base}\n\nPreferred target language: ${destinationLang}.${explanation}`;
+};
+
+/**
+ * Apply retired standalone-Translate settings onto the Translate preset.
+ * Only runs when the stored config did NOT already contain a Translate preset
+ * (i.e. a genuine pre-preset upgrade) so it never clobbers a user-customized one.
+ */
+const applyLegacyTranslateMigration = (
+  presets: CorrectionPreset[],
+  legacy: LegacyTranslateSettings | undefined,
+  storedHadTranslatePreset: boolean,
+): CorrectionPreset[] => {
+  const hasLegacyData =
+    !!legacy &&
+    (!!legacy.destinationLang?.trim() ||
+      !!legacy.model?.trim() ||
+      !!legacy.hotkey?.trim() ||
+      legacy.includeExplanation === true);
+
+  if (storedHadTranslatePreset || !hasLegacyData || !legacy) {
+    return presets;
+  }
+
+  return presets.map((preset) =>
+    preset.id === DEFAULT_TRANSLATE_PRESET_ID
+      ? {
+          ...preset,
+          model: legacy.model?.trim() || preset.model,
+          hotkey: legacy.hotkey?.trim() || preset.hotkey,
+          systemPrompt: buildMigratedTranslatePrompt(legacy),
+        }
+      : preset,
+  );
+};
+
 const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
   {
     id: DEFAULT_CORRECTION_PRESET_ID,
@@ -142,7 +192,6 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     systemPrompt: DEFAULT_CUSTOM_PROMPT.trim(),
     model: DEFAULT_OPENAI_MODEL,
     isBuiltIn: true,
-    applyGlobalPromptSettings: true,
   },
   {
     id: DEFAULT_SUMMARIZE_PRESET_ID,
@@ -151,7 +200,6 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     systemPrompt: DEFAULT_SUMMARIZE_PRESET_PROMPT,
     model: DEFAULT_OPENAI_MODEL,
     isBuiltIn: true,
-    applyGlobalPromptSettings: false,
   },
   {
     id: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
@@ -160,7 +208,14 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     systemPrompt: DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
     model: DEFAULT_OPENAI_MODEL,
     isBuiltIn: true,
-    applyGlobalPromptSettings: false,
+  },
+  {
+    id: DEFAULT_TRANSLATE_PRESET_ID,
+    name: "Translate",
+    hotkey: "Control+Shift+T",
+    systemPrompt: DEFAULT_TRANSLATE_PRESET_PROMPT.trim(),
+    model: DEFAULT_OPENAI_MODEL,
+    isBuiltIn: true,
   },
 ];
 
@@ -183,6 +238,7 @@ const buildLegacyCorrectionPrompt = (
 
 export const normalizeCorrectionSettings = (
   value: unknown,
+  legacyTranslate?: LegacyTranslateSettings,
 ): CorrectionSettings => {
   const defaults = getDefaultCorrectionSettings();
   const defaultById = new Map(
@@ -190,10 +246,26 @@ export const normalizeCorrectionSettings = (
   );
 
   if (!value || typeof value !== "object") {
-    return defaults;
+    return {
+      ...defaults,
+      presets: applyLegacyTranslateMigration(
+        defaults.presets,
+        legacyTranslate,
+        false,
+      ),
+    };
   }
 
   const raw = value as Partial<CorrectionSettings> & LegacyCorrectionSettings;
+
+  const storedHadTranslatePreset =
+    Array.isArray(raw.presets) &&
+    raw.presets.some(
+      (preset) =>
+        !!preset &&
+        typeof preset === "object" &&
+        (preset as Partial<CorrectionPreset>).id === DEFAULT_TRANSLATE_PRESET_ID,
+    );
 
   const getTrimmedString = (candidate: unknown): string | undefined => {
     return typeof candidate === "string" ? candidate.trim() : undefined;
@@ -206,8 +278,14 @@ export const normalizeCorrectionSettings = (
       model: raw.model?.trim() || defaults.presets[0].model,
     } satisfies CorrectionPreset;
 
+    // Return all built-in defaults; only the correction preset gets the migrated prompt.
+    // Using slice(1) ensures summarize, prompt-optimization, and translate are all included.
     return {
-      presets: [migratedCorrectionPreset, defaults.presets[1]],
+      presets: applyLegacyTranslateMigration(
+        [migratedCorrectionPreset, ...defaults.presets.slice(1)],
+        legacyTranslate,
+        false,
+      ),
       selectedPresetId: migratedCorrectionPreset.id,
     };
   }
@@ -228,6 +306,17 @@ export const normalizeCorrectionSettings = (
 
     seenIds.add(id);
 
+    // Extract optional numeric fields — non-numeric values are silently dropped
+    const rawCandidate = candidate as Record<string, unknown>;
+    const temperature =
+      typeof rawCandidate.temperature === "number"
+        ? rawCandidate.temperature
+        : undefined;
+    const maxTokens =
+      typeof rawCandidate.maxTokens === "number"
+        ? rawCandidate.maxTokens
+        : undefined;
+
     return [
       {
         id,
@@ -240,10 +329,8 @@ export const normalizeCorrectionSettings = (
         model:
           candidate.model?.trim() || fallback?.model || DEFAULT_OPENAI_MODEL,
         isBuiltIn: fallback ? true : Boolean(candidate.isBuiltIn),
-        applyGlobalPromptSettings:
-          typeof candidate.applyGlobalPromptSettings === "boolean"
-            ? candidate.applyGlobalPromptSettings
-            : (fallback?.applyGlobalPromptSettings ?? true),
+        ...(temperature !== undefined ? { temperature } : {}),
+        ...(maxTokens !== undefined ? { maxTokens } : {}),
       } satisfies CorrectionPreset,
     ];
   });
@@ -257,14 +344,20 @@ export const normalizeCorrectionSettings = (
     ...normalizedPresets.filter((preset) => !defaultById.has(preset.id)),
   ];
 
+  const migratedPresets = applyLegacyTranslateMigration(
+    presets,
+    legacyTranslate,
+    storedHadTranslatePreset,
+  );
+
   const selectedPresetId =
     typeof raw.selectedPresetId === "string" &&
-    presets.some((preset) => preset.id === raw.selectedPresetId)
+    migratedPresets.some((preset) => preset.id === raw.selectedPresetId)
       ? raw.selectedPresetId
-      : presets[0]?.id || DEFAULT_CORRECTION_PRESET_ID;
+      : migratedPresets[0]?.id || DEFAULT_CORRECTION_PRESET_ID;
 
   return {
-    presets,
+    presets: migratedPresets,
     selectedPresetId,
   };
 };
@@ -303,30 +396,9 @@ const schema = {
               },
               default: [],
             },
-            globalSettings: {
-              type: "object",
-              properties: {
-                customSystemPrompt: { type: "string", default: "" },
-                customUserPrompt: { type: "string", default: "" },
-                tone: { type: "string", default: "" },
-                temperature: { type: "number", default: 1 },
-                top_p: { type: "number", default: 1.0 },
-                maxTokens: { type: "number", default: 10000 },
-              },
-              default: {
-                customSystemPrompt: "",
-                customUserPrompt: "",
-                tone: "",
-                temperature: 1,
-                top_p: 1.0,
-                maxTokens: 10000,
-              },
-            },
             customSystemPrompt: { type: "string", default: "" },
             customUserPrompt: { type: "string", default: "" },
             tone: { type: "string", default: "" },
-            // temperature moved to globalSettings
-            translationTargetLang: { type: "string", default: "" },
             settingsCorrect: {
               type: "object",
               properties: {
@@ -345,7 +417,8 @@ const schema = {
                       systemPrompt: { type: "string" },
                       model: { type: "string" },
                       isBuiltIn: { type: "boolean" },
-                      applyGlobalPromptSettings: { type: "boolean" },
+                      temperature: { type: "number" },
+                      maxTokens: { type: "number" },
                     },
                     required: ["id", "name", "hotkey", "systemPrompt", "model"],
                   },
@@ -367,19 +440,6 @@ const schema = {
                 maxLength: 0,
                 model: DEFAULT_OPENAI_MODEL,
                 targetLanguage: DEFAULT_LANGUAGE,
-              },
-            },
-            settingsTranslate: {
-              type: "object",
-              properties: {
-                destinationLang: { type: "string", default: "" },
-                includeExplanation: { type: "boolean", default: false },
-                model: { type: "string", default: "" },
-              },
-              default: {
-                destinationLang: "",
-                includeExplanation: false,
-                model: DEFAULT_OPENAI_MODEL,
               },
             },
             settingsPromptGen: {
@@ -517,6 +577,30 @@ export const getCurrentProfileSettings = (): SettingsStore => {
 };
 
 /**
+ * Pull the retired standalone-Translate settings out of a raw profile settings
+ * object. The field was removed from SettingsStore, so it is read defensively
+ * via an unknown cast — upgrading users still have it in the persisted JSON.
+ */
+const extractLegacyTranslateSettings = (
+  settings: SettingsStore,
+): LegacyTranslateSettings | undefined => {
+  const legacy = (settings as { settingsTranslate?: unknown }).settingsTranslate;
+  if (!legacy || typeof legacy !== "object") {
+    return undefined;
+  }
+  const t = legacy as Record<string, unknown>;
+  return {
+    destinationLang:
+      typeof t.destinationLang === "string" ? t.destinationLang : undefined,
+    includeExplanation:
+      typeof t.includeExplanation === "boolean"
+        ? t.includeExplanation
+        : undefined,
+    model: typeof t.model === "string" ? t.model : undefined,
+  };
+};
+
+/**
  * Gets a specific setting from the current profile
  * @param settingType The type of setting to retrieve
  * @returns The requested setting from the current profile
@@ -529,6 +613,9 @@ export const getProfileSetting = <K extends keyof SettingsStore>(
   if (settingType === "settingsCorrect") {
     return normalizeCorrectionSettings(
       settings[settingType],
+      // Carry over the retired standalone-Translate settings (still present in
+      // the raw store for upgrading users; no longer on the SettingsStore type).
+      extractLegacyTranslateSettings(settings),
     ) as SettingsStore[K];
   }
 

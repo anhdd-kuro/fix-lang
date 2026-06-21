@@ -4,6 +4,7 @@ import {
   clearHistory,
   getHistory,
   getLastActionHistory,
+  migrateLegacyHistoryBuckets,
   overrideHistory,
   removeHistoryEntry,
   setLastActionHistory,
@@ -69,6 +70,10 @@ export type SyncHistoryResponse = ReturnType<typeof syncHistory>;
  * Setup IPC handlers for history management
  */
 export function setupHistoryManagerHandlers() {
+  // Fold any retired translations/summarize history into corrections on first
+  // run after upgrade, before the renderer reads history.
+  migrateLegacyHistoryBuckets();
+
   ipcMain.handle(
     "add-history",
     async (

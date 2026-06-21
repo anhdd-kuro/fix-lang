@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Dialog } from "./Dialog";
+import { HotkeyInput } from "./HotkeyInput";
 import type { Profile } from "~/stores/apiStore";
 
 type ProfileManagerProps = {
@@ -455,6 +456,17 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
           </div>
         </div>
       </Dialog>
+
+      {/* Profile Switch Shortcut — co-located per issue #45 */}
+      <div className="mt-6 rounded-lg border border-gray-700 bg-gray-800/60 p-4">
+        <h4 className="text-sm font-semibold text-gray-300 mb-3">
+          Profile Switch Shortcut
+        </h4>
+        <HotkeyInput
+          hotkeyKey="profileSwitch"
+          label="Shortcut to cycle through profiles"
+        />
+      </div>
     </div>
   );
 };

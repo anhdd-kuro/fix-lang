@@ -17,7 +17,6 @@ import {
   registerProfileHandlers,
   registerPromptGenHandlers,
   registerSettingsHandlers,
-  registerTranslationHandlers,
   registerUiHandlers,
 } from "./ipc/features";
 import { registerHotkeys, unregisterHotkeys } from "./keybindings";
@@ -107,7 +106,6 @@ const registerIpcHandlers = (): void => {
 
   // Register feature-specific handlers
   registerCorrectionHandlers();
-  registerTranslationHandlers();
   registerPromptGenHandlers();
 
   console.log("All IPC handlers registered successfully");

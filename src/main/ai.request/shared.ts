@@ -11,36 +11,18 @@ import { generateText } from "ai";
 import { Notification } from "electron";
 import { OpenAI } from "openai";
 import { getLocalModels } from "~/main/llm/models/discover";
-import { makeTonePrompt } from "~/prompts/index";
 import { apiStore, getProfileSetting } from "~/stores/apiStore";
-import { StringPrettifier } from "~/utils";
 import { ollamaClient } from "../llm";
 import {
   buildCachedMessages,
   extractCacheUsage,
   resolveCacheProvider,
 } from "./cache-strategy";
-import type { GlobalSettings, Model } from "~/stores/apiStore";
+import type { Model } from "~/stores/apiStore";
 
 type CoreMessage = {
   role: "system" | "user" | "assistant" | "tool";
   content: unknown;
-};
-
-/**
- * Retrieves global prompt settings from the store
- * @returns GlobalSettings object with all current settings
- */
-export const getGlobalPromptSettings = (): GlobalSettings => {
-  const settings = getProfileSetting("globalSettings") as GlobalSettings | undefined;
-  return settings ?? {
-    customSystemPrompt: "",
-    customUserPrompt: "",
-    tone: "",
-    temperature: 1,
-    top_p: 1.0,
-    maxTokens: 10000,
-  };
 };
 
 export const fetchAvailableModels = async (
@@ -137,44 +119,13 @@ export const fetchAvailableModels = async (
 };
 
 /**
- * Applies global settings to a system prompt
- * @param systemPrompt - Base system prompt to augment with global settings
- * @returns Final system prompt with applied global settings
- */
-export const applyGlobalSettings = (systemPrompt: string): string => {
-  const settings = getGlobalPromptSettings();
-  const promptParts: string[] = [];
-
-  // If custom system prompt exists, use it instead of the provided one
-  if (settings.customSystemPrompt) {
-    promptParts.push(settings.customSystemPrompt);
-  } else {
-    promptParts.push(systemPrompt);
-  }
-
-  // Add tone adjustment if specified
-  if (settings.tone) {
-    promptParts.push(makeTonePrompt(settings.tone));
-  }
-
-  // Combine all prompt parts and clean up the formatting
-  return new StringPrettifier(promptParts.join("\n"))
-    .removeExtraSpaces()
-    .removeEmptyLines().value;
-};
-
-/**
  * Makes an AI request using OpenAI API with centralized settings management
  * @param options Configuration options for the AI request
  * @returns Promise with the AI response and token information
  */
 export const makeAIRequest = async (options: AIRequestOptions) => {
-  // Apply global settings to the system prompt (if not using custom messages)
-  const finalSystemPrompt = options.messages
-    ? ""
-    : options.skipGlobalSettings
-      ? options.systemPrompt
-      : applyGlobalSettings(options.systemPrompt);
+  // System prompt: use options.systemPrompt directly (no global overrides)
+  const finalSystemPrompt = options.messages ? "" : options.systemPrompt;
 
   // Determine which model to use
   const modelId =
@@ -185,11 +136,10 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
 
   console.log(`Using model for request: ${modelId}`);
 
-  // Get global settings for AI parameters
-  const globalSettings = getGlobalPromptSettings();
-  const temperature = options.temperature ?? globalSettings.temperature ?? 1;
-  const top_p = options.top_p ?? globalSettings.top_p ?? 1.0;
-  const maxTokens = options.maxTokens ?? globalSettings.maxTokens ?? 10000;
+  // Hardcoded defaults — per-preset values come through options (undefined = use default)
+  const temperature = options.temperature ?? 1;
+  const top_p = options.top_p ?? 1.0;
+  const maxTokens = options.maxTokens ?? 10000;
 
   // Create messages array if not provided
   const messages =
@@ -481,8 +431,6 @@ export type AIRequestOptions = {
   messages?: CoreMessage[];
   /** Stop sequences */
   stop?: string[] | null;
-  /** Skip global prompt overrides for this request */
-  skipGlobalSettings?: boolean;
 };
 
 /**

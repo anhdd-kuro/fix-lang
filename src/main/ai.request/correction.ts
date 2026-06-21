@@ -104,7 +104,8 @@ export const fixGrammar = async (
       systemPrompt: preset.systemPrompt,
       userPrompt: buildCorrectionUserPrompt(text, preset),
       model: preset.model,
-      skipGlobalSettings: !preset.applyGlobalPromptSettings,
+      temperature: preset.temperature,
+      maxTokens: preset.maxTokens,
     });
 
     console.log(`Correction used preset: ${preset.name}`);

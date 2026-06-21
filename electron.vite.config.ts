@@ -45,10 +45,6 @@ export default defineConfig({
         input: {
           main: resolve(__dirname, "src/renderer/MainWindow/index.html"),
           tray: resolve(__dirname, "src/renderer/TrayWindow/index.html"),
-          translation: resolve(
-            __dirname,
-            "src/renderer/TranslationWindow/index.html",
-          ),
           promptGen: resolve(
             __dirname,
             "src/renderer/PromptGenWindow/index.html",

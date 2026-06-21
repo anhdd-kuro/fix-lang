@@ -38,8 +38,6 @@ class KeybindingStore {
     const merged = { ...DEFAULT_KEY_BINDINGS, ...stored };
 
     return {
-      correction: normalizeAccelerator(merged.correction),
-      translate: normalizeAccelerator(merged.translate),
       promptGen: normalizeAccelerator(merged.promptGen),
       profileSwitch: normalizeAccelerator(merged.profileSwitch),
     };

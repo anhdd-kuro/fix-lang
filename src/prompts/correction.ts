@@ -80,6 +80,18 @@ Output:
 export const DEFAULT_CORRECTION_PRESET_ID = "correction";
 export const DEFAULT_SUMMARIZE_PRESET_ID = "summarize";
 export const DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID = "prompt-optimization";
+export const DEFAULT_TRANSLATE_PRESET_ID = "translate";
+
+export const DEFAULT_TRANSLATE_PRESET_PROMPT = `\
+You are a translation engine.
+Task: Detect whether the input text is primarily Japanese or English, then translate it to the other language.
+Requirements:
+- If the input is Japanese, output English only.
+- If the input is English, output Japanese only.
+- Preserve the original meaning, tone, and formatting.
+- Do not include explanations, footnotes, or any text other than the translated output.
+Output:
+- Return only the translated text.`;
 
 export const DEFAULT_SUMMARIZE_PRESET_PROMPT =
   strategicCompactSkillMarkdown.trim();
