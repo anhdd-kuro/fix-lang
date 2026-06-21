@@ -28,12 +28,19 @@ import {
 } from "../MainWindow/overviewAggregations";
 import type { HistoryEntry } from "~/stores/historyStore";
 
-/** Heatmap column geometry: 7px square + 3px gap = 10px per day column. */
-const CELL_PX = 7;
-const GAP_PX = 3;
+/** Heatmap cell geometry: 1rem (16px) square + 4px gap = 20px per day column. */
+const CELL_PX = 16;
+const GAP_PX = 4;
 const PX_PER_DAY = CELL_PX + GAP_PX;
 /** Reserve for the boundary-label column + its gap before the squares. */
-const LABEL_GUTTER_PX = 28;
+const LABEL_GUTTER_PX = 32;
+/**
+ * Exact pixel height of one day's stack of squares (HOUR_BLOCKS cells + the
+ * gaps between them). The boundary-label column is pinned to this so its 7
+ * labels (0…24) align to the square gridlines instead of overflowing — which
+ * is what hid the bottom "24" label and pushed the last row out of alignment.
+ */
+const COLUMN_HEIGHT_PX = HOUR_BLOCKS * CELL_PX + (HOUR_BLOCKS - 1) * GAP_PX;
 
 /** Track an element's content width via ResizeObserver (0 until first measure). */
 const useElementWidth = (): [
@@ -82,7 +89,8 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
   const [heatmapRef, heatmapWidth] = useElementWidth();
 
   // Number of day columns to render: fill the measured width (≥30), so wider
-  // screens show more days. ~10px per column; reserve the label gutter.
+  // screens show more days. ~20px per column (1rem cell + gap); reserve the
+  // label gutter.
   const cols = useMemo(() => {
     if (heatmapWidth <= 0) {
       return 30;
@@ -142,8 +150,13 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
         {/* ref measures available width → column count fills the screen. */}
         <div ref={heatmapRef} className="overflow-x-auto">
           <div className="flex" style={{ gap: GAP_PX }}>
-            {/* Boundary labels (0,4,…,24) aligned to the block gridlines. */}
-            <div className="flex shrink-0 flex-col justify-between text-[10px] leading-none tabular-nums text-gray-500">
+            {/* Boundary labels (0,4,…,24): height pinned to the squares column
+                so the 7 labels line up with the gridlines and "24" sits at the
+                bottom edge of the last block. */}
+            <div
+              style={{ height: COLUMN_HEIGHT_PX }}
+              className="flex shrink-0 flex-col justify-between text-xs leading-none tabular-nums text-gray-500"
+            >
               {BOUNDARY_LABELS.map((label) => (
                 <span key={label}>{label}</span>
               ))}
