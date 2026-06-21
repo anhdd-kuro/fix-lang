@@ -220,7 +220,14 @@ export const SettingCorrection: React.FC = () => {
       return;
     }
 
-    updatePreset(activePreset.id, defaultPreset);
+    // Built-in defaults omit temperature/maxTokens; spreading them alone would
+    // retain any user override (merge keeps omitted keys). Explicitly clear the
+    // optional AI params so Reset truly restores the built-in state.
+    updatePreset(activePreset.id, {
+      ...defaultPreset,
+      temperature: defaultPreset.temperature,
+      maxTokens: defaultPreset.maxTokens,
+    });
     setStatus("");
   };
 

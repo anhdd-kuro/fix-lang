@@ -1,7 +1,8 @@
 /**
  * @file HotkeyInput.tsx
  * @description Reusable hotkey capture widget used by SettingPromptGen and ProfileManager.
- * Pauses global hotkeys on mount, resumes on unmount. Validates against correction preset
+ * Pauses global hotkeys only while the capture field is focused (not for the whole
+ * settings tab lifetime), resuming on blur. Validates against correction preset
  * hotkeys and the sibling app keybinding before saving.
  */
 import React, { useState, useEffect } from "react";
@@ -19,7 +20,7 @@ export type HotkeyInputProps = {
 
 /**
  * A self-contained hotkey capture widget.
- * - Pauses global hotkeys on mount; resumes on unmount.
+ * - Pauses global hotkeys while the field is focused; resumes on blur.
  * - Reads current binding from electron store.
  * - Validates against correction presets + sibling keybinding on Apply.
  * - Writes updated bindings atomically (full KeyBindings object) to avoid
@@ -35,9 +36,6 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
   const [status, setStatus] = useState<string>("");
 
   useEffect(() => {
-    // Pause hotkeys while editing so they don't fire while typing shortcuts.
-    window.electronAPI?.pauseHotkeys();
-
     window.electronAPI
       ?.getKeyBindings()
       .then((bindings) => {
@@ -49,10 +47,22 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
         setStatus("Error loading keybindings");
       });
 
+    // Safety net: if the widget unmounts while the field is still focused
+    // (e.g. settings window closes mid-capture), make sure hotkeys resume.
     return () => {
       window.electronAPI?.resumeHotkeys();
     };
   }, [hotkeyKey]);
+
+  // Pause global hotkeys only while the field is focused for capture — not for
+  // the whole lifetime of the settings tab. Resume as soon as focus leaves.
+  const handleFocus = (): void => {
+    window.electronAPI?.pauseHotkeys();
+  };
+
+  const handleBlur = (): void => {
+    window.electronAPI?.resumeHotkeys();
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
     e.preventDefault();
@@ -140,6 +150,8 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
           type="text"
           value={pendingCombo}
           onKeyDown={handleKeyDown}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           readOnly
           placeholder="Press shortcut…"
           aria-label={`Hotkey for ${hotkeyKey}`}

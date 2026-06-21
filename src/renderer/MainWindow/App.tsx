@@ -246,17 +246,27 @@ const App: React.FC = () => {
         </ul>
         <TrashButton
           onClick={() => {
-            // Clear the active filter's bucket, or corrections when showing all.
-            // Re-fetch both buckets after clear so UI exactly mirrors store state —
-            // avoids divergence from optimistic filtering (corrections bucket holds
-            // all non-PromptGen presets, so clearing it removes more than one filter).
-            const featureId: HistoryFeatureId =
-              activeFilter === "PromptGen" ? "promptGen" : "corrections";
-            window.electronAPI
-              .clearHistory(featureId)
+            // Which store buckets the visible Clear should wipe:
+            // - "All" (null) clears BOTH buckets so nothing visible survives.
+            // - "PromptGen" clears only the promptGen bucket.
+            // - any other preset filter clears the shared corrections bucket
+            //   (which holds all non-PromptGen presets — clearing it removes
+            //   more than the single active filter, by design of the bucket model).
+            // Re-fetch both buckets after clearing so the UI mirrors store state.
+            const buckets: HistoryFeatureId[] =
+              activeFilter === null
+                ? ["corrections", "promptGen"]
+                : activeFilter === "PromptGen"
+                  ? ["promptGen"]
+                  : ["corrections"];
+            Promise.all(
+              buckets.map((featureId) =>
+                window.electronAPI.clearHistory(featureId)
+              )
+            )
               .then(() => fetchAllHistories())
               .catch((err: Error) =>
-                console.error(`Failed to clear ${featureId} history`, err)
+                console.error(`Failed to clear history`, err)
               );
           }}
           className="ml-auto mt-auto"
