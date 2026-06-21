@@ -48,6 +48,7 @@ vi.mock("./shared", () => ({
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
 import { getProfileSetting, normalizeCorrectionSettings } from "~/stores/apiStore";
+import { estimateTextTokens } from "~/stores/historyStore";
 import { fixGrammar } from "./correction";
 import { makeAIRequest } from "./shared";
 import type { Mock } from "vitest";
@@ -152,6 +153,22 @@ describe("fixGrammar — per-preset temperature and maxTokens", () => {
     const call = (makeAIRequest as Mock).mock.calls[0][0];
     expect(call.temperature).toBe(0.7);
     expect(call.maxTokens).toBe(8000);
+  });
+
+  it("falls back to input and output text token estimates when usage is missing", async () => {
+    const preset = makePreset();
+    (getProfileSetting as Mock).mockReturnValue(makeSettings(preset));
+    (makeAIRequest as Mock).mockResolvedValue({
+      content: ["Fixed text"],
+      promptTokens: null,
+      completionTokens: null,
+      model: preset.model,
+    });
+
+    const result = await fixGrammar("hello world");
+
+    expect(result.promptTokens).toBe(estimateTextTokens("hello world"));
+    expect(result.completionTokens).toBe(estimateTextTokens("Fixed text"));
   });
 });
 

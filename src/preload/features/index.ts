@@ -6,3 +6,4 @@ export * from "./profiles";
 export * from "./settings";
 export * from "./ui";
 export * from "./history";
+export * from "./openrouter";

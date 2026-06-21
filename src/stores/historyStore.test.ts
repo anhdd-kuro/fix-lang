@@ -1,27 +1,44 @@
 /**
  * @file historyStore.test.ts
- * @description Unit tests for historyStore — presetName tagging and filterHistoryByPreset.
- * Tests run in Node (no Electron context). electron-store is mocked with an in-memory Map.
+ * @description Unit tests for historyStore. The store is now a thin adapter
+ * over the SQLite repository, so the CRUD functions are tested by asserting
+ * they delegate to the repo (the repo's own behavior — uncapped storage,
+ * round-trips, range queries — is covered in historyRepo.test.ts). The pure
+ * helpers (filterHistoryByPreset, mergeLegacyHistoryEntries) live in
+ * historyTypes and are re-exported here; their suites are unchanged.
+ *
+ * Tests run in Node (no Electron context). historyDb is mocked so no real
+ * electron/userData path is touched; electron-store is mocked for the
+ * lastActionHistory pointer.
  */
+// vi.mock calls must precede the module-under-test imports (mocks are
+// registered before the SUT resolves its deps), which conflicts with
+// import-x/order grouping — disabled file-wide for this test.
+/* eslint-disable import-x/order */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  addHistoryEntry,
-  filterHistoryByPreset,
-  mergeLegacyHistoryEntries,
-} from "./historyStore";
-import type { HistoryEntry } from "./historyStore";
 
 // ---------------------------------------------------------------------------
-// Mock electron-store before the module under test resolves it.
-// vi.mock is hoisted by vitest so the mock is in place before any imports run.
+// Mock the SQLite repo behind historyDb so the store delegates to a spy.
 // ---------------------------------------------------------------------------
+const repoMock = {
+  getByFeature: vi.fn(),
+  insert: vi.fn(),
+  remove: vi.fn(),
+  clear: vi.fn(),
+  overrideFeature: vi.fn(),
+  getByRange: vi.fn(),
+  migrateLegacyBuckets: vi.fn(),
+};
 
+vi.mock("./historyDb", () => ({
+  getHistoryRepo: () => repoMock,
+}));
+
+// electron-store is only used for the lastActionHistory pointer now.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test mock; Store.get/set accept any shape
 const storeMap = new Map<string, any>();
-
 vi.mock("electron-store", () => {
   return {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock class; constructor options are opaque in tests
     default: class MockStore {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic K/V store API
       get(key: string): any {
@@ -35,9 +52,17 @@ vi.mock("electron-store", () => {
   };
 });
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+import {
+  addHistoryEntry,
+  clearHistory,
+  estimateTextTokens,
+  filterHistoryByPreset,
+  getHistory,
+  mergeLegacyHistoryEntries,
+  overrideHistory,
+  removeHistoryEntry,
+} from "./historyStore";
+import type { HistoryEntry } from "./historyStore";
 
 const makeEntry = (overrides: Partial<HistoryEntry> = {}): HistoryEntry => ({
   original: "hello",
@@ -48,32 +73,96 @@ const makeEntry = (overrides: Partial<HistoryEntry> = {}): HistoryEntry => ({
 
 beforeEach(() => {
   storeMap.clear();
-  // Seed the corrections array as empty so addHistoryEntry can push onto it.
-  storeMap.set("corrections", []);
-  storeMap.set("promptGen", []);
+  vi.clearAllMocks();
 });
 
 // ---------------------------------------------------------------------------
-// Test 1: addHistoryEntry persists presetName
+// CRUD functions delegate to the SQLite repo (no cap, no in-memory trimming).
 // ---------------------------------------------------------------------------
 
 describe("addHistoryEntry", () => {
-  it("persists presetName on the stored entry", () => {
+  it("delegates the entry to the repo (no trimming)", () => {
     const entry = makeEntry({ presetName: "Correction" });
     addHistoryEntry("corrections", entry);
 
-    const stored = storeMap.get("corrections") as HistoryEntry[];
-    expect(stored).toHaveLength(1);
-    expect(stored[0].presetName).toBe("Correction");
+    expect(repoMock.insert).toHaveBeenCalledTimes(1);
+    expect(repoMock.insert).toHaveBeenCalledWith("corrections", {
+      ...entry,
+      promptTokens: estimateTextTokens(entry.original),
+      completionTokens: estimateTextTokens(entry.corrected),
+    });
+  });
+
+  it("ignores the inert maxEntries argument (uncapped)", () => {
+    const entry = makeEntry();
+    addHistoryEntry("corrections", entry, 1);
+    // Delegation happens regardless of the legacy cap argument.
+    expect(repoMock.insert).toHaveBeenCalledWith("corrections", {
+      ...entry,
+      promptTokens: estimateTextTokens(entry.original),
+      completionTokens: estimateTextTokens(entry.corrected),
+    });
+  });
+
+  it("preserves provider token counts when present", () => {
+    const entry = makeEntry({ promptTokens: 12, completionTokens: 34 });
+    addHistoryEntry("corrections", entry);
+
+    expect(repoMock.insert).toHaveBeenCalledWith("corrections", entry);
+  });
+
+  it("fills zero token counts from saved input and output text", () => {
+    const entry = makeEntry({ promptTokens: 0, completionTokens: 0 });
+    addHistoryEntry("corrections", entry);
+
+    expect(repoMock.insert).toHaveBeenCalledWith("corrections", {
+      ...entry,
+      promptTokens: estimateTextTokens(entry.original),
+      completionTokens: estimateTextTokens(entry.corrected),
+    });
+  });
+});
+
+describe("CRUD delegation", () => {
+  it("getHistory reads from the repo by feature", () => {
+    const entries = [makeEntry()];
+    repoMock.getByFeature.mockReturnValueOnce(entries);
+    expect(getHistory("corrections")).toBe(entries);
+    expect(repoMock.getByFeature).toHaveBeenCalledWith("corrections");
+  });
+
+  it("removeHistoryEntry delegates to repo.remove", () => {
+    const entry = makeEntry();
+    removeHistoryEntry("promptGen", entry);
+    expect(repoMock.remove).toHaveBeenCalledWith("promptGen", entry);
+  });
+
+  it("clearHistory delegates to repo.clear", () => {
+    clearHistory("corrections");
+    expect(repoMock.clear).toHaveBeenCalledWith("corrections");
+  });
+
+  it("overrideHistory delegates to repo.overrideFeature", () => {
+    const entries = [makeEntry()];
+    overrideHistory("corrections", entries);
+    expect(repoMock.overrideFeature).toHaveBeenCalledWith(
+      "corrections",
+      [
+        {
+          ...entries[0],
+          promptTokens: estimateTextTokens(entries[0].original),
+          completionTokens: estimateTextTokens(entries[0].corrected),
+        },
+      ]
+    );
   });
 });
 
 // ---------------------------------------------------------------------------
-// Tests 2–7: filterHistoryByPreset (pure function, no store dependency)
+// filterHistoryByPreset (pure function, no store dependency)
 // ---------------------------------------------------------------------------
 
 describe("filterHistoryByPreset", () => {
-  // Test 2: exact match — Correction
   it("returns only entries matching Correction preset", () => {
     const entries: HistoryEntry[] = [
       makeEntry({ presetName: "Correction" }),
@@ -85,7 +174,6 @@ describe("filterHistoryByPreset", () => {
     result.forEach((e) => expect(e.presetName).toBe("Correction"));
   });
 
-  // Test 3: exact match — Summarize
   it("returns only the Summarize entry when filtering by Summarize", () => {
     const entries: HistoryEntry[] = [
       makeEntry({ presetName: "Correction" }),
@@ -97,7 +185,6 @@ describe("filterHistoryByPreset", () => {
     expect(result[0].presetName).toBe("Summarize");
   });
 
-  // Test 4: PromptGen bucket
   it("returns only the PromptGen entry when filtering by PromptGen", () => {
     const entries: HistoryEntry[] = [
       makeEntry({ presetName: "Correction" }),
@@ -108,12 +195,10 @@ describe("filterHistoryByPreset", () => {
     expect(result[0].presetName).toBe("PromptGen");
   });
 
-  // Test 5: empty input
   it("returns empty array without throwing when input is empty", () => {
     expect(filterHistoryByPreset([], "anything")).toEqual([]);
   });
 
-  // Test 6: legacy entries (no presetName) are excluded from named filters
   it("excludes legacy entries that have no presetName", () => {
     const entries: HistoryEntry[] = [
       makeEntry({ presetName: undefined }),
@@ -123,17 +208,15 @@ describe("filterHistoryByPreset", () => {
     expect(result).toHaveLength(1);
     expect(result[0].presetName).toBe("Correction");
 
-    // Legacy entry is not returned by any named filter
     const legacy = filterHistoryByPreset(entries, "");
     expect(legacy).toHaveLength(0);
   });
 
-  // Test 7: rename immutability — old preset name on stored entries survives a "rename"
   it("still matches entries by their original presetName after a rename scenario", () => {
     const entries: HistoryEntry[] = [
       makeEntry({ presetName: "OldName" }),
       makeEntry({ presetName: "OldName" }),
-      makeEntry({ presetName: "NewName" }), // simulates renamed preset writing new entries
+      makeEntry({ presetName: "NewName" }),
     ];
     expect(filterHistoryByPreset(entries, "OldName")).toHaveLength(2);
     expect(filterHistoryByPreset(entries, "NewName")).toHaveLength(1);
@@ -141,7 +224,7 @@ describe("filterHistoryByPreset", () => {
 });
 
 // ---------------------------------------------------------------------------
-// mergeLegacyHistoryEntries — upgrade migration of retired buckets (C4/C6)
+// mergeLegacyHistoryEntries — upgrade migration of retired buckets
 // ---------------------------------------------------------------------------
 
 describe("mergeLegacyHistoryEntries", () => {
@@ -202,7 +285,6 @@ describe("mergeLegacyHistoryEntries", () => {
       translations: [makeEntry({ original: "dup", timestamp: "2024-03-01T00:00:00Z" })],
     });
     expect(result).toHaveLength(1);
-    // The pre-existing corrections entry wins (kept first).
     expect(result[0].presetName).toBe("Correction");
   });
 

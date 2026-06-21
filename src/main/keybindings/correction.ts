@@ -6,6 +6,8 @@ import { keybindingStore } from "~/stores/keybindingStore";
 import { getHighlightedText, pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
 import { checkShortcut, handleError } from "./utils";
+import { buildPriceMap, computeCost } from "../ai.request/cost";
+import { getCachedModels, isLocalModelId } from "../ai.request/shared";
 import { syncHistory } from "../ipc/features/history";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
 import type { BrowserWindow } from "electron";
@@ -72,6 +74,21 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         await pasteText(result.correctedText);
 
         if (mainWindow && !mainWindow.isDestroyed()) {
+          // Cost snapshot (#56): price the served model against the cached
+          // OpenRouter /models price map. Local (Ollama) → $0; no confident
+          // match → N/A. All logic is in the pure computeCost; this is glue.
+          const servedId = result.resolvedModel ?? result.model;
+          const cost = computeCost(
+            {
+              model: result.model,
+              resolvedModel: result.resolvedModel,
+              promptTokens: result.promptTokens ?? 0,
+              completionTokens: result.completionTokens ?? 0,
+              isLocal: isLocalModelId(servedId),
+            },
+            buildPriceMap(getCachedModels()),
+          );
+
           syncHistory({
             entry: {
               original: selectedText,
@@ -82,6 +99,11 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
               model: result.model,
               resolvedModel: result.resolvedModel,
               presetName: result.presetName,
+              // Spread the snapshot; undefined fields (N/A) round-trip to NULL.
+              estimatedCostUsd: cost.estimatedCostUsd ?? undefined,
+              pricePrompt: cost.pricePrompt ?? undefined,
+              priceCompletion: cost.priceCompletion ?? undefined,
+              costStatus: cost.status,
             },
             type: "add",
             // All preset outputs share the "corrections" bucket and are

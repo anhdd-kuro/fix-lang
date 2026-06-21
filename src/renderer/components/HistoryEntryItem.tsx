@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import React from "react";
+import { formatCost } from "./historyCost";
 import { formatModelLineage } from "./historyModel";
 import { TrashButton } from "./TrashButton";
 import type { HistoryEntry, HistoryFeatureId } from "~/stores/historyStore";
@@ -42,12 +43,20 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
         >
           {entry.original.slice(0, 50)}...
         </p>
-        <p
-          className="text-sm text-gray-100 line-clamp-1"
-          title={formatModelLineage(entry.model, entry.resolvedModel)}
-        >
-          {formatModelLineage(entry.model, entry.resolvedModel)}
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p
+            className="text-sm text-gray-100 line-clamp-1"
+            title={formatModelLineage(entry.model, entry.resolvedModel)}
+          >
+            {formatModelLineage(entry.model, entry.resolvedModel)}
+          </p>
+          <span
+            className="shrink-0 text-xs text-gray-400 tabular-nums"
+            title="Estimated cost at time of correction"
+          >
+            {formatCost(entry)}
+          </span>
+        </div>
       </div>
       <TrashButton
         className="invisible absolute right-2 bottom-2 group-hover/history-entry:visible"
