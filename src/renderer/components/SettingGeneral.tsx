@@ -8,6 +8,10 @@ export const SettingGeneral: React.FC = () => {
   // State for the API Key input field
   const [apiKeyInput, setApiKeyInput] = useState<string>("");
   const [saveStatus, setSaveStatus] = useState<string>("");
+  const [resetStatus, setResetStatus] = useState<string>("");
+
+  // Bumped after a reset to force ModelSelect to remount and reload its default
+  const [modelSelectKey, setModelSelectKey] = useState(0);
 
   // Track unsaved changes
   const [hasChanges, setHasChanges] = useState(false);
@@ -93,6 +97,41 @@ export const SettingGeneral: React.FC = () => {
     setHasChanges(false);
   };
 
+  // Reset the current profile's settings to defaults (keeps the API key).
+  const handleResetDefaults = async () => {
+    const confirmed = window.confirm(
+      "Reset all settings for the current profile to defaults?\n\n" +
+        "Your API key is kept. Correction presets, summarize, prompt-gen, " +
+        "model settings and global hotkeys will be restored to defaults. " +
+        "This cannot be undone.",
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    if (!window.electronAPI?.resetProfileSettings) {
+      setResetStatus("Error: Reset is not available");
+      return;
+    }
+
+    setResetStatus("Resetting...");
+    try {
+      const result = await window.electronAPI.resetProfileSettings();
+      if (result.success) {
+        setResetStatus("Settings reset to defaults.");
+        setHasChanges(false);
+        // Remount ModelSelect so it reloads the (now default) model.
+        setModelSelectKey((key) => key + 1);
+        setTimeout(() => setResetStatus(""), 2500);
+      } else {
+        setResetStatus(`Error: ${result.error || "Failed to reset"}`);
+      }
+    } catch (error) {
+      console.error("SettingGeneral: Error resetting settings:", error);
+      setResetStatus("Error resetting settings");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className="mb-4">
@@ -125,7 +164,7 @@ export const SettingGeneral: React.FC = () => {
       </div>
 
       {/* Model Selection */}
-      <ModelSelect onChange={() => setHasChanges(true)} />
+      <ModelSelect key={modelSelectKey} onChange={() => setHasChanges(true)} />
 
       {/* Save Button */}
       <div className="mt-4">
@@ -137,6 +176,29 @@ export const SettingGeneral: React.FC = () => {
         >
           Save
         </button>
+      </div>
+
+      {/* Reset to defaults */}
+      <div className="mt-2 border-t border-gray-700 pt-4">
+        <button
+          type="button"
+          onClick={handleResetDefaults}
+          className="w-full rounded border border-red-500/50 px-4 py-2 text-sm font-semibold text-red-300 transition-colors hover:bg-red-500/10 focus:outline-none focus:ring-2 focus:ring-red-400"
+        >
+          Reset all settings to default
+        </button>
+        {resetStatus && (
+          <p
+            className={`text-xs mt-1 ${resetStatus.startsWith("Error") ? "text-red-400" : "text-green-400"}`}
+            role="status"
+          >
+            {resetStatus}
+          </p>
+        )}
+        <p className="text-xs text-gray-500 mt-1">
+          Restores correction presets, summarize, prompt-gen, model settings
+          and global hotkeys for the current profile. Your API key is kept.
+        </p>
       </div>
     </div>
   );

@@ -37,6 +37,18 @@ export const apiFeature = {
   },
 
   /**
+   * Resets the current profile's settings to defaults (keeps the API key).
+   */
+  resetProfileSettings: async (): Promise<{
+    success: boolean;
+    error?: string;
+  }> => {
+    const result = await ipcRenderer.invoke("reset-profile-settings");
+    ipcRenderer.send("settings-updated");
+    return result;
+  },
+
+  /**
    * Fetches the stored OpenAI API key from the main process.
    * @returns A promise that resolves with the stored API key (string) or an empty string if none is set or on error.
    */

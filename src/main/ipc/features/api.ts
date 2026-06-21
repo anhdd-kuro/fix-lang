@@ -5,6 +5,7 @@
 import { ipcMain } from "electron";
 import { resolveDefaultOpenAIModel } from "~/const";
 import { fetchAvailableModels } from "~/main/ai.request";
+import { reloadHotkeys } from "~/main/keybindings";
 import { ollamaClient } from "~/main/llm";
 import { checkModelCompatibility } from "~/main/llm/models/compatibility";
 import {
@@ -14,8 +15,10 @@ import {
 import {
   apiStore,
   getProfileSetting,
+  resetCurrentProfileSettings,
   updateProfileSetting,
 } from "~/stores/apiStore";
+import { keybindingStore } from "~/stores/keybindingStore";
 import type { Model } from "~/stores/apiStore";
 
 /**
@@ -103,6 +106,17 @@ export const registerApiHandlers = (): void => {
     // from the fetched model list, else first available, else the const.
     const models = (apiStore.get("models") as Model[]) || [];
     return resolveDefaultOpenAIModel(models);
+  });
+
+  ipcMain.handle("reset-profile-settings", () => {
+    const result = resetCurrentProfileSettings();
+    if (result.success) {
+      // Also restore the global keybindings (promptGen / profileSwitch) to
+      // defaults, then re-register all globals + restored preset hotkeys.
+      keybindingStore.resetKeyBindings();
+      reloadHotkeys();
+    }
+    return result;
   });
 
   ipcMain.handle("set-selected-model", async (_event, modelId) => {

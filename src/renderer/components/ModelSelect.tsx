@@ -2,7 +2,11 @@ import { format } from "date-fns";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Select from "react-select";
 import { twJoin } from "tailwind-merge";
-import { DEFAULT_OPENAI_MODEL, normalizeForSearch } from "~/const";
+import {
+  DEFAULT_OPENAI_MODEL,
+  normalizeForSearch,
+  resolveDefaultOpenAIModel,
+} from "~/const";
 import SettingsButton from "./SettingsIcon";
 import type { Model } from "~/stores/apiStore";
 
@@ -146,6 +150,23 @@ export const ModelSelect: React.FC<{
       setSelectedModel(selectedModelId);
     }
   }, [selectedModelId]);
+
+  // Keep the displayed model valid. When the parent does not pin a model
+  // (e.g. the General selector) and the current selection is empty or absent
+  // from the fetched list (stale/unknown id, different provider), fall back to
+  // the dynamic default (latest GPT mini) from the actual fetched list. This
+  // prevents the selector rendering empty while presets still show a model.
+  useEffect(() => {
+    if (selectedModelId || models.length === 0) {
+      return;
+    }
+    const isValid =
+      !!selectedModel && models.some((model) => model.id === selectedModel);
+    if (!isValid) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedModel(resolveDefaultOpenAIModel(models));
+    }
+  }, [models, selectedModel, selectedModelId]);
 
   const modelOptions = useMemo<ModelSelectOption[]>(
     () =>

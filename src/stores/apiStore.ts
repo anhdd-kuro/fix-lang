@@ -717,6 +717,91 @@ export const updateProfileSetting = <K extends keyof SettingsStore>(
 };
 
 /**
+ * Builds a fresh SettingsStore with all user-tunable settings at their
+ * defaults. apiKey / models are intentionally empty here — callers that
+ * preserve them (e.g. profile reset) overwrite those fields afterwards.
+ */
+const buildDefaultProfileSettings = (): SettingsStore =>
+  ({
+    apiKey: "",
+    models: [],
+    selectedModel: DEFAULT_OPENAI_MODEL,
+    customSystemPrompt: "",
+    customUserPrompt: "",
+    tone: "",
+    settingsCorrect: getDefaultCorrectionSettings(),
+    settingsSummarize: {
+      minLength: 0,
+      maxLength: 0,
+      model: DEFAULT_OPENAI_MODEL,
+      targetLanguage: DEFAULT_LANGUAGE,
+    },
+    settingsPromptGen: {
+      minLength: 50,
+      maxLength: 150,
+      batchCount: 5,
+      nsfw: true,
+      context: "",
+      autoCopy: false,
+      model: DEFAULT_OPENAI_MODEL,
+    },
+  }) as SettingsStore;
+
+/**
+ * Resets the currently active profile's settings to defaults, preserving the
+ * API key and the fetched model list. The legacy top-level selected model is
+ * cleared so the General selector reverts to the dynamic default.
+ * @returns Success status and error message if applicable
+ */
+export const resetCurrentProfileSettings = (): {
+  success: boolean;
+  error?: string;
+} => {
+  try {
+    const currentProfileId = getCurrentProfileId();
+    if (!currentProfileId) {
+      return { success: false, error: "No active profile to reset" };
+    }
+
+    const profiles = getProfiles();
+    const index = profiles.findIndex((p) => p.id === currentProfileId);
+    if (index === -1) {
+      return { success: false, error: "Active profile not found" };
+    }
+
+    const existing = profiles[index].settings;
+    const defaults = buildDefaultProfileSettings();
+
+    profiles[index] = {
+      ...profiles[index],
+      updatedAt: new Date().toISOString(),
+      settings: {
+        ...defaults,
+        apiKey: existing.apiKey ?? "",
+        models: existing.models ?? [],
+      },
+    };
+    apiStore.set("profiles", profiles);
+
+    // Clear the legacy top-level selected model (not part of the typed schema)
+    // so get-selected-model falls back to the dynamic default after reset.
+    (apiStore as unknown as { delete: (key: string) => void }).delete(
+      "selectedModel",
+    );
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unknown error resetting profile settings",
+    };
+  }
+};
+
+/**
  * Updates a profile with current settings
  * @param profileId Profile ID to update
  * @param name Optional new name
