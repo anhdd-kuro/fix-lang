@@ -14,6 +14,7 @@ import {
   registerApiHandlers,
   registerCorrectionHandlers,
   setupHistoryManagerHandlers,
+  registerOpenRouterHandlers,
   registerProfileHandlers,
   registerPromptGenHandlers,
   registerSettingsHandlers,
@@ -107,6 +108,9 @@ const registerIpcHandlers = (): void => {
   // Register feature-specific handlers
   registerCorrectionHandlers();
   registerPromptGenHandlers();
+
+  // OpenRouter account-analytics tab (#59) — reads the provisioning key in-main.
+  registerOpenRouterHandlers();
 
   console.log("All IPC handlers registered successfully");
 };

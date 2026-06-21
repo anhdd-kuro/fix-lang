@@ -10,11 +10,13 @@ import {
   settingsFeature,
   uiFeature,
   historyFeature,
+  openrouterFeature,
 } from "./features";
 import type {
   ApiFeature,
   CorrectionFeature,
   HistoryFeature,
+  OpenRouterFeature,
   ProfilesFeature,
   PromptGenFeature,
   SettingsFeature,
@@ -33,6 +35,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...profilesFeature,
   ...settingsFeature,
   ...uiFeature,
+  ...openrouterFeature,
 } satisfies ElectronAPI);
 
 console.log(
@@ -45,4 +48,5 @@ export type ElectronAPI = HistoryFeature &
   ApiFeature &
   ProfilesFeature &
   SettingsFeature &
-  UIFeature;
+  UIFeature &
+  OpenRouterFeature;

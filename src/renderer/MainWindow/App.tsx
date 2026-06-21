@@ -9,8 +9,8 @@ import { HistoryPanel } from "../components/HistoryPanel";
 import HistoryReviewModal from "../components/HistoryReviewModal";
 import ModelManagerDialog from "../components/ModelManagerDialog";
 import { ModelsPanel } from "../components/ModelsPanel";
+import { OpenRouterPanel } from "../components/OpenRouterPanel";
 import { OverviewPanel } from "../components/OverviewPanel";
-import { PlaceholderPanel } from "../components/PlaceholderPanel";
 import { SettingsButton } from "../components/SettingsIcon";
 import { SettingsModal } from "../components/SettingsModal";
 import { TextAreaBox } from "../components/TextAreaBox";
@@ -191,10 +191,7 @@ const App: React.FC = () => {
     ),
     models: <ModelsPanel history={correctionsHistory} />,
     openrouter: (
-      <PlaceholderPanel
-        title="OpenRouter"
-        description="OpenRouter credits and activity will appear here."
-      />
+      <OpenRouterPanel onOpenSettings={() => setIsSettingsOpen(true)} />
     ),
   };
 
