@@ -3,7 +3,7 @@
  * @description IPC handlers for OpenAI API related functionality
  */
 import { ipcMain } from "electron";
-import { DEFAULT_OPENAI_MODEL } from "~/const";
+import { resolveDefaultOpenAIModel } from "~/const";
 import { fetchAvailableModels } from "~/main/ai.request";
 import { ollamaClient } from "~/main/llm";
 import { checkModelCompatibility } from "~/main/llm/models/compatibility";
@@ -96,7 +96,13 @@ export const registerApiHandlers = (): void => {
   });
 
   ipcMain.handle("get-selected-model", () => {
-    return apiStore.get("selectedModel") || DEFAULT_OPENAI_MODEL;
+    const stored = apiStore.get("selectedModel");
+    if (stored) return stored;
+
+    // No explicit selection yet: dynamically default to the latest GPT mini
+    // from the fetched model list, else first available, else the const.
+    const models = (apiStore.get("models") as Model[]) || [];
+    return resolveDefaultOpenAIModel(models);
   });
 
   ipcMain.handle("set-selected-model", async (_event, modelId) => {

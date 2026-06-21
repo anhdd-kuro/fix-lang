@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Select from "react-select";
 import { twJoin } from "tailwind-merge";
-import { DEFAULT_OPENAI_MODEL } from "~/const";
+import { DEFAULT_OPENAI_MODEL, normalizeForSearch } from "~/const";
 import SettingsButton from "./SettingsIcon";
 import type { Model } from "~/stores/apiStore";
 
@@ -223,6 +223,16 @@ export const ModelSelect: React.FC<{
           }
           onChange={(option) => option && handleModelChange(option.value)}
           options={modelOptions}
+          filterOption={(option, rawInput) => {
+            // Flexible match: normalize both sides (lowercase + strip every
+            // non-alphanumeric char) so "gpt 5" matches "openai/gpt-5".
+            const query = normalizeForSearch(rawInput);
+            if (!query) return true;
+            const haystack = normalizeForSearch(
+              `${option.value} ${option.label}`,
+            );
+            return haystack.includes(query);
+          }}
           isDisabled={modelsLoading || !!modelsError}
           placeholder={modelsLoading ? "Loading models..." : "Select model"}
           noOptionsMessage={() => "No models found"}
