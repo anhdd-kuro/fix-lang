@@ -295,3 +295,92 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
     expect(ids[3]).toBe(DEFAULT_TRANSLATE_PRESET_ID);
   });
 });
+
+describe("normalizeCorrectionSettings — legacy standalone-Translate migration", () => {
+  const legacyTranslate = {
+    destinationLang: "French",
+    includeExplanation: true,
+    model: "openai/gpt-4o",
+  };
+
+  it("carries legacy translate model into the injected Translate preset", () => {
+    // Upgrading user: stored presets have no Translate preset yet.
+    const stored = {
+      presets: [
+        {
+          id: "correction",
+          name: "Correction",
+          hotkey: "Control+Shift+F",
+          systemPrompt: "Fix grammar.",
+          model: "openai/gpt-4.1-mini",
+          isBuiltIn: true,
+        },
+      ],
+      selectedPresetId: "correction",
+    };
+
+    const result = normalizeCorrectionSettings(stored, legacyTranslate);
+    const translate = result.presets.find(
+      (p) => p.id === DEFAULT_TRANSLATE_PRESET_ID,
+    );
+    expect(translate?.model).toBe("openai/gpt-4o");
+  });
+
+  it("augments the Translate prompt with the legacy target language", () => {
+    const result = normalizeCorrectionSettings({}, legacyTranslate);
+    const translate = result.presets.find(
+      (p) => p.id === DEFAULT_TRANSLATE_PRESET_ID,
+    );
+    expect(translate?.systemPrompt).toContain(DEFAULT_TRANSLATE_PRESET_PROMPT.trim());
+    expect(translate?.systemPrompt).toContain("French");
+    expect(translate?.systemPrompt).toContain("explanation");
+  });
+
+  it("migrates legacy translate even on the no-presets-array legacy path", () => {
+    const result = normalizeCorrectionSettings({}, legacyTranslate);
+    const translate = result.presets.find(
+      (p) => p.id === DEFAULT_TRANSLATE_PRESET_ID,
+    );
+    expect(translate?.model).toBe("openai/gpt-4o");
+  });
+
+  it("does NOT override a Translate preset the user already has (no clobber)", () => {
+    // User already migrated: stored config already contains a Translate preset
+    // with their own model — legacy data must not overwrite it.
+    const stored = {
+      presets: [
+        {
+          id: "correction",
+          name: "Correction",
+          hotkey: "Control+Shift+F",
+          systemPrompt: "Fix grammar.",
+          model: "openai/gpt-4.1-mini",
+          isBuiltIn: true,
+        },
+        {
+          id: DEFAULT_TRANSLATE_PRESET_ID,
+          name: "Translate",
+          hotkey: "Control+Shift+T",
+          systemPrompt: DEFAULT_TRANSLATE_PRESET_PROMPT,
+          model: "anthropic/claude-3.5",
+          isBuiltIn: true,
+        },
+      ],
+      selectedPresetId: "correction",
+    };
+
+    const result = normalizeCorrectionSettings(stored, legacyTranslate);
+    const translate = result.presets.find(
+      (p) => p.id === DEFAULT_TRANSLATE_PRESET_ID,
+    );
+    expect(translate?.model).toBe("anthropic/claude-3.5");
+  });
+
+  it("leaves the default Translate preset untouched when no legacy data", () => {
+    const result = normalizeCorrectionSettings({});
+    const translate = result.presets.find(
+      (p) => p.id === DEFAULT_TRANSLATE_PRESET_ID,
+    );
+    expect(translate?.systemPrompt).toBe(DEFAULT_TRANSLATE_PRESET_PROMPT.trim());
+  });
+});

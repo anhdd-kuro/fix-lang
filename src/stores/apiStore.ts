@@ -119,6 +119,71 @@ type LegacyCorrectionSettings = {
   model?: string;
 };
 
+/**
+ * Shape of the retired standalone-Translate feature's settings, carried over
+ * when an existing user upgrades to the preset-based model. All fields optional
+ * because legacy stores may be partial.
+ */
+export type LegacyTranslateSettings = {
+  destinationLang?: string;
+  includeExplanation?: boolean;
+  model?: string;
+  /** Old keyBindings.translate accelerator, if still present in the store. */
+  hotkey?: string;
+};
+
+/**
+ * Build the system prompt for a migrated Translate preset: the bundled JP↔EN
+ * prompt, augmented with the user's legacy target language / explanation
+ * preference so their configured behavior is preserved on upgrade.
+ */
+const buildMigratedTranslatePrompt = (
+  legacy: LegacyTranslateSettings,
+): string => {
+  const base = DEFAULT_TRANSLATE_PRESET_PROMPT.trim();
+  const destinationLang = legacy.destinationLang?.trim();
+  if (!destinationLang) {
+    return base;
+  }
+  const explanation = legacy.includeExplanation
+    ? " Include a brief explanation of the translation."
+    : "";
+  return `${base}\n\nPreferred target language: ${destinationLang}.${explanation}`;
+};
+
+/**
+ * Apply retired standalone-Translate settings onto the Translate preset.
+ * Only runs when the stored config did NOT already contain a Translate preset
+ * (i.e. a genuine pre-preset upgrade) so it never clobbers a user-customized one.
+ */
+const applyLegacyTranslateMigration = (
+  presets: CorrectionPreset[],
+  legacy: LegacyTranslateSettings | undefined,
+  storedHadTranslatePreset: boolean,
+): CorrectionPreset[] => {
+  const hasLegacyData =
+    !!legacy &&
+    (!!legacy.destinationLang?.trim() ||
+      !!legacy.model?.trim() ||
+      !!legacy.hotkey?.trim() ||
+      legacy.includeExplanation === true);
+
+  if (storedHadTranslatePreset || !hasLegacyData || !legacy) {
+    return presets;
+  }
+
+  return presets.map((preset) =>
+    preset.id === DEFAULT_TRANSLATE_PRESET_ID
+      ? {
+          ...preset,
+          model: legacy.model?.trim() || preset.model,
+          hotkey: legacy.hotkey?.trim() || preset.hotkey,
+          systemPrompt: buildMigratedTranslatePrompt(legacy),
+        }
+      : preset,
+  );
+};
+
 const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
   {
     id: DEFAULT_CORRECTION_PRESET_ID,
@@ -173,6 +238,7 @@ const buildLegacyCorrectionPrompt = (
 
 export const normalizeCorrectionSettings = (
   value: unknown,
+  legacyTranslate?: LegacyTranslateSettings,
 ): CorrectionSettings => {
   const defaults = getDefaultCorrectionSettings();
   const defaultById = new Map(
@@ -180,10 +246,26 @@ export const normalizeCorrectionSettings = (
   );
 
   if (!value || typeof value !== "object") {
-    return defaults;
+    return {
+      ...defaults,
+      presets: applyLegacyTranslateMigration(
+        defaults.presets,
+        legacyTranslate,
+        false,
+      ),
+    };
   }
 
   const raw = value as Partial<CorrectionSettings> & LegacyCorrectionSettings;
+
+  const storedHadTranslatePreset =
+    Array.isArray(raw.presets) &&
+    raw.presets.some(
+      (preset) =>
+        !!preset &&
+        typeof preset === "object" &&
+        (preset as Partial<CorrectionPreset>).id === DEFAULT_TRANSLATE_PRESET_ID,
+    );
 
   const getTrimmedString = (candidate: unknown): string | undefined => {
     return typeof candidate === "string" ? candidate.trim() : undefined;
@@ -199,7 +281,11 @@ export const normalizeCorrectionSettings = (
     // Return all built-in defaults; only the correction preset gets the migrated prompt.
     // Using slice(1) ensures summarize, prompt-optimization, and translate are all included.
     return {
-      presets: [migratedCorrectionPreset, ...defaults.presets.slice(1)],
+      presets: applyLegacyTranslateMigration(
+        [migratedCorrectionPreset, ...defaults.presets.slice(1)],
+        legacyTranslate,
+        false,
+      ),
       selectedPresetId: migratedCorrectionPreset.id,
     };
   }
@@ -258,14 +344,20 @@ export const normalizeCorrectionSettings = (
     ...normalizedPresets.filter((preset) => !defaultById.has(preset.id)),
   ];
 
+  const migratedPresets = applyLegacyTranslateMigration(
+    presets,
+    legacyTranslate,
+    storedHadTranslatePreset,
+  );
+
   const selectedPresetId =
     typeof raw.selectedPresetId === "string" &&
-    presets.some((preset) => preset.id === raw.selectedPresetId)
+    migratedPresets.some((preset) => preset.id === raw.selectedPresetId)
       ? raw.selectedPresetId
-      : presets[0]?.id || DEFAULT_CORRECTION_PRESET_ID;
+      : migratedPresets[0]?.id || DEFAULT_CORRECTION_PRESET_ID;
 
   return {
-    presets,
+    presets: migratedPresets,
     selectedPresetId,
   };
 };
@@ -485,6 +577,30 @@ export const getCurrentProfileSettings = (): SettingsStore => {
 };
 
 /**
+ * Pull the retired standalone-Translate settings out of a raw profile settings
+ * object. The field was removed from SettingsStore, so it is read defensively
+ * via an unknown cast — upgrading users still have it in the persisted JSON.
+ */
+const extractLegacyTranslateSettings = (
+  settings: SettingsStore,
+): LegacyTranslateSettings | undefined => {
+  const legacy = (settings as { settingsTranslate?: unknown }).settingsTranslate;
+  if (!legacy || typeof legacy !== "object") {
+    return undefined;
+  }
+  const t = legacy as Record<string, unknown>;
+  return {
+    destinationLang:
+      typeof t.destinationLang === "string" ? t.destinationLang : undefined,
+    includeExplanation:
+      typeof t.includeExplanation === "boolean"
+        ? t.includeExplanation
+        : undefined,
+    model: typeof t.model === "string" ? t.model : undefined,
+  };
+};
+
+/**
  * Gets a specific setting from the current profile
  * @param settingType The type of setting to retrieve
  * @returns The requested setting from the current profile
@@ -497,6 +613,9 @@ export const getProfileSetting = <K extends keyof SettingsStore>(
   if (settingType === "settingsCorrect") {
     return normalizeCorrectionSettings(
       settings[settingType],
+      // Carry over the retired standalone-Translate settings (still present in
+      // the raw store for upgrading users; no longer on the SettingsStore type).
+      extractLegacyTranslateSettings(settings),
     ) as SettingsStore[K];
   }
 

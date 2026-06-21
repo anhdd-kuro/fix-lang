@@ -4,7 +4,11 @@
  * Tests run in Node (no Electron context). electron-store is mocked with an in-memory Map.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { addHistoryEntry, filterHistoryByPreset } from "./historyStore";
+import {
+  addHistoryEntry,
+  filterHistoryByPreset,
+  mergeLegacyHistoryEntries,
+} from "./historyStore";
 import type { HistoryEntry } from "./historyStore";
 
 // ---------------------------------------------------------------------------
@@ -133,5 +137,78 @@ describe("filterHistoryByPreset", () => {
     ];
     expect(filterHistoryByPreset(entries, "OldName")).toHaveLength(2);
     expect(filterHistoryByPreset(entries, "NewName")).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// mergeLegacyHistoryEntries — upgrade migration of retired buckets (C4/C6)
+// ---------------------------------------------------------------------------
+
+describe("mergeLegacyHistoryEntries", () => {
+  it("tags untagged legacy translations with the Translate preset name", () => {
+    const corrections: HistoryEntry[] = [];
+    const translations = [
+      makeEntry({ original: "bonjour", timestamp: "2024-01-01T00:00:00Z" }),
+    ];
+    const result = mergeLegacyHistoryEntries(corrections, { translations });
+    expect(result).toHaveLength(1);
+    expect(result[0].presetName).toBe("Translate");
+  });
+
+  it("tags untagged legacy summarize entries with the Summarize preset name", () => {
+    const result = mergeLegacyHistoryEntries(
+      [],
+      { summarize: [makeEntry({ original: "long text", timestamp: "2024-01-02T00:00:00Z" })] },
+    );
+    expect(result[0].presetName).toBe("Summarize");
+  });
+
+  it("preserves an existing presetName on legacy entries (no overwrite)", () => {
+    const result = mergeLegacyHistoryEntries(
+      [],
+      {
+        translations: [
+          makeEntry({
+            original: "x",
+            timestamp: "2024-01-03T00:00:00Z",
+            presetName: "Custom Translate",
+          }),
+        ],
+      },
+    );
+    expect(result[0].presetName).toBe("Custom Translate");
+  });
+
+  it("keeps existing corrections first, then appends legacy entries", () => {
+    const corrections = [
+      makeEntry({ original: "fix me", timestamp: "2024-02-01T00:00:00Z", presetName: "Correction" }),
+    ];
+    const result = mergeLegacyHistoryEntries(corrections, {
+      translations: [makeEntry({ original: "translate me", timestamp: "2024-01-01T00:00:00Z" })],
+      summarize: [makeEntry({ original: "summarize me", timestamp: "2024-01-02T00:00:00Z" })],
+    });
+    expect(result).toHaveLength(3);
+    expect(result[0].original).toBe("fix me");
+    expect(result.map((e) => e.presetName)).toEqual([
+      "Correction",
+      "Translate",
+      "Summarize",
+    ]);
+  });
+
+  it("de-duplicates entries sharing timestamp + original", () => {
+    const dup = makeEntry({ original: "dup", timestamp: "2024-03-01T00:00:00Z", presetName: "Correction" });
+    const result = mergeLegacyHistoryEntries([dup], {
+      translations: [makeEntry({ original: "dup", timestamp: "2024-03-01T00:00:00Z" })],
+    });
+    expect(result).toHaveLength(1);
+    // The pre-existing corrections entry wins (kept first).
+    expect(result[0].presetName).toBe("Correction");
+  });
+
+  it("returns corrections unchanged when there are no legacy buckets", () => {
+    const corrections = [makeEntry({ original: "a", timestamp: "2024-04-01T00:00:00Z" })];
+    const result = mergeLegacyHistoryEntries(corrections, {});
+    expect(result).toEqual(corrections);
   });
 });
