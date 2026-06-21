@@ -3,7 +3,6 @@
  * @description IPC handlers for OpenAI API related functionality
  */
 import { ipcMain } from "electron";
-import { resolveDefaultOpenAIModel } from "~/const";
 import { fetchAvailableModels } from "~/main/ai.request";
 import { reloadHotkeys } from "~/main/keybindings";
 import { ollamaClient } from "~/main/llm";
@@ -14,6 +13,7 @@ import {
 } from "~/main/llm/models/recommended";
 import {
   apiStore,
+  getDefaultModelId,
   getProfileSetting,
   resetCurrentProfileSettings,
   updateProfileSetting,
@@ -99,13 +99,8 @@ export const registerApiHandlers = (): void => {
   });
 
   ipcMain.handle("get-selected-model", () => {
-    const stored = apiStore.get("selectedModel");
-    if (stored) return stored;
-
-    // No explicit selection yet: dynamically default to the latest GPT mini
-    // from the fetched model list, else first available, else the const.
-    const models = (apiStore.get("models") as Model[]) || [];
-    return resolveDefaultOpenAIModel(models);
+    // Explicit global selection, else dynamic latest GPT mini from the list.
+    return getDefaultModelId();
   });
 
   ipcMain.handle("reset-profile-settings", () => {
@@ -161,7 +156,7 @@ export const registerApiHandlers = (): void => {
     )
       return featureSetting.model;
 
-    return apiStore.get("selectedModel");
+    return getDefaultModelId();
   });
 
   ipcMain.handle("set-feature-model", async (_event, feature, model) => {

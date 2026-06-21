@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { DEFAULT_OPENAI_MODEL } from "~/const";
 import {
   DEFAULT_CORRECTION_PRESET_ID,
   DEFAULT_CUSTOM_PROMPT,
@@ -20,7 +19,7 @@ const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> => ({
     name: "Correction",
     hotkey: "Control+Shift+F",
     systemPrompt: DEFAULT_CUSTOM_PROMPT.trim(),
-    model: DEFAULT_OPENAI_MODEL,
+    model: "", // empty = inherit the global default model
     isBuiltIn: true,
   },
   [DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID]: {
@@ -28,7 +27,7 @@ const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> => ({
     name: "Prompt optimization",
     hotkey: "Control+Shift+D",
     systemPrompt: DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
-    model: DEFAULT_OPENAI_MODEL,
+    model: "", // empty = inherit the global default model
     isBuiltIn: true,
   },
   [DEFAULT_SUMMARIZE_PRESET_ID]: {
@@ -36,7 +35,7 @@ const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> => ({
     name: "Summarize",
     hotkey: "Control+Shift+S",
     systemPrompt: DEFAULT_SUMMARIZE_PRESET_PROMPT,
-    model: DEFAULT_OPENAI_MODEL,
+    model: "", // empty = inherit the global default model
     isBuiltIn: true,
   },
   [DEFAULT_TRANSLATE_PRESET_ID]: {
@@ -44,7 +43,7 @@ const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> => ({
     name: "Translate",
     hotkey: "Control+Shift+T",
     systemPrompt: DEFAULT_TRANSLATE_PRESET_PROMPT.trim(),
-    model: DEFAULT_OPENAI_MODEL,
+    model: "", // empty = inherit the global default model
     isBuiltIn: true,
   },
 });

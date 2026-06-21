@@ -3,7 +3,11 @@
  * @description Electron Store schema, types, and initialization for settings and key bindings.
  */
 import Store from "electron-store";
-import { DEFAULT_LANGUAGE, DEFAULT_OPENAI_MODEL } from "~/const";
+import {
+  DEFAULT_LANGUAGE,
+  DEFAULT_OPENAI_MODEL,
+  resolveDefaultOpenAIModel,
+} from "~/const";
 import {
   DEFAULT_CORRECTION_PRESET_ID,
   DEFAULT_CUSTOM_PROMPT,
@@ -184,13 +188,17 @@ const applyLegacyTranslateMigration = (
   );
 };
 
+// An empty preset model means "inherit the global default model" — resolved
+// dynamically (latest GPT mini) at request/display time via getDefaultModelId.
+const INHERIT_GLOBAL_MODEL = "";
+
 const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
   {
     id: DEFAULT_CORRECTION_PRESET_ID,
     name: "Correction",
     hotkey: "Control+Shift+F",
     systemPrompt: DEFAULT_CUSTOM_PROMPT.trim(),
-    model: DEFAULT_OPENAI_MODEL,
+    model: INHERIT_GLOBAL_MODEL,
     isBuiltIn: true,
   },
   {
@@ -198,7 +206,7 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     name: "Summarize",
     hotkey: "Control+Shift+S",
     systemPrompt: DEFAULT_SUMMARIZE_PRESET_PROMPT,
-    model: DEFAULT_OPENAI_MODEL,
+    model: INHERIT_GLOBAL_MODEL,
     isBuiltIn: true,
   },
   {
@@ -206,7 +214,7 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     name: "Prompt optimization",
     hotkey: "Control+Shift+D",
     systemPrompt: DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
-    model: DEFAULT_OPENAI_MODEL,
+    model: INHERIT_GLOBAL_MODEL,
     isBuiltIn: true,
   },
   {
@@ -214,7 +222,7 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     name: "Translate",
     hotkey: "Control+Shift+T",
     systemPrompt: DEFAULT_TRANSLATE_PRESET_PROMPT.trim(),
-    model: DEFAULT_OPENAI_MODEL,
+    model: INHERIT_GLOBAL_MODEL,
     isBuiltIn: true,
   },
 ];
@@ -326,8 +334,10 @@ export const normalizeCorrectionSettings = (
           candidate.systemPrompt?.trim() ||
           fallback?.systemPrompt ||
           DEFAULT_CUSTOM_PROMPT.trim(),
+        // Empty stays empty (inherit global). A stored explicit model is kept
+        // as-is; only the built-in fallback is consulted, never the const.
         model:
-          candidate.model?.trim() || fallback?.model || DEFAULT_OPENAI_MODEL,
+          candidate.model?.trim() || fallback?.model || INHERIT_GLOBAL_MODEL,
         isBuiltIn: fallback ? true : Boolean(candidate.isBuiltIn),
         ...(temperature !== undefined ? { temperature } : {}),
         ...(maxTokens !== undefined ? { maxTokens } : {}),
@@ -485,6 +495,21 @@ export const getOpenAIKey = () => {
     throw new Error("OpenAI API Key not set in settings.");
   }
   return apiKey;
+};
+
+/**
+ * Resolves the effective global default model id: the user's explicit global
+ * selection if set, otherwise the dynamic latest-GPT-mini from the fetched
+ * model list (falling back to the const when the list is empty). This is the
+ * single source of truth that presets with an empty model inherit.
+ */
+export const getDefaultModelId = (): string => {
+  const stored = (apiStore.get("selectedModel") as string | undefined) || "";
+  if (stored) {
+    return stored;
+  }
+  const models = (apiStore.get("models") as Model[]) || [];
+  return resolveDefaultOpenAIModel(models);
 };
 
 /**

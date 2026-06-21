@@ -11,7 +11,11 @@ import { generateText } from "ai";
 import { Notification } from "electron";
 import { OpenAI } from "openai";
 import { getLocalModels } from "~/main/llm/models/discover";
-import { apiStore, getProfileSetting } from "~/stores/apiStore";
+import {
+  apiStore,
+  getDefaultModelId,
+  getProfileSetting,
+} from "~/stores/apiStore";
 import { ollamaClient } from "../llm";
 import {
   buildCachedMessages,
@@ -127,9 +131,9 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
   // System prompt: use options.systemPrompt directly (no global overrides)
   const finalSystemPrompt = options.messages ? "" : options.systemPrompt;
 
-  // Determine which model to use
-  const modelId =
-    options.model || (apiStore.get("selectedModel") as string | undefined);
+  // Determine which model to use. An empty options.model (e.g. a preset that
+  // inherits the global default) resolves to the dynamic global default.
+  const modelId = options.model || getDefaultModelId();
   if (!modelId) {
     throw new Error("You have to select a model first.");
   }

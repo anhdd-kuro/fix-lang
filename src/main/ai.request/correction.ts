@@ -4,7 +4,7 @@ import {
   DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
   DEFAULT_SUMMARIZE_PRESET_ID,
 } from "~/prompts";
-import { getProfileSetting } from "~/stores/apiStore";
+import { getDefaultModelId, getProfileSetting } from "~/stores/apiStore";
 import { makeAIRequest } from "./shared";
 import type { CorrectionPreset } from "~/stores/apiStore";
 
@@ -31,6 +31,7 @@ const getCorrectionPreset = (presetId?: string): CorrectionPreset => {
 const buildCorrectionUserPrompt = (
   text: string,
   preset: CorrectionPreset,
+  model: string,
 ): string => {
   if (preset.id !== DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID) {
     if (preset.id !== DEFAULT_SUMMARIZE_PRESET_ID) {
@@ -56,7 +57,7 @@ const buildCorrectionUserPrompt = (
     "Optimize the draft prompt below immediately.",
     "Requirements:",
     "- Treat the selected text as the rough prompt to improve.",
-    `- The selected target model ID is: ${preset.model}.`,
+    `- The selected target model ID is: ${model}.`,
     "- Use the model-specific guidance from the system prompt for that model when available.",
     "- If the model ID is provider-specific or not listed exactly, infer the closest supported model or tool family from the ID and optimize for that family.",
     "- If the draft already names a target AI tool, use it.",
@@ -98,12 +99,14 @@ export const fixGrammar = async (
   }
 
   const preset = getCorrectionPreset(presetId);
+  // Empty preset model inherits the global default (dynamic latest GPT mini).
+  const effectiveModel = preset.model?.trim() || getDefaultModelId();
 
   try {
     const response = await makeAIRequest({
       systemPrompt: preset.systemPrompt,
-      userPrompt: buildCorrectionUserPrompt(text, preset),
-      model: preset.model,
+      userPrompt: buildCorrectionUserPrompt(text, preset, effectiveModel),
+      model: effectiveModel,
       temperature: preset.temperature,
       maxTokens: preset.maxTokens,
     });

@@ -145,7 +145,10 @@ export const ModelSelect: React.FC<{
   ]);
 
   useEffect(() => {
-    if (selectedModelId) {
+    // Controlled by the parent when provided (including the empty "inherit"
+    // sentinel). Empty is then resolved to the dynamic default by the effect
+    // below, so an inheriting preset shows the global model.
+    if (selectedModelId !== undefined) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedModel(selectedModelId);
     }
