@@ -46,6 +46,35 @@ export type LegacyHistoryBuckets = {
   summarize?: HistoryEntry[];
 };
 
+const ESTIMATED_CHARS_PER_TOKEN = 4;
+
+export const estimateTextTokens = (text: string): number => {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) {
+    return 0;
+  }
+
+  return Math.max(
+    1,
+    Math.ceil(Array.from(trimmed).length / ESTIMATED_CHARS_PER_TOKEN)
+  );
+};
+
+const hasSavedTokenCount = (count: number | undefined): count is number =>
+  count !== undefined && count > 0;
+
+export const withFallbackTokenCounts = (
+  entry: HistoryEntry
+): HistoryEntry => ({
+  ...entry,
+  promptTokens: hasSavedTokenCount(entry.promptTokens)
+    ? entry.promptTokens
+    : estimateTextTokens(entry.original),
+  completionTokens: hasSavedTokenCount(entry.completionTokens)
+    ? entry.completionTokens
+    : estimateTextTokens(entry.corrected),
+});
+
 /**
  * Pure helper — filters a flat array of history entries by preset name snapshot.
  * Entries without a presetName (legacy entries) are never returned by a named filter.

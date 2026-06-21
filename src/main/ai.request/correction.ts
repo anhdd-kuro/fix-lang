@@ -5,6 +5,7 @@ import {
   DEFAULT_SUMMARIZE_PRESET_ID,
 } from "~/prompts";
 import { getDefaultModelId, getProfileSetting } from "~/stores/apiStore";
+import { estimateTextTokens } from "~/stores/historyStore";
 import { makeAIRequest } from "./shared";
 import type { CorrectionPreset } from "~/stores/apiStore";
 
@@ -116,10 +117,18 @@ export const fixGrammar = async (
 
     console.log(`Correction used preset: ${preset.name}`);
 
+    const correctedText = response.content.join("\n\n");
+
     return {
-      correctedText: response.content.join("\n\n"),
-      promptTokens: response.promptTokens ?? 0,
-      completionTokens: response.completionTokens ?? 0,
+      correctedText,
+      promptTokens:
+        response.promptTokens && response.promptTokens > 0
+          ? response.promptTokens
+          : estimateTextTokens(text),
+      completionTokens:
+        response.completionTokens && response.completionTokens > 0
+          ? response.completionTokens
+          : estimateTextTokens(correctedText),
       model: response.model,
       resolvedModel: response.resolvedModel ?? response.model,
       presetId: preset.id,

@@ -55,6 +55,7 @@ vi.mock("electron-store", () => {
 import {
   addHistoryEntry,
   clearHistory,
+  estimateTextTokens,
   filterHistoryByPreset,
   getHistory,
   mergeLegacyHistoryEntries,
@@ -85,14 +86,40 @@ describe("addHistoryEntry", () => {
     addHistoryEntry("corrections", entry);
 
     expect(repoMock.insert).toHaveBeenCalledTimes(1);
-    expect(repoMock.insert).toHaveBeenCalledWith("corrections", entry);
+    expect(repoMock.insert).toHaveBeenCalledWith("corrections", {
+      ...entry,
+      promptTokens: estimateTextTokens(entry.original),
+      completionTokens: estimateTextTokens(entry.corrected),
+    });
   });
 
   it("ignores the inert maxEntries argument (uncapped)", () => {
     const entry = makeEntry();
     addHistoryEntry("corrections", entry, 1);
     // Delegation happens regardless of the legacy cap argument.
+    expect(repoMock.insert).toHaveBeenCalledWith("corrections", {
+      ...entry,
+      promptTokens: estimateTextTokens(entry.original),
+      completionTokens: estimateTextTokens(entry.corrected),
+    });
+  });
+
+  it("preserves provider token counts when present", () => {
+    const entry = makeEntry({ promptTokens: 12, completionTokens: 34 });
+    addHistoryEntry("corrections", entry);
+
     expect(repoMock.insert).toHaveBeenCalledWith("corrections", entry);
+  });
+
+  it("fills zero token counts from saved input and output text", () => {
+    const entry = makeEntry({ promptTokens: 0, completionTokens: 0 });
+    addHistoryEntry("corrections", entry);
+
+    expect(repoMock.insert).toHaveBeenCalledWith("corrections", {
+      ...entry,
+      promptTokens: estimateTextTokens(entry.original),
+      completionTokens: estimateTextTokens(entry.corrected),
+    });
   });
 });
 
@@ -120,7 +147,13 @@ describe("CRUD delegation", () => {
     overrideHistory("corrections", entries);
     expect(repoMock.overrideFeature).toHaveBeenCalledWith(
       "corrections",
-      entries
+      [
+        {
+          ...entries[0],
+          promptTokens: estimateTextTokens(entries[0].original),
+          completionTokens: estimateTextTokens(entries[0].corrected),
+        },
+      ]
     );
   });
 });

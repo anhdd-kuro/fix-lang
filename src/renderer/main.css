@@ -1,5 +1,26 @@
 @import "tailwindcss";
 
+@keyframes token-activity-switch {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.token-activity-switch {
+  animation: token-activity-switch 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .token-activity-switch {
+    animation: none;
+  }
+}
+
 @layer base {
   button {
     cursor: pointer;

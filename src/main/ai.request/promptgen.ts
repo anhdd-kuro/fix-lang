@@ -1,5 +1,6 @@
 import { DEFAULT_PROMPT_GEN_PROMPT } from "~/prompts";
 import { getProfileSetting } from "~/stores/apiStore";
+import { estimateTextTokens } from "~/stores/historyStore";
 import { StringPrettifier } from "~/utils";
 import { makeAIRequest } from "./shared";
 
@@ -59,11 +60,16 @@ export const generatePrompt = async (
     const { content, promptTokens, completionTokens, model, resolvedModel } =
       response;
 
+    const completionText = content.join("\n\n");
+
     return {
       prompts: content,
-      // Convert null values to 0 for compatibility
-      promptTokens: promptTokens || 0,
-      completionTokens: completionTokens || 0,
+      promptTokens:
+        promptTokens && promptTokens > 0 ? promptTokens : estimateTextTokens(text),
+      completionTokens:
+        completionTokens && completionTokens > 0
+          ? completionTokens
+          : estimateTextTokens(completionText),
       model,
       resolvedModel: resolvedModel ?? model,
     };

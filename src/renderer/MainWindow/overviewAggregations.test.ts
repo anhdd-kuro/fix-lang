@@ -6,6 +6,7 @@
  * of the runner's timezone.
  */
 import { describe, expect, it } from "vitest";
+import { estimateTextTokens, type HistoryEntry } from "~/stores/historyTypes";
 import {
   activeDays,
   benchmarkSentence,
@@ -23,11 +24,12 @@ import {
   splitModelId,
   stripModelDate,
   streaks,
+  tokenActivityCalendar,
   totalCorrections,
   totalTokens,
+  type TokenActivityCalendar,
   UNTITLED_PRESET_LABEL,
 } from "./overviewAggregations";
-import type { HistoryEntry } from "~/stores/historyStore";
 
 // A local-time timestamp for the given Y/M/D/H so local-day buckets are stable.
 const at = (
@@ -45,6 +47,20 @@ const entry = (overrides: Partial<HistoryEntry> = {}): HistoryEntry => ({
 });
 
 const NOW = new Date(2024, 5, 20, 10, 0, 0); // 2024-06-20 10:00 local
+
+const dayCell = (
+  calendar: TokenActivityCalendar,
+  date: string
+) => {
+  const cell = calendar.cells.find(
+    (candidate) => candidate.kind === "day" && candidate.date === date
+  );
+  expect(cell).toBeDefined();
+  if (!cell || cell.kind !== "day") {
+    throw new Error(`Missing day cell for ${date}`);
+  }
+  return cell;
+};
 
 describe("filterByRange", () => {
   const entries = [
@@ -71,14 +87,19 @@ describe("filterByRange", () => {
 });
 
 describe("totalCorrections / totalTokens", () => {
-  it("counts corrections and sums tokens, treating missing tokens as 0", () => {
+  it("counts corrections and estimates missing token counts from input/output text", () => {
     const entries = [
       entry({ promptTokens: 100, completionTokens: 50 }),
-      entry({ promptTokens: 10 }), // completion missing → 0
-      entry({}), // both missing → 0
+      entry({ promptTokens: 10 }), // completion missing → estimate output
+      entry({}), // both missing → estimate input + output
     ];
     expect(totalCorrections(entries)).toBe(3);
-    expect(totalTokens(entries)).toBe(160);
+    expect(totalTokens(entries)).toBe(
+      160 +
+        estimateTextTokens(entries[1].corrected) +
+        estimateTextTokens(entries[2].original) +
+        estimateTextTokens(entries[2].corrected)
+    );
   });
 });
 
@@ -244,6 +265,228 @@ describe("intensityLevel", () => {
   });
   it("returns 0 when max is 0", () => {
     expect(intensityLevel(0, 0)).toBe(0);
+  });
+});
+
+describe("tokenActivityCalendar", () => {
+  it("renders a rolling 12-month grid with Sunday-aligned leading placeholders and ends at today", () => {
+    const calendar = tokenActivityCalendar([], "daily", NOW);
+
+    expect(calendar.startDate).toBe("2023-06-21");
+    expect(calendar.endDate).toBe("2024-06-20");
+    expect(calendar.rows).toBe(7);
+    expect(calendar.columns).toBe(53);
+
+    expect(calendar.cells.slice(0, 3)).toEqual([
+      {
+        kind: "placeholder",
+        date: null,
+        tokenTotal: 0,
+        correctionCount: 0,
+        level: 0,
+        column: 0,
+        row: 0,
+      },
+      {
+        kind: "placeholder",
+        date: null,
+        tokenTotal: 0,
+        correctionCount: 0,
+        level: 0,
+        column: 0,
+        row: 1,
+      },
+      {
+        kind: "placeholder",
+        date: null,
+        tokenTotal: 0,
+        correctionCount: 0,
+        level: 0,
+        column: 0,
+        row: 2,
+      },
+    ]);
+    expect(calendar.cells[3]).toMatchObject({
+      kind: "day",
+      date: "2023-06-21",
+      column: 0,
+      row: 3,
+    });
+    expect(calendar.cells.at(-1)).toMatchObject({
+      kind: "day",
+      date: "2024-06-20",
+    });
+  });
+
+  it("daily mode sums prompt + completion tokens per local day and counts corrections", () => {
+    const calendar = tokenActivityCalendar(
+      [
+        entry({
+          timestamp: at(2024, 6, 18, 9),
+          promptTokens: 10,
+          completionTokens: 5,
+        }),
+        entry({
+          timestamp: at(2024, 6, 18, 14),
+          promptTokens: 3,
+          completionTokens: 2,
+        }),
+        entry({
+          timestamp: at(2024, 6, 19, 11),
+          promptTokens: 7,
+        }),
+      ],
+      "daily",
+      NOW
+    );
+
+    expect(dayCell(calendar, "2024-06-18")).toMatchObject({
+      tokenTotal: 20,
+      correctionCount: 2,
+    });
+    expect(dayCell(calendar, "2024-06-19")).toMatchObject({
+      tokenTotal: 7 + estimateTextTokens("c"),
+      correctionCount: 1,
+    });
+    expect(dayCell(calendar, "2024-06-17")).toMatchObject({
+      tokenTotal: 0,
+      correctionCount: 0,
+    });
+  });
+
+  it("weekly mode applies the same Sunday-start week totals to each visible day in that week", () => {
+    const calendar = tokenActivityCalendar(
+      [
+        entry({
+          timestamp: at(2024, 6, 16, 8),
+          promptTokens: 10,
+          completionTokens: 5,
+        }),
+        entry({
+          timestamp: at(2024, 6, 18, 12),
+          promptTokens: 7,
+          completionTokens: 3,
+        }),
+      ],
+      "weekly",
+      NOW
+    );
+
+    for (const date of [
+      "2024-06-16",
+      "2024-06-17",
+      "2024-06-18",
+      "2024-06-20",
+    ]) {
+      expect(dayCell(calendar, date)).toMatchObject({
+        tokenTotal: 25,
+        correctionCount: 2,
+      });
+    }
+    expect(dayCell(calendar, "2024-06-09")).toMatchObject({
+      tokenTotal: 0,
+      correctionCount: 0,
+    });
+  });
+
+  it("cumulative mode includes totals from before the visible 12-month window", () => {
+    const calendar = tokenActivityCalendar(
+      [
+        entry({
+          timestamp: at(2023, 6, 20, 12),
+          promptTokens: 7,
+          completionTokens: 3,
+        }),
+        entry({
+          timestamp: at(2023, 6, 22, 12),
+          promptTokens: 5,
+          completionTokens: 0,
+        }),
+      ],
+      "cumulative",
+      NOW
+    );
+
+    expect(dayCell(calendar, "2023-06-21")).toMatchObject({
+      tokenTotal: 10,
+      correctionCount: 1,
+    });
+    expect(dayCell(calendar, "2023-06-22")).toMatchObject({
+      tokenTotal: 15 + estimateTextTokens("c"),
+      correctionCount: 2,
+    });
+  });
+
+  it("skips the partial first month label so adjacent edge months do not overlap", () => {
+    const calendar = tokenActivityCalendar(
+      [],
+      "daily",
+      new Date(2026, 5, 22, 10, 0, 0)
+    );
+
+    expect(calendar.startDate).toBe("2025-06-23");
+    expect(calendar.monthLabels[0]).toEqual({ label: "Jul", column: 1 });
+    expect(
+      calendar.monthLabels.some(
+        (label) => label.label === "Jun" && label.column === 0
+      )
+    ).toBe(false);
+  });
+
+  it("exposes month labels with short names and week-column positions", () => {
+    const monthEndNow = new Date(2024, 5, 30, 10, 0, 0);
+    const calendar = tokenActivityCalendar([], "daily", monthEndNow);
+
+    expect(calendar.monthLabels).toEqual([
+      { label: "Jul", column: 0 },
+      { label: "Aug", column: 5 },
+      { label: "Sep", column: 9 },
+      { label: "Oct", column: 14 },
+      { label: "Nov", column: 18 },
+      { label: "Dec", column: 22 },
+      { label: "Jan", column: 27 },
+      { label: "Feb", column: 31 },
+      { label: "Mar", column: 35 },
+      { label: "Apr", column: 40 },
+      { label: "May", column: 44 },
+      { label: "Jun", column: 48 },
+    ]);
+  });
+
+  it("scales visible day intensity levels from 0 to 4 using the window max token total", () => {
+    const calendar = tokenActivityCalendar(
+      [
+        entry({
+          timestamp: at(2024, 6, 17, 10),
+          promptTokens: 24,
+          completionTokens: 1,
+        }),
+        entry({
+          timestamp: at(2024, 6, 18, 10),
+          promptTokens: 49,
+          completionTokens: 1,
+        }),
+        entry({
+          timestamp: at(2024, 6, 19, 10),
+          promptTokens: 74,
+          completionTokens: 1,
+        }),
+        entry({
+          timestamp: at(2024, 6, 20, 10),
+          promptTokens: 99,
+          completionTokens: 1,
+        }),
+      ],
+      "daily",
+      NOW
+    );
+
+    expect(calendar.maxTokenTotal).toBe(100);
+    expect(dayCell(calendar, "2024-06-16").level).toBe(0);
+    expect(dayCell(calendar, "2024-06-17").level).toBe(1);
+    expect(dayCell(calendar, "2024-06-18").level).toBe(2);
+    expect(dayCell(calendar, "2024-06-19").level).toBe(3);
+    expect(dayCell(calendar, "2024-06-20").level).toBe(4);
   });
 });
 

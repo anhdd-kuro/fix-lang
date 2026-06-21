@@ -3,11 +3,17 @@
  * @description Overview dashboard tab. Presentational: receives the
  * already-fetched corrections `history` (owned + live-updated by App) and the
  * active range (lifted to the shared dashboard header), then renders a grid of
- * summary stat cards, a day × hour-block activity heatmap, and a benchmark
- * sentence — all from the PURE aggregators in overviewAggregations.ts. No
- * fetch/IPC on mount or tab switch (data is read from props).
+ * summary stat cards, a Codex-style token activity calendar, and a benchmark
+ * sentence — all from the PURE aggregators in overviewAggregations.ts.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type RefObject,
+} from "react";
 import { twJoin } from "tailwind-merge";
 import { StatCard } from "./StatCard";
 import { filterByRange, type AnalyticsRange } from "../analytics/shared";
@@ -15,53 +21,18 @@ import {
   activeDays,
   benchmarkSentence,
   favoriteModel,
-  HOUR_BLOCKS,
-  HOURS_PER_BLOCK,
-  hourBlockHeatmap,
-  intensityLevel,
   messageCount,
   peakHour,
   sessionCount,
   stripModelDate,
   streaks,
+  tokenActivityCalendar,
   totalTokens,
+  type TokenActivityCalendar,
+  type TokenActivityCalendarCell,
+  type TokenActivityMode,
 } from "../MainWindow/overviewAggregations";
 import type { HistoryEntry } from "~/stores/historyStore";
-
-/** Heatmap cell geometry: 1rem (16px) square + 4px gap = 20px per day column. */
-const CELL_PX = 16;
-const GAP_PX = 4;
-const PX_PER_DAY = CELL_PX + GAP_PX;
-/** Reserve for the boundary-label column + its gap before the squares. */
-const LABEL_GUTTER_PX = 32;
-/**
- * Exact pixel height of one day's stack of squares (HOUR_BLOCKS cells + the
- * gaps between them). The boundary-label column is pinned to this so its 7
- * labels (0…24) align to the square gridlines instead of overflowing — which
- * is what hid the bottom "24" label and pushed the last row out of alignment.
- */
-const COLUMN_HEIGHT_PX = HOUR_BLOCKS * CELL_PX + (HOUR_BLOCKS - 1) * GAP_PX;
-
-/** Track an element's content width via ResizeObserver (0 until first measure). */
-const useElementWidth = (): [
-  React.RefObject<HTMLDivElement | null>,
-  number,
-] => {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const [width, setWidth] = useState<number>(0);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) {
-      return;
-    }
-    const observer = new ResizeObserver((entries) => {
-      setWidth(entries[0].contentRect.width);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-  return [ref, width];
-};
 
 type OverviewPanelProps = {
   /** Corrections-bucket history (App passes the corrections subset). */
@@ -70,42 +41,165 @@ type OverviewPanelProps = {
   range: AnalyticsRange;
 };
 
-/** Tailwind classes for the 5 heatmap intensity levels (muted → blue accent). */
-const LEVEL_CLASS = [
-  "bg-gray-700/40",
-  "bg-blue-900",
-  "bg-blue-700",
-  "bg-blue-500",
-  "bg-blue-400",
+const TOKEN_ACTIVITY_TABS: readonly {
+  label: string;
+  mode: TokenActivityMode;
+}[] = [
+  { label: "Daily", mode: "daily" },
+  { label: "Weekly", mode: "weekly" },
+  { label: "Cumulative", mode: "cumulative" },
 ] as const;
 
-/** Boundary labels for the hour-block axis: 0, 4, 8, …, 24 (HOUR_BLOCKS + 1). */
-const BOUNDARY_LABELS = Array.from(
-  { length: HOUR_BLOCKS + 1 },
-  (_, i) => `${i * HOURS_PER_BLOCK}`
-);
+const MIN_CELL_SIZE_PX = 12;
+const CELL_GAP_PX = 4;
+const CALENDAR_ROWS = 7;
+
+const LEVEL_CLASS = [
+  "bg-gray-800/95 ring-1 ring-inset ring-white/[0.04]",
+  "bg-sky-950 ring-1 ring-inset ring-sky-900/70",
+  "bg-sky-900 ring-1 ring-inset ring-sky-800/70",
+  "bg-sky-700 ring-1 ring-inset ring-sky-600/70",
+  "bg-sky-500 ring-1 ring-inset ring-sky-400/70",
+] as const;
+
+const placeholderCell = (
+  column: number,
+  row: number
+): TokenActivityCalendarCell => ({
+  kind: "placeholder",
+  date: null,
+  tokenTotal: 0,
+  correctionCount: 0,
+  level: 0,
+  column,
+  row,
+});
+
+const calendarColumns = (
+  calendar: TokenActivityCalendar
+): TokenActivityCalendarCell[][] => {
+  const columns = Array.from({ length: calendar.columns }, (_, columnIndex) =>
+    Array.from({ length: CALENDAR_ROWS }, (_, rowIndex) =>
+      placeholderCell(columnIndex, rowIndex)
+    )
+  );
+
+  for (const cell of calendar.cells) {
+    columns[cell.column][cell.row] = cell;
+  }
+
+  return columns;
+};
+
+const dateFromDayKey = (dayKey: string): Date => {
+  const [year, month, day] = dayKey.split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const dayKeyOfDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const addDays = (date: Date, days: number): Date => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+};
+
+const weeklyRangeLabel = (dayKey: string): string => {
+  const day = dateFromDayKey(dayKey);
+  const start = addDays(day, -day.getDay());
+  const end = addDays(start, 6);
+  return `${dayKeyOfDate(start)} to ${dayKeyOfDate(end)}`;
+};
+
+const tooltipForCell = (
+  mode: TokenActivityMode,
+  cell: TokenActivityCalendarCell
+): string | undefined => {
+  if (cell.kind === "placeholder") {
+    return undefined;
+  }
+
+  const correctionSuffix =
+    cell.correctionCount > 0
+      ? `, ${cell.correctionCount} correction${cell.correctionCount === 1 ? "" : "s"}`
+      : "";
+
+  if (mode === "daily") {
+    return `${cell.tokenTotal.toLocaleString()} tokens on ${cell.date}${correctionSuffix}`;
+  }
+  if (mode === "weekly") {
+    return `${cell.tokenTotal.toLocaleString()} tokens during ${weeklyRangeLabel(cell.date)}${correctionSuffix}`;
+  }
+  return `${cell.tokenTotal.toLocaleString()} tokens through ${cell.date}${correctionSuffix}`;
+};
+
+const calendarGapTotal = (columnCount: number): number =>
+  Math.max(0, (columnCount - 1) * CELL_GAP_PX);
+
+const calendarWidth = (columnCount: number, cellSize: number): number =>
+  columnCount * cellSize + calendarGapTotal(columnCount);
+
+const fittedCellSize = (availableWidth: number, columnCount: number): number => {
+  if (availableWidth <= 0 || columnCount <= 0) {
+    return MIN_CELL_SIZE_PX;
+  }
+
+  const widthAfterGaps = availableWidth - calendarGapTotal(columnCount);
+  return Math.max(MIN_CELL_SIZE_PX, widthAfterGaps / columnCount);
+};
+
+const useElementWidth = (): [RefObject<HTMLDivElement | null>, number] => {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
+
+    const updateWidth = (): void => {
+      setWidth(element.clientWidth);
+    };
+
+    updateWidth();
+    const observer = new ResizeObserver(([entry]) => {
+      setWidth(entry.contentRect.width);
+    });
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, width];
+};
+
+const tokenActivityStyle = (
+  columnCount: number,
+  cellSize: number
+): CSSProperties => ({
+  width: calendarWidth(columnCount, cellSize),
+  minWidth: calendarWidth(columnCount, MIN_CELL_SIZE_PX),
+});
+
+const monthLabelStyle = (column: number, cellSize: number): CSSProperties => ({
+  left: column * (cellSize + CELL_GAP_PX),
+});
 
 export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
-  const [heatmapRef, heatmapWidth] = useElementWidth();
-
-  // Number of day columns to render: fill the measured width (≥30), so wider
-  // screens show more days. ~20px per column (1rem cell + gap); reserve the
-  // label gutter.
-  const cols = useMemo(() => {
-    if (heatmapWidth <= 0) {
-      return 30;
-    }
-    const fit = Math.floor((heatmapWidth - LABEL_GUTTER_PX) / PX_PER_DAY);
-    return Math.max(30, fit);
-  }, [heatmapWidth]);
+  const [activityMode, setActivityMode] =
+    useState<TokenActivityMode>("daily");
+  const [activityWidthRef, activityWidth] = useElementWidth();
 
   const view = useMemo(() => {
-    // `now` is captured per render; the aggregators take it explicitly so the
-    // logic stays pure (and unit-testable with an injected value).
     const now = new Date();
     const filtered = filterByRange(history, range, now);
     return {
-      count: filtered.length,
       sessions: sessionCount(filtered),
       messages: messageCount(filtered),
       tokens: totalTokens(filtered),
@@ -113,23 +207,29 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
       streak: streaks(filtered, now),
       peak: peakHour(filtered),
       favorite: stripModelDate(favoriteModel(filtered)),
-      heatmap: hourBlockHeatmap(filtered, range, now, cols),
     };
-  }, [history, range, cols]);
+  }, [history, range]);
+
+  const tokenCalendar = useMemo(
+    () => tokenActivityCalendar(history, activityMode, new Date()),
+    [activityMode, history]
+  );
+
+  const tokenCalendarColumns = useMemo(
+    () => calendarColumns(tokenCalendar),
+    [tokenCalendar]
+  );
+
+  const tokenActivityCellSize = useMemo(
+    () => fittedCellSize(activityWidth, tokenCalendar.columns),
+    [activityWidth, tokenCalendar.columns]
+  );
 
   const peakValue =
     view.peak === null ? "—" : `${`${view.peak}`.padStart(2, "0")}:00`;
 
-  if (view.count === 0) {
-    return (
-      <p className="p-4 text-sm text-gray-400">
-        No usage in this range yet.
-      </p>
-    );
-  }
-
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+    <div className="mx-auto flex w-full flex-col gap-6">
       {/* Summary stat cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <StatCard label="Sessions" value={view.sessions.toLocaleString()} />
@@ -142,43 +242,62 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
         <StatCard label="Favorite model" value={view.favorite ?? "—"} />
       </div>
 
-      {/* Activity heatmap — columns = days, rows = 4-hour blocks of the day. */}
-      <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
-        <div className="mb-3 text-xs uppercase tracking-wide text-gray-400">
-          Activity heatmap
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-base font-semibold text-gray-100">
+            Token activity
+          </h2>
+          <div className="flex items-center gap-5 text-sm">
+            {TOKEN_ACTIVITY_TABS.map((tab) => (
+              <button
+                key={tab.mode}
+                type="button"
+                aria-pressed={activityMode === tab.mode}
+                onClick={() => setActivityMode(tab.mode)}
+                className={twJoin(
+                  "transition-colors",
+                  activityMode === tab.mode
+                    ? "text-gray-100"
+                    : "text-gray-500 hover:text-gray-300"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
-        {/* ref measures available width → column count fills the screen. */}
-        <div ref={heatmapRef} className="overflow-x-auto">
-          <div className="flex" style={{ gap: GAP_PX }}>
-            {/* Boundary labels (0,4,…,24): height pinned to the squares column
-                so the 7 labels line up with the gridlines and "24" sits at the
-                bottom edge of the last block. */}
-            <div
-              style={{ height: COLUMN_HEIGHT_PX }}
-              className="flex shrink-0 flex-col justify-between text-xs leading-none tabular-nums text-gray-500"
-            >
-              {BOUNDARY_LABELS.map((label) => (
-                <span key={label}>{label}</span>
-              ))}
-            </div>
-            {/* Day columns. */}
-            <div className="flex" style={{ gap: GAP_PX }}>
-              {view.heatmap.days.map((day, di) => (
+
+        <div ref={activityWidthRef} className="overflow-x-auto pb-1">
+          <div
+            key={activityMode}
+            className="token-activity-switch flex w-full flex-col gap-3"
+            style={tokenActivityStyle(
+              tokenCalendar.columns,
+              tokenActivityCellSize
+            )}
+          >
+            <div className="flex" style={{ gap: CELL_GAP_PX }}>
+              {tokenCalendarColumns.map((column, columnIndex) => (
                 <div
-                  key={day}
+                  key={`${activityMode}-${columnIndex}`}
                   className="flex flex-col"
-                  style={{ gap: GAP_PX }}
+                  style={{ gap: CELL_GAP_PX }}
                 >
-                  {Array.from({ length: HOUR_BLOCKS }, (_, bi) => {
-                    const count = view.heatmap.cells[di][bi];
+                  {column.map((cell, rowIndex) => {
+                    const tooltip = tooltipForCell(activityMode, cell);
                     return (
                       <div
-                        key={bi}
-                        title={`${day} ${`${bi * HOURS_PER_BLOCK}`.padStart(2, "0")}:00–${`${(bi + 1) * HOURS_PER_BLOCK}`.padStart(2, "0")}:00 — ${count} message${count === 1 ? "" : "s"}`}
-                        style={{ width: CELL_PX, height: CELL_PX }}
+                        key={`${columnIndex}-${rowIndex}-${cell.date ?? "empty"}`}
+                        title={tooltip}
+                        aria-label={tooltip}
+                        style={{
+                          width: tokenActivityCellSize,
+                          height: tokenActivityCellSize,
+                        }}
                         className={twJoin(
-                          "rounded-[2px]",
-                          LEVEL_CLASS[intensityLevel(count, view.heatmap.max)]
+                          "shrink-0 rounded-[3px]",
+                          LEVEL_CLASS[cell.level],
+                          cell.kind === "placeholder" && "opacity-45"
                         )}
                       />
                     );
@@ -186,9 +305,27 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
                 </div>
               ))}
             </div>
+
+            <div
+              className="relative h-5 text-sm leading-none text-gray-500"
+              style={{ width: "100%" }}
+            >
+              {tokenCalendar.monthLabels.map((label) => (
+                <span
+                  key={`${label.label}-${label.column}`}
+                  className="absolute top-0 whitespace-nowrap"
+                  style={monthLabelStyle(
+                    label.column,
+                    tokenActivityCellSize
+                  )}
+                >
+                  {label.label}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Benchmark comparison sentence. */}
       <p className="text-sm text-gray-400">{benchmarkSentence(view.tokens)}</p>

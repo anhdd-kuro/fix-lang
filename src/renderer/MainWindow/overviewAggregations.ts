@@ -12,13 +12,16 @@
  * "na"/absent are excluded and surfaced, never counted as a false 0.
  */
 import {
+  withFallbackTokenCounts,
+  type HistoryEntry,
+} from "~/stores/historyTypes";
+import {
   denseDayKeys,
   filterByRange,
   sumCost,
   type AnalyticsRange,
   type CostSum,
 } from "../analytics/shared";
-import type { HistoryEntry } from "~/stores/historyStore";
 
 // Range + range filter now live in the shared analytics module (#58 extraction
 // per #57 HITL #1). Re-exported here so existing Overview consumers are
@@ -56,10 +59,7 @@ export const totalCorrections = (entries: HistoryEntry[]): number =>
   entries.length;
 
 export const totalTokens = (entries: HistoryEntry[]): number =>
-  entries.reduce(
-    (sum, e) => sum + (e.promptTokens ?? 0) + (e.completionTokens ?? 0),
-    0
-  );
+  entries.reduce((sum, e) => sum + tokenTotalOf(e), 0);
 
 // Cost total is the shared N/A-aware sum (kept as a named export for existing
 // Overview consumers / tests).
@@ -420,4 +420,276 @@ export const intensityLevel = (count: number, max: number): number => {
     return 3;
   }
   return 4;
+};
+
+export type TokenActivityMode = "daily" | "weekly" | "cumulative";
+
+export type TokenActivityIntensityLevel = 0 | 1 | 2 | 3 | 4;
+
+export type TokenActivityCalendarPlaceholderCell = {
+  kind: "placeholder";
+  date: null;
+  tokenTotal: 0;
+  correctionCount: 0;
+  level: 0;
+  column: number;
+  row: number;
+};
+
+export type TokenActivityCalendarDayCell = {
+  kind: "day";
+  date: string;
+  tokenTotal: number;
+  correctionCount: number;
+  level: TokenActivityIntensityLevel;
+  column: number;
+  row: number;
+};
+
+export type TokenActivityCalendarCell =
+  | TokenActivityCalendarPlaceholderCell
+  | TokenActivityCalendarDayCell;
+
+export type TokenActivityCalendarMonthLabel = {
+  label: string;
+  column: number;
+};
+
+export type TokenActivityCalendar = {
+  mode: TokenActivityMode;
+  cells: TokenActivityCalendarCell[];
+  columns: number;
+  rows: 7;
+  startDate: string;
+  endDate: string;
+  maxTokenTotal: number;
+  monthLabels: TokenActivityCalendarMonthLabel[];
+};
+
+type TokenActivityStats = {
+  tokenTotal: number;
+  correctionCount: number;
+};
+
+const MONTH_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
+const startOfLocalDay = (d: Date): Date => {
+  const day = new Date(d);
+  day.setHours(0, 0, 0, 0);
+  return day;
+};
+
+const addDays = (d: Date, days: number): Date => {
+  const next = new Date(d);
+  next.setDate(next.getDate() + days);
+  return next;
+};
+
+const dateFromDayKey = (dayKey: string): Date => {
+  const [year, month, day] = dayKey.split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const sundayStart = (d: Date): Date => {
+  const weekStart = startOfLocalDay(d);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  return weekStart;
+};
+
+const rollingYearStart = (now: Date): Date => {
+  const tomorrow = addDays(startOfLocalDay(now), 1);
+  tomorrow.setFullYear(tomorrow.getFullYear() - 1);
+  return tomorrow;
+};
+
+const tokenTotalOf = (entry: HistoryEntry): number => {
+  const normalized = withFallbackTokenCounts(entry);
+  return (normalized.promptTokens ?? 0) + (normalized.completionTokens ?? 0);
+};
+
+const aggregateByLocalDay = (
+  entries: HistoryEntry[]
+): Map<string, TokenActivityStats> => {
+  const perDay = new Map<string, TokenActivityStats>();
+  for (const entry of entries) {
+    const key = localDayKey(entry.timestamp);
+    const current = perDay.get(key) ?? { tokenTotal: 0, correctionCount: 0 };
+    current.tokenTotal += tokenTotalOf(entry);
+    current.correctionCount += 1;
+    perDay.set(key, current);
+  }
+  return perDay;
+};
+
+const aggregateBySundayWeek = (
+  entries: HistoryEntry[]
+): Map<string, TokenActivityStats> => {
+  const perWeek = new Map<string, TokenActivityStats>();
+  for (const entry of entries) {
+    const weekKey = dayKeyOf(sundayStart(new Date(entry.timestamp)));
+    const current = perWeek.get(weekKey) ?? {
+      tokenTotal: 0,
+      correctionCount: 0,
+    };
+    current.tokenTotal += tokenTotalOf(entry);
+    current.correctionCount += 1;
+    perWeek.set(weekKey, current);
+  }
+  return perWeek;
+};
+
+const asTokenActivityLevel = (
+  count: number,
+  max: number
+): TokenActivityIntensityLevel =>
+  intensityLevel(count, max) as TokenActivityIntensityLevel;
+
+/**
+ * GitHub-style rolling token calendar for the last 12 months ending today.
+ * Cells are flat + column-major so the UI can render Sunday-start week columns
+ * with 7 fixed rows; leading placeholders keep the first visible column aligned.
+ */
+export const tokenActivityCalendar = (
+  entries: HistoryEntry[],
+  mode: TokenActivityMode,
+  now: Date
+): TokenActivityCalendar => {
+  const start = rollingYearStart(now);
+  const end = startOfLocalDay(now);
+  const startKey = dayKeyOf(start);
+  const endKey = dayKeyOf(end);
+  const leadingPlaceholders = start.getDay();
+  const perDay = aggregateByLocalDay(entries);
+
+  const visibleDays: {
+    date: string;
+    tokenTotal: number;
+    correctionCount: number;
+  }[] = [];
+
+  if (mode === "daily") {
+    const cursor = new Date(start);
+    while (cursor.getTime() <= end.getTime()) {
+      const key = dayKeyOf(cursor);
+      const stats = perDay.get(key) ?? { tokenTotal: 0, correctionCount: 0 };
+      visibleDays.push({
+        date: key,
+        tokenTotal: stats.tokenTotal,
+        correctionCount: stats.correctionCount,
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  } else if (mode === "weekly") {
+    const perWeek = aggregateBySundayWeek(entries);
+    const cursor = new Date(start);
+    while (cursor.getTime() <= end.getTime()) {
+      const key = dayKeyOf(cursor);
+      const weekKey = dayKeyOf(sundayStart(cursor));
+      const stats = perWeek.get(weekKey) ?? { tokenTotal: 0, correctionCount: 0 };
+      visibleDays.push({
+        date: key,
+        tokenTotal: stats.tokenTotal,
+        correctionCount: stats.correctionCount,
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  } else {
+    let runningTokenTotal = 0;
+    let runningCorrectionCount = 0;
+    for (const [dayKey, stats] of perDay) {
+      if (dayKey < startKey) {
+        runningTokenTotal += stats.tokenTotal;
+        runningCorrectionCount += stats.correctionCount;
+      }
+    }
+
+    const cursor = new Date(start);
+    while (cursor.getTime() <= end.getTime()) {
+      const key = dayKeyOf(cursor);
+      const stats = perDay.get(key);
+      if (stats) {
+        runningTokenTotal += stats.tokenTotal;
+        runningCorrectionCount += stats.correctionCount;
+      }
+      visibleDays.push({
+        date: key,
+        tokenTotal: runningTokenTotal,
+        correctionCount: runningCorrectionCount,
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+
+  const maxTokenTotal = visibleDays.reduce(
+    (max, day) => Math.max(max, day.tokenTotal),
+    0
+  );
+  const cells: TokenActivityCalendarCell[] = [];
+  for (let i = 0; i < leadingPlaceholders; i++) {
+    cells.push({
+      kind: "placeholder",
+      date: null,
+      tokenTotal: 0,
+      correctionCount: 0,
+      level: 0,
+      column: 0,
+      row: i,
+    });
+  }
+
+  const monthLabels: TokenActivityCalendarMonthLabel[] = [];
+  let lastLabeledMonth: number | null = null;
+  for (let i = 0; i < visibleDays.length; i++) {
+    const day = visibleDays[i];
+    const index = leadingPlaceholders + i;
+    const column = Math.floor(index / 7);
+    const row = index % 7;
+    const date = dateFromDayKey(day.date);
+
+    if (date.getDate() === 1 && date.getMonth() !== lastLabeledMonth) {
+      monthLabels.push({
+        label: MONTH_SHORT[date.getMonth()],
+        column,
+      });
+      lastLabeledMonth = date.getMonth();
+    }
+
+    cells.push({
+      kind: "day",
+      date: day.date,
+      tokenTotal: day.tokenTotal,
+      correctionCount: day.correctionCount,
+      level: asTokenActivityLevel(day.tokenTotal, maxTokenTotal),
+      column,
+      row,
+    });
+  }
+
+  const lastCell = cells.at(-1);
+  const columns =
+    lastCell === undefined ? 0 : lastCell.column + 1;
+
+  return {
+    mode,
+    cells,
+    columns,
+    rows: 7,
+    startDate: startKey,
+    endDate: endKey,
+    maxTokenTotal,
+    monthLabels,
+  };
 };

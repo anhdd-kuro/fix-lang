@@ -13,11 +13,12 @@
  */
 import Store from "electron-store";
 import { getHistoryRepo } from "./historyDb";
-import type {
-  HistoryEntry,
-  HistoryFeatureId,
-  HistoryStore,
-  LastActionHistory,
+import {
+  withFallbackTokenCounts,
+  type HistoryEntry,
+  type HistoryFeatureId,
+  type HistoryStore,
+  type LastActionHistory,
 } from "./historyTypes";
 import type { Schema } from "electron-store";
 
@@ -25,7 +26,9 @@ import type { Schema } from "electron-store";
 // this module is unchanged for all existing importers.
 export {
   filterHistoryByPreset,
+  estimateTextTokens,
   mergeLegacyHistoryEntries,
+  withFallbackTokenCounts,
 } from "./historyTypes";
 export type {
   HistoryEntry,
@@ -117,14 +120,14 @@ export function addHistoryEntry(
   // backing is uncapped. Reference it so lint does not flag it unused while we
   // preserve the public parameter name.
   void maxEntries;
-  getHistoryRepo().insert(featureId, entry);
+  getHistoryRepo().insert(featureId, withFallbackTokenCounts(entry));
 }
 
 export const overrideHistory = (
   featureId: HistoryFeatureId,
   entries: HistoryEntry[]
 ): void => {
-  getHistoryRepo().overrideFeature(featureId, entries);
+  getHistoryRepo().overrideFeature(featureId, entries.map(withFallbackTokenCounts));
 };
 
 export function removeHistoryEntry(
