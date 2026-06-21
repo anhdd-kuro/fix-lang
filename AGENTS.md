@@ -1,6 +1,7 @@
 # FixLang — Agent Context
 
 macOS menu-bar app that fixes grammar / improves writing on selected text via AI (OpenAI, OpenRouter, Ollama). Electron + React + TypeScript. Runs on **bun**.
+When you want to ask the user a question, always use "ask user questions," "require user input," or any related tools.
 
 ## Commands
 
