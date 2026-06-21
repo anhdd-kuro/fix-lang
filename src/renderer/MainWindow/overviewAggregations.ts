@@ -11,10 +11,22 @@
  * Cost totals are N/A-aware: only `costStatus` "ok"/"zero" entries contribute;
  * "na"/absent are excluded and surfaced, never counted as a false 0.
  */
+import {
+  filterByRange,
+  sumCost,
+  type AnalyticsRange,
+  type CostSum,
+} from "../analytics/shared";
 import type { HistoryEntry } from "~/stores/historyStore";
 
-export type OverviewRange = "all" | "30d" | "7d";
+// Range + range filter now live in the shared analytics module (#58 extraction
+// per #57 HITL #1). Re-exported here so existing Overview consumers are
+// unchanged.
+export type OverviewRange = AnalyticsRange;
+export { filterByRange };
 
+// Day spans for the bounded ranges — used locally by the dense heatmap to size
+// the window. (filterByRange uses its own copy in the shared module.)
 const RANGE_DAYS: Record<Exclude<OverviewRange, "all">, number> = {
   "30d": 30,
   "7d": 7,
@@ -39,24 +51,6 @@ const dayKeyOf = (d: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-/**
- * Filter entries to a range window using each entry's timestamp. "all" returns
- * all entries. "7d"/"30d" keep entries with `timestamp >= now - N days`
- * (inclusive boundary). `now` injected for determinism.
- */
-export const filterByRange = (
-  entries: HistoryEntry[],
-  range: OverviewRange,
-  now: Date
-): HistoryEntry[] => {
-  if (range === "all") {
-    return entries;
-  }
-  const days = RANGE_DAYS[range];
-  const cutoff = now.getTime() - days * 24 * 60 * 60 * 1000;
-  return entries.filter((e) => new Date(e.timestamp).getTime() >= cutoff);
-};
-
 export const totalCorrections = (entries: HistoryEntry[]): number =>
   entries.length;
 
@@ -66,40 +60,10 @@ export const totalTokens = (entries: HistoryEntry[]): number =>
     0
   );
 
-export type CostTotal = {
-  /** Sum of priced entries' cost (ok + zero). */
-  totalUsd: number;
-  /** How many entries contributed a real number (ok/zero). */
-  pricedCount: number;
-  /** Total entries considered. */
-  total: number;
-  /** True when at least one entry was N/A (unpriced/absent). */
-  hasNa: boolean;
-};
-
-/**
- * Sum estimated cost honestly: only entries whose `costStatus` is "ok" or
- * "zero" (a real number) contribute. "na"/absent are excluded from the total
- * AND reported via `hasNa` so the card can show "(K of M priced)" / N/A.
- */
-export const costTotal = (entries: HistoryEntry[]): CostTotal => {
-  let totalUsd = 0;
-  let pricedCount = 0;
-  let hasNa = false;
-  for (const e of entries) {
-    const priced =
-      (e.costStatus === "ok" || e.costStatus === "zero") &&
-      e.estimatedCostUsd !== undefined &&
-      e.estimatedCostUsd !== null;
-    if (priced) {
-      totalUsd += e.estimatedCostUsd as number;
-      pricedCount += 1;
-    } else {
-      hasNa = true;
-    }
-  }
-  return { totalUsd, pricedCount, total: entries.length, hasNa };
-};
+// Cost total is the shared N/A-aware sum (kept as a named export for existing
+// Overview consumers / tests).
+export type CostTotal = CostSum;
+export const costTotal = sumCost;
 
 /** Distinct local-days with ≥1 correction. */
 export const activeDays = (entries: HistoryEntry[]): number => {

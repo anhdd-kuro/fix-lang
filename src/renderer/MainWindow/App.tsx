@@ -8,6 +8,7 @@ import { formatModelLineage } from "../components/historyModel";
 import { HistoryPanel } from "../components/HistoryPanel";
 import HistoryReviewModal from "../components/HistoryReviewModal";
 import ModelManagerDialog from "../components/ModelManagerDialog";
+import { ModelsPanel } from "../components/ModelsPanel";
 import { OverviewPanel } from "../components/OverviewPanel";
 import { PlaceholderPanel } from "../components/PlaceholderPanel";
 import { SettingsButton } from "../components/SettingsIcon";
@@ -188,12 +189,7 @@ const App: React.FC = () => {
         onClear={handleClear}
       />
     ),
-    models: (
-      <PlaceholderPanel
-        title="Models"
-        description="Per-model usage breakdown will appear here."
-      />
-    ),
+    models: <ModelsPanel history={correctionsHistory} />,
     openrouter: (
       <PlaceholderPanel
         title="OpenRouter"
