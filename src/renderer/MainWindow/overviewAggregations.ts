@@ -178,6 +178,19 @@ export type ModelProvider = {
 };
 
 /**
+ * Strip a trailing version-date suffix from a model id so snapshots collapse to
+ * their family: "gpt-5.4-mini-20260317" → "gpt-5.4-mini" (also handles the
+ * dashed "-2026-03-17" form). Anything else is returned unchanged; null stays
+ * null. Only a date at the very end is removed (mid-id digits are preserved).
+ */
+export const stripModelDate = (id: string | null): string | null => {
+  if (!id) {
+    return id;
+  }
+  return id.replace(/-\d{4}-\d{2}-\d{2}$/, "").replace(/-\d{8}$/, "");
+};
+
+/**
  * Split a served model id ("provider/model", e.g. "openai/gpt-4o") into its
  * provider and model parts. No "/" → provider null, model = the whole id.
  * null/blank → both null.
@@ -319,23 +332,26 @@ export type HourBlockHeatmap = {
   max: number;
 };
 
-/** Minimum heatmap width on the default ("all") range: ≥30 days ending today. */
+/** Floor for the heatmap window: always show at least 30 days ending today. */
 export const HEATMAP_MIN_DAYS = 30;
 
 /**
  * Day × hour-block heatmap: horizontal axis = days, vertical axis = 6 four-hour
  * blocks of the day (block 0 = 00:00–04:00 … block 5 = 20:00–24:00). Each cell
- * counts entries in that day + block (local time). On the default "all" range
- * the window is floored to ≥30 days ending today, so a single day of history
- * still renders a full month; "7d"/"30d" use their exact N. Pure; `now` injected.
+ * counts entries in that day + block (local time).
+ *
+ * The window width is floored to `minDays` (default 30) ending today and only
+ * ever widens, so a single day of history still renders a full span. The panel
+ * passes a width-derived `minDays` so the heatmap fills the available screen
+ * (more columns on wider screens). Pure; `now` injected.
  */
 export const hourBlockHeatmap = (
   entries: HistoryEntry[],
   range: OverviewRange,
-  now: Date
+  now: Date,
+  minDays: number = HEATMAP_MIN_DAYS
 ): HourBlockHeatmap => {
-  const minDays = range === "all" ? HEATMAP_MIN_DAYS : undefined;
-  const days = denseDayKeys(entries, range, now, minDays);
+  const days = denseDayKeys(entries, range, now, Math.max(HEATMAP_MIN_DAYS, minDays));
   const dayIndex = new Map(days.map((d, i) => [d, i]));
   const cells = days.map(() => new Array<number>(HOUR_BLOCKS).fill(0));
 

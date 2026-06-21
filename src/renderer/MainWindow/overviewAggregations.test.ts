@@ -21,6 +21,7 @@ import {
   perPresetBreakdown,
   sessionCount,
   splitModelId,
+  stripModelDate,
   streaks,
   totalCorrections,
   totalTokens,
@@ -277,7 +278,8 @@ describe("hourBlockHeatmap", () => {
       entry({ timestamp: at(2024, 6, 20, 21) }), // block 5 (20–24)
     ];
     const hm = hourBlockHeatmap(entries, "7d", NOW);
-    expect(hm.days).toHaveLength(7);
+    // Window is floored to >=30 days ending today regardless of range.
+    expect(hm.days.length).toBeGreaterThanOrEqual(30);
     expect(hm.cells[0]).toHaveLength(HOUR_BLOCKS);
     const lastDay = hm.cells.length - 1; // today = 2024-06-20
     expect(hm.cells[lastDay][0]).toBe(2);
@@ -316,14 +318,37 @@ describe("splitModelId", () => {
   });
 });
 
-describe("hourBlockHeatmap default-range floor", () => {
-  it("'all' shows >=30 day columns even with a single day of history", () => {
-    const hm = hourBlockHeatmap([entry({ timestamp: at(2024, 6, 20, 9) })], "all", NOW);
-    expect(hm.days.length).toBeGreaterThanOrEqual(30);
-    expect(hm.days[hm.days.length - 1]).toBe("2024-06-20");
+describe("hourBlockHeatmap window floor + width", () => {
+  it("shows >=30 day columns even with a single day of history (any range)", () => {
+    const one = [entry({ timestamp: at(2024, 6, 20, 9) })];
+    expect(hourBlockHeatmap(one, "all", NOW).days.length).toBeGreaterThanOrEqual(30);
+    expect(hourBlockHeatmap(one, "7d", NOW).days.length).toBeGreaterThanOrEqual(30);
+    expect(hourBlockHeatmap(one, "all", NOW).days.at(-1)).toBe("2024-06-20");
   });
-  it("'7d' keeps the exact 7-day window (no floor)", () => {
-    const hm = hourBlockHeatmap([entry({ timestamp: at(2024, 6, 20, 9) })], "7d", NOW);
-    expect(hm.days).toHaveLength(7);
+  it("widens to the requested column count (width-driven minDays)", () => {
+    const hm = hourBlockHeatmap([entry({ timestamp: at(2024, 6, 20) })], "7d", NOW, 100);
+    expect(hm.days).toHaveLength(100);
+  });
+  it("never shrinks below the 30-day floor when fewer columns are requested", () => {
+    const hm = hourBlockHeatmap([entry({ timestamp: at(2024, 6, 20) })], "7d", NOW, 5);
+    expect(hm.days).toHaveLength(30);
+  });
+});
+
+describe("stripModelDate", () => {
+  it("strips a trailing YYYYMMDD date", () => {
+    expect(stripModelDate("openai/gpt-5.4-mini-20260317")).toBe(
+      "openai/gpt-5.4-mini"
+    );
+  });
+  it("strips a trailing dashed YYYY-MM-DD date", () => {
+    expect(stripModelDate("gpt-5.4-mini-2026-03-17")).toBe("gpt-5.4-mini");
+  });
+  it("leaves ids without a trailing date unchanged", () => {
+    expect(stripModelDate("openai/gpt-4o")).toBe("openai/gpt-4o");
+    expect(stripModelDate("claude-3.5")).toBe("claude-3.5");
+  });
+  it("null stays null", () => {
+    expect(stripModelDate(null)).toBeNull();
   });
 });

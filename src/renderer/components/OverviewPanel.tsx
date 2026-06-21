@@ -7,7 +7,7 @@
  * sentence — all from the PURE aggregators in overviewAggregations.ts. No
  * fetch/IPC on mount or tab switch (data is read from props).
  */
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { twJoin } from "tailwind-merge";
 import { StatCard } from "./StatCard";
 import { filterByRange, type AnalyticsRange } from "../analytics/shared";
@@ -22,11 +22,39 @@ import {
   messageCount,
   peakHour,
   sessionCount,
-  splitModelId,
+  stripModelDate,
   streaks,
   totalTokens,
 } from "../MainWindow/overviewAggregations";
 import type { HistoryEntry } from "~/stores/historyStore";
+
+/** Heatmap column geometry: 7px square + 3px gap = 10px per day column. */
+const CELL_PX = 7;
+const GAP_PX = 3;
+const PX_PER_DAY = CELL_PX + GAP_PX;
+/** Reserve for the boundary-label column + its gap before the squares. */
+const LABEL_GUTTER_PX = 28;
+
+/** Track an element's content width via ResizeObserver (0 until first measure). */
+const useElementWidth = (): [
+  React.RefObject<HTMLDivElement | null>,
+  number,
+] => {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState<number>(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) {
+      return;
+    }
+    const observer = new ResizeObserver((entries) => {
+      setWidth(entries[0].contentRect.width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, width];
+};
 
 type OverviewPanelProps = {
   /** Corrections-bucket history (App passes the corrections subset). */
@@ -51,6 +79,18 @@ const BOUNDARY_LABELS = Array.from(
 );
 
 export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
+  const [heatmapRef, heatmapWidth] = useElementWidth();
+
+  // Number of day columns to render: fill the measured width (≥30), so wider
+  // screens show more days. ~10px per column; reserve the label gutter.
+  const cols = useMemo(() => {
+    if (heatmapWidth <= 0) {
+      return 30;
+    }
+    const fit = Math.floor((heatmapWidth - LABEL_GUTTER_PX) / PX_PER_DAY);
+    return Math.max(30, fit);
+  }, [heatmapWidth]);
+
   const view = useMemo(() => {
     // `now` is captured per render; the aggregators take it explicitly so the
     // logic stays pure (and unit-testable with an injected value).
@@ -64,10 +104,10 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
       days: activeDays(filtered),
       streak: streaks(filtered, now),
       peak: peakHour(filtered),
-      favorite: splitModelId(favoriteModel(filtered)),
-      heatmap: hourBlockHeatmap(filtered, range, now),
+      favorite: stripModelDate(favoriteModel(filtered)),
+      heatmap: hourBlockHeatmap(filtered, range, now, cols),
     };
-  }, [history, range]);
+  }, [history, range, cols]);
 
   const peakValue =
     view.peak === null ? "—" : `${`${view.peak}`.padStart(2, "0")}:00`;
@@ -91,8 +131,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
         <StatCard label="Current streak" value={`${view.streak.current}d`} />
         <StatCard label="Longest streak" value={`${view.streak.longest}d`} />
         <StatCard label="Peak hour" value={peakValue} />
-        <StatCard label="Favorite model" value={view.favorite.model ?? "—"} />
-        <StatCard label="Provider" value={view.favorite.provider ?? "—"} />
+        <StatCard label="Favorite model" value={view.favorite ?? "—"} />
       </div>
 
       {/* Activity heatmap — columns = days, rows = 4-hour blocks of the day. */}
@@ -100,8 +139,9 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
         <div className="mb-3 text-xs uppercase tracking-wide text-gray-400">
           Activity heatmap
         </div>
-        <div className="overflow-x-auto">
-          <div className="flex gap-2">
+        {/* ref measures available width → column count fills the screen. */}
+        <div ref={heatmapRef} className="overflow-x-auto">
+          <div className="flex" style={{ gap: GAP_PX }}>
             {/* Boundary labels (0,4,…,24) aligned to the block gridlines. */}
             <div className="flex shrink-0 flex-col justify-between text-[10px] leading-none tabular-nums text-gray-500">
               {BOUNDARY_LABELS.map((label) => (
@@ -109,17 +149,22 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
               ))}
             </div>
             {/* Day columns. */}
-            <div className="flex gap-[3px]">
+            <div className="flex" style={{ gap: GAP_PX }}>
               {view.heatmap.days.map((day, di) => (
-                <div key={day} className="flex flex-col gap-[3px]">
+                <div
+                  key={day}
+                  className="flex flex-col"
+                  style={{ gap: GAP_PX }}
+                >
                   {Array.from({ length: HOUR_BLOCKS }, (_, bi) => {
                     const count = view.heatmap.cells[di][bi];
                     return (
                       <div
                         key={bi}
                         title={`${day} ${`${bi * HOURS_PER_BLOCK}`.padStart(2, "0")}:00–${`${(bi + 1) * HOURS_PER_BLOCK}`.padStart(2, "0")}:00 — ${count} message${count === 1 ? "" : "s"}`}
+                        style={{ width: CELL_PX, height: CELL_PX }}
                         className={twJoin(
-                          "h-3 w-3 rounded-[2px]",
+                          "rounded-[2px]",
                           LEVEL_CLASS[intensityLevel(count, view.heatmap.max)]
                         )}
                       />
