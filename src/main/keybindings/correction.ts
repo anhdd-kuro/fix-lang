@@ -80,6 +80,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
               completionTokens: result.completionTokens ?? 0,
               timestamp: new Date().toISOString(),
               model: result.model,
+              resolvedModel: result.resolvedModel,
               presetName: result.presetName,
             },
             type: "add",

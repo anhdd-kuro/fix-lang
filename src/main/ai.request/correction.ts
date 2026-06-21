@@ -13,6 +13,8 @@ type CorrectionResult = {
   promptTokens: number;
   completionTokens: number;
   model: string;
+  /** Concrete model the provider served (resolves alias indirection) */
+  resolvedModel: string;
   presetId: string;
   presetName: string;
 };
@@ -93,6 +95,7 @@ export const fixGrammar = async (
       promptTokens: 0,
       completionTokens: 0,
       model: DEFAULT_OPENAI_MODEL,
+      resolvedModel: DEFAULT_OPENAI_MODEL,
       presetId: preset.id,
       presetName: preset.name,
     };
@@ -118,6 +121,7 @@ export const fixGrammar = async (
       promptTokens: response.promptTokens ?? 0,
       completionTokens: response.completionTokens ?? 0,
       model: response.model,
+      resolvedModel: response.resolvedModel ?? response.model,
       presetId: preset.id,
       presetName: preset.name,
     };

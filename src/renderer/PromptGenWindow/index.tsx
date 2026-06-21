@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "../main.css";
 import CopyButton from "../components/CopyButton";
+import { formatModelLineage } from "../components/historyModel";
 
 type PromptGenData = {
   prompts: string[];
@@ -11,6 +12,7 @@ type PromptGenData = {
   x: number;
   y: number;
   model?: string;
+  resolvedModel?: string;
 };
 
 const PromptGenWindow: React.FC = () => {
@@ -72,7 +74,11 @@ const PromptGenWindow: React.FC = () => {
             </span>
           )}
           {" | "}
-          {data.model && <span className="ml-2">Model: {data.model}</span>}
+          {data.model && (
+            <span className="ml-2">
+              Model: {formatModelLineage(data.model, data.resolvedModel)}
+            </span>
+          )}
         </div>
         <CopyButton
           value={data.prompts.join("\n\n")}

@@ -10,6 +10,8 @@ export type PromptGenPayload = {
   completionTokens: number | null;
   x: number;
   y: number;
+  model?: string;
+  resolvedModel?: string;
 };
 
 export function createPromptGenWindow() {

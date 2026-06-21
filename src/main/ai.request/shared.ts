@@ -22,6 +22,7 @@ import {
   extractCacheUsage,
   resolveCacheProvider,
 } from "./cache-strategy";
+import { extractResolvedModel } from "./resolve-model";
 import type { Model } from "~/stores/apiStore";
 
 type CoreMessage = {
@@ -271,6 +272,8 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
       promptTokens: 0, // Local models don't provide token information
       completionTokens: 0,
       model: modelId,
+      // Local models have no alias indirection — served id == requested id.
+      resolvedModel: modelId,
     };
   } catch (error) {
     console.error("Local LLM request failed:", error);
@@ -385,6 +388,11 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
       }
     }
 
+    // The provider reports the model it actually served in the response body.
+    // For floating aliases (e.g. "~openai/gpt-mini-latest") this is the concrete
+    // pinned id; falls back to the requested id when absent.
+    const resolvedModel = extractResolvedModel(resBody, options.model as string);
+
     // Return the processed content and token information
     return {
       content: processedContent,
@@ -392,6 +400,7 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
       promptTokens,
       completionTokens,
       model: options.model as string,
+      resolvedModel,
       cachedTokens,
       cacheWriteTokens,
     };
@@ -445,6 +454,8 @@ export type AIRequestResponse = {
   promptTokens: number | null;
   completionTokens: number | null;
   model: string;
+  /** Concrete model the provider actually served (resolves alias indirection) */
+  resolvedModel?: string;
   prompts?: string[];
   /** Tokens served from prompt cache (Anthropic/Gemini) */
   cachedTokens?: number;

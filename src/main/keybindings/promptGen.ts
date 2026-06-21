@@ -34,6 +34,8 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
         completionTokens: result.completionTokens,
         x,
         y,
+        model: result.model,
+        resolvedModel: result.resolvedModel,
       });
       syncHistory({
         entry: {
@@ -45,6 +47,7 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
           completionTokens: result.completionTokens ?? 0,
           timestamp: new Date().toISOString(),
           model: result.model,
+          resolvedModel: result.resolvedModel,
           presetName: "PromptGen",
         },
         type: "add",

@@ -91,6 +91,8 @@ export const registerCorrectionHandlers = () => {
       error?: string;
       promptTokens?: number;
       completionTokens?: number;
+      model?: string;
+      resolvedModel?: string;
       presetId?: string;
       presetName?: string;
     }> => {
@@ -108,6 +110,8 @@ export const registerCorrectionHandlers = () => {
           correctedText: result.correctedText,
           promptTokens: result.promptTokens ?? 0,
           completionTokens: result.completionTokens ?? 0,
+          model: result.model,
+          resolvedModel: result.resolvedModel,
           presetId: result.presetId,
           presetName: result.presetName,
         };

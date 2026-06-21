@@ -8,6 +8,7 @@ export type HistoryEntry = {
   promptTokens?: number;
   completionTokens?: number;
   model?: string;
+  resolvedModel?: string; // Concrete model the provider served (resolves alias indirection); optional so legacy entries remain valid
   presetName?: string; // Snapshot of the producing preset's name at write time; optional so legacy entries remain valid
 };
 
@@ -49,6 +50,8 @@ const historySchema: Schema<HistoryStore> = {
           timestamp: { type: "string" },
           promptTokens: { type: "number" },
           completionTokens: { type: "number" },
+          model: { type: "string" },
+          resolvedModel: { type: "string" },
         },
       },
     },

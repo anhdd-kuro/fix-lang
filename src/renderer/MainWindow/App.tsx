@@ -1,6 +1,7 @@
 import { addDays, format } from "date-fns";
 import React, { useState, useEffect, useCallback, useDeferredValue } from "react";
 import HistoryEntryItem from "../components/HistoryEntryItem";
+import { formatModelLineage } from "../components/historyModel";
 import HistoryReviewModal from "../components/HistoryReviewModal";
 import ModelManagerDialog from "../components/ModelManagerDialog";
 import SearchInput from "../components/SearchInput";
@@ -321,7 +322,10 @@ const App: React.FC = () => {
               })
             }
             textCount={lastHistoryData.promptTokens}
-            model={lastHistoryData.model}
+            model={formatModelLineage(
+              lastHistoryData.model,
+              lastHistoryData.resolvedModel,
+            )}
             className="flex-1"
           />
 

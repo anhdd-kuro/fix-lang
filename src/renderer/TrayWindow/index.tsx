@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import "../main.css"; // Import Tailwind CSS entry point
+import { formatModelLineage } from "../components/historyModel";
 import { ModelSelect } from "../components/ModelSelect";
 import ProfileSelector from "../components/ProfileSelector";
 import { SettingsButton } from "../components/SettingsIcon";
@@ -33,11 +34,19 @@ const TrayWindowMain: React.FC = () => {
           typeof data.entry === "object" &&
           data.entry !== null
         ) {
-          const entry = data.entry as { original?: string; corrected?: string };
+          const entry = data.entry as {
+            original?: string;
+            corrected?: string;
+            model?: string;
+            resolvedModel?: string;
+          };
           setLastHistory({
             original: entry.original || "",
             result: entry.corrected || "",
-            model: data.model,
+            model: formatModelLineage(
+              entry.model ?? data.model,
+              entry.resolvedModel ?? data.resolvedModel,
+            ),
           });
         }
         // If it's directly a HistoryEntry
@@ -45,7 +54,7 @@ const TrayWindowMain: React.FC = () => {
           setLastHistory({
             original: data.original || "",
             result: data.corrected || "",
-            model: data.model,
+            model: formatModelLineage(data.model, data.resolvedModel),
           });
         }
         // Unknown structure, use empty values

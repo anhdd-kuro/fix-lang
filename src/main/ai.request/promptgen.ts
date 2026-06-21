@@ -27,6 +27,7 @@ export const generatePrompt = async (
   promptTokens: number;
   completionTokens: number;
   model: string;
+  resolvedModel: string;
 }> => {
   const currentSettings = getProfileSetting("settingsPromptGen");
   const minLength = options.minLength || currentSettings.minLength || 0;
@@ -55,7 +56,8 @@ export const generatePrompt = async (
     });
 
     // Extract required values from response
-    const { content, promptTokens, completionTokens, model } = response;
+    const { content, promptTokens, completionTokens, model, resolvedModel } =
+      response;
 
     return {
       prompts: content,
@@ -63,6 +65,7 @@ export const generatePrompt = async (
       promptTokens: promptTokens || 0,
       completionTokens: completionTokens || 0,
       model,
+      resolvedModel: resolvedModel ?? model,
     };
   } catch (error) {
     console.error("Error in generatePrompt:", error);

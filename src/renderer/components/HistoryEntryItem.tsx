@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import React from "react";
+import { formatModelLineage } from "./historyModel";
 import { TrashButton } from "./TrashButton";
 import type { HistoryEntry, HistoryFeatureId } from "~/stores/historyStore";
 
@@ -43,9 +44,9 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
         </p>
         <p
           className="text-sm text-gray-100 line-clamp-1"
-          title={entry.model}
+          title={formatModelLineage(entry.model, entry.resolvedModel)}
         >
-          {entry.model}
+          {formatModelLineage(entry.model, entry.resolvedModel)}
         </p>
       </div>
       <TrashButton

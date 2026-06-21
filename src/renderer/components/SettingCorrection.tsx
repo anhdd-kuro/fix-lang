@@ -58,7 +58,7 @@ const makeCustomPreset = (count: number): CorrectionPreset => ({
   name: `Custom preset ${count}`,
   hotkey: "",
   systemPrompt: DEFAULT_CUSTOM_PROMPT.trim(),
-  model: DEFAULT_OPENAI_MODEL,
+  model: "", // empty = inherit the global default model
   isBuiltIn: false,
 });
 
