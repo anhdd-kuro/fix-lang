@@ -12,6 +12,7 @@
  * "na"/absent are excluded and surfaced, never counted as a false 0.
  */
 import {
+  denseDayKeys,
   filterByRange,
   sumCost,
   type AnalyticsRange,
@@ -243,6 +244,112 @@ export const heatmapBuckets = (
     guard += 1;
   }
   return buckets;
+};
+
+export type Sessions = number;
+
+/** Gap (minutes) of inactivity that separates one usage session from the next. */
+export const SESSION_GAP_MINUTES = 30;
+
+/**
+ * Count usage sessions: sort entries by time, then break into a new session
+ * whenever the idle gap between consecutive entries exceeds SESSION_GAP_MINUTES.
+ * Empty → 0; a single entry → 1.
+ */
+export const sessionCount = (
+  entries: HistoryEntry[],
+  gapMinutes: number = SESSION_GAP_MINUTES
+): Sessions => {
+  if (entries.length === 0) {
+    return 0;
+  }
+  const times = entries
+    .map((e) => new Date(e.timestamp).getTime())
+    .sort((a, b) => a - b);
+  const gapMs = gapMinutes * 60 * 1000;
+  let sessions = 1;
+  for (let i = 1; i < times.length; i++) {
+    if (times[i] - times[i - 1] > gapMs) {
+      sessions += 1;
+    }
+  }
+  return sessions;
+};
+
+/** Total messages exchanged — one per history entry (a request/response pair). */
+export const messageCount = (entries: HistoryEntry[]): number => entries.length;
+
+/** Number of 4-hour vertical blocks in the hour-block heatmap (6 × 4h = 24h). */
+export const HOUR_BLOCKS = 6;
+export const HOURS_PER_BLOCK = 24 / HOUR_BLOCKS;
+
+export type HourBlockHeatmap = {
+  /** Dense local-day keys (oldest first) — the horizontal axis. */
+  days: string[];
+  /** cells[dayIndex][blockIndex] = activity count; blockIndex 0 = 00:00–04:00. */
+  cells: number[][];
+  /** Busiest cell count in the window (0 when empty) — for intensity scaling. */
+  max: number;
+};
+
+/**
+ * Day × hour-block heatmap: horizontal axis = days (dense window), vertical
+ * axis = 6 four-hour blocks of the day (block 0 = 00:00–04:00 … block 5 =
+ * 20:00–24:00). Each cell counts entries that fall in that day + block (local
+ * time). Pure; `now` injected.
+ */
+export const hourBlockHeatmap = (
+  entries: HistoryEntry[],
+  range: OverviewRange,
+  now: Date
+): HourBlockHeatmap => {
+  const days = denseDayKeys(entries, range, now);
+  const dayIndex = new Map(days.map((d, i) => [d, i]));
+  const cells = days.map(() => new Array<number>(HOUR_BLOCKS).fill(0));
+
+  for (const e of entries) {
+    const di = dayIndex.get(localDayKey(e.timestamp));
+    if (di === undefined) {
+      continue;
+    }
+    const hour = new Date(e.timestamp).getHours();
+    const block = Math.min(HOUR_BLOCKS - 1, Math.floor(hour / HOURS_PER_BLOCK));
+    cells[di][block] += 1;
+  }
+
+  let max = 0;
+  for (const row of cells) {
+    for (const c of row) {
+      if (c > max) {
+        max = c;
+      }
+    }
+  }
+  return { days, cells, max };
+};
+
+/** Reference token budget the benchmark sentence compares against. */
+export const BENCHMARK_TOKENS = 100_000;
+
+/**
+ * Short, honest comparison of the range's token usage against a fixed reference
+ * budget. Never fabricates precision — rounds to whole percent.
+ */
+export const benchmarkSentence = (
+  tokens: number,
+  benchmark: number = BENCHMARK_TOKENS
+): string => {
+  if (tokens <= 0) {
+    return "No token usage in this range yet.";
+  }
+  const pct = Math.round((tokens / benchmark) * 100);
+  const ref = `${(benchmark / 1000).toLocaleString()}k-token reference budget`;
+  if (pct >= 100) {
+    return `You've used ${tokens.toLocaleString()} tokens — ${pct}% of the ${ref}.`;
+  }
+  return `You've used ${tokens.toLocaleString()} tokens — ${pct}% of the ${ref}, ${
+    100 - pct
+  }% headroom left.`;
 };
 
 /**

@@ -8,13 +8,18 @@
 import { describe, expect, it } from "vitest";
 import {
   activeDays,
+  benchmarkSentence,
   costTotal,
   favoriteModel,
   filterByRange,
   heatmapBuckets,
+  HOUR_BLOCKS,
+  hourBlockHeatmap,
   intensityLevel,
+  messageCount,
   peakHour,
   perPresetBreakdown,
+  sessionCount,
   streaks,
   totalCorrections,
   totalTokens,
@@ -237,5 +242,55 @@ describe("intensityLevel", () => {
   });
   it("returns 0 when max is 0", () => {
     expect(intensityLevel(0, 0)).toBe(0);
+  });
+});
+
+describe("sessionCount", () => {
+  it("returns 0 for no entries and 1 for a single entry", () => {
+    expect(sessionCount([])).toBe(0);
+    expect(sessionCount([entry()])).toBe(1);
+  });
+  it("splits into a new session when the idle gap exceeds the threshold", () => {
+    const entries = [
+      entry({ timestamp: at(2024, 6, 15, 9) }),
+      entry({ timestamp: at(2024, 6, 15, 9) }), // same hour → same session
+      entry({ timestamp: at(2024, 6, 15, 14) }), // +5h → new session
+      entry({ timestamp: at(2024, 6, 16, 14) }), // next day → new session
+    ];
+    expect(sessionCount(entries, 30)).toBe(3);
+  });
+});
+
+describe("messageCount", () => {
+  it("counts one message per entry", () => {
+    expect(messageCount([])).toBe(0);
+    expect(messageCount([entry(), entry(), entry()])).toBe(3);
+  });
+});
+
+describe("hourBlockHeatmap", () => {
+  it("places entries into the correct day column and 4-hour block row", () => {
+    const entries = [
+      entry({ timestamp: at(2024, 6, 20, 1) }), // block 0 (00–04)
+      entry({ timestamp: at(2024, 6, 20, 2) }), // block 0
+      entry({ timestamp: at(2024, 6, 20, 21) }), // block 5 (20–24)
+    ];
+    const hm = hourBlockHeatmap(entries, "7d", NOW);
+    expect(hm.days).toHaveLength(7);
+    expect(hm.cells[0]).toHaveLength(HOUR_BLOCKS);
+    const lastDay = hm.cells.length - 1; // today = 2024-06-20
+    expect(hm.cells[lastDay][0]).toBe(2);
+    expect(hm.cells[lastDay][5]).toBe(1);
+    expect(hm.max).toBe(2);
+  });
+});
+
+describe("benchmarkSentence", () => {
+  it("reports an empty message when there is no usage", () => {
+    expect(benchmarkSentence(0)).toBe("No token usage in this range yet.");
+  });
+  it("reports a percentage of the reference budget", () => {
+    expect(benchmarkSentence(50_000, 100_000)).toContain("50%");
+    expect(benchmarkSentence(150_000, 100_000)).toContain("150%");
   });
 });

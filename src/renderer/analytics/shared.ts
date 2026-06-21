@@ -73,6 +73,63 @@ export const sumCost = (entries: HistoryEntry[]): CostSum => {
   return { totalUsd, pricedCount, total: entries.length, hasNa };
 };
 
+/** Local-day key "YYYY-MM-DD" for a Date (local timezone, no UTC round-trip). */
+export const dayKeyOfDate = (d: Date): string => {
+  const year = d.getFullYear();
+  const month = `${d.getMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+/** Local-day key "YYYY-MM-DD" for an ISO timestamp (local timezone). */
+export const dayKeyOfIso = (iso: string): string => dayKeyOfDate(new Date(iso));
+
+/**
+ * Dense, inclusive list of local-day keys covering the range window, oldest
+ * first. For "7d"/"30d" the window is the last N days ending today. For "all"
+ * it spans the earliest entry's day → today (or just today when empty). Empty
+ * days are present so timelines/heatmaps render gaps. `now` injected for tests.
+ */
+export const denseDayKeys = (
+  entries: HistoryEntry[],
+  range: AnalyticsRange,
+  now: Date
+): string[] => {
+  const end = new Date(now);
+  end.setHours(0, 0, 0, 0);
+
+  let start: Date;
+  if (range === "all") {
+    if (entries.length === 0) {
+      start = new Date(end);
+    } else {
+      let earliest = Infinity;
+      for (const e of entries) {
+        const t = new Date(e.timestamp).getTime();
+        if (t < earliest) {
+          earliest = t;
+        }
+      }
+      start = new Date(earliest);
+      start.setHours(0, 0, 0, 0);
+    }
+  } else {
+    start = new Date(end);
+    start.setDate(start.getDate() - (RANGE_DAYS[range] - 1));
+  }
+
+  const keys: string[] = [];
+  const cursor = new Date(start);
+  // Safety cap (~6 years) to avoid runaway loops on bad data.
+  let guard = 0;
+  while (cursor.getTime() <= end.getTime() && guard < 2200) {
+    keys.push(dayKeyOfDate(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+    guard += 1;
+  }
+  return keys;
+};
+
 /**
  * Format a USD total: exact "$0.00" for zero, sub-cent precision so tiny costs
  * don't collapse to "$0.00", else 2 decimals. Mirrors #56's per-entry approach.

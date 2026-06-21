@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { twJoin } from "tailwind-merge";
 import {
   DASHBOARD_TABS,
   DEFAULT_DASHBOARD_TAB_INDEX,
@@ -14,11 +15,26 @@ import { OverviewPanel } from "../components/OverviewPanel";
 import { SettingsButton } from "../components/SettingsIcon";
 import { SettingsModal } from "../components/SettingsModal";
 import { TextAreaBox } from "../components/TextAreaBox";
+import type { AnalyticsRange } from "../analytics/shared";
 import type { HistoryEntry, HistoryFeatureId } from "~/stores/historyStore";
+
+/** Range options for the analytics tabs (shared header pill group). */
+const RANGES: { id: AnalyticsRange; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "30d", label: "30d" },
+  { id: "7d", label: "7d" },
+];
+
+/** Tabs that read the shared time-range pills. */
+const RANGE_AWARE_TABS = new Set(["overview", "models"]);
 
 /**
  * Main App component for FixLang Preview UI.
- * Handles API call loading spinner near the mouse, settings modal, and text display.
+ *
+ * Full-screen dashboard: a top header hosts the tab navigation (left) plus the
+ * time-range pills + settings button (right); clicking a tab swaps the whole
+ * content area. The History tab hosts the history list alongside the Last
+ * Action Preview text areas (the original main view).
  */
 const App: React.FC = () => {
   // History state — flat list combining corrections + promptGen buckets
@@ -36,11 +52,11 @@ const App: React.FC = () => {
     completionTokens: 0,
     timestamp: new Date().toISOString(),
   });
-  const [historyOpen, setHistoryOpen] = useState<boolean>(true);
-  // Active dashboard tab — defaults to History so existing users see no change.
+  // Active dashboard tab + shared analytics time range.
   const [activeDashboardTab, setActiveDashboardTab] = useState<number>(
     DEFAULT_DASHBOARD_TAB_INDEX
   );
+  const [range, setRange] = useState<AnalyticsRange>("all");
 
   // Single stable reference shared by both useEffects and the clear handler.
   // Fetches both store buckets, merges, and sorts into the history state.
@@ -170,40 +186,83 @@ const App: React.FC = () => {
       .catch((err: Error) => console.error(`Failed to clear history`, err));
   };
 
-  // Corrections-bucket subset for the Overview tab (#57 aggregates corrections
-  // only; PromptGen lives in its own bucket and is excluded from Overview).
+  // Corrections-bucket subset for the analytics tabs (aggregate corrections
+  // only; PromptGen lives in its own bucket and is excluded).
   const correctionsHistory = history.filter(
     (e) => e.presetName !== "PromptGen"
   );
 
-  // Tab panel contents. History hosts the extracted panel; Overview reads from
-  // the already-fetched history state (no network/IPC on tab switch). Models /
-  // OpenRouter remain inert placeholders until #58/#59 wire their data.
+  // History tab body: the history list beside the Last Action Preview.
+  const historyTab = (
+    <div className="flex h-full gap-4">
+      <aside className="flex w-72 shrink-0 flex-col overflow-hidden rounded-lg border border-gray-700 bg-gray-800 p-3">
+        <HistoryPanel
+          history={history}
+          onSelectEntry={handleSelectEntry}
+          onDeleteEntry={handleDeleteEntry}
+          onClear={handleClear}
+        />
+      </aside>
+      <section className="flex flex-1 flex-col gap-6 overflow-y-auto">
+        <h2 className="text-center text-2xl font-bold text-blue-400">
+          Last Action Preview
+        </h2>
+        <div className="flex flex-1 flex-col gap-8">
+          <TextAreaBox
+            label="Original Text"
+            value={lastHistoryData.original}
+            onChange={(value) =>
+              setLastHistoryData({
+                ...lastHistoryData,
+                original: value,
+                timestamp: new Date().toISOString(),
+              })
+            }
+            textCount={lastHistoryData.promptTokens}
+            model={formatModelLineage(
+              lastHistoryData.model,
+              lastHistoryData.resolvedModel
+            )}
+            className="flex-1"
+          />
+          <TextAreaBox
+            label="Result Text"
+            value={lastHistoryData.corrected}
+            onChange={(value) =>
+              setLastHistoryData({
+                ...lastHistoryData,
+                corrected: value,
+                timestamp: new Date().toISOString(),
+              })
+            }
+            textCount={lastHistoryData.completionTokens}
+            className="flex-1"
+          />
+        </div>
+      </section>
+    </div>
+  );
+
+  // Tab panel contents. Analytics tabs read the shared range; History hosts the
+  // list + preview; OpenRouter keeps its own data hook.
   const tabPanels: Record<string, React.ReactNode> = {
-    overview: <OverviewPanel history={correctionsHistory} />,
-    history: (
-      <HistoryPanel
-        history={history}
-        onSelectEntry={handleSelectEntry}
-        onDeleteEntry={handleDeleteEntry}
-        onClear={handleClear}
-      />
-    ),
-    models: <ModelsPanel history={correctionsHistory} />,
+    overview: <OverviewPanel history={correctionsHistory} range={range} />,
+    history: historyTab,
+    models: <ModelsPanel history={correctionsHistory} range={range} />,
     openrouter: (
       <OpenRouterPanel onOpenSettings={() => setIsSettingsOpen(true)} />
     ),
   };
 
+  const activeTabId = DASHBOARD_TABS[activeDashboardTab]?.id ?? "overview";
+  const showRange = RANGE_AWARE_TABS.has(activeTabId);
+
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 font-sans flex">
-      {/* Sidebar dashboard panel (tabs select the left-panel content) */}
-      <aside
-        className={`relative z-10 flex flex-col bg-gray-800 border-r border-gray-700 h-screen transform transition-all duration-300 ease-in-out group *:transition-opacity *:duration-300 ${historyOpen ? "p-4 translate-x-0 w-64 " : "-translate-x-full w-0 overflow-hidden px-0 py-4 *:opacity-0"}`}
-      >
-        {/* Dashboard tab navigation — mirrors SettingsModal's ARIA tab pattern */}
-        <div
-          className="mb-3 grid grid-cols-2 gap-1 rounded-lg"
+    <div className="flex h-screen flex-col bg-gray-900 font-sans text-gray-100">
+      {/* Shared header: tabs (left) + range pills & settings (right). */}
+      <header className="flex items-center justify-between gap-4 border-b border-gray-700 bg-gray-800 px-4 py-2">
+        <nav
+          className="flex gap-1"
           role="tablist"
           aria-label="Dashboard tabs"
         >
@@ -219,117 +278,75 @@ const App: React.FC = () => {
                 tabIndex={isActive ? 0 : -1}
                 onClick={() => setActiveDashboardTab(index)}
                 type="button"
-                className={`transition-all duration-200 rounded-md font-medium text-xs py-1 ${isActive ? "bg-blue-600 text-white shadow-md" : "text-gray-300 hover:bg-gray-600 hover:text-gray-100 bg-gray-700"}`}
+                className={twJoin(
+                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-blue-600 text-white shadow"
+                    : "text-gray-400 hover:bg-gray-700 hover:text-gray-100"
+                )}
               >
                 {tab.label}
               </button>
             );
           })}
-        </div>
+        </nav>
 
-        {/* Tab panels — only the active panel is rendered */}
-        <div className="flex flex-1 flex-col overflow-hidden">
-          {DASHBOARD_TABS.map(
-            (tab, index) =>
-              activeDashboardTab === index && (
-                <div
-                  key={tab.id}
-                  id={`dashboard-panel-${tab.id}`}
-                  role="tabpanel"
-                  aria-labelledby={`dashboard-tab-${tab.id}`}
-                  tabIndex={0}
-                  className="flex flex-1 flex-col overflow-hidden"
+        <div className="flex items-center gap-3">
+          {showRange && (
+            <div
+              className="flex gap-1 rounded-lg bg-gray-900/60 p-0.5"
+              role="group"
+              aria-label="Time range"
+            >
+              {RANGES.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => setRange(r.id)}
+                  aria-pressed={range === r.id}
+                  className={twJoin(
+                    "rounded-md px-3 py-1 text-xs font-medium transition-colors",
+                    range === r.id
+                      ? "bg-blue-600 text-white"
+                      : "text-gray-400 hover:text-gray-100"
+                  )}
                 >
-                  {tabPanels[tab.id]}
-                </div>
-              )
+                  {r.label}
+                </button>
+              ))}
+            </div>
           )}
+          <SettingsButton onClick={() => setIsSettingsOpen(true)} />
         </div>
-      </aside>
-      {/* Main content area */}
-      <main className="flex-1 p-6 flex flex-col relative">
-        {/* Toggle history panel button */}
-        <button
-          type="button"
-          onClick={() => setHistoryOpen(!historyOpen)}
-          className="absolute left-4 top-4 p-2 text-gray-400 hover:text-white rounded-lg bg-gray-700"
-          aria-label="Toggle history panel"
+      </header>
+
+      {/* Content area — only the active tab's panel is rendered. */}
+      <main className="flex-1 overflow-y-auto p-6">
+        <div
+          id={`dashboard-panel-${activeTabId}`}
+          role="tabpanel"
+          aria-labelledby={`dashboard-tab-${activeTabId}`}
+          tabIndex={0}
+          className="h-full"
         >
-          <svg
-            className={`size-4 transform transition-transform duration-200 ${historyOpen ? "rotate-180" : ""}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
-        </button>
-        {/* Header with Profile Selector and Settings Button */}
-        <div className="mb-12">
-          <h1 className="text-3xl font-bold text-blue-400 text-center">
-            Last Action Preview
-          </h1>
-          <div className="absolute top-3 right-3 flex items-center gap-3">
-            <SettingsButton onClick={() => setIsSettingsOpen(true)} />
-          </div>
+          {tabPanels[activeTabId]}
         </div>
-
-        {/* Text Areas */}
-        <div className="flex flex-col gap-10 flex-1">
-          {/* Original Text Area */}
-          <TextAreaBox
-            label="Original Text"
-            value={lastHistoryData.original}
-            onChange={(value) =>
-              setLastHistoryData({
-                ...lastHistoryData,
-                original: value,
-                timestamp: new Date().toISOString(),
-              })
-            }
-            textCount={lastHistoryData.promptTokens}
-            model={formatModelLineage(
-              lastHistoryData.model,
-              lastHistoryData.resolvedModel,
-            )}
-            className="flex-1"
-          />
-
-          {/* Fixed Text Area */}
-          <TextAreaBox
-            label="Result Text"
-            value={lastHistoryData.corrected}
-            onChange={(value) =>
-              setLastHistoryData({
-                ...lastHistoryData,
-                corrected: value,
-                timestamp: new Date().toISOString(),
-              })
-            }
-            textCount={lastHistoryData.completionTokens}
-            className="flex-1"
-          />
-        </div>
-        <SettingsModal
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
-          initialTab={initialSettingsTab}
-        />
-        <HistoryReviewModal
-          isOpen={showHistoryReview}
-          data={lastHistoryData}
-          onClose={() => setShowHistoryReview(false)}
-        />
-        <ModelManagerDialog
-          isOpen={showModelManager}
-          onClose={() => setShowModelManager(false)}
-        />
       </main>
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        initialTab={initialSettingsTab}
+      />
+      <HistoryReviewModal
+        isOpen={showHistoryReview}
+        data={lastHistoryData}
+        onClose={() => setShowHistoryReview(false)}
+      />
+      <ModelManagerDialog
+        isOpen={showModelManager}
+        onClose={() => setShowModelManager(false)}
+      />
     </div>
   );
 };

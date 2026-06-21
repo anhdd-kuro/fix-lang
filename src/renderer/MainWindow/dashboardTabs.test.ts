@@ -39,9 +39,9 @@ describe("DASHBOARD_TABS", () => {
     ]);
   });
 
-  it("defaults the active tab to History (index 1)", () => {
-    expect(DEFAULT_DASHBOARD_TAB_INDEX).toBe(1);
-    expect(DASHBOARD_TABS[DEFAULT_DASHBOARD_TAB_INDEX].id).toBe("history");
+  it("defaults the active tab to Overview (index 0)", () => {
+    expect(DEFAULT_DASHBOARD_TAB_INDEX).toBe(0);
+    expect(DASHBOARD_TABS[DEFAULT_DASHBOARD_TAB_INDEX].id).toBe("overview");
   });
 });
 

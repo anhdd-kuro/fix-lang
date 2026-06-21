@@ -9,6 +9,7 @@ import {
   UNKNOWN_MODEL_LABEL,
   groupKeyForEntry,
   perModelBreakdown,
+  tokensPerDay,
 } from "./modelsAggregations";
 import { filterByRange } from "../analytics/shared";
 import type { HistoryEntry } from "~/stores/historyStore";
@@ -139,5 +140,37 @@ describe("perModelBreakdown", () => {
 
     const rowsAll = perModelBreakdown(filterByRange(entries, "all", NOW));
     expect(rowsAll).toHaveLength(2);
+  });
+});
+
+describe("perModelBreakdown input/output split", () => {
+  it("sums prompt tokens as input and completion tokens as output per model", () => {
+    const rows = perModelBreakdown([
+      entry({ model: "m1", promptTokens: 10, completionTokens: 3 }),
+      entry({ model: "m1", promptTokens: 5, completionTokens: 2 }),
+      entry({ model: "m2", promptTokens: 100, completionTokens: 50 }),
+    ]);
+    const m1 = rows.find((r) => r.model === "m1");
+    const m2 = rows.find((r) => r.model === "m2");
+    expect(m1?.inputTokens).toBe(15);
+    expect(m1?.outputTokens).toBe(5);
+    expect(m1?.totalTokens).toBe(20);
+    expect(m2?.inputTokens).toBe(100);
+    expect(m2?.outputTokens).toBe(50);
+  });
+});
+
+describe("tokensPerDay", () => {
+  it("produces a dense daily token series (oldest first) over the window", () => {
+    const entries = [
+      entry({ timestamp: at(2024, 6, 20, 9), promptTokens: 10, completionTokens: 5 }),
+      entry({ timestamp: at(2024, 6, 20, 11), promptTokens: 1, completionTokens: 1 }),
+      entry({ timestamp: at(2024, 6, 18, 9), promptTokens: 4, completionTokens: 0 }),
+    ];
+    const bars = tokensPerDay(entries, "7d", NOW);
+    expect(bars).toHaveLength(7);
+    expect(bars[bars.length - 1]).toEqual({ date: "2024-06-20", tokens: 17 });
+    expect(bars.find((b) => b.date === "2024-06-18")?.tokens).toBe(4);
+    expect(bars.find((b) => b.date === "2024-06-19")?.tokens).toBe(0);
   });
 });

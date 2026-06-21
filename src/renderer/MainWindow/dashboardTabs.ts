@@ -26,9 +26,9 @@ export const DASHBOARD_TABS: readonly DashboardTabMeta[] = [
   { id: "openrouter", label: "OpenRouter" },
 ] as const;
 
-/** Default active tab index — History. */
+/** Default active tab index — Overview (analytics landing view). */
 export const DEFAULT_DASHBOARD_TAB_INDEX = DASHBOARD_TABS.findIndex(
-  (t) => t.id === "history"
+  (t) => t.id === "overview"
 );
 
 /** Clamp an arbitrary index into the valid tab range (defensive). */

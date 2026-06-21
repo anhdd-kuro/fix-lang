@@ -1,107 +1,150 @@
 /**
  * @file ModelsPanel.tsx
- * @description Models dashboard tab (#58). Presentational: receives the
- * already-fetched corrections `history` (owned + live-updated by App) and
- * renders a per-model table (usage share %, tokens, N/A-aware cost) from the
- * PURE `perModelBreakdown`, grouped by the served model (`resolvedModel ??
- * model`). No fetch/IPC on mount or tab switch — reads from props (#54 rule).
+ * @description Models dashboard tab. Presentational: receives the
+ * already-fetched corrections `history` (owned + live-updated by App) and the
+ * active range (lifted to the shared header). Renders a token-volume-over-time
+ * bar chart plus a ranked per-model list (marker, name, input/output tokens,
+ * usage %) from the PURE aggregators in modelsAggregations.ts. No fetch/IPC on
+ * mount or tab switch (reads from props).
  */
 import { useMemo, useState } from "react";
-import { twJoin } from "tailwind-merge";
-import { filterByRange, formatUsd, type AnalyticsRange } from "../analytics/shared";
-import { perModelBreakdown } from "../MainWindow/modelsAggregations";
+import { filterByRange, type AnalyticsRange } from "../analytics/shared";
+import {
+  perModelBreakdown,
+  tokensPerDay,
+} from "../MainWindow/modelsAggregations";
 import type { HistoryEntry } from "~/stores/historyStore";
 
 type ModelsPanelProps = {
   /** Corrections-bucket history (App passes the corrections subset). */
   history: HistoryEntry[];
+  /** Active time range (All / 30d / 7d), owned by the shared header. */
+  range: AnalyticsRange;
 };
 
-const RANGES: { id: AnalyticsRange; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "30d", label: "30d" },
-  { id: "7d", label: "7d" },
-];
+/** Stable marker palette — assigned by rank so the top model is always blue. */
+const MARKER_COLORS = [
+  "#60a5fa",
+  "#34d399",
+  "#fbbf24",
+  "#f87171",
+  "#a78bfa",
+  "#22d3ee",
+  "#f472b6",
+  "#a3e635",
+] as const;
 
-/** Cost cell text: N/A when the whole group is unpriced, else USD (+ partial note). */
-const costCell = (
-  estimatedCostUsd: number | null,
-  costHasNa: boolean
-): string => {
-  if (estimatedCostUsd === null) {
-    return "N/A";
-  }
-  return costHasNa ? `${formatUsd(estimatedCostUsd)} (partial)` : formatUsd(estimatedCostUsd);
-};
+/** How many model rows to show before "Show more". */
+const COLLAPSED_ROWS = 5;
 
-export const ModelsPanel = ({ history }: ModelsPanelProps) => {
-  const [range, setRange] = useState<AnalyticsRange>("all");
+const markerColor = (rank: number): string =>
+  MARKER_COLORS[rank % MARKER_COLORS.length];
 
-  const rows = useMemo(() => {
+export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
+  const [expanded, setExpanded] = useState<boolean>(false);
+
+  const { rows, bars, maxTokens } = useMemo(() => {
     const now = new Date();
-    return perModelBreakdown(filterByRange(history, range, now));
+    const filtered = filterByRange(history, range, now);
+    const bars = tokensPerDay(filtered, range, now);
+    return {
+      rows: perModelBreakdown(filtered),
+      bars,
+      maxTokens: bars.reduce((m, b) => Math.max(m, b.tokens), 0),
+    };
   }, [history, range]);
 
+  if (rows.length === 0) {
+    return (
+      <p className="p-4 text-sm text-gray-400">
+        No model usage in this range yet.
+      </p>
+    );
+  }
+
+  const visibleRows = expanded ? rows : rows.slice(0, COLLAPSED_ROWS);
+  const hiddenCount = rows.length - visibleRows.length;
+
   return (
-    <div className="flex h-full flex-col gap-4 overflow-y-auto p-1">
-      {/* Range toggle — mirrors the Overview/dashboard filter-button styling. */}
-      <div className="flex gap-1" role="group" aria-label="Models range">
-        {RANGES.map((r) => (
-          <button
-            key={r.id}
-            type="button"
-            onClick={() => setRange(r.id)}
-            aria-pressed={range === r.id}
-            className={twJoin(
-              "px-2 py-0.5 text-xs rounded-sm",
-              range === r.id
-                ? "bg-blue-600 text-white"
-                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-            )}
-          >
-            {r.label}
-          </button>
-        ))}
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+      {/* Token volume over time — thin blue bars. */}
+      <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
+        <div className="mb-3 text-xs uppercase tracking-wide text-gray-400">
+          Token usage over time
+        </div>
+        <div className="overflow-x-auto">
+          <div className="flex h-28 items-end gap-[2px]">
+            {bars.map((b) => {
+              const pct = maxTokens > 0 ? (b.tokens / maxTokens) * 100 : 0;
+              return (
+                <div
+                  key={b.date}
+                  title={`${b.date} — ${b.tokens.toLocaleString()} tokens`}
+                  className="w-[5px] shrink-0 rounded-t-[1px] bg-blue-500/80 hover:bg-blue-400"
+                  // Inline height: a data-driven per-bar value, not a static
+                  // style — keep at least a 1px sliver for non-zero days.
+                  style={{
+                    height: `${b.tokens > 0 ? Math.max(pct, 2) : 0}%`,
+                  }}
+                />
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      {rows.length === 0 ? (
-        <p className="text-sm text-gray-400">No model usage in this range yet.</p>
-      ) : (
+      {/* Ranked model list. */}
+      <div className="rounded-lg border border-gray-700 bg-gray-800 p-2">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs uppercase tracking-wide text-gray-400">
-              <th className="py-1 pr-2 font-medium">Model</th>
-              <th className="py-1 px-2 text-right font-medium">Usage</th>
-              <th className="py-1 px-2 text-right font-medium">Tokens</th>
-              <th className="py-1 pl-2 text-right font-medium">Est. cost</th>
+              <th className="px-2 py-2 font-medium">Model</th>
+              <th className="px-2 py-2 text-right font-medium">Input</th>
+              <th className="px-2 py-2 text-right font-medium">Output</th>
+              <th className="px-2 py-2 text-right font-medium">Usage</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.model} className="border-t border-gray-700">
-                <td
-                  className="py-1.5 pr-2 text-gray-100 max-w-[10rem] truncate"
-                  title={row.model}
-                >
-                  {row.model}
-                </td>
-                <td className="py-1.5 px-2 text-right tabular-nums text-gray-300">
-                  {row.usageCount}{" "}
-                  <span className="text-gray-500">
-                    ({row.usageSharePct.toFixed(1)}%)
+            {visibleRows.map((row, rank) => (
+              <tr key={row.model} className="border-t border-gray-700/60">
+                <td className="px-2 py-2 text-gray-100">
+                  <span className="flex items-center gap-2">
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: markerColor(rank) }}
+                    />
+                    <span
+                      className="max-w-[16rem] truncate"
+                      title={row.model}
+                    >
+                      {row.model}
+                    </span>
                   </span>
                 </td>
-                <td className="py-1.5 px-2 text-right tabular-nums text-gray-300">
-                  {row.totalTokens.toLocaleString()}
+                <td className="px-2 py-2 text-right tabular-nums text-gray-300">
+                  {row.inputTokens.toLocaleString()}
                 </td>
-                <td className="py-1.5 pl-2 text-right tabular-nums text-gray-300">
-                  {costCell(row.estimatedCostUsd, row.costHasNa)}
+                <td className="px-2 py-2 text-right tabular-nums text-gray-300">
+                  {row.outputTokens.toLocaleString()}
+                </td>
+                <td className="px-2 py-2 text-right tabular-nums text-gray-300">
+                  {row.usageSharePct.toFixed(1)}%
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      )}
+
+        {rows.length > COLLAPSED_ROWS && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="mt-1 w-full rounded-md px-2 py-1.5 text-xs text-blue-400 hover:bg-gray-700/60"
+          >
+            {expanded ? "Show less" : `Show ${hiddenCount} more`}
+          </button>
+        )}
+      </div>
     </div>
   );
 };
