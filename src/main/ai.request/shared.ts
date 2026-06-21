@@ -124,6 +124,27 @@ export const fetchAvailableModels = async (
 };
 
 /**
+ * Read the cached `Model[]` (populated by `fetchAvailableModels`). Reused by
+ * the #56 cost snapshot to build a price map without a new network path.
+ */
+export const getCachedModels = (): Model[] =>
+  (apiStore.get("models") as Model[]) || [];
+
+/**
+ * Decide whether a served model id ran locally (Ollama). Derived from the
+ * cached model list WITHOUT touching the request pipeline (#56 HITL #2): a
+ * served id is local if a cached `Model` with that id carries the `local` flag.
+ * Returns false when the id is unknown (it will then be priced or fall to N/A).
+ */
+export const isLocalModelId = (servedId: string | undefined): boolean => {
+  if (!servedId) {
+    return false;
+  }
+  const models = getCachedModels();
+  return models.some((m) => m.id === servedId && m.local !== undefined);
+};
+
+/**
  * Makes an AI request using OpenAI API with centralized settings management
  * @param options Configuration options for the AI request
  * @returns Promise with the AI response and token information

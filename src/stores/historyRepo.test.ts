@@ -265,7 +265,109 @@ describe("pure mappers", () => {
       model: p.model,
       resolved_model: p.resolved_model,
       preset_name: p.preset_name,
+      estimated_cost_usd: p.estimated_cost_usd,
+      price_prompt: p.price_prompt,
+      price_completion: p.price_completion,
+      cost_status: p.cost_status,
     });
     expect(back).toEqual(entry);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cost snapshot (#56) — round-trip + NULL→undefined + column migration.
+// ---------------------------------------------------------------------------
+describe("cost snapshot persistence", () => {
+  it("round-trips cost fields including the cost_status discriminator", () => {
+    const entry = makeEntry({
+      timestamp: "2024-05-01T00:00:00Z",
+      estimatedCostUsd: 0.006,
+      pricePrompt: "0.000002",
+      priceCompletion: "0.000008",
+      costStatus: "ok",
+    });
+    repo.insert("corrections", entry);
+
+    const [stored] = repo.getByFeature("corrections");
+    expect(stored.estimatedCostUsd).toBeCloseTo(0.006, 10);
+    expect(stored.pricePrompt).toBe("0.000002");
+    expect(stored.priceCompletion).toBe("0.000008");
+    expect(stored.costStatus).toBe("ok");
+  });
+
+  it("round-trips a genuine zero (local) distinctly from N/A", () => {
+    repo.insert(
+      "corrections",
+      makeEntry({
+        timestamp: "2024-05-02T00:00:00Z",
+        estimatedCostUsd: 0,
+        costStatus: "zero",
+      })
+    );
+    const [stored] = repo.getByFeature("corrections");
+    expect(stored.costStatus).toBe("zero");
+    expect(stored.estimatedCostUsd).toBe(0);
+  });
+
+  it("reads cost fields back as undefined when absent (legacy → N/A)", () => {
+    repo.insert(
+      "corrections",
+      makeEntry({ timestamp: "2024-05-03T00:00:00Z" })
+    );
+    const [stored] = repo.getByFeature("corrections");
+    expect(stored.estimatedCostUsd).toBeUndefined();
+    expect(stored.pricePrompt).toBeUndefined();
+    expect(stored.priceCompletion).toBeUndefined();
+    expect(stored.costStatus).toBeUndefined();
+  });
+});
+
+describe("cost column migration (v1 table → v2)", () => {
+  it("adds the cost columns to a pre-#56 table and reads old rows as N/A", () => {
+    // Simulate a #53-era DB: history table WITHOUT cost columns + a legacy row.
+    const legacyDb = new DatabaseSync(":memory:");
+    legacyDb.exec(`
+      CREATE TABLE history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        feature_id TEXT NOT NULL,
+        original TEXT,
+        corrected TEXT,
+        timestamp TEXT NOT NULL,
+        prompt_tokens INTEGER,
+        completion_tokens INTEGER,
+        model TEXT,
+        resolved_model TEXT,
+        preset_name TEXT
+      );
+      CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+    `);
+    legacyDb
+      .prepare(
+        "INSERT INTO history (feature_id, original, corrected, timestamp) VALUES (?,?,?,?)"
+      )
+      .run("corrections", "old", "old fixed", "2024-01-01T00:00:00Z");
+
+    // createHistoryRepo → ensureSchema → ensureCostColumns must ALTER the table.
+    const migratedRepo = createHistoryRepo(legacyDb);
+
+    const cols = (
+      legacyDb.prepare("PRAGMA table_info(history)").all() as { name: string }[]
+    ).map((c) => c.name);
+    expect(cols).toContain("estimated_cost_usd");
+    expect(cols).toContain("price_prompt");
+    expect(cols).toContain("price_completion");
+    expect(cols).toContain("cost_status");
+
+    const [old] = migratedRepo.getByFeature("corrections");
+    expect(old.original).toBe("old");
+    expect(old.estimatedCostUsd).toBeUndefined();
+    expect(old.costStatus).toBeUndefined();
+
+    // Idempotent: constructing again does not error or duplicate columns.
+    createHistoryRepo(legacyDb);
+    const cols2 = (
+      legacyDb.prepare("PRAGMA table_info(history)").all() as { name: string }[]
+    ).length;
+    expect(cols2).toBe(cols.length);
   });
 });

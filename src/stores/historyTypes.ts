@@ -15,6 +15,13 @@ export type HistoryEntry = {
   model?: string;
   resolvedModel?: string; // Concrete model the provider served (resolves alias indirection); optional so legacy entries remain valid
   presetName?: string; // Snapshot of the producing preset's name at write time; optional so legacy entries remain valid
+  // Cost snapshot (#56) — captured at write time so it is immune to later price
+  // changes. All optional: legacy/migrated rows (NULL columns) round-trip to
+  // undefined and surface as N/A.
+  estimatedCostUsd?: number; // Total estimated USD cost (0 for local; absent when N/A)
+  pricePrompt?: string; // Per-token prompt price used (OpenRouter string); absent when N/A
+  priceCompletion?: string; // Per-token completion price used (OpenRouter string); absent when N/A
+  costStatus?: "ok" | "zero" | "na"; // Discriminates priced / genuine-$0 (local) / unpriced (N/A)
 };
 
 // Narrowed to only the two valid feature buckets. lastActionHistory is not a feature bucket.

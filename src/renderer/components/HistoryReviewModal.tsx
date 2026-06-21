@@ -1,9 +1,15 @@
 import React from "react";
 import CopyButton from "./CopyButton";
+import { formatCost } from "./historyCost";
+import type { HistoryEntry } from "~/stores/historyStore";
 
 type HistoryReviewModalProps = {
   isOpen: boolean;
-  data: { original: string; corrected: string; modelId?: string };
+  data: {
+    original: string;
+    corrected: string;
+    modelId?: string;
+  } & Pick<HistoryEntry, "costStatus" | "estimatedCostUsd">;
   onClose: () => void;
 };
 
@@ -18,11 +24,12 @@ const HistoryReviewModal: React.FC<HistoryReviewModalProps> = ({
       <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-2/3 max-w-2xl max-h-[90vh] overflow-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl text-gray-200">Last Correction</h2>
-          {data.modelId && (
-            <span className="text-sm text-gray-400">
-              Model: {data.modelId}
+          <div className="flex items-center gap-3 text-sm text-gray-400">
+            {data.modelId && <span>Model: {data.modelId}</span>}
+            <span title="Estimated cost at time of correction">
+              Cost: {formatCost(data)}
             </span>
-          )}
+          </div>
         </div>
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 flex flex-col">

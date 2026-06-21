@@ -32,6 +32,11 @@ type HistoryRow = {
   model: string | null;
   resolved_model: string | null;
   preset_name: string | null;
+  // Cost snapshot columns (#56) — added via guarded ALTER TABLE migration.
+  estimated_cost_usd: number | null;
+  price_prompt: string | null;
+  price_completion: string | null;
+  cost_status: string | null;
 };
 
 /** Bound parameters for an INSERT, mirroring `HistoryRow` column order. */
@@ -45,6 +50,10 @@ type HistoryInsertParams = {
   model: string | null;
   resolved_model: string | null;
   preset_name: string | null;
+  estimated_cost_usd: number | null;
+  price_prompt: string | null;
+  price_completion: string | null;
+  cost_status: string | null;
 };
 
 /** Inclusive timestamp window (+ optional feature filter) for analytics. */
@@ -104,6 +113,19 @@ export const rowToEntry = (row: HistoryRow): HistoryEntry => {
   if (row.preset_name !== null) {
     entry.presetName = row.preset_name;
   }
+  if (row.estimated_cost_usd !== null) {
+    entry.estimatedCostUsd = row.estimated_cost_usd;
+  }
+  if (row.price_prompt !== null) {
+    entry.pricePrompt = row.price_prompt;
+  }
+  if (row.price_completion !== null) {
+    entry.priceCompletion = row.price_completion;
+  }
+  if (row.cost_status !== null) {
+    // Stored as TEXT; the writer only ever persists the union values.
+    entry.costStatus = row.cost_status as HistoryEntry["costStatus"];
+  }
   return entry;
 };
 
@@ -124,12 +146,53 @@ export const entryToParams = (
   model: entry.model ?? null,
   resolved_model: entry.resolvedModel ?? null,
   preset_name: entry.presetName ?? null,
+  estimated_cost_usd: entry.estimatedCostUsd ?? null,
+  price_prompt: entry.pricePrompt ?? null,
+  price_completion: entry.priceCompletion ?? null,
+  cost_status: entry.costStatus ?? null,
 });
 
 /**
  * Create the schema (idempotent). Separated so the DB lifecycle module can
  * call it at open time and tests can construct a ready table on `:memory:`.
  */
+/**
+ * Cost-snapshot columns (#56). Added to fresh tables in the CREATE below and
+ * back-filled onto pre-existing tables via the guarded ALTER TABLE in
+ * `ensureCostColumns`. Existing rows default to NULL ⇒ surface as N/A.
+ */
+const COST_COLUMNS: readonly { name: string; ddl: string }[] = [
+  { name: "estimated_cost_usd", ddl: "estimated_cost_usd REAL" },
+  { name: "price_prompt", ddl: "price_prompt TEXT" },
+  { name: "price_completion", ddl: "price_completion TEXT" },
+  { name: "cost_status", ddl: "cost_status TEXT" },
+];
+
+/**
+ * Idempotently add the cost-snapshot columns to an already-created `history`
+ * table. `CREATE TABLE IF NOT EXISTS` will not alter an existing table, so for
+ * DBs created by #53 we add each missing column via `ALTER TABLE`, guarded by
+ * `PRAGMA table_info`. SQLite defaults the new columns to NULL on existing rows
+ * (→ N/A). Safe to run repeatedly and on `:memory:`.
+ */
+const ensureCostColumns = (db: DatabaseSync): void => {
+  const existing = new Set(
+    (db.prepare("PRAGMA table_info(history)").all() as { name: string }[]).map(
+      (c) => c.name
+    )
+  );
+  for (const column of COST_COLUMNS) {
+    if (!existing.has(column.name)) {
+      db.exec(`ALTER TABLE history ADD COLUMN ${column.ddl}`);
+    }
+  }
+  // Record the schema version (informational; the column guard is authoritative).
+  db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(
+    "schema_version",
+    "2"
+  );
+};
+
 const ensureSchema = (db: DatabaseSync): void => {
   db.exec(`
     CREATE TABLE IF NOT EXISTS history (
@@ -142,7 +205,11 @@ const ensureSchema = (db: DatabaseSync): void => {
       completion_tokens INTEGER,
       model TEXT,
       resolved_model TEXT,
-      preset_name TEXT
+      preset_name TEXT,
+      estimated_cost_usd REAL,
+      price_prompt TEXT,
+      price_completion TEXT,
+      cost_status TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_history_ts ON history(timestamp);
     CREATE INDEX IF NOT EXISTS idx_history_feature ON history(feature_id, timestamp);
@@ -151,6 +218,8 @@ const ensureSchema = (db: DatabaseSync): void => {
       value TEXT
     );
   `);
+  // Back-fill cost columns onto tables created before #56.
+  ensureCostColumns(db);
 };
 
 /**
@@ -163,9 +232,9 @@ export const createHistoryRepo = (db: DatabaseSync): HistoryRepo => {
 
   const insertStmt = db.prepare(
     `INSERT INTO history
-       (feature_id, original, corrected, timestamp, prompt_tokens, completion_tokens, model, resolved_model, preset_name)
+       (feature_id, original, corrected, timestamp, prompt_tokens, completion_tokens, model, resolved_model, preset_name, estimated_cost_usd, price_prompt, price_completion, cost_status)
      VALUES
-       (:feature_id, :original, :corrected, :timestamp, :prompt_tokens, :completion_tokens, :model, :resolved_model, :preset_name)`
+       (:feature_id, :original, :corrected, :timestamp, :prompt_tokens, :completion_tokens, :model, :resolved_model, :preset_name, :estimated_cost_usd, :price_prompt, :price_completion, :cost_status)`
   );
 
   const insertEntry = (featureId: HistoryFeatureId, entry: HistoryEntry): void => {
