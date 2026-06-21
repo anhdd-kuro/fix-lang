@@ -20,6 +20,7 @@ import {
   peakHour,
   perPresetBreakdown,
   sessionCount,
+  splitModelId,
   streaks,
   totalCorrections,
   totalTokens,
@@ -292,5 +293,37 @@ describe("benchmarkSentence", () => {
   it("reports a percentage of the reference budget", () => {
     expect(benchmarkSentence(50_000, 100_000)).toContain("50%");
     expect(benchmarkSentence(150_000, 100_000)).toContain("150%");
+  });
+});
+
+describe("splitModelId", () => {
+  it("splits provider/model on the first slash", () => {
+    expect(splitModelId("openai/gpt-4o")).toEqual({
+      provider: "openai",
+      model: "gpt-4o",
+    });
+    expect(splitModelId("anthropic/claude/opus")).toEqual({
+      provider: "anthropic",
+      model: "claude/opus",
+    });
+  });
+  it("no slash → provider null, model = whole id", () => {
+    expect(splitModelId("gpt-4o")).toEqual({ provider: null, model: "gpt-4o" });
+  });
+  it("null/blank → both null", () => {
+    expect(splitModelId(null)).toEqual({ provider: null, model: null });
+    expect(splitModelId("   ")).toEqual({ provider: null, model: null });
+  });
+});
+
+describe("hourBlockHeatmap default-range floor", () => {
+  it("'all' shows >=30 day columns even with a single day of history", () => {
+    const hm = hourBlockHeatmap([entry({ timestamp: at(2024, 6, 20, 9) })], "all", NOW);
+    expect(hm.days.length).toBeGreaterThanOrEqual(30);
+    expect(hm.days[hm.days.length - 1]).toBe("2024-06-20");
+  });
+  it("'7d' keeps the exact 7-day window (no floor)", () => {
+    const hm = hourBlockHeatmap([entry({ timestamp: at(2024, 6, 20, 9) })], "7d", NOW);
+    expect(hm.days).toHaveLength(7);
   });
 });

@@ -22,6 +22,7 @@ import {
   messageCount,
   peakHour,
   sessionCount,
+  splitModelId,
   streaks,
   totalTokens,
 } from "../MainWindow/overviewAggregations";
@@ -43,11 +44,11 @@ const LEVEL_CLASS = [
   "bg-blue-400",
 ] as const;
 
-/** Row labels for the 6 four-hour vertical blocks (block 0 = 00:00–04:00). */
-const BLOCK_LABELS = Array.from({ length: HOUR_BLOCKS }, (_, i) => {
-  const start = `${i * HOURS_PER_BLOCK}`.padStart(2, "0");
-  return `${start}h`;
-});
+/** Boundary labels for the hour-block axis: 0, 4, 8, …, 24 (HOUR_BLOCKS + 1). */
+const BOUNDARY_LABELS = Array.from(
+  { length: HOUR_BLOCKS + 1 },
+  (_, i) => `${i * HOURS_PER_BLOCK}`
+);
 
 export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
   const view = useMemo(() => {
@@ -63,7 +64,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
       days: activeDays(filtered),
       streak: streaks(filtered, now),
       peak: peakHour(filtered),
-      favorite: favoriteModel(filtered),
+      favorite: splitModelId(favoriteModel(filtered)),
       heatmap: hourBlockHeatmap(filtered, range, now),
     };
   }, [history, range]);
@@ -90,7 +91,8 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
         <StatCard label="Current streak" value={`${view.streak.current}d`} />
         <StatCard label="Longest streak" value={`${view.streak.longest}d`} />
         <StatCard label="Peak hour" value={peakValue} />
-        <StatCard label="Favorite model" value={view.favorite ?? "—"} />
+        <StatCard label="Favorite model" value={view.favorite.model ?? "—"} />
+        <StatCard label="Provider" value={view.favorite.provider ?? "—"} />
       </div>
 
       {/* Activity heatmap — columns = days, rows = 4-hour blocks of the day. */}
@@ -100,12 +102,10 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
         </div>
         <div className="overflow-x-auto">
           <div className="flex gap-2">
-            {/* Row labels (hour blocks). */}
-            <div className="flex shrink-0 flex-col justify-between py-[1px] text-[10px] tabular-nums text-gray-500">
-              {BLOCK_LABELS.map((label) => (
-                <span key={label} className="leading-3">
-                  {label}
-                </span>
+            {/* Boundary labels (0,4,…,24) aligned to the block gridlines. */}
+            <div className="flex shrink-0 flex-col justify-between text-[10px] leading-none tabular-nums text-gray-500">
+              {BOUNDARY_LABELS.map((label) => (
+                <span key={label}>{label}</span>
               ))}
             </div>
             {/* Day columns. */}

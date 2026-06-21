@@ -89,11 +89,16 @@ export const dayKeyOfIso = (iso: string): string => dayKeyOfDate(new Date(iso));
  * first. For "7d"/"30d" the window is the last N days ending today. For "all"
  * it spans the earliest entry's day → today (or just today when empty). Empty
  * days are present so timelines/heatmaps render gaps. `now` injected for tests.
+ *
+ * `minDays` enforces a floor on the window width (ending today), so a sparse
+ * history (e.g. a single day) still renders a meaningful span. It can only
+ * widen the window, never shrink it.
  */
 export const denseDayKeys = (
   entries: HistoryEntry[],
   range: AnalyticsRange,
-  now: Date
+  now: Date,
+  minDays?: number
 ): string[] => {
   const end = new Date(now);
   end.setHours(0, 0, 0, 0);
@@ -116,6 +121,16 @@ export const denseDayKeys = (
   } else {
     start = new Date(end);
     start.setDate(start.getDate() - (RANGE_DAYS[range] - 1));
+  }
+
+  // Apply the minimum-width floor: push `start` back so the window spans at
+  // least `minDays` days ending today (never shrinks an already-wider window).
+  if (minDays !== undefined && minDays > 0) {
+    const floor = new Date(end);
+    floor.setDate(floor.getDate() - (minDays - 1));
+    if (floor.getTime() < start.getTime()) {
+      start = floor;
+    }
   }
 
   const keys: string[] = [];

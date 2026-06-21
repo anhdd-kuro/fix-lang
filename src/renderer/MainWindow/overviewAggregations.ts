@@ -170,6 +170,33 @@ export const favoriteModel = (entries: HistoryEntry[]): string | null => {
   return best;
 };
 
+export type ModelProvider = {
+  /** Provider segment before the first "/" (e.g. "openai"); null when absent. */
+  provider: string | null;
+  /** Model segment after the first "/" (or the whole id when there's no "/"). */
+  model: string | null;
+};
+
+/**
+ * Split a served model id ("provider/model", e.g. "openai/gpt-4o") into its
+ * provider and model parts. No "/" → provider null, model = the whole id.
+ * null/blank → both null.
+ */
+export const splitModelId = (id: string | null): ModelProvider => {
+  const trimmed = id?.trim() ?? "";
+  if (trimmed.length === 0) {
+    return { provider: null, model: null };
+  }
+  const slash = trimmed.indexOf("/");
+  if (slash === -1) {
+    return { provider: null, model: trimmed };
+  }
+  return {
+    provider: trimmed.slice(0, slash),
+    model: trimmed.slice(slash + 1),
+  };
+};
+
 export type PresetBreakdownRow = { presetName: string; count: number };
 
 /** Untitled/legacy bucket label for entries with no presetName (HITL #4). */
@@ -292,18 +319,23 @@ export type HourBlockHeatmap = {
   max: number;
 };
 
+/** Minimum heatmap width on the default ("all") range: ≥30 days ending today. */
+export const HEATMAP_MIN_DAYS = 30;
+
 /**
- * Day × hour-block heatmap: horizontal axis = days (dense window), vertical
- * axis = 6 four-hour blocks of the day (block 0 = 00:00–04:00 … block 5 =
- * 20:00–24:00). Each cell counts entries that fall in that day + block (local
- * time). Pure; `now` injected.
+ * Day × hour-block heatmap: horizontal axis = days, vertical axis = 6 four-hour
+ * blocks of the day (block 0 = 00:00–04:00 … block 5 = 20:00–24:00). Each cell
+ * counts entries in that day + block (local time). On the default "all" range
+ * the window is floored to ≥30 days ending today, so a single day of history
+ * still renders a full month; "7d"/"30d" use their exact N. Pure; `now` injected.
  */
 export const hourBlockHeatmap = (
   entries: HistoryEntry[],
   range: OverviewRange,
   now: Date
 ): HourBlockHeatmap => {
-  const days = denseDayKeys(entries, range, now);
+  const minDays = range === "all" ? HEATMAP_MIN_DAYS : undefined;
+  const days = denseDayKeys(entries, range, now, minDays);
   const dayIndex = new Map(days.map((d, i) => [d, i]));
   const cells = days.map(() => new Array<number>(HOUR_BLOCKS).fill(0));
 
