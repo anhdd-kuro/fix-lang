@@ -8,6 +8,7 @@ import { formatModelLineage } from "../components/historyModel";
 import { HistoryPanel } from "../components/HistoryPanel";
 import HistoryReviewModal from "../components/HistoryReviewModal";
 import ModelManagerDialog from "../components/ModelManagerDialog";
+import { OverviewPanel } from "../components/OverviewPanel";
 import { PlaceholderPanel } from "../components/PlaceholderPanel";
 import { SettingsButton } from "../components/SettingsIcon";
 import { SettingsModal } from "../components/SettingsModal";
@@ -168,15 +169,17 @@ const App: React.FC = () => {
       .catch((err: Error) => console.error(`Failed to clear history`, err));
   };
 
-  // Tab panel contents. History hosts the extracted panel; the other three are
-  // inert placeholders (no network/IPC) until #57/#58/#59 wire their data.
+  // Corrections-bucket subset for the Overview tab (#57 aggregates corrections
+  // only; PromptGen lives in its own bucket and is excluded from Overview).
+  const correctionsHistory = history.filter(
+    (e) => e.presetName !== "PromptGen"
+  );
+
+  // Tab panel contents. History hosts the extracted panel; Overview reads from
+  // the already-fetched history state (no network/IPC on tab switch). Models /
+  // OpenRouter remain inert placeholders until #58/#59 wire their data.
   const tabPanels: Record<string, React.ReactNode> = {
-    overview: (
-      <PlaceholderPanel
-        title="Overview"
-        description="Usage and cost summary will appear here."
-      />
-    ),
+    overview: <OverviewPanel history={correctionsHistory} />,
     history: (
       <HistoryPanel
         history={history}
