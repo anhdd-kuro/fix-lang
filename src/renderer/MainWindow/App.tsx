@@ -1,30 +1,18 @@
-import { addDays, format } from "date-fns";
-import React, { useState, useEffect, useCallback, useDeferredValue } from "react";
-import HistoryEntryItem from "../components/HistoryEntryItem";
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  DASHBOARD_TABS,
+  DEFAULT_DASHBOARD_TAB_INDEX,
+  bucketsForClear,
+} from "./dashboardTabs";
 import { formatModelLineage } from "../components/historyModel";
+import { HistoryPanel } from "../components/HistoryPanel";
 import HistoryReviewModal from "../components/HistoryReviewModal";
 import ModelManagerDialog from "../components/ModelManagerDialog";
-import SearchInput from "../components/SearchInput";
+import { PlaceholderPanel } from "../components/PlaceholderPanel";
 import { SettingsButton } from "../components/SettingsIcon";
 import { SettingsModal } from "../components/SettingsModal";
 import { TextAreaBox } from "../components/TextAreaBox";
-import { TrashButton } from "../components/TrashButton";
-import useFuzzySearch from "../hooks/useFuzzySearch";
 import type { HistoryEntry, HistoryFeatureId } from "~/stores/historyStore";
-
-/**
- * Derive unique preset names from loaded history entries (corrections bucket),
- * preserving first-seen order. PromptGen is appended last as a fixed entry.
- */
-const deriveAvailableFilters = (entries: HistoryEntry[]): string[] => {
-  const seen = new Set<string>();
-  for (const e of entries) {
-    if (e.presetName && e.presetName !== "PromptGen") {
-      seen.add(e.presetName);
-    }
-  }
-  return [...seen, "PromptGen"];
-};
 
 /**
  * Main App component for FixLang Preview UI.
@@ -33,13 +21,6 @@ const deriveAvailableFilters = (entries: HistoryEntry[]): string[] => {
 const App: React.FC = () => {
   // History state — flat list combining corrections + promptGen buckets
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-
-  // Search state for fuzzy search
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const _deferredSearchQuery = useDeferredValue(searchQuery);
-
-  // Active preset name filter — null means "show all"
-  const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
   const [initialSettingsTab, setInitialSettingsTab] = useState<number>(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
@@ -53,10 +34,11 @@ const App: React.FC = () => {
     completionTokens: 0,
     timestamp: new Date().toISOString(),
   });
-  console.log(`🚀 \n - lastHistoryData:`, lastHistoryData);
   const [historyOpen, setHistoryOpen] = useState<boolean>(true);
-  // Loading state for API call
-  const [_loading, _setLoading] = useState<boolean>(false);
+  // Active dashboard tab — defaults to History so existing users see no change.
+  const [activeDashboardTab, setActiveDashboardTab] = useState<number>(
+    DEFAULT_DASHBOARD_TAB_INDEX
+  );
 
   // Single stable reference shared by both useEffects and the clear handler.
   // Fetches both store buckets, merges, and sorts into the history state.
@@ -145,135 +127,128 @@ const App: React.FC = () => {
     };
   }, [fetchAllHistories]);
 
-  // Derive available filter tabs dynamically from loaded history
-  const availableFilters = deriveAvailableFilters(history);
+  // Select a history entry → update the Last Action Preview.
+  const handleSelectEntry = (entry: HistoryEntry): void => {
+    setLastHistoryData({ ...entry, timestamp: new Date().toISOString() });
+  };
 
-  // Apply preset-name filter first, then fuzzy search on top
-  const preFilteredHistory =
-    activeFilter === null
-      ? history
-      : history.filter((e) => e.presetName === activeFilter);
+  // Delete a history entry → preview the next entry (or clear) then remove via IPC.
+  const handleDeleteEntry = (
+    entry: HistoryEntry,
+    featureId: HistoryFeatureId,
+    nextEntry: HistoryEntry | null
+  ): void => {
+    if (nextEntry) {
+      setLastHistoryData({
+        ...nextEntry,
+        timestamp: new Date().toISOString(),
+      });
+    } else {
+      // If no other entries, clear the text areas
+      setLastHistoryData({
+        original: "",
+        corrected: "",
+        model: "",
+        promptTokens: 0,
+        completionTokens: 0,
+        timestamp: new Date().toISOString(),
+      });
+    }
+    window.electronAPI.removeHistoryEntry(featureId, entry);
+  };
 
-  const filteredHistory = useFuzzySearch(preFilteredHistory, searchQuery);
+  // Clear the buckets implied by the active filter, then re-fetch so the UI
+  // mirrors store state. Bucket selection logic lives in bucketsForClear.
+  const handleClear = (activeFilter: string | null): void => {
+    const buckets: HistoryFeatureId[] = bucketsForClear(activeFilter);
+    Promise.all(
+      buckets.map((featureId) => window.electronAPI.clearHistory(featureId))
+    )
+      .then(() => fetchAllHistories())
+      .catch((err: Error) => console.error(`Failed to clear history`, err));
+  };
+
+  // Tab panel contents. History hosts the extracted panel; the other three are
+  // inert placeholders (no network/IPC) until #57/#58/#59 wire their data.
+  const tabPanels: Record<string, React.ReactNode> = {
+    overview: (
+      <PlaceholderPanel
+        title="Overview"
+        description="Usage and cost summary will appear here."
+      />
+    ),
+    history: (
+      <HistoryPanel
+        history={history}
+        onSelectEntry={handleSelectEntry}
+        onDeleteEntry={handleDeleteEntry}
+        onClear={handleClear}
+      />
+    ),
+    models: (
+      <PlaceholderPanel
+        title="Models"
+        description="Per-model usage breakdown will appear here."
+      />
+    ),
+    openrouter: (
+      <PlaceholderPanel
+        title="OpenRouter"
+        description="OpenRouter credits and activity will appear here."
+      />
+    ),
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans flex">
-      {/* Sidebar history panel */}
+      {/* Sidebar dashboard panel (tabs select the left-panel content) */}
       <aside
         className={`relative z-10 flex flex-col bg-gray-800 border-r border-gray-700 h-screen transform transition-all duration-300 ease-in-out group *:transition-opacity *:duration-300 ${historyOpen ? "p-4 translate-x-0 w-64 " : "-translate-x-full w-0 overflow-hidden px-0 py-4 *:opacity-0"}`}
       >
-        <div className="flex justify-between items-center mb-4 sticky top-0 bg-gray-800 z-10">
-          <div className="w-full">
-            <SearchInput
-              onSearch={setSearchQuery}
-              placeholder="Search history..."
-              className="w-full"
-              debounceMs={300}
-              suggestions={[
-                ...availableFilters,
-                // Today and yesterday
-                format(new Date(), "MM/dd"),
-                format(addDays(new Date(), -1), "MM/dd"),
-              ]}
-              dataListId="history-search-suggestions"
-            />
-          </div>
+        {/* Dashboard tab navigation — mirrors SettingsModal's ARIA tab pattern */}
+        <div
+          className="mb-3 grid grid-cols-2 gap-1 rounded-lg"
+          role="tablist"
+          aria-label="Dashboard tabs"
+        >
+          {DASHBOARD_TABS.map((tab, index) => {
+            const isActive = activeDashboardTab === index;
+            return (
+              <button
+                key={tab.id}
+                role="tab"
+                id={`dashboard-tab-${tab.id}`}
+                aria-selected={isActive}
+                aria-controls={`dashboard-panel-${tab.id}`}
+                tabIndex={isActive ? 0 : -1}
+                onClick={() => setActiveDashboardTab(index)}
+                type="button"
+                className={`transition-all duration-200 rounded-md font-medium text-xs py-1 ${isActive ? "bg-blue-600 text-white shadow-md" : "text-gray-300 hover:bg-gray-600 hover:text-gray-100 bg-gray-700"}`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Dynamic filter tabs — built from preset names present in data */}
-        {availableFilters.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-3">
-            <button
-              type="button"
-              onClick={() => setActiveFilter(null)}
-              className={`px-2 py-0.5 text-xs rounded-sm ${activeFilter === null ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600"}`}
-            >
-              All
-            </button>
-            {availableFilters.map((name) => (
-              <button
-                key={name}
-                type="button"
-                onClick={() =>
-                  setActiveFilter(activeFilter === name ? null : name)
-                }
-                className={`px-2 py-0.5 text-xs rounded-sm ${activeFilter === name ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600"}`}
-              >
-                {name}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <ul className="divide-y divide-gray-700 overflow-y-auto mb-4 flex-1">
-          {/* Use our custom fuzzy search hook to filter history entries */}
-          {filteredHistory.map((entry: HistoryEntry, idx: number) => (
-            <li
-              key={idx}
-              className="py-2 hover:bg-gray-700 px-2 relative group/history-entry"
-            >
-              <HistoryEntryItem
-                entry={entry}
-                onSelect={(selectedEntry) => {
-                  setLastHistoryData({
-                    ...selectedEntry,
-                    timestamp: new Date().toISOString(),
-                  });
-                }}
-                onDelete={(entryToDelete, featureId) => {
-                  // Find next entry to select
-                  const nextEntry = history[idx + 1] || history[idx - 1];
-                  if (nextEntry) {
-                    setLastHistoryData({
-                      ...nextEntry,
-                      timestamp: new Date().toISOString(),
-                    });
-                  } else {
-                    // If no other entries, clear the text areas
-                    setLastHistoryData({
-                      original: "",
-                      corrected: "",
-                      model: "",
-                      promptTokens: 0,
-                      completionTokens: 0,
-                      timestamp: new Date().toISOString(),
-                    });
-                  }
-                  window.electronAPI.removeHistoryEntry(featureId, entryToDelete);
-                }}
-              />
-            </li>
-          ))}
-        </ul>
-        <TrashButton
-          onClick={() => {
-            // Which store buckets the visible Clear should wipe:
-            // - "All" (null) clears BOTH buckets so nothing visible survives.
-            // - "PromptGen" clears only the promptGen bucket.
-            // - any other preset filter clears the shared corrections bucket
-            //   (which holds all non-PromptGen presets — clearing it removes
-            //   more than the single active filter, by design of the bucket model).
-            // Re-fetch both buckets after clearing so the UI mirrors store state.
-            const buckets: HistoryFeatureId[] =
-              activeFilter === null
-                ? ["corrections", "promptGen"]
-                : activeFilter === "PromptGen"
-                  ? ["promptGen"]
-                  : ["corrections"];
-            Promise.all(
-              buckets.map((featureId) =>
-                window.electronAPI.clearHistory(featureId)
+        {/* Tab panels — only the active panel is rendered */}
+        <div className="flex flex-1 flex-col overflow-hidden">
+          {DASHBOARD_TABS.map(
+            (tab, index) =>
+              activeDashboardTab === index && (
+                <div
+                  key={tab.id}
+                  id={`dashboard-panel-${tab.id}`}
+                  role="tabpanel"
+                  aria-labelledby={`dashboard-tab-${tab.id}`}
+                  tabIndex={0}
+                  className="flex flex-1 flex-col overflow-hidden"
+                >
+                  {tabPanels[tab.id]}
+                </div>
               )
-            )
-              .then(() => fetchAllHistories())
-              .catch((err: Error) =>
-                console.error(`Failed to clear history`, err)
-              );
-          }}
-          className="ml-auto mt-auto"
-          showLabel
-          size="md"
-        />
+          )}
+        </div>
       </aside>
       {/* Main content area */}
       <main className="flex-1 p-6 flex flex-col relative">
