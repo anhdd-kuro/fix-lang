@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Select from "react-select";
 import { twJoin } from "tailwind-merge";
 import {
@@ -33,6 +33,9 @@ export const ModelSelect: React.FC<{
   showAdditionalInfo?: boolean;
   selectedModelId?: string;
   persistSelection?: boolean;
+  menuPortal?: boolean;
+  compact?: boolean;
+  menuMaxHeight?: number;
 }> = ({
   onChange,
   featureId,
@@ -41,6 +44,9 @@ export const ModelSelect: React.FC<{
   showAdditionalInfo = true,
   selectedModelId,
   persistSelection = true,
+  menuPortal = false,
+  compact = false,
+  menuMaxHeight,
 }) => {
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("");
@@ -49,6 +55,26 @@ export const ModelSelect: React.FC<{
   const [savedFeatureModel, setSavedFeatureModel] = useState<string>("");
   const [modelsLoading, setModelsLoading] = useState<boolean>(false);
   const [modelsError, setModelsError] = useState<string>("");
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [menuWidth, setMenuWidth] = useState<number | undefined>(undefined);
+
+
+  useEffect(() => {
+    if (!menuPortal || !containerRef.current) {
+      return;
+    }
+    const node = containerRef.current;
+    const updateWidth = (): void => {
+      setMenuWidth(node.offsetWidth);
+    };
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+    };
+  }, [menuPortal]);
 
   const fetchModels = useCallback(async (refetch = false) => {
     setModelsLoading(true);
@@ -226,14 +252,16 @@ export const ModelSelect: React.FC<{
   );
 
   return (
-    <div className="mb-4">
+    <div className={compact ? "mb-0" : "mb-4"}>
+      {!compact && (
       <label
         htmlFor="model-select"
         className="block text-sm font-medium text-gray-300 mb-1"
       >
         AI Model
       </label>
-      <div className="flex gap-2 items-center">
+      )}
+      <div ref={containerRef} className="flex gap-2 items-center">
         <Select
           id="model-select"
           inputId="model-input"
@@ -260,6 +288,10 @@ export const ModelSelect: React.FC<{
           isDisabled={modelsLoading || !!modelsError}
           placeholder={modelsLoading ? "Loading models..." : "Select model"}
           noOptionsMessage={() => "No models found"}
+          menuPortalTarget={menuPortal ? document.body : undefined}
+          menuPosition={menuPortal ? "fixed" : "absolute"}
+          menuShouldScrollIntoView={false}
+          maxMenuHeight={menuPortal ? menuMaxHeight ?? 200 : undefined}
           styles={{
             control: (base) => ({
               ...base,
@@ -273,8 +305,16 @@ export const ModelSelect: React.FC<{
             menu: (base) => ({
               ...base,
               backgroundColor: "rgb(55, 65, 81)", // bg-gray-700
-              zIndex: 10,
+              zIndex: menuPortal ? 9999 : 10,
               borderRadius: "8px",
+              ...(menuPortal && menuWidth
+                ? { width: menuWidth, minWidth: menuWidth }
+                : {}),
+            }),
+            menuList: (base) => ({
+              ...base,
+              maxHeight: menuPortal ? menuMaxHeight ?? 200 : base.maxHeight,
+              overflowY: "auto",
             }),
             singleValue: (base) => ({
               ...base,
@@ -287,54 +327,80 @@ export const ModelSelect: React.FC<{
           }}
           components={{
             Option: ({ data, isFocused, isSelected, innerProps }) => {
-              // Cast to our known type
               const typedData = data as ModelSelectOption;
               const { label, isLocal } = typedData;
-              const [modelId, createdAt, thirdPart] = label.trim().split(",");
+              const parts = label.split(",").map((part) => part.trim());
+              const modelId = parts[0] ?? label;
+              const createdAt = parts[1];
+              const thirdPart = parts[2];
+
+              if (!showAdditionalInfo || parts.length === 1) {
+                return (
+                  <p
+                    className={twJoin(
+                      "px-4 py-1.5 text-white cursor-pointer truncate",
+                      isSelected
+                        ? "bg-blue-500"
+                        : isFocused
+                          ? "bg-gray-600"
+                          : "",
+                    )}
+                    title={label}
+                    {...innerProps}
+                  >
+                    {modelId}
+                  </p>
+                );
+              }
 
               return (
                 <p
                   className={twJoin(
-                    "flex gap-2 px-4 py-1 text-white cursor-pointer",
+                    "flex flex-wrap items-center gap-1.5 px-3 py-1.5 text-white cursor-pointer",
                     isSelected ? "bg-blue-500" : isFocused ? "bg-gray-600" : "",
                   )}
                   title={label}
                   {...innerProps}
                 >
-                  <span className="truncate">{modelId}</span>
-                  <span
-                    className={twJoin(
-                      "text-xs text-white rounded px-2 py-1",
-                      isFocused || isSelected ? "bg-gray-800" : "bg-gray-600",
-                    )}
-                  >
-                    {createdAt}
+                  <span className={twJoin(compact ? "min-w-0 break-all" : "truncate min-w-0")}>
+                    {modelId}
                   </span>
-                  {/* Display different third part based on model type */}
-                  <span
-                    className={twJoin(
-                      "text-xs text-white rounded px-2 py-1",
-                      isLocal
-                        ? isFocused || isSelected
-                          ? "bg-green-800"
-                          : "bg-green-700"
-                        : isFocused || isSelected
-                          ? "bg-gray-800"
-                          : "bg-gray-600",
-                    )}
-                  >
-                    {isLocal ? (
-                      <>
-                        <span
-                          className="inline-block w-2 h-2 rounded-full bg-green-400 mr-1"
-                          title="Local model"
-                        ></span>
-                        {thirdPart}
-                      </>
-                    ) : (
-                      thirdPart
-                    )}
-                  </span>
+                  {createdAt ? (
+                    <span
+                      className={twJoin(
+                        "shrink-0 text-xs text-white rounded px-2 py-1",
+                        isFocused || isSelected ? "bg-gray-800" : "bg-gray-600",
+                      )}
+                    >
+                      {createdAt}
+                    </span>
+                  ) : null}
+                  {thirdPart ? (
+                    <span
+                      className={twJoin(
+                        "shrink-0 text-xs text-white rounded px-2 py-1",
+                        isLocal
+                          ? isFocused || isSelected
+                            ? "bg-green-800"
+                            : "bg-green-700"
+                          : isFocused || isSelected
+                            ? "bg-gray-800"
+                            : "bg-gray-600",
+                      )}
+                    >
+                      {isLocal ? (
+                        <>
+                          <span
+                            className="inline-block w-2 h-2 rounded-full bg-green-400 mr-1"
+                            title="Local model"
+                          />
+                          {thirdPart}
+                        </>
+                      ) : (
+                        thirdPart
+                      )}
+                    </span>
+                  ) : null}
                 </p>
               );
             },
@@ -403,11 +469,13 @@ export const ModelSelect: React.FC<{
           {modelsError}
         </p>
       )}
+      {!compact && (
       <p className="text-xs text-gray-500 mt-1">
         {useFeatureModel
           ? "Feature-specific model that overrides the default. Leave unchanged to use the default model."
           : "Default model used for all OpenAI requests unless overridden by feature settings."}
       </p>
+      )}
     </div>
   );
 };

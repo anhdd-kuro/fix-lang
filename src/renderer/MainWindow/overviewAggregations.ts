@@ -376,6 +376,39 @@ export const hourBlockHeatmap = (
   return { days, cells, max };
 };
 
+/**
+ * Tray-sized heatmap: exactly 7 local days ending today × 6 four-hour blocks.
+ * Skips the 30-day floor used by the Overview panel heatmap.
+ */
+export const sevenDayHourBlockHeatmap = (
+  entries: HistoryEntry[],
+  now: Date
+): HourBlockHeatmap => {
+  const days = denseDayKeys(entries, "7d", now);
+  const dayIndex = new Map(days.map((d, i) => [d, i]));
+  const cells = days.map(() => new Array<number>(HOUR_BLOCKS).fill(0));
+
+  for (const e of entries) {
+    const di = dayIndex.get(localDayKey(e.timestamp));
+    if (di === undefined) {
+      continue;
+    }
+    const hour = new Date(e.timestamp).getHours();
+    const block = Math.min(HOUR_BLOCKS - 1, Math.floor(hour / HOURS_PER_BLOCK));
+    cells[di][block] += 1;
+  }
+
+  let max = 0;
+  for (const row of cells) {
+    for (const c of row) {
+      if (c > max) {
+        max = c;
+      }
+    }
+  }
+  return { days, cells, max };
+};
+
 /** Reference token budget the benchmark sentence compares against. */
 export const BENCHMARK_TOKENS = 100_000;
 

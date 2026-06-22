@@ -16,6 +16,7 @@ import {
   heatmapBuckets,
   HOUR_BLOCKS,
   hourBlockHeatmap,
+  sevenDayHourBlockHeatmap,
   intensityLevel,
   messageCount,
   peakHour,
@@ -561,6 +562,32 @@ describe("splitModelId", () => {
   });
 });
 
+
+
+describe("sevenDayHourBlockHeatmap", () => {
+  it("renders exactly 7 day columns ending today", () => {
+    const entries = [
+      entry({ timestamp: at(2024, 6, 20, 9) }),
+      entry({ timestamp: at(2024, 6, 14, 9) }),
+    ];
+    const hm = sevenDayHourBlockHeatmap(entries, NOW);
+    expect(hm.days).toHaveLength(7);
+    expect(hm.days.at(-1)).toBe("2024-06-20");
+    expect(hm.days[0]).toBe("2024-06-14");
+  });
+
+  it("places entries into the correct day column and hour block", () => {
+    const entries = [
+      entry({ timestamp: at(2024, 6, 20, 1) }),
+      entry({ timestamp: at(2024, 6, 20, 21) }),
+    ];
+    const hm = sevenDayHourBlockHeatmap(entries, NOW);
+    const lastDay = hm.days.length - 1;
+    expect(hm.cells[lastDay][0]).toBe(1);
+    expect(hm.cells[lastDay][5]).toBe(1);
+    expect(hm.max).toBe(1);
+  });
+});
 describe("hourBlockHeatmap window floor + width", () => {
   it("shows >=30 day columns even with a single day of history (any range)", () => {
     const one = [entry({ timestamp: at(2024, 6, 20, 9) })];

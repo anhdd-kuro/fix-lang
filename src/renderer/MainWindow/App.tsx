@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { twJoin } from "tailwind-merge";
 import {
+  clampTabIndex,
   DASHBOARD_TABS,
   DEFAULT_DASHBOARD_TAB_INDEX,
   bucketsForClear,
@@ -15,6 +16,7 @@ import { OverviewPanel } from "../components/OverviewPanel";
 import { SettingsButton } from "../components/SettingsIcon";
 import { SettingsModal } from "../components/SettingsModal";
 import { TextAreaBox } from "../components/TextAreaBox";
+import type { DashboardTabId } from "./dashboardTabs";
 import type { AnalyticsRange } from "../analytics/shared";
 import type { HistoryEntry, HistoryFeatureId } from "~/stores/historyStore";
 
@@ -127,6 +129,15 @@ const App: React.FC = () => {
       setInitialSettingsTab(2);
       setIsSettingsOpen(true);
     });
+    const offDashboardTab = window.electronAPI.onOpenDashboardTab?.(
+      (tabId: DashboardTabId) => {
+        const index = DASHBOARD_TABS.findIndex((tab) => tab.id === tabId);
+        if (index >= 0) {
+          setActiveDashboardTab(clampTabIndex(index));
+        }
+      }
+    );
+
     const offHistory = window.electronAPI.onOpenHistoryDialog?.(async () => {
       const history = await window.electronAPI.getHistory("corrections");
       const last = history[history.length - 1] || {
@@ -142,6 +153,7 @@ const App: React.FC = () => {
       offKey?.();
       offPrompt?.();
       offHistory?.();
+      offDashboardTab?.();
     };
   }, [fetchAllHistories]);
 

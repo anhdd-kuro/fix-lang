@@ -2,7 +2,7 @@
 
 Local macOS menu-bar app: fixes grammar / improves writing on selected text via AI (OpenAI, OpenRouter, Ollama). Electron + React + TypeScript. Runs on **bun**.
 
-When you need to ask the user something, use the "ask user question" / "require user input" tools.
+When you need to ask the user something, use the "ask user question" / "require user input" or any relevant tools that are available.
 
 ## Main Features
 

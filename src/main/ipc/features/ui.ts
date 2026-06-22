@@ -18,6 +18,44 @@ import {
 /**
  * Registers UI-related IPC handlers
  */
+
+/**
+ * Focuses or creates the main window, then runs a callback once it is ready.
+ */
+const withMainWindow = (onReady: (win: BrowserWindow) => void): void => {
+  try {
+    const mainWindow = getMainWindow();
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+      onReady(mainWindow);
+      return;
+    }
+
+    const existingWindow = BrowserWindow.getAllWindows().find((win) => {
+      return win.webContents.getURL().includes("MainWindow");
+    });
+
+    if (existingWindow) {
+      existingWindow.show();
+      existingWindow.focus();
+      onReady(existingWindow);
+      return;
+    }
+
+    console.log("No main window found, creating a new one");
+    const createdWindow = createMainWindow();
+    createdWindow.webContents.once("did-finish-load", () => {
+      createdWindow.show();
+      createdWindow.focus();
+      onReady(createdWindow);
+    });
+  } catch (error) {
+    console.error("Error showing main window:", error);
+  }
+};
+
 export const registerUiHandlers = () => {
   // App control handlers
   ipcMain.on("quit-app", (_event: Electron.IpcMainEvent) => {
@@ -86,15 +124,16 @@ export const registerUiHandlers = () => {
   ipcMain.handle(
     "show-message-box",
     async (
-      _event: Electron.IpcMainInvokeEvent,
+      event: Electron.IpcMainInvokeEvent,
       options: Electron.MessageBoxOptions
     ) => {
       try {
-        const mainWindow = getMainWindow();
-        if (!mainWindow) {
-          throw new Error("Main window not found");
+        const parentWindow =
+          BrowserWindow.fromWebContents(event.sender) ?? getMainWindow();
+        if (!parentWindow) {
+          throw new Error("Parent window not found");
         }
-        return await dialog.showMessageBox(mainWindow, options);
+        return await dialog.showMessageBox(parentWindow, options);
       } catch (error) {
         console.error("Error showing message box:", error);
         return { response: 0, checkboxChecked: false };
@@ -133,50 +172,25 @@ export const registerUiHandlers = () => {
     }
   );
 
-  // Show main window with settings open
-  ipcMain.on("show-main-window-settings", (_event: Electron.IpcMainEvent) => {
-    try {
-      const mainWindow = getMainWindow();
-
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        // Window exists, show and focus it
-        mainWindow.show();
-        mainWindow.focus();
-        // Send event to open settings tab
-        mainWindow.webContents.send("open-settings");
-        return;
-      }
-
-      // Check if there's another main window not tracked by the singleton
-      const newMainWindow = BrowserWindow.getAllWindows().find((win) => {
-        return win.webContents.getURL().includes("MainWindow");
-      });
-
-      if (newMainWindow) {
-        newMainWindow.show();
-        newMainWindow.focus();
-        newMainWindow.webContents.send("open-settings");
-        return;
-      }
-
-      // No window exists, need to create a new main window
-      console.log("No main window found, creating a new one");
-
-      // Use the imported createMainWindow function
-
-      // Create a new main window
-      const createdWindow = createMainWindow();
-
-      // Wait for the window to finish loading before sending the settings event
-      createdWindow.webContents.once("did-finish-load", () => {
-        createdWindow.show();
-        createdWindow.focus();
-        createdWindow.webContents.send("open-settings");
-      });
-    } catch (error) {
-      console.error("Error showing main window with settings:", error);
-    }
+  ipcMain.on("restart-app", () => {
+    app.relaunch();
+    app.exit(0);
   });
+
+  ipcMain.on("show-main-window-settings", (_event: Electron.IpcMainEvent) => {
+    withMainWindow((win) => {
+      win.webContents.send("open-settings");
+    });
+  });
+
+  ipcMain.on(
+    "show-main-window-tab",
+    (_event: Electron.IpcMainEvent, tabId: string) => {
+      withMainWindow((win) => {
+        win.webContents.send("open-dashboard-tab", tabId);
+      });
+    }
+  );
 
   ipcMain.handle("close-current-window", (_event) => {
     try {

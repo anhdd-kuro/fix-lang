@@ -12,6 +12,11 @@
  */
 import { useState } from "react";
 import { twJoin } from "tailwind-merge";
+import {
+  formatOpenRouterUsd,
+  openRouterDegradedMessage,
+  type OpenRouterDegradedReason,
+} from "./openRouterFormat";
 import { useOpenRouterAnalytics } from "../hooks/useOpenRouterAnalytics";
 import type {
   Activity,
@@ -32,27 +37,6 @@ const RANGES: { id: OpenRouterRange; label: string }[] = [
   { id: "30d", label: "30d" },
 ];
 
-const usd = (n: number): string =>
-  n === 0
-    ? "$0.00"
-    : n > 0 && n < 0.01
-      ? `$${n.toFixed(6).replace(/0+$/, "").replace(/\.$/, "")}`
-      : `$${n.toFixed(2)}`;
-
-/** Message for a degraded (non-ok) card result. */
-const degradedMessage = (
-  reason: "unauthorized" | "unavailable" | "parse_error" | "no_key"
-): string => {
-  switch (reason) {
-    case "unauthorized":
-      return "Unauthorized — check your provisioning key.";
-    case "no_key":
-      return "No provisioning key set.";
-    default:
-      return "Unavailable right now.";
-  }
-};
-
 type Card = { ok: false; reason: string } | { ok: true };
 
 const Card = ({
@@ -72,19 +56,13 @@ const Card = ({
       children
     ) : (
       <div className="text-sm text-gray-400">
-        {degradedMessage(
-          (result as { reason: OpenRouterPanelReason }).reason
+        {openRouterDegradedMessage(
+          (result as { reason: OpenRouterDegradedReason }).reason
         )}
       </div>
     )}
   </div>
 );
-
-type OpenRouterPanelReason =
-  | "unauthorized"
-  | "unavailable"
-  | "parse_error"
-  | "no_key";
 
 export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
   const [range, setRange] = useState<OpenRouterRange>("7d");
@@ -162,7 +140,7 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
                 credits.data.lowBalance ? "text-red-400" : "text-gray-100"
               )}
             >
-              {usd(credits.data.availableUsd)}
+              {formatOpenRouterUsd(credits.data.availableUsd)}
             </div>
             {credits.data.lowBalance && (
               <div className="mt-0.5 text-xs text-red-400">
@@ -179,13 +157,13 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
           <div className="text-sm text-gray-200">
             <div>
               Used:{" "}
-              <span className="tabular-nums">{usd(keyUsage.data.usageUsd)}</span>
+              <span className="tabular-nums">{formatOpenRouterUsd(keyUsage.data.usageUsd)}</span>
             </div>
             <div className="text-gray-400">
               Limit:{" "}
               {keyUsage.data.limitUsd === null
                 ? "Unlimited"
-                : usd(keyUsage.data.limitUsd)}
+                : formatOpenRouterUsd(keyUsage.data.limitUsd)}
               {keyUsage.data.limitReached && " (reached)"}
             </div>
           </div>
@@ -219,7 +197,7 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
                       {row.requests}
                     </td>
                     <td className="py-1 pl-2 text-right tabular-nums text-gray-300">
-                      {usd(row.costUsd)}
+                      {formatOpenRouterUsd(row.costUsd)}
                     </td>
                   </tr>
                 ))}

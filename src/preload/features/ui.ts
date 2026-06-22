@@ -1,6 +1,9 @@
 // UI-related preload functionality
 import { ipcRenderer } from "electron";
 
+/** Dashboard tab ids — mirrors MainWindow/dashboardTabs.ts */
+export type DashboardTabId = "overview" | "history" | "models" | "openrouter";
+
 /**
  * Exposes UI-related functionality to the renderer process
  */
@@ -120,6 +123,20 @@ export const uiFeature = {
   },
 
   /**
+   * Registers a callback for opening a dashboard tab in the main window.
+   */
+  onOpenDashboardTab: (callback: (tabId: DashboardTabId) => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      tabId: DashboardTabId
+    ) => callback(tabId);
+    ipcRenderer.on("open-dashboard-tab", listener);
+    return () => {
+      ipcRenderer.removeListener("open-dashboard-tab", listener);
+    };
+  },
+
+  /**
    * Hides the tray window.
    */
   hideTray: (): void => {
@@ -134,6 +151,15 @@ export const uiFeature = {
   },
 
   /**
+   * Shows a native message box anchored to the calling window.
+   */
+  showMessageBox: (
+    options: Electron.MessageBoxOptions
+  ): Promise<Electron.MessageBoxReturnValue> => {
+    return ipcRenderer.invoke("show-message-box", options);
+  },
+
+  /**
    * Quits the application
    */
   quitApp: (): void => {
@@ -141,10 +167,24 @@ export const uiFeature = {
   },
 
   /**
+   * Relaunches the application
+   */
+  restartApp: (): void => {
+    ipcRenderer.send("restart-app");
+  },
+
+  /**
    * Shows the main window with settings tab open
    */
   showMainWindowSettings: (): void => {
     ipcRenderer.send("show-main-window-settings");
+  },
+
+  /**
+   * Shows the main window focused on a dashboard tab
+   */
+  showMainWindowTab: (tabId: DashboardTabId): void => {
+    ipcRenderer.send("show-main-window-tab", tabId);
   },
 };
 
