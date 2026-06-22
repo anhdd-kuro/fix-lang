@@ -18,8 +18,6 @@ type SettingsModalProps = {
   onClose: () => void;
   /** Initial active tab index (0-based). Tabs: Profiles, General, Correction, PromptGen. */
   initialTab?: number;
-  /** Callback when overlay is clicked */
-  onOverlayClick?: () => void;
 };
 
 /**
@@ -30,7 +28,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
   initialTab = 0,
-  onOverlayClick,
 }) => {
   // Define all tab configurations - you can easily reorder these tabs by changing their position in the array
   const tabs: SettingsTab[] = [
@@ -97,9 +94,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // Tab state now uses the initialTab to index into the tabs array
   const [activeTab, setActiveTab] = useState<number>(initialTab);
 
-  const handleClick = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     if (e.target === e.currentTarget) {
-      onOverlayClick?.();
+      onClose();
     }
   };
 
@@ -111,7 +108,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   return (
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm bg-opacity-50 flex justify-center items-center z-50"
-      onClick={handleClick}
+      onClick={handleOverlayClick}
     >
       <div className="flex flex-col bg-gray-800 p-6 rounded-lg shadow-xl w-[80%] max-w-250 h-[85vh] min-h-120 max-h-250 overflow-auto">
         <div className="flex justify-between items-center mb-4">
