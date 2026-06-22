@@ -5,16 +5,16 @@ import { ModelSelect } from "./ModelSelect";
  * General settings tab for API key and model selection.
  */
 export const SettingGeneral: React.FC = () => {
-  // State for the API Key input field
-  const [apiKeyInput, setApiKeyInput] = useState<string>("");
-  const [saveStatus, setSaveStatus] = useState<string>("");
   const [resetStatus, setResetStatus] = useState<string>("");
 
   // Bumped after a reset to force ModelSelect to remount and reload its default
   const [modelSelectKey, setModelSelectKey] = useState(0);
 
-  // Track unsaved changes
-  const [hasChanges, setHasChanges] = useState(false);
+  // API key — write-only; never round-tripped to the renderer.
+  // The input is cleared after a successful save.
+  const [apiKeyInput, setApiKeyInput] = useState<string>("");
+  const [apiKeyStatus, setApiKeyStatus] = useState<string>("");
+  const [apiKeySet, setApiKeySet] = useState<boolean>(false);
 
   // OpenRouter provisioning (admin) key — never round-tripped to the renderer.
   // The input is write-only; we only track whether a key is set (masked state).
@@ -22,23 +22,15 @@ export const SettingGeneral: React.FC = () => {
   const [provisioningStatus, setProvisioningStatus] = useState<string>("");
   const [provisioningKeySet, setProvisioningKeySet] = useState<boolean>(false);
 
-  // Initialize component
+  // Initialize component — check set/not-set state; never fetch plaintext keys.
   useEffect(() => {
-    // Fetch API Key
     window.electronAPI
-      ?.getApiKey()
-      .then((key) => {
-        console.log(
-          `SettingGeneral: Received key (length: ${key?.length ?? 0})`
-        );
-        setApiKeyInput(key || ""); // Set input value, default to empty string
-      })
+      ?.hasApiKey?.()
+      .then((isSet) => setApiKeySet(Boolean(isSet)))
       .catch((error) => {
-        console.error("SettingGeneral: Error fetching API key:", error);
-        setSaveStatus("Error fetching key");
+        console.error("SettingGeneral: Error checking API key state:", error);
       });
 
-    // Masked provisioning-key state (never fetch the plaintext key).
     window.electronAPI
       ?.hasProvisioningKey?.()
       .then((isSet) => setProvisioningKeySet(Boolean(isSet)))
@@ -50,68 +42,56 @@ export const SettingGeneral: React.FC = () => {
       });
   }, []);
 
-  // Handle changes to the input field
-  const handleApiKeyChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setApiKeyInput(event.target.value);
-    setSaveStatus(""); // Clear status on change
-    setHasChanges(true);
-  };
-
-  // Handle saving the API Key when the input loses focus
-  const handleApiKeyBlur = async () => {
+  // Save the API key (encrypted via safeStorage in main).
+  const handleSaveApiKey = async () => {
     if (!window.electronAPI?.setApiKey) {
-      console.error("setApiKey function not available on electronAPI");
-      setSaveStatus("Error: Cannot save key");
+      setApiKeyStatus("Error: Cannot save API key");
       return;
     }
-
-    // Basic validation
-    if (
-      apiKeyInput &&
-      !apiKeyInput.startsWith("sk-") &&
-      apiKeyInput.length > 0
-    ) {
-      console.warn("API key doesn't start with 'sk-', might not be valid");
-      // We'll still try to save it, but warn the user
-      setSaveStatus("Warning: Key format may be invalid, but saving anyway...");
+    if (apiKeyInput.trim().length === 0) {
+      setApiKeyStatus("Error: API key must not be empty");
+      return;
+    }
+    if (!apiKeyInput.trim().startsWith("sk-")) {
+      setApiKeyStatus("Warning: Key format may be invalid, but saving anyway...");
     } else {
-      setSaveStatus("Saving...");
+      setApiKeyStatus("Saving...");
     }
 
-    console.log(
-      `SettingGeneral: Attempting to save API key (length: ${apiKeyInput.length})`
-    );
-
     try {
-      // Add a small delay to ensure UI updates before the potentially blocking IPC call
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
       const result = await window.electronAPI.setApiKey(apiKeyInput);
-
       if (result.success) {
-        console.log("SettingGeneral: API Key saved successfully.");
-        setSaveStatus("Saved!");
-
-        // Verify the key was saved by retrieving it again
-        const verifiedKey = await window.electronAPI.getApiKey();
-        if (verifiedKey !== apiKeyInput) {
-          console.error("SettingGeneral: API Key verification failed");
-          setSaveStatus("Warning: Key saved but verification failed");
-        }
+        setApiKeyStatus(result.warning ?? "Saved!");
+        setApiKeySet(true);
+        setApiKeyInput("");
       } else {
-        console.error("SettingGeneral: Failed to save API Key:", result.error);
-        setSaveStatus(`Error: ${result.error || "Unknown error"}`);
+        setApiKeyStatus(`Error: ${result.error || "Unknown error"}`);
       }
     } catch (error) {
-      console.error("SettingGeneral: Error calling setApiKey:", error);
-      setSaveStatus("Error saving key");
+      console.error("SettingGeneral: Error saving API key:", error);
+      setApiKeyStatus("Error saving API key");
     }
   };
 
-  // Save settings
-  const handleSaveAll = async () => {
-    await handleApiKeyBlur();
-    setHasChanges(false);
+  // Clear the stored API key.
+  const handleClearApiKey = async () => {
+    if (!window.electronAPI?.clearApiKey) {
+      setApiKeyStatus("Error: Cannot clear API key");
+      return;
+    }
+    try {
+      const result = await window.electronAPI.clearApiKey();
+      if (result.success) {
+        setApiKeyInput("");
+        setApiKeySet(false);
+        setApiKeyStatus("Cleared.");
+      } else {
+        setApiKeyStatus(`Error: ${result.error || "Failed to clear"}`);
+      }
+    } catch (error) {
+      console.error("SettingGeneral: Error clearing API key:", error);
+      setApiKeyStatus("Error clearing API key");
+    }
   };
 
   // Reset the current profile's settings to defaults (keeps the API key).
@@ -136,7 +116,6 @@ export const SettingGeneral: React.FC = () => {
       const result = await window.electronAPI.resetProfileSettings();
       if (result.success) {
         setResetStatus("Settings reset to defaults.");
-        setHasChanges(false);
         // Remount ModelSelect so it reloads the (now default) model.
         setModelSelectKey((key) => key + 1);
         setTimeout(() => setResetStatus(""), 2500);
@@ -215,25 +194,57 @@ export const SettingGeneral: React.FC = () => {
         >
           API Key
         </label>
+        <p
+          className={`text-xs mb-1 ${apiKeySet ? "text-green-400" : "text-gray-400"}`}
+          role="status"
+        >
+          {apiKeySet ? "Key is set" : "No key set"}
+        </p>
         <input
           id="api-key-input"
           type="password"
+          autoComplete="off"
           className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={apiKeyInput}
-          onChange={handleApiKeyChange}
-          placeholder="Enter your API key"
+          onChange={(event) => {
+            setApiKeyInput(event.target.value);
+            setApiKeyStatus("");
+          }}
+          placeholder={
+            apiKeySet
+              ? "Enter a new key to replace the stored one"
+              : "Enter your API key"
+          }
           aria-label="API Key"
         />
-        {saveStatus && (
+        {apiKeyStatus && (
           <p
-            className={`text-xs mt-1 ${saveStatus.startsWith("Error") ? "text-red-400" : saveStatus.startsWith("Warning") ? "text-yellow-400" : "text-green-400"}`}
+            className={`text-xs mt-1 ${apiKeyStatus.startsWith("Error") ? "text-red-400" : apiKeyStatus.startsWith("Warning") ? "text-yellow-400" : "text-green-400"}`}
             role="status"
           >
-            {saveStatus}
+            {apiKeyStatus}
           </p>
         )}
+        <div className="mt-2 flex gap-2">
+          <button
+            type="button"
+            onClick={handleSaveApiKey}
+            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500"
+          >
+            Save key
+          </button>
+          <button
+            type="button"
+            disabled={!apiKeySet}
+            onClick={handleClearApiKey}
+            className="rounded border border-red-500/50 px-3 py-1.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+          >
+            Clear
+          </button>
+        </div>
         <p className="text-xs text-gray-500 mt-1">
-          Your API key is stored locally and never sent to our servers.
+          Stored encrypted by your OS (Keychain on macOS). Never shown again
+          after saving.
         </p>
       </div>
 
@@ -300,19 +311,7 @@ export const SettingGeneral: React.FC = () => {
       </div>
 
       {/* Model Selection */}
-      <ModelSelect key={modelSelectKey} onChange={() => setHasChanges(true)} />
-
-      {/* Save Button */}
-      <div className="mt-4">
-        <button
-          type="button"
-          disabled={!hasChanges}
-          onClick={handleSaveAll}
-          className={`px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50 w-full`}
-        >
-          Save
-        </button>
-      </div>
+      <ModelSelect key={modelSelectKey} />
 
       {/* Reset to defaults */}
       <div className="mt-2 border-t border-gray-700 pt-4">

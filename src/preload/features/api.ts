@@ -49,27 +49,25 @@ export const apiFeature = {
   },
 
   /**
-   * Fetches the stored OpenAI API key from the main process.
-   * @returns A promise that resolves with the stored API key (string) or an empty string if none is set or on error.
+   * Store the API key securely (safeStorage in main). The plaintext is sent to
+   * main only to be encrypted — it is never returned to the renderer.
    */
-  getApiKey: (): Promise<string> => {
-    console.log("Preload: Invoking get-api-key");
-    return ipcRenderer.invoke("get-api-key");
+  setApiKey: (key: string): Promise<{ success: boolean; warning?: string; error?: string }> => {
+    if (typeof key !== "string") {
+      return Promise.resolve({ success: false, error: "Invalid key" });
+    }
+    return ipcRenderer.invoke("set-api-key", key);
   },
 
   /**
-   * Sends the OpenAI API key to the main process to be stored securely.
-   * @param apiKey The API key string to store.
-   * @returns A promise that resolves with an object indicating success or failure (e.g., { success: true } or { success: false, error: 'message' }).
+   * Whether an API key is currently stored. Drives the masked UI state; the
+   * actual key value is never exposed to the renderer.
    */
-  setApiKey: (
-    apiKey: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    console.log(
-      `Preload: Invoking set-api-key with key length: ${apiKey?.length ?? 0}`
-    );
-    return ipcRenderer.invoke("set-api-key", apiKey);
-  },
+  hasApiKey: (): Promise<boolean> => ipcRenderer.invoke("has-api-key"),
+
+  /** Remove the stored API key. */
+  clearApiKey: (): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("clear-api-key"),
 
   /**
    * Gets the model for a specific feature or returns the general default.

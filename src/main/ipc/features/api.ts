@@ -18,45 +18,73 @@ import {
   resetCurrentProfileSettings,
   updateProfileSetting,
 } from "~/stores/apiStore";
+import {
+  clearApiKey,
+  getApiKey,
+  hasApiKey,
+  setApiKey,
+} from "~/stores/apiKeyStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import type { Model } from "~/stores/apiStore";
+
+/**
+ * One-time migration: if no safeStorage key file exists yet but a plaintext key
+ * is present in the legacy profile/root store, encrypt and persist it. The
+ * legacy store entry is left in place for now (no destructive writes on migrate).
+ */
+const migrateApiKeyToSafeStorage = async (): Promise<void> => {
+  if (await hasApiKey()) return;
+
+  const legacy =
+    (getProfileSetting("apiKey") as string) ||
+    (apiStore.get("apiKey") as string) ||
+    process.env.OPENAI_API_KEY ||
+    "";
+  if (!legacy) return;
+
+  const result = await setApiKey(legacy);
+  if (result.success) {
+    console.log("apiKeyStore: migrated API key from legacy store to safeStorage");
+  } else {
+    console.warn("apiKeyStore: migration failed:", result.error);
+  }
+};
 
 /**
  * Registers API-related IPC handlers
  */
 export const registerApiHandlers = (): void => {
-  // API key handling
-  ipcMain.handle("get-api-key", () => {
-    return getProfileSetting("apiKey") || apiStore.get("apiKey") || "";
-  });
+  // Run migration once at startup (non-blocking).
+  void migrateApiKeyToSafeStorage();
 
-  ipcMain.handle("set-api-key", (_event, apiKey) => {
+  // ---------------------------------------------------------------------------
+  // API key — safeStorage-backed. No "get-api-key" by design: the decrypted key
+  // never crosses to the renderer. The UI tracks only a boolean set/not-set
+  // state via has-api-key, mirroring the provisioning key pattern.
+  // ---------------------------------------------------------------------------
+
+  ipcMain.handle("set-api-key", async (_event, raw: unknown) => {
+    if (typeof raw !== "string") {
+      return { success: false, error: "Invalid key" };
+    }
     try {
-      // Save to profile settings first, keep legacy fallback key for compatibility
-      const result = updateProfileSetting("apiKey", apiKey);
-      if (!result.success) {
-        return result;
-      }
-      apiStore.set("apiKey", apiKey);
-      console.log(
-        "API key saved successfully",
-        JSON.stringify({
-          profileKeyLength:
-            (getProfileSetting("apiKey") as string)?.length || 0,
-          legacyKeyLength: (apiStore.get("apiKey") as string)?.length || 0,
-        }),
-      );
+      const result = await setApiKey(raw);
+      if (!result.success) return result;
 
-      void fetchAvailableModels(apiKey)
+      // Refetch models in the background using the newly stored key.
+      void getApiKey()
+        .then((key) => key && fetchAvailableModels(key))
         .then((models) => {
-          apiStore.set("models", models);
-          console.log(`Refetched ${models.length} models after API key save`);
+          if (models) {
+            apiStore.set("models", models);
+            console.log(`Refetched ${models.length} models after API key save`);
+          }
         })
         .catch((error) => {
           console.error("Failed to refetch models after API key save:", error);
         });
 
-      return { success: true };
+      return result;
     } catch (error) {
       console.error("Error saving API key:", error);
       return {
@@ -66,14 +94,14 @@ export const registerApiHandlers = (): void => {
     }
   });
 
+  ipcMain.handle("has-api-key", async () => hasApiKey());
+
+  ipcMain.handle("clear-api-key", async () => clearApiKey());
+
   // Model handling
   ipcMain.handle("fetch-ai-models", async () => {
     try {
-      // Fetch models from API
-      const apiKey =
-        (getProfileSetting("apiKey") as string) ||
-        (apiStore.get("apiKey") as string) ||
-        "";
+      const apiKey = (await getApiKey()) ?? "";
       const models = await fetchAvailableModels(apiKey);
 
       // Store the models in the store
@@ -94,8 +122,7 @@ export const registerApiHandlers = (): void => {
 
   // Fallback to cached models if API call fails
   ipcMain.handle("get-cached-models", () => {
-    const models = apiStore.get("models") || [];
-    return models;
+    return apiStore.get("models") || [];
   });
 
   ipcMain.handle("get-selected-model", () => {

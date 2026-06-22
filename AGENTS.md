@@ -68,6 +68,7 @@ src/
 
 ✅ **Always**
 
+- Use gitnexus MCP over grep / find for exploration, only fallback to grep / find if gitnexus is not available
 - Test UI changes in `bun run dev` before packaging.
 - Keep prompts bundled locally — no external fetch for prompt content.
 - SQLite DB lives under `app.getPath("userData")`, never inside the code-signed bundle.

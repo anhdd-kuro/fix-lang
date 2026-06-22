@@ -16,6 +16,7 @@ import {
   getDefaultModelId,
   getProfileSetting,
 } from "~/stores/apiStore";
+import { getApiKey } from "~/stores/apiKeyStore";
 import { ollamaClient } from "../llm";
 import {
   buildCachedMessages,
@@ -308,18 +309,12 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
  * @returns Promise with the AI response and token information
  */
 export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
-  // Get API key from current profile first, fallback to legacy root key
-  const profileApiKey = (getProfileSetting("apiKey") as string) || "";
-  const legacyApiKey = (apiStore.get("apiKey") as string) || "";
-  const apiKey = profileApiKey || legacyApiKey;
-  console.log(
-    "OpenRouter API key source",
-    JSON.stringify({
-      profileKeyLength: profileApiKey.length,
-      legacyKeyLength: legacyApiKey.length,
-      usingProfileKey: !!profileApiKey,
-    }),
-  );
+  const apiKey =
+    (await getApiKey()) ||
+    // Legacy fallback for stores not yet migrated to safeStorage.
+    (getProfileSetting("apiKey") as string) ||
+    (apiStore.get("apiKey") as string) ||
+    "";
   if (!apiKey) {
     throw new Error("OpenRouter API key is missing.");
   }

@@ -1,6 +1,4 @@
-import promptMasterPatternsMarkdown from "./prompt-master-patterns.md?raw";
-import promptMasterSkillMarkdown from "./prompt-master-skill.md?raw";
-import promptMasterTemplatesMarkdown from "./prompt-master-templates.md?raw";
+import enhancePromptMarkdown from "./enhance-prompt.md?raw";
 import strategicCompactSkillMarkdown from "./strategic-compact-skill.md?raw";
 
 export const makeDefaultSystemPrompt = ({
@@ -96,14 +94,4 @@ Output:
 export const DEFAULT_SUMMARIZE_PRESET_PROMPT =
   strategicCompactSkillMarkdown.trim();
 
-export const DEFAULT_PROMPT_OPTIMIZATION_PROMPT = [
-  promptMasterSkillMarkdown.trim(),
-  "",
-  "---",
-  "",
-  promptMasterTemplatesMarkdown.trim(),
-  "",
-  "---",
-  "",
-  promptMasterPatternsMarkdown.trim(),
-].join("\n");
+export const DEFAULT_PROMPT_OPTIMIZATION_PROMPT = enhancePromptMarkdown.trim();
