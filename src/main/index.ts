@@ -18,6 +18,7 @@ import {
   registerProfileHandlers,
   registerPromptGenHandlers,
   registerSettingsHandlers,
+  registerThemeHandlers,
   registerUiHandlers,
 } from "./ipc/features";
 import { registerHotkeys, unregisterHotkeys } from "./keybindings";
@@ -98,6 +99,7 @@ const registerIpcHandlers = (): void => {
   registerUiHandlers();
   registerApiHandlers();
   registerSettingsHandlers();
+  registerThemeHandlers();
 
   // Register profile handlers (should be before other features that might use profiles)
   registerProfileHandlers();

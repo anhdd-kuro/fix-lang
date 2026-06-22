@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-kanagawa-dragon.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-kanagawa-dragon"] {
+  --background: #181616;
+  --foreground: rgb(197, 201, 197);
+  --card: rgb(166, 166, 156);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(166, 166, 156);
+  --popover-foreground: #c5c9c5;
+  --primary: #8ba4b0;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(166, 166, 156);
+  --secondary-foreground: #a6a69c;
+  --muted: rgb(166, 166, 156);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgb(166, 166, 156);
+  --accent-foreground: #c5c9c5;
+  --destructive: #c4746e;
+  --destructive-foreground: #c5c9c5;
+  --border: rgb(129, 129, 116);
+  --input: rgb(166, 166, 156);
+  --ring: #8ba4b0;
+  --success: #8a9a7b;
+  --success-foreground: #181616;
+  --warning: #c4b28a;
+  --warning-foreground: #181616;
+  --chart-1: rgb(45, 42, 42);
+  --chart-2: #a6a69c;
+  --chart-3: #8ba4b0;
+  --chart-4: #8ba4b0;
+  --chart-5: #8ea4a2;
+  --overlay-spinner: #8ba4b0;
+  --overlay-spinner-track: rgb(197, 201, 197);
+  --overlay-backdrop: rgba(24, 22, 22, 0.72);
+}

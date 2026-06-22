@@ -61,7 +61,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
         value={inputValue}
         onChange={handleChange}
         placeholder={placeholder}
-        className="w-full bg-neutral-700 border border-neutral-600 text-white px-8 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+        className="w-full bg-input border border-border text-foreground px-8 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
         aria-label="Search history"
         list={dataListId}
         autoComplete="on"
@@ -76,7 +76,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
         </datalist>
       )}
       <svg
-        className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 size-4"
+        className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-muted-foreground size-4"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -95,7 +95,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
             setInputValue("");
             onSearch("");
           }}
-          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
           aria-label="Clear search"
         >
           <svg

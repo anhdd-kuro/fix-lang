@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from material-theme.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="material-theme"] {
+  --background: #263238;
+  --foreground: rgb(238, 255, 255);
+  --card: rgb(59, 77, 86);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(59, 77, 86);
+  --popover-foreground: #EEFFFF;
+  --primary: #80CBC4;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(59, 77, 86);
+  --secondary-foreground: #6c8692;
+  --muted: rgb(59, 77, 86);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(59, 77, 86);
+  --accent-foreground: #FFFFFF;
+  --destructive: rgba(240, 113, 120, 0.44);
+  --destructive-foreground: #EEFFFF;
+  --border: rgb(0, 0, 0);
+  --input: rgb(48, 60, 65);
+  --ring: #FFFFFF;
+  --success: #C3E88D;
+  --success-foreground: #263238;
+  --warning: #FFCB6B;
+  --warning-foreground: #263238;
+  --chart-1: rgba(55, 71, 79, 0.44);
+  --chart-2: rgb(63, 83, 92);
+  --chart-3: #82AAFF;
+  --chart-4: #80CBC4;
+  --chart-5: #89DDFF;
+  --overlay-spinner: #80CBC4;
+  --overlay-spinner-track: rgb(238, 255, 255);
+  --overlay-backdrop: rgba(38, 50, 56, 0.72);
+}

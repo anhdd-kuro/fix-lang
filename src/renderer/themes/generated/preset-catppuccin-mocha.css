@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from catppuccin-mocha.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="catppuccin-mocha"] {
+  --background: #1e1e2e;
+  --foreground: rgb(205, 214, 244);
+  --card: rgb(50, 50, 77);
+  --card-foreground: rgb(205, 214, 244);
+  --popover: rgb(50, 50, 77);
+  --popover-foreground: #cdd6f4;
+  --primary: #cba6f7;
+  --primary-foreground: rgb(17, 17, 27);
+  --secondary: rgb(50, 50, 77);
+  --secondary-foreground: #6c7086;
+  --muted: rgb(50, 50, 77);
+  --muted-foreground: rgb(222, 223, 227);
+  --accent: rgba(49, 50, 68, 0.5);
+  --accent-foreground: #cdd6f4;
+  --destructive: #f38ba8;
+  --destructive-foreground: #cdd6f4;
+  --border: rgb(88, 91, 112);
+  --input: rgb(49, 50, 68);
+  --ring: #cba6f7;
+  --success: #a6e3a1;
+  --success-foreground: #1e1e2e;
+  --warning: #f9e2af;
+  --warning-foreground: #1e1e2e;
+  --chart-1: #45475a;
+  --chart-2: #7f849c;
+  --chart-3: #89b4fa;
+  --chart-4: #cba6f7;
+  --chart-5: #94e2d5;
+  --overlay-spinner: #cba6f7;
+  --overlay-spinner-track: rgb(205, 214, 244);
+  --overlay-backdrop: rgba(30, 30, 46, 0.72);
+}

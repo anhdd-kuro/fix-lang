@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-tokyo-night-storm.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-tokyo-night-storm"] {
+  --background: #24283b;
+  --foreground: rgb(192, 202, 245);
+  --card: rgb(65, 72, 104);
+  --card-foreground: rgb(192, 202, 245);
+  --popover: rgb(65, 72, 104);
+  --popover-foreground: #c0caf5;
+  --primary: #7aa2f7;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(65, 72, 104);
+  --secondary-foreground: #414868;
+  --muted: rgb(65, 72, 104);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(65, 72, 104);
+  --accent-foreground: #c0caf5;
+  --destructive: #f7768e;
+  --destructive-foreground: #c0caf5;
+  --border: rgb(94, 105, 151);
+  --input: rgb(65, 72, 104);
+  --ring: #7aa2f7;
+  --success: #9ece6a;
+  --success-foreground: #24283b;
+  --warning: #e0af68;
+  --warning-foreground: #24283b;
+  --chart-1: rgb(51, 57, 84);
+  --chart-2: rgb(59, 66, 97);
+  --chart-3: #7aa2f7;
+  --chart-4: #7aa2f7;
+  --chart-5: #7dcfff;
+  --overlay-spinner: #7aa2f7;
+  --overlay-spinner-track: rgb(192, 202, 245);
+  --overlay-backdrop: rgba(36, 40, 59, 0.72);
+}

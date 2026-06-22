@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-jellybeans-default.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-jellybeans-default"] {
+  --background: #121212;
+  --foreground: rgb(222, 222, 222);
+  --card: rgb(189, 189, 189);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(189, 189, 189);
+  --popover-foreground: #dedede;
+  --primary: #97bedc;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(189, 189, 189);
+  --secondary-foreground: #bdbdbd;
+  --muted: rgb(189, 189, 189);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgb(189, 189, 189);
+  --accent-foreground: #dedede;
+  --destructive: #e27373;
+  --destructive-foreground: #dedede;
+  --border: rgb(151, 151, 151);
+  --input: rgb(189, 189, 189);
+  --ring: #97bedc;
+  --success: #94b979;
+  --success-foreground: #121212;
+  --warning: #ffba7b;
+  --warning-foreground: #121212;
+  --chart-1: #1f2937;
+  --chart-2: #bdbdbd;
+  --chart-3: #97bedc;
+  --chart-4: #97bedc;
+  --chart-5: rgb(79, 79, 79);
+  --overlay-spinner: #97bedc;
+  --overlay-spinner-track: rgb(222, 222, 222);
+  --overlay-backdrop: rgba(18, 18, 18, 0.72);
+}

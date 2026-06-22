@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from light-plus.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="light-plus"] {
+  --background: #FFFFFF;
+  --foreground: rgb(0, 0, 0);
+  --card: rgb(31, 41, 55);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(31, 41, 55);
+  --popover-foreground: #000000;
+  --primary: #007ACC;
+  --primary-foreground: rgb(4, 5, 6);
+  --secondary: rgb(55, 65, 81);
+  --secondary-foreground: #d1d5db;
+  --muted: rgb(31, 41, 55);
+  --muted-foreground: rgb(166, 166, 166);
+  --accent: rgb(232, 232, 232);
+  --accent-foreground: #000000;
+  --destructive: #ef4444;
+  --destructive-foreground: #000000;
+  --border: rgb(59, 77, 104);
+  --input: rgb(31, 41, 55);
+  --ring: #007ACC;
+  --success: #22c55e;
+  --success-foreground: #FFFFFF;
+  --warning: #eab308;
+  --warning-foreground: #FFFFFF;
+  --chart-1: #1f2937;
+  --chart-2: #374151;
+  --chart-3: #3b82f6;
+  --chart-4: #007ACC;
+  --chart-5: #06b6d4;
+  --overlay-spinner: #007ACC;
+  --overlay-spinner-track: rgb(0, 0, 0);
+  --overlay-backdrop: rgba(255, 255, 255, 0.72);
+}

@@ -1,6 +1,7 @@
 import { format, parseISO } from "date-fns";
 import React, { useEffect, useMemo, useState } from "react";
 import { twJoin } from "tailwind-merge";
+import { heatmapRatioClass } from "../../components/heatmapIntensity";
 import {
   HOUR_BLOCKS,
   HOURS_PER_BLOCK,
@@ -14,23 +15,6 @@ const blockHourLabel = (blockIndex: number): string => {
   const start = blockIndex * HOURS_PER_BLOCK;
   const end = start + HOURS_PER_BLOCK;
   return `${start}–${end}`;
-};
-
-const intensityClass = (count: number, max: number): string => {
-  if (count === 0 || max === 0) {
-    return "bg-gray-700/60";
-  }
-  const ratio = count / max;
-  if (ratio >= 0.75) {
-    return "bg-green-500";
-  }
-  if (ratio >= 0.5) {
-    return "bg-green-600";
-  }
-  if (ratio >= 0.25) {
-    return "bg-green-700";
-  }
-  return "bg-green-800";
 };
 
 type TrayActivityHeatmapProps = {
@@ -48,13 +32,13 @@ export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
   const hasActivity = entries.length > 0;
 
   return (
-    <div className="rounded-lg border border-gray-700 bg-gray-800/80 px-3 py-2">
-      <div className="text-xs uppercase tracking-wide text-blue-400 mb-2">
+    <div className="rounded-lg border border-border bg-card/80 px-3 py-2">
+      <div className="text-xs uppercase tracking-wide text-primary mb-2">
         7-day activity
       </div>
 
       {!hasActivity ? (
-        <p className="text-sm text-gray-500">No activity yet</p>
+        <p className="text-sm text-muted-foreground">No activity yet</p>
       ) : (
         <div className="flex flex-col gap-1">
           <div
@@ -77,7 +61,7 @@ export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
                     title={tooltip}
                     className={twJoin(
                       "aspect-square min-h-[10px] rounded-sm",
-                      intensityClass(count, heatmap.max)
+                      heatmapRatioClass(count, heatmap.max)
                     )}
                   />
                 );
@@ -86,7 +70,7 @@ export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
           </div>
 
           <div
-            className="grid gap-0.5 text-[10px] text-gray-500 text-center"
+            className="grid gap-0.5 text-[10px] text-muted-foreground text-center"
             style={{
               gridTemplateColumns: `repeat(${heatmap.days.length}, minmax(0, 1fr))`,
             }}

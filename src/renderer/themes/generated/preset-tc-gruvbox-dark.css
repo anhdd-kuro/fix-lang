@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-gruvbox-dark.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-gruvbox-dark"] {
+  --background: #282828;
+  --foreground: rgb(235, 219, 178);
+  --card: rgb(146, 131, 116);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(146, 131, 116);
+  --popover-foreground: #ebdbb2;
+  --primary: #458588;
+  --primary-foreground: rgb(4, 3, 1);
+  --secondary: rgb(146, 131, 116);
+  --secondary-foreground: #928374;
+  --muted: rgb(146, 131, 116);
+  --muted-foreground: rgb(253, 253, 253);
+  --accent: rgb(146, 131, 116);
+  --accent-foreground: #ebdbb2;
+  --destructive: #cc241d;
+  --destructive-foreground: #ebdbb2;
+  --border: rgb(118, 105, 93);
+  --input: rgb(146, 131, 116);
+  --ring: #458588;
+  --success: #98971a;
+  --success-foreground: #282828;
+  --warning: #d79921;
+  --warning-foreground: #282828;
+  --chart-1: rgb(60, 60, 60);
+  --chart-2: #928374;
+  --chart-3: #458588;
+  --chart-4: rgb(91, 91, 91);
+  --chart-5: rgb(101, 101, 101);
+  --overlay-spinner: #458588;
+  --overlay-spinner-track: rgb(235, 219, 178);
+  --overlay-backdrop: rgba(40, 40, 40, 0.72);
+}

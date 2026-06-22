@@ -8,6 +8,7 @@ import {
   promptGenFeature,
   profilesFeature,
   settingsFeature,
+  themeFeature,
   uiFeature,
   historyFeature,
   openrouterFeature,
@@ -20,6 +21,7 @@ import type {
   ProfilesFeature,
   PromptGenFeature,
   SettingsFeature,
+  ThemeFeature,
   UIFeature,
 } from "./features";
 
@@ -34,6 +36,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...promptGenFeature,
   ...profilesFeature,
   ...settingsFeature,
+  ...themeFeature,
   ...uiFeature,
   ...openrouterFeature,
 } satisfies ElectronAPI);
@@ -48,5 +51,6 @@ export type ElectronAPI = HistoryFeature &
   ApiFeature &
   ProfilesFeature &
   SettingsFeature &
+  ThemeFeature &
   UIFeature &
   OpenRouterFeature;

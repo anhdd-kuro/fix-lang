@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-tomorrow-night-eighties.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-tomorrow-night-eighties"] {
+  --background: #2d2d2d;
+  --foreground: rgb(204, 204, 204);
+  --card: rgb(0, 0, 0);
+  --card-foreground: rgb(204, 204, 204);
+  --popover: rgb(0, 0, 0);
+  --popover-foreground: #cccccc;
+  --primary: #6699cc;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(0, 0, 0);
+  --secondary-foreground: #000000;
+  --muted: rgb(0, 0, 0);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(0, 0, 0);
+  --accent-foreground: #cccccc;
+  --destructive: #f2777a;
+  --destructive-foreground: #cccccc;
+  --border: rgb(26, 26, 26);
+  --input: rgb(0, 0, 0);
+  --ring: #6699cc;
+  --success: #99cc99;
+  --success-foreground: #2d2d2d;
+  --warning: #ffcc66;
+  --warning-foreground: #2d2d2d;
+  --chart-1: rgb(65, 65, 65);
+  --chart-2: #000000;
+  --chart-3: #6699cc;
+  --chart-4: #6699cc;
+  --chart-5: #66cccc;
+  --overlay-spinner: #6699cc;
+  --overlay-spinner-track: rgb(204, 204, 204);
+  --overlay-backdrop: rgba(45, 45, 45, 0.72);
+}

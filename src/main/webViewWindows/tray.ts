@@ -4,7 +4,8 @@
  */
 import path from "path";
 import { Tray, nativeImage, app, BrowserWindow, ipcMain } from "electron";
-import appIcon from "./tray.png?asset";
+import { attachThemeSync } from "./attachThemeSync";
+import appIcon from "../../../resources/tray.png?asset";
 
 let trayWindow: BrowserWindow | null = null;
 
@@ -25,7 +26,7 @@ export function createTrayWindow(): BrowserWindow {
     alwaysOnTop: true,
     skipTaskbar: true,
     transparent: true,
-    backgroundColor: "#1e2939",
+    backgroundColor: "#00000000",
     hasShadow: false,
     webPreferences: {
       preload: path.join(app.getAppPath(), "out/preload/index.js"),
@@ -44,6 +45,7 @@ export function createTrayWindow(): BrowserWindow {
   );
   // Load standalone HTML for tray tray
   trayWindow.loadFile(trayWindowHtml);
+  attachThemeSync(trayWindow);
   trayWindow.on("blur", hideTrayWindow);
   return trayWindow;
 }
@@ -101,6 +103,9 @@ export function initializeTrayWindow(): void {
 export const setupTray = () => {
   try {
     const trayIcon = nativeImage.createFromPath(appIcon);
+    if (process.platform === "darwin") {
+      trayIcon.setTemplateImage(false);
+    }
     appTray = new Tray(trayIcon);
     appTray.setToolTip("FixLang");
     appTray.on("click", () => {

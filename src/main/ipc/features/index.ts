@@ -5,4 +5,5 @@ export * from "./openrouter";
 export * from "./profiles";
 export * from "./promptgen";
 export * from "./settings";
+export * from "./theme";
 export * from "./ui";

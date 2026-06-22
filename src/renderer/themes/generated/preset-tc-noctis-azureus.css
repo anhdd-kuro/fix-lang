@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-noctis-azureus.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-noctis-azureus"] {
+  --background: #051b29;
+  --foreground: rgb(190, 207, 218);
+  --card: rgb(71, 94, 108);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(71, 94, 108);
+  --popover-foreground: #becfda;
+  --primary: #49ace9;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(71, 94, 108);
+  --secondary-foreground: #475e6c;
+  --muted: rgb(71, 94, 108);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(71, 94, 108);
+  --accent-foreground: #becfda;
+  --destructive: #e66533;
+  --destructive-foreground: #becfda;
+  --border: rgb(91, 121, 139);
+  --input: rgb(71, 94, 108);
+  --ring: #49ace9;
+  --success: #49e9a6;
+  --success-foreground: #051b29;
+  --warning: #e4b781;
+  --warning-foreground: #051b29;
+  --chart-1: rgb(9, 51, 77);
+  --chart-2: #475e6c;
+  --chart-3: #49ace9;
+  --chart-4: #49ace9;
+  --chart-5: #49d6e9;
+  --overlay-spinner: #49ace9;
+  --overlay-spinner-track: rgb(190, 207, 218);
+  --overlay-backdrop: rgba(5, 27, 41, 0.72);
+}

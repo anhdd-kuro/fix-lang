@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from min-light.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="min-light"] {
+  --background: #ffffff;
+  --foreground: rgb(33, 33, 33);
+  --card: rgb(230, 230, 230);
+  --card-foreground: rgb(33, 33, 33);
+  --popover: rgb(31, 41, 55);
+  --popover-foreground: #212121;
+  --primary: #616161;
+  --primary-foreground: rgb(249, 250, 251);
+  --secondary: rgb(230, 230, 230);
+  --secondary-foreground: #BDBDBD;
+  --muted: rgb(230, 230, 230);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgb(230, 230, 230);
+  --accent-foreground: #212121;
+  --destructive: #ef4444;
+  --destructive-foreground: #212121;
+  --border: rgb(192, 192, 192);
+  --input: rgb(31, 41, 55);
+  --ring: #D0D0D0;
+  --success: #77cc00;
+  --success-foreground: #ffffff;
+  --warning: #f29718;
+  --warning-foreground: #ffffff;
+  --chart-1: rgb(235, 235, 235);
+  --chart-2: #CCCCCC;
+  --chart-3: rgb(214, 214, 214);
+  --chart-4: #616161;
+  --chart-5: #4dbf99;
+  --overlay-spinner: #000000;
+  --overlay-spinner-track: rgb(33, 33, 33);
+  --overlay-backdrop: rgba(255, 255, 255, 0.72);
+}

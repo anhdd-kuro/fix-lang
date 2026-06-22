@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-one-light.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-one-light"] {
+  --background: #f8f8f8;
+  --foreground: rgb(42, 43, 51);
+  --card: rgb(0, 0, 0);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(0, 0, 0);
+  --popover-foreground: #2a2b33;
+  --primary: #2f5af3;
+  --primary-foreground: rgb(248, 248, 248);
+  --secondary: rgb(0, 0, 0);
+  --secondary-foreground: #000000;
+  --muted: rgb(0, 0, 0);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(0, 0, 0);
+  --accent-foreground: #2a2b33;
+  --destructive: #de3d35;
+  --destructive-foreground: #2a2b33;
+  --border: rgb(26, 26, 26);
+  --input: rgb(0, 0, 0);
+  --ring: #2f5af3;
+  --success: #3e953a;
+  --success-foreground: #f8f8f8;
+  --warning: #d2b67b;
+  --warning-foreground: #f8f8f8;
+  --chart-1: #1f2937;
+  --chart-2: #000000;
+  --chart-3: #2f5af3;
+  --chart-4: #2f5af3;
+  --chart-5: #3e953a;
+  --overlay-spinner: #2f5af3;
+  --overlay-spinner-track: rgb(42, 43, 51);
+  --overlay-backdrop: rgba(248, 248, 248, 0.72);
+}

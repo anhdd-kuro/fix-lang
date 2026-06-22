@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-nord-default.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-nord-default"] {
+  --background: #2e3440;
+  --foreground: rgb(216, 222, 233);
+  --card: rgb(76, 86, 106);
+  --card-foreground: rgb(216, 222, 233);
+  --popover: rgb(76, 86, 106);
+  --popover-foreground: #d8dee9;
+  --primary: #81a1c1;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(76, 86, 106);
+  --secondary-foreground: #4c566a;
+  --muted: rgb(76, 86, 106);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(76, 86, 106);
+  --accent-foreground: #d8dee9;
+  --destructive: #bf616a;
+  --destructive-foreground: #d8dee9;
+  --border: rgb(109, 122, 150);
+  --input: rgb(76, 86, 106);
+  --ring: #81a1c1;
+  --success: #a3be8c;
+  --success-foreground: #2e3440;
+  --warning: #ebcb8b;
+  --warning-foreground: #2e3440;
+  --chart-1: rgb(63, 71, 88);
+  --chart-2: rgb(72, 81, 100);
+  --chart-3: #81a1c1;
+  --chart-4: #81a1c1;
+  --chart-5: #88c0d0;
+  --overlay-spinner: #81a1c1;
+  --overlay-spinner-track: rgb(216, 222, 233);
+  --overlay-backdrop: rgba(46, 52, 64, 0.72);
+}

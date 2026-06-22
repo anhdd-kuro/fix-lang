@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-iceberg-dark.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-iceberg-dark"] {
+  --background: #161821;
+  --foreground: rgb(198, 200, 209);
+  --card: rgb(107, 112, 137);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(107, 112, 137);
+  --popover-foreground: #c6c8d1;
+  --primary: #84a0c6;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(107, 112, 137);
+  --secondary-foreground: #6b7089;
+  --muted: rgb(107, 112, 137);
+  --muted-foreground: rgb(20, 20, 20);
+  --accent: rgb(107, 112, 137);
+  --accent-foreground: #c6c8d1;
+  --destructive: #e27878;
+  --destructive-foreground: #c6c8d1;
+  --border: rgb(134, 139, 161);
+  --input: rgb(107, 112, 137);
+  --ring: #84a0c6;
+  --success: #b4be82;
+  --success-foreground: #161821;
+  --warning: #e2a478;
+  --warning-foreground: #161821;
+  --chart-1: rgb(38, 42, 57);
+  --chart-2: #6b7089;
+  --chart-3: #84a0c6;
+  --chart-4: #84a0c6;
+  --chart-5: #89b8c2;
+  --overlay-spinner: #84a0c6;
+  --overlay-spinner-track: rgb(198, 200, 209);
+  --overlay-backdrop: rgba(22, 24, 33, 0.72);
+}

@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-nightfly-default.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-nightfly-default"] {
+  --background: #011627;
+  --foreground: rgb(189, 193, 198);
+  --card: rgb(124, 143, 143);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(124, 143, 143);
+  --popover-foreground: #bdc1c6;
+  --primary: #82aaff;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(124, 143, 143);
+  --secondary-foreground: #7c8f8f;
+  --muted: rgb(124, 143, 143);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgb(124, 143, 143);
+  --accent-foreground: #bdc1c6;
+  --destructive: #fc514e;
+  --destructive-foreground: #bdc1c6;
+  --border: rgb(100, 116, 116);
+  --input: rgb(124, 143, 143);
+  --ring: #82aaff;
+  --success: #a1cd5e;
+  --success-foreground: #011627;
+  --warning: #e7d37a;
+  --warning-foreground: #011627;
+  --chart-1: #1f2937;
+  --chart-2: #7c8f8f;
+  --chart-3: #82aaff;
+  --chart-4: #82aaff;
+  --chart-5: #7fdbca;
+  --overlay-spinner: #82aaff;
+  --overlay-spinner-track: rgb(189, 193, 198);
+  --overlay-backdrop: rgba(1, 22, 39, 0.72);
+}

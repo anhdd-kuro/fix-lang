@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from solarized-light.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="solarized-light"] {
+  --background: #FDF6E3;
+  --foreground: rgb(24, 24, 27);
+  --card: rgb(248, 223, 156);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(248, 223, 156);
+  --popover-foreground: #657B83;
+  --primary: #B58900;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(211, 203, 183);
+  --secondary-foreground: #586E75;
+  --muted: rgb(211, 203, 183);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgba(223, 202, 136, 0.27);
+  --accent-foreground: #6C6C6C;
+  --destructive: #ef4444;
+  --destructive-foreground: #657B83;
+  --border: rgb(241, 192, 61);
+  --input: rgb(221, 214, 193);
+  --ring: #b49471;
+  --success: #859900;
+  --success-foreground: #FDF6E3;
+  --warning: #b58900;
+  --warning-foreground: #FDF6E3;
+  --chart-1: rgba(88, 110, 117, 0.50);
+  --chart-2: #374151;
+  --chart-3: #268bd2;
+  --chart-4: #B58900;
+  --chart-5: #2aa198;
+  --overlay-spinner: #B58900;
+  --overlay-spinner-track: rgb(101, 123, 131);
+  --overlay-backdrop: rgba(253, 246, 227, 0.72);
+}

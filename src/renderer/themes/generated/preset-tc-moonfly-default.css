@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-moonfly-default.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-moonfly-default"] {
+  --background: #080808;
+  --foreground: rgb(189, 189, 189);
+  --card: rgb(148, 148, 148);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(148, 148, 148);
+  --popover-foreground: #bdbdbd;
+  --primary: #80a0ff;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(148, 148, 148);
+  --secondary-foreground: #949494;
+  --muted: rgb(148, 148, 148);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgb(148, 148, 148);
+  --accent-foreground: #bdbdbd;
+  --destructive: #ff5454;
+  --destructive-foreground: #bdbdbd;
+  --border: rgb(110, 110, 110);
+  --input: rgb(148, 148, 148);
+  --ring: #80a0ff;
+  --success: #8cc85f;
+  --success-foreground: #080808;
+  --warning: #e3c78a;
+  --warning-foreground: #080808;
+  --chart-1: #1f2937;
+  --chart-2: #949494;
+  --chart-3: #80a0ff;
+  --chart-4: #80a0ff;
+  --chart-5: #79dac8;
+  --overlay-spinner: #80a0ff;
+  --overlay-spinner-track: rgb(189, 189, 189);
+  --overlay-backdrop: rgba(8, 8, 8, 0.72);
+}

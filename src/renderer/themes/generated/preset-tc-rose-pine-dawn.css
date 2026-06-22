@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-rose-pine-dawn.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-rose-pine-dawn"] {
+  --background: #fffaf3;
+  --foreground: rgb(87, 82, 121);
+  --card: rgb(121, 117, 147);
+  --card-foreground: rgb(8, 8, 12);
+  --popover: rgb(121, 117, 147);
+  --popover-foreground: #575279;
+  --primary: #56949f;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(121, 117, 147);
+  --secondary-foreground: #797593;
+  --muted: rgb(121, 117, 147);
+  --muted-foreground: rgb(30, 30, 30);
+  --accent: rgb(121, 117, 147);
+  --accent-foreground: #575279;
+  --destructive: #b4637a;
+  --destructive-foreground: #575279;
+  --border: rgb(149, 146, 169);
+  --input: rgb(121, 117, 147);
+  --ring: #56949f;
+  --success: #286983;
+  --success-foreground: #fffaf3;
+  --warning: #ea9d34;
+  --warning-foreground: #fffaf3;
+  --chart-1: #1f2937;
+  --chart-2: #797593;
+  --chart-3: #56949f;
+  --chart-4: #56949f;
+  --chart-5: rgb(255, 199, 121);
+  --overlay-spinner: #56949f;
+  --overlay-spinner-track: rgb(87, 82, 121);
+  --overlay-backdrop: rgba(255, 250, 243, 0.72);
+}

@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from kanagawa-lotus.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="kanagawa-lotus"] {
+  --background: #F2ECBC;
+  --foreground: rgb(84, 84, 100);
+  --card: rgb(230, 218, 124);
+  --card-foreground: rgb(84, 84, 100);
+  --popover: rgb(213, 206, 163);
+  --popover-foreground: #545464;
+  --primary: #5A7785;
+  --primary-foreground: rgb(228, 228, 231);
+  --secondary: rgb(234, 224, 145);
+  --secondary-foreground: #545464;
+  --muted: rgb(234, 224, 145);
+  --muted-foreground: rgb(92, 92, 92);
+  --accent: rgb(228, 215, 148);
+  --accent-foreground: #545464;
+  --destructive: #E82424;
+  --destructive-foreground: #545464;
+  --border: rgb(212, 192, 40);
+  --input: rgb(213, 206, 163);
+  --ring: #C7D7E0;
+  --success: #6F894E;
+  --success-foreground: #F2ECBC;
+  --warning: #77713F;
+  --warning-foreground: #F2ECBC;
+  --chart-1: #1f2937;
+  --chart-2: #766B90;
+  --chart-3: #4D699B;
+  --chart-4: #5A7785;
+  --chart-5: #597B75;
+  --overlay-spinner: #5A7785;
+  --overlay-spinner-track: rgb(84, 84, 100);
+  --overlay-backdrop: rgba(242, 236, 188, 0.72);
+}

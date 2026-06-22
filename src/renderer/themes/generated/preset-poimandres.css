@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from poimandres.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="poimandres"] {
+  --background: #1b1e28;
+  --foreground: rgb(166, 172, 205);
+  --card: rgb(48, 53, 70);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(48, 53, 70);
+  --popover-foreground: #e4f0fb;
+  --primary: #303340;
+  --primary-foreground: rgb(255, 255, 255);
+  --secondary: rgb(48, 53, 70);
+  --secondary-foreground: #767c9d;
+  --muted: rgb(48, 53, 70);
+  --muted-foreground: rgba(185, 185, 185, 0.7);
+  --accent: rgba(48, 51, 64, 0.5);
+  --accent-foreground: #e4f0fb;
+  --destructive: #d0679d;
+  --destructive-foreground: #a6accd;
+  --border: rgb(0, 0, 0);
+  --input: rgb(255, 255, 255);
+  --ring: #000000;
+  --success: #5DE4c7;
+  --success-foreground: #1b1e28;
+  --warning: #fffac2;
+  --warning-foreground: #1b1e28;
+  --chart-1: #303340;
+  --chart-2: rgba(118, 124, 157, 0.31);
+  --chart-3: #89ddff;
+  --chart-4: rgb(68, 76, 101);
+  --chart-5: #89ddff;
+  --overlay-spinner: #89ddff;
+  --overlay-spinner-track: rgb(166, 172, 205);
+  --overlay-backdrop: rgba(27, 30, 40, 0.72);
+}

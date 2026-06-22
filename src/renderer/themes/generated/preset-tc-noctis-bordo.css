@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-noctis-bordo.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-noctis-bordo"] {
+  --background: #272022;
+  --foreground: rgb(203, 190, 194);
+  --card: rgb(105, 84, 91);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(105, 84, 91);
+  --popover-foreground: #cbbec2;
+  --primary: #49ace9;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(105, 84, 91);
+  --secondary-foreground: #69545b;
+  --muted: rgb(105, 84, 91);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(105, 84, 91);
+  --accent-foreground: #cbbec2;
+  --destructive: #e66533;
+  --destructive-foreground: #cbbec2;
+  --border: rgb(146, 119, 128);
+  --input: rgb(105, 84, 91);
+  --ring: #49ace9;
+  --success: #49e9a6;
+  --success-foreground: #272022;
+  --warning: #e4b781;
+  --warning-foreground: #272022;
+  --chart-1: rgb(61, 50, 54);
+  --chart-2: #69545b;
+  --chart-3: #49ace9;
+  --chart-4: #49ace9;
+  --chart-5: #49d6e9;
+  --overlay-spinner: #49ace9;
+  --overlay-spinner-track: rgb(203, 190, 194);
+  --overlay-backdrop: rgba(39, 32, 34, 0.72);
+}

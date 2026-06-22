@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from plastic.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="plastic"] {
+  --background: #21252B;
+  --foreground: rgb(169, 178, 195);
+  --card: rgb(55, 62, 72);
+  --card-foreground: rgb(198, 204, 215);
+  --popover: rgb(55, 62, 72);
+  --popover-foreground: #A9B2C3;
+  --primary: #E06C75;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(55, 62, 72);
+  --secondary-foreground: #5F6672;
+  --muted: rgb(55, 62, 72);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(169, 178, 195);
+  --accent-foreground: #ffffff;
+  --destructive: #D74E42;
+  --destructive-foreground: #A9B2C3;
+  --border: rgb(13, 17, 23);
+  --input: rgb(13, 17, 23);
+  --ring: #1085FF;
+  --success: #98C379;
+  --success-foreground: #21252B;
+  --warning: #E5C07B;
+  --warning-foreground: #21252B;
+  --chart-1: #0D1117;
+  --chart-2: #5F6672;
+  --chart-3: #61AFEF;
+  --chart-4: #E06C75;
+  --chart-5: #56B6C2;
+  --overlay-spinner: #E06C75;
+  --overlay-spinner-track: rgb(169, 178, 195);
+  --overlay-backdrop: rgba(33, 37, 43, 0.72);
+}

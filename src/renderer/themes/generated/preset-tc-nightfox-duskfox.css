@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-nightfox-duskfox.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-nightfox-duskfox"] {
+  --background: #232136;
+  --foreground: rgb(224, 222, 244);
+  --card: rgb(71, 64, 125);
+  --card-foreground: rgb(224, 222, 244);
+  --popover: rgb(71, 64, 125);
+  --popover-foreground: #e0def4;
+  --primary: #569fba;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(71, 64, 125);
+  --secondary-foreground: #47407d;
+  --muted: rgb(71, 64, 125);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(71, 64, 125);
+  --accent-foreground: #e0def4;
+  --destructive: #eb6f92;
+  --destructive-foreground: #e0def4;
+  --border: rgb(102, 93, 172);
+  --input: rgb(71, 64, 125);
+  --ring: #569fba;
+  --success: #a3be8c;
+  --success-foreground: #232136;
+  --warning: #f6c177;
+  --warning-foreground: #232136;
+  --chart-1: rgb(51, 48, 79);
+  --chart-2: rgb(60, 56, 92);
+  --chart-3: #569fba;
+  --chart-4: #569fba;
+  --chart-5: #9ccfd8;
+  --overlay-spinner: #569fba;
+  --overlay-spinner-track: rgb(224, 222, 244);
+  --overlay-backdrop: rgba(35, 33, 54, 0.72);
+}

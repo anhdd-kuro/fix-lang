@@ -65,7 +65,7 @@ const MouseLoadingSpinner: React.FC<MouseLoadingSpinnerProps> = ({
       role="status"
     >
       <svg
-        className="mr-3 -ml-1 size-5 animate-spin text-white"
+        className="mr-3 -ml-1 size-5 animate-spin text-foreground"
         fill="none"
         viewBox="0 0 24 24"
       >

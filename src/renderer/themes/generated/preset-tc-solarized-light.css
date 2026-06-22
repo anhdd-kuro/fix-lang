@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-solarized-light.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-solarized-light"] {
+  --background: #fdf6e3;
+  --foreground: rgb(24, 24, 27);
+  --card: rgb(0, 43, 54);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(0, 43, 54);
+  --popover-foreground: #657b83;
+  --primary: #268bd2;
+  --primary-foreground: rgb(29, 22, 2);
+  --secondary: rgb(0, 43, 54);
+  --secondary-foreground: #002b36;
+  --muted: rgb(0, 43, 54);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(0, 43, 54);
+  --accent-foreground: #657b83;
+  --destructive: #dc322f;
+  --destructive-foreground: #657b83;
+  --border: rgb(0, 84, 105);
+  --input: rgb(0, 43, 54);
+  --ring: #268bd2;
+  --success: #859900;
+  --success-foreground: #fdf6e3;
+  --warning: #b58900;
+  --warning-foreground: #fdf6e3;
+  --chart-1: #1f2937;
+  --chart-2: #002b36;
+  --chart-3: #268bd2;
+  --chart-4: #268bd2;
+  --chart-5: #2aa198;
+  --overlay-spinner: #268bd2;
+  --overlay-spinner-track: rgb(101, 123, 131);
+  --overlay-backdrop: rgba(253, 246, 227, 0.72);
+}

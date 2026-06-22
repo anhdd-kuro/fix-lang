@@ -4,6 +4,7 @@ export * from "./correction";
 export * from "./promptgen";
 export * from "./profiles";
 export * from "./settings";
+export * from "./theme";
 export * from "./ui";
 export * from "./history";
 export * from "./openrouter";

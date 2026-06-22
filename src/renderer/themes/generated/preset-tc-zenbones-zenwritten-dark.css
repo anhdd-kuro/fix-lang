@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-zenbones-zenwritten-dark.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-zenbones-zenwritten-dark"] {
+  --background: #191919;
+  --foreground: rgb(187, 187, 187);
+  --card: rgb(61, 56, 57);
+  --card-foreground: rgb(187, 187, 187);
+  --popover: rgb(61, 56, 57);
+  --popover-foreground: #bbbbbb;
+  --primary: #6099c0;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(61, 56, 57);
+  --secondary-foreground: #3d3839;
+  --muted: rgb(61, 56, 57);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(61, 56, 57);
+  --accent-foreground: #bbbbbb;
+  --destructive: #de6e7c;
+  --destructive-foreground: #bbbbbb;
+  --border: rgb(101, 93, 94);
+  --input: rgb(61, 56, 57);
+  --ring: #6099c0;
+  --success: #819b69;
+  --success-foreground: #191919;
+  --warning: #b77e64;
+  --warning-foreground: #191919;
+  --chart-1: rgb(45, 45, 45);
+  --chart-2: rgb(56, 56, 56);
+  --chart-3: #6099c0;
+  --chart-4: #6099c0;
+  --chart-5: #66a5ad;
+  --overlay-spinner: #6099c0;
+  --overlay-spinner-track: rgb(187, 187, 187);
+  --overlay-backdrop: rgba(25, 25, 25, 0.72);
+}

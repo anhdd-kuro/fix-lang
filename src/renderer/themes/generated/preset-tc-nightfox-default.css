@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-nightfox-default.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-nightfox-default"] {
+  --background: #192330;
+  --foreground: rgb(205, 206, 207);
+  --card: rgb(87, 88, 96);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(87, 88, 96);
+  --popover-foreground: #cdcecf;
+  --primary: #719cd6;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(87, 88, 96);
+  --secondary-foreground: #575860;
+  --muted: rgb(87, 88, 96);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(87, 88, 96);
+  --accent-foreground: #cdcecf;
+  --destructive: #c94f6d;
+  --destructive-foreground: #cdcecf;
+  --border: rgb(124, 125, 136);
+  --input: rgb(87, 88, 96);
+  --ring: #719cd6;
+  --success: #81b29a;
+  --success-foreground: #192330;
+  --warning: #dbc074;
+  --warning-foreground: #192330;
+  --chart-1: rgb(39, 55, 75);
+  --chart-2: #575860;
+  --chart-3: #719cd6;
+  --chart-4: #719cd6;
+  --chart-5: #63cdcf;
+  --overlay-spinner: #719cd6;
+  --overlay-spinner-track: rgb(205, 206, 207);
+  --overlay-backdrop: rgba(25, 35, 48, 0.72);
+}

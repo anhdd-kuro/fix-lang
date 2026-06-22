@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from brand-shopify-dark.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="brand-shopify-dark"] {
+  --background: #0b0c0d;
+  --foreground: rgb(227, 229, 231);
+  --card: rgb(34, 38, 41);
+  --card-foreground: rgb(181, 181, 181);
+  --popover: rgb(34, 38, 41);
+  --popover-foreground: #e3e5e7;
+  --primary: #008060;
+  --primary-foreground: rgb(255, 255, 255);
+  --secondary: rgb(34, 38, 41);
+  --secondary-foreground: #616a75;
+  --muted: rgb(34, 38, 41);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(34, 38, 41);
+  --accent-foreground: #e3e5e7;
+  --destructive: #d82c0d;
+  --destructive-foreground: #e3e5e7;
+  --border: rgb(69, 77, 83);
+  --input: rgb(23, 25, 27);
+  --ring: #008060;
+  --success: #95bf47;
+  --success-foreground: #0b0c0d;
+  --warning: #b98900;
+  --warning-foreground: #0b0c0d;
+  --chart-1: #1f2937;
+  --chart-2: #616a75;
+  --chart-3: #008060;
+  --chart-4: rgb(58, 63, 68);
+  --chart-5: #47c1bf;
+  --overlay-spinner: #008060;
+  --overlay-spinner-track: rgb(227, 229, 231);
+  --overlay-backdrop: rgba(11, 12, 13, 0.72);
+}

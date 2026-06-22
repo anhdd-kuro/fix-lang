@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from github-light.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="github-light"] {
+  --background: #ffffff;
+  --foreground: rgb(36, 41, 46);
+  --card: rgb(230, 230, 230);
+  --card-foreground: rgb(88, 96, 105);
+  --popover: rgb(230, 230, 230);
+  --popover-foreground: #2f363d;
+  --primary: #2188ff;
+  --primary-foreground: rgb(31, 31, 31);
+  --secondary: rgb(230, 230, 230);
+  --secondary-foreground: #6a737d;
+  --muted: rgb(230, 230, 230);
+  --muted-foreground: rgb(115, 115, 115);
+  --accent: rgb(230, 230, 230);
+  --accent-foreground: #2f363d;
+  --destructive: #cb2431;
+  --destructive-foreground: #24292e;
+  --border: rgb(192, 192, 192);
+  --input: rgb(242, 242, 242);
+  --ring: #2188ff;
+  --success: #28a745;
+  --success-foreground: #ffffff;
+  --warning: #dbab09;
+  --warning-foreground: #ffffff;
+  --chart-1: rgb(235, 235, 235);
+  --chart-2: rgba(27, 31, 35, 0.30);
+  --chart-3: #0366d6;
+  --chart-4: #2188ff;
+  --chart-5: #1b7c83;
+  --overlay-spinner: #2188ff;
+  --overlay-spinner-track: rgb(36, 41, 46);
+  --overlay-backdrop: rgba(255, 255, 255, 0.72);
+}

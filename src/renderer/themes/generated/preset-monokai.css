@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from monokai.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="monokai"] {
+  --background: #272822;
+  --foreground: rgb(248, 248, 242);
+  --card: rgb(66, 68, 57);
+  --card-foreground: rgb(248, 248, 242);
+  --popover: rgb(65, 67, 57);
+  --popover-foreground: #cccccc;
+  --primary: #75715E;
+  --primary-foreground: rgb(249, 250, 251);
+  --secondary: rgb(52, 54, 46);
+  --secondary-foreground: #ccccc7;
+  --muted: rgb(52, 54, 46);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(62, 61, 50);
+  --accent-foreground: #f8f8f2;
+  --destructive: #ef4444;
+  --destructive-foreground: #f8f8f2;
+  --border: rgb(93, 96, 80);
+  --input: rgb(65, 67, 57);
+  --ring: #99947c;
+  --success: #86B42B;
+  --success-foreground: #272822;
+  --warning: #B3B42B;
+  --warning-foreground: #272822;
+  --chart-1: #464741;
+  --chart-2: #90908a;
+  --chart-3: #6A7EC8;
+  --chart-4: rgb(93, 95, 81);
+  --chart-5: #56ADBC;
+  --overlay-spinner: #75715E;
+  --overlay-spinner-track: rgb(248, 248, 242);
+  --overlay-backdrop: rgba(39, 40, 34, 0.72);
+}

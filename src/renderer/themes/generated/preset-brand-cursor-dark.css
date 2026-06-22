@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from brand-cursor-dark.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="brand-cursor-dark"] {
+  --background: #141414;
+  --foreground: rgb(204, 204, 204);
+  --card: rgb(46, 46, 46);
+  --card-foreground: rgb(204, 204, 204);
+  --popover: rgb(46, 46, 46);
+  --popover-foreground: #cccccc;
+  --primary: #83d6c5;
+  --primary-foreground: rgb(20, 20, 20);
+  --secondary: rgb(46, 46, 46);
+  --secondary-foreground: #858585;
+  --muted: rgb(46, 46, 46);
+  --muted-foreground: rgb(133, 133, 133);
+  --accent: rgb(46, 46, 46);
+  --accent-foreground: #cccccc;
+  --destructive: #f85149;
+  --destructive-foreground: #cccccc;
+  --border: rgb(72, 72, 72);
+  --input: rgb(33, 33, 33);
+  --ring: #83d6c5;
+  --success: #83d6c5;
+  --success-foreground: #141414;
+  --warning: #d29922;
+  --warning-foreground: #141414;
+  --chart-1: #1f2937;
+  --chart-2: #6e7681;
+  --chart-3: #83d6c5;
+  --chart-4: #83d6c5;
+  --chart-5: #83d6c5;
+  --overlay-spinner: #83d6c5;
+  --overlay-spinner-track: rgb(204, 204, 204);
+  --overlay-backdrop: rgba(20, 20, 20, 0.72);
+}

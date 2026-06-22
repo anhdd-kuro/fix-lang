@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from night-owl.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="night-owl"] {
+  --background: #011627;
+  --foreground: rgb(214, 222, 235);
+  --card: rgb(2, 50, 89);
+  --card-foreground: rgb(137, 164, 187);
+  --popover: rgb(2, 50, 89);
+  --popover-foreground: rgba(255, 255, 255, 0.80);
+  --primary: #44596b;
+  --primary-foreground: rgba(255, 255, 255, 0.8);
+  --secondary: rgb(2, 50, 89);
+  --secondary-foreground: #5f7e97;
+  --muted: rgb(2, 50, 89);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(2, 50, 89);
+  --accent-foreground: #ffffff;
+  --destructive: #EF5350;
+  --destructive-foreground: #d6deeb;
+  --border: rgb(4, 92, 164);
+  --input: rgb(11, 37, 58);
+  --ring: #122d42;
+  --success: #22da6e;
+  --success-foreground: #011627;
+  --warning: #c5e478;
+  --warning-foreground: #011627;
+  --chart-1: rgba(94, 129, 206, 0.32);
+  --chart-2: #4b6479;
+  --chart-3: #82AAFF;
+  --chart-4: rgb(4, 78, 138);
+  --chart-5: #21c7a8;
+  --overlay-spinner: #44596b;
+  --overlay-spinner-track: rgb(214, 222, 235);
+  --overlay-backdrop: rgba(1, 22, 39, 0.72);
+}

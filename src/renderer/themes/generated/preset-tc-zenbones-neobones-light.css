@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-zenbones-neobones-light.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-zenbones-neobones-light"] {
+  --background: #e5ede6;
+  --foreground: rgb(32, 46, 24);
+  --card: rgb(179, 198, 182);
+  --card-foreground: rgb(32, 46, 24);
+  --popover: rgb(179, 198, 182);
+  --popover-foreground: #202e18;
+  --primary: #286486;
+  --primary-foreground: rgb(229, 237, 230);
+  --secondary: rgb(179, 198, 182);
+  --secondary-foreground: #b3c6b6;
+  --muted: rgb(179, 198, 182);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgb(179, 198, 182);
+  --accent-foreground: #202e18;
+  --destructive: #a8334c;
+  --destructive-foreground: #202e18;
+  --border: rgb(135, 165, 140);
+  --input: rgb(179, 198, 182);
+  --ring: #286486;
+  --success: #567a30;
+  --success-foreground: #e5ede6;
+  --warning: #944927;
+  --warning-foreground: #e5ede6;
+  --chart-1: #1f2937;
+  --chart-2: #b3c6b6;
+  --chart-3: #286486;
+  --chart-4: #286486;
+  --chart-5: #3b8992;
+  --overlay-spinner: #286486;
+  --overlay-spinner-track: rgb(32, 46, 24);
+  --overlay-backdrop: rgba(229, 237, 230, 0.72);
+}

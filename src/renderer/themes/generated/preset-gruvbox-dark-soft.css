@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from gruvbox-dark-soft.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="gruvbox-dark-soft"] {
+  --background: #32302f;
+  --foreground: rgb(235, 219, 178);
+  --card: rgb(76, 73, 72);
+  --card-foreground: rgb(213, 196, 161);
+  --popover: rgb(76, 73, 72);
+  --popover-foreground: #ebdbb2;
+  --primary: #458588;
+  --primary-foreground: rgb(4, 3, 1);
+  --secondary: rgb(76, 73, 72);
+  --secondary-foreground: #a89984;
+  --muted: rgb(76, 73, 72);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(76, 73, 72);
+  --accent-foreground: #d5c4a1;
+  --destructive: #fb4934;
+  --destructive-foreground: #ebdbb2;
+  --border: rgb(102, 98, 97);
+  --input: rgb(63, 61, 59);
+  --ring: #3c3836;
+  --success: #98971a;
+  --success-foreground: #32302f;
+  --warning: #d79921;
+  --warning-foreground: #32302f;
+  --chart-1: #0000;
+  --chart-2: #665c54;
+  --chart-3: #458588;
+  --chart-4: rgb(103, 98, 96);
+  --chart-5: rgb(113, 109, 106);
+  --overlay-spinner: #689d6a;
+  --overlay-spinner-track: rgb(235, 219, 178);
+  --overlay-backdrop: rgba(50, 48, 47, 0.72);
+}

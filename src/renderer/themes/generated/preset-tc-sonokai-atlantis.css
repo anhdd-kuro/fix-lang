@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-sonokai-atlantis.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-sonokai-atlantis"] {
+  --background: #2a2f38;
+  --foreground: rgb(225, 227, 228);
+  --card: rgb(130, 138, 154);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(130, 138, 154);
+  --popover-foreground: #e1e3e4;
+  --primary: #72cce8;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(130, 138, 154);
+  --secondary-foreground: #828a9a;
+  --muted: rgb(130, 138, 154);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgb(130, 138, 154);
+  --accent-foreground: #e1e3e4;
+  --destructive: #ff6578;
+  --destructive-foreground: #e1e3e4;
+  --border: rgb(104, 112, 129);
+  --input: rgb(130, 138, 154);
+  --ring: #72cce8;
+  --success: #9dd274;
+  --success-foreground: #2a2f38;
+  --warning: #eacb64;
+  --warning-foreground: #2a2f38;
+  --chart-1: rgb(59, 67, 79);
+  --chart-2: #828a9a;
+  --chart-3: #72cce8;
+  --chart-4: #72cce8;
+  --chart-5: #f69c5e;
+  --overlay-spinner: #72cce8;
+  --overlay-spinner-track: rgb(225, 227, 228);
+  --overlay-backdrop: rgba(42, 47, 56, 0.72);
+}

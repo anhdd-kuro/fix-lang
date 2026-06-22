@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from solarized-dark.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="solarized-dark"] {
+  --background: #002B36;
+  --foreground: rgb(131, 148, 150);
+  --card: rgb(0, 84, 105);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(0, 84, 105);
+  --popover-foreground: #839496;
+  --primary: rgba(42, 161, 152, 0.60);
+  --primary-foreground: rgb(29, 36, 43);
+  --secondary: rgb(0, 64, 82);
+  --secondary-foreground: #93A1A1;
+  --muted: rgb(0, 64, 82);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(0, 84, 105);
+  --accent-foreground: #839496;
+  --destructive: #ffeaea;
+  --destructive-foreground: #839496;
+  --border: rgb(0, 33, 43);
+  --input: rgb(0, 56, 71);
+  --ring: rgba(42, 161, 152, 0.60);
+  --success: #859900;
+  --success-foreground: #002B36;
+  --warning: #b58900;
+  --warning-foreground: #002B36;
+  --chart-1: rgba(147, 161, 161, 0.50);
+  --chart-2: rgb(0, 92, 115);
+  --chart-3: #268bd2;
+  --chart-4: rgb(0, 124, 156);
+  --chart-5: rgb(0, 140, 176);
+  --overlay-spinner: #047aa6;
+  --overlay-spinner-track: rgb(131, 148, 150);
+  --overlay-backdrop: rgba(0, 43, 54, 0.72);
+}

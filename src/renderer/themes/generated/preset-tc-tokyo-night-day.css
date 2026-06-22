@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-tokyo-night-day.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-tokyo-night-day"] {
+  --background: #e1e2e7;
+  --foreground: rgb(55, 96, 191);
+  --card: rgb(161, 166, 197);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(161, 166, 197);
+  --popover-foreground: #3760bf;
+  --primary: #2e7de9;
+  --primary-foreground: rgb(12, 13, 15);
+  --secondary: rgb(161, 166, 197);
+  --secondary-foreground: #a1a6c5;
+  --muted: rgb(161, 166, 197);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgb(161, 166, 197);
+  --accent-foreground: #3760bf;
+  --destructive: #f52a65;
+  --destructive-foreground: #3760bf;
+  --border: rgb(129, 136, 178);
+  --input: rgb(161, 166, 197);
+  --ring: #2e7de9;
+  --success: #587539;
+  --success-foreground: #e1e2e7;
+  --warning: #8c6c3e;
+  --warning-foreground: #e1e2e7;
+  --chart-1: #1f2937;
+  --chart-2: #a1a6c5;
+  --chart-3: #2e7de9;
+  --chart-4: #2e7de9;
+  --chart-5: #007197;
+  --overlay-spinner: #2e7de9;
+  --overlay-spinner-track: rgb(55, 96, 191);
+  --overlay-backdrop: rgba(225, 226, 231, 0.72);
+}

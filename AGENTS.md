@@ -68,6 +68,7 @@ src/
 
 ✅ **Always**
 
+- Always ask for spawn sub-agents to update instructions files and documents at the end of the task.
 - Use gitnexus MCP over grep / find for exploration, only fallback to grep / find if gitnexus is not available
 - Test UI changes in `bun run dev` before packaging.
 - Keep prompts bundled locally — no external fetch for prompt content.
@@ -83,10 +84,7 @@ src/
 - Commit `node_modules`, `out/`, `release/`, `.DS_Store`.
 - Reintroduce pnpm — this repo is bun-only (`bun.lock`); no `pnpm-lock.yaml`.
 - Use `any` without a why-comment; add sync I/O in the main process (async only); bypass IPC validation in preload.
-
-## GitNexus (code intelligence, optional)
-
-Repo indexed as `fix-lang`. Use for blast-radius checks and safe renames when touching exported symbols: `gitnexus_impact({target, direction:"upstream"})`, rename via `gitnexus_rename` (not find-and-replace), explore with `gitnexus_query`/`gitnexus_context`. Index goes stale after commits — re-run `npx gitnexus analyze`. Deep guidance: `.agents/skills/gitnexus/*`.
+- Change without explore the impact with gitnexus first ( If gitnexus is not available, fallback to grep / find )
 
 ## Known Gotchas
 

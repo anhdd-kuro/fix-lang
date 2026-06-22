@@ -21,10 +21,10 @@ export const PlaceholderPanel = ({
 }: PlaceholderPanelProps) => {
   return (
     <div className="flex flex-1 items-center justify-center p-6">
-      <div className="max-w-xs rounded-lg border border-gray-700 bg-gray-800 px-6 py-8 text-center">
-        <h2 className="mb-2 text-lg font-semibold text-blue-400">{title}</h2>
-        <p className="text-sm text-gray-400">{description}</p>
-        <p className="mt-3 text-xs text-gray-500">Coming soon</p>
+      <div className="max-w-xs rounded-lg border border-border bg-card px-6 py-8 text-center">
+        <h2 className="mb-2 text-lg font-semibold text-primary">{title}</h2>
+        <p className="text-sm text-muted-foreground">{description}</p>
+        <p className="mt-3 text-xs text-muted-foreground">Coming soon</p>
       </div>
     </div>
   );

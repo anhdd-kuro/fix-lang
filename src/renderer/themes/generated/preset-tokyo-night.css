@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tokyo-night.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tokyo-night"] {
+  --background: #1a1b26;
+  --foreground: rgb(169, 177, 214);
+  --card: rgb(47, 49, 68);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(47, 49, 68);
+  --popover-foreground: #787c99;
+  --primary: #3d59a1;
+  --primary-foreground: rgb(255, 255, 255);
+  --secondary: rgb(47, 49, 68);
+  --secondary-foreground: #787c99;
+  --muted: rgb(47, 49, 68);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(47, 49, 68);
+  --accent-foreground: #a9b1d6;
+  --destructive: #515670;
+  --destructive-foreground: #a9b1d6;
+  --border: rgb(16, 16, 20);
+  --input: rgb(47, 49, 68);
+  --ring: #545c7e;
+  --success: #73daca;
+  --success-foreground: #1a1b26;
+  --warning: #e0af68;
+  --warning-foreground: #1a1b26;
+  --chart-1: rgb(43, 44, 62);
+  --chart-2: rgb(51, 53, 74);
+  --chart-3: #7aa2f7;
+  --chart-4: rgb(67, 70, 99);
+  --chart-5: #7dcfff;
+  --overlay-spinner: #3d59a1;
+  --overlay-spinner-track: rgb(169, 177, 214);
+  --overlay-backdrop: rgba(26, 27, 38, 0.72);
+}

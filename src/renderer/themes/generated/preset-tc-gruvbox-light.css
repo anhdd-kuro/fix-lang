@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-gruvbox-light.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-gruvbox-light"] {
+  --background: #fbf1c7;
+  --foreground: rgb(60, 56, 54);
+  --card: rgb(146, 131, 116);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(146, 131, 116);
+  --popover-foreground: #3c3836;
+  --primary: #458588;
+  --primary-foreground: rgb(1, 1, 0);
+  --secondary: rgb(146, 131, 116);
+  --secondary-foreground: #928374;
+  --muted: rgb(146, 131, 116);
+  --muted-foreground: rgb(253, 253, 253);
+  --accent: rgb(146, 131, 116);
+  --accent-foreground: #3c3836;
+  --destructive: #cc241d;
+  --destructive-foreground: #3c3836;
+  --border: rgb(118, 105, 93);
+  --input: rgb(146, 131, 116);
+  --ring: #458588;
+  --success: #98971a;
+  --success-foreground: #fbf1c7;
+  --warning: #d79921;
+  --warning-foreground: #fbf1c7;
+  --chart-1: #1f2937;
+  --chart-2: #928374;
+  --chart-3: #458588;
+  --chart-4: #458588;
+  --chart-5: #689d6a;
+  --overlay-spinner: #458588;
+  --overlay-spinner-track: rgb(60, 56, 54);
+  --overlay-backdrop: rgba(251, 241, 199, 0.72);
+}

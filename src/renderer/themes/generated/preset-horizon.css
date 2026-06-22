@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from horizon.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="horizon"] {
+  --background: #1C1E26;
+  --foreground: rgb(213, 216, 218);
+  --card: rgb(50, 53, 67);
+  --card-foreground: rgba(213, 216, 218, 0.5);
+  --popover: rgb(50, 53, 67);
+  --popover-foreground: #f9fafb;
+  --primary: #E95378;
+  --primary-foreground: rgb(6, 6, 12);
+  --secondary: rgb(50, 53, 67);
+  --secondary-foreground: rgba(213, 216, 218, 0.50);
+  --muted: rgb(50, 53, 67);
+  --muted-foreground: rgb(215, 215, 215);
+  --accent: rgb(50, 53, 67);
+  --accent-foreground: #D5D8DA;
+  --destructive: #F43E5C;
+  --destructive-foreground: #D5D8DA;
+  --border: rgb(83, 88, 111);
+  --input: rgb(46, 48, 62);
+  --ring: #1A1C23;
+  --success: #29D398;
+  --success-foreground: #1C1E26;
+  --warning: #FAB795;
+  --warning-foreground: #1C1E26;
+  --chart-1: rgb(45, 49, 61);
+  --chart-2: #D5D8DA;
+  --chart-3: #26BBD9;
+  --chart-4: #E95378;
+  --chart-5: #59E1E3;
+  --overlay-spinner: #E95378;
+  --overlay-spinner-track: rgb(213, 216, 218);
+  --overlay-backdrop: rgba(28, 30, 38, 0.72);
+}

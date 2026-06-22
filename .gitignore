@@ -8,3 +8,5 @@ release
 .shopify
 .gitnexus
 coverage
+tmp
+.superpowers

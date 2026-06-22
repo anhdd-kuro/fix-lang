@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-night-owl-dark.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-night-owl-dark"] {
+  --background: #011627;
+  --foreground: rgb(204, 204, 204);
+  --card: rgb(87, 86, 86);
+  --card-foreground: rgb(204, 204, 204);
+  --popover: rgb(87, 86, 86);
+  --popover-foreground: #cccccc;
+  --primary: #82aaff;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(87, 86, 86);
+  --secondary-foreground: #575656;
+  --muted: rgb(87, 86, 86);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(87, 86, 86);
+  --accent-foreground: #cccccc;
+  --destructive: #ef5350;
+  --destructive-foreground: #cccccc;
+  --border: rgb(125, 124, 124);
+  --input: rgb(87, 86, 86);
+  --ring: #82aaff;
+  --success: #22da6e;
+  --success-foreground: #011627;
+  --warning: #c5e478;
+  --warning-foreground: #011627;
+  --chart-1: #1f2937;
+  --chart-2: #575656;
+  --chart-3: #82aaff;
+  --chart-4: #82aaff;
+  --chart-5: #21c7a8;
+  --overlay-spinner: #82aaff;
+  --overlay-spinner-track: rgb(204, 204, 204);
+  --overlay-backdrop: rgba(1, 22, 39, 0.72);
+}

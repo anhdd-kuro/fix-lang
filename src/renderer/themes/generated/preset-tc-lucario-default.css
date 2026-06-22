@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-lucario-default.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-lucario-default"] {
+  --background: #2b3e50;
+  --foreground: rgb(248, 248, 242);
+  --card: rgb(61, 88, 113);
+  --card-foreground: rgb(248, 248, 242);
+  --popover: rgb(61, 88, 113);
+  --popover-foreground: #f8f8f2;
+  --primary: #5c98cd;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(61, 88, 113);
+  --secondary-foreground: #2f3943;
+  --muted: rgb(61, 88, 113);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(61, 88, 113);
+  --accent-foreground: #f8f8f2;
+  --destructive: #e94b35;
+  --destructive-foreground: #f8f8f2;
+  --border: rgb(47, 57, 67);
+  --input: rgb(52, 75, 97);
+  --ring: #5c98cd;
+  --success: #199c4b;
+  --success-foreground: #2b3e50;
+  --warning: #f0cc04;
+  --warning-foreground: #2b3e50;
+  --chart-1: rgb(57, 83, 107);
+  --chart-2: rgb(64, 93, 120);
+  --chart-3: #5c98cd;
+  --chart-4: #5c98cd;
+  --chart-5: #8be0fd;
+  --overlay-spinner: #5c98cd;
+  --overlay-spinner-track: rgb(248, 248, 242);
+  --overlay-backdrop: rgba(43, 62, 80, 0.72);
+}

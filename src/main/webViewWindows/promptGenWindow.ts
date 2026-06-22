@@ -1,5 +1,6 @@
 import path from "path";
 import { BrowserWindow, screen, ipcMain, app } from "electron";
+import { attachThemeSync } from "./attachThemeSync";
 import appIcon from "../../../resources/icon.ico?asset";
 
 let promptGenWindow: BrowserWindow | null = null;
@@ -38,6 +39,7 @@ export function createPromptGenWindow() {
   promptGenWindow.setVisibleOnAllWorkspaces(true, {
     visibleOnFullScreen: true,
   });
+  attachThemeSync(promptGenWindow);
 
   ipcMain.on("close-promptGen-window", () => promptGenWindow?.hide());
   app.on("will-quit", () => {

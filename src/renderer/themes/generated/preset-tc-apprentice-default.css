@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-apprentice-default.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-apprentice-default"] {
+  --background: #262626;
+  --foreground: rgb(188, 188, 188);
+  --card: rgb(68, 68, 68);
+  --card-foreground: rgb(188, 188, 188);
+  --popover: rgb(68, 68, 68);
+  --popover-foreground: #bcbcbc;
+  --primary: #5f87af;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(68, 68, 68);
+  --secondary-foreground: #444444;
+  --muted: rgb(68, 68, 68);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(68, 68, 68);
+  --accent-foreground: #bcbcbc;
+  --destructive: #af5f5f;
+  --destructive-foreground: #bcbcbc;
+  --border: rgb(106, 106, 106);
+  --input: rgb(68, 68, 68);
+  --ring: #5f87af;
+  --success: #5f875f;
+  --success-foreground: #262626;
+  --warning: #87875f;
+  --warning-foreground: #262626;
+  --chart-1: rgb(58, 58, 58);
+  --chart-2: rgb(69, 69, 69);
+  --chart-3: #5f87af;
+  --chart-4: #5f87af;
+  --chart-5: rgb(99, 99, 99);
+  --overlay-spinner: #5f87af;
+  --overlay-spinner-track: rgb(188, 188, 188);
+  --overlay-backdrop: rgba(38, 38, 38, 0.72);
+}

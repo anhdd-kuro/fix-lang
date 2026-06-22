@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from material-theme-lighter.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="material-theme-lighter"] {
+  --background: #FAFAFA;
+  --foreground: rgb(24, 24, 27);
+  --card: rgb(225, 225, 225);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(225, 225, 225);
+  --popover-foreground: #90A4AE;
+  --primary: #80CBC4;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(225, 225, 225);
+  --secondary-foreground: #758a95;
+  --muted: rgb(225, 225, 225);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgb(225, 225, 225);
+  --accent-foreground: #B1C7D3;
+  --destructive: rgba(229, 57, 53, 0.44);
+  --destructive-foreground: #90A4AE;
+  --border: rgb(0, 0, 0);
+  --input: rgb(238, 238, 238);
+  --ring: #FFFFFF;
+  --success: #91B859;
+  --success-foreground: #FAFAFA;
+  --warning: #E2931D;
+  --warning-foreground: #FAFAFA;
+  --chart-1: rgba(176, 190, 197, 0.44);
+  --chart-2: rgb(219, 219, 219);
+  --chart-3: #6182B8;
+  --chart-4: rgb(199, 199, 199);
+  --chart-5: #39ADB5;
+  --overlay-spinner: #80CBC4;
+  --overlay-spinner-track: rgb(24, 24, 27);
+  --overlay-backdrop: rgba(250, 250, 250, 0.72);
+}

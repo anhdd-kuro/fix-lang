@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-tender-default.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-tender-default"] {
+  --background: #282828;
+  --foreground: rgb(238, 238, 238);
+  --card: rgb(66, 66, 66);
+  --card-foreground: rgb(238, 238, 238);
+  --popover: rgb(66, 66, 66);
+  --popover-foreground: #eeeeee;
+  --primary: #b3deef;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(66, 66, 66);
+  --secondary-foreground: #1d1d1d;
+  --muted: rgb(66, 66, 66);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(66, 66, 66);
+  --accent-foreground: #eeeeee;
+  --destructive: #f43753;
+  --destructive-foreground: #eeeeee;
+  --border: rgb(29, 29, 29);
+  --input: rgb(29, 29, 29);
+  --ring: #b3deef;
+  --success: #c9d05c;
+  --success-foreground: #282828;
+  --warning: #ffc24b;
+  --warning-foreground: #282828;
+  --chart-1: rgb(60, 60, 60);
+  --chart-2: rgb(71, 71, 71);
+  --chart-3: #b3deef;
+  --chart-4: #b3deef;
+  --chart-5: #73cef4;
+  --overlay-spinner: #b3deef;
+  --overlay-spinner-track: rgb(238, 238, 238);
+  --overlay-backdrop: rgba(40, 40, 40, 0.72);
+}

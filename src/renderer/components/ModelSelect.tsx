@@ -256,7 +256,7 @@ export const ModelSelect: React.FC<{
       {!compact && (
       <label
         htmlFor="model-select"
-        className="block text-sm font-medium text-gray-300 mb-1"
+        className="block text-sm font-medium text-card-foreground mb-1"
       >
         AI Model
       </label>
@@ -295,16 +295,16 @@ export const ModelSelect: React.FC<{
           styles={{
             control: (base) => ({
               ...base,
-              backgroundColor: "rgb(55, 65, 81)", // bg-gray-700
-              borderColor: "rgb(75, 85, 99)", // border-gray-600
+              backgroundColor: "var(--input)",
+              borderColor: "var(--border)",
               "&:hover": {
-                borderColor: "rgb(107, 114, 128)", // border-gray-500
+                borderColor: "var(--ring)",
               },
               boxShadow: "none",
             }),
             menu: (base) => ({
               ...base,
-              backgroundColor: "rgb(55, 65, 81)", // bg-gray-700
+              backgroundColor: "var(--popover)",
               zIndex: menuPortal ? 9999 : 10,
               borderRadius: "8px",
               ...(menuPortal && menuWidth
@@ -318,11 +318,11 @@ export const ModelSelect: React.FC<{
             }),
             singleValue: (base) => ({
               ...base,
-              color: "rgb(243, 244, 246)", // text-gray-100
+              color: "var(--foreground)",
             }),
             input: (base) => ({
               ...base,
-              color: "rgb(243, 244, 246)", // text-gray-100
+              color: "var(--foreground)",
             }),
           }}
           components={{
@@ -338,11 +338,11 @@ export const ModelSelect: React.FC<{
                 return (
                   <p
                     className={twJoin(
-                      "px-4 py-1.5 text-white cursor-pointer truncate",
+                      "px-4 py-1.5 text-foreground cursor-pointer truncate",
                       isSelected
-                        ? "bg-blue-500"
+                        ? "bg-primary"
                         : isFocused
-                          ? "bg-gray-600"
+                          ? "bg-secondary"
                           : "",
                     )}
                     title={label}
@@ -356,8 +356,8 @@ export const ModelSelect: React.FC<{
               return (
                 <p
                   className={twJoin(
-                    "flex flex-wrap items-center gap-1.5 px-3 py-1.5 text-white cursor-pointer",
-                    isSelected ? "bg-blue-500" : isFocused ? "bg-gray-600" : "",
+                    "flex flex-wrap items-center gap-1.5 px-3 py-1.5 text-foreground cursor-pointer",
+                    isSelected ? "bg-primary" : isFocused ? "bg-secondary" : "",
                   )}
                   title={label}
                   {...innerProps}
@@ -368,8 +368,8 @@ export const ModelSelect: React.FC<{
                   {createdAt ? (
                     <span
                       className={twJoin(
-                        "shrink-0 text-xs text-white rounded px-2 py-1",
-                        isFocused || isSelected ? "bg-gray-800" : "bg-gray-600",
+                        "shrink-0 text-xs text-foreground rounded px-2 py-1",
+                        isFocused || isSelected ? "bg-card" : "bg-secondary",
                       )}
                     >
                       {createdAt}
@@ -378,20 +378,20 @@ export const ModelSelect: React.FC<{
                   {thirdPart ? (
                     <span
                       className={twJoin(
-                        "shrink-0 text-xs text-white rounded px-2 py-1",
+                        "shrink-0 text-xs text-foreground rounded px-2 py-1",
                         isLocal
                           ? isFocused || isSelected
-                            ? "bg-green-800"
-                            : "bg-green-700"
+                            ? "bg-success"
+                            : "bg-success"
                           : isFocused || isSelected
-                            ? "bg-gray-800"
-                            : "bg-gray-600",
+                            ? "bg-card"
+                            : "bg-secondary",
                       )}
                     >
                       {isLocal ? (
                         <>
                           <span
-                            className="inline-block w-2 h-2 rounded-full bg-green-400 mr-1"
+                            className="inline-block w-2 h-2 rounded-full bg-success mr-1"
                             title="Local model"
                           />
                           {thirdPart}
@@ -410,7 +410,7 @@ export const ModelSelect: React.FC<{
           type="button"
           aria-label="Refetch models"
           title="Refetch models"
-          className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="px-2 py-1 bg-primary text-primary-foreground rounded hover:bg-primary focus:outline-none focus:ring-2 focus:ring-ring"
           onClick={() => fetchModels(true)}
           disabled={modelsLoading}
         >
@@ -421,7 +421,7 @@ export const ModelSelect: React.FC<{
         {models.find((model) => model.local !== undefined) && (
           <SettingsButton
             title="Manage local models"
-            iconClassName="stroke-green-500"
+            iconClassName="stroke-success"
             onClick={() => {
               if (window.electronAPI?.openModelManager) {
                 window.electronAPI.openModelManager();
@@ -438,7 +438,7 @@ export const ModelSelect: React.FC<{
             type="button"
             aria-label="Reset to default model"
             title="Reset to default model"
-            className="px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400"
+            className="px-2 py-1 bg-secondary text-secondary-foreground rounded hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring"
             onClick={async () => {
               if (window.electronAPI?.setFeatureModel) {
                 try {
@@ -465,12 +465,12 @@ export const ModelSelect: React.FC<{
         )}
       </div>
       {modelsError && (
-        <p className="text-xs text-red-400 mt-1" role="alert">
+        <p className="text-xs text-destructive mt-1" role="alert">
           {modelsError}
         </p>
       )}
       {!compact && (
-      <p className="text-xs text-gray-500 mt-1">
+      <p className="text-xs text-muted-foreground mt-1">
         {useFeatureModel
           ? "Feature-specific model that overrides the default. Leave unchanged to use the default model."
           : "Default model used for all OpenAI requests unless overridden by feature settings."}

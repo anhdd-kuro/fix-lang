@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from github-light-high-contrast.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="github-light-high-contrast"] {
+  --background: #ffffff;
+  --foreground: rgb(14, 17, 22);
+  --card: rgb(230, 230, 230);
+  --card-foreground: rgb(14, 17, 22);
+  --popover: rgb(230, 230, 230);
+  --popover-foreground: #0e1116;
+  --primary: #0349b4;
+  --primary-foreground: rgb(255, 255, 255);
+  --secondary: rgb(230, 230, 230);
+  --secondary-foreground: #0e1116;
+  --muted: rgb(230, 230, 230);
+  --muted-foreground: rgb(18, 18, 18);
+  --accent: rgb(230, 230, 230);
+  --accent-foreground: #0e1116;
+  --destructive: #a0111f;
+  --destructive-foreground: #0e1116;
+  --border: rgb(32, 37, 44);
+  --input: rgb(242, 242, 242);
+  --ring: #0349b4;
+  --success: #024c1a;
+  --success-foreground: #ffffff;
+  --warning: #3f2200;
+  --warning-foreground: #ffffff;
+  --chart-1: #0e1116;
+  --chart-2: #88929d;
+  --chart-3: #0349b4;
+  --chart-4: #0349b4;
+  --chart-5: #1b7c83;
+  --overlay-spinner: #0349b4;
+  --overlay-spinner-track: rgb(14, 17, 22);
+  --overlay-backdrop: rgba(255, 255, 255, 0.72);
+}

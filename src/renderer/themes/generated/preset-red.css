@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from red.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="red"] {
+  --background: #390000;
+  --foreground: rgb(248, 248, 248);
+  --card: rgb(134, 0, 0);
+  --card-foreground: rgb(248, 248, 248);
+  --popover: rgb(134, 0, 0);
+  --popover-foreground: #F8F8F8;
+  --primary: #883333;
+  --primary-foreground: rgb(249, 250, 251);
+  --secondary: rgb(108, 0, 0);
+  --secondary-foreground: #d1d5db;
+  --muted: rgb(108, 0, 0);
+  --muted-foreground: rgba(218, 156, 156, 0.53);
+  --accent: rgb(134, 0, 0);
+  --accent-foreground: #F8F8F8;
+  --destructive: #ffeaea;
+  --destructive-foreground: #F8F8F8;
+  --border: rgb(255, 102, 102);
+  --input: rgb(108, 0, 0);
+  --ring: rgba(255, 102, 102, 0.67);
+  --success: #22c55e;
+  --success-foreground: #390000;
+  --warning: #eab308;
+  --warning-foreground: #390000;
+  --chart-1: #1f2937;
+  --chart-2: rgba(255, 119, 119, 0.53);
+  --chart-3: #3b82f6;
+  --chart-4: rgb(159, 0, 0);
+  --chart-5: #06b6d4;
+  --overlay-spinner: #cc3333;
+  --overlay-spinner-track: rgb(248, 248, 248);
+  --overlay-backdrop: rgba(57, 0, 0, 0.72);
+}

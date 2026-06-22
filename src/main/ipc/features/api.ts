@@ -12,18 +12,17 @@ import {
   getRecommendedModels,
 } from "~/main/llm/models/recommended";
 import {
-  apiStore,
-  getDefaultModelId,
-  getProfileSetting,
-  resetCurrentProfileSettings,
-  updateProfileSetting,
-} from "~/stores/apiStore";
-import {
   clearApiKey,
   getApiKey,
   hasApiKey,
   setApiKey,
 } from "~/stores/apiKeyStore";
+import {
+  apiStore,
+  getDefaultModelId,
+  getProfileSetting,
+  resetCurrentProfileSettings,
+} from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import type { Model } from "~/stores/apiStore";
 

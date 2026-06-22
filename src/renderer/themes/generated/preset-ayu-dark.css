@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from ayu-dark.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="ayu-dark"] {
+  --background: #10141c;
+  --foreground: rgb(191, 189, 182);
+  --card: rgb(35, 43, 60);
+  --card-foreground: rgb(191, 189, 182);
+  --popover: rgb(35, 43, 60);
+  --popover-foreground: #5a6378;
+  --primary: #e6b450;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(35, 43, 60);
+  --secondary-foreground: #5a6378;
+  --muted: rgb(35, 43, 60);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgba(71, 82, 102, 0.25);
+  --accent-foreground: #bfbdb6;
+  --destructive: #d95757;
+  --destructive-foreground: #bfbdb6;
+  --border: rgb(63, 78, 108);
+  --input: rgb(35, 43, 60);
+  --ring: #e6b450;
+  --success: #70bf56;
+  --success-foreground: #10141c;
+  --warning: #fdb04c;
+  --warning-foreground: #10141c;
+  --chart-1: rgba(90, 99, 120, 0.26);
+  --chart-2: rgba(90, 99, 120, 0.65);
+  --chart-3: #4fbfff;
+  --chart-4: #e6b450;
+  --chart-5: #93e2c8;
+  --overlay-spinner: #e6b450;
+  --overlay-spinner-track: rgb(191, 189, 182);
+  --overlay-backdrop: rgba(16, 20, 28, 0.72);
+}

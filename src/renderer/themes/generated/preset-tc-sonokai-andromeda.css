@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-sonokai-andromeda.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-sonokai-andromeda"] {
+  --background: #2b2d3a;
+  --foreground: rgb(225, 227, 228);
+  --card: rgb(126, 130, 148);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(126, 130, 148);
+  --popover-foreground: #e1e3e4;
+  --primary: #6dcae8;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(126, 130, 148);
+  --secondary-foreground: #7e8294;
+  --muted: rgb(126, 130, 148);
+  --muted-foreground: rgb(249, 249, 249);
+  --accent: rgb(126, 130, 148);
+  --accent-foreground: #e1e3e4;
+  --destructive: #fb617e;
+  --destructive-foreground: #e1e3e4;
+  --border: rgb(101, 105, 122);
+  --input: rgb(126, 130, 148);
+  --ring: #6dcae8;
+  --success: #9ed06c;
+  --success-foreground: #2b2d3a;
+  --warning: #edc763;
+  --warning-foreground: #2b2d3a;
+  --chart-1: rgb(60, 63, 81);
+  --chart-2: #7e8294;
+  --chart-3: #6dcae8;
+  --chart-4: #6dcae8;
+  --chart-5: #f89860;
+  --overlay-spinner: #6dcae8;
+  --overlay-spinner-track: rgb(225, 227, 228);
+  --overlay-backdrop: rgba(43, 45, 58, 0.72);
+}

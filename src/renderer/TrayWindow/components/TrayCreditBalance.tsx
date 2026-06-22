@@ -22,32 +22,32 @@ export const TrayCreditBalance: React.FC = () => {
 
   if (hasKey === false) {
     content = (
-      <span className="text-sm text-gray-400">
+      <span className="text-sm text-muted-foreground">
         Add provisioning key in Settings
       </span>
     );
   } else if (loading && !credits) {
-    content = <span className="text-sm text-gray-400">Loading…</span>;
+    content = <span className="text-sm text-muted-foreground">Loading…</span>;
   } else if (credits?.ok) {
     content = (
       <div className="flex items-baseline gap-2">
         <span
           className={twJoin(
             "text-lg font-semibold tabular-nums",
-            credits.data.lowBalance ? "text-red-400" : "text-gray-100"
+            credits.data.lowBalance ? "text-destructive" : "text-foreground"
           )}
         >
           {formatOpenRouterUsd(credits.data.availableUsd)}
         </span>
         {credits.data.lowBalance && (
-          <span className="text-xs text-red-400">Low balance</span>
+          <span className="text-xs text-destructive">Low balance</span>
         )}
       </div>
     );
   } else {
     const reason = (credits?.reason ?? "unavailable") as OpenRouterDegradedReason;
     content = (
-      <span className="text-sm text-gray-400">
+      <span className="text-sm text-muted-foreground">
         {openRouterDegradedMessage(reason)}
       </span>
     );
@@ -58,11 +58,11 @@ export const TrayCreditBalance: React.FC = () => {
       type="button"
       onClick={openOpenRouterTab}
       className={twJoin(
-        "w-full rounded-lg border border-gray-700 bg-gray-800/80 px-3 py-2",
-        "text-left hover:border-gray-600 hover:bg-gray-800 transition-colors"
+        "w-full rounded-lg border border-border bg-card/80 px-3 py-2",
+        "text-left hover:border-border hover:bg-card transition-colors"
       )}
     >
-      <div className="text-xs uppercase tracking-wide text-blue-400 mb-1">
+      <div className="text-xs uppercase tracking-wide text-primary mb-1">
         OpenRouter credit
       </div>
       {content}

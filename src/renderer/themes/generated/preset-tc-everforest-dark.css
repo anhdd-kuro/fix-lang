@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-everforest-dark.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-everforest-dark"] {
+  --background: #2d353b;
+  --foreground: rgb(211, 198, 170);
+  --card: rgb(133, 146, 137);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(133, 146, 137);
+  --popover-foreground: #d3c6aa;
+  --primary: #7fbbb3;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(133, 146, 137);
+  --secondary-foreground: #859289;
+  --muted: rgb(133, 146, 137);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgb(133, 146, 137);
+  --accent-foreground: #d3c6aa;
+  --destructive: #e67e80;
+  --destructive-foreground: #d3c6aa;
+  --border: rgb(108, 120, 112);
+  --input: rgb(133, 146, 137);
+  --ring: #7fbbb3;
+  --success: #a7c080;
+  --success-foreground: #2d353b;
+  --warning: #dbbc7f;
+  --warning-foreground: #2d353b;
+  --chart-1: rgb(63, 74, 82);
+  --chart-2: #859289;
+  --chart-3: #7fbbb3;
+  --chart-4: #7fbbb3;
+  --chart-5: #83c092;
+  --overlay-spinner: #7fbbb3;
+  --overlay-spinner-track: rgb(211, 198, 170);
+  --overlay-backdrop: rgba(45, 53, 59, 0.72);
+}

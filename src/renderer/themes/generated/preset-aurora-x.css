@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from aurora-x.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="aurora-x"] {
+  --background: #07090F;
+  --foreground: rgb(228, 228, 231);
+  --card: rgb(31, 40, 67);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(31, 40, 67);
+  --popover-foreground: rgba(199, 213, 255, 0.60);
+  --primary: #86A5FF;
+  --primary-foreground: rgb(7, 9, 15);
+  --secondary: rgb(23, 30, 50);
+  --secondary-foreground: rgba(87, 109, 175, 0.85);
+  --muted: rgb(23, 30, 50);
+  --muted-foreground: rgba(131, 131, 131, 0.47);
+  --accent: rgb(31, 40, 67);
+  --accent-foreground: #A8BEFF;
+  --destructive: #ef4444;
+  --destructive-foreground: #576daf;
+  --border: rgb(55, 71, 119);
+  --input: rgb(21, 24, 43);
+  --ring: #262E47;
+  --success: #63eb90;
+  --success-foreground: #07090F;
+  --warning: #eab308;
+  --warning-foreground: #07090F;
+  --chart-1: #1f2937;
+  --chart-2: rgb(26, 34, 57);
+  --chart-3: #3b82f6;
+  --chart-4: #86A5FF;
+  --chart-5: #06b6d4;
+  --overlay-spinner: #86A5FF;
+  --overlay-spinner-track: rgb(87, 109, 175);
+  --overlay-backdrop: rgba(7, 9, 15, 0.72);
+}

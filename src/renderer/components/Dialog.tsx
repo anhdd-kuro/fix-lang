@@ -52,13 +52,13 @@ export const Dialog: React.FC<DialogProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
       <div
         ref={dialogRef}
-        className="bg-gray-900 border border-gray-700 rounded-lg shadow-xl w-full max-w-md mx-4 overflow-hidden"
+        className="bg-background border border-border rounded-lg shadow-xl w-full max-w-md mx-4 overflow-hidden"
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
-          <h3 className="text-lg font-medium text-white">{title}</h3>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h3 className="text-lg font-medium text-foreground">{title}</h3>
           <button
             type="button"
-            className="text-gray-400 hover:text-white"
+            className="text-muted-foreground hover:text-foreground"
             onClick={onClose}
             aria-label="Close"
             title="Close"

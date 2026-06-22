@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from ayu-light.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="ayu-light"] {
+  --background: #fcfcfc;
+  --foreground: rgb(92, 97, 102);
+  --card: rgb(227, 227, 227);
+  --card-foreground: rgb(92, 97, 102);
+  --popover: rgb(227, 227, 227);
+  --popover-foreground: #828e9f;
+  --primary: #f29718;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(227, 227, 227);
+  --secondary-foreground: #828e9f;
+  --muted: rgb(227, 227, 227);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgb(107, 125, 143);
+  --accent-foreground: #5c6166;
+  --destructive: #e65050;
+  --destructive-foreground: #5c6166;
+  --border: rgb(107, 125, 143);
+  --input: rgb(239, 239, 239);
+  --ring: #f29718;
+  --success: #6cbf43;
+  --success-foreground: #fcfcfc;
+  --warning: #e7a100;
+  --warning-foreground: #fcfcfc;
+  --chart-1: #828e9f;
+  --chart-2: rgba(130, 142, 159, 0.40);
+  --chart-3: #21a1e2;
+  --chart-4: #f29718;
+  --chart-5: #4abc96;
+  --overlay-spinner: #f29718;
+  --overlay-spinner-track: rgb(92, 97, 102);
+  --overlay-backdrop: rgba(252, 252, 252, 0.72);
+}

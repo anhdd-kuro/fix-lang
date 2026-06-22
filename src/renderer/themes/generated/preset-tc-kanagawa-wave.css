@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-kanagawa-wave.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-kanagawa-wave"] {
+  --background: #1f1f28;
+  --foreground: rgb(220, 215, 186);
+  --card: rgb(114, 113, 105);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(114, 113, 105);
+  --popover-foreground: #dcd7ba;
+  --primary: #7e9cd8;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(114, 113, 105);
+  --secondary-foreground: #727169;
+  --muted: rgb(114, 113, 105);
+  --muted-foreground: rgb(18, 18, 18);
+  --accent: rgb(114, 113, 105);
+  --accent-foreground: #dcd7ba;
+  --destructive: #c34043;
+  --destructive-foreground: #dcd7ba;
+  --border: rgb(140, 139, 130);
+  --input: rgb(114, 113, 105);
+  --ring: #7e9cd8;
+  --success: #76946a;
+  --success-foreground: #1f1f28;
+  --warning: #c0a36e;
+  --warning-foreground: #1f1f28;
+  --chart-1: rgb(49, 49, 63);
+  --chart-2: #727169;
+  --chart-3: #7e9cd8;
+  --chart-4: #7e9cd8;
+  --chart-5: #6a9589;
+  --overlay-spinner: #7e9cd8;
+  --overlay-spinner-track: rgb(220, 215, 186);
+  --overlay-backdrop: rgba(31, 31, 40, 0.72);
+}

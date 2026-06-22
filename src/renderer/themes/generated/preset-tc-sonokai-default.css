@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-sonokai-default.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-sonokai-default"] {
+  --background: #2c2e34;
+  --foreground: rgb(226, 226, 227);
+  --card: rgb(127, 132, 144);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(127, 132, 144);
+  --popover-foreground: #e2e2e3;
+  --primary: #76cce0;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(127, 132, 144);
+  --secondary-foreground: #7f8490;
+  --muted: rgb(127, 132, 144);
+  --muted-foreground: rgb(248, 248, 248);
+  --accent: rgb(127, 132, 144);
+  --accent-foreground: #e2e2e3;
+  --destructive: #fc5d7c;
+  --destructive-foreground: #e2e2e3;
+  --border: rgb(102, 107, 118);
+  --input: rgb(127, 132, 144);
+  --ring: #76cce0;
+  --success: #9ed072;
+  --success-foreground: #2c2e34;
+  --warning: #e7c664;
+  --warning-foreground: #2c2e34;
+  --chart-1: rgb(63, 66, 74);
+  --chart-2: #7f8490;
+  --chart-3: #76cce0;
+  --chart-4: #76cce0;
+  --chart-5: #f39660;
+  --overlay-spinner: #76cce0;
+  --overlay-spinner-track: rgb(226, 226, 227);
+  --overlay-backdrop: rgba(44, 46, 52, 0.72);
+}

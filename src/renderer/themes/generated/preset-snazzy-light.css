@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from snazzy-light.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="snazzy-light"] {
+  --background: #FAFBFC;
+  --foreground: rgb(86, 88, 105);
+  --card: rgb(218, 226, 233);
+  --card-foreground: rgb(86, 88, 105);
+  --popover: rgb(218, 226, 233);
+  --popover-foreground: #565869;
+  --primary: #09A1ED;
+  --primary-foreground: rgb(37, 46, 55);
+  --secondary: rgb(45, 174, 88);
+  --secondary-foreground: #d1d5db;
+  --muted: rgb(31, 41, 55);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgb(218, 226, 233);
+  --accent-foreground: #ffffff;
+  --destructive: #FF5C56;
+  --destructive-foreground: #565869;
+  --border: rgb(170, 188, 204);
+  --input: rgb(31, 41, 55);
+  --ring: #09A1ED;
+  --success: #2DAE58;
+  --success-foreground: #FAFBFC;
+  --warning: #CF9C00;
+  --warning-foreground: #FAFBFC;
+  --chart-1: #1f2937;
+  --chart-2: rgba(145, 148, 162, 0.67);
+  --chart-3: #09A1ED;
+  --chart-4: #09A1ED;
+  --chart-5: #13BBB7;
+  --overlay-spinner: #09A1ED;
+  --overlay-spinner-track: rgb(86, 88, 105);
+  --overlay-backdrop: rgba(250, 251, 252, 0.72);
+}

@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-ayu-dark.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-ayu-dark"] {
+  --background: #0b0e14;
+  --foreground: rgb(191, 189, 182);
+  --card: rgb(104, 104, 104);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(104, 104, 104);
+  --popover-foreground: #bfbdb6;
+  --primary: #53bdfa;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(104, 104, 104);
+  --secondary-foreground: #686868;
+  --muted: rgb(104, 104, 104);
+  --muted-foreground: rgb(12, 12, 12);
+  --accent: rgb(104, 104, 104);
+  --accent-foreground: #bfbdb6;
+  --destructive: #ea6c73;
+  --destructive-foreground: #bfbdb6;
+  --border: rgb(130, 130, 130);
+  --input: rgb(104, 104, 104);
+  --ring: #53bdfa;
+  --success: #7fd962;
+  --success-foreground: #0b0e14;
+  --warning: #f9af4f;
+  --warning-foreground: #0b0e14;
+  --chart-1: #1f2937;
+  --chart-2: #686868;
+  --chart-3: #53bdfa;
+  --chart-4: #53bdfa;
+  --chart-5: #90e1c6;
+  --overlay-spinner: #53bdfa;
+  --overlay-spinner-track: rgb(191, 189, 182);
+  --overlay-backdrop: rgba(11, 14, 20, 0.72);
+}

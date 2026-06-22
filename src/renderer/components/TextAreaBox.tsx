@@ -27,7 +27,7 @@ export const TextAreaBox = ({
   return (
     <div className={`relative flex flex-col text-xs md:text-base ${className}`}>
       <div className="flex justify-between items-center">
-        <label htmlFor={id} className="block text-gray-400 mb-1 font-bold">
+        <label htmlFor={id} className="block text-muted-foreground mb-1 font-bold">
           {label}
         </label>
         <CopyButton value={value} label="Copy result text" />
@@ -35,14 +35,14 @@ export const TextAreaBox = ({
       <textarea
         id={id}
         rows={rows ?? 4}
-        className={`w-full flex-1 mt-2 p-2 bg-gray-800 border border-gray-700 rounded focus:ring-blue-500 focus:border-blue-500 text-gray-100 resize-none `}
+        className={`w-full flex-1 mt-2 p-2 bg-card border border-border rounded focus:ring-ring focus:border-primary text-foreground resize-none `}
         placeholder={placeholder}
         value={value}
         readOnly={readOnly}
         aria-label={label}
         onChange={(e) => onChange?.(e.target.value)}
       />
-      <div className="flex justify-between items-center text-xs text-gray-400">
+      <div className="flex justify-between items-center text-xs text-muted-foreground">
         {model && <p>Model: {model}</p>}
 
         {/* Prompt token count display for original text */}
@@ -71,7 +71,7 @@ const TextCount = ({
 }) => {
   return (
     <span
-      className={`text-xs text-gray-400 p-1 rounded cursor-help ${className}`}
+      className={`text-xs text-muted-foreground p-1 rounded cursor-help ${className}`}
       aria-live="polite"
       aria-label="Text length"
       title={titleAttribute}

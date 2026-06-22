@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from rose-pine-dawn.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="rose-pine-dawn"] {
+  --background: #faf4ed;
+  --foreground: rgb(87, 82, 121);
+  --card: rgb(239, 220, 197);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(239, 220, 197);
+  --popover-foreground: #575279;
+  --primary: #d7827e;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgba(0, 0, 0, 0);
+  --secondary-foreground: #797593;
+  --muted: rgba(0, 0, 0, 0);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgb(110, 106, 134);
+  --accent-foreground: #575279;
+  --destructive: #b4637a;
+  --destructive-foreground: #575279;
+  --border: rgba(0, 0, 0, 0);
+  --input: rgb(239, 220, 197);
+  --ring: #6e6a86;
+  --success: #286983;
+  --success-foreground: #faf4ed;
+  --warning: #ea9d34;
+  --warning-foreground: #faf4ed;
+  --chart-1: rgb(241, 224, 205);
+  --chart-2: #797593;
+  --chart-3: #56949f;
+  --chart-4: #d7827e;
+  --chart-5: rgb(223, 185, 141);
+  --overlay-spinner: #d7827e;
+  --overlay-spinner-track: rgb(87, 82, 121);
+  --overlay-backdrop: rgba(250, 244, 237, 0.72);
+}

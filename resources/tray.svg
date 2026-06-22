@@ -1,0 +1,17 @@
+<svg
+  width="32"
+  height="32"
+  viewBox="0 0 32 32"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <!-- 4px inset on each side (24x24 logo in a 32x32 menu-bar slot) -->
+  <svg x="4" y="4" width="24" height="24" viewBox="0 0 512 512" fill="none">
+    <path
+      d="M129 86H378V151H204V220H339V285H204V399H129V86Z"
+      fill="#109184"
+    />
+    <rect x="268" y="340" width="157" height="31" rx="15.5" fill="#33B8A7" />
+    <rect x="268" y="399" width="110" height="31" rx="15.5" fill="#0C6F66" />
+  </svg>
+</svg>

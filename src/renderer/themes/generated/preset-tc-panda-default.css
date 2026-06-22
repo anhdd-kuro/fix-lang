@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-panda-default.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-panda-default"] {
+  --background: #292a2b;
+  --foreground: rgb(204, 204, 204);
+  --card: rgb(117, 117, 117);
+  --card-foreground: rgb(0, 0, 0);
+  --popover: rgb(117, 117, 117);
+  --popover-foreground: #cccccc;
+  --primary: #45a9f9;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(117, 117, 117);
+  --secondary-foreground: #757575;
+  --muted: rgb(117, 117, 117);
+  --muted-foreground: rgb(25, 25, 25);
+  --accent: rgb(117, 117, 117);
+  --accent-foreground: #cccccc;
+  --destructive: #ff2c6d;
+  --destructive-foreground: #cccccc;
+  --border: rgb(143, 143, 143);
+  --input: rgb(117, 117, 117);
+  --ring: #45a9f9;
+  --success: #19f9d8;
+  --success-foreground: #292a2b;
+  --warning: #ffb86c;
+  --warning-foreground: #292a2b;
+  --chart-1: rgb(61, 62, 64);
+  --chart-2: #757575;
+  --chart-3: #45a9f9;
+  --chart-4: #45a9f9;
+  --chart-5: #b084eb;
+  --overlay-spinner: #45a9f9;
+  --overlay-spinner-track: rgb(204, 204, 204);
+  --overlay-backdrop: rgba(41, 42, 43, 0.72);
+}

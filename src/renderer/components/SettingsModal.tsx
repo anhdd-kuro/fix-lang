@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { twJoin } from "tailwind-merge";
 import ProfileManager from "./ProfileManager";
+import { SettingAppearance } from "./SettingAppearance";
 import { SettingCorrection } from "./SettingCorrection";
 import { SettingGeneral } from "./SettingGeneral";
 import { SettingPromptGen } from "./SettingPromptGen";
@@ -78,6 +79,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       component: <SettingGeneral />,
     },
     {
+      id: "appearance",
+      label: "Appearance",
+      icon: (
+        <svg
+          className="h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"
+          />
+        </svg>
+      ),
+      component: <SettingAppearance />,
+    },
+
+    {
       id: "correction",
       label: "Correction",
       icon: <></>,
@@ -107,16 +129,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm bg-opacity-50 flex justify-center items-center z-50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-overlay-backdrop backdrop-blur-sm"
       onClick={handleOverlayClick}
     >
-      <div className="flex flex-col bg-gray-800 p-6 rounded-lg shadow-xl w-[80%] max-w-250 h-[85vh] min-h-120 max-h-250 overflow-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-blue-300">Settings</h2>
+      <div className="flex h-[85vh] min-h-120 max-h-250 w-[80%] max-w-250 flex-col overflow-hidden rounded-lg bg-card p-6 shadow-xl">
+        <div className="mb-4 flex shrink-0 items-center justify-between">
+          <h2 className="text-xl font-semibold text-primary">Settings</h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-100 text-2xl font-bold"
+            className="text-muted-foreground hover:text-foreground text-2xl font-bold"
             aria-label="Close settings modal"
             title="Close settings modal"
           >
@@ -125,9 +147,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Tab Navigation */}
-        <div className="mb-6">
+        <div className="mb-4 shrink-0">
           <div
-            className="grid grid-cols-4 gap-x-4 gap-y-2 w-full rounded-lg p-1"
+            className="grid w-full grid-cols-2 gap-2 rounded-lg p-1 sm:grid-cols-3 lg:grid-cols-5"
             role="tablist"
             aria-label="Settings tabs"
           >
@@ -136,8 +158,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               const btnClass = twJoin(
                 "tab transition-all duration-200 rounded-md font-medium text-sm flex items-center justify-center gap-1 py-1 min-w-min",
                 isActive
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "text-gray-300 hover:bg-gray-600 hover:text-gray-100",
+                  ? "bg-primary text-primary-foreground shadow-md"
+                  : "text-card-foreground hover:bg-secondary hover:text-foreground",
               );
 
               return (
@@ -163,7 +185,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Tab Panels */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {tabs.map(
             (tab, index) =>
               activeTab === index && (
@@ -173,6 +195,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   role="tabpanel"
                   aria-labelledby={`tab-${tab.id}`}
                   tabIndex={0}
+                  className="flex min-h-0 flex-1 flex-col overflow-y-auto p-1"
                 >
                   {tab.component}
                 </div>

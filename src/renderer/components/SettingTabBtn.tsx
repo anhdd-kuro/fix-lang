@@ -22,8 +22,8 @@ export const SettingTabBtn = ({
   const className = twJoin(
     `tab transition-all duration-200 rounded-md font-medium text-sm flex items-center justify-center gap-1 py-1 min-w-min`,
     active
-      ? "bg-blue-600 text-white shadow-md"
-      : "text-gray-300 hover:bg-gray-600 hover:text-gray-100 bg-gray-100/50"
+      ? "bg-primary text-primary-foreground shadow-md"
+      : "text-card-foreground hover:bg-secondary hover:text-foreground bg-muted/50"
   );
 
   return (

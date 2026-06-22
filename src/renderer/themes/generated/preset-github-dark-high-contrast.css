@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from github-dark-high-contrast.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="github-dark-high-contrast"] {
+  --background: #0a0c10;
+  --foreground: rgb(240, 243, 246);
+  --card: rgb(30, 36, 47);
+  --card-foreground: rgb(240, 243, 246);
+  --popover: rgb(39, 43, 51);
+  --popover-foreground: #f0f3f6;
+  --primary: #409eff;
+  --primary-foreground: rgb(10, 12, 16);
+  --secondary: rgb(30, 36, 47);
+  --secondary-foreground: #f0f3f6;
+  --muted: rgb(30, 36, 47);
+  --muted-foreground: rgb(243, 243, 243);
+  --accent: rgb(158, 167, 179);
+  --accent-foreground: #f0f3f6;
+  --destructive: #ff6a69;
+  --destructive-foreground: #f0f3f6;
+  --border: rgb(122, 130, 142);
+  --input: rgb(30, 36, 47);
+  --ring: #409eff;
+  --success: #26cd4d;
+  --success-foreground: #0a0c10;
+  --warning: #f0b72f;
+  --warning-foreground: #0a0c10;
+  --chart-1: #f0f3f6;
+  --chart-2: #9ea7b3;
+  --chart-3: #71b7ff;
+  --chart-4: #409eff;
+  --chart-5: #39c5cf;
+  --overlay-spinner: #409eff;
+  --overlay-spinner-track: rgb(240, 243, 246);
+  --overlay-backdrop: rgba(10, 12, 16, 0.72);
+}

@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from synthwave-84.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="synthwave-84"] {
+  --background: #262335;
+  --foreground: rgb(255, 255, 255);
+  --card: rgb(60, 55, 84);
+  --card-foreground: rgba(255, 255, 255, 0.6);
+  --popover: rgb(60, 55, 84);
+  --popover-foreground: #f9fafb;
+  --primary: #f97e72;
+  --primary-foreground: rgb(42, 33, 57);
+  --secondary: rgb(60, 55, 84);
+  --secondary-foreground: rgba(255, 255, 255, 0.60);
+  --muted: rgb(60, 55, 84);
+  --muted-foreground: rgba(255, 255, 255, 0.45);
+  --accent: rgb(60, 55, 84);
+  --accent-foreground: #ffffff;
+  --destructive: #fe4450;
+  --destructive-foreground: #ffffff;
+  --border: rgb(73, 84, 149);
+  --input: rgb(49, 45, 68);
+  --ring: #1f212b;
+  --success: #72f1b8;
+  --success-foreground: #262335;
+  --warning: #f3e70f;
+  --warning-foreground: #262335;
+  --chart-1: #444251;
+  --chart-2: rgba(255, 255, 255, 0.45);
+  --chart-3: #03edf9;
+  --chart-4: #f97e72;
+  --chart-5: #03edf9;
+  --overlay-spinner: #f97e72;
+  --overlay-spinner-track: rgb(255, 255, 255);
+  --overlay-backdrop: rgba(38, 35, 53, 0.72);
+}

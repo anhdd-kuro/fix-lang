@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from slack-ochin.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="slack-ochin"] {
+  --background: #FFFFFF;
+  --foreground: rgb(0, 0, 0);
+  --card: rgb(45, 62, 76);
+  --card-foreground: rgb(220, 222, 223);
+  --popover: rgb(230, 230, 230);
+  --popover-foreground: #DCDEDF;
+  --primary: #8AE773;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(230, 230, 230);
+  --secondary-foreground: #686868;
+  --muted: rgb(230, 230, 230);
+  --muted-foreground: rgb(185, 185, 185);
+  --accent: rgb(213, 225, 234);
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --destructive-foreground: #000000;
+  --border: rgb(64, 88, 108);
+  --input: rgb(242, 242, 242);
+  --ring: #161F26;
+  --success: #91b859;
+  --success-foreground: #FFFFFF;
+  --warning: #ffb62c;
+  --warning-foreground: #FFFFFF;
+  --chart-1: rgb(235, 235, 235);
+  --chart-2: #b9b9b9;
+  --chart-3: #6182b8;
+  --chart-4: rgb(204, 204, 204);
+  --chart-5: #39adb5;
+  --overlay-spinner: #8AE773;
+  --overlay-spinner-track: rgb(0, 0, 0);
+  --overlay-backdrop: rgba(255, 255, 255, 0.72);
+}

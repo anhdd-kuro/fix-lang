@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-sonokai-shusia.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-sonokai-shusia"] {
+  --background: #2d2a2e;
+  --foreground: rgb(227, 225, 228);
+  --card: rgb(132, 128, 137);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(132, 128, 137);
+  --popover-foreground: #e3e1e4;
+  --primary: #7accd7;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(132, 128, 137);
+  --secondary-foreground: #848089;
+  --muted: rgb(132, 128, 137);
+  --muted-foreground: rgb(245, 245, 245);
+  --accent: rgb(132, 128, 137);
+  --accent-foreground: #e3e1e4;
+  --destructive: #f85e84;
+  --destructive-foreground: #e3e1e4;
+  --border: rgb(107, 103, 111);
+  --input: rgb(132, 128, 137);
+  --ring: #7accd7;
+  --success: #9ecd6f;
+  --success-foreground: #2d2a2e;
+  --warning: #e5c463;
+  --warning-foreground: #2d2a2e;
+  --chart-1: rgb(66, 61, 67);
+  --chart-2: #848089;
+  --chart-3: #7accd7;
+  --chart-4: #7accd7;
+  --chart-5: #ef9062;
+  --overlay-spinner: #7accd7;
+  --overlay-spinner-track: rgb(227, 225, 228);
+  --overlay-backdrop: rgba(45, 42, 46, 0.72);
+}

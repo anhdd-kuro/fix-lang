@@ -61,7 +61,7 @@ export const HistoryPanel = ({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-4 flex items-center justify-between sticky top-0 bg-gray-800 z-10">
+      <div className="mb-4 flex items-center justify-between sticky top-0 bg-card z-10">
         <div className="w-full">
           <SearchInput
             onSearch={setSearchQuery}
@@ -85,7 +85,7 @@ export const HistoryPanel = ({
           <button
             type="button"
             onClick={() => setActiveFilter(null)}
-            className={`px-2 py-0.5 text-xs rounded-sm ${activeFilter === null ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600"}`}
+            className={`px-2 py-0.5 text-xs rounded-sm ${activeFilter === null ? "bg-primary text-primary-foreground" : "bg-secondary text-card-foreground hover:bg-secondary"}`}
           >
             All
           </button>
@@ -94,7 +94,7 @@ export const HistoryPanel = ({
               key={name}
               type="button"
               onClick={() => setActiveFilter(toggleFilter(activeFilter, name))}
-              className={`px-2 py-0.5 text-xs rounded-sm ${activeFilter === name ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600"}`}
+              className={`px-2 py-0.5 text-xs rounded-sm ${activeFilter === name ? "bg-primary text-primary-foreground" : "bg-secondary text-card-foreground hover:bg-secondary"}`}
             >
               {name}
             </button>
@@ -102,12 +102,12 @@ export const HistoryPanel = ({
         </div>
       )}
 
-      <ul className="mb-4 flex-1 divide-y divide-gray-700 overflow-y-auto">
+      <ul className="mb-4 flex-1 divide-y divide-border overflow-y-auto">
         {/* Use our custom fuzzy search hook to filter history entries */}
         {filteredHistory.map((entry: HistoryEntry, idx: number) => (
           <li
             key={idx}
-            className="py-2 hover:bg-gray-700 px-2 relative group/history-entry"
+            className="py-2 hover:bg-secondary px-2 relative group/history-entry"
           >
             <HistoryEntryItem
               entry={entry}

@@ -23,7 +23,7 @@ export const SettingsButton: React.FC<SettingsButtonProps> = ({
     type="button"
     onClick={onClick}
     className={twJoin(
-      "text-gray-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md cursor-pointer",
+      "text-card-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring rounded-md cursor-pointer",
       className
     )}
     aria-label={title}

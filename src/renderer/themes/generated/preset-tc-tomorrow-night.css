@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-tomorrow-night.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-tomorrow-night"] {
+  --background: #1d1f21;
+  --foreground: rgb(197, 200, 198);
+  --card: rgb(0, 0, 0);
+  --card-foreground: rgb(197, 200, 198);
+  --popover: rgb(0, 0, 0);
+  --popover-foreground: #c5c8c6;
+  --primary: #81a2be;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(0, 0, 0);
+  --secondary-foreground: #000000;
+  --muted: rgb(0, 0, 0);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(0, 0, 0);
+  --accent-foreground: #c5c8c6;
+  --destructive: #cc6666;
+  --destructive-foreground: #c5c8c6;
+  --border: rgb(26, 26, 26);
+  --input: rgb(0, 0, 0);
+  --ring: #81a2be;
+  --success: #b5bd68;
+  --success-foreground: #1d1f21;
+  --warning: #f0c674;
+  --warning-foreground: #1d1f21;
+  --chart-1: rgb(48, 51, 55);
+  --chart-2: rgb(58, 62, 66);
+  --chart-3: #81a2be;
+  --chart-4: #81a2be;
+  --chart-5: #8abeb7;
+  --overlay-spinner: #81a2be;
+  --overlay-spinner-track: rgb(197, 200, 198);
+  --overlay-backdrop: rgba(29, 31, 33, 0.72);
+}

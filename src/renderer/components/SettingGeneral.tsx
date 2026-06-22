@@ -190,12 +190,12 @@ export const SettingGeneral: React.FC = () => {
       <div className="mb-4">
         <label
           htmlFor="api-key-input"
-          className="block text-sm font-medium text-gray-300 mb-1"
+          className="block text-sm font-medium text-card-foreground mb-1"
         >
           API Key
         </label>
         <p
-          className={`text-xs mb-1 ${apiKeySet ? "text-green-400" : "text-gray-400"}`}
+          className={`text-xs mb-1 ${apiKeySet ? "text-success" : "text-muted-foreground"}`}
           role="status"
         >
           {apiKeySet ? "Key is set" : "No key set"}
@@ -204,7 +204,7 @@ export const SettingGeneral: React.FC = () => {
           id="api-key-input"
           type="password"
           autoComplete="off"
-          className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           value={apiKeyInput}
           onChange={(event) => {
             setApiKeyInput(event.target.value);
@@ -219,7 +219,7 @@ export const SettingGeneral: React.FC = () => {
         />
         {apiKeyStatus && (
           <p
-            className={`text-xs mt-1 ${apiKeyStatus.startsWith("Error") ? "text-red-400" : apiKeyStatus.startsWith("Warning") ? "text-yellow-400" : "text-green-400"}`}
+            className={`text-xs mt-1 ${apiKeyStatus.startsWith("Error") ? "text-destructive" : apiKeyStatus.startsWith("Warning") ? "text-warning" : "text-success"}`}
             role="status"
           >
             {apiKeyStatus}
@@ -229,7 +229,7 @@ export const SettingGeneral: React.FC = () => {
           <button
             type="button"
             onClick={handleSaveApiKey}
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500"
+            className="rounded bg-primary px-3 py-1.5 text-sm text-foreground hover:bg-primary"
           >
             Save key
           </button>
@@ -237,27 +237,27 @@ export const SettingGeneral: React.FC = () => {
             type="button"
             disabled={!apiKeySet}
             onClick={handleClearApiKey}
-            className="rounded border border-red-500/50 px-3 py-1.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+            className="rounded border border-destructive/50 px-3 py-1.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
           >
             Clear
           </button>
         </div>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Stored encrypted by your OS (Keychain on macOS). Never shown again
           after saving.
         </p>
       </div>
 
       {/* OpenRouter Provisioning (admin) Key */}
-      <div className="mb-4 border-t border-gray-700 pt-4">
+      <div className="mb-4 border-t border-border pt-4">
         <label
           htmlFor="provisioning-key-input"
-          className="block text-sm font-medium text-gray-300 mb-1"
+          className="block text-sm font-medium text-card-foreground mb-1"
         >
           OpenRouter Provisioning Key
         </label>
         <p
-          className={`text-xs mb-1 ${provisioningKeySet ? "text-green-400" : "text-gray-400"}`}
+          className={`text-xs mb-1 ${provisioningKeySet ? "text-success" : "text-muted-foreground"}`}
           role="status"
         >
           {provisioningKeySet ? "Key is set" : "No key set"}
@@ -266,7 +266,7 @@ export const SettingGeneral: React.FC = () => {
           id="provisioning-key-input"
           type="password"
           autoComplete="off"
-          className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           value={provisioningInput}
           onChange={(event) => {
             setProvisioningInput(event.target.value);
@@ -281,7 +281,7 @@ export const SettingGeneral: React.FC = () => {
         />
         {provisioningStatus && (
           <p
-            className={`text-xs mt-1 ${provisioningStatus.startsWith("Error") ? "text-red-400" : provisioningStatus.startsWith("Warning") ? "text-yellow-400" : "text-green-400"}`}
+            className={`text-xs mt-1 ${provisioningStatus.startsWith("Error") ? "text-destructive" : provisioningStatus.startsWith("Warning") ? "text-warning" : "text-success"}`}
             role="status"
           >
             {provisioningStatus}
@@ -291,7 +291,7 @@ export const SettingGeneral: React.FC = () => {
           <button
             type="button"
             onClick={handleSaveProvisioningKey}
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500"
+            className="rounded bg-primary px-3 py-1.5 text-sm text-foreground hover:bg-primary"
           >
             Save key
           </button>
@@ -299,12 +299,12 @@ export const SettingGeneral: React.FC = () => {
             type="button"
             disabled={!provisioningKeySet}
             onClick={handleClearProvisioningKey}
-            className="rounded border border-red-500/50 px-3 py-1.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+            className="rounded border border-destructive/50 px-3 py-1.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
           >
             Clear
           </button>
         </div>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Stored encrypted by your OS (Keychain on macOS). High-privilege key —
           keep it secret. It is never shown again after saving.
         </p>
@@ -314,23 +314,23 @@ export const SettingGeneral: React.FC = () => {
       <ModelSelect key={modelSelectKey} />
 
       {/* Reset to defaults */}
-      <div className="mt-2 border-t border-gray-700 pt-4">
+      <div className="mt-2 border-t border-border pt-4">
         <button
           type="button"
           onClick={handleResetDefaults}
-          className="w-full rounded border border-red-500/50 px-4 py-2 text-sm font-semibold text-red-300 transition-colors hover:bg-red-500/10 focus:outline-none focus:ring-2 focus:ring-red-400"
+          className="w-full rounded border border-destructive/50 px-4 py-2 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 focus:outline-none focus:ring-2 focus:ring-destructive"
         >
           Reset all settings to default
         </button>
         {resetStatus && (
           <p
-            className={`text-xs mt-1 ${resetStatus.startsWith("Error") ? "text-red-400" : "text-green-400"}`}
+            className={`text-xs mt-1 ${resetStatus.startsWith("Error") ? "text-destructive" : "text-success"}`}
             role="status"
           >
             {resetStatus}
           </p>
         )}
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Restores correction presets, summarize, prompt-gen, model settings
           and global hotkeys for the current profile. Your API key is kept.
         </p>

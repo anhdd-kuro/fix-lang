@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-rose-pine-default.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-rose-pine-default"] {
+  --background: #1f1d2e;
+  --foreground: rgb(224, 222, 244);
+  --card: rgb(144, 140, 170);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(144, 140, 170);
+  --popover-foreground: #e0def4;
+  --primary: #9ccfd8;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(144, 140, 170);
+  --secondary-foreground: #908caa;
+  --muted: rgb(144, 140, 170);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgb(144, 140, 170);
+  --accent-foreground: #e0def4;
+  --destructive: #eb6f92;
+  --destructive-foreground: #e0def4;
+  --border: rgb(116, 111, 148);
+  --input: rgb(144, 140, 170);
+  --ring: #9ccfd8;
+  --success: #31748f;
+  --success-foreground: #1f1d2e;
+  --warning: #f6c177;
+  --warning-foreground: #1f1d2e;
+  --chart-1: rgb(48, 45, 71);
+  --chart-2: #908caa;
+  --chart-3: #9ccfd8;
+  --chart-4: #9ccfd8;
+  --chart-5: #ebbcba;
+  --overlay-spinner: #9ccfd8;
+  --overlay-spinner-track: rgb(224, 222, 244);
+  --overlay-backdrop: rgba(31, 29, 46, 0.72);
+}

@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from rose-pine-moon.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="rose-pine-moon"] {
+  --background: #232136;
+  --foreground: rgb(224, 222, 244);
+  --card: rgb(66, 62, 101);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(66, 62, 101);
+  --popover-foreground: #e0def4;
+  --primary: #ea9a97;
+  --primary-foreground: rgb(35, 33, 54);
+  --secondary: rgba(0, 0, 0, 0);
+  --secondary-foreground: #908caa;
+  --muted: rgba(0, 0, 0, 0);
+  --muted-foreground: rgb(155, 155, 155);
+  --accent: rgb(129, 124, 156);
+  --accent-foreground: #e0def4;
+  --destructive: #eb6f92;
+  --destructive-foreground: #e0def4;
+  --border: rgba(0, 0, 0, 0);
+  --input: rgba(57, 53, 82, 0.5);
+  --ring: #817c9c;
+  --success: #3e8fb0;
+  --success-foreground: #232136;
+  --warning: #f6c177;
+  --warning-foreground: #232136;
+  --chart-1: rgb(51, 48, 79);
+  --chart-2: #908caa;
+  --chart-3: #9ccfd8;
+  --chart-4: #ea9a97;
+  --chart-5: #ea9a97;
+  --overlay-spinner: #ea9a97;
+  --overlay-spinner-track: rgb(224, 222, 244);
+  --overlay-backdrop: rgba(35, 33, 54, 0.72);
+}

@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from github-dark-default.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="github-dark-default"] {
+  --background: #0d1117;
+  --foreground: rgb(230, 237, 243);
+  --card: rgb(31, 41, 56);
+  --card-foreground: rgb(230, 237, 243);
+  --popover: rgb(31, 41, 56);
+  --popover-foreground: #e6edf3;
+  --primary: #1f6feb;
+  --primary-foreground: rgb(255, 255, 255);
+  --secondary: rgb(31, 41, 56);
+  --secondary-foreground: #7d8590;
+  --muted: rgb(31, 41, 56);
+  --muted-foreground: rgb(135, 135, 135);
+  --accent: rgb(110, 118, 129);
+  --accent-foreground: #e6edf3;
+  --destructive: #f85149;
+  --destructive-foreground: #e6edf3;
+  --border: rgb(58, 77, 105);
+  --input: rgb(22, 29, 39);
+  --ring: #1f6feb;
+  --success: #3fb950;
+  --success-foreground: #0d1117;
+  --warning: #d29922;
+  --warning-foreground: #0d1117;
+  --chart-1: #e6edf3;
+  --chart-2: #6e7681;
+  --chart-3: #58a6ff;
+  --chart-4: #1f6feb;
+  --chart-5: #39c5cf;
+  --overlay-spinner: #1f6feb;
+  --overlay-spinner-track: rgb(230, 237, 243);
+  --overlay-backdrop: rgba(13, 17, 23, 0.72);
+}

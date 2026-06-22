@@ -20,11 +20,11 @@ const HistoryReviewModal: React.FC<HistoryReviewModalProps> = ({
 }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50">
-      <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-2/3 max-w-2xl max-h-[90vh] overflow-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay-backdrop">
+      <div className="bg-card rounded-lg shadow-xl p-6 w-2/3 max-w-2xl max-h-[90vh] overflow-auto">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl text-gray-200">Last Correction</h2>
-          <div className="flex items-center gap-3 text-sm text-gray-400">
+          <h2 className="text-xl text-card-foreground">Last Correction</h2>
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
             {data.modelId && <span>Model: {data.modelId}</span>}
             <span title="Estimated cost at time of correction">
               Cost: {formatCost(data)}
@@ -33,7 +33,7 @@ const HistoryReviewModal: React.FC<HistoryReviewModalProps> = ({
         </div>
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 flex flex-col">
-            <h3 className="text-lg text-gray-300 mb-2">Original</h3>
+            <h3 className="text-lg text-card-foreground mb-2">Original</h3>
             <CopyButton
               value={data.original}
               label="Copy original"
@@ -42,12 +42,12 @@ const HistoryReviewModal: React.FC<HistoryReviewModalProps> = ({
             <textarea
               readOnly
               value={data.original}
-              className="w-full h-48 bg-gray-700 text-gray-100 p-2 rounded-md resize-none"
+              className="w-full h-48 bg-secondary text-foreground p-2 rounded-md resize-none"
               aria-label="Original text"
             />
           </div>
           <div className="flex-1 flex flex-col">
-            <h3 className="text-lg text-gray-300 mb-2">Corrected</h3>
+            <h3 className="text-lg text-card-foreground mb-2">Corrected</h3>
             <CopyButton
               value={data.corrected}
               label="Copy corrected"
@@ -56,7 +56,7 @@ const HistoryReviewModal: React.FC<HistoryReviewModalProps> = ({
             <textarea
               readOnly
               value={data.corrected}
-              className="w-full h-48 bg-gray-700 text-gray-100 p-2 rounded-md resize-none"
+              className="w-full h-48 bg-secondary text-foreground p-2 rounded-md resize-none"
               aria-label="Corrected text"
             />
           </div>
@@ -65,7 +65,7 @@ const HistoryReviewModal: React.FC<HistoryReviewModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500"
+            className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary"
             aria-label="Close review modal"
           >
             Close

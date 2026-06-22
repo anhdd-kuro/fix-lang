@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-nightfox-dawnfox.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-nightfox-dawnfox"] {
+  --background: #faf4ed;
+  --foreground: rgb(87, 82, 121);
+  --card: rgb(95, 86, 149);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(95, 86, 149);
+  --popover-foreground: #575279;
+  --primary: #286983;
+  --primary-foreground: rgb(250, 244, 237);
+  --secondary: rgb(95, 86, 149);
+  --secondary-foreground: #5f5695;
+  --muted: rgb(95, 86, 149);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(95, 86, 149);
+  --accent-foreground: #575279;
+  --destructive: #b4637a;
+  --destructive-foreground: #575279;
+  --border: rgb(137, 129, 182);
+  --input: rgb(95, 86, 149);
+  --ring: #286983;
+  --success: #618774;
+  --success-foreground: #faf4ed;
+  --warning: #ea9d34;
+  --warning-foreground: #faf4ed;
+  --chart-1: #1f2937;
+  --chart-2: #5f5695;
+  --chart-3: #286983;
+  --chart-4: #286983;
+  --chart-5: #56949f;
+  --overlay-spinner: #286983;
+  --overlay-spinner-track: rgb(87, 82, 121);
+  --overlay-backdrop: rgba(250, 244, 237, 0.72);
+}

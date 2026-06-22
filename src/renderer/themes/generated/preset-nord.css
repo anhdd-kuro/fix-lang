@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from nord.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="nord"] {
+  --background: #2e3440;
+  --foreground: rgb(216, 222, 233);
+  --card: rgb(67, 76, 94);
+  --card-foreground: rgb(216, 222, 233);
+  --popover: rgb(67, 76, 94);
+  --popover-foreground: #d8dee9;
+  --primary: #88c0d0;
+  --primary-foreground: rgb(46, 52, 64);
+  --secondary: rgb(67, 76, 94);
+  --secondary-foreground: rgba(216, 222, 233, 0.40);
+  --muted: rgb(67, 76, 94);
+  --muted-foreground: rgba(225, 225, 225, 0.9);
+  --accent: rgb(67, 76, 94);
+  --accent-foreground: #eceff4;
+  --destructive: #bf616a;
+  --destructive-foreground: #d8dee9;
+  --border: rgb(99, 112, 139);
+  --input: rgb(59, 66, 82);
+  --ring: #3b4252;
+  --success: #a3be8c;
+  --success-foreground: #2e3440;
+  --warning: #ebcb8b;
+  --warning-foreground: #2e3440;
+  --chart-1: rgba(67, 76, 94, 0.70);
+  --chart-2: rgb(72, 81, 100);
+  --chart-3: #81a1c1;
+  --chart-4: #88c0d0;
+  --chart-5: #88c0d0;
+  --overlay-spinner: #88c0d0;
+  --overlay-spinner-track: rgb(216, 222, 233);
+  --overlay-backdrop: rgba(46, 52, 64, 0.72);
+}

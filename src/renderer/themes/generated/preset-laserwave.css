@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from laserwave.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="laserwave"] {
+  --background: #27212e;
+  --foreground: rgb(255, 255, 255);
+  --card: rgb(64, 54, 76);
+  --card-foreground: rgb(221, 221, 221);
+  --popover: rgb(64, 54, 76);
+  --popover-foreground: #ffffff;
+  --primary: #EB64B9;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(64, 54, 76);
+  --secondary-foreground: #dddddd;
+  --muted: rgb(64, 54, 76);
+  --muted-foreground: rgb(221, 221, 221);
+  --accent: rgba(145, 136, 155, 0.5);
+  --accent-foreground: #eeeeee;
+  --destructive: #ff3e7b;
+  --destructive-foreground: #ffffff;
+  --border: rgb(102, 86, 121);
+  --input: rgb(58, 50, 66);
+  --ring: #EB64B9;
+  --success: #74dfc4;
+  --success-foreground: #27212e;
+  --warning: #ffe261;
+  --warning-foreground: #27212e;
+  --chart-1: rgb(59, 50, 70);
+  --chart-2: #dddddd;
+  --chart-3: #40b4c4;
+  --chart-4: #EB64B9;
+  --chart-5: #b4dce7;
+  --overlay-spinner: #40b4c4;
+  --overlay-spinner-track: rgb(255, 255, 255);
+  --overlay-backdrop: rgba(39, 33, 46, 0.72);
+}

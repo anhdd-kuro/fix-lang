@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-one-half-dark.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-one-half-dark"] {
+  --background: #282c34;
+  --foreground: rgb(220, 223, 228);
+  --card: rgb(62, 68, 81);
+  --card-foreground: rgb(220, 223, 228);
+  --popover: rgb(62, 68, 81);
+  --popover-foreground: #dcdfe4;
+  --primary: #61afef;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(62, 68, 81);
+  --secondary-foreground: #282c34;
+  --muted: rgb(62, 68, 81);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(62, 68, 81);
+  --accent-foreground: #dcdfe4;
+  --destructive: #e06c75;
+  --destructive-foreground: #dcdfe4;
+  --border: rgb(40, 44, 52);
+  --input: rgb(51, 56, 66);
+  --ring: #61afef;
+  --success: #98c379;
+  --success-foreground: #282c34;
+  --warning: #e5c07b;
+  --warning-foreground: #282c34;
+  --chart-1: rgb(58, 64, 75);
+  --chart-2: rgb(67, 73, 87);
+  --chart-3: #61afef;
+  --chart-4: #61afef;
+  --chart-5: #56b6c2;
+  --overlay-spinner: #61afef;
+  --overlay-spinner-track: rgb(220, 223, 228);
+  --overlay-backdrop: rgba(40, 44, 52, 0.72);
+}

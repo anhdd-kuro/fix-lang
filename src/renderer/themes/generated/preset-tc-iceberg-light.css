@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-iceberg-light.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-iceberg-light"] {
+  --background: #e8e9ec;
+  --foreground: rgb(51, 55, 76);
+  --card: rgb(131, 137, 163);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(131, 137, 163);
+  --popover-foreground: #33374c;
+  --primary: #2d539e;
+  --primary-foreground: rgb(232, 233, 236);
+  --secondary: rgb(131, 137, 163);
+  --secondary-foreground: #8389a3;
+  --muted: rgb(131, 137, 163);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgb(131, 137, 163);
+  --accent-foreground: #33374c;
+  --destructive: #cc517a;
+  --destructive-foreground: #33374c;
+  --border: rgb(103, 110, 139);
+  --input: rgb(131, 137, 163);
+  --ring: #2d539e;
+  --success: #668e3d;
+  --success-foreground: #e8e9ec;
+  --warning: #c57339;
+  --warning-foreground: #e8e9ec;
+  --chart-1: #1f2937;
+  --chart-2: #8389a3;
+  --chart-3: #2d539e;
+  --chart-4: #2d539e;
+  --chart-5: #3f83a6;
+  --overlay-spinner: #2d539e;
+  --overlay-spinner-track: rgb(51, 55, 76);
+  --overlay-backdrop: rgba(232, 233, 236, 0.72);
+}

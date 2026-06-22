@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from github-dark-dimmed.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="github-dark-dimmed"] {
+  --background: #22272e;
+  --foreground: rgb(173, 186, 199);
+  --card: rgb(56, 64, 75);
+  --card-foreground: rgb(173, 186, 199);
+  --popover: rgb(56, 64, 75);
+  --popover-foreground: #adbac7;
+  --primary: #316dca;
+  --primary-foreground: rgb(255, 255, 255);
+  --secondary: rgb(56, 64, 75);
+  --secondary-foreground: #768390;
+  --muted: rgb(56, 64, 75);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(99, 110, 123);
+  --accent-foreground: #adbac7;
+  --destructive: #e5534b;
+  --destructive-foreground: #adbac7;
+  --border: rgb(89, 101, 119);
+  --input: rgb(45, 51, 61);
+  --ring: #316dca;
+  --success: #57ab5a;
+  --success-foreground: #22272e;
+  --warning: #c69026;
+  --warning-foreground: #22272e;
+  --chart-1: #adbac7;
+  --chart-2: #636e7b;
+  --chart-3: #539bf5;
+  --chart-4: rgb(77, 89, 105);
+  --chart-5: #39c5cf;
+  --overlay-spinner: #316dca;
+  --overlay-spinner-track: rgb(173, 186, 199);
+  --overlay-backdrop: rgba(34, 39, 46, 0.72);
+}

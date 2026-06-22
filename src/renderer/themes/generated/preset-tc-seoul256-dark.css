@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-seoul256-dark.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-seoul256-dark"] {
+  --background: #3a3a3a;
+  --foreground: rgb(208, 208, 208);
+  --card: rgb(98, 98, 98);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(98, 98, 98);
+  --popover-foreground: #d0d0d0;
+  --primary: #85add4;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(98, 98, 98);
+  --secondary-foreground: #626262;
+  --muted: rgb(98, 98, 98);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(98, 98, 98);
+  --accent-foreground: #d0d0d0;
+  --destructive: #d68787;
+  --destructive-foreground: #d0d0d0;
+  --border: rgb(136, 136, 136);
+  --input: rgb(98, 98, 98);
+  --ring: #85add4;
+  --success: #5f865f;
+  --success-foreground: #3a3a3a;
+  --warning: #d8af5f;
+  --warning-foreground: #3a3a3a;
+  --chart-1: rgb(78, 78, 78);
+  --chart-2: rgb(89, 89, 89);
+  --chart-3: #85add4;
+  --chart-4: #85add4;
+  --chart-5: #87afaf;
+  --overlay-spinner: #85add4;
+  --overlay-spinner-track: rgb(208, 208, 208);
+  --overlay-backdrop: rgba(58, 58, 58, 0.72);
+}

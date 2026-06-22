@@ -5,6 +5,7 @@
  */
 import path from "node:path";
 import { app, BrowserWindow } from "electron";
+import { attachThemeSync } from "./attachThemeSync";
 import appIcon from "../../../resources/icon.ico?asset";
 import type { BrowserWindowConstructorOptions } from "electron";
 
@@ -50,6 +51,7 @@ export const createMainWindow = (
     ...options,
   });
   setMainWindow(win);
+  attachThemeSync(win);
 
   // Set mainWindow to null when the window is closed
   win.on("closed", () => {

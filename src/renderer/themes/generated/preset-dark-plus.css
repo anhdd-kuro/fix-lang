@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from dark-plus.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="dark-plus"] {
+  --background: #1E1E1E;
+  --foreground: rgb(212, 212, 212);
+  --card: rgb(55, 55, 55);
+  --card-foreground: rgb(212, 212, 212);
+  --popover: rgb(55, 55, 55);
+  --popover-foreground: #CCCCCC;
+  --primary: #007ACC;
+  --primary-foreground: rgb(4, 5, 6);
+  --secondary: rgb(55, 65, 81);
+  --secondary-foreground: #d1d5db;
+  --muted: rgb(55, 55, 55);
+  --muted-foreground: rgb(166, 166, 166);
+  --accent: rgb(55, 65, 81);
+  --accent-foreground: #D4D4D4;
+  --destructive: #ef4444;
+  --destructive-foreground: #D4D4D4;
+  --border: rgb(81, 81, 81);
+  --input: rgb(31, 41, 55);
+  --ring: #007ACC;
+  --success: #22c55e;
+  --success-foreground: #1E1E1E;
+  --warning: #eab308;
+  --warning-foreground: #1E1E1E;
+  --chart-1: rgb(50, 50, 50);
+  --chart-2: rgb(61, 61, 61);
+  --chart-3: #3b82f6;
+  --chart-4: rgb(81, 81, 81);
+  --chart-5: #06b6d4;
+  --overlay-spinner: #007ACC;
+  --overlay-spinner-track: rgb(212, 212, 212);
+  --overlay-backdrop: rgba(30, 30, 30, 0.72);
+}

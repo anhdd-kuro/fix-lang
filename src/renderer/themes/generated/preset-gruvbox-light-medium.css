@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from gruvbox-light-medium.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="gruvbox-light-medium"] {
+  --background: #fbf1c7;
+  --foreground: rgb(60, 56, 54);
+  --card: rgb(244, 217, 104);
+  --card-foreground: rgb(80, 73, 69);
+  --popover: rgb(244, 217, 104);
+  --popover-foreground: #3c3836;
+  --primary: #458588;
+  --primary-foreground: rgb(6, 6, 6);
+  --secondary: rgb(246, 223, 128);
+  --secondary-foreground: #7c6f64;
+  --muted: rgb(246, 223, 128);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgb(244, 217, 104);
+  --accent-foreground: #504945;
+  --destructive: #9d0006;
+  --destructive-foreground: #3c3836;
+  --border: rgb(229, 188, 17);
+  --input: rgb(248, 229, 151);
+  --ring: #ebdbb2;
+  --success: #98971a;
+  --success-foreground: #fbf1c7;
+  --warning: #d79921;
+  --warning-foreground: #fbf1c7;
+  --chart-1: #0000;
+  --chart-2: #bdae93;
+  --chart-3: #458588;
+  --chart-4: #458588;
+  --chart-5: #689d6a;
+  --overlay-spinner: #689d6a;
+  --overlay-spinner-track: rgb(60, 56, 54);
+  --overlay-backdrop: rgba(251, 241, 199, 0.72);
+}

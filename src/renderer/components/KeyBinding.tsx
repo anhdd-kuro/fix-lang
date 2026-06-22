@@ -8,13 +8,13 @@ export const KeyBinding = ({
   onChange: (keysBinding: string[]) => void;
 }) => {
   return (
-    <div className="flex gap-2 text-sm text-gray-400">
+    <div className="flex gap-2 text-sm text-muted-foreground">
       <span>{label}:</span>
       <ul className="inline-flex gap-1">
         {keysBinding.map((key, index) => (
           <li
             key={index}
-            className="inline-block px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg"
+            className="inline-block px-2 py-1.5 text-xs font-semibold text-foreground bg-muted border border-border rounded-lg"
           >
             {key}
           </li>
@@ -23,7 +23,7 @@ export const KeyBinding = ({
       {/* TODO: Add functionality to change key bindings */}
       <button
         type="button"
-        className="ml-auto px-2 py-1.5 text-xs font-semibold bg-blue-500 text-white rounded-lg"
+        className="ml-auto px-2 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-lg"
         onClick={() => onChange([])}
       >
         Change

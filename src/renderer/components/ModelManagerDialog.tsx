@@ -35,7 +35,7 @@ export default function ModelManagerDialog({
   >([]);
   // State for the active tab
   const [activeTab, setActiveTab] = useState<"installed" | "recommended">(
-    "installed"
+    "installed",
   );
   // Deletion confirmation state
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -102,8 +102,8 @@ export default function ModelManagerDialog({
         prev.map((model) =>
           model.name === modelName
             ? { ...model, status: "installing" as ModelInstallStatus }
-            : model
-        )
+            : model,
+        ),
       );
 
       // Install the model
@@ -118,8 +118,8 @@ export default function ModelManagerDialog({
                 status: result.success ? "success" : "error",
                 error: result.error,
               }
-            : model
-        )
+            : model,
+        ),
       );
 
       // Refresh models list if successful
@@ -139,8 +139,8 @@ export default function ModelManagerDialog({
                 status: "error",
                 error: error instanceof Error ? error.message : String(error),
               }
-            : model
-        )
+            : model,
+        ),
       );
     }
   };
@@ -175,15 +175,15 @@ export default function ModelManagerDialog({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-card rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-700">
-          <h2 className="text-xl font-semibold text-white">
+        <div className="flex justify-between items-center p-4 border-b border-border">
+          <h2 className="text-xl font-semibold text-foreground">
             Manage Local LLM Models
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white"
+            className="text-muted-foreground hover:text-foreground"
             aria-label="Close"
           >
             ✕
@@ -191,12 +191,12 @@ export default function ModelManagerDialog({
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-700">
+        <div className="flex border-b border-border">
           <button
             className={`px-4 py-2 ${
               activeTab === "installed"
-                ? "border-b-2 border-blue-500 text-blue-400"
-                : "text-gray-400 hover:text-white"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
             }`}
             onClick={() => setActiveTab("installed")}
           >
@@ -205,8 +205,8 @@ export default function ModelManagerDialog({
           <button
             className={`px-4 py-2 ${
               activeTab === "recommended"
-                ? "border-b-2 border-blue-500 text-blue-400"
-                : "text-gray-400 hover:text-white"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
             }`}
             onClick={() => setActiveTab("recommended")}
           >
@@ -216,7 +216,7 @@ export default function ModelManagerDialog({
             <button
               onClick={refreshModels}
               disabled={isRefreshing}
-              className={`text-gray-300 hover:text-white ${
+              className={`text-card-foreground hover:text-foreground ${
                 isRefreshing ? "animate-spin" : ""
               }`}
               title="Refresh models"
@@ -230,17 +230,17 @@ export default function ModelManagerDialog({
         <div className="flex-1 overflow-auto p-4">
           {isLoading ? (
             <div className="flex justify-center items-center h-full">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           ) : activeTab === "installed" ? (
             /* Installed Models Tab */
             <div>
               {localModels.length === 0 ? (
-                <div className="text-center text-gray-400 py-8">
+                <div className="text-center text-muted-foreground py-8">
                   <p>No local models installed</p>
                   <button
                     onClick={() => setActiveTab("recommended")}
-                    className="mt-2 text-blue-400 hover:underline"
+                    className="mt-2 text-primary hover:underline"
                   >
                     Browse recommended models
                   </button>
@@ -250,10 +250,10 @@ export default function ModelManagerDialog({
                   {localModels.map((model) => (
                     <div
                       key={model.id}
-                      className="border border-gray-700 rounded-lg p-4 bg-gray-800 hover:bg-gray-750"
+                      className="border border-border rounded-lg p-4 bg-card hover:bg-accent"
                     >
                       <div className="flex justify-between">
-                        <h3 className="text-lg font-medium text-white">
+                        <h3 className="text-lg font-medium text-foreground">
                           {model.name}
                         </h3>
                         <div className="flex space-x-2">
@@ -264,24 +264,24 @@ export default function ModelManagerDialog({
                                 modelName: model.local?.path,
                               })
                             }
-                            className="text-red-400 hover:text-red-300"
+                            className="text-destructive hover:text-destructive"
                             title="Delete model"
                           >
                             🗑️
                           </button>
                         </div>
                       </div>
-                      <div className="mt-2 text-sm text-gray-400">
+                      <div className="mt-2 text-sm text-muted-foreground">
                         <div>
                           Path:{" "}
-                          <span className="text-gray-300">
+                          <span className="text-card-foreground">
                             {model.local?.path}
                           </span>
                         </div>
                         {model.local?.size && (
                           <div>
                             Size:{" "}
-                            <span className="text-gray-300">
+                            <span className="text-card-foreground">
                               {formatSize(model.local.size)}
                             </span>
                           </div>
@@ -296,7 +296,7 @@ export default function ModelManagerDialog({
             /* Recommended Models Tab */
             <div>
               {recommendedModels.length === 0 ? (
-                <div className="text-center text-gray-400 py-8">
+                <div className="text-center text-muted-foreground py-8">
                   <p>No recommended models available</p>
                 </div>
               ) : (
@@ -304,10 +304,10 @@ export default function ModelManagerDialog({
                   {recommendedModels.map((model) => (
                     <div
                       key={model.name}
-                      className="border border-gray-700 rounded-lg p-4 bg-gray-800 hover:bg-gray-750"
+                      className="border border-border rounded-lg p-4 bg-card hover:bg-accent"
                     >
                       <div className="flex justify-between">
-                        <h3 className="text-lg font-medium text-white">
+                        <h3 className="text-lg font-medium text-foreground">
                           {model.name}
                         </h3>
                         <div>
@@ -316,12 +316,12 @@ export default function ModelManagerDialog({
                             disabled={model.status === "installing"}
                             className={`px-3 py-1 rounded text-sm ${
                               model.status === "success"
-                                ? "bg-green-600 text-white cursor-default"
+                                ? "bg-success text-success-foreground cursor-default"
                                 : model.status === "installing"
-                                  ? "bg-blue-600 text-white animate-pulse cursor-wait"
+                                  ? "bg-primary text-primary-foreground animate-pulse cursor-wait"
                                   : model.status === "error"
-                                    ? "bg-red-600 text-white hover:bg-red-700"
-                                    : "bg-blue-500 text-white hover:bg-blue-600"
+                                    ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    : "bg-primary text-primary-foreground hover:bg-primary"
                             }`}
                           >
                             {model.status === "success"
@@ -334,22 +334,24 @@ export default function ModelManagerDialog({
                           </button>
                         </div>
                       </div>
-                      <p className="mt-2 text-gray-300">{model.description}</p>
+                      <p className="mt-2 text-card-foreground">
+                        {model.description}
+                      </p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {model.tags.map((tag) => (
                           <span
                             key={tag}
-                            className="px-2 py-1 bg-gray-700 rounded-full text-xs text-gray-300"
+                            className="px-2 py-1 bg-secondary rounded-full text-xs text-card-foreground"
                           >
                             {tag}
                           </span>
                         ))}
                       </div>
-                      <div className="mt-2 text-sm text-gray-400">
+                      <div className="mt-2 text-sm text-muted-foreground">
                         <span>Size: {formatSize(model.size)}</span>
                       </div>
                       {model.status === "error" && model.error && (
-                        <div className="mt-2 text-sm text-red-400">
+                        <div className="mt-2 text-sm text-destructive">
                           Error: {model.error}
                         </div>
                       )}
@@ -364,11 +366,11 @@ export default function ModelManagerDialog({
         {/* Delete Confirmation Dialog */}
         {deleteConfirmation.isOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-            <div className="bg-gray-800 rounded-lg shadow-xl p-6 max-w-md w-full">
-              <h3 className="text-xl font-semibold text-white mb-4">
+            <div className="bg-card rounded-lg shadow-xl p-6 max-w-md w-full">
+              <h3 className="text-xl font-semibold text-foreground mb-4">
                 Confirm Deletion
               </h3>
-              <p className="text-gray-300 mb-6">
+              <p className="text-card-foreground mb-6">
                 Are you sure you want to delete model{" "}
                 <span className="font-semibold">
                   {deleteConfirmation.modelName}
@@ -378,7 +380,7 @@ export default function ModelManagerDialog({
               <div className="flex justify-end space-x-3">
                 <button
                   onClick={() => setDeleteConfirmation({ isOpen: false })}
-                  className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600"
+                  className="px-4 py-2 bg-secondary text-secondary-foreground rounded hover:bg-secondary"
                 >
                   Cancel
                 </button>
@@ -386,7 +388,7 @@ export default function ModelManagerDialog({
                   onClick={() =>
                     deleteModel(deleteConfirmation.modelName || "")
                   }
-                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                  className="px-4 py-2 bg-destructive text-destructive-foreground rounded hover:bg-destructive/90"
                 >
                   Delete
                 </button>

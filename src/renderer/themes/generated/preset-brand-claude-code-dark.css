@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from brand-claude-code-dark.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="brand-claude-code-dark"] {
+  --background: #141413;
+  --foreground: rgb(250, 249, 245);
+  --card: rgb(46, 46, 44);
+  --card-foreground: rgb(194, 189, 182);
+  --popover: rgb(46, 46, 44);
+  --popover-foreground: #faf9f5;
+  --primary: #d97757;
+  --primary-foreground: rgb(20, 20, 19);
+  --secondary: rgb(46, 46, 44);
+  --secondary-foreground: #6b6560;
+  --muted: rgb(46, 46, 44);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(46, 46, 44);
+  --accent-foreground: #faf9f5;
+  --destructive: #e54d4d;
+  --destructive-foreground: #faf9f5;
+  --border: rgb(72, 72, 69);
+  --input: rgb(33, 33, 31);
+  --ring: #d97757;
+  --success: #7fd962;
+  --success-foreground: #141413;
+  --warning: #d4a017;
+  --warning-foreground: #141413;
+  --chart-1: #1f2937;
+  --chart-2: #6b6560;
+  --chart-3: #6cb6ff;
+  --chart-4: #d97757;
+  --chart-5: #56d4dd;
+  --overlay-spinner: #d97757;
+  --overlay-spinner-track: rgb(250, 249, 245);
+  --overlay-backdrop: rgba(20, 20, 19, 0.72);
+}

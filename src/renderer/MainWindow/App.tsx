@@ -16,6 +16,7 @@ import { OverviewPanel } from "../components/OverviewPanel";
 import { SettingsButton } from "../components/SettingsIcon";
 import { SettingsModal } from "../components/SettingsModal";
 import { TextAreaBox } from "../components/TextAreaBox";
+import { useTheme } from "../hooks/useTheme";
 import type { DashboardTabId } from "./dashboardTabs";
 import type { AnalyticsRange } from "../analytics/shared";
 import type { HistoryEntry, HistoryFeatureId } from "~/stores/historyStore";
@@ -39,6 +40,7 @@ const RANGE_AWARE_TABS = new Set(["overview", "models"]);
  * Action Preview text areas (the original main view).
  */
 const App: React.FC = () => {
+  useTheme();
   // History state — flat list combining corrections + promptGen buckets
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
@@ -207,7 +209,7 @@ const App: React.FC = () => {
   // History tab body: the history list beside the Last Action Preview.
   const historyTab = (
     <div className="flex h-full gap-4">
-      <aside className="flex w-72 shrink-0 flex-col overflow-hidden rounded-lg border border-gray-700 bg-gray-800 p-3">
+      <aside className="flex w-72 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-card p-3">
         <HistoryPanel
           history={history}
           onSelectEntry={handleSelectEntry}
@@ -216,7 +218,7 @@ const App: React.FC = () => {
         />
       </aside>
       <section className="flex flex-1 flex-col gap-6 overflow-y-auto">
-        <h2 className="text-center text-2xl font-bold text-blue-400">
+        <h2 className="text-center text-2xl font-bold text-primary">
           Last Action Preview
         </h2>
         <div className="flex flex-1 flex-col gap-8">
@@ -270,9 +272,9 @@ const App: React.FC = () => {
   const showRange = RANGE_AWARE_TABS.has(activeTabId);
 
   return (
-    <div className="flex h-screen flex-col bg-gray-900 font-sans text-gray-100">
+    <div className="flex h-screen flex-col bg-background font-sans text-foreground">
       {/* Shared header: tabs (left) + range pills & settings (right). */}
-      <header className="flex items-center justify-between gap-4 border-b border-gray-700 bg-gray-800 px-4 py-2">
+      <header className="flex items-center justify-between gap-4 border-b border-border bg-card px-4 py-2">
         <nav
           className="flex gap-1"
           role="tablist"
@@ -293,8 +295,8 @@ const App: React.FC = () => {
                 className={twJoin(
                   "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-blue-600 text-white shadow"
-                    : "text-gray-400 hover:bg-gray-700 hover:text-gray-100"
+                    ? "bg-primary text-primary-foreground shadow"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                 )}
               >
                 {tab.label}
@@ -306,7 +308,7 @@ const App: React.FC = () => {
         <div className="flex items-center gap-3">
           {showRange && (
             <div
-              className="flex gap-1 rounded-lg bg-gray-900/60 p-0.5"
+              className="flex gap-1 rounded-lg bg-background/60 p-0.5"
               role="group"
               aria-label="Time range"
             >
@@ -319,8 +321,8 @@ const App: React.FC = () => {
                   className={twJoin(
                     "rounded-md px-3 py-1 text-xs font-medium transition-colors",
                     range === r.id
-                      ? "bg-blue-600 text-white"
-                      : "text-gray-400 hover:text-gray-100"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {r.label}
@@ -333,7 +335,7 @@ const App: React.FC = () => {
       </header>
 
       {/* Content area — only the active tab's panel is rendered. */}
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background p-6">
         <div
           id={`dashboard-panel-${activeTabId}`}
           role="tabpanel"

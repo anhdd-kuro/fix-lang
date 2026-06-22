@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from dracula-soft.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="dracula-soft"] {
+  --background: #282A36;
+  --foreground: rgb(246, 246, 244);
+  --card: rgb(62, 65, 83);
+  --card-foreground: rgb(246, 246, 244);
+  --popover: rgb(62, 65, 83);
+  --popover-foreground: #f6f6f4;
+  --primary: #f286c4;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(62, 65, 83);
+  --secondary-foreground: #7b7f8b;
+  --muted: rgb(62, 65, 83);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgba(68, 71, 90, 0.46);
+  --accent-foreground: #f6f6f4;
+  --destructive: #ee6666;
+  --destructive-foreground: #f6f6f4;
+  --border: rgb(191, 158, 238);
+  --input: rgb(62, 65, 83);
+  --ring: #7b7f8b;
+  --success: #62e884;
+  --success-foreground: #282A36;
+  --warning: #e7ee98;
+  --warning-foreground: #282A36;
+  --chart-1: #FFFFFF;
+  --chart-2: #7b7f8b;
+  --chart-3: #bf9eee;
+  --chart-4: #f286c4;
+  --chart-5: #97e1f1;
+  --overlay-spinner: #f286c4;
+  --overlay-spinner-track: rgb(246, 246, 244);
+  --overlay-backdrop: rgba(40, 42, 54, 0.72);
+}

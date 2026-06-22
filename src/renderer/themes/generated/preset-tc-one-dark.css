@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-one-dark.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-one-dark"] {
+  --background: #282c34;
+  --foreground: rgb(171, 178, 191);
+  --card: rgb(92, 99, 112);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(92, 99, 112);
+  --popover-foreground: #abb2bf;
+  --primary: #61afef;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(92, 99, 112);
+  --secondary-foreground: #5c6370;
+  --muted: rgb(92, 99, 112);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(92, 99, 112);
+  --accent-foreground: #abb2bf;
+  --destructive: #e06c75;
+  --destructive-foreground: #abb2bf;
+  --border: rgb(129, 137, 152);
+  --input: rgb(92, 99, 112);
+  --ring: #61afef;
+  --success: #98c379;
+  --success-foreground: #282c34;
+  --warning: #d19a66;
+  --warning-foreground: #282c34;
+  --chart-1: rgb(58, 64, 75);
+  --chart-2: #5c6370;
+  --chart-3: #61afef;
+  --chart-4: #61afef;
+  --chart-5: #56b6c2;
+  --overlay-spinner: #61afef;
+  --overlay-spinner-track: rgb(171, 178, 191);
+  --overlay-backdrop: rgba(40, 44, 52, 0.72);
+}

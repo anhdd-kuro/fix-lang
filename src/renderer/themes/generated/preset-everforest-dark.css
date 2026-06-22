@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from everforest-dark.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="everforest-dark"] {
+  --background: #2d353b;
+  --foreground: rgb(211, 198, 170);
+  --card: rgb(67, 79, 88);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(67, 79, 88);
+  --popover-foreground: #9aa79d;
+  --primary: #a7c080;
+  --primary-foreground: rgb(45, 53, 59);
+  --secondary: rgb(67, 79, 88);
+  --secondary-foreground: #7f897d;
+  --muted: rgb(67, 79, 88);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(67, 79, 88);
+  --accent-foreground: #d3c6aa;
+  --destructive: #e67e80;
+  --destructive-foreground: #d3c6aa;
+  --border: rgb(33, 39, 43);
+  --input: rgb(56, 66, 73);
+  --ring: #2d353b;
+  --success: #a7c080;
+  --success-foreground: #2d353b;
+  --warning: #dbbc7f;
+  --warning-foreground: #2d353b;
+  --chart-1: #9aa79d;
+  --chart-2: rgba(127, 137, 125, 0.63);
+  --chart-3: #7fbbb3;
+  --chart-4: #a7c080;
+  --chart-5: #83c092;
+  --overlay-spinner: #a7c080;
+  --overlay-spinner-track: rgb(211, 198, 170);
+  --overlay-backdrop: rgba(45, 53, 59, 0.72);
+}

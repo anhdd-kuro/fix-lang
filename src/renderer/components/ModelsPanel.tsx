@@ -22,23 +22,23 @@ type ModelsPanelProps = {
   range: AnalyticsRange;
 };
 
-/** Stable marker palette — assigned by rank so the top model is always blue. */
-const MARKER_COLORS = [
-  "#60a5fa",
-  "#34d399",
-  "#fbbf24",
-  "#f87171",
-  "#a78bfa",
-  "#22d3ee",
-  "#f472b6",
-  "#a3e635",
+/** Theme-aware marker palette — cycles chart / status tokens by rank. */
+const MARKER_VARS = [
+  "var(--chart-1)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+  "var(--success)",
+  "var(--warning)",
+  "var(--primary)",
+  "var(--destructive)",
 ] as const;
 
 /** How many model rows to show before "Show more". */
 const COLLAPSED_ROWS = 5;
 
 const markerColor = (rank: number): string =>
-  MARKER_COLORS[rank % MARKER_COLORS.length];
+  MARKER_VARS[rank % MARKER_VARS.length];
 
 export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
   const [expanded, setExpanded] = useState<boolean>(false);
@@ -56,7 +56,7 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
 
   if (rows.length === 0) {
     return (
-      <p className="p-4 text-sm text-gray-400">
+      <p className="p-4 text-sm text-muted-foreground">
         No model usage in this range yet.
       </p>
     );
@@ -68,8 +68,8 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       {/* Token volume over time — thin blue bars. */}
-      <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
-        <div className="mb-3 text-xs uppercase tracking-wide text-gray-400">
+      <div className="rounded-lg border border-border bg-card p-4">
+        <div className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">
           Token usage over time
         </div>
         <div className="overflow-x-auto">
@@ -80,7 +80,7 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
                 <div
                   key={b.date}
                   title={`${b.date} — ${b.tokens.toLocaleString()} tokens`}
-                  className="w-[5px] shrink-0 rounded-t-[1px] bg-blue-500/80 hover:bg-blue-400"
+                  className="w-[5px] shrink-0 rounded-t-[1px] bg-primary/80 hover:bg-primary/90"
                   // Inline height: a data-driven per-bar value, not a static
                   // style — keep at least a 1px sliver for non-zero days.
                   style={{
@@ -94,10 +94,10 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
       </div>
 
       {/* Ranked model list. */}
-      <div className="rounded-lg border border-gray-700 bg-gray-800 p-2">
+      <div className="rounded-lg border border-border bg-card p-2">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs uppercase tracking-wide text-gray-400">
+            <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
               <th className="px-2 py-2 font-medium">Model</th>
               <th className="px-2 py-2 text-right font-medium">Input</th>
               <th className="px-2 py-2 text-right font-medium">Output</th>
@@ -106,8 +106,8 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
           </thead>
           <tbody>
             {visibleRows.map((row, rank) => (
-              <tr key={row.model} className="border-t border-gray-700/60">
-                <td className="px-2 py-2 text-gray-100">
+              <tr key={row.model} className="border-t border-border/60">
+                <td className="px-2 py-2 text-foreground">
                   <span className="flex items-center gap-2">
                     <span
                       className="h-2.5 w-2.5 shrink-0 rounded-full"
@@ -121,13 +121,13 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
                     </span>
                   </span>
                 </td>
-                <td className="px-2 py-2 text-right tabular-nums text-gray-300">
+                <td className="px-2 py-2 text-right tabular-nums text-card-foreground">
                   {row.inputTokens.toLocaleString()}
                 </td>
-                <td className="px-2 py-2 text-right tabular-nums text-gray-300">
+                <td className="px-2 py-2 text-right tabular-nums text-card-foreground">
                   {row.outputTokens.toLocaleString()}
                 </td>
-                <td className="px-2 py-2 text-right tabular-nums text-gray-300">
+                <td className="px-2 py-2 text-right tabular-nums text-card-foreground">
                   {row.usageSharePct.toFixed(1)}%
                 </td>
               </tr>
@@ -139,7 +139,7 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="mt-1 w-full rounded-md px-2 py-1.5 text-xs text-blue-400 hover:bg-gray-700/60"
+            className="mt-1 w-full rounded-md px-2 py-1.5 text-xs text-primary hover:bg-secondary/60"
           >
             {expanded ? "Show less" : `Show ${hiddenCount} more`}
           </button>

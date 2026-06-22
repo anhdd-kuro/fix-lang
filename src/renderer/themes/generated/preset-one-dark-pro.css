@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from one-dark-pro.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="one-dark-pro"] {
+  --background: #282c34;
+  --foreground: rgb(171, 178, 191);
+  --card: rgb(62, 68, 81);
+  --card-foreground: rgb(171, 178, 191);
+  --popover: rgb(62, 68, 81);
+  --popover-foreground: #abb2bf;
+  --primary: #4d78cc;
+  --primary-foreground: rgb(3, 5, 9);
+  --secondary: rgb(62, 68, 81);
+  --secondary-foreground: #abb2bf;
+  --muted: rgb(62, 68, 81);
+  --muted-foreground: rgb(181, 181, 181);
+  --accent: rgb(62, 68, 81);
+  --accent-foreground: #abb2bf;
+  --destructive: #c24038;
+  --destructive-foreground: #abb2bf;
+  --border: rgb(24, 26, 31);
+  --input: rgb(29, 31, 35);
+  --ring: #3e4452;
+  --success: #8cc265;
+  --success-foreground: #282c34;
+  --warning: #d18f52;
+  --warning-foreground: #282c34;
+  --chart-1: rgb(58, 64, 75);
+  --chart-2: rgb(67, 73, 87);
+  --chart-3: #4aa5f0;
+  --chart-4: rgb(84, 93, 110);
+  --chart-5: #42b3c2;
+  --overlay-spinner: #4d78cc;
+  --overlay-spinner-track: rgb(171, 178, 191);
+  --overlay-backdrop: rgba(40, 44, 52, 0.72);
+}

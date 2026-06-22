@@ -1,0 +1,40 @@
+/**
+ * Auto-generated from brand-codex-dark.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html:not([data-theme]),
+html[data-theme="default"],
+html[data-theme="brand-codex-dark"] {
+  --background: #0d0d0d;
+  --foreground: rgb(236, 236, 236);
+  --card: rgb(39, 39, 39);
+  --card-foreground: rgb(180, 180, 180);
+  --popover: rgb(39, 39, 39);
+  --popover-foreground: #ececec;
+  --primary: #10a37f;
+  --primary-foreground: rgb(13, 13, 13);
+  --secondary: rgb(39, 39, 39);
+  --secondary-foreground: #6b6b6b;
+  --muted: rgb(39, 39, 39);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(39, 39, 39);
+  --accent-foreground: #ececec;
+  --destructive: #ef4444;
+  --destructive-foreground: #ececec;
+  --border: rgb(65, 65, 65);
+  --input: rgb(26, 26, 26);
+  --ring: #10a37f;
+  --success: #10a37f;
+  --success-foreground: #0d0d0d;
+  --warning: #f59e0b;
+  --warning-foreground: #0d0d0d;
+  --chart-1: #1f2937;
+  --chart-2: #6b6b6b;
+  --chart-3: #19c37d;
+  --chart-4: #10a37f;
+  --chart-5: #12b981;
+  --overlay-spinner: #10a37f;
+  --overlay-spinner-track: rgb(236, 236, 236);
+  --overlay-backdrop: rgba(13, 13, 13, 0.72);
+}

@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-catppuccin-latte.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-catppuccin-latte"] {
+  --background: #eff1f5;
+  --foreground: rgb(76, 79, 105);
+  --card: rgb(108, 111, 133);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(108, 111, 133);
+  --popover-foreground: #4c4f69;
+  --primary: #1e66f5;
+  --primary-foreground: rgb(228, 228, 231);
+  --secondary: rgb(108, 111, 133);
+  --secondary-foreground: #6c6f85;
+  --muted: rgb(108, 111, 133);
+  --muted-foreground: rgb(19, 19, 19);
+  --accent: rgb(108, 111, 133);
+  --accent-foreground: #4c4f69;
+  --destructive: #d20f39;
+  --destructive-foreground: #4c4f69;
+  --border: rgb(135, 137, 157);
+  --input: rgb(108, 111, 133);
+  --ring: #1e66f5;
+  --success: #40a02b;
+  --success-foreground: #eff1f5;
+  --warning: #df8e1d;
+  --warning-foreground: #eff1f5;
+  --chart-1: #1f2937;
+  --chart-2: #6c6f85;
+  --chart-3: #1e66f5;
+  --chart-4: #1e66f5;
+  --chart-5: #179299;
+  --overlay-spinner: #1e66f5;
+  --overlay-spinner-track: rgb(76, 79, 105);
+  --overlay-backdrop: rgba(239, 241, 245, 0.72);
+}

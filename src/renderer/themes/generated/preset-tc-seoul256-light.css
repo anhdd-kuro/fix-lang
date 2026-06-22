@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-seoul256-light.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-seoul256-light"] {
+  --background: #dadada;
+  --foreground: rgb(78, 78, 78);
+  --card: rgb(58, 58, 58);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(58, 58, 58);
+  --popover-foreground: #4e4e4e;
+  --primary: #5f87ae;
+  --primary-foreground: rgb(24, 24, 24);
+  --secondary: rgb(58, 58, 58);
+  --secondary-foreground: #3a3a3a;
+  --muted: rgb(58, 58, 58);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(58, 58, 58);
+  --accent-foreground: #4e4e4e;
+  --destructive: #af5f5f;
+  --destructive-foreground: #4e4e4e;
+  --border: rgb(84, 84, 84);
+  --input: rgb(58, 58, 58);
+  --ring: #5f87ae;
+  --success: #5f885f;
+  --success-foreground: #dadada;
+  --warning: #af8760;
+  --warning-foreground: #dadada;
+  --chart-1: #1f2937;
+  --chart-2: #3a3a3a;
+  --chart-3: #5f87ae;
+  --chart-4: #5f87ae;
+  --chart-5: rgb(157, 157, 157);
+  --overlay-spinner: #5f87ae;
+  --overlay-spinner-track: rgb(78, 78, 78);
+  --overlay-backdrop: rgba(218, 218, 218, 0.72);
+}

@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-kanagawa-lotus.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-kanagawa-lotus"] {
+  --background: #f2ecbc;
+  --foreground: rgb(84, 84, 100);
+  --card: rgb(138, 137, 128);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(138, 137, 128);
+  --popover-foreground: #545464;
+  --primary: #4d699b;
+  --primary-foreground: rgb(242, 236, 188);
+  --secondary: rgb(138, 137, 128);
+  --secondary-foreground: #8a8980;
+  --muted: rgb(138, 137, 128);
+  --muted-foreground: rgb(255, 255, 255);
+  --accent: rgb(138, 137, 128);
+  --accent-foreground: #545464;
+  --destructive: #c84053;
+  --destructive-foreground: #545464;
+  --border: rgb(112, 111, 103);
+  --input: rgb(138, 137, 128);
+  --ring: #4d699b;
+  --success: #6f894e;
+  --success-foreground: #f2ecbc;
+  --warning: #77713f;
+  --warning-foreground: #f2ecbc;
+  --chart-1: #1f2937;
+  --chart-2: #8a8980;
+  --chart-3: #4d699b;
+  --chart-4: #4d699b;
+  --chart-5: #597b75;
+  --overlay-spinner: #4d699b;
+  --overlay-spinner-track: rgb(84, 84, 100);
+  --overlay-backdrop: rgba(242, 236, 188, 0.72);
+}

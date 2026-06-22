@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-night-owl-light.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-night-owl-light"] {
+  --background: #f6f6f6;
+  --foreground: rgb(64, 63, 83);
+  --card: rgb(64, 63, 83);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(64, 63, 83);
+  --popover-foreground: #403f53;
+  --primary: #288ed7;
+  --primary-foreground: rgb(32, 32, 32);
+  --secondary: rgb(64, 63, 83);
+  --secondary-foreground: #403f53;
+  --muted: rgb(64, 63, 83);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(64, 63, 83);
+  --accent-foreground: #403f53;
+  --destructive: #de3d3b;
+  --destructive-foreground: #403f53;
+  --border: rgb(98, 96, 126);
+  --input: rgb(64, 63, 83);
+  --ring: #288ed7;
+  --success: #08916a;
+  --success-foreground: #f6f6f6;
+  --warning: #e0af02;
+  --warning-foreground: #f6f6f6;
+  --chart-1: #1f2937;
+  --chart-2: #403f53;
+  --chart-3: #288ed7;
+  --chart-4: #288ed7;
+  --chart-5: #2aa298;
+  --overlay-spinner: #288ed7;
+  --overlay-spinner-track: rgb(64, 63, 83);
+  --overlay-backdrop: rgba(246, 246, 246, 0.72);
+}

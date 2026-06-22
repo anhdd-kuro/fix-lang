@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from kanagawa-dragon.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="kanagawa-dragon"] {
+  --background: #181616;
+  --foreground: rgb(197, 201, 197);
+  --card: rgb(51, 46, 46);
+  --card-foreground: rgb(197, 201, 197);
+  --popover: rgb(51, 46, 46);
+  --popover-foreground: #C5C9C5;
+  --primary: #658594;
+  --primary-foreground: rgb(14, 13, 7);
+  --secondary: rgb(51, 46, 46);
+  --secondary-foreground: #C5C9C5;
+  --muted: rgb(51, 46, 46);
+  --muted-foreground: rgb(199, 199, 199);
+  --accent: rgb(57, 56, 54);
+  --accent-foreground: #C5C9C5;
+  --destructive: #E82424;
+  --destructive-foreground: #C5C9C5;
+  --border: rgb(13, 12, 12);
+  --input: rgb(37, 34, 34);
+  --ring: #223249;
+  --success: #8A9A7B;
+  --success-foreground: #181616;
+  --warning: #C4B28A;
+  --warning-foreground: #181616;
+  --chart-1: rgb(45, 42, 42);
+  --chart-2: #625E5A;
+  --chart-3: #8BA4B0;
+  --chart-4: #658594;
+  --chart-5: #8EA4A2;
+  --overlay-spinner: #658594;
+  --overlay-spinner-track: rgb(197, 201, 197);
+  --overlay-backdrop: rgba(24, 22, 22, 0.72);
+}

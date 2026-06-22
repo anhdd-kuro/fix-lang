@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from vitesse-light.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="vitesse-light"] {
+  --background: #ffffff;
+  --foreground: rgb(57, 58, 52);
+  --card: rgb(230, 230, 230);
+  --card-foreground: rgb(78, 79, 71);
+  --popover: rgb(230, 230, 230);
+  --popover-foreground: #393a34;
+  --primary: #4e4f47;
+  --primary-foreground: rgb(255, 255, 255);
+  --secondary: rgb(230, 230, 230);
+  --secondary-foreground: #6a737d;
+  --muted: rgb(230, 230, 230);
+  --muted-foreground: rgba(55, 55, 55, 0.56);
+  --accent: rgb(230, 230, 230);
+  --accent-foreground: #393a34;
+  --destructive: #ab5959;
+  --destructive-foreground: #393a34;
+  --border: rgb(192, 192, 192);
+  --input: rgb(242, 242, 242);
+  --ring: #000000;
+  --success: #1e754f;
+  --success-foreground: #ffffff;
+  --warning: #bda437;
+  --warning-foreground: #ffffff;
+  --chart-1: #000000;
+  --chart-2: rgba(57, 58, 52, 0.31);
+  --chart-3: #296aa3;
+  --chart-4: #4e4f47;
+  --chart-5: #2993a3;
+  --overlay-spinner: #1c6b48;
+  --overlay-spinner-track: rgb(57, 58, 52);
+  --overlay-backdrop: rgba(255, 255, 255, 0.72);
+}

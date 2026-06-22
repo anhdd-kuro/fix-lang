@@ -1,5 +1,7 @@
 import { BrowserWindow, app, screen } from "electron";
+import { themeStore } from "~/stores/themeStore";
 import spinnerOverlayHtml from "./overlay.html?asset";
+import type { ThemeId } from "~/stores/themeIds";
 
 /**
  * === Global Mouse Loading Spinner Overlay ===
@@ -67,6 +69,10 @@ export const createOverlayWindow = (): BrowserWindow => {
   overlayWindow.setIgnoreMouseEvents(true, { forward: true });
   overlayWindow.loadFile(spinnerOverlayHtml);
 
+  overlayWindow.webContents.on("did-finish-load", () => {
+    syncOverlayTheme(themeStore.getThemeId());
+  });
+
   overlayWindow.once("ready-to-show", () => {
     console.log("Overlay window created", overlayWindow);
   });
@@ -93,4 +99,17 @@ export const destroyOverlayWindow = () => {
     clearInterval(spinnerTrackingInterval);
     spinnerTrackingInterval = null;
   }
+};
+
+/**
+ * Applies the active theme to the overlay spinner document.
+ */
+export const syncOverlayTheme = (themeId: ThemeId): void => {
+  if (!overlayWindow || overlayWindow.isDestroyed()) {
+    return;
+  }
+
+  void overlayWindow.webContents.executeJavaScript(
+    `document.documentElement.dataset.theme = ${JSON.stringify(themeId)}`,
+  );
 };

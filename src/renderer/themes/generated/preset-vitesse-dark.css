@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from vitesse-dark.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="vitesse-dark"] {
+  --background: #121212;
+  --foreground: rgba(219, 215, 202, 0.93);
+  --card: rgb(44, 44, 44);
+  --card-foreground: rgb(191, 186, 170);
+  --popover: rgb(44, 44, 44);
+  --popover-foreground: rgba(219, 215, 202, 0.93);
+  --primary: #bfbaaa;
+  --primary-foreground: rgb(18, 18, 18);
+  --secondary: rgb(44, 44, 44);
+  --secondary-foreground: #959da5;
+  --muted: rgb(44, 44, 44);
+  --muted-foreground: rgba(218, 218, 218, 0.56);
+  --accent: rgb(44, 44, 44);
+  --accent-foreground: rgba(219, 215, 202, 0.93);
+  --destructive: #cb7676;
+  --destructive-foreground: rgba(219, 215, 202, 0.93);
+  --border: rgb(70, 70, 70);
+  --input: rgb(31, 31, 31);
+  --ring: #000000;
+  --success: #4d9375;
+  --success-foreground: #121212;
+  --warning: #e6cc77;
+  --warning-foreground: #121212;
+  --chart-1: #ffffff;
+  --chart-2: rgba(222, 220, 213, 0.31);
+  --chart-3: #6394bf;
+  --chart-4: #bfbaaa;
+  --chart-5: #5eaab5;
+  --overlay-spinner: #4d9375;
+  --overlay-spinner-track: rgba(219, 215, 202, 0.93);
+  --overlay-backdrop: rgba(18, 18, 18, 0.72);
+}

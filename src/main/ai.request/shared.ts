@@ -11,12 +11,12 @@ import { generateText } from "ai";
 import { Notification } from "electron";
 import { OpenAI } from "openai";
 import { getLocalModels } from "~/main/llm/models/discover";
+import { getApiKey } from "~/stores/apiKeyStore";
 import {
   apiStore,
   getDefaultModelId,
   getProfileSetting,
 } from "~/stores/apiStore";
-import { getApiKey } from "~/stores/apiKeyStore";
 import { ollamaClient } from "../llm";
 import {
   buildCachedMessages,

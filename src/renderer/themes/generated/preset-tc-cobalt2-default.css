@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-cobalt2-default.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-cobalt2-default"] {
+  --background: #122738;
+  --foreground: rgb(255, 255, 255);
+  --card: rgb(0, 80, 164);
+  --card-foreground: rgb(255, 255, 255);
+  --popover: rgb(0, 80, 164);
+  --popover-foreground: #ffffff;
+  --primary: #0088ff;
+  --primary-foreground: rgb(31, 31, 31);
+  --secondary: rgb(0, 80, 164);
+  --secondary-foreground: #0050a4;
+  --muted: rgb(0, 80, 164);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(0, 80, 164);
+  --accent-foreground: #ffffff;
+  --destructive: #ff628c;
+  --destructive-foreground: #ffffff;
+  --border: rgb(0, 117, 241);
+  --input: rgb(0, 80, 164);
+  --ring: #0088ff;
+  --success: #3ad900;
+  --success-foreground: #122738;
+  --warning: #ffc600;
+  --warning-foreground: #122738;
+  --chart-1: rgb(28, 61, 87);
+  --chart-2: rgb(33, 71, 102);
+  --chart-3: #0088ff;
+  --chart-4: rgb(43, 93, 133);
+  --chart-5: #80fcff;
+  --overlay-spinner: #0088ff;
+  --overlay-spinner-track: rgb(255, 255, 255);
+  --overlay-backdrop: rgba(18, 39, 56, 0.72);
+}

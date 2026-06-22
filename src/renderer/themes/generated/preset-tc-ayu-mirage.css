@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-ayu-mirage.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-ayu-mirage"] {
+  --background: #1f2430;
+  --foreground: rgb(204, 202, 194);
+  --card: rgb(104, 104, 104);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(104, 104, 104);
+  --popover-foreground: #cccac2;
+  --primary: #6dcbfa;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(104, 104, 104);
+  --secondary-foreground: #686868;
+  --muted: rgb(104, 104, 104);
+  --muted-foreground: rgb(12, 12, 12);
+  --accent: rgb(104, 104, 104);
+  --accent-foreground: #cccac2;
+  --destructive: #ed8274;
+  --destructive-foreground: #cccac2;
+  --border: rgb(130, 130, 130);
+  --input: rgb(104, 104, 104);
+  --ring: #6dcbfa;
+  --success: #87d96c;
+  --success-foreground: #1f2430;
+  --warning: #facc6e;
+  --warning-foreground: #1f2430;
+  --chart-1: rgb(47, 55, 73);
+  --chart-2: #686868;
+  --chart-3: #6dcbfa;
+  --chart-4: #6dcbfa;
+  --chart-5: #90e1c6;
+  --overlay-spinner: #6dcbfa;
+  --overlay-spinner-track: rgb(204, 202, 194);
+  --overlay-backdrop: rgba(31, 36, 48, 0.72);
+}

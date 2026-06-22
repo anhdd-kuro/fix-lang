@@ -48,14 +48,14 @@ const Card = ({
   result: Card;
   children: React.ReactNode;
 }) => (
-  <div className="rounded-lg border border-gray-700 bg-gray-800 p-3">
-    <div className="mb-1 text-xs uppercase tracking-wide text-blue-400">
+  <div className="rounded-lg border border-border bg-card p-3">
+    <div className="mb-1 text-xs uppercase tracking-wide text-primary">
       {title}
     </div>
     {result.ok ? (
       children
     ) : (
-      <div className="text-sm text-gray-400">
+      <div className="text-sm text-muted-foreground">
         {openRouterDegradedMessage(
           (result as { reason: OpenRouterDegradedReason }).reason
         )}
@@ -72,18 +72,18 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
   if (hasKey === false) {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
-        <div className="max-w-xs rounded-lg border border-gray-700 bg-gray-800 px-6 py-8 text-center">
-          <h2 className="mb-2 text-lg font-semibold text-blue-400">
+        <div className="max-w-xs rounded-lg border border-border bg-card px-6 py-8 text-center">
+          <h2 className="mb-2 text-lg font-semibold text-primary">
             OpenRouter
           </h2>
-          <p className="mb-3 text-sm text-gray-400">
+          <p className="mb-3 text-sm text-muted-foreground">
             Add an OpenRouter provisioning key in General settings to see your
             account credit, usage, and activity.
           </p>
           <button
             type="button"
             onClick={onOpenSettings}
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500"
+            className="rounded bg-primary px-3 py-1.5 text-sm text-foreground hover:bg-primary"
           >
             Open Settings
           </button>
@@ -112,8 +112,8 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
               className={twJoin(
                 "px-2 py-0.5 text-xs rounded-sm",
                 range === r.id
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-card-foreground hover:bg-secondary"
               )}
             >
               {r.label}
@@ -124,7 +124,7 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
           type="button"
           onClick={refresh}
           disabled={loading}
-          className="ml-auto rounded-sm bg-gray-700 px-2 py-0.5 text-xs text-gray-300 hover:bg-gray-600 disabled:opacity-50"
+          className="ml-auto rounded-sm bg-secondary px-2 py-0.5 text-xs text-card-foreground hover:bg-secondary disabled:opacity-50"
         >
           {loading ? "Refreshing…" : "Refresh"}
         </button>
@@ -137,13 +137,13 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
             <div
               className={twJoin(
                 "text-xl font-semibold tabular-nums",
-                credits.data.lowBalance ? "text-red-400" : "text-gray-100"
+                credits.data.lowBalance ? "text-destructive" : "text-foreground"
               )}
             >
               {formatOpenRouterUsd(credits.data.availableUsd)}
             </div>
             {credits.data.lowBalance && (
-              <div className="mt-0.5 text-xs text-red-400">
+              <div className="mt-0.5 text-xs text-destructive">
                 Low balance — consider topping up.
               </div>
             )}
@@ -154,12 +154,12 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
       {/* Key usage */}
       <Card title="Key usage" result={keyUsage ?? fallback}>
         {keyUsage?.ok && (
-          <div className="text-sm text-gray-200">
+          <div className="text-sm text-card-foreground">
             <div>
               Used:{" "}
               <span className="tabular-nums">{formatOpenRouterUsd(keyUsage.data.usageUsd)}</span>
             </div>
-            <div className="text-gray-400">
+            <div className="text-muted-foreground">
               Limit:{" "}
               {keyUsage.data.limitUsd === null
                 ? "Unlimited"
@@ -174,11 +174,11 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
       <Card title={`Activity (${range})`} result={activity ?? fallback}>
         {activity?.ok &&
           (activity.data.rows.length === 0 ? (
-            <div className="text-sm text-gray-400">No activity in range.</div>
+            <div className="text-sm text-muted-foreground">No activity in range.</div>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-gray-400">
+                <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="py-1 pr-2 font-medium">Model</th>
                   <th className="py-1 px-2 text-right font-medium">Requests</th>
                   <th className="py-1 pl-2 text-right font-medium">Cost</th>
@@ -186,17 +186,17 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
               </thead>
               <tbody>
                 {activity.data.rows.map((row) => (
-                  <tr key={row.model} className="border-t border-gray-700">
+                  <tr key={row.model} className="border-t border-border">
                     <td
-                      className="py-1 pr-2 text-gray-100 max-w-[10rem] truncate"
+                      className="py-1 pr-2 text-foreground max-w-[10rem] truncate"
                       title={row.model}
                     >
                       {row.model}
                     </td>
-                    <td className="py-1 px-2 text-right tabular-nums text-gray-300">
+                    <td className="py-1 px-2 text-right tabular-nums text-card-foreground">
                       {row.requests}
                     </td>
-                    <td className="py-1 pl-2 text-right tabular-nums text-gray-300">
+                    <td className="py-1 pl-2 text-right tabular-nums text-card-foreground">
                       {formatOpenRouterUsd(row.costUsd)}
                     </td>
                   </tr>
@@ -209,9 +209,9 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
       {/* Enabled keys */}
       <Card title="Enabled keys" result={enabledKeys ?? fallback}>
         {enabledKeys?.ok && (
-          <div className="text-xl font-semibold tabular-nums text-gray-100">
+          <div className="text-xl font-semibold tabular-nums text-foreground">
             {enabledKeys.data.enabledCount}
-            <span className="ml-1 text-xs text-gray-500">
+            <span className="ml-1 text-xs text-muted-foreground">
               of {enabledKeys.data.totalCount}
             </span>
           </div>

@@ -21,8 +21,8 @@ const TrayIconButton: React.FC<TrayIconButtonProps> = ({
     title={title}
     aria-label={ariaLabel}
     className={twJoin(
-      "text-gray-400 hover:text-white focus:outline-none focus:ring-2",
-      "focus:ring-blue-500 rounded-md p-1.5 cursor-pointer"
+      "text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2",
+      "focus:ring-ring rounded-md p-1.5 cursor-pointer"
     )}
   >
     {children}
@@ -80,7 +80,7 @@ export const TrayToolbar: React.FC = () => {
     <div className="flex items-center justify-end gap-4 mb-3">
       <SettingsButton
         onClick={() => window.electronAPI.showMainWindowSettings()}
-        className="text-gray-400 hover:text-white p-1.5"
+        className="text-muted-foreground hover:text-foreground p-1.5"
         iconClassName="size-5"
       />
       <TrayIconButton

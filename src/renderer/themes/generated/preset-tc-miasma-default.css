@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-miasma-default.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-miasma-default"] {
+  --background: #222222;
+  --foreground: rgb(194, 194, 176);
+  --card: rgb(102, 102, 102);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(102, 102, 102);
+  --popover-foreground: #c2c2b0;
+  --primary: #78824b;
+  --primary-foreground: rgb(13, 13, 10);
+  --secondary: rgb(102, 102, 102);
+  --secondary-foreground: #666666;
+  --muted: rgb(102, 102, 102);
+  --muted-foreground: rgb(0, 0, 0);
+  --accent: rgb(102, 102, 102);
+  --accent-foreground: #c2c2b0;
+  --destructive: #685742;
+  --destructive-foreground: #c2c2b0;
+  --border: rgb(140, 140, 140);
+  --input: rgb(102, 102, 102);
+  --ring: #78824b;
+  --success: #5f875f;
+  --success-foreground: #222222;
+  --warning: #b36d43;
+  --warning-foreground: #222222;
+  --chart-1: rgb(54, 54, 54);
+  --chart-2: #666666;
+  --chart-3: #78824b;
+  --chart-4: #78824b;
+  --chart-5: #c9a554;
+  --overlay-spinner: #78824b;
+  --overlay-spinner-track: rgb(194, 194, 176);
+  --overlay-backdrop: rgba(34, 34, 34, 0.72);
+}

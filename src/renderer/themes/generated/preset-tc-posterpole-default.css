@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-posterpole-default.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-posterpole-default"] {
+  --background: #25222a;
+  --foreground: rgb(198, 192, 185);
+  --card: rgb(165, 165, 156);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(165, 165, 156);
+  --popover-foreground: #c6c0b9;
+  --primary: #6c7f93;
+  --primary-foreground: rgb(20, 18, 16);
+  --secondary: rgb(165, 165, 156);
+  --secondary-foreground: #a5a59c;
+  --muted: rgb(165, 165, 156);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgb(165, 165, 156);
+  --accent-foreground: #c6c0b9;
+  --destructive: #a97070;
+  --destructive-foreground: #c6c0b9;
+  --border: rgb(128, 128, 116);
+  --input: rgb(165, 165, 156);
+  --ring: #6c7f93;
+  --success: #778c73;
+  --success-foreground: #25222a;
+  --warning: #cc9166;
+  --warning-foreground: #25222a;
+  --chart-1: rgb(57, 52, 65);
+  --chart-2: #a5a59c;
+  --chart-3: #6c7f93;
+  --chart-4: #6c7f93;
+  --chart-5: #8ea4a2;
+  --overlay-spinner: #6c7f93;
+  --overlay-spinner-track: rgb(198, 192, 185);
+  --overlay-backdrop: rgba(37, 34, 42, 0.72);
+}

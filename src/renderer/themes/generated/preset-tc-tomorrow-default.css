@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-tomorrow-default.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-tomorrow-default"] {
+  --background: #ffffff;
+  --foreground: rgb(77, 77, 76);
+  --card: rgb(0, 0, 0);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(0, 0, 0);
+  --popover-foreground: #4d4d4c;
+  --primary: #4271ae;
+  --primary-foreground: rgb(255, 255, 255);
+  --secondary: rgb(0, 0, 0);
+  --secondary-foreground: #000000;
+  --muted: rgb(0, 0, 0);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(0, 0, 0);
+  --accent-foreground: #4d4d4c;
+  --destructive: #c82829;
+  --destructive-foreground: #4d4d4c;
+  --border: rgb(26, 26, 26);
+  --input: rgb(0, 0, 0);
+  --ring: #4271ae;
+  --success: #718c00;
+  --success-foreground: #ffffff;
+  --warning: #eab700;
+  --warning-foreground: #ffffff;
+  --chart-1: #1f2937;
+  --chart-2: #000000;
+  --chart-3: #4271ae;
+  --chart-4: #4271ae;
+  --chart-5: #3e999f;
+  --overlay-spinner: #4271ae;
+  --overlay-spinner-track: rgb(77, 77, 76);
+  --overlay-backdrop: rgba(255, 255, 255, 0.72);
+}

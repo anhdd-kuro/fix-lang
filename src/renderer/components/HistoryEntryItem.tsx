@@ -30,28 +30,28 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
         onClick={() => onSelect(entry)}
       >
         <div className="flex items-center gap-2 text-xs">
-          <span className="text-gray-400">
+          <span className="text-muted-foreground">
             {format(new Date(entry.timestamp), "MM/dd HH:mm")}
           </span>
-          <span className="px-1.5 py-0.5 bg-blue-600 text-white rounded-sm ml-auto">
+          <span className="px-1.5 py-0.5 bg-primary text-primary-foreground rounded-sm ml-auto">
             {entry.presetName ?? "Unknown"}
           </span>
         </div>
         <p
-          className="text-sm text-gray-100 line-clamp-1"
+          className="text-sm text-foreground line-clamp-1"
           title={entry.original}
         >
           {entry.original.slice(0, 50)}...
         </p>
         <div className="flex items-center justify-between gap-2">
           <p
-            className="text-sm text-gray-100 line-clamp-1"
+            className="text-sm text-foreground line-clamp-1"
             title={formatModelLineage(entry.model, entry.resolvedModel)}
           >
             {formatModelLineage(entry.model, entry.resolvedModel)}
           </p>
           <span
-            className="shrink-0 text-xs text-gray-400 tabular-nums"
+            className="shrink-0 text-xs text-muted-foreground tabular-nums"
             title="Estimated cost at time of correction"
           >
             {formatCost(entry)}

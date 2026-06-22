@@ -140,7 +140,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
     <div className="flex flex-col gap-3">
       <label
         htmlFor={`hotkey-${hotkeyKey}`}
-        className="block text-sm font-medium text-gray-300"
+        className="block text-sm font-medium text-card-foreground"
       >
         {label}
       </label>
@@ -155,21 +155,21 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
           readOnly
           placeholder="Press shortcut…"
           aria-label={`Hotkey for ${hotkeyKey}`}
-          className={`flex-1 rounded px-2 py-1 bg-gray-700 text-white ${
-            fieldError ? "border border-red-400" : "border border-gray-600"
+          className={`flex-1 rounded px-2 py-1 bg-secondary text-secondary-foreground ${
+            fieldError ? "border border-destructive" : "border border-border"
           }`}
         />
         <button
           type="button"
           onClick={handleApply}
           disabled={!pendingCombo || !!fieldError}
-          className="px-3 py-1.5 text-xs font-semibold bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Apply
         </button>
       </div>
       {fieldError && (
-        <p className="text-xs text-red-400" role="alert">
+        <p className="text-xs text-destructive" role="alert">
           {fieldError}
         </p>
       )}
@@ -178,10 +178,10 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
           role="status"
           className={`text-xs ${
             status.startsWith("Error")
-              ? "text-red-400"
+              ? "text-destructive"
               : status.startsWith("Applying")
-                ? "text-yellow-400"
-                : "text-green-400"
+                ? "text-warning"
+                : "text-success"
           }`}
         >
           {status}

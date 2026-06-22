@@ -14,14 +14,14 @@ type StatCardProps = {
 
 export const StatCard = ({ label, value, hint }: StatCardProps) => {
   return (
-    <div className="rounded-lg border border-gray-700 bg-gray-800 px-4 py-3">
-      <div className="text-xs uppercase tracking-wide text-gray-400">
+    <div className="rounded-lg border border-border bg-card px-4 py-3">
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">
         {label}
       </div>
-      <div className="mt-1 text-xl font-semibold text-gray-100 tabular-nums">
+      <div className="mt-1 text-xl font-semibold text-foreground tabular-nums">
         {value}
       </div>
-      {hint && <div className="mt-0.5 text-xs text-gray-500">{hint}</div>}
+      {hint && <div className="mt-0.5 text-xs text-muted-foreground">{hint}</div>}
     </div>
   );
 };

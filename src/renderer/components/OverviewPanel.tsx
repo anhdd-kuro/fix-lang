@@ -15,6 +15,7 @@ import {
   type RefObject,
 } from "react";
 import { twJoin } from "tailwind-merge";
+import { heatmapCellClass, heatmapLevelClass } from "./heatmapIntensity";
 import { StatCard } from "./StatCard";
 import { filterByRange, type AnalyticsRange } from "../analytics/shared";
 import {
@@ -53,14 +54,6 @@ const TOKEN_ACTIVITY_TABS: readonly {
 const MIN_CELL_SIZE_PX = 12;
 const CELL_GAP_PX = 4;
 const CALENDAR_ROWS = 7;
-
-const LEVEL_CLASS = [
-  "bg-gray-800/95 ring-1 ring-inset ring-white/[0.04]",
-  "bg-sky-950 ring-1 ring-inset ring-sky-900/70",
-  "bg-sky-900 ring-1 ring-inset ring-sky-800/70",
-  "bg-sky-700 ring-1 ring-inset ring-sky-600/70",
-  "bg-sky-500 ring-1 ring-inset ring-sky-400/70",
-] as const;
 
 const placeholderCell = (
   column: number,
@@ -244,7 +237,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
 
       <section className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-gray-100">
+          <h2 className="text-base font-semibold text-foreground">
             Token activity
           </h2>
           <div className="flex items-center gap-5 text-sm">
@@ -257,8 +250,8 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
                 className={twJoin(
                   "transition-colors",
                   activityMode === tab.mode
-                    ? "text-gray-100"
-                    : "text-gray-500 hover:text-gray-300"
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-card-foreground"
                 )}
               >
                 {tab.label}
@@ -295,8 +288,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
                           height: tokenActivityCellSize,
                         }}
                         className={twJoin(
-                          "shrink-0 rounded-[3px]",
-                          LEVEL_CLASS[cell.level],
+                          heatmapCellClass(heatmapLevelClass(cell.level)),
                           cell.kind === "placeholder" && "opacity-45"
                         )}
                       />
@@ -307,7 +299,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
             </div>
 
             <div
-              className="relative h-5 text-sm leading-none text-gray-500"
+              className="relative h-5 text-sm leading-none text-muted-foreground"
               style={{ width: "100%" }}
             >
               {tokenCalendar.monthLabels.map((label) => (
@@ -328,7 +320,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
       </section>
 
       {/* Benchmark comparison sentence. */}
-      <p className="text-sm text-gray-400">{benchmarkSentence(view.tokens)}</p>
+      <p className="text-sm text-muted-foreground">{benchmarkSentence(view.tokens)}</p>
     </div>
   );
 };

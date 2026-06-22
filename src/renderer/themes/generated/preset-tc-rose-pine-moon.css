@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-rose-pine-moon.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-rose-pine-moon"] {
+  --background: #2a273f;
+  --foreground: rgb(224, 222, 244);
+  --card: rgb(144, 140, 170);
+  --card-foreground: rgb(24, 24, 27);
+  --popover: rgb(144, 140, 170);
+  --popover-foreground: #e0def4;
+  --primary: #9ccfd8;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(144, 140, 170);
+  --secondary-foreground: #908caa;
+  --muted: rgb(144, 140, 170);
+  --muted-foreground: rgb(24, 24, 27);
+  --accent: rgb(144, 140, 170);
+  --accent-foreground: #e0def4;
+  --destructive: #eb6f92;
+  --destructive-foreground: #e0def4;
+  --border: rgb(116, 111, 148);
+  --input: rgb(144, 140, 170);
+  --ring: #9ccfd8;
+  --success: #3e8fb0;
+  --success-foreground: #2a273f;
+  --warning: #f6c177;
+  --warning-foreground: #2a273f;
+  --chart-1: rgb(59, 55, 88);
+  --chart-2: #908caa;
+  --chart-3: #9ccfd8;
+  --chart-4: #9ccfd8;
+  --chart-5: #ea9a97;
+  --overlay-spinner: #9ccfd8;
+  --overlay-spinner-track: rgb(224, 222, 244);
+  --overlay-backdrop: rgba(42, 39, 63, 0.72);
+}

@@ -1,0 +1,38 @@
+/**
+ * Auto-generated from tc-noctis-default.json — do not edit.
+ * Run `bun run themes:generate` to regenerate.
+ */
+
+html[data-theme="tc-noctis-default"] {
+  --background: #03191b;
+  --foreground: rgb(178, 202, 205);
+  --card: rgb(71, 104, 108);
+  --card-foreground: rgb(228, 228, 231);
+  --popover: rgb(71, 104, 108);
+  --popover-foreground: #b2cacd;
+  --primary: #49ace9;
+  --primary-foreground: rgb(24, 24, 27);
+  --secondary: rgb(71, 104, 108);
+  --secondary-foreground: #47686c;
+  --muted: rgb(71, 104, 108);
+  --muted-foreground: rgb(228, 228, 231);
+  --accent: rgb(71, 104, 108);
+  --accent-foreground: #b2cacd;
+  --destructive: #e66533;
+  --destructive-foreground: #b2cacd;
+  --border: rgb(91, 134, 139);
+  --input: rgb(71, 104, 108);
+  --ring: #49ace9;
+  --success: #49e9a6;
+  --success-foreground: #03191b;
+  --warning: #e4b781;
+  --warning-foreground: #03191b;
+  --chart-1: #1f2937;
+  --chart-2: #47686c;
+  --chart-3: #49ace9;
+  --chart-4: #49ace9;
+  --chart-5: #49d6e9;
+  --overlay-spinner: #49ace9;
+  --overlay-spinner-track: rgb(178, 202, 205);
+  --overlay-backdrop: rgba(3, 25, 27, 0.72);
+}
