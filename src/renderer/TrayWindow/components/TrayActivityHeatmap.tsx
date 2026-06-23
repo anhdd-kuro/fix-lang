@@ -1,7 +1,10 @@
 import { format, parseISO } from "date-fns";
 import React, { useEffect, useMemo, useState } from "react";
 import { twJoin } from "tailwind-merge";
-import { heatmapRatioClass } from "../../components/heatmapIntensity";
+import {
+  heatmapCellClass,
+  heatmapRatioClass,
+} from "../../components/heatmapIntensity";
 import {
   HOUR_BLOCKS,
   HOURS_PER_BLOCK,
@@ -32,8 +35,8 @@ export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
   const hasActivity = entries.length > 0;
 
   return (
-    <div className="rounded-lg border border-border bg-card/80 px-3 py-2">
-      <div className="text-xs uppercase tracking-wide text-primary mb-2">
+    <div className="rounded-lg border border-border bg-card px-3 py-2">
+      <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
         7-day activity
       </div>
 
@@ -60,8 +63,8 @@ export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
                     key={`${dayKey}-${blockIndex}`}
                     title={tooltip}
                     className={twJoin(
-                      "aspect-square min-h-[10px] rounded-sm",
-                      heatmapRatioClass(count, heatmap.max)
+                      "aspect-square min-h-[10px]",
+                      heatmapCellClass(heatmapRatioClass(count, heatmap.max))
                     )}
                   />
                 );

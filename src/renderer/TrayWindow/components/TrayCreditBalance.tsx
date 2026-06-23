@@ -58,11 +58,11 @@ export const TrayCreditBalance: React.FC = () => {
       type="button"
       onClick={openOpenRouterTab}
       className={twJoin(
-        "w-full rounded-lg border border-border bg-card/80 px-3 py-2",
-        "text-left hover:border-border hover:bg-card transition-colors"
+        "w-full rounded-lg border border-border bg-card px-3 py-2",
+        "text-left hover:bg-accent transition-colors"
       )}
     >
-      <div className="text-xs uppercase tracking-wide text-primary mb-1">
+      <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
         OpenRouter credit
       </div>
       {content}

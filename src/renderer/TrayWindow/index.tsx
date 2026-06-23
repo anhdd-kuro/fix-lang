@@ -13,7 +13,7 @@ const TrayWindowMain: React.FC = () => {
   useTheme();
 
   return (
-  <div className="bg-card/90 backdrop-blur-sm text-foreground p-3 rounded-lg w-full h-full overflow-hidden">
+  <div className="bg-background/95 backdrop-blur-sm text-foreground p-3 rounded-lg w-full h-full overflow-hidden">
     <TrayToolbar />
     <div className="flex flex-col gap-4">
       <TrayCreditBalance />
