@@ -93,3 +93,4 @@ Project-specific traps live as skills under `.agents/skills/fixlang/`:
 - **[[fixlang-hotkeys]]** — preset hotkey reload on profile switch (silent failures) + pre-save conflict validation.
 - **[[fixlang-prompt-bundling]]** — prompts bundle at build time from `src/prompts/`, not `~/.agents/`; rebuild + reinstall to apply.
 - **[[fixlang-profile-state]]** — profile switch must atomically reload hotkeys + settings UI + history.
+- **[[fixlang-theme-mapping]]** — theme color derivation uses a **derive-ladder + composite-alpha** strategy: extract three anchors, build elevation ladder with guaranteed brightness deltas, composite translucent colors to opaque; never use raw overlay colors or re-derive surfaces in contrast adjustment. Run `bun run themes:generate` after any theme .ts edits, then `bun run test` to validate all 149 themes.
