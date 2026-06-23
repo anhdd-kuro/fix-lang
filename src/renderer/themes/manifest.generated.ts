@@ -21,9 +21,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Andromeeda",
     "description": "Shiki · Dark",
     "swatch": {
-      "background": "#23262E",
+      "background": "#23262e",
       "primary": "#00b0ff",
-      "accent": "rgb(57, 62, 75)"
+      "accent": "#424757"
     }
   },
   {
@@ -31,9 +31,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Aurora X",
     "description": "Shiki · Dark",
     "swatch": {
-      "background": "#07090F",
-      "primary": "#86A5FF",
-      "accent": "rgb(31, 40, 67)"
+      "background": "#07090f",
+      "primary": "#86a5ff",
+      "accent": "#292929"
     }
   },
   {
@@ -43,7 +43,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#10141c",
       "primary": "#e6b450",
-      "accent": "rgba(71, 82, 102, 0.25)"
+      "accent": "#2d3546"
     }
   },
   {
@@ -53,7 +53,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#fcfcfc",
       "primary": "#f29718",
-      "accent": "rgb(107, 125, 143)"
+      "accent": "#dcdfe3"
     }
   },
   {
@@ -63,7 +63,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#242936",
       "primary": "#ffcc66",
-      "accent": "rgb(99, 117, 153)"
+      "accent": "#3d475d"
     }
   },
   {
@@ -73,7 +73,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#141413",
       "primary": "#d97757",
-      "accent": "rgb(46, 46, 44)"
+      "accent": "#34332f"
     }
   },
   {
@@ -83,7 +83,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#0d0d0d",
       "primary": "#10a37f",
-      "accent": "rgb(39, 39, 39)"
+      "accent": "#2e2e2e"
     }
   },
   {
@@ -93,7 +93,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#141414",
       "primary": "#83d6c5",
-      "accent": "rgb(46, 46, 46)"
+      "accent": "#333333"
     }
   },
   {
@@ -103,7 +103,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#0b0c0d",
       "primary": "#008060",
-      "accent": "rgb(34, 38, 41)"
+      "accent": "#282c2e"
     }
   },
   {
@@ -113,7 +113,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#303446",
       "primary": "#ca9ee6",
-      "accent": "rgb(69, 74, 100)"
+      "accent": "#4d536d"
     }
   },
   {
@@ -123,7 +123,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#eff1f5",
       "primary": "#8839ef",
-      "accent": "rgba(204, 208, 218, 0.5)"
+      "accent": "#cbd0da"
     }
   },
   {
@@ -133,7 +133,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#24273a",
       "primary": "#c6a0f6",
-      "accent": "rgb(65, 71, 105)"
+      "accent": "#414663"
     }
   },
   {
@@ -143,7 +143,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#1e1e2e",
       "primary": "#cba6f7",
-      "accent": "rgba(49, 50, 68, 0.5)"
+      "accent": "#3c3d57"
     }
   },
   {
@@ -151,9 +151,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Dark Plus",
     "description": "Shiki · Dark",
     "swatch": {
-      "background": "#1E1E1E",
-      "primary": "#007ACC",
-      "accent": "rgb(55, 65, 81)"
+      "background": "#1e1e1e",
+      "primary": "#007acc",
+      "accent": "#3d3d3d"
     }
   },
   {
@@ -161,9 +161,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Dracula Theme",
     "description": "Shiki · Dark",
     "swatch": {
-      "background": "#282A36",
-      "primary": "#FF79C6",
-      "accent": "rgba(68, 71, 90, 0.46)"
+      "background": "#282a36",
+      "primary": "#ff79c6",
+      "accent": "#4b4e63"
     }
   },
   {
@@ -171,9 +171,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Dracula Theme Soft",
     "description": "Shiki · Dark",
     "swatch": {
-      "background": "#282A36",
+      "background": "#282a36",
       "primary": "#f286c4",
-      "accent": "rgba(68, 71, 90, 0.46)"
+      "accent": "#4b4e63"
     }
   },
   {
@@ -182,8 +182,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Dark",
     "swatch": {
       "background": "#2d353b",
-      "primary": "#a7c080",
-      "accent": "rgb(67, 79, 88)"
+      "primary": "#a7c17f",
+      "accent": "#47545e"
     }
   },
   {
@@ -193,7 +193,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#fdf6e3",
       "primary": "#93b259",
-      "accent": "rgb(248, 223, 156)"
+      "accent": "#f6d784"
     }
   },
   {
@@ -203,7 +203,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#24292e",
       "primary": "#0366d6",
-      "accent": "rgb(58, 67, 75)"
+      "accent": "#434d57"
     }
   },
   {
@@ -213,7 +213,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#0d1117",
       "primary": "#1f6feb",
-      "accent": "rgb(110, 118, 129)"
+      "accent": "#282f38"
     }
   },
   {
@@ -223,7 +223,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#22272e",
       "primary": "#316dca",
-      "accent": "rgb(99, 110, 123)"
+      "accent": "#3e4752"
     }
   },
   {
@@ -233,7 +233,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#0a0c10",
       "primary": "#409eff",
-      "accent": "rgb(158, 167, 179)"
+      "accent": "#2c2f34"
     }
   },
   {
@@ -243,7 +243,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#ffffff",
       "primary": "#2188ff",
-      "accent": "rgb(230, 230, 230)"
+      "accent": "#d7e1e9"
     }
   },
   {
@@ -253,7 +253,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#ffffff",
       "primary": "#0969da",
-      "accent": "rgb(230, 230, 230)"
+      "accent": "#dbe2e8"
     }
   },
   {
@@ -263,7 +263,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#ffffff",
       "primary": "#0349b4",
-      "accent": "rgb(230, 230, 230)"
+      "accent": "#dae2e8"
     }
   },
   {
@@ -272,8 +272,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Dark",
     "swatch": {
       "background": "#1d2021",
-      "primary": "#458588",
-      "accent": "rgba(60, 56, 54, 0.5)"
+      "primary": "#43878a",
+      "accent": "#41413f"
     }
   },
   {
@@ -282,8 +282,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Dark",
     "swatch": {
       "background": "#282828",
-      "primary": "#458588",
-      "accent": "rgb(66, 66, 66)"
+      "primary": "#43878a",
+      "accent": "#4c4948"
     }
   },
   {
@@ -292,8 +292,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Dark",
     "swatch": {
       "background": "#32302f",
-      "primary": "#458588",
-      "accent": "rgb(76, 73, 72)"
+      "primary": "#43878a",
+      "accent": "#524d4a"
     }
   },
   {
@@ -302,8 +302,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Light",
     "swatch": {
       "background": "#f9f5d7",
-      "primary": "#458588",
-      "accent": "rgba(235, 219, 178, 0.5)"
+      "primary": "#43878a",
+      "accent": "#e7d492"
     }
   },
   {
@@ -312,8 +312,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Light",
     "swatch": {
       "background": "#fbf1c7",
-      "primary": "#458588",
-      "accent": "rgb(244, 217, 104)"
+      "primary": "#43878a",
+      "accent": "#ead388"
     }
   },
   {
@@ -322,8 +322,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Light",
     "swatch": {
       "background": "#f2e5bc",
-      "primary": "#458588",
-      "accent": "rgb(230, 204, 124)"
+      "primary": "#43878a",
+      "accent": "#e0c374"
     }
   },
   {
@@ -331,9 +331,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Horizon",
     "description": "Shiki · Dark",
     "swatch": {
-      "background": "#1C1E26",
-      "primary": "#E95378",
-      "accent": "rgb(50, 53, 67)"
+      "background": "#1c1e26",
+      "primary": "#e95378",
+      "accent": "#3b3e4f"
     }
   },
   {
@@ -341,9 +341,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Horizon Bright",
     "description": "Shiki · Light",
     "swatch": {
-      "background": "#FDF0ED",
-      "primary": "#E84A72",
-      "accent": "rgba(249, 203, 190, 0.5)"
+      "background": "#fdf0ed",
+      "primary": "#e84a72",
+      "accent": "#fac6b8"
     }
   },
   {
@@ -353,7 +353,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#17191e",
       "primary": "#4bf3c8",
-      "accent": "rgb(52, 56, 65)"
+      "accent": "#343841"
     }
   },
   {
@@ -362,8 +362,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Dark",
     "swatch": {
       "background": "#181616",
-      "primary": "#658594",
-      "accent": "rgb(57, 56, 54)"
+      "primary": "#518ca8",
+      "accent": "#393836"
     }
   },
   {
@@ -371,9 +371,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Kanagawa Lotus",
     "description": "Shiki · Light",
     "swatch": {
-      "background": "#F2ECBC",
-      "primary": "#5A7785",
-      "accent": "rgb(228, 215, 148)"
+      "background": "#f2ecbc",
+      "primary": "#487d97",
+      "accent": "#dece7c"
     }
   },
   {
@@ -381,9 +381,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Kanagawa Wave",
     "description": "Shiki · Dark",
     "swatch": {
-      "background": "#1F1F28",
-      "primary": "#658594",
-      "accent": "rgb(54, 54, 70)"
+      "background": "#1f1f28",
+      "primary": "#518ca8",
+      "accent": "#3f3f52"
     }
   },
   {
@@ -392,8 +392,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Dark",
     "swatch": {
       "background": "#27212e",
-      "primary": "#EB64B9",
-      "accent": "rgba(145, 136, 155, 0.5)"
+      "primary": "#eb64b9",
+      "accent": "#595262"
     }
   },
   {
@@ -401,9 +401,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Light Plus",
     "description": "Shiki · Light",
     "swatch": {
-      "background": "#FFFFFF",
-      "primary": "#007ACC",
-      "accent": "rgb(232, 232, 232)"
+      "background": "#ffffff",
+      "primary": "#007acc",
+      "accent": "#dedede"
     }
   },
   {
@@ -412,8 +412,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Dark",
     "swatch": {
       "background": "#263238",
-      "primary": "#80CBC4",
-      "accent": "rgb(59, 77, 86)"
+      "primary": "#80cbc4",
+      "accent": "#3f535c"
     }
   },
   {
@@ -422,8 +422,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Dark",
     "swatch": {
       "background": "#212121",
-      "primary": "#80CBC4",
-      "accent": "rgb(59, 59, 59)"
+      "primary": "#80cbc4",
+      "accent": "#404040"
     }
   },
   {
@@ -431,9 +431,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Material Theme Lighter",
     "description": "Shiki · Light",
     "swatch": {
-      "background": "#FAFAFA",
-      "primary": "#80CBC4",
-      "accent": "rgb(225, 225, 225)"
+      "background": "#fafafa",
+      "primary": "#80cbc4",
+      "accent": "#dbdbdb"
     }
   },
   {
@@ -441,9 +441,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Material Theme Ocean",
     "description": "Shiki · Dark",
     "swatch": {
-      "background": "#0F111A",
-      "primary": "#80CBC4",
-      "accent": "rgb(43, 49, 75)"
+      "background": "#0f111a",
+      "primary": "#80cbc4",
+      "accent": "#292f47"
     }
   },
   {
@@ -451,9 +451,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Material Theme Palenight",
     "description": "Shiki · Dark",
     "swatch": {
-      "background": "#292D3E",
-      "primary": "#80CBC4",
-      "accent": "rgb(61, 67, 93)"
+      "background": "#292d3e",
+      "primary": "#80cbc4",
+      "accent": "#454c69"
     }
   },
   {
@@ -462,8 +462,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Dark",
     "swatch": {
       "background": "#1f1f1f",
-      "primary": "#383838",
-      "accent": "rgb(57, 57, 57)"
+      "primary": "#4c2424",
+      "accent": "#3f3f3f"
     }
   },
   {
@@ -472,8 +472,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Light",
     "swatch": {
       "background": "#ffffff",
-      "primary": "#616161",
-      "accent": "rgb(230, 230, 230)"
+      "primary": "#833f3f",
+      "accent": "#dfdfdf"
     }
   },
   {
@@ -482,8 +482,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Dark",
     "swatch": {
       "background": "#272822",
-      "primary": "#75715E",
-      "accent": "rgb(62, 61, 50)"
+      "primary": "#6a7ec8",
+      "accent": "#49483b"
     }
   },
   {
@@ -492,8 +492,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Dark",
     "swatch": {
       "background": "#011627",
-      "primary": "#44596b",
-      "accent": "rgb(2, 50, 89)"
+      "primary": "#395a76",
+      "accent": "#033d6d"
     }
   },
   {
@@ -501,9 +501,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Night Owl Light",
     "description": "Shiki · Light",
     "swatch": {
-      "background": "#FBFBFB",
-      "primary": "#403f53",
-      "accent": "rgb(211, 232, 248)"
+      "background": "#fbfbfb",
+      "primary": "#2aa298",
+      "accent": "#c1dff5"
     }
   },
   {
@@ -513,7 +513,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#2e3440",
       "primary": "#88c0d0",
-      "accent": "rgb(67, 76, 94)"
+      "accent": "#4c556a"
     }
   },
   {
@@ -523,7 +523,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#282c34",
       "primary": "#4d78cc",
-      "accent": "rgb(62, 68, 81)"
+      "accent": "#464e5d"
     }
   },
   {
@@ -531,9 +531,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "One Light",
     "description": "Shiki · Light",
     "swatch": {
-      "background": "#FAFAFA",
-      "primary": "#526FFF",
-      "accent": "rgba(219, 219, 220, 0.4)"
+      "background": "#fafafa",
+      "primary": "#526fff",
+      "accent": "#dadada"
     }
   },
   {
@@ -541,9 +541,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Plastic",
     "description": "Shiki · Dark",
     "swatch": {
-      "background": "#21252B",
-      "primary": "#E06C75",
-      "accent": "rgb(169, 178, 195)"
+      "background": "#21252b",
+      "primary": "#e06c75",
+      "accent": "#3f454f"
     }
   },
   {
@@ -552,8 +552,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Dark",
     "swatch": {
       "background": "#1b1e28",
-      "primary": "#303340",
-      "accent": "rgba(48, 51, 64, 0.5)"
+      "primary": "#89ddff",
+      "accent": "#3a3f52"
     }
   },
   {
@@ -562,8 +562,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Dark",
     "swatch": {
       "background": "#390000",
-      "primary": "#883333",
-      "accent": "rgb(134, 0, 0)"
+      "primary": "#cc3333",
+      "accent": "#9f0000"
     }
   },
   {
@@ -573,7 +573,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#191724",
       "primary": "#ebbcba",
-      "accent": "rgb(110, 106, 134)"
+      "accent": "#3c3652"
     }
   },
   {
@@ -583,7 +583,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#faf4ed",
       "primary": "#d7827e",
-      "accent": "rgb(110, 106, 134)"
+      "accent": "#e2d3c6"
     }
   },
   {
@@ -593,7 +593,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#232136",
       "primary": "#ea9a97",
-      "accent": "rgb(129, 124, 156)"
+      "accent": "#434062"
     }
   },
   {
@@ -602,8 +602,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Dark",
     "swatch": {
       "background": "#222222",
-      "primary": "#1D978D",
-      "accent": "rgb(60, 60, 60)"
+      "primary": "#1d978d",
+      "accent": "#414141"
     }
   },
   {
@@ -611,9 +611,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Slack Ochin",
     "description": "Shiki · Light",
     "swatch": {
-      "background": "#FFFFFF",
-      "primary": "#8AE773",
-      "accent": "rgb(213, 225, 234)"
+      "background": "#ffffff",
+      "primary": "#8ae773",
+      "accent": "#d5e1ea"
     }
   },
   {
@@ -621,9 +621,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Snazzy Light",
     "description": "Shiki · Light",
     "swatch": {
-      "background": "#FAFBFC",
-      "primary": "#09A1ED",
-      "accent": "rgb(218, 226, 233)"
+      "background": "#fafbfc",
+      "primary": "#09a1ed",
+      "accent": "#d9dbdc"
     }
   },
   {
@@ -631,9 +631,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Solarized Dark",
     "description": "Shiki · Dark",
     "swatch": {
-      "background": "#002B36",
-      "primary": "rgba(42, 161, 152, 0.60)",
-      "accent": "rgb(0, 84, 105)"
+      "background": "#002b36",
+      "primary": "#047aa6",
+      "accent": "#005569"
     }
   },
   {
@@ -641,9 +641,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "label": "Solarized Light",
     "description": "Shiki · Light",
     "swatch": {
-      "background": "#FDF6E3",
-      "primary": "#B58900",
-      "accent": "rgba(223, 202, 136, 0.27)"
+      "background": "#fdf6e3",
+      "primary": "#b58900",
+      "accent": "#ebd697"
     }
   },
   {
@@ -653,7 +653,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#262335",
       "primary": "#f97e72",
-      "accent": "rgb(60, 55, 84)"
+      "accent": "#4c3e6a"
     }
   },
   {
@@ -662,8 +662,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Terminal · Dark",
     "swatch": {
       "background": "#262626",
-      "primary": "#5f87af",
-      "accent": "rgb(68, 68, 68)"
+      "primary": "#5d87b1",
+      "accent": "#444444"
     }
   },
   {
@@ -673,7 +673,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#0b0e14",
       "primary": "#53bdfa",
-      "accent": "rgb(104, 104, 104)"
+      "accent": "#686868"
     }
   },
   {
@@ -683,7 +683,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#f8f9fa",
       "primary": "#3199e1",
-      "accent": "rgb(104, 104, 104)"
+      "accent": "#686868"
     }
   },
   {
@@ -693,7 +693,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#1f2430",
       "primary": "#6dcbfa",
-      "accent": "rgb(104, 104, 104)"
+      "accent": "#686868"
     }
   },
   {
@@ -703,7 +703,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#303446",
       "primary": "#8caaee",
-      "accent": "rgb(98, 104, 128)"
+      "accent": "#626880"
     }
   },
   {
@@ -713,7 +713,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#eff1f5",
       "primary": "#1e66f5",
-      "accent": "rgb(108, 111, 133)"
+      "accent": "#6c6f85"
     }
   },
   {
@@ -723,7 +723,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#24273a",
       "primary": "#8aadf4",
-      "accent": "rgb(91, 96, 120)"
+      "accent": "#5b6078"
     }
   },
   {
@@ -733,7 +733,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#1e1e2e",
       "primary": "#89b4fa",
-      "accent": "rgb(88, 91, 112)"
+      "accent": "#585b70"
     }
   },
   {
@@ -743,7 +743,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#122738",
       "primary": "#0088ff",
-      "accent": "rgb(0, 80, 164)"
+      "accent": "#0050a4"
     }
   },
   {
@@ -752,8 +752,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Terminal · Dark",
     "swatch": {
       "background": "#2c323b",
-      "primary": "#83a598",
-      "accent": "rgb(102, 102, 102)"
+      "primary": "#6fb99d",
+      "accent": "#666666"
     }
   },
   {
@@ -763,7 +763,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#282a36",
       "primary": "#bd93f9",
-      "accent": "rgb(98, 114, 164)"
+      "accent": "#6272a4"
     }
   },
   {
@@ -773,7 +773,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#282a36",
       "primary": "#bf9eee",
-      "accent": "rgb(123, 127, 139)"
+      "accent": "#7b7f8b"
     }
   },
   {
@@ -782,8 +782,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Terminal · Dark",
     "swatch": {
       "background": "#2d353b",
-      "primary": "#7fbbb3",
-      "accent": "rgb(133, 146, 137)"
+      "primary": "#7bbfb6",
+      "accent": "#859289"
     }
   },
   {
@@ -793,7 +793,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#fdf6e3",
       "primary": "#3a94c5",
-      "accent": "rgb(92, 106, 114)"
+      "accent": "#5c6a72"
     }
   },
   {
@@ -803,7 +803,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#010409",
       "primary": "#58a6ff",
-      "accent": "rgb(110, 118, 129)"
+      "accent": "#6e7681"
     }
   },
   {
@@ -813,7 +813,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#010409",
       "primary": "#58a6ff",
-      "accent": "rgb(110, 118, 129)"
+      "accent": "#6e7681"
     }
   },
   {
@@ -823,7 +823,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#1c2128",
       "primary": "#539bf5",
-      "accent": "rgb(99, 110, 123)"
+      "accent": "#636e7b"
     }
   },
   {
@@ -833,7 +833,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#010409",
       "primary": "#71b7ff",
-      "accent": "rgb(158, 167, 179)"
+      "accent": "#9ea7b3"
     }
   },
   {
@@ -843,7 +843,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#0c1014",
       "primary": "#195466",
-      "accent": "rgb(31, 42, 52)"
+      "accent": "#273441"
     }
   },
   {
@@ -852,8 +852,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Terminal · Dark",
     "swatch": {
       "background": "#282828",
-      "primary": "#458588",
-      "accent": "rgb(146, 131, 116)"
+      "primary": "#43878a",
+      "accent": "#928374"
     }
   },
   {
@@ -862,8 +862,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Terminal · Dark",
     "swatch": {
       "background": "#1d2021",
-      "primary": "#458588",
-      "accent": "rgb(146, 131, 116)"
+      "primary": "#43878a",
+      "accent": "#928374"
     }
   },
   {
@@ -872,8 +872,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Terminal · Dark",
     "swatch": {
       "background": "#32302f",
-      "primary": "#458588",
-      "accent": "rgb(146, 131, 116)"
+      "primary": "#43878a",
+      "accent": "#928374"
     }
   },
   {
@@ -882,8 +882,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Terminal · Light",
     "swatch": {
       "background": "#fbf1c7",
-      "primary": "#458588",
-      "accent": "rgb(146, 131, 116)"
+      "primary": "#43878a",
+      "accent": "#928374"
     }
   },
   {
@@ -893,7 +893,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#161821",
       "primary": "#84a0c6",
-      "accent": "rgb(107, 112, 137)"
+      "accent": "#6b7089"
     }
   },
   {
@@ -903,7 +903,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#e8e9ec",
       "primary": "#2d539e",
-      "accent": "rgb(131, 137, 163)"
+      "accent": "#8389a3"
     }
   },
   {
@@ -913,7 +913,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#121212",
       "primary": "#97bedc",
-      "accent": "rgb(189, 189, 189)"
+      "accent": "#bdbdbd"
     }
   },
   {
@@ -922,8 +922,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Terminal · Dark",
     "swatch": {
       "background": "#181616",
-      "primary": "#8ba4b0",
-      "accent": "rgb(166, 166, 156)"
+      "primary": "#7ba9c0",
+      "accent": "#a6a69c"
     }
   },
   {
@@ -932,8 +932,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Terminal · Light",
     "swatch": {
       "background": "#f2ecbc",
-      "primary": "#4d699b",
-      "accent": "rgb(138, 137, 128)"
+      "primary": "#4c699c",
+      "accent": "#8a8980"
     }
   },
   {
@@ -943,7 +943,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#1f1f28",
       "primary": "#7e9cd8",
-      "accent": "rgb(114, 113, 105)"
+      "accent": "#727169"
     }
   },
   {
@@ -953,7 +953,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#2b3e50",
       "primary": "#5c98cd",
-      "accent": "rgb(61, 88, 113)"
+      "accent": "#516273"
     }
   },
   {
@@ -962,8 +962,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Terminal · Dark",
     "swatch": {
       "background": "#222222",
-      "primary": "#78824b",
-      "accent": "rgb(102, 102, 102)"
+      "primary": "#7d8a43",
+      "accent": "#666666"
     }
   },
   {
@@ -973,7 +973,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#080808",
       "primary": "#80a0ff",
-      "accent": "rgb(148, 148, 148)"
+      "accent": "#949494"
     }
   },
   {
@@ -983,7 +983,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#011627",
       "primary": "#82aaff",
-      "accent": "rgb(87, 86, 86)"
+      "accent": "#575656"
     }
   },
   {
@@ -993,7 +993,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#f6f6f6",
       "primary": "#288ed7",
-      "accent": "rgb(64, 63, 83)"
+      "accent": "#403f53"
     }
   },
   {
@@ -1003,7 +1003,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#011627",
       "primary": "#82aaff",
-      "accent": "rgb(124, 143, 143)"
+      "accent": "#7c8f8f"
     }
   },
   {
@@ -1013,7 +1013,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#faf4ed",
       "primary": "#286983",
-      "accent": "rgb(95, 86, 149)"
+      "accent": "#5f5695"
     }
   },
   {
@@ -1023,7 +1023,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#f6f2ee",
       "primary": "#2848a9",
-      "accent": "rgb(83, 76, 69)"
+      "accent": "#534c45"
     }
   },
   {
@@ -1033,7 +1033,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#192330",
       "primary": "#719cd6",
-      "accent": "rgb(87, 88, 96)"
+      "accent": "#575860"
     }
   },
   {
@@ -1043,7 +1043,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#232136",
       "primary": "#569fba",
-      "accent": "rgb(71, 64, 125)"
+      "accent": "#47407d"
     }
   },
   {
@@ -1053,7 +1053,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#051b29",
       "primary": "#49ace9",
-      "accent": "rgb(71, 94, 108)"
+      "accent": "#475e6c"
     }
   },
   {
@@ -1063,7 +1063,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#272022",
       "primary": "#49ace9",
-      "accent": "rgb(105, 84, 91)"
+      "accent": "#69545b"
     }
   },
   {
@@ -1073,7 +1073,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#03191b",
       "primary": "#49ace9",
-      "accent": "rgb(71, 104, 108)"
+      "accent": "#47686c"
     }
   },
   {
@@ -1083,7 +1083,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#0e1920",
       "primary": "#6196b8",
-      "accent": "rgb(66, 88, 102)"
+      "accent": "#425866"
     }
   },
   {
@@ -1092,8 +1092,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Terminal · Dark",
     "swatch": {
       "background": "#2e3440",
-      "primary": "#81a1c1",
-      "accent": "rgb(76, 86, 106)"
+      "primary": "#80a1c2",
+      "accent": "#4c566a"
     }
   },
   {
@@ -1102,8 +1102,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Terminal · Dark",
     "swatch": {
       "background": "#242933",
-      "primary": "#5e81ac",
-      "accent": "rgb(59, 66, 82)"
+      "primary": "#5a81b0",
+      "accent": "#3f4758"
     }
   },
   {
@@ -1113,7 +1113,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#282c34",
       "primary": "#61afef",
-      "accent": "rgb(92, 99, 112)"
+      "accent": "#5c6370"
     }
   },
   {
@@ -1123,7 +1123,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#282c34",
       "primary": "#61afef",
-      "accent": "rgb(62, 68, 81)"
+      "accent": "#474e5c"
     }
   },
   {
@@ -1133,7 +1133,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#fafafa",
       "primary": "#0184bc",
-      "accent": "rgb(79, 82, 94)"
+      "accent": "#4f525e"
     }
   },
   {
@@ -1143,7 +1143,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#f8f8f8",
       "primary": "#2f5af3",
-      "accent": "rgb(0, 0, 0)"
+      "accent": "#000000"
     }
   },
   {
@@ -1153,7 +1153,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#292a2b",
       "primary": "#45a9f9",
-      "accent": "rgb(117, 117, 117)"
+      "accent": "#757575"
     }
   },
   {
@@ -1162,8 +1162,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Terminal · Dark",
     "swatch": {
       "background": "#25222a",
-      "primary": "#6c7f93",
-      "accent": "rgb(165, 165, 156)"
+      "primary": "#537ead",
+      "accent": "#a5a59c"
     }
   },
   {
@@ -1172,8 +1172,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Terminal · Dark",
     "swatch": {
       "background": "#1f1f1f",
-      "primary": "#6c7f93",
-      "accent": "rgb(165, 165, 156)"
+      "primary": "#537ead",
+      "accent": "#a5a59c"
     }
   },
   {
@@ -1182,8 +1182,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Terminal · Light",
     "swatch": {
       "background": "#fffaf3",
-      "primary": "#56949f",
-      "accent": "rgb(121, 117, 147)"
+      "primary": "#5098a5",
+      "accent": "#797593"
     }
   },
   {
@@ -1193,7 +1193,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#1f1d2e",
       "primary": "#9ccfd8",
-      "accent": "rgb(144, 140, 170)"
+      "accent": "#908caa"
     }
   },
   {
@@ -1203,7 +1203,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#2a273f",
       "primary": "#9ccfd8",
-      "accent": "rgb(144, 140, 170)"
+      "accent": "#908caa"
     }
   },
   {
@@ -1213,7 +1213,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#3a3a3a",
       "primary": "#85add4",
-      "accent": "rgb(98, 98, 98)"
+      "accent": "#626262"
     }
   },
   {
@@ -1222,8 +1222,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Terminal · Light",
     "swatch": {
       "background": "#dadada",
-      "primary": "#5f87ae",
-      "accent": "rgb(58, 58, 58)"
+      "primary": "#5d87b0",
+      "accent": "#3a3a3a"
     }
   },
   {
@@ -1233,7 +1233,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#1e1e3f",
       "primary": "#7857fe",
-      "accent": "rgb(92, 92, 97)"
+      "accent": "#5c5c61"
     }
   },
   {
@@ -1243,7 +1243,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#15152b",
       "primary": "#7857fe",
-      "accent": "rgb(92, 92, 97)"
+      "accent": "#5c5c61"
     }
   },
   {
@@ -1253,7 +1253,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#002b36",
       "primary": "#268bd2",
-      "accent": "rgb(0, 84, 105)"
+      "accent": "#005469"
     }
   },
   {
@@ -1263,7 +1263,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#fdf6e3",
       "primary": "#268bd2",
-      "accent": "rgb(0, 43, 54)"
+      "accent": "#002b36"
     }
   },
   {
@@ -1273,7 +1273,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#2b2d3a",
       "primary": "#6dcae8",
-      "accent": "rgb(126, 130, 148)"
+      "accent": "#7e8294"
     }
   },
   {
@@ -1283,7 +1283,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#2a2f38",
       "primary": "#72cce8",
-      "accent": "rgb(130, 138, 154)"
+      "accent": "#828a9a"
     }
   },
   {
@@ -1293,7 +1293,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#2c2e34",
       "primary": "#76cce0",
-      "accent": "rgb(127, 132, 144)"
+      "accent": "#7f8490"
     }
   },
   {
@@ -1303,7 +1303,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#2d2a2e",
       "primary": "#7accd7",
-      "accent": "rgb(132, 128, 137)"
+      "accent": "#848089"
     }
   },
   {
@@ -1313,7 +1313,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#1c1b19",
       "primary": "#2c78bf",
-      "accent": "rgb(145, 129, 117)"
+      "accent": "#918175"
     }
   },
   {
@@ -1323,7 +1323,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#282828",
       "primary": "#b3deef",
-      "accent": "rgb(66, 66, 66)"
+      "accent": "#4b4b4b"
     }
   },
   {
@@ -1333,7 +1333,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#e1e2e7",
       "primary": "#2e7de9",
-      "accent": "rgb(161, 166, 197)"
+      "accent": "#a1a6c5"
     }
   },
   {
@@ -1343,7 +1343,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#1a1b26",
       "primary": "#7aa2f7",
-      "accent": "rgb(65, 72, 104)"
+      "accent": "#414868"
     }
   },
   {
@@ -1353,7 +1353,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#222436",
       "primary": "#82aaff",
-      "accent": "rgb(68, 74, 115)"
+      "accent": "#444a73"
     }
   },
   {
@@ -1363,7 +1363,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#24283b",
       "primary": "#7aa2f7",
-      "accent": "rgb(65, 72, 104)"
+      "accent": "#414868"
     }
   },
   {
@@ -1373,7 +1373,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#ffffff",
       "primary": "#4271ae",
-      "accent": "rgb(0, 0, 0)"
+      "accent": "#000000"
     }
   },
   {
@@ -1382,8 +1382,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Terminal · Dark",
     "swatch": {
       "background": "#1d1f21",
-      "primary": "#81a2be",
-      "accent": "rgb(0, 0, 0)"
+      "primary": "#7ea2c1",
+      "accent": "#000000"
     }
   },
   {
@@ -1393,7 +1393,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#002451",
       "primary": "#bbdaff",
-      "accent": "rgb(0, 0, 0)"
+      "accent": "#000000"
     }
   },
   {
@@ -1403,7 +1403,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#000000",
       "primary": "#7aa6da",
-      "accent": "rgb(26, 26, 26)"
+      "accent": "#1f1f1f"
     }
   },
   {
@@ -1413,7 +1413,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#2d2d2d",
       "primary": "#6699cc",
-      "accent": "rgb(0, 0, 0)"
+      "accent": "#000000"
     }
   },
   {
@@ -1423,7 +1423,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#0f191f",
       "primary": "#8190d4",
-      "accent": "rgb(38, 57, 69)"
+      "accent": "#263945"
     }
   },
   {
@@ -1433,7 +1433,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#e5ede6",
       "primary": "#286486",
-      "accent": "rgb(179, 198, 182)"
+      "accent": "#b3c6b6"
     }
   },
   {
@@ -1443,7 +1443,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#191919",
       "primary": "#6099c0",
-      "accent": "rgb(61, 56, 57)"
+      "accent": "#3d3839"
     }
   },
   {
@@ -1453,7 +1453,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#eeeeee",
       "primary": "#286486",
-      "accent": "rgb(198, 195, 195)"
+      "accent": "#c6c3c3"
     }
   },
   {
@@ -1463,7 +1463,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "swatch": {
       "background": "#1a1b26",
       "primary": "#3d59a1",
-      "accent": "rgb(47, 49, 68)"
+      "accent": "#3a3a4f"
     }
   },
   {
@@ -1472,8 +1472,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Dark",
     "swatch": {
       "background": "#101010",
-      "primary": "#FFC799",
-      "accent": "rgb(40, 40, 40)"
+      "primary": "#ffc799",
+      "accent": "#2d2d2d"
     }
   },
   {
@@ -1482,8 +1482,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Dark",
     "swatch": {
       "background": "#000000",
-      "primary": "#bfbaaa",
-      "accent": "rgb(26, 26, 26)"
+      "primary": "#499776",
+      "accent": "#212121"
     }
   },
   {
@@ -1492,8 +1492,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Dark",
     "swatch": {
       "background": "#121212",
-      "primary": "#bfbaaa",
-      "accent": "rgb(44, 44, 44)"
+      "primary": "#499776",
+      "accent": "#323232"
     }
   },
   {
@@ -1502,8 +1502,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     "description": "Shiki · Light",
     "swatch": {
       "background": "#ffffff",
-      "primary": "#4e4f47",
-      "accent": "rgb(230, 230, 230)"
+      "primary": "#1c6b48",
+      "accent": "#dedede"
     }
   }
 ] as const;
