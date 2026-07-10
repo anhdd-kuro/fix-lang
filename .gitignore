@@ -4,7 +4,9 @@ build
 dist
 out
 release
+# macOS Finder metadata — never track
 .DS_Store
+**/.DS_Store
 .shopify
 .gitnexus
 coverage
