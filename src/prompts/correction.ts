@@ -37,7 +37,7 @@ Constraints:
 Output:
 - Respond with the revised text only.
 
-Take time to think through this carefully before responding.
+
 `;
 
 export const DEFAULT_CUSTOM_PROMPT = `
@@ -110,7 +110,7 @@ Instructions:
 - If the input contains mixed Japanese and English, translate into the language that is clearly dominant.
 - Output only the translated text, with no explanation, notes, commentary, labels, or extra text.
 
-Take time to think through this carefully before responding..`;
+.`;
 
 export const DEFAULT_SUMMARIZE_PRESET_PROMPT =
   strategicCompactSkillMarkdown.trim();

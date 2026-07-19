@@ -12,4 +12,4 @@ Format the output exactly as follows:
 4. Action items
 5. Open questions or risks
 
-Keep the summary proportionally short relative to the source text. If the source is brief, make the summary brief. If the source is long, stay concise but capture the essential substance thoroughly. Output only the summary, with no preamble or commentary. Take time to think through this carefully before responding.
+Keep the summary proportionally short relative to the source text. If the source is brief, make the summary brief. If the source is long, stay concise but capture the essential substance thoroughly. Output only the summary, with no preamble or commentary.
