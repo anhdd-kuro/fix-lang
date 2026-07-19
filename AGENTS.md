@@ -51,12 +51,12 @@ src/
 
 ## Tech Stack
 
-- **Runtime/build**: Electron 41.8, electron-vite 5.0, Vite 8.0, bun
-- **Frontend**: React 19.2, TypeScript 6.0 (strict), Tailwind CSS 4.3, react-select
+- **Runtime/build**: Electron 43.1, electron-vite 5.0, Vite 8.1, bun
+- **Frontend**: React 19.2, TypeScript 6.0 (strict; do not bump to 7 until typescript-eslint supports it), Tailwind CSS 4.3, react-select
 - **Testing**: Vitest 4.1 + @vitest/coverage-v8, jsdom
-- **AI**: openai 6.44, @openrouter/ai-sdk-provider 2.9, ai (Vercel) 6.0, ollama 0.6
+- **AI**: openai 6.48, @openrouter/ai-sdk-provider 3.0, ai (Vercel) 7.0, ollama 0.6
 - **Persistence**: node:sqlite (history) + electron-store 11 (api/keybinding/provisioning) — no zustand
-- **Lint/format**: ESLint 10, Prettier 3.8
+- **Lint/format**: ESLint 10, Prettier 3.9
 - **macOS native**: applescript, clipboardy, node-mac-permissions, languagedetect, fuse.js
 
 ## Workflow
@@ -88,9 +88,10 @@ src/
 
 ## Known Gotchas
 
-Project-specific traps live as skills under `.agents/skills/fixlang/`:
+Project-specific traps live as skills under `.claude/skills/fixlang/`:
 
 - **[[fixlang-hotkeys]]** — preset hotkey reload on profile switch (silent failures) + pre-save conflict validation.
 - **[[fixlang-prompt-bundling]]** — prompts bundle at build time from `src/prompts/`, not `~/.agents/`; rebuild + reinstall to apply.
 - **[[fixlang-profile-state]]** — profile switch must atomically reload hotkeys + settings UI + history.
 - **[[fixlang-theme-mapping]]** — theme color derivation uses a **derive-ladder + composite-alpha** strategy: extract three anchors, build elevation ladder with guaranteed brightness deltas, composite translucent colors to opaque; never use raw overlay colors or re-derive surfaces in contrast adjustment. Run `bun run themes:generate` after any theme .ts edits, then `bun run test` to validate all 149 themes.
+- **[[fixlang-pkg-upgrade]]** — wave-based bun upgrades; pin TypeScript to 6.x; Electron 43+ requires main/preload CommonJS (`.cjs`) or app shows white screen; unset `ELECTRON_RUN_AS_NODE` when launching Electron from Cursor's terminal.

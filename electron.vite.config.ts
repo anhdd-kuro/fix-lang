@@ -16,6 +16,14 @@ export default defineConfig({
         input: {
           index: resolve(__dirname, "src/main/index.ts"),
         },
+        // Emit CommonJS so `require("electron")` destructuring works at runtime.
+        // Electron 43 (Node 24) fails on ESM named imports of lazy-getter APIs
+        // like BrowserWindow. Use `.cjs` because package.json is `type: module`.
+        output: {
+          format: "cjs",
+          entryFileNames: "[name].cjs",
+          chunkFileNames: "chunks/[name].cjs",
+        },
       },
     },
   },
@@ -27,6 +35,12 @@ export default defineConfig({
         external: ["electron"],
         input: {
           index: resolve(__dirname, "src/preload/index.ts"),
+        },
+        // Match the main process: CommonJS `.cjs` output (see note above).
+        output: {
+          format: "cjs",
+          entryFileNames: "[name].cjs",
+          chunkFileNames: "chunks/[name].cjs",
         },
       },
     },

@@ -29,7 +29,7 @@ export function createPromptGenWindow() {
     title: "Generated Prompts",
     frame: true,
     webPreferences: {
-      preload: path.join(app.getAppPath(), "out/preload/index.js"),
+      preload: path.join(app.getAppPath(), "out/preload/index.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,

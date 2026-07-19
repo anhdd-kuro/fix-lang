@@ -41,7 +41,7 @@ export const createMainWindow = (
     height: 900,
     icon: appIcon,
     webPreferences: {
-      preload: path.join(app.getAppPath(), "out/preload/index.js"),
+      preload: path.join(app.getAppPath(), "out/preload/index.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
