@@ -216,10 +216,7 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
   const modelId = options.model as string;
 
   console.log(
-    `Sending request to local LLM with model: ${modelId}, temperature: ${options.temperature}
-    System Prompt: ${options.systemPrompt || ""}
-    User Prompt: ${options.userPrompt || ""}
-  `.trim(),
+    `Sending request to local LLM with model: ${modelId}, temperature: ${options.temperature}`,
   );
 
   try {
@@ -321,10 +318,7 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
 
   try {
     console.log(
-      `Sending request to OpenRouter with model: ${options.model}, temperature: ${options.temperature}, top_p: ${options.top_p}, max_completion_tokens: ${options.maxTokens}
-      System Prompt: ${options.systemPrompt || ""}
-      User Prompt: ${options.userPrompt || ""}
-    `.trim(),
+      `Sending request to OpenRouter with model: ${options.model}, temperature: ${options.temperature}, top_p: ${options.top_p}, max_completion_tokens: ${options.maxTokens}`,
     );
 
     const openRouter = createOpenRouter({ apiKey: apiKey.trim() });
@@ -367,11 +361,10 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
       ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: conversationMessages as never,
     });
-    console.log(
-      `🚀 \n - makeRemoteAIRequest \n - genResponse:`,
-      JSON.stringify(genResponse, null, 2),
-    );
     const { usage, text } = genResponse;
+    console.log(
+      `makeRemoteAIRequest: model=${options.model as string} promptTokens=${usage.promptTokens ?? null} completionTokens=${usage.completionTokens ?? null}`,
+    );
 
     const resBody = genResponse.response.body;
     const normalizedUsage = usage as {

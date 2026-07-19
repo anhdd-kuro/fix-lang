@@ -9,6 +9,7 @@ import {
 import { formatModelLineage } from "../components/historyModel";
 import { HistoryPanel } from "../components/HistoryPanel";
 import HistoryReviewModal from "../components/HistoryReviewModal";
+import { LogsPanel } from "../components/LogsPanel";
 import ModelManagerDialog from "../components/ModelManagerDialog";
 import { ModelsPanel } from "../components/ModelsPanel";
 import { OpenRouterPanel } from "../components/OpenRouterPanel";
@@ -266,6 +267,7 @@ const App: React.FC = () => {
     openrouter: (
       <OpenRouterPanel onOpenSettings={() => setIsSettingsOpen(true)} />
     ),
+    logs: <LogsPanel />,
   };
 
   const activeTabId = DASHBOARD_TABS[activeDashboardTab]?.id ?? "overview";

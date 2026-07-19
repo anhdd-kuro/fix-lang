@@ -10,6 +10,8 @@ A local macOS app that uses OpenAI to fix grammar and improve writing style. Thi
 - Preview original and corrected text in the UI
 - Configure your OpenAI API key in the settings
 - Customize keyboard shortcuts
+- **Logs dashboard** — inspect structured, redacted app events in the MainWindow Logs tab (`src/renderer/components/LogsPanel.tsx`); filter by level, search, copy/export as `.txt`
+- **Structured logging** — `src/shared/logging.ts` + `src/main/logging/logService.ts`; redacts API keys and clipboard content; persists to `userData/logs/fixlang.log`
 
 ## Installation
 

@@ -14,6 +14,7 @@ import {
   registerApiHandlers,
   registerCorrectionHandlers,
   setupHistoryManagerHandlers,
+  registerLogHandlers,
   registerOpenRouterHandlers,
   registerProfileHandlers,
   registerPromptGenHandlers,
@@ -100,6 +101,9 @@ const registerIpcHandlers = (): void => {
   registerApiHandlers();
   registerSettingsHandlers();
   registerThemeHandlers();
+
+  // Register structured log handlers before feature handlers that emit logs.
+  registerLogHandlers();
 
   // Register profile handlers (should be before other features that might use profiles)
   registerProfileHandlers();

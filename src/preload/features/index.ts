@@ -1,6 +1,7 @@
 // Export all features
 export * from "./api";
 export * from "./correction";
+export * from "./logs";
 export * from "./promptgen";
 export * from "./profiles";
 export * from "./settings";

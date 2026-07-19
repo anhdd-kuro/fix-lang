@@ -8,7 +8,12 @@
 import type { HistoryEntry } from "~/stores/historyStore";
 
 /** Stable identifiers for the four dashboard tabs, in display order. */
-export type DashboardTabId = "overview" | "history" | "models" | "openrouter";
+export type DashboardTabId =
+  | "overview"
+  | "history"
+  | "models"
+  | "openrouter"
+  | "logs";
 
 export type DashboardTabMeta = {
   id: DashboardTabId;
@@ -24,6 +29,7 @@ export const DASHBOARD_TABS: readonly DashboardTabMeta[] = [
   { id: "history", label: "History" },
   { id: "models", label: "Models" },
   { id: "openrouter", label: "OpenRouter" },
+  { id: "logs", label: "Logs" },
 ] as const;
 
 /** Default active tab index — Overview (analytics landing view). */

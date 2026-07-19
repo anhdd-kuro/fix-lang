@@ -9,6 +9,7 @@ import { checkShortcut, handleError } from "./utils";
 import { buildPriceMap, computeCost } from "../ai.request/cost";
 import { getCachedModels, isLocalModelId } from "../ai.request/shared";
 import { syncHistory } from "../ipc/features/history";
+import { logger } from "../logging/logService";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
 import type { BrowserWindow } from "electron";
 
@@ -27,25 +28,35 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
     }
 
     if (registeredShortcuts.has(shortcut)) {
-      console.warn(`Skipping duplicate correction shortcut: ${shortcut}`);
+      logger.warn("correction.register", "Skipping duplicate correction shortcut", {
+        presetId: preset.id,
+      });
       return;
     }
 
     if (reservedShortcuts.has(shortcut)) {
-      console.warn(`Skipping conflicting correction shortcut: ${shortcut}`);
+      logger.warn("correction.register", "Skipping conflicting correction shortcut", {
+        presetId: preset.id,
+      });
       return;
     }
 
     registeredShortcuts.add(shortcut);
 
     const registered = globalShortcut.register(shortcut, async () => {
-      console.log(`${shortcut} is pressed for preset ${preset.name}`);
+      logger.info("correction.hotkey", "Hotkey triggered", {
+        presetId: preset.id,
+      });
 
       try {
         const selectedText = await getHighlightedText();
 
         if (!selectedText || !selectedText.trim()) {
-          console.log("No text selected or clipboard is empty.");
+          logger.warn(
+            "correction.hotkey",
+            "No text selected or clipboard is empty",
+            { presetId: preset.id },
+          );
           new Notification({
             title: "Error",
             body: "No text selected or clipboard is empty.",
@@ -72,6 +83,13 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         }
 
         await pasteText(result.correctedText);
+
+        logger.info("correction.hotkey", "Correction applied", {
+          presetId: preset.id,
+          textLength: selectedText.length,
+          model: result.model,
+          resolvedModel: result.resolvedModel ?? null,
+        });
 
         if (mainWindow && !mainWindow.isDestroyed()) {
           // Cost snapshot (#56): price the served model against the cached
@@ -112,14 +130,19 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           });
           mainWindow.webContents.send("stop-loading");
         } else {
-          console.warn(
-            "Cannot send IPC message: mainWindow is null or destroyed.",
+          logger.warn(
+            "correction.hotkey",
+            "Cannot send IPC message: mainWindow is null or destroyed",
           );
         }
 
         hideOverlaySpinner();
       } catch (error) {
         hideOverlaySpinner();
+        logger.error("correction.hotkey", "Correction failed", {
+          presetId: preset.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
         handleError(error);
       }
     });
