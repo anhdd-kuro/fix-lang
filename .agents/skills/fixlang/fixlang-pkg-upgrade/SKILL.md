@@ -57,6 +57,20 @@ Renderer stays ESM. Do **not** switch main/preload back to ESM without verifying
 
 `ai` and `@openrouter/ai-sdk-provider` versions track each other. Bump together. Touch point: `src/main/ai.request/shared.ts` (`generateText`, `createOpenRouter`).
 
+#### ai v7 — no `system` role inside `messages`
+
+AI SDK v7 rejects `system`-role entries in the `messages` array (`standardizePrompt`'s `allowSystemInMessages` defaults to `false`):
+
+```
+AI_InvalidPromptError: Invalid prompt: System messages are not allowed in the prompt or messages fields. Use the instructions option instead.
+```
+
+Symptom: correction/promptGen **loading spinner flashes then vanishes** — the request throws instantly. App boots fine; only AI calls fail. Not a crash, so check `~/.fixlang/log/runtime-*.log` (grep `ERROR`), not just stdout.
+
+Fix in `makeRemoteAIRequest`: split system-role messages out and pass them via `generateText({ system, messages })`. Only non-system messages go in `messages`.
+
+Caveat: v7 `system` content must be a **string**, so the Anthropic/Gemini `cache_control`-on-content-block annotation (`buildCachedMessages`) can't ride the system prompt. Default model `~openai/gpt-mini-latest` uses implicit caching (no annotation) so it's unaffected; restoring explicit Anthropic/Gemini cache needs `providerOptions`.
+
 ### Cursor terminal red herring
 
 Cursor sets `ELECTRON_RUN_AS_NODE=1`. That makes `require("electron").app` undefined → `electron-store` throws `Please specify the projectName option`.

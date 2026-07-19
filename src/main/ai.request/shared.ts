@@ -345,14 +345,27 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
       throw new Error("makeRemoteAIRequest requires non-empty messages.");
     }
     const cacheProvider = resolveCacheProvider(modelId);
-    const cachedMessages = buildCachedMessages(
-      rawMessages as { role: string; content: unknown }[],
+    // AI SDK v7 rejects `system`-role entries inside `messages`
+    // (standardize-prompt: `allowSystemInMessages` defaults to false). The
+    // system prompt must be passed via the dedicated `system` option instead.
+    const systemPrompt = rawMessages
+      .filter((m) => m.role === "system")
+      .map((m) =>
+        typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+      )
+      .join("\n\n");
+    const conversationMessages = buildCachedMessages(
+      rawMessages.filter((m) => m.role !== "system") as {
+        role: string;
+        content: unknown;
+      }[],
       cacheProvider,
     );
 
     const genResponse = await generateText({
       model: modelOpenRouter,
-      messages: cachedMessages as never,
+      ...(systemPrompt ? { system: systemPrompt } : {}),
+      messages: conversationMessages as never,
     });
     console.log(
       `🚀 \n - makeRemoteAIRequest \n - genResponse:`,
