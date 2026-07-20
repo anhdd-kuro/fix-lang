@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { twJoin } from "tailwind-merge";
 import { filterLogs } from "./logsView";
@@ -208,7 +209,7 @@ export const LogsPanel = () => {
                 className="grid grid-cols-[auto_auto_1fr] gap-2 p-2"
               >
                 <time className="whitespace-nowrap text-muted-foreground">
-                  {entry.timestamp}
+                  {format(new Date(entry.timestamp), "yyyy-MM-dd HH:mm:ss XXX")}
                 </time>
                 <span
                   className={twJoin(
