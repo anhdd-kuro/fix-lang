@@ -33,9 +33,19 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
           <span className="text-muted-foreground">
             {format(new Date(entry.timestamp), "MM/dd HH:mm")}
           </span>
-          <span className="px-1.5 py-0.5 bg-primary text-primary-foreground rounded-sm ml-auto">
-            {entry.presetName ?? "Unknown"}
-          </span>
+          <div className="ml-auto flex items-center gap-1">
+            <span className="px-1.5 py-0.5 bg-primary text-primary-foreground rounded-sm">
+              {entry.presetName ?? "Unknown"}
+            </span>
+            <TrashButton
+              className="invisible group-hover/history-entry:visible"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(entry, getFeatureId(entry));
+              }}
+              size="sm"
+            />
+          </div>
         </div>
         <p
           className="text-sm text-foreground line-clamp-1"
@@ -58,14 +68,6 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
           </span>
         </div>
       </div>
-      <TrashButton
-        className="invisible absolute right-2 bottom-2 group-hover/history-entry:visible"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(entry, getFeatureId(entry));
-        }}
-        size="sm"
-      />
     </div>
   );
 };
