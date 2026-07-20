@@ -6,25 +6,28 @@ When you need to ask the user something, use the "ask user question" / "require 
 
 ## Main Features
 
-- **Correction** — fix grammar/style on clipboard text via global hotkey.
+- **Correction** — fix grammar/style on selected text via per-preset global hotkeys.
+- **Presets** — built-in Correction, Summarize, Translate, Prompt optimization; each preset has its own hotkey, model, and system prompt.
 - **Prompt generation** — build AI prompts from selected text (PromptGen window).
 - **Profiles** — switch correction presets; switch reloads hotkeys + settings + history.
 - **Multi-provider** — OpenAI, OpenRouter, Ollama; model discovery/compat/monitor.
-- **History** — SQLite-backed correction history with cost tracking.
-- **Analytics** — overview dashboard (token activity heatmap).
-- **Hotkeys** — customizable global shortcuts (correction, promptGen, profile switch).
+- **History** — SQLite-backed correction + PromptGen history with cost tracking.
+- **Analytics** — Overview dashboard: stat cards, preset donut/time-series charts (`PresetWeightChart`), token activity calendar, benchmark sentence; shared All/30d/7d range with Models tab.
+- **Logs** — structured, redacted JSONL persistence (`userData/logs/{YYYY-MM-DD}/fixlang.jsonl`); Logs tab with level filter, search, copy/export, virtual infinite scroll.
+- **Hotkeys** — customizable global shortcuts (promptGen, profileSwitch) plus per-preset correction hotkeys.
 
 ## Commands
 
 ```bash
 bun run dev            # Dev with hot reload (electron-vite); predev runs build first
-bun run build          # Production build (electron-vite)
+bun run build          # Production build (electron-vite); prebuild runs themes:generate
 bun run start          # Preview the production build
 bun run pack:mac       # Build + package macOS app (dmg, zip) → release/
 bun run pack:install   # Package + install to /Applications/FixLang.app
 bun run test           # Vitest once, no watch  ⚠️ use `bun run test`, NOT `bun test`
 bun run test:w         # Vitest watch mode
 bun run lint           # ESLint (cached)
+bun run themes:generate  # Regenerate theme CSS after editing theme .ts files
 ```
 
 > `bun test` invokes bun's own runner and ignores vitest config — always `bun run test`.
@@ -35,27 +38,30 @@ bun run lint           # ESLint (cached)
 src/
   main/                  # Electron main process
     ai.request/          # AI calls + cost.ts, cache-strategy, resolve-model
-    ipc/features/        # IPC handlers: api, correction, history, profiles, promptgen, settings, ui, openrouter
-    keybindings/         # Global hotkeys (correction, promptGen, profileSwitch)
+    ipc/features/        # IPC handlers: api, correction, history, logs, profiles, promptgen, settings, theme, ui, openrouter
+    keybindings/         # Global hotkeys (correction presets, promptGen, profileSwitch)
     llm/                 # Provider models (discover/compat/monitor), openrouter client, ollama
+    logging/             # logService.ts, logPersistence.ts — structured JSONL write/query
     webViewWindows/      # Window lifecycle (mainWindow, promptGenWindow, overlay, tray)
     index.ts             # Main entry, app bootstrap
   renderer/              # React UI, one folder per window
-    MainWindow/ PromptGenWindow/ TrayWindow/ analytics/
-    components/ hooks/    # Shared UI + hooks
+    MainWindow/          # dashboardTabs.ts, overviewAggregations.ts, App.tsx
+    PromptGenWindow/ TrayWindow/ analytics/
+    components/ hooks/   # Shared UI + hooks (OverviewPanel, LogsPanel, PresetWeightChart, …)
   preload/features/      # IPC bridge (renderer ↔ main)
   stores/                # Persistence: historyDb (node:sqlite), apiStore, keybindingStore, provisioningKeyStore (electron-store)
   prompts/               # Bundled AI prompt assets — see gotchas
+  shared/logging.ts      # Log types, redaction, query helpers (shared main/preload/renderer)
   const.ts utils.ts      # Shared constants + helpers
 ```
 
 ## Tech Stack
 
 - **Runtime/build**: Electron 43.1, electron-vite 5.0, Vite 8.1, bun
-- **Frontend**: React 19.2, TypeScript 6.0 (strict; do not bump to 7 until typescript-eslint supports it), Tailwind CSS 4.3, react-select
+- **Frontend**: React 19.2, TypeScript 6.0 (strict; do not bump to 7 until typescript-eslint supports it), Tailwind CSS 4.3, react-select, Chart.js + react-chartjs-2, @tanstack/react-virtual
 - **Testing**: Vitest 4.1 + @vitest/coverage-v8, jsdom
 - **AI**: openai 6.48, @openrouter/ai-sdk-provider 3.0, ai (Vercel) 7.0, ollama 0.6
-- **Persistence**: node:sqlite (history) + electron-store 11 (api/keybinding/provisioning) — no zustand
+- **Persistence**: node:sqlite (history) + electron-store 11 (api/keybinding/provisioning) + JSONL logs under userData — no zustand
 - **Lint/format**: ESLint 10, Prettier 3.9
 - **macOS native**: applescript, clipboardy, node-mac-permissions, languagedetect, fuse.js
 
