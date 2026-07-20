@@ -85,3 +85,7 @@
     caret-color: var(--foreground) !important;
   }
 }
+
+#dashboard-panel-overview {
+  background: var(--background);
+}
