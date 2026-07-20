@@ -1,8 +1,8 @@
-# FixLang — Agent Context
+# FixLang — Instructions
 
-Local macOS menu-bar app: fixes grammar / improves writing on selected text via AI (OpenAI, OpenRouter, Ollama). Electron + React + TypeScript. Runs on **bun**.
+## Overview
 
-When you need to ask the user something, use the "ask user question" / "require user input" or any relevant tools that are available.
+Local macOS menu-bar app: fixes grammar and improves writing on selected text via AI (OpenAI, OpenRouter, Ollama). Electron + React + TypeScript, runs on **bun**.
 
 ## Main Features
 
@@ -16,88 +16,93 @@ When you need to ask the user something, use the "ask user question" / "require 
 - **Logs** — structured, redacted JSONL persistence (`userData/logs/{YYYY-MM-DD}/fixlang.jsonl`); Logs tab with level filter, search, copy/export, virtual infinite scroll.
 - **Hotkeys** — customizable global shortcuts (promptGen, profileSwitch) plus per-preset correction hotkeys.
 
-## Commands
+## Purpose
 
-```bash
-bun run dev            # Dev with hot reload (electron-vite); predev runs build first
-bun run build          # Production build (electron-vite); prebuild runs themes:generate
-bun run start          # Preview the production build
-bun run pack:mac       # Build + package macOS app (dmg, zip) → release/
-bun run pack:install   # Package + install to /Applications/FixLang.app
-bun run test           # Vitest once, no watch  ⚠️ use `bun run test`, NOT `bun test`
-bun run test:w         # Vitest watch mode
-bun run lint           # ESLint (cached)
-bun run themes:generate  # Regenerate theme CSS after editing theme .ts files
-```
+User data stays local — API keys, history, and logs never leave the machine except to the configured provider. Profile and hotkey state must stay consistent across switches; silent breakage there is worse than a loud failure.
 
-> `bun test` invokes bun's own runner and ignores vitest config — always `bun run test`.
+## Scope & Key Resources
 
-## Project Structure
+Electron app with main/preload/renderer split. Highest-risk areas: global hotkeys + profile state, IPC validation, AI prompt bundling, theme derivation, and userData persistence.
+
+### Structure
 
 ```
-src/
-  main/                  # Electron main process
-    ai.request/          # AI calls + cost.ts, cache-strategy, resolve-model
-    ipc/features/        # IPC handlers: api, correction, history, logs, profiles, promptgen, settings, theme, ui, openrouter
-    keybindings/         # Global hotkeys (correction presets, promptGen, profileSwitch)
-    llm/                 # Provider models (discover/compat/monitor), openrouter client, ollama
-    logging/             # logService.ts, logPersistence.ts — structured JSONL write/query
-    webViewWindows/      # Window lifecycle (mainWindow, promptGenWindow, overlay, tray)
-    index.ts             # Main entry, app bootstrap
-  renderer/              # React UI, one folder per window
-    MainWindow/          # dashboardTabs.ts, overviewAggregations.ts, App.tsx
-    PromptGenWindow/ TrayWindow/ analytics/
-    components/ hooks/   # Shared UI + hooks (OverviewPanel, LogsPanel, PresetWeightChart, …)
-  preload/features/      # IPC bridge (renderer ↔ main)
-  stores/                # Persistence: historyDb (node:sqlite), apiStore, keybindingStore, provisioningKeyStore (electron-store)
-  prompts/               # Bundled AI prompt assets — see gotchas
-  shared/logging.ts      # Log types, redaction, query helpers (shared main/preload/renderer)
-  const.ts utils.ts      # Shared constants + helpers
+fix-lang/
+├── src/
+│   ├── main/               — Electron main process
+│   │   ├── ai.request/     — AI calls, cost, cache, resolve-model
+│   │   ├── ipc/features/   — IPC handlers (api, correction, history, logs, …)
+│   │   ├── keybindings/    — global hotkeys (presets, promptGen, profileSwitch)
+│   │   ├── logging/        — structured JSONL write/query
+│   │   ├── llm/            — provider model discovery/compat/monitor
+│   │   └── webViewWindows/ — main, promptGen, overlay, tray
+│   ├── renderer/           — React UI (MainWindow dashboard, TrayWindow, …)
+│   ├── preload/features/   — IPC bridge (validate here)
+│   ├── stores/             — historyDb (sqlite), apiStore, keybindingStore
+│   ├── prompts/            — bundled AI prompt assets (build-time)
+│   └── shared/logging.ts   — log types + redaction (shared)
+├── README.md               — user-facing features and usage
+└── .claude/skills/fixlang/ — project-specific traps (read on demand)
 ```
 
 ## Tech Stack
 
-- **Runtime/build**: Electron 43.1, electron-vite 5.0, Vite 8.1, bun
-- **Frontend**: React 19.2, TypeScript 6.0 (strict; do not bump to 7 until typescript-eslint supports it), Tailwind CSS 4.3, react-select, Chart.js + react-chartjs-2, @tanstack/react-virtual
-- **Testing**: Vitest 4.1 + @vitest/coverage-v8, jsdom
-- **AI**: openai 6.48, @openrouter/ai-sdk-provider 3.0, ai (Vercel) 7.0, ollama 0.6
-- **Persistence**: node:sqlite (history) + electron-store 11 (api/keybinding/provisioning) + JSONL logs under userData — no zustand
-- **Lint/format**: ESLint 10, Prettier 3.9
-- **macOS native**: applescript, clipboardy, node-mac-permissions, languagedetect, fuse.js
+- Runtime/build
+  - Electron 43.1, electron-vite 5.0, Vite 8.1, bun
+- Frontend
+  - React 19.2, TypeScript 6.0 (stay on 6.x until typescript-eslint supports 7), Tailwind 4.3
+- AI
+  - openai 6.48, @openrouter/ai-sdk-provider 3.0, ai 7.0, ollama 0.6
+- Persistence
+  - node:sqlite (history) + electron-store 11 + JSONL logs under userData — no zustand
+- Testing
+  - Vitest 4.1, jsdom
 
-## Workflow
+## Key Commands
 
-- Branches: `main` (deployable); feature work on `feature/desc` or `fix/desc`, branched from `main`.
-- Commits: Conventional Commits — `feat(correction): ...`, `fix(hotkey): ...`, `chore(deps): ...`.
+```bash
+bun run dev             # hot reload (predev runs build)
+bun run test            # verify changes — use `bun run test`, NOT `bun test`
+bun run lint            # ESLint (cached)
+bun run pack:mac        # package macOS app → release/
+bun run themes:generate # after theme .ts edits
+```
+
+## How to Work
+
+- **Use bun** — not npm/pnpm; lockfile is `bun.lock`.
+- **Explore with gitnexus first** — use MCP over grep/find; fallback only if unavailable.
+- **Verify before finishing** — run `bun run test`; for UI changes, also check in `bun run dev` before packaging.
+- **Ask through tools** — use structured question tools, not plain-prose questions.
+- **Update docs when behavior changes** — spawn sub-agents or update instruction files at task end.
+- **Commits** — Conventional Commits on `feature/*` or `fix/*` branches from `main`.
 
 ## Boundaries
 
-✅ **Always**
+✅ Always:
+- Keep prompts bundled locally from `src/prompts/` — no runtime fetch.
+- Store SQLite/JSONL under `app.getPath("userData")` — never inside the signed bundle.
+- Use async I/O only in the main process.
 
-- Always ask for spawn sub-agents to update instructions files and documents at the end of the task.
-- Use gitnexus MCP over grep / find for exploration, only fallback to grep / find if gitnexus is not available
-- Test UI changes in `bun run dev` before packaging.
-- Keep prompts bundled locally — no external fetch for prompt content.
-- SQLite DB lives under `app.getPath("userData")`, never inside the code-signed bundle.
+⚠️ Ask first:
+- Anything unclear after exploring — use grill-me before guessing.
 
-⚠️ **Ask first**
+🚫 Never:
+- Commit secrets, `.env`, `node_modules`, `out/`, `release/`.
+- Reintroduce pnpm or bypass preload IPC validation.
+- Use `any` without a why-comment.
+- Bump TypeScript to 7.x until eslint support lands.
 
-- Whenever you have anything unclear that can't be answered even by exploring the codebase, try using grill-me to clarify it first.
+## References
 
-🚫 **Never**
-
-- Commit secrets, API keys, or `.env`.
-- Commit `node_modules`, `out/`, `release/`, `.DS_Store`.
-- Reintroduce pnpm — this repo is bun-only (`bun.lock`); no `pnpm-lock.yaml`.
-- Use `any` without a why-comment; add sync I/O in the main process (async only); bypass IPC validation in preload.
-- Change without explore the impact with gitnexus first ( If gitnexus is not available, fallback to grep / find )
+- [README](README.md) — features, dashboard tabs, hotkeys, build/install.
 
 ## Known Gotchas
 
-Project-specific traps live as skills under `.claude/skills/fixlang/`:
+Project-specific traps under `.claude/skills/fixlang/`:
 
-- **[[fixlang-hotkeys]]** — preset hotkey reload on profile switch (silent failures) + pre-save conflict validation.
-- **[[fixlang-prompt-bundling]]** — prompts bundle at build time from `src/prompts/`, not `~/.agents/`; rebuild + reinstall to apply.
-- **[[fixlang-profile-state]]** — profile switch must atomically reload hotkeys + settings UI + history.
-- **[[fixlang-theme-mapping]]** — theme color derivation uses a **derive-ladder + composite-alpha** strategy: extract three anchors, build elevation ladder with guaranteed brightness deltas, composite translucent colors to opaque; never use raw overlay colors or re-derive surfaces in contrast adjustment. Run `bun run themes:generate` after any theme .ts edits, then `bun run test` to validate all 149 themes.
-- **[[fixlang-pkg-upgrade]]** — wave-based bun upgrades; pin TypeScript to 6.x; Electron 43+ requires main/preload CommonJS (`.cjs`) or app shows white screen; unset `ELECTRON_RUN_AS_NODE` when launching Electron from Cursor's terminal.
+- [Hotkeys](.claude/skills/fixlang/fixlang-hotkeys/SKILL.md) — preset hotkey reload on profile switch (silent failures) + pre-save conflict validation.
+- [Prompt bundling](.claude/skills/fixlang/fixlang-prompt-bundling/SKILL.md) — prompts bundle at build time from `src/prompts/`, not `~/.agents/`; rebuild + reinstall to apply.
+- [Profile state](.claude/skills/fixlang/fixlang-profile-state/SKILL.md) — profile switch must atomically reload hotkeys + settings UI + history.
+- [Theme mapping](.claude/skills/fixlang/fixlang-theme-mapping/SKILL.md) — derive-ladder + composite-alpha strategy; run `bun run themes:generate` after theme .ts edits, then `bun run test` to validate all 149 themes.
+- [Package upgrade](.claude/skills/fixlang/fixlang-pkg-upgrade/SKILL.md) — wave-based bun upgrades; pin TypeScript to 6.x; Electron 43+ requires main/preload CommonJS (`.cjs`) or app shows white screen; unset `ELECTRON_RUN_AS_NODE` when launching Electron from Cursor's terminal.
