@@ -1,7 +1,16 @@
+/**
+ * @file LogsPanel.tsx
+ * @description Disk-backed logs dashboard: newest-first pages, infinite scroll,
+ * and TanStack Virtual rows for large histories.
+ */
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { format } from "date-fns";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { twJoin } from "tailwind-merge";
-import { filterLogs } from "./logsView";
+import {
+  LOG_QUERY_PAGE_SIZE,
+  logEntryMatchesSearch,
+} from "~/shared/logging";
 import type { LogLevelFilter } from "./logsView";
 import type { LogEntry, LogLevel } from "~/shared/logging";
 
@@ -20,6 +29,10 @@ const LEVEL_CLASS: Record<LogLevel, string> = {
   error: "text-destructive",
 };
 
+const ROW_ESTIMATE_PX = 44;
+const LOAD_MORE_THRESHOLD = 12;
+const SEARCH_DEBOUNCE_MS = 250;
+
 const isLogLevelFilter = (value: string): value is LogLevelFilter =>
   value === "all" ||
   value === "debug" ||
@@ -27,63 +40,149 @@ const isLogLevelFilter = (value: string): value is LogLevelFilter =>
   value === "warn" ||
   value === "error";
 
-const mergeLogs = (
-  fetched: readonly LogEntry[],
-  current: readonly LogEntry[],
-): LogEntry[] => {
-  const entries = new Map<string, LogEntry>();
-  for (const entry of [...fetched, ...current]) {
-    entries.set(entry.id, entry);
+const entryMatchesFilters = (
+  entry: LogEntry,
+  level: LogLevelFilter,
+  search: string,
+): boolean => {
+  if (level !== "all" && entry.level !== level) {
+    return false;
   }
-  return [...entries.values()]
-    .sort((left, right) => left.timestamp.localeCompare(right.timestamp))
-    .slice(-500);
+  return logEntryMatchesSearch(entry, search);
 };
 
-/** Searchable live view of redacted main-process logs. */
+const mergeNewestFirst = (
+  existing: readonly LogEntry[],
+  incoming: readonly LogEntry[],
+): LogEntry[] => {
+  const byId = new Map<string, LogEntry>();
+  for (const entry of [...incoming, ...existing]) {
+    byId.set(entry.id, entry);
+  }
+  return [...byId.values()].sort((left, right) =>
+    right.timestamp.localeCompare(left.timestamp),
+  );
+};
+
+/** Searchable live view of redacted main-process logs (persisted + live). */
 export const LogsPanel = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [level, setLevel] = useState<LogLevelFilter>("all");
   const [autoScroll, setAutoScroll] = useState(true);
   const [status, setStatus] = useState("");
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const loadMoreLock = useRef(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  const loadInitialPage = useCallback(async (): Promise<void> => {
+    setIsLoading(true);
+    setStatus("");
+    try {
+      const page = await window.electronAPI.queryLogs({
+        limit: LOG_QUERY_PAGE_SIZE,
+        level,
+        search: debouncedSearch,
+      });
+      setLogs(page.entries);
+      setNextCursor(page.nextCursor);
+      setHasMore(page.hasMore);
+    } catch (error) {
+      setLogs([]);
+      setNextCursor(null);
+      setHasMore(false);
+      setStatus(
+        `Failed to load logs: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [debouncedSearch, level]);
+
+  const loadOlderPage = useCallback(async (): Promise<void> => {
+    if (!hasMore || nextCursor === null || loadMoreLock.current) {
+      return;
+    }
+    loadMoreLock.current = true;
+    setIsLoadingMore(true);
+    try {
+      const page = await window.electronAPI.queryLogs({
+        beforeTimestamp: nextCursor,
+        limit: LOG_QUERY_PAGE_SIZE,
+        level,
+        search: debouncedSearch,
+      });
+      setLogs((current) => mergeNewestFirst(current, page.entries));
+      setNextCursor(page.nextCursor);
+      setHasMore(page.hasMore);
+    } catch (error) {
+      setStatus(
+        `Failed to load older logs: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      setIsLoadingMore(false);
+      loadMoreLock.current = false;
+    }
+  }, [debouncedSearch, hasMore, level, nextCursor]);
+
+  useEffect(() => {
+    void loadInitialPage();
+  }, [loadInitialPage]);
 
   useEffect(() => {
     const removeListener = window.electronAPI.onLogAppend((entry) => {
-      setLogs((current) => [...current, entry].slice(-500));
+      if (!entryMatchesFilters(entry, level, debouncedSearch)) {
+        return;
+      }
+      setLogs((current) => mergeNewestFirst(current, [entry]));
     });
-
-    void window.electronAPI
-      .getRecentLogs(500)
-      .then((entries) => {
-        setLogs((current) => mergeLogs(entries, current));
-      })
-      .catch((error: Error) => {
-        setStatus(`Failed to load logs: ${error.message}`);
-      });
-
     return removeListener;
-  }, []);
+  }, [debouncedSearch, level]);
 
-  const filteredLogs = useMemo(
-    () => filterLogs(logs, level, search),
-    [level, logs, search],
-  );
+  const virtualizer = useVirtualizer({
+    count: logs.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => ROW_ESTIMATE_PX,
+    overscan: 12,
+  });
+
+  const virtualItems = virtualizer.getVirtualItems();
 
   useEffect(() => {
-    if (autoScroll) {
-      listRef.current?.scrollTo({
-        top: listRef.current.scrollHeight,
-        behavior: "smooth",
-      });
+    const lastItem = virtualItems[virtualItems.length - 1];
+    if (lastItem === undefined) {
+      return;
     }
-  }, [autoScroll, filteredLogs.length]);
+    if (lastItem.index >= logs.length - LOAD_MORE_THRESHOLD) {
+      void loadOlderPage();
+    }
+  }, [loadOlderPage, logs.length, virtualItems]);
+
+  const newestLogId = logs[0]?.id;
+
+  useEffect(() => {
+    if (autoScroll && newestLogId !== undefined) {
+      listRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [autoScroll, newestLogId]);
 
   const handleClear = async (): Promise<void> => {
     try {
       await window.electronAPI.clearLogs();
       setLogs([]);
+      setNextCursor(null);
+      setHasMore(false);
       setStatus("Logs cleared");
     } catch (error) {
       setStatus(
@@ -117,6 +216,19 @@ export const LogsPanel = () => {
       );
     }
   };
+
+  const footerLabel = useMemo(() => {
+    if (isLoading) {
+      return "Loading…";
+    }
+    if (isLoadingMore) {
+      return `Showing ${logs.length} · loading older…`;
+    }
+    if (hasMore) {
+      return `Showing ${logs.length} · scroll for older`;
+    }
+    return `${logs.length} entries`;
+  }, [hasMore, isLoading, isLoadingMore, logs.length]);
 
   return (
     <section className="flex h-full min-h-0 flex-col gap-3">
@@ -184,9 +296,7 @@ export const LogsPanel = () => {
       </div>
 
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>
-          {filteredLogs.length} of {logs.length} entries
-        </span>
+        <span>{footerLabel}</span>
         <span role="status" aria-live="polite">
           {status}
         </span>
@@ -197,40 +307,61 @@ export const LogsPanel = () => {
         className="min-h-0 flex-1 overflow-auto rounded-lg border border-border bg-card font-mono text-xs"
         aria-label="Application logs"
       >
-        {filteredLogs.length === 0 ? (
+        {logs.length === 0 && !isLoading ? (
           <p className="p-4 text-center text-muted-foreground">
             No logs found.
           </p>
         ) : (
-          <ol className="divide-y divide-border">
-            {filteredLogs.map((entry) => (
-              <li
-                key={entry.id}
-                className="grid grid-cols-[auto_auto_1fr] gap-2 p-2"
-              >
-                <time className="whitespace-nowrap text-muted-foreground">
-                  {format(new Date(entry.timestamp), "yyyy-MM-dd HH:mm:ss XXX")}
-                </time>
-                <span
-                  className={twJoin(
-                    "font-semibold uppercase",
-                    LEVEL_CLASS[entry.level],
-                  )}
+          <div
+            className="relative w-full"
+            style={{ height: `${virtualizer.getTotalSize()}px` }}
+          >
+            {virtualItems.map((virtualRow) => {
+              const entry = logs[virtualRow.index];
+              if (entry === undefined) {
+                return null;
+              }
+              return (
+                <div
+                  key={entry.id}
+                  data-index={virtualRow.index}
+                  ref={virtualizer.measureElement}
+                  className="absolute top-0 left-0 w-full border-b border-border"
+                  style={{
+                    transform: `translateY(${String(virtualRow.start)}px)`,
+                  }}
                 >
-                  {entry.level}
-                </span>
-                <span className="min-w-0 wrap-break-word text-foreground">
-                  <span className="text-muted-foreground">[{entry.scope}]</span>{" "}
-                  {entry.message}
-                  {entry.context ? (
-                    <span className="ml-2 text-muted-foreground">
-                      {JSON.stringify(entry.context)}
+                  <div className="grid grid-cols-[auto_auto_1fr] gap-2 p-2">
+                    <time className="whitespace-nowrap text-muted-foreground">
+                      {format(
+                        new Date(entry.timestamp),
+                        "yyyy-MM-dd HH:mm:ss XXX",
+                      )}
+                    </time>
+                    <span
+                      className={twJoin(
+                        "font-semibold uppercase",
+                        LEVEL_CLASS[entry.level],
+                      )}
+                    >
+                      {entry.level}
                     </span>
-                  ) : null}
-                </span>
-              </li>
-            ))}
-          </ol>
+                    <span className="min-w-0 wrap-break-word text-foreground">
+                      <span className="text-muted-foreground">
+                        [{entry.scope}]
+                      </span>{" "}
+                      {entry.message}
+                      {entry.context ? (
+                        <span className="ml-2 text-muted-foreground">
+                          {JSON.stringify(entry.context)}
+                        </span>
+                      ) : null}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </section>

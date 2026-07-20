@@ -1,9 +1,12 @@
 import { ipcRenderer } from "electron";
+import {
+  isLogEntry,
+  LOG_QUERY_PAGE_SIZE,
+} from "~/shared/logging";
 import type {
-  LogContext,
   LogEntry,
-  LogLevel,
-  LogValue,
+  LogQueryRequest,
+  LogQueryResult,
 } from "~/shared/logging";
 
 export type ExportLogsResult =
@@ -11,49 +14,21 @@ export type ExportLogsResult =
   | { success: false; canceled: true }
   | { success: false; canceled: false; error: string };
 
-const LOG_LEVELS = new Set<LogLevel>(["debug", "info", "warn", "error"]);
-
-const isLogLevel = (value: unknown): value is LogLevel =>
-  value === "debug" ||
-  value === "info" ||
-  value === "warn" ||
-  value === "error";
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-const isLogValue = (value: unknown): value is LogValue => {
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
-  ) {
-    return true;
-  }
-  if (Array.isArray(value)) {
-    return value.every((item) => isLogValue(item));
-  }
-  return (
-    isRecord(value) && Object.values(value).every((item) => isLogValue(item))
-  );
-};
-
-const isLogContext = (value: unknown): value is LogContext =>
-  isRecord(value) && Object.values(value).every((item) => isLogValue(item));
-
-const isLogEntry = (value: unknown): value is LogEntry =>
-  isRecord(value) &&
-  typeof value.id === "string" &&
-  typeof value.timestamp === "string" &&
-  isLogLevel(value.level) &&
-  LOG_LEVELS.has(value.level) &&
-  typeof value.scope === "string" &&
-  typeof value.message === "string" &&
-  (value.context === undefined || isLogContext(value.context));
-
 const normalizeLimit = (limit: number): number =>
   Number.isFinite(limit) ? Math.max(0, Math.min(500, Math.floor(limit))) : 500;
+
+const isLogQueryResult = (value: unknown): value is LogQueryResult => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return (
+    Array.isArray(record.entries) &&
+    record.entries.every((entry) => isLogEntry(entry)) &&
+    (record.nextCursor === null || typeof record.nextCursor === "string") &&
+    typeof record.hasMore === "boolean"
+  );
+};
 
 const createLogsFeature = () => ({
   getRecentLogs: async (limit = 500): Promise<LogEntry[]> => {
@@ -62,6 +37,23 @@ const createLogsFeature = () => ({
       normalizeLimit(limit),
     );
     return Array.isArray(result) ? result.filter(isLogEntry) : [];
+  },
+  queryLogs: async (
+    request: LogQueryRequest = {},
+  ): Promise<LogQueryResult> => {
+    const payload: LogQueryRequest = {
+      limit: request.limit ?? LOG_QUERY_PAGE_SIZE,
+      ...(request.beforeTimestamp
+        ? { beforeTimestamp: request.beforeTimestamp }
+        : {}),
+      ...(request.level ? { level: request.level } : {}),
+      ...(request.search !== undefined ? { search: request.search } : {}),
+    };
+    const result: unknown = await ipcRenderer.invoke("logs:query", payload);
+    if (isLogQueryResult(result)) {
+      return result;
+    }
+    return { entries: [], nextCursor: null, hasMore: false };
   },
   clearLogs: (): Promise<{ success: boolean }> =>
     ipcRenderer.invoke("logs:clear"),

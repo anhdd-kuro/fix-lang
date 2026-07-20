@@ -4,13 +4,25 @@ import path from "node:path";
 import {
   appendToRing,
   formatLogEntries,
+  logDayKey,
   redactLogContext,
   redactLogMessage,
+  serializeLogJsonLine,
 } from "~/shared/logging";
-import type { LogContext, LogEntry, LogLevel } from "~/shared/logging";
+import {
+  LOG_JSONL_FILENAME,
+  queryPersistedLogs,
+  readAllPersistedLogs,
+} from "./logPersistence";
+import type {
+  LogContext,
+  LogEntry,
+  LogLevel,
+  LogQueryRequest,
+  LogQueryResult,
+} from "~/shared/logging";
 
 const DEFAULT_CAPACITY = 500;
-const LOG_FILENAME = "fixlang.log";
 
 type LogListener = (entry: LogEntry) => void;
 
@@ -55,27 +67,59 @@ class LogService {
     return entry;
   }
 
-  /** Returns newest bounded entries in chronological order. */
+  /** Returns newest bounded in-memory entries in chronological order. */
   public getRecent(limit: number = this.capacity): LogEntry[] {
     const safeLimit = Math.max(0, Math.min(this.capacity, Math.floor(limit)));
     return safeLimit === 0 ? [] : this.entries.slice(-safeLimit);
   }
 
-  /** Clears memory and removes current persisted log after pending writes. */
+  /**
+   * Queries persisted day-folder JSONL logs newest-first with a cursor for
+   * infinite scroll. Falls back to an empty page when persistence is off.
+   */
+  public async query(request: LogQueryRequest = {}): Promise<LogQueryResult> {
+    const directory = this.persistenceDirectory;
+    if (directory === null) {
+      return { entries: [], nextCursor: null, hasMore: false };
+    }
+    // Flush pending writes so the latest entries are visible on disk.
+    await this.writeQueue;
+    return queryPersistedLogs(directory, request);
+  }
+
+  /**
+   * Clears memory and removes all day-folder log files under the persistence
+   * directory after pending writes.
+   */
   public async clear(): Promise<void> {
     this.entries = [];
-    const logPath = this.getLogPath();
-    if (logPath === null) {
+    const directory = this.persistenceDirectory;
+    if (directory === null) {
       return;
     }
     this.writeQueue = this.writeQueue
       .then(async () => {
-        await rm(logPath, { force: true });
+        await rm(directory, { recursive: true, force: true });
+        await mkdir(directory, { recursive: true });
       })
       .catch(() => {
         // Clearing diagnostics must not break future log writes.
       });
     await this.writeQueue;
+  }
+
+  /**
+   * Formats redacted plain text from all persisted entries (fallback: memory).
+   * Used by copy/export so history survives app reloads.
+   */
+  public async formatAll(): Promise<string> {
+    const directory = this.persistenceDirectory;
+    if (directory === null) {
+      return formatLogEntries(this.entries);
+    }
+    await this.writeQueue;
+    const persisted = await readAllPersistedLogs(directory);
+    return formatLogEntries(persisted.length > 0 ? persisted : this.entries);
   }
 
   /** Produces redacted plain text from current in-memory entries. */
@@ -89,23 +133,28 @@ class LogService {
     return () => this.listeners.delete(listener);
   }
 
-  private getLogPath(): string | null {
-    return this.persistenceDirectory === null
-      ? null
-      : path.join(this.persistenceDirectory, LOG_FILENAME);
+  /**
+   * Resolves `{logs}/{YYYY-MM-DD}/fixlang.jsonl` for the entry's local calendar
+   * day. Returns null when persistence is disabled.
+   */
+  private getLogPathForEntry(entry: LogEntry): string | null {
+    if (this.persistenceDirectory === null) {
+      return null;
+    }
+    const dayFolder = logDayKey(new Date(entry.timestamp));
+    return path.join(this.persistenceDirectory, dayFolder, LOG_JSONL_FILENAME);
   }
 
   private scheduleAppend(entry: LogEntry): void {
-    const logPath = this.getLogPath();
-    const directory = this.persistenceDirectory;
-    if (logPath === null || directory === null) {
+    const logPath = this.getLogPathForEntry(entry);
+    if (logPath === null) {
       return;
     }
 
-    const line = `${formatLogEntries([entry])}\n`;
+    const line = `${serializeLogJsonLine(entry)}\n`;
     this.writeQueue = this.writeQueue
       .then(async () => {
-        await mkdir(directory, { recursive: true });
+        await mkdir(path.dirname(logPath), { recursive: true });
         await appendFile(logPath, line, "utf8");
       })
       .catch(() => {

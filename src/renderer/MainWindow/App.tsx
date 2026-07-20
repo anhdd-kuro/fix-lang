@@ -210,7 +210,7 @@ const App: React.FC = () => {
   // History tab body: the history list beside the Last Action Preview.
   const historyTab = (
     <div className="flex h-full gap-4">
-      <aside className="flex w-72 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-card p-3">
+      <aside className="flex w-96 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-card p-3">
         <HistoryPanel
           history={history}
           onSelectEntry={handleSelectEntry}
@@ -343,7 +343,7 @@ const App: React.FC = () => {
           role="tabpanel"
           aria-labelledby={`dashboard-tab-${activeTabId}`}
           tabIndex={0}
-          className="h-full"
+          className="h-full bg-background"
         >
           {tabPanels[activeTabId]}
         </div>

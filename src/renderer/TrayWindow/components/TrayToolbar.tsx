@@ -61,6 +61,27 @@ const QuitIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+const DashboardIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg
+    className={twJoin("size-5", className)}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
+    />
+  </svg>
+);
+
+const openDashboard = (): void => {
+  window.electronAPI.hideTray();
+  window.electronAPI.showMainWindowTab("overview");
+};
+
 export const TrayToolbar: React.FC = () => {
   const handleQuit = async (): Promise<void> => {
     const { response } = await window.electronAPI.showMessageBox({
@@ -78,6 +99,13 @@ export const TrayToolbar: React.FC = () => {
 
   return (
     <div className="flex items-center justify-end gap-4 mb-3">
+      <TrayIconButton
+        onClick={openDashboard}
+        title="Open dashboard"
+        ariaLabel="Open dashboard"
+      >
+        <DashboardIcon />
+      </TrayIconButton>
       <SettingsButton
         onClick={() => window.electronAPI.showMainWindowSettings()}
         className="text-muted-foreground hover:text-foreground p-1.5"

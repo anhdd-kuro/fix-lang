@@ -212,6 +212,12 @@ export const splitModelId = (id: string | null): ModelProvider => {
 
 export type PresetBreakdownRow = { presetName: string; count: number };
 
+/**
+ * Preset usage share for Overview weight chart. `weight` is the relative share
+ * of corrections in [0, 1] (sum ≈ 1 across rows when non-empty).
+ */
+export type PresetWeightRow = PresetBreakdownRow & { weight: number };
+
 /** Untitled/legacy bucket label for entries with no presetName (HITL #4). */
 export const UNTITLED_PRESET_LABEL = "Other";
 
@@ -233,6 +239,91 @@ export const perPresetBreakdown = (
   return [...counts.entries()]
     .map(([presetName, count]) => ({ presetName, count }))
     .sort((a, b) => b.count - a.count);
+};
+
+/**
+ * Relative weight of each correction preset (count / total). Empty history → [].
+ * Order matches `perPresetBreakdown` (desc by count).
+ */
+export const perPresetWeights = (
+  entries: HistoryEntry[]
+): PresetWeightRow[] => {
+  const rows = perPresetBreakdown(entries);
+  const total = rows.reduce((sum, row) => sum + row.count, 0);
+  if (total === 0) {
+    return [];
+  }
+  return rows.map((row) => ({
+    presetName: row.presetName,
+    count: row.count,
+    weight: row.count / total,
+  }));
+};
+
+export type PresetTimeSeriesRow = {
+  presetName: string;
+  /** Dense per-day counts aligned to `PresetCountsOverTime.days`. */
+  counts: number[];
+};
+
+export type PresetCountsOverTime = {
+  /** Local-day keys (YYYY-MM-DD), oldest first. */
+  days: string[];
+  /** One series per preset (desc total count). */
+  series: PresetTimeSeriesRow[];
+  /** Total corrections per day (same length as `days`). */
+  totalsByDay: number[];
+};
+
+/**
+ * Per-preset correction counts over the active range window (dense days, zeros
+ * for idle days). Preset order matches `perPresetBreakdown` (desc by count).
+ */
+export const presetCountsOverTime = (
+  entries: HistoryEntry[],
+  range: OverviewRange,
+  now: Date
+): PresetCountsOverTime => {
+  const days = denseDayKeys(entries, range, now);
+  const dayIndex = new Map(days.map((day, index) => [day, index]));
+  const presetRows = perPresetBreakdown(entries);
+  const presetNames = presetRows.map((row) => row.presetName);
+  const presetIndex = new Map(
+    presetNames.map((presetName, index) => [presetName, index])
+  );
+  const countsByPreset = presetNames.map(
+    () => new Array<number>(days.length).fill(0)
+  );
+
+  for (const entry of entries) {
+    const day = localDayKey(entry.timestamp);
+    const dayIdx = dayIndex.get(day);
+    if (dayIdx === undefined) {
+      continue;
+    }
+    const name =
+      entry.presetName && entry.presetName.trim().length > 0
+        ? entry.presetName
+        : UNTITLED_PRESET_LABEL;
+    let presetIdx = presetIndex.get(name);
+    if (presetIdx === undefined) {
+      presetIdx = presetNames.length;
+      presetNames.push(name);
+      presetIndex.set(name, presetIdx);
+      countsByPreset.push(new Array<number>(days.length).fill(0));
+    }
+    countsByPreset[presetIdx][dayIdx] += 1;
+  }
+
+  const series = presetNames.map((presetName, index) => ({
+    presetName,
+    counts: countsByPreset[index],
+  }));
+  const totalsByDay = days.map((_, dayIdx) =>
+    countsByPreset.reduce((sum, row) => sum + row[dayIdx], 0)
+  );
+
+  return { days, series, totalsByDay };
 };
 
 export type HeatmapBucket = { date: string; count: number };

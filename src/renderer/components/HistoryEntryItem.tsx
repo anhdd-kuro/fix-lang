@@ -38,7 +38,6 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
               {entry.presetName ?? "Unknown"}
             </span>
             <TrashButton
-              className="invisible group-hover/history-entry:visible"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(entry, getFeatureId(entry));

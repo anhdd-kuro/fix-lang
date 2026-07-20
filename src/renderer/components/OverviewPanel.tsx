@@ -3,8 +3,9 @@
  * @description Overview dashboard tab. Presentational: receives the
  * already-fetched corrections `history` (owned + live-updated by App) and the
  * active range (lifted to the shared dashboard header), then renders a grid of
- * summary stat cards, a Codex-style token activity calendar, and a benchmark
- * sentence — all from the PURE aggregators in overviewAggregations.ts.
+ * summary stat cards, Chart.js preset donut + time-series combo charts, a Codex-style token
+ * activity calendar, and a benchmark sentence — all from the PURE aggregators
+ * in overviewAggregations.ts.
  */
 import {
   useEffect,
@@ -16,6 +17,7 @@ import {
 } from "react";
 import { twJoin } from "tailwind-merge";
 import { heatmapCellClass, heatmapLevelClass } from "./heatmapIntensity";
+import { PresetWeightChart } from "./PresetWeightChart";
 import { StatCard } from "./StatCard";
 import { filterByRange, type AnalyticsRange } from "../analytics/shared";
 import {
@@ -24,6 +26,8 @@ import {
   favoriteModel,
   messageCount,
   peakHour,
+  perPresetWeights,
+  presetCountsOverTime,
   sessionCount,
   stripModelDate,
   streaks,
@@ -200,6 +204,8 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
       streak: streaks(filtered, now),
       peak: peakHour(filtered),
       favorite: stripModelDate(favoriteModel(filtered)),
+      presetWeights: perPresetWeights(filtered),
+      presetOverTime: presetCountsOverTime(filtered, range, now),
     };
   }, [history, range]);
 
@@ -234,6 +240,15 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
         <StatCard label="Peak hour" value={peakValue} />
         <StatCard label="Favorite model" value={view.favorite ?? "—"} />
       </div>
+
+      {/* Correction preset weight distribution (Chart.js). */}
+      {view.presetWeights.length === 0 ? (
+        <PresetWeightChart weights={view.presetWeights} overTime={view.presetOverTime} />
+      ) : (
+        <section className="rounded-lg border border-border bg-card p-4">
+          <PresetWeightChart weights={view.presetWeights} overTime={view.presetOverTime} />
+        </section>
+      )}
 
       <section className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">

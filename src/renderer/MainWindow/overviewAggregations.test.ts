@@ -21,6 +21,8 @@ import {
   messageCount,
   peakHour,
   perPresetBreakdown,
+  presetCountsOverTime,
+  perPresetWeights,
   sessionCount,
   splitModelId,
   stripModelDate,
@@ -220,6 +222,59 @@ describe("perPresetBreakdown", () => {
     expect(result[0]).toEqual({ presetName: "Correction", count: 2 });
     const other = result.find((r) => r.presetName === UNTITLED_PRESET_LABEL);
     expect(other?.count).toBe(1);
+  });
+});
+
+describe("perPresetWeights", () => {
+  it("returns relative shares that sum to 1 and match counts", () => {
+    const entries = [
+      entry({ presetName: "Correction" }),
+      entry({ presetName: "Correction" }),
+      entry({ presetName: "Translate" }),
+      entry({ presetName: undefined }),
+    ];
+    const result = perPresetWeights(entries);
+    expect(result).toEqual([
+      { presetName: "Correction", count: 2, weight: 0.5 },
+      { presetName: "Translate", count: 1, weight: 0.25 },
+      { presetName: UNTITLED_PRESET_LABEL, count: 1, weight: 0.25 },
+    ]);
+    const sum = result.reduce((acc, row) => acc + row.weight, 0);
+    expect(sum).toBeCloseTo(1, 10);
+  });
+
+  it("returns [] for empty history", () => {
+    expect(perPresetWeights([])).toEqual([]);
+  });
+});
+
+describe("presetCountsOverTime", () => {
+  it("builds dense per-day preset counts and daily totals", () => {
+    const entries = [
+      entry({ presetName: "Correction", timestamp: at(2024, 6, 18) }),
+      entry({ presetName: "Correction", timestamp: at(2024, 6, 18) }),
+      entry({ presetName: "Translate", timestamp: at(2024, 6, 20) }),
+      entry({ presetName: undefined, timestamp: at(2024, 6, 20) }),
+    ];
+    const result = presetCountsOverTime(entries, "7d", NOW);
+    expect(result.days).toHaveLength(7);
+    expect(result.days[0]).toBe("2024-06-14");
+    expect(result.days[6]).toBe("2024-06-20");
+
+    const correction = result.series.find((row) => row.presetName === "Correction");
+    const translate = result.series.find((row) => row.presetName === "Translate");
+    const other = result.series.find((row) => row.presetName === UNTITLED_PRESET_LABEL);
+    expect(correction?.counts).toEqual([0, 0, 0, 0, 2, 0, 0]);
+    expect(translate?.counts).toEqual([0, 0, 0, 0, 0, 0, 1]);
+    expect(other?.counts).toEqual([0, 0, 0, 0, 0, 0, 1]);
+    expect(result.totalsByDay).toEqual([0, 0, 0, 0, 2, 0, 2]);
+  });
+
+  it("returns empty series for empty history but still spans the range window", () => {
+    const result = presetCountsOverTime([], "7d", NOW);
+    expect(result.days).toHaveLength(7);
+    expect(result.series).toEqual([]);
+    expect(result.totalsByDay.every((count) => count === 0)).toBe(true);
   });
 });
 

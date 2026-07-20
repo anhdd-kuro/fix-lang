@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   appendToRing,
   formatLogEntries,
+  logDayKey,
+  parseLogJsonLine,
   redactLogContext,
   redactLogMessage,
+  serializeLogJsonLine,
 } from "./logging";
 import type { LogEntry } from "./logging";
 
@@ -69,5 +72,27 @@ describe("formatLogEntries", () => {
     expect(formatLogEntries([makeEntry("1")])).toBe(
       "[2026-07-19T00:00:00.000Z] [INFO] [test] message 1",
     );
+  });
+});
+
+describe("logDayKey", () => {
+  it("formats the local calendar day as YYYY-MM-DD", () => {
+    expect(logDayKey(new Date(2026, 6, 20, 15, 30, 0))).toBe("2026-07-20");
+  });
+
+  it("zero-pads month and day", () => {
+    expect(logDayKey(new Date(2026, 0, 5))).toBe("2026-01-05");
+  });
+});
+
+describe("serializeLogJsonLine / parseLogJsonLine", () => {
+  it("round-trips a log entry", () => {
+    const entry = makeEntry("round");
+    expect(parseLogJsonLine(serializeLogJsonLine(entry))).toEqual(entry);
+  });
+
+  it("returns null for invalid JSONL", () => {
+    expect(parseLogJsonLine("not-json")).toBeNull();
+    expect(parseLogJsonLine("")).toBeNull();
   });
 });
