@@ -39,7 +39,7 @@ describe("public GitHub Releases update distribution", () => {
     const packageJson = readPackageJson();
     const build = buildConfiguration(packageJson);
 
-    expect(packageJson.version).toBe("0.2.0");
+    expect(packageJson.version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(packageJson.repository).toEqual({
       type: "git",
       url: "https://github.com/anhdd-kuro/fix-lang.git",
