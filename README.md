@@ -102,16 +102,21 @@ Before publishing, configure these GitHub Actions secrets from an Apple Develope
 - `APPLE_API_KEY` — base64-encoded App Store Connect API key (`.p8`)
 - `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, and `APPLE_TEAM_ID`
 
-Release a version by updating `package.json`, running the checks locally, and pushing the matching tag. For example:
+Release a version by updating `package.json`, running the checks locally, committing the version bump, and pushing it to `main`. For example:
 
 ```bash
 bun run lint
 bun run test
-git tag v0.2.0
-git push origin v0.2.0
+git add package.json bun.lock
+git commit -m "chore(release): bump version to 0.3.0"
+git push origin main
 ```
 
-The workflow rejects a tag that does not exactly match `package.json`, builds and notarizes `FixLang-<version>-arm64.dmg` and `.zip`, uploads them with `latest-mac.yml` to a draft release, validates the signed app, then makes the completed release public. Do not publish a release until the repository itself is public; end-user update checks intentionally require public GitHub Releases.
+When `main` contains a package version without a matching tag, the workflow verifies the signing secrets, creates `v<version>` at that exact commit, builds and notarizes `FixLang-<version>-arm64.dmg` and `.zip`, uploads them with `latest-mac.yml` to a draft release, validates the signed app, then makes the completed release public. Later pushes with the same published version skip publication. If a previous run created the tag but failed before publishing, rerunning it or pushing `main` again resumes from that protected tag.
+
+As a recovery path, a matching `v<version>` tag may still be pushed manually. The workflow rejects tags whose version differs from `package.json` or whose commit is not on `main`. Existing tags are never moved, and public release assets are never replaced.
+
+The protected `v*` tag ruleset allows new tag creation so the repository `GITHUB_TOKEN` can create releases without a long-lived PAT, but prevents existing release tags from being updated or deleted. The workflow independently validates every release tag against `main` and `package.json`. Keep workflow permissions read-only by default and grant `contents: write` only to the release preparation and publishing jobs. Do not publish a release until the repository itself is public; end-user update checks intentionally require public GitHub Releases.
 
 The workflow decodes `APPLE_API_KEY` only into the runner’s temporary directory immediately before packaging and removes that temporary `.p8` file on every exit path.
 

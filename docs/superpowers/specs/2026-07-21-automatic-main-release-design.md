@@ -16,9 +16,10 @@ as `v<version>`:
 
 - If the tag does not exist, the workflow creates it at the pushed commit and
   proceeds with the release in the same workflow run.
-- If the tag already points to the pushed commit or one of its ancestors, the
-  version has already been released and the workflow exits successfully without
-  rebuilding it.
+- If the tag already points to the pushed commit or one of its ancestors and its
+  release is public, the version has already been released and the workflow
+  exits successfully without rebuilding it. If the release is missing or still
+  a draft, the workflow resumes publication from that protected tag.
 - If the tag exists outside the pushed `main` history, the workflow fails rather
   than moving or replacing the tag.
 
@@ -43,9 +44,11 @@ the repository `GITHUB_TOKEN` do not start a second workflow, so splitting these
 operations would require an additional long-lived token or GitHub App.
 
 The workflow uses release-level concurrency to prevent simultaneous pushes from
-publishing competing versions. The repository's `v*` tag ruleset must grant the
-GitHub Actions integration a narrowly scoped bypass for tag creation while
-retaining creation, update, and deletion restrictions for other actors.
+publishing competing versions. GitHub does not allow its Actions integration to
+be a bypass actor on this personal repository. The repository's `v*` tag ruleset
+therefore permits new tags, while continuing to prevent existing release tags
+from being updated or deleted. Workflow validation still rejects mismatched or
+off-`main` tags before publication.
 
 ## Failure handling
 
