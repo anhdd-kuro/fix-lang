@@ -39,6 +39,12 @@ Overview and Models share a time-range filter (All / 30d / 7d).
 
 - 149 terminal-inspired themes with derive-ladder color mapping
 
+### App updates
+
+- Installed releases can check for signed FixLang updates from **Settings → General → App updates**
+- Updates are shown with their version and release notes, then download only after you choose **Download update**
+- Once downloaded, choose **Restart to update** to apply it; source and development builds remain unchanged
+
 ## Installation
 
 ### From release
@@ -46,6 +52,7 @@ Overview and Models share a time-range filter (All / 30d / 7d).
 1. Download the latest `.dmg` from the releases page
 2. Open the `.dmg` and drag FixLang to Applications
 3. Open the app, enter your API key(s) in Settings, and grant Accessibility permission when prompted
+4. Keep the app current from **Settings → General → App updates**
 
 ### Build from source
 
@@ -83,6 +90,30 @@ bun run themes:generate  # after editing theme .ts files
 ```
 
 > `bun test` invokes bun's own runner and ignores the Vitest config.
+
+## Publishing a macOS release
+
+FixLang distributes Apple Silicon macOS releases through public GitHub Releases. The app checks the release metadata and verifies the downloaded update before offering a restart.
+
+Before publishing, configure these GitHub Actions secrets from an Apple Developer account:
+
+- `MAC_CSC_LINK` — base64-encoded **Developer ID Application** `.p12` certificate
+- `MAC_CSC_KEY_PASSWORD` — certificate password
+- `APPLE_API_KEY` — base64-encoded App Store Connect API key (`.p8`)
+- `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, and `APPLE_TEAM_ID`
+
+Release a version by updating `package.json`, running the checks locally, and pushing the matching tag. For example:
+
+```bash
+bun run lint
+bun run test
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+The workflow rejects a tag that does not exactly match `package.json`, builds and notarizes `FixLang-<version>-arm64.dmg` and `.zip`, uploads them with `latest-mac.yml` to a draft release, validates the signed app, then makes the completed release public. Do not publish a release until the repository itself is public; end-user update checks intentionally require public GitHub Releases.
+
+The workflow decodes `APPLE_API_KEY` only into the runner’s temporary directory immediately before packaging and removes that temporary `.p8` file on every exit path.
 
 ## Security
 

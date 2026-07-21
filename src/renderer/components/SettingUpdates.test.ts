@@ -50,6 +50,16 @@ const click = async (element: Element) => {
   });
 };
 
+const buttonNamed = (container: HTMLElement, label: string): HTMLButtonElement => {
+  const button = [...container.querySelectorAll("button")].find(
+    (candidate) => candidate.textContent === label,
+  );
+  if (!button) {
+    throw new Error(`Expected a button named ${label}`);
+  }
+  return button;
+};
+
 describe("SettingUpdates", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -115,12 +125,9 @@ describe("SettingUpdates", () => {
   it("checks for updates from the idle state", async () => {
     await render(readyState());
 
-    const check = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === "Check for updates",
-    );
-    expect(check).toBeDefined();
+    const check = buttonNamed(container, "Check for updates");
 
-    await click(check!);
+    await click(check);
     expect(api.checkForUpdates).toHaveBeenCalledTimes(1);
   });
 
@@ -157,10 +164,7 @@ describe("SettingUpdates", () => {
     );
     expect(container.innerHTML).toContain("&lt;strong&gt;Safer updater&lt;/strong&gt;");
 
-    const download = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === "Download update",
-    );
-    await click(download!);
+    await click(buttonNamed(container, "Download update"));
     expect(api.downloadUpdate).toHaveBeenCalledTimes(1);
   });
 
@@ -190,10 +194,7 @@ describe("SettingUpdates", () => {
     expect(container.textContent).toContain(
       "Version v0.2.0 is ready to install.",
     );
-    const install = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === "Restart to update",
-    );
-    await click(install!);
+    await click(buttonNamed(container, "Restart to update"));
     expect(api.installUpdate).toHaveBeenCalledTimes(1);
   });
 
@@ -206,14 +207,8 @@ describe("SettingUpdates", () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
       "Could not reach GitHub Releases.",
     );
-    const retry = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === "Try again",
-    );
-    const releases = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === "View releases",
-    );
-    await click(retry!);
-    await click(releases!);
+    await click(buttonNamed(container, "Try again"));
+    await click(buttonNamed(container, "View releases"));
 
     expect(api.checkForUpdates).toHaveBeenCalledTimes(1);
     expect(api.openUpdateRelease).toHaveBeenCalledTimes(1);
@@ -236,5 +231,73 @@ describe("SettingUpdates", () => {
     });
     expect(unsubscribe).toHaveBeenCalledTimes(1);
     root = undefined as unknown as Root;
+  });
+
+  it("does not let a late initial snapshot overwrite a newer update event", async () => {
+    let resolveInitial: ((state: UpdateState) => void) | undefined;
+    const initial = new Promise<UpdateState>((resolve) => {
+      resolveInitial = resolve;
+    });
+
+    await render(readyState());
+    api.getUpdateState.mockReturnValueOnce(initial);
+
+    await act(async () => {
+      root.unmount();
+    });
+
+    container.remove();
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root.render(createElement(SettingUpdates));
+    });
+
+    await act(async () => {
+      updateListener?.({
+        ...readyState("available"),
+        availableVersion: "0.2.0",
+      });
+      resolveInitial?.(readyState("idle"));
+      await initial;
+    });
+
+    expect(container.textContent).toContain("Version v0.2.0 is available");
+    expect(container.textContent).not.toContain("Checks GitHub Releases");
+  });
+
+  it("does not let a late snapshot failure overwrite a newer update event", async () => {
+    let rejectInitial: ((error: Error) => void) | undefined;
+    const initial = new Promise<UpdateState>((_resolve, reject) => {
+      rejectInitial = reject;
+    });
+
+    await render(readyState());
+    api.getUpdateState.mockReturnValueOnce(initial);
+
+    await act(async () => {
+      root.unmount();
+    });
+
+    container.remove();
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root.render(createElement(SettingUpdates));
+    });
+
+    await act(async () => {
+      updateListener?.({
+        ...readyState("downloaded"),
+        availableVersion: "0.2.0",
+      });
+      rejectInitial?.(new Error("late snapshot failure"));
+      await initial.catch(() => undefined);
+    });
+
+    expect(container.textContent).toContain("Version v0.2.0 is ready to install");
+    expect(container.textContent).not.toContain("Could not load update status");
   });
 });

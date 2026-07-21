@@ -10,3 +10,4 @@ export * from "./theme";
 export * from "./ui";
 export * from "./history";
 export * from "./openrouter";
+export * from "./update";

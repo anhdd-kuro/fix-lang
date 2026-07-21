@@ -14,6 +14,7 @@ import {
   uiFeature,
   historyFeature,
   openrouterFeature,
+  updateFeature,
 } from "./features";
 import type {
   ApiFeature,
@@ -27,6 +28,7 @@ import type {
   SettingsFeature,
   ThemeFeature,
   UIFeature,
+  UpdateFeature,
 } from "./features";
 
 // Log that preload script is being executed
@@ -45,6 +47,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...themeFeature,
   ...uiFeature,
   ...openrouterFeature,
+  ...updateFeature,
 } satisfies ElectronAPI);
 
 console.log(
@@ -61,4 +64,5 @@ export type ElectronAPI = HistoryFeature &
   SettingsFeature &
   ThemeFeature &
   UIFeature &
-  OpenRouterFeature;
+  OpenRouterFeature &
+  UpdateFeature;

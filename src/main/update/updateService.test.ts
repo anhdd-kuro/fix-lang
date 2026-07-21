@@ -39,6 +39,7 @@ const createService = (
     isPackaged: boolean;
     platform: string;
     getCurrentVersion: () => string;
+    onLog: (level: "info" | "warn" | "error", message: string) => void;
   }> = {},
 ) => {
   const fakeUpdater = createFakeUpdater();
@@ -47,6 +48,7 @@ const createService = (
     isPackaged: overrides.isPackaged ?? true,
     platform: overrides.platform ?? "darwin",
     getCurrentVersion: overrides.getCurrentVersion ?? (() => "0.1.0"),
+    onLog: overrides.onLog,
   });
 
   return { service, ...fakeUpdater };
@@ -209,16 +211,51 @@ describe("update service", () => {
   });
 
   it("turns updater failures into a retryable, user-safe error state", async () => {
-    const { service, emit } = createService();
+    const onLog = vi.fn();
+    const { service, emit } = createService({ onLog });
+    const sensitiveError = new Error(
+      "request failed at https://private.example/releases?token=secret " +
+        "using /Users/kuro/Library/Caches/fixlang/pending.zip",
+    );
 
     const check = service.checkForUpdates();
-    emit("error", new Error("network failure: https://private.example/token"));
+    emit("error", sensitiveError);
     await check;
 
     const state = service.getState();
     expect(state.phase).toBe("error");
     expect(state.message).toMatch(/try again/i);
     expect(state.message).not.toContain("private.example");
+    expect(onLog).toHaveBeenCalledWith(
+      "warn",
+      "App update check failed (Error)",
+    );
+    const persistedLogInput = JSON.stringify(onLog.mock.calls);
+    expect(persistedLogInput).not.toContain("private.example");
+    expect(persistedLogInput).not.toContain("token=secret");
+    expect(persistedLogInput).not.toContain("/Users/kuro");
+    expect(persistedLogInput).not.toContain("pending.zip");
+  });
+
+  it("handles an updater error event and rejected operation only once", async () => {
+    const onLog = vi.fn();
+    const { service, updater, emit } = createService({ onLog });
+    const phases: string[] = [];
+    service.subscribe((state) => phases.push(state.phase));
+    const failure = new Error("duplicated failure with /private/cache.zip");
+    updater.checkForUpdates.mockImplementationOnce(async () => {
+      emit("error", failure);
+      throw failure;
+    });
+
+    await service.checkForUpdates();
+
+    expect(onLog).toHaveBeenCalledTimes(1);
+    expect(onLog).toHaveBeenCalledWith(
+      "warn",
+      "App update check failed (Error)",
+    );
+    expect(phases.filter((phase) => phase === "error")).toHaveLength(1);
   });
 
   it("notifies subscribers with the latest immutable state", () => {
