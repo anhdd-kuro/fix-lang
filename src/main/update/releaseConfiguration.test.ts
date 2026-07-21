@@ -132,6 +132,15 @@ describe("public GitHub Releases update distribution", () => {
     expect(workflow).toContain(
       "RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}",
     );
+    expect(workflowStep(workflow, "Resolve release version and tag")).toContain(
+      'gh release view "${release_tag}" --json isDraft',
+    );
+    expect(workflowStep(workflow, "Resolve release version and tag")).toContain(
+      "already has a public release; skipping publication",
+    );
+    expect(workflowStep(workflow, "Resolve release version and tag")).toContain(
+      "has no completed release; resuming publication",
+    );
     expect(workflow).toContain("gh release create");
     expect(workflow).toContain("--draft");
     expect(workflow).toContain("electron-builder --mac --arm64 --publish always");
