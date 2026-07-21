@@ -214,4 +214,21 @@ describe("public GitHub Releases update distribution", () => {
     expect(workflow).toContain("'.assets[].name'");
     expect(workflow).toContain("Draft release is missing ${expected_asset}.");
   });
+
+  it("allows Actions to create release tags while preventing tag replacement", () => {
+    const ruleset = JSON.parse(
+      readProjectFile(".github/release-tag-ruleset.json"),
+    ) as {
+      bypass_actors: Array<{ actor_type: string }>;
+      rules: Array<{ type: string }>;
+    };
+
+    expect(ruleset.bypass_actors).toEqual([
+      expect.objectContaining({ actor_type: "User" }),
+    ]);
+    expect(ruleset.rules.map((rule) => rule.type)).toEqual([
+      "update",
+      "deletion",
+    ]);
+  });
 });
