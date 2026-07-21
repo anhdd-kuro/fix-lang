@@ -11,15 +11,9 @@ const updateApi = () => window.electronAPI;
 const displayVersion = (version: string | undefined): string =>
   version?.startsWith("v") ? version : `v${version ?? ""}`;
 
-const progressPercent = (progress: UpdateState["progress"]): number => {
-  if (typeof progress?.percent !== "number") return 0;
-  return Math.min(100, Math.max(0, Math.round(progress.percent)));
-};
-
 /**
- * App-update controls for Settings → General. Update transport and installation
- * stay in the main process; this component only renders safe state and invokes
- * the narrow preload bridge.
+ * App-update controls for Settings → General. The main process validates
+ * GitHub metadata; this component only renders safe state and opens releases.
  */
 export const SettingUpdates = () => {
   const [state, setState] = useState<UpdateState>(initialState);
@@ -88,7 +82,7 @@ export const SettingUpdates = () => {
     }
   };
 
-  const isBusy = actionPending || state.phase === "checking" || state.phase === "downloading";
+  const isBusy = actionPending || state.phase === "checking";
   const latestVersion = displayVersion(state.availableVersion);
 
   return (
@@ -111,7 +105,7 @@ export const SettingUpdates = () => {
       {state.phase === "idle" && (
         <>
           <p className="mt-1 text-xs text-muted-foreground">
-            Checks GitHub Releases. Downloads only after you choose.
+            Checks GitHub Releases. Updates install manually.
           </p>
           <button
             type="button"
@@ -175,19 +169,24 @@ export const SettingUpdates = () => {
               {state.releaseNotes}
             </p>
           )}
+          <p className="mt-1 text-xs text-muted-foreground">
+            Install the DMG, replace FixLang in Applications, then run{" "}
+            <code>xattr -dr com.apple.quarantine &quot;/Applications/FixLang.app&quot;</code>{" "}
+            if macOS blocks it.
+          </p>
           <div className="mt-2 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() =>
                 void run(
-                  () => updateApi().downloadUpdate(),
-                  "Could not download the update.",
+                  () => updateApi().openUpdateRelease(),
+                  "Could not open the release page.",
                 )
               }
               disabled={isBusy}
               className="rounded bg-primary px-3 py-1.5 text-sm text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Download update
+              Download from GitHub
             </button>
             <button
               type="button"
@@ -203,41 +202,6 @@ export const SettingUpdates = () => {
               View releases
             </button>
           </div>
-        </>
-      )}
-
-      {state.phase === "downloading" && (
-        <>
-          <p className="mt-1 text-xs text-muted-foreground" role="status" aria-live="polite">
-            Downloading {progressPercent(state.progress)}%
-          </p>
-          <progress
-            className="mt-2 h-2 w-full"
-            value={progressPercent(state.progress)}
-            max={100}
-            aria-label={`Downloading version ${state.availableVersion ?? "update"}`}
-          />
-        </>
-      )}
-
-      {state.phase === "downloaded" && (
-        <>
-          <p className="mt-1 text-xs text-success" role="status" aria-live="polite">
-            Version {latestVersion} is ready to install.
-          </p>
-          <button
-            type="button"
-            onClick={() =>
-              void run(
-                () => updateApi().installUpdate(),
-                "Could not install the update.",
-              )
-            }
-            disabled={isBusy}
-            className="mt-2 rounded bg-primary px-3 py-1.5 text-sm text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Restart to update
-          </button>
         </>
       )}
 

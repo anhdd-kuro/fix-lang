@@ -19,17 +19,9 @@ export const registerUpdateHandlers = (service: UpdateService): void => {
     await service.checkForUpdates();
     return service.getState();
   });
-  ipcMain.handle("updates:download", async () => {
-    await service.downloadUpdate();
-    return service.getState();
-  });
-  ipcMain.handle("updates:install", () => {
-    service.installUpdate();
-    return service.getState();
-  });
   ipcMain.handle("updates:open-release", async () => {
     try {
-      await shell.openExternal(RELEASES_URL);
+      await shell.openExternal(service.getReleaseUrl() ?? RELEASES_URL);
       return { success: true } satisfies OpenUpdateReleaseResult;
     } catch {
       return {

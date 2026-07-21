@@ -1,6 +1,6 @@
 import { app } from "electron";
 import { logger } from "~/main/logging/logService";
-import { createElectronUpdaterDriver } from "./electronUpdaterAdapter";
+import { createGitHubReleaseSource } from "./githubReleaseSource";
 import { createUpdateService, type UpdateService } from "./updateService";
 
 let updateService: UpdateService | null = null;
@@ -12,9 +12,10 @@ export const initializeUpdateService = (): UpdateService => {
   }
 
   updateService = createUpdateService({
-    updater: createElectronUpdaterDriver(),
+    releaseSource: createGitHubReleaseSource(),
     isPackaged: app.isPackaged,
     platform: process.platform,
+    arch: process.arch,
     getCurrentVersion: () => app.getVersion(),
     onLog: (level, message) => logger[level]("updates", message),
   });

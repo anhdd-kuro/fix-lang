@@ -5,16 +5,7 @@ export type UpdatePhase =
   | "checking"
   | "up-to-date"
   | "available"
-  | "downloading"
-  | "downloaded"
   | "error";
-
-export type UpdateProgress = Readonly<{
-  percent: number;
-  transferred: number;
-  total: number;
-  bytesPerSecond: number;
-}>;
 
 /**
  * This intentionally contains no updater URLs, file paths, or error details.
@@ -25,7 +16,6 @@ export type UpdateState = Readonly<{
   currentVersion: string;
   availableVersion?: string;
   releaseNotes?: string;
-  progress?: UpdateProgress;
   message?: string;
 }>;
 
@@ -33,14 +23,20 @@ export type OpenUpdateReleaseResult =
   | Readonly<{ success: true }>
   | Readonly<{ success: false; error: string }>;
 
+const UPDATE_STATE_KEYS = new Set<keyof UpdateState>([
+  "phase",
+  "currentVersion",
+  "availableVersion",
+  "releaseNotes",
+  "message",
+]);
+
 const PHASES = new Set<UpdatePhase>([
   "unsupported",
   "idle",
   "checking",
   "up-to-date",
   "available",
-  "downloading",
-  "downloaded",
   "error",
 ]);
 
@@ -51,6 +47,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 export const isUpdateState = (value: unknown): value is UpdateState => {
   if (
     !isRecord(value) ||
+    Object.keys(value).some(
+      (key) => !UPDATE_STATE_KEYS.has(key as keyof UpdateState),
+    ) ||
     typeof value.phase !== "string" ||
     !PHASES.has(value.phase as UpdatePhase) ||
     typeof value.currentVersion !== "string"
@@ -65,16 +64,7 @@ export const isUpdateState = (value: unknown): value is UpdateState => {
   ) {
     return false;
   }
-  if (value.progress === undefined) {
-    return true;
-  }
-  return (
-    isRecord(value.progress) &&
-    typeof value.progress.percent === "number" &&
-    typeof value.progress.transferred === "number" &&
-    typeof value.progress.total === "number" &&
-    typeof value.progress.bytesPerSecond === "number"
-  );
+  return true;
 };
 
 /** Validates the fixed result shape for the releases-page IPC action. */

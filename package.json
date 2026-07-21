@@ -18,7 +18,7 @@
     "dev": "electron-vite dev",
     "pack": "rm -rf release && electron-vite build && electron-builder --mac",
     "pack:mac": "rm -rf release && electron-vite build && electron-builder --mac dir",
-    "release:mac": "electron-vite build && electron-builder --mac --arm64 --publish always",
+    "release:mac": "electron-vite build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --publish never",
     "install:applications": "if [ -d \"release/mac-arm64/FixLang.app\" ]; then rm -rf \"/Applications/FixLang.app\" && cp -R \"release/mac-arm64/FixLang.app\" \"/Applications/FixLang.app\"; elif [ -d \"release/mac/FixLang.app\" ]; then rm -rf \"/Applications/FixLang.app\" && cp -R \"release/mac/FixLang.app\" \"/Applications/FixLang.app\"; else echo \"Build output not found. Run pnpm run pack:mac first.\" && exit 1; fi",
     "pack:install": "bun run pack:mac && bun run install:applications",
     "prebuild": "bun run themes:generate",
@@ -82,7 +82,6 @@
     "dotenv": "17.4.2",
     "electron-squirrel-startup": "1.0.1",
     "electron-store": "11.0.2",
-    "electron-updater": "6.8.9",
     "fuse.js": "7.5.0",
     "languagedetect": "2.0.0",
     "node-mac-permissions": "2.5.0",
@@ -96,6 +95,7 @@
   "build": {
     "appId": "com.fixlang.app",
     "productName": "FixLang",
+    "publish": null,
     "directories": {
       "output": "release",
       "buildResources": "resources"
@@ -107,19 +107,18 @@
     ],
     "mac": {
       "target": [
-        "dmg",
-        "zip"
+        "dmg"
       ],
       "category": "public.app-category.productivity",
       "darkModeSupport": true,
-      "hardenedRuntime": true,
-      "gatekeeperAssess": true,
-      "notarize": true,
-      "entitlements": "resources/entitlements.mac.plist",
-      "entitlementsInherit": "resources/entitlements.mac.inherit.plist",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "notarize": false,
       "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "dmg": {
+      "writeUpdateInfo": false,
       "contents": [
         {
           "x": 130,
@@ -143,17 +142,7 @@
     "linux": {
       "target": "AppImage",
       "category": "Utility"
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "anhdd-kuro",
-        "repo": "fix-lang",
-        "tagNamePrefix": "v",
-        "releaseType": "draft"
-      }
-    ],
-    "electronUpdaterCompatibility": ">= 2.16"
+    }
   },
   "trustedDependencies": [
     "electron",

@@ -12,10 +12,8 @@ export default defineConfig({
     build: {
       outDir: "out/main",
       rollupOptions: {
-        // Keep Electron 43's CommonJS runtime boundary intact. Bundling
-        // electron-updater would pull in Node/Electron internals that must stay
-        // as runtime requires inside the packaged app.
-        external: ["electron", "electron-updater"],
+        // Keep Electron 43's CommonJS runtime boundary intact.
+        external: ["electron"],
         input: {
           index: resolve(__dirname, "src/main/index.ts"),
         },

@@ -28,10 +28,6 @@ export const updateFeature = {
 
   checkForUpdates: (): Promise<UpdateState> => invokeUpdateAction("updates:check"),
 
-  downloadUpdate: (): Promise<UpdateState> => invokeUpdateAction("updates:download"),
-
-  installUpdate: (): Promise<UpdateState> => invokeUpdateAction("updates:install"),
-
   openUpdateRelease: (): Promise<OpenUpdateReleaseResult> => invokeOpenRelease(),
 
   onUpdateStateChanged: (

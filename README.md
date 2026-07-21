@@ -41,18 +41,38 @@ Overview and Models share a time-range filter (All / 30d / 7d).
 
 ### App updates
 
-- Installed releases can check for signed FixLang updates from **Settings → General → App updates**
-- Updates are shown with their version and release notes, then download only after you choose **Download update**
-- Once downloaded, choose **Restart to update** to apply it; source and development builds remain unchanged
+- **Settings → General → App updates** compares the installed version with the
+  latest stable GitHub Release.
+- When a newer version is available, choose **View release** to open that exact
+  release in your browser. FixLang does not download or install updates itself.
+- Download the DMG and replace the app manually. Source and development builds
+  are not updated by this flow.
 
 ## Installation
 
 ### From release
 
-1. Download the latest `.dmg` from the releases page
-2. Open the `.dmg` and drag FixLang to Applications
-3. Open the app, enter your API key(s) in Settings, and grant Accessibility permission when prompted
-4. Keep the app current from **Settings → General → App updates**
+1. Download the Apple Silicon (`arm64`) DMG from the [latest FixLang
+   release](https://github.com/anhdd-kuro/fix-lang/releases/latest).
+2. Optionally download `SHA256SUMS.txt` from the same release and verify the
+   DMG before opening it. Run the following in the download folder, then compare
+   its output with the matching line in `SHA256SUMS.txt`:
+
+   ```bash
+   shasum -a 256 "FixLang-<version>-arm64.dmg"
+   ```
+3. Open the DMG and drag FixLang to `/Applications`. To update an existing
+   installation, quit FixLang first and replace `/Applications/FixLang.app`.
+4. Open the app, enter your API key(s) in Settings, and grant Accessibility
+   permission when prompted.
+
+FixLang releases are unsigned and not notarized. macOS Gatekeeper may warn or
+block the app. Only if you downloaded a release you trust and Gatekeeper blocks
+it, run:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/FixLang.app"
+```
 
 ### Build from source
 
@@ -93,16 +113,14 @@ bun run themes:generate  # after editing theme .ts files
 
 ## Publishing a macOS release
 
-FixLang distributes Apple Silicon macOS releases through public GitHub Releases. The app checks the release metadata and verifies the downloaded update before offering a restart.
+FixLang distributes unsigned Apple Silicon macOS releases through public GitHub
+Releases. No Apple ID, Developer ID certificate, notarization, or GitHub Actions
+secrets are required. This keeps publishing simple, but users will encounter the
+Gatekeeper warning described above.
 
-Before publishing, configure these GitHub Actions secrets from an Apple Developer account:
-
-- `MAC_CSC_LINK` — base64-encoded **Developer ID Application** `.p12` certificate
-- `MAC_CSC_KEY_PASSWORD` — certificate password
-- `APPLE_API_KEY` — base64-encoded App Store Connect API key (`.p8`)
-- `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, and `APPLE_TEAM_ID`
-
-Release a version by updating `package.json`, running the checks locally, committing the version bump, and pushing it to `main`. For example:
+Release a version by increasing `package.json` to a strictly higher stable
+version, running the checks locally, committing the version bump, and pushing it
+to `main`. For example:
 
 ```bash
 bun run lint
@@ -112,13 +130,23 @@ git commit -m "chore(release): bump version to 0.3.0"
 git push origin main
 ```
 
-When `main` contains a package version without a matching tag, the workflow verifies the signing secrets, creates `v<version>` at that exact commit, builds and notarizes `FixLang-<version>-arm64.dmg` and `.zip`, uploads them with `latest-mac.yml` to a draft release, validates the signed app, then makes the completed release public. Later pushes with the same published version skip publication. If a previous run created the tag but failed before publishing, rerunning it or pushing `main` again resumes from that protected tag.
+The release workflow creates `v<version>` at the pushed commit when that version
+does not already have a tag. It runs the project checks, publishes the validated
+`FixLang-<version>-arm64.dmg` and `SHA256SUMS.txt` from a draft release, then
+makes the release public. Later pushes with a version that already has a public
+release skip publication.
 
-As a recovery path, a matching `v<version>` tag may still be pushed manually. The workflow rejects tags whose version differs from `package.json` or whose commit is not on `main`. Existing tags are never moved, and public release assets are never replaced.
+Matching `v<version>` tag pushes remain supported. The workflow rejects a tag
+whose version differs from `package.json` or whose commit is not on `main`.
+Existing tags are never moved, and public release assets are never replaced. If a
+run leaves a tag with a missing or draft release, re-run the failed workflow or
+push `main` again with that same version; do not delete or rewrite the tag.
 
-The protected `v*` tag ruleset allows new tag creation so the repository `GITHUB_TOKEN` can create releases without a long-lived PAT, but prevents existing release tags from being updated or deleted. The workflow independently validates every release tag against `main` and `package.json`. Keep workflow permissions read-only by default and grant `contents: write` only to the release preparation and publishing jobs. Do not publish a release until the repository itself is public; end-user update checks intentionally require public GitHub Releases.
-
-The workflow decodes `APPLE_API_KEY` only into the runner’s temporary directory immediately before packaging and removes that temporary `.p8` file on every exit path.
+The protected `v*` tag ruleset allows new tag creation by the repository
+`GITHUB_TOKEN`, while preventing existing release tags from being updated or
+deleted. The workflow independently validates every release tag against `main`
+and `package.json`. Keep the repository public: the in-app check reads public
+GitHub Releases.
 
 ## Security
 

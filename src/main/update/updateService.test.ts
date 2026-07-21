@@ -10,6 +10,13 @@ const stableRelease = (
   body: "Improved update reliability.",
   draft: false,
   prerelease: false,
+  assets: [
+    {
+      name: `FixLang-${tagName.slice(1)}-arm64.dmg`,
+      state: "uploaded",
+      size: 1,
+    },
+  ],
   html_url: "https://malicious.example/update",
   ...overrides,
 });
@@ -18,6 +25,7 @@ const createService = (
   overrides: Partial<{
     isPackaged: boolean;
     platform: string;
+    arch: string;
     currentVersion: string;
     getLatestRelease: () => Promise<unknown>;
     onLog: (level: "info" | "warn" | "error", message: string) => void;
@@ -35,6 +43,7 @@ const createService = (
     releaseSource,
     isPackaged: overrides.isPackaged ?? true,
     platform: overrides.platform ?? "darwin",
+    arch: overrides.arch ?? "arm64",
     getCurrentVersion: () => overrides.currentVersion ?? "0.1.0",
     onLog: overrides.onLog,
   });
@@ -57,6 +66,15 @@ describe("unsigned GitHub update service", () => {
 
   it("does not offer macOS artifacts on unsupported platforms", async () => {
     const { service, releaseSource } = createService({ platform: "win32" });
+
+    await service.checkForUpdates();
+
+    expect(service.getState().phase).toBe("unsupported");
+    expect(releaseSource.getLatestRelease).not.toHaveBeenCalled();
+  });
+
+  it("does not offer Apple Silicon artifacts to an Intel app", async () => {
+    const { service, releaseSource } = createService({ arch: "x64" });
 
     await service.checkForUpdates();
 
@@ -107,6 +125,10 @@ describe("unsigned GitHub update service", () => {
     stableRelease("v0.2.0-beta.1"),
     stableRelease("v0.2.0", { draft: true }),
     stableRelease("v0.2.0", { prerelease: true }),
+    stableRelease("v0.2.0", { assets: [] }),
+    stableRelease("v0.2.0", {
+      assets: [{ name: "FixLang-0.2.0-arm64.dmg", state: "uploaded", size: 0 }],
+    }),
     { message: "not a release" },
   ])("rejects malformed or non-stable release metadata", async (release) => {
     const { service } = createService({

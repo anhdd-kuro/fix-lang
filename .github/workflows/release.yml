@@ -33,18 +33,21 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
-          RELEASE_MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
-          RELEASE_APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          RELEASE_APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          RELEASE_APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          RELEASE_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
 
+          stable_version_pattern='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
           package_version="$(node -p "require('./package.json').version")"
-          if ! [[ "${package_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          if ! [[ "${package_version}" =~ ${stable_version_pattern} ]]; then
             echo "package.json version must be a stable semantic version (for example, 0.3.0)." >&2
+            exit 1
+          fi
+          if ! node -e '
+            const version = process.argv[1];
+            const components = version.split(".").map(Number);
+            process.exit(components.every(Number.isSafeInteger) ? 0 : 1);
+          ' "${package_version}"; then
+            echo "package.json version components must be safe integers." >&2
             exit 1
           fi
 
@@ -52,23 +55,68 @@ jobs:
           echo "release_tag=${release_tag}" >> "${GITHUB_OUTPUT}"
           git fetch --no-tags origin main:refs/remotes/origin/main
 
-          require_release_secrets() {
-            local missing=()
-            local variable_name
-            for variable_name in \
-              RELEASE_MAC_CSC_LINK \
-              RELEASE_MAC_CSC_KEY_PASSWORD \
-              RELEASE_APPLE_API_KEY \
-              RELEASE_APPLE_API_KEY_ID \
-              RELEASE_APPLE_API_ISSUER \
-              RELEASE_APPLE_TEAM_ID; do
-              if [ -z "${!variable_name:-}" ]; then
-                missing+=("${variable_name#RELEASE_}")
-              fi
-            done
+          latest_public_version() {
+            gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+              | node -e '
+                let input = "";
+                process.stdin.on("data", (chunk) => (input += chunk));
+                process.stdin.on("end", () => {
+                  const releases = JSON.parse(input).flat();
+                  const versions = releases
+                    .filter((release) => !release.draft && !release.prerelease)
+                    .map((release) => release.tag_name)
+                    .map((tag) => {
+                      const match = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.exec(tag);
+                      if (!match) return null;
 
-            if [ "${#missing[@]}" -gt 0 ]; then
-              printf 'Missing required release secrets: %s\n' "${missing[*]}" >&2
+                      const parts = match.slice(1).map(Number);
+                      if (!parts.every(Number.isSafeInteger)) return null;
+
+                      return { raw: tag.slice(1), parts: parts.map(BigInt) };
+                    })
+                    .filter((version) => version !== null);
+                  versions.sort((left, right) => {
+                    for (let index = 0; index < 3; index += 1) {
+                      if (left.parts[index] !== right.parts[index]) {
+                        return left.parts[index] < right.parts[index] ? -1 : 1;
+                      }
+                    }
+                    return 0;
+                  });
+                  if (versions.length > 0) console.log(versions.at(-1).raw);
+                });
+              '
+          }
+
+          version_is_greater_than() {
+            node -e '
+              const [candidate, current] = process.argv.slice(1);
+              const candidateParts = candidate.split(".").map(BigInt);
+              const currentParts = current.split(".").map(BigInt);
+              for (let index = 0; index < 3; index += 1) {
+                if (candidateParts[index] !== currentParts[index]) {
+                  process.exit(candidateParts[index] > currentParts[index] ? 0 : 1);
+                }
+              }
+              process.exit(1);
+            ' "${1}" "${2}"
+          }
+
+          release_is_public() {
+            local tag="$1"
+            local is_draft
+            if is_draft="$(gh release view "${tag}" --json isDraft --jq '.isDraft' 2>/dev/null)"; then
+              [ "${is_draft}" != "true" ]
+            else
+              return 1
+            fi
+          }
+
+          ensure_monotonic_version() {
+            local latest_version
+            latest_version="$(latest_public_version)"
+            if [ -n "${latest_version}" ] && ! version_is_greater_than "${package_version}" "${latest_version}"; then
+              echo "Package version ${package_version} must be greater than the latest public stable release ${latest_version}." >&2
               exit 1
             fi
           }
@@ -85,7 +133,13 @@ jobs:
               exit 1
             fi
 
-            require_release_secrets
+            if release_is_public "${release_tag}"; then
+              echo "Version ${package_version} already has a public release; skipping publication."
+              echo "should_publish=false" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+
+            ensure_monotonic_version
             echo "should_publish=true" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
@@ -103,21 +157,19 @@ jobs:
               exit 1
             fi
 
-            if release_is_draft="$(gh release view "${release_tag}" --json isDraft --jq '.isDraft' 2>/dev/null)"; then
-              if [ "${release_is_draft}" != "true" ]; then
-                echo "Version ${package_version} already has a public release; skipping publication."
-                echo "should_publish=false" >> "${GITHUB_OUTPUT}"
-                exit 0
-              fi
+            if release_is_public "${release_tag}"; then
+              echo "Version ${package_version} already has a public release; skipping publication."
+              echo "should_publish=false" >> "${GITHUB_OUTPUT}"
+              exit 0
             fi
 
+            ensure_monotonic_version
             echo "Version ${package_version} is tagged but has no completed release; resuming publication."
-            require_release_secrets
             echo "should_publish=true" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
-          require_release_secrets
+          ensure_monotonic_version
           gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
             -f "ref=refs/tags/${release_tag}" \
             -f "sha=${GITHUB_SHA}" >/dev/null
@@ -125,7 +177,7 @@ jobs:
           echo "should_publish=true" >> "${GITHUB_OUTPUT}"
 
   release:
-    name: Build, notarize, and publish macOS release
+    name: Build and publish unsigned macOS release
     needs: prepare
     if: needs.prepare.outputs.should_publish == 'true'
     runs-on: macos-14
@@ -167,7 +219,42 @@ jobs:
       - name: Build renderer and processes
         run: bun run build
 
-      - name: Create draft release
+      - name: Build unsigned arm64 DMG
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: bunx electron-builder --mac --arm64 --publish never
+
+      - name: Validate unsigned arm64 artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_version="$(bun -e 'console.log((await Bun.file("package.json").json()).version)')"
+          artifact_name="FixLang-${package_version}-arm64.dmg"
+          artifact_path="release/${artifact_name}"
+          test -s "release/FixLang-${package_version}-arm64.dmg"
+          hdiutil verify "release/FixLang-${package_version}-arm64.dmg"
+
+          mount_path="$(mktemp -d)"
+          cleanup() {
+            hdiutil detach "${mount_path}" -quiet >/dev/null 2>&1 || true
+            rmdir "${mount_path}" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          hdiutil attach "${artifact_path}" -nobrowse -readonly -noverify -mountpoint "${mount_path}" >/dev/null
+          app_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "${mount_path}/FixLang.app/Contents/Info.plist")"
+          if [ "${app_version}" != "${package_version}" ]; then
+            echo "DMG contains FixLang ${app_version}, expected ${package_version}." >&2
+            exit 1
+          fi
+
+          (
+            cd release
+            shasum -a 256 "${artifact_name}" > SHA256SUMS.txt
+          )
+          test -s release/SHA256SUMS.txt
+          grep -Fq "${artifact_name}" release/SHA256SUMS.txt
+
+      - name: Create or resume draft release
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -184,53 +271,68 @@ jobs:
               --title "FixLang ${RELEASE_TAG}"
           fi
 
-      - name: Prepare App Store Connect API key
-        shell: bash
-        env:
-          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY }}
-        run: |
-          key_path="${RUNNER_TEMP}/app-store-connect-api-key.p8"
-          printf '%s' "${APPLE_API_KEY_BASE64}" | base64 -D > "${key_path}"
-          chmod 600 "${key_path}"
-
-      - name: Build, sign, notarize, and upload arm64 artifacts
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
-          APPLE_API_KEY: ${{ runner.temp }}/app-store-connect-api-key.p8
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: bunx electron-builder --mac --arm64 --publish always
-
-      - name: Remove App Store Connect API key
-        if: always()
-        shell: bash
-        run: rm -f "${RUNNER_TEMP}/app-store-connect-api-key.p8"
-
-      - name: Verify published update artifacts
+      - name: Upload validated release assets
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           package_version="$(bun -e 'console.log((await Bun.file("package.json").json()).version)')"
-          test -f release/latest-mac.yml
-          test -f "release/FixLang-${package_version}-arm64.dmg"
-          test -f "release/FixLang-${package_version}-arm64.zip"
-          codesign --verify --deep --strict --verbose=2 "release/mac-arm64/FixLang.app"
-          spctl --assess --verbose=4 --type execute "release/mac-arm64/FixLang.app"
-          xcrun stapler validate "release/mac-arm64/FixLang.app"
+          artifact_name="FixLang-${package_version}-arm64.dmg"
           remote_assets="$(gh release view "${RELEASE_TAG}" --json assets --jq '.assets[].name')"
-          for expected_asset in \
-            latest-mac.yml \
-            "FixLang-${package_version}-arm64.dmg" \
-            "FixLang-${package_version}-arm64.zip"; do
+          expected_count=0
+          for expected_asset in "${artifact_name}" SHA256SUMS.txt; do
+            if grep -Fxq "${expected_asset}" <<< "${remote_assets}"; then
+              expected_count=$((expected_count + 1))
+            fi
+          done
+
+          if [ "${expected_count}" -eq 0 ]; then
+            gh release upload "${RELEASE_TAG}" \
+              "release/FixLang-${package_version}-arm64.dmg" \
+              release/SHA256SUMS.txt
+          elif [ "${expected_count}" -eq 2 ]; then
+            echo "Draft ${RELEASE_TAG} already has the validated immutable assets; resuming publication."
+          else
+            echo "Draft ${RELEASE_TAG} has a partial immutable asset set; delete the draft before retrying." >&2
+            exit 1
+          fi
+
+      - name: Verify uploaded release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          package_version="$(bun -e 'console.log((await Bun.file("package.json").json()).version)')"
+          artifact_name="FixLang-${package_version}-arm64.dmg"
+          remote_assets="$(gh release view "${RELEASE_TAG}" --json assets --jq '.assets[].name')"
+          remote_asset_count="$(grep -cve '^$' <<< "${remote_assets}")"
+          if [ "${remote_asset_count}" -ne 2 ]; then
+            echo "Draft release must contain exactly the DMG and SHA256SUMS.txt, found ${remote_asset_count} assets." >&2
+            exit 1
+          fi
+
+          for expected_asset in "${artifact_name}" SHA256SUMS.txt; do
             if ! grep -Fxq "${expected_asset}" <<< "${remote_assets}"; then
               echo "Draft release is missing ${expected_asset}." >&2
               exit 1
             fi
           done
+
+          download_path="$(mktemp -d)"
+          cleanup() {
+            rm -rf "${download_path}"
+          }
+          trap cleanup EXIT
+          gh release download "${RELEASE_TAG}" \
+            --pattern "${artifact_name}" \
+            --pattern SHA256SUMS.txt \
+            --dir "${download_path}"
+          (
+            cd "${download_path}"
+            shasum -a 256 -c SHA256SUMS.txt
+          )
 
       - name: Publish completed release
         env:
