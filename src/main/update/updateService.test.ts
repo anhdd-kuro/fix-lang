@@ -1,278 +1,189 @@
 import { describe, expect, it, vi } from "vitest";
 import { createUpdateService } from "./updateService";
 
-type UpdaterListener = (...args: unknown[]) => void;
-
-/**
- * Minimal event-driven updater double. It deliberately resembles the public
- * subset FixLang needs from electron-updater without loading Electron in Vitest.
- */
-const createFakeUpdater = () => {
-  const listeners = new Map<string, UpdaterListener[]>();
-  const updater = {
-    autoDownload: true,
-    autoInstallOnAppQuit: true,
-    allowPrerelease: true,
-    allowDowngrade: true,
-    on: vi.fn((event: string, listener: UpdaterListener) => {
-      const existing = listeners.get(event) ?? [];
-      existing.push(listener);
-      listeners.set(event, existing);
-    }),
-    checkForUpdates: vi.fn<() => Promise<void>>().mockResolvedValue(),
-    downloadUpdate: vi.fn<() => Promise<void>>().mockResolvedValue(),
-    quitAndInstall: vi.fn<() => void>(),
-  };
-
-  return {
-    updater,
-    emit: (event: string, ...args: unknown[]): void => {
-      for (const listener of listeners.get(event) ?? []) {
-        listener(...args);
-      }
-    },
-  };
-};
+const stableRelease = (
+  tagName = "v0.2.0",
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> => ({
+  tag_name: tagName,
+  name: `FixLang ${tagName}`,
+  body: "Improved update reliability.",
+  draft: false,
+  prerelease: false,
+  html_url: "https://malicious.example/update",
+  ...overrides,
+});
 
 const createService = (
   overrides: Partial<{
     isPackaged: boolean;
     platform: string;
-    getCurrentVersion: () => string;
+    currentVersion: string;
+    getLatestRelease: () => Promise<unknown>;
     onLog: (level: "info" | "warn" | "error", message: string) => void;
   }> = {},
 ) => {
-  const fakeUpdater = createFakeUpdater();
+  const releaseSource = {
+    getLatestRelease: vi
+      .fn<() => Promise<unknown>>()
+      .mockImplementation(
+        overrides.getLatestRelease ??
+          (() => Promise.resolve(stableRelease())),
+      ),
+  };
   const service = createUpdateService({
-    updater: fakeUpdater.updater,
+    releaseSource,
     isPackaged: overrides.isPackaged ?? true,
     platform: overrides.platform ?? "darwin",
-    getCurrentVersion: overrides.getCurrentVersion ?? (() => "0.1.0"),
+    getCurrentVersion: () => overrides.currentVersion ?? "0.1.0",
     onLog: overrides.onLog,
   });
 
-  return { service, ...fakeUpdater };
+  return { service, releaseSource };
 };
 
-describe("update service", () => {
+describe("unsigned GitHub update service", () => {
   it("does not contact GitHub from development builds", async () => {
-    const { service, updater } = createService({ isPackaged: false });
+    const { service, releaseSource } = createService({ isPackaged: false });
 
     expect(service.getState()).toMatchObject({
       phase: "unsupported",
       currentVersion: "0.1.0",
     });
+    await service.checkForUpdates();
+
+    expect(releaseSource.getLatestRelease).not.toHaveBeenCalled();
+  });
+
+  it("does not offer macOS artifacts on unsupported platforms", async () => {
+    const { service, releaseSource } = createService({ platform: "win32" });
 
     await service.checkForUpdates();
 
-    expect(updater.checkForUpdates).not.toHaveBeenCalled();
+    expect(service.getState().phase).toBe("unsupported");
+    expect(releaseSource.getLatestRelease).not.toHaveBeenCalled();
   });
 
-  it("does not enable the macOS updater on unsupported platforms", async () => {
-    const { service, updater } = createService({ platform: "win32" });
+  it("reports a newer stable release and derives a trusted release URL", async () => {
+    const { service, releaseSource } = createService();
 
     await service.checkForUpdates();
 
-    expect(service.getState()).toMatchObject({ phase: "unsupported" });
-    expect(updater.checkForUpdates).not.toHaveBeenCalled();
-  });
-
-  it("configures a packaged macOS release for explicit stable updates", () => {
-    const { updater } = createService();
-
-    expect(updater.autoDownload).toBe(false);
-    expect(updater.autoInstallOnAppQuit).toBe(false);
-    expect(updater.allowPrerelease).toBe(false);
-    expect(updater.allowDowngrade).toBe(false);
-  });
-
-  it("reports an available release and its notes after a manual check", async () => {
-    const { service, updater, emit } = createService();
-
-    const check = service.checkForUpdates();
-    expect(service.getState()).toMatchObject({ phase: "checking" });
-
-    emit("update-available", {
-      version: "0.2.0",
-      releaseNotes: "Improved update reliability.",
-    });
-    await check;
-
-    expect(updater.checkForUpdates).toHaveBeenCalledTimes(1);
+    expect(releaseSource.getLatestRelease).toHaveBeenCalledTimes(1);
     expect(service.getState()).toMatchObject({
       phase: "available",
       currentVersion: "0.1.0",
       availableVersion: "0.2.0",
       releaseNotes: "Improved update reliability.",
     });
-  });
-
-  it("reports that the installed release is up to date", async () => {
-    const { service, emit } = createService();
-
-    const check = service.checkForUpdates();
-    emit("update-not-available", { version: "0.1.0" });
-    await check;
-
-    expect(service.getState()).toMatchObject({
-      phase: "up-to-date",
-      currentVersion: "0.1.0",
-    });
-  });
-
-  it("prevents duplicate update checks while the first check is active", async () => {
-    let resolveCheck: (() => void) | undefined;
-    const pendingCheck = new Promise<void>((resolve) => {
-      resolveCheck = resolve;
-    });
-    const { service, updater } = createService();
-    updater.checkForUpdates.mockReturnValueOnce(pendingCheck);
-
-    const firstCheck = service.checkForUpdates();
-    const secondCheck = service.checkForUpdates();
-
-    expect(updater.checkForUpdates).toHaveBeenCalledTimes(1);
-
-    resolveCheck?.();
-    await Promise.all([firstCheck, secondCheck]);
-  });
-
-  it("does not download before an update has been offered", async () => {
-    const { service, updater } = createService();
-
-    await service.downloadUpdate();
-
-    expect(updater.downloadUpdate).not.toHaveBeenCalled();
-    expect(service.getState()).toMatchObject({ phase: "idle" });
-  });
-
-  it("surfaces download progress and becomes ready only after the archive finishes", async () => {
-    const { service, updater, emit } = createService();
-    emit("update-available", { version: "0.2.0" });
-
-    const download = service.downloadUpdate();
-    expect(service.getState()).toMatchObject({ phase: "downloading" });
-
-    emit("download-progress", {
-      percent: 42.5,
-      transferred: 425,
-      total: 1000,
-      bytesPerSecond: 120,
-    });
-    expect(service.getState()).toMatchObject({
-      phase: "downloading",
-      progress: {
-        percent: 42.5,
-        transferred: 425,
-        total: 1000,
-        bytesPerSecond: 120,
-      },
-    });
-
-    emit("update-downloaded", { version: "0.2.0" });
-    await download;
-
-    expect(updater.downloadUpdate).toHaveBeenCalledTimes(1);
-    expect(service.getState()).toMatchObject({
-      phase: "downloaded",
-      availableVersion: "0.2.0",
-    });
-  });
-
-  it("prevents duplicate downloads while a download is active", async () => {
-    let resolveDownload: (() => void) | undefined;
-    const pendingDownload = new Promise<void>((resolve) => {
-      resolveDownload = resolve;
-    });
-    const { service, updater, emit } = createService();
-    emit("update-available", { version: "0.2.0" });
-    updater.downloadUpdate.mockReturnValueOnce(pendingDownload);
-
-    const firstDownload = service.downloadUpdate();
-    const secondDownload = service.downloadUpdate();
-
-    expect(updater.downloadUpdate).toHaveBeenCalledTimes(1);
-
-    resolveDownload?.();
-    await Promise.all([firstDownload, secondDownload]);
-  });
-
-  it("installs only an already-downloaded update", () => {
-    const { service, updater, emit } = createService();
-
-    service.installUpdate();
-    expect(updater.quitAndInstall).not.toHaveBeenCalled();
-
-    emit("update-available", { version: "0.2.0" });
-    emit("update-downloaded", { version: "0.2.0" });
-    service.installUpdate();
-
-    expect(updater.quitAndInstall).toHaveBeenCalledTimes(1);
-  });
-
-  it("turns updater failures into a retryable, user-safe error state", async () => {
-    const onLog = vi.fn();
-    const { service, emit } = createService({ onLog });
-    const sensitiveError = new Error(
-      "request failed at https://private.example/releases?token=secret " +
-        "using /Users/kuro/Library/Caches/fixlang/pending.zip",
+    expect(service.getReleaseUrl()).toBe(
+      "https://github.com/anhdd-kuro/fix-lang/releases/tag/v0.2.0",
     );
-
-    const check = service.checkForUpdates();
-    emit("error", sensitiveError);
-    await check;
-
-    const state = service.getState();
-    expect(state.phase).toBe("error");
-    expect(state.message).toMatch(/try again/i);
-    expect(state.message).not.toContain("private.example");
-    expect(onLog).toHaveBeenCalledWith(
-      "warn",
-      "App update check failed (Error)",
-    );
-    const persistedLogInput = JSON.stringify(onLog.mock.calls);
-    expect(persistedLogInput).not.toContain("private.example");
-    expect(persistedLogInput).not.toContain("token=secret");
-    expect(persistedLogInput).not.toContain("/Users/kuro");
-    expect(persistedLogInput).not.toContain("pending.zip");
+    expect(service.getReleaseUrl()).not.toContain("malicious.example");
   });
 
-  it("handles an updater error event and rejected operation only once", async () => {
-    const onLog = vi.fn();
-    const { service, updater, emit } = createService({ onLog });
-    const phases: string[] = [];
-    service.subscribe((state) => phases.push(state.phase));
-    const failure = new Error("duplicated failure with /private/cache.zip");
-    updater.checkForUpdates.mockImplementationOnce(async () => {
-      emit("error", failure);
-      throw failure;
+  it.each([
+    ["0.10.0", "v0.9.9", "up-to-date"],
+    ["0.10.0", "v0.10.0", "up-to-date"],
+    ["0.9.9", "v0.10.0", "available"],
+  ])(
+    "compares current %s with release %s numerically",
+    async (currentVersion, releaseVersion, expectedPhase) => {
+      const { service } = createService({
+        currentVersion,
+        getLatestRelease: () =>
+          Promise.resolve(stableRelease(releaseVersion)),
+      });
+
+      await service.checkForUpdates();
+
+      expect(service.getState().phase).toBe(expectedPhase);
+    },
+  );
+
+  it.each([
+    stableRelease("release-0.2.0"),
+    stableRelease("v0.2"),
+    stableRelease("v0.2.0-beta.1"),
+    stableRelease("v0.2.0", { draft: true }),
+    stableRelease("v0.2.0", { prerelease: true }),
+    { message: "not a release" },
+  ])("rejects malformed or non-stable release metadata", async (release) => {
+    const { service } = createService({
+      getLatestRelease: () => Promise.resolve(release),
     });
 
     await service.checkForUpdates();
 
-    expect(onLog).toHaveBeenCalledTimes(1);
-    expect(onLog).toHaveBeenCalledWith(
-      "warn",
-      "App update check failed (Error)",
-    );
-    expect(phases.filter((phase) => phase === "error")).toHaveLength(1);
+    expect(service.getState()).toMatchObject({
+      phase: "error",
+      message: "Could not check for updates. Try again later.",
+    });
+    expect(service.getReleaseUrl()).toBeNull();
   });
 
-  it("notifies subscribers with the latest immutable state", () => {
-    const { service, emit } = createService();
-    const observed: string[] = [];
-    const unsubscribe = service.subscribe((state) => observed.push(state.phase));
-
-    emit("checking-for-update");
-    emit("update-available", { version: "0.2.0" });
-    unsubscribe();
-    emit("download-progress", {
-      percent: 1,
-      transferred: 1,
-      total: 100,
-      bytesPerSecond: 1,
+  it("limits release notes and keeps them as plain text", async () => {
+    const longNotes = `<strong>${"x".repeat(13_000)}</strong>`;
+    const { service } = createService({
+      getLatestRelease: () =>
+        Promise.resolve(stableRelease("v0.2.0", { body: longNotes })),
     });
 
-    expect(observed).toEqual(["checking", "available"]);
+    await service.checkForUpdates();
+
+    expect(service.getState().releaseNotes).toHaveLength(12_000);
+    expect(service.getState().releaseNotes?.startsWith("<strong>")).toBe(true);
+  });
+
+  it("prevents duplicate checks while the first request is active", async () => {
+    let resolveRelease: ((release: unknown) => void) | undefined;
+    const pendingRelease = new Promise<unknown>((resolve) => {
+      resolveRelease = resolve;
+    });
+    const { service, releaseSource } = createService({
+      getLatestRelease: () => pendingRelease,
+    });
+
+    const first = service.checkForUpdates();
+    const second = service.checkForUpdates();
+    expect(releaseSource.getLatestRelease).toHaveBeenCalledTimes(1);
+
+    resolveRelease?.(stableRelease());
+    await Promise.all([first, second]);
+  });
+
+  it("redacts remote and local details from errors and logs", async () => {
+    const onLog = vi.fn();
+    const { service } = createService({
+      onLog,
+      getLatestRelease: () =>
+        Promise.reject(
+          new Error(
+            "https://private.example/releases?token=secret /Users/kuro/cache",
+          ),
+        ),
+    });
+
+    await service.checkForUpdates();
+
+    expect(service.getState()).toMatchObject({
+      phase: "error",
+      message: "Could not check for updates. Try again later.",
+    });
+    expect(JSON.stringify(onLog.mock.calls)).not.toContain("private.example");
+    expect(JSON.stringify(onLog.mock.calls)).not.toContain("token=secret");
+    expect(JSON.stringify(onLog.mock.calls)).not.toContain("/Users/kuro");
+  });
+
+  it("notifies subscribers with immutable snapshots", async () => {
+    const { service } = createService();
+    const phases: string[] = [];
+    const unsubscribe = service.subscribe((state) => phases.push(state.phase));
+
+    await service.checkForUpdates();
+    unsubscribe();
+
+    expect(phases).toEqual(["checking", "available"]);
+    expect(Object.isFrozen(service.getState())).toBe(true);
   });
 });

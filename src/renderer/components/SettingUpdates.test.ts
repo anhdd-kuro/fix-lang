@@ -10,25 +10,16 @@ type UpdateState = {
     | "checking"
     | "up-to-date"
     | "available"
-    | "downloading"
-    | "downloaded"
     | "error";
   currentVersion: string;
   availableVersion?: string;
   releaseNotes?: string;
-  progress?: {
-    percent?: number;
-    transferred?: number;
-    total?: number;
-  };
   message?: string;
 };
 
 type UpdateApi = {
   getUpdateState: ReturnType<typeof vi.fn>;
   checkForUpdates: ReturnType<typeof vi.fn>;
-  downloadUpdate: ReturnType<typeof vi.fn>;
-  installUpdate: ReturnType<typeof vi.fn>;
   openUpdateRelease: ReturnType<typeof vi.fn>;
   onUpdateStateChanged: ReturnType<typeof vi.fn>;
 };
@@ -72,8 +63,6 @@ describe("SettingUpdates", () => {
     api = {
       getUpdateState: vi.fn().mockResolvedValue(state),
       checkForUpdates: vi.fn().mockResolvedValue(undefined),
-      downloadUpdate: vi.fn().mockResolvedValue(undefined),
-      installUpdate: vi.fn().mockResolvedValue(undefined),
       openUpdateRelease: vi.fn().mockResolvedValue(undefined),
       onUpdateStateChanged: vi.fn((listener: (next: UpdateState) => void) => {
         updateListener = listener;
@@ -152,7 +141,7 @@ describe("SettingUpdates", () => {
     expect(container.textContent).toContain("Check again");
   });
 
-  it("offers an available release for download without rendering its notes as HTML", async () => {
+  it("offers a manual GitHub download without rendering its notes as HTML", async () => {
     await render({
       ...readyState("available"),
       availableVersion: "0.2.0",
@@ -164,38 +153,14 @@ describe("SettingUpdates", () => {
     );
     expect(container.innerHTML).toContain("&lt;strong&gt;Safer updater&lt;/strong&gt;");
 
-    await click(buttonNamed(container, "Download update"));
-    expect(api.downloadUpdate).toHaveBeenCalledTimes(1);
-  });
-
-  it("exposes semantic download progress while an update is downloading", async () => {
-    await render({
-      ...readyState("downloading"),
-      availableVersion: "0.2.0",
-      progress: { percent: 42, transferred: 12_400_000, total: 29_800_000 },
-    });
-
-    const progress = container.querySelector("progress");
-    expect(progress).not.toBeNull();
-    expect(progress).toHaveProperty("value", 42);
-    expect(progress).toHaveProperty("max", 100);
-    expect(progress?.getAttribute("aria-label")).toBe(
-      "Downloading version 0.2.0",
-    );
-    expect(container.textContent).toContain("Downloading 42%");
-  });
-
-  it("installs a downloaded update only after the user chooses restart", async () => {
-    await render({
-      ...readyState("downloaded"),
-      availableVersion: "0.2.0",
-    });
-
     expect(container.textContent).toContain(
-      "Version v0.2.0 is ready to install.",
+      "Install the DMG, replace FixLang in Applications",
     );
-    await click(buttonNamed(container, "Restart to update"));
-    expect(api.installUpdate).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain(
+      'xattr -dr com.apple.quarantine "/Applications/FixLang.app"',
+    );
+    await click(buttonNamed(container, "Download from GitHub"));
+    expect(api.openUpdateRelease).toHaveBeenCalledTimes(1);
   });
 
   it("lets the user retry and open the release page after an error", async () => {
@@ -290,14 +255,14 @@ describe("SettingUpdates", () => {
 
     await act(async () => {
       updateListener?.({
-        ...readyState("downloaded"),
+        ...readyState("available"),
         availableVersion: "0.2.0",
       });
       rejectInitial?.(new Error("late snapshot failure"));
       await initial.catch(() => undefined);
     });
 
-    expect(container.textContent).toContain("Version v0.2.0 is ready to install");
+    expect(container.textContent).toContain("Version v0.2.0 is available");
     expect(container.textContent).not.toContain("Could not load update status");
   });
 });

@@ -35,7 +35,7 @@ const workflowStepSecrets = (workflow: string, stepName: string): string[] =>
   );
 
 describe("public GitHub Releases update distribution", () => {
-  it("declares a stable public update feed in the application package", () => {
+  it("declares unsigned GitHub release artifacts", () => {
     const packageJson = readPackageJson();
     const build = buildConfiguration(packageJson);
 
@@ -44,10 +44,8 @@ describe("public GitHub Releases update distribution", () => {
       type: "git",
       url: "https://github.com/anhdd-kuro/fix-lang.git",
     });
-    expect(packageJson.dependencies).toMatchObject({
-      "electron-updater": "6.8.9",
-    });
-    expect(build.electronUpdaterCompatibility).toBe(">= 2.16");
+    expect(packageJson.dependencies).not.toHaveProperty("electron-updater");
+    expect(build).not.toHaveProperty("electronUpdaterCompatibility");
     expect(build.publish).toEqual([
       {
         provider: "github",
@@ -59,28 +57,10 @@ describe("public GitHub Releases update distribution", () => {
     ]);
     expect(build.mac).toMatchObject({
       target: expect.arrayContaining(["dmg", "zip"]),
-      hardenedRuntime: true,
-      entitlements: "resources/entitlements.mac.plist",
-      entitlementsInherit: "resources/entitlements.mac.inherit.plist",
+      identity: null,
     });
-  });
-
-  it("keeps the required macOS entitlement files with Electron JIT support", () => {
-    for (const entitlementsPath of [
-      "resources/entitlements.mac.plist",
-      "resources/entitlements.mac.inherit.plist",
-    ]) {
-      const fullPath = path.join(projectRoot, entitlementsPath);
-      expect(existsSync(fullPath), `${entitlementsPath} must exist`).toBe(true);
-
-      const entitlements = readFileSync(fullPath, "utf8");
-      expect(entitlements).toContain(
-        "com.apple.security.cs.allow-jit",
-      );
-      expect(entitlements).toContain(
-        "com.apple.security.cs.allow-unsigned-executable-memory",
-      );
-    }
+    expect(build.mac).not.toHaveProperty("notarize");
+    expect(build.mac).not.toHaveProperty("gatekeeperAssess");
   });
 
   it("publishes a new package version from main and keeps manual tags as a recovery path", () => {
@@ -152,15 +132,7 @@ describe("public GitHub Releases update distribution", () => {
     expect(workflowStepSecrets(workflow, "Set up Bun")).toEqual([]);
     expect(
       workflowStepSecrets(workflow, "Resolve release version and tag"),
-    ).toEqual([
-      "GITHUB_TOKEN",
-      "MAC_CSC_LINK",
-      "MAC_CSC_KEY_PASSWORD",
-      "APPLE_API_KEY",
-      "APPLE_API_KEY_ID",
-      "APPLE_API_ISSUER",
-      "APPLE_TEAM_ID",
-    ]);
+    ).toEqual(["GITHUB_TOKEN"]);
     expect(workflowStepSecrets(workflow, "Install dependencies")).toEqual([]);
     expect(workflowStepSecrets(workflow, "Lint")).toEqual([]);
     expect(workflowStepSecrets(workflow, "Test")).toEqual([]);
@@ -176,47 +148,27 @@ describe("public GitHub Releases update distribution", () => {
     expect(workflowStep(workflow, "Create draft release")).toContain(
       "refusing to replace its assets",
     );
-    expect(
-      workflowStepSecrets(workflow, "Prepare App Store Connect API key"),
-    ).toEqual(["APPLE_API_KEY"]);
+    expect(workflow).not.toContain("MAC_CSC");
+    expect(workflow).not.toContain("APPLE_API");
+    expect(workflow).not.toContain("APPLE_TEAM_ID");
     expect(
       workflowStepSecrets(
         workflow,
-        "Build, sign, notarize, and upload arm64 artifacts",
+        "Build and upload unsigned arm64 artifacts",
       ),
-    ).toEqual([
-      "GITHUB_TOKEN",
-      "MAC_CSC_LINK",
-      "MAC_CSC_KEY_PASSWORD",
-      "APPLE_API_KEY_ID",
-      "APPLE_API_ISSUER",
-      "APPLE_TEAM_ID",
-    ]);
+    ).toEqual(["GITHUB_TOKEN"]);
     expect(
-      workflowStepSecrets(workflow, "Remove App Store Connect API key"),
-    ).toEqual([]);
+      workflowStep(workflow, "Build and upload unsigned arm64 artifacts"),
+    ).toContain('CSC_IDENTITY_AUTO_DISCOVERY: "false"');
     expect(
       workflowStepSecrets(workflow, "Verify published update artifacts"),
     ).toEqual(["GITHUB_TOKEN"]);
     expect(workflowStepSecrets(workflow, "Publish completed release")).toEqual([
       "GITHUB_TOKEN",
     ]);
-    expect(workflow).toContain(
-      "APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY }}",
-    );
-    expect(workflow).toContain(
-      'key_path="${RUNNER_TEMP}/app-store-connect-api-key.p8"',
-    );
-    expect(workflow).toContain('base64 -D > "${key_path}"');
     expect(workflow).not.toContain("GITHUB_ENV");
-    expect(workflow).toContain(
-      "APPLE_API_KEY: ${{ runner.temp }}/app-store-connect-api-key.p8",
-    );
-    expect(workflow).toContain("Remove App Store Connect API key");
-    expect(workflow).toContain("if: always()");
-    expect(workflow).toContain(
-      'rm -f "${RUNNER_TEMP}/app-store-connect-api-key.p8"',
-    );
+    expect(workflow).toContain("SHA256SUMS.txt");
+    expect(workflow).toContain("shasum -a 256");
     expect(workflow).toContain(
       'gh release view "${RELEASE_TAG}" --json assets',
     );
