@@ -228,8 +228,8 @@ describe("public GitHub Releases update distribution", () => {
     const ruleset = JSON.parse(
       readProjectFile(".github/release-tag-ruleset.json"),
     ) as {
-      bypass_actors: Array<{ actor_type: string }>;
-      rules: Array<{ type: string }>;
+      bypass_actors: { actor_type: string }[];
+      rules: { type: string }[];
     };
 
     expect(ruleset.bypass_actors).toEqual([
