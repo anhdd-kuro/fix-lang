@@ -83,21 +83,27 @@ describe("public GitHub Releases update distribution", () => {
     }
   });
 
-  it("publishes a signed arm64 release only when a matching version tag is pushed", () => {
+  it("publishes a new package version from main and keeps manual tags as a recovery path", () => {
     const workflowPath = ".github/workflows/release.yml";
     const fullPath = path.join(projectRoot, workflowPath);
     expect(existsSync(fullPath), `${workflowPath} must exist`).toBe(true);
 
     const workflow = readFileSync(fullPath, "utf8");
+    expect(workflow).toMatch(/branches:\s*\[\s*['"]main['"]\s*\]/);
     expect(workflow).toMatch(/tags:\s*\[\s*['"]v\*\.\*\.\*['"]\s*\]/);
+    expect(workflow).toContain("group: fixlang-release");
+    expect(workflow).toContain("cancel-in-progress: false");
     expect(workflow).toContain("contents: write");
     expect(workflow).toContain(
       "uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4",
     );
-    expect(workflowStep(workflow, "Check out the tagged source")).toContain(
+    expect(workflowStep(workflow, "Check out release history")).toContain(
       "persist-credentials: false",
     );
-    expect(workflowStep(workflow, "Check out the tagged source")).not.toContain(
+    expect(workflowStep(workflow, "Check out release history")).toContain(
+      "fetch-depth: 0",
+    );
+    expect(workflowStep(workflow, "Check out release history")).not.toContain(
       "token:",
     );
     expect(workflow).toContain(
@@ -111,21 +117,41 @@ describe("public GitHub Releases update distribution", () => {
     expect(workflow).toContain("bun install --frozen-lockfile");
     expect(workflow).toContain("bun run lint");
     expect(workflow).toContain("bun run test");
-    expect(workflow).toContain("Verify release tag matches package version");
+    expect(workflow).toContain("Resolve release version and tag");
     expect(workflow).toContain("package.json");
     expect(workflow).toContain("GITHUB_REF_NAME");
+    expect(workflow).toContain('refs/remotes/origin/main');
+    expect(workflow).toContain('^[0-9]+\\.[0-9]+\\.[0-9]+$');
+    expect(workflow).toContain("git merge-base --is-ancestor");
+    expect(workflow).toContain("repos/${GITHUB_REPOSITORY}/git/refs");
+    expect(workflow).toContain("should_publish=true");
+    expect(workflow).toContain("should_publish=false");
+    expect(workflow).toContain(
+      "needs.prepare.outputs.should_publish == 'true'",
+    );
+    expect(workflow).toContain(
+      "RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}",
+    );
     expect(workflow).toContain("gh release create");
     expect(workflow).toContain("--draft");
     expect(workflow).toContain("electron-builder --mac --arm64 --publish always");
     expect(workflow).toContain("gh release edit");
     expect(workflow).toContain("--draft=false");
-    expect(workflowStepSecrets(workflow, "Check out the tagged source")).toEqual(
+    expect(workflowStepSecrets(workflow, "Check out release history")).toEqual(
       [],
     );
     expect(workflowStepSecrets(workflow, "Set up Bun")).toEqual([]);
     expect(
-      workflowStepSecrets(workflow, "Verify release tag matches package version"),
-    ).toEqual([]);
+      workflowStepSecrets(workflow, "Resolve release version and tag"),
+    ).toEqual([
+      "GITHUB_TOKEN",
+      "MAC_CSC_LINK",
+      "MAC_CSC_KEY_PASSWORD",
+      "APPLE_API_KEY",
+      "APPLE_API_KEY_ID",
+      "APPLE_API_ISSUER",
+      "APPLE_TEAM_ID",
+    ]);
     expect(workflowStepSecrets(workflow, "Install dependencies")).toEqual([]);
     expect(workflowStepSecrets(workflow, "Lint")).toEqual([]);
     expect(workflowStepSecrets(workflow, "Test")).toEqual([]);
@@ -183,7 +209,7 @@ describe("public GitHub Releases update distribution", () => {
       'rm -f "${RUNNER_TEMP}/app-store-connect-api-key.p8"',
     );
     expect(workflow).toContain(
-      'gh release view "${GITHUB_REF_NAME}" --json assets',
+      'gh release view "${RELEASE_TAG}" --json assets',
     );
     expect(workflow).toContain("'.assets[].name'");
     expect(workflow).toContain("Draft release is missing ${expected_asset}.");
