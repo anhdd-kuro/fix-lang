@@ -63,6 +63,10 @@ export default defineConfig({
             __dirname,
             "src/renderer/PromptGenWindow/index.html",
           ),
+          correctionResult: resolve(
+            __dirname,
+            "src/renderer/CorrectionResultWindow/index.html",
+          ),
         },
       },
     },

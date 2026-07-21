@@ -6,7 +6,7 @@ A local macOS menu-bar app that fixes grammar, improves writing, and runs other 
 
 ### Correction & presets
 
-- Select text in any app, press a preset hotkey — corrected text is pasted back automatically
+- Select text in any app, press a preset hotkey, then either paste the correction back automatically or show it in a result-only popup
 - Built-in presets (each with its own hotkey): **Correction** (`Ctrl+Shift+F`), **Summarize** (`Ctrl+Shift+S`), **Translate**, **Prompt optimization** (`Ctrl+Shift+D`)
 - **Profiles** — multiple named configurations; switch with `Ctrl+Shift+P` (profile switch reloads hotkeys, settings, and history)
 - Custom presets with per-preset model, system prompt, and hotkey
@@ -63,12 +63,12 @@ bun run pack:install  # build + copy to /Applications/FixLang.app
 
 1. Select text in any application (or copy to clipboard)
 2. Press a preset hotkey (default: `Ctrl+Shift+F` for Correction)
-3. Corrected text is pasted in place; history and cost are recorded in the dashboard
+3. FixLang delivers the result using the mode selected in **Settings → General → Correction output**: **Direct paste** or **Show popup**
 4. Open the tray popover → dashboard icon for Overview, History, Models, OpenRouter, or Logs
 5. `Ctrl+Shift+G` opens PromptGen on the current selection
 6. `Ctrl+Shift+P` cycles to the next profile
 
-Hotkeys are customizable per preset and for global actions (PromptGen, profile switch) in Settings.
+Hotkeys are customizable per preset and for global actions (PromptGen, profile switch) in Settings. Correction output mode is global and defaults to **Direct paste**.
 
 ## Development
 

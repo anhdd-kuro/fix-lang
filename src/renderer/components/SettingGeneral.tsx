@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { ModelSelect } from "./ModelSelect";
+import type { CorrectionOutputMode } from "~/shared/outputMode";
 
 /**
  * General settings tab for API key and model selection.
  */
 export const SettingGeneral: React.FC = () => {
   const [resetStatus, setResetStatus] = useState<string>("");
+  const [correctionOutputMode, setCorrectionOutputMode] =
+    useState<CorrectionOutputMode>("paste");
+  const [outputModeStatus, setOutputModeStatus] = useState<string>("");
+  const [savingOutputMode, setSavingOutputMode] = useState(false);
 
   // Bumped after a reset to force ModelSelect to remount and reload its default
   const [modelSelectKey, setModelSelectKey] = useState(0);
@@ -40,7 +45,45 @@ export const SettingGeneral: React.FC = () => {
           error
         );
       });
+
+    window.electronAPI
+      ?.getCorrectionOutputMode?.()
+      .then(setCorrectionOutputMode)
+      .catch((error) => {
+        console.error("SettingGeneral: Error loading output mode:", error);
+        setOutputModeStatus("Error loading correction output setting");
+      });
   }, []);
+
+  const handleOutputModeChange = async (mode: CorrectionOutputMode) => {
+    if (!window.electronAPI?.setCorrectionOutputMode) {
+      setOutputModeStatus("Error: Output setting is not available");
+      return;
+    }
+
+    const previousMode = correctionOutputMode;
+    setCorrectionOutputMode(mode);
+    setSavingOutputMode(true);
+    setOutputModeStatus("Saving...");
+
+    try {
+      const result = await window.electronAPI.setCorrectionOutputMode(mode);
+      if (!result.success) {
+        setCorrectionOutputMode(previousMode);
+        setOutputModeStatus(`Error: ${result.error || "Failed to save"}`);
+        return;
+      }
+      setCorrectionOutputMode(result.mode ?? mode);
+      setOutputModeStatus("Saved.");
+      setTimeout(() => setOutputModeStatus(""), 2000);
+    } catch (error) {
+      console.error("SettingGeneral: Error saving output mode:", error);
+      setCorrectionOutputMode(previousMode);
+      setOutputModeStatus("Error saving correction output setting");
+    } finally {
+      setSavingOutputMode(false);
+    }
+  };
 
   // Save the API key (encrypted via safeStorage in main).
   const handleSaveApiKey = async () => {
@@ -187,6 +230,64 @@ export const SettingGeneral: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-4">
+      <section className="mb-4">
+        <h2 className="text-sm font-medium text-card-foreground">
+          Correction output
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Choose what FixLang does with the AI result after a correction hotkey
+          finishes.
+        </p>
+        <div
+          className="mt-3 grid grid-cols-2 gap-2"
+          role="radiogroup"
+          aria-label="Correction output"
+        >
+          <button
+            type="button"
+            role="radio"
+            aria-checked={correctionOutputMode === "paste"}
+            disabled={savingOutputMode}
+            onClick={() => void handleOutputModeChange("paste")}
+            className={`rounded border px-3 py-2 text-left transition-colors disabled:opacity-60 ${
+              correctionOutputMode === "paste"
+                ? "border-primary bg-primary/10"
+                : "border-border hover:bg-secondary"
+            }`}
+          >
+            <span className="block text-sm font-medium">Direct paste</span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              Replace the selected text.
+            </span>
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={correctionOutputMode === "popup"}
+            disabled={savingOutputMode}
+            onClick={() => void handleOutputModeChange("popup")}
+            className={`rounded border px-3 py-2 text-left transition-colors disabled:opacity-60 ${
+              correctionOutputMode === "popup"
+                ? "border-primary bg-primary/10"
+                : "border-border hover:bg-secondary"
+            }`}
+          >
+            <span className="block text-sm font-medium">Show popup</span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              Show the result without changing the source.
+            </span>
+          </button>
+        </div>
+        {outputModeStatus && (
+          <p
+            className={`mt-1 text-xs ${outputModeStatus.startsWith("Error") ? "text-destructive" : "text-success"}`}
+            role="status"
+          >
+            {outputModeStatus}
+          </p>
+        )}
+      </section>
+
       <div className="mb-4">
         <label
           htmlFor="api-key-input"

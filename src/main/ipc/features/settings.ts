@@ -5,7 +5,9 @@
 import { ipcMain, Notification } from "electron";
 import { DEFAULT_KEY_BINDINGS } from "~/const";
 import { reloadHotkeys, unregisterHotkeys } from "~/main/keybindings";
+import { normalizeCorrectionOutputMode } from "~/shared/outputMode";
 import { keybindingStore } from "~/stores/keybindingStore";
+import { outputModeStore } from "~/stores/outputModeStore";
 import {
   clearProvisioningKey,
   hasProvisioningKey,
@@ -17,6 +19,23 @@ import type { KeyBindings } from "~/stores/apiStore";
  * Registers settings-related IPC handlers
  */
 export const registerSettingsHandlers = () => {
+  ipcMain.handle("get-correction-output-mode", async () =>
+    outputModeStore.getCorrectionOutputMode(),
+  );
+
+  ipcMain.handle(
+    "set-correction-output-mode",
+    async (_event: Electron.IpcMainInvokeEvent, raw: unknown) => {
+      if (raw !== "paste" && raw !== "popup") {
+        return { success: false, error: "Invalid correction output mode" };
+      }
+
+      const mode = normalizeCorrectionOutputMode(raw);
+      outputModeStore.setCorrectionOutputMode(mode);
+      return { success: true, mode };
+    },
+  );
+
   // Keybinding handlers
   ipcMain.handle(
     "get-key-bindings",

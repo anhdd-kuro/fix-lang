@@ -5,6 +5,7 @@ import { contextBridge } from "electron";
 import {
   apiFeature,
   correctionFeature,
+  correctionResultFeature,
   logsFeature,
   promptGenFeature,
   profilesFeature,
@@ -17,6 +18,7 @@ import {
 import type {
   ApiFeature,
   CorrectionFeature,
+  CorrectionResultFeature,
   HistoryFeature,
   LogsFeature,
   OpenRouterFeature,
@@ -35,6 +37,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...historyFeature,
   ...apiFeature,
   ...correctionFeature,
+  ...correctionResultFeature,
   ...logsFeature,
   ...promptGenFeature,
   ...profilesFeature,
@@ -51,6 +54,7 @@ console.log(
 export type ElectronAPI = HistoryFeature &
   PromptGenFeature &
   CorrectionFeature &
+  CorrectionResultFeature &
   ApiFeature &
   LogsFeature &
   ProfilesFeature &

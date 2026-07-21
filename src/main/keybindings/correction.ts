@@ -3,14 +3,17 @@ import { DEFAULT_CORRECTION_PRESET_ID } from "~/prompts";
 // No apiStore import needed as api key is handled in shared.ts
 import { getProfileSetting } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
+import { outputModeStore } from "~/stores/outputModeStore";
 import { getHighlightedText, pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
+import { deliverCorrectionOutput } from "./correctionOutput";
 import { checkShortcut, handleError } from "./utils";
 import { buildPriceMap, computeCost } from "../ai.request/cost";
 import { getCachedModels, isLocalModelId } from "../ai.request/shared";
 import { syncHistory } from "../ipc/features/history";
 import { logger } from "../logging/logService";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
+import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWindow";
 import type { BrowserWindow } from "electron";
 
 export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
@@ -82,13 +85,24 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           }).show();
         }
 
-        await pasteText(result.correctedText);
+        const delivery = await deliverCorrectionOutput(
+          outputModeStore.getCorrectionOutputMode(),
+          {
+            title: `${preset.name} result`,
+            text: result.correctedText,
+          },
+          {
+            paste: pasteText,
+            showPopup: showCorrectionResultWindow,
+          },
+        );
 
-        logger.info("correction.hotkey", "Correction applied", {
+        logger.info("correction.hotkey", "Correction completed", {
           presetId: preset.id,
           textLength: selectedText.length,
           model: result.model,
           resolvedModel: result.resolvedModel ?? null,
+          delivery,
         });
 
         if (mainWindow && !mainWindow.isDestroyed()) {
