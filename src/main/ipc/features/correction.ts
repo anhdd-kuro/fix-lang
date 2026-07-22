@@ -92,6 +92,7 @@ export const registerCorrectionHandlers = () => {
       promptTokens?: number;
       completionTokens?: number;
       model?: string;
+      provider?: "openai" | "openrouter" | "ollama";
       resolvedModel?: string;
       presetId?: string;
       presetName?: string;
@@ -111,6 +112,7 @@ export const registerCorrectionHandlers = () => {
           promptTokens: result.promptTokens ?? 0,
           completionTokens: result.completionTokens ?? 0,
           model: result.model,
+          provider: result.provider,
           resolvedModel: result.resolvedModel,
           presetId: result.presetId,
           presetName: result.presetName,

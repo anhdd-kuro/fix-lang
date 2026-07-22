@@ -3,9 +3,11 @@
  * @description Verifies shared AI request logs never expose prompt or response content.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeAIRequest, makeRemoteAIRequest } from "./shared";
-const { generateTextMock, notificationShowMock } = vi.hoisted(() => ({
+import { makeAIRequest, makeOpenAIAIRequest, makeRemoteAIRequest } from "./shared";
+const { createOpenAIMock, generateTextMock, getProfileSecretMock, notificationShowMock } = vi.hoisted(() => ({
+  createOpenAIMock: vi.fn(() => ({ chat: vi.fn(() => ({ provider: "openai" })) })),
   generateTextMock: vi.fn(),
+  getProfileSecretMock: vi.fn(),
   notificationShowMock: vi.fn(),
 }));
 
@@ -16,6 +18,8 @@ vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
 vi.mock("@openrouter/ai-sdk-provider", () => ({
   createOpenRouter: vi.fn(() => vi.fn(() => ({ provider: "openrouter" }))),
 }));
+
+vi.mock("@ai-sdk/openai", () => ({ createOpenAI: createOpenAIMock }));
 
 vi.mock("ai", () => ({
   generateText: generateTextMock,
@@ -39,7 +43,13 @@ vi.mock("~/stores/apiStore", () => ({
     set: vi.fn(),
   },
   getDefaultModelId: vi.fn().mockReturnValue("openai/gpt-4.1-mini"),
+  getCurrentProfileId: vi.fn().mockReturnValue("profile_1"),
+  getProfileById: vi.fn().mockReturnValue({ provider: "openrouter" }),
   getProfileSetting: vi.fn().mockReturnValue(undefined),
+}));
+
+vi.mock("~/stores/profileSecretStore", () => ({
+  getProfileSecret: getProfileSecretMock,
 }));
 
 vi.mock("~/main/llm/models/discover", () => ({
@@ -102,5 +112,42 @@ describe("shared AI request logging", () => {
     ).rejects.toThrow("Model openai/missing-model not found in model registry.");
 
     expect(notificationShowMock).toHaveBeenCalledOnce();
+  });
+
+  it("uses the direct OpenAI Chat Completions provider and fans out n requests", async () => {
+    getProfileSecretMock.mockResolvedValue("direct-openai-key");
+    generateTextMock
+      .mockResolvedValueOnce({
+        text: "first",
+        usage: { inputTokens: 2, outputTokens: 3 },
+        response: { body: { model: "gpt-4.1-mini-2025" } },
+      })
+      .mockResolvedValueOnce({
+        text: "second",
+        usage: { inputTokens: 5, outputTokens: 7 },
+        response: { body: { model: "gpt-4.1-mini-2025" } },
+      });
+
+    const response = await makeOpenAIAIRequest({
+      systemPrompt: "system",
+      userPrompt: "user",
+      model: "gpt-4.1-mini",
+      n: 2,
+      messages: [
+        { role: "system", content: "system" },
+        { role: "user", content: "user" },
+      ],
+    });
+
+    expect(createOpenAIMock).toHaveBeenCalledWith({ apiKey: "direct-openai-key" });
+    expect(generateTextMock).toHaveBeenCalledTimes(2);
+    expect(response).toMatchObject({
+      content: ["first", "second"],
+      provider: "openai",
+      model: "gpt-4.1-mini",
+      resolvedModel: "gpt-4.1-mini-2025",
+      promptTokens: 7,
+      completionTokens: 10,
+    });
   });
 });

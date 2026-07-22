@@ -3,6 +3,7 @@ import { getProfileSetting } from "~/stores/apiStore";
 import { estimateTextTokens } from "~/stores/historyStore";
 import { StringPrettifier } from "~/utils";
 import { makeAIRequest } from "./shared";
+import type { ProviderId } from "~/stores/apiStore";
 
 /**
  * Settings for prompt generation
@@ -28,6 +29,7 @@ export const generatePrompt = async (
   promptTokens: number;
   completionTokens: number;
   model: string;
+  provider: ProviderId;
   resolvedModel: string;
 }> => {
   const currentSettings = getProfileSetting("settingsPromptGen");
@@ -57,7 +59,7 @@ export const generatePrompt = async (
     });
 
     // Extract required values from response
-    const { content, promptTokens, completionTokens, model, resolvedModel } =
+    const { content, promptTokens, completionTokens, model, provider, resolvedModel } =
       response;
 
     const completionText = content.join("\n\n");
@@ -71,6 +73,7 @@ export const generatePrompt = async (
           ? completionTokens
           : estimateTextTokens(completionText),
       model,
+      provider,
       resolvedModel: resolvedModel ?? model,
     };
   } catch (error) {

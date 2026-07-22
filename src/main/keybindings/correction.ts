@@ -84,6 +84,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           presetId: preset.id,
           textLength: selectedText.length,
           model: result.model,
+          provider: result.provider,
           resolvedModel: result.resolvedModel ?? null,
         });
 
@@ -98,6 +99,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
               resolvedModel: result.resolvedModel,
               promptTokens: result.promptTokens ?? 0,
               completionTokens: result.completionTokens ?? 0,
+              provider: result.provider,
               isLocal: isLocalModelId(servedId),
             },
             buildPriceMap(getCachedModels()),
@@ -111,6 +113,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
               completionTokens: result.completionTokens ?? 0,
               timestamp: new Date().toISOString(),
               model: result.model,
+              provider: result.provider,
               resolvedModel: result.resolvedModel,
               presetName: result.presetName,
               // Spread the snapshot; undefined fields (N/A) round-trip to NULL.

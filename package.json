@@ -67,6 +67,7 @@
     "vitest": "4.1.10"
   },
   "dependencies": {
+    "@ai-sdk/openai": "3.0.31",
     "@rollup/plugin-commonjs": "29.0.3",
     "@tanstack/react-virtual": "^3.14.6",
     "@types/uuid": "11.0.0",

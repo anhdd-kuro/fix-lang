@@ -3,7 +3,7 @@
  * @description IPC handlers for OpenAI API related functionality
  */
 import { ipcMain } from "electron";
-import { fetchAvailableModels } from "~/main/ai.request";
+import { fetchAvailableModels, getActiveProvider } from "~/main/ai.request";
 import { reloadHotkeys } from "~/main/keybindings";
 import { ollamaClient } from "~/main/llm";
 import { checkModelCompatibility } from "~/main/llm/models/compatibility";
@@ -17,8 +17,14 @@ import {
   hasApiKey,
   setApiKey,
 } from "~/stores/apiKeyStore";
-import { apiStore, getDefaultModelId, resetCurrentProfileSettings } from "~/stores/apiStore";
+import {
+  apiStore,
+  getCurrentProfileId,
+  getDefaultModelId,
+  resetCurrentProfileSettings,
+} from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
+import { getProfileSecret } from "~/stores/profileSecretStore";
 import type { Model } from "~/stores/apiStore";
 
 /**
@@ -41,7 +47,7 @@ export const registerApiHandlers = (): void => {
 
       // Refetch models in the background using the newly stored key.
       void getApiKey()
-        .then((key) => key && fetchAvailableModels(key))
+        .then((key) => (key ? fetchAvailableModels(key, "openrouter") : null))
         .then((models) => {
           if (models) {
             apiStore.set("models", models);
@@ -69,8 +75,15 @@ export const registerApiHandlers = (): void => {
   // Model handling
   ipcMain.handle("fetch-ai-models", async () => {
     try {
-      const apiKey = (await getApiKey()) ?? "";
-      const models = await fetchAvailableModels(apiKey);
+      const provider = getActiveProvider();
+      const profileId = getCurrentProfileId();
+      const apiKey =
+        provider === "openrouter"
+          ? ((await getApiKey()) ?? "")
+          : provider === "openai" && profileId
+            ? ((await getProfileSecret(profileId, "openai", "api")) ?? "")
+            : "";
+      const models = await fetchAvailableModels(apiKey, provider);
 
       // Store the models in the store
       apiStore.set("models", models);
