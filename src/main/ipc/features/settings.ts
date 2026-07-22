@@ -2,7 +2,7 @@
  * @file settings.ts
  * @description IPC handlers for application settings
  */
-import { ipcMain, Notification } from "electron";
+import { BrowserWindow, ipcMain, Notification } from "electron";
 import { DEFAULT_KEY_BINDINGS } from "~/const";
 import { reloadHotkeys, unregisterHotkeys } from "~/main/keybindings";
 import { keybindingStore } from "~/stores/keybindingStore";
@@ -109,9 +109,16 @@ export const registerSettingsHandlers = () => {
     async (_event: Electron.IpcMainInvokeEvent) => hasProvisioningKey(),
   );
 
-  // Settings notifications
+  // Settings notifications — re-broadcast to every window (Main, Tray,
+  // PromptGen, …) so provider/model/preset changes made in one window reflect
+  // immediately everywhere else (see fixlang-profile-state gotcha).
   ipcMain.on("settings-updated", (_event: Electron.IpcMainEvent) => {
     console.log("Settings updated");
+    BrowserWindow.getAllWindows().forEach((window) => {
+      if (!window.isDestroyed()) {
+        window.webContents.send("settings-updated");
+      }
+    });
     new Notification({
       title: "Settings Updated",
       body: "Your settings have been saved.",

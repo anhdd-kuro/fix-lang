@@ -47,6 +47,7 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
           completionTokens: result.completionTokens ?? 0,
           timestamp: new Date().toISOString(),
           model: result.model,
+          provider: result.provider,
           resolvedModel: result.resolvedModel,
           presetName: "PromptGen",
         },

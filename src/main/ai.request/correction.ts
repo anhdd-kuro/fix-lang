@@ -4,16 +4,21 @@ import {
   DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
   DEFAULT_SUMMARIZE_PRESET_ID,
 } from "~/prompts";
-import { getDefaultModelId, getProfileSetting } from "~/stores/apiStore";
+import {
+  getDefaultModelId,
+  getProfileSetting,
+  type CorrectionPreset,
+  type ProviderId,
+} from "~/stores/apiStore";
 import { estimateTextTokens } from "~/stores/historyStore";
-import { makeAIRequest } from "./shared";
-import type { CorrectionPreset } from "~/stores/apiStore";
+import { getActiveProvider, makeAIRequest } from "./shared";
 
 type CorrectionResult = {
   correctedText: string;
   promptTokens: number;
   completionTokens: number;
   model: string;
+  provider: ProviderId;
   /** Concrete model the provider served (resolves alias indirection) */
   resolvedModel: string;
   presetId: string;
@@ -97,6 +102,7 @@ export const fixGrammar = async (
       promptTokens: 0,
       completionTokens: 0,
       model: DEFAULT_OPENAI_MODEL,
+      provider: getActiveProvider(),
       resolvedModel: DEFAULT_OPENAI_MODEL,
       presetId: preset.id,
       presetName: preset.name,
@@ -131,6 +137,7 @@ export const fixGrammar = async (
           ? response.completionTokens
           : estimateTextTokens(correctedText),
       model: response.model,
+      provider: response.provider,
       resolvedModel: response.resolvedModel ?? response.model,
       presetId: preset.id,
       presetName: preset.name,

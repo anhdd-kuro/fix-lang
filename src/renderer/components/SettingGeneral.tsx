@@ -1,96 +1,161 @@
-import React, { useState, useEffect } from "react";
-import { ModelSelect } from "./ModelSelect";
+import React, { useCallback, useEffect, useState } from "react";
+import { PROVIDER_IDS } from "~/stores/apiStore";
+import type { Model, ProviderId } from "~/stores/apiStore";
+
+const PROVIDER_LABELS: Record<ProviderId, string> = {
+  openai: "OpenAI",
+  openrouter: "OpenRouter",
+  ollama: "Ollama",
+};
 
 /**
- * General settings tab for API key and model selection.
+ * General settings tab: staged provider setup (select provider, supply its
+ * credentials, fetch its models, choose a default, then Apply). The previously
+ * active provider stays in effect until Apply succeeds — nothing commits on
+ * every keystroke or on Fetch.
  */
 export const SettingGeneral: React.FC = () => {
   const [resetStatus, setResetStatus] = useState<string>("");
 
-  // Bumped after a reset to force ModelSelect to remount and reload its default
-  const [modelSelectKey, setModelSelectKey] = useState(0);
+  // The provider currently staged for setup. Starts as the active provider so
+  // opening General shows what is really in effect, not a stale default.
+  const [stagedProvider, setStagedProvider] = useState<ProviderId>("openrouter");
 
-  // API key — write-only; never round-tripped to the renderer.
-  // The input is cleared after a successful save.
+  // Staged credentials — write-only; never round-tripped from main. Cleared
+  // whenever the staged provider changes so one provider's typed key can never
+  // be submitted for a different provider.
   const [apiKeyInput, setApiKeyInput] = useState<string>("");
-  const [apiKeyStatus, setApiKeyStatus] = useState<string>("");
-  const [apiKeySet, setApiKeySet] = useState<boolean>(false);
-
-  // OpenRouter provisioning (admin) key — never round-tripped to the renderer.
-  // The input is write-only; we only track whether a key is set (masked state).
   const [provisioningInput, setProvisioningInput] = useState<string>("");
-  const [provisioningStatus, setProvisioningStatus] = useState<string>("");
+  const [apiKeySet, setApiKeySet] = useState<boolean>(false);
   const [provisioningKeySet, setProvisioningKeySet] = useState<boolean>(false);
 
-  // Initialize component — check set/not-set state; never fetch plaintext keys.
+  const [stagedModels, setStagedModels] = useState<Model[]>([]);
+  const [stagedModelId, setStagedModelId] = useState<string>("");
+
+  const [isFetching, setIsFetching] = useState<boolean>(false);
+  const [fetchStatus, setFetchStatus] = useState<string>("");
+  const [fetchError, setFetchError] = useState<string>("");
+
+  const [isApplying, setIsApplying] = useState<boolean>(false);
+  const [applyStatus, setApplyStatus] = useState<string>("");
+  const [applyError, setApplyError] = useState<string>("");
+
+  // Load the real active provider once on mount.
   useEffect(() => {
     window.electronAPI
-      ?.hasApiKey?.()
-      .then((isSet) => setApiKeySet(Boolean(isSet)))
+      ?.getActiveProvider?.()
+      .then((provider) => {
+        if (provider) setStagedProvider(provider);
+      })
       .catch((error) => {
-        console.error("SettingGeneral: Error checking API key state:", error);
+        console.error("SettingGeneral: Error reading active provider:", error);
       });
+  }, []);
 
+  const refreshSecretStatus = useCallback((provider: ProviderId) => {
     window.electronAPI
-      ?.hasProvisioningKey?.()
-      .then((isSet) => setProvisioningKeySet(Boolean(isSet)))
+      ?.getProviderSecretStatus?.(provider)
+      .then((status) => {
+        setApiKeySet(Boolean(status?.apiKeySet));
+        setProvisioningKeySet(Boolean(status?.provisioningKeySet));
+      })
       .catch((error) => {
         console.error(
-          "SettingGeneral: Error checking provisioning key state:",
-          error
+          "SettingGeneral: Error checking provider secret status:",
+          error,
         );
       });
   }, []);
 
-  // Save the API key (encrypted via safeStorage in main).
-  const handleSaveApiKey = async () => {
-    if (!window.electronAPI?.setApiKey) {
-      setApiKeyStatus("Error: Cannot save API key");
-      return;
-    }
-    if (apiKeyInput.trim().length === 0) {
-      setApiKeyStatus("Error: API key must not be empty");
-      return;
-    }
-    if (!apiKeyInput.trim().startsWith("sk-")) {
-      setApiKeyStatus("Warning: Key format may be invalid, but saving anyway...");
-    } else {
-      setApiKeyStatus("Saving...");
-    }
+  // On mount and on every provider change: refresh masked secret state and
+  // reset the staged model list — a model fetched for one provider must never
+  // be offered as the default for another.
+  useEffect(() => {
+    refreshSecretStatus(stagedProvider);
+    // Reset staged setup state for the newly selected provider — a
+    // derived-state reset on a state change, not an external-system sync.
+    // Staged credential inputs are cleared too so one provider's typed key
+    // can never be submitted for a different provider.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStagedModels([]);
+    setStagedModelId("");
+    setFetchStatus("");
+    setFetchError("");
+    setApplyStatus("");
+    setApplyError("");
+    setApiKeyInput("");
+    setProvisioningInput("");
+  }, [stagedProvider, refreshSecretStatus]);
 
+  const handleFetchModels = async () => {
+    if (!window.electronAPI?.fetchProviderModels) {
+      setFetchError("Fetching models is not available");
+      return;
+    }
+    setIsFetching(true);
+    setFetchError("");
+    setFetchStatus("Fetching models...");
     try {
-      const result = await window.electronAPI.setApiKey(apiKeyInput);
-      if (result.success) {
-        setApiKeyStatus(result.warning ?? "Saved!");
-        setApiKeySet(true);
-        setApiKeyInput("");
+      const result = await window.electronAPI.fetchProviderModels({
+        provider: stagedProvider,
+        modelId: "",
+        apiKey: apiKeyInput || undefined,
+        provisioningKey:
+          stagedProvider === "openrouter" ? provisioningInput || undefined : undefined,
+      });
+      if (result.success && result.models) {
+        setStagedModels(result.models);
+        setStagedModelId(result.models[0]?.id ?? "");
+        setFetchStatus(
+          result.models.length > 0
+            ? `Loaded ${result.models.length} model${result.models.length === 1 ? "" : "s"}.`
+            : "No models found for this provider.",
+        );
       } else {
-        setApiKeyStatus(`Error: ${result.error || "Unknown error"}`);
+        setStagedModels([]);
+        setStagedModelId("");
+        setFetchStatus("");
+        setFetchError(result.error || "Failed to fetch models");
       }
     } catch (error) {
-      console.error("SettingGeneral: Error saving API key:", error);
-      setApiKeyStatus("Error saving API key");
+      setFetchStatus("");
+      setFetchError(error instanceof Error ? error.message : "Failed to fetch models");
+    } finally {
+      setIsFetching(false);
     }
   };
 
-  // Clear the stored API key.
-  const handleClearApiKey = async () => {
-    if (!window.electronAPI?.clearApiKey) {
-      setApiKeyStatus("Error: Cannot clear API key");
+  const handleApply = async () => {
+    if (!stagedModelId || !window.electronAPI?.applyProviderSetup) {
       return;
     }
+    setIsApplying(true);
+    setApplyError("");
+    setApplyStatus("Applying...");
     try {
-      const result = await window.electronAPI.clearApiKey();
+      const result = await window.electronAPI.applyProviderSetup({
+        provider: stagedProvider,
+        modelId: stagedModelId,
+        apiKey: apiKeyInput || undefined,
+        provisioningKey:
+          stagedProvider === "openrouter" ? provisioningInput || undefined : undefined,
+      });
       if (result.success) {
         setApiKeyInput("");
-        setApiKeySet(false);
-        setApiKeyStatus("Cleared.");
+        setProvisioningInput("");
+        refreshSecretStatus(stagedProvider);
+        setApplyStatus("Applied!");
       } else {
-        setApiKeyStatus(`Error: ${result.error || "Failed to clear"}`);
+        setApplyStatus("");
+        setApplyError(result.error || "Failed to apply provider setup");
       }
     } catch (error) {
-      console.error("SettingGeneral: Error clearing API key:", error);
-      setApiKeyStatus("Error clearing API key");
+      setApplyStatus("");
+      setApplyError(
+        error instanceof Error ? error.message : "Failed to apply provider setup",
+      );
+    } finally {
+      setIsApplying(false);
     }
   };
 
@@ -116,8 +181,6 @@ export const SettingGeneral: React.FC = () => {
       const result = await window.electronAPI.resetProfileSettings();
       if (result.success) {
         setResetStatus("Settings reset to defaults.");
-        // Remount ModelSelect so it reloads the (now default) model.
-        setModelSelectKey((key) => key + 1);
         setTimeout(() => setResetStatus(""), 2500);
       } else {
         setResetStatus(`Error: ${result.error || "Failed to reset"}`);
@@ -128,190 +191,168 @@ export const SettingGeneral: React.FC = () => {
     }
   };
 
-  // Save the OpenRouter provisioning key (encrypted via safeStorage in main).
-  const handleSaveProvisioningKey = async () => {
-    if (!window.electronAPI?.setProvisioningKey) {
-      setProvisioningStatus("Error: Cannot save provisioning key");
-      return;
-    }
-    if (provisioningInput.trim().length === 0) {
-      setProvisioningStatus("Error: Provisioning key must not be empty");
-      return;
-    }
-    // Soft prefix check, mirroring the API key 'sk-' warning.
-    if (!provisioningInput.trim().startsWith("sk-or-")) {
-      setProvisioningStatus(
-        "Warning: Key format may be invalid, but saving anyway..."
-      );
-    } else {
-      setProvisioningStatus("Saving...");
-    }
-
-    try {
-      const result =
-        await window.electronAPI.setProvisioningKey(provisioningInput);
-      if (result.success) {
-        setProvisioningStatus("Saved!");
-        setProvisioningKeySet(true);
-        // Clear the input so the secret does not linger in renderer state/DOM.
-        setProvisioningInput("");
-      } else {
-        setProvisioningStatus(`Error: ${result.error || "Unknown error"}`);
-      }
-    } catch (error) {
-      console.error("SettingGeneral: Error saving provisioning key:", error);
-      setProvisioningStatus("Error saving provisioning key");
-    }
-  };
-
-  // Clear the stored provisioning key.
-  const handleClearProvisioningKey = async () => {
-    if (!window.electronAPI?.clearProvisioningKey) {
-      setProvisioningStatus("Error: Cannot clear provisioning key");
-      return;
-    }
-    try {
-      const result = await window.electronAPI.clearProvisioningKey();
-      if (result.success) {
-        setProvisioningInput("");
-        setProvisioningKeySet(false);
-        setProvisioningStatus("Cleared.");
-      } else {
-        setProvisioningStatus(`Error: ${result.error || "Failed to clear"}`);
-      }
-    } catch (error) {
-      console.error("SettingGeneral: Error clearing provisioning key:", error);
-      setProvisioningStatus("Error clearing provisioning key");
-    }
-  };
-
   return (
     <div className="flex flex-col gap-4">
-      <div className="mb-4">
+      {/* Provider selection — the only provider control in the whole app. */}
+      <div className="mb-2">
         <label
-          htmlFor="api-key-input"
+          htmlFor="provider-select"
           className="block text-sm font-medium text-card-foreground mb-1"
         >
-          API Key
+          AI Provider
         </label>
-        <p
-          className={`text-xs mb-1 ${apiKeySet ? "text-success" : "text-muted-foreground"}`}
-          role="status"
-        >
-          {apiKeySet ? "Key is set" : "No key set"}
-        </p>
-        <input
-          id="api-key-input"
-          type="password"
-          autoComplete="off"
+        <select
+          id="provider-select"
           className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          value={apiKeyInput}
-          onChange={(event) => {
-            setApiKeyInput(event.target.value);
-            setApiKeyStatus("");
-          }}
-          placeholder={
-            apiKeySet
-              ? "Enter a new key to replace the stored one"
-              : "Enter your API key"
-          }
-          aria-label="API Key"
-        />
-        {apiKeyStatus && (
-          <p
-            className={`text-xs mt-1 ${apiKeyStatus.startsWith("Error") ? "text-destructive" : apiKeyStatus.startsWith("Warning") ? "text-warning" : "text-success"}`}
-            role="status"
-          >
-            {apiKeyStatus}
-          </p>
-        )}
-        <div className="mt-2 flex gap-2">
-          <button
-            type="button"
-            onClick={handleSaveApiKey}
-            className="rounded bg-primary px-3 py-1.5 text-sm text-foreground hover:bg-primary"
-          >
-            Save key
-          </button>
-          <button
-            type="button"
-            disabled={!apiKeySet}
-            onClick={handleClearApiKey}
-            className="rounded border border-destructive/50 px-3 py-1.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
-          >
-            Clear
-          </button>
-        </div>
+          value={stagedProvider}
+          onChange={(event) => setStagedProvider(event.target.value as ProviderId)}
+        >
+          {PROVIDER_IDS.map((provider) => (
+            <option key={provider} value={provider}>
+              {PROVIDER_LABELS[provider]}
+            </option>
+          ))}
+        </select>
         <p className="text-xs text-muted-foreground mt-1">
-          Stored encrypted by your OS (Keychain on macOS). Never shown again
-          after saving.
+          The old provider stays active until Apply succeeds below.
         </p>
       </div>
 
-      {/* OpenRouter Provisioning (admin) Key */}
-      <div className="mb-4 border-t border-border pt-4">
-        <label
-          htmlFor="provisioning-key-input"
-          className="block text-sm font-medium text-card-foreground mb-1"
-        >
-          OpenRouter Provisioning Key
-        </label>
-        <p
-          className={`text-xs mb-1 ${provisioningKeySet ? "text-success" : "text-muted-foreground"}`}
-          role="status"
-        >
-          {provisioningKeySet ? "Key is set" : "No key set"}
-        </p>
-        <input
-          id="provisioning-key-input"
-          type="password"
-          autoComplete="off"
-          className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          value={provisioningInput}
-          onChange={(event) => {
-            setProvisioningInput(event.target.value);
-            setProvisioningStatus("");
-          }}
-          placeholder={
-            provisioningKeySet
-              ? "Enter a new key to replace the stored one"
-              : "Enter your OpenRouter provisioning key"
-          }
-          aria-label="OpenRouter Provisioning Key"
-        />
-        {provisioningStatus && (
+      {/* Credentials — conditional on the staged provider. */}
+      {stagedProvider !== "ollama" ? (
+        <div className="mb-2">
+          <label
+            htmlFor="staged-api-key-input"
+            className="block text-sm font-medium text-card-foreground mb-1"
+          >
+            {stagedProvider === "openai" ? "OpenAI API Key" : "OpenRouter API Key"}
+          </label>
           <p
-            className={`text-xs mt-1 ${provisioningStatus.startsWith("Error") ? "text-destructive" : provisioningStatus.startsWith("Warning") ? "text-warning" : "text-success"}`}
+            className={`text-xs mb-1 ${apiKeySet ? "text-success" : "text-muted-foreground"}`}
             role="status"
           >
-            {provisioningStatus}
+            {apiKeySet ? "Key is set" : "No key set"}
+          </p>
+          <input
+            id="staged-api-key-input"
+            type="password"
+            autoComplete="off"
+            className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            value={apiKeyInput}
+            onChange={(event) => setApiKeyInput(event.target.value)}
+            placeholder={
+              apiKeySet
+                ? "Enter a new key to replace the stored one"
+                : `Enter your ${stagedProvider === "openai" ? "OpenAI" : "OpenRouter"} API key`
+            }
+            aria-label={stagedProvider === "openai" ? "OpenAI API Key" : "OpenRouter API Key"}
+          />
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground mb-2">No API key required</p>
+      )}
+
+      {stagedProvider === "openrouter" && (
+        <div className="mb-2">
+          <label
+            htmlFor="staged-provisioning-key-input"
+            className="block text-sm font-medium text-card-foreground mb-1"
+          >
+            OpenRouter Provisioning Key
+          </label>
+          <p
+            className={`text-xs mb-1 ${provisioningKeySet ? "text-success" : "text-muted-foreground"}`}
+            role="status"
+          >
+            {provisioningKeySet ? "Key is set" : "No key set"}
+          </p>
+          <input
+            id="staged-provisioning-key-input"
+            type="password"
+            autoComplete="off"
+            className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            value={provisioningInput}
+            onChange={(event) => setProvisioningInput(event.target.value)}
+            placeholder={
+              provisioningKeySet
+                ? "Enter a new key to replace the stored one"
+                : "Enter your OpenRouter provisioning key"
+            }
+            aria-label="OpenRouter Provisioning Key"
+          />
+        </div>
+      )}
+
+      {/* Fetch models for the staged provider. */}
+      <div>
+        <button
+          type="button"
+          onClick={handleFetchModels}
+          disabled={isFetching}
+          className="rounded bg-primary px-3 py-1.5 text-sm text-foreground hover:bg-primary disabled:opacity-50"
+        >
+          {isFetching ? "Fetching models..." : "Fetch models"}
+        </button>
+        {fetchStatus && (
+          <p className="text-xs mt-1 text-success" role="status">
+            {fetchStatus}
           </p>
         )}
-        <div className="mt-2 flex gap-2">
-          <button
-            type="button"
-            onClick={handleSaveProvisioningKey}
-            className="rounded bg-primary px-3 py-1.5 text-sm text-foreground hover:bg-primary"
-          >
-            Save key
-          </button>
-          <button
-            type="button"
-            disabled={!provisioningKeySet}
-            onClick={handleClearProvisioningKey}
-            className="rounded border border-destructive/50 px-3 py-1.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
-          >
-            Clear
-          </button>
-        </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          Stored encrypted by your OS (Keychain on macOS). High-privilege key —
-          keep it secret. It is never shown again after saving.
-        </p>
+        {fetchError && (
+          <p className="text-xs mt-1 text-destructive" role="alert">
+            {fetchError}
+          </p>
+        )}
       </div>
 
-      {/* Model Selection */}
-      <ModelSelect key={modelSelectKey} />
+      {/* Staged default model — required before Apply is enabled. */}
+      <div>
+        <label
+          htmlFor="staged-model-select"
+          className="block text-sm font-medium text-card-foreground mb-1"
+        >
+          Default Model
+        </label>
+        <select
+          id="staged-model-select"
+          required
+          className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+          value={stagedModelId}
+          onChange={(event) => setStagedModelId(event.target.value)}
+          disabled={stagedModels.length === 0}
+        >
+          <option value="" disabled>
+            {stagedModels.length > 0 ? "Select a model" : "Fetch models first"}
+          </option>
+          {stagedModels.map((model) => (
+            <option key={model.id} value={model.id}>
+              {model.name || model.id}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Apply — commits provider, model, cache, and any typed credentials together. */}
+      <div>
+        <button
+          type="button"
+          onClick={handleApply}
+          disabled={!stagedModelId || isApplying}
+          className="w-full rounded bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          {isApplying ? "Applying..." : "Apply"}
+        </button>
+        {applyStatus && (
+          <p className="text-xs mt-1 text-success" role="status">
+            {applyStatus}
+          </p>
+        )}
+        {applyError && (
+          <p className="text-xs mt-1 text-destructive" role="alert">
+            {applyError}
+          </p>
+        )}
+      </div>
 
       {/* Reset to defaults */}
       <div className="mt-2 border-t border-border pt-4">

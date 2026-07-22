@@ -16,12 +16,14 @@
  * Electron-free and side-effect-free so it can be unit-tested directly.
  */
 import Fuse from "fuse.js";
-import type { Model } from "~/stores/apiStore";
+import type { Model, ProviderId } from "~/stores/apiStore";
 
 /** Per-token USD prices (OpenRouter strings) keyed by lowercased model id. */
 export type PriceMap = Map<string, { prompt: string; completion: string }>;
 
 export type CostInput = {
+  /** Provider that served the request. Direct OpenAI has no local price map. */
+  provider?: ProviderId;
   model?: string;
   resolvedModel?: string;
   promptTokens?: number;
@@ -130,6 +132,12 @@ export const computeCost = (
   input: CostInput,
   priceMap: PriceMap
 ): CostSnapshot => {
+  // Direct OpenAI model discovery intentionally has no pricing. Do not fuzzy
+  // match its bare model ids against the OpenRouter catalogue.
+  if (input.provider === "openai") {
+    return NA;
+  }
+
   // 1. Local/Ollama short-circuits to $0 regardless of any fuzzy price.
   if (input.isLocal) {
     return {

@@ -6,6 +6,8 @@
  * re-exports everything here to preserve its public surface.
  */
 
+import type { ProviderId } from "~/stores/apiStore";
+
 export type HistoryEntry = {
   original: string;
   corrected: string;
@@ -13,6 +15,8 @@ export type HistoryEntry = {
   promptTokens?: number;
   completionTokens?: number;
   model?: string;
+  /** Explicit request provider. Absent on pre-provider-metadata history rows. */
+  provider?: ProviderId;
   resolvedModel?: string; // Concrete model the provider served (resolves alias indirection); optional so legacy entries remain valid
   presetName?: string; // Snapshot of the producing preset's name at write time; optional so legacy entries remain valid
   // Cost snapshot (#56) — captured at write time so it is immune to later price

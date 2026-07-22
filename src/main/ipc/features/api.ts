@@ -3,7 +3,7 @@
  * @description IPC handlers for OpenAI API related functionality
  */
 import { ipcMain } from "electron";
-import { fetchAvailableModels } from "~/main/ai.request";
+import { fetchAvailableModels, getActiveProvider } from "~/main/ai.request";
 import { reloadHotkeys } from "~/main/keybindings";
 import { ollamaClient } from "~/main/llm";
 import { checkModelCompatibility } from "~/main/llm/models/compatibility";
@@ -18,44 +18,66 @@ import {
   setApiKey,
 } from "~/stores/apiKeyStore";
 import {
-  apiStore,
+  commitActiveProfileProviderSetup,
+  getCurrentProfileId,
   getDefaultModelId,
   getProfileSetting,
+  isModelForProvider,
+  isProviderId,
   resetCurrentProfileSettings,
+  updateProfileSetting,
 } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
-import type { Model } from "~/stores/apiStore";
+import {
+  getProfileSecret,
+  hasProfileSecret,
+  setProfileSecret,
+} from "~/stores/profileSecretStore";
+import type { ProviderId } from "~/stores/apiStore";
 
-/**
- * One-time migration: if no safeStorage key file exists yet but a plaintext key
- * is present in the legacy profile/root store, encrypt and persist it. The
- * legacy store entry is left in place for now (no destructive writes on migrate).
- */
-const migrateApiKeyToSafeStorage = async (): Promise<void> => {
-  if (await hasApiKey()) return;
+type ProviderSetupPayload = {
+  provider: ProviderId;
+  modelId: string;
+  apiKey?: string;
+  provisioningKey?: string;
+};
 
-  const legacy =
-    (getProfileSetting("apiKey") as string) ||
-    (apiStore.get("apiKey") as string) ||
-    process.env.OPENAI_API_KEY ||
-    "";
-  if (!legacy) return;
-
-  const result = await setApiKey(legacy);
-  if (result.success) {
-    console.log("apiKeyStore: migrated API key from legacy store to safeStorage");
-  } else {
-    console.warn("apiKeyStore: migration failed:", result.error);
+export const parseProviderSetup = (raw: unknown): ProviderSetupPayload | null => {
+  if (!raw || typeof raw !== "object") return null;
+  const value = raw as Record<string, unknown>;
+  if (!isProviderId(value.provider) || typeof value.modelId !== "string") {
+    return null;
   }
+  if (
+    (value.apiKey !== undefined && typeof value.apiKey !== "string") ||
+    (value.provisioningKey !== undefined && typeof value.provisioningKey !== "string")
+  ) {
+    return null;
+  }
+  return {
+    provider: value.provider,
+    modelId: value.modelId.trim(),
+    ...(typeof value.apiKey === "string" ? { apiKey: value.apiKey } : {}),
+    ...(typeof value.provisioningKey === "string"
+      ? { provisioningKey: value.provisioningKey }
+      : {}),
+  };
+};
+
+const getSetupApiKey = async (
+  profileId: string,
+  provider: ProviderId,
+  suppliedKey?: string,
+): Promise<string> => {
+  if (provider === "ollama") return "";
+  if (suppliedKey?.trim()) return suppliedKey.trim();
+  return (await getProfileSecret(profileId, provider, "api")) ?? "";
 };
 
 /**
  * Registers API-related IPC handlers
  */
 export const registerApiHandlers = (): void => {
-  // Run migration once at startup (non-blocking).
-  void migrateApiKeyToSafeStorage();
-
   // ---------------------------------------------------------------------------
   // API key — safeStorage-backed. No "get-api-key" by design: the decrypted key
   // never crosses to the renderer. The UI tracks only a boolean set/not-set
@@ -72,10 +94,9 @@ export const registerApiHandlers = (): void => {
 
       // Refetch models in the background using the newly stored key.
       void getApiKey()
-        .then((key) => key && fetchAvailableModels(key))
+        .then((key) => (key ? fetchAvailableModels(key, "openrouter") : null))
         .then((models) => {
           if (models) {
-            apiStore.set("models", models);
             console.log(`Refetched ${models.length} models after API key save`);
           }
         })
@@ -97,14 +118,121 @@ export const registerApiHandlers = (): void => {
 
   ipcMain.handle("clear-api-key", async () => clearApiKey());
 
+  ipcMain.handle("get-active-provider", () => getActiveProvider());
+
+  ipcMain.handle("get-provider-secret-status", async (_event, raw: unknown) => {
+    if (!isProviderId(raw)) return { apiKeySet: false, provisioningKeySet: false };
+    const profileId = getCurrentProfileId();
+    if (!profileId) return { apiKeySet: false, provisioningKeySet: false };
+    return {
+      apiKeySet:
+        raw === "ollama" ? false : await hasProfileSecret(profileId, raw, "api"),
+      provisioningKeySet:
+        raw === "openrouter" &&
+        (await hasProfileSecret(profileId, "openrouter", "provisioning")),
+    };
+  });
+
+  // Provider setup is staged by the General settings screen. Fetching with a
+  // typed key never stores it or changes the active provider; only the apply
+  // handler below commits the validated provider/model/cache together.
+  ipcMain.handle("fetch-provider-models", async (_event, raw: unknown) => {
+    const payload = parseProviderSetup(raw);
+    const profileId = getCurrentProfileId();
+    if (!payload || !profileId) {
+      return { success: false, error: "Invalid provider setup" };
+    }
+    if (payload.provider !== "openrouter" && payload.provisioningKey?.trim()) {
+      return { success: false, error: "Only OpenRouter supports a provisioning key" };
+    }
+    try {
+      const apiKey = await getSetupApiKey(profileId, payload.provider, payload.apiKey);
+      if (payload.provider !== "ollama" && !apiKey) {
+        return { success: false, error: `Save or enter an ${payload.provider === "openai" ? "OpenAI" : "OpenRouter"} API key first` };
+      }
+      // strict: true — a live-fetch failure (bad/revoked key) must surface as
+      // an error here, never silently fall back to a stale cached list.
+      const models = await fetchAvailableModels(apiKey, payload.provider, false, true);
+      return { success: true, models };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
+
+  ipcMain.handle("apply-provider-setup", async (_event, raw: unknown) => {
+    const payload = parseProviderSetup(raw);
+    const profileId = getCurrentProfileId();
+    if (!payload || !profileId || !payload.modelId) {
+      return { success: false, error: "Choose a provider and default model" };
+    }
+    if (payload.provider !== "openrouter" && payload.provisioningKey?.trim()) {
+      return { success: false, error: "Only OpenRouter supports a provisioning key" };
+    }
+
+    try {
+      const apiKey = await getSetupApiKey(profileId, payload.provider, payload.apiKey);
+      if (payload.provider !== "ollama" && !apiKey) {
+        return { success: false, error: `An ${payload.provider === "openai" ? "OpenAI" : "OpenRouter"} API key is required` };
+      }
+
+      // Validate the model before writing credentials or touching the active
+      // profile. fetchAvailableModels is intentionally non-persistent here,
+      // and strict so an invalid/revoked key cannot pass validation just
+      // because stale models are still cached from a prior successful setup.
+      const models = await fetchAvailableModels(apiKey, payload.provider, false, true);
+      const selectedModel = models.find(
+        (model) => model.id === payload.modelId && isModelForProvider(model, payload.provider),
+      );
+      if (!selectedModel) {
+        return { success: false, error: "Choose a model available from the selected provider" };
+      }
+
+      if (payload.provider !== "ollama" && payload.apiKey?.trim()) {
+        const result = await setProfileSecret(profileId, payload.provider, "api", payload.apiKey);
+        if (!result.success) return result;
+      } else if (payload.provider !== "ollama" && !(await hasProfileSecret(profileId, payload.provider, "api"))) {
+        return { success: false, error: "API key could not be verified" };
+      }
+      if (payload.provider === "openrouter" && payload.provisioningKey?.trim()) {
+        const result = await setProfileSecret(
+          profileId,
+          "openrouter",
+          "provisioning",
+          payload.provisioningKey,
+        );
+        if (!result.success) return result;
+      }
+
+      const profile = commitActiveProfileProviderSetup(
+        payload.provider,
+        selectedModel.id,
+        models,
+      );
+      if (!profile) return { success: false, error: "Active profile not found" };
+      return { success: true, profile };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
+
   // Model handling
   ipcMain.handle("fetch-ai-models", async () => {
     try {
-      const apiKey = (await getApiKey()) ?? "";
-      const models = await fetchAvailableModels(apiKey);
-
-      // Store the models in the store
-      apiStore.set("models", models);
+      const provider = getActiveProvider();
+      const profileId = getCurrentProfileId();
+      const apiKey =
+        provider === "openrouter"
+          ? ((await getApiKey()) ?? "")
+          : provider === "openai" && profileId
+            ? ((await getProfileSecret(profileId, "openai", "api")) ?? "")
+            : "";
+      const models = await fetchAvailableModels(apiKey, provider);
 
       return {
         success: true,
@@ -121,7 +249,9 @@ export const registerApiHandlers = (): void => {
 
   // Fallback to cached models if API call fails
   ipcMain.handle("get-cached-models", () => {
-    return apiStore.get("models") || [];
+    return (getProfileSetting("models") || []).filter((model) =>
+      isModelForProvider(model, getActiveProvider()),
+    );
   });
 
   ipcMain.handle("get-selected-model", () => {
@@ -144,8 +274,8 @@ export const registerApiHandlers = (): void => {
     try {
       console.log(`[DEBUG IPC] Setting selected model via IPC to: ${modelId}`);
 
-      // Sanity check - verify this model exists
-      const models = (apiStore.get("models") as Model[]) || [];
+      // Sanity check - a global selection can only use the active provider.
+      const models = getProfileSetting("models") || [];
       const model = models.find((m) => m.id === modelId);
       console.log(`[DEBUG IPC] Model found in registry: ${!!model}`);
       if (model) {
@@ -154,13 +284,11 @@ export const registerApiHandlers = (): void => {
         );
       }
 
-      // Save to store
-      apiStore.set("selectedModel", modelId);
-
-      // Double-check it was saved correctly
-      const savedModel = apiStore.get("selectedModel");
-      console.log(`[DEBUG IPC] Verified saved model ID: ${savedModel}`);
-      console.log(`[DEBUG IPC] Models match: ${savedModel === modelId}`);
+      if (!model || !isModelForProvider(model, getActiveProvider())) {
+        return { success: false, error: "Model is not available from the active provider" };
+      }
+      const result = updateProfileSetting("selectedModel", modelId);
+      if (!result.success) return result;
 
       return { success: true };
     } catch (error) {
@@ -174,20 +302,23 @@ export const registerApiHandlers = (): void => {
 
   // Feature-specific model settings
   ipcMain.handle("get-feature-model", (_event, feature) => {
-    const featureSetting = apiStore.get(`${feature}`);
-    if (
-      featureSetting &&
-      typeof featureSetting === "object" &&
-      "model" in featureSetting
-    )
-      return featureSetting.model;
-
+    if (feature === "settingsPromptGen") {
+      return getProfileSetting("settingsPromptGen").model || getDefaultModelId();
+    }
     return getDefaultModelId();
   });
 
   ipcMain.handle("set-feature-model", async (_event, feature, model) => {
     try {
-      apiStore.set(`${feature}`, { model });
+      if (feature !== "settingsPromptGen" || typeof model !== "string") {
+        return { success: false, error: "Unsupported feature model setting" };
+      }
+      const current = getProfileSetting("settingsPromptGen");
+      const result = updateProfileSetting("settingsPromptGen", {
+        ...current,
+        model,
+      });
+      if (!result.success) return result;
       console.log(`Set ${feature} model to: ${model}`);
       return { success: true };
     } catch (error) {

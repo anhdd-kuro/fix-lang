@@ -5,6 +5,10 @@
 import { ipcMain, Notification } from "electron";
 import { reloadHotkeys } from "~/main/keybindings";
 import {
+  clearLegacyApiKey,
+  getLegacyApiKey,
+} from "~/stores/apiKeyStore";
+import {
   getProfiles,
   getCurrentProfileId,
   createProfile,
@@ -14,8 +18,83 @@ import {
   switchToNextProfile,
   getProfileById,
   initializeDefaultProfile,
+  apiStore,
+  withoutProfileSecrets,
+  sanitizeImportedProfile,
 } from "~/stores/apiStore";
+import {
+  clearProfileSecrets,
+  hasProfileSecret,
+  setProfileSecret,
+} from "~/stores/profileSecretStore";
+import {
+  clearLegacyProvisioningKey,
+  getLegacyProvisioningKey,
+} from "~/stores/provisioningKeyStore";
 import type { Profile } from "~/stores/apiStore";
+
+/**
+ * Moves legacy global credentials only after the active profile exists. The
+ * destination is written first; a legacy encrypted file is removed only after
+ * that write succeeds, so a failed migration cannot discard the only key.
+ */
+const migrateLegacySecretsToActiveProfile = async (): Promise<void> => {
+  const profileId = getCurrentProfileId();
+  const profile = profileId ? getProfileById(profileId) : null;
+  if (!profile) return;
+
+  const move = async (
+    kind: "api" | "provisioning",
+    legacy: string | null,
+    clearLegacy: () => Promise<{ success: boolean }>,
+  ): Promise<void> => {
+    if (!legacy) return;
+    // A prior run may have completed the destination write but crashed before
+    // deleting the global file. The profile copy is already durable, so finish
+    // that idempotent cleanup without touching its value.
+    if (await hasProfileSecret(profile.id, "openrouter", kind)) {
+      await clearLegacy();
+      return;
+    }
+    const result = await setProfileSecret(profile.id, "openrouter", kind, legacy);
+    if (result.success) {
+      await clearLegacy();
+    } else {
+      console.warn(`Profile secret migration failed for ${kind}:`, result.error);
+    }
+  };
+
+  await move("api", await getLegacyApiKey(), clearLegacyApiKey);
+  await move(
+    "provisioning",
+    await getLegacyProvisioningKey(),
+    clearLegacyProvisioningKey,
+  );
+
+  // Earlier releases also persisted a plaintext apiKey inside profile/root
+  // settings. It is copied into safeStorage first, then scrubbed only after a
+  // successful write. It is never exported or imported below.
+  const legacyPlaintext = profile.settings.apiKey || (apiStore.get("apiKey") as string) || "";
+  if (legacyPlaintext && !(await hasProfileSecret(profile.id, "openrouter", "api"))) {
+    const result = await setProfileSecret(
+      profile.id,
+      "openrouter",
+      "api",
+      legacyPlaintext,
+    );
+    if (!result.success) return;
+  }
+
+  if (legacyPlaintext) {
+    const profiles = getProfiles();
+    const index = profiles.findIndex((candidate) => candidate.id === profile.id);
+    if (index !== -1) {
+      profiles[index] = withoutProfileSecrets(profiles[index]);
+      apiStore.set("profiles", profiles);
+    }
+    (apiStore as unknown as { delete: (key: string) => void }).delete("apiKey");
+  }
+};
 
 /**
  * Registers profile-related IPC handlers
@@ -23,6 +102,7 @@ import type { Profile } from "~/stores/apiStore";
 export const registerProfileHandlers = () => {
   // Initialize default profile if needed
   initializeDefaultProfile();
+  void migrateLegacySecretsToActiveProfile();
 
   // Get all profiles
   ipcMain.handle("get-profiles", async () => {
@@ -167,6 +247,9 @@ export const registerProfileHandlers = () => {
       try {
         const profile = getProfileById(profileId);
         const success = deleteProfile(profileId);
+        const secretCleanup = success
+          ? await clearProfileSecrets(profileId)
+          : { success: true };
 
         if (success && profile) {
           new Notification({
@@ -177,6 +260,9 @@ export const registerProfileHandlers = () => {
 
         return {
           success,
+          ...(secretCleanup.success
+            ? {}
+            : { warning: "Profile deleted, but some credentials could not be removed" }),
         };
       } catch (error) {
         console.error("Failed to delete profile:", error);
@@ -225,7 +311,9 @@ export const registerProfileHandlers = () => {
     async (_event, { profileJson }: { profileJson: string }) => {
       try {
         // Parse the JSON profile
-        const profileData = JSON.parse(profileJson) as Profile;
+        const profileData = sanitizeImportedProfile(
+          JSON.parse(profileJson) as Profile,
+        );
 
         // Validate that it has the required structure
         if (!profileData.id || !profileData.name || !profileData.settings) {
@@ -256,7 +344,6 @@ export const registerProfileHandlers = () => {
         profiles.push(profileData);
 
         // Save updated profiles
-        const apiStore = (await import("~/stores/apiStore")).apiStore;
         apiStore.set("profiles", profiles);
 
         new Notification({
@@ -295,7 +382,7 @@ export const registerProfileHandlers = () => {
 
         return {
           success: true,
-          profileJson: JSON.stringify(profile, null, 2),
+          profileJson: JSON.stringify(withoutProfileSecrets(profile), null, 2),
         };
       } catch (error) {
         console.error("Failed to export profile:", error);
