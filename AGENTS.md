@@ -62,7 +62,7 @@ fix-lang/
 
 ```bash
 bun run dev             # hot reload (predev runs build)
-bun run test            # verify changes — use `bun run test`, NOT `bun test`
+bun run test            # verify changes — use `bun run test`, not `bun test`
 bun run lint            # ESLint (cached)
 bun run pack:mac        # package macOS app → release/
 bun run themes:generate # after theme .ts edits
@@ -80,18 +80,28 @@ bun run themes:generate # after theme .ts edits
 ## Boundaries
 
 ✅ Always:
+
 - Keep prompts bundled locally from `src/prompts/` — no runtime fetch.
 - Store SQLite/JSONL under `app.getPath("userData")` — never inside the signed bundle.
 - Use async I/O only in the main process.
+- Consider spawning sub-agents to avoid flooding the main agent context window.
+- Write gotchas in caveman style.
+- Anything unclear after exploring — use batch-grill-me before guessing.
+- Before declaring tasks done:
+  - Spawn fresh sub-agent to review the changes before committing.
+  - Run linting and testing to verify changes.
+  - Update AGENTS.md instructions if needed.
 
 ⚠️ Ask first:
-- Anything unclear after exploring — use grill-me before guessing.
+
+- Before deleting important files, ask for confirmation.
 
 🚫 Never:
+
 - Commit secrets, `.env`, `node_modules`, `out/`, `release/`.
 - Reintroduce pnpm or bypass preload IPC validation.
 - Use `any` without a why-comment.
-- Bump TypeScript to 7.x until eslint support lands.
+- Bump TypeScript to 7.x until ESLint support lands.
 
 ## References
 
