@@ -3,7 +3,10 @@
  * @description IPC handlers for UI theme persistence and cross-window sync.
  */
 import { BrowserWindow, ipcMain } from "electron";
-import { syncOverlayTheme } from "~/main/webViewWindows/overlayWindow";
+import {
+  syncErrorPopupTheme,
+  syncOverlayTheme,
+} from "~/main/webViewWindows";
 import { isThemeId, themeStore, type ThemeId } from "~/stores/themeStore";
 
 /**
@@ -16,6 +19,7 @@ export const broadcastTheme = (themeId: ThemeId): void => {
     }
   });
   syncOverlayTheme(themeId);
+  syncErrorPopupTheme(themeId);
 };
 
 /**

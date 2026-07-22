@@ -7,7 +7,7 @@ import { globalShortcut, Notification } from "electron";
 import { getMainWindow } from "~/main/webViewWindows/mainWindow";
 import { switchToNextProfile } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
-import { checkShortcut } from "./utils";
+import { checkShortcut, handleError } from "./utils";
 
 /**
  * Register global shortcut to switch to the next profile
@@ -39,17 +39,11 @@ export const registerProfileSwitchShortcut = (): void => {
           body: `Switched to profile: ${nextProfile.name}`,
         }).show();
       } else {
-        new Notification({
-          title: "Profile Switch Failed",
-          body: "No profiles available",
-        }).show();
+        handleError(new Error("No profiles available."));
       }
     } catch (error) {
       console.error("Error switching profile:", error);
-      new Notification({
-        title: "Profile Switch Error",
-        body: error instanceof Error ? error.message : "Unknown error",
-      }).show();
+      handleError(error);
     }
   });
 

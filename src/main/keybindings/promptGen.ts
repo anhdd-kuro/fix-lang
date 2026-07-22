@@ -1,4 +1,4 @@
-import { globalShortcut, Notification, screen } from "electron";
+import { globalShortcut, screen } from "electron";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { getHighlightedText } from "../../utils";
 import { generatePrompt } from "../ai.request";
@@ -17,7 +17,7 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
     try {
       const selectedText = await getHighlightedText();
       if (!selectedText || !selectedText.trim()) {
-        new Notification({ title: "Error", body: "No text selected." }).show();
+        handleError(new Error("No text selected."));
         return;
       }
       const { x, y } = screen.getCursorScreenPoint();

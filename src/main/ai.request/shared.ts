@@ -8,9 +8,9 @@
  */
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
-import { Notification } from "electron";
 import { OpenAI } from "openai";
 import { getLocalModels } from "~/main/llm/models/discover";
+import { showErrorNotification } from "~/main/notifications/error";
 import { getApiKey } from "~/stores/apiKeyStore";
 import {
   apiStore,
@@ -158,7 +158,9 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
   // inherits the global default) resolves to the dynamic global default.
   const modelId = options.model || getDefaultModelId();
   if (!modelId) {
-    throw new Error("You have to select a model first.");
+    const error = new Error("You have to select a model first.");
+    showErrorNotification(error);
+    throw error;
   }
 
   console.log(`Using model for request: ${modelId}`);
@@ -181,7 +183,9 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
   const selectedModel = models.find((m) => m.id === modelId);
 
   if (!selectedModel) {
-    throw new Error(`Model ${modelId} not found in model registry.`);
+    const error = new Error(`Model ${modelId} not found in model registry.`);
+    showErrorNotification(error);
+    throw error;
   }
 
   if (selectedModel.local) {
@@ -296,6 +300,7 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
     };
   } catch (error) {
     console.error("Local LLM request failed:", error);
+    showErrorNotification(error, "The local AI request failed. Please try again.");
     throw error;
   }
 };
@@ -313,7 +318,9 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
     (apiStore.get("apiKey") as string) ||
     "";
   if (!apiKey) {
-    throw new Error("OpenRouter API key is missing.");
+    const error = new Error("OpenRouter API key is missing.");
+    showErrorNotification(error);
+    throw error;
   }
 
   try {
@@ -428,12 +435,7 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
     };
   } catch (error) {
     console.error("makeRemoteAIRequest error:", error);
-    new Notification({
-      title: "API Error",
-      body: `Failed to get response from API: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    }).show();
+    showErrorNotification(error, "Failed to get a response from the AI provider.");
     throw error;
   }
 };

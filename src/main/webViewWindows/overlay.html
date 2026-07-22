@@ -940,6 +940,71 @@
       animation: prixClipFix 2s infinite linear;
     }
 
+    #error-popup {
+      display: none;
+      width: 100%;
+      box-sizing: border-box;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid var(--overlay-spinner);
+      border-radius: 12px;
+      background: rgba(24, 25, 35, 0.97);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+      color: #f7f7fb;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body[data-overlay-mode="error"] {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    body[data-overlay-mode="error"] .loader {
+      display: none;
+    }
+
+    body[data-overlay-mode="error"] #error-popup {
+      display: flex;
+    }
+
+    .error-icon {
+      flex: 0 0 24px;
+      width: 24px;
+      height: 24px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--overlay-spinner);
+      color: #111218;
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .error-copy {
+      min-width: 0;
+    }
+
+    .error-title {
+      margin-bottom: 4px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .error-message {
+      display: -webkit-box;
+      overflow: hidden;
+      color: #d5d7e2;
+      font-size: 12px;
+      line-height: 1.4;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+    }
+
     @keyframes prixClipFix {
       0% {
         clip-path: polygon(50% 50%, 0 0, 0 0, 0 0, 0 0, 0 0)
@@ -966,6 +1031,13 @@
 
 <body>
   <span class="loader"></span>
+  <div id="error-popup" role="alert" aria-live="assertive">
+    <span class="error-icon">!</span>
+    <div class="error-copy">
+      <div class="error-title">FixLang Error</div>
+      <div id="error-message" class="error-message"></div>
+    </div>
+  </div>
 </body>
 
 </html>

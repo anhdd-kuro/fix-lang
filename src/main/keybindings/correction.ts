@@ -60,11 +60,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
             "No text selected or clipboard is empty",
             { presetId: preset.id },
           );
-          new Notification({
-            title: "Error",
-            body: "No text selected or clipboard is empty.",
-            urgency: "critical",
-          }).show();
+          handleError(new Error("No text selected or clipboard is empty."));
           return;
         }
 
