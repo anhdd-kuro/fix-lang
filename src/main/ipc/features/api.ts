@@ -17,45 +17,14 @@ import {
   hasApiKey,
   setApiKey,
 } from "~/stores/apiKeyStore";
-import {
-  apiStore,
-  getDefaultModelId,
-  getProfileSetting,
-  resetCurrentProfileSettings,
-} from "~/stores/apiStore";
+import { apiStore, getDefaultModelId, resetCurrentProfileSettings } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import type { Model } from "~/stores/apiStore";
-
-/**
- * One-time migration: if no safeStorage key file exists yet but a plaintext key
- * is present in the legacy profile/root store, encrypt and persist it. The
- * legacy store entry is left in place for now (no destructive writes on migrate).
- */
-const migrateApiKeyToSafeStorage = async (): Promise<void> => {
-  if (await hasApiKey()) return;
-
-  const legacy =
-    (getProfileSetting("apiKey") as string) ||
-    (apiStore.get("apiKey") as string) ||
-    process.env.OPENAI_API_KEY ||
-    "";
-  if (!legacy) return;
-
-  const result = await setApiKey(legacy);
-  if (result.success) {
-    console.log("apiKeyStore: migrated API key from legacy store to safeStorage");
-  } else {
-    console.warn("apiKeyStore: migration failed:", result.error);
-  }
-};
 
 /**
  * Registers API-related IPC handlers
  */
 export const registerApiHandlers = (): void => {
-  // Run migration once at startup (non-blocking).
-  void migrateApiKeyToSafeStorage();
-
   // ---------------------------------------------------------------------------
   // API key — safeStorage-backed. No "get-api-key" by design: the decrypted key
   // never crosses to the renderer. The UI tracks only a boolean set/not-set

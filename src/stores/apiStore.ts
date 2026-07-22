@@ -24,6 +24,8 @@ export type Model = {
   id: string;
   name: string;
   created: number;
+  /** Explicit source prevents model ids from being used to infer provider routing. */
+  provider?: ProviderId;
   pricing?: {
     prompt: string;
     completion: string;
@@ -45,6 +47,12 @@ export type Model = {
     };
   };
 };
+
+export const PROVIDER_IDS = ["openai", "openrouter", "ollama"] as const;
+export type ProviderId = (typeof PROVIDER_IDS)[number];
+
+export const isProviderId = (value: unknown): value is ProviderId =>
+  typeof value === "string" && (PROVIDER_IDS as readonly string[]).includes(value);
 
 export type KeyBindings = {
   promptGen: string; // generate a new prompt based on current selection
@@ -78,11 +86,14 @@ export type Profile = {
   description?: string;
   createdAt: string; // ISO date string
   updatedAt: string; // ISO date string
+  /** Provider selection belongs to the profile, never to a model-id convention. */
+  provider: ProviderId;
   settings: SettingsStore;
 };
 
 export type SettingsStore = {
   // Core API settings
+  /** @deprecated Legacy plaintext value. It is scrubbed on import/export and migrated to safeStorage. */
   apiKey: string;
   models: Model[];
   selectedModel: string;
@@ -384,6 +395,7 @@ const schema = {
         description: { type: "string" },
         createdAt: { type: "string" },
         updatedAt: { type: "string" },
+        provider: { type: "string", default: "openrouter" },
         settings: {
           type: "object",
           properties: {
@@ -512,6 +524,23 @@ export const getDefaultModelId = (): string => {
   return resolveDefaultOpenAIModel(models);
 };
 
+const normalizeProfileProvider = (profile: Profile): Profile => ({
+  ...profile,
+  provider: isProviderId(profile.provider) ? profile.provider : "openrouter",
+});
+
+/**
+ * Persist the explicit OpenRouter marker for profiles written before provider
+ * selection existed. Keeping model ids untouched makes this migration safe.
+ */
+export const migrateLegacyProfileProviders = (): void => {
+  const profiles = apiStore.get("profiles", []) as Profile[];
+  const normalized = profiles.map(normalizeProfileProvider);
+  if (profiles.some((profile) => !isProviderId(profile.provider))) {
+    apiStore.set("profiles", normalized);
+  }
+};
+
 /**
  * Creates a profile from current settings
  * @param name Profile name
@@ -524,19 +553,17 @@ export const createProfile = (
 ): Profile => {
   const now = new Date().toISOString();
 
-  // Get current settings or create default settings if not available
-  let profileSettings = apiStore.get("settings") as SettingsStore;
-  if (!profileSettings) {
-    profileSettings = {} as SettingsStore;
-  }
-
   const profile = {
     id: `profile_${Date.now()}`,
     name,
     description,
     createdAt: now,
     updatedAt: now,
-    settings: profileSettings,
+    provider: "openrouter",
+    // New profiles never inherit another profile's selected model, cached
+    // models, or legacy plaintext key. Provider setup is intentionally staged
+    // by the Settings flow that follows this state change.
+    settings: buildDefaultProfileSettings(),
   } satisfies Profile;
 
   // Add to profiles array
@@ -555,7 +582,7 @@ export const createProfile = (
  * @returns Array of saved profiles
  */
 export const getProfiles = (): Profile[] => {
-  return apiStore.get("profiles", []) as Profile[];
+  return (apiStore.get("profiles", []) as Profile[]).map(normalizeProfileProvider);
 };
 
 /**
@@ -750,7 +777,7 @@ const buildDefaultProfileSettings = (): SettingsStore =>
   ({
     apiKey: "",
     models: [],
-    selectedModel: DEFAULT_OPENAI_MODEL,
+    selectedModel: "",
     customSystemPrompt: "",
     customUserPrompt: "",
     tone: "",
@@ -758,7 +785,7 @@ const buildDefaultProfileSettings = (): SettingsStore =>
     settingsSummarize: {
       minLength: 0,
       maxLength: 0,
-      model: DEFAULT_OPENAI_MODEL,
+      model: "",
       targetLanguage: DEFAULT_LANGUAGE,
     },
     settingsPromptGen: {
@@ -768,7 +795,7 @@ const buildDefaultProfileSettings = (): SettingsStore =>
       nsfw: true,
       context: "",
       autoCopy: false,
-      model: DEFAULT_OPENAI_MODEL,
+      model: "",
     },
   }) as SettingsStore;
 
@@ -825,6 +852,20 @@ export const resetCurrentProfileSettings = (): {
     };
   }
 };
+
+/** Remove legacy plaintext secrets before profiles cross a process/device boundary. */
+export const withoutProfileSecrets = (profile: Profile): Profile => {
+  const settings = { ...profile.settings } as SettingsStore;
+  delete (settings as Partial<SettingsStore>).apiKey;
+  return {
+    ...normalizeProfileProvider(profile),
+    settings,
+  } as Profile;
+};
+
+/** Treat any imported plaintext key as untrusted legacy data and discard it. */
+export const sanitizeImportedProfile = (profile: Profile): Profile =>
+  withoutProfileSecrets(profile);
 
 /**
  * Updates a profile with current settings
@@ -917,6 +958,7 @@ export const switchToNextProfile = (): Profile | null => {
  * This should be called when the application starts
  */
 export const initializeDefaultProfile = (): void => {
+  migrateLegacyProfileProviders();
   const profiles = getProfiles();
   if (profiles.length === 0) {
     console.log("Creating default profile");
