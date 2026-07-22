@@ -100,6 +100,24 @@ describe("unsigned GitHub update service", () => {
     expect(service.getReleaseUrl()).not.toContain("malicious.example");
   });
 
+  it.each([null, undefined])(
+    "accepts a stable release whose body is %s",
+    async (body) => {
+      const { service } = createService({
+        getLatestRelease: () =>
+          Promise.resolve(stableRelease("v0.2.0", { body })),
+      });
+
+      await service.checkForUpdates();
+
+      expect(service.getState()).toMatchObject({
+        phase: "available",
+        availableVersion: "0.2.0",
+      });
+      expect(service.getState().releaseNotes).toBeUndefined();
+    },
+  );
+
   it.each([
     ["0.10.0", "v0.9.9", "up-to-date"],
     ["0.10.0", "v0.10.0", "up-to-date"],
@@ -129,6 +147,7 @@ describe("unsigned GitHub update service", () => {
     stableRelease("v0.2.0", {
       assets: [{ name: "FixLang-0.2.0-arm64.dmg", state: "uploaded", size: 0 }],
     }),
+    stableRelease("v0.2.0", { body: 42 }),
     { message: "not a release" },
   ])("rejects malformed or non-stable release metadata", async (release) => {
     const { service } = createService({

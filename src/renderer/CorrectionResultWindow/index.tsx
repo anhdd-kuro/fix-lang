@@ -9,10 +9,12 @@ const CorrectionResultWindow = () => {
   useTheme();
   const [payload, setPayload] = useState<CorrectionResultPayload | null>(null);
 
-  useEffect(
-    () => window.electronAPI.onCorrectionResultData(setPayload),
-    [],
-  );
+  useEffect(() => {
+    const unsubscribe = window.electronAPI.onCorrectionResultData(setPayload);
+    // Signal after the listener is installed so the first payload is not lost.
+    window.electronAPI.signalCorrectionResultReady();
+    return unsubscribe;
+  }, []);
 
   if (!payload) return null;
 

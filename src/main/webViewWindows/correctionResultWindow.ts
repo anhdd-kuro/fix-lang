@@ -11,6 +11,10 @@ let resultWindow: BrowserWindow | null = null;
 let rendererReady = false;
 let currentPayload: CorrectionResultPayload | null = null;
 
+/**
+ * Sends the current payload only after the renderer has registered its
+ * IPC listener (signaled via correction-result-ready).
+ */
 const sendCurrentPayload = (): void => {
   if (
     !rendererReady ||
@@ -21,6 +25,13 @@ const sendCurrentPayload = (): void => {
     return;
   }
   resultWindow.webContents.send("correction-result-data", currentPayload);
+};
+
+const revealWindow = (): void => {
+  if (!resultWindow || resultWindow.isDestroyed()) return;
+  sendCurrentPayload();
+  resultWindow.show();
+  resultWindow.focus();
 };
 
 const createCorrectionResultWindow = (): BrowserWindow => {
@@ -47,11 +58,10 @@ const createCorrectionResultWindow = (): BrowserWindow => {
   resultWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   attachThemeSync(resultWindow);
 
-  resultWindow.webContents.on("did-finish-load", () => {
-    rendererReady = true;
-    sendCurrentPayload();
-    resultWindow?.show();
-    resultWindow?.focus();
+  // Reset readiness when a load starts so DevTools reloads wait for a new
+  // handshake instead of pushing into a listener that no longer exists.
+  resultWindow.webContents.on("did-start-loading", () => {
+    rendererReady = false;
   });
 
   resultWindow.on("close", (event) => {
@@ -72,6 +82,10 @@ const createCorrectionResultWindow = (): BrowserWindow => {
   return resultWindow;
 };
 
+/**
+ * Shows the correction result popup near the cursor with the given payload.
+ * The payload is held until the renderer signals it is ready to receive IPC.
+ */
 export const showCorrectionResultWindow = (
   payload: CorrectionResultPayload,
 ): void => {
@@ -90,11 +104,14 @@ export const showCorrectionResultWindow = (
 
   win.setPosition(x, y, false);
   if (rendererReady) {
-    sendCurrentPayload();
-    win.show();
-    win.focus();
+    revealWindow();
   }
 };
+
+ipcMain.on("correction-result-ready", () => {
+  rendererReady = true;
+  revealWindow();
+});
 
 ipcMain.on("close-correction-result-window", () => resultWindow?.hide());
 

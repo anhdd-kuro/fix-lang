@@ -93,11 +93,14 @@ const validateRelease = (value: unknown): ValidatedRelease | null => {
   const tagMatch = /^v(.+)$/.exec(value.tag_name);
   const version = tagMatch ? parseStableVersion(tagMatch[1]) : null;
   if (!version || !hasExpectedDmg(value.assets, version)) return null;
-  if (value.body !== undefined && typeof value.body !== "string") return null;
+  // GitHub returns JSON null when a release has no notes.
+  if (value.body != null && typeof value.body !== "string") return null;
 
   return Object.freeze({
     version,
-    releaseNotes: normalizeReleaseNotes(value.body),
+    releaseNotes: normalizeReleaseNotes(
+      typeof value.body === "string" ? value.body : undefined,
+    ),
   });
 };
 
