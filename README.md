@@ -74,6 +74,48 @@ it, run:
 xattr -dr com.apple.quarantine "/Applications/FixLang.app"
 ```
 
+### With Homebrew (Apple Silicon)
+
+Homebrew support will be available after the first public FixLang release is
+published. The public tap automatically synchronizes verified stable [GitHub
+Releases](https://github.com/anhdd-kuro/fix-lang/releases); it does not build,
+sign, notarize, or change the app. Scheduled synchronization normally occurs
+within six hours after a release is public.
+
+Once the `fixlang` cask appears in the tap, install it with:
+
+```bash
+brew install --cask anhdd-kuro/tap/fixlang
+```
+
+Homebrew adds `anhdd-kuro/tap` automatically. If you prefer to add the tap
+first, run `brew tap anhdd-kuro/tap`, then `brew install --cask fixlang`.
+
+To receive a newer release through Homebrew:
+
+```bash
+brew update && brew upgrade --cask fixlang
+```
+
+To remove it:
+
+```bash
+brew uninstall --cask fixlang
+```
+
+Homebrew may ask you to review and trust this third-party cask. You can approve
+that prompt, or explicitly trust only this cask first:
+
+```bash
+brew trust --cask anhdd-kuro/tap/fixlang
+```
+
+FixLang remains unsigned. Homebrew does not bypass Gatekeeper or grant
+Accessibility permission. If macOS blocks a release you trust, use the manual
+`xattr` command above; grant Accessibility permission when FixLang asks. The
+app's **Settings → General → App updates** check remains a manual GitHub
+Release download flow, not an automatic installer.
+
 ### Build from source
 
 Requires [bun](https://bun.sh).
