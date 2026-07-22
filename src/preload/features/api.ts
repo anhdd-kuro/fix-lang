@@ -1,11 +1,68 @@
 // API-related preload functionality
 import { ipcRenderer } from "electron";
-import type { Model } from "~/stores/apiStore";
+import type { Model, Profile, ProviderId } from "~/stores/apiStore";
+
+export type ProviderSetupInput = {
+  provider: ProviderId;
+  modelId: string;
+  /** Write-only credential; never returned from main. */
+  apiKey?: string;
+  /** OpenRouter-only write-only credential. */
+  provisioningKey?: string;
+};
+
+const isProviderId = (value: unknown): value is ProviderId =>
+  value === "openai" || value === "openrouter" || value === "ollama";
+
+export const isProviderSetupInput = (value: ProviderSetupInput): boolean =>
+  isProviderId(value.provider) &&
+  typeof value.modelId === "string" &&
+  (value.apiKey === undefined || typeof value.apiKey === "string") &&
+  (value.provisioningKey === undefined || typeof value.provisioningKey === "string");
 
 /**
  * Exposes API-related functionality to the renderer process
  */
 export const apiFeature = {
+  /** Reads the currently active provider (for provider-label display). */
+  getActiveProvider: (): Promise<ProviderId> =>
+    ipcRenderer.invoke("get-active-provider"),
+
+  /** Returns masked credential state for one staged provider. */
+  getProviderSecretStatus: async (
+    provider: ProviderId,
+  ): Promise<{ apiKeySet: boolean; provisioningKeySet: boolean }> => {
+    if (!isProviderId(provider)) {
+      return { apiKeySet: false, provisioningKeySet: false };
+    }
+    return ipcRenderer.invoke("get-provider-secret-status", provider);
+  },
+
+  /**
+   * Fetch models for a staged provider without changing the active provider or
+   * persisting the optional typed key.
+   */
+  fetchProviderModels: async (
+    setup: ProviderSetupInput,
+  ): Promise<{ success: boolean; models?: Model[]; error?: string }> => {
+    if (!isProviderSetupInput(setup)) {
+      return { success: false, error: "Invalid provider setup" };
+    }
+    return ipcRenderer.invoke("fetch-provider-models", setup);
+  },
+
+  /** Commit a validated provider, default model, cache, and supplied secrets. */
+  applyProviderSetup: async (
+    setup: ProviderSetupInput,
+  ): Promise<{ success: boolean; profile?: Profile; warning?: string; error?: string }> => {
+    if (!isProviderSetupInput(setup)) {
+      return { success: false, error: "Invalid provider setup" };
+    }
+    const result = await ipcRenderer.invoke("apply-provider-setup", setup);
+    if (result.success) ipcRenderer.send("settings-updated");
+    return result;
+  },
+
   /**
    * Fetches the list of available OpenAI models using the stored API key.
    * @returns A promise resolving to { success: boolean, models?: Model[], error?: string }

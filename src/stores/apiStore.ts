@@ -516,12 +516,80 @@ export const getOpenAIKey = () => {
  * single source of truth that presets with an empty model inherit.
  */
 export const getDefaultModelId = (): string => {
-  const stored = (apiStore.get("selectedModel") as string | undefined) || "";
+  // Model selection is profile-scoped. Keep the top-level value only as a
+  // migration fallback for stores created before profiles existed.
+  const stored = getCurrentProfileSettings().selectedModel ||
+    (apiStore.get("selectedModel") as string | undefined) || "";
   if (stored) {
     return stored;
   }
-  const models = (apiStore.get("models") as Model[]) || [];
+  const models = getCurrentProfileSettings().models ||
+    (apiStore.get("models") as Model[]) || [];
   return resolveDefaultOpenAIModel(models);
+};
+
+/** Whether a cached model is available from the named provider. */
+export const isModelForProvider = (
+  model: Model,
+  provider: ProviderId,
+): boolean =>
+  provider === "ollama"
+    ? model.provider === "ollama" || model.local !== undefined
+    : model.provider === provider ||
+      (provider === "openrouter" && model.provider === undefined && !model.local);
+
+/**
+ * Commit a fully validated provider setup to the active profile. This is the
+ * only provider-selection write path: callers validate credentials and the
+ * selected model first, then this atomically changes provider, cache, global
+ * model, and feature overrides together.
+ */
+export const commitActiveProfileProviderSetup = (
+  provider: ProviderId,
+  selectedModel: string,
+  providerModels: Model[],
+): Profile | null => {
+  const profileId = getCurrentProfileId();
+  const profiles = getProfiles();
+  const index = profiles.findIndex((profile) => profile.id === profileId);
+  if (index === -1) return null;
+
+  const previousModels = profiles[index].settings.models || [];
+  const retainedModels = previousModels.filter(
+    (model) => !isModelForProvider(model, provider),
+  );
+  const nextModels = [
+    ...retainedModels,
+    ...providerModels.map((model) => ({ ...model, provider: model.provider ?? provider })),
+  ];
+  const settings = profiles[index].settings;
+  const normalizedCorrect = normalizeCorrectionSettings(settings.settingsCorrect);
+  const updated = {
+    ...profiles[index],
+    provider,
+    updatedAt: new Date().toISOString(),
+    settings: {
+      ...settings,
+      models: nextModels,
+      selectedModel,
+      settingsCorrect: {
+        ...normalizedCorrect,
+        // Provider-specific feature models must not survive a provider switch.
+        presets: normalizedCorrect.presets.map((preset) => ({
+          ...preset,
+          model: INHERIT_GLOBAL_MODEL,
+        })),
+      },
+      settingsPromptGen: {
+        ...settings.settingsPromptGen,
+        model: INHERIT_GLOBAL_MODEL,
+      },
+    },
+  } satisfies Profile;
+
+  profiles[index] = updated;
+  apiStore.set("profiles", profiles);
+  return updated;
 };
 
 const normalizeProfileProvider = (profile: Profile): Profile => ({

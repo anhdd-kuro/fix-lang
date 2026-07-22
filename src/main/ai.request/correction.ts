@@ -11,7 +11,7 @@ import {
   type ProviderId,
 } from "~/stores/apiStore";
 import { estimateTextTokens } from "~/stores/historyStore";
-import { makeAIRequest } from "./shared";
+import { getActiveProvider, makeAIRequest } from "./shared";
 
 type CorrectionResult = {
   correctedText: string;
@@ -102,7 +102,7 @@ export const fixGrammar = async (
       promptTokens: 0,
       completionTokens: 0,
       model: DEFAULT_OPENAI_MODEL,
-      provider: "openrouter",
+      provider: getActiveProvider(),
       resolvedModel: DEFAULT_OPENAI_MODEL,
       presetId: preset.id,
       presetName: preset.name,

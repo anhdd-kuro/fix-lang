@@ -19,6 +19,8 @@ import {
   getDefaultModelId,
   getProfileById,
   getProfileSetting,
+  isModelForProvider,
+  updateProfileSetting,
 } from "~/stores/apiStore";
 import { getProfileSecret } from "~/stores/profileSecretStore";
 import { ollamaClient } from "../llm";
@@ -41,11 +43,21 @@ export const getActiveProvider = (): ProviderId => {
   return profileId ? (getProfileById(profileId)?.provider ?? "openrouter") : "openrouter";
 };
 
-const isCachedForProvider = (model: Model, provider: ProviderId): boolean =>
-  provider === "ollama"
-    ? model.provider === "ollama" || model.local !== undefined
-    : model.provider === provider ||
-      (provider === "openrouter" && model.provider === undefined && !model.local);
+const isCachedForProvider = isModelForProvider;
+
+/** Active-profile cache; legacy global storage is read only for old installs. */
+const getStoredModels = (): Model[] =>
+  getProfileSetting("models") || (apiStore.get("models") as Model[]) || [];
+
+const cacheModelsForProvider = (provider: ProviderId, models: Model[]): void => {
+  const retained = getStoredModels().filter(
+    (model) => !isCachedForProvider(model, provider),
+  );
+  updateProfileSetting("models", [
+    ...retained,
+    ...models.map((model) => ({ ...model, provider: model.provider ?? provider })),
+  ]);
+};
 
 const sortModels = (models: Model[]): Model[] =>
   [...models].sort((a, b) => {
@@ -104,12 +116,23 @@ const fetchOpenAIModels = async (apiKey: string): Promise<Model[]> => {
 /**
  * Fetch models for exactly one provider. Direct OpenAI models deliberately do
  * not receive OpenRouter price fields, preventing fabricated cost estimates.
+ *
+ * `strict` governs whether a live-fetch failure is allowed to fall back to
+ * the cache. Background/display callers (e.g. the periodic model refresh)
+ * want resilience and should leave this false. Provider-setup validation
+ * (apply/fetch in the staged General settings flow) MUST pass `strict: true`
+ * for openai/openrouter — otherwise a stale-but-cached model list lets an
+ * invalid or revoked key silently pass validation, deferring the real
+ * failure to request time. Ollama never requires a key, so it always keeps
+ * the resilient cache-fallback behavior regardless of `strict`.
  */
 export const fetchAvailableModels = async (
   apiKey: string,
   provider: ProviderId = getActiveProvider(),
+  persistCache = true,
+  strict = false,
 ): Promise<Model[]> => {
-  const cachedModels = (apiStore.get("models") as Model[]) || [];
+  const cachedModels = getStoredModels();
   const cachedForProvider = cachedModels.filter((model) =>
     isCachedForProvider(model, provider),
   );
@@ -128,12 +151,15 @@ export const fetchAvailableModels = async (
     }
 
     const sortedModels = sortModels(models);
-    if (sortedModels.length > 0) {
-      apiStore.set("models", sortedModels);
+    if (persistCache && sortedModels.length > 0) {
+      cacheModelsForProvider(provider, sortedModels);
     }
     return sortedModels;
   } catch (error) {
     console.error(`Error fetching ${provider} models:`, error);
+    if (strict && provider !== "ollama") {
+      throw error;
+    }
     return sortModels(cachedForProvider);
   }
 };
@@ -143,7 +169,7 @@ export const fetchAvailableModels = async (
  * the #56 cost snapshot to build a price map without a new network path.
  */
 export const getCachedModels = (provider?: ProviderId): Model[] => {
-  const models = (apiStore.get("models") as Model[]) || [];
+  const models = getStoredModels();
   return provider ? models.filter((model) => isCachedForProvider(model, provider)) : models;
 };
 
@@ -195,7 +221,7 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
     ] as CoreMessage[]);
 
   // Get all models from store
-  const models = (apiStore.get("models") as Model[]) || [];
+  const models = getStoredModels();
   const selectedModel = models.find((m) => m.id === modelId);
 
   if (!selectedModel) {

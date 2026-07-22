@@ -46,6 +46,15 @@ vi.mock("~/stores/apiStore", () => ({
   getCurrentProfileId: vi.fn().mockReturnValue("profile_1"),
   getProfileById: vi.fn().mockReturnValue({ provider: "openrouter" }),
   getProfileSetting: vi.fn().mockReturnValue(undefined),
+  updateProfileSetting: vi.fn().mockReturnValue({ success: true }),
+  isModelForProvider: (
+    model: { provider?: string; local?: unknown },
+    provider: string,
+  ): boolean =>
+    provider === "ollama"
+      ? model.provider === "ollama" || model.local !== undefined
+      : model.provider === provider ||
+        (provider === "openrouter" && model.provider === undefined && !model.local),
 }));
 
 vi.mock("~/stores/profileSecretStore", () => ({
