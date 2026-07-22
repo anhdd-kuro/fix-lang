@@ -5,6 +5,7 @@ import { contextBridge } from "electron";
 import {
   apiFeature,
   correctionFeature,
+  correctionResultFeature,
   logsFeature,
   promptGenFeature,
   profilesFeature,
@@ -13,10 +14,12 @@ import {
   uiFeature,
   historyFeature,
   openrouterFeature,
+  updateFeature,
 } from "./features";
 import type {
   ApiFeature,
   CorrectionFeature,
+  CorrectionResultFeature,
   HistoryFeature,
   LogsFeature,
   OpenRouterFeature,
@@ -25,6 +28,7 @@ import type {
   SettingsFeature,
   ThemeFeature,
   UIFeature,
+  UpdateFeature,
 } from "./features";
 
 // Log that preload script is being executed
@@ -35,6 +39,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...historyFeature,
   ...apiFeature,
   ...correctionFeature,
+  ...correctionResultFeature,
   ...logsFeature,
   ...promptGenFeature,
   ...profilesFeature,
@@ -42,6 +47,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...themeFeature,
   ...uiFeature,
   ...openrouterFeature,
+  ...updateFeature,
 } satisfies ElectronAPI);
 
 console.log(
@@ -51,10 +57,12 @@ console.log(
 export type ElectronAPI = HistoryFeature &
   PromptGenFeature &
   CorrectionFeature &
+  CorrectionResultFeature &
   ApiFeature &
   LogsFeature &
   ProfilesFeature &
   SettingsFeature &
   ThemeFeature &
   UIFeature &
-  OpenRouterFeature;
+  OpenRouterFeature &
+  UpdateFeature;

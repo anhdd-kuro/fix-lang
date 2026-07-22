@@ -1,11 +1,31 @@
 // Settings-related preload functionality
 import { ipcRenderer } from "electron";
+import type { CorrectionOutputMode } from "~/shared/outputMode";
 import type { KeyBindings } from "~/stores/apiStore";
 
 /**
  * Exposes settings-related functionality to the renderer process
  */
 export const settingsFeature = {
+  getCorrectionOutputMode: (): Promise<CorrectionOutputMode> =>
+    ipcRenderer.invoke("get-correction-output-mode"),
+
+  setCorrectionOutputMode: (
+    mode: CorrectionOutputMode,
+  ): Promise<{
+    success: boolean;
+    mode?: CorrectionOutputMode;
+    error?: string;
+  }> => {
+    if (mode !== "paste" && mode !== "popup") {
+      return Promise.resolve({
+        success: false,
+        error: "Invalid correction output mode",
+      });
+    }
+    return ipcRenderer.invoke("set-correction-output-mode", mode);
+  },
+
   /**
    * Fetches the stored key bindings from the main process.
    * @returns A promise that resolves with the key bindings object.

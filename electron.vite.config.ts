@@ -12,6 +12,7 @@ export default defineConfig({
     build: {
       outDir: "out/main",
       rollupOptions: {
+        // Keep Electron 43's CommonJS runtime boundary intact.
         external: ["electron"],
         input: {
           index: resolve(__dirname, "src/main/index.ts"),
@@ -62,6 +63,10 @@ export default defineConfig({
           promptGen: resolve(
             __dirname,
             "src/renderer/PromptGenWindow/index.html",
+          ),
+          correctionResult: resolve(
+            __dirname,
+            "src/renderer/CorrectionResultWindow/index.html",
           ),
         },
       },

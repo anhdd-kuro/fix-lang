@@ -1,10 +1,14 @@
 {
   "name": "fix-lang",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Local macOS menu-bar app: AI text correction and writing tools via OpenAI, OpenRouter, or Ollama",
   "author": {
     "name": "Anhdd Kuro",
     "email": "anhdd.kuro@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anhdd-kuro/fix-lang.git"
   },
   "main": "./out/main/index.cjs",
   "type": "module",
@@ -14,6 +18,7 @@
     "dev": "electron-vite dev",
     "pack": "rm -rf release && electron-vite build && electron-builder --mac",
     "pack:mac": "rm -rf release && electron-vite build && electron-builder --mac dir",
+    "release:mac": "electron-vite build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --publish never",
     "install:applications": "if [ -d \"release/mac-arm64/FixLang.app\" ]; then rm -rf \"/Applications/FixLang.app\" && cp -R \"release/mac-arm64/FixLang.app\" \"/Applications/FixLang.app\"; elif [ -d \"release/mac/FixLang.app\" ]; then rm -rf \"/Applications/FixLang.app\" && cp -R \"release/mac/FixLang.app\" \"/Applications/FixLang.app\"; else echo \"Build output not found. Run pnpm run pack:mac first.\" && exit 1; fi",
     "pack:install": "bun run pack:mac && bun run install:applications",
     "prebuild": "bun run themes:generate",
@@ -90,6 +95,7 @@
   "build": {
     "appId": "com.fixlang.app",
     "productName": "FixLang",
+    "publish": null,
     "directories": {
       "output": "release",
       "buildResources": "resources"
@@ -101,15 +107,18 @@
     ],
     "mac": {
       "target": [
-        "dmg",
-        "zip"
+        "dmg"
       ],
       "category": "public.app-category.productivity",
       "darkModeSupport": true,
+      "identity": null,
       "hardenedRuntime": false,
-      "gatekeeperAssess": true
+      "gatekeeperAssess": false,
+      "notarize": false,
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "dmg": {
+      "writeUpdateInfo": false,
       "contents": [
         {
           "x": 130,

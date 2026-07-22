@@ -22,9 +22,12 @@ import {
   registerSettingsHandlers,
   registerThemeHandlers,
   registerUiHandlers,
+  registerUpdateHandlers,
 } from "./ipc/features";
 import { registerHotkeys, unregisterHotkeys } from "./keybindings";
 import { startModelMonitoring } from "./llm/models/monitor";
+import { initializeUpdateService, type UpdateService } from "./update";
+import { shouldCheckForUpdatesOnLaunch } from "./update/installationPath";
 import {
   initializeMainWindow,
   initializeErrorPopupWindow,
@@ -40,6 +43,7 @@ const LOG_FILE = path.join(
   LOG_DIR,
   `runtime-${new Date().toISOString().replace(/:/g, "-")}.log`,
 );
+const UPDATE_CHECK_DELAY_MS = 1_500;
 
 const serializeLogArg = (arg: unknown): string => {
   if (arg instanceof Error) {
@@ -99,7 +103,7 @@ const setupRuntimeLogging = (): void => {
   appendRuntimeLog("INFO", `runtime log initialized at ${LOG_FILE}`);
 };
 
-const registerIpcHandlers = (): void => {
+const registerIpcHandlers = (): UpdateService => {
   // Register all feature handlers in a specific order (UI-first approach)
   registerUiHandlers();
   registerApiHandlers();
@@ -122,7 +126,13 @@ const registerIpcHandlers = (): void => {
   // OpenRouter account-analytics tab (#59) — reads the provisioning key in-main.
   registerOpenRouterHandlers();
 
+  // Keep the service main-process only; renderer access is restricted to the
+  // dedicated typed IPC feature above.
+  const updateService = initializeUpdateService();
+  registerUpdateHandlers(updateService);
+
   console.log("All IPC handlers registered successfully");
+  return updateService;
 };
 
 function initializeApp() {
@@ -144,12 +154,24 @@ function initializeApp() {
   // Some APIs can only be used after this event occurs.
   app.whenReady().then(() => {
     // Register all IPC handlers
-    registerIpcHandlers();
+    const updateService = registerIpcHandlers();
 
     // Initialize main application window
     initializeMainWindow();
 
     const mainWindow = createMainWindow();
+    // Availability checks never block startup and never download without an
+    // explicit user action in Settings. Development/unsupported builds and
+    // packaged directory builds outside a standard Applications folder do not
+    // schedule a network timer at all. Manual Settings checks remain available.
+    if (
+      updateService.getState().phase !== "unsupported" &&
+      shouldCheckForUpdatesOnLaunch(app.getPath("exe"), app.getPath("home"))
+    ) {
+      setTimeout(() => {
+        void updateService.checkForUpdates();
+      }, UPDATE_CHECK_DELAY_MS);
+    }
     app.setAccessibilitySupportEnabled(true);
 
     // --- macOS Tray and Menu Logic ---
