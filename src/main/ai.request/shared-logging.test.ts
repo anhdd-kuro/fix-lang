@@ -3,9 +3,14 @@
  * @description Verifies shared AI request logs never expose prompt or response content.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeRemoteAIRequest } from "./shared";
-const { generateTextMock } = vi.hoisted(() => ({
+import { makeAIRequest, makeRemoteAIRequest } from "./shared";
+const { generateTextMock, notificationShowMock } = vi.hoisted(() => ({
   generateTextMock: vi.fn(),
+  notificationShowMock: vi.fn(),
+}));
+
+vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
+  showErrorPopup: vi.fn(),
 }));
 
 vi.mock("@openrouter/ai-sdk-provider", () => ({
@@ -17,11 +22,11 @@ vi.mock("ai", () => ({
 }));
 
 vi.mock("electron", () => ({
-  Notification: vi.fn().mockImplementation(
-    class {
-      show = vi.fn();
-    },
-  ),
+  app: { isReady: vi.fn().mockReturnValue(true) },
+  Notification: class {
+    show = notificationShowMock;
+    on = vi.fn().mockReturnThis();
+  },
 }));
 
 vi.mock("~/stores/apiKeyStore", () => ({
@@ -85,5 +90,17 @@ describe("shared AI request logging", () => {
     expect(serializedLogs).not.toContain("PRIVATE_USER_PROMPT");
     expect(serializedLogs).not.toContain("PRIVATE_RESPONSE_TEXT");
     expect(serializedLogs).not.toContain("PRIVATE_PROVIDER_PAYLOAD");
+  });
+
+  it("shows a desktop notification when a request cannot resolve its model", async () => {
+    await expect(
+      makeAIRequest({
+        systemPrompt: "Fix grammar.",
+        userPrompt: "Hello",
+        model: "openai/missing-model",
+      }),
+    ).rejects.toThrow("Model openai/missing-model not found in model registry.");
+
+    expect(notificationShowMock).toHaveBeenCalledOnce();
   });
 });

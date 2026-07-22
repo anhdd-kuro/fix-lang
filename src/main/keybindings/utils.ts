@@ -1,4 +1,4 @@
-import { Notification } from "electron";
+import { showErrorNotification } from "~/main/notifications/error";
 
 export const checkShortcut = (shortcut: boolean) => {
   if (!shortcut) {
@@ -12,13 +12,5 @@ export const checkShortcut = (shortcut: boolean) => {
 
 export const handleError = (error: unknown) => {
   console.error("Error during grammar fixing or IPC send:", error);
-  // Optional: Show error notification
-  new Notification({
-    title: "Error",
-    body:
-      error instanceof Error
-        ? error.message
-        : "Failed to correct text. Please try again.",
-    urgency: "critical",
-  }).show();
+  showErrorNotification(error, "Failed to correct text. Please try again.");
 };

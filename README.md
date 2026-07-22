@@ -34,6 +34,7 @@ Overview and Models share a time-range filter (All / 30d / 7d).
 - `src/shared/logging.ts` + `src/main/logging/logService.ts` — structured logs with API-key and clipboard redaction
 - Persisted to `userData/logs/{YYYY-MM-DD}/fixlang.jsonl` (one folder per local day)
 - Logs tab reloads from disk with virtual infinite scroll (`@tanstack/react-virtual`)
+- Errors use a native macOS notification when available; if macOS rejects it, FixLang shows a brief in-app popup near the cursor instead.
 
 ### Appearance
 

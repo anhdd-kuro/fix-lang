@@ -6,6 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { app, BrowserWindow } from "electron";
+import { showErrorNotification } from "~/main/notifications/error";
 import {
   isMacOSAccessibilityGranted,
   promptAccessibilityPermission,
@@ -26,6 +27,7 @@ import { registerHotkeys, unregisterHotkeys } from "./keybindings";
 import { startModelMonitoring } from "./llm/models/monitor";
 import {
   initializeMainWindow,
+  initializeErrorPopupWindow,
   getMainWindow,
   initializeOverlayWindow,
   initializeTrayWindow,
@@ -86,10 +88,12 @@ const setupRuntimeLogging = (): void => {
 
   process.on("uncaughtException", (error) => {
     appendRuntimeLog("FATAL", "uncaughtException", error);
+    showErrorNotification(error, "FixLang encountered an unexpected error.");
   });
 
   process.on("unhandledRejection", (reason) => {
     appendRuntimeLog("FATAL", "unhandledRejection", reason);
+    showErrorNotification(reason, "FixLang encountered an unexpected error.");
   });
 
   appendRuntimeLog("INFO", `runtime log initialized at ${LOG_FILE}`);
@@ -130,6 +134,7 @@ function initializeApp() {
 
   // --- Global Overlay Spinner ---
   initializeOverlayWindow();
+  initializeErrorPopupWindow();
 
   // Tray window for inline settings/history
   initializeTrayWindow();
