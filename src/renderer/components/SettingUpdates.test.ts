@@ -138,7 +138,7 @@ describe("SettingUpdates", () => {
     expect(container.querySelector('[role="status"]')?.textContent).toContain(
       "FixLang is up to date.",
     );
-    expect(container.textContent).toContain("Check again");
+    expect(container.textContent).toContain("Check for update");
   });
 
   it("offers a manual GitHub download without rendering its notes as HTML", async () => {

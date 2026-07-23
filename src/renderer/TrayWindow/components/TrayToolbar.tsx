@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { twJoin } from "tailwind-merge";
 import { SettingsButton } from "../../components/SettingsIcon";
+import { Spinner } from "../../components/Spinner";
 
 type TrayIconButtonProps = {
   onClick: () => void;
@@ -212,7 +213,11 @@ export const TrayToolbar: React.FC = () => {
         ariaLabel="Check for updates"
         disabled={checkingForUpdates}
       >
-        <UpdateIcon className={checkingForUpdates ? "animate-spin" : undefined} />
+        {checkingForUpdates ? (
+          <Spinner className="size-5 text-foreground" />
+        ) : (
+          <UpdateIcon />
+        )}
       </TrayIconButton>
       <SettingsButton
         onClick={() => window.electronAPI.showMainWindowSettings()}

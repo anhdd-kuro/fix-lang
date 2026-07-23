@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Spinner } from "./Spinner";
 import type { UpdateState } from "~/shared/update";
 
 const initialState: UpdateState = {
@@ -118,6 +119,9 @@ export const SettingUpdates = () => {
             disabled={isBusy}
             className="mt-2 rounded bg-primary px-3 py-1.5 text-sm text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
           >
+            {isBusy && (
+              <Spinner className="mr-2 inline size-4 align-[-2px]" />
+            )}
             Check for updates
           </button>
         </>
@@ -133,6 +137,7 @@ export const SettingUpdates = () => {
             disabled
             className="mt-2 rounded bg-primary px-3 py-1.5 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
+            <Spinner className="mr-2 inline size-4 align-[-2px]" />
             Check for updates
           </button>
         </>
@@ -152,9 +157,12 @@ export const SettingUpdates = () => {
               )
             }
             disabled={isBusy}
-            className="mt-2 rounded border border-border px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-2 rounded bg-primary px-3 py-1.5 text-sm text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Check again
+            {isBusy && (
+              <Spinner className="mr-2 inline size-4 align-[-2px]" />
+            )}
+            Check for update
           </button>
         </>
       )}
@@ -240,6 +248,31 @@ export const SettingUpdates = () => {
           </div>
         </>
       )}
+
+      <div className="mt-4">
+        <h3 className="text-sm font-medium text-card-foreground">
+          How to update
+        </h3>
+        <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-muted-foreground">
+          <li>
+            Homebrew (Apple Silicon): run{" "}
+            <code>brew update &amp;&amp; brew upgrade --cask fixlang</code>.
+          </li>
+          <li>
+            Manual (DMG): download the latest release from GitHub (see the
+            buttons above), open the DMG, and replace FixLang in{" "}
+            <code>/Applications</code>. If macOS blocks the unsigned app, run{" "}
+            <code>
+              xattr -dr com.apple.quarantine &quot;/Applications/FixLang.app&quot;
+            </code>
+            .
+          </li>
+        </ul>
+        <p className="mt-1 text-xs text-muted-foreground">
+          FixLang releases are unsigned and not notarized — updates are
+          installed manually, the app never installs them automatically.
+        </p>
+      </div>
     </section>
   );
 };
