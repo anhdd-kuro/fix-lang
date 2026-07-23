@@ -1,6 +1,70 @@
 import { useEffect, useState } from "react";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Spinner } from "./Spinner";
 import type { UpdateState } from "~/shared/update";
+
+/**
+ * Compact markdown component overrides so GitHub release notes fit the
+ * small About panel and match its muted styling. No raw HTML is enabled —
+ * react-markdown escapes it by default, which keeps untrusted release-note
+ * content XSS-safe.
+ */
+const releaseNotesComponents: Components = {
+  h1: ({ children }) => (
+    <h1 className="mt-2 text-xs font-semibold text-card-foreground">
+      {children}
+    </h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="mt-2 text-xs font-semibold text-card-foreground">
+      {children}
+    </h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="mt-2 text-xs font-semibold text-card-foreground">
+      {children}
+    </h3>
+  ),
+  p: ({ children }) => <p className="mt-1 text-xs text-muted-foreground">{children}</p>,
+  ul: ({ children }) => (
+    <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
+      {children}
+    </ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="mt-1 list-decimal space-y-0.5 pl-4 text-xs text-muted-foreground">
+      {children}
+    </ol>
+  ),
+  li: ({ children }) => <li className="text-xs text-muted-foreground">{children}</li>,
+  code: ({ children }) => (
+    <code className="rounded bg-secondary px-1 py-0.5 font-mono text-[11px]">
+      {children}
+    </code>
+  ),
+  strong: ({ children }) => (
+    <strong className="font-semibold text-card-foreground">{children}</strong>
+  ),
+  em: ({ children }) => <em className="italic">{children}</em>,
+  a: ({ href, children }) => (
+    <a
+      href={href}
+      onClick={(e) => {
+        e.preventDefault();
+        if (href && /^https?:\/\//i.test(href)) {
+          void window.electronAPI.openExternalLink(href);
+        }
+      }}
+      className="text-primary underline hover:no-underline"
+    >
+      {children}
+    </a>
+  ),
+  // Release notes are untrusted GitHub content; never auto-load remote
+  // images (would leak the user's IP / act as a tracking pixel).
+  img: () => null,
+};
 
 const initialState: UpdateState = {
   phase: "unsupported",
@@ -173,9 +237,14 @@ export const SettingUpdates = () => {
             Version {latestVersion} is available (you have v{state.currentVersion}).
           </p>
           {state.releaseNotes && (
-            <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">
-              {state.releaseNotes}
-            </p>
+            <div className="mt-1 text-xs text-muted-foreground">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={releaseNotesComponents}
+              >
+                {state.releaseNotes}
+              </ReactMarkdown>
+            </div>
           )}
           <p className="mt-1 text-xs text-muted-foreground">
             Install the DMG, replace FixLang in Applications, then run{" "}

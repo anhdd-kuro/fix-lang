@@ -186,6 +186,16 @@ export const uiFeature = {
   showMainWindowTab: (tabId: DashboardTabId): void => {
     ipcRenderer.send("show-main-window-tab", tabId);
   },
+
+  /**
+   * Opens a URL in the user's default browser. Main process validates the
+   * scheme (http/https only) before delegating to shell.openExternal.
+   */
+  openExternalLink: (
+    url: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke("open-external-link", url);
+  },
 };
 
 export type UIFeature = typeof uiFeature;
