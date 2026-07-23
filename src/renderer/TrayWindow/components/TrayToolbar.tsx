@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { twJoin } from "tailwind-merge";
 import { SettingsButton } from "../../components/SettingsIcon";
 
@@ -6,6 +6,7 @@ type TrayIconButtonProps = {
   onClick: () => void;
   title: string;
   ariaLabel: string;
+  disabled?: boolean;
   children: React.ReactNode;
 };
 
@@ -13,16 +14,19 @@ const TrayIconButton: React.FC<TrayIconButtonProps> = ({
   onClick,
   title,
   ariaLabel,
+  disabled = false,
   children,
 }) => (
   <button
     type="button"
     onClick={onClick}
+    disabled={disabled}
     title={title}
     aria-label={ariaLabel}
     className={twJoin(
       "text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2",
-      "focus:ring-ring rounded-md p-1.5 cursor-pointer"
+      "focus:ring-ring rounded-md p-1.5 cursor-pointer",
+      "disabled:cursor-not-allowed disabled:opacity-50"
     )}
   >
     {children}
@@ -61,6 +65,22 @@ const QuitIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+const UpdateIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg
+    className={twJoin("size-5", className)}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
+    />
+  </svg>
+);
+
 const DashboardIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg
     className={twJoin("size-5", className)}
@@ -83,6 +103,8 @@ const openDashboard = (): void => {
 };
 
 export const TrayToolbar: React.FC = () => {
+  const [checkingForUpdates, setCheckingForUpdates] = useState(false);
+
   const handleQuit = async (): Promise<void> => {
     const { response } = await window.electronAPI.showMessageBox({
       type: "question",
@@ -97,6 +119,82 @@ export const TrayToolbar: React.FC = () => {
     }
   };
 
+  // Checks for updates and surfaces the result via a native message box —
+  // never opens the main window or navigates tabs (tray stays lightweight).
+  const handleCheckForUpdates = async (): Promise<void> => {
+    if (checkingForUpdates) return;
+
+    setCheckingForUpdates(true);
+    try {
+      const state = await window.electronAPI.checkForUpdates();
+
+      switch (state.phase) {
+        case "up-to-date":
+          await window.electronAPI.showMessageBox({
+            type: "info",
+            buttons: ["OK"],
+            defaultId: 0,
+            cancelId: 0,
+            message: `FixLang is up to date (v${state.currentVersion}).`,
+          });
+          break;
+
+        case "available": {
+          const availableVersion = state.availableVersion ?? "unknown";
+          const { response } = await window.electronAPI.showMessageBox({
+            type: "info",
+            buttons: ["View release", "Close"],
+            defaultId: 0,
+            cancelId: 1,
+            message: `Update available: v${availableVersion} (installed v${state.currentVersion}).`,
+          });
+          if (response === 0) {
+            window.electronAPI.openUpdateRelease();
+          }
+          break;
+        }
+
+        case "error":
+          await window.electronAPI.showMessageBox({
+            type: "error",
+            buttons: ["OK"],
+            defaultId: 0,
+            cancelId: 0,
+            message: `Update check failed. ${state.message ?? "Please try again later."}`,
+          });
+          break;
+
+        case "unsupported":
+          await window.electronAPI.showMessageBox({
+            type: "info",
+            buttons: ["OK"],
+            defaultId: 0,
+            cancelId: 0,
+            message: "Automatic update checks aren't available for this build.",
+          });
+          break;
+
+        // "checking"/"idle" should not be the resolved state; no dialog to show.
+        case "checking":
+        case "idle":
+          break;
+      }
+    } catch {
+      // IPC-layer rejection (e.g. preload validation throwing on a malformed
+      // update state) — surface the same generic failure as the error phase
+      // rather than letting this become an unhandled rejection.
+      await window.electronAPI.showMessageBox({
+        type: "error",
+        buttons: ["OK"],
+        defaultId: 0,
+        cancelId: 0,
+        message: "Update check failed. Please try again later.",
+      });
+    } finally {
+      setCheckingForUpdates(false);
+    }
+  };
+
   return (
     <div className="flex items-center justify-end gap-4 mb-3">
       <TrayIconButton
@@ -105,6 +203,16 @@ export const TrayToolbar: React.FC = () => {
         ariaLabel="Open dashboard"
       >
         <DashboardIcon />
+      </TrayIconButton>
+      <TrayIconButton
+        onClick={() => {
+          void handleCheckForUpdates();
+        }}
+        title={checkingForUpdates ? "Checking for updates…" : "Check for updates"}
+        ariaLabel="Check for updates"
+        disabled={checkingForUpdates}
+      >
+        <UpdateIcon className={checkingForUpdates ? "animate-spin" : undefined} />
       </TrayIconButton>
       <SettingsButton
         onClick={() => window.electronAPI.showMainWindowSettings()}

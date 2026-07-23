@@ -16,6 +16,7 @@ import { OpenRouterPanel } from "../components/OpenRouterPanel";
 import { OverviewPanel } from "../components/OverviewPanel";
 import { SettingsButton } from "../components/SettingsIcon";
 import { SettingsModal } from "../components/SettingsModal";
+import { SettingUpdates } from "../components/SettingUpdates";
 import { TextAreaBox } from "../components/TextAreaBox";
 import { useTheme } from "../hooks/useTheme";
 import type { DashboardTabId } from "./dashboardTabs";
@@ -268,6 +269,11 @@ const App: React.FC = () => {
       <OpenRouterPanel onOpenSettings={() => setIsSettingsOpen(true)} />
     ),
     logs: <LogsPanel />,
+    about: (
+      <div className="mx-auto h-full max-w-2xl overflow-y-auto rounded-lg border border-border bg-card p-4">
+        <SettingUpdates />
+      </div>
+    ),
   };
 
   const activeTabId = DASHBOARD_TABS[activeDashboardTab]?.id ?? "overview";
