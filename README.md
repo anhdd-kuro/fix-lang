@@ -98,6 +98,28 @@ To receive a newer release through Homebrew:
 brew update && brew upgrade --cask fixlang
 ```
 
+If `brew upgrade --cask fixlang` reports `Error: Cask 'fixlang' is
+unavailable: No Cask with this name exists`, the tap has not been added on this
+machine (for example, you installed the DMG manually). Add the tap and install
+once:
+
+```bash
+brew tap anhdd-kuro/tap
+brew install --cask anhdd-kuro/tap/fixlang
+```
+
+If the app already exists from a manual install, adopt it with `--force`:
+
+```bash
+brew install --cask --force anhdd-kuro/tap/fixlang
+```
+
+After the tap is added, upgrades also work with the fully-qualified name:
+
+```bash
+brew upgrade --cask anhdd-kuro/tap/fixlang
+```
+
 To remove it:
 
 ```bash
