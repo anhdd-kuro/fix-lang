@@ -77,13 +77,13 @@ xattr -dr com.apple.quarantine "/Applications/FixLang.app"
 
 ### With Homebrew (Apple Silicon)
 
-Homebrew support will be available after the first public FixLang release is
-published. The public tap automatically synchronizes verified stable [GitHub
+FixLang is available through the public tap, which automatically synchronizes
+verified stable [GitHub
 Releases](https://github.com/anhdd-kuro/fix-lang/releases); it does not build,
-sign, notarize, or change the app. Scheduled synchronization normally occurs
-within six hours after a release is public.
+sign, notarize, or change the app. New releases normally appear in the tap
+within six hours of being published.
 
-Once the `fixlang` cask appears in the tap, install it with:
+Install it with:
 
 ```bash
 brew install --cask anhdd-kuro/tap/fixlang
