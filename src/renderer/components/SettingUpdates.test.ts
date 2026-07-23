@@ -22,6 +22,7 @@ type UpdateApi = {
   checkForUpdates: ReturnType<typeof vi.fn>;
   openUpdateRelease: ReturnType<typeof vi.fn>;
   onUpdateStateChanged: ReturnType<typeof vi.fn>;
+  openExternalLink: ReturnType<typeof vi.fn>;
 };
 
 const readyState = (phase: UpdateState["phase"] = "idle"): UpdateState => ({
@@ -64,6 +65,7 @@ describe("SettingUpdates", () => {
       getUpdateState: vi.fn().mockResolvedValue(state),
       checkForUpdates: vi.fn().mockResolvedValue(undefined),
       openUpdateRelease: vi.fn().mockResolvedValue(undefined),
+      openExternalLink: vi.fn().mockResolvedValue({ success: true }),
       onUpdateStateChanged: vi.fn((listener: (next: UpdateState) => void) => {
         updateListener = listener;
         return unsubscribe;
@@ -161,6 +163,30 @@ describe("SettingUpdates", () => {
     );
     await click(buttonNamed(container, "Download from GitHub"));
     expect(api.openUpdateRelease).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders GitHub-flavored markdown release notes instead of raw text", async () => {
+    await render({
+      ...readyState("available"),
+      availableVersion: "0.3.0",
+      releaseNotes: "## Title\n* item [link](https://example.com)",
+    });
+
+    const heading = [...container.querySelectorAll("h1, h2, h3")].find(
+      (candidate) => candidate.textContent === "Title",
+    );
+    const listItem = container.querySelector("li");
+
+    expect(heading).toBeTruthy();
+    expect(listItem?.textContent).toContain("item");
+    expect(container.textContent).not.toContain("## Title");
+    expect(container.textContent).not.toContain("* item");
+
+    const link = container.querySelector("a[href='https://example.com']");
+    expect(link).not.toBeNull();
+
+    await click(link as Element);
+    expect(api.openExternalLink).toHaveBeenCalledWith("https://example.com");
   });
 
   it("lets the user retry and open the release page after an error", async () => {
