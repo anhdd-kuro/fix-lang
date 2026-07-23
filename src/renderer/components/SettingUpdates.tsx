@@ -86,7 +86,7 @@ export const SettingUpdates = () => {
   const latestVersion = displayVersion(state.availableVersion);
 
   return (
-    <section className="mt-2 border-t border-border pt-4" aria-labelledby="app-updates-heading">
+    <section aria-labelledby="app-updates-heading">
       <h2 id="app-updates-heading" className="text-sm font-medium text-card-foreground">
         App updates
       </h2>

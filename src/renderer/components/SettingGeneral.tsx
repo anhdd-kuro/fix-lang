@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { ModelSelect } from "./ModelSelect";
-import { SettingUpdates } from "./SettingUpdates";
 import type { CorrectionOutputMode } from "~/shared/outputMode";
 
 /**
@@ -414,8 +413,6 @@ export const SettingGeneral: React.FC = () => {
 
       {/* Model Selection */}
       <ModelSelect key={modelSelectKey} />
-
-      <SettingUpdates />
 
       {/* Reset to defaults */}
       <div className="mt-2 border-t border-border pt-4">
