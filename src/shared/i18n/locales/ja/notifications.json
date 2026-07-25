@@ -24,8 +24,6 @@
   "notifications.profile.updated.title": "プロファイルを更新しました",
   "notifications.profilesUpdated.body": "プロファイルの設定を更新しました。",
   "notifications.profilesUpdated.title": "プロファイル設定を更新しました",
-  "notifications.provider.connected": "{provider} を接続しました",
-  "notifications.provider.disconnected": "{provider} の接続を解除しました",
   "notifications.settings.saved.body": "設定を保存しました。",
   "notifications.settings.saved.title": "設定を更新しました",
   "notifications.window.correctionResult.subtitle": "結果のみを表示しています。元のテキストは変更されていません。",
