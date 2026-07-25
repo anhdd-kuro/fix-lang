@@ -8,7 +8,7 @@ import {
   resolveDefaultOpenAIModel,
 } from "~/const";
 import SettingsButton from "./SettingsIcon";
-import type { Model } from "~/stores/apiStore";
+import type { Model, ProviderId } from "~/stores/apiStore";
 
 // Define the extended option type for the select component
 type ModelSelectOption = {
@@ -16,6 +16,12 @@ type ModelSelectOption = {
   label: string;
   isLocal: boolean;
   modelSize?: number;
+};
+
+const PROVIDER_BADGE_LABELS: Record<ProviderId, string> = {
+  openai: "OpenAI",
+  openrouter: "OpenRouter",
+  ollama: "Ollama",
 };
 
 /**
@@ -50,7 +56,7 @@ export const ModelSelect: React.FC<{
 }) => {
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("");
-  console.log(`🚀 \n - selectedModel:`, selectedModel);
+  const [activeProvider, setActiveProvider] = useState<ProviderId | null>(null);
   // Store the currently saved feature-specific model to detect changes and enable reset
   const [savedFeatureModel, setSavedFeatureModel] = useState<string>("");
   const [modelsLoading, setModelsLoading] = useState<boolean>(false);
@@ -95,6 +101,15 @@ export const ModelSelect: React.FC<{
       setModelsError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setModelsLoading(false);
+    }
+  }, []);
+
+  const loadActiveProvider = useCallback(async () => {
+    try {
+      const provider = await window.electronAPI?.getActiveProvider?.();
+      if (provider) setActiveProvider(provider);
+    } catch (err) {
+      console.error("ModelSelect: Error loading active provider:", err);
     }
   }, []);
 
@@ -156,6 +171,7 @@ export const ModelSelect: React.FC<{
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchModels();
+    loadActiveProvider();
     if (selectedModelId) {
       setSelectedModel(selectedModelId);
       return;
@@ -166,9 +182,22 @@ export const ModelSelect: React.FC<{
     featureId,
     useFeatureModel,
     fetchModels,
+    loadActiveProvider,
     loadModelSetting,
     selectedModelId,
   ]);
+
+  // Cross-window sync: a provider/model change applied from any window (Main,
+  // Tray, PromptGen, …) broadcasts 'settings-updated'. Refetch models and the
+  // active-provider label here so every ModelSelect instance reflects the
+  // switch immediately, without a manual remount.
+  useEffect(() => {
+    const off = window.electronAPI?.onSettingsUpdated?.(() => {
+      fetchModels(true);
+      loadActiveProvider();
+    });
+    return () => off?.();
+  }, [fetchModels, loadActiveProvider]);
 
   useEffect(() => {
     // Controlled by the parent when provided (including the empty "inherit"
@@ -256,9 +285,17 @@ export const ModelSelect: React.FC<{
       {!compact && (
       <label
         htmlFor="model-select"
-        className="block text-sm font-medium text-card-foreground mb-1"
+        className="mb-1 flex items-center gap-2 text-sm font-medium text-card-foreground"
       >
         AI Model
+        {activeProvider && (
+          <span
+            className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-secondary-foreground"
+            title="Active provider"
+          >
+            {PROVIDER_BADGE_LABELS[activeProvider]}
+          </span>
+        )}
       </label>
       )}
       <div ref={containerRef} className="flex gap-2 items-center">
@@ -266,7 +303,7 @@ export const ModelSelect: React.FC<{
           id="model-select"
           inputId="model-input"
           className="w-full"
-          aria-label="Select OpenAI Model"
+          aria-label="Select AI Model"
           value={
             models.length > 0 && selectedModel
               ? modelOptions.find((option) => option.value === selectedModel) ||
@@ -473,7 +510,7 @@ export const ModelSelect: React.FC<{
       <p className="text-xs text-muted-foreground mt-1">
         {useFeatureModel
           ? "Feature-specific model that overrides the default. Leave unchanged to use the default model."
-          : "Default model used for all OpenAI requests unless overridden by feature settings."}
+          : "Default model used for all requests to the active provider, unless overridden by feature settings."}
       </p>
       )}
     </div>

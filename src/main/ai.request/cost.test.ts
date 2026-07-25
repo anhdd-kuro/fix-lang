@@ -60,6 +60,20 @@ describe("normalizeModelId", () => {
 });
 
 describe("computeCost", () => {
+  it("returns N/A for direct OpenAI even when an OpenRouter price match exists", () => {
+    const result = computeCost(
+      {
+        provider: "openai",
+        resolvedModel: "gpt-4o",
+        promptTokens: 1000,
+        completionTokens: 500,
+      },
+      buildPriceMap([
+        { id: "openai/gpt-4o", name: "GPT-4o", created: 0, pricing: { prompt: "0.000002", completion: "0.000008", image: "0", request: "0", input_cache_read: "0", input_cache_write: "0", web_search: "0", internal_reasoning: "0" } },
+      ]),
+    );
+    expect(result).toMatchObject({ status: "na", estimatedCostUsd: null });
+  });
   it("computes a confident exact match in USD with the prices used", () => {
     const result = computeCost(
       { resolvedModel: "openai/gpt-4o", promptTokens: 1000, completionTokens: 500 },

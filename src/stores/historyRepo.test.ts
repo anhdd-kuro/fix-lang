@@ -235,8 +235,13 @@ describe("pure mappers", () => {
       prompt_tokens: null,
       completion_tokens: null,
       model: null,
+      provider: null,
       resolved_model: null,
       preset_name: null,
+      estimated_cost_usd: null,
+      price_prompt: null,
+      price_completion: null,
+      cost_status: null,
     });
     expect(entry).toEqual({
       original: "a",
@@ -263,6 +268,7 @@ describe("pure mappers", () => {
       prompt_tokens: p.prompt_tokens,
       completion_tokens: p.completion_tokens,
       model: p.model,
+      provider: p.provider,
       resolved_model: p.resolved_model,
       preset_name: p.preset_name,
       estimated_cost_usd: p.estimated_cost_usd,
@@ -278,6 +284,14 @@ describe("pure mappers", () => {
 // Cost snapshot (#56) — round-trip + NULL→undefined + column migration.
 // ---------------------------------------------------------------------------
 describe("cost snapshot persistence", () => {
+  it("round-trips explicit provider metadata without changing legacy rows", () => {
+    repo.insert(
+      "corrections",
+      makeEntry({ timestamp: "2024-04-30T00:00:00Z", provider: "openai" }),
+    );
+    expect(repo.getByFeature("corrections")[0]?.provider).toBe("openai");
+  });
+
   it("round-trips cost fields including the cost_status discriminator", () => {
     const entry = makeEntry({
       timestamp: "2024-05-01T00:00:00Z",

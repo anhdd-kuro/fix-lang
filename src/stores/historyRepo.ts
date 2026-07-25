@@ -30,6 +30,7 @@ type HistoryRow = {
   prompt_tokens: number | null;
   completion_tokens: number | null;
   model: string | null;
+  provider: string | null;
   resolved_model: string | null;
   preset_name: string | null;
   // Cost snapshot columns (#56) — added via guarded ALTER TABLE migration.
@@ -48,6 +49,7 @@ type HistoryInsertParams = {
   prompt_tokens: number | null;
   completion_tokens: number | null;
   model: string | null;
+  provider: string | null;
   resolved_model: string | null;
   preset_name: string | null;
   estimated_cost_usd: number | null;
@@ -107,6 +109,9 @@ export const rowToEntry = (row: HistoryRow): HistoryEntry => {
   if (row.model !== null) {
     entry.model = row.model;
   }
+  if (row.provider === "openai" || row.provider === "openrouter" || row.provider === "ollama") {
+    entry.provider = row.provider;
+  }
   if (row.resolved_model !== null) {
     entry.resolvedModel = row.resolved_model;
   }
@@ -144,6 +149,7 @@ export const entryToParams = (
   prompt_tokens: entry.promptTokens ?? null,
   completion_tokens: entry.completionTokens ?? null,
   model: entry.model ?? null,
+  provider: entry.provider ?? null,
   resolved_model: entry.resolvedModel ?? null,
   preset_name: entry.presetName ?? null,
   estimated_cost_usd: entry.estimatedCostUsd ?? null,
@@ -162,6 +168,7 @@ export const entryToParams = (
  * `ensureCostColumns`. Existing rows default to NULL ⇒ surface as N/A.
  */
 const COST_COLUMNS: readonly { name: string; ddl: string }[] = [
+  { name: "provider", ddl: "provider TEXT" },
   { name: "estimated_cost_usd", ddl: "estimated_cost_usd REAL" },
   { name: "price_prompt", ddl: "price_prompt TEXT" },
   { name: "price_completion", ddl: "price_completion TEXT" },
@@ -204,6 +211,7 @@ const ensureSchema = (db: DatabaseSync): void => {
       prompt_tokens INTEGER,
       completion_tokens INTEGER,
       model TEXT,
+      provider TEXT,
       resolved_model TEXT,
       preset_name TEXT,
       estimated_cost_usd REAL,
@@ -232,9 +240,9 @@ export const createHistoryRepo = (db: DatabaseSync): HistoryRepo => {
 
   const insertStmt = db.prepare(
     `INSERT INTO history
-       (feature_id, original, corrected, timestamp, prompt_tokens, completion_tokens, model, resolved_model, preset_name, estimated_cost_usd, price_prompt, price_completion, cost_status)
+       (feature_id, original, corrected, timestamp, prompt_tokens, completion_tokens, model, provider, resolved_model, preset_name, estimated_cost_usd, price_prompt, price_completion, cost_status)
      VALUES
-       (:feature_id, :original, :corrected, :timestamp, :prompt_tokens, :completion_tokens, :model, :resolved_model, :preset_name, :estimated_cost_usd, :price_prompt, :price_completion, :cost_status)`
+       (:feature_id, :original, :corrected, :timestamp, :prompt_tokens, :completion_tokens, :model, :provider, :resolved_model, :preset_name, :estimated_cost_usd, :price_prompt, :price_completion, :cost_status)`
   );
 
   const insertEntry = (featureId: HistoryFeatureId, entry: HistoryEntry): void => {

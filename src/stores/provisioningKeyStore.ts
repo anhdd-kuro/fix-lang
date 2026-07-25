@@ -17,10 +17,19 @@
 import { rm, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { app, safeStorage } from "electron";
+import {
+  clearProfileSecret,
+  getProfileSecret,
+  hasProfileSecret,
+  setProfileSecret,
+} from "~/stores/profileSecretStore";
 
 /** Absolute path to the encrypted provisioning-key file in userData. */
 export const getProvisioningKeyPath = (): string =>
   path.join(app.getPath("userData"), "openrouter-provisioning.enc");
+
+/** Legacy global-file path, retained only while profiles are upgraded. */
+export const getLegacyProvisioningKeyPath = getProvisioningKeyPath;
 
 // ---------------------------------------------------------------------------
 // Pure helpers (the unit-test seam — no electron, no fs).
@@ -84,7 +93,7 @@ const ENCRYPTION_UNAVAILABLE = "OS secure storage unavailable";
  * nothing) when OS encryption is unavailable — there is NO plaintext fallback.
  * Never logs the key.
  */
-export const setProvisioningKey = async (
+export const setLegacyProvisioningKey = async (
   raw: string
 ): Promise<SecretWriteResult> => {
   const validated = validateProvisioningKeyInput(raw);
@@ -113,7 +122,7 @@ export const setProvisioningKey = async (
 };
 
 /** Remove the stored key. `force` makes deleting a missing file a no-op. */
-export const clearProvisioningKey = async (): Promise<SecretWriteResult> => {
+export const clearLegacyProvisioningKey = async (): Promise<SecretWriteResult> => {
   try {
     await rm(getProvisioningKeyPath(), { force: true });
     return { success: true };
@@ -131,7 +140,7 @@ export const clearProvisioningKey = async (): Promise<SecretWriteResult> => {
  * is missing/blank, when OS encryption is unavailable, or on any read/decrypt
  * failure. Keep this signature `(): Promise<string | null>` stable for #59.
  */
-export const getProvisioningKey = async (): Promise<string | null> => {
+export const getLegacyProvisioningKey = async (): Promise<string | null> => {
   let b64: string;
   try {
     b64 = await readFile(getProvisioningKeyPath(), { encoding: "utf8" });
@@ -164,11 +173,44 @@ export const getProvisioningKey = async (): Promise<string | null> => {
  * Cheap existence check for the masked UI state. Does NOT decrypt — only
  * reports whether a non-blank stored blob exists.
  */
-export const hasProvisioningKey = async (): Promise<boolean> => {
+export const hasLegacyProvisioningKey = async (): Promise<boolean> => {
   try {
     const b64 = await readFile(getProvisioningKeyPath(), { encoding: "utf8" });
     return !isBlankStoredBlob(b64);
   } catch {
     return false;
   }
+};
+
+const activeProfileId = async (): Promise<string | null> => {
+  const { getCurrentProfileId } = await import("~/stores/apiStore");
+  return getCurrentProfileId() || null;
+};
+
+export const setProvisioningKey = async (
+  raw: string,
+): Promise<SecretWriteResult> => {
+  const profileId = await activeProfileId();
+  if (!profileId) return { success: false, error: "No active profile" };
+  return setProfileSecret(profileId, "openrouter", "provisioning", raw);
+};
+
+export const getProvisioningKey = async (): Promise<string | null> => {
+  const profileId = await activeProfileId();
+  return profileId
+    ? getProfileSecret(profileId, "openrouter", "provisioning")
+    : getLegacyProvisioningKey();
+};
+
+export const hasProvisioningKey = async (): Promise<boolean> => {
+  const profileId = await activeProfileId();
+  return profileId
+    ? hasProfileSecret(profileId, "openrouter", "provisioning")
+    : hasLegacyProvisioningKey();
+};
+
+export const clearProvisioningKey = async (): Promise<SecretWriteResult> => {
+  const profileId = await activeProfileId();
+  if (!profileId) return clearLegacyProvisioningKey();
+  return clearProfileSecret(profileId, "openrouter", "provisioning");
 };

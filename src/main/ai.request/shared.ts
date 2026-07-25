@@ -6,6 +6,7 @@
  * across individual feature implementations. It also incorporates utility functions
  * previously in prompts/utils.ts to provide a single source of truth for OpenAI interactions.
  */
+import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
 import { OpenAI } from "openai";
@@ -14,9 +15,14 @@ import { showErrorNotification } from "~/main/notifications/error";
 import { getApiKey } from "~/stores/apiKeyStore";
 import {
   apiStore,
+  getCurrentProfileId,
   getDefaultModelId,
+  getProfileById,
   getProfileSetting,
+  isModelForProvider,
+  updateProfileSetting,
 } from "~/stores/apiStore";
+import { getProfileSecret } from "~/stores/profileSecretStore";
 import { ollamaClient } from "../llm";
 import {
   buildCachedMessages,
@@ -24,112 +30,148 @@ import {
   resolveCacheProvider,
 } from "./cache-strategy";
 import { extractResolvedModel } from "./resolve-model";
-import type { Model } from "~/stores/apiStore";
+import type { Model, ProviderId } from "~/stores/apiStore";
 
 type CoreMessage = {
   role: "system" | "user" | "assistant" | "tool";
   content: unknown;
 };
 
-export const fetchAvailableModels = async (
-  apiKey: string,
-): Promise<Model[]> => {
-  // Get previously cached models (if any)
-  const cachedModels = (apiStore.get("models") as Model[]) || [];
-  let cloudModels: Model[];
-  let localModels: Model[];
+/** Resolve routing from the current profile, never from a model-id convention. */
+export const getActiveProvider = (): ProviderId => {
+  const profileId = getCurrentProfileId();
+  return profileId ? (getProfileById(profileId)?.provider ?? "openrouter") : "openrouter";
+};
 
-  // First get local models - these should work even without API key
-  try {
-    localModels = await getLocalModels();
-    console.log(`Found ${localModels.length} local models`);
-  } catch (error) {
-    console.error("Error fetching local models:", error);
-    // Use cached local models if fresh fetch fails
-    localModels = cachedModels.filter((model) => model.local) || [];
-    console.log(`Using ${localModels.length} cached local models`);
-  }
+const isCachedForProvider = isModelForProvider;
 
-  // Only try to fetch cloud models if we have an API key
-  if (apiKey) {
-    try {
-      /**
-       * List available models (GET /models)
-       * @see: https://openrouter.ai/docs/api-reference/list-available-models
-       */
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+/** Active-profile cache; legacy global storage is read only for old installs. */
+const getStoredModels = (): Model[] =>
+  getProfileSetting("models") || (apiStore.get("models") as Model[]) || [];
 
-      const response = await fetch("https://openrouter.ai/api/v1/models", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-        },
-        signal: controller.signal,
-      });
+const cacheModelsForProvider = (provider: ProviderId, models: Model[]): void => {
+  const retained = getStoredModels().filter(
+    (model) => !isCachedForProvider(model, provider),
+  );
+  updateProfileSetting("models", [
+    ...retained,
+    ...models.map((model) => ({ ...model, provider: model.provider ?? provider })),
+  ]);
+};
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(
-          `API returned ${response.status}: ${response.statusText}`,
-        );
-      }
-
-      // Get cloud models from OpenRouter
-      cloudModels = (await response.json()).data as Model[];
-      console.log(`Found ${cloudModels.length} cloud models`);
-    } catch (error) {
-      console.error("Error fetching cloud models:", error);
-      // Use cached cloud models if fresh fetch fails
-      cloudModels = cachedModels.filter((model) => !model.local) || [];
-      console.log(`Using ${cloudModels.length} cached cloud models`);
-    }
-  } else {
-    console.log("No API key provided, skipping cloud model fetch");
-    // Use cached cloud models if API key is missing
-    cloudModels = cachedModels.filter((model) => !model.local) || [];
-    console.log(
-      `Using ${cloudModels.length} cached cloud models due to missing API key`,
-    );
-  }
-
-  // Combine cloud and local models
-  const allModels = [...cloudModels, ...localModels];
-
-  // Sort models (local models first, then by created date)
-  const sortedModels = allModels.sort((a, b) => {
-    // First sort by source (local first)
-    const aIsLocal = a.local !== undefined;
-    const bIsLocal = b.local !== undefined;
-    if (aIsLocal && !bIsLocal) return -1;
-    if (!aIsLocal && bIsLocal) return 1;
-
-    // Then by created date (newest first)
-    const resultByCreated = b.created - a.created;
-    if (resultByCreated !== 0) return resultByCreated;
-
-    // Then by ID length (shorter first) and alphabetically
-    const resultByIdLength = a.id.length - b.id.length;
-    if (resultByIdLength !== 0) return resultByIdLength;
-    return a.id.localeCompare(b.id);
+const sortModels = (models: Model[]): Model[] =>
+  [...models].sort((a, b) => {
+    const byCreated = b.created - a.created;
+    if (byCreated !== 0) return byCreated;
+    const byIdLength = a.id.length - b.id.length;
+    return byIdLength !== 0 ? byIdLength : a.id.localeCompare(b.id);
   });
 
-  // Cache the sorted models for future use
-  if (sortedModels.length > 0) {
-    apiStore.set("models", sortedModels);
-    console.log(`Cached ${sortedModels.length} models for future use`);
-  }
+const normalizeOpenRouterModels = (data: unknown): Model[] => {
+  if (!Array.isArray(data)) return [];
+  return data.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== "object") return [];
+    const raw = candidate as Partial<Model>;
+    if (!raw.id || typeof raw.id !== "string") return [];
+    return [{
+      ...raw,
+      id: raw.id,
+      name: typeof raw.name === "string" ? raw.name : raw.id,
+      created: typeof raw.created === "number" ? raw.created : 0,
+      provider: "openrouter",
+    } satisfies Model];
+  });
+};
 
-  return sortedModels;
+const fetchOpenRouterModels = async (apiKey: string): Promise<Model[]> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/models", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}: ${response.statusText}`);
+    }
+    const payload = (await response.json()) as { data?: unknown };
+    return normalizeOpenRouterModels(payload.data);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
+const fetchOpenAIModels = async (apiKey: string): Promise<Model[]> => {
+  const client = new OpenAI({ apiKey, timeout: 5000, maxRetries: 0 });
+  const page = await client.models.list();
+  return page.data.map((model) => ({
+    id: model.id,
+    name: model.id,
+    created: model.created ?? 0,
+    provider: "openai",
+  }));
+};
+
+/**
+ * Fetch models for exactly one provider. Direct OpenAI models deliberately do
+ * not receive OpenRouter price fields, preventing fabricated cost estimates.
+ *
+ * `strict` governs whether a live-fetch failure is allowed to fall back to
+ * the cache. Background/display callers (e.g. the periodic model refresh)
+ * want resilience and should leave this false. Provider-setup validation
+ * (apply/fetch in the staged General settings flow) MUST pass `strict: true`
+ * for openai/openrouter — otherwise a stale-but-cached model list lets an
+ * invalid or revoked key silently pass validation, deferring the real
+ * failure to request time. Ollama never requires a key, so it always keeps
+ * the resilient cache-fallback behavior regardless of `strict`.
+ */
+export const fetchAvailableModels = async (
+  apiKey: string,
+  provider: ProviderId = getActiveProvider(),
+  persistCache = true,
+  strict = false,
+): Promise<Model[]> => {
+  const cachedModels = getStoredModels();
+  const cachedForProvider = cachedModels.filter((model) =>
+    isCachedForProvider(model, provider),
+  );
+
+  try {
+    let models: Model[];
+    if (provider === "ollama") {
+      models = (await getLocalModels()).map((model) => ({ ...model, provider: "ollama" }));
+    } else if (!apiKey) {
+      console.log(`No ${provider} API key provided; using cached models`);
+      models = cachedForProvider;
+    } else if (provider === "openai") {
+      models = await fetchOpenAIModels(apiKey);
+    } else {
+      models = await fetchOpenRouterModels(apiKey);
+    }
+
+    const sortedModels = sortModels(models);
+    if (persistCache && sortedModels.length > 0) {
+      cacheModelsForProvider(provider, sortedModels);
+    }
+    return sortedModels;
+  } catch (error) {
+    console.error(`Error fetching ${provider} models:`, error);
+    if (strict && provider !== "ollama") {
+      throw error;
+    }
+    return sortModels(cachedForProvider);
+  }
 };
 
 /**
  * Read the cached `Model[]` (populated by `fetchAvailableModels`). Reused by
  * the #56 cost snapshot to build a price map without a new network path.
  */
-export const getCachedModels = (): Model[] =>
-  (apiStore.get("models") as Model[]) || [];
+export const getCachedModels = (provider?: ProviderId): Model[] => {
+  const models = getStoredModels();
+  return provider ? models.filter((model) => isCachedForProvider(model, provider)) : models;
+};
 
 /**
  * Decide whether a served model id ran locally (Ollama). Derived from the
@@ -179,7 +221,7 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
     ] as CoreMessage[]);
 
   // Get all models from store
-  const models = (apiStore.get("models") as Model[]) || [];
+  const models = getStoredModels();
   const selectedModel = models.find((m) => m.id === modelId);
 
   if (!selectedModel) {
@@ -188,8 +230,14 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
     throw error;
   }
 
-  if (selectedModel.local) {
-    console.log(`[DEBUG CRITICAL] Routing to local Ollama inference`);
+  const provider = getActiveProvider();
+  if (provider === "ollama") {
+    if (!selectedModel.local && selectedModel.provider !== "ollama") {
+      const error = new Error(`Model ${modelId} is not an Ollama model.`);
+      showErrorNotification(error);
+      throw error;
+    }
+    console.log("Routing to local Ollama inference");
     return makeLocalAIRequest({
       ...options,
       model: modelId,
@@ -200,8 +248,24 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
     });
   }
 
-  // For remote models (OpenAI/OpenRouter)
-  return makeRemoteAIRequest({
+  if (selectedModel.provider && selectedModel.provider !== provider) {
+    const error = new Error(`Model ${modelId} is not available from ${provider}.`);
+    showErrorNotification(error);
+    throw error;
+  }
+
+  if (provider === "openai") {
+    return makeOpenAIAIRequest({
+      ...options,
+      model: modelId,
+      messages,
+      temperature,
+      top_p,
+      maxTokens,
+    });
+  }
+
+  return makeOpenRouterAIRequest({
     ...options,
     model: modelId,
     messages,
@@ -295,6 +359,7 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
       promptTokens: 0, // Local models don't provide token information
       completionTokens: 0,
       model: modelId,
+      provider: "ollama" as const,
       // Local models have no alias indirection — served id == requested id.
       resolvedModel: modelId,
     };
@@ -310,7 +375,7 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
  * @param options Configuration options for the AI request
  * @returns Promise with the AI response and token information
  */
-export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
+export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
   const apiKey =
     (await getApiKey()) ||
     // Legacy fallback for stores not yet migrated to safeStorage.
@@ -343,7 +408,7 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
     // Apply provider-aware prompt caching to the system message when supported
     const rawMessages = options.messages;
     if (!rawMessages || rawMessages.length === 0) {
-      throw new Error("makeRemoteAIRequest requires non-empty messages.");
+      throw new Error("makeOpenRouterAIRequest requires non-empty messages.");
     }
     const cacheProvider = resolveCacheProvider(modelId);
     // AI SDK v7 rejects `system`-role entries inside `messages`
@@ -369,15 +434,15 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
       messages: conversationMessages as never,
     });
     const { usage, text } = genResponse;
-    console.log(
-      `makeRemoteAIRequest: model=${options.model as string} promptTokens=${usage.promptTokens ?? null} completionTokens=${usage.completionTokens ?? null}`,
-    );
-
-    const resBody = genResponse.response.body;
     const normalizedUsage = usage as {
       promptTokens?: number;
       completionTokens?: number;
     };
+    console.log(
+      `makeOpenRouterAIRequest: model=${options.model as string} promptTokens=${normalizedUsage.promptTokens ?? null} completionTokens=${normalizedUsage.completionTokens ?? null}`,
+    );
+
+    const resBody = genResponse.response.body;
     const promptTokens = normalizedUsage?.promptTokens ?? null;
     const completionTokens = normalizedUsage?.completionTokens ?? null;
 
@@ -429,13 +494,106 @@ export const makeRemoteAIRequest = async (options: AIRequestOptions) => {
       promptTokens,
       completionTokens,
       model: options.model as string,
+      provider: "openrouter" as const,
       resolvedModel,
       cachedTokens,
       cacheWriteTokens,
     };
   } catch (error) {
-    console.error("makeRemoteAIRequest error:", error);
+    console.error("makeOpenRouterAIRequest error:", error);
     showErrorNotification(error, "Failed to get a response from the AI provider.");
+    throw error;
+  }
+};
+
+/** Backward-compatible export for internal callers that previously used remote. */
+export const makeRemoteAIRequest = makeOpenRouterAIRequest;
+
+const toConversation = (messages: CoreMessage[]) => {
+  const system = messages
+    .filter((message) => message.role === "system")
+    .map((message) =>
+      typeof message.content === "string" ? message.content : JSON.stringify(message.content),
+    )
+    .join("\n\n");
+  return {
+    system,
+    messages: messages.filter((message) => message.role !== "system") as never,
+  };
+};
+
+const usageCounts = (usage: unknown): { promptTokens: number | null; completionTokens: number | null } => {
+  if (!usage || typeof usage !== "object") {
+    return { promptTokens: null, completionTokens: null };
+  }
+  const value = usage as Record<string, unknown>;
+  const count = (primary: string, fallback: string): number | null => {
+    const raw = value[primary] ?? value[fallback];
+    return typeof raw === "number" ? raw : null;
+  };
+  return {
+    promptTokens: count("promptTokens", "inputTokens"),
+    completionTokens: count("completionTokens", "outputTokens"),
+  };
+};
+
+/**
+ * Direct OpenAI Chat Completions through the AI SDK. It intentionally bypasses
+ * OpenRouter cache controls and raw response parsing. Multiple choices are
+ * separate AI SDK calls because the SDK's standard interface emits one text.
+ */
+export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
+  const profileId = getCurrentProfileId();
+  const apiKey = profileId
+    ? await getProfileSecret(profileId, "openai", "api")
+    : null;
+  if (!apiKey) {
+    const error = new Error("OpenAI API key is missing.");
+    showErrorNotification(error);
+    throw error;
+  }
+
+  const rawMessages = options.messages;
+  if (!rawMessages || rawMessages.length === 0) {
+    throw new Error("makeOpenAIAIRequest requires non-empty messages.");
+  }
+
+  try {
+    const modelId = options.model as string;
+    const openai = createOpenAI({ apiKey: apiKey.trim() });
+    const conversation = toConversation(rawMessages);
+    const request = () =>
+      generateText({
+        model: openai.chat(modelId),
+        ...(conversation.system ? { system: conversation.system } : {}),
+        messages: conversation.messages,
+        temperature: options.temperature,
+        topP: options.top_p,
+        maxOutputTokens: options.maxTokens,
+        ...(options.stop ? { stopSequences: options.stop } : {}),
+      });
+    const responses = await Promise.all(
+      Array.from({ length: Math.max(1, options.n ?? 1) }, request),
+    );
+    const counts = responses.map((response) => usageCounts(response.usage));
+    const sum = (key: "promptTokens" | "completionTokens") => {
+      const values = counts.map((count) => count[key]).filter((count): count is number => count !== null);
+      return values.length > 0 ? values.reduce((total, count) => total + count, 0) : null;
+    };
+    const firstBody = responses[0]?.response.body;
+
+    return {
+      content: responses.map((response) => response.text),
+      prompts: responses.map((response) => response.text),
+      promptTokens: sum("promptTokens"),
+      completionTokens: sum("completionTokens"),
+      model: modelId,
+      provider: "openai" as const,
+      resolvedModel: extractResolvedModel(firstBody, modelId),
+    };
+  } catch (error) {
+    console.error("makeOpenAIAIRequest error:", error);
+    showErrorNotification(error, "Failed to get a response from OpenAI.");
     throw error;
   }
 };
@@ -478,6 +636,8 @@ export type AIRequestResponse = {
   promptTokens: number | null;
   completionTokens: number | null;
   model: string;
+  /** Explicit provider used for this request; never inferred from the model id. */
+  provider: ProviderId;
   /** Concrete model the provider actually served (resolves alias indirection) */
   resolvedModel?: string;
   prompts?: string[];

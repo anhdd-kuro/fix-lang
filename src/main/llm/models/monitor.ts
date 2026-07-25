@@ -3,8 +3,8 @@
  * @description Background process to monitor and detect local LLM models
  */
 import { app, BrowserWindow } from "electron";
-import { fetchAvailableModels } from "~/main/ai.request/shared";
-import { apiStore, getCurrentProfileSettings } from "~/stores/apiStore";
+import { fetchAvailableModels, getActiveProvider } from "~/main/ai.request/shared";
+import { apiStore } from "~/stores/apiStore";
 import { getLocalModels } from "./discover";
 import type { Model } from "~/stores/apiStore";
 
@@ -109,9 +109,14 @@ async function checkForModelChanges(): Promise<void> {
         `Local model changes detected: ${added.length} added, ${removed.length} removed`
       );
 
-      // Re-fetch all models (both cloud and local)
-      const apiKey = getCurrentProfileSettings().apiKey;
-      const allModels = await fetchAvailableModels(apiKey);
+      // A provider cache contains only the active provider's models. Do not
+      // replace OpenAI/OpenRouter choices with an unrelated Ollama refresh.
+      if (getActiveProvider() !== "ollama") {
+        consecutiveFailures = 0;
+        _lastSuccessfulCheck = Date.now();
+        return;
+      }
+      const allModels = await fetchAvailableModels("", "ollama");
 
       // Update the store with the latest models
       apiStore.set("models", allModels);

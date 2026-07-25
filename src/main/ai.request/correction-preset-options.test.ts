@@ -21,7 +21,9 @@ vi.mock("electron-store", () => {
 });
 // Mock electron to avoid Notification / ipcMain access in tests
 vi.mock("electron", () => ({
-  Notification: vi.fn().mockImplementation(() => ({ show: vi.fn() })),
+  Notification: class {
+    show = vi.fn();
+  },
   ipcMain: { handle: vi.fn(), on: vi.fn() },
   app: { getPath: vi.fn().mockReturnValue("/tmp") },
 }));
@@ -43,6 +45,7 @@ vi.mock("~/stores/apiStore", async (importOriginal) => {
 });
 vi.mock("./shared", () => ({
   makeAIRequest: vi.fn(),
+  getActiveProvider: vi.fn().mockReturnValue("openrouter"),
 }));
 // ---------------------------------------------------------------------------
 // Imports (after mocks)
@@ -50,7 +53,7 @@ vi.mock("./shared", () => ({
 import { getProfileSetting, normalizeCorrectionSettings } from "~/stores/apiStore";
 import { estimateTextTokens } from "~/stores/historyStore";
 import { fixGrammar } from "./correction";
-import { makeAIRequest } from "./shared";
+import { getActiveProvider, makeAIRequest } from "./shared";
 import type { Mock } from "vitest";
 import type { CorrectionPreset, CorrectionSettings } from "~/stores/apiStore";
 
@@ -169,6 +172,36 @@ describe("fixGrammar — per-preset temperature and maxTokens", () => {
 
     expect(result.promptTokens).toBe(estimateTextTokens("hello world"));
     expect(result.completionTokens).toBe(estimateTextTokens("Fixed text"));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: fixGrammar empty-input early return reports the real active
+// provider (L1 fix) instead of a hardcoded "openrouter".
+// ---------------------------------------------------------------------------
+
+describe("fixGrammar — empty input early return", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    const preset = makePreset();
+    (getProfileSetting as Mock).mockReturnValue(makeSettings(preset));
+  });
+
+  it("reports the active provider instead of a hardcoded value", async () => {
+    (getActiveProvider as Mock).mockReturnValue("openai");
+
+    const result = await fixGrammar("   ");
+
+    expect(result.provider).toBe("openai");
+    expect(makeAIRequest).not.toHaveBeenCalled();
+  });
+
+  it("reflects a different active provider (ollama) too", async () => {
+    (getActiveProvider as Mock).mockReturnValue("ollama");
+
+    const result = await fixGrammar("");
+
+    expect(result.provider).toBe("ollama");
   });
 });
 

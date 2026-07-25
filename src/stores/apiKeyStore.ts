@@ -13,10 +13,19 @@
 import { rm, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { app, safeStorage } from "electron";
+import {
+  clearProfileSecret,
+  getProfileSecret,
+  hasProfileSecret,
+  setProfileSecret,
+} from "~/stores/profileSecretStore";
 
 /** Absolute path to the encrypted API key file in userData. */
 export const getApiKeyPath = (): string =>
   path.join(app.getPath("userData"), "openai-api-key.enc");
+
+/** Legacy global-file path, retained only for one-time migration. */
+export const getLegacyApiKeyPath = getApiKeyPath;
 
 // ---------------------------------------------------------------------------
 // Pure helpers (unit-test seam — no electron, no fs).
@@ -78,7 +87,9 @@ const ENCRYPTION_UNAVAILABLE = "OS secure storage unavailable";
  * when OS encryption is unavailable — there is NO plaintext fallback.
  * Never logs the key.
  */
-export const setApiKey = async (raw: string): Promise<SecretWriteResult> => {
+export const setLegacyApiKey = async (
+  raw: string,
+): Promise<SecretWriteResult> => {
   const validated = validateApiKeyInput(raw);
   if (!validated.ok) {
     return { success: false, error: validated.error };
@@ -107,7 +118,7 @@ export const setApiKey = async (raw: string): Promise<SecretWriteResult> => {
 };
 
 /** Remove the stored key. `force` makes deleting a missing file a no-op. */
-export const clearApiKey = async (): Promise<SecretWriteResult> => {
+export const clearLegacyApiKey = async (): Promise<SecretWriteResult> => {
   try {
     await rm(getApiKeyPath(), { force: true });
     return { success: true };
@@ -124,7 +135,7 @@ export const clearApiKey = async (): Promise<SecretWriteResult> => {
  * Resolves to `null` — never throws — when the file is missing/blank, when OS
  * encryption is unavailable, or on any read/decrypt failure.
  */
-export const getApiKey = async (): Promise<string | null> => {
+export const getLegacyApiKey = async (): Promise<string | null> => {
   let b64: string;
   try {
     b64 = await readFile(getApiKeyPath(), { encoding: "utf8" });
@@ -154,11 +165,44 @@ export const getApiKey = async (): Promise<string | null> => {
  * Cheap existence check for the masked UI state. Does NOT decrypt — only
  * reports whether a non-blank stored blob exists.
  */
-export const hasApiKey = async (): Promise<boolean> => {
+export const hasLegacyApiKey = async (): Promise<boolean> => {
   try {
     const b64 = await readFile(getApiKeyPath(), { encoding: "utf8" });
     return !isBlankStoredBlob(b64);
   } catch {
     return false;
   }
+};
+
+const activeProfileId = async (): Promise<string | null> => {
+  const { getCurrentProfileId } = await import("~/stores/apiStore");
+  return getCurrentProfileId() || null;
+};
+
+/** Store an OpenRouter key for the active profile; no plaintext fallback. */
+export const setApiKey = async (raw: string): Promise<SecretWriteResult> => {
+  const profileId = await activeProfileId();
+  if (!profileId) return { success: false, error: "No active profile" };
+  return setProfileSecret(profileId, "openrouter", "api", raw);
+};
+
+/** Read the active profile's OpenRouter key for existing request callers. */
+export const getApiKey = async (): Promise<string | null> => {
+  const profileId = await activeProfileId();
+  return profileId
+    ? getProfileSecret(profileId, "openrouter", "api")
+    : getLegacyApiKey();
+};
+
+export const hasApiKey = async (): Promise<boolean> => {
+  const profileId = await activeProfileId();
+  return profileId
+    ? hasProfileSecret(profileId, "openrouter", "api")
+    : hasLegacyApiKey();
+};
+
+export const clearApiKey = async (): Promise<SecretWriteResult> => {
+  const profileId = await activeProfileId();
+  if (!profileId) return clearLegacyApiKey();
+  return clearProfileSecret(profileId, "openrouter", "api");
 };
