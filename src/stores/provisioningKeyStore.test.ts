@@ -11,7 +11,6 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-  OPENROUTER_KEY_PREFIX,
   decodeCipherFromDisk,
   encodeCipherToDisk,
   isBlankStoredBlob,
@@ -34,20 +33,19 @@ describe("validateProvisioningKeyInput", () => {
     expect(result).toEqual({ ok: true, value: "sk-or-abc123" });
   });
 
-  it("accepts a non-prefixed key with a soft warning (no hard block)", () => {
+  it("accepts a non-prefixed key without a hard block", () => {
     const result = validateProvisioningKeyInput("randomkey");
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value).toBe("randomkey");
-      expect(result.warning).toContain(OPENROUTER_KEY_PREFIX);
     }
   });
 
-  it("accepts a prefixed key with no warning", () => {
+  it("accepts a prefixed key", () => {
     const result = validateProvisioningKeyInput("sk-or-v1-xyz");
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.warning).toBeUndefined();
+      expect(result.value).toBe("sk-or-v1-xyz");
     }
   });
 });

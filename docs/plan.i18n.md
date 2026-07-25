@@ -295,7 +295,7 @@ Each chunk is independently shippable: `bun run lint` + `bun run test` green at 
 
 ### Adding a new translatable string
 
-1. Add to `src/shared/i18n/locales/en.json`:
+1. Add to `src/shared/i18n/locales/en/{namespace}.json` (e.g. `en/models.json`):
 
 ```json
 {
@@ -303,7 +303,7 @@ Each chunk is independently shippable: `bun run lint` + `bun run test` green at 
 }
 ```
 
-2. Add the JA value to `src/shared/i18n/locales/ja.json`:
+2. Add the JA value to `src/shared/i18n/locales/ja/{namespace}.json` (e.g. `ja/models.json`):
 
 ```json
 {

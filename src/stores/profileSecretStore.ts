@@ -15,7 +15,6 @@ export type SecretKind = "api" | "provisioning";
 
 export type SecretWriteResult = {
   success: boolean;
-  warning?: string;
   error?: string;
 };
 
@@ -52,22 +51,15 @@ export const getProfileSecretPath = (
   );
 };
 
-const validateSecret = (
-  raw: string,
-  provider: ProviderId,
-  kind: SecretKind,
-): { value: string; warning?: string } | { error: string } => {
+/**
+ * A key that doesn't start with the provider's conventional prefix (`sk-` /
+ * `sk-or-`) is still accepted — this only rejects empty/whitespace input.
+ * There is no consumer for a "wrong prefix" advisory (nothing ever reads it
+ * past this store), so this validates without producing one.
+ */
+const validateSecret = (raw: string): { value: string } | { error: string } => {
   const value = raw.trim();
   if (!value) return { error: "API key must not be empty" };
-
-  const expectedPrefix =
-    kind === "provisioning" || provider === "openrouter" ? "sk-or-" : "sk-";
-  if (!value.startsWith(expectedPrefix)) {
-    return {
-      value,
-      warning: `Key does not start with "${expectedPrefix}" — saving anyway`,
-    };
-  }
   return { value };
 };
 
@@ -78,7 +70,7 @@ export const setProfileSecret = async (
   raw: string,
 ): Promise<SecretWriteResult> => {
   try {
-    const validated = validateSecret(raw, provider, kind);
+    const validated = validateSecret(raw);
     if ("error" in validated) return { success: false, error: validated.error };
     if (!safeStorage.isEncryptionAvailable()) {
       return { success: false, error: "OS secure storage unavailable" };
@@ -90,10 +82,7 @@ export const setProfileSecret = async (
       safeStorage.encryptString(validated.value).toString("base64"),
       { encoding: "utf8", mode: 0o600 },
     );
-    return {
-      success: true,
-      ...(validated.warning ? { warning: validated.warning } : {}),
-    };
+    return { success: true };
   } catch (error) {
     return {
       success: false,

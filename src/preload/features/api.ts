@@ -57,7 +57,7 @@ export const apiFeature = {
   /** Commit a validated provider, default model, cache, and supplied secrets. */
   applyProviderSetup: async (
     setup: ProviderSetupInput,
-  ): Promise<{ success: boolean; profile?: Profile; warning?: string; error?: Label }> => {
+  ): Promise<{ success: boolean; profile?: Profile; error?: Label }> => {
     if (!isProviderSetupInput(setup)) {
       return { success: false, error: messageLabel("models.providerSetup.error.invalidSetup") };
     }
@@ -117,7 +117,7 @@ export const apiFeature = {
    */
   setApiKey: async (
     key: string,
-  ): Promise<{ success: boolean; warning?: string; error?: Label }> => {
+  ): Promise<{ success: boolean; error?: Label }> => {
     if (typeof key !== "string") {
       return { success: false, error: messageLabel("models.providerSetup.error.invalidApiKeyInput") };
     }

@@ -21,7 +21,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { textLabel, type Label } from "~/shared/i18n/message";
+import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
 import { createTranslator } from "~/shared/i18n/translate";
 import { SettingGeneral } from "./SettingGeneral";
 import { I18nProvider } from "../i18n/I18nProvider";
@@ -190,5 +190,52 @@ describe("SettingGeneral", () => {
     ).toContain(jaWrapped);
     expect(jaWrapped).not.toBe(enWrapped);
     expect(jaWrapped).toContain("disk full");
+  });
+
+  it("re-resolves an app-authored output-mode error Label directly (no double `textLabel` wrap) in Japanese", async () => {
+    // PR #87 review finding: `set-correction-output-mode`'s "Invalid
+    // correction output mode" used to be a raw string the renderer wrapped
+    // with `textLabel(result.error)`. Main now returns a `messageLabel(...)`
+    // `Label` directly — if this component still wrapped it in `textLabel`,
+    // the resolved text would stay frozen in whatever locale was active at
+    // the moment of the click instead of re-translating below.
+    await render({ success: true });
+    api.setCorrectionOutputMode.mockResolvedValueOnce({
+      success: false,
+      error: messageLabel("settings.general.outputMode.invalid"),
+    });
+
+    const popupRadio = [...container.querySelectorAll('button[role="radio"]')].find(
+      (candidate) =>
+        candidate.querySelector("span")?.textContent ===
+        tEn("settings.general.correctionOutput.popup.label"),
+    );
+    if (!popupRadio) {
+      throw new Error("Expected the 'popup' output-mode radio button");
+    }
+    await click(popupRadio);
+    await waitForUi();
+    await waitForUi();
+
+    const statuses = () =>
+      [...container.querySelectorAll('[role="status"]')].map((el) => el.textContent);
+    const enWrapped = tEn("settings.general.error", {
+      message: tEn("settings.general.outputMode.invalid"),
+    });
+    expect(statuses()).toContain(enWrapped);
+
+    await act(async () => {
+      localeListener?.("ja");
+    });
+    await waitForUi();
+
+    // Only the "Error: " wrapper AND the message both re-translate — proving
+    // the underlying error is a `Message` resolved via `tl()`, not raw text
+    // frozen by a stray `textLabel(result.error)` wrap.
+    const jaWrapped = tJa("settings.general.error", {
+      message: tJa("settings.general.outputMode.invalid"),
+    });
+    expect(statuses()).toContain(jaWrapped);
+    expect(jaWrapped).not.toBe(enWrapped);
   });
 });

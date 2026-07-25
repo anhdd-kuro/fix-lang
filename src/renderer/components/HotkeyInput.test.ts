@@ -16,6 +16,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { messageLabel } from "~/shared/i18n/message";
 import { createTranslator } from "~/shared/i18n/translate";
 import { HotkeyInput } from "./HotkeyInput";
 import { I18nProvider } from "../i18n/I18nProvider";
@@ -116,5 +117,86 @@ describe("HotkeyInput", () => {
     // called while the component stays mounted.
     expect(getKeyBindings).toHaveBeenCalledTimes(1);
     expect(resumeHotkeys).not.toHaveBeenCalled();
+  });
+
+  it("apply failure surfaces a translatable Message directly (no double `textLabel` wrap) that re-translates in Japanese", async () => {
+    // PR #87 review finding: `set-key-bindings`'s failure path used to be a
+    // raw string the renderer wrapped with `textLabel(result.error)`. Main
+    // now returns a `messageLabel(...)` `Label` directly (or an opaque
+    // `exceptionLabel` for a genuine thrown error) — if this component still
+    // wrapped it in `textLabel`, the resolved text would stay frozen in
+    // whatever locale was active at the moment Apply was clicked instead of
+    // re-translating below.
+    const localGetKeyBindings = vi
+      .fn()
+      .mockResolvedValue({ promptGen: "Control+Shift+P", profileSwitch: "Control+Shift+O" });
+    const localSetKeyBindings = vi.fn().mockResolvedValue({
+      success: false,
+      error: messageLabel("settings.hotkeys.applyErrorUnknown"),
+    });
+    const api = {
+      getKeyBindings: localGetKeyBindings,
+      resumeHotkeys: vi.fn().mockResolvedValue(undefined),
+      pauseHotkeys: vi.fn().mockResolvedValue(undefined),
+      getCorrectSettings: vi.fn().mockResolvedValue({ presets: [] }),
+      setKeyBindings: localSetKeyBindings,
+      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+      setLocale: vi.fn().mockResolvedValue({ success: true }),
+      onLocaleChanged: vi.fn((callback: (locale: Locale) => void) => {
+        localeListener = callback;
+        return vi.fn();
+      }),
+    };
+    Object.defineProperty(window, "electronAPI", { configurable: true, value: api });
+
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(
+          I18nProvider,
+          null,
+          createElement(HotkeyInput, { hotkeyKey: "promptGen", label: "PromptGen" }),
+        ),
+      );
+    });
+    await waitForUi();
+    await waitForUi();
+
+    const input = container.querySelector("input");
+    if (!input) throw new Error("Expected the hotkey capture input");
+    await act(async () => {
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "K", ctrlKey: true, bubbles: true }),
+      );
+    });
+
+    const applyButton = [...container.querySelectorAll("button")].find(
+      (candidate) => candidate.textContent === tEn("settings.hotkeys.applyButton"),
+    );
+    if (!applyButton) throw new Error("Expected the Apply button");
+    await act(async () => {
+      applyButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForUi();
+    await waitForUi();
+
+    const status = () => container.querySelector('[role="status"]');
+    const enWrapped = tEn("settings.general.error", {
+      message: tEn("settings.hotkeys.applyErrorUnknown"),
+    });
+    expect(status()?.textContent).toBe(enWrapped);
+
+    await act(async () => {
+      localeListener?.("ja");
+    });
+    await waitForUi();
+
+    const jaWrapped = tJa("settings.general.error", {
+      message: tJa("settings.hotkeys.applyErrorUnknown"),
+    });
+    expect(status()?.textContent).toBe(jaWrapped);
+    expect(jaWrapped).not.toBe(enWrapped);
   });
 });

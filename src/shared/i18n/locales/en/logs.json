@@ -1,4 +1,6 @@
 {
+  "logs.export.dialogTitle": "Export FixLang Logs",
+  "logs.export.filterName": "Text files",
   "logs.panel.autoScroll": "Auto-scroll",
   "logs.panel.clearButton": "Clear",
   "logs.panel.copyAllButton": "Copy all",

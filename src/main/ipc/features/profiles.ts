@@ -265,12 +265,17 @@ export const registerProfileHandlers = () => {
           ).show();
         }
 
-        return {
-          success,
-          ...(secretCleanup.success
-            ? {}
-            : { warning: "Profile deleted, but some credentials could not be removed" }),
-        };
+        if (!secretCleanup.success) {
+          // Not surfaced to the renderer: no UI ever read this signal, and a
+          // partially-failed cleanup shouldn't block the deletion itself.
+          // Server-side visibility is enough here.
+          console.error(
+            "Failed to fully clean up credentials after profile deletion:",
+            secretCleanup.error,
+          );
+        }
+
+        return { success };
       } catch (error) {
         console.error("Failed to delete profile:", error);
         return { success: false, error: catchLabel(error) };

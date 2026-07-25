@@ -6,7 +6,7 @@
  * hotkeys and the sibling app keybinding before saving.
  */
 import React, { useState, useEffect } from "react";
-import { messageLabel, msg, textLabel, type Message } from "~/shared/i18n/message";
+import { messageLabel, msg, type Message } from "~/shared/i18n/message";
 import { plainStatus, wrappedError, resolveStatus, type StatusDescriptor } from "./statusDescriptor";
 import { validateHotkeys } from "./validateHotkeys";
 import { useI18n } from "../i18n/useI18n";
@@ -165,9 +165,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
         setStatusKind("error");
         setStatus(
           wrappedError(
-            result.error
-              ? textLabel(result.error)
-              : messageLabel("settings.hotkeys.applyErrorUnknown"),
+            result.error ?? messageLabel("settings.hotkeys.applyErrorUnknown"),
           ),
         );
       }

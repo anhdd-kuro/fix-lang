@@ -1,4 +1,6 @@
 {
+  "logs.export.dialogTitle": "FixLang ログのエクスポート",
+  "logs.export.filterName": "テキストファイル",
   "logs.panel.autoScroll": "自動スクロール",
   "logs.panel.clearButton": "クリア",
   "logs.panel.copyAllButton": "すべてコピー",

@@ -184,9 +184,7 @@ export const SettingGeneral: React.FC = () => {
         setOutputModeIsError(true);
         setOutputModeStatus(
           wrappedError(
-            result.error
-              ? textLabel(result.error)
-              : messageLabel("settings.general.outputMode.saveFailed"),
+            result.error ?? messageLabel("settings.general.outputMode.saveFailed"),
           ),
         );
         return;
