@@ -986,6 +986,7 @@
     }
 
     .error-copy {
+      flex: 1 1 auto;
       min-width: 0;
     }
 
@@ -1003,6 +1004,33 @@
       line-height: 1.4;
       -webkit-box-orient: vertical;
       -webkit-line-clamp: 3;
+    }
+
+    .error-close {
+      flex: 0 0 auto;
+      width: 28px;
+      height: 28px;
+      margin: -4px -4px 0 0;
+      padding: 0;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: #d5d7e2;
+      cursor: pointer;
+      font-size: 20px;
+      font-weight: 400;
+      line-height: 1;
+      -webkit-app-region: no-drag;
+    }
+
+    .error-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #f7f7fb;
+    }
+
+    .error-close:focus-visible {
+      outline: 2px solid var(--overlay-spinner);
+      outline-offset: 1px;
     }
 
     @keyframes prixClipFix {
@@ -1037,6 +1065,9 @@
       <div class="error-title">FixLang Error</div>
       <div id="error-message" class="error-message"></div>
     </div>
+    <button type="button" id="error-close" class="error-close" aria-label="Close">
+      &times;
+    </button>
   </div>
 </body>
 

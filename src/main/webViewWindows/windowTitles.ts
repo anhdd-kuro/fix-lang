@@ -21,3 +21,9 @@ export const buildCorrectionResultWindowTitle = (): string =>
  */
 export const buildErrorPopupTitle = (): string =>
   mainT("notifications.errorPopup.title");
+
+/**
+ * Accessible label for the error popup's close button. Reuses the shared
+ * `common.close` string so EN/JA stay in sync with other dismiss controls.
+ */
+export const buildErrorPopupCloseLabel = (): string => mainT("common.close");
