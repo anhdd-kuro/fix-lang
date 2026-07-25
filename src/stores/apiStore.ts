@@ -368,6 +368,59 @@ export const normalizeCorrectionSettings = (
   };
 };
 
+/**
+ * F4(a) — `Schema<T>` (from `conf`, re-exported via `electron-store`) is
+ * `{ [Property in keyof T]: ValueSchema }`: it only ties the TOP-LEVEL keys
+ * of `apiStoreSchema` to `T`. Every nested `properties` block underneath —
+ * `enabledProviders` included — was plain `ValueSchema`, with no link back
+ * to `Profile` / `SettingsStore`. Renaming `enabledProviders` to
+ * `enabledProvider` in that nested block produced byte-identical `tsc`
+ * output: the typo silently orphans the field from ajv validation and
+ * defaulting, with zero compiler signal.
+ *
+ * `ValueSchema` is derived structurally from `Schema<T>` itself (rather than
+ * importing `json-schema-typed` directly, which is only a transitive
+ * dependency of `conf`, not a direct dependency of this package).
+ *
+ * `TypedSchemaFor<T>` ties a schema node's `properties` to `keyof T`,
+ * recursively through arrays and nested objects, so the `profiles` schema
+ * node below is checked against `Profile`, and `Profile["settings"]` against
+ * `SettingsStore` — which is exactly where `enabledProviders` lives. This is
+ * deliberately structural, not a general JSON-Schema-to-TS validator: leaf
+ * (non-object, non-array) nodes still fall back to the library's own
+ * `ValueSchema`, so keywords like `default`, `format`, `minimum`, etc. are
+ * untouched wherever they apply to a primitive; only `properties` / `items`
+ * / `required` / `default` are narrowed.
+ *
+ * One deliberate carve-out: `Model[]` (the `models` field) stops recursion
+ * and falls back to plain `ValueSchema`. The `models` schema node's
+ * `properties` (`id`, `object`, `created`, `owned_by`) mirror a raw provider
+ * API listing, not the persisted `Model` shape (`id`, `name`, `created`,
+ * `provider?`, `pricing?`, `local?`) — schema and type have diverged there
+ * since before this fix, which is unrelated to F4. Recursing into `Model`
+ * here would turn that pre-existing, out-of-scope mismatch into a *new* tsc
+ * error, which the gate for this change forbids. That one field's nested
+ * shape remains unchecked by this type; `enabledProviders` is not affected,
+ * since it is a sibling property of `models`, not nested inside it.
+ */
+type ValueSchema = Schema<{ value: unknown }>["value"];
+type ValueSchemaObject = Extract<ValueSchema, object>;
+
+type TypedSchemaFor<T> = T extends Model[]
+  ? ValueSchema
+  : T extends readonly (infer Item)[]
+    ? Omit<ValueSchemaObject, "items" | "default"> & {
+        items?: TypedSchemaFor<Item>;
+        default?: T;
+      }
+    : T extends Record<string, unknown>
+      ? Omit<ValueSchemaObject, "properties" | "required" | "default"> & {
+          properties?: { [K in keyof T]?: TypedSchemaFor<T[K]> };
+          required?: readonly (keyof T & string)[];
+          default?: T;
+        }
+      : ValueSchema;
+
 export const apiStoreSchema = {
   currentProfileId: { type: "string", default: "" },
   /**
@@ -509,7 +562,15 @@ export const apiStoreSchema = {
     },
     default: [],
   },
-} satisfies Schema<{ profiles: Profile[]; currentProfileId: string; configVersion: number }>;
+} satisfies Schema<{
+  profiles: Profile[];
+  currentProfileId: string;
+  configVersion: number;
+}> & {
+  // Narrows `profiles`'s nested `properties` (down to and including
+  // `settings`, i.e. `SettingsStore` — see the block comment above).
+  profiles: TypedSchemaFor<Profile[]>;
+};
 
 export const apiStore = new Store<{ profiles: Profile[] }>({
   schema: apiStoreSchema,
@@ -517,6 +578,30 @@ export const apiStore = new Store<{ profiles: Profile[] }>({
   clearInvalidConfig: true,
   watch: true,
 });
+
+/**
+ * F4(b) — `configVersion` is not part of `apiStore`'s `Store<{ profiles:
+ * Profile[] }>` generic above, and merely adding it there is NOT enough on
+ * its own: `conf`'s own `.get`/`.set` always carry a final catch-all overload
+ * for any string key that is not already a recognised key of `T`
+ * (`get<Key extends string, Value = unknown>(key: Exclude<Key,
+ * DotNotationKeyOf<T>>, defaultValue?: Value): Value`, and the analogous
+ * plain-`string` overload on `.set`). A typo like `"configVresion"` still
+ * satisfies that fallback and type-checks with ZERO errors even with
+ * `configVersion: number` added to the generic — verified empirically (see
+ * `.scratch/multi-provider/evidence/03/fix-b/mutation-f4b.txt`).
+ *
+ * `ConfigVersionStore` has no such fallback overload, so a typo'd key fails
+ * `keyof ConfigVersionShape` outright and tsc rejects it. The cast below is a
+ * type-only re-view of the exact same `apiStore` instance — no behavior
+ * change, no new object, nothing added to the schema.
+ */
+type ConfigVersionShape = { configVersion: number };
+type ConfigVersionStore = {
+  get(key: keyof ConfigVersionShape, defaultValue: number): number;
+  set(key: keyof ConfigVersionShape, value: number): void;
+};
+const configVersionStore = apiStore as unknown as ConfigVersionStore;
 
 export const getOpenAIKey = () => {
   const apiKey = apiStore.get("apiKey");
@@ -735,13 +820,13 @@ export const disconnectProviderFromActiveProfile = (
  * this driver with the gate forced back to 0 still changes nothing.
  */
 export const migrateStoredProfilesForModelRefs = (): void => {
-  if ((apiStore.get("configVersion", 0) as number) >= 1) {
+  if (configVersionStore.get("configVersion", 0) >= 1) {
     return;
   }
   const raw = apiStore.get("profiles", []) as unknown[];
   const next = raw.map(migrateProfileForModelRefs);
   apiStore.set("profiles", next);
-  apiStore.set("configVersion", 1);
+  configVersionStore.set("configVersion", 1);
 };
 
 /**

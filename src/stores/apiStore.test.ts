@@ -588,6 +588,33 @@ describe("apiStoreSchema — model defaults are the inherit sentinel", () => {
 });
 
 // ---------------------------------------------------------------------------
+// apiStoreSchema — F4(a)/F4(b) fix, committed-snapshot equality check.
+//
+// `clearInvalidConfig: true` means ANY runtime change to this schema object
+// can wipe a user's entire config (every profile, preset, key reference) —
+// see the block comment above `apiStoreSchema`. The F4 type-only fix (typing
+// nested `properties` against `Profile`/`SettingsStore`, and a separate
+// `ConfigVersionStore` view for `configVersion`) must not change the emitted
+// runtime object by even one byte. This hash is the committed snapshot: if
+// it ever changes, the schema changed, and that needs the same scrutiny as
+// any other schema edit (re-verify clearInvalidConfig safety) — it should
+// never be updated to "make the test pass" without that.
+// ---------------------------------------------------------------------------
+
+describe("apiStoreSchema — serialised schema is byte-identical (F4 regression guard)", () => {
+  it("matches the committed sha256 snapshot", async () => {
+    const crypto = await import("node:crypto");
+    const hash = crypto
+      .createHash("sha256")
+      .update(JSON.stringify(apiStoreSchema))
+      .digest("hex");
+    expect(hash).toBe(
+      "ff6680edb31360573a60568001433bff518f41b5bfa007b31e05fb98794563e1",
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
 // getDefaultModelId
 // ---------------------------------------------------------------------------
 
