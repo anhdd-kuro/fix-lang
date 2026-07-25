@@ -10,17 +10,20 @@ type UpdateState = {
     | "checking"
     | "up-to-date"
     | "available"
+    | "installing"
     | "error";
   currentVersion: string;
   availableVersion?: string;
   releaseNotes?: string;
   message?: string;
+  canInstall?: boolean;
 };
 
 type UpdateApi = {
   getUpdateState: ReturnType<typeof vi.fn>;
   checkForUpdates: ReturnType<typeof vi.fn>;
   openUpdateRelease: ReturnType<typeof vi.fn>;
+  installUpdate: ReturnType<typeof vi.fn>;
   onUpdateStateChanged: ReturnType<typeof vi.fn>;
   openExternalLink: ReturnType<typeof vi.fn>;
 };
@@ -65,6 +68,7 @@ describe("SettingUpdates", () => {
       getUpdateState: vi.fn().mockResolvedValue(state),
       checkForUpdates: vi.fn().mockResolvedValue(undefined),
       openUpdateRelease: vi.fn().mockResolvedValue(undefined),
+      installUpdate: vi.fn().mockResolvedValue({ success: true }),
       openExternalLink: vi.fn().mockResolvedValue({ success: true }),
       onUpdateStateChanged: vi.fn((listener: (next: UpdateState) => void) => {
         updateListener = listener;
@@ -163,6 +167,75 @@ describe("SettingUpdates", () => {
     );
     await click(buttonNamed(container, "Download from GitHub"));
     expect(api.openUpdateRelease).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers a one-click Homebrew update for a cask install", async () => {
+    await render({
+      ...readyState("available"),
+      availableVersion: "0.2.0",
+      canInstall: true,
+    });
+
+    expect(container.textContent).toContain(
+      "Homebrew installs the update and reopens FixLang.",
+    );
+    // The manual replace-the-bundle instructions belong to the DMG path only;
+    // the static "How to update" reference below still documents them.
+    expect(container.textContent).not.toContain(
+      "Install the DMG, replace FixLang in Applications",
+    );
+
+    await click(buttonNamed(container, "Update now"));
+
+    expect(api.installUpdate).toHaveBeenCalledTimes(1);
+    expect(api.openUpdateRelease).not.toHaveBeenCalled();
+  });
+
+  it("hides the one-click update from a manual DMG install", async () => {
+    await render({
+      ...readyState("available"),
+      availableVersion: "0.2.0",
+      canInstall: false,
+    });
+
+    expect(
+      [...container.querySelectorAll("button")].find(
+        (button) => button.textContent === "Update now",
+      ),
+    ).toBeUndefined();
+    expect(container.textContent).toContain(
+      'xattr -dr com.apple.quarantine "/Applications/FixLang.app"',
+    );
+  });
+
+  it("surfaces a failed install start as an error", async () => {
+    await render({
+      ...readyState("available"),
+      availableVersion: "0.2.0",
+      canInstall: true,
+    });
+    api.installUpdate.mockResolvedValueOnce({
+      success: false,
+      error: "Could not start the Homebrew update.",
+    });
+
+    await click(buttonNamed(container, "Update now"));
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      "Could not start the Homebrew update.",
+    );
+  });
+
+  it("announces the installing phase while Homebrew works", async () => {
+    await render({
+      ...readyState("installing"),
+      availableVersion: "0.2.0",
+      canInstall: true,
+    });
+
+    expect(container.querySelector('[role="status"]')?.textContent).toContain(
+      "Installing v0.2.0 with Homebrew.",
+    );
   });
 
   it("renders GitHub-flavored markdown release notes instead of raw text", async () => {

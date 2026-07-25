@@ -1,9 +1,12 @@
+import { reconcilePendingInstall, type PendingInstallStore } from "./pendingInstall";
 import type { GitHubReleaseSource } from "./githubReleaseSource";
-import type { UpdateState } from "~/shared/update";
+import type { HomebrewUpgrader } from "./homebrew";
+import type { InstallUpdateResult, UpdateState } from "~/shared/update";
 
 export type UpdateService = {
   getState: () => UpdateState;
   checkForUpdates: () => Promise<void>;
+  installUpdate: () => InstallUpdateResult;
   getReleaseUrl: () => string | null;
   subscribe: (listener: (state: UpdateState) => void) => () => void;
 };
@@ -14,6 +17,11 @@ type UpdateServiceOptions = {
   platform: string;
   arch: string;
   getCurrentVersion: () => string;
+  /** Absent in unsupported builds; then one-click install is simply off. */
+  upgrader?: HomebrewUpgrader;
+  pendingInstall?: PendingInstallStore;
+  /** Called after the detached helper starts, so it can replace the bundle. */
+  quitApp?: () => void;
   onLog?: (level: "info" | "warn" | "error", message: string) => void;
 };
 
@@ -31,6 +39,10 @@ type ValidatedRelease = Readonly<{
 
 const RELEASE_NOTES_MAX_LENGTH = 12_000;
 const UPDATE_ERROR_MESSAGE = "Could not check for updates. Try again later.";
+const INSTALL_ERROR_MESSAGE =
+  "Could not start the Homebrew update. Update manually with the command below.";
+const INSTALL_INCOMPLETE_MESSAGE =
+  "Homebrew did not finish the last update. Update manually with the command below.";
 const RELEASES_URL = "https://github.com/anhdd-kuro/fix-lang/releases";
 const STABLE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
@@ -115,8 +127,10 @@ const freezeState = (state: UpdateState): UpdateState =>
   Object.freeze({ ...state });
 
 /**
- * Owns check-only release state. GitHub metadata is untrusted until validated;
- * the release URL is derived locally rather than accepted from the response.
+ * Owns release state plus the Homebrew-only install action. GitHub metadata is
+ * untrusted until validated; the release URL is derived locally rather than
+ * accepted from the response, and the upgrade itself is delegated to Homebrew
+ * so nothing here has to automate Gatekeeper.
  */
 export const createUpdateService = (
   options: UpdateServiceOptions,
@@ -124,10 +138,16 @@ export const createUpdateService = (
   const currentVersion = options.getCurrentVersion();
   const supported =
     options.isPackaged && options.platform === "darwin" && options.arch === "arm64";
+  const canInstall = supported && (options.upgrader?.canInstall ?? false);
   const listeners = new Set<(state: UpdateState) => void>();
   let checking = false;
+  let installing = false;
   let releaseUrl: string | null = null;
-  let state = freezeState({
+
+  const withCanInstall = (next: Omit<UpdateState, "canInstall">): UpdateState =>
+    freezeState({ ...next, canInstall });
+
+  let state = withCanInstall({
     phase: supported ? "idle" : "unsupported",
     currentVersion,
     ...(supported
@@ -135,10 +155,39 @@ export const createUpdateService = (
       : { message: "Updates are available in installed release builds." }),
   });
 
-  const publish = (next: UpdateState): void => {
-    state = freezeState(next);
+  const publish = (next: Omit<UpdateState, "canInstall">): void => {
+    state = withCanInstall(next);
     for (const listener of listeners) listener(state);
   };
+
+  /**
+   * Homebrew finishes after this app has quit, so the previous run's marker is
+   * the only evidence of what happened. Report a stalled upgrade loudly.
+   */
+  const reconcileLastInstall = (): void => {
+    const store = options.pendingInstall;
+    if (!supported || !store) return;
+
+    const pending = store.read();
+    const outcome = reconcilePendingInstall(pending, currentVersion);
+    if (outcome === "none") return;
+
+    store.clear();
+    if (outcome === "installed") {
+      options.onLog?.("info", `App updated to ${currentVersion} via Homebrew`);
+      publish({ phase: "up-to-date", currentVersion });
+      return;
+    }
+
+    options.onLog?.("warn", "Homebrew update did not change the app version");
+    publish({
+      phase: "error",
+      currentVersion,
+      message: INSTALL_INCOMPLETE_MESSAGE,
+    });
+  };
+
+  reconcileLastInstall();
 
   const fail = (error: unknown): void => {
     checking = false;
@@ -186,6 +235,61 @@ export const createUpdateService = (
       } finally {
         checking = false;
       }
+    },
+
+    /**
+     * Starts the detached Homebrew helper and quits so it can replace this
+     * bundle. Only a validated `available` state may trigger it, and only for
+     * a cask install — never for a manually placed DMG copy.
+     */
+    installUpdate: (): InstallUpdateResult => {
+      if (!canInstall || !options.upgrader) {
+        return { success: false, error: INSTALL_ERROR_MESSAGE };
+      }
+      if (installing) return { success: true };
+      if (state.phase !== "available" || state.availableVersion === undefined) {
+        return { success: false, error: INSTALL_ERROR_MESSAGE };
+      }
+
+      const targetVersion = state.availableVersion;
+      try {
+        options.upgrader.startUpgrade();
+      } catch (error) {
+        options.onLog?.(
+          "error",
+          `Homebrew update could not start (${safeErrorName(error)})`,
+        );
+        publish({
+          phase: "error",
+          currentVersion,
+          availableVersion: targetVersion,
+          message: INSTALL_ERROR_MESSAGE,
+        });
+        return { success: false, error: INSTALL_ERROR_MESSAGE };
+      }
+
+      installing = true;
+      try {
+        options.pendingInstall?.write({
+          fromVersion: currentVersion,
+          toVersion: targetVersion,
+        });
+      } catch (error) {
+        // The upgrade still runs; only the outcome report is lost.
+        options.onLog?.(
+          "warn",
+          `Could not record the pending update (${safeErrorName(error)})`,
+        );
+      }
+
+      options.onLog?.("info", `Homebrew update to ${targetVersion} started`);
+      publish({
+        phase: "installing",
+        currentVersion,
+        availableVersion: targetVersion,
+      });
+      options.quitApp?.();
+      return { success: true };
     },
 
     subscribe: (listener) => {
