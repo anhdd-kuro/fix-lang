@@ -7,11 +7,20 @@
  * `notifications/error.test.ts`.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { LocalizedError } from "~/main/notifications/error";
+import { AccessibilityPermissionError, LocalizedError } from "~/main/notifications/error";
 import { checkShortcut, handleError } from "./utils";
 
-const { showErrorNotificationMock } = vi.hoisted(() => ({
+const { showErrorNotificationMock, promptAccessibilityPermissionMock } = vi.hoisted(() => ({
   showErrorNotificationMock: vi.fn(),
+  promptAccessibilityPermissionMock: vi.fn(),
+}));
+
+// `handleError` now also imports `~/utils` for `promptAccessibilityPermission`.
+// The real module talks to `child_process`/Electron `dialog` — irrelevant to
+// what this file tests (wiring only) and already covered end-to-end in
+// `~/utils.test.ts` — so it is mocked out entirely here.
+vi.mock("~/utils", () => ({
+  promptAccessibilityPermission: promptAccessibilityPermissionMock,
 }));
 
 // `~/main/notifications/error` imports `mainT` (reads `~/stores/localeStore`)
@@ -50,6 +59,25 @@ describe("handleError", () => {
     // `showErrorNotification` falls back to its own localized default
     // instead (see notifications/error.test.ts for that behavior).
     expect(showErrorNotificationMock).toHaveBeenCalledExactlyOnceWith(error);
+  });
+
+  it("does not prompt for Accessibility permission on an unrelated error", () => {
+    handleError(new Error("boom"));
+
+    expect(promptAccessibilityPermissionMock).not.toHaveBeenCalled();
+  });
+
+  it("also triggers the actionable Accessibility prompt for AccessibilityPermissionError", () => {
+    const error = new AccessibilityPermissionError();
+
+    handleError(error);
+
+    // Still reported as a notification (localized body covered end-to-end in
+    // notifications/error.test.ts) *and* triggers the dialog — a mid-session
+    // revocation would otherwise only ever surface as a notification, which
+    // the observed log shows can itself fail (`UNErrorDomain error 1`).
+    expect(showErrorNotificationMock).toHaveBeenCalledExactlyOnceWith(error);
+    expect(promptAccessibilityPermissionMock).toHaveBeenCalledOnce();
   });
 });
 

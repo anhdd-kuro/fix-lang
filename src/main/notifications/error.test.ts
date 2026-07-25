@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTranslator } from "~/shared/i18n/translate";
-import { LocalizedError, showErrorNotification } from "./error";
+import { AccessibilityPermissionError, LocalizedError, showErrorNotification } from "./error";
 
 const {
   notificationConstructorMock,
@@ -242,6 +242,54 @@ describe("showErrorNotification", () => {
       expect(notificationConstructorMock).toHaveBeenCalledWith(
         expect.objectContaining({ body: tJa("notifications.error.noProfilesAvailable.body") }),
       );
+    });
+  });
+
+  // ---------------------------------------------------------------------
+  // AccessibilityPermissionError — a dedicated LocalizedError subclass so
+  // `handleError` can recognize a revoked macOS Accessibility permission via
+  // `instanceof` (see keybindings/utils.ts) and trigger the actionable
+  // `promptAccessibilityPermission()` dialog, on top of the same catalog-body
+  // notification behavior every other LocalizedError gets.
+  // ---------------------------------------------------------------------
+  describe("AccessibilityPermissionError", () => {
+    it("shows the catalog body in English, not the English devMessage", () => {
+      localeStoreMocks.getLocale.mockReturnValue("en");
+      const error = new AccessibilityPermissionError();
+
+      showErrorNotification(error);
+
+      expect(notificationConstructorMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: tEn("notifications.error.accessibilityDenied.body"),
+        }),
+      );
+      expect(notificationConstructorMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({ body: error.message }),
+      );
+    });
+
+    it("shows the catalog body in Japanese, distinct from English", () => {
+      localeStoreMocks.getLocale.mockReturnValue("ja");
+      const error = new AccessibilityPermissionError();
+
+      showErrorNotification(error);
+
+      expect(notificationConstructorMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: tJa("notifications.error.accessibilityDenied.body"),
+        }),
+      );
+      expect(tJa("notifications.error.accessibilityDenied.body")).not.toBe(
+        tEn("notifications.error.accessibilityDenied.body"),
+      );
+    });
+
+    it("is a LocalizedError keyed to the accessibility-denied catalog entry", () => {
+      const error = new AccessibilityPermissionError();
+
+      expect(error).toBeInstanceOf(LocalizedError);
+      expect(error.messageKey).toBe("notifications.error.accessibilityDenied.body");
     });
   });
 });

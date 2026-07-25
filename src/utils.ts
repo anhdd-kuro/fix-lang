@@ -1,5 +1,7 @@
 import { exec, execSync } from "child_process";
 import { clipboard, dialog, shell } from "electron";
+import { isKeystrokePermissionDenied } from "~/main/accessibility/keystrokePermission";
+import { AccessibilityPermissionError } from "~/main/notifications/error";
 
 export const isMacOSAccessibilityGranted = (): boolean => {
   if (process.platform !== "darwin") return true;
@@ -19,10 +21,25 @@ export const isMacOSAccessibilityGranted = (): boolean => {
   }
 };
 
-export const promptAccessibilityPermission = () => {
+// At most one dialog per interval. The blocking `showMessageBoxSync` this
+// replaces would previously stack a modal per failed hotkey press — a
+// correction hotkey that fails repeatedly (the observed case: four failures
+// in 31 seconds as the user retried) would otherwise freeze the main process
+// behind four queued dialogs. 60s comfortably absorbs a rapid retry burst
+// like that into a single prompt, while still being short enough that a
+// later, genuinely new failure in the same session re-prompts instead of
+// being silenced for good by one early dialog.
+const ACCESSIBILITY_PROMPT_THROTTLE_MS = 60 * 1000;
+let lastAccessibilityPromptAt = 0;
+
+export const promptAccessibilityPermission = async (): Promise<void> => {
   if (process.platform !== "darwin") return;
 
-  const btn = dialog.showMessageBoxSync({
+  const now = Date.now();
+  if (now - lastAccessibilityPromptAt < ACCESSIBILITY_PROMPT_THROTTLE_MS) return;
+  lastAccessibilityPromptAt = now;
+
+  const { response } = await dialog.showMessageBox({
     type: "warning",
     buttons: ["Open Settings", "Cancel"],
     defaultId: 0,
@@ -33,7 +50,7 @@ export const promptAccessibilityPermission = () => {
       "Please enable accessibility for this app in System Settings > Privacy & Security > Accessibility.",
   });
 
-  if (btn === 0) {
+  if (response === 0) {
     // Open Accessibility Settings
     shell.openExternal(
       "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
@@ -51,6 +68,13 @@ export const getHighlightedText = async (): Promise<string> => {
     return selectedText;
   } catch (error) {
     console.error(error);
+    // A revoked Accessibility permission is a distinct, actionable condition
+    // (see `~/main/accessibility/keystrokePermission`) — pass it through as
+    // `AccessibilityPermissionError` instead of burying it in the generic
+    // wrapper below, whose message says nothing about permissions.
+    if (isKeystrokePermissionDenied(error)) {
+      throw new AccessibilityPermissionError();
+    }
     throw new Error("Failed to get highlighted text", { cause: error });
   } finally {
     clipboard.writeText(previousClipboardContent);
@@ -92,7 +116,14 @@ export const pasteText = (text: string): Promise<void> => {
 
     exec(`osascript -e '${script}'`, (error) => {
       if (error) {
-        reject(`Error: ${error.message}`);
+        // Same permission-denial detection as `copyHighlightedText`/
+        // `getHighlightedText` above — `pasteText` synthesizes keystrokes
+        // too, so it hits the exact same macOS TCC failure mode.
+        reject(
+          isKeystrokePermissionDenied(error)
+            ? new AccessibilityPermissionError()
+            : `Error: ${error.message}`,
+        );
         clipboard.writeText(previousClipboardContent);
         return;
       }
