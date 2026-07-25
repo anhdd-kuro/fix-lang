@@ -101,4 +101,19 @@ describe("syncCorrectionResultWindowLocale", () => {
 
     expect(lastWindow?.setTitle).not.toHaveBeenCalled();
   });
+
+  it("prevents index.html's static <title> from overriding the localized window title", async () => {
+    const { showCorrectionResultWindow } = await loadModule();
+    showCorrectionResultWindow(PAYLOAD as never);
+
+    const pageTitleUpdatedCall = lastWindow?.on.mock.calls.find(
+      ([eventName]) => eventName === "page-title-updated",
+    );
+    expect(pageTitleUpdatedCall).toBeDefined();
+
+    const preventDefault = vi.fn();
+    pageTitleUpdatedCall?.[1]({ preventDefault });
+
+    expect(preventDefault).toHaveBeenCalledOnce();
+  });
 });

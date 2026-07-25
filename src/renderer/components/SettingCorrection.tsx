@@ -9,10 +9,11 @@ import {
   DEFAULT_TRANSLATE_PRESET_ID,
   DEFAULT_TRANSLATE_PRESET_PROMPT,
 } from "~/prompts/correction";
+import { msg, messageLabel, type Message } from "~/shared/i18n/message";
 import { ModelSelect } from "./ModelSelect";
+import { plainStatus, wrappedError, resolveStatus, type StatusDescriptor } from "./statusDescriptor";
 import { validateHotkeys } from "./validateHotkeys";
 import { useI18n } from "../i18n/useI18n";
-import type { Translator } from "~/shared/i18n/translate";
 import type { CorrectionPreset, CorrectionSettings } from "~/stores/apiStore";
 
 // why: preset display names ("Correction", "Summarize", …) are user-editable
@@ -93,21 +94,19 @@ const captureHotkey = (
 
 /**
  * Validates form fields (name + systemPrompt) on each preset.
- * Returns the first (already-localized) error message, or null if all fields
- * are valid. Hotkey conflict validation is handled separately by
- * validateHotkeys().
+ * Returns the first violation as a locale-free `Message` descriptor (never
+ * prose — see the fixlang-i18n skill's "aggregations return descriptors"
+ * note), or null if all fields are valid. Hotkey conflict validation is
+ * handled separately by validateHotkeys().
  */
-const validateFormFields = (
-  settings: CorrectionSettings,
-  t: Translator,
-): string | null => {
+const validateFormFields = (settings: CorrectionSettings): Message | null => {
   for (const preset of settings.presets) {
     if (!preset.name.trim()) {
-      return t("settings.correction.error.nameRequired");
+      return msg("settings.correction.error.nameRequired");
     }
 
     if (!preset.systemPrompt.trim()) {
-      return t("settings.correction.error.promptRequired", { name: preset.name });
+      return msg("settings.correction.error.promptRequired", { name: preset.name });
     }
   }
 
@@ -115,12 +114,15 @@ const validateFormFields = (
 };
 
 export const SettingCorrection: React.FC = () => {
-  const { t } = useI18n();
+  const { t, tm, tl } = useI18n();
   const [correctionSettings, setCorrectionSettings] =
     useState<CorrectionSettings>(buildDefaultSettings);
-  const [status, setStatus] = useState("");
-  // Separate from `status` text so the styling never depends on matching an
-  // English "Error" prefix — `status` itself is always already localized.
+  // Locale-free descriptor — was `useState("")` filled by `t()` at action
+  // time, which froze the message into whatever locale was active when the
+  // action ran and never re-translated after a later locale switch.
+  const [status, setStatus] = useState<StatusDescriptor | null>(null);
+  // Separate from `status` so the styling never depends on matching an
+  // English "Error" prefix.
   const [statusIsError, setStatusIsError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -179,7 +181,7 @@ export const SettingCorrection: React.FC = () => {
       presets: [...current.presets, nextPreset],
       selectedPresetId: nextPreset.id,
     }));
-    setStatus("");
+    setStatus(null);
     setStatusIsError(false);
   };
 
@@ -200,7 +202,7 @@ export const SettingCorrection: React.FC = () => {
       presets: [...current.presets, duplicatedPreset],
       selectedPresetId: duplicatedPreset.id,
     }));
-    setStatus("");
+    setStatus(null);
     setStatusIsError(false);
   };
 
@@ -222,7 +224,7 @@ export const SettingCorrection: React.FC = () => {
         selectedPresetId: fallbackPreset?.id || DEFAULT_CORRECTION_PRESET_ID,
       };
     });
-    setStatus("");
+    setStatus(null);
     setStatusIsError(false);
   };
 
@@ -244,7 +246,7 @@ export const SettingCorrection: React.FC = () => {
       temperature: defaultPreset.temperature,
       maxTokens: defaultPreset.maxTokens,
     });
-    setStatus("");
+    setStatus(null);
     setStatusIsError(false);
   };
 
@@ -252,10 +254,10 @@ export const SettingCorrection: React.FC = () => {
     event.preventDefault();
 
     // Form validation: name + systemPrompt fields must be non-empty.
-    const formError = validateFormFields(correctionSettings, t);
+    const formError = validateFormFields(correctionSettings);
     if (formError) {
       setStatusIsError(true);
-      setStatus(t("settings.general.error", { message: formError }));
+      setStatus(wrappedError({ kind: "message", message: formError }));
       return;
     }
 
@@ -269,32 +271,32 @@ export const SettingCorrection: React.FC = () => {
     if (conflict) {
       setStatusIsError(true);
       setStatus(
-        t("settings.general.error", {
-          message: t("settings.correction.hotkeyConflict", {
+        wrappedError(
+          messageLabel("settings.correction.hotkeyConflict", {
             hotkey: conflict.hotkey,
             presetOrKey: conflict.presetOrKey,
             conflictsWith: conflict.conflictsWith,
           }),
-        }),
+        ),
       );
       return;
     }
 
     setStatusIsError(false);
-    setStatus(t("settings.correction.saving"));
+    setStatus(plainStatus("settings.correction.saving"));
 
     const result =
       await window.electronAPI.setCorrectSettings(correctionSettings);
 
     if (result.success) {
       setStatusIsError(false);
-      setStatus(t("settings.correction.saved"));
-      setTimeout(() => setStatus(""), 2000);
+      setStatus(plainStatus("settings.correction.saved"));
+      setTimeout(() => setStatus(null), 2000);
       return;
     }
 
     setStatusIsError(true);
-    setStatus(t("settings.correction.saveError"));
+    setStatus(plainStatus("settings.correction.saveError"));
   };
 
   if (isLoading) {
@@ -568,7 +570,7 @@ export const SettingCorrection: React.FC = () => {
           className={`text-sm ${statusIsError ? "text-destructive" : "text-success"}`}
           role="status"
         >
-          {status}
+          {resolveStatus(status, t, tm, tl)}
         </p>
       )}
     </form>

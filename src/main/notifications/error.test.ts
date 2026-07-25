@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createTranslator } from "~/shared/i18n/translate";
 import { showErrorNotification } from "./error";
 
 const {
@@ -6,6 +7,7 @@ const {
   notificationShowMock,
   notificationState,
   showErrorPopupMock,
+  localeStoreMocks,
 } = vi.hoisted(() => ({
   notificationConstructorMock: vi.fn(),
   notificationShowMock: vi.fn(),
@@ -16,11 +18,26 @@ const {
     failedListener: undefined as ((event: unknown, error: string) => void) | undefined,
   },
   showErrorPopupMock: vi.fn(),
+  localeStoreMocks: { getLocale: vi.fn() },
 }));
 
 vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
   showErrorPopup: showErrorPopupMock,
 }));
+
+// The desktop-notification title/fallback body are built via `mainT()`,
+// which reads `~/stores/localeStore` (backed by `electron-store`, itself
+// backed by real `app.getPath`). Mocking the store directly — the same
+// pattern `correctionNotifications.test.ts` and `windowTitles.test.ts` use —
+// keeps this test from touching the filesystem or the real Electron `app`.
+vi.mock("~/stores/localeStore", () => ({
+  getLocale: localeStoreMocks.getLocale,
+}));
+
+// Expected copy is derived through the real translator kernel so a catalog
+// reword can't silently break this file.
+const tEn = createTranslator("en");
+const tJa = createTranslator("ja");
 
 vi.mock("electron", () => ({
   app: {
@@ -54,6 +71,7 @@ describe("showErrorNotification", () => {
     notificationState.isReady = true;
     notificationState.readyListener = undefined;
     notificationState.failedListener = undefined;
+    localeStoreMocks.getLocale.mockReturnValue("en");
   });
 
   it("shows an error only once as the same Error crosses application layers", () => {
@@ -103,6 +121,45 @@ describe("showErrorNotification", () => {
 
     expect(showErrorPopupMock).toHaveBeenCalledWith(
       "Cannot connect to the AI provider.",
+    );
+  });
+
+  it("uses the English-localized notification title", () => {
+    localeStoreMocks.getLocale.mockReturnValue("en");
+    const error = new Error("The AI request failed.");
+
+    showErrorNotification(error);
+
+    expect(notificationConstructorMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: tEn("notifications.error.title") }),
+    );
+  });
+
+  it("uses the Japanese-localized notification title, distinct from English", () => {
+    localeStoreMocks.getLocale.mockReturnValue("ja");
+    const error = new Error("The AI request failed.");
+
+    showErrorNotification(error);
+
+    expect(notificationConstructorMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: tJa("notifications.error.title") }),
+    );
+    // Prove the locale actually changed the wording, not just an English fallback.
+    expect(tJa("notifications.error.title")).not.toBe(
+      tEn("notifications.error.title"),
+    );
+  });
+
+  it("falls back to the localized default body for a non-Error value", () => {
+    localeStoreMocks.getLocale.mockReturnValue("ja");
+
+    showErrorNotification("a raw string was thrown");
+
+    expect(notificationConstructorMock).toHaveBeenCalledWith(
+      expect.objectContaining({ body: tJa("notifications.error.body") }),
+    );
+    expect(tJa("notifications.error.body")).not.toBe(
+      tEn("notifications.error.body"),
     );
   });
 });

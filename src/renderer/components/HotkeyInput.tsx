@@ -6,7 +6,8 @@
  * hotkeys and the sibling app keybinding before saving.
  */
 import React, { useState, useEffect } from "react";
-import { msg, type Message } from "~/shared/i18n/message";
+import { messageLabel, msg, textLabel, type Message } from "~/shared/i18n/message";
+import { plainStatus, wrappedError, resolveStatus, type StatusDescriptor } from "./statusDescriptor";
 import { validateHotkeys } from "./validateHotkeys";
 import { useI18n } from "../i18n/useI18n";
 import type { KeyBindings } from "~/stores/apiStore";
@@ -32,11 +33,17 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
   hotkeyKey,
   label,
 }) => {
-  const { t, tm } = useI18n();
+  const { t, tm, tl } = useI18n();
   const [keyBindings, setKeyBindings] = useState<KeyBindings | null>(null);
   const [pendingCombo, setPendingCombo] = useState<string>("");
-  const [fieldError, setFieldError] = useState<string>("");
-  const [status, setStatus] = useState<string>("");
+  // Locale-free descriptor — was `useState<string>` filled by `t()` in
+  // `handleKeyDown` (a synchronous key handler), which froze the message
+  // into whatever locale was active at the keystroke and never re-translated
+  // on a later locale switch.
+  const [fieldError, setFieldError] = useState<Message | null>(null);
+  // Same fix as `fieldError` — was `useState<string>` filled by `t()` in
+  // `handleApply`.
+  const [status, setStatus] = useState<StatusDescriptor | null>(null);
   // Separate from `status` text so styling never depends on matching an
   // English prefix — `status` itself is always already localized.
   const [statusKind, setStatusKind] = useState<"idle" | "error" | "applying" | "success">(
@@ -96,7 +103,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
     const newCombo = parts.join("+");
 
     if (!parts.some((p) => !modifierOnly.includes(p))) {
-      setFieldError(t("settings.hotkeys.needsKey"));
+      setFieldError(msg("settings.hotkeys.needsKey"));
       return;
     }
 
@@ -107,12 +114,12 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
       );
       const sibling = siblingKeys.find((k) => keyBindings[k] === newCombo);
       if (sibling) {
-        setFieldError(t("settings.hotkeys.duplicateWith", { sibling }));
+        setFieldError(msg("settings.hotkeys.duplicateWith", { sibling }));
         return;
       }
     }
 
-    setFieldError("");
+    setFieldError(null);
     setPendingCombo(newCombo);
   };
 
@@ -121,7 +128,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
     setLoadError(null);
     if (fieldError) {
       setStatusKind("error");
-      setStatus(t("settings.general.error", { message: fieldError }));
+      setStatus(wrappedError({ kind: "message", message: fieldError }));
       return;
     }
     if (!keyBindings || !pendingCombo) return;
@@ -135,36 +142,38 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
     if (conflict) {
       setStatusKind("error");
       setStatus(
-        t("settings.general.error", {
-          message: t("settings.hotkeys.conflict", {
+        wrappedError(
+          messageLabel("settings.hotkeys.conflict", {
             hotkey: conflict.hotkey,
             presetOrKey: conflict.presetOrKey,
           }),
-        }),
+        ),
       );
       return;
     }
 
     setStatusKind("applying");
-    setStatus(t("settings.hotkeys.applying"));
+    setStatus(plainStatus("settings.hotkeys.applying"));
     await window.electronAPI.pauseHotkeys();
     try {
       const result = await window.electronAPI.setKeyBindings(updated);
       if (result.success) {
         setKeyBindings(updated);
         setStatusKind("success");
-        setStatus(t("settings.hotkeys.applied"));
+        setStatus(plainStatus("settings.hotkeys.applied"));
       } else {
         setStatusKind("error");
         setStatus(
-          t("settings.general.error", {
-            message: result.error ?? t("settings.hotkeys.applyErrorUnknown"),
-          }),
+          wrappedError(
+            result.error
+              ? textLabel(result.error)
+              : messageLabel("settings.hotkeys.applyErrorUnknown"),
+          ),
         );
       }
     } catch {
       setStatusKind("error");
-      setStatus(t("settings.hotkeys.applyError"));
+      setStatus(plainStatus("settings.hotkeys.applyError"));
     } finally {
       await window.electronAPI.resumeHotkeys();
     }
@@ -204,7 +213,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
       </div>
       {fieldError && (
         <p className="text-xs text-destructive" role="alert">
-          {fieldError}
+          {tm(fieldError)}
         </p>
       )}
       {(loadError || status) && (
@@ -218,7 +227,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
                 : "text-success"
           }`}
         >
-          {loadError ? tm(loadError) : status}
+          {loadError ? tm(loadError) : resolveStatus(status, t, tm, tl)}
         </p>
       )}
     </div>

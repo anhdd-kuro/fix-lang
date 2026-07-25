@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { messageLabel, msg, textLabel, type Label, type Message } from "~/shared/i18n/message";
 import { LanguageSelect } from "./LanguageSelect";
 import { SearchableSelect } from "./SearchableSelect";
+import { plainStatus, wrappedError, resolveStatus as resolveStatusDescriptor, type StatusDescriptor } from "./statusDescriptor";
 import { useI18n } from "../i18n/useI18n";
 import type { SearchableOption } from "./SearchableSelect";
 import type { TranslationKey } from "~/shared/i18n/keys";
@@ -27,13 +29,14 @@ const PROVIDER_LABEL_KEYS: Record<ProviderId, TranslationKey> = {
  * Fetch.
  */
 export const SettingGeneral: React.FC = () => {
-  const { t } = useI18n();
+  const { t, tm, tl } = useI18n();
 
-  const [resetStatus, setResetStatus] = useState<string>("");
+  // Descriptors, never resolved strings — see `StatusDescriptor` above for why.
+  const [resetStatus, setResetStatus] = useState<StatusDescriptor | null>(null);
   const [resetIsError, setResetIsError] = useState<boolean>(false);
   const [correctionOutputMode, setCorrectionOutputMode] =
     useState<CorrectionOutputMode>("paste");
-  const [outputModeStatus, setOutputModeStatus] = useState<string>("");
+  const [outputModeStatus, setOutputModeStatus] = useState<StatusDescriptor | null>(null);
   const [outputModeIsError, setOutputModeIsError] = useState<boolean>(false);
   const [savingOutputMode, setSavingOutputMode] = useState(false);
 
@@ -53,12 +56,17 @@ export const SettingGeneral: React.FC = () => {
   const [stagedModelId, setStagedModelId] = useState<string>("");
 
   const [isFetching, setIsFetching] = useState<boolean>(false);
-  const [fetchStatus, setFetchStatus] = useState<string>("");
-  const [fetchError, setFetchError] = useState<string>("");
+  // Always a single catalog message (never wrapped, never raw text) — a
+  // locale-free `Message` descriptor is enough here.
+  const [fetchStatus, setFetchStatus] = useState<Message | null>(null);
+  // May carry a raw provider-reported error string (untranslatable user
+  // data) or a catalog fallback key (translatable) — a `Label`, resolved via
+  // `tl()` at render time.
+  const [fetchError, setFetchError] = useState<Label | null>(null);
 
   const [isApplying, setIsApplying] = useState<boolean>(false);
-  const [applyStatus, setApplyStatus] = useState<string>("");
-  const [applyError, setApplyError] = useState<string>("");
+  const [applyStatus, setApplyStatus] = useState<Message | null>(null);
+  const [applyError, setApplyError] = useState<Label | null>(null);
 
   const stagedModelOptions = useMemo<SearchableOption[]>(
     () =>
@@ -72,13 +80,18 @@ export const SettingGeneral: React.FC = () => {
   const selectedStagedModelOption =
     stagedModelOptions.find((option) => option.value === stagedModelId) ?? null;
 
+  // Deliberately not memoized — invoked only during render, so it always
+  // sees the current `t`/`tm`/`tl` for the active locale.
+  const resolveStatus = (status: StatusDescriptor | null): string =>
+    resolveStatusDescriptor(status, t, tm, tl);
+
   const clearStagedSetupState = useCallback(() => {
     setStagedModels([]);
     setStagedModelId("");
-    setFetchStatus("");
-    setFetchError("");
-    setApplyStatus("");
-    setApplyError("");
+    setFetchStatus(null);
+    setFetchError(null);
+    setApplyStatus(null);
+    setApplyError(null);
     setApiKeyInput("");
     setProvisioningInput("");
   }, []);
@@ -132,13 +145,10 @@ export const SettingGeneral: React.FC = () => {
       .catch((error) => {
         console.error("SettingGeneral: Error loading output mode:", error);
         setOutputModeIsError(true);
-        setOutputModeStatus(
-          t("settings.general.error", {
-            message: t("settings.general.outputMode.unavailable"),
-          }),
-        );
+        setOutputModeStatus(wrappedError(messageLabel("settings.general.outputMode.unavailable")));
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- load-once on mount; `t` is locale-stable (see I18nProvider), re-running per render would refetch for no reason.
+    // Descriptor-only now — no `t()` call in this effect, so no locale
+    // dependency to worry about; load-once on mount is correct as written.
   }, []);
 
   // On mount and on every provider change: refresh masked secret state and
@@ -157,11 +167,7 @@ export const SettingGeneral: React.FC = () => {
   const handleOutputModeChange = async (mode: CorrectionOutputMode) => {
     if (!window.electronAPI?.setCorrectionOutputMode) {
       setOutputModeIsError(true);
-      setOutputModeStatus(
-        t("settings.general.error", {
-          message: t("settings.general.outputMode.unavailable"),
-        }),
-      );
+      setOutputModeStatus(wrappedError(messageLabel("settings.general.outputMode.unavailable")));
       return;
     }
 
@@ -169,7 +175,7 @@ export const SettingGeneral: React.FC = () => {
     setCorrectionOutputMode(mode);
     setSavingOutputMode(true);
     setOutputModeIsError(false);
-    setOutputModeStatus(t("settings.general.outputMode.saving"));
+    setOutputModeStatus(plainStatus("settings.general.outputMode.saving"));
 
     try {
       const result = await window.electronAPI.setCorrectionOutputMode(mode);
@@ -177,21 +183,23 @@ export const SettingGeneral: React.FC = () => {
         setCorrectionOutputMode(previousMode);
         setOutputModeIsError(true);
         setOutputModeStatus(
-          t("settings.general.error", {
-            message: result.error || t("settings.general.outputMode.saveFailed"),
-          }),
+          wrappedError(
+            result.error
+              ? textLabel(result.error)
+              : messageLabel("settings.general.outputMode.saveFailed"),
+          ),
         );
         return;
       }
       setCorrectionOutputMode(result.mode ?? mode);
       setOutputModeIsError(false);
-      setOutputModeStatus(t("settings.general.outputMode.saved"));
-      setTimeout(() => setOutputModeStatus(""), 2000);
+      setOutputModeStatus(plainStatus("settings.general.outputMode.saved"));
+      setTimeout(() => setOutputModeStatus(null), 2000);
     } catch (error) {
       console.error("SettingGeneral: Error saving output mode:", error);
       setCorrectionOutputMode(previousMode);
       setOutputModeIsError(true);
-      setOutputModeStatus(t("settings.general.outputMode.saveError"));
+      setOutputModeStatus(plainStatus("settings.general.outputMode.saveError"));
     } finally {
       setSavingOutputMode(false);
     }
@@ -199,12 +207,12 @@ export const SettingGeneral: React.FC = () => {
 
   const handleFetchModels = async () => {
     if (!window.electronAPI?.fetchProviderModels) {
-      setFetchError(t("settings.general.models.fetchError"));
+      setFetchError(messageLabel("settings.general.models.fetchError"));
       return;
     }
     setIsFetching(true);
-    setFetchError("");
-    setFetchStatus(t("settings.general.models.fetching"));
+    setFetchError(null);
+    setFetchStatus(msg("settings.general.models.fetching"));
     try {
       const result = await window.electronAPI.fetchProviderModels({
         provider: stagedProvider,
@@ -218,19 +226,23 @@ export const SettingGeneral: React.FC = () => {
         setStagedModelId(result.models[0]?.id ?? "");
         setFetchStatus(
           result.models.length > 0
-            ? t("settings.general.models.loaded", { count: result.models.length })
-            : t("settings.general.models.none"),
+            ? msg("settings.general.models.loaded", { count: result.models.length })
+            : msg("settings.general.models.none"),
         );
       } else {
         setStagedModels([]);
         setStagedModelId("");
-        setFetchStatus("");
-        setFetchError(result.error || t("settings.general.models.fetchError"));
+        setFetchStatus(null);
+        setFetchError(
+          result.error ? textLabel(result.error) : messageLabel("settings.general.models.fetchError"),
+        );
       }
     } catch (error) {
-      setFetchStatus("");
+      setFetchStatus(null);
       setFetchError(
-        error instanceof Error ? error.message : t("settings.general.models.fetchError"),
+        error instanceof Error
+          ? textLabel(error.message)
+          : messageLabel("settings.general.models.fetchError"),
       );
     } finally {
       setIsFetching(false);
@@ -242,8 +254,8 @@ export const SettingGeneral: React.FC = () => {
       return;
     }
     setIsApplying(true);
-    setApplyError("");
-    setApplyStatus(t("settings.general.apply.applying"));
+    setApplyError(null);
+    setApplyStatus(msg("settings.general.apply.applying"));
     try {
       const result = await window.electronAPI.applyProviderSetup({
         provider: stagedProvider,
@@ -256,15 +268,17 @@ export const SettingGeneral: React.FC = () => {
         setApiKeyInput("");
         setProvisioningInput("");
         refreshSecretStatus(stagedProvider);
-        setApplyStatus(t("settings.general.apply.applied"));
+        setApplyStatus(msg("settings.general.apply.applied"));
       } else {
-        setApplyStatus("");
-        setApplyError(result.error || t("settings.general.apply.error"));
+        setApplyStatus(null);
+        setApplyError(
+          result.error ? textLabel(result.error) : messageLabel("settings.general.apply.error"),
+        );
       }
     } catch (error) {
-      setApplyStatus("");
+      setApplyStatus(null);
       setApplyError(
-        error instanceof Error ? error.message : t("settings.general.apply.error"),
+        error instanceof Error ? textLabel(error.message) : messageLabel("settings.general.apply.error"),
       );
     } finally {
       setIsApplying(false);
@@ -280,36 +294,32 @@ export const SettingGeneral: React.FC = () => {
 
     if (!window.electronAPI?.resetProfileSettings) {
       setResetIsError(true);
-      setResetStatus(
-        t("settings.general.error", {
-          message: t("settings.general.reset.unavailable"),
-        }),
-      );
+      setResetStatus(wrappedError(messageLabel("settings.general.reset.unavailable")));
       return;
     }
 
     setResetIsError(false);
-    setResetStatus(t("settings.general.reset.inProgress"));
+    setResetStatus(plainStatus("settings.general.reset.inProgress"));
     try {
       const result = await window.electronAPI.resetProfileSettings();
       if (result.success) {
         setResetIsError(false);
-        setResetStatus(t("settings.general.reset.success"));
+        setResetStatus(plainStatus("settings.general.reset.success"));
         clearStagedSetupState();
         reloadActiveProvider();
-        setTimeout(() => setResetStatus(""), 2500);
+        setTimeout(() => setResetStatus(null), 2500);
       } else {
         setResetIsError(true);
         setResetStatus(
-          t("settings.general.error", {
-            message: result.error || t("settings.general.reset.failed"),
-          }),
+          wrappedError(
+            result.error ? textLabel(result.error) : messageLabel("settings.general.reset.failed"),
+          ),
         );
       }
     } catch (error) {
       console.error("SettingGeneral: Error resetting settings:", error);
       setResetIsError(true);
-      setResetStatus(t("settings.general.reset.error"));
+      setResetStatus(plainStatus("settings.general.reset.error"));
     }
   };
 
@@ -384,7 +394,7 @@ export const SettingGeneral: React.FC = () => {
             className={`mt-1 text-xs ${outputModeIsError ? "text-destructive" : "text-success"}`}
             role="status"
           >
-            {outputModeStatus}
+            {resolveStatus(outputModeStatus)}
           </p>
         )}
       </section>
@@ -503,12 +513,12 @@ export const SettingGeneral: React.FC = () => {
         </button>
         {fetchStatus && (
           <p className="text-xs mt-1 text-success" role="status">
-            {fetchStatus}
+            {tm(fetchStatus)}
           </p>
         )}
         {fetchError && (
           <p className="text-xs mt-1 text-destructive" role="alert">
-            {fetchError}
+            {tl(fetchError)}
           </p>
         )}
       </div>
@@ -551,12 +561,12 @@ export const SettingGeneral: React.FC = () => {
         </button>
         {applyStatus && (
           <p className="text-xs mt-1 text-success" role="status">
-            {applyStatus}
+            {tm(applyStatus)}
           </p>
         )}
         {applyError && (
           <p className="text-xs mt-1 text-destructive" role="alert">
-            {applyError}
+            {tl(applyError)}
           </p>
         )}
       </div>
@@ -575,7 +585,7 @@ export const SettingGeneral: React.FC = () => {
             className={`text-xs mt-1 ${resetIsError ? "text-destructive" : "text-success"}`}
             role="status"
           >
-            {resetStatus}
+            {resolveStatus(resetStatus)}
           </p>
         )}
         <p className="text-xs text-muted-foreground mt-1">

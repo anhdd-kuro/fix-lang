@@ -39,16 +39,26 @@ export const INITIAL_LOCALE_STATE: LocaleState = {
 
 /**
  * Reducer covering every transition the provider can see:
- *  - `resolved`   — the initial `getLocale()` call finished.
+ *  - `resolved`   — the initial `getLocale()` call finished. Ignored (same
+ *    reference returned) once `status` is already `"ready"` — a `broadcast`
+ *    always reflects a change main has already committed, while `resolved`
+ *    is a snapshot from whenever the request was issued. Electron does not
+ *    guarantee ordering across messages from different renderers, so this
+ *    in-flight snapshot can resolve *after* a same- or other-window
+ *    `locale-changed` broadcast that raced ahead of it; applying it then
+ *    would silently revert the window to a stale locale. It only still
+ *    applies during the initial `"loading"` -> `"ready"` transition, which
+ *    it exists to drive.
  *  - `broadcast`  — main pushed `locale-changed` (from this window's own
- *    `setLocale` call, another window's, or a future settings sync).
+ *    `setLocale` call, another window's, or a future settings sync). Always
+ *    wins: it is always fresher than any `resolved` snapshot in flight.
  *  - `setLocaleRejected` — main rejected a `setLocale` request; the state is
  *    returned unchanged (same reference) so it never diverges from main.
  */
 export const localeReducer = (state: LocaleState, action: LocaleAction): LocaleState => {
   switch (action.type) {
     case "resolved":
-      return { locale: action.locale, status: "ready" };
+      return state.status === "ready" ? state : { locale: action.locale, status: "ready" };
     case "broadcast":
       return { locale: action.locale, status: "ready" };
     case "setLocaleRejected":

@@ -1,4 +1,5 @@
 import { app, Notification } from "electron";
+import { mainT } from "~/main/i18n";
 import { showErrorPopup } from "~/main/webViewWindows/errorPopupWindow";
 
 const notifiedErrors = new WeakSet<object>();
@@ -10,10 +11,15 @@ const pendingErrors = new WeakSet<object>();
  * The same Error is commonly rethrown through the AI request, hotkey, and IPC
  * layers. Remembering object errors prevents those layers from notifying twice
  * for a single failed action without suppressing a later, separate failure.
+ *
+ * `fallbackMessage`'s default is read via `mainT()` at call time (not a
+ * literal), so the body shown when `error` isn't an `Error` instance and no
+ * caller-supplied fallback is passed stays locale-aware, matching the
+ * notification `title` below.
  */
 export const showErrorNotification = (
   error: unknown,
-  fallbackMessage = "Something went wrong. Please try again.",
+  fallbackMessage = mainT("notifications.error.body"),
 ): void => {
   const showFallback = (): void => {
     showErrorPopup(error instanceof Error ? error.message : fallbackMessage);
@@ -52,7 +58,7 @@ export const showErrorNotification = (
     }
 
     const notification = new Notification({
-      title: "FixLang Error",
+      title: mainT("notifications.error.title"),
       body: error instanceof Error ? error.message : fallbackMessage,
       urgency: "critical",
     });

@@ -42,6 +42,14 @@ export function createPromptGenWindow() {
   });
   attachThemeSync(promptGenWindow);
 
+  // Electron's default behavior re-titles the native window from the loaded
+  // document's <title> tag (a static, English-only fallback in index.html)
+  // once it finishes parsing. Without this, that would silently clobber the
+  // locale-aware title set above and by `syncPromptGenWindowLocale`.
+  promptGenWindow.on("page-title-updated", (event) => {
+    event.preventDefault();
+  });
+
   ipcMain.on("close-promptGen-window", () => promptGenWindow?.hide());
   app.on("will-quit", () => {
     destroyPromptGenWindow();

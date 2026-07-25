@@ -2,6 +2,8 @@
   "notifications.correction.goodJob.body": "文章はすでに正しいため、変更はありません。",
   "notifications.correction.goodJob.title": "お見事です！",
   "notifications.correction.resultTitle": "{presetName}の結果",
+  "notifications.error.body": "問題が発生しました。もう一度お試しください。",
+  "notifications.error.title": "FixLang エラー",
   "notifications.errorPopup.title": "FixLang エラー",
   "notifications.profile.applied.body": "プロファイル「{name}」を有効にしました。",
   "notifications.profile.applied.title": "プロファイルを適用しました",
@@ -18,6 +20,7 @@
   "notifications.profile.updated.title": "プロファイルを更新しました",
   "notifications.profilesUpdated.body": "プロファイルの設定を更新しました。",
   "notifications.profilesUpdated.title": "プロファイル設定を更新しました",
+  "notifications.window.correctionResult.subtitle": "結果のみを表示しています。元のテキストは変更されていません。",
   "notifications.window.correctionResult.title": "FixLangの結果",
   "notifications.window.promptGen.title": "生成されたプロンプト"
 }

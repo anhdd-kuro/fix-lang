@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
+import { messageLabel } from "~/shared/i18n/message";
 import { HotkeyInput } from "./HotkeyInput";
 import { ModelSelect } from "./ModelSelect";
+import { plainStatus, wrappedError, resolveStatus, type StatusDescriptor } from "./statusDescriptor";
 import Tooltip from "./Tooltip";
 import {
   DEFAULT_PROMPT_GEN_PROMPT,
@@ -20,7 +22,7 @@ const defaultSettings = {
 };
 
 export const SettingPromptGen: React.FC = () => {
-  const { t } = useI18n();
+  const { t, tm, tl } = useI18n();
   const [isLoading, setIsLoading] = useState(true);
   const [promptGenSettings, setPromptGenSettings] = useState<{
     minLength: number;
@@ -82,7 +84,10 @@ export const SettingPromptGen: React.FC = () => {
     return () => off?.();
   }, []);
 
-  const [status, setStatus] = useState<string>("");
+  // Locale-free descriptor — was `useState<string>` filled by `t()` at
+  // action time, which froze the message into whatever locale was active
+  // when the action ran and never re-translated after a later locale switch.
+  const [status, setStatus] = useState<StatusDescriptor | null>(null);
 
   const handleReset = async () => {
     try {
@@ -93,14 +98,14 @@ export const SettingPromptGen: React.FC = () => {
         await window.electronAPI.setPromptGenSettings(defaultSettings);
 
       if (result.success) {
-        setStatus(t("settings.promptGen.resetDone"));
-        setTimeout(() => setStatus(""), 2000);
+        setStatus(plainStatus("settings.promptGen.resetDone"));
+        setTimeout(() => setStatus(null), 2000);
       } else {
-        setStatus(t("settings.promptGen.resetError"));
+        setStatus(plainStatus("settings.promptGen.resetError"));
       }
     } catch (err) {
       console.error("Failed to reset PromptGen settings:", err);
-      setStatus(t("settings.promptGen.resetError"));
+      setStatus(plainStatus("settings.promptGen.resetError"));
     }
   };
 
@@ -112,7 +117,7 @@ export const SettingPromptGen: React.FC = () => {
       promptGenSettings.batchCount === null ||
       promptGenSettings.nsfw === null
     ) {
-      setStatus(t("settings.general.error", { message: t("settings.promptGen.notLoaded") }));
+      setStatus(wrappedError(messageLabel("settings.promptGen.notLoaded")));
       return;
     }
 
@@ -120,14 +125,14 @@ export const SettingPromptGen: React.FC = () => {
       const result =
         await window.electronAPI.setPromptGenSettings(promptGenSettings);
       if (result.success) {
-        setStatus(t("settings.promptGen.saved"));
-        setTimeout(() => setStatus(""), 2000);
+        setStatus(plainStatus("settings.promptGen.saved"));
+        setTimeout(() => setStatus(null), 2000);
       } else {
-        setStatus(t("settings.promptGen.saveError"));
+        setStatus(plainStatus("settings.promptGen.saveError"));
       }
     } catch (err) {
       console.error("Failed to save PromptGen settings:", err);
-      setStatus(t("settings.promptGen.saveError"));
+      setStatus(plainStatus("settings.promptGen.saveError"));
     }
   };
 
@@ -364,7 +369,7 @@ export const SettingPromptGen: React.FC = () => {
           type="submit"
           className="px-3 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
         >
-          {status || t("common.save")}
+          {resolveStatus(status, t, tm, tl) || t("common.save")}
         </button>
         <button
           type="button"

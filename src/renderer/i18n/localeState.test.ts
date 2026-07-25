@@ -27,6 +27,36 @@ describe("localeReducer", () => {
     expect(next).toEqual({ locale: "ja", status: "ready" });
   });
 
+  it("ignores a stale `resolved` snapshot that arrives after a broadcast already set the locale — same reference", () => {
+    // Simulates the race: this window's in-flight `getLocale()` (issued
+    // before another window changed the language) resolves with the OLD
+    // locale, but a `locale-changed` broadcast for the NEW locale already
+    // landed first and moved status to "ready".
+    const readyFromBroadcast: LocaleState = { locale: "ja", status: "ready" };
+    const next = localeReducer(readyFromBroadcast, { type: "resolved", locale: "en" });
+    expect(next).toBe(readyFromBroadcast);
+    expect(next.locale).toBe("ja");
+  });
+
+  it("a broadcast always wins, including immediately after another broadcast", () => {
+    const afterFirstBroadcast: LocaleState = { locale: "ja", status: "ready" };
+    const next = localeReducer(afterFirstBroadcast, { type: "broadcast", locale: "en" });
+    expect(next).toEqual({ locale: "en", status: "ready" });
+  });
+
+  it("ordering: broadcast-then-resolved leaves the broadcast locale in place", () => {
+    let state: LocaleState = INITIAL_LOCALE_STATE;
+    state = localeReducer(state, { type: "broadcast", locale: "ja" });
+    expect(state).toEqual({ locale: "ja", status: "ready" });
+
+    const afterBroadcast = state;
+    state = localeReducer(state, { type: "resolved", locale: "en" });
+    // The stale `resolved` snapshot (carrying the pre-broadcast locale) must
+    // not undo the broadcast — same reference, not just equal fields.
+    expect(state).toBe(afterBroadcast);
+    expect(state.locale).toBe("ja");
+  });
+
   it("leaves state unchanged (same reference) when setLocale is rejected", () => {
     const ready: LocaleState = { locale: "en", status: "ready" };
     const next = localeReducer(ready, { type: "setLocaleRejected" });

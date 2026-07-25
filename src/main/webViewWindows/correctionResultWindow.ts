@@ -59,6 +59,14 @@ const createCorrectionResultWindow = (): BrowserWindow => {
   resultWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   attachThemeSync(resultWindow);
 
+  // Electron's default behavior re-titles the native window from the loaded
+  // document's <title> tag (a static, English-only fallback in index.html)
+  // once it finishes parsing. Without this, that would silently clobber the
+  // locale-aware title set above and by `syncCorrectionResultWindowLocale`.
+  resultWindow.on("page-title-updated", (event) => {
+    event.preventDefault();
+  });
+
   // Reset readiness when a load starts so DevTools reloads wait for a new
   // handshake instead of pushing into a listener that no longer exists.
   resultWindow.webContents.on("did-start-loading", () => {

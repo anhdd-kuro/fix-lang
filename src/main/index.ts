@@ -95,12 +95,14 @@ const setupRuntimeLogging = (): void => {
 
   process.on("uncaughtException", (error) => {
     appendRuntimeLog("FATAL", "uncaughtException", error);
-    showErrorNotification(error, "FixLang encountered an unexpected error.");
+    // No explicit fallback: `showErrorNotification` reads a localized default
+    // via `mainT()` at call time, so the body follows the user's locale.
+    showErrorNotification(error);
   });
 
   process.on("unhandledRejection", (reason) => {
     appendRuntimeLog("FATAL", "unhandledRejection", reason);
-    showErrorNotification(reason, "FixLang encountered an unexpected error.");
+    showErrorNotification(reason);
   });
 
   appendRuntimeLog("INFO", `runtime log initialized at ${LOG_FILE}`);

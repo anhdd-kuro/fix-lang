@@ -2,6 +2,8 @@
   "notifications.correction.goodJob.body": "Your text is already correct. No changes have been made.",
   "notifications.correction.goodJob.title": "Good job!",
   "notifications.correction.resultTitle": "{presetName} result",
+  "notifications.error.body": "Something went wrong. Please try again.",
+  "notifications.error.title": "FixLang Error",
   "notifications.errorPopup.title": "FixLang Error",
   "notifications.profile.applied.body": "Profile \"{name}\" has been activated.",
   "notifications.profile.applied.title": "Profile Applied",
@@ -18,6 +20,7 @@
   "notifications.profile.updated.title": "Profile Updated",
   "notifications.profilesUpdated.body": "Your profile settings have been updated.",
   "notifications.profilesUpdated.title": "Profiles Updated",
+  "notifications.window.correctionResult.subtitle": "Result only — the source text was not changed.",
   "notifications.window.correctionResult.title": "FixLang result",
   "notifications.window.promptGen.title": "Generated Prompts"
 }
