@@ -9,6 +9,7 @@ import {
 import { formatModelLineage } from "../components/historyModel";
 import { HistoryPanel } from "../components/HistoryPanel";
 import HistoryReviewModal from "../components/HistoryReviewModal";
+import { LanguageTabs } from "../components/LanguageTabs";
 import { LogsPanel } from "../components/LogsPanel";
 import ModelManagerDialog from "../components/ModelManagerDialog";
 import { ModelsPanel } from "../components/ModelsPanel";
@@ -349,6 +350,7 @@ const App: React.FC = () => {
               ))}
             </div>
           )}
+          <LanguageTabs />
           <SettingsButton onClick={() => setIsSettingsOpen(true)} />
         </div>
       </header>

@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "../main.css";
+import { LanguageTabs } from "../components/LanguageTabs";
 import { ModelSelect } from "../components/ModelSelect";
 import { useTheme } from "../hooks/useTheme";
 import { I18nProvider } from "../i18n/I18nProvider";
@@ -18,6 +19,7 @@ const TrayWindowMain: React.FC = () => {
     <TrayToolbar />
     <div className="flex flex-col gap-4">
       <TrayCreditBalance />
+      <LanguageTabs />
       <TrayActivityHeatmapLoader />
       <ModelSelect
         saveOnChange

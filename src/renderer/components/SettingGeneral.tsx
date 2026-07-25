@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { messageLabel, msg, textLabel, type Label, type Message } from "~/shared/i18n/message";
-import { LanguageSelect } from "./LanguageSelect";
+import { LanguageTabs } from "./LanguageTabs";
 import { SearchableSelect } from "./SearchableSelect";
 import { plainStatus, wrappedError, resolveStatus as resolveStatusDescriptor, type StatusDescriptor } from "./statusDescriptor";
 import { useI18n } from "../i18n/useI18n";
@@ -329,7 +329,7 @@ export const SettingGeneral: React.FC = () => {
           {t("settings.general.language.description")}
         </p>
         <div className="mt-3">
-          <LanguageSelect />
+          <LanguageTabs size="md" className="w-full" />
         </div>
       </section>
 
