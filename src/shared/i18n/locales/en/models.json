@@ -1,6 +1,7 @@
 {
   "models.error.noProviderEnabled": "No provider is connected",
   "models.error.unresolvable": "Model \"{model}\" is not available from {provider}",
+  "models.error.unresolvableUnknownProvider": "Model \"{model}\" is not available from any connected provider",
   "models.manager.confirmDelete.message": "Are you sure you want to delete model {modelName}? This action cannot be undone.",
   "models.manager.confirmDelete.title": "Confirm Deletion",
   "models.manager.deleteFailedAlert": "Failed to delete model: {message}",

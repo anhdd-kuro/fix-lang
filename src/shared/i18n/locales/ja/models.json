@@ -1,6 +1,7 @@
 {
   "models.error.noProviderEnabled": "プロバイダーが接続されていません",
   "models.error.unresolvable": "モデル「{model}」は {provider} では利用できません",
+  "models.error.unresolvableUnknownProvider": "モデル「{model}」は接続中のいずれのプロバイダーでも利用できません",
   "models.manager.confirmDelete.message": "モデル {modelName} を削除してもよろしいですか？この操作は取り消せません。",
   "models.manager.confirmDelete.title": "削除の確認",
   "models.manager.deleteFailedAlert": "モデルの削除に失敗しました: {message}",
