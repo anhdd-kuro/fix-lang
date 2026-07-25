@@ -476,7 +476,7 @@ describe("SettingUpdates", () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(
       "Homebrewはまだv0.2.0を提供していません — 現在提供しているのはv0.1.0です。" +
         "tapは各リリース後にしばらくして同期されます。しばらくしてから再度お試しいただくか、" +
-        "以下のコマンドを使って手動で更新してください。",
+        "以下のコマンドを使って手動でアップデートしてください。",
     );
   });
 });
