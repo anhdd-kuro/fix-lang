@@ -27,7 +27,7 @@ export const registerUpdateHandlers = (service: UpdateService): void => {
   // decided in main, so nothing crossing the bridge can influence what runs.
   ipcMain.handle(
     "updates:install",
-    (): InstallUpdateResult => service.installUpdate(),
+    (): Promise<InstallUpdateResult> => service.installUpdate(),
   );
   ipcMain.handle("updates:open-release", async () => {
     try {

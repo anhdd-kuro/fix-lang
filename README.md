@@ -67,13 +67,16 @@ Model selectors elsewhere (Tray, Models tab, Correction presets, PromptGen) show
   **Update now** runs `brew update && brew upgrade --cask fixlang` for you.
   FixLang quits so Homebrew can replace the bundle, then reopens on the new
   version. The button appears only when the running app came from the cask.
+- **Right after a release**, the Homebrew tap can still be a few hours behind
+  GitHub. **Update now** checks the tap first and says so rather than restarting
+  for an upgrade that would do nothing — try again later, or use the DMG.
 - **Manual DMG installs**: **Download from GitHub** opens that exact release;
   replace the app in `/Applications` yourself. Source and development builds are
   not updated by this flow.
 - FixLang never downloads or replaces itself, and nothing installs without that
   explicit click. If the upgrade does not complete, the next launch reports it
   instead of failing silently; details are in
-  `~/Library/Application Support/FixLang/logs/homebrew-update.log`.
+  `~/Library/Application Support/fix-lang/logs/homebrew-update.log`.
 
 ## Installation
 
