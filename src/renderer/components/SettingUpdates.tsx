@@ -29,7 +29,7 @@ const GitHubProfileIcon = ({ className }: { className?: string }) => (
  */
 const CommandBlock = ({ command }: { command: string }) => (
   <div className="relative mt-1 rounded border border-border bg-secondary/60">
-    <pre className="overflow-x-auto whitespace-pre-wrap break-all px-2 py-1.5 pr-6 font-mono text-[11px] text-card-foreground">
+    <pre className="overflow-x-auto whitespace-pre-wrap break-all px-2 py-1.5 pr-6 font-mono text-sm text-card-foreground">
       {command}
     </pre>
     <CopyButton
@@ -43,40 +43,40 @@ const CommandBlock = ({ command }: { command: string }) => (
 
 /**
  * Compact markdown component overrides so GitHub release notes fit the
- * small About panel and match its muted styling. No raw HTML is enabled —
+ * About panel and match its muted styling. No raw HTML is enabled —
  * react-markdown escapes it by default, which keeps untrusted release-note
  * content XSS-safe.
  */
 const releaseNotesComponents: Components = {
   h1: ({ children }) => (
-    <h1 className="mt-2 text-xs font-semibold text-card-foreground">
+    <h1 className="mt-2 text-sm font-semibold text-card-foreground">
       {children}
     </h1>
   ),
   h2: ({ children }) => (
-    <h2 className="mt-2 text-xs font-semibold text-card-foreground">
+    <h2 className="mt-2 text-sm font-semibold text-card-foreground">
       {children}
     </h2>
   ),
   h3: ({ children }) => (
-    <h3 className="mt-2 text-xs font-semibold text-card-foreground">
+    <h3 className="mt-2 text-sm font-semibold text-card-foreground">
       {children}
     </h3>
   ),
-  p: ({ children }) => <p className="mt-1 text-xs text-muted-foreground">{children}</p>,
+  p: ({ children }) => <p className="mt-1 text-sm text-muted-foreground">{children}</p>,
   ul: ({ children }) => (
-    <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
+    <ul className="mt-1 list-disc space-y-0.5 pl-4 text-sm text-muted-foreground">
       {children}
     </ul>
   ),
   ol: ({ children }) => (
-    <ol className="mt-1 list-decimal space-y-0.5 pl-4 text-xs text-muted-foreground">
+    <ol className="mt-1 list-decimal space-y-0.5 pl-4 text-sm text-muted-foreground">
       {children}
     </ol>
   ),
-  li: ({ children }) => <li className="text-xs text-muted-foreground">{children}</li>,
+  li: ({ children }) => <li className="text-sm text-muted-foreground">{children}</li>,
   code: ({ children }) => (
-    <code className="rounded bg-secondary px-1 py-0.5 font-mono text-[11px]">
+    <code className="rounded bg-secondary px-1 py-0.5 font-mono text-sm">
       {children}
     </code>
   ),
@@ -191,11 +191,11 @@ export const SettingUpdates = () => {
     <section aria-labelledby="app-updates-heading">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 id="app-updates-heading" className="text-sm font-medium text-card-foreground">
+          <h2 id="app-updates-heading" className="text-base font-medium text-card-foreground">
             App updates
           </h2>
           {state.currentVersion && (
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground">
               FixLang v{state.currentVersion}
             </p>
           )}
@@ -215,14 +215,14 @@ export const SettingUpdates = () => {
       </div>
 
       {state.phase === "unsupported" && (
-        <p className="mt-1 text-xs text-muted-foreground" role="status" aria-live="polite">
+        <p className="mt-1 text-sm text-muted-foreground" role="status" aria-live="polite">
           Updates are available in installed release builds.
         </p>
       )}
 
       {state.phase === "idle" && (
         <>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             Checks GitHub Releases. Updates install manually.
           </p>
           <button
@@ -234,7 +234,7 @@ export const SettingUpdates = () => {
               )
             }
             disabled={isBusy}
-            className="mt-2 rounded bg-primary px-3 py-1.5 text-sm text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-2 rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isBusy && (
               <Spinner className="mr-2 inline size-4 align-[-2px]" />
@@ -246,13 +246,13 @@ export const SettingUpdates = () => {
 
       {state.phase === "checking" && (
         <>
-          <p className="mt-1 text-xs text-muted-foreground" role="status" aria-live="polite">
+          <p className="mt-1 text-sm text-muted-foreground" role="status" aria-live="polite">
             Checking for updates…
           </p>
           <button
             type="button"
             disabled
-            className="mt-2 rounded bg-primary px-3 py-1.5 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-2 rounded bg-primary px-3 py-1.5 text-base text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Spinner className="mr-2 inline size-4 align-[-2px]" />
             Check for updates
@@ -262,7 +262,7 @@ export const SettingUpdates = () => {
 
       {state.phase === "up-to-date" && (
         <>
-          <p className="mt-1 text-xs text-success" role="status" aria-live="polite">
+          <p className="mt-1 text-sm text-success" role="status" aria-live="polite">
             FixLang is up to date.
           </p>
           <button
@@ -274,7 +274,7 @@ export const SettingUpdates = () => {
               )
             }
             disabled={isBusy}
-            className="mt-2 rounded bg-primary px-3 py-1.5 text-sm text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-2 rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isBusy && (
               <Spinner className="mr-2 inline size-4 align-[-2px]" />
@@ -286,11 +286,11 @@ export const SettingUpdates = () => {
 
       {state.phase === "available" && (
         <>
-          <p className="mt-1 text-xs text-success" role="status" aria-live="polite">
+          <p className="mt-1 text-sm text-success" role="status" aria-live="polite">
             Version {latestVersion} is available (you have v{state.currentVersion}).
           </p>
           {state.releaseNotes && (
-            <div className="mt-1 text-xs text-muted-foreground">
+            <div className="mt-1 text-sm text-muted-foreground">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={releaseNotesComponents}
@@ -299,7 +299,7 @@ export const SettingUpdates = () => {
               </ReactMarkdown>
             </div>
           )}
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             Install the DMG, replace FixLang in Applications, then run this if
             macOS blocks it:
           </p>
@@ -314,7 +314,7 @@ export const SettingUpdates = () => {
                 )
               }
               disabled={isBusy}
-              className="rounded bg-primary px-3 py-1.5 text-sm text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
             >
               Download from GitHub
             </button>
@@ -327,7 +327,7 @@ export const SettingUpdates = () => {
                 )
               }
               disabled={isBusy}
-              className="rounded border border-border px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded border border-border px-3 py-1.5 text-base text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
             >
               View releases
             </button>
@@ -337,7 +337,7 @@ export const SettingUpdates = () => {
 
       {state.phase === "error" && (
         <>
-          <p className="mt-1 text-xs text-destructive" role="alert">
+          <p className="mt-1 text-sm text-destructive" role="alert">
             {state.message ?? "Could not update FixLang."}
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -350,7 +350,7 @@ export const SettingUpdates = () => {
                 )
               }
               disabled={isBusy}
-              className="rounded bg-primary px-3 py-1.5 text-sm text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
             >
               Try again
             </button>
@@ -363,7 +363,7 @@ export const SettingUpdates = () => {
                 )
               }
               disabled={isBusy}
-              className="rounded border border-border px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded border border-border px-3 py-1.5 text-base text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
             >
               View releases
             </button>
@@ -372,21 +372,21 @@ export const SettingUpdates = () => {
       )}
 
       <div className="mt-4">
-        <h3 className="text-sm font-medium text-card-foreground">
+        <h3 className="text-base font-medium text-card-foreground">
           How to update
         </h3>
 
-        <h4 className="mt-2 text-xs font-semibold text-card-foreground">
+        <h4 className="mt-2 text-sm font-semibold text-card-foreground">
           Homebrew (Apple Silicon)
         </h4>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="mt-1 text-sm text-muted-foreground">
           Update to the latest release:
         </p>
         <CommandBlock command="brew update && brew upgrade --cask fixlang" />
 
-        <p className="mt-2 text-xs text-muted-foreground">
+        <p className="mt-2 text-sm text-muted-foreground">
           Seeing{" "}
-          <code className="rounded bg-secondary px-1 py-0.5 font-mono text-[11px]">
+          <code className="rounded bg-secondary px-1 py-0.5 font-mono text-sm">
             No Cask with this name exists
           </code>
           ? The tap is not added yet (for example, you installed the DMG
@@ -394,31 +394,31 @@ export const SettingUpdates = () => {
         </p>
         <CommandBlock command="brew tap anhdd-kuro/tap" />
         <CommandBlock command="brew install --cask anhdd-kuro/tap/fixlang" />
-        <p className="mt-2 text-xs text-muted-foreground">
+        <p className="mt-2 text-sm text-muted-foreground">
           If the app already exists from a manual install, adopt it with{" "}
-          <code className="rounded bg-secondary px-1 py-0.5 font-mono text-[11px]">
+          <code className="rounded bg-secondary px-1 py-0.5 font-mono text-sm">
             --force
           </code>
           :
         </p>
         <CommandBlock command="brew install --cask --force anhdd-kuro/tap/fixlang" />
-        <p className="mt-2 text-xs text-muted-foreground">
+        <p className="mt-2 text-sm text-muted-foreground">
           After the tap is added, future upgrades also work with the
           fully-qualified name:
         </p>
         <CommandBlock command="brew upgrade --cask anhdd-kuro/tap/fixlang" />
 
-        <h4 className="mt-3 text-xs font-semibold text-card-foreground">
+        <h4 className="mt-3 text-sm font-semibold text-card-foreground">
           Manual (DMG)
         </h4>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="mt-1 text-sm text-muted-foreground">
           Download the latest release from GitHub (see the buttons above), open
           the DMG, and replace FixLang in <code>/Applications</code>. If macOS
           blocks the unsigned app, run:
         </p>
         <CommandBlock command={'xattr -dr com.apple.quarantine "/Applications/FixLang.app"'} />
 
-        <p className="mt-2 text-xs text-muted-foreground">
+        <p className="mt-2 text-sm text-muted-foreground">
           FixLang releases are unsigned and not notarized — updates are
           installed manually, the app never installs them automatically.
         </p>
