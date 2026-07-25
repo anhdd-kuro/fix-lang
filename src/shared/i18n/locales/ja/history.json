@@ -1,6 +1,6 @@
 {
   "history.cost.na": "該当なし",
-  "history.cost.tooltip": "校正時点の推定コスト",
+  "history.cost.tooltip": "変換時点の推定コスト",
   "history.panel.filterAll": "すべて",
   "history.panel.searchPlaceholder": "履歴を検索…",
   "history.reviewModal.closeAriaLabel": "レビューモーダルを閉じる",
@@ -12,5 +12,5 @@
   "history.reviewModal.modelLabel": "モデル: {modelId}",
   "history.reviewModal.originalHeading": "原文",
   "history.reviewModal.originalTextArea": "元のテキスト",
-  "history.reviewModal.title": "直前の校正"
+  "history.reviewModal.title": "直前の変換"
 }

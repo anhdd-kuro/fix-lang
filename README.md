@@ -4,9 +4,9 @@ A local macOS menu-bar app that fixes grammar, improves writing, and runs other 
 
 ## Features
 
-### Correction & presets
+### Transform & presets
 
-- Select text in any app, press a preset hotkey, then either paste the correction back automatically or show it in a result-only popup
+- Select text in any app, press a preset hotkey, then either paste the result back automatically or show it in a result-only popup
 - Built-in presets (each with its own hotkey): **Correction** (`Ctrl+Shift+F`), **Summarize** (`Ctrl+Shift+S`), **Translate**, **Prompt optimization** (`Ctrl+Shift+D`)
 - **Profiles** — multiple named configurations; switch with `Ctrl+Shift+P` (profile switch reloads hotkeys, settings, and history)
 - Custom presets with per-preset model, system prompt, and hotkey
@@ -21,12 +21,12 @@ A local macOS menu-bar app that fixes grammar, improves writing, and runs other 
 
 ### Dashboard (MainWindow)
 
-Five tabs, opened from the menu-bar tray or after a correction:
+Five tabs, opened from the menu-bar tray or after a transform:
 
 | Tab | What it shows |
 | --- | --- |
 | **Overview** | Token stats, preset usage charts, Codex-style token activity calendar, benchmark sentence |
-| **History** | Correction + PromptGen history with cost tracking; last-action preview |
+| **History** | Transform + PromptGen history with cost tracking; last-action preview |
 | **Models** | Provider model discovery, compatibility, and monitoring |
 | **OpenRouter** | OpenRouter-specific model and routing controls |
 | **Logs** | Structured, redacted app events — filter by level, search, copy/export as `.txt` |
@@ -59,7 +59,7 @@ The **General** tab is the only place a provider is selected — no other tab or
 5. **Apply** — validates the credentials and model together, then atomically switches the profile's active provider, default model, and cached model list. If Apply fails, nothing changes — the old provider, model, and keys remain in effect
 6. Every open window (tray popover, dashboard tabs, PromptGen) picks up the switch immediately
 
-Model selectors elsewhere (Tray, Models tab, Correction presets, PromptGen) show a small provider badge next to "AI Model" so it's always clear which provider a selection belongs to.
+Model selectors elsewhere (Tray, Models tab, Transform presets, PromptGen) show a small provider badge next to "AI Model" so it's always clear which provider a selection belongs to.
 
 **Cost**: Direct OpenAI requests report cost as N/A (no per-token pricing available). OpenRouter cost is estimated from OpenRouter's published pricing. Ollama (local) is always zero cost.
 
@@ -228,12 +228,12 @@ the tag if you want it.
 
 1. Select text in any application (or copy to clipboard)
 2. Press a preset hotkey (default: `Ctrl+Shift+F` for Correction)
-3. FixLang delivers the result using the mode selected in **Settings → General → Correction output**: **Direct paste** or **Show popup**
+3. FixLang delivers the result using the mode selected in **Settings → General → Transform output**: **Direct paste** or **Show popup**
 4. Open the tray popover → dashboard icon for Overview, History, Models, OpenRouter, or Logs
 5. `Ctrl+Shift+G` opens PromptGen on the current selection — tag-on builds only, see [Feature tags](#feature-tags-opt-in-features)
 6. `Ctrl+Shift+P` cycles to the next profile
 
-Hotkeys are customizable per preset and for global actions (PromptGen where built in, profile switch) in Settings. Correction output mode is global and defaults to **Direct paste**.
+Hotkeys are customizable per preset and for global actions (PromptGen where built in, profile switch) in Settings. Transform output mode is global and defaults to **Direct paste**.
 
 ## Development
 

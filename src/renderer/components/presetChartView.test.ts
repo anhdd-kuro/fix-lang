@@ -46,14 +46,14 @@ describe("donutTooltipMessage", () => {
 describe("rendered donut tooltip strings (EN + JA)", () => {
   it("count 1 (singular)", () => {
     const message = donutTooltipMessage({ count: 1 }, "50.0");
-    expect(resolveMessage(message, createTranslator("en"))).toBe("50.0% · 1 correction");
+    expect(resolveMessage(message, createTranslator("en"))).toBe("50.0% · 1 transform");
     // ja has no `_one` member; Intl.PluralRules("ja") always resolves "other".
-    expect(resolveMessage(message, createTranslator("ja"))).toBe("50.0% · 1 件の校正");
+    expect(resolveMessage(message, createTranslator("ja"))).toBe("50.0% · 1 件の変換");
   });
 
   it("count 12 (plural)", () => {
     const message = donutTooltipMessage({ count: 12 }, "50.0");
-    expect(resolveMessage(message, createTranslator("en"))).toBe("50.0% · 12 corrections");
-    expect(resolveMessage(message, createTranslator("ja"))).toBe("50.0% · 12 件の校正");
+    expect(resolveMessage(message, createTranslator("en"))).toBe("50.0% · 12 transforms");
+    expect(resolveMessage(message, createTranslator("ja"))).toBe("50.0% · 12 件の変換");
   });
 });

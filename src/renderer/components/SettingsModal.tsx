@@ -25,7 +25,7 @@ type SettingsModalProps = {
   onClose: () => void;
   /**
    * Initial active tab index (0-based) into the *visible* tab list
-   * (Profiles, General, Appearance, Correction, and PromptGen only when the
+   * (Profiles, General, Appearance, Transform, and PromptGen only when the
    * PromptGen feature tag is built in). Out-of-range values are clamped.
    */
   initialTab?: number;

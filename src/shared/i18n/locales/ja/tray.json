@@ -4,7 +4,7 @@
   "tray.credit.title": "OpenRouterクレジット",
   "tray.heatmap.empty": "まだアクティビティがありません",
   "tray.heatmap.title": "直近7日間のアクティビティ",
-  "tray.heatmap.tooltip_other": "{weekday} {hours}: {count} 件の校正",
+  "tray.heatmap.tooltip_other": "{weekday} {hours}: {count} 件の変換",
   "tray.toolbar.checkForUpdates": "アップデートを確認",
   "tray.toolbar.checkingForUpdates": "アップデートを確認中…",
   "tray.toolbar.openDashboard": "ダッシュボードを開く",

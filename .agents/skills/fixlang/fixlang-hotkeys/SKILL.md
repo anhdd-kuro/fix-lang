@@ -1,6 +1,6 @@
 ---
 name: fixlang-hotkeys
-description: "Use when editing correction presets, hotkey bindings, or the keybinding system. Examples: \"add a correction preset\", \"why did corrections stop firing after switching profiles\", \"validate hotkey conflicts\". Covers src/main/keybindings/ and src/stores/keybindingStore.ts."
+description: "Use when editing transform presets, hotkey bindings, or the keybinding system. Examples: \"add a transform preset\", \"why did transforms stop firing after switching profiles\", \"validate hotkey conflicts\". Covers src/main/keybindings/ and src/stores/keybindingStore.ts."
 ---
 
 # FixLang — Hotkey & Preset Gotchas
@@ -9,16 +9,16 @@ Code: `src/main/keybindings/` (`correction.ts`, `profileSwitch.ts`, `translation
 
 ## Preset hotkey reload (silent-failure trap)
 
-When a user **saves correction preset settings** and then **switches profiles**, the app MUST reload hotkeys immediately to reflect preset changes. Stale bindings do not error — corrections just fail silently. Any change to preset save flow or profile switch flow must re-trigger hotkey registration.
+When a user **saves transform preset settings** and then **switches profiles**, the app MUST reload hotkeys immediately to reflect preset changes. Stale bindings do not error — transforms just fail silently. Any change to preset save flow or profile switch flow must re-trigger hotkey registration.
 
 ## Preset hotkey conflict validation
 
-Correction preset hotkeys must not collide with:
+Transform preset hotkeys must not collide with:
 
-- Other correction presets
+- Other transform presets
 - Static app hotkeys: `translate`, `promptGen`, `profileSwitch`
 
-Validation MUST run **before saving** in the Correction settings UI — never register a conflicting binding and resolve it later.
+Validation MUST run **before saving** in the Transform settings UI — never register a conflicting binding and resolve it later.
 
 ## Checklist before finishing hotkey work
 

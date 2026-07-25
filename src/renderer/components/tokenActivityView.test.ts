@@ -232,16 +232,16 @@ describe("rendered tooltip strings (EN + JA)", () => {
     );
 
     expect(resolveMessage(one, createTranslator("en"))).toBe(
-      "10 tokens on 2024-06-18, 1 correction",
+      "10 tokens on 2024-06-18, 1 transform",
     );
     expect(resolveMessage(many, createTranslator("en"))).toBe(
-      "10 tokens on 2024-06-18, 3 corrections",
+      "10 tokens on 2024-06-18, 3 transforms",
     );
     expect(resolveMessage(one, createTranslator("ja"))).toBe(
-      "2024-06-18 に 10 トークン、1 件の校正",
+      "2024-06-18 に 10 トークン、1 件の変換",
     );
     expect(resolveMessage(many, createTranslator("ja"))).toBe(
-      "2024-06-18 に 10 トークン、3 件の校正",
+      "2024-06-18 に 10 トークン、3 件の変換",
     );
   });
 
