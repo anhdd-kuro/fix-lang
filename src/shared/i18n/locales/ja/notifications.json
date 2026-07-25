@@ -2,6 +2,7 @@
   "notifications.correction.goodJob.body": "文章はすでに正しいため、変更はありません。",
   "notifications.correction.goodJob.title": "お見事です！",
   "notifications.correction.resultTitle": "{presetName}の結果",
+  "notifications.error.accessibilityDenied.body": "FixLang にアクセシビリティ権限がないため、選択したテキストを読み取れません。アップデートを行うとこの権限はリセットされます。システム設定 > プライバシーとセキュリティ > アクセシビリティ でFixLangを削除し、再度追加してください。既存の項目のオン/オフを切り替えても復元されません。",
   "notifications.error.body": "問題が発生しました。もう一度お試しください。",
   "notifications.error.hotkeyRegistrationFailed.body": "このショートカットを登録できませんでした。設定でホットキーの競合を確認してください。",
   "notifications.error.noProfilesAvailable.body": "切り替え可能なプロファイルがありません。",

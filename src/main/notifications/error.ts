@@ -37,6 +37,30 @@ export class LocalizedError extends Error {
 }
 
 /**
+ * Thrown by `getHighlightedText`/`pasteText` (`~/utils`) when macOS's
+ * Accessibility permission has been revoked — e.g. after an unsigned-app
+ * update changes the app's code identity — so keystroke synthesis via
+ * `osascript` fails with "not allowed to send keystrokes. (1002)" (detected
+ * by `isKeystrokePermissionDenied` in `~/main/accessibility/keystrokePermission`).
+ *
+ * A plain `LocalizedError` would already localize the notification body
+ * correctly, but this dedicated subclass lets `handleError`
+ * (`~/main/keybindings/utils.ts`) recognize the failure via `instanceof` and
+ * additionally trigger the actionable `promptAccessibilityPermission()`
+ * dialog. That distinction matters because permission is normally only
+ * checked once, at startup (`src/main/index.ts`) — without it, a mid-session
+ * revocation is never surfaced beyond a notification the user can't act on.
+ */
+export class AccessibilityPermissionError extends LocalizedError {
+  constructor(
+    devMessage = "macOS Accessibility permission was revoked; osascript can no longer send keystrokes.",
+  ) {
+    super(devMessage, "notifications.error.accessibilityDenied.body");
+    this.name = "AccessibilityPermissionError";
+  }
+}
+
+/**
  * Resolves the user-facing notification body for `error`: the catalog
  * translation for a {@link LocalizedError}, `error.message` verbatim for any
  * other `Error` (assumed already safe, locale-agnostic user copy), or

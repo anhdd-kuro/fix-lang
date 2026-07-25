@@ -2,6 +2,7 @@
   "notifications.correction.goodJob.body": "Your text is already correct. No changes have been made.",
   "notifications.correction.goodJob.title": "Good job!",
   "notifications.correction.resultTitle": "{presetName} result",
+  "notifications.error.accessibilityDenied.body": "FixLang does not have Accessibility permission, so it cannot read your selected text. App updates reset this. Remove FixLang from System Settings > Privacy & Security > Accessibility, then add it back — toggling the existing entry off and on will not restore it.",
   "notifications.error.body": "Something went wrong. Please try again.",
   "notifications.error.hotkeyRegistrationFailed.body": "This shortcut could not be registered. Check Settings for a conflicting hotkey.",
   "notifications.error.noProfilesAvailable.body": "No profiles are available to switch to.",

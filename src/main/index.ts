@@ -193,7 +193,12 @@ function initializeApp() {
     if (process.platform === "darwin") {
       if (!isMacOSAccessibilityGranted()) {
         console.warn("Accessibility permission not granted.");
-        promptAccessibilityPermission();
+        // `promptAccessibilityPermission` is now async (a blocking
+        // `showMessageBoxSync` would otherwise freeze the main process on
+        // every repeated hotkey failure — see ~/utils). Startup does not wait
+        // on the dialog: dock/tray setup and hotkey registration below still
+        // run immediately, same as before.
+        void promptAccessibilityPermission();
       }
       app.dock?.show();
       setupTray();

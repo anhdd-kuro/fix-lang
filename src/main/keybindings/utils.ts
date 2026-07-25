@@ -1,4 +1,9 @@
-import { LocalizedError, showErrorNotification } from "~/main/notifications/error";
+import {
+  AccessibilityPermissionError,
+  LocalizedError,
+  showErrorNotification,
+} from "~/main/notifications/error";
+import { promptAccessibilityPermission } from "~/utils";
 
 export const checkShortcut = (shortcut: boolean) => {
   if (!shortcut) {
@@ -24,4 +29,15 @@ export const handleError = (error: unknown) => {
   // `handleError`'s four call sites — it's shared by correction, PromptGen,
   // profile-switch, and hotkey-registration failures, not just correction.
   showErrorNotification(error);
+
+  // A mid-session Accessibility revocation (e.g. after an unsigned-app
+  // update changes the code identity) is otherwise only ever surfaced as a
+  // desktop notification — easy to miss, and the log shows desktop
+  // notifications can *also* fail in this exact state (`UNErrorDomain error
+  // 1`). Also prompt the actionable dialog so the user has a real path to
+  // fixing it. `promptAccessibilityPermission` throttles itself, so a burst
+  // of repeated hotkey failures shows at most one dialog.
+  if (error instanceof AccessibilityPermissionError) {
+    void promptAccessibilityPermission();
+  }
 };
