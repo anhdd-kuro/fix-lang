@@ -9,7 +9,7 @@
  */
 import { useMemo, useState } from "react";
 import { ModelSelect } from "./ModelSelect";
-import { barTooltipMessage, MODEL_TABLE_HEADER_KEYS, showMoreMessage } from "./modelsView";
+import { barDateLabel, barTooltipMessage, MODEL_TABLE_HEADER_KEYS, showMoreMessage } from "./modelsView";
 import { filterByRange, type AnalyticsRange } from "../analytics/shared";
 import { useI18n } from "../i18n/useI18n";
 import {
@@ -45,7 +45,7 @@ const markerColor = (rank: number): string =>
   MARKER_VARS[rank % MARKER_VARS.length];
 
 export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
-  const { t, tl, tm, formatNumber } = useI18n();
+  const { t, tl, tm, formatNumber, formatDate } = useI18n();
   const [expanded, setExpanded] = useState<boolean>(false);
 
   // Descriptor-free data only — no locale-sensitive string is built inside
@@ -91,7 +91,12 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
                   return (
                     <div
                       key={b.date}
-                      title={tm(barTooltipMessage(b, b.date))}
+                      // `b.date` is a raw "YYYY-MM-DD" day key, not a display
+                      // label — `barDateLabel` formats it via the
+                      // locale-aware `formatDate` at render time (this map
+                      // runs directly in JSX, outside any memo, so there is
+                      // no stale-locale dependency-array risk to guard here).
+                      title={tm(barTooltipMessage(b, barDateLabel(formatDate, b.date)))}
                       className="w-[5px] shrink-0 rounded-t-[1px] bg-primary/80 hover:bg-primary/90"
                       // Inline height: a data-driven per-bar value, not a static
                       // style — keep at least a 1px sliver for non-zero days.

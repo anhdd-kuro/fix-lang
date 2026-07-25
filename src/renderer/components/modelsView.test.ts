@@ -4,10 +4,15 @@
  * Descriptor shape is asserted directly; rendered strings are asserted
  * through `createTranslator` (EN + JA).
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import {
+  __resetFormatCachesForTests,
+  createFormatters,
+} from "~/shared/i18n/format";
 import { resolveMessage } from "~/shared/i18n/message";
 import { createTranslator } from "~/shared/i18n/translate";
 import {
+  barDateLabel,
   barTooltipMessage,
   MODEL_TABLE_HEADER_KEYS,
   showMoreMessage,
@@ -79,5 +84,61 @@ describe("rendered strings (EN + JA)", () => {
     expect(resolveMessage(expanded, tJa)).toBe(tJa("models.table.showLess"));
     expect(resolveMessage(collapsed, tJa)).not.toBe(resolveMessage(collapsed, tEn));
     expect(resolveMessage(expanded, tJa)).not.toBe(resolveMessage(expanded, tEn));
+  });
+});
+
+describe("barDateLabel", () => {
+  const originalTz = process.env.TZ;
+
+  afterEach(() => {
+    process.env.TZ = originalTz;
+    __resetFormatCachesForTests();
+  });
+
+  it("formats a bar's day key through the locale-aware formatDate, differing between en and ja, never the raw key", () => {
+    const dayKey = "2024-06-18";
+    const enLabel = barDateLabel(createFormatters("en").formatDate, dayKey);
+    const jaLabel = barDateLabel(createFormatters("ja").formatDate, dayKey);
+
+    expect(enLabel).not.toBe(dayKey);
+    expect(jaLabel).not.toBe(dayKey);
+    expect(enLabel).not.toBe(jaLabel);
+    // Regression guard for Bug B (raw day key passed as `dateLabel`): a
+    // locale-formatted label never contains the dense ISO day key verbatim.
+    expect(enLabel).not.toContain(dayKey);
+    expect(jaLabel).not.toContain(dayKey);
+  });
+
+  it("drives the real barTooltipMessage call site end to end (both locales)", () => {
+    const dayKey = "2024-06-18";
+    const enLabel = barDateLabel(createFormatters("en").formatDate, dayKey);
+    const jaLabel = barDateLabel(createFormatters("ja").formatDate, dayKey);
+
+    const enMessage = barTooltipMessage({ tokens: 12_345 }, enLabel);
+    const jaMessage = barTooltipMessage({ tokens: 12_345 }, jaLabel);
+
+    const tEn = createTranslator("en");
+    const tJa = createTranslator("ja");
+    const enText = resolveMessage(enMessage, tEn);
+    const jaText = resolveMessage(jaMessage, tJa);
+    expect(enText).not.toBe(jaText);
+    expect(enText).not.toContain(dayKey);
+    expect(jaText).not.toContain(dayKey);
+  });
+
+  it("keeps the calendar day correct in a negative-offset timezone (guards the UTC-midnight ISO-parse hazard)", () => {
+    // "Pacific/Midway" is UTC-11. Handing the raw day key to `new
+    // Date(dayKey)` parses it as UTC midnight, which renders as the
+    // *previous* calendar day once formatted here.
+    process.env.TZ = "Pacific/Midway";
+    __resetFormatCachesForTests();
+
+    const { formatDate } = createFormatters("en");
+    const correct = barDateLabel(formatDate, "2026-01-01");
+    const buggy = formatDate(new Date("2026-01-01"), { month: "short", day: "numeric" });
+
+    expect(correct).toBe("Jan 1");
+    expect(buggy).toBe("Dec 31");
+    expect(correct).not.toBe(buggy);
   });
 });

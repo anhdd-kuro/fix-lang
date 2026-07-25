@@ -16,10 +16,3 @@ export const buildCorrectionGoodJobNotification = (): NotificationPayload => ({
   title: mainT("notifications.correction.goodJob.title"),
   body: mainT("notifications.correction.goodJob.body"),
 });
-
-/**
- * Title used for the correction result delivery (paste confirmation / popup).
- * `presetName` is user-authored preset data — interpolated, never translated.
- */
-export const buildCorrectionResultTitle = (presetName: string): string =>
-  mainT("notifications.correction.resultTitle", { presetName });

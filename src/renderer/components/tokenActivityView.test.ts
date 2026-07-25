@@ -6,10 +6,15 @@
  * `overview.tokenActivity.*` catalog entries end to end, without a DOM
  * testing library (none is installed).
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import {
+  __resetFormatCachesForTests,
+  createFormatters,
+} from "~/shared/i18n/format";
 import { resolveMessage, type Message } from "~/shared/i18n/message";
 import { createTranslator } from "~/shared/i18n/translate";
 import {
+  dayKeyDateFormatter,
   peakHourMessage,
   STAT_CARD_KEYS,
   TOKEN_ACTIVITY_TABS,
@@ -266,5 +271,61 @@ describe("rendered tooltip strings (EN + JA)", () => {
     expect(resolveMessage(message, createTranslator("ja"))).toBe(
       "2024-06-18 までに累計 99 トークン",
     );
+  });
+});
+
+describe("dayKeyDateFormatter", () => {
+  const originalTz = process.env.TZ;
+
+  afterEach(() => {
+    process.env.TZ = originalTz;
+    __resetFormatCachesForTests();
+  });
+
+  it("formats a day key through the locale-aware formatDate, differing between en and ja, never the raw key", () => {
+    const dayKey = "2024-06-18";
+    const enLabel = dayKeyDateFormatter(createFormatters("en").formatDate).date(dayKey);
+    const jaLabel = dayKeyDateFormatter(createFormatters("ja").formatDate).date(dayKey);
+
+    expect(enLabel).not.toBe(dayKey);
+    expect(jaLabel).not.toBe(dayKey);
+    expect(enLabel).not.toBe(jaLabel);
+    // Regression guard for Bug A (identity formatter): a locale-formatted
+    // label never contains the dense ISO day key verbatim.
+    expect(enLabel).not.toContain(dayKey);
+    expect(jaLabel).not.toContain(dayKey);
+  });
+
+  it("this drives the real tooltipMessageForCell call site end to end (both locales)", () => {
+    const cell = dayCell({ date: "2024-06-18", tokenTotal: 500, correctionCount: 0 });
+    const enMessage = requireMessage(
+      tooltipMessageForCell("daily", cell, dayKeyDateFormatter(createFormatters("en").formatDate)),
+    );
+    const jaMessage = requireMessage(
+      tooltipMessageForCell("daily", cell, dayKeyDateFormatter(createFormatters("ja").formatDate)),
+    );
+
+    const enText = resolveMessage(enMessage, createTranslator("en"));
+    const jaText = resolveMessage(jaMessage, createTranslator("ja"));
+    expect(enText).not.toBe(jaText);
+    expect(enText).not.toContain("2024-06-18");
+    expect(jaText).not.toContain("2024-06-18");
+  });
+
+  it("keeps the calendar day correct in a negative-offset timezone (guards the UTC-midnight ISO-parse hazard)", () => {
+    // "Pacific/Midway" is UTC-11. Handing the raw day key to `new
+    // Date(dayKey)` parses it as UTC midnight, which renders as the
+    // *previous* calendar day once formatted here — exactly the hazard
+    // `dateFromDayKey`'s local (`new Date(y, m - 1, d)`) construction avoids.
+    process.env.TZ = "Pacific/Midway";
+    __resetFormatCachesForTests();
+
+    const { formatDate } = createFormatters("en");
+    const correct = dayKeyDateFormatter(formatDate).date("2026-01-01");
+    const buggy = formatDate(new Date("2026-01-01"), { month: "short", day: "numeric" });
+
+    expect(correct).toBe("Jan 1");
+    expect(buggy).toBe("Dec 31");
+    expect(correct).not.toBe(buggy);
   });
 });

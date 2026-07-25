@@ -28,10 +28,23 @@ export const CorrectionResultWindow = () => {
 
   if (!payload) return null;
 
+  // Built from raw data (`payload.presetName`) via `t()` on every render —
+  // never a pre-rendered sentence — so it re-resolves after a locale switch.
+  // Mirrors `buildCorrectionResultWindowTitle()`'s fallback in
+  // `src/main/webViewWindows/windowTitles.ts`: no presetName (a correction
+  // delivered outside any preset context) falls back to the same generic
+  // `notifications.window.correctionResult.title` key used for the native
+  // window title, so the two only ever diverge when a preset is known.
+  const title = payload.presetName
+    ? t("notifications.correction.resultTitle", {
+        presetName: payload.presetName,
+      })
+    : t("notifications.window.correctionResult.title");
+
   return (
     <main className="flex h-screen flex-col gap-3 bg-background p-4 text-foreground">
       <header>
-        <h1 className="text-base font-semibold">{payload.title}</h1>
+        <h1 className="text-base font-semibold">{title}</h1>
         <p className="text-xs text-muted-foreground">
           {t("notifications.window.correctionResult.subtitle")}
         </p>

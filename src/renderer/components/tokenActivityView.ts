@@ -71,6 +71,25 @@ export const weeklyRangeOf = (dayKey: string): { start: string; end: string } =>
 export type DayKeyFormatter = { date: (dayKey: string) => string };
 
 /**
+ * Builds the real `DayKeyFormatter` the renderer should pass to
+ * `tooltipMessageForCell`: formats a day key via the locale-aware `formatDate`
+ * from `useI18n()`, using a compact form appropriate for a dense
+ * per-cell calendar tooltip.
+ *
+ * Parses the day key as a **local** calendar date (`dateFromDayKey`, i.e.
+ * `new Date(year, month - 1, day)`) rather than handing the raw
+ * `"YYYY-MM-DD"` string to `formatDate`/`new Date()` directly — the latter
+ * parses as UTC midnight and can render as the *previous* calendar day once
+ * formatted in a negative-UTC-offset timezone (see
+ * `tokenActivityView.test.ts`'s timezone-hazard case).
+ */
+export const dayKeyDateFormatter = (
+  formatDate: (date: Date, options?: Intl.DateTimeFormatOptions) => string,
+): DayKeyFormatter => ({
+  date: (dayKey) => formatDate(dateFromDayKey(dayKey), { month: "short", day: "numeric" }),
+});
+
+/**
  * Tooltip descriptor for one token-activity calendar cell. `undefined` for a
  * leading placeholder cell (nothing to show). `count` is always passed as a
  * raw `number` so plural selection (`withCorrections_one`/`_other`) works.

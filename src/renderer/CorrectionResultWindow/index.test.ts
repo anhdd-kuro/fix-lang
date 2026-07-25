@@ -7,6 +7,13 @@
  * component with `react-dom/client` + `act`, following
  * `src/renderer/components/SettingUpdates.test.ts` — Vitest only collects
  * `.test.ts`, not `.test.tsx`, and `@testing-library/react` isn't installed.
+ *
+ * Also covers a follow-up regression: the `<h1>` heading was built from
+ * `payload.title`, a fully-rendered sentence baked into the payload in the
+ * main process. It never re-resolved after a locale switch, unlike the
+ * subtitle and buttons two lines below it which already went through
+ * `t()`. The fix carries `payload.presetName` (raw data) instead and builds
+ * the heading via `t()` on every render.
  */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -108,13 +115,16 @@ describe("CorrectionResultWindow", () => {
     expect(api.signalCorrectionResultReady).toHaveBeenCalledTimes(1);
   });
 
-  it("localizes the subtitle and both button labels in English", async () => {
+  it("localizes the heading, subtitle, and both button labels in English", async () => {
     await render("en");
 
     await act(async () => {
-      payloadListener?.({ title: "Correction", text: "Hello, world." });
+      payloadListener?.({ presetName: "Correction", text: "Hello, world." });
     });
 
+    expect(container.querySelector("h1")?.textContent).toBe(
+      tEn("notifications.correction.resultTitle", { presetName: "Correction" }),
+    );
     expect(container.textContent).toContain(
       tEn("notifications.window.correctionResult.subtitle"),
     );
@@ -132,17 +142,33 @@ describe("CorrectionResultWindow", () => {
     expect(api.closeCorrectionResultWindow).toHaveBeenCalledTimes(1);
   });
 
-  it("localizes the subtitle and both button labels in Japanese, distinct from English", async () => {
+  it("falls back to the generic window title when no presetName is given", async () => {
+    await render("en");
+
+    await act(async () => {
+      payloadListener?.({ text: "Hello, world." });
+    });
+
+    expect(container.querySelector("h1")?.textContent).toBe(
+      tEn("notifications.window.correctionResult.title"),
+    );
+  });
+
+  it("localizes the heading, subtitle, and both button labels in Japanese, distinct from English", async () => {
     await render("ja");
 
     await act(async () => {
-      payloadListener?.({ title: "校正", text: "こんにちは。" });
+      payloadListener?.({ presetName: "Correction", text: "こんにちは。" });
     });
 
+    const jaHeading = tJa("notifications.correction.resultTitle", {
+      presetName: "Correction",
+    });
     const jaSubtitle = tJa("notifications.window.correctionResult.subtitle");
     const jaClose = tJa("common.close");
     const jaCopy = tJa("common.copy");
 
+    expect(container.querySelector("h1")?.textContent).toBe(jaHeading);
     expect(container.textContent).toContain(jaSubtitle);
     expect(
       [...container.querySelectorAll("button")].find(
@@ -153,6 +179,9 @@ describe("CorrectionResultWindow", () => {
 
     // Prove the locale actually changed the wording, not just an English
     // fallback silently passing the assertions above.
+    expect(jaHeading).not.toBe(
+      tEn("notifications.correction.resultTitle", { presetName: "Correction" }),
+    );
     expect(jaSubtitle).not.toBe(
       tEn("notifications.window.correctionResult.subtitle"),
     );
@@ -160,12 +189,16 @@ describe("CorrectionResultWindow", () => {
     expect(jaCopy).not.toBe(tEn("common.copy"));
   });
 
-  it("re-renders in Japanese after a locale broadcast, keeping the current payload", async () => {
+  it("re-renders the heading in Japanese after a locale broadcast, keeping the current payload", async () => {
     await render("en");
 
     await act(async () => {
-      payloadListener?.({ title: "Correction", text: "Hello, world." });
+      payloadListener?.({ presetName: "Correction", text: "Hello, world." });
     });
+    const enHeading = tEn("notifications.correction.resultTitle", {
+      presetName: "Correction",
+    });
+    expect(container.querySelector("h1")?.textContent).toBe(enHeading);
     expect(container.textContent).toContain(tEn("common.close"));
 
     await act(async () => {
@@ -173,6 +206,14 @@ describe("CorrectionResultWindow", () => {
     });
     await waitForUi();
 
+    const jaHeading = tJa("notifications.correction.resultTitle", {
+      presetName: "Correction",
+    });
+    // The regression this guards against: the heading used to be a
+    // fully-rendered string baked into the payload in the main process, so
+    // it stayed in English here even after the rest of the window relocalized.
+    expect(container.querySelector("h1")?.textContent).toBe(jaHeading);
+    expect(jaHeading).not.toBe(enHeading);
     expect(container.textContent).toContain(
       tJa("notifications.window.correctionResult.subtitle"),
     );

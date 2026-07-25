@@ -7,6 +7,24 @@
 import { msg, type Message, type MessageKey } from "~/shared/i18n/message";
 import type { TokenDayBar } from "../MainWindow/modelsAggregations";
 
+/** Parses a dense local-day key ("YYYY-MM-DD") into a local `Date` — never round-trip through the ISO string (a UTC-midnight parse can render as the previous day in a negative-offset timezone). Mirrors `tokenActivityView.ts`'s helper of the same name. */
+const dateFromDayKey = (dayKey: string): Date => {
+  const [year, month, day] = dayKey.split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
+
+/**
+ * Formats a token-volume bar's dense local-day key into the compact display
+ * label its tooltip expects, via the locale-aware `formatDate` from
+ * `useI18n()`. The renderer must call this (not hand `bar.date` straight to
+ * `barTooltipMessage`) — the bar's `date` is a raw `"YYYY-MM-DD"` key, not
+ * display-ready.
+ */
+export const barDateLabel = (
+  formatDate: (date: Date, options?: Intl.DateTimeFormatOptions) => string,
+  dayKey: string,
+): string => formatDate(dateFromDayKey(dayKey), { month: "short", day: "numeric" });
+
 /** Model table column header keys — resolved via `t()` at render time. */
 export const MODEL_TABLE_HEADER_KEYS = {
   model: "models.table.model",

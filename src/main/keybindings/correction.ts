@@ -6,10 +6,7 @@ import { keybindingStore } from "~/stores/keybindingStore";
 import { outputModeStore } from "~/stores/outputModeStore";
 import { getHighlightedText, pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
-import {
-  buildCorrectionGoodJobNotification,
-  buildCorrectionResultTitle,
-} from "./correctionNotifications";
+import { buildCorrectionGoodJobNotification } from "./correctionNotifications";
 import { deliverCorrectionOutput } from "./correctionOutput";
 import { checkShortcut, handleError } from "./utils";
 import { buildPriceMap, computeCost } from "../ai.request/cost";
@@ -85,7 +82,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         const delivery = await deliverCorrectionOutput(
           outputModeStore.getCorrectionOutputMode(),
           {
-            title: buildCorrectionResultTitle(preset.name),
+            presetName: preset.name,
             text: result.correctedText,
           },
           {

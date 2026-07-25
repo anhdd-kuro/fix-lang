@@ -20,11 +20,11 @@ import { heatmapCellClass, heatmapLevelClass } from "./heatmapIntensity";
 import { PresetWeightChart } from "./PresetWeightChart";
 import { StatCard } from "./StatCard";
 import {
+  dayKeyDateFormatter,
   peakHourMessage,
   STAT_CARD_KEYS,
   TOKEN_ACTIVITY_TABS,
   tooltipMessageForCell,
-  type DayKeyFormatter,
 } from "./tokenActivityView";
 import { filterByRange, type AnalyticsRange } from "../analytics/shared";
 import { useI18n } from "../i18n/useI18n";
@@ -53,15 +53,6 @@ type OverviewPanelProps = {
   /** Active time range (All / 30d / 7d), owned by the shared header. */
   range: AnalyticsRange;
 };
-
-/**
- * The token-activity tooltip's `date`/`start`/`end` params are pre-formatted
- * strings, but this calendar has always rendered the raw dense day key
- * ("YYYY-MM-DD") verbatim rather than a locale-formatted date — identity here
- * preserves that behavior exactly. Module-level (not `useMemo`): it closes
- * over nothing, so there is no locale-staleness risk to guard against.
- */
-const IDENTITY_DAY_FMT: DayKeyFormatter = { date: (dayKey) => dayKey };
 
 const MIN_CELL_SIZE_PX = 12;
 const CELL_GAP_PX = 4;
@@ -150,7 +141,7 @@ const monthLabelStyle = (column: number, cellSize: number): CSSProperties => ({
 });
 
 export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
-  const { t, tm, formatNumber } = useI18n();
+  const { t, tm, formatNumber, formatDate } = useI18n();
   const [activityMode, setActivityMode] =
     useState<TokenActivityMode>("daily");
   const [activityWidthRef, activityWidth] = useElementWidth();
@@ -191,6 +182,14 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
   );
 
   const peakValue = tm(peakHourMessage(view.peak));
+
+  // Rebuilt every render (cheap — a single closure over `formatDate`), never
+  // memoized: it is only ever read directly inside the JSX map below, never
+  // stashed in a `useMemo`/`useCallback` dependency array, so there is no
+  // stale-locale risk to guard against here (contrast `PresetWeightChart`'s
+  // chart-options memo, which DOES need `formatDate` in its deps because it
+  // caches the built value across renders).
+  const dayFmt = dayKeyDateFormatter(formatDate);
 
   return (
     <div className="mx-auto flex w-full flex-col gap-6">
@@ -271,7 +270,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
                     const tooltipMessage = tooltipMessageForCell(
                       activityMode,
                       cell,
-                      IDENTITY_DAY_FMT
+                      dayFmt
                     );
                     const tooltipText = tooltipMessage
                       ? tm(tooltipMessage)
