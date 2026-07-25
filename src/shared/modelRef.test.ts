@@ -12,7 +12,7 @@ import {
   resolveModelRef,
   stripModelRefPrefix,
 } from "./modelRef";
-import { PROVIDER_IDS, type Model } from "./providers";
+import { PROVIDER_IDS, type Model, type ProviderId } from "./providers";
 
 describe("parseModelRef", () => {
   it("splits a known-provider prefix from the raw model id", () => {
@@ -47,6 +47,17 @@ describe("parseModelRef", () => {
     });
   });
 
+  // F8 — pins the "first `::`" rule against a `lastIndexOf` regression. With
+  // `lastIndexOf` the head would be "openai::ollama", which is not a provider
+  // id, so the whole string would degrade to a bare id.
+  it("splits on the FIRST `::` when the value contains two — the tail keeps its own `::`", () => {
+    expect(parseModelRef("openai::ollama::llama3.2:3b")).toEqual({
+      provider: "openai",
+      modelId: "ollama::llama3.2:3b",
+      raw: "openai::ollama::llama3.2:3b",
+    });
+  });
+
   it("treats empty, null, and undefined as the inherit sentinel", () => {
     const expected = { provider: null, modelId: "", raw: "" };
     expect(parseModelRef("")).toEqual(expected);
@@ -73,7 +84,9 @@ describe("stripModelRefPrefix", () => {
     "",
   ];
 
-  it("is idempotent for every case in the parseModelRef matrix", () => {
+  // F5 — renamed from "is idempotent ...". The guarantee is a fixed point over
+  // the values the system actually produces, not unconditional idempotence.
+  it("reaches a fixed point after one pass for every well-formed ref in the parseModelRef matrix", () => {
     for (const value of cases) {
       const once = stripModelRefPrefix(value);
       const twice = stripModelRefPrefix(once);
@@ -88,6 +101,50 @@ describe("stripModelRefPrefix", () => {
 
   it("strips a known-provider prefix", () => {
     expect(stripModelRefPrefix("openai::gpt-4o")).toBe("gpt-4o");
+  });
+
+  // F5 — single-pass is the adjudicated contract. A nested ref is unreachable
+  // by construction (every producer guards with `isModelRef`), and a looping
+  // strip would make this the only consumer that silently accepts a value
+  // `resolveModelRef`, `makeAIRequest` and the picker all reject.
+  it("removes exactly one prefix from a nested ref, leaving the inner ref intact", () => {
+    expect(stripModelRefPrefix("openai::ollama::llama3.2:3b")).toBe("ollama::llama3.2:3b");
+    expect(stripModelRefPrefix("openai::openai::gpt-4o")).toBe("openai::gpt-4o");
+  });
+
+  it("is deliberately NOT a fixed point on a nested ref — single-pass, no loop", () => {
+    const nested = "openai::ollama::llama3.2:3b";
+    const once = stripModelRefPrefix(nested);
+    expect(stripModelRefPrefix(once)).toBe("llama3.2:3b");
+    expect(stripModelRefPrefix(once)).not.toBe(once);
+  });
+});
+
+// F5 — the precondition that makes the single-pass contract safe, pinned so a
+// later card cannot quietly rely on `formatModelRef` normalizing for it.
+describe("formatModelRef preconditions", () => {
+  const models: Model[] = [
+    { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openrouter" },
+  ];
+
+  it("does not normalize an already-prefixed modelId — it nests, and the nested ref is unresolvable", () => {
+    const nested = formatModelRef("openai", "openrouter::gpt-4o");
+    expect(nested).toBe("openai::openrouter::gpt-4o");
+    expect(resolveModelRef(nested, models)).toBeNull();
+  });
+
+  it("does not throw on an already-prefixed modelId — the guard belongs at the call site", () => {
+    expect(() => formatModelRef("openai", "openrouter::gpt-4o")).not.toThrow();
+  });
+
+  it("the documented caller guard `isModelRef(v) ? v : formatModelRef(p, v)` never nests", () => {
+    const prefix = (value: string): string =>
+      isModelRef(value) ? value : formatModelRef("openrouter", value);
+
+    expect(prefix("gpt-4o")).toBe("openrouter::gpt-4o");
+    expect(prefix("openrouter::gpt-4o")).toBe("openrouter::gpt-4o");
+    expect(prefix(prefix("gpt-4o"))).toBe("openrouter::gpt-4o");
+    expect(resolveModelRef(prefix(prefix("gpt-4o")), models)?.model).toBe(models[0]);
   });
 });
 
@@ -109,6 +166,107 @@ describe("modelRefForModel", () => {
   it("falls back to openrouter when the model has no provider tag", () => {
     const model: Model = { id: "legacy-model", name: "legacy-model", created: 1 };
     expect(modelRefForModel(model)).toBe("openrouter::legacy-model");
+  });
+
+  // F1 — attribution must agree with isModelForProvider, the predicate the rest
+  // of the system matches on.
+  it("attributes an untagged local model to ollama, not to the openrouter fallback", () => {
+    const model: Model = {
+      id: "llama3.2:3b",
+      name: "llama3.2",
+      created: 1,
+      local: { path: "llama3.2:3b", size: 100 },
+    };
+    expect(modelRefForModel(model)).toBe("ollama::llama3.2:3b");
+  });
+
+  it("prefers the earliest PROVIDER_ORDER match when a model matches two providers", () => {
+    // An openai-tagged model that also carries a local descriptor matches both
+    // openai and ollama; openai comes first, and the ref still round-trips.
+    const model: Model = {
+      id: "gpt-4o",
+      name: "gpt-4o",
+      created: 1,
+      provider: "openai",
+      local: { path: "/models/gpt-4o" },
+    };
+    expect(modelRefForModel(model)).toBe("openai::gpt-4o");
+    expect(resolveModelRef(modelRefForModel(model), [model])?.model).toBe(model);
+  });
+
+  it("falls back to providerOfModel for a cache entry whose provider tag is unrecognized", () => {
+    // Cast reproduces a hand-edited config value; no PROVIDER_ORDER entry
+    // matches, so the `??` arm runs and the result degrades to a bare id that
+    // resolves to nothing rather than to an unintended provider.
+    const model: Model = {
+      id: "x",
+      name: "x",
+      created: 1,
+      provider: "anthropic" as ProviderId,
+    };
+    expect(modelRefForModel(model)).toBe("anthropic::x");
+    expect(parseModelRef(modelRefForModel(model)).provider).toBeNull();
+    expect(resolveModelRef(modelRefForModel(model), [model])).toBeNull();
+  });
+
+  it("returns the inherit sentinel for a model with an empty id", () => {
+    expect(modelRefForModel({ id: "", name: "", created: 1, provider: "openai" })).toBe("");
+  });
+});
+
+// F1 — the kernel's own format -> resolve round trip, for every Model shape the
+// app actually produces.
+describe("modelRefForModel / resolveModelRef round trip", () => {
+  const shapes: { label: string; model: Model; provider: string }[] = [
+    {
+      label: "tagged cloud",
+      model: { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
+      provider: "openai",
+    },
+    {
+      label: "tagged local",
+      model: { id: "custom-local", name: "custom-local", created: 1, provider: "ollama" },
+      provider: "ollama",
+    },
+    {
+      label: "untagged local",
+      model: {
+        id: "llama3.2:3b",
+        name: "llama3.2",
+        created: 1,
+        local: { path: "llama3.2:3b", size: 100 },
+      },
+      provider: "ollama",
+    },
+    {
+      label: "untagged cloud",
+      model: { id: "legacy-model", name: "legacy-model", created: 1 },
+      provider: "openrouter",
+    },
+  ];
+
+  for (const { label, model, provider } of shapes) {
+    it(`round-trips a ${label} model`, () => {
+      const ref = modelRefForModel(model);
+      const resolved = resolveModelRef(ref, [model]);
+      expect(resolved).not.toBeNull();
+      expect(resolved?.provider).toBe(provider);
+      expect(resolved?.model).toBe(model);
+      expect(resolved?.ref).toBe(ref);
+    });
+
+    it(`agrees with the bare-id scan for a ${label} model`, () => {
+      expect(resolveModelRef(model.id, [model])?.provider).toBe(provider);
+    });
+  }
+});
+
+// F6 — a ref to no model *is* the inherit sentinel.
+describe("formatModelRef", () => {
+  it("returns the inherit sentinel for an empty model id rather than a degenerate `<provider>::`", () => {
+    for (const provider of PROVIDER_IDS) {
+      expect(formatModelRef(provider, "")).toBe("");
+    }
   });
 });
 
@@ -141,9 +299,13 @@ describe("resolveModelRef", () => {
     expect(resolveModelRef("openai::ghost", models)).toBeNull();
   });
 
-  it("scans PROVIDER_ORDER for a bare id and returns the first hit", () => {
-    // "shared-id" exists under both openrouter and ollama; PROVIDER_ORDER is
-    // ["openai", "openrouter", "ollama"], so openrouter must win.
+  // F2 — named for the routing consequence, not for the constant's contents.
+  // PROVIDER_ORDER is resolution precedence as well as display order: an
+  // un-migrated bare id bills against the API key of whichever provider comes
+  // first here. If a display-ordering change makes this test fail, the correct
+  // response is to split the two concerns, NOT to update the expectation.
+  it("bills a bare id to the earliest PROVIDER_ORDER provider that has it — a reorder reroutes it", () => {
+    // "shared-id" exists under both openrouter (paid) and ollama (local).
     const result = resolveModelRef("shared-id", models);
     expect(result?.provider).toBe("openrouter");
     expect(result?.model).toBe(openrouterModel);
