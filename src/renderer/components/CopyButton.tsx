@@ -1,12 +1,25 @@
 import React from "react";
 import { twJoin } from "tailwind-merge";
 
+/** Icon footprint for copy/check glyphs. `sm` fits dense panels (About command blocks). */
+type CopyButtonSize = "sm" | "md";
+
+const SIZE_CLASSES: Record<
+  CopyButtonSize,
+  { hit: string; icon: string }
+> = {
+  sm: { hit: "min-w-3.5 min-h-3.5", icon: "size-3.5" },
+  md: { hit: "min-w-6 min-h-6", icon: "size-6" },
+};
+
 const CopyButton: React.FC<{
   value: string;
   label: string;
   className?: string;
   showLabel?: boolean;
-}> = ({ value, label, className = "", showLabel = false }) => {
+  /** Visual size of the clipboard/check icons. Defaults to `md`. */
+  size?: CopyButtonSize;
+}> = ({ value, label, className = "", showLabel = false, size = "md" }) => {
   const [copied, setCopied] = React.useState(false);
   const handleCopy = async () => {
     try {
@@ -19,6 +32,7 @@ const CopyButton: React.FC<{
   };
 
   const positionClass = className.includes("absolute") ? "" : "relative";
+  const { hit, icon } = SIZE_CLASSES[size];
 
   return (
     <button
@@ -26,14 +40,15 @@ const CopyButton: React.FC<{
       onClick={handleCopy}
       aria-label={label}
       title={label}
-      className={`${className} cursor-pointer ${positionClass} min-w-6 min-h-6`}
+      className={`${className} cursor-pointer ${positionClass} ${hit}`}
     >
       {showLabel && (
         <span className="whitespace-nowrap mr-8 text-xs">{label}</span>
       )}
       <ClipboardIcon
         className={twJoin(
-          "stroke-muted-foreground transition-all duration-300 ease-in-out absolute top-0 right-0 size-6"
+          "stroke-muted-foreground transition-all duration-300 ease-in-out absolute top-0 right-0",
+          icon,
         )}
         style={{
           strokeDasharray: 50,
@@ -42,7 +57,8 @@ const CopyButton: React.FC<{
       />
       <CheckIcon
         className={twJoin(
-          "stroke-success transition-all duration-300 ease-in-out absolute top-0 right-0 size-6"
+          "stroke-success transition-all duration-300 ease-in-out absolute top-0 right-0",
+          icon,
         )}
         style={{
           strokeDasharray: 50,
