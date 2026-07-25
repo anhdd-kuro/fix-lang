@@ -287,7 +287,7 @@ export const SettingCorrection: React.FC = () => {
         profile switch shortcuts are in the PromptGen and Profiles tabs.
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+      <div className="grid gap-4 sm:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="rounded-lg border border-border bg-card/70 p-3">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div>
