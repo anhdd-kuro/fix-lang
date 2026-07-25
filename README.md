@@ -14,6 +14,10 @@ A local macOS menu-bar app that fixes grammar, improves writing, and runs other 
 ### Prompt generation
 
 - **PromptGen** (`Ctrl+Shift+G`) — build AI prompts from selected text in a dedicated window
+- Opt-in from **0.3.4** onward: PromptGen ships only in builds carrying the
+  `--promptgen` feature tag, so it is **absent from the prebuilt DMGs** (window,
+  hotkey, settings tab, and history chip alike). See
+  [Feature tags](#feature-tags-opt-in-features).
 
 ### Dashboard (MainWindow)
 
@@ -204,10 +208,10 @@ the tag if you want it.
 2. Press a preset hotkey (default: `Ctrl+Shift+F` for Correction)
 3. FixLang delivers the result using the mode selected in **Settings → General → Correction output**: **Direct paste** or **Show popup**
 4. Open the tray popover → dashboard icon for Overview, History, Models, OpenRouter, or Logs
-5. `Ctrl+Shift+G` opens PromptGen on the current selection
+5. `Ctrl+Shift+G` opens PromptGen on the current selection — tag-on builds only, see [Feature tags](#feature-tags-opt-in-features)
 6. `Ctrl+Shift+P` cycles to the next profile
 
-Hotkeys are customizable per preset and for global actions (PromptGen, profile switch) in Settings. Correction output mode is global and defaults to **Direct paste**.
+Hotkeys are customizable per preset and for global actions (PromptGen where built in, profile switch) in Settings. Correction output mode is global and defaults to **Direct paste**.
 
 ## Development
 
