@@ -66,8 +66,9 @@ Model selectors elsewhere (Tray, Models tab, Transform presets, PromptGen) show 
 
 ### App updates
 
-- **Settings → About → App updates** compares the installed version with the
-  latest stable GitHub Release.
+- **Settings → About → App updates** compares the installed version with what
+  Homebrew can actually install, since that is what **Update now** runs. Manual
+  DMG installs fall back to comparing against the latest stable GitHub Release.
 - **Homebrew installs (recommended)**: when a newer version is available,
   **Update now** runs `brew update && brew upgrade --cask fixlang` for you.
   FixLang quits so Homebrew can replace the bundle, then reopens on the new
@@ -82,8 +83,9 @@ Model selectors elsewhere (Tray, Models tab, Transform presets, PromptGen) show 
   with the upgrade in progress. Once Homebrew finishes, the panel offers
   **Restart now** to switch to the installed version.
 - **Right after a release**, the Homebrew tap can still be a few hours behind
-  GitHub. **Update now** checks the tap first and says so rather than restarting
-  for an upgrade that would do nothing — try again later, or use the DMG.
+  GitHub. FixLang then reports that the version exists but Homebrew has not
+  picked it up yet, instead of offering a button that could not install it —
+  check again later, or use the DMG.
 - **Manual DMG installs**: **Download from GitHub** opens that exact release;
   replace the app in `/Applications` yourself. Source and development builds are
   not updated by this flow.

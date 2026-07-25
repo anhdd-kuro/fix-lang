@@ -109,6 +109,14 @@ const tapBehindMessage = (target: string, offered: string): Message =>
     targetVersion: target,
     offeredVersion: offered,
   });
+
+/**
+ * A release exists but Homebrew cannot install it yet. Reported instead of
+ * offering a button that would have nothing to do — the check now answers
+ * "what can be installed", not "what has been published".
+ */
+const tapPendingMessage = (published: string): Message =>
+  msg("settings.updates.tapPendingMessage", { publishedVersion: published });
 const RELEASES_URL = "https://github.com/anhdd-kuro/fix-lang/releases";
 const STABLE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
@@ -390,10 +398,34 @@ export const createUpdateService = (
     }
   };
 
-  /** Never rejects: a broken probe must not strand the install flow. */
-  const probeInstallableVersion = async (): Promise<string | null> => {
+  /** True only for a parsed version strictly newer than the installed one. */
+  const isNewerThan = (
+    candidate: string | null,
+    current: StableVersion,
+  ): boolean => {
+    const parsed = parseStableVersion(candidate);
+    return parsed !== null && compareVersions(parsed, current) > 0;
+  };
+
+  /** Never rejects: GitHub is optional once Homebrew can answer. */
+  const readLatestRelease = async (): Promise<ValidatedRelease | null> => {
     try {
-      return (await options.upgrader?.getInstallableVersion()) ?? null;
+      return validateRelease(await options.releaseSource.getLatestRelease());
+    } catch (error) {
+      options.onLog?.(
+        "warn",
+        `Could not read the latest GitHub release (${safeErrorName(error)})`,
+      );
+      return null;
+    }
+  };
+
+  /** Never rejects: a broken probe must not strand the install flow. */
+  const probeInstallableVersion = async (
+    refreshTap = true,
+  ): Promise<string | null> => {
+    try {
+      return (await options.upgrader?.getInstallableVersion(refreshTap)) ?? null;
     } catch (error) {
       options.onLog?.(
         "warn",
@@ -427,26 +459,66 @@ export const createUpdateService = (
       publish({ phase: "checking", currentVersion });
       try {
         const current = parseStableVersion(currentVersion);
-        const release = validateRelease(await options.releaseSource.getLatestRelease());
-        if (!current || !release) {
-          throw new Error("Invalid GitHub release metadata");
+        if (!current) throw new Error("Invalid installed version");
+
+        // GitHub is asked in parallel because it is the only source of release
+        // notes and of the DMG size the download bar needs. It does not get to
+        // decide what is offered.
+        const [release, cached] = await Promise.all([
+          readLatestRelease(),
+          // Cheap read of the local tap clone: `brew update` is a git fetch
+          // across every tap, far too heavy for a routine check.
+          canInstall ? probeInstallableVersion(false) : Promise.resolve(null),
+        ]);
+
+        const newerOnGitHub =
+          release !== null && compareVersions(release.version, current) > 0;
+        // The clone can lag a release that already exists. Pay for one refresh
+        // only when GitHub says there is something to look for.
+        const installable = parseStableVersion(
+          canInstall && newerOnGitHub && !isNewerThan(cached, current)
+            ? await probeInstallableVersion(true)
+            : cached,
+        );
+
+        // For a cask install Homebrew has the only answer that matters: it is
+        // what the button runs. GitHub is the fallback for manual installs,
+        // and for a cask whose brew probe could not answer at all.
+        const target =
+          (canInstall ? installable : null) ?? release?.version ?? null;
+        if (target === null) {
+          throw new Error("No usable update source");
         }
 
-        if (compareVersions(release.version, current) > 0) {
-          releaseUrl = `${RELEASES_URL}/tag/v${release.version.raw}`;
-          availableDmgSize = release.dmgSize;
+        if (compareVersions(target, current) > 0) {
+          releaseUrl = `${RELEASES_URL}/tag/v${target.raw}`;
+          // Only attach notes and a download size when GitHub is describing
+          // the very version being offered; otherwise they belong to a
+          // different release and would misreport both.
+          const describesTarget =
+            release !== null && compareVersions(release.version, target) === 0;
+          availableDmgSize = describesTarget ? release.dmgSize : null;
           publish({
             phase: "available",
             currentVersion,
-            availableVersion: release.version.raw,
-            releaseNotes: release.releaseNotes,
+            availableVersion: target.raw,
+            releaseNotes: describesTarget ? release.releaseNotes : undefined,
           });
           return;
         }
 
         releaseUrl = null;
         availableDmgSize = null;
-        publish({ phase: "up-to-date", currentVersion });
+        // Nothing installable, but a release does exist — say so rather than
+        // claiming the app is current, and never offer a button that cannot
+        // work yet.
+        publish({
+          phase: "up-to-date",
+          currentVersion,
+          ...(newerOnGitHub && release !== null
+            ? { message: tapPendingMessage(release.version.raw) }
+            : {}),
+        });
       } catch (error) {
         releaseUrl = null;
         availableDmgSize = null;

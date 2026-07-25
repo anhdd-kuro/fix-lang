@@ -184,11 +184,14 @@ export const matchCachedDownload = (
 const readInstallableVersion = async (
   brewBinary: string,
   runBrew: BrewRunner,
+  refreshTap: boolean,
 ): Promise<string | null> => {
-  try {
-    await runBrew(brewBinary, ["update", "--quiet"]);
-  } catch {
-    // A failed refresh only means the answer may be stale; still ask for it.
+  if (refreshTap) {
+    try {
+      await runBrew(brewBinary, ["update", "--quiet"]);
+    } catch {
+      // A failed refresh only means the answer may be stale; still ask for it.
+    }
   }
   try {
     return parseCaskVersion(
@@ -263,8 +266,14 @@ export type HomebrewUpgraderOptions = Readonly<{
 export type HomebrewUpgrader = Readonly<{
   /** True when a one-click upgrade is actually possible for this install. */
   canInstall: boolean;
-  /** Version the tap can install now; null when brew could not be asked. */
-  getInstallableVersion: () => Promise<string | null>;
+  /**
+   * Version the tap can install now; null when brew could not be asked.
+   *
+   * `refreshTap` runs `brew update` first. That is a git fetch across every
+   * tap, so routine checks read the local clone as-is and only pay for a
+   * refresh when something suggests it went stale.
+   */
+  getInstallableVersion: (refreshTap?: boolean) => Promise<string | null>;
   /** True once Homebrew has staged that version in the Caskroom. */
   isVersionInstalled: (version: string) => boolean;
   /**
@@ -300,9 +309,9 @@ export const createHomebrewUpgrader = (
 
   return Object.freeze({
     canInstall,
-    getInstallableVersion: (): Promise<string | null> =>
+    getInstallableVersion: (refreshTap = true): Promise<string | null> =>
       canInstall && brewBinary !== null
-        ? readInstallableVersion(brewBinary, runBrew)
+        ? readInstallableVersion(brewBinary, runBrew, refreshTap)
         : Promise.resolve(null),
     isVersionInstalled: (version: string): boolean => {
       if (brewBinary === null) return false;
