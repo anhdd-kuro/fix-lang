@@ -47,6 +47,31 @@ So to retry: push a NEW commit to `main` (descendant of the tagged commit). Work
 Workflow `sync-fixlang.yml` runs on schedule + `workflow_dispatch`. Steps: discover releases (GH_TOKEN, cleared after), `decideCaskSync` (newer-release → update), render cask, `git add`, whitespace check, `brew style/audit/fetch`, commit, push, smoke install/uninstall in temp appdir.
 NOTE: no-release / no-op runs exit BEFORE render+style. The render/style/audit path is only exercised on a REAL first/newer release — latent bugs there hide until then.
 
+Cron is `17 */6 * * *` — **up to 6h between a GitHub release and the cask carrying it**. Dispatch manually to skip the wait:
+```bash
+gh workflow run sync-fixlang.yml --repo anhdd-kuro/homebrew-tap
+```
+
+### TRAP 0 — app checks GitHub, installs from the tap. Those disagree for hours.
+
+Settings → About reads **GitHub Releases**. **Update now** runs **the tap cask**. Right after a release the app offers vX while the cask still has vX-1.
+
+`brew upgrade --cask fixlang` **exits 0** in that window:
+```
+Warning: Not upgrading fixlang, the latest version is already installed
+```
+Exit 0 = the detached helper walks on to `open -b com.fixlang.app`. Observed symptom: **click Update now → app quits → app reopens → same version, no error.** Looks like a dead button. Real log evidence lives in `userData/logs/homebrew-update.log` (brew's own warning) and `userData/logs/<date>/fixlang.jsonl` (`Homebrew update did not change the app version`).
+
+Guard, in `updateService.installUpdate` (`src/main/update/updateService.ts`): probe `HomebrewUpgrader.getInstallableVersion()` (= `brew update --quiet` then `brew info --cask fixlang --json=v2` → `casks[].version`) and publish `error` + `tapBehindMessage` instead of quitting when the tap is behind. Rules:
+- Probe **must not reject** — a broken probe returns null and the install proceeds. Blocking on an unknown answer would break the button whenever brew is slow or odd.
+- Only a **parsed strictly-lower** version blocks. null / non-semver → proceed.
+- `installing = true` is claimed **before** the first `await` (probe takes ~1-3s warm; a second click must not start a second upgrade).
+- The probe needs `brew update` first: the local tap clone is what `brew info` reads, and its staleness is the whole point.
+
+WHY THIS WAS MISSED FIRST TIME: every test injects a fake upgrader/`startDetached`, so no test ever runs real brew; `homebrew.test.ts` only asserts the generated script's text. And `canInstall` answers "did brew install this app?" — not "can brew supply the version being offered?" The two read as the same question until the tap lags. It also could not be exercised end-to-end at build time: proving the button needs a release *newer* than the one being cut.
+
+Marker reconciliation (`pending-update.json`) does catch this on relaunch, but a subsequent update check overwrites that `error` state with `available` again — so the user just sees the button re-arm. Don't rely on reconcile alone as the user-facing report.
+
 ### TRAP 2 — cask write doubles newline
 
 `renderCask()` returns string ending in exactly one `\n`. Write with `jq -je` (join-output, no appended newline), NOT `jq -er`. `jq -r`/`-er` appends its own `\n` → `end\n\n` → `git diff --cached --check` fails:

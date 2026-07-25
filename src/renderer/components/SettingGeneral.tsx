@@ -1,6 +1,8 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { LanguageSelect } from "./LanguageSelect";
+import { SearchableSelect } from "./SearchableSelect";
 import { useI18n } from "../i18n/useI18n";
+import type { SearchableOption } from "./SearchableSelect";
 import type { TranslationKey } from "~/shared/i18n/keys";
 import type { CorrectionOutputMode } from "~/shared/outputMode";
 import type { Model, ProviderId } from "~/stores/apiStore";
@@ -57,6 +59,18 @@ export const SettingGeneral: React.FC = () => {
   const [isApplying, setIsApplying] = useState<boolean>(false);
   const [applyStatus, setApplyStatus] = useState<string>("");
   const [applyError, setApplyError] = useState<string>("");
+
+  const stagedModelOptions = useMemo<SearchableOption[]>(
+    () =>
+      stagedModels.map((model) => ({
+        value: model.id,
+        label: model.name || model.id,
+      })),
+    [stagedModels],
+  );
+
+  const selectedStagedModelOption =
+    stagedModelOptions.find((option) => option.value === stagedModelId) ?? null;
 
   const clearStagedSetupState = useCallback(() => {
     setStagedModels([]);
@@ -507,25 +521,20 @@ export const SettingGeneral: React.FC = () => {
         >
           {t("settings.general.models.defaultLabel")}
         </label>
-        <select
-          id="staged-model-select"
-          required
-          className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-          value={stagedModelId}
-          onChange={(event) => setStagedModelId(event.target.value)}
-          disabled={stagedModels.length === 0}
-        >
-          <option value="" disabled>
-            {stagedModels.length > 0
+        <SearchableSelect
+          inputId="staged-model-select"
+          ariaLabel={t("settings.general.models.defaultLabel")}
+          options={stagedModelOptions}
+          value={selectedStagedModelOption}
+          onChange={(option) => setStagedModelId(option?.value ?? "")}
+          isDisabled={stagedModels.length === 0}
+          placeholder={
+            stagedModels.length > 0
               ? t("settings.general.models.selectPlaceholder")
-              : t("settings.general.models.fetchFirst")}
-          </option>
-          {stagedModels.map((model) => (
-            <option key={model.id} value={model.id}>
-              {model.name || model.id}
-            </option>
-          ))}
-        </select>
+              : t("settings.general.models.fetchFirst")
+          }
+          noOptionsMessage={t("models.select.noOptions")}
+        />
       </div>
 
       {/* Apply — commits provider, model, cache, and any typed credentials together. */}

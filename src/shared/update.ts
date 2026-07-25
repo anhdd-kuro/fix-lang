@@ -5,11 +5,15 @@ export type UpdatePhase =
   | "checking"
   | "up-to-date"
   | "available"
+  | "installing"
   | "error";
 
 /**
  * This intentionally contains no updater URLs, file paths, or error details.
  * The main process owns those details and exposes only UI-safe information.
+ *
+ * `canInstall` is true only when the running app was installed by the Homebrew
+ * cask, which is the single install path that can be upgraded in place.
  */
 export type UpdateState = Readonly<{
   phase: UpdatePhase;
@@ -17,11 +21,15 @@ export type UpdateState = Readonly<{
   availableVersion?: string;
   releaseNotes?: string;
   message?: string;
+  canInstall?: boolean;
 }>;
 
-export type OpenUpdateReleaseResult =
+export type UpdateActionResult =
   | Readonly<{ success: true }>
   | Readonly<{ success: false; error: string }>;
+
+export type OpenUpdateReleaseResult = UpdateActionResult;
+export type InstallUpdateResult = UpdateActionResult;
 
 const UPDATE_STATE_KEYS = new Set<keyof UpdateState>([
   "phase",
@@ -29,6 +37,7 @@ const UPDATE_STATE_KEYS = new Set<keyof UpdateState>([
   "availableVersion",
   "releaseNotes",
   "message",
+  "canInstall",
 ]);
 
 const PHASES = new Set<UpdatePhase>([
@@ -37,6 +46,7 @@ const PHASES = new Set<UpdatePhase>([
   "checking",
   "up-to-date",
   "available",
+  "installing",
   "error",
 ]);
 
@@ -60,17 +70,18 @@ export const isUpdateState = (value: unknown): value is UpdateState => {
     (value.availableVersion !== undefined &&
       typeof value.availableVersion !== "string") ||
     (value.releaseNotes !== undefined && typeof value.releaseNotes !== "string") ||
-    (value.message !== undefined && typeof value.message !== "string")
+    (value.message !== undefined && typeof value.message !== "string") ||
+    (value.canInstall !== undefined && typeof value.canInstall !== "boolean")
   ) {
     return false;
   }
   return true;
 };
 
-/** Validates the fixed result shape for the releases-page IPC action. */
-export const isOpenUpdateReleaseResult = (
+/** Validates the fixed result shape shared by the update IPC actions. */
+export const isUpdateActionResult = (
   value: unknown,
-): value is OpenUpdateReleaseResult => {
+): value is UpdateActionResult => {
   if (!isRecord(value)) {
     return false;
   }
@@ -87,3 +98,13 @@ export const isOpenUpdateReleaseResult = (
     value.error.length > 0
   );
 };
+
+/** Validates the fixed result shape for the releases-page IPC action. */
+export const isOpenUpdateReleaseResult = (
+  value: unknown,
+): value is OpenUpdateReleaseResult => isUpdateActionResult(value);
+
+/** Validates the fixed result shape for the Homebrew install IPC action. */
+export const isInstallUpdateResult = (
+  value: unknown,
+): value is InstallUpdateResult => isUpdateActionResult(value);

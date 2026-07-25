@@ -1,7 +1,9 @@
 import { ipcRenderer } from "electron";
 import {
+  isInstallUpdateResult,
   isOpenUpdateReleaseResult,
   isUpdateState,
+  type InstallUpdateResult,
   type OpenUpdateReleaseResult,
   type UpdateState,
 } from "~/shared/update";
@@ -22,6 +24,14 @@ const invokeOpenRelease = async (): Promise<OpenUpdateReleaseResult> => {
   return result;
 };
 
+const invokeInstall = async (): Promise<InstallUpdateResult> => {
+  const result: unknown = await ipcRenderer.invoke("updates:install");
+  if (!isInstallUpdateResult(result)) {
+    throw new Error("Received an invalid install result");
+  }
+  return result;
+};
+
 /** Exposes the app-update state and explicit user actions to the renderer. */
 export const updateFeature = {
   getUpdateState: (): Promise<UpdateState> => invokeUpdateAction("updates:get-state"),
@@ -29,6 +39,9 @@ export const updateFeature = {
   checkForUpdates: (): Promise<UpdateState> => invokeUpdateAction("updates:check"),
 
   openUpdateRelease: (): Promise<OpenUpdateReleaseResult> => invokeOpenRelease(),
+
+  /** Asks main to run `brew upgrade --cask fixlang` and relaunch FixLang. */
+  installUpdate: (): Promise<InstallUpdateResult> => invokeInstall(),
 
   onUpdateStateChanged: (
     callback: (state: UpdateState) => void,

@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import Select from "react-select";
 import { twJoin } from "tailwind-merge";
-import {
-  DEFAULT_OPENAI_MODEL,
-  normalizeForSearch,
-  resolveDefaultOpenAIModel,
-} from "~/const";
+import { DEFAULT_OPENAI_MODEL, resolveDefaultOpenAIModel } from "~/const";
 import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
 import { buildModelOptionLabel } from "./modelOptionLabel";
+import { SearchableSelect } from "./SearchableSelect";
 import SettingsButton from "./SettingsIcon";
 import { useI18n } from "../i18n/useI18n";
 import type { TranslationKey } from "~/shared/i18n/keys";
@@ -295,11 +291,11 @@ export const ModelSelect: React.FC<{
       </label>
       )}
       <div ref={containerRef} className="flex gap-2 items-center">
-        <Select
+        <SearchableSelect<ModelSelectOption>
           id="model-select"
           inputId="model-input"
           className="w-full"
-          aria-label={t("models.select.ariaLabel")}
+          ariaLabel={t("models.select.ariaLabel")}
           value={
             models.length > 0 && selectedModel
               ? modelOptions.find((option) => option.value === selectedModel) ||
@@ -308,60 +304,15 @@ export const ModelSelect: React.FC<{
           }
           onChange={(option) => option && handleModelChange(option.value)}
           options={modelOptions}
-          filterOption={(option, rawInput) => {
-            // Flexible match: normalize both sides (lowercase + strip every
-            // non-alphanumeric char) so "gpt 5" matches "openai/gpt-5".
-            const query = normalizeForSearch(rawInput);
-            if (!query) return true;
-            const haystack = normalizeForSearch(
-              `${option.value} ${option.label}`,
-            );
-            return haystack.includes(query);
-          }}
           isDisabled={modelsLoading || !!modelsError}
           placeholder={modelsLoading ? t("models.select.loading") : t("models.select.placeholder")}
-          noOptionsMessage={() => t("models.select.noOptions")}
-          menuPortalTarget={menuPortal ? document.body : undefined}
-          menuPosition={menuPortal ? "fixed" : "absolute"}
-          menuShouldScrollIntoView={false}
-          maxMenuHeight={menuPortal ? menuMaxHeight ?? 200 : undefined}
-          styles={{
-            control: (base) => ({
-              ...base,
-              backgroundColor: "var(--input)",
-              borderColor: "var(--border)",
-              "&:hover": {
-                borderColor: "var(--ring)",
-              },
-              boxShadow: "none",
-            }),
-            menu: (base) => ({
-              ...base,
-              backgroundColor: "var(--popover)",
-              zIndex: menuPortal ? 9999 : 10,
-              borderRadius: "8px",
-              ...(menuPortal && menuWidth
-                ? { width: menuWidth, minWidth: menuWidth }
-                : {}),
-            }),
-            menuList: (base) => ({
-              ...base,
-              maxHeight: menuPortal ? menuMaxHeight ?? 200 : base.maxHeight,
-              overflowY: "auto",
-            }),
-            singleValue: (base) => ({
-              ...base,
-              color: "var(--foreground)",
-            }),
-            input: (base) => ({
-              ...base,
-              color: "var(--foreground)",
-            }),
-          }}
+          noOptionsMessage={t("models.select.noOptions")}
+          menuPortal={menuPortal}
+          menuMaxHeight={menuMaxHeight}
+          menuWidth={menuWidth}
           components={{
             Option: ({ data, isFocused, isSelected, innerProps }) => {
-              const typedData = data as ModelSelectOption;
-              const { label, isLocal } = typedData;
+              const { label, isLocal } = data;
               const parts = label.split(",").map((part) => part.trim());
               const modelId = parts[0] ?? label;
               const createdAt = parts[1];

@@ -7,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { app, BrowserWindow } from "electron";
 import { showErrorNotification } from "~/main/notifications/error";
+import { isPromptGenEnabled } from "~/shared/features";
 import { initializeLocaleFromSystem } from "~/stores/localeStore";
 import {
   isMacOSAccessibilityGranted,
@@ -129,7 +130,11 @@ const registerIpcHandlers = (): UpdateService => {
 
   // Register feature-specific handlers
   registerCorrectionHandlers();
-  registerPromptGenHandlers();
+  // PromptGen is an opt-in build-time feature; without the tag its IPC surface
+  // is never registered.
+  if (isPromptGenEnabled()) {
+    registerPromptGenHandlers();
+  }
 
   // OpenRouter account-analytics tab (#59) — reads the provisioning key in-main.
   registerOpenRouterHandlers();

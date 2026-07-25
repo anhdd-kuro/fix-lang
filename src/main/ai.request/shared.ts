@@ -67,6 +67,21 @@ const sortModels = (models: Model[]): Model[] =>
     return byIdLength !== 0 ? byIdLength : a.id.localeCompare(b.id);
   });
 
+/**
+ * Main-process-only freshness record: when a GENUINE live provider fetch last
+ * succeeded, per provider. Never persisted — deliberately empty at app launch
+ * so the first display fetch after a launch always hits the provider, and only
+ * later tab opens within the TTL are served free from the profile cache.
+ *
+ * Stamped ONLY on a real provider round-trip. A `fetchAvailableModels` call
+ * that just echoed the cache back (no API key) or fell back to the cache after
+ * an error must NOT mark the provider as fresh.
+ */
+const lastLiveFetchAt = new Map<ProviderId, number>();
+
+/** How long a live-fetched model list may back display reads. */
+export const MODEL_DISPLAY_CACHE_TTL_MS = 10 * 60 * 1000;
+
 const normalizeOpenRouterModels = (data: unknown): Model[] => {
   if (!Array.isArray(data)) return [];
   return data.flatMap((candidate) => {
@@ -139,17 +154,23 @@ export const fetchAvailableModels = async (
 
   try {
     let models: Model[];
+    let liveFetch = true;
     if (provider === "ollama") {
       models = (await getLocalModels()).map((model) => ({ ...model, provider: "ollama" }));
     } else if (!apiKey) {
       console.log(`No ${provider} API key provided; using cached models`);
       models = cachedForProvider;
+      // Cache read-through, not a provider round-trip — must not look "fresh".
+      liveFetch = false;
     } else if (provider === "openai") {
       models = await fetchOpenAIModels(apiKey);
     } else {
       models = await fetchOpenRouterModels(apiKey);
     }
 
+    if (liveFetch) {
+      lastLiveFetchAt.set(provider, Date.now());
+    }
     const sortedModels = sortModels(models);
     if (persistCache && sortedModels.length > 0) {
       cacheModelsForProvider(provider, sortedModels);
@@ -171,6 +192,41 @@ export const fetchAvailableModels = async (
 export const getCachedModels = (provider?: ProviderId): Model[] => {
   const models = getStoredModels();
   return provider ? models.filter((model) => isCachedForProvider(model, provider)) : models;
+};
+
+/**
+ * Cache-first model list for DISPLAY callers (every `ModelSelect` mount: tray,
+ * Models tab, each correction preset, PromptGen settings). Without this, every
+ * dashboard tab open re-hit the provider HTTP API.
+ *
+ * Serves the profile-persisted cache when all three hold:
+ *   - `refetch` is falsy (the ↻ button and the `settings-updated` broadcast
+ *     pass `true` and therefore ALWAYS reach the provider),
+ *   - the cache for that provider is non-empty,
+ *   - a genuine live fetch happened in this process within the TTL.
+ *
+ * Otherwise it delegates to `fetchAvailableModels`, which persists the cache
+ * exactly as before. `fetchAvailableModels` itself is untouched, so the
+ * periodic model monitor and the strict provider-setup validation are
+ * unaffected by this path.
+ */
+export const fetchModelsForDisplay = async (
+  apiKey: string,
+  provider: ProviderId = getActiveProvider(),
+  refetch = false,
+): Promise<Model[]> => {
+  if (!refetch) {
+    const lastFetchedAt = lastLiveFetchAt.get(provider);
+    const cachedForProvider = getCachedModels(provider);
+    if (
+      lastFetchedAt !== undefined &&
+      cachedForProvider.length > 0 &&
+      Date.now() - lastFetchedAt < MODEL_DISPLAY_CACHE_TTL_MS
+    ) {
+      return sortModels(cachedForProvider);
+    }
+  }
+  return fetchAvailableModels(apiKey, provider);
 };
 
 /**

@@ -202,7 +202,8 @@ export const SettingUpdates = () => {
     }
   };
 
-  const isBusy = actionPending || state.phase === "checking";
+  const isBusy =
+    actionPending || state.phase === "checking" || state.phase === "installing";
   const latestVersion = displayVersion(state.availableVersion);
 
   return (
@@ -320,11 +321,37 @@ export const SettingUpdates = () => {
               </ReactMarkdown>
             </div>
           )}
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t("settings.updates.installInstructions")}
-          </p>
-          <CommandBlock command={'xattr -dr com.apple.quarantine "/Applications/FixLang.app"'} />
+          {state.canInstall ? (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t("settings.updates.canInstallDescription")}
+            </p>
+          ) : (
+            <>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("settings.updates.installInstructions")}
+              </p>
+              <CommandBlock
+                command={'xattr -dr com.apple.quarantine "/Applications/FixLang.app"'}
+              />
+            </>
+          )}
           <div className="mt-2 flex flex-wrap gap-2">
+            {state.canInstall && (
+              <button
+                type="button"
+                onClick={() =>
+                  void run(
+                    () => updateApi().installUpdate(),
+                    t("settings.updates.installFailed"),
+                  )
+                }
+                disabled={isBusy}
+                className="rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isBusy && <Spinner className="mr-2 inline size-4 align-[-2px]" />}
+                {t("settings.updates.installNow")}
+              </button>
+            )}
             <button
               type="button"
               onClick={() =>
@@ -334,7 +361,11 @@ export const SettingUpdates = () => {
                 )
               }
               disabled={isBusy}
-              className="rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+              className={
+                state.canInstall
+                  ? "rounded border border-border px-3 py-1.5 text-base text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                  : "rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+              }
             >
               {t("settings.updates.downloadButton")}
             </button>
@@ -353,6 +384,17 @@ export const SettingUpdates = () => {
             </button>
           </div>
         </>
+      )}
+
+      {state.phase === "installing" && (
+        <p
+          className="mt-1 text-sm text-muted-foreground"
+          role="status"
+          aria-live="polite"
+        >
+          <Spinner className="mr-2 inline size-4 align-[-2px]" />
+          {t("settings.updates.installingDescription", { version: latestVersion })}
+        </p>
       )}
 
       {state.phase === "error" && (

@@ -9,6 +9,7 @@
  * locale-free by design; `App.tsx` resolves `labelKey` via `t()` at render
  * time, so `dashboardTabs.test.ts` never has to assert rendered English.
  */
+import { isPromptGenEnabled } from "~/shared/features";
 import type { MessageKey } from "~/shared/i18n/message";
 import type { HistoryEntry } from "~/stores/historyStore";
 
@@ -58,18 +59,25 @@ export const clampTabIndex = (index: number): number => {
 
 /**
  * Derive unique preset names from loaded history entries (corrections bucket),
- * preserving first-seen order. `PromptGen` is appended last as a fixed entry.
+ * preserving first-seen order. `PromptGen` is appended last as a fixed entry,
+ * unless the PromptGen build-time feature tag is off — pass `includePromptGen`
+ * explicitly in tests, where no bundler define exists.
  *
  * Moved verbatim from App.tsx so it can be unit-tested directly.
  */
-export const deriveAvailableFilters = (entries: HistoryEntry[]): string[] => {
+export const deriveAvailableFilters = (
+  entries: HistoryEntry[],
+  includePromptGen: boolean = isPromptGenEnabled(),
+): string[] => {
   const seen = new Set<string>();
   for (const e of entries) {
     if (e.presetName && e.presetName !== "PromptGen") {
       seen.add(e.presetName);
     }
   }
-  return [...seen, "PromptGen"];
+  // Build-time feature tag off => no dead PromptGen filter chip, since no
+  // PromptGen history can be produced by that build.
+  return includePromptGen ? [...seen, "PromptGen"] : [...seen];
 };
 
 /**
