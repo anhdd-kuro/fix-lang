@@ -1,3 +1,5 @@
+import { useI18n } from "../i18n/useI18n";
+
 export const KeyBinding = ({
   label,
   keysBinding,
@@ -7,6 +9,7 @@ export const KeyBinding = ({
   keysBinding: string[];
   onChange: (keysBinding: string[]) => void;
 }) => {
+  const { t } = useI18n();
   return (
     <div className="flex gap-2 text-sm text-muted-foreground">
       <span>{label}:</span>
@@ -26,7 +29,7 @@ export const KeyBinding = ({
         className="ml-auto px-2 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-lg"
         onClick={() => onChange([])}
       >
-        Change
+        {t("common.keyBinding.changeButton")}
       </button>
     </div>
   );

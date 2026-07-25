@@ -12,6 +12,14 @@
  * "na"/absent are excluded and surfaced, never counted as a false 0.
  */
 import {
+  messageLabel,
+  msg,
+  textLabel,
+  type Label,
+  type Message,
+  type MessageKey,
+} from "~/shared/i18n/message";
+import {
   withFallbackTokenCounts,
   type HistoryEntry,
 } from "~/stores/historyTypes";
@@ -210,7 +218,13 @@ export const splitModelId = (id: string | null): ModelProvider => {
   };
 };
 
-export type PresetBreakdownRow = { presetName: string; count: number };
+export type PresetBreakdownRow = {
+  /** Identity/grouping key: user preset name, or `UNTITLED_PRESET_ID`. */
+  presetName: string;
+  /** Display label — user preset name (verbatim) or the translated "untitled" chrome. */
+  presetLabel: Label;
+  count: number;
+};
 
 /**
  * Preset usage share for Overview weight chart. `weight` is the relative share
@@ -218,12 +232,24 @@ export type PresetBreakdownRow = { presetName: string; count: number };
  */
 export type PresetWeightRow = PresetBreakdownRow & { weight: number };
 
-/** Untitled/legacy bucket label for entries with no presetName (HITL #4). */
-export const UNTITLED_PRESET_LABEL = "Other";
+/**
+ * Identity/grouping-key sentinel for entries with no presetName (HITL #4).
+ * Locale-free by design — display goes through `presetLabel`
+ * (`messageLabel("overview.preset.untitled")`), never this string. Was
+ * `UNTITLED_PRESET_LABEL = "Other"` before Chunk 8.
+ */
+export const UNTITLED_PRESET_ID = "__untitled__";
+
+/** Display label for a preset grouping key: real names are user data (verbatim); the sentinel is UI chrome (translated). */
+const presetLabelFor = (presetName: string): Label =>
+  presetName === UNTITLED_PRESET_ID
+    ? messageLabel("overview.preset.untitled")
+    : textLabel(presetName);
 
 /**
  * Count by presetName, sorted desc by count. Entries without a presetName are
- * grouped under "Other" (visible + honest). Ties keep first-seen order.
+ * grouped under the untitled sentinel (visible + honest). Ties keep
+ * first-seen order.
  */
 export const perPresetBreakdown = (
   entries: HistoryEntry[]
@@ -233,11 +259,15 @@ export const perPresetBreakdown = (
     const name =
       e.presetName && e.presetName.trim().length > 0
         ? e.presetName
-        : UNTITLED_PRESET_LABEL;
+        : UNTITLED_PRESET_ID;
     counts.set(name, (counts.get(name) ?? 0) + 1);
   }
   return [...counts.entries()]
-    .map(([presetName, count]) => ({ presetName, count }))
+    .map(([presetName, count]) => ({
+      presetName,
+      presetLabel: presetLabelFor(presetName),
+      count,
+    }))
     .sort((a, b) => b.count - a.count);
 };
 
@@ -255,6 +285,7 @@ export const perPresetWeights = (
   }
   return rows.map((row) => ({
     presetName: row.presetName,
+    presetLabel: row.presetLabel,
     count: row.count,
     weight: row.count / total,
   }));
@@ -262,6 +293,8 @@ export const perPresetWeights = (
 
 export type PresetTimeSeriesRow = {
   presetName: string;
+  /** Display label — user preset name (verbatim) or the translated "untitled" chrome. */
+  presetLabel: Label;
   /** Dense per-day counts aligned to `PresetCountsOverTime.days`. */
   counts: number[];
 };
@@ -304,7 +337,7 @@ export const presetCountsOverTime = (
     const name =
       entry.presetName && entry.presetName.trim().length > 0
         ? entry.presetName
-        : UNTITLED_PRESET_LABEL;
+        : UNTITLED_PRESET_ID;
     let presetIdx = presetIndex.get(name);
     if (presetIdx === undefined) {
       presetIdx = presetNames.length;
@@ -317,6 +350,7 @@ export const presetCountsOverTime = (
 
   const series = presetNames.map((presetName, index) => ({
     presetName,
+    presetLabel: presetLabelFor(presetName),
     counts: countsByPreset[index],
   }));
   const totalsByDay = days.map((_, dayIdx) =>
@@ -505,23 +539,27 @@ export const BENCHMARK_TOKENS = 100_000;
 
 /**
  * Short, honest comparison of the range's token usage against a fixed reference
- * budget. Never fabricates precision — rounds to whole percent.
+ * budget. Never fabricates precision — rounds to whole percent. Returns a
+ * locale-free descriptor; the renderer resolves it via `tm()`.
  */
-export const benchmarkSentence = (
+export const benchmarkMessage = (
   tokens: number,
   benchmark: number = BENCHMARK_TOKENS
-): string => {
+): Message => {
   if (tokens <= 0) {
-    return "No token usage in this range yet.";
+    return msg("overview.benchmark.empty");
   }
   const pct = Math.round((tokens / benchmark) * 100);
-  const ref = `${(benchmark / 1000).toLocaleString()}k-token reference budget`;
+  const budgetK = benchmark / 1000;
   if (pct >= 100) {
-    return `You've used ${tokens.toLocaleString()} tokens — ${pct}% of the ${ref}.`;
+    return msg("overview.benchmark.overBudget", { tokens, pct, budgetK });
   }
-  return `You've used ${tokens.toLocaleString()} tokens — ${pct}% of the ${ref}, ${
-    100 - pct
-  }% headroom left.`;
+  return msg("overview.benchmark.withHeadroom", {
+    tokens,
+    pct,
+    budgetK,
+    headroom: 100 - pct,
+  });
 };
 
 /**
@@ -575,7 +613,8 @@ export type TokenActivityCalendarCell =
   | TokenActivityCalendarDayCell;
 
 export type TokenActivityCalendarMonthLabel = {
-  label: string;
+  /** `charts.month.*` translation key — the renderer resolves it via `t()`. */
+  key: MessageKey;
   column: number;
 };
 
@@ -595,19 +634,20 @@ type TokenActivityStats = {
   correctionCount: number;
 };
 
-const MONTH_SHORT = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
+/** `charts.month.*` keys indexed by `Date#getMonth()` — a plain array index, exactly like `MONTH_SHORT` before Chunk 8. */
+const MONTH_KEYS: readonly MessageKey[] = [
+  "charts.month.jan",
+  "charts.month.feb",
+  "charts.month.mar",
+  "charts.month.apr",
+  "charts.month.may",
+  "charts.month.jun",
+  "charts.month.jul",
+  "charts.month.aug",
+  "charts.month.sep",
+  "charts.month.oct",
+  "charts.month.nov",
+  "charts.month.dec",
 ] as const;
 
 const startOfLocalDay = (d: Date): Date => {
@@ -785,7 +825,7 @@ export const tokenActivityCalendar = (
 
     if (date.getDate() === 1 && date.getMonth() !== lastLabeledMonth) {
       monthLabels.push({
-        label: MONTH_SHORT[date.getMonth()],
+        key: MONTH_KEYS[date.getMonth()],
         column,
       });
       lastLabeledMonth = date.getMonth();

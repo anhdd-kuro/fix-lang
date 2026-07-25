@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { useI18n } from "../i18n/useI18n";
 
 type DialogProps = {
   isOpen: boolean;
@@ -13,6 +14,7 @@ export const Dialog: React.FC<DialogProps> = ({
   title,
   children,
 }) => {
+  const { t } = useI18n();
   const dialogRef = useRef<HTMLDivElement>(null);
 
   // Handle click outside to close
@@ -60,8 +62,8 @@ export const Dialog: React.FC<DialogProps> = ({
             type="button"
             className="text-muted-foreground hover:text-foreground"
             onClick={onClose}
-            aria-label="Close"
-            title="Close"
+            aria-label={t("common.close")}
+            title={t("common.close")}
           >
             <svg
               className="w-5 h-5"

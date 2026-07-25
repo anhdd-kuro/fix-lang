@@ -7,6 +7,7 @@ import {
   DEFAULT_PROMPT_GEN_PROMPT,
   DEFAULT_PROMPT_GEN_IMAGE_PROMPT,
 } from "../../prompts";
+import { useI18n } from "../i18n/useI18n";
 
 const defaultSettings = {
   minLength: 50,
@@ -19,6 +20,7 @@ const defaultSettings = {
 };
 
 export const SettingPromptGen: React.FC = () => {
+  const { t } = useI18n();
   const [isLoading, setIsLoading] = useState(true);
   const [promptGenSettings, setPromptGenSettings] = useState<{
     minLength: number;
@@ -91,14 +93,14 @@ export const SettingPromptGen: React.FC = () => {
         await window.electronAPI.setPromptGenSettings(defaultSettings);
 
       if (result.success) {
-        setStatus("Reset to defaults!");
+        setStatus(t("settings.promptGen.resetDone"));
         setTimeout(() => setStatus(""), 2000);
       } else {
-        setStatus("Error resetting");
+        setStatus(t("settings.promptGen.resetError"));
       }
     } catch (err) {
       console.error("Failed to reset PromptGen settings:", err);
-      setStatus("Error resetting");
+      setStatus(t("settings.promptGen.resetError"));
     }
   };
 
@@ -110,7 +112,7 @@ export const SettingPromptGen: React.FC = () => {
       promptGenSettings.batchCount === null ||
       promptGenSettings.nsfw === null
     ) {
-      setStatus("Error: Settings not loaded");
+      setStatus(t("settings.general.error", { message: t("settings.promptGen.notLoaded") }));
       return;
     }
 
@@ -118,21 +120,21 @@ export const SettingPromptGen: React.FC = () => {
       const result =
         await window.electronAPI.setPromptGenSettings(promptGenSettings);
       if (result.success) {
-        setStatus("Saved!");
+        setStatus(t("settings.promptGen.saved"));
         setTimeout(() => setStatus(""), 2000);
       } else {
-        setStatus("Error saving settings");
+        setStatus(t("settings.promptGen.saveError"));
       }
     } catch (err) {
       console.error("Failed to save PromptGen settings:", err);
-      setStatus("Error saving settings");
+      setStatus(t("settings.promptGen.saveError"));
     }
   };
 
   if (isLoading) {
     return (
       <div className="flex justify-center items-center p-8 text-card-foreground">
-        Loading settings...
+        {t("settings.promptGen.loading")}
       </div>
     );
   }
@@ -146,7 +148,7 @@ export const SettingPromptGen: React.FC = () => {
   ) {
     return (
       <div className="flex justify-center items-center p-8 text-card-foreground">
-        Failed to load settings
+        {t("settings.promptGen.failedToLoad")}
       </div>
     );
   }
@@ -169,14 +171,14 @@ export const SettingPromptGen: React.FC = () => {
               htmlFor="promptGen-min"
               className="block text-card-foreground text-sm"
             >
-              Min Length
+              {t("settings.promptGen.minLength")}
             </label>
             <input
               id="promptGen-min"
               type="number"
               name="minLength"
               required
-              aria-label="PromptGen minimum length"
+              aria-label={t("settings.promptGen.minLengthAria")}
               value={promptGenSettings.minLength}
               onChange={(e) =>
                 setPromptGenSettings({
@@ -185,7 +187,7 @@ export const SettingPromptGen: React.FC = () => {
                 })
               }
               className="w-full p-1 bg-secondary border border-border rounded text-foreground"
-              placeholder="Min"
+              placeholder={t("settings.promptGen.minPlaceholder")}
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -193,14 +195,14 @@ export const SettingPromptGen: React.FC = () => {
               htmlFor="promptGen-max"
               className="block text-card-foreground text-sm"
             >
-              Max Length
+              {t("settings.promptGen.maxLength")}
             </label>
             <input
               id="promptGen-max"
               type="number"
               name="maxLength"
               required
-              aria-label="PromptGen maximum length"
+              aria-label={t("settings.promptGen.maxLengthAria")}
               value={promptGenSettings.maxLength}
               onChange={(e) =>
                 setPromptGenSettings({
@@ -209,17 +211,17 @@ export const SettingPromptGen: React.FC = () => {
                 })
               }
               className="w-full p-1 bg-secondary border border-border rounded text-foreground"
-              placeholder="Max"
+              placeholder={t("settings.promptGen.maxPlaceholder")}
             />
           </div>
           <div className="flex flex-col gap-2">
             <label
               htmlFor="promptGen-batch"
               className="block text-card-foreground text-sm cursor-help"
-              aria-label="Number of prompts to generate"
-              title="Number of prompts to generate"
+              aria-label={t("settings.promptGen.batchCountHint")}
+              title={t("settings.promptGen.batchCountHint")}
             >
-              Batch Count
+              {t("settings.promptGen.batchCount")}
             </label>
             <input
               id="promptGen-batch"
@@ -234,7 +236,7 @@ export const SettingPromptGen: React.FC = () => {
                 })
               }
               className="w-20 p-1 bg-secondary border border-border rounded text-foreground"
-              placeholder="Count"
+              placeholder={t("settings.promptGen.countPlaceholder")}
               min="1"
             />
           </div>
@@ -247,15 +249,15 @@ export const SettingPromptGen: React.FC = () => {
             htmlFor="promptGen-context"
             className="block text-card-foreground text-sm"
           >
-            Custom Context
+            {t("settings.promptGen.customContext")}
             <span className="text-xs text-muted-foreground ml-2">
-              (Override default system prompt with your own)
+              {t("settings.promptGen.customContextHint")}
             </span>
           </label>
           <div className="flex flex-col gap-2 mb-2">
             {/* Text prompt template row */}
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Default Text Prompt Template</span>
+              <span>{t("settings.promptGen.textTemplateLabel")}</span>
               <Tooltip tooltipText={DEFAULT_PROMPT_GEN_PROMPT} />
               <button
                 type="button"
@@ -266,15 +268,15 @@ export const SettingPromptGen: React.FC = () => {
                     context: DEFAULT_PROMPT_GEN_PROMPT.trim(),
                   })
                 }
-                title="Use default text prompt template"
+                title={t("settings.promptGen.useDefaultTextTemplateTitle")}
               >
-                Use as Template
+                {t("settings.promptGen.useAsTemplate")}
               </button>
             </div>
 
             {/* Image prompt template row */}
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Image Prompt Template</span>
+              <span>{t("settings.promptGen.imageTemplateLabel")}</span>
               <Tooltip tooltipText={DEFAULT_PROMPT_GEN_IMAGE_PROMPT} />
               <button
                 type="button"
@@ -285,16 +287,16 @@ export const SettingPromptGen: React.FC = () => {
                     context: DEFAULT_PROMPT_GEN_IMAGE_PROMPT.trim(),
                   })
                 }
-                title="Use image prompt template"
+                title={t("settings.promptGen.useImageTemplateTitle")}
               >
-                Use as Template
+                {t("settings.promptGen.useAsTemplate")}
               </button>
             </div>
           </div>
           <textarea
             id="promptGen-context"
             name="context"
-            aria-label="Custom context for prompt generation"
+            aria-label={t("settings.promptGen.customContextAria")}
             value={promptGenSettings.context}
             onChange={(e) =>
               setPromptGenSettings({
@@ -303,7 +305,7 @@ export const SettingPromptGen: React.FC = () => {
               })
             }
             className="w-full p-2 bg-secondary border border-border rounded text-foreground min-h-20 text-sm"
-            placeholder="Leave empty to use default, or enter your own system prompt"
+            placeholder={t("settings.promptGen.customContextPlaceholder")}
             rows={4}
           />
         </div>
@@ -322,7 +324,7 @@ export const SettingPromptGen: React.FC = () => {
               }
               className="form-checkbox h-4 w-4 text-primary"
             />
-            <span className="ml-2">Allow NSFW</span>
+            <span className="ml-2">{t("settings.promptGen.allowNsfw")}</span>
           </label>
 
           <label className="inline-flex items-center text-card-foreground">
@@ -338,9 +340,9 @@ export const SettingPromptGen: React.FC = () => {
               }
               className="form-checkbox h-4 w-4 text-primary"
             />
-            <span className="ml-2">Auto-copy to clipboard</span>
+            <span className="ml-2">{t("settings.promptGen.autoCopy")}</span>
             <span className="ml-2 text-xs text-muted-foreground">
-              (Copies all prompts automatically when generated)
+              {t("settings.promptGen.autoCopyHint")}
             </span>
           </label>
         </div>
@@ -349,11 +351,11 @@ export const SettingPromptGen: React.FC = () => {
       {/* Prompt Generator Shortcut — co-located per issue #45 */}
       <fieldset className="flex flex-col gap-3 mt-6 rounded-lg border border-border bg-card/60 p-4">
         <legend className="text-sm font-semibold text-card-foreground px-1">
-          Prompt Generator Shortcut
+          {t("settings.promptGen.shortcutLegend")}
         </legend>
         <HotkeyInput
           hotkeyKey="promptGen"
-          label="Shortcut to open Prompt Generator"
+          label={t("settings.promptGen.shortcutLabel")}
         />
       </fieldset>
 
@@ -362,14 +364,14 @@ export const SettingPromptGen: React.FC = () => {
           type="submit"
           className="px-3 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
         >
-          {status || "Save"}
+          {status || t("common.save")}
         </button>
         <button
           type="button"
           onClick={handleReset}
           className="px-3 py-2 bg-secondary text-secondary-foreground rounded hover:bg-secondary"
         >
-          Reset to Default
+          {t("settings.promptGen.resetButton")}
         </button>
       </div>
     </form>

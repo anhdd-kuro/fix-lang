@@ -7,6 +7,7 @@
  */
 import React, { useState, useEffect } from "react";
 import { validateHotkeys } from "./validateHotkeys";
+import { useI18n } from "../i18n/useI18n";
 import type { KeyBindings } from "~/stores/apiStore";
 
 type HotkeyKey = keyof KeyBindings; // "promptGen" | "profileSwitch"
@@ -30,10 +31,16 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
   hotkeyKey,
   label,
 }) => {
+  const { t } = useI18n();
   const [keyBindings, setKeyBindings] = useState<KeyBindings | null>(null);
   const [pendingCombo, setPendingCombo] = useState<string>("");
   const [fieldError, setFieldError] = useState<string>("");
   const [status, setStatus] = useState<string>("");
+  // Separate from `status` text so styling never depends on matching an
+  // English prefix — `status` itself is always already localized.
+  const [statusKind, setStatusKind] = useState<"idle" | "error" | "applying" | "success">(
+    "idle",
+  );
 
   useEffect(() => {
     window.electronAPI
@@ -44,7 +51,8 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
       })
       .catch((err) => {
         console.error("HotkeyInput: failed to load key bindings", err);
-        setStatus("Error loading keybindings");
+        setStatusKind("error");
+        setStatus(t("settings.hotkeys.loadError"));
       });
 
     // Safety net: if the widget unmounts while the field is still focused
@@ -52,7 +60,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
     return () => {
       window.electronAPI?.resumeHotkeys();
     };
-  }, [hotkeyKey]);
+  }, [hotkeyKey, t]);
 
   // Pause global hotkeys only while the field is focused for capture — not for
   // the whole lifetime of the settings tab. Resume as soon as focus leaves.
@@ -79,7 +87,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
     const newCombo = parts.join("+");
 
     if (!parts.some((p) => !modifierOnly.includes(p))) {
-      setFieldError("Include a non-modifier key");
+      setFieldError(t("settings.hotkeys.needsKey"));
       return;
     }
 
@@ -90,7 +98,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
       );
       const sibling = siblingKeys.find((k) => keyBindings[k] === newCombo);
       if (sibling) {
-        setFieldError(`Duplicate with ${sibling}`);
+        setFieldError(t("settings.hotkeys.duplicateWith", { sibling }));
         return;
       }
     }
@@ -101,7 +109,8 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
 
   const handleApply = async (): Promise<void> => {
     if (fieldError) {
-      setStatus(`Error: ${fieldError}`);
+      setStatusKind("error");
+      setStatus(t("settings.general.error", { message: fieldError }));
       return;
     }
     if (!keyBindings || !pendingCombo) return;
@@ -113,24 +122,38 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
     const correctionSettings = await window.electronAPI.getCorrectSettings();
     const conflict = validateHotkeys(correctionSettings.presets, updated);
     if (conflict) {
+      setStatusKind("error");
       setStatus(
-        `Error: "${conflict.hotkey}" conflicts with correction preset "${conflict.presetOrKey}".`,
+        t("settings.general.error", {
+          message: t("settings.hotkeys.conflict", {
+            hotkey: conflict.hotkey,
+            presetOrKey: conflict.presetOrKey,
+          }),
+        }),
       );
       return;
     }
 
-    setStatus("Applying...");
+    setStatusKind("applying");
+    setStatus(t("settings.hotkeys.applying"));
     await window.electronAPI.pauseHotkeys();
     try {
       const result = await window.electronAPI.setKeyBindings(updated);
       if (result.success) {
         setKeyBindings(updated);
-        setStatus("Applied! Shortcut updated.");
+        setStatusKind("success");
+        setStatus(t("settings.hotkeys.applied"));
       } else {
-        setStatus(`Error: ${result.error ?? "Unknown"}`);
+        setStatusKind("error");
+        setStatus(
+          t("settings.general.error", {
+            message: result.error ?? t("settings.hotkeys.applyErrorUnknown"),
+          }),
+        );
       }
     } catch {
-      setStatus("Error applying keybinding");
+      setStatusKind("error");
+      setStatus(t("settings.hotkeys.applyError"));
     } finally {
       await window.electronAPI.resumeHotkeys();
     }
@@ -153,8 +176,8 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
           onFocus={handleFocus}
           onBlur={handleBlur}
           readOnly
-          placeholder="Press shortcut…"
-          aria-label={`Hotkey for ${hotkeyKey}`}
+          placeholder={t("settings.hotkeys.pressShortcut")}
+          aria-label={t("settings.hotkeys.ariaLabel", { hotkeyKey })}
           className={`flex-1 rounded px-2 py-1 bg-secondary text-secondary-foreground ${
             fieldError ? "border border-destructive" : "border border-border"
           }`}
@@ -165,7 +188,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
           disabled={!pendingCombo || !!fieldError}
           className="px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Apply
+          {t("settings.hotkeys.applyButton")}
         </button>
       </div>
       {fieldError && (
@@ -177,9 +200,9 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
         <p
           role="status"
           className={`text-xs ${
-            status.startsWith("Error")
+            statusKind === "error"
               ? "text-destructive"
-              : status.startsWith("Applying")
+              : statusKind === "applying"
                 ? "text-warning"
                 : "text-success"
           }`}

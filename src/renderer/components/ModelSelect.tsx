@@ -1,4 +1,3 @@
-import { format } from "date-fns";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Select from "react-select";
 import { twJoin } from "tailwind-merge";
@@ -7,7 +6,10 @@ import {
   normalizeForSearch,
   resolveDefaultOpenAIModel,
 } from "~/const";
+import { buildModelOptionLabel } from "./modelOptionLabel";
 import SettingsButton from "./SettingsIcon";
+import { useI18n } from "../i18n/useI18n";
+import type { TranslationKey } from "~/shared/i18n/keys";
 import type { Model, ProviderId } from "~/stores/apiStore";
 
 // Define the extended option type for the select component
@@ -18,10 +20,13 @@ type ModelSelectOption = {
   modelSize?: number;
 };
 
-const PROVIDER_BADGE_LABELS: Record<ProviderId, string> = {
-  openai: "OpenAI",
-  openrouter: "OpenRouter",
-  ollama: "Ollama",
+/** Provider brand names are proper nouns (unchanged across locales) but are
+ * still routed through `t()`, matching the reference conversion in
+ * `SettingGeneral.tsx`. */
+const PROVIDER_LABEL_KEYS: Record<ProviderId, TranslationKey> = {
+  openai: "models.select.provider.openai",
+  openrouter: "models.select.provider.openrouter",
+  ollama: "models.select.provider.ollama",
 };
 
 /**
@@ -54,6 +59,7 @@ export const ModelSelect: React.FC<{
   compact = false,
   menuMaxHeight,
 }) => {
+  const { t, formatCurrency, dateFnsLocale } = useI18n();
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [activeProvider, setActiveProvider] = useState<ProviderId | null>(null);
@@ -87,7 +93,7 @@ export const ModelSelect: React.FC<{
     setModelsError("");
     try {
       if (!window.electronAPI?.fetchAIModels) {
-        setModelsError("electronAPI.fetchAIModels not available");
+        setModelsError(t("models.select.error.apiUnavailable"));
         setModelsLoading(false);
         return;
       }
@@ -95,14 +101,14 @@ export const ModelSelect: React.FC<{
       if (result.success && result.models) {
         setModels(result.models);
       } else {
-        setModelsError(result.error || "Failed to fetch models");
+        setModelsError(result.error || t("models.select.error.fetchFailed"));
       }
     } catch (err) {
-      setModelsError(err instanceof Error ? err.message : "Unknown error");
+      setModelsError(err instanceof Error ? err.message : t("models.select.error.unknown"));
     } finally {
       setModelsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const loadActiveProvider = useCallback(async () => {
     try {
@@ -122,14 +128,12 @@ export const ModelSelect: React.FC<{
         if (featureModel) {
           setSelectedModel(featureModel);
           setSavedFeatureModel(featureModel);
-          console.log(`Loaded feature model for ${featureId}: ${featureModel}`);
         }
       } else if (window.electronAPI?.getSelectedModel) {
         // Otherwise get the default model
         const defaultModel = await window.electronAPI.getSelectedModel();
         if (defaultModel) {
           setSelectedModel(defaultModel);
-          console.log(`Loaded default model: ${defaultModel}`);
         }
       }
     } catch (err) {
@@ -154,14 +158,10 @@ export const ModelSelect: React.FC<{
         // If this is a feature-specific model selector, save to that feature
         if (saveOnChange) {
           await window.electronAPI.setFeatureModel(featureId, value);
-          console.log(
-            `Feature-specific model for ${featureId} set to: ${value}`,
-          );
         }
       } else if (window.electronAPI?.setSelectedModel) {
         // Otherwise save as the default model
         await window.electronAPI.setSelectedModel(value);
-        console.log(`Default model set to: ${value}`);
       }
     } catch (err) {
       console.error("ModelSelect: Failed to persist model setting", err);
@@ -229,55 +229,28 @@ export const ModelSelect: React.FC<{
   const modelOptions = useMemo<ModelSelectOption[]>(
     () =>
       models.map((model) => {
-        // Handle both Unix seconds and milliseconds timestamps
-        const normalizeTimestamp = (timestamp: number) => {
-          // Check if this is likely seconds (10 digits) vs milliseconds (13 digits)
-          // Unix timestamps in seconds typically have 10 digits (until around year 2286)
-          const isLikelySeconds = Math.floor(Math.log10(timestamp) + 1) <= 10;
-          return isLikelySeconds ? timestamp * 1000 : timestamp;
-        };
-        const createdAt = format(
-          new Date(normalizeTimestamp(model.created)),
-          "yyyy-MM-dd",
-        );
-        const modelId = model.id;
-
-        // Check if this is a local model
         const isLocalModel = model.local !== undefined;
         if (!showAdditionalInfo) {
           return {
-            value: modelId,
+            value: model.id,
             isLocal: isLocalModel,
-            label: modelId,
+            label: model.id,
             modelSize: model.local?.size,
           };
         }
 
-        let label: string;
-
-        if (isLocalModel) {
-          // Format for local models - show size if available
-          const modelSize = model.local?.size ? `${model.local.size}B` : "";
-          label = `${modelId}, ${createdAt}, ${modelSize || "Local LLM"}`;
-        } else {
-          // Format for cloud models - show pricing
-          const pricingPerMillionToken = (
-            +(model.pricing?.prompt || 0) * 1_000_000
-          ).toLocaleString("en-US", {
-            style: "currency",
-            currency: "USD",
-            minimumFractionDigits: 2,
-          });
-          label = `${modelId}, ${createdAt}, ${pricingPerMillionToken} / 1M tokens`;
-        }
         return {
           value: model.id,
-          label,
+          label: buildModelOptionLabel(model, { t, formatCurrency, dateFnsLocale }),
           isLocal: isLocalModel,
           modelSize: model.local?.size,
         };
       }),
-    [models, showAdditionalInfo],
+    // `t`, `formatCurrency`, and `dateFnsLocale` are all recreated when the
+    // interface locale changes (see `useI18n`/`I18nProvider`) — omitting them
+    // here would leave already-fetched option labels in the old language
+    // after a locale switch.
+    [models, showAdditionalInfo, t, formatCurrency, dateFnsLocale],
   );
 
   return (
@@ -287,13 +260,13 @@ export const ModelSelect: React.FC<{
         htmlFor="model-select"
         className="mb-1 flex items-center gap-2 text-sm font-medium text-card-foreground"
       >
-        AI Model
+        {t("models.select.label")}
         {activeProvider && (
           <span
             className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-secondary-foreground"
-            title="Active provider"
+            title={t("models.select.activeProviderTitle")}
           >
-            {PROVIDER_BADGE_LABELS[activeProvider]}
+            {t(PROVIDER_LABEL_KEYS[activeProvider])}
           </span>
         )}
       </label>
@@ -303,7 +276,7 @@ export const ModelSelect: React.FC<{
           id="model-select"
           inputId="model-input"
           className="w-full"
-          aria-label="Select AI Model"
+          aria-label={t("models.select.ariaLabel")}
           value={
             models.length > 0 && selectedModel
               ? modelOptions.find((option) => option.value === selectedModel) ||
@@ -323,8 +296,8 @@ export const ModelSelect: React.FC<{
             return haystack.includes(query);
           }}
           isDisabled={modelsLoading || !!modelsError}
-          placeholder={modelsLoading ? "Loading models..." : "Select model"}
-          noOptionsMessage={() => "No models found"}
+          placeholder={modelsLoading ? t("models.select.loading") : t("models.select.placeholder")}
+          noOptionsMessage={() => t("models.select.noOptions")}
           menuPortalTarget={menuPortal ? document.body : undefined}
           menuPosition={menuPortal ? "fixed" : "absolute"}
           menuShouldScrollIntoView={false}
@@ -429,7 +402,7 @@ export const ModelSelect: React.FC<{
                         <>
                           <span
                             className="inline-block w-2 h-2 rounded-full bg-success mr-1"
-                            title="Local model"
+                            title={t("models.select.localModelTitle")}
                           />
                           {thirdPart}
                         </>
@@ -445,8 +418,8 @@ export const ModelSelect: React.FC<{
         />
         <button
           type="button"
-          aria-label="Refetch models"
-          title="Refetch models"
+          aria-label={t("models.select.refetch")}
+          title={t("models.select.refetch")}
           className="px-2 py-1 bg-primary text-primary-foreground rounded hover:bg-primary focus:outline-none focus:ring-2 focus:ring-ring"
           onClick={() => fetchModels(true)}
           disabled={modelsLoading}
@@ -457,13 +430,13 @@ export const ModelSelect: React.FC<{
         {/* Add button to manage local models if any exist */}
         {models.find((model) => model.local !== undefined) && (
           <SettingsButton
-            title="Manage local models"
+            title={t("models.select.manageLocal")}
             iconClassName="stroke-success"
             onClick={() => {
               if (window.electronAPI?.openModelManager) {
                 window.electronAPI.openModelManager();
               } else {
-                alert("Model management is not available yet");
+                alert(t("models.select.managerUnavailable"));
               }
             }}
           />
@@ -473,8 +446,8 @@ export const ModelSelect: React.FC<{
         {useFeatureModel && featureId && (
           <button
             type="button"
-            aria-label="Reset to default model"
-            title="Reset to default model"
+            aria-label={t("models.select.resetToDefault")}
+            title={t("models.select.resetToDefault")}
             className="px-2 py-1 bg-secondary text-secondary-foreground rounded hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring"
             onClick={async () => {
               if (window.electronAPI?.setFeatureModel) {
@@ -486,7 +459,6 @@ export const ModelSelect: React.FC<{
                   const defaultModel =
                     await window.electronAPI.getSelectedModel();
                   setSelectedModel(defaultModel || DEFAULT_OPENAI_MODEL);
-                  console.log(`Reset ${featureId} to use default model`);
 
                   // Notify parent of change
                   if (onChange) onChange(defaultModel || DEFAULT_OPENAI_MODEL);
@@ -497,7 +469,7 @@ export const ModelSelect: React.FC<{
             }}
             disabled={!savedFeatureModel} // Only enable if a feature-specific model is set
           >
-            Reset
+            {t("models.select.resetButton")}
           </button>
         )}
       </div>
@@ -509,8 +481,8 @@ export const ModelSelect: React.FC<{
       {!compact && (
       <p className="text-xs text-muted-foreground mt-1">
         {useFeatureModel
-          ? "Feature-specific model that overrides the default. Leave unchanged to use the default model."
-          : "Default model used for all requests to the active provider, unless overridden by feature settings."}
+          ? t("models.select.description.feature")
+          : t("models.select.description.default")}
       </p>
       )}
     </div>

@@ -1,1 +1,16 @@
-{}
+{
+  "history.cost.na": "N/A",
+  "history.cost.tooltip": "Estimated cost at time of correction",
+  "history.panel.filterAll": "All",
+  "history.panel.searchPlaceholder": "Search history...",
+  "history.reviewModal.closeAriaLabel": "Close review modal",
+  "history.reviewModal.copyCorrected": "Copy corrected",
+  "history.reviewModal.copyOriginal": "Copy original",
+  "history.reviewModal.correctedHeading": "Corrected",
+  "history.reviewModal.correctedTextArea": "Corrected text",
+  "history.reviewModal.costLabel": "Cost: {cost}",
+  "history.reviewModal.modelLabel": "Model: {modelId}",
+  "history.reviewModal.originalHeading": "Original",
+  "history.reviewModal.originalTextArea": "Original text",
+  "history.reviewModal.title": "Last Correction"
+}

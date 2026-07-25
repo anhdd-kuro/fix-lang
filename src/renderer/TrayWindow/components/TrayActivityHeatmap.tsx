@@ -5,14 +5,13 @@ import {
   heatmapCellClass,
   heatmapRatioClass,
 } from "../../components/heatmapIntensity";
+import { useI18n } from "../../i18n/useI18n";
 import {
   HOUR_BLOCKS,
   HOURS_PER_BLOCK,
   sevenDayHourBlockHeatmap,
 } from "../../MainWindow/overviewAggregations";
 import type { HistoryEntry } from "~/stores/historyTypes";
-
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const blockHourLabel = (blockIndex: number): string => {
   const start = blockIndex * HOURS_PER_BLOCK;
@@ -27,6 +26,8 @@ type TrayActivityHeatmapProps = {
 export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
   entries,
 }) => {
+  const { t, dateFnsLocale } = useI18n();
+
   const heatmap = useMemo(
     () => sevenDayHourBlockHeatmap(entries, new Date()),
     [entries]
@@ -37,11 +38,11 @@ export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
   return (
     <div className="rounded-lg border border-border bg-card px-3 py-2">
       <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
-        7-day activity
+        {t("tray.heatmap.title")}
       </div>
 
       {!hasActivity ? (
-        <p className="text-sm text-muted-foreground">No activity yet</p>
+        <p className="text-sm text-muted-foreground">{t("tray.heatmap.empty")}</p>
       ) : (
         <div className="flex flex-col gap-1">
           <div
@@ -55,8 +56,12 @@ export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
               heatmap.days.map((dayKey, dayIndex) => {
                 const count = heatmap.cells[dayIndex][blockIndex];
                 const dayDate = parseISO(`${dayKey}T12:00:00`);
-                const weekday = WEEKDAY_LABELS[dayDate.getDay()];
-                const tooltip = `${weekday} ${blockHourLabel(blockIndex)}: ${count} correction${count === 1 ? "" : "s"}`;
+                const weekday = format(dayDate, "EEE", { locale: dateFnsLocale });
+                const tooltip = t("tray.heatmap.tooltip", {
+                  weekday,
+                  hours: blockHourLabel(blockIndex),
+                  count,
+                });
 
                 return (
                   <div
@@ -81,7 +86,7 @@ export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
             {heatmap.days.map((dayKey) => {
               const dayDate = parseISO(`${dayKey}T12:00:00`);
               return (
-                <span key={dayKey}>{format(dayDate, "EEE")}</span>
+                <span key={dayKey}>{format(dayDate, "EEE", { locale: dateFnsLocale })}</span>
               );
             })}
           </div>

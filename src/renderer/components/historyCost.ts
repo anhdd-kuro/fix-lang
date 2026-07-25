@@ -6,46 +6,84 @@
  *
  * Honesty rules (must match cost.ts):
  * - status "zero" (Ollama/local) → "$0.00" (NOT "N/A").
- * - status "na" / absent / null cost → "N/A" (NOT "$0").
+ * - status "na" / absent / null cost → the translated "history.cost.na" key
+ *   (NOT "$0").
  * - status "ok" → USD, with enough precision that tiny sub-cent costs do not
  *   collapse to "$0.00".
+ *
+ * i18n split: `resolveCostDisplay` is pure data (no locale dependency) so it
+ * stays trivially testable; `formatCostLabel` renders it through the
+ * caller-supplied translator + `formatNumber` so currency grouping/decimal
+ * conventions follow the active locale.
  */
+import type { Formatters } from "~/shared/i18n/format";
+import type { Translator } from "~/shared/i18n/translate";
 import type { HistoryEntry } from "~/stores/historyStore";
 
-/**
- * Format a USD amount. Cents and above use 2 decimals ("$1.23"); sub-cent
- * amounts widen precision (up to 6 decimals) so they don't round to "$0.00".
- */
-const formatUsd = (amount: number): string => {
-  if (amount === 0) {
-    return "$0.00";
-  }
-  // Below one cent: show up to 6 significant decimals, trimming trailing zeros.
-  if (amount > 0 && amount < 0.01) {
-    const trimmed = amount.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
-    return `$${trimmed}`;
-  }
-  return `$${amount.toFixed(2)}`;
-};
+/** Intent for rendering a history entry's cost — not yet a formatted string. */
+export type CostDisplay =
+  | { kind: "na" }
+  | {
+      kind: "amount";
+      valueUsd: number;
+      minimumFractionDigits: number;
+      maximumFractionDigits: number;
+    };
+
+const SUB_CENT_DISPLAY = {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 6,
+} as const;
+
+const STANDARD_DISPLAY = {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+} as const;
 
 /**
- * Build the cost label for a history entry.
- * @returns "$0.00" for a genuine zero (local), a USD string for a priced cost,
- *          or "N/A" when the cost could not be determined.
+ * Determines how a history entry's cost should be rendered, without
+ * formatting it — currency grouping/decimal conventions are locale-specific
+ * and belong in `formatCostLabel`/`useI18n().formatNumber`.
  */
-export const formatCost = (
+export const resolveCostDisplay = (
   entry: Pick<HistoryEntry, "costStatus" | "estimatedCostUsd">
-): string => {
+): CostDisplay => {
   if (entry.costStatus === "zero") {
-    return "$0.00";
+    return { kind: "amount", valueUsd: 0, ...STANDARD_DISPLAY };
   }
   if (
     entry.costStatus === "ok" &&
     entry.estimatedCostUsd !== undefined &&
     entry.estimatedCostUsd !== null
   ) {
-    return formatUsd(entry.estimatedCostUsd);
+    const amount = entry.estimatedCostUsd;
+    if (amount > 0 && amount < 0.01) {
+      return { kind: "amount", valueUsd: amount, ...SUB_CENT_DISPLAY };
+    }
+    return { kind: "amount", valueUsd: amount, ...STANDARD_DISPLAY };
   }
   // "na", undefined (legacy/migrated rows), or any inconsistent state → N/A.
-  return "N/A";
+  return { kind: "na" };
+};
+
+/**
+ * Renders `resolveCostDisplay`'s result as a locale-aware string. `t`/
+ * `formatNumber` come from `useI18n()` at the call site — this module has no
+ * React/electron dependency so it stays unit-testable without a provider.
+ */
+export const formatCostLabel = (
+  entry: Pick<HistoryEntry, "costStatus" | "estimatedCostUsd">,
+  t: Translator,
+  formatNumber: Formatters["formatNumber"]
+): string => {
+  const display = resolveCostDisplay(entry);
+  if (display.kind === "na") {
+    return t("history.cost.na");
+  }
+  return formatNumber(display.valueUsd, {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: display.minimumFractionDigits,
+    maximumFractionDigits: display.maximumFractionDigits,
+  });
 };

@@ -1,4 +1,11 @@
-/** Format USD amounts for OpenRouter credit display. */
+import type { Translator } from "~/shared/i18n/translate";
+
+/**
+ * Format USD amounts for OpenRouter credit display. OpenRouter always bills
+ * in USD regardless of interface locale, so this intentionally does not use
+ * `formatCurrency` (which would localize digit grouping but not the currency
+ * itself) — the fixed `$` prefix matches OpenRouter's own dashboard.
+ */
 export const formatOpenRouterUsd = (n: number): string =>
   n === 0
     ? "$0.00"
@@ -14,14 +21,15 @@ export type OpenRouterDegradedReason =
 
 /** Message for a degraded (non-ok) OpenRouter card result. */
 export const openRouterDegradedMessage = (
-  reason: OpenRouterDegradedReason
+  reason: OpenRouterDegradedReason,
+  t: Translator,
 ): string => {
   switch (reason) {
     case "unauthorized":
-      return "Unauthorized — check your provisioning key.";
+      return t("models.openrouter.degraded.unauthorized");
     case "no_key":
-      return "No provisioning key set.";
+      return t("models.openrouter.degraded.noKey");
     default:
-      return "Unavailable right now.";
+      return t("models.openrouter.degraded.unavailable");
   }
 };

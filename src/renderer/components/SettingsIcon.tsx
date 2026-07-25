@@ -1,5 +1,6 @@
 import React from "react";
 import { twJoin } from "tailwind-merge";
+import { useI18n } from "../i18n/useI18n";
 
 // ---------- SettingsButton Component ----------
 type SettingsButtonProps = {
@@ -17,21 +18,26 @@ export const SettingsButton: React.FC<SettingsButtonProps> = ({
   className = "",
   iconClassName = "size-6",
   onClick,
-  title = "Open settings",
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={twJoin(
-      "text-card-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring rounded-md cursor-pointer",
-      className
-    )}
-    aria-label={title}
-    title={title}
-  >
-    <GearIcon className={iconClassName} />
-  </button>
-);
+  title,
+}) => {
+  const { t } = useI18n();
+  const resolvedTitle = title ?? t("settings.icon.defaultTitle");
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={twJoin(
+        "text-card-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring rounded-md cursor-pointer",
+        className
+      )}
+      aria-label={resolvedTitle}
+      title={resolvedTitle}
+    >
+      <GearIcon className={iconClassName} />
+    </button>
+  );
+};
 
 export default SettingsButton;
 

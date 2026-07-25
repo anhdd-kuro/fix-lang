@@ -2,6 +2,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SettingUpdates } from "./SettingUpdates";
+import { I18nProvider } from "../i18n/I18nProvider";
 
 type UpdateState = {
   phase:
@@ -23,6 +24,11 @@ type UpdateApi = {
   openUpdateRelease: ReturnType<typeof vi.fn>;
   onUpdateStateChanged: ReturnType<typeof vi.fn>;
   openExternalLink: ReturnType<typeof vi.fn>;
+  // `SettingUpdates` renders inside `<I18nProvider>`, which reads these off
+  // `window.electronAPI` on mount (see `localeState.ts`'s `LocaleBridge`).
+  getLocale: ReturnType<typeof vi.fn>;
+  setLocale: ReturnType<typeof vi.fn>;
+  onLocaleChanged: ReturnType<typeof vi.fn>;
 };
 
 const readyState = (phase: UpdateState["phase"] = "idle"): UpdateState => ({
@@ -70,6 +76,9 @@ describe("SettingUpdates", () => {
         updateListener = listener;
         return unsubscribe;
       }),
+      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+      setLocale: vi.fn().mockResolvedValue({ success: true }),
+      onLocaleChanged: vi.fn().mockReturnValue(vi.fn()),
     };
     Object.defineProperty(window, "electronAPI", {
       configurable: true,
@@ -80,8 +89,13 @@ describe("SettingUpdates", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(createElement(SettingUpdates));
+      root.render(createElement(I18nProvider, null, createElement(SettingUpdates)));
     });
+    // `<I18nProvider>` resolves its initial locale via an async `getLocale()`
+    // call before rendering children (it renders null until "ready" — see
+    // `I18nProvider.tsx` — to avoid an EN -> JA flash), so this needs an extra
+    // tick beyond the single `waitForUi()` the update-state fetch itself uses.
+    await waitForUi();
     await waitForUi();
   };
 
@@ -242,8 +256,10 @@ describe("SettingUpdates", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(createElement(SettingUpdates));
+      root.render(createElement(I18nProvider, null, createElement(SettingUpdates)));
     });
+    await waitForUi();
+    await waitForUi();
 
     await act(async () => {
       updateListener?.({
@@ -276,8 +292,10 @@ describe("SettingUpdates", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(createElement(SettingUpdates));
+      root.render(createElement(I18nProvider, null, createElement(SettingUpdates)));
     });
+    await waitForUi();
+    await waitForUi();
 
     await act(async () => {
       updateListener?.({

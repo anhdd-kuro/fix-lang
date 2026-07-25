@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { twJoin } from "tailwind-merge";
 import { SettingsButton } from "../../components/SettingsIcon";
 import { Spinner } from "../../components/Spinner";
+import { useI18n } from "../../i18n/useI18n";
 
 type TrayIconButtonProps = {
   onClick: () => void;
@@ -104,16 +105,17 @@ const openDashboard = (): void => {
 };
 
 export const TrayToolbar: React.FC = () => {
+  const { t } = useI18n();
   const [checkingForUpdates, setCheckingForUpdates] = useState(false);
 
   const handleQuit = async (): Promise<void> => {
     const { response } = await window.electronAPI.showMessageBox({
       type: "question",
-      buttons: ["Cancel", "Quit"],
+      buttons: [t("common.cancel"), t("tray.toolbar.quitConfirm.confirmButton")],
       defaultId: 0,
       cancelId: 0,
-      message: "Quit FixLang?",
-      detail: "The application will close.",
+      message: t("tray.toolbar.quitConfirm.message"),
+      detail: t("tray.toolbar.quitConfirm.detail"),
     });
     if (response === 1) {
       window.electronAPI.quitApp();
@@ -133,21 +135,26 @@ export const TrayToolbar: React.FC = () => {
         case "up-to-date":
           await window.electronAPI.showMessageBox({
             type: "info",
-            buttons: ["OK"],
+            buttons: [t("common.ok")],
             defaultId: 0,
             cancelId: 0,
-            message: `FixLang is up to date (v${state.currentVersion}).`,
+            message: t("tray.toolbar.updateCheck.upToDate", {
+              version: state.currentVersion,
+            }),
           });
           break;
 
         case "available": {
-          const availableVersion = state.availableVersion ?? "unknown";
+          const availableVersion = state.availableVersion ?? t("common.unknown");
           const { response } = await window.electronAPI.showMessageBox({
             type: "info",
-            buttons: ["View release", "Close"],
+            buttons: [t("tray.toolbar.updateCheck.viewRelease"), t("common.close")],
             defaultId: 0,
             cancelId: 1,
-            message: `Update available: v${availableVersion} (installed v${state.currentVersion}).`,
+            message: t("tray.toolbar.updateCheck.available", {
+              availableVersion,
+              currentVersion: state.currentVersion,
+            }),
           });
           if (response === 0) {
             window.electronAPI.openUpdateRelease();
@@ -158,20 +165,22 @@ export const TrayToolbar: React.FC = () => {
         case "error":
           await window.electronAPI.showMessageBox({
             type: "error",
-            buttons: ["OK"],
+            buttons: [t("common.ok")],
             defaultId: 0,
             cancelId: 0,
-            message: `Update check failed. ${state.message ?? "Please try again later."}`,
+            message: t("tray.toolbar.updateCheck.failed", {
+              reason: state.message ?? t("tray.toolbar.updateCheck.genericFailure"),
+            }),
           });
           break;
 
         case "unsupported":
           await window.electronAPI.showMessageBox({
             type: "info",
-            buttons: ["OK"],
+            buttons: [t("common.ok")],
             defaultId: 0,
             cancelId: 0,
-            message: "Automatic update checks aren't available for this build.",
+            message: t("tray.toolbar.updateCheck.unsupported"),
           });
           break;
 
@@ -186,10 +195,12 @@ export const TrayToolbar: React.FC = () => {
       // rather than letting this become an unhandled rejection.
       await window.electronAPI.showMessageBox({
         type: "error",
-        buttons: ["OK"],
+        buttons: [t("common.ok")],
         defaultId: 0,
         cancelId: 0,
-        message: "Update check failed. Please try again later.",
+        message: t("tray.toolbar.updateCheck.failed", {
+          reason: t("tray.toolbar.updateCheck.genericFailure"),
+        }),
       });
     } finally {
       setCheckingForUpdates(false);
@@ -200,8 +211,8 @@ export const TrayToolbar: React.FC = () => {
     <div className="flex items-center justify-end gap-4 mb-3">
       <TrayIconButton
         onClick={openDashboard}
-        title="Open dashboard"
-        ariaLabel="Open dashboard"
+        title={t("tray.toolbar.openDashboard")}
+        ariaLabel={t("tray.toolbar.openDashboard")}
       >
         <DashboardIcon />
       </TrayIconButton>
@@ -209,8 +220,12 @@ export const TrayToolbar: React.FC = () => {
         onClick={() => {
           void handleCheckForUpdates();
         }}
-        title={checkingForUpdates ? "Checking for updates…" : "Check for updates"}
-        ariaLabel="Check for updates"
+        title={
+          checkingForUpdates
+            ? t("tray.toolbar.checkingForUpdates")
+            : t("tray.toolbar.checkForUpdates")
+        }
+        ariaLabel={t("tray.toolbar.checkForUpdates")}
         disabled={checkingForUpdates}
       >
         {checkingForUpdates ? (
@@ -223,11 +238,12 @@ export const TrayToolbar: React.FC = () => {
         onClick={() => window.electronAPI.showMainWindowSettings()}
         className="text-muted-foreground hover:text-foreground p-1.5"
         iconClassName="size-5"
+        title={t("tray.toolbar.openSettings")}
       />
       <TrayIconButton
         onClick={() => window.electronAPI.restartApp()}
-        title="Restart application"
-        ariaLabel="Restart application"
+        title={t("tray.toolbar.restartApp")}
+        ariaLabel={t("tray.toolbar.restartApp")}
       >
         <RestartIcon />
       </TrayIconButton>
@@ -235,8 +251,8 @@ export const TrayToolbar: React.FC = () => {
         onClick={() => {
           void handleQuit();
         }}
-        title="Quit application"
-        ariaLabel="Quit application"
+        title={t("tray.toolbar.quitApp")}
+        ariaLabel={t("tray.toolbar.quitApp")}
       >
         <QuitIcon />
       </TrayIconButton>

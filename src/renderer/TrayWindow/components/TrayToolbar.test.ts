@@ -2,6 +2,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TrayToolbar } from "./TrayToolbar";
+import { I18nProvider } from "../../i18n/I18nProvider";
 
 type UpdatePhase =
   | "unsupported"
@@ -28,6 +29,13 @@ type TrayApi = {
   checkForUpdates: ReturnType<typeof vi.fn>;
   openUpdateRelease: ReturnType<typeof vi.fn>;
   showMessageBox: ReturnType<typeof vi.fn>;
+  // The tray now renders through <I18nProvider>, which resolves its initial
+  // locale via this trio before anything translated shows up — see
+  // ~/renderer/i18n/localeState.ts `LocaleBridge`. Locked to "en" so this
+  // suite's English assertions stay meaningful regardless of locale defaults.
+  getLocale: ReturnType<typeof vi.fn>;
+  setLocale: ReturnType<typeof vi.fn>;
+  onLocaleChanged: ReturnType<typeof vi.fn>;
 };
 
 const waitForUi = async () => {
@@ -47,7 +55,7 @@ describe("TrayToolbar", () => {
   let root: Root;
   let api: TrayApi;
 
-  const render = (
+  const render = async (
     state: UpdateState,
     showMessageBoxResult: { response: number } = { response: 0 },
   ) => {
@@ -60,6 +68,9 @@ describe("TrayToolbar", () => {
       checkForUpdates: vi.fn().mockResolvedValue(state),
       openUpdateRelease: vi.fn().mockResolvedValue({ success: true }),
       showMessageBox: vi.fn().mockResolvedValue(showMessageBoxResult),
+      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+      setLocale: vi.fn().mockResolvedValue({ success: true }),
+      onLocaleChanged: vi.fn(() => vi.fn()),
     };
     Object.defineProperty(window, "electronAPI", {
       configurable: true,
@@ -69,9 +80,15 @@ describe("TrayToolbar", () => {
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
-    act(() => {
-      root.render(createElement(TrayToolbar));
+    await act(async () => {
+      root.render(
+        createElement(I18nProvider, null, createElement(TrayToolbar)),
+      );
     });
+    // I18nProvider renders nothing until its initial `getLocale()` promise
+    // resolves (avoids an EN -> JA flash) — flush that microtask before
+    // callers query the DOM for tray buttons.
+    await waitForUi();
   };
 
   const checkForUpdatesButton = (): HTMLButtonElement => {
@@ -93,7 +110,7 @@ describe("TrayToolbar", () => {
   });
 
   it("checks for updates and shows an up-to-date message box", async () => {
-    render({ phase: "up-to-date", currentVersion: "1.2.3" });
+    await render({ phase: "up-to-date", currentVersion: "1.2.3" });
 
     await click(checkForUpdatesButton());
     await waitForUi();
@@ -106,7 +123,7 @@ describe("TrayToolbar", () => {
   });
 
   it("opens the release page when the user picks 'View release' on an available update", async () => {
-    render(
+    await render(
       {
         phase: "available",
         currentVersion: "1.2.3",
@@ -128,7 +145,7 @@ describe("TrayToolbar", () => {
   });
 
   it("does not open the release page when the user closes the available-update dialog", async () => {
-    render(
+    await render(
       {
         phase: "available",
         currentVersion: "1.2.3",
@@ -144,7 +161,7 @@ describe("TrayToolbar", () => {
   });
 
   it("surfaces a failure message when the check errors", async () => {
-    render({
+    await render({
       phase: "error",
       currentVersion: "1.2.3",
       message: "Network unreachable.",
@@ -160,7 +177,7 @@ describe("TrayToolbar", () => {
   });
 
   it("never opens the main window or navigates dashboard tabs", async () => {
-    render({ phase: "up-to-date", currentVersion: "1.2.3" });
+    await render({ phase: "up-to-date", currentVersion: "1.2.3" });
 
     await click(checkForUpdatesButton());
     await waitForUi();
@@ -170,7 +187,7 @@ describe("TrayToolbar", () => {
   });
 
   it("shows an unsupported-build message and does not open the release page", async () => {
-    render({ phase: "unsupported", currentVersion: "1.2.3" });
+    await render({ phase: "unsupported", currentVersion: "1.2.3" });
 
     await click(checkForUpdatesButton());
     await waitForUi();
@@ -183,7 +200,7 @@ describe("TrayToolbar", () => {
 
   it("disables the button while the check is in flight and re-enables once it resolves", async () => {
     let resolveCheck: ((state: UpdateState) => void) | undefined;
-    render({ phase: "up-to-date", currentVersion: "1.2.3" });
+    await render({ phase: "up-to-date", currentVersion: "1.2.3" });
     api.checkForUpdates.mockReturnValueOnce(
       new Promise<UpdateState>((resolve) => {
         resolveCheck = resolve;
@@ -208,7 +225,7 @@ describe("TrayToolbar", () => {
   });
 
   it("re-enables the button after an error phase resolves", async () => {
-    render({
+    await render({
       phase: "error",
       currentVersion: "1.2.3",
       message: "Network unreachable.",
@@ -222,7 +239,7 @@ describe("TrayToolbar", () => {
   });
 
   it("shows a generic failure dialog and re-enables the button when checkForUpdates rejects", async () => {
-    render({ phase: "up-to-date", currentVersion: "1.2.3" });
+    await render({ phase: "up-to-date", currentVersion: "1.2.3" });
     api.checkForUpdates.mockRejectedValueOnce(
       new Error("Received an invalid update state"),
     );

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useI18n } from "../i18n/useI18n";
 import type { Profile } from "~/stores/apiStore";
 
 type ProfileSelectorProps = {
@@ -15,6 +16,7 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({
   size = "md",
   onChange
 }) => {
+  const { t } = useI18n();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [currentProfileId, setCurrentProfileId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
@@ -80,7 +82,7 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({
   return (
     <div className={`${className} flex items-center gap-2`}>
       <label htmlFor="profile-selector" className="text-card-foreground flex items-center gap-1.5">
-        <span className="hidden sm:inline">Profile:</span>
+        <span className="hidden sm:inline">{t("profiles.selector.label")}</span>
         {isLoading && (
           <span className="size-3.5 border-t-2 border-r-2 border-primary rounded-full animate-spin"></span>
         )}
@@ -91,7 +93,7 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({
         onChange={handleChange}
         disabled={isLoading}
         className={`${sizeStyles[size]} bg-card border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring`}
-        aria-label="Select profile"
+        aria-label={t("profiles.selector.ariaLabel")}
       >
         {profiles.map((profile) => (
           <option key={profile.id} value={profile.id}>

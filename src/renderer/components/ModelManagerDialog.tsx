@@ -3,6 +3,7 @@
  * @description Modal dialog for managing local LLM models
  */
 import { useCallback, useEffect, useState } from "react";
+import { useI18n } from "../i18n/useI18n";
 import type { Model } from "~/stores/apiStore";
 
 // Define the model installation status for UI feedback
@@ -27,6 +28,7 @@ export default function ModelManagerDialog({
   isOpen,
   onClose,
 }: ModelManagerProps) {
+  const { t } = useI18n();
   // State for installed local models
   const [localModels, setLocalModels] = useState<Model[]>([]);
   // State for recommended models
@@ -155,11 +157,15 @@ export default function ModelManagerDialog({
         // Refresh the model list
         refreshModels();
       } else {
-        alert(`Failed to delete model: ${result.error}`);
+        alert(t("models.manager.deleteFailedAlert", { message: result.error ?? "" }));
       }
     } catch (error) {
       console.error(`Failed to delete model ${modelName}:`, error);
-      alert(`Error: ${error instanceof Error ? error.message : String(error)}`);
+      alert(
+        t("models.manager.errorAlert", {
+          message: error instanceof Error ? error.message : String(error),
+        }),
+      );
     }
   };
 
@@ -179,12 +185,12 @@ export default function ModelManagerDialog({
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b border-border">
           <h2 className="text-xl font-semibold text-foreground">
-            Manage Local LLM Models
+            {t("models.manager.title")}
           </h2>
           <button
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground"
-            aria-label="Close"
+            aria-label={t("common.close")}
           >
             ✕
           </button>
@@ -200,7 +206,7 @@ export default function ModelManagerDialog({
             }`}
             onClick={() => setActiveTab("installed")}
           >
-            Installed Models
+            {t("models.manager.tabs.installed")}
           </button>
           <button
             className={`px-4 py-2 ${
@@ -210,7 +216,7 @@ export default function ModelManagerDialog({
             }`}
             onClick={() => setActiveTab("recommended")}
           >
-            Recommended Models
+            {t("models.manager.tabs.recommended")}
           </button>
           <div className="ml-auto px-4 py-2">
             <button
@@ -219,7 +225,7 @@ export default function ModelManagerDialog({
               className={`text-card-foreground hover:text-foreground ${
                 isRefreshing ? "animate-spin" : ""
               }`}
-              title="Refresh models"
+              title={t("models.manager.refresh")}
             >
               ↻
             </button>
@@ -237,12 +243,12 @@ export default function ModelManagerDialog({
             <div>
               {localModels.length === 0 ? (
                 <div className="text-center text-muted-foreground py-8">
-                  <p>No local models installed</p>
+                  <p>{t("models.manager.installed.empty")}</p>
                   <button
                     onClick={() => setActiveTab("recommended")}
                     className="mt-2 text-primary hover:underline"
                   >
-                    Browse recommended models
+                    {t("models.manager.installed.browseRecommended")}
                   </button>
                 </div>
               ) : (
@@ -265,7 +271,7 @@ export default function ModelManagerDialog({
                               })
                             }
                             className="text-destructive hover:text-destructive"
-                            title="Delete model"
+                            title={t("models.manager.deleteTitle")}
                           >
                             🗑️
                           </button>
@@ -273,14 +279,14 @@ export default function ModelManagerDialog({
                       </div>
                       <div className="mt-2 text-sm text-muted-foreground">
                         <div>
-                          Path:{" "}
+                          {t("models.manager.pathLabel")}{" "}
                           <span className="text-card-foreground">
                             {model.local?.path}
                           </span>
                         </div>
                         {model.local?.size && (
                           <div>
-                            Size:{" "}
+                            {t("models.manager.sizeLabel")}{" "}
                             <span className="text-card-foreground">
                               {formatSize(model.local.size)}
                             </span>
@@ -297,7 +303,7 @@ export default function ModelManagerDialog({
             <div>
               {recommendedModels.length === 0 ? (
                 <div className="text-center text-muted-foreground py-8">
-                  <p>No recommended models available</p>
+                  <p>{t("models.manager.recommended.empty")}</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4">
@@ -325,12 +331,12 @@ export default function ModelManagerDialog({
                             }`}
                           >
                             {model.status === "success"
-                              ? "Installed"
+                              ? t("models.manager.install.installed")
                               : model.status === "installing"
-                                ? "Installing..."
+                                ? t("models.manager.install.installing")
                                 : model.status === "error"
-                                  ? "Retry"
-                                  : "Install"}
+                                  ? t("common.retry")
+                                  : t("models.manager.install.install")}
                           </button>
                         </div>
                       </div>
@@ -348,11 +354,13 @@ export default function ModelManagerDialog({
                         ))}
                       </div>
                       <div className="mt-2 text-sm text-muted-foreground">
-                        <span>Size: {formatSize(model.size)}</span>
+                        <span>
+                          {t("models.manager.sizeLabel")} {formatSize(model.size)}
+                        </span>
                       </div>
                       {model.status === "error" && model.error && (
                         <div className="mt-2 text-sm text-destructive">
-                          Error: {model.error}
+                          {t("models.manager.recommendedError", { message: model.error })}
                         </div>
                       )}
                     </div>
@@ -368,21 +376,19 @@ export default function ModelManagerDialog({
           <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
             <div className="bg-card rounded-lg shadow-xl p-6 max-w-md w-full">
               <h3 className="text-xl font-semibold text-foreground mb-4">
-                Confirm Deletion
+                {t("models.manager.confirmDelete.title")}
               </h3>
               <p className="text-card-foreground mb-6">
-                Are you sure you want to delete model{" "}
-                <span className="font-semibold">
-                  {deleteConfirmation.modelName}
-                </span>
-                ? This action cannot be undone.
+                {t("models.manager.confirmDelete.message", {
+                  modelName: deleteConfirmation.modelName ?? "",
+                })}
               </p>
               <div className="flex justify-end space-x-3">
                 <button
                   onClick={() => setDeleteConfirmation({ isOpen: false })}
                   className="px-4 py-2 bg-secondary text-secondary-foreground rounded hover:bg-secondary"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
                 <button
                   onClick={() =>
@@ -390,7 +396,7 @@ export default function ModelManagerDialog({
                   }
                   className="px-4 py-2 bg-destructive text-destructive-foreground rounded hover:bg-destructive/90"
                 >
-                  Delete
+                  {t("common.delete")}
                 </button>
               </div>
             </div>

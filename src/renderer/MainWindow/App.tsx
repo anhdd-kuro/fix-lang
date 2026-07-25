@@ -19,6 +19,7 @@ import { SettingsModal } from "../components/SettingsModal";
 import { SettingUpdates } from "../components/SettingUpdates";
 import { TextAreaBox } from "../components/TextAreaBox";
 import { useTheme } from "../hooks/useTheme";
+import { useI18n } from "../i18n/useI18n";
 import type { DashboardTabId } from "./dashboardTabs";
 import type { AnalyticsRange } from "../analytics/shared";
 import type { HistoryEntry, HistoryFeatureId } from "~/stores/historyStore";
@@ -43,6 +44,9 @@ const RANGE_AWARE_TABS = new Set(["overview", "models"]);
  */
 const App: React.FC = () => {
   useTheme();
+  // Only used to resolve `DASHBOARD_TABS[].labelKey` at render time (Chunk 8
+  // i18n) — the rest of this file's strings are out of this chunk's scope.
+  const { t } = useI18n();
   // History state — flat list combining corrections + promptGen buckets
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
@@ -307,7 +311,7 @@ const App: React.FC = () => {
                     : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                 )}
               >
-                {tab.label}
+                {t(tab.labelKey)}
               </button>
             );
           })}

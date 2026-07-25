@@ -15,6 +15,7 @@ import HistoryEntryItem from "./HistoryEntryItem";
 import SearchInput from "./SearchInput";
 import { TrashButton } from "./TrashButton";
 import useFuzzySearch from "../hooks/useFuzzySearch";
+import { useI18n } from "../i18n/useI18n";
 import {
   applyPresetFilter,
   deriveAvailableFilters,
@@ -47,6 +48,8 @@ export const HistoryPanel = ({
   onDeleteEntry,
   onClear,
 }: HistoryPanelProps) => {
+  const { t, dateFnsLocale } = useI18n();
+
   // Search state for fuzzy search
   const [searchQuery, setSearchQuery] = useState<string>("");
   // Active preset name filter — null means "show all"
@@ -65,14 +68,14 @@ export const HistoryPanel = ({
         <div className="w-full">
           <SearchInput
             onSearch={setSearchQuery}
-            placeholder="Search history..."
+            placeholder={t("history.panel.searchPlaceholder")}
             className="w-full"
             debounceMs={300}
             suggestions={[
               ...availableFilters,
               // Today and yesterday
-              format(new Date(), "MM/dd"),
-              format(addDays(new Date(), -1), "MM/dd"),
+              format(new Date(), "MM/dd", { locale: dateFnsLocale }),
+              format(addDays(new Date(), -1), "MM/dd", { locale: dateFnsLocale }),
             ]}
             dataListId="history-search-suggestions"
           />
@@ -87,7 +90,7 @@ export const HistoryPanel = ({
             onClick={() => setActiveFilter(null)}
             className={`px-2 py-0.5 text-xs rounded-sm ${activeFilter === null ? "bg-primary text-primary-foreground" : "bg-secondary text-card-foreground hover:bg-secondary"}`}
           >
-            All
+            {t("history.panel.filterAll")}
           </button>
           {availableFilters.map((name) => (
             <button

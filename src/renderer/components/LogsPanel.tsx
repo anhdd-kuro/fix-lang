@@ -12,7 +12,9 @@ import {
   logEntryMatchesSearch,
 } from "~/shared/logging";
 import { logRowKey } from "./logsView";
+import { useI18n } from "../i18n/useI18n";
 import type { LogLevelFilter } from "./logsView";
+import type { TranslationKey } from "~/shared/i18n/keys";
 import type { LogEntry, LogLevel } from "~/shared/logging";
 
 const LEVELS: readonly LogLevelFilter[] = [
@@ -28,6 +30,19 @@ const LEVEL_CLASS: Record<LogLevel, string> = {
   info: "text-primary",
   warn: "text-yellow-500",
   error: "text-destructive",
+};
+
+/**
+ * Filter dropdown labels are UI chrome and get translated; the underlying
+ * `LogLevelFilter` value (used for querying/filtering) stays the raw English
+ * token — level names are machine data, not prose.
+ */
+const LEVEL_LABEL_KEYS: Record<LogLevelFilter, TranslationKey> = {
+  all: "logs.panel.level.all",
+  debug: "logs.panel.level.debug",
+  info: "logs.panel.level.info",
+  warn: "logs.panel.level.warn",
+  error: "logs.panel.level.error",
 };
 
 const ROW_ESTIMATE_PX = 44;
@@ -67,6 +82,7 @@ const mergeNewestFirst = (
 
 /** Searchable live view of redacted main-process logs (persisted + live). */
 export const LogsPanel = () => {
+  const { t, dateFnsLocale } = useI18n();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -104,11 +120,14 @@ export const LogsPanel = () => {
       setNextCursor(null);
       setHasMore(false);
       setStatus(
-        `Failed to load logs: ${error instanceof Error ? error.message : String(error)}`,
+        t("logs.panel.error.loadFailed", {
+          message: error instanceof Error ? error.message : String(error),
+        }),
       );
     } finally {
       setIsLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` is locale-stable (see I18nProvider); adding it here would re-fetch on every locale switch for no reason.
   }, [debouncedSearch, level]);
 
   const loadOlderPage = useCallback(async (): Promise<void> => {
@@ -129,12 +148,15 @@ export const LogsPanel = () => {
       setHasMore(page.hasMore);
     } catch (error) {
       setStatus(
-        `Failed to load older logs: ${error instanceof Error ? error.message : String(error)}`,
+        t("logs.panel.error.loadMoreFailed", {
+          message: error instanceof Error ? error.message : String(error),
+        }),
       );
     } finally {
       setIsLoadingMore(false);
       loadMoreLock.current = false;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` is locale-stable (see I18nProvider); adding it here would re-fetch on every locale switch for no reason.
   }, [debouncedSearch, hasMore, level, nextCursor]);
 
   useEffect(() => {
@@ -190,10 +212,12 @@ export const LogsPanel = () => {
       setLogs([]);
       setNextCursor(null);
       setHasMore(false);
-      setStatus("Logs cleared");
+      setStatus(t("logs.panel.status.cleared"));
     } catch (error) {
       setStatus(
-        `Failed to clear logs: ${error instanceof Error ? error.message : String(error)}`,
+        t("logs.panel.error.clearFailed", {
+          message: error instanceof Error ? error.message : String(error),
+        }),
       );
     }
   };
@@ -201,10 +225,12 @@ export const LogsPanel = () => {
   const handleCopy = async (): Promise<void> => {
     try {
       const result = await window.electronAPI.copyLogs();
-      setStatus(`Copied ${result.count} log entries`);
+      setStatus(t("logs.panel.status.copied", { count: result.count }));
     } catch (error) {
       setStatus(
-        `Failed to copy logs: ${error instanceof Error ? error.message : String(error)}`,
+        t("logs.panel.error.copyFailed", {
+          message: error instanceof Error ? error.message : String(error),
+        }),
       );
     }
   };
@@ -213,46 +239,53 @@ export const LogsPanel = () => {
     try {
       const result = await window.electronAPI.exportLogs();
       if (result.success) {
-        setStatus("Logs exported");
+        setStatus(t("logs.panel.status.exported"));
       } else if (!result.canceled) {
-        setStatus(`Failed to export logs: ${result.error}`);
+        setStatus(
+          t("logs.panel.error.exportFailed", { message: result.error }),
+        );
       }
     } catch (error) {
       setStatus(
-        `Failed to export logs: ${error instanceof Error ? error.message : String(error)}`,
+        t("logs.panel.error.exportFailed", {
+          message: error instanceof Error ? error.message : String(error),
+        }),
       );
     }
   };
 
+  // `t`/`locale` are in the dependency array on purpose (memoization trap):
+  // this label is derived state, not a mount-once fetch, so a stale memo here
+  // would leave the footer in the old language after a locale switch.
   const footerLabel = useMemo(() => {
     if (isLoading) {
-      return "Loading…";
+      return t("common.loading");
     }
     if (isLoadingMore) {
-      return `Showing ${logs.length} · loading older…`;
+      return t("logs.panel.footer.loadingMore", { count: logs.length });
     }
     if (hasMore) {
-      return `Showing ${logs.length} · scroll for older`;
+      return t("logs.panel.footer.moreAvailable", { count: logs.length });
     }
-    return `${logs.length} entries`;
-  }, [hasMore, isLoading, isLoadingMore, logs.length]);
+    return t("logs.panel.footer.count", { count: logs.length });
+  }, [hasMore, isLoading, isLoadingMore, logs.length, t]);
 
   return (
     <section className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <label className="min-w-48 flex-1">
-          <span className="sr-only">Search logs</span>
+          <span className="sr-only">{t("logs.panel.search")}</span>
           <input
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search logs"
+            placeholder={t("logs.panel.search")}
             className="w-full rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
           />
         </label>
 
         <label>
-          <span className="sr-only">Log level</span>
+          <span className="sr-only">{t("logs.panel.levelLabel")}</span>
           <select
             value={level}
             onChange={(event) => {
@@ -264,7 +297,7 @@ export const LogsPanel = () => {
           >
             {LEVELS.map((option) => (
               <option key={option} value={option}>
-                {option === "all" ? "All levels" : option.toUpperCase()}
+                {t(LEVEL_LABEL_KEYS[option])}
               </option>
             ))}
           </select>
@@ -276,7 +309,7 @@ export const LogsPanel = () => {
             checked={autoScroll}
             onChange={(event) => setAutoScroll(event.target.checked)}
           />
-          Auto-scroll
+          {t("logs.panel.autoScroll")}
         </label>
 
         <button
@@ -284,21 +317,21 @@ export const LogsPanel = () => {
           onClick={() => void handleClear()}
           className="rounded-md bg-secondary px-3 py-1.5 text-sm text-secondary-foreground hover:opacity-90"
         >
-          Clear
+          {t("logs.panel.clearButton")}
         </button>
         <button
           type="button"
           onClick={() => void handleCopy()}
           className="rounded-md bg-secondary px-3 py-1.5 text-sm text-secondary-foreground hover:opacity-90"
         >
-          Copy all
+          {t("logs.panel.copyAllButton")}
         </button>
         <button
           type="button"
           onClick={() => void handleExport()}
           className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:opacity-90"
         >
-          Export .txt
+          {t("logs.panel.exportButton")}
         </button>
       </div>
 
@@ -312,11 +345,11 @@ export const LogsPanel = () => {
       <div
         ref={listRef}
         className="min-h-0 flex-1 overflow-auto rounded-lg border border-border bg-card font-mono text-xs"
-        aria-label="Application logs"
+        aria-label={t("logs.panel.listAriaLabel")}
       >
         {logs.length === 0 && !isLoading ? (
           <p className="p-4 text-center text-muted-foreground">
-            No logs found.
+            {t("logs.panel.empty")}
           </p>
         ) : (
           <div
@@ -343,6 +376,7 @@ export const LogsPanel = () => {
                       {format(
                         new Date(entry.timestamp),
                         "yyyy-MM-dd HH:mm:ss XXX",
+                        { locale: dateFnsLocale },
                       )}
                     </time>
                     <span

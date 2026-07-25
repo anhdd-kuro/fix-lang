@@ -25,6 +25,8 @@ import {
 } from "chart.js";
 import { useEffect, useMemo, useState } from "react";
 import { Chart, Doughnut } from "react-chartjs-2";
+import { CHART_TITLE_KEYS, donutTooltipMessage, weightPercent } from "./presetChartView";
+import { useI18n } from "../i18n/useI18n";
 import type {
   PresetCountsOverTime,
   PresetWeightRow,
@@ -96,17 +98,10 @@ const paletteColor = (index: number, paletteTick: number): string => {
   );
 };
 
-/** Round weight to one decimal percent (e.g. 0.5 → 50, 1/3 → 33.3). */
-const weightPercent = (weight: number): number =>
-  Math.round(weight * 1000) / 10;
-
-const formatDayLabel = (dayKey: string): string => {
+/** Parses a dense local-day key ("YYYY-MM-DD") into a local `Date` — never round-trip through the ISO string (see spec.i18n-dashboard.md §5.3 trap 7). */
+const dateFromDayKey = (dayKey: string): Date => {
   const [year, month, day] = dayKey.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
+  return new Date(year, month - 1, day);
 };
 
 /**
@@ -131,6 +126,7 @@ export const PresetWeightChart = ({
   overTime,
 }: PresetWeightChartProps) => {
   const paletteTick = useThemePaletteTick();
+  const { t, tl, tm, formatDate, formatNumber } = useI18n();
 
   const { donutData, donutOptions, comboData, comboOptions } = useMemo(() => {
     const foreground = readCssColor("--foreground", "#18181b");
@@ -141,13 +137,15 @@ export const PresetWeightChart = ({
 
     const colors = weights.map((_, index) => paletteColor(index, paletteTick));
     const percents = weights.map((row) => weightPercent(row.weight));
-    const dayLabels = overTime.days.map(formatDayLabel);
+    const dayLabels = overTime.days.map((dayKey) =>
+      formatDate(dateFromDayKey(dayKey), { month: "short", day: "numeric" })
+    );
 
     const doughnutData: ChartData<"doughnut"> = {
-      labels: weights.map((row) => row.presetName),
+      labels: weights.map((row) => tl(row.presetLabel)),
       datasets: [
         {
-          label: "Share (%)",
+          label: t("charts.presetShare.datasetLabel"),
           data: percents,
           backgroundColor: colors,
           borderColor: card,
@@ -172,7 +170,7 @@ export const PresetWeightChart = ({
         },
         title: {
           display: true,
-          text: "Preset share",
+          text: t(CHART_TITLE_KEYS.presetShare),
           color: foreground,
           font: { size: 14, weight: 600 },
           padding: { bottom: 8 },
@@ -189,10 +187,12 @@ export const PresetWeightChart = ({
               if (!row) {
                 return "";
               }
-              const pct = percents[item.dataIndex]?.toFixed(1) ?? "0.0";
-              const countLabel =
-                row.count === 1 ? "1 correction" : `${row.count} corrections`;
-              return `${pct}% · ${countLabel}`;
+              const pct = percents[item.dataIndex] ?? 0;
+              const pctLabel = formatNumber(pct, {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+              });
+              return tm(donutTooltipMessage(row, pctLabel));
             },
           },
         },
@@ -202,7 +202,7 @@ export const PresetWeightChart = ({
     const barDatasets: ChartDataset<"bar">[] = overTime.series.map(
       (series, index) => ({
         type: "bar" as const,
-        label: series.presetName,
+        label: tl(series.presetLabel),
         data: series.counts,
         backgroundColor: paletteColor(index, paletteTick),
         stack: "presets",
@@ -213,7 +213,7 @@ export const PresetWeightChart = ({
 
     const lineDataset: ChartDataset<"line"> = {
       type: "line" as const,
-      label: "Daily total",
+      label: t("charts.correctionsOverTime.dailyTotal"),
       data: overTime.totalsByDay,
       borderColor: lineColor,
       backgroundColor: lineColor,
@@ -248,7 +248,7 @@ export const PresetWeightChart = ({
         },
         title: {
           display: true,
-          text: "Corrections over time",
+          text: t(CHART_TITLE_KEYS.correctionsOverTime),
           color: foreground,
           font: { size: 14, weight: 600 },
           padding: { bottom: 8 },
@@ -278,7 +278,7 @@ export const PresetWeightChart = ({
           beginAtZero: true,
           title: {
             display: true,
-            text: "Corrections",
+            text: t("charts.correctionsOverTime.yAxis"),
             color: muted,
             font: { size: 11 },
           },
@@ -298,12 +298,23 @@ export const PresetWeightChart = ({
       comboData: comboChartData,
       comboOptions: comboChartOptions,
     };
-  }, [weights, overTime, paletteTick]);
+    // `t`/`tl`/`tm`/`formatDate`/`formatNumber` are REQUIRED dependencies
+    // here, not an oversight: every label, title, axis title, and tooltip
+    // callback built in this memo is now locale-dependent text, and these
+    // five functions are exactly the locale-bound values `useI18n()` returns
+    // (they change identity whenever `locale` changes — see `I18nProvider`'s
+    // own `useMemo`). Omitting them would pin the whole chart to whatever
+    // language was active when it first mounted — switching the app language
+    // would leave every legend/title/tooltip stuck in the old language until
+    // `weights`/`overTime` next changed. See spec.i18n-dashboard.md §5.3 trap 2
+    // (the single biggest risk in this chunk) — `paletteTick` already exists
+    // in this array for the exact same reason (theme changes with no data change).
+  }, [weights, overTime, paletteTick, t, tl, tm, formatDate, formatNumber]);
 
   if (weights.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        No preset usage in this range yet.
+        {t("charts.presetShare.empty")}
       </p>
     );
   }
@@ -320,7 +331,7 @@ export const PresetWeightChart = ({
           <Chart type="bar" data={comboData} options={comboOptions} />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            No daily corrections in this range yet.
+            {t("charts.correctionsOverTime.empty")}
           </div>
         )}
       </div>

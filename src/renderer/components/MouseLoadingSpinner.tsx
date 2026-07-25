@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { Spinner } from "./Spinner";
+import { useI18n } from "../i18n/useI18n";
 
 /**
  * Small spinner to indicate loading, positioned absolutely near the mouse.
@@ -21,6 +22,7 @@ type MouseLoadingSpinnerProps = {
 const MouseLoadingSpinner: React.FC<MouseLoadingSpinnerProps> = ({
   visible,
 }) => {
+  const { t } = useI18n();
   // Use refs to track mouse position and spinner DOM element
   const loadingSpinnerRef = useRef<HTMLDivElement>(null);
   const mousePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -60,7 +62,7 @@ const MouseLoadingSpinner: React.FC<MouseLoadingSpinnerProps> = ({
   if (!visible) return null;
   return (
     <div
-      aria-label="Loading"
+      aria-label={t("common.loading")}
       className="fixed left-0 top-0 z-50 pointer-events-none will-change-transform"
       ref={loadingSpinnerRef}
       role="status"

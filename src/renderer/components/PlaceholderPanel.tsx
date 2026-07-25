@@ -10,6 +10,8 @@
  * must wire data gated on tab-open (lazy), not background polling.
  */
 
+import { useI18n } from "../i18n/useI18n";
+
 type PlaceholderPanelProps = {
   title: string;
   description: string;
@@ -19,12 +21,15 @@ export const PlaceholderPanel = ({
   title,
   description,
 }: PlaceholderPanelProps) => {
+  const { t } = useI18n();
   return (
     <div className="flex flex-1 items-center justify-center p-6">
       <div className="max-w-xs rounded-lg border border-border bg-card px-6 py-8 text-center">
         <h2 className="mb-2 text-lg font-semibold text-primary">{title}</h2>
         <p className="text-sm text-muted-foreground">{description}</p>
-        <p className="mt-3 text-xs text-muted-foreground">Coming soon</p>
+        <p className="mt-3 text-xs text-muted-foreground">
+          {t("common.placeholderPanel.comingSoon")}
+        </p>
       </div>
     </div>
   );

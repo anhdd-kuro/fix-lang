@@ -30,6 +30,9 @@ export function useFuzzySearch(
         {
           name: "timestamp",
           getFn: (entry: HistoryEntry) =>
+            // locale-free on purpose: search haystack, not UI. Localising this
+            // would change fuzzy-match behavior per language and make the
+            // search index non-deterministic — see docs/plan.i18n.md Chunk 8b.
             format(new Date(entry.timestamp), "MM/dd HH:mm"),
         },
       ],

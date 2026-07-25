@@ -1,1 +1,16 @@
-{}
+{
+  "history.cost.na": "該当なし",
+  "history.cost.tooltip": "校正時点の推定コスト",
+  "history.panel.filterAll": "すべて",
+  "history.panel.searchPlaceholder": "履歴を検索…",
+  "history.reviewModal.closeAriaLabel": "レビューモーダルを閉じる",
+  "history.reviewModal.copyCorrected": "訂正後をコピー",
+  "history.reviewModal.copyOriginal": "元のテキストをコピー",
+  "history.reviewModal.correctedHeading": "訂正後",
+  "history.reviewModal.correctedTextArea": "訂正後のテキスト",
+  "history.reviewModal.costLabel": "コスト: {cost}",
+  "history.reviewModal.modelLabel": "モデル: {modelId}",
+  "history.reviewModal.originalHeading": "原文",
+  "history.reviewModal.originalTextArea": "元のテキスト",
+  "history.reviewModal.title": "直前の校正"
+}

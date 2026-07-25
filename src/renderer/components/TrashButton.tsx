@@ -1,5 +1,6 @@
 import React from "react";
 import { twJoin } from "tailwind-merge";
+import { useI18n } from "../i18n/useI18n";
 
 type TrashButtonProps = {
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
@@ -14,6 +15,7 @@ export const TrashButton: React.FC<TrashButtonProps> = ({
   showLabel = false,
   size = "sm",
 }) => {
+  const { t } = useI18n();
   const iconSize = size === "sm" ? "size-4" : "size-6";
 
   return (
@@ -24,7 +26,7 @@ export const TrashButton: React.FC<TrashButtonProps> = ({
         "text-destructive hover:text-destructive p-1 transition-colors flex items-center gap-2",
         className
       )}
-      aria-label="Delete entry"
+      aria-label={t("common.trashButton.ariaLabel")}
     >
       <svg
         className={iconSize}
@@ -39,7 +41,7 @@ export const TrashButton: React.FC<TrashButtonProps> = ({
           d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
         />
       </svg>
-      {showLabel && <span>Clear</span>}
+      {showLabel && <span>{t("common.trashButton.clearLabel")}</span>}
     </button>
   );
 };
