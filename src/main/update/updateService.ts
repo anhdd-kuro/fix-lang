@@ -6,7 +6,7 @@ import type { InstallUpdateResult, UpdateState } from "~/shared/update";
 export type UpdateService = {
   getState: () => UpdateState;
   checkForUpdates: () => Promise<void>;
-  installUpdate: () => InstallUpdateResult;
+  installUpdate: () => Promise<InstallUpdateResult>;
   getReleaseUrl: () => string | null;
   subscribe: (listener: (state: UpdateState) => void) => () => void;
 };
@@ -43,6 +43,16 @@ const INSTALL_ERROR_MESSAGE =
   "Could not start the Homebrew update. Update manually with the command below.";
 const INSTALL_INCOMPLETE_MESSAGE =
   "Homebrew did not finish the last update. Update manually with the command below.";
+
+/**
+ * Releases reach GitHub before the Homebrew tap picks them up, so the app can
+ * advertise a version the cask cannot install yet. Say so instead of quitting
+ * for an upgrade that would silently no-op.
+ */
+const tapBehindMessage = (target: string, offered: string): string =>
+  `Homebrew does not have v${target} yet — it still offers v${offered}. ` +
+  "The tap syncs shortly after each release; try again later, or update " +
+  "manually with the command below.";
 const RELEASES_URL = "https://github.com/anhdd-kuro/fix-lang/releases";
 const STABLE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
@@ -189,6 +199,19 @@ export const createUpdateService = (
 
   reconcileLastInstall();
 
+  /** Never rejects: a broken probe must not strand the install flow. */
+  const probeInstallableVersion = async (): Promise<string | null> => {
+    try {
+      return (await options.upgrader?.getInstallableVersion()) ?? null;
+    } catch (error) {
+      options.onLog?.(
+        "warn",
+        `Could not read the installable Homebrew version (${safeErrorName(error)})`,
+      );
+      return null;
+    }
+  };
+
   const fail = (error: unknown): void => {
     checking = false;
     options.onLog?.("warn", `App update check failed (${safeErrorName(error)})`);
@@ -241,8 +264,12 @@ export const createUpdateService = (
      * Starts the detached Homebrew helper and quits so it can replace this
      * bundle. Only a validated `available` state may trigger it, and only for
      * a cask install — never for a manually placed DMG copy.
+     *
+     * The tap is checked first: `brew upgrade` exits 0 when it has nothing
+     * newer, so without this gate a lagging tap would quit and reopen the app
+     * unchanged, which reads as the button doing nothing at all.
      */
-    installUpdate: (): InstallUpdateResult => {
+    installUpdate: async (): Promise<InstallUpdateResult> => {
       if (!canInstall || !options.upgrader) {
         return { success: false, error: INSTALL_ERROR_MESSAGE };
       }
@@ -252,9 +279,38 @@ export const createUpdateService = (
       }
 
       const targetVersion = state.availableVersion;
+      // Claimed before the first await: the tap probe is slow enough that a
+      // second click would otherwise start a second upgrade.
+      installing = true;
+      publish({
+        phase: "installing",
+        currentVersion,
+        availableVersion: targetVersion,
+      });
+
+      const offered = parseStableVersion(await probeInstallableVersion());
+      const target = parseStableVersion(targetVersion);
+      // A null probe means brew could not be asked, not that it is behind.
+      if (offered && target && compareVersions(offered, target) < 0) {
+        installing = false;
+        options.onLog?.(
+          "warn",
+          `Homebrew still offers ${offered.raw}; ${targetVersion} is not installable yet`,
+        );
+        const message = tapBehindMessage(targetVersion, offered.raw);
+        publish({
+          phase: "error",
+          currentVersion,
+          availableVersion: targetVersion,
+          message,
+        });
+        return { success: false, error: message };
+      }
+
       try {
         options.upgrader.startUpgrade();
       } catch (error) {
+        installing = false;
         options.onLog?.(
           "error",
           `Homebrew update could not start (${safeErrorName(error)})`,
@@ -268,7 +324,6 @@ export const createUpdateService = (
         return { success: false, error: INSTALL_ERROR_MESSAGE };
       }
 
-      installing = true;
       try {
         options.pendingInstall?.write({
           fromVersion: currentVersion,
@@ -283,11 +338,6 @@ export const createUpdateService = (
       }
 
       options.onLog?.("info", `Homebrew update to ${targetVersion} started`);
-      publish({
-        phase: "installing",
-        currentVersion,
-        availableVersion: targetVersion,
-      });
       options.quitApp?.();
       return { success: true };
     },

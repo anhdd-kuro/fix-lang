@@ -5,13 +5,19 @@ import {
   caskroomPath,
   createHomebrewUpgrader,
   findBrewBinary,
+  parseCaskVersion,
+  type BrewRunner,
 } from "./homebrew";
+
+const caskInfoJson = (version: string): string =>
+  JSON.stringify({ casks: [{ token: "fixlang", version }] });
 
 const upgrader = (
   overrides: Partial<{
     isInstalledApp: boolean;
     files: readonly string[];
     directories: readonly string[];
+    runBrew: BrewRunner;
   }> = {},
 ) => {
   const startDetached = vi.fn();
@@ -19,15 +25,20 @@ const upgrader = (
   const directories = new Set(
     overrides.directories ?? ["/opt/homebrew/Caskroom/fixlang"],
   );
+  const runBrew = vi.fn<BrewRunner>(
+    overrides.runBrew ?? (() => Promise.resolve(caskInfoJson("0.2.0"))),
+  );
 
   return {
     startDetached,
+    runBrew,
     instance: createHomebrewUpgrader({
       isInstalledApp: overrides.isInstalledApp ?? true,
       logFilePath: "/tmp/userData/logs/homebrew-update.log",
       fileExists: (candidate) => files.has(candidate),
       directoryExists: (candidate) => directories.has(candidate),
       startDetached,
+      runBrew,
     }),
   };
 };
@@ -92,6 +103,36 @@ describe("upgrade script", () => {
   });
 });
 
+describe("cask version parsing", () => {
+  it("reads the version the tap currently offers", () => {
+    expect(parseCaskVersion(caskInfoJson("0.3.5"))).toBe("0.3.5");
+  });
+
+  it("ignores other casks in the same payload", () => {
+    expect(
+      parseCaskVersion(
+        JSON.stringify({
+          casks: [
+            { token: "something-else", version: "9.9.9" },
+            { token: "fixlang", version: "0.3.5" },
+          ],
+        }),
+      ),
+    ).toBe("0.3.5");
+  });
+
+  it.each([
+    "",
+    "not json",
+    JSON.stringify({ casks: [] }),
+    JSON.stringify({ casks: [{ token: "fixlang" }] }),
+    JSON.stringify({ casks: [{ token: "fixlang", version: 3 }] }),
+    JSON.stringify({ formulae: [] }),
+  ])("returns null for unusable brew output", (stdout) => {
+    expect(parseCaskVersion(stdout)).toBeNull();
+  });
+});
+
 describe("Homebrew upgrader", () => {
   it("enables one-click updates for a cask install", () => {
     expect(upgrader().instance.canInstall).toBe(true);
@@ -118,6 +159,43 @@ describe("Homebrew upgrader", () => {
       buildUpgradeScript("/opt/homebrew/bin/brew"),
       "/tmp/userData/logs/homebrew-update.log",
     );
+  });
+
+  it("refreshes the tap before reading the version it can install", async () => {
+    const { instance, runBrew } = upgrader();
+
+    await expect(instance.getInstallableVersion()).resolves.toBe("0.2.0");
+
+    expect(runBrew.mock.calls.map(([, args]) => [...args])).toEqual([
+      ["update", "--quiet"],
+      ["info", "--cask", "fixlang", "--json=v2"],
+    ]);
+  });
+
+  it("still reports a version when the tap refresh fails", async () => {
+    const { instance } = upgrader({
+      runBrew: (_binary, args) =>
+        args[0] === "update"
+          ? Promise.reject(new Error("offline"))
+          : Promise.resolve(caskInfoJson("0.2.0")),
+    });
+
+    await expect(instance.getInstallableVersion()).resolves.toBe("0.2.0");
+  });
+
+  it("reports an unknown version rather than a wrong one when brew fails", async () => {
+    const { instance } = upgrader({
+      runBrew: () => Promise.reject(new Error("brew exploded")),
+    });
+
+    await expect(instance.getInstallableVersion()).resolves.toBeNull();
+  });
+
+  it("never asks brew anything for an install it cannot upgrade", async () => {
+    const { instance, runBrew } = upgrader({ directories: [] });
+
+    await expect(instance.getInstallableVersion()).resolves.toBeNull();
+    expect(runBrew).not.toHaveBeenCalled();
   });
 
   it("refuses to run anything when the install is not cask-managed", () => {

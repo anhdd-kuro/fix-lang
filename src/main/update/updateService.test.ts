@@ -29,6 +29,8 @@ const createService = (
     currentVersion: string;
     canInstall: boolean;
     startUpgrade: () => void;
+    /** Version the tap can install; null models a brew that cannot be asked. */
+    installableVersion: string | null;
     pending: { fromVersion: string; toVersion: string } | null;
     getLatestRelease: () => Promise<unknown>;
     onLog: (level: "info" | "warn" | "error", message: string) => void;
@@ -43,6 +45,13 @@ const createService = (
       ),
   };
   const startUpgrade = vi.fn(overrides.startUpgrade);
+  const getInstallableVersion = vi.fn<() => Promise<string | null>>(() =>
+    Promise.resolve(
+      overrides.installableVersion === undefined
+        ? "0.2.0"
+        : overrides.installableVersion,
+    ),
+  );
   const pendingInstall = {
     read: vi.fn(() => overrides.pending ?? null),
     write: vi.fn(),
@@ -57,6 +66,7 @@ const createService = (
     getCurrentVersion: () => overrides.currentVersion ?? "0.1.0",
     upgrader: {
       canInstall: overrides.canInstall ?? false,
+      getInstallableVersion,
       startUpgrade,
     },
     pendingInstall,
@@ -64,7 +74,14 @@ const createService = (
     onLog: overrides.onLog,
   });
 
-  return { service, releaseSource, startUpgrade, pendingInstall, quitApp };
+  return {
+    service,
+    releaseSource,
+    startUpgrade,
+    getInstallableVersion,
+    pendingInstall,
+    quitApp,
+  };
 };
 
 describe("unsigned GitHub update service", () => {
@@ -268,7 +285,7 @@ describe("Homebrew one-click install", () => {
     });
     await service.checkForUpdates();
 
-    expect(service.installUpdate()).toEqual({ success: true });
+    await expect(service.installUpdate()).resolves.toEqual({ success: true });
 
     expect(startUpgrade).toHaveBeenCalledTimes(1);
     expect(pendingInstall.write).toHaveBeenCalledWith({
@@ -282,10 +299,10 @@ describe("Homebrew one-click install", () => {
     });
   });
 
-  it("refuses to install when no checked release is available", () => {
+  it("refuses to install when no checked release is available", async () => {
     const { service, startUpgrade, quitApp } = createService({ canInstall: true });
 
-    expect(service.installUpdate()).toEqual({
+    await expect(service.installUpdate()).resolves.toEqual({
       success: false,
       error: INSTALL_ERROR,
     });
@@ -297,7 +314,7 @@ describe("Homebrew one-click install", () => {
     const { service, startUpgrade, quitApp } = createService();
     await service.checkForUpdates();
 
-    expect(service.installUpdate()).toEqual({
+    await expect(service.installUpdate()).resolves.toEqual({
       success: false,
       error: INSTALL_ERROR,
     });
@@ -314,7 +331,7 @@ describe("Homebrew one-click install", () => {
     });
     await service.checkForUpdates();
 
-    expect(service.installUpdate()).toEqual({
+    await expect(service.installUpdate()).resolves.toEqual({
       success: false,
       error: INSTALL_ERROR,
     });
@@ -334,7 +351,7 @@ describe("Homebrew one-click install", () => {
     });
     await service.checkForUpdates();
 
-    service.installUpdate();
+    await service.installUpdate();
 
     expect(JSON.stringify(onLog.mock.calls)).not.toContain("/Users/kuro");
   });
@@ -343,11 +360,132 @@ describe("Homebrew one-click install", () => {
     const { service, startUpgrade, quitApp } = createService({ canInstall: true });
     await service.checkForUpdates();
 
-    service.installUpdate();
-    expect(service.installUpdate()).toEqual({ success: true });
+    const first = service.installUpdate();
+    await expect(service.installUpdate()).resolves.toEqual({ success: true });
+    await first;
 
     expect(startUpgrade).toHaveBeenCalledTimes(1);
     expect(quitApp).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets the user retry after a rejected install", async () => {
+    const { service, startUpgrade } = createService({
+      canInstall: true,
+      installableVersion: "0.1.0",
+    });
+    await service.checkForUpdates();
+
+    await service.installUpdate();
+    await service.checkForUpdates();
+    await service.installUpdate();
+
+    expect(startUpgrade).not.toHaveBeenCalled();
+    expect(service.getState().phase).toBe("error");
+  });
+});
+
+describe("Homebrew tap lag", () => {
+  it("refuses to quit for a version the tap cannot install yet", async () => {
+    const { service, startUpgrade, pendingInstall, quitApp } = createService({
+      canInstall: true,
+      installableVersion: "0.1.0",
+    });
+    await service.checkForUpdates();
+
+    const result = await service.installUpdate();
+
+    expect(result).toEqual({
+      success: false,
+      error:
+        "Homebrew does not have v0.2.0 yet — it still offers v0.1.0. " +
+        "The tap syncs shortly after each release; try again later, or update " +
+        "manually with the command below.",
+    });
+    expect(startUpgrade).not.toHaveBeenCalled();
+    expect(pendingInstall.write).not.toHaveBeenCalled();
+    expect(quitApp).not.toHaveBeenCalled();
+    expect(service.getState()).toMatchObject({
+      phase: "error",
+      availableVersion: "0.2.0",
+    });
+  });
+
+  it("installs when the tap has caught up", async () => {
+    const { service, startUpgrade, quitApp } = createService({
+      canInstall: true,
+      installableVersion: "0.2.0",
+    });
+    await service.checkForUpdates();
+
+    await expect(service.installUpdate()).resolves.toEqual({ success: true });
+
+    expect(startUpgrade).toHaveBeenCalledTimes(1);
+    expect(quitApp).toHaveBeenCalledTimes(1);
+  });
+
+  it("installs when the tap is already ahead of the checked release", async () => {
+    const { service, startUpgrade } = createService({
+      canInstall: true,
+      installableVersion: "0.3.0",
+    });
+    await service.checkForUpdates();
+
+    await service.installUpdate();
+
+    expect(startUpgrade).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([null, "not-a-version"])(
+    "proceeds when the probe answers %s rather than blocking a working install",
+    async (installableVersion) => {
+      const { service, startUpgrade, quitApp } = createService({
+        canInstall: true,
+        installableVersion,
+      });
+      await service.checkForUpdates();
+
+      await expect(service.installUpdate()).resolves.toEqual({ success: true });
+
+      expect(startUpgrade).toHaveBeenCalledTimes(1);
+      expect(quitApp).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("shows the installing phase while the tap is being probed", async () => {
+    let resolveProbe: ((version: string | null) => void) | undefined;
+    const { service, getInstallableVersion } = createService({
+      canInstall: true,
+    });
+    await service.checkForUpdates();
+    getInstallableVersion.mockReturnValueOnce(
+      new Promise<string | null>((resolve) => {
+        resolveProbe = resolve;
+      }),
+    );
+
+    const install = service.installUpdate();
+    expect(service.getState().phase).toBe("installing");
+
+    resolveProbe?.("0.2.0");
+    await install;
+  });
+
+  it("survives a throwing probe and keeps its details out of state and logs", async () => {
+    const onLog = vi.fn();
+    const { service, getInstallableVersion, startUpgrade } = createService({
+      canInstall: true,
+      onLog,
+    });
+    await service.checkForUpdates();
+    getInstallableVersion.mockRejectedValueOnce(
+      new Error("/Users/kuro/Library/Caskroom/fixlang unreadable"),
+    );
+
+    await expect(service.installUpdate()).resolves.toEqual({ success: true });
+
+    expect(startUpgrade).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(onLog.mock.calls)).not.toContain("/Users/kuro");
+    expect(JSON.stringify(service.getState())).not.toContain("/Users/kuro");
   });
 });
 
