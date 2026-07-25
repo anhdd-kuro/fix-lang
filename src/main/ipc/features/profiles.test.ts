@@ -109,7 +109,7 @@ vi.mock("~/stores/apiStore", () => ({
   switchToNextProfile: switchToNextProfileMock,
   getProfileById: getProfileByIdMock,
   initializeDefaultProfile: initializeDefaultProfileMock,
-  apiStore: { get: vi.fn().mockReturnValue([]), set: vi.fn() },
+  apiStore: { get: vi.fn().mockReturnValue([]), set: vi.fn(), delete: vi.fn() },
   withoutProfileSecrets: withoutProfileSecretsMock,
   toExportableProfile: toExportableProfileMock,
   sanitizeImportedProfile: sanitizeImportedProfileMock,
@@ -122,6 +122,13 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
     onHandlers.clear();
     getProfilesMock.mockReturnValue([]);
     getCurrentProfileIdMock.mockReturnValue("profile_1");
+    // vi.clearAllMocks() clears calls but NOT return values, so a profile
+    // configured by one test would persist into the next, where
+    // registerProfileHandlers' fire-and-forget
+    // `void migrateLegacySecretsToActiveProfile()` would run against it and
+    // reject unhandled. Restore the no-active-profile default explicitly;
+    // tests that need a profile set their own return value.
+    getProfileByIdMock.mockReturnValue(undefined);
     registerProfileHandlers();
   });
 
@@ -166,7 +173,13 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
   // which one each path calls, via distinguishable return values — the
   // stripping behaviour itself is pinned in apiStore.test.ts (D13).
   it("export-profile serialises toExportableProfile, not the disk-writeback stripper", async () => {
-    getProfileByIdMock.mockReturnValue({ id: "profile_1", name: "Work" });
+    // `settings` is required, not decoration: registerProfileHandlers fires
+    // `void migrateLegacySecretsToActiveProfile()`, which dereferences
+    // `profile.settings.apiKey`. vi.clearAllMocks() clears calls but NOT
+    // return values, so a settings-less profile here leaks into every later
+    // test in this file as an unhandled rejection.
+    const storedProfile = { id: "profile_1", name: "Work", settings: { apiKey: "" } };
+    getProfileByIdMock.mockReturnValue(storedProfile);
     toExportableProfileMock.mockReturnValue({ id: "profile_1", strippedBy: "toExportableProfile" });
     withoutProfileSecretsMock.mockReturnValue({
       id: "profile_1",
@@ -184,7 +197,7 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
       id: "profile_1",
       strippedBy: "toExportableProfile",
     });
-    expect(toExportableProfileMock).toHaveBeenCalledWith({ id: "profile_1", name: "Work" });
+    expect(toExportableProfileMock).toHaveBeenCalledWith(storedProfile);
     expect(withoutProfileSecretsMock).not.toHaveBeenCalled();
   });
 

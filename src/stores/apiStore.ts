@@ -389,9 +389,20 @@ export const apiStoreSchema = {
         settings: {
           type: "object",
           properties: {
+            // The default is deliberately valueless. It once defaulted to
+            // process.env.OPENAI_API_KEY, which ajv's useDefaults injected into
+            // every profile on read; the migration then persisted it in
+            // plaintext to config.json, and migrateLegacySecretsToActiveProfile
+            // promoted it into the profile's *openrouter* secret slot — sending
+            // an OpenAI key to openrouter.ai as a Bearer token. Secrets belong
+            // in safeStorage, reached via profileSecretStore, never in a schema
+            // default. The "" default is load bearing and must stay: the type
+            // is a required string and withoutProfileSecrets deletes this key,
+            // so without it a scrubbed profile reads back undefined. Never
+            // reintroduce a default that carries a value.
             apiKey: {
               type: "string",
-              default: process.env.OPENAI_API_KEY,
+              default: "",
             },
             // "" means "inherit the global default", resolved dynamically at
             // request/display time by `getDefaultModelId`. A non-empty value

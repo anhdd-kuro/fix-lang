@@ -562,6 +562,29 @@ describe("apiStoreSchema — model defaults are the inherit sentinel", () => {
   it("root configVersion defaults to 0", () => {
     expect(apiStoreSchema.configVersion).toEqual({ type: "number", default: 0 });
   });
+
+  // Regression: apiKey once defaulted to process.env.OPENAI_API_KEY. ajv's
+  // useDefaults injected it into every profile on read, the migration persisted
+  // it in plaintext to config.json, and migrateLegacySecretsToActiveProfile
+  // promoted it into the *openrouter* secret slot — an OpenAI key sent to
+  // openrouter.ai as a Bearer token. The default must stay valueless.
+  it("settings.apiKey defaults to \"\" and never carries a value from the environment", () => {
+    expect(settingsSchemaProperties.apiKey.default).toBe("");
+  });
+
+  it("no schema default leaks a credential-shaped environment variable", () => {
+    const serialised = JSON.stringify(apiStoreSchema);
+    const secrets = Object.entries(process.env).filter(
+      (entry): entry is [string, string] =>
+        /KEY|TOKEN|SECRET|PASSWORD/i.test(entry[0]) &&
+        typeof entry[1] === "string" &&
+        // Short values collide with ordinary schema content ("0", "1", "en").
+        entry[1].length >= 8,
+    );
+    for (const [name, value] of secrets) {
+      expect(serialised, `schema embeds the value of ${name}`).not.toContain(value);
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
