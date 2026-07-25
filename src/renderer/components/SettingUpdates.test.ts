@@ -172,8 +172,8 @@ describe("SettingUpdates", () => {
     expect(container.querySelector('[role="status"]')?.textContent).toContain(
       tEn("settings.updates.upToDate"),
     );
-    // Substring probe for the button label, not a full-message duplication.
-    expect(container.textContent).toContain("Check for update");
+    // The check button stays available so the user can re-check on demand.
+    expect(buttonNamed(container, tEn("settings.updates.checkButton"))).toBeTruthy();
   });
 
   it("offers a manual GitHub download without rendering its notes as HTML", async () => {
