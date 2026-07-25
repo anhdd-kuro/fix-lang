@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTranslator } from "~/shared/i18n/translate";
 import {
   buildCorrectionResultWindowTitle,
+  buildErrorPopupCloseLabel,
   buildErrorPopupTitle,
   buildPromptGenWindowTitle,
 } from "./windowTitles";
@@ -35,6 +36,7 @@ describe("window titles", () => {
       tEn("notifications.window.correctionResult.title"),
     );
     expect(buildErrorPopupTitle()).toBe(tEn("notifications.errorPopup.title"));
+    expect(buildErrorPopupCloseLabel()).toBe(tEn("common.close"));
   });
 
   it("builds Japanese titles and keeps the product name untranslated", () => {
@@ -43,10 +45,12 @@ describe("window titles", () => {
     const promptGen = buildPromptGenWindowTitle();
     const correctionResult = buildCorrectionResultWindowTitle();
     const errorPopup = buildErrorPopupTitle();
+    const errorClose = buildErrorPopupCloseLabel();
 
     expect(promptGen).toBe(tJa("notifications.window.promptGen.title"));
     expect(correctionResult).toBe(tJa("notifications.window.correctionResult.title"));
     expect(errorPopup).toBe(tJa("notifications.errorPopup.title"));
+    expect(errorClose).toBe(tJa("common.close"));
 
     // Prove the locale actually changed the wording.
     expect(promptGen).not.toBe(tEn("notifications.window.promptGen.title"));
@@ -54,5 +58,6 @@ describe("window titles", () => {
       tEn("notifications.window.correctionResult.title"),
     );
     expect(errorPopup).not.toBe(tEn("notifications.errorPopup.title"));
+    expect(errorClose).not.toBe(tEn("common.close"));
   });
 });
