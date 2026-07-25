@@ -14,6 +14,10 @@ A local macOS menu-bar app that fixes grammar, improves writing, and runs other 
 ### Prompt generation
 
 - **PromptGen** (`Ctrl+Shift+G`) — build AI prompts from selected text in a dedicated window
+- Opt-in from **0.3.4** onward: PromptGen ships only in builds carrying the
+  `--promptgen` feature tag, so it is **absent from the prebuilt DMGs** (window,
+  hotkey, settings tab, and history chip alike). See
+  [Feature tags](#feature-tags-opt-in-features).
 
 ### Dashboard (MainWindow)
 
@@ -167,16 +171,47 @@ bun run pack:mac      # → release/mac-arm64/FixLang.app (or release/mac/)
 bun run pack:install  # build + copy to /Applications/FixLang.app
 ```
 
+### Feature tags (opt-in features)
+
+Some features only ship when their tag is given to the build command. **If the
+tag is absent, the feature is excluded from the build** — no renderer bundle is
+emitted for it, its global hotkey is never registered (so the key stays free for
+other apps), its IPC handlers are not installed, and its settings tab is hidden.
+
+| Feature | Tag | Env form |
+| --- | --- | --- |
+| Prompt generation (PromptGen) | `--promptgen` | `FIXLANG_FEATURES=promptgen` |
+
+```bash
+bun run build              # PromptGen EXCLUDED (default)
+bun run build:promptgen    # PromptGen included
+bun run dev:promptgen      # dev with PromptGen
+bun run pack:mac:promptgen # packaged app with PromptGen
+
+# Equivalent long forms
+FIXLANG_FEATURES=promptgen bun run build
+FIXLANG_FEATURES=all bun run build   # every feature tag on
+```
+
+Grammar: `--promptgen` / `--promptgen=true|1|yes|on` enable;
+`--no-promptgen` / `--promptgen=false|0|no|off` disable. `FIXLANG_FEATURES`
+takes a comma- or space-separated tag list (`all` enables everything), and
+explicit CLI tags override the env value. Unknown tags are ignored.
+
+The prebuilt DMGs on the Releases page are produced by the plain `build`
+command, so they currently ship **without** PromptGen — build from source with
+the tag if you want it.
+
 ## Usage
 
 1. Select text in any application (or copy to clipboard)
 2. Press a preset hotkey (default: `Ctrl+Shift+F` for Correction)
 3. FixLang delivers the result using the mode selected in **Settings → General → Correction output**: **Direct paste** or **Show popup**
 4. Open the tray popover → dashboard icon for Overview, History, Models, OpenRouter, or Logs
-5. `Ctrl+Shift+G` opens PromptGen on the current selection
+5. `Ctrl+Shift+G` opens PromptGen on the current selection — tag-on builds only, see [Feature tags](#feature-tags-opt-in-features)
 6. `Ctrl+Shift+P` cycles to the next profile
 
-Hotkeys are customizable per preset and for global actions (PromptGen, profile switch) in Settings. Correction output mode is global and defaults to **Direct paste**.
+Hotkeys are customizable per preset and for global actions (PromptGen where built in, profile switch) in Settings. Correction output mode is global and defaults to **Direct paste**.
 
 ## Development
 

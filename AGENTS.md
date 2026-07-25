@@ -66,7 +66,10 @@ bun run test            # verify changes — use `bun run test`, not `bun test`
 bun run lint            # ESLint (cached)
 bun run pack:mac        # package macOS app → release/
 bun run themes:generate # after theme .ts edits
+bun run build:promptgen # feature-tag build (also dev:promptgen, pack:mac:promptgen)
 ```
+
+- **Feature tags are opt-in** — features listed in `src/shared/features.ts` are excluded unless the build carries their tag (`FIXLANG_FEATURES=promptgen` env, or `--promptgen` CLI). Flag-off builds emit no renderer bundle for the feature and skip its hotkey, IPC handlers, and settings tab. Read flags at runtime via `isPromptGenEnabled()`, never `__FEATURE_PROMPT_GEN__` directly (the define is absent under vitest). Plain `bun run build` (what the release workflow runs) ships PromptGen OFF.
 
 ## How to Work
 

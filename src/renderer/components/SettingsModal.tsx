@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { twJoin } from "tailwind-merge";
+import { isPromptGenEnabled } from "~/shared/features";
 import ProfileManager from "./ProfileManager";
 import { SettingAppearance } from "./SettingAppearance";
 import { SettingCorrection } from "./SettingCorrection";
@@ -17,7 +18,11 @@ type SettingsTab = {
 type SettingsModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  /** Initial active tab index (0-based). Tabs: Profiles, General, Correction, PromptGen. */
+  /**
+   * Initial active tab index (0-based) into the *visible* tab list
+   * (Profiles, General, Appearance, Correction, and PromptGen only when the
+   * PromptGen feature tag is built in). Out-of-range values are clamped.
+   */
   initialTab?: number;
 };
 
@@ -105,16 +110,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       icon: <></>,
       component: <SettingCorrection />,
     },
-    {
-      id: "promptGen",
-      label: "PromptGen",
-      icon: <></>,
-      component: <SettingPromptGen />,
-    },
+    // Build-time feature tag: no `--promptgen` => no PromptGen tab at all.
+    ...(isPromptGenEnabled()
+      ? [
+          {
+            id: "promptGen",
+            label: "PromptGen",
+            icon: <></>,
+            component: <SettingPromptGen />,
+          },
+        ]
+      : []),
   ];
 
-  // Tab state now uses the initialTab to index into the tabs array
-  const [activeTab, setActiveTab] = useState<number>(initialTab);
+  // Tab state indexes into the (possibly filtered) tabs array, so clamp the
+  // caller-supplied index — a disabled feature must not strand the modal on a
+  // tab that no longer exists.
+  const [activeTab, setActiveTab] = useState<number>(() =>
+    Math.min(Math.max(initialTab, 0), tabs.length - 1),
+  );
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     if (e.target === e.currentTarget) {

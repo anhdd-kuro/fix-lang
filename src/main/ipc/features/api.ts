@@ -3,7 +3,11 @@
  * @description IPC handlers for OpenAI API related functionality
  */
 import { ipcMain } from "electron";
-import { fetchAvailableModels, getActiveProvider } from "~/main/ai.request";
+import {
+  fetchAvailableModels,
+  fetchModelsForDisplay,
+  getActiveProvider,
+} from "~/main/ai.request";
 import { reloadHotkeys } from "~/main/keybindings";
 import { ollamaClient } from "~/main/llm";
 import { checkModelCompatibility } from "~/main/llm/models/compatibility";
@@ -221,8 +225,11 @@ export const registerApiHandlers = (): void => {
     }
   });
 
-  // Model handling
-  ipcMain.handle("fetch-ai-models", async () => {
+  // Model handling. `refetch` comes from the renderer: falsy (a plain
+  // ModelSelect mount / tab open) may be served from the fresh cache, while
+  // `true` (the ↻ refresh button, the `settings-updated` broadcast) always
+  // reaches the provider.
+  ipcMain.handle("fetch-ai-models", async (_event, refetch?: boolean) => {
     try {
       const provider = getActiveProvider();
       const profileId = getCurrentProfileId();
@@ -232,7 +239,7 @@ export const registerApiHandlers = (): void => {
           : provider === "openai" && profileId
             ? ((await getProfileSecret(profileId, "openai", "api")) ?? "")
             : "";
-      const models = await fetchAvailableModels(apiKey, provider);
+      const models = await fetchModelsForDisplay(apiKey, provider, refetch === true);
 
       return {
         success: true,

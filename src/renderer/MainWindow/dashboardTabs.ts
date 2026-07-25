@@ -5,6 +5,7 @@
  * logic and the history filter/derivation logic are unit-testable without a
  * DOM testing library (none is installed; see #54 plan HITL #4).
  */
+import { isPromptGenEnabled } from "~/shared/features";
 import type { HistoryEntry } from "~/stores/historyStore";
 
 /** Stable identifiers for the six dashboard tabs, in display order. */
@@ -52,18 +53,25 @@ export const clampTabIndex = (index: number): number => {
 
 /**
  * Derive unique preset names from loaded history entries (corrections bucket),
- * preserving first-seen order. `PromptGen` is appended last as a fixed entry.
+ * preserving first-seen order. `PromptGen` is appended last as a fixed entry,
+ * unless the PromptGen build-time feature tag is off — pass `includePromptGen`
+ * explicitly in tests, where no bundler define exists.
  *
  * Moved verbatim from App.tsx so it can be unit-tested directly.
  */
-export const deriveAvailableFilters = (entries: HistoryEntry[]): string[] => {
+export const deriveAvailableFilters = (
+  entries: HistoryEntry[],
+  includePromptGen: boolean = isPromptGenEnabled(),
+): string[] => {
   const seen = new Set<string>();
   for (const e of entries) {
     if (e.presetName && e.presetName !== "PromptGen") {
       seen.add(e.presetName);
     }
   }
-  return [...seen, "PromptGen"];
+  // Build-time feature tag off => no dead PromptGen filter chip, since no
+  // PromptGen history can be produced by that build.
+  return includePromptGen ? [...seen, "PromptGen"] : [...seen];
 };
 
 /**
