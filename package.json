@@ -29,6 +29,7 @@
     "build:promptgen": "FIXLANG_FEATURES=promptgen bun run build",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint ./src",
     "i18n:check": "bun run scripts/i18n-check.ts",
+    "check:bundle": "bun run scripts/check-bundle-externals.ts",
     "vitest": "vitest",
     "test": "vitest --watch=false",
     "test:w": "vitest",
