@@ -167,6 +167,37 @@ bun run pack:mac      # → release/mac-arm64/FixLang.app (or release/mac/)
 bun run pack:install  # build + copy to /Applications/FixLang.app
 ```
 
+### Feature tags (opt-in features)
+
+Some features only ship when their tag is given to the build command. **If the
+tag is absent, the feature is excluded from the build** — no renderer bundle is
+emitted for it, its global hotkey is never registered (so the key stays free for
+other apps), its IPC handlers are not installed, and its settings tab is hidden.
+
+| Feature | Tag | Env form |
+| --- | --- | --- |
+| Prompt generation (PromptGen) | `--promptgen` | `FIXLANG_FEATURES=promptgen` |
+
+```bash
+bun run build              # PromptGen EXCLUDED (default)
+bun run build:promptgen    # PromptGen included
+bun run dev:promptgen      # dev with PromptGen
+bun run pack:mac:promptgen # packaged app with PromptGen
+
+# Equivalent long forms
+FIXLANG_FEATURES=promptgen bun run build
+FIXLANG_FEATURES=all bun run build   # every feature tag on
+```
+
+Grammar: `--promptgen` / `--promptgen=true|1|yes|on` enable;
+`--no-promptgen` / `--promptgen=false|0|no|off` disable. `FIXLANG_FEATURES`
+takes a comma- or space-separated tag list (`all` enables everything), and
+explicit CLI tags override the env value. Unknown tags are ignored.
+
+The prebuilt DMGs on the Releases page are produced by the plain `build`
+command, so they currently ship **without** PromptGen — build from source with
+the tag if you want it.
+
 ## Usage
 
 1. Select text in any application (or copy to clipboard)

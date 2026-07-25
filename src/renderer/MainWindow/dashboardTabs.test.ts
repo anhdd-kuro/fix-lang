@@ -73,7 +73,7 @@ describe("deriveAvailableFilters", () => {
       makeEntry({ presetName: "Correction" }),
       makeEntry({ presetName: "PromptGen" }), // explicit PromptGen is folded in, not duplicated
     ];
-    expect(deriveAvailableFilters(entries)).toEqual([
+    expect(deriveAvailableFilters(entries, true)).toEqual([
       "Correction",
       "Translate",
       "PromptGen",
@@ -81,9 +81,23 @@ describe("deriveAvailableFilters", () => {
   });
 
   it("returns just PromptGen when there are no preset names", () => {
-    expect(deriveAvailableFilters([makeEntry({ presetName: undefined })])).toEqual([
-      "PromptGen",
-    ]);
+    expect(
+      deriveAvailableFilters([makeEntry({ presetName: undefined })], true),
+    ).toEqual(["PromptGen"]);
+  });
+
+  it("omits the PromptGen chip when the PromptGen feature tag is off", () => {
+    const entries = [
+      makeEntry({ presetName: "Correction" }),
+      makeEntry({ presetName: "PromptGen" }),
+    ];
+    expect(deriveAvailableFilters(entries, false)).toEqual(["Correction"]);
+  });
+
+  it("defaults to the build-time flag, which is off under vitest", () => {
+    expect(
+      deriveAvailableFilters([makeEntry({ presetName: "Correction" })]),
+    ).toEqual(["Correction"]);
   });
 });
 

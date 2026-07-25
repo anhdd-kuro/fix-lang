@@ -3,11 +3,44 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "electron-vite";
 import commonjs from "vite-plugin-commonjs";
 import tsconfigPaths from "vite-tsconfig-paths";
+import { parseFeatureFlags } from "./src/shared/features";
 
 export const rendererPort = 5175;
 
+/**
+ * Build-time feature tags. Features are OPT-IN: without the tag the feature is
+ * excluded from the build entirely.
+ *   FIXLANG_FEATURES=promptgen bun run build   # env form (recommended)
+ *   electron-vite build --promptgen            # CLI form
+ */
+const features = parseFeatureFlags({ argv: process.argv, env: process.env });
+
+/** Injected into every bundle; read via `isPromptGenEnabled()`. */
+const featureDefine = {
+  __FEATURE_PROMPT_GEN__: JSON.stringify(features.promptGen),
+};
+
+const rendererInput = {
+  main: resolve(__dirname, "src/renderer/MainWindow/index.html"),
+  tray: resolve(__dirname, "src/renderer/TrayWindow/index.html"),
+  correctionResult: resolve(
+    __dirname,
+    "src/renderer/CorrectionResultWindow/index.html",
+  ),
+  // Omitted when the tag is off so no PromptGen bundle/html is emitted at all.
+  ...(features.promptGen
+    ? {
+        promptGen: resolve(
+          __dirname,
+          "src/renderer/PromptGenWindow/index.html",
+        ),
+      }
+    : {}),
+};
+
 export default defineConfig({
   main: {
+    define: featureDefine,
     plugins: [tsconfigPaths(), tailwindcss()],
     build: {
       outDir: "out/main",
@@ -29,6 +62,7 @@ export default defineConfig({
     },
   },
   preload: {
+    define: featureDefine,
     plugins: [tsconfigPaths()],
     build: {
       outDir: "out/preload",
@@ -48,6 +82,7 @@ export default defineConfig({
   },
   renderer: {
     root: "src/renderer",
+    define: featureDefine,
     plugins: [tailwindcss(), tsconfigPaths(), commonjs()],
     server: {
       port: rendererPort,
@@ -57,18 +92,7 @@ export default defineConfig({
       outDir: "out/renderer",
       assetsDir: ".", // Place assets in the root of outDir
       rollupOptions: {
-        input: {
-          main: resolve(__dirname, "src/renderer/MainWindow/index.html"),
-          tray: resolve(__dirname, "src/renderer/TrayWindow/index.html"),
-          promptGen: resolve(
-            __dirname,
-            "src/renderer/PromptGenWindow/index.html",
-          ),
-          correctionResult: resolve(
-            __dirname,
-            "src/renderer/CorrectionResultWindow/index.html",
-          ),
-        },
+        input: rendererInput,
       },
     },
     resolve: {

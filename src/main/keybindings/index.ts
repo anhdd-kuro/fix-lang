@@ -1,4 +1,5 @@
 import { globalShortcut, BrowserWindow } from "electron";
+import { isPromptGenEnabled } from "~/shared/features";
 import { registerCorrectionShortcut } from "./correction";
 import { registerProfileSwitchShortcut } from "./profileSwitch";
 import { registerPromptGenShortcut } from "./promptGen";
@@ -21,7 +22,13 @@ export const registerHotkeys = (mainWindow: BrowserWindow): void => {
   console.log("Attempting to register hotkeys...");
 
   registerCorrectionShortcut(mainWindow);
-  registerPromptGenShortcut(mainWindow);
+  // Feature tag off => never claim the PromptGen hotkey, so the key stays free
+  // for other apps.
+  if (isPromptGenEnabled()) {
+    registerPromptGenShortcut(mainWindow);
+  } else {
+    console.log("PromptGen feature disabled at build time; hotkey skipped.");
+  }
   registerProfileSwitchShortcut(); // Register the profile switch shortcut
   registerDevToolsShortcut();
 };
