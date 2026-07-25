@@ -118,14 +118,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     },
     // Build-time feature tag: no `--promptgen` => no PromptGen tab at all.
     ...(isPromptGenEnabled()
-      ? [
+      ? ([
           {
             id: "promptGen",
-            labelKey: "settings.modal.tabs.promptGen" as TranslationKey,
+            labelKey: "settings.modal.tabs.promptGen",
             icon: <></>,
             component: <SettingPromptGen />,
           },
-        ]
+        ] satisfies SettingsTab[])
       : []),
   ];
 

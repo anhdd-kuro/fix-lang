@@ -7,6 +7,8 @@
  */
 import { describe, expect, it } from "vitest";
 import { createFormatters } from "~/shared/i18n/format";
+import { CATALOGS } from "~/shared/i18n/locales";
+import { LOCALE_CODES } from "~/shared/i18n/registry";
 import { createTranslator } from "~/shared/i18n/translate";
 import { buildModelOptionLabel, type ModelForLabel } from "./modelOptionLabel";
 
@@ -94,5 +96,28 @@ describe("buildModelOptionLabel", () => {
     expect(buildModelOptionLabel(seconds, deps)).toBe(
       buildModelOptionLabel(millis, deps),
     );
+  });
+});
+
+describe("models.select.optionLabel comma contract", () => {
+  // `ModelSelect.tsx`'s custom Option renderer does
+  // `label.split(",").map((part) => part.trim())` to lay out the id/date/
+  // price-or-size chips (see the CONTRACT comment there and in
+  // `modelOptionLabel.ts`). That only works if every catalog value below has
+  // exactly two literal ASCII commas — a translator swapping them for `、`,
+  // or a third language template that drops one, must fail here instead of
+  // silently collapsing the option to a single unstyled line in the UI.
+  const CONTRACT_KEYS = [
+    "models.select.optionLabel.local",
+    "models.select.optionLabel.cloud",
+  ] as const;
+
+  it.each(CONTRACT_KEYS)("%s has exactly two ASCII commas in every locale", (key) => {
+    for (const locale of LOCALE_CODES) {
+      const template = CATALOGS[locale][key];
+      expect(template, `${locale}/${key} is missing`).toBeDefined();
+      const commaCount = (template ?? "").split(",").length - 1;
+      expect(commaCount, `${locale}/${key}: "${template}"`).toBe(2);
+    }
   });
 });

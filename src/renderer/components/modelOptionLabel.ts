@@ -8,6 +8,16 @@
  * JA and EN order the created-date/price/size clauses differently, so each
  * locale gets its own full template (`models.select.optionLabel.local` /
  * `.cloud`) rather than string-concatenating locale-agnostic fragments.
+ *
+ * CONTRACT: `ModelSelect.tsx`'s custom `Option` renderer re-parses the string
+ * this function returns via `label.split(",")` to lay out the id/date/badge
+ * as separate chips. That means every `models.select.optionLabel.local` /
+ * `.cloud` catalog value, in every locale, MUST contain exactly two literal
+ * ASCII commas (`,`) — never a fullwidth `、` — or the split silently
+ * collapses to one part and the option renders as a single unstyled line
+ * with no date/price badge. `modelOptionLabel.test.ts` asserts this contract
+ * against every catalog so a translator "fixing" the punctuation, or a new
+ * locale, fails CI instead of failing silently in the UI.
  */
 import { format as formatDateFns } from "date-fns";
 import type { Locale as DateFnsLocale } from "date-fns/locale";

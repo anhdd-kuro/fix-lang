@@ -313,6 +313,12 @@ export const ModelSelect: React.FC<{
           components={{
             Option: ({ data, isFocused, isSelected, innerProps }) => {
               const { label, isLocal } = data;
+              // CONTRACT (see `modelOptionLabel.ts`): `label` comes from
+              // `buildModelOptionLabel`, whose `models.select.optionLabel.*`
+              // catalog templates are guaranteed — for every locale, by
+              // `modelOptionLabel.test.ts` — to contain exactly two literal
+              // ASCII commas. Do not change this split without updating that
+              // guard test and every catalog template it checks.
               const parts = label.split(",").map((part) => part.trim());
               const modelId = parts[0] ?? label;
               const createdAt = parts[1];

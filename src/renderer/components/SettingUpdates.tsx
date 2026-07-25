@@ -178,6 +178,18 @@ export const SettingUpdates = () => {
   ) => {
     if (actionPending) return;
 
+    // Shared by both failure paths below (a rejected request and a
+    // resolved-but-`success: false` result) so a translation key never has to
+    // be smuggled through as an `Error` message just to reach one handler.
+    const reportFailure = () => {
+      setMountLoadError(null);
+      setState((current) => ({
+        ...current,
+        phase: "error",
+        message: failureMessage,
+      }));
+    };
+
     setActionPending(true);
     try {
       const result = await request();
@@ -187,15 +199,11 @@ export const SettingUpdates = () => {
         "success" in result &&
         result.success === false
       ) {
-        throw new Error(failureMessage.key);
+        reportFailure();
+        return;
       }
     } catch {
-      setMountLoadError(null);
-      setState((current) => ({
-        ...current,
-        phase: "error",
-        message: failureMessage,
-      }));
+      reportFailure();
     } finally {
       setActionPending(false);
     }
