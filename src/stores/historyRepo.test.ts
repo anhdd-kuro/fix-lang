@@ -6,6 +6,7 @@
  */
 import { DatabaseSync } from "node:sqlite";
 import { beforeEach, describe, expect, it } from "vitest";
+import { PROVIDER_IDS } from "~/shared/providers";
 import {
   createHistoryRepo,
   entryToParams,
@@ -290,6 +291,50 @@ describe("cost snapshot persistence", () => {
       makeEntry({ timestamp: "2024-04-30T00:00:00Z", provider: "openai" }),
     );
     expect(repo.getByFeature("corrections")[0]?.provider).toBe("openai");
+  });
+
+  // `rowToEntry` used to test `row.provider` against a hand-written
+  // `"openai" | "openrouter" | "ollama"` union. That is extensionally equal to
+  // `isProviderId` for today's three providers, so this block is green both
+  // before and after the swap — it is a source-of-truth guard, not a bug fix.
+  // It is driven by `PROVIDER_IDS` rather than by literals precisely so it
+  // stops being equal the moment a fourth provider is added: the union would
+  // have dropped that provider's rows silently, with no type error, because
+  // it narrowed `string` perfectly well.
+  it.each([...PROVIDER_IDS])(
+    "round-trips the %s provider, driven by PROVIDER_IDS",
+    (provider) => {
+      repo.insert(
+        "corrections",
+        makeEntry({ timestamp: "2024-04-30T00:00:00Z", provider }),
+      );
+      const stored = repo.getByFeature("corrections").at(-1);
+      expect(stored?.provider).toBe(provider);
+    },
+  );
+
+  it("keeps an unrecognized provider column out of the entry entirely", () => {
+    // A row written by a newer build, or corrupted. Better absent than
+    // surfaced as a provider the rest of the app cannot route or price.
+    // "constructor" specifically: it is an inherited key, so any lookup-map
+    // implementation of this check would read it as truthy.
+    const entry = rowToEntry({
+      feature_id: "corrections",
+      original: "a",
+      corrected: "b",
+      timestamp: "2024-01-01T00:00:00Z",
+      prompt_tokens: null,
+      completion_tokens: null,
+      model: null,
+      provider: "constructor",
+      resolved_model: null,
+      preset_name: null,
+      estimated_cost_usd: null,
+      price_prompt: null,
+      price_completion: null,
+      cost_status: null,
+    });
+    expect(entry).not.toHaveProperty("provider");
   });
 
   it("round-trips cost fields including the cost_status discriminator", () => {

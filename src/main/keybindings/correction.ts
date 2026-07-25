@@ -101,7 +101,10 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           presetId: preset.id,
           textLength: selectedText.length,
           model: result.model,
-          provider: result.provider,
+          // `?? null` for the same reason as `resolvedModel` below: the
+          // correction result now reports no provider when the model ref
+          // names none, and `LogValue` has no `undefined` member.
+          provider: result.provider ?? null,
           resolvedModel: result.resolvedModel ?? null,
           delivery,
         });

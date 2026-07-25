@@ -54,8 +54,15 @@ export const generatePrompt = async (
         .removeExtraSpaces()
         .removeExtraSpaces().value,
       userPrompt: `Input:\n${text}`,
-      ...options,
+      // Order matters: the profile settings are the DEFAULTS, so they spread
+      // first and an explicit `options` value wins. The reverse order (the
+      // original) let `settingsPromptGen.model` silently overwrite a model the
+      // caller asked for by name — a pre-existing bug, invisible only because
+      // the sole in-tree caller (`keybindings/promptGen.ts`) passes just
+      // `{ text }`, so the two objects never collided. It surfaces the moment
+      // anything requests a specific model.
       ...currentSettings,
+      ...options,
     });
 
     // Extract required values from response

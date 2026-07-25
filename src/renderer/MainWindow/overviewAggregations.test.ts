@@ -24,7 +24,6 @@ import {
   presetCountsOverTime,
   perPresetWeights,
   sessionCount,
-  splitModelId,
   stripModelDate,
   streaks,
   tokenActivityCalendar,
@@ -666,25 +665,12 @@ describe("benchmarkMessage", () => {
   });
 });
 
-describe("splitModelId", () => {
-  it("splits provider/model on the first slash", () => {
-    expect(splitModelId("openai/gpt-4o")).toEqual({
-      provider: "openai",
-      model: "gpt-4o",
-    });
-    expect(splitModelId("anthropic/claude/opus")).toEqual({
-      provider: "anthropic",
-      model: "claude/opus",
-    });
-  });
-  it("no slash → provider null, model = whole id", () => {
-    expect(splitModelId("gpt-4o")).toEqual({ provider: null, model: "gpt-4o" });
-  });
-  it("null/blank → both null", () => {
-    expect(splitModelId(null)).toEqual({ provider: null, model: null });
-    expect(splitModelId("   ")).toEqual({ provider: null, model: null });
-  });
-});
+// The describe block covering the id-splitting provider helper is deleted
+// along with the helper itself (see the tombstone in overviewAggregations.ts).
+// It was not pinning behaviour that still matters: every assertion in it
+// ("openai/gpt-4o" → provider "openai") asserted an id-shape-to-provider
+// inference the multi-provider refactor classifies as wrong — that id is
+// routinely served by OpenRouter. The helper had no caller but this block.
 
 
 

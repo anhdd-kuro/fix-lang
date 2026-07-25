@@ -3,8 +3,8 @@
  * @description Background process to monitor and detect local LLM models
  */
 import { app, BrowserWindow } from "electron";
-import { fetchAvailableModels, getActiveProvider } from "~/main/ai.request/shared";
-import { apiStore } from "~/stores/apiStore";
+import { fetchAvailableModels, getCachedModels } from "~/main/ai.request/shared";
+import { getProfileSetting } from "~/stores/apiStore";
 import { getLocalModels } from "./discover";
 import type { Model } from "~/stores/apiStore";
 
@@ -84,15 +84,39 @@ function getMainWindow(): BrowserWindow | null {
 }
 
 /**
- * Check for changes in available local models
+ * Whether the active profile has explicitly connected Ollama.
+ *
+ * There is no profile-wide "active provider" any more — a profile can have
+ * all three connected at once — so the poll keys off the connection list.
+ * Defensive about the shape: this value comes from a user-editable config
+ * file, and a monitor that throws on a garbled array would take out the
+ * periodic refresh entirely.
  */
-async function checkForModelChanges(): Promise<void> {
+const isOllamaConnected = (): boolean => {
+  const enabled: unknown = getProfileSetting("enabledProviders");
+  return Array.isArray(enabled) && enabled.includes("ollama");
+};
+
+/**
+ * Check for changes in available local models.
+ *
+ * Exported for tests: the interval/backoff wrapper around it is timing state,
+ * while this is the behaviour worth pinning.
+ */
+export async function checkForModelChanges(): Promise<void> {
   try {
+    // Gate BEFORE polling, not after. The old guard sat below the
+    // `getLocalModels()` call, so a user who had never connected Ollama still
+    // hit the local daemon every five minutes and simply discarded the answer.
+    if (!isOllamaConnected()) {
+      return;
+    }
+
     console.log("Checking for local model changes...");
 
-    // Get current models from store
-    const storedModels = (apiStore.get("models") as Model[]) || [];
-    const storedLocalModels = storedModels.filter((model) => model.local);
+    // The cached Ollama slice — NOT the legacy top-level `models` key, which
+    // is global while the real cache is per-profile.
+    const storedLocalModels = getCachedModels("ollama");
 
     // Get latest models from Ollama
     const currentLocalModels = await getLocalModels();
@@ -109,17 +133,11 @@ async function checkForModelChanges(): Promise<void> {
         `Local model changes detected: ${added.length} added, ${removed.length} removed`
       );
 
-      // A provider cache contains only the active provider's models. Do not
-      // replace OpenAI/OpenRouter choices with an unrelated Ollama refresh.
-      if (getActiveProvider() !== "ollama") {
-        consecutiveFailures = 0;
-        _lastSuccessfulCheck = Date.now();
-        return;
-      }
-      const allModels = await fetchAvailableModels("", "ollama");
-
-      // Update the store with the latest models
-      apiStore.set("models", allModels);
+      // `persistCache: true` (explicit) routes the write through
+      // `cacheModelsForProvider`, which replaces ONLY the Ollama slice. The
+      // old `apiStore.set("models", …)` overwrote the whole list with an
+      // Ollama-only refresh, wiping the user's OpenAI/OpenRouter choices.
+      await fetchAvailableModels("", "ollama", true);
 
       // Send notification to the renderer process if main window exists
       const mainWindow = getMainWindow();

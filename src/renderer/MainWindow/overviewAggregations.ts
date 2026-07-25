@@ -178,13 +178,6 @@ export const favoriteModel = (entries: HistoryEntry[]): string | null => {
   return best;
 };
 
-export type ModelProvider = {
-  /** Provider segment before the first "/" (e.g. "openai"); null when absent. */
-  provider: string | null;
-  /** Model segment after the first "/" (or the whole id when there's no "/"). */
-  model: string | null;
-};
-
 /**
  * Strip a trailing version-date suffix from a model id so snapshots collapse to
  * their family: "gpt-5.4-mini-20260317" → "gpt-5.4-mini" (also handles the
@@ -198,25 +191,20 @@ export const stripModelDate = (id: string | null): string | null => {
   return id.replace(/-\d{4}-\d{2}-\d{2}$/, "").replace(/-\d{8}$/, "");
 };
 
-/**
- * Split a served model id ("provider/model", e.g. "openai/gpt-4o") into its
- * provider and model parts. No "/" → provider null, model = the whole id.
- * null/blank → both null.
+/*
+ * Deliberately absent: a helper that split a served model id on its first "/"
+ * and reported the head as the provider, plus its result type.
+ *
+ * Inferring a provider from the shape of an id is the exact anti-pattern the
+ * multi-provider refactor removes — id shapes collide across providers
+ * ("openai/gpt-4o" is routinely served by OpenRouter, not OpenAI), so the
+ * answer was wrong as often as it was right. Provider identity is now carried
+ * explicitly: `Model.provider`, and the composite `<providerId>::<rawModelId>`
+ * ref in `~/shared/modelRef`. If anything here needs a provider again, read it
+ * from one of those. Do not re-derive it from the id.
+ *
+ * It had no caller but its own test, which was deleted with it.
  */
-export const splitModelId = (id: string | null): ModelProvider => {
-  const trimmed = id?.trim() ?? "";
-  if (trimmed.length === 0) {
-    return { provider: null, model: null };
-  }
-  const slash = trimmed.indexOf("/");
-  if (slash === -1) {
-    return { provider: null, model: trimmed };
-  }
-  return {
-    provider: trimmed.slice(0, slash),
-    model: trimmed.slice(slash + 1),
-  };
-};
 
 export type PresetBreakdownRow = {
   /** Identity/grouping key: user preset name, or `UNTITLED_PRESET_ID`. */

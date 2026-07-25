@@ -36,6 +36,10 @@ vi.mock("~/stores/apiStore", async (importOriginal) => {
     ...real,
     // Override only getProfileSetting; keep normalizeCorrectionSettings real
     getProfileSetting: vi.fn(),
+    // Mocked too: the real one reads the live profile through electron-store.
+    // The empty-text early return derives its whole reported identity from
+    // this, so the tests below drive it directly.
+    getDefaultModelId: vi.fn().mockReturnValue(""),
     // apiStore mock (prevent electron-store calls)
     apiStore: {
       get: vi.fn().mockReturnValue(undefined),
@@ -43,17 +47,24 @@ vi.mock("~/stores/apiStore", async (importOriginal) => {
     },
   };
 });
+// `getActiveProvider` is deliberately ABSENT from this mock. Card 04 deleted
+// it from `./shared`; mocking a function the codebase no longer exports would
+// re-create the stub in test-space and assert behaviour production cannot
+// produce. The empty-text tests below drive the real ref-parsing path instead.
 vi.mock("./shared", () => ({
   makeAIRequest: vi.fn(),
-  getActiveProvider: vi.fn().mockReturnValue("openrouter"),
 }));
 // ---------------------------------------------------------------------------
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
-import { getProfileSetting, normalizeCorrectionSettings } from "~/stores/apiStore";
+import {
+  getDefaultModelId,
+  getProfileSetting,
+  normalizeCorrectionSettings,
+} from "~/stores/apiStore";
 import { estimateTextTokens } from "~/stores/historyStore";
 import { fixGrammar } from "./correction";
-import { getActiveProvider, makeAIRequest } from "./shared";
+import { makeAIRequest } from "./shared";
 import type { Mock } from "vitest";
 import type { CorrectionPreset, CorrectionSettings } from "~/stores/apiStore";
 
@@ -176,19 +187,29 @@ describe("fixGrammar — per-preset temperature and maxTokens", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests: fixGrammar empty-input early return reports the real active
-// provider (L1 fix) instead of a hardcoded "openrouter".
+// Tests: fixGrammar empty-input early return.
+//
+// This block replaces two tests that mocked `getActiveProvider` and asserted
+// the mock's own return value ("reports the active provider instead of a
+// hardcoded value" / "reflects a different active provider (ollama) too").
+// That function no longer exists — the branch now reports the provider named
+// by the composite model ref it would have requested, so the tests are
+// rewritten against that, not re-pointed at a replacement stub.
 // ---------------------------------------------------------------------------
 
 describe("fixGrammar — empty input early return", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    const preset = makePreset();
-    (getProfileSetting as Mock).mockReturnValue(makeSettings(preset));
+    (getProfileSetting as Mock).mockReturnValue(makeSettings(makePreset()));
+    (getDefaultModelId as Mock).mockReturnValue("");
   });
 
-  it("reports the active provider instead of a hardcoded value", async () => {
-    (getActiveProvider as Mock).mockReturnValue("openai");
+  const withPresetModel = (model: string) => {
+    (getProfileSetting as Mock).mockReturnValue(makeSettings(makePreset({ model })));
+  };
+
+  it("reports the provider named by the preset's model ref", async () => {
+    withPresetModel("openai::gpt-4o");
 
     const result = await fixGrammar("   ");
 
@@ -196,12 +217,76 @@ describe("fixGrammar — empty input early return", () => {
     expect(makeAIRequest).not.toHaveBeenCalled();
   });
 
-  it("reflects a different active provider (ollama) too", async () => {
-    (getActiveProvider as Mock).mockReturnValue("ollama");
+  it("reports a different provider when the ref names one — ollama", async () => {
+    withPresetModel("ollama::llama3.2:3b");
 
     const result = await fixGrammar("");
 
     expect(result.provider).toBe("ollama");
+  });
+
+  it("reports the RAW model id, never the composite ref", async () => {
+    // Matches `makeAIRequest`'s contract: `model` / `resolvedModel` stay raw
+    // so history rows need no migration. The tag's own ":" must survive — the
+    // ref splits on the FIRST "::" only.
+    withPresetModel("ollama::llama3.2:3b");
+
+    const result = await fixGrammar("");
+
+    expect(result.model).toBe("llama3.2:3b");
+    expect(result.resolvedModel).toBe("llama3.2:3b");
+  });
+
+  it("falls back to the inherited global default when the preset inherits", async () => {
+    withPresetModel("");
+    (getDefaultModelId as Mock).mockReturnValue("openrouter::openai/gpt-4o");
+
+    const result = await fixGrammar("");
+
+    expect(result.provider).toBe("openrouter");
+    expect(result.model).toBe("openai/gpt-4o");
+  });
+
+  it("invents nothing when getDefaultModelId() is the inherit sentinel", async () => {
+    // The acceptance criterion: no `getActiveProvider`, no
+    // `DEFAULT_OPENAI_MODEL`. With nothing to report the branch must report
+    // nothing rather than name a provider the user never chose.
+    withPresetModel("");
+    (getDefaultModelId as Mock).mockReturnValue("");
+
+    const result = await fixGrammar("   ");
+
+    expect(result.provider).toBeUndefined();
+    expect(result.model).toBe("");
+    expect(result.resolvedModel).toBe("");
+    expect(makeAIRequest).not.toHaveBeenCalled();
+  });
+
+  it("reports no provider for a bare (un-migrated) model id", async () => {
+    // A bare id names no provider, and this branch has no model cache to
+    // resolve it against. Guessing one is exactly the anti-pattern the
+    // refactor removes, so `provider` stays undefined while `model` is still
+    // reported truthfully.
+    withPresetModel("gpt-4o");
+
+    const result = await fixGrammar("");
+
+    expect(result.provider).toBeUndefined();
+    expect(result.model).toBe("gpt-4o");
+  });
+
+  it("still returns the preset identity and zeroed usage", async () => {
+    withPresetModel("openai::gpt-4o");
+
+    const result = await fixGrammar("  \n ");
+
+    expect(result).toMatchObject({
+      correctedText: "  \n ",
+      promptTokens: 0,
+      completionTokens: 0,
+      presetId: "test-preset-1",
+      presetName: "Test Preset",
+    });
   });
 });
 

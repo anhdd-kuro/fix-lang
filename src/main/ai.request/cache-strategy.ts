@@ -9,6 +9,7 @@
  *   provider caches automatically when the same prefix is repeated
  * - Everything else: no caching support, pass messages through unchanged
  */
+import { stripModelRefPrefix } from "~/shared/modelRef";
 
 export enum CacheProvider {
   ANTHROPIC = "ANTHROPIC",
@@ -19,9 +20,22 @@ export enum CacheProvider {
 
 /**
  * Determines which caching strategy to use based on the model ID string.
+ *
+ * Accepts either a raw model id or a composite `<providerId>::<rawId>` ref;
+ * the ref's provider prefix is stripped first. **This is not cosmetic.** The
+ * `startsWith(...)` arms below are prefix-sensitive, so a ref such as
+ * `"openrouter::google/gemma-2-9b-it"` or `"openai::openai/o3-mini"` matches
+ * nothing and falls through to `UNSUPPORTED` — prompt caching silently stops
+ * and the bill goes up with no error anywhere. Ids that happen to also carry
+ * a family word ("claude", "gemini", "gpt", …) are rescued by the
+ * `includes(...)` arms, which is why the failure looked intermittent.
+ *
+ * `stripModelRefPrefix` is a no-op on a bare id and single-pass by design, so
+ * it is safe to apply unconditionally and must not be looped — see its doc
+ * comment in `~/shared/modelRef`.
  */
 export function resolveCacheProvider(modelId: string): CacheProvider {
-  const id = modelId.toLowerCase();
+  const id = stripModelRefPrefix(modelId).toLowerCase();
 
   if (id.startsWith("anthropic/") || id.includes("claude")) {
     return CacheProvider.ANTHROPIC;

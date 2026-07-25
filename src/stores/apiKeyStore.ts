@@ -166,6 +166,24 @@ const activeProfileId = async (): Promise<string | null> => {
   return getCurrentProfileId() || null;
 };
 
+/*
+ * ---------------------------------------------------------------------------
+ * OpenRouter-specific shims. The hardcoded "openrouter" below is CORRECT —
+ * do not "fix" it into a provider parameter.
+ *
+ * These four functions are the OpenRouter credential path, not a generic one:
+ * the sole consumer of `getApiKey()` is `makeOpenRouterAIRequest`
+ * (`src/main/ai.request/shared.ts`, at the `const apiKey = (await getApiKey())
+ * || …` fallback chain), and the others exist to manage the same one key.
+ * Making them provider-agnostic would silently hand an OpenAI key to the
+ * OpenRouter request path.
+ *
+ * The multi-provider entry point is `getActiveProfileSecret(provider, kind)`
+ * in `./profileSecretStore`. New callers want that; these stay narrow, and
+ * keep the legacy-plaintext fallbacks that a migrating install still needs.
+ * ---------------------------------------------------------------------------
+ */
+
 /** Store an OpenRouter key for the active profile; no plaintext fallback. */
 export const setApiKey = async (raw: string): Promise<SecretWriteResult> => {
   const profileId = await activeProfileId();

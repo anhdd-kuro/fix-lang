@@ -1,8 +1,8 @@
-import { DEFAULT_OPENAI_MODEL } from "~/const";
 import {
   DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
   DEFAULT_SUMMARIZE_PRESET_ID,
 } from "~/prompts";
+import { parseModelRef } from "~/shared/modelRef";
 import {
   getDefaultModelId,
   getProfileSetting,
@@ -10,19 +10,39 @@ import {
   type ProviderId,
 } from "~/stores/apiStore";
 import { estimateTextTokens } from "~/stores/historyStore";
-import { getActiveProvider, makeAIRequest } from "./shared";
+import { makeAIRequest } from "./shared";
 
 type CorrectionResult = {
   correctedText: string;
   promptTokens: number;
   completionTokens: number;
   model: string;
-  provider: ProviderId;
+  /**
+   * Provider that served (or would have served) the request.
+   *
+   * Optional: the empty-text early return never reaches a provider, and when
+   * the effective model ref is bare or absent there is no provider to name.
+   * Reporting `undefined` there is the point — the alternative is inventing
+   * one, which is what the deleted `getActiveProvider()` did. Every consumer
+   * (`historyTypes.HistoryEntry.provider`, the `fix-grammar` IPC result,
+   * `computeCost`) already types this field optional.
+   */
+  provider?: ProviderId;
   /** Concrete model the provider served (resolves alias indirection) */
   resolvedModel: string;
   presetId: string;
   presetName: string;
 };
+
+/**
+ * The model a preset will actually request: its own pinned value, or the
+ * profile-wide default when it inherits (empty string sentinel).
+ *
+ * Shared by the request path and the empty-text early return so the two can
+ * never disagree about which model the correction concerned.
+ */
+const effectiveModelRef = (preset: CorrectionPreset): string =>
+  preset.model?.trim() || getDefaultModelId();
 
 const getCorrectionPreset = (presetId?: string): CorrectionPreset => {
   const correctionSettings = getProfileSetting("settingsCorrect");
@@ -102,13 +122,28 @@ export const fixGrammar = async (
 
     const preset = getCorrectionPreset(presetId);
 
+    // Report the model this correction *would* have used, decomposed from its
+    // composite ref — never a hardcoded `DEFAULT_OPENAI_MODEL`, and never a
+    // profile-wide "active provider" (there is no such thing any more).
+    //
+    // `parseModelRef` yields the inherit sentinel `{ provider: null,
+    // modelId: "" }` for an empty ref, and `{ provider: null, modelId: <id> }`
+    // for a bare, un-migrated id. Both cases report no provider rather than
+    // guessing one: this branch has no model cache to resolve against, and a
+    // wrong provider here is silently written into history and priced.
+    //
+    // `modelId` (raw), not `raw` (composite): `makeAIRequest` keeps `model`
+    // and `resolvedModel` raw so history rows need no migration, and this
+    // early return has to agree with it.
+    const ref = parseModelRef(effectiveModelRef(preset));
+
     return {
       correctedText: text,
       promptTokens: 0,
       completionTokens: 0,
-      model: DEFAULT_OPENAI_MODEL,
-      provider: getActiveProvider(),
-      resolvedModel: DEFAULT_OPENAI_MODEL,
+      model: ref.modelId,
+      provider: ref.provider ?? undefined,
+      resolvedModel: ref.modelId,
       presetId: preset.id,
       presetName: preset.name,
     };
@@ -116,7 +151,7 @@ export const fixGrammar = async (
 
   const preset = getCorrectionPreset(presetId);
   // Empty preset model inherits the global default (dynamic latest GPT mini).
-  const effectiveModel = preset.model?.trim() || getDefaultModelId();
+  const effectiveModel = effectiveModelRef(preset);
 
   try {
     const response = await makeAIRequest({

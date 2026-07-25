@@ -16,6 +16,7 @@
  * Electron-free and side-effect-free so it can be unit-tested directly.
  */
 import Fuse from "fuse.js";
+import { stripModelRefPrefix } from "~/shared/modelRef";
 import type { Model, ProviderId } from "~/stores/apiStore";
 
 /** Per-token USD prices (OpenRouter strings) keyed by lowercased model id. */
@@ -56,13 +57,21 @@ const NA: CostSnapshot = {
 
 /**
  * Build a price map from the already-fetched `Model[]`. Models without
- * `pricing` are skipped (they can't be priced). Keyed by lowercased id.
+ * `pricing` are skipped (they can't be priced). Keyed by lowercased **raw**
+ * id.
+ *
+ * The `stripModelRefPrefix` here is defensive: every `Model` the app caches
+ * carries a raw id — a composite `<providerId>::<rawId>` ref lives in
+ * `selectedModel` and preset `model` fields, never in `Model.id`. Keying on
+ * the stripped id costs nothing and means an entry corrupted by some future
+ * writer still produces a key that a served id can match, instead of a dead
+ * row that silently prices nothing.
  */
 export const buildPriceMap = (models: Model[]): PriceMap => {
   const map: PriceMap = new Map();
   for (const model of models) {
     if (model.pricing) {
-      map.set(model.id.toLowerCase(), {
+      map.set(stripModelRefPrefix(model.id).toLowerCase(), {
         prompt: model.pricing.prompt,
         completion: model.pricing.completion,
       });
@@ -72,12 +81,19 @@ export const buildPriceMap = (models: Model[]): PriceMap => {
 };
 
 /**
- * Normalize a model id for matching: strip the provider prefix (everything up
- * to and including the first `/`), lowercase, trim.
- * e.g. "OpenAI/GPT-5.4-mini" → "gpt-5.4-mini".
+ * Normalize a model id for matching: drop any composite-ref provider prefix,
+ * strip the vendor path prefix (everything up to and including the first
+ * `/`), lowercase, trim.
+ * e.g. "OpenAI/GPT-5.4-mini" → "gpt-5.4-mini",
+ *      "ollama::Llama3.2:3b" → "llama3.2:3b".
+ *
+ * The ref prefix has to go first and separately: the `/` rule only happens to
+ * absorb it for ids that carry a vendor path, and does nothing for a
+ * slash-less Ollama tag, whose fuzzy key would otherwise keep the whole
+ * `"ollama::…"` string.
  */
 export const normalizeModelId = (id: string): string => {
-  const trimmed = id.trim();
+  const trimmed = stripModelRefPrefix(id.trim());
   const slash = trimmed.indexOf("/");
   const withoutPrefix = slash >= 0 ? trimmed.slice(slash + 1) : trimmed;
   return withoutPrefix.toLowerCase().trim();
@@ -93,12 +109,20 @@ const parsePrice = (raw: string): number | null => {
  * Resolve the priced entry for a served id: exact (lowercased) match first,
  * then a normalized-key fuzzy match via fuse.js under the score threshold.
  * Returns the matched price pair, or null when nothing is confident enough.
+ *
+ * `servedId` may be a raw id or a composite `<providerId>::<rawId>` ref, so
+ * the ref prefix is dropped before the exact lookup. **This is the whole
+ * point of the strip.** The price map is keyed on raw ids, so a composite ref
+ * misses the exact `get` and falls into fuzzy matching — which does not fail,
+ * it MIS-PRICES: it returns whichever key normalizes closest, with
+ * `status: "ok"` and a fabricated-looking-confident number. An unprefixed
+ * lookup that misses is loud; a prefixed one that lands in fuzzy is silent.
  */
 const matchPrice = (
   servedId: string,
   priceMap: PriceMap
 ): { prompt: string; completion: string } | null => {
-  const lower = servedId.toLowerCase();
+  const lower = stripModelRefPrefix(servedId).toLowerCase();
   const exact = priceMap.get(lower);
   if (exact) {
     return exact;
