@@ -1,4 +1,3 @@
-import { Notification } from "electron";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
 import {
   DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
@@ -89,11 +88,17 @@ export const fixGrammar = async (
   presetId?: string,
 ): Promise<CorrectionResult> => {
   if (!text || !text.trim()) {
+    // No desktop notification here: both call sites (the correction hotkey
+    // in `keybindings/correction.ts` and the `fix-grammar` IPC handler in
+    // `ipc/features/correction.ts`) already reject empty/whitespace-only
+    // text before calling `fixGrammar`, each with its own user-facing
+    // feedback (a localized "no text selected" notification, and an IPC
+    // error result, respectively). This branch only guards `fixGrammar`
+    // itself for any future/direct caller that skips that check, so a
+    // second, redundant notification here would just be noise reiterating
+    // an internal function name ("fixGrammar called with...") that means
+    // nothing to a user. The log line is kept for that defensive case.
     console.log("fixGrammar called with empty or whitespace-only text.");
-    new Notification({
-      title: "Empty Input",
-      body: "fixGrammar called with empty or whitespace-only text.",
-    }).show();
 
     const preset = getCorrectionPreset(presetId);
 

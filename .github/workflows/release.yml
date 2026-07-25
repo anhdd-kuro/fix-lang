@@ -221,6 +221,9 @@ jobs:
       - name: Test
         run: bun run test
 
+      - name: Check i18n catalog
+        run: bun run i18n:check
+
       - name: Build renderer and processes
         run: bun run build
 

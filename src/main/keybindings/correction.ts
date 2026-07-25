@@ -13,6 +13,7 @@ import { buildPriceMap, computeCost } from "../ai.request/cost";
 import { getCachedModels, isLocalModelId } from "../ai.request/shared";
 import { syncHistory } from "../ipc/features/history";
 import { logger } from "../logging/logService";
+import { LocalizedError } from "../notifications/error";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
 import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWindow";
 import type { BrowserWindow } from "electron";
@@ -61,7 +62,12 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
             "No text selected or clipboard is empty",
             { presetId: preset.id },
           );
-          handleError(new Error("No text selected or clipboard is empty."));
+          handleError(
+            new LocalizedError(
+              "No text selected or clipboard is empty.",
+              "notifications.error.noTextSelected.body",
+            ),
+          );
           return;
         }
 

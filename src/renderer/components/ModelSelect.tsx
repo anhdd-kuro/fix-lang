@@ -95,10 +95,10 @@ export const ModelSelect: React.FC<{
   // `fetchAIModels()` for every mounted `<ModelSelect>` (including the
   // always-mounted tray instance) and to tear down/re-register that IPC
   // listener on every switch — see spec.i18n-dashboard.md and the review
-  // finding this fixes. `result.error` is raw text from the main process
-  // (not translatable) and is wrapped as a `textLabel`; the two `t()`-backed
-  // fallbacks are wrapped as `messageLabel`s and resolved via `tl()` at
-  // render time instead.
+  // finding this fixes. `result.error` is already a `Label` built by main
+  // (raw `textLabel` passthrough for provider/exception text, `messageLabel`
+  // for app-authored validation copy) — the catalog fallback below only
+  // covers a missing/malformed `error` field.
   const fetchModels = useCallback(async (refetch = false) => {
     setModelsLoading(true);
     setModelsError(null);
@@ -112,11 +112,7 @@ export const ModelSelect: React.FC<{
       if (result.success && result.models) {
         setModels(result.models);
       } else {
-        setModelsError(
-          result.error
-            ? textLabel(result.error)
-            : messageLabel("models.select.error.fetchFailed"),
-        );
+        setModelsError(result.error ?? messageLabel("models.select.error.fetchFailed"));
       }
     } catch (err) {
       setModelsError(

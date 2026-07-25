@@ -15,6 +15,7 @@ import {
   findRecommendedModel,
   getRecommendedModels,
 } from "~/main/llm/models/recommended";
+import { messageLabel } from "~/shared/i18n/message";
 import {
   clearApiKey,
   getApiKey,
@@ -37,6 +38,7 @@ import {
   hasProfileSecret,
   setProfileSecret,
 } from "~/stores/profileSecretStore";
+import { exceptionLabel, wrapStoreResult } from "./ipcResultLabel";
 import type { ProviderId } from "~/stores/apiStore";
 
 type ProviderSetupPayload = {
@@ -90,11 +92,11 @@ export const registerApiHandlers = (): void => {
 
   ipcMain.handle("set-api-key", async (_event, raw: unknown) => {
     if (typeof raw !== "string") {
-      return { success: false, error: "Invalid key" };
+      return { success: false, error: messageLabel("models.providerSetup.error.invalidApiKeyInput") };
     }
     try {
       const result = await setApiKey(raw);
-      if (!result.success) return result;
+      if (!result.success) return wrapStoreResult(result);
 
       // Refetch models in the background using the newly stored key.
       void getApiKey()
@@ -111,16 +113,13 @@ export const registerApiHandlers = (): void => {
       return result;
     } catch (error) {
       console.error("Error saving API key:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
+      return { success: false, error: exceptionLabel(error) };
     }
   });
 
   ipcMain.handle("has-api-key", async () => hasApiKey());
 
-  ipcMain.handle("clear-api-key", async () => clearApiKey());
+  ipcMain.handle("clear-api-key", async () => wrapStoreResult(await clearApiKey()));
 
   ipcMain.handle("get-active-provider", () => getActiveProvider());
 
@@ -144,25 +143,30 @@ export const registerApiHandlers = (): void => {
     const payload = parseProviderSetup(raw);
     const profileId = getCurrentProfileId();
     if (!payload || !profileId) {
-      return { success: false, error: "Invalid provider setup" };
+      return { success: false, error: messageLabel("models.providerSetup.error.invalidSetup") };
     }
     if (payload.provider !== "openrouter" && payload.provisioningKey?.trim()) {
-      return { success: false, error: "Only OpenRouter supports a provisioning key" };
+      return {
+        success: false,
+        error: messageLabel("models.providerSetup.error.provisioningKeyOpenRouterOnly"),
+      };
     }
     try {
       const apiKey = await getSetupApiKey(profileId, payload.provider, payload.apiKey);
       if (payload.provider !== "ollama" && !apiKey) {
-        return { success: false, error: `Save or enter an ${payload.provider === "openai" ? "OpenAI" : "OpenRouter"} API key first` };
+        return {
+          success: false,
+          error: messageLabel("models.providerSetup.error.apiKeyRequiredFirst", {
+            provider: payload.provider === "openai" ? "OpenAI" : "OpenRouter",
+          }),
+        };
       }
       // strict: true — a live-fetch failure (bad/revoked key) must surface as
       // an error here, never silently fall back to a stale cached list.
       const models = await fetchAvailableModels(apiKey, payload.provider, false, true);
       return { success: true, models };
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
+      return { success: false, error: exceptionLabel(error) };
     }
   });
 
@@ -170,16 +174,27 @@ export const registerApiHandlers = (): void => {
     const payload = parseProviderSetup(raw);
     const profileId = getCurrentProfileId();
     if (!payload || !profileId || !payload.modelId) {
-      return { success: false, error: "Choose a provider and default model" };
+      return {
+        success: false,
+        error: messageLabel("models.providerSetup.error.chooseProviderAndModel"),
+      };
     }
     if (payload.provider !== "openrouter" && payload.provisioningKey?.trim()) {
-      return { success: false, error: "Only OpenRouter supports a provisioning key" };
+      return {
+        success: false,
+        error: messageLabel("models.providerSetup.error.provisioningKeyOpenRouterOnly"),
+      };
     }
 
     try {
       const apiKey = await getSetupApiKey(profileId, payload.provider, payload.apiKey);
       if (payload.provider !== "ollama" && !apiKey) {
-        return { success: false, error: `An ${payload.provider === "openai" ? "OpenAI" : "OpenRouter"} API key is required` };
+        return {
+          success: false,
+          error: messageLabel("models.providerSetup.error.apiKeyRequired", {
+            provider: payload.provider === "openai" ? "OpenAI" : "OpenRouter",
+          }),
+        };
       }
 
       // Validate the model before writing credentials or touching the active
@@ -191,14 +206,20 @@ export const registerApiHandlers = (): void => {
         (model) => model.id === payload.modelId && isModelForProvider(model, payload.provider),
       );
       if (!selectedModel) {
-        return { success: false, error: "Choose a model available from the selected provider" };
+        return {
+          success: false,
+          error: messageLabel("models.providerSetup.error.chooseModelForProvider"),
+        };
       }
 
       if (payload.provider !== "ollama" && payload.apiKey?.trim()) {
         const result = await setProfileSecret(profileId, payload.provider, "api", payload.apiKey);
-        if (!result.success) return result;
+        if (!result.success) return wrapStoreResult(result);
       } else if (payload.provider !== "ollama" && !(await hasProfileSecret(profileId, payload.provider, "api"))) {
-        return { success: false, error: "API key could not be verified" };
+        return {
+          success: false,
+          error: messageLabel("models.providerSetup.error.apiKeyNotVerified"),
+        };
       }
       if (payload.provider === "openrouter" && payload.provisioningKey?.trim()) {
         const result = await setProfileSecret(
@@ -207,7 +228,7 @@ export const registerApiHandlers = (): void => {
           "provisioning",
           payload.provisioningKey,
         );
-        if (!result.success) return result;
+        if (!result.success) return wrapStoreResult(result);
       }
 
       const profile = commitActiveProfileProviderSetup(
@@ -215,13 +236,15 @@ export const registerApiHandlers = (): void => {
         selectedModel.id,
         models,
       );
-      if (!profile) return { success: false, error: "Active profile not found" };
+      if (!profile) {
+        return {
+          success: false,
+          error: messageLabel("models.providerSetup.error.activeProfileNotFound"),
+        };
+      }
       return { success: true, profile };
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
+      return { success: false, error: exceptionLabel(error) };
     }
   });
 
@@ -247,10 +270,7 @@ export const registerApiHandlers = (): void => {
       };
     } catch (error) {
       console.error("Error fetching models:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
+      return { success: false, error: exceptionLabel(error) };
     }
   });
 
@@ -274,7 +294,7 @@ export const registerApiHandlers = (): void => {
       keybindingStore.resetKeyBindings();
       reloadHotkeys();
     }
-    return result;
+    return wrapStoreResult(result);
   });
 
   ipcMain.handle("set-selected-model", async (_event, modelId) => {
@@ -292,18 +312,18 @@ export const registerApiHandlers = (): void => {
       }
 
       if (!model || !isModelForProvider(model, getActiveProvider())) {
-        return { success: false, error: "Model is not available from the active provider" };
+        return {
+          success: false,
+          error: messageLabel("models.select.error.modelNotAvailableForProvider"),
+        };
       }
       const result = updateProfileSetting("selectedModel", modelId);
-      if (!result.success) return result;
+      if (!result.success) return wrapStoreResult(result);
 
       return { success: true };
     } catch (error) {
       console.error("Error setting selected model:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
+      return { success: false, error: exceptionLabel(error) };
     }
   });
 
@@ -318,22 +338,22 @@ export const registerApiHandlers = (): void => {
   ipcMain.handle("set-feature-model", async (_event, feature, model) => {
     try {
       if (feature !== "settingsPromptGen" || typeof model !== "string") {
-        return { success: false, error: "Unsupported feature model setting" };
+        return {
+          success: false,
+          error: messageLabel("models.select.error.unsupportedFeatureModel"),
+        };
       }
       const current = getProfileSetting("settingsPromptGen");
       const result = updateProfileSetting("settingsPromptGen", {
         ...current,
         model,
       });
-      if (!result.success) return result;
+      if (!result.success) return wrapStoreResult(result);
       console.log(`Set ${feature} model to: ${model}`);
       return { success: true };
     } catch (error) {
       console.error("Error setting feature model:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
+      return { success: false, error: exceptionLabel(error) };
     }
   });
 
@@ -344,10 +364,7 @@ export const registerApiHandlers = (): void => {
       return { success: true };
     } catch (error) {
       console.error("Error opening model manager:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
+      return { success: false, error: exceptionLabel(error) };
     }
   });
 
@@ -421,7 +438,7 @@ export const registerApiHandlers = (): void => {
       if (!model) {
         return {
           success: false,
-          error: `Model ${modelName} not found in recommended models list`,
+          error: messageLabel("models.manager.error.modelNotFound", { modelName }),
         };
       }
 
@@ -432,10 +449,7 @@ export const registerApiHandlers = (): void => {
       };
     } catch (error) {
       console.error("Error checking model compatibility:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
+      return { success: false, error: exceptionLabel(error) };
     }
   });
 };

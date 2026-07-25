@@ -9,6 +9,7 @@ import { switchToNextProfile } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { buildProfileSwitchHotkeyNotification } from "./profileSwitchNotification";
 import { checkShortcut, handleError } from "./utils";
+import { LocalizedError } from "../notifications/error";
 
 /**
  * Register global shortcut to switch to the next profile
@@ -39,7 +40,12 @@ export const registerProfileSwitchShortcut = (): void => {
           buildProfileSwitchHotkeyNotification(nextProfile.name),
         ).show();
       } else {
-        handleError(new Error("No profiles available."));
+        handleError(
+          new LocalizedError(
+            "No profiles available.",
+            "notifications.error.noProfilesAvailable.body",
+          ),
+        );
       }
     } catch (error) {
       console.error("Error switching profile:", error);

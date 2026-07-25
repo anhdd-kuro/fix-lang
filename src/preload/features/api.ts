@@ -1,5 +1,7 @@
 // API-related preload functionality
 import { ipcRenderer } from "electron";
+import { messageLabel, type Label } from "~/shared/i18n/message";
+import { asLabel } from "./ipcLabel";
 import type { Model, Profile, ProviderId } from "~/stores/apiStore";
 
 export type ProviderSetupInput = {
@@ -44,46 +46,50 @@ export const apiFeature = {
    */
   fetchProviderModels: async (
     setup: ProviderSetupInput,
-  ): Promise<{ success: boolean; models?: Model[]; error?: string }> => {
+  ): Promise<{ success: boolean; models?: Model[]; error?: Label }> => {
     if (!isProviderSetupInput(setup)) {
-      return { success: false, error: "Invalid provider setup" };
+      return { success: false, error: messageLabel("models.providerSetup.error.invalidSetup") };
     }
-    return ipcRenderer.invoke("fetch-provider-models", setup);
+    const result = await ipcRenderer.invoke("fetch-provider-models", setup);
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /** Commit a validated provider, default model, cache, and supplied secrets. */
   applyProviderSetup: async (
     setup: ProviderSetupInput,
-  ): Promise<{ success: boolean; profile?: Profile; warning?: string; error?: string }> => {
+  ): Promise<{ success: boolean; profile?: Profile; warning?: string; error?: Label }> => {
     if (!isProviderSetupInput(setup)) {
-      return { success: false, error: "Invalid provider setup" };
+      return { success: false, error: messageLabel("models.providerSetup.error.invalidSetup") };
     }
     const result = await ipcRenderer.invoke("apply-provider-setup", setup);
     if (result.success) ipcRenderer.send("settings-updated");
-    return result;
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /**
    * Fetches the list of available OpenAI models using the stored API key.
-   * @returns A promise resolving to { success: boolean, models?: Model[], error?: string }
+   * @returns A promise resolving to { success: boolean, models?: Model[], error?: Label }
    */
   fetchAIModels: async (
     refetch?: boolean
   ): Promise<{
     success: boolean;
     models?: Model[];
-    error?: string;
+    error?: Label;
   }> => {
-    return await ipcRenderer.invoke("fetch-ai-models", refetch);
+    const result = await ipcRenderer.invoke("fetch-ai-models", refetch);
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /**
    * Sets the selected OpenAI model for future requests
    */
-  setSelectedModel: async (modelId: string) => {
+  setSelectedModel: async (
+    modelId: string,
+  ): Promise<{ success: boolean; error?: Label }> => {
     const result = await ipcRenderer.invoke("set-selected-model", modelId);
     ipcRenderer.send("settings-updated");
-    return result;
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /**
@@ -98,22 +104,25 @@ export const apiFeature = {
    */
   resetProfileSettings: async (): Promise<{
     success: boolean;
-    error?: string;
+    error?: Label;
   }> => {
     const result = await ipcRenderer.invoke("reset-profile-settings");
     ipcRenderer.send("settings-updated");
-    return result;
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /**
    * Store the API key securely (safeStorage in main). The plaintext is sent to
    * main only to be encrypted — it is never returned to the renderer.
    */
-  setApiKey: (key: string): Promise<{ success: boolean; warning?: string; error?: string }> => {
+  setApiKey: async (
+    key: string,
+  ): Promise<{ success: boolean; warning?: string; error?: Label }> => {
     if (typeof key !== "string") {
-      return Promise.resolve({ success: false, error: "Invalid key" });
+      return { success: false, error: messageLabel("models.providerSetup.error.invalidApiKeyInput") };
     }
-    return ipcRenderer.invoke("set-api-key", key);
+    const result = await ipcRenderer.invoke("set-api-key", key);
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /**
@@ -123,8 +132,10 @@ export const apiFeature = {
   hasApiKey: (): Promise<boolean> => ipcRenderer.invoke("has-api-key"),
 
   /** Remove the stored API key. */
-  clearApiKey: (): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke("clear-api-key"),
+  clearApiKey: async (): Promise<{ success: boolean; error?: Label }> => {
+    const result = await ipcRenderer.invoke("clear-api-key");
+    return { ...result, error: asLabel(result?.error) };
+  },
 
   /**
    * Gets the model for a specific feature or returns the general default.
@@ -139,8 +150,9 @@ export const apiFeature = {
   setFeatureModel: async (
     feature: string,
     model: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    return await ipcRenderer.invoke("set-feature-model", feature, model);
+  ): Promise<{ success: boolean; error?: Label }> => {
+    const result = await ipcRenderer.invoke("set-feature-model", feature, model);
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /**
@@ -224,9 +236,10 @@ export const apiFeature = {
         gpuInfo?: string;
       };
     };
-    error?: string;
+    error?: Label;
   }> => {
-    return await ipcRenderer.invoke("check-model-compatibility", modelName);
+    const result = await ipcRenderer.invoke("check-model-compatibility", modelName);
+    return { ...result, error: asLabel(result?.error) };
   },
 };
 

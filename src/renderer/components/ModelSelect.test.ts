@@ -17,6 +17,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { messageLabel } from "~/shared/i18n/message";
 import { createTranslator } from "~/shared/i18n/translate";
 import { ModelSelect } from "./ModelSelect";
 import { I18nProvider } from "../i18n/I18nProvider";
@@ -108,5 +109,57 @@ describe("ModelSelect", () => {
     // is itself a dependency of the mount effect and the
     // `onSettingsUpdated` subscription effect.
     expect(fetchAIModels).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes an app-authored IPC error Label straight through to tl(), re-rendering it translated after a locale switch", async () => {
+    // Simulates the real `fetch-provider-models`/`fetch-ai-models` IPC shape
+    // post-migration: `result.error` already arrives as a `Label` (a
+    // `messageLabel` descriptor for app-authored validation copy, or a
+    // `textLabel` for opaque provider/exception text) — never a bare string.
+    // If `ModelSelect.tsx` regressed to the pre-migration
+    // `result.error ? textLabel(result.error) : …` pattern, this would wrap
+    // the `Label` *object* itself as if it were raw text and render garbage
+    // instead of translated copy.
+    fetchAIModels = vi.fn().mockResolvedValue({
+      success: false,
+      error: messageLabel("models.providerSetup.error.apiKeyNotVerified"),
+    });
+    const api = {
+      fetchAIModels,
+      getActiveProvider: vi.fn().mockResolvedValue(null),
+      getSelectedModel: vi.fn().mockResolvedValue(""),
+      getFeatureModel: vi.fn().mockResolvedValue(""),
+      setSelectedModel: vi.fn().mockResolvedValue(undefined),
+      setFeatureModel: vi.fn().mockResolvedValue(undefined),
+      onSettingsUpdated: vi.fn().mockReturnValue(vi.fn()),
+      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+      setLocale: vi.fn().mockResolvedValue({ success: true }),
+      onLocaleChanged: vi.fn((callback: (locale: Locale) => void) => {
+        localeListener = callback;
+        return vi.fn();
+      }),
+    };
+    Object.defineProperty(window, "electronAPI", { configurable: true, value: api });
+
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root.render(createElement(I18nProvider, null, createElement(ModelSelect)));
+    });
+    await waitForUi();
+    await waitForUi();
+
+    const key = "models.providerSetup.error.apiKeyNotVerified";
+    const alert = () => container.querySelector('[role="alert"]');
+    expect(alert()?.textContent).toBe(tEn(key));
+
+    await act(async () => {
+      localeListener?.("ja");
+    });
+    await waitForUi();
+
+    expect(alert()?.textContent).toBe(tJa(key));
+    expect(tJa(key)).not.toBe(tEn(key));
   });
 });

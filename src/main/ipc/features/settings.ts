@@ -13,6 +13,7 @@ import {
   hasProvisioningKey,
   setProvisioningKey,
 } from "~/stores/provisioningKeyStore";
+import { buildSettingsSavedNotification } from "./settingsNotifications";
 import type { KeyBindings } from "~/stores/apiStore";
 
 /**
@@ -138,9 +139,6 @@ export const registerSettingsHandlers = () => {
         window.webContents.send("settings-updated");
       }
     });
-    new Notification({
-      title: "Settings Updated",
-      body: "Your settings have been saved.",
-    }).show();
+    new Notification(buildSettingsSavedNotification()).show();
   });
 };

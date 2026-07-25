@@ -13,6 +13,7 @@
  * `../ai.request/model-cache.test.ts`).
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { isLabel } from "~/shared/i18n/message";
 const { fetchAvailableModelsMock, commitActiveProfileProviderSetupMock } = vi.hoisted(() => ({
   fetchAvailableModelsMock: vi.fn(),
   commitActiveProfileProviderSetupMock: vi.fn(),
@@ -112,10 +113,14 @@ describe("apply-provider-setup — M1: stale key must fail Apply, not pass via c
     const result = (await applyHandler?.(undefined, {
       provider: "openai",
       modelId: "openai/gpt-4o",
-    })) as { success: boolean; error?: string };
+    })) as { success: boolean; error?: unknown };
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("401 Unauthorized");
+    // The live-fetch failure is provider-reported text (not app-authored UI
+    // copy), so it must cross the IPC boundary as an opaque `textLabel`
+    // descriptor — never translated, never flattened back to a bare string.
+    expect(isLabel(result.error)).toBe(true);
+    expect(result.error).toEqual({ kind: "text", text: "401 Unauthorized" });
     // The validated live-fetch call must have been made in strict mode.
     expect(fetchAvailableModelsMock).toHaveBeenCalledWith(
       "sk-stale-revoked-key",

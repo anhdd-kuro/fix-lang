@@ -39,7 +39,9 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       const result = await window.electronAPI.getProfiles();
 
       if (result.error) {
-        setError(textLabel(result.error));
+        // Already a `Label` built by main — raw passthrough for
+        // provider/exception text, a catalog descriptor for app-authored copy.
+        setError(result.error);
         return;
       }
 
@@ -87,11 +89,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       });
 
       if (!result.success) {
-        setError(
-          result.error
-            ? textLabel(result.error)
-            : messageLabel("profiles.manager.error.createFailed"),
-        );
+        setError(result.error ?? messageLabel("profiles.manager.error.createFailed"));
         return;
       }
 
@@ -118,11 +116,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       const result = await window.electronAPI.applyProfile({ profileId });
 
       if (!result.success) {
-        setError(
-          result.error
-            ? textLabel(result.error)
-            : messageLabel("profiles.manager.error.applyFailed"),
-        );
+        setError(result.error ?? messageLabel("profiles.manager.error.applyFailed"));
         return;
       }
 
@@ -152,11 +146,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
         const result = await window.electronAPI.deleteProfile({ profileId });
 
         if (!result.success) {
-          setError(
-            result.error
-              ? textLabel(result.error)
-              : messageLabel("profiles.manager.error.deleteFailed"),
-          );
+          setError(result.error ?? messageLabel("profiles.manager.error.deleteFailed"));
           return;
         }
 
@@ -181,11 +171,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       const result = await window.electronAPI.exportProfile({ profileId });
 
       if (!result.success) {
-        setError(
-          result.error
-            ? textLabel(result.error)
-            : messageLabel("profiles.manager.error.exportFailed"),
-        );
+        setError(result.error ?? messageLabel("profiles.manager.error.exportFailed"));
         return;
       }
 
@@ -231,11 +217,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       });
 
       if (!result.success) {
-        setError(
-          result.error
-            ? textLabel(result.error)
-            : messageLabel("profiles.manager.error.importFailed"),
-        );
+        setError(result.error ?? messageLabel("profiles.manager.error.importFailed"));
         return;
       }
 

@@ -66,3 +66,59 @@ export const resolveMessage = (m: Message, t: Translate): string => t(m.key, m.p
 /** Resolves a `Label` to a display string: verbatim for `"text"`, translated for `"message"`. */
 export const resolveLabel = (l: Label, t: Translate): string =>
   l.kind === "text" ? l.text : resolveMessage(l.message, t);
+
+// ---------------------------------------------------------------------------
+// Runtime validation — for IPC boundaries that carry a `Message`/`Label`
+// across preload (see `isMessage` in `src/shared/update.ts` for the
+// established shape this mirrors). Kept here, next to the types themselves,
+// so every preload feature validating a `Label`-bearing result shares one
+// definition instead of re-deriving the same structural checks per file.
+// Plain JS narrowing only — no catalog import, preserving this module's
+// zero-runtime-catalog-dependency contract (see file doc above).
+// ---------------------------------------------------------------------------
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isMessageParams = (value: unknown): value is MessageParams =>
+  isRecord(value) &&
+  Object.values(value).every(
+    (param) => typeof param === "string" || typeof param === "number",
+  );
+
+/**
+ * Validates a `Message` descriptor's shape. `key` can only be checked as a
+ * non-empty string here — `MessageKey` is a compile-time union derived from
+ * the JSON catalogs, not a runtime-enumerable set.
+ */
+export const isMessage = (value: unknown): value is Message => {
+  if (!isRecord(value)) return false;
+  const keys = Object.keys(value);
+  if (keys.some((key) => key !== "key" && key !== "params")) return false;
+  if (typeof value.key !== "string" || value.key.length === 0) return false;
+  return value.params === undefined || isMessageParams(value.params);
+};
+
+/** Validates a `Label`'s shape: a `"text"` case or a `"message"` case, never both/neither. */
+export const isLabel = (value: unknown): value is Label => {
+  if (!isRecord(value)) return false;
+  if (value.kind === "text") {
+    const keys = Object.keys(value);
+    return (
+      keys.length === 2 &&
+      keys.includes("kind") &&
+      keys.includes("text") &&
+      typeof value.text === "string"
+    );
+  }
+  if (value.kind === "message") {
+    const keys = Object.keys(value);
+    return (
+      keys.length === 2 &&
+      keys.includes("kind") &&
+      keys.includes("message") &&
+      isMessage(value.message)
+    );
+  }
+  return false;
+};

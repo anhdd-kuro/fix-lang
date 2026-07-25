@@ -1,5 +1,7 @@
 // Profiles-related preload functionality
 import { ipcRenderer } from "electron";
+import { asLabel } from "./ipcLabel";
+import type { Label } from "~/shared/i18n/message";
 import type { Profile } from "~/stores/apiStore";
 
 /**
@@ -9,25 +11,27 @@ export const profilesFeature = {
   /**
    * Gets all saved profiles and the current profile ID
    */
-  getProfiles: (): Promise<{
+  getProfiles: async (): Promise<{
     profiles: Profile[];
     currentProfileId: string;
-    error?: string;
+    error?: Label;
   }> => {
     console.log("Preload: Invoking get-profiles");
-    return ipcRenderer.invoke("get-profiles");
+    const result = await ipcRenderer.invoke("get-profiles");
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /**
    * Gets the current profile ID and profile data
    */
-  getCurrentProfile: (): Promise<{
+  getCurrentProfile: async (): Promise<{
     currentProfileId: string;
     currentProfile: Profile | null;
-    error?: string;
+    error?: Label;
   }> => {
     console.log("Preload: Invoking get-current-profile");
-    return ipcRenderer.invoke("get-current-profile");
+    const result = await ipcRenderer.invoke("get-current-profile");
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /**
@@ -39,11 +43,11 @@ export const profilesFeature = {
   }): Promise<{
     success: boolean;
     profile?: Profile;
-    error?: string;
+    error?: Label;
   }> => {
     const result = await ipcRenderer.invoke("create-profile", params);
     ipcRenderer.send("profile-updated");
-    return result;
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /**
@@ -53,11 +57,11 @@ export const profilesFeature = {
     profileId: string;
   }): Promise<{
     success: boolean;
-    error?: string;
+    error?: Label;
   }> => {
     const result = await ipcRenderer.invoke("apply-profile", params);
     ipcRenderer.send("profile-updated");
-    return result;
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /**
@@ -70,11 +74,11 @@ export const profilesFeature = {
   }): Promise<{
     success: boolean;
     profile?: Profile;
-    error?: string;
+    error?: Label;
   }> => {
     const result = await ipcRenderer.invoke("update-profile", params);
     ipcRenderer.send("profile-updated");
-    return result;
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /**
@@ -84,11 +88,11 @@ export const profilesFeature = {
     profileId: string;
   }): Promise<{
     success: boolean;
-    error?: string;
+    error?: Label;
   }> => {
     const result = await ipcRenderer.invoke("delete-profile", params);
     ipcRenderer.send("profile-updated");
-    return result;
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /**
@@ -97,11 +101,11 @@ export const profilesFeature = {
   switchToNextProfile: async (): Promise<{
     success: boolean;
     profile?: Profile;
-    error?: string;
+    error?: Label;
   }> => {
     const result = await ipcRenderer.invoke("switch-to-next-profile");
     ipcRenderer.send("profile-updated");
-    return result;
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /**
@@ -112,11 +116,11 @@ export const profilesFeature = {
   }): Promise<{
     success: boolean;
     profile?: Profile;
-    error?: string;
+    error?: Label;
   }> => {
     const result = await ipcRenderer.invoke("import-profile", params);
     ipcRenderer.send("profile-updated");
-    return result;
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /**
@@ -127,9 +131,10 @@ export const profilesFeature = {
   }): Promise<{
     success: boolean;
     profileJson?: string;
-    error?: string;
+    error?: Label;
   }> => {
-    return ipcRenderer.invoke("export-profile", params);
+    const result = await ipcRenderer.invoke("export-profile", params);
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /**

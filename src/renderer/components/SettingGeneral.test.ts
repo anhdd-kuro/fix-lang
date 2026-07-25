@@ -21,6 +21,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { textLabel, type Label } from "~/shared/i18n/message";
 import { createTranslator } from "~/shared/i18n/translate";
 import { SettingGeneral } from "./SettingGeneral";
 import { I18nProvider } from "../i18n/I18nProvider";
@@ -54,7 +55,7 @@ const buttonNamed = (container: HTMLElement, label: string): HTMLButtonElement =
   return button;
 };
 
-type ResetResult = { success: boolean; error?: string };
+type ResetResult = { success: boolean; error?: Label };
 
 type SettingGeneralApi = {
   getActiveProvider: ReturnType<typeof vi.fn>;
@@ -163,7 +164,11 @@ describe("SettingGeneral", () => {
   });
 
   it("re-resolves a wrapped provider-reported reset error in Japanese, keeping the raw error text untranslated", async () => {
-    await render({ success: false, error: "disk full" });
+    // Main now boundary-wraps `resetCurrentProfileSettings()`'s pass-through
+    // error text as an opaque `textLabel` (see `wrapStoreResult` in
+    // `~/main/ipc/features/ipcResultLabel.ts`) rather than a bare string —
+    // mock the real preload/IPC shape, not the pre-migration one.
+    await render({ success: false, error: textLabel("disk full") });
 
     await click(buttonNamed(container, tEn("settings.general.reset.button")));
 

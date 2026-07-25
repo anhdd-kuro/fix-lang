@@ -3,6 +3,9 @@
   "notifications.correction.goodJob.title": "Good job!",
   "notifications.correction.resultTitle": "{presetName} result",
   "notifications.error.body": "Something went wrong. Please try again.",
+  "notifications.error.hotkeyRegistrationFailed.body": "This shortcut could not be registered. Check Settings for a conflicting hotkey.",
+  "notifications.error.noProfilesAvailable.body": "No profiles are available to switch to.",
+  "notifications.error.noTextSelected.body": "No text is selected. Select some text and try again.",
   "notifications.error.title": "FixLang Error",
   "notifications.errorPopup.title": "FixLang Error",
   "notifications.profile.applied.body": "Profile \"{name}\" has been activated.",
@@ -20,6 +23,8 @@
   "notifications.profile.updated.title": "Profile Updated",
   "notifications.profilesUpdated.body": "Your profile settings have been updated.",
   "notifications.profilesUpdated.title": "Profiles Updated",
+  "notifications.settings.saved.body": "Your settings have been saved.",
+  "notifications.settings.saved.title": "Settings Updated",
   "notifications.window.correctionResult.subtitle": "Result only — the source text was not changed.",
   "notifications.window.correctionResult.title": "FixLang result",
   "notifications.window.promptGen.title": "Generated Prompts"

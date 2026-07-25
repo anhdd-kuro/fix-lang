@@ -3,6 +3,9 @@
   "notifications.correction.goodJob.title": "お見事です！",
   "notifications.correction.resultTitle": "{presetName}の結果",
   "notifications.error.body": "問題が発生しました。もう一度お試しください。",
+  "notifications.error.hotkeyRegistrationFailed.body": "このショートカットを登録できませんでした。設定でホットキーの競合を確認してください。",
+  "notifications.error.noProfilesAvailable.body": "切り替え可能なプロファイルがありません。",
+  "notifications.error.noTextSelected.body": "テキストが選択されていません。テキストを選択してからもう一度お試しください。",
   "notifications.error.title": "FixLang エラー",
   "notifications.errorPopup.title": "FixLang エラー",
   "notifications.profile.applied.body": "プロファイル「{name}」を有効にしました。",
@@ -20,6 +23,8 @@
   "notifications.profile.updated.title": "プロファイルを更新しました",
   "notifications.profilesUpdated.body": "プロファイルの設定を更新しました。",
   "notifications.profilesUpdated.title": "プロファイル設定を更新しました",
+  "notifications.settings.saved.body": "設定を保存しました。",
+  "notifications.settings.saved.title": "設定を更新しました",
   "notifications.window.correctionResult.subtitle": "結果のみを表示しています。元のテキストは変更されていません。",
   "notifications.window.correctionResult.title": "FixLangの結果",
   "notifications.window.promptGen.title": "生成されたプロンプト"

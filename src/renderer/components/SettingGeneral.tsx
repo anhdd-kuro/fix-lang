@@ -233,9 +233,10 @@ export const SettingGeneral: React.FC = () => {
         setStagedModels([]);
         setStagedModelId("");
         setFetchStatus(null);
-        setFetchError(
-          result.error ? textLabel(result.error) : messageLabel("settings.general.models.fetchError"),
-        );
+        // `result.error` is already a `Label` built by main (raw passthrough
+        // for provider/exception text, a catalog descriptor for app-authored
+        // validation copy) — this fallback only covers a missing/malformed field.
+        setFetchError(result.error ?? messageLabel("settings.general.models.fetchError"));
       }
     } catch (error) {
       setFetchStatus(null);
@@ -271,9 +272,7 @@ export const SettingGeneral: React.FC = () => {
         setApplyStatus(msg("settings.general.apply.applied"));
       } else {
         setApplyStatus(null);
-        setApplyError(
-          result.error ? textLabel(result.error) : messageLabel("settings.general.apply.error"),
-        );
+        setApplyError(result.error ?? messageLabel("settings.general.apply.error"));
       }
     } catch (error) {
       setApplyStatus(null);
@@ -311,9 +310,7 @@ export const SettingGeneral: React.FC = () => {
       } else {
         setResetIsError(true);
         setResetStatus(
-          wrappedError(
-            result.error ? textLabel(result.error) : messageLabel("settings.general.reset.failed"),
-          ),
+          wrappedError(result.error ?? messageLabel("settings.general.reset.failed")),
         );
       }
     } catch (error) {

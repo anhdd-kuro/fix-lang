@@ -96,7 +96,7 @@ Translation strings live in `src/shared/i18n/locales/{en,ja}/` as per-namespace 
    ```json
    { "overview.stat.sessions": "セッション" }
    ```
-3. **Use it**: The key is type-checked; a typo is a `bun run lint` error:
+3. **Use it**: The key is type-checked at compile time — a typo will be caught by the TypeScript compiler and displayed in your editor:
    ```tsx
    import { useI18n } from "~/renderer/i18n/useI18n";
    const { t } = useI18n();

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTranslator } from "~/shared/i18n/translate";
-import { showErrorNotification } from "./error";
+import { LocalizedError, showErrorNotification } from "./error";
 
 const {
   notificationConstructorMock,
@@ -161,5 +161,87 @@ describe("showErrorNotification", () => {
     expect(tJa("notifications.error.body")).not.toBe(
       tEn("notifications.error.body"),
     );
+  });
+
+  // ---------------------------------------------------------------------
+  // LocalizedError — the notification body must come from the catalog key,
+  // NOT `Error.message` (which stays an English developer diagnostic for
+  // `console.error`/the structured logger). This is the mechanism behind
+  // every "manufactured control-flow Error" fix (no text selected, no
+  // profiles available, hotkey registration failed): each call site now
+  // constructs a `LocalizedError` instead of a plain `Error`.
+  // ---------------------------------------------------------------------
+  describe("LocalizedError", () => {
+    const cases: {
+      description: string;
+      devMessage: string;
+      messageKey: Parameters<typeof tEn>[0];
+    }[] = [
+      {
+        description: "no text selected (correction hotkey / PromptGen hotkey)",
+        devMessage: "No text selected or clipboard is empty.",
+        messageKey: "notifications.error.noTextSelected.body",
+      },
+      {
+        description: "no profiles available (profile-switch hotkey)",
+        devMessage: "No profiles available.",
+        messageKey: "notifications.error.noProfilesAvailable.body",
+      },
+      {
+        description: "hotkey registration failed (checkShortcut)",
+        devMessage: "Shortcut false is not set in settings.",
+        messageKey: "notifications.error.hotkeyRegistrationFailed.body",
+      },
+    ];
+
+    it.each(cases)(
+      "shows the catalog body for $description, in English",
+      ({ devMessage, messageKey }) => {
+        localeStoreMocks.getLocale.mockReturnValue("en");
+        const error = new LocalizedError(devMessage, messageKey);
+
+        showErrorNotification(error);
+
+        expect(notificationConstructorMock).toHaveBeenCalledWith(
+          expect.objectContaining({ body: tEn(messageKey) }),
+        );
+        // The English developer diagnostic must never leak into the body —
+        // that's exactly the bug being fixed.
+        expect(notificationConstructorMock).not.toHaveBeenCalledWith(
+          expect.objectContaining({ body: devMessage }),
+        );
+      },
+    );
+
+    it.each(cases)(
+      "shows the catalog body for $description, in Japanese, distinct from English",
+      ({ devMessage, messageKey }) => {
+        localeStoreMocks.getLocale.mockReturnValue("ja");
+        const error = new LocalizedError(devMessage, messageKey);
+
+        showErrorNotification(error);
+
+        expect(notificationConstructorMock).toHaveBeenCalledWith(
+          expect.objectContaining({ body: tJa(messageKey) }),
+        );
+        expect(tJa(messageKey)).not.toBe(tEn(messageKey));
+      },
+    );
+
+    it("keeps the English devMessage on .message for logging, even in Japanese", () => {
+      localeStoreMocks.getLocale.mockReturnValue("ja");
+      const error = new LocalizedError(
+        "No profiles available.",
+        "notifications.error.noProfilesAvailable.body",
+      );
+
+      expect(error.message).toBe("No profiles available.");
+
+      showErrorNotification(error);
+
+      expect(notificationConstructorMock).toHaveBeenCalledWith(
+        expect.objectContaining({ body: tJa("notifications.error.noProfilesAvailable.body") }),
+      );
+    });
   });
 });

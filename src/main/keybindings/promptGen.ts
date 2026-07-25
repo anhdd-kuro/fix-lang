@@ -4,6 +4,7 @@ import { getHighlightedText } from "../../utils";
 import { generatePrompt } from "../ai.request";
 import { checkShortcut, handleError } from "./utils";
 import { syncHistory } from "../ipc/features/history";
+import { LocalizedError } from "../notifications/error";
 import { showOverlaySpinner, hideOverlaySpinner } from "../webViewWindows";
 import { showPromptGenWindow } from "../webViewWindows/promptGenWindow";
 import type { BrowserWindow } from "electron";
@@ -17,7 +18,9 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
     try {
       const selectedText = await getHighlightedText();
       if (!selectedText || !selectedText.trim()) {
-        handleError(new Error("No text selected."));
+        handleError(
+          new LocalizedError("No text selected.", "notifications.error.noTextSelected.body"),
+        );
         return;
       }
       const { x, y } = screen.getCursorScreenPoint();

@@ -4,6 +4,7 @@
  */
 import { ipcMain, Notification } from "electron";
 import { reloadHotkeys } from "~/main/keybindings";
+import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
 import {
   clearLegacyApiKey,
   getLegacyApiKey,
@@ -31,6 +32,7 @@ import {
   clearLegacyProvisioningKey,
   getLegacyProvisioningKey,
 } from "~/stores/provisioningKeyStore";
+import { wrapStoreResult } from "./ipcResultLabel";
 import {
   buildProfileNotification,
   buildProfilesUpdatedNotification,
@@ -101,6 +103,19 @@ const migrateLegacySecretsToActiveProfile = async (): Promise<void> => {
 };
 
 /**
+ * Wraps an exception caught by a profile handler. Mirrors `exceptionLabel`
+ * (`./ipcResultLabel.ts`) for the `Error` case (opaque, `textLabel`), but this
+ * file's non-`Error` fallback was always the hardcoded UI copy "Unknown
+ * error" (not `String(error)`) — kept as a translatable `messageLabel`,
+ * reusing the identical existing `models.select.error.unknown` catalog entry
+ * rather than adding a duplicate key.
+ */
+const catchLabel = (error: unknown): Label =>
+  error instanceof Error
+    ? textLabel(error.message)
+    : messageLabel("models.select.error.unknown");
+
+/**
  * Registers profile-related IPC handlers
  */
 export const registerProfileHandlers = () => {
@@ -121,7 +136,7 @@ export const registerProfileHandlers = () => {
       return {
         profiles: [],
         currentProfileId: "",
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: catchLabel(error),
       };
     }
   });
@@ -142,7 +157,7 @@ export const registerProfileHandlers = () => {
       return {
         currentProfileId: "",
         currentProfile: null,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: catchLabel(error),
       };
     }
   });
@@ -165,10 +180,7 @@ export const registerProfileHandlers = () => {
         };
       } catch (error) {
         console.error("Failed to create profile:", error);
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        };
+        return { success: false, error: catchLabel(error) };
       }
     },
   );
@@ -189,13 +201,13 @@ export const registerProfileHandlers = () => {
           ).show();
         }
 
-        return result;
+        // `applyProfile` (apiStore.ts) is outside this migration's scope —
+        // its error text ("Profile not found", …) is boundary-wrapped as
+        // opaque here rather than guessed at as translatable.
+        return wrapStoreResult(result);
       } catch (error) {
         console.error("Failed to apply profile:", error);
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        };
+        return { success: false, error: catchLabel(error) };
       }
     },
   );
@@ -227,14 +239,11 @@ export const registerProfileHandlers = () => {
 
         return {
           success: false,
-          error: "Profile not found",
+          error: messageLabel("common.error.profileNotFound"),
         };
       } catch (error) {
         console.error("Failed to update profile:", error);
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        };
+        return { success: false, error: catchLabel(error) };
       }
     },
   );
@@ -264,10 +273,7 @@ export const registerProfileHandlers = () => {
         };
       } catch (error) {
         console.error("Failed to delete profile:", error);
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        };
+        return { success: false, error: catchLabel(error) };
       }
     },
   );
@@ -291,14 +297,11 @@ export const registerProfileHandlers = () => {
 
       return {
         success: false,
-        error: "No profiles available",
+        error: messageLabel("common.error.noProfilesAvailable"),
       };
     } catch (error) {
       console.error("Failed to switch profile:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
+      return { success: false, error: catchLabel(error) };
     }
   });
 
@@ -316,7 +319,7 @@ export const registerProfileHandlers = () => {
         if (!profileData.id || !profileData.name || !profileData.settings) {
           return {
             success: false,
-            error: "Invalid profile format",
+            error: messageLabel("common.error.invalidProfileFormat"),
           };
         }
 
@@ -355,8 +358,14 @@ export const registerProfileHandlers = () => {
         console.error("Failed to import profile:", error);
         return {
           success: false,
+          // Reuses the existing `profiles.manager.error.importFailed` catalog
+          // entry (identical wording) rather than adding a duplicate key —
+          // `profiles.json` is outside this migration's catalog scope, but
+          // referencing an existing key from it is just a lookup.
           error:
-            error instanceof Error ? error.message : "Failed to import profile",
+            error instanceof Error
+              ? textLabel(error.message)
+              : messageLabel("profiles.manager.error.importFailed"),
         };
       }
     },
@@ -372,7 +381,7 @@ export const registerProfileHandlers = () => {
         if (!profile) {
           return {
             success: false,
-            error: "Profile not found",
+            error: messageLabel("common.error.profileNotFound"),
           };
         }
 
@@ -382,10 +391,7 @@ export const registerProfileHandlers = () => {
         };
       } catch (error) {
         console.error("Failed to export profile:", error);
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        };
+        return { success: false, error: catchLabel(error) };
       }
     },
   );

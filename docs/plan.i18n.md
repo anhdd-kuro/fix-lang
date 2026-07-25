@@ -31,13 +31,32 @@ tray tooltip, overlay/error popup).
 ```
 src/shared/i18n/
 ├── locales/
-│   ├── en.json            — source of truth; every key defined
-│   └── ja.json            — complete JA; parity enforced by test
-├── keys.ts                — TranslationKey union derived from en.json
+│   ├── en/
+│   │   ├── common.json           — source of truth for common keys
+│   │   ├── dashboard.json
+│   │   ├── history.json
+│   │   ├── logs.json
+│   │   ├── models.json
+│   │   ├── notifications.json
+│   │   ├── profiles.json
+│   │   ├── settings.json
+│   │   └── tray.json
+│   ├── ja/
+│   │   ├── common.json           — JA translations (partial; missing keys fall back to EN)
+│   │   ├── dashboard.json
+│   │   ├── history.json
+│   │   ├── logs.json
+│   │   ├── models.json
+│   │   ├── notifications.json
+│   │   ├── profiles.json
+│   │   ├── settings.json
+│   │   └── tray.json
+│   └── index.ts                  — merges all namespaces into EN_CATALOG / JA_CATALOG
 ├── registry.ts            — LOCALE_META: code → { label, nativeLabel, dir, dateFnsLocale, intlTag }
 ├── translate.ts           — createTranslator(): lookup → plural → interpolate → fallback
 ├── format.ts              — date / number / currency / relative-time / percent via Intl + date-fns
 ├── detect.ts              — normalizeLocale(raw): "ja-JP" | "ja" → "ja"; unknown → "en"
+├── locales.test.ts        — EN/JA parity, plural completeness, key sorting
 ├── translate.test.ts
 ├── format.test.ts
 └── detect.test.ts
@@ -51,38 +70,51 @@ src/renderer/i18n/useI18n.ts       — { t, locale, setLocale, format* , dir }
 src/renderer/components/LanguageSelect.tsx
 ```
 
-### Catalog shape (flat dotted keys, alphabetically sorted)
+### Catalog shape (flat dotted keys per namespace, alphabetically sorted within files)
 
-`src/shared/i18n/locales/en.json`
+Keys are globally unique and dotted (`"common.cancel"`, `"overview.stat.sessions"`), split across per-namespace files to prevent merge conflicts. At build time, all namespaces for each locale are merged into a single flat catalog (`EN_CATALOG` and `JA_CATALOG`).
+
+`src/shared/i18n/locales/en/common.json` (excerpt)
 
 ```json
 {
   "common.cancel": "Cancel",
-  "common.save": "Save",
-  "overview.stat.sessions": "Sessions",
-  "overview.tokenBudget": "You've used {tokens} tokens — {pct}% of the {budget} reference budget.",
-  "settings.general.language.label": "Language",
-  "tray.history.empty_one": "{count} correction today",
-  "tray.history.empty_other": "{count} corrections today"
+  "common.save": "Save"
 }
 ```
 
-`src/shared/i18n/locales/ja.json`
+`src/shared/i18n/locales/en/overview.json` or `en/dashboard.json` (excerpt)
+
+```json
+{
+  "overview.stat.sessions": "Sessions",
+  "overview.tokenBudget": "You've used {tokens} tokens — {pct}% of the {budget} reference budget."
+}
+```
+
+`src/shared/i18n/locales/ja/common.json` (excerpt)
 
 ```json
 {
   "common.cancel": "キャンセル",
-  "common.save": "保存",
-  "overview.stat.sessions": "セッション",
-  "overview.tokenBudget": "{tokens} トークンを使用しました（基準予算 {budget} の {pct}%）。",
-  "settings.general.language.label": "言語",
-  "tray.history.empty_other": "本日 {count} 件の校正"
+  "common.save": "保存"
 }
 ```
 
+`src/shared/i18n/locales/ja/dashboard.json` (excerpt)
+
+```json
+{
+  "overview.stat.sessions": "セッション",
+  "overview.tokenBudget": "{tokens} トークンを使用しました（基準予算 {budget} の {pct}%）。"
+}
+```
+
+Missing keys in JA files fall back to English at runtime — every EN key need not exist in every JA file.
+
 ### Type-safety boundary (read before coding)
 
-- `keyof typeof enJson` **does** give a literal key union — keys are type-checked.
+- `keyof typeof EN_CATALOG` **does** give a literal key union — keys are type-checked at compile time via `export type TranslationKey = keyof typeof EN_CATALOG`.
 - JSON string *values* are widened to `string` by TypeScript, so placeholder names **cannot** be
   derived into typed `t()` params. Params are `Record<string, string | number>`, and correctness is
   enforced by (a) a placeholder-parity test across locales and (b) a dev-mode warning when an
@@ -107,8 +139,8 @@ Each chunk is independently shippable: `bun run lint` + `bun run test` green at 
       `label` / `nativeLabel` / `dir` / `intlTag` / `dateFnsLocale` key, `DEFAULT_LOCALE = "en"`
 - [ ] `detect.ts`: `normalizeLocale(raw: unknown): Locale` — case-insensitive, strips region
       (`ja-JP` → `ja`), unknown/undefined → `DEFAULT_LOCALE`; `isLocale()` guard
-- [ ] `locales/en.json` + `locales/ja.json` seeded with `common.*` keys only
-- [ ] `keys.ts`: `export type TranslationKey = keyof typeof en`
+- [ ] `locales/en/` + `locales/ja/`: per-namespace JSON files (initially just `common.json`); `locales/index.ts` merges them into `EN_CATALOG` and `JA_CATALOG`
+- [ ] `locales/index.ts`: `export type TranslationKey = keyof typeof EN_CATALOG`
 - [ ] `translate.ts`: `createTranslator(locale)` → `t(key, params?)`; plural via `Intl.PluralRules`
       suffix lookup; `{token}` interpolation; full fallback chain; dev warn on miss/unreplaced token
 - [ ] Tests: key hit, plural EN one/other, plural JA collapses to `other`, missing key → EN,
