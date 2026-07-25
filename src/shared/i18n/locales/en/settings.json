@@ -175,6 +175,7 @@
   "settings.updates.tapBehindMessage": "Homebrew does not have v{targetVersion} yet — it still offers v{offeredVersion}. The tap syncs shortly after each release; try again later, or update manually with the command below.",
   "settings.updates.tapMissingAction": "Add the tap and install once:",
   "settings.updates.tapMissingIntro": "If Homebrew reports the error below, the tap has not been added yet (for example, if you installed the DMG manually):",
+  "settings.updates.tapPendingMessage": "v{publishedVersion} has been released, but Homebrew has not picked it up yet. It usually syncs within a few hours — check again later, or install the DMG from GitHub.",
   "settings.updates.title": "App updates",
   "settings.updates.tryAgain": "Try again",
   "settings.updates.unsignedNotice": "FixLang releases are unsigned and not notarized. Update now hands the install to Homebrew — the app never downloads or replaces itself, and nothing is installed without this explicit action.",

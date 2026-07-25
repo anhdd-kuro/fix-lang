@@ -417,14 +417,19 @@ describe("Homebrew one-click install", () => {
   });
 
   it("lets the user retry after a rejected install", async () => {
-    const { service, startUpgrade } = createService({
+    const { service, startUpgrade, getInstallableVersion } = createService({
       canInstall: true,
-      installableVersion: "0.1.0",
+      installableVersion: null,
     });
     await service.checkForUpdates();
+    getInstallableVersion.mockResolvedValueOnce("0.1.0");
 
     await service.installUpdate();
+    // The rejection must not strand the panel: a fresh check re-offers the
+    // update, and a still-behind tap simply rejects it again.
     await service.checkForUpdates();
+    expect(service.getState().phase).toBe("available");
+    getInstallableVersion.mockResolvedValueOnce("0.1.0");
     await service.installUpdate();
 
     expect(startUpgrade).not.toHaveBeenCalled();
@@ -432,13 +437,167 @@ describe("Homebrew one-click install", () => {
   });
 });
 
-describe("Homebrew tap lag", () => {
-  it("refuses to quit for a version the tap cannot install yet", async () => {
-    const { service, startUpgrade, pendingInstall, quitApp } = createService({
+/**
+ * The button runs Homebrew, so the check has to ask Homebrew too. Offering a
+ * GitHub release the cask cannot install yet is what made the button look
+ * dead for hours after every release.
+ */
+describe("checking against Homebrew rather than GitHub", () => {
+  it("offers the version the cask can install, not the newest release", async () => {
+    const { service } = createService({
+      canInstall: true,
+      installableVersion: "0.1.5",
+      getLatestRelease: () => Promise.resolve(stableRelease("v0.2.0")),
+    });
+
+    await service.checkForUpdates();
+
+    expect(service.getState()).toMatchObject({
+      phase: "available",
+      availableVersion: "0.1.5",
+    });
+  });
+
+  it("does not attach another release's notes or download size", async () => {
+    const { service } = createService({
+      canInstall: true,
+      installableVersion: "0.1.5",
+      getLatestRelease: () => Promise.resolve(stableRelease("v0.2.0")),
+    });
+
+    await service.checkForUpdates();
+
+    // The notes and the byte total belong to v0.2.0, not to what is offered.
+    expect(service.getState().releaseNotes).toBeUndefined();
+    expect(service.getState().totalBytes).toBeUndefined();
+  });
+
+  it("says the tap is still catching up instead of offering a dead button", async () => {
+    const { service } = createService({
       canInstall: true,
       installableVersion: "0.1.0",
+      getLatestRelease: () => Promise.resolve(stableRelease("v0.2.0")),
     });
+
     await service.checkForUpdates();
+
+    expect(service.getState()).toMatchObject({
+      phase: "up-to-date",
+      message: msg("settings.updates.tapPendingMessage", {
+        publishedVersion: "0.2.0",
+      }),
+    });
+    expect(service.getState().availableVersion).toBeUndefined();
+  });
+
+  it("reads the local tap clone first and only refreshes when GitHub is ahead", async () => {
+    const { service, getInstallableVersion } = createService({
+      canInstall: true,
+      installableVersion: "0.2.0",
+    });
+
+    await service.checkForUpdates();
+
+    // A cheap local read answered it; `brew update` is a git fetch across
+    // every tap and must not run on a routine check.
+    expect(getInstallableVersion.mock.calls).toEqual([[false]]);
+  });
+
+  it("pays for one tap refresh when the clone looks stale", async () => {
+    const { service, getInstallableVersion } = createService({
+      canInstall: true,
+      installableVersion: "0.1.0",
+      getLatestRelease: () => Promise.resolve(stableRelease("v0.2.0")),
+    });
+
+    await service.checkForUpdates();
+
+    expect(getInstallableVersion.mock.calls).toEqual([[false], [true]]);
+  });
+
+  it("falls back to GitHub when brew cannot answer", async () => {
+    const { service } = createService({
+      canInstall: true,
+      installableVersion: null,
+    });
+
+    await service.checkForUpdates();
+
+    expect(service.getState()).toMatchObject({
+      phase: "available",
+      availableVersion: "0.2.0",
+    });
+  });
+
+  it("never asks brew for a manual DMG install", async () => {
+    const { service, getInstallableVersion } = createService({
+      canInstall: false,
+    });
+
+    await service.checkForUpdates();
+
+    expect(getInstallableVersion).not.toHaveBeenCalled();
+    expect(service.getState()).toMatchObject({
+      phase: "available",
+      availableVersion: "0.2.0",
+    });
+  });
+
+  it("still offers a cask update when GitHub is unreachable", async () => {
+    const { service } = createService({
+      canInstall: true,
+      installableVersion: "0.2.0",
+      getLatestRelease: () => Promise.reject(new Error("offline")),
+    });
+
+    await service.checkForUpdates();
+
+    expect(service.getState()).toMatchObject({
+      phase: "available",
+      availableVersion: "0.2.0",
+    });
+    expect(service.getState().releaseNotes).toBeUndefined();
+  });
+
+  it("errors only when neither source can answer", async () => {
+    const { service } = createService({
+      canInstall: true,
+      installableVersion: null,
+      getLatestRelease: () => Promise.reject(new Error("offline")),
+    });
+
+    await service.checkForUpdates();
+
+    expect(service.getState()).toMatchObject({
+      phase: "error",
+      message: msg("settings.updates.checkErrorMessage"),
+    });
+  });
+
+  it("keeps GitHub failure details out of state and logs", async () => {
+    const onLog = vi.fn();
+    const { service } = createService({
+      canInstall: true,
+      installableVersion: "0.2.0",
+      getLatestRelease: () => Promise.reject(new Error("/Users/kuro/token abc")),
+      onLog,
+    });
+
+    await service.checkForUpdates();
+
+    expect(JSON.stringify(service.getState())).not.toContain("/Users/kuro");
+    expect(JSON.stringify(onLog.mock.calls)).not.toContain("/Users/kuro");
+  });
+});
+
+describe("Homebrew tap lag", () => {
+  it("refuses to quit for a version the tap cannot install yet", async () => {
+    // The check itself normally blocks this; the gate still guards the case
+    // where brew could not answer then but answers with an older cask now.
+    const { service, startUpgrade, pendingInstall, quitApp, getInstallableVersion } =
+      createService({ canInstall: true, installableVersion: null });
+    await service.checkForUpdates();
+    getInstallableVersion.mockResolvedValueOnce("0.1.0");
 
     const result = await service.installUpdate();
 

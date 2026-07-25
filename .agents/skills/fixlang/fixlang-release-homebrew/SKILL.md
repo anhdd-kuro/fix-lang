@@ -62,6 +62,10 @@ Warning: Not upgrading fixlang, the latest version is already installed
 ```
 Exit 0 = the detached helper walks on to `open -b com.fixlang.app`. Observed symptom: **click Update now → app quits → app reopens → same version, no error.** Looks like a dead button. Real log evidence lives in `userData/logs/homebrew-update.log` (brew's own warning) and `userData/logs/<date>/fixlang.jsonl` (`Homebrew update did not change the app version`).
 
+**Real fix (do this first): make the CHECK ask brew too.** `checkForUpdates` now offer `getInstallableVersion()` for cask install — same source as button. GitHub run in parallel but only give release notes + DMG size, and only when it describe the exact version being offered (else notes/size belong to different release = lie). Published-but-unsynced release → phase `up-to-date` + `tapPendingMessage`, never an offer. Cost: routine check read local tap clone (`getInstallableVersion(false)`); `brew update` is git fetch across EVERY tap, too heavy per check — pay for it only when GitHub show something newer. Fall back to GitHub for manual DMG install, and for cask when brew probe return null.
+
+Guard below still needed even so: brew can answer null at check time (target then come from GitHub) and answer lower at click time. Defense in depth, not dead code.
+
 Guard, in `updateService.installUpdate` (`src/main/update/updateService.ts`): probe `HomebrewUpgrader.getInstallableVersion()` (= `brew update --quiet` then `brew info --cask fixlang --json=v2` → `casks[].version`) and publish `error` + `tapBehindMessage` instead of quitting when the tap is behind. Rules:
 - Probe **must not reject** — a broken probe returns null and the install proceeds. Blocking on an unknown answer would break the button whenever brew is slow or odd.
 - Only a **parsed strictly-lower** version blocks. null / non-semver → proceed.

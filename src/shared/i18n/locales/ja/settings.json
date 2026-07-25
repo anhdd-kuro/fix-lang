@@ -174,6 +174,7 @@
   "settings.updates.tapBehindMessage": "Homebrewはまだv{targetVersion}を提供していません — 現在提供しているのはv{offeredVersion}です。tapは各リリース後にしばらくして同期されます。しばらくしてから再度お試しいただくか、以下のコマンドを使って手動でアップデートしてください。",
   "settings.updates.tapMissingAction": "tapを追加して一度だけインストールしてください:",
   "settings.updates.tapMissingIntro": "Homebrewで以下のエラーが表示される場合、tapがまだ追加されていません（例: DMGを手動でインストールした場合など）:",
+  "settings.updates.tapPendingMessage": "v{publishedVersion} がリリースされましたが、Homebrewはまだ取り込んでいません。通常は数時間以内に同期されます。しばらくしてから再度確認するか、GitHubからDMGをインストールしてください。",
   "settings.updates.title": "アプリのアップデート",
   "settings.updates.tryAgain": "再試行",
   "settings.updates.unsignedNotice": "FixLangのリリースは署名・公証されていません。「今すぐアップデート」はインストールをHomebrewに委ねます — アプリ自身がダウンロードや置き換えを行うことはなく、この明示的な操作なしに何もインストールされません。",

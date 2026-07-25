@@ -314,6 +314,12 @@ export const SettingUpdates = () => {
           <p className="mt-1 text-sm text-success" role="status" aria-live="polite">
             {t("settings.updates.upToDate")}
           </p>
+          {/* A release exists that Homebrew cannot install yet. Reported here
+              rather than as an offer, because the button would have nothing
+              to do. */}
+          {state.message && (
+            <p className="mt-1 text-sm text-muted-foreground">{tm(state.message)}</p>
+          )}
           <button
             type="button"
             onClick={() =>
