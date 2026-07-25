@@ -7,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { app, BrowserWindow } from "electron";
 import { showErrorNotification } from "~/main/notifications/error";
+import { initializeLocaleFromSystem } from "~/stores/localeStore";
 import {
   isMacOSAccessibilityGranted,
   promptAccessibilityPermission,
@@ -15,6 +16,7 @@ import {
   registerApiHandlers,
   registerCorrectionHandlers,
   setupHistoryManagerHandlers,
+  registerLocaleHandlers,
   registerLogHandlers,
   registerOpenRouterHandlers,
   registerProfileHandlers,
@@ -109,6 +111,12 @@ const registerIpcHandlers = (): UpdateService => {
   registerApiHandlers();
   registerSettingsHandlers();
   registerThemeHandlers();
+
+  // One-time system-locale detection: a no-op once the user has chosen a
+  // locale explicitly. Must run before any window opens so the first paint
+  // (and the first `get-locale` call) already reflects the right locale.
+  initializeLocaleFromSystem(app.getLocale());
+  registerLocaleHandlers();
 
   // Register structured log handlers before feature handlers that emit logs.
   registerLogHandlers();

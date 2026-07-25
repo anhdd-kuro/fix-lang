@@ -1,0 +1,15 @@
+{
+  "common.cancel": "Cancel",
+  "common.close": "Close",
+  "common.copy": "Copy",
+  "common.copied": "Copied",
+  "common.delete": "Delete",
+  "common.edit": "Edit",
+  "common.error": "Error",
+  "common.loading": "Loading…",
+  "common.refresh": "Refresh",
+  "common.retry": "Retry",
+  "common.save": "Save",
+  "common.search": "Search",
+  "common.unknown": "Unknown"
+}
