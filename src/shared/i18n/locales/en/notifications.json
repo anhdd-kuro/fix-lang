@@ -24,6 +24,8 @@
   "notifications.profile.updated.title": "Profile Updated",
   "notifications.profilesUpdated.body": "Your profile settings have been updated.",
   "notifications.profilesUpdated.title": "Profiles Updated",
+  "notifications.provider.connected": "{provider} connected",
+  "notifications.provider.disconnected": "{provider} disconnected",
   "notifications.settings.saved.body": "Your settings have been saved.",
   "notifications.settings.saved.title": "Settings Updated",
   "notifications.window.correctionResult.subtitle": "Result only — the source text was not changed.",
