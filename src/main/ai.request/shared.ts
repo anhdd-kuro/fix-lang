@@ -17,7 +17,6 @@ import {
   apiStore,
   getCurrentProfileId,
   getDefaultModelId,
-  getProfileById,
   getProfileSetting,
   isModelForProvider,
   updateProfileSetting,
@@ -37,11 +36,17 @@ type CoreMessage = {
   content: unknown;
 };
 
-/** Resolve routing from the current profile, never from a model-id convention. */
-export const getActiveProvider = (): ProviderId => {
-  const profileId = getCurrentProfileId();
-  return profileId ? (getProfileById(profileId)?.provider ?? "openrouter") : "openrouter";
-};
+/**
+ * Resolve routing from the current profile, never from a model-id convention.
+ *
+ * Card 03 (multi-provider migration) removed `Profile.provider` — a profile
+ * no longer names a single provider at all. This always answers
+ * `"openrouter"` (the historical default) as a minimal unbreak; cards 04-05
+ * own replacing every caller of this function with real per-request,
+ * ref-based routing (see the plan's D17-D18) instead of a single
+ * active-profile provider.
+ */
+export const getActiveProvider = (): ProviderId => "openrouter";
 
 const isCachedForProvider = isModelForProvider;
 

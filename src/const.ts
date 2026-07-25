@@ -1,13 +1,17 @@
-import type { Model } from "openai/resources.mjs";
+import type { Model as OpenAIModel } from "openai/resources.mjs";
+import type { Model } from "~/shared/providers";
 import type { KeyBindings } from "~/stores/apiStore";
 
 /**
- * Default OpenAI model to use for text fixing.
+ * Default OpenAI model id. No longer a runtime default (see
+ * `resolveDefaultModel` below) — it survives only as the migration target
+ * `profileMigration.ts` prefixes a bare legacy model id against, and as the
+ * final fallback inside the legacy `resolveDefaultOpenAIModel` delegate.
  *
  * @see https://platform.openai.com/docs/pricing
  * @see https://platform.openai.com/docs/models
  */
-export const DEFAULT_OPENAI_MODEL = "openai/gpt-4.1-mini" satisfies Model["id"];
+export const DEFAULT_OPENAI_MODEL = "openai/gpt-4.1-mini" satisfies OpenAIModel["id"];
 
 /**
  * Normalize a string for flexible matching: lowercase + strip every
@@ -22,27 +26,37 @@ export const normalizeForSearch = (value: string): string =>
 type ModelLike = { id: string; created?: number };
 
 /**
- * Resolve the default OpenAI model dynamically from the fetched model list.
- *
- * Picks the newest model whose id contains both "gpt" and "mini"
- * (e.g. the latest GPT mini), falling back to the first available model,
- * and finally to {@link DEFAULT_OPENAI_MODEL} when the list is empty.
+ * Resolve the default model dynamically from a fetched (provider-agnostic)
+ * model list: the newest whose id contains both "gpt" and "mini" (e.g. the
+ * latest GPT mini), falling back to the first available model, and to
+ * `null` — not a guessed id — when the list is empty. Callers turn the
+ * result into a composite ref via `modelRefForModel` (see
+ * `getDefaultModelId` in `apiStore.ts`); this function has no opinion about
+ * provider prefixing.
  */
-export const resolveDefaultOpenAIModel = (models: ModelLike[]): string => {
+export const resolveDefaultModel = (models: readonly Model[]): Model | null => {
   const gptMinis = models.filter((model) => {
     const id = normalizeForSearch(model.id);
     return id.includes("gpt") && id.includes("mini");
   });
 
   if (gptMinis.length > 0) {
-    const latest = gptMinis.reduce((newest, model) =>
+    return gptMinis.reduce((newest, model) =>
       (model.created ?? 0) > (newest.created ?? 0) ? model : newest,
     );
-    return latest.id;
   }
 
-  return models[0]?.id ?? DEFAULT_OPENAI_MODEL;
+  return models[0] ?? null;
 };
+
+/**
+ * Legacy string-id delegate kept for callers that still want a bare id
+ * rather than a `Model` (e.g. the General tab's staged fetch). Thin wrapper
+ * over `resolveDefaultModel`; falls back to `DEFAULT_OPENAI_MODEL` only when
+ * the list is empty, matching the pre-refactor behavior byte-for-byte.
+ */
+export const resolveDefaultOpenAIModel = (models: ModelLike[]): string =>
+  resolveDefaultModel(models as Model[])?.id ?? DEFAULT_OPENAI_MODEL;
 
 export const DEFAULT_LANGUAGE = "English" as const;
 
