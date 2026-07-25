@@ -5,6 +5,7 @@ import CopyButton from "../components/CopyButton";
 import { formatModelLineage } from "../components/historyModel";
 import { useTheme } from "../hooks/useTheme";
 import { I18nProvider } from "../i18n/I18nProvider";
+import { useI18n } from "../i18n/useI18n";
 
 type PromptGenData = {
   prompts: string[];
@@ -19,6 +20,7 @@ type PromptGenData = {
 
 const PromptGenWindow: React.FC = () => {
   useTheme();
+  const { t } = useI18n();
   const [data, setData] = useState<PromptGenData | null>(null);
 
   useEffect(() => {
@@ -45,7 +47,7 @@ const PromptGenWindow: React.FC = () => {
     <div className="flex flex-col h-screen bg-background text-foreground px-4 py-2">
       {/* Title bar - this will be draggable due to Electron's native window frame */}
       <h2 className="font-semibold text-sm">
-        Generated Prompts ({data.prompts.length})
+        {t("common.generatedPromptsTitle", { count: data.prompts.length })}
       </h2>
 
       {/* Main content */}
@@ -60,7 +62,7 @@ const PromptGenWindow: React.FC = () => {
             </p>
             <CopyButton
               value={prompt}
-              label="Copy"
+              label={t("common.copy")}
               className="absolute top-2 right-2"
             />
           </div>
@@ -69,23 +71,27 @@ const PromptGenWindow: React.FC = () => {
 
       <div className="flex justify-between items-center sticky bottom-0 bg-card p-3 rounded-md shadow-md border border-border">
         <div className="text-xs text-muted-foreground">
-          {data.promptTokens && <span>Prompt tokens: {data.promptTokens}</span>}
+          {data.promptTokens && (
+            <span>{t("common.promptTokens", { count: data.promptTokens })}</span>
+          )}
           {" | "}
           {data.completionTokens && (
             <span className="ml-2">
-              Completion tokens: {data.completionTokens}
+              {t("common.completionTokens", { count: data.completionTokens })}
             </span>
           )}
           {" | "}
           {data.model && (
             <span className="ml-2">
-              Model: {formatModelLineage(data.model, data.resolvedModel)}
+              {t("common.modelLabel", {
+                model: formatModelLineage(data.model, data.resolvedModel),
+              })}
             </span>
           )}
         </div>
         <CopyButton
           value={data.prompts.join("\n\n")}
-          label="Copy All"
+          label={t("common.copyAll")}
           showLabel
         />
       </div>

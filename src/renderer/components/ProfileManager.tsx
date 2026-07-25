@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
 import { Dialog } from "./Dialog";
 import { HotkeyInput } from "./HotkeyInput";
 import { useI18n } from "../i18n/useI18n";
@@ -9,7 +10,7 @@ type ProfileManagerProps = {
 };
 
 const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
-  const { t, formatDateTime } = useI18n();
+  const { t, tl, formatDateTime } = useI18n();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [currentProfileId, setCurrentProfileId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
@@ -21,7 +22,14 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
   const [importProfileJson, setImportProfileJson] = useState("");
   const [exportProfileJson, setExportProfileJson] = useState("");
   const [exportProfileName, setExportProfileName] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  // Error state is a locale-free `Label` (a translation key + params, or
+  // verbatim text) rather than an already-resolved string: `fetchProfiles`
+  // is called from an effect with an empty dep array, and if it called `t()`
+  // directly, the effect would need `t` in its deps (`t`'s identity changes
+  // per locale) — an honest dep array would then re-fetch on every locale
+  // switch just to keep the closure fresh. Deferring resolution to render
+  // time via `tl()` keeps `fetchProfiles` free of any reactive closure.
+  const [error, setError] = useState<Label | null>(null);
 
   const fetchProfiles = async () => {
     try {
@@ -31,14 +39,18 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       const result = await window.electronAPI.getProfiles();
 
       if (result.error) {
-        setError(result.error);
+        setError(textLabel(result.error));
         return;
       }
 
       setProfiles(result.profiles || []);
       setCurrentProfileId(result.currentProfileId || "");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("profiles.manager.error.fetchFailed"));
+      setError(
+        err instanceof Error
+          ? textLabel(err.message)
+          : messageLabel("profiles.manager.error.fetchFailed"),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -61,7 +73,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
 
   const handleCreateProfile = async () => {
     if (!newProfileName.trim()) {
-      setError(t("profiles.manager.error.nameRequired"));
+      setError(messageLabel("profiles.manager.error.nameRequired"));
       return;
     }
 
@@ -75,7 +87,11 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       });
 
       if (!result.success) {
-        setError(result.error || t("profiles.manager.error.createFailed"));
+        setError(
+          result.error
+            ? textLabel(result.error)
+            : messageLabel("profiles.manager.error.createFailed"),
+        );
         return;
       }
 
@@ -84,7 +100,11 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       setNewProfileName("");
       setNewProfileDescription("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("profiles.manager.error.createFailed"));
+      setError(
+        err instanceof Error
+          ? textLabel(err.message)
+          : messageLabel("profiles.manager.error.createFailed"),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -98,13 +118,21 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       const result = await window.electronAPI.applyProfile({ profileId });
 
       if (!result.success) {
-        setError(result.error || t("profiles.manager.error.applyFailed"));
+        setError(
+          result.error
+            ? textLabel(result.error)
+            : messageLabel("profiles.manager.error.applyFailed"),
+        );
         return;
       }
 
       setCurrentProfileId(profileId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("profiles.manager.error.applyFailed"));
+      setError(
+        err instanceof Error
+          ? textLabel(err.message)
+          : messageLabel("profiles.manager.error.applyFailed"),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -112,7 +140,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
 
   const handleDeleteProfile = async (profileId: string) => {
     if (profiles.length <= 1) {
-      setError(t("profiles.manager.error.cannotDeleteLast"));
+      setError(messageLabel("profiles.manager.error.cannotDeleteLast"));
       return;
     }
 
@@ -124,14 +152,20 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
         const result = await window.electronAPI.deleteProfile({ profileId });
 
         if (!result.success) {
-          setError(result.error || t("profiles.manager.error.deleteFailed"));
+          setError(
+            result.error
+              ? textLabel(result.error)
+              : messageLabel("profiles.manager.error.deleteFailed"),
+          );
           return;
         }
 
         await fetchProfiles();
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : t("profiles.manager.error.deleteFailed"),
+          err instanceof Error
+            ? textLabel(err.message)
+            : messageLabel("profiles.manager.error.deleteFailed"),
         );
       } finally {
         setIsLoading(false);
@@ -147,7 +181,11 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       const result = await window.electronAPI.exportProfile({ profileId });
 
       if (!result.success) {
-        setError(result.error || t("profiles.manager.error.exportFailed"));
+        setError(
+          result.error
+            ? textLabel(result.error)
+            : messageLabel("profiles.manager.error.exportFailed"),
+        );
         return;
       }
 
@@ -159,7 +197,11 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
         setIsExportDialogOpen(true);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("profiles.manager.error.exportFailed"));
+      setError(
+        err instanceof Error
+          ? textLabel(err.message)
+          : messageLabel("profiles.manager.error.exportFailed"),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -171,7 +213,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       setError(null);
 
       if (!importProfileJson) {
-        setError(t("profiles.manager.error.noData"));
+        setError(messageLabel("profiles.manager.error.noData"));
         return;
       }
 
@@ -179,7 +221,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       try {
         JSON.parse(importProfileJson);
       } catch {
-        setError(t("profiles.manager.error.invalidJson"));
+        setError(messageLabel("profiles.manager.error.invalidJson"));
         setIsLoading(false);
         return;
       }
@@ -189,7 +231,11 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       });
 
       if (!result.success) {
-        setError(result.error || t("profiles.manager.error.importFailed"));
+        setError(
+          result.error
+            ? textLabel(result.error)
+            : messageLabel("profiles.manager.error.importFailed"),
+        );
         return;
       }
 
@@ -197,7 +243,11 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       setIsImportDialogOpen(false);
       setImportProfileJson("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("profiles.manager.error.importFailed"));
+      setError(
+        err instanceof Error
+          ? textLabel(err.message)
+          : messageLabel("profiles.manager.error.importFailed"),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -211,7 +261,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       })
       .catch((err) => {
         console.error("Failed to copy to clipboard:", err);
-        setError(t("profiles.manager.error.copyFailed"));
+        setError(messageLabel("profiles.manager.error.copyFailed"));
       });
   };
 
@@ -241,7 +291,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
 
       {error && (
         <div className="bg-destructive/50 border border-destructive text-destructive-foreground px-4 py-2 mb-4 rounded">
-          {error}
+          {tl(error)}
         </div>
       )}
 

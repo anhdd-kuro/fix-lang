@@ -109,6 +109,18 @@ export const showCorrectionResultWindow = (
   }
 };
 
+/**
+ * Retitles an already-open correction result window to the current locale.
+ * `title` is only read once, at `BrowserWindow` construction, and this window
+ * is a creation-cached singleton — so without this, a window opened before a
+ * locale switch keeps showing the previous language. Mirrors
+ * `syncErrorPopupLocale` in `errorPopupWindow.ts`.
+ */
+export const syncCorrectionResultWindowLocale = (): void => {
+  if (!resultWindow || resultWindow.isDestroyed()) return;
+  resultWindow.setTitle(buildCorrectionResultWindowTitle());
+};
+
 ipcMain.on("correction-result-ready", () => {
   rendererReady = true;
   revealWindow();

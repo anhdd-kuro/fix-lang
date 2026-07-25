@@ -60,6 +60,18 @@ export function destroyPromptGenWindow() {
   promptGenWindow = null;
 }
 
+/**
+ * Retitles an already-open PromptGen window to the current locale. `title` is
+ * only read once, at `BrowserWindow` construction, and this window is a
+ * creation-cached singleton — so without this, a window opened before a
+ * locale switch keeps showing the previous language. Mirrors
+ * `syncErrorPopupLocale` in `errorPopupWindow.ts`.
+ */
+export const syncPromptGenWindowLocale = (): void => {
+  if (!promptGenWindow || promptGenWindow.isDestroyed()) return;
+  promptGenWindow.setTitle(buildPromptGenWindowTitle());
+};
+
 export function showPromptGenWindow(payload: PromptGenPayload) {
   console.log("showPromptGenWindow called with:", payload);
   const win = createPromptGenWindow();

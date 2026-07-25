@@ -24,6 +24,7 @@
     "prebuild": "bun run themes:generate",
     "build": "electron-vite build",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint ./src",
+    "i18n:check": "bun run scripts/i18n-check.ts",
     "vitest": "vitest",
     "test": "vitest --watch=false",
     "test:w": "vitest",

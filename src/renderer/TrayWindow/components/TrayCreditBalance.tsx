@@ -51,13 +51,10 @@ export const TrayCreditBalance: React.FC = () => {
       </div>
     );
   } else {
-    // why: openRouterFormat.ts (out of this migration's scope — not one of
-    // the files this pass is allowed to touch) still returns hardcoded
-    // English for a degraded reason; left untranslated intentionally.
     const reason = (credits?.reason ?? "unavailable") as OpenRouterDegradedReason;
     content = (
       <span className="text-sm text-muted-foreground">
-        {openRouterDegradedMessage(reason)}
+        {openRouterDegradedMessage(reason, t)}
       </span>
     );
   }
