@@ -14,11 +14,12 @@ import {
   DEFAULT_TRANSLATE_PRESET_ID,
   DEFAULT_TRANSLATE_PRESET_PROMPT,
 } from "~/prompts";
-import { modelRefForModel } from "~/shared/modelRef";
+import { modelRefForModel, parseModelRef } from "~/shared/modelRef";
 import {
   isModelForProvider,
   isProviderId,
   PROVIDER_IDS,
+  sanitizeEnabledProviders,
   type Model,
   type ProviderId,
 } from "~/shared/providers";
@@ -535,21 +536,60 @@ export const getDefaultModelId = (): string => {
 };
 
 /**
- * Commit a fully validated provider setup to the active profile. This is the
- * only provider-selection write path: callers validate credentials and the
- * selected model first, then this atomically changes the cache, global
- * model, and feature overrides together.
- *
- * Pre-multi-provider legacy behavior: it still swaps out an entire
- * provider's model slice and clears every feature model on each call. Cards
- * 04-07 own replacing this with `connectProviderToActiveProfile` /
- * `disconnectProviderFromActiveProfile` (see the plan's D10/D11) — this card
- * only removes the now-nonexistent `Profile.provider` field write, it does
- * not redesign the function.
+ * The model refs a disconnect reset to the inherit sentinel, so the UI can
+ * warn about exactly what it is about to change (and only that).
  */
-export const commitActiveProfileProviderSetup = (
+export type ClearedModelRefs = {
+  selectedModel: boolean;
+  presetIds: string[];
+  features: ("promptGen" | "summarize")[];
+};
+
+const NO_CLEARED_REFS: ClearedModelRefs = {
+  selectedModel: false,
+  presetIds: [],
+  features: [],
+};
+
+/**
+ * Replace the active profile at `index` and persist. Builds a NEW profiles
+ * array rather than assigning into the one `getProfiles()` returned — that
+ * array is the store's own value, so an in-place write would mutate state a
+ * caller may still be holding.
+ */
+const commitProfileAt = (
+  profiles: Profile[],
+  index: number,
+  settings: SettingsStore,
+): Profile => {
+  const updated = {
+    ...profiles[index],
+    updatedAt: new Date().toISOString(),
+    settings,
+  } satisfies Profile;
+  apiStore.set(
+    "profiles",
+    profiles.map((profile, i) => (i === index ? updated : profile)),
+  );
+  return updated;
+};
+
+/**
+ * Connect a provider to the active profile: mark it enabled and install its
+ * freshly fetched model slice.
+ *
+ * **It deliberately does not touch `selectedModel` or any preset/feature
+ * model.** The function this replaces wiped all of them on every call, so
+ * connecting a second provider destroyed the model choices the user had made
+ * for the first one. With composite refs a preset can point at any connected
+ * provider, so there is nothing left to invalidate — every surviving ref
+ * still names the provider it always named.
+ *
+ * Idempotent: `sanitizeEnabledProviders` dedupes, and the slice is replaced
+ * rather than appended, so connecting twice changes nothing the second time.
+ */
+export const connectProviderToActiveProfile = (
   provider: ProviderId,
-  selectedModel: string,
   providerModels: Model[],
 ): Profile | null => {
   const profileId = getCurrentProfileId();
@@ -557,41 +597,117 @@ export const commitActiveProfileProviderSetup = (
   const index = profiles.findIndex((profile) => profile.id === profileId);
   if (index === -1) return null;
 
-  const previousModels = profiles[index].settings.models || [];
+  const settings = profiles[index].settings;
+  const previousModels = settings.models || [];
+  // `isModelForProvider`, not `model.provider === provider`: an untagged
+  // legacy cache entry has no provider field and would otherwise survive as a
+  // duplicate of a model this fetch just replaced.
   const retainedModels = previousModels.filter(
     (model) => !isModelForProvider(model, provider),
   );
-  const nextModels = [
-    ...retainedModels,
-    ...providerModels.map((model) => ({ ...model, provider: model.provider ?? provider })),
-  ];
-  const settings = profiles[index].settings;
-  const normalizedCorrect = normalizeCorrectionSettings(settings.settingsCorrect);
-  const updated = {
-    ...profiles[index],
-    updatedAt: new Date().toISOString(),
-    settings: {
-      ...settings,
-      models: nextModels,
-      selectedModel,
-      settingsCorrect: {
-        ...normalizedCorrect,
-        // Provider-specific feature models must not survive a provider switch.
-        presets: normalizedCorrect.presets.map((preset) => ({
-          ...preset,
-          model: INHERIT_GLOBAL_MODEL,
-        })),
-      },
-      settingsPromptGen: {
-        ...settings.settingsPromptGen,
-        model: INHERIT_GLOBAL_MODEL,
-      },
-    },
-  } satisfies Profile;
 
-  profiles[index] = updated;
-  apiStore.set("profiles", profiles);
-  return updated;
+  return commitProfileAt(profiles, index, {
+    ...settings,
+    enabledProviders: sanitizeEnabledProviders([
+      ...(settings.enabledProviders ?? []),
+      provider,
+    ]),
+    models: [
+      ...retainedModels,
+      ...providerModels.map((model) => ({
+        ...model,
+        provider: model.provider ?? provider,
+      })),
+    ],
+  });
+};
+
+/** True when `ref` explicitly names `provider`. A bare ref never matches. */
+const refBelongsToProvider = (ref: string, provider: ProviderId): boolean =>
+  parseModelRef(ref).provider === provider;
+
+/**
+ * Disconnect a provider from the active profile: drop it from
+ * `enabledProviders`, drop its model slice, and reset every ref that named it
+ * back to the inherit sentinel.
+ *
+ * **Refs with `provider === null` are left alone.** A bare legacy id is not
+ * proven to belong to the provider being disconnected — guessing from the id
+ * shape is the exact failure mode composite refs remove. Such a ref keeps
+ * resolving through the `PROVIDER_ORDER` cache scan, or becomes unresolvable
+ * and fails loudly at request time.
+ *
+ * Disconnecting a provider that is not connected is a no-op: the profile is
+ * returned untouched, with an empty `cleared`, and nothing is written.
+ */
+export const disconnectProviderFromActiveProfile = (
+  provider: ProviderId,
+): { profile: Profile; cleared: ClearedModelRefs } | null => {
+  const profileId = getCurrentProfileId();
+  const profiles = getProfiles();
+  const index = profiles.findIndex((profile) => profile.id === profileId);
+  if (index === -1) return null;
+
+  const settings = profiles[index].settings;
+  const enabledProviders = sanitizeEnabledProviders(settings.enabledProviders);
+  if (!enabledProviders.includes(provider)) {
+    return { profile: profiles[index], cleared: NO_CLEARED_REFS };
+  }
+
+  // Deliberately NOT `normalizeCorrectionSettings`: normalization would
+  // materialize missing built-in presets, so a disconnect would quietly add
+  // presets the user never had. A disconnect only ever clears refs.
+  const correct = settings.settingsCorrect;
+  const clearedPresetIds: string[] = [];
+  const presets = (correct?.presets ?? []).map((preset) => {
+    if (!refBelongsToProvider(preset.model, provider)) return preset;
+    clearedPresetIds.push(preset.id);
+    return { ...preset, model: INHERIT_GLOBAL_MODEL };
+  });
+
+  const clearedFeatures: ("promptGen" | "summarize")[] = [];
+  const promptGenModel = settings.settingsPromptGen?.model ?? "";
+  const summarizeModel = settings.settingsSummarize?.model ?? "";
+  if (refBelongsToProvider(promptGenModel, provider)) clearedFeatures.push("promptGen");
+  if (refBelongsToProvider(summarizeModel, provider)) clearedFeatures.push("summarize");
+
+  const clearedSelectedModel = refBelongsToProvider(
+    settings.selectedModel ?? "",
+    provider,
+  );
+
+  const profile = commitProfileAt(profiles, index, {
+    ...settings,
+    enabledProviders: enabledProviders.filter((entry) => entry !== provider),
+    models: (settings.models || []).filter(
+      (model) => !isModelForProvider(model, provider),
+    ),
+    selectedModel: clearedSelectedModel
+      ? INHERIT_GLOBAL_MODEL
+      : (settings.selectedModel ?? ""),
+    settingsCorrect: { ...correct, presets },
+    settingsPromptGen: {
+      ...settings.settingsPromptGen,
+      model: clearedFeatures.includes("promptGen")
+        ? INHERIT_GLOBAL_MODEL
+        : promptGenModel,
+    },
+    settingsSummarize: {
+      ...settings.settingsSummarize,
+      model: clearedFeatures.includes("summarize")
+        ? INHERIT_GLOBAL_MODEL
+        : summarizeModel,
+    },
+  });
+
+  return {
+    profile,
+    cleared: {
+      selectedModel: clearedSelectedModel,
+      presetIds: clearedPresetIds,
+      features: clearedFeatures,
+    },
+  };
 };
 
 /**
@@ -932,7 +1048,17 @@ export const resetCurrentProfileSettings = (): {
   }
 };
 
-/** Remove legacy plaintext secrets before profiles cross a process/device boundary. */
+/**
+ * Remove legacy plaintext secrets before profiles cross a process/device
+ * boundary.
+ *
+ * **Must stay secrets-only — do NOT widen it to strip model state.**
+ * `src/main/ipc/features/profiles.ts:98` writes this function's result STRAIGHT
+ * BACK TO DISK during the one-shot legacy-secret migration on first launch
+ * after an upgrade. Anything this strips is therefore permanently deleted from
+ * every upgrading user's config, silently, with no error and no failing test.
+ * Export/import stripping belongs in {@link toExportableProfile} instead.
+ */
 export const withoutProfileSecrets = (profile: Profile): Profile => {
   const settings = { ...profile.settings } as SettingsStore;
   delete (settings as Partial<SettingsStore>).apiKey;
@@ -942,9 +1068,57 @@ export const withoutProfileSecrets = (profile: Profile): Profile => {
   } as Profile;
 };
 
-/** Treat any imported plaintext key as untrusted legacy data and discard it. */
-export const sanitizeImportedProfile = (profile: Profile): Profile =>
-  withoutProfileSecrets(profile);
+/**
+ * The shape a profile takes when it leaves this machine: secrets plus ALL
+ * model state removed.
+ *
+ * Model state is per-machine — cached model lists, the connected providers,
+ * and every ref pointing into them are meaningless (and actively misleading)
+ * on a machine with different providers connected. Cleared to empty values
+ * rather than deleted so the result still validates against `apiStoreSchema`;
+ * `""` is the existing inherit sentinel, so a cleared preset simply inherits
+ * the importing machine's default.
+ *
+ * Kept strictly separate from {@link withoutProfileSecrets}, which is written
+ * back to disk — see the warning there.
+ */
+export const toExportableProfile = (profile: Profile): Profile => {
+  const base = withoutProfileSecrets(profile);
+  const settings = base.settings;
+  return {
+    ...base,
+    settings: {
+      ...settings,
+      models: [],
+      selectedModel: INHERIT_GLOBAL_MODEL,
+      enabledProviders: [],
+      // Not normalized: an export must not invent presets the user never had.
+      settingsCorrect: {
+        ...settings.settingsCorrect,
+        presets: (settings.settingsCorrect?.presets ?? []).map((preset) => ({
+          ...preset,
+          model: INHERIT_GLOBAL_MODEL,
+        })),
+      },
+      settingsPromptGen: {
+        ...settings.settingsPromptGen,
+        model: INHERIT_GLOBAL_MODEL,
+      },
+      settingsSummarize: {
+        ...settings.settingsSummarize,
+        model: INHERIT_GLOBAL_MODEL,
+      },
+    },
+  } as Profile;
+};
+
+/**
+ * Treat any imported plaintext key as untrusted legacy data and discard it,
+ * along with the exporting machine's model state (same reasoning as
+ * {@link toExportableProfile} — an imported cache describes someone else's
+ * providers).
+ */
+export const sanitizeImportedProfile = toExportableProfile;
 
 /**
  * Updates a profile with current settings

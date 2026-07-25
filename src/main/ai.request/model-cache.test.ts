@@ -6,9 +6,10 @@
  * the fetched provider's entries while preserving other providers' cached
  * models; and an empty fetch result must never clear the existing cache.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
-const { openAIModelsListMock } = vi.hoisted(() => ({
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+const { openAIModelsListMock, getLocalModelsMock } = vi.hoisted(() => ({
   openAIModelsListMock: vi.fn(),
+  getLocalModelsMock: vi.fn().mockResolvedValue([]),
 }));
 // Stateful mock of electron-store so seeded profiles/currentProfileId are
 // readable by the real apiStore.ts helpers, and writes are observable.
@@ -62,14 +63,14 @@ vi.mock("~/stores/profileSecretStore", () => ({
   getProfileSecret: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("~/main/llm/models/discover", () => ({
-  getLocalModels: vi.fn().mockResolvedValue([]),
+  getLocalModels: getLocalModelsMock,
 }));
 vi.mock("../llm", () => ({
   ollamaClient: { chat: vi.fn() },
 }));
 // Imports (after mocks) — the real implementation under test.
 import { apiStore, getProfiles } from "~/stores/apiStore";
-import { fetchAvailableModels } from "./shared";
+import { fetchAvailableModels, fetchModelsForProviders } from "./shared";
 import type { Model, Profile, SettingsStore } from "~/stores/apiStore";
 
 // ---------------------------------------------------------------------------
@@ -228,5 +229,182 @@ describe("fetchAvailableModels — strict validation", () => {
     const result = await fetchAvailableModels("stale-or-revoked-key", "openai", false, false);
 
     expect(result).toEqual(existing);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// fetchModelsForProviders — D21/D22 (hazard 2: the read-modify-write clobber).
+//
+// `cacheModelsForProvider` reads the whole profile, swaps one slice and writes
+// the whole profile back. Three of those racing under `Promise.all` silently
+// drop two slices — last writer wins, no error, no failing test. The fan-out
+// must therefore fetch with persistCache=false and perform exactly ONE merged
+// write. The write COUNT is the defence: asserting only that three slices
+// survive can pass by luck of scheduling.
+// ---------------------------------------------------------------------------
+
+describe("fetchModelsForProviders — fan-out across every enabled provider", () => {
+  const openRouterPayload = (models: { id: string; created: number }[]) => ({
+    ok: true,
+    status: 200,
+    statusText: "OK",
+    json: async () => ({
+      data: models.map((model) => ({ ...model, name: model.id })),
+    }),
+  });
+
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    apiStore.set("profiles", []);
+    apiStore.set("currentProfileId", "");
+    fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    openAIModelsListMock.mockResolvedValue({
+      data: [{ id: "gpt-4o", created: 100 }],
+    });
+    fetchMock.mockResolvedValue(
+      openRouterPayload([{ id: "anthropic/claude-3.5-sonnet", created: 200 }]),
+    );
+    getLocalModelsMock.mockResolvedValue([
+      {
+        id: "llama3.2:3b",
+        name: "llama3.2",
+        // Ollama stamps milliseconds while the cloud providers use seconds —
+        // a naive GLOBAL sort would interleave the groups wrongly.
+        created: 1_700_000_000_000,
+        local: { path: "/models/llama3.2" },
+      },
+    ]);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("D21 — leaves all three slices present after exactly ONE profile write", async () => {
+    seedProfile([]);
+    const setSpy = vi.spyOn(apiStore, "set");
+
+    const result = await fetchModelsForProviders(
+      ["openai", "openrouter", "ollama"],
+      { openai: "openai-key", openrouter: "openrouter-key" },
+      true,
+    );
+
+    // One merged write, not one per provider. The COUNT is the assertion that
+    // matters: three surviving slices can happen by luck of scheduling, three
+    // separate writes cannot.
+    const writtenKeys = setSpy.mock.calls.map((call) => String(call[0]));
+    expect(writtenKeys).toEqual(["profiles"]);
+    expect(setSpy).toHaveBeenCalledTimes(1);
+
+    const persisted = currentModels();
+    expect(persisted.map((model) => model.id)).toEqual([
+      "gpt-4o",
+      "anthropic/claude-3.5-sonnet",
+      "llama3.2:3b",
+    ]);
+    // Every persisted entry carries an explicit provider tag — `modelRefForModel`
+    // formats an untagged model as `openrouter::…` regardless of its shape.
+    expect(persisted.map((model) => model.provider)).toEqual([
+      "openai",
+      "openrouter",
+      "ollama",
+    ]);
+    expect(result.errors).toEqual({});
+    expect(result.models.map((model) => model.id)).toEqual(
+      persisted.map((model) => model.id),
+    );
+    setSpy.mockRestore();
+  });
+
+  it("D22 — one provider failing still returns the others and keeps the failed slice", async () => {
+    const staleOpenRouter: Model = {
+      id: "anthropic/claude-3-opus",
+      name: "claude-3-opus",
+      created: 5,
+      provider: "openrouter",
+    };
+    seedProfile([staleOpenRouter]);
+    fetchMock.mockRejectedValue(new Error("openrouter is down"));
+
+    const result = await fetchModelsForProviders(
+      ["openai", "openrouter", "ollama"],
+      { openai: "openai-key", openrouter: "openrouter-key" },
+      true,
+    );
+
+    expect(Object.keys(result.errors)).toEqual(["openrouter"]);
+    expect(result.errors.openrouter).toContain("openrouter is down");
+
+    const ids = result.models.map((model) => model.id);
+    expect(ids).toContain("gpt-4o");
+    expect(ids).toContain("llama3.2:3b");
+    // The failed provider keeps exactly what it had cached — not blanked.
+    expect(result.models).toContainEqual(staleOpenRouter);
+    expect(currentModels()).toContainEqual(staleOpenRouter);
+  });
+
+  it("groups by provider in PROVIDER_ORDER and sorts within a group, never globally", async () => {
+    seedProfile([]);
+    openAIModelsListMock.mockResolvedValue({
+      data: [
+        { id: "gpt-4o-mini", created: 10 },
+        { id: "gpt-4o", created: 900 },
+      ],
+    });
+
+    const result = await fetchModelsForProviders(
+      ["ollama", "openrouter", "openai"],
+      { openai: "openai-key", openrouter: "openrouter-key" },
+      true,
+    );
+
+    // Ollama's millisecond `created` (1.7e12) dwarfs every cloud value, so a
+    // global sort would hoist it to the front. Grouping keeps it last.
+    expect(result.models.map((model) => model.id)).toEqual([
+      "gpt-4o",
+      "gpt-4o-mini",
+      "anthropic/claude-3.5-sonnet",
+      "llama3.2:3b",
+    ]);
+  });
+
+  it("leaves a provider that was not asked for completely untouched", async () => {
+    const untouchedOllama: Model = {
+      id: "mistral:7b",
+      name: "mistral",
+      created: 7,
+      provider: "ollama",
+      local: { path: "/models/mistral" },
+    };
+    seedProfile([untouchedOllama]);
+
+    const result = await fetchModelsForProviders(
+      ["openai"],
+      { openai: "openai-key" },
+      true,
+    );
+
+    expect(getLocalModelsMock).not.toHaveBeenCalled();
+    expect(result.models).toContainEqual(untouchedOllama);
+    expect(currentModels()).toContainEqual(untouchedOllama);
+  });
+
+  it("writes nothing when no provider returned any model", async () => {
+    const existing: Model[] = [
+      { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
+    ];
+    seedProfile(existing);
+    openAIModelsListMock.mockResolvedValue({ data: [] });
+    const setSpy = vi.spyOn(apiStore, "set");
+
+    await fetchModelsForProviders(["openai"], { openai: "openai-key" }, true);
+
+    expect(setSpy).not.toHaveBeenCalled();
+    expect(currentModels()).toEqual(existing);
+    setSpy.mockRestore();
   });
 });

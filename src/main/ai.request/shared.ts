@@ -10,8 +10,15 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
 import { OpenAI } from "openai";
+import { mainT } from "~/main/i18n";
 import { getLocalModels } from "~/main/llm/models/discover";
 import { showErrorNotification } from "~/main/notifications/error";
+import { parseModelRef, resolveModelRef } from "~/shared/modelRef";
+import {
+  modelsForProvider,
+  PROVIDER_ORDER,
+  PROVIDER_REQUIRES_API_KEY,
+} from "~/shared/providers";
 import { getApiKey } from "~/stores/apiKeyStore";
 import {
   apiStore,
@@ -29,6 +36,7 @@ import {
   resolveCacheProvider,
 } from "./cache-strategy";
 import { extractResolvedModel } from "./resolve-model";
+import type { TKey } from "~/shared/i18n/translate";
 import type { Model, ProviderId } from "~/stores/apiStore";
 
 type CoreMessage = {
@@ -37,16 +45,20 @@ type CoreMessage = {
 };
 
 /**
- * Resolve routing from the current profile, never from a model-id convention.
+ * Catalog keys for the user-facing provider display names.
  *
- * Card 03 (multi-provider migration) removed `Profile.provider` — a profile
- * no longer names a single provider at all. This always answers
- * `"openrouter"` (the historical default) as a minimal unbreak; cards 04-05
- * own replacing every caller of this function with real per-request,
- * ref-based routing (see the plan's D17-D18) instead of a single
- * active-profile provider.
+ * Written out per provider rather than built as a template literal so the
+ * mapping is checked against `TKey` at compile time: a provider added to
+ * `PROVIDER_IDS` without its catalog entry fails the build here instead of
+ * rendering a raw key at runtime. `PROVIDER_LOG_LABELS` is deliberately NOT
+ * used — it is the untranslated diagnostics fallback, and the strings below
+ * reach the user through `showErrorNotification`.
  */
-export const getActiveProvider = (): ProviderId => "openrouter";
+const PROVIDER_NAME_KEYS = {
+  openai: "models.select.provider.openai",
+  openrouter: "models.select.provider.openrouter",
+  ollama: "models.select.provider.ollama",
+} as const satisfies Record<ProviderId, TKey>;
 
 const isCachedForProvider = isModelForProvider;
 
@@ -148,7 +160,7 @@ const fetchOpenAIModels = async (apiKey: string): Promise<Model[]> => {
  */
 export const fetchAvailableModels = async (
   apiKey: string,
-  provider: ProviderId = getActiveProvider(),
+  provider: ProviderId,
   persistCache = true,
   strict = false,
 ): Promise<Model[]> => {
@@ -200,6 +212,23 @@ export const getCachedModels = (provider?: ProviderId): Model[] => {
 };
 
 /**
+ * The provider's cached slice, but only while it still counts as fresh for a
+ * display read (see `fetchModelsForDisplay`). `null` means "you must fetch".
+ */
+const readFreshDisplayCache = (provider: ProviderId): Model[] | null => {
+  const lastFetchedAt = lastLiveFetchAt.get(provider);
+  const cachedForProvider = getCachedModels(provider);
+  if (
+    lastFetchedAt !== undefined &&
+    cachedForProvider.length > 0 &&
+    Date.now() - lastFetchedAt < MODEL_DISPLAY_CACHE_TTL_MS
+  ) {
+    return sortModels(cachedForProvider);
+  }
+  return null;
+};
+
+/**
  * Cache-first model list for DISPLAY callers (every `ModelSelect` mount: tray,
  * Models tab, each correction preset, PromptGen settings). Without this, every
  * dashboard tab open re-hit the provider HTTP API.
@@ -217,32 +246,126 @@ export const getCachedModels = (provider?: ProviderId): Model[] => {
  */
 export const fetchModelsForDisplay = async (
   apiKey: string,
-  provider: ProviderId = getActiveProvider(),
+  provider: ProviderId,
   refetch = false,
 ): Promise<Model[]> => {
   if (!refetch) {
-    const lastFetchedAt = lastLiveFetchAt.get(provider);
-    const cachedForProvider = getCachedModels(provider);
-    if (
-      lastFetchedAt !== undefined &&
-      cachedForProvider.length > 0 &&
-      Date.now() - lastFetchedAt < MODEL_DISPLAY_CACHE_TTL_MS
-    ) {
-      return sortModels(cachedForProvider);
-    }
+    const cached = readFreshDisplayCache(provider);
+    if (cached) return cached;
   }
   return fetchAvailableModels(apiKey, provider);
 };
 
 /**
- * Decide whether a served model id ran locally (Ollama). Derived from the
- * cached model list WITHOUT touching the request pipeline (#56 HITL #2): a
- * served id is local if a cached `Model` with that id carries the `local` flag.
- * Returns false when the id is unknown (it will then be priced or fall to N/A).
+ * Fetch every enabled provider's models at once and persist the result in
+ * **exactly one** profile write.
+ *
+ * Why not `Promise.all(providers.map(fetchAvailableModels))`: each of those
+ * would call `cacheModelsForProvider`, which is a read-modify-write of the
+ * WHOLE profile (read `models`, swap one provider's slice, write the profile
+ * back). Three of them interleaving drop two slices — last writer wins, with
+ * no error and no failing test. So every fetch here runs with
+ * `persistCache: false` and the merge below is the only write.
+ *
+ * Failure policy: `Promise.allSettled`, and a provider that rejected keeps its
+ * previously cached slice rather than being blanked. Key-requiring providers
+ * fetch with `strict: true` on purpose — the non-strict path swallows the
+ * error and returns the stale cache, which would make `errors` silently empty
+ * and report a revoked key as a successful refresh. Ollama ignores `strict`
+ * internally (it needs no key), so it keeps its resilient cache fallback.
+ *
+ * Ordering is per provider group in `PROVIDER_ORDER`, never global: Ollama
+ * stamps `created` in **milliseconds** while OpenAI/OpenRouter use
+ * **seconds**, so one global sort would hoist every local model above every
+ * cloud model regardless of age.
  */
-export const isLocalModelId = (servedId: string | undefined): boolean => {
+export const fetchModelsForProviders = async (
+  providers: readonly ProviderId[],
+  keys: Partial<Record<ProviderId, string>>,
+  refetch: boolean,
+): Promise<{ models: Model[]; errors: Partial<Record<ProviderId, string>> }> => {
+  const previousModels = getStoredModels();
+  const requested = PROVIDER_ORDER.filter((provider) => providers.includes(provider));
+
+  const settled = await Promise.allSettled(
+    requested.map(async (provider) => {
+      if (!refetch) {
+        const cached = readFreshDisplayCache(provider);
+        if (cached) return cached;
+      }
+      return fetchAvailableModels(
+        keys[provider] ?? "",
+        provider,
+        false,
+        PROVIDER_REQUIRES_API_KEY[provider],
+      );
+    }),
+  );
+
+  const errors: Partial<Record<ProviderId, string>> = {};
+  const fetchedByProvider = new Map<ProviderId, Model[]>();
+  requested.forEach((provider, index) => {
+    const outcome = settled[index];
+    if (outcome.status === "rejected") {
+      const reason: unknown = outcome.reason;
+      errors[provider] =
+        reason instanceof Error ? reason.message : String(reason);
+      return;
+    }
+    // An empty result never replaces a slice — same rule `fetchAvailableModels`
+    // applies to its own persist, so a provider blip cannot wipe the cache.
+    if (outcome.value.length === 0) return;
+    fetchedByProvider.set(
+      provider,
+      outcome.value.map((model) => ({
+        ...model,
+        // Every persisted entry must carry an explicit provider: an untagged
+        // model formats as `openrouter::…` through `modelRefForModel`.
+        provider: model.provider ?? provider,
+      })),
+    );
+  });
+
+  const models: Model[] = [];
+  const emitted = new Set<Model>();
+  for (const provider of PROVIDER_ORDER) {
+    const slice =
+      fetchedByProvider.get(provider) ?? modelsForProvider(previousModels, provider);
+    for (const model of slice) {
+      // A legacy untagged entry can match two providers; keep the first group
+      // it lands in so the merge never duplicates a cached model.
+      if (emitted.has(model)) continue;
+      emitted.add(model);
+      models.push(model);
+    }
+  }
+
+  if (fetchedByProvider.size > 0) {
+    updateProfileSetting("models", models);
+  }
+
+  return { models, errors };
+};
+
+/**
+ * Decide whether a served model id ran locally (Ollama).
+ *
+ * `provider` is authoritative when supplied and short-circuits the scan: once
+ * one cache holds three providers' models a raw id is ambiguous, and a cloud
+ * id can collide with a pulled local model of the same name. The cache scan
+ * is only the fallback for callers that genuinely do not know the provider —
+ * a served id is local if a cached `Model` with that id carries `local`.
+ * Returns false when the id is unknown (it is then priced, or falls to N/A).
+ */
+export const isLocalModelId = (
+  servedId: string | undefined,
+  provider?: ProviderId,
+): boolean => {
   if (!servedId) {
     return false;
+  }
+  if (provider !== undefined) {
+    return provider === "ollama";
   }
   const models = getCachedModels();
   return models.some((m) => m.id === servedId && m.local !== undefined);
@@ -281,59 +404,53 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
       { role: "user", content: options.userPrompt },
     ] as CoreMessage[]);
 
-  // Get all models from store
-  const models = getStoredModels();
-  const selectedModel = models.find((m) => m.id === modelId);
+  // Routing comes from the model REF, not from a profile-wide provider: a
+  // profile can have all three providers connected at once. A prefixed ref
+  // resolves against its own provider only; a bare (pre-migration) id falls
+  // back to the `PROVIDER_ORDER` cache scan inside `resolveModelRef`.
+  const resolution = resolveModelRef(modelId, getStoredModels());
 
-  if (!selectedModel) {
-    const error = new Error(`Model ${modelId} not found in model registry.`);
+  if (!resolution) {
+    // Never interpolate a provider that was guessed. A bare id that failed to
+    // resolve names no provider at all — claiming one would be the exact
+    // ambiguity the composite ref exists to remove.
+    const parsed = parseModelRef(modelId);
+    const error = new Error(
+      parsed.provider
+        ? mainT("models.error.unresolvable", {
+            model: parsed.modelId,
+            provider: mainT(PROVIDER_NAME_KEYS[parsed.provider]),
+          })
+        : mainT("models.error.unresolvableUnknownProvider", {
+            model: parsed.modelId,
+          }),
+    );
     showErrorNotification(error);
     throw error;
   }
 
-  const provider = getActiveProvider();
-  if (provider === "ollama") {
-    if (!selectedModel.local && selectedModel.provider !== "ollama") {
-      const error = new Error(`Model ${modelId} is not an Ollama model.`);
-      showErrorNotification(error);
-      throw error;
-    }
-    console.log("Routing to local Ollama inference");
-    return makeLocalAIRequest({
-      ...options,
-      model: modelId,
-      messages,
-      temperature,
-      top_p,
-      maxTokens,
-    });
-  }
-
-  if (selectedModel.provider && selectedModel.provider !== provider) {
-    const error = new Error(`Model ${modelId} is not available from ${provider}.`);
-    showErrorNotification(error);
-    throw error;
-  }
-
-  if (provider === "openai") {
-    return makeOpenAIAIRequest({
-      ...options,
-      model: modelId,
-      messages,
-      temperature,
-      top_p,
-      maxTokens,
-    });
-  }
-
-  return makeOpenRouterAIRequest({
+  // The RAW id goes downstream, never the ref: that is what keeps
+  // `AIRequestResponse.model` / `resolvedModel` raw and SQLite unmigrated.
+  const rawModelId = resolution.model.id;
+  const request = {
     ...options,
-    model: modelId,
+    model: rawModelId,
     messages,
     temperature,
     top_p,
     maxTokens,
-  });
+  };
+
+  if (resolution.provider === "ollama") {
+    console.log("Routing to local Ollama inference");
+    return makeLocalAIRequest(request);
+  }
+
+  if (resolution.provider === "openai") {
+    return makeOpenAIAIRequest(request);
+  }
+
+  return makeOpenRouterAIRequest(request);
 };
 
 /**

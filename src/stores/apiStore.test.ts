@@ -44,7 +44,8 @@ import {
 import {
   apiStore,
   apiStoreSchema,
-  commitActiveProfileProviderSetup,
+  connectProviderToActiveProfile,
+  disconnectProviderFromActiveProfile,
   getDefaultModelId,
   getProfiles,
   initializeDefaultProfile,
@@ -53,6 +54,8 @@ import {
   migrateStoredProfilesForModelRefs,
   PROVIDER_IDS,
   resetCurrentProfileSettings,
+  sanitizeImportedProfile,
+  toExportableProfile,
   withoutProfileSecrets,
 } from "~/stores/apiStore";
 import { migrateProfileForModelRefs } from "~/stores/profileMigration";
@@ -126,10 +129,29 @@ const seedProfiles = (profiles: Profile[], currentProfileId: string): void => {
 };
 
 // ---------------------------------------------------------------------------
-// commitActiveProfileProviderSetup
+// connectProviderToActiveProfile — D10.
+//
+// This describe block REPLACES the old `commitActiveProfileProviderSetup`
+// suite, which asserted that committing a provider wiped every preset model
+// and `settingsPromptGen.model` to the inherit sentinel. That wipe is the
+// behaviour this card deletes, so the assertions below are its exact inverse:
+// connecting a provider must leave every existing model choice byte-identical.
 // ---------------------------------------------------------------------------
 
-describe("commitActiveProfileProviderSetup", () => {
+const openRouterModel: Model = {
+  id: "anthropic/claude-3.5-sonnet",
+  name: "claude",
+  created: 1,
+  provider: "openrouter",
+};
+const localModel: Model = {
+  id: "llama-70b",
+  name: "llama-70b",
+  created: 2,
+  local: { path: "/models/llama-70b" },
+};
+
+describe("connectProviderToActiveProfile — D10", () => {
   beforeEach(() => {
     apiStore.set("profiles", []);
     apiStore.set("currentProfileId", "");
@@ -137,88 +159,253 @@ describe("commitActiveProfileProviderSetup", () => {
 
   it("returns null when there is no active profile", () => {
     seedProfiles([buildProfile()], "");
-    const result = commitActiveProfileProviderSetup("openai", "openai/gpt-4o", []);
-    expect(result).toBeNull();
+    expect(connectProviderToActiveProfile("openai", [])).toBeNull();
   });
 
   it("returns null when the active profile id does not match any profile", () => {
     seedProfiles([buildProfile({ id: "profile_1" })], "profile_missing");
-    const result = commitActiveProfileProviderSetup("openai", "openai/gpt-4o", []);
-    expect(result).toBeNull();
+    expect(connectProviderToActiveProfile("openai", [])).toBeNull();
   });
 
-  it("replaces only the target provider's cached models, retaining other providers' entries", () => {
-    const existingOpenAiModel: Model = {
-      id: "openai/gpt-4o",
-      name: "gpt-4o",
-      created: 1,
-      provider: "openai",
-    };
-    const existingLocalModel: Model = {
-      id: "llama-70b",
-      name: "llama-70b",
-      created: 2,
-      local: { path: "/models/llama-70b" },
-    };
+  it("leaves every preset model and selectedModel byte-identical", () => {
     const profile = buildProfile({
-      settings: buildSettings({ models: [existingOpenAiModel, existingLocalModel] }),
+      settings: buildSettings({
+        selectedModel: "openrouter::anthropic/claude-3.5-sonnet",
+        models: [openRouterModel],
+      }),
     });
     seedProfiles([profile], profile.id);
+    const before = structuredClone(profile.settings);
 
-    const newOpenAiModels: Model[] = [
-      { id: "openai/gpt-4o-mini", name: "gpt-4o-mini", created: 3 },
-    ];
-    const result = commitActiveProfileProviderSetup(
-      "openai",
-      "openai/gpt-4o-mini",
-      newOpenAiModels,
-    );
-
-    expect(result?.settings.models).toHaveLength(2);
-    // The ollama-tagged (local) entry is retained untouched.
-    expect(result?.settings.models).toContainEqual(existingLocalModel);
-    // The old openai entry is gone; the newly fetched one replaces it, tagged
-    // with the provider it was fetched for.
-    expect(result?.settings.models).not.toContainEqual(existingOpenAiModel);
-    expect(result?.settings.models).toContainEqual({
-      ...newOpenAiModels[0],
-      provider: "openai",
-    });
-  });
-
-  it("sets selectedModel on the committed profile", () => {
-    const profile = buildProfile();
-    seedProfiles([profile], profile.id);
-
-    const result = commitActiveProfileProviderSetup("openai", "openai/gpt-4o", [
-      { id: "openai/gpt-4o", name: "gpt-4o", created: 1 },
+    const result = connectProviderToActiveProfile("openai", [
+      { id: "gpt-4o", name: "gpt-4o", created: 3 },
     ]);
 
-    expect(result?.settings.selectedModel).toBe("openai/gpt-4o");
-    // Profile.provider no longer exists (card 03) — the committed profile
-    // carries no such field at all.
-    expect(result).not.toHaveProperty("provider");
+    expect(result?.settings.selectedModel).toBe(before.selectedModel);
+    expect(result?.settings.settingsCorrect).toEqual(before.settingsCorrect);
+    expect(result?.settings.settingsPromptGen).toEqual(before.settingsPromptGen);
+    expect(result?.settings.settingsSummarize).toEqual(before.settingsSummarize);
   });
 
-  it("clears every Correction preset model and settingsPromptGen.model to inherit", () => {
-    const profile = buildProfile();
+  it("adds the new provider's slice while leaving the other provider's slice intact", () => {
+    const profile = buildProfile({
+      settings: buildSettings({ models: [openRouterModel, localModel] }),
+    });
     seedProfiles([profile], profile.id);
 
-    const result = commitActiveProfileProviderSetup("openai", "openai/gpt-4o", []);
+    const result = connectProviderToActiveProfile("openai", [
+      { id: "gpt-4o", name: "gpt-4o", created: 3 },
+    ]);
 
-    expect(
-      result?.settings.settingsCorrect.presets.every((preset) => preset.model === ""),
-    ).toBe(true);
-    expect(result?.settings.settingsPromptGen.model).toBe("");
+    expect(result?.settings.models).toContainEqual(openRouterModel);
+    expect(result?.settings.models).toContainEqual(localModel);
+    // Every persisted entry is tagged, so `modelRefForModel` cannot mislabel it.
+    expect(result?.settings.models).toContainEqual({
+      id: "gpt-4o",
+      name: "gpt-4o",
+      created: 3,
+      provider: "openai",
+    });
+    expect(result?.settings.models).toHaveLength(3);
+  });
+
+  it("adds the provider to enabledProviders", () => {
+    const profile = buildProfile({
+      settings: buildSettings({ enabledProviders: ["openrouter"] }),
+    });
+    seedProfiles([profile], profile.id);
+
+    const result = connectProviderToActiveProfile("openai", []);
+
+    expect(result?.settings.enabledProviders).toEqual(["openai", "openrouter"]);
+  });
+
+  it("is idempotent — connecting twice gains one entry and replaces, never appends, models", () => {
+    const profile = buildProfile();
+    seedProfiles([profile], profile.id);
+    const models: Model[] = [{ id: "gpt-4o", name: "gpt-4o", created: 3 }];
+
+    connectProviderToActiveProfile("openai", models);
+    const result = connectProviderToActiveProfile("openai", models);
+
+    expect(result?.settings.enabledProviders).toEqual(["openai"]);
+    expect(result?.settings.models).toHaveLength(1);
+  });
+
+  it("does not mutate the profile it was given", () => {
+    const profile = buildProfile({
+      settings: buildSettings({ models: [openRouterModel] }),
+    });
+    seedProfiles([profile], profile.id);
+    const snapshot = structuredClone(profile);
+
+    connectProviderToActiveProfile("openai", [
+      { id: "gpt-4o", name: "gpt-4o", created: 3 },
+    ]);
+
+    expect(profile).toEqual(snapshot);
   });
 
   it("updates updatedAt", () => {
     const profile = buildProfile({ updatedAt: "2000-01-01T00:00:00.000Z" });
     seedProfiles([profile], profile.id);
 
-    const result = commitActiveProfileProviderSetup("openai", "openai/gpt-4o", []);
+    const result = connectProviderToActiveProfile("openai", []);
 
     expect(result?.updatedAt).not.toBe("2000-01-01T00:00:00.000Z");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// disconnectProviderFromActiveProfile — D11
+// ---------------------------------------------------------------------------
+
+describe("disconnectProviderFromActiveProfile — D11", () => {
+  beforeEach(() => {
+    apiStore.set("profiles", []);
+    apiStore.set("currentProfileId", "");
+  });
+
+  const seedConnected = (): Profile => {
+    const profile = buildProfile({
+      settings: buildSettings({
+        enabledProviders: ["openai", "openrouter"],
+        models: [
+          { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
+          openRouterModel,
+        ],
+        selectedModel: "openai::gpt-4o",
+        settingsCorrect: {
+          selectedPresetId: "correction",
+          presets: [
+            {
+              id: "correction",
+              name: "Correction",
+              hotkey: "Control+Shift+F",
+              systemPrompt: "Fix grammar.",
+              model: "openai::gpt-4o",
+              isBuiltIn: true,
+            },
+            {
+              id: "summarize",
+              name: "Summarize",
+              hotkey: "Control+Shift+S",
+              systemPrompt: "Summarize.",
+              model: "openrouter::anthropic/claude-3.5-sonnet",
+              isBuiltIn: true,
+            },
+            {
+              id: "legacy",
+              name: "Legacy",
+              hotkey: "",
+              systemPrompt: "Legacy.",
+              // A bare, un-migrated id: not proven to belong to OpenAI.
+              model: "gpt-4o",
+              isBuiltIn: false,
+            },
+          ],
+        },
+        settingsPromptGen: {
+          minLength: 50,
+          maxLength: 150,
+          batchCount: 5,
+          nsfw: true,
+          context: "",
+          autoCopy: false,
+          model: "openai::gpt-4o",
+        },
+        settingsSummarize: {
+          minLength: 0,
+          maxLength: 0,
+          model: "openrouter::anthropic/claude-3.5-sonnet",
+          targetLanguage: "en",
+        },
+      }),
+    });
+    seedProfiles([profile], profile.id);
+    return profile;
+  };
+
+  it("returns null when there is no active profile", () => {
+    seedProfiles([buildProfile()], "");
+    expect(disconnectProviderFromActiveProfile("openai")).toBeNull();
+  });
+
+  it("clears only refs naming the disconnected provider and leaves bare refs untouched", () => {
+    seedConnected();
+
+    const result = disconnectProviderFromActiveProfile("openai");
+    const presets = result?.profile.settings.settingsCorrect.presets ?? [];
+
+    expect(result?.profile.settings.selectedModel).toBe("");
+    expect(presets.find((p) => p.id === "correction")?.model).toBe("");
+    // Another provider's ref survives…
+    expect(presets.find((p) => p.id === "summarize")?.model).toBe(
+      "openrouter::anthropic/claude-3.5-sonnet",
+    );
+    // …and so does a bare legacy id, which names no provider to match on.
+    expect(presets.find((p) => p.id === "legacy")?.model).toBe("gpt-4o");
+    expect(result?.profile.settings.settingsPromptGen.model).toBe("");
+    expect(result?.profile.settings.settingsSummarize.model).toBe(
+      "openrouter::anthropic/claude-3.5-sonnet",
+    );
+  });
+
+  it("drops the enabledProviders entry and only that provider's model slice", () => {
+    seedConnected();
+
+    const result = disconnectProviderFromActiveProfile("openai");
+
+    expect(result?.profile.settings.enabledProviders).toEqual(["openrouter"]);
+    expect(result?.profile.settings.models).toEqual([openRouterModel]);
+  });
+
+  it("returns a cleared record naming exactly what it reset", () => {
+    seedConnected();
+
+    const result = disconnectProviderFromActiveProfile("openai");
+
+    expect(result?.cleared).toEqual({
+      selectedModel: true,
+      presetIds: ["correction"],
+      features: ["promptGen"],
+    });
+  });
+
+  it("reports a cleared summarize feature model when it named the provider", () => {
+    seedConnected();
+
+    const result = disconnectProviderFromActiveProfile("openrouter");
+
+    expect(result?.cleared.features).toEqual(["summarize"]);
+    expect(result?.cleared.presetIds).toEqual(["summarize"]);
+    expect(result?.cleared.selectedModel).toBe(false);
+  });
+
+  it("is a no-op returning an empty cleared when the provider is not connected", () => {
+    const profile = seedConnected();
+    const setSpy = vi.spyOn(apiStore, "set");
+
+    const result = disconnectProviderFromActiveProfile("ollama");
+
+    expect(result?.cleared).toEqual({
+      selectedModel: false,
+      presetIds: [],
+      features: [],
+    });
+    expect(result?.profile.settings.selectedModel).toBe("openai::gpt-4o");
+    expect(setSpy).not.toHaveBeenCalled();
+    expect(getProfiles()[0]).toEqual(profile);
+    setSpy.mockRestore();
+  });
+
+  it("does not mutate the profile it was given", () => {
+    const profile = seedConnected();
+    const snapshot = structuredClone(profile);
+
+    disconnectProviderFromActiveProfile("openai");
+
+    expect(profile).toEqual(snapshot);
   });
 });
 
@@ -498,6 +685,141 @@ describe("withoutProfileSecrets — D13 (first half)", () => {
     expect(result.settings.models).toEqual(models);
     expect(result.settings.selectedModel).toBe("openai::gpt-4o");
     expect(result).not.toHaveProperty("provider");
+  });
+
+  it("returns enabledProviders and every preset/feature model intact", () => {
+    // The exact reason this helper must stay narrow: profiles.ts:98 writes its
+    // result back to disk during the legacy-secret migration, so anything it
+    // strips is permanently gone from an upgrading user's config.
+    const profile = buildProfile({
+      settings: buildSettings({
+        apiKey: "secret-key",
+        enabledProviders: ["openai", "openrouter"],
+        settingsSummarize: {
+          minLength: 0,
+          maxLength: 0,
+          model: "openai::gpt-4o",
+          targetLanguage: "en",
+        },
+      }),
+    });
+
+    const result = withoutProfileSecrets(profile);
+
+    expect(result.settings.enabledProviders).toEqual(["openai", "openrouter"]);
+    expect(
+      result.settings.settingsCorrect.presets.map((preset) => preset.model),
+    ).toEqual(["custom-model-a", "custom-model-b"]);
+    expect(result.settings.settingsPromptGen.model).toBe("custom-model-c");
+    expect(result.settings.settingsSummarize.model).toBe("openai::gpt-4o");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toExportableProfile — D13, second half. Everything model-shaped is stripped,
+// and a paired assertion pins that the two helpers differ on EXACTLY that set.
+// ---------------------------------------------------------------------------
+
+describe("toExportableProfile — D13 (second half)", () => {
+  const exportableFixture = (): Profile =>
+    buildProfile({
+      settings: buildSettings({
+        apiKey: "secret-key",
+        models: [{ id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" }],
+        selectedModel: "openai::gpt-4o",
+        enabledProviders: ["openai", "openrouter"],
+        settingsSummarize: {
+          minLength: 3,
+          maxLength: 9,
+          model: "openai::gpt-4o",
+          targetLanguage: "ja",
+        },
+      }),
+    });
+
+  it("strips models, selectedModel, enabledProviders, preset models and both feature models", () => {
+    const result = toExportableProfile(exportableFixture());
+
+    expect(result.settings.apiKey).toBeUndefined();
+    expect(result.settings.models).toEqual([]);
+    expect(result.settings.selectedModel).toBe("");
+    expect(result.settings.enabledProviders).toEqual([]);
+    expect(
+      result.settings.settingsCorrect.presets.every((preset) => preset.model === ""),
+    ).toBe(true);
+    expect(result.settings.settingsPromptGen.model).toBe("");
+    expect(result.settings.settingsSummarize.model).toBe("");
+  });
+
+  it("keeps every non-model setting, so an export is still a usable profile", () => {
+    const result = toExportableProfile(exportableFixture());
+
+    expect(result.id).toBe("profile_1");
+    expect(result.name).toBe("Test Profile");
+    expect(result.settings.settingsSummarize.minLength).toBe(3);
+    expect(result.settings.settingsSummarize.targetLanguage).toBe("ja");
+    expect(
+      result.settings.settingsCorrect.presets.map((preset) => preset.systemPrompt),
+    ).toEqual(["Fix grammar.", "Summarize."]);
+  });
+
+  it("differs from withoutProfileSecrets on exactly the model-state set", () => {
+    const profile = exportableFixture();
+    const secretsOnly = withoutProfileSecrets(profile);
+    const exportable = toExportableProfile(profile);
+
+    // The set the two disagree on…
+    expect(secretsOnly.settings.models).not.toEqual(exportable.settings.models);
+    expect(secretsOnly.settings.selectedModel).not.toEqual(
+      exportable.settings.selectedModel,
+    );
+    expect(secretsOnly.settings.enabledProviders).not.toEqual(
+      exportable.settings.enabledProviders,
+    );
+    expect(
+      secretsOnly.settings.settingsCorrect.presets.map((p) => p.model),
+    ).not.toEqual(exportable.settings.settingsCorrect.presets.map((p) => p.model));
+    expect(secretsOnly.settings.settingsPromptGen.model).not.toEqual(
+      exportable.settings.settingsPromptGen.model,
+    );
+    expect(secretsOnly.settings.settingsSummarize.model).not.toEqual(
+      exportable.settings.settingsSummarize.model,
+    );
+
+    // …and nothing else. Blanking the model fields on the secrets-only copy
+    // must make the two byte-identical.
+    const blanked = {
+      ...secretsOnly,
+      settings: {
+        ...secretsOnly.settings,
+        models: [],
+        selectedModel: "",
+        enabledProviders: [],
+        settingsCorrect: {
+          ...secretsOnly.settings.settingsCorrect,
+          presets: secretsOnly.settings.settingsCorrect.presets.map((preset) => ({
+            ...preset,
+            model: "",
+          })),
+        },
+        settingsPromptGen: { ...secretsOnly.settings.settingsPromptGen, model: "" },
+        settingsSummarize: { ...secretsOnly.settings.settingsSummarize, model: "" },
+      },
+    };
+    expect(exportable).toEqual(blanked);
+  });
+
+  it("does not mutate the profile it was given", () => {
+    const profile = exportableFixture();
+    const snapshot = structuredClone(profile);
+
+    toExportableProfile(profile);
+
+    expect(profile).toEqual(snapshot);
+  });
+
+  it("sanitizeImportedProfile is toExportableProfile — an imported cache describes another machine", () => {
+    expect(sanitizeImportedProfile).toBe(toExportableProfile);
   });
 });
 
