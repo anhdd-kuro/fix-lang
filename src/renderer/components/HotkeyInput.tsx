@@ -6,6 +6,7 @@
  * hotkeys and the sibling app keybinding before saving.
  */
 import React, { useState, useEffect } from "react";
+import { msg, type Message } from "~/shared/i18n/message";
 import { validateHotkeys } from "./validateHotkeys";
 import { useI18n } from "../i18n/useI18n";
 import type { KeyBindings } from "~/stores/apiStore";
@@ -31,7 +32,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
   hotkeyKey,
   label,
 }) => {
-  const { t } = useI18n();
+  const { t, tm } = useI18n();
   const [keyBindings, setKeyBindings] = useState<KeyBindings | null>(null);
   const [pendingCombo, setPendingCombo] = useState<string>("");
   const [fieldError, setFieldError] = useState<string>("");
@@ -41,6 +42,14 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
   const [statusKind, setStatusKind] = useState<"idle" | "error" | "applying" | "success">(
     "idle",
   );
+  // Locale-free descriptor for the ONE error the mount effect below can
+  // produce (`getKeyBindings()` rejecting). Kept separate from `status` (set
+  // by `handleApply` below, an event handler — safe to resolve via `t()`
+  // directly, since it is not a memoized/effect closure) so this effect never
+  // needs to call `t()` itself, and therefore never needs `t` in its
+  // dependency array. `handleApply` clears it so a later action's status
+  // always supersedes a stale load-error banner.
+  const [loadError, setLoadError] = useState<Message | null>(null);
 
   useEffect(() => {
     window.electronAPI
@@ -52,7 +61,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
       .catch((err) => {
         console.error("HotkeyInput: failed to load key bindings", err);
         setStatusKind("error");
-        setStatus(t("settings.hotkeys.loadError"));
+        setLoadError(msg("settings.hotkeys.loadError"));
       });
 
     // Safety net: if the widget unmounts while the field is still focused
@@ -60,7 +69,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
     return () => {
       window.electronAPI?.resumeHotkeys();
     };
-  }, [hotkeyKey, t]);
+  }, [hotkeyKey]);
 
   // Pause global hotkeys only while the field is focused for capture — not for
   // the whole lifetime of the settings tab. Resume as soon as focus leaves.
@@ -108,6 +117,8 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
   };
 
   const handleApply = async (): Promise<void> => {
+    // Any user-triggered apply supersedes a stale mount-time load-error banner.
+    setLoadError(null);
     if (fieldError) {
       setStatusKind("error");
       setStatus(t("settings.general.error", { message: fieldError }));
@@ -196,7 +207,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
           {fieldError}
         </p>
       )}
-      {status && (
+      {(loadError || status) && (
         <p
           role="status"
           className={`text-xs ${
@@ -207,7 +218,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
                 : "text-success"
           }`}
         >
-          {status}
+          {loadError ? tm(loadError) : status}
         </p>
       )}
     </div>

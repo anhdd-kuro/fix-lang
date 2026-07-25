@@ -6,6 +6,7 @@ import {
   normalizeForSearch,
   resolveDefaultOpenAIModel,
 } from "~/const";
+import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
 import { buildModelOptionLabel } from "./modelOptionLabel";
 import SettingsButton from "./SettingsIcon";
 import { useI18n } from "../i18n/useI18n";
@@ -59,14 +60,16 @@ export const ModelSelect: React.FC<{
   compact = false,
   menuMaxHeight,
 }) => {
-  const { t, formatCurrency, dateFnsLocale } = useI18n();
+  const { t, tl, formatCurrency, dateFnsLocale } = useI18n();
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [activeProvider, setActiveProvider] = useState<ProviderId | null>(null);
   // Store the currently saved feature-specific model to detect changes and enable reset
   const [savedFeatureModel, setSavedFeatureModel] = useState<string>("");
   const [modelsLoading, setModelsLoading] = useState<boolean>(false);
-  const [modelsError, setModelsError] = useState<string>("");
+  // Holds a locale-free descriptor (never rendered prose) so `fetchModels`
+  // does not need to close over `t` — see the `fetchModels` comment below.
+  const [modelsError, setModelsError] = useState<Label | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [menuWidth, setMenuWidth] = useState<number | undefined>(undefined);
@@ -88,12 +91,24 @@ export const ModelSelect: React.FC<{
     };
   }, [menuPortal]);
 
+  // Stores a `Label` descriptor (never resolved prose) so this callback does
+  // NOT close over `t` — `t` changes identity on every locale switch (see
+  // `useI18n`/`I18nProvider`), and this callback is itself a dependency of
+  // the mount effect and the `onSettingsUpdated` subscription effect below.
+  // Closing over `t` would force switching languages to re-run
+  // `fetchAIModels()` for every mounted `<ModelSelect>` (including the
+  // always-mounted tray instance) and to tear down/re-register that IPC
+  // listener on every switch — see spec.i18n-dashboard.md and the review
+  // finding this fixes. `result.error` is raw text from the main process
+  // (not translatable) and is wrapped as a `textLabel`; the two `t()`-backed
+  // fallbacks are wrapped as `messageLabel`s and resolved via `tl()` at
+  // render time instead.
   const fetchModels = useCallback(async (refetch = false) => {
     setModelsLoading(true);
-    setModelsError("");
+    setModelsError(null);
     try {
       if (!window.electronAPI?.fetchAIModels) {
-        setModelsError(t("models.select.error.apiUnavailable"));
+        setModelsError(messageLabel("models.select.error.apiUnavailable"));
         setModelsLoading(false);
         return;
       }
@@ -101,14 +116,22 @@ export const ModelSelect: React.FC<{
       if (result.success && result.models) {
         setModels(result.models);
       } else {
-        setModelsError(result.error || t("models.select.error.fetchFailed"));
+        setModelsError(
+          result.error
+            ? textLabel(result.error)
+            : messageLabel("models.select.error.fetchFailed"),
+        );
       }
     } catch (err) {
-      setModelsError(err instanceof Error ? err.message : t("models.select.error.unknown"));
+      setModelsError(
+        err instanceof Error
+          ? textLabel(err.message)
+          : messageLabel("models.select.error.unknown"),
+      );
     } finally {
       setModelsLoading(false);
     }
-  }, [t]);
+  }, []);
 
   const loadActiveProvider = useCallback(async () => {
     try {
@@ -475,7 +498,7 @@ export const ModelSelect: React.FC<{
       </div>
       {modelsError && (
         <p className="text-xs text-destructive mt-1" role="alert">
-          {modelsError}
+          {tl(modelsError)}
         </p>
       )}
       {!compact && (

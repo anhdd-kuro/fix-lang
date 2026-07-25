@@ -15,6 +15,7 @@ import { useI18n } from "../i18n/useI18n";
 import {
   perModelBreakdown,
   tokensPerDay,
+  UNKNOWN_MODEL_ID,
 } from "../MainWindow/modelsAggregations";
 import type { HistoryEntry } from "~/stores/historyStore";
 
@@ -134,8 +135,16 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
                           className="max-w-[16rem] truncate"
                           // Raw model id — identity, never translated (see
                           // spec.i18n-dashboard.md §1.3). Display text below
-                          // uses `modelLabel` instead.
-                          title={row.model}
+                          // uses `modelLabel` instead. Except the
+                          // UNKNOWN_MODEL_ID sentinel is not a real id (it's
+                          // never shown to the user anywhere else) — fall
+                          // back to the translated label so the tooltip
+                          // doesn't leak the raw "__unknown__" token.
+                          title={
+                            row.model === UNKNOWN_MODEL_ID
+                              ? tl(row.modelLabel)
+                              : row.model
+                          }
                         >
                           {tl(row.modelLabel)}
                         </span>

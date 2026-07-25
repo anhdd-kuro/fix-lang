@@ -28,8 +28,8 @@ describe("buildProfileSwitchHotkeyNotification", () => {
     localeStoreMocks.getLocale.mockReturnValue("ja");
 
     expect(buildProfileSwitchHotkeyNotification("日本語プロファイル")).toEqual({
-      title: "プロフィールを切り替えました",
-      body: "プロフィール「日本語プロファイル」に切り替えました。",
+      title: "プロファイルを切り替えました",
+      body: "プロファイル「日本語プロファイル」に切り替えました。",
     });
   });
 });

@@ -7,6 +7,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { format } from "date-fns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { twJoin } from "tailwind-merge";
+import { msg, type Message } from "~/shared/i18n/message";
 import {
   LOG_QUERY_PAGE_SIZE,
   logEntryMatchesSearch,
@@ -82,13 +83,16 @@ const mergeNewestFirst = (
 
 /** Searchable live view of redacted main-process logs (persisted + live). */
 export const LogsPanel = () => {
-  const { t, dateFnsLocale } = useI18n();
+  const { t, tm, dateFnsLocale } = useI18n();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [level, setLevel] = useState<LogLevelFilter>("all");
   const [autoScroll, setAutoScroll] = useState(true);
-  const [status, setStatus] = useState("");
+  // Holds a locale-free descriptor (never rendered prose) so `loadInitialPage`/
+  // `loadOlderPage` do not need `t` in their dependency arrays — see those
+  // callbacks below. Resolved via `tm()` at render time instead.
+  const [status, setStatus] = useState<Message | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -103,9 +107,17 @@ export const LogsPanel = () => {
     return () => window.clearTimeout(timer);
   }, [search]);
 
+  // `t` is intentionally NOT a dependency: this fetches on mount and again
+  // whenever `debouncedSearch`/`level` change, and closing over `t` would
+  // force a re-fetch on every locale switch for no reason. That does NOT
+  // mean the error banner is unreachable in the old language after a switch
+  // though — `status` stores a locale-free descriptor (`Message`), resolved
+  // via `tm()` at render, so a stale `queryLogs()` failure renders correctly
+  // in whichever locale is active when the banner is shown, not whichever
+  // was active when the request failed.
   const loadInitialPage = useCallback(async (): Promise<void> => {
     setIsLoading(true);
-    setStatus("");
+    setStatus(null);
     try {
       const page = await window.electronAPI.queryLogs({
         limit: LOG_QUERY_PAGE_SIZE,
@@ -120,16 +132,16 @@ export const LogsPanel = () => {
       setNextCursor(null);
       setHasMore(false);
       setStatus(
-        t("logs.panel.error.loadFailed", {
+        msg("logs.panel.error.loadFailed", {
           message: error instanceof Error ? error.message : String(error),
         }),
       );
     } finally {
       setIsLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` is locale-stable (see I18nProvider); adding it here would re-fetch on every locale switch for no reason.
   }, [debouncedSearch, level]);
 
+  // Same rationale as `loadInitialPage` above.
   const loadOlderPage = useCallback(async (): Promise<void> => {
     if (!hasMore || nextCursor === null || loadMoreLock.current) {
       return;
@@ -148,7 +160,7 @@ export const LogsPanel = () => {
       setHasMore(page.hasMore);
     } catch (error) {
       setStatus(
-        t("logs.panel.error.loadMoreFailed", {
+        msg("logs.panel.error.loadMoreFailed", {
           message: error instanceof Error ? error.message : String(error),
         }),
       );
@@ -156,7 +168,6 @@ export const LogsPanel = () => {
       setIsLoadingMore(false);
       loadMoreLock.current = false;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` is locale-stable (see I18nProvider); adding it here would re-fetch on every locale switch for no reason.
   }, [debouncedSearch, hasMore, level, nextCursor]);
 
   useEffect(() => {
@@ -212,10 +223,10 @@ export const LogsPanel = () => {
       setLogs([]);
       setNextCursor(null);
       setHasMore(false);
-      setStatus(t("logs.panel.status.cleared"));
+      setStatus(msg("logs.panel.status.cleared"));
     } catch (error) {
       setStatus(
-        t("logs.panel.error.clearFailed", {
+        msg("logs.panel.error.clearFailed", {
           message: error instanceof Error ? error.message : String(error),
         }),
       );
@@ -225,10 +236,10 @@ export const LogsPanel = () => {
   const handleCopy = async (): Promise<void> => {
     try {
       const result = await window.electronAPI.copyLogs();
-      setStatus(t("logs.panel.status.copied", { count: result.count }));
+      setStatus(msg("logs.panel.status.copied", { count: result.count }));
     } catch (error) {
       setStatus(
-        t("logs.panel.error.copyFailed", {
+        msg("logs.panel.error.copyFailed", {
           message: error instanceof Error ? error.message : String(error),
         }),
       );
@@ -239,15 +250,15 @@ export const LogsPanel = () => {
     try {
       const result = await window.electronAPI.exportLogs();
       if (result.success) {
-        setStatus(t("logs.panel.status.exported"));
+        setStatus(msg("logs.panel.status.exported"));
       } else if (!result.canceled) {
         setStatus(
-          t("logs.panel.error.exportFailed", { message: result.error }),
+          msg("logs.panel.error.exportFailed", { message: result.error }),
         );
       }
     } catch (error) {
       setStatus(
-        t("logs.panel.error.exportFailed", {
+        msg("logs.panel.error.exportFailed", {
           message: error instanceof Error ? error.message : String(error),
         }),
       );
@@ -338,7 +349,7 @@ export const LogsPanel = () => {
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>{footerLabel}</span>
         <span role="status" aria-live="polite">
-          {status}
+          {status ? tm(status) : ""}
         </span>
       </div>
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { msg, type Message } from "~/shared/i18n/message";
 import CopyButton from "./CopyButton";
 import { Spinner } from "./Spinner";
 import { useI18n } from "../i18n/useI18n";
@@ -122,9 +123,19 @@ const displayVersion = (version: string | undefined): string =>
  * GitHub metadata; this component only renders safe state and opens releases.
  */
 export const SettingUpdates = () => {
-  const { t } = useI18n();
+  const { t, tm } = useI18n();
   const [state, setState] = useState<UpdateState>(initialState);
   const [actionPending, setActionPending] = useState(false);
+  // Locale-free descriptor for the ONE error message the mount effect below
+  // can produce (`getUpdateState()` rejecting before any live event arrives).
+  // Kept separate from `state.message` (a plain `string` on the shared
+  // `UpdateState` type from `~/shared/update`, set by `run()` below with an
+  // already-resolved string — safe, since `run()` is an event handler, not a
+  // memoized/effect closure) so the mount effect never needs to call `t()`
+  // itself, and therefore never needs `t` in its dependency array. Cleared
+  // whenever fresher state arrives (a live broadcast, the initial snapshot,
+  // or a later `run()` failure) so it can never shadow newer information.
+  const [mountLoadError, setMountLoadError] = useState<Message | null>(null);
 
   useEffect(() => {
     const api = updateApi();
@@ -137,21 +148,22 @@ export const SettingUpdates = () => {
       receivedLiveState = true;
       if (mounted) {
         setActionPending(false);
+        setMountLoadError(null);
         setState(next);
       }
     });
 
     void api.getUpdateState()
       .then((next) => {
-        if (mounted && !receivedLiveState) setState(next);
+        if (mounted && !receivedLiveState) {
+          setMountLoadError(null);
+          setState(next);
+        }
       })
       .catch(() => {
         if (mounted && !receivedLiveState) {
-          setState((current) => ({
-            ...current,
-            phase: "error",
-            message: t("settings.updates.loadFailed"),
-          }));
+          setMountLoadError(msg("settings.updates.loadFailed"));
+          setState((current) => ({ ...current, phase: "error" }));
         }
       });
 
@@ -159,7 +171,6 @@ export const SettingUpdates = () => {
       mounted = false;
       unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- load-once on mount; `t` is locale-stable (see I18nProvider), re-running per render would re-subscribe the update-state listener for no reason.
   }, []);
 
   const run = async (
@@ -180,6 +191,7 @@ export const SettingUpdates = () => {
         throw new Error(failureMessage);
       }
     } catch {
+      setMountLoadError(null);
       setState((current) => ({
         ...current,
         phase: "error",
@@ -346,7 +358,9 @@ export const SettingUpdates = () => {
       {state.phase === "error" && (
         <>
           <p className="mt-1 text-sm text-destructive" role="alert">
-            {state.message ?? t("settings.updates.genericError")}
+            {mountLoadError
+              ? tm(mountLoadError)
+              : (state.message ?? t("settings.updates.genericError"))}
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             <button

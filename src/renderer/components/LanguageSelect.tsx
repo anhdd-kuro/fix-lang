@@ -16,10 +16,11 @@ export const LanguageSelect: React.FC = () => {
 
   return (
     <div>
-      <label
-        htmlFor="language-select"
-        className="block text-sm font-medium text-card-foreground mb-1"
-      >
+      {/* The section heading in SettingGeneral already reads "Language" /
+          「言語」 visually — this label stays for the select's accessible
+          name but is visually hidden to avoid rendering the same text twice
+          stacked on screen. */}
+      <label htmlFor="language-select" className="sr-only">
         {t("settings.general.language.label")}
       </label>
       <select

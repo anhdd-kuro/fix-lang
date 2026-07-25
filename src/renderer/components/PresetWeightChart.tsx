@@ -300,15 +300,24 @@ export const PresetWeightChart = ({
     };
     // `t`/`tl`/`tm`/`formatDate`/`formatNumber` are REQUIRED dependencies
     // here, not an oversight: every label, title, axis title, and tooltip
-    // callback built in this memo is now locale-dependent text, and these
-    // five functions are exactly the locale-bound values `useI18n()` returns
-    // (they change identity whenever `locale` changes — see `I18nProvider`'s
-    // own `useMemo`). Omitting them would pin the whole chart to whatever
-    // language was active when it first mounted — switching the app language
-    // would leave every legend/title/tooltip stuck in the old language until
-    // `weights`/`overTime` next changed. See spec.i18n-dashboard.md §5.3 trap 2
-    // (the single biggest risk in this chunk) — `paletteTick` already exists
-    // in this array for the exact same reason (theme changes with no data change).
+    // callback built in this memo is now locale-dependent text, and all five
+    // are guaranteed to change identity ONLY when the locale changes — never
+    // on an unrelated re-render. `t`/`formatDate`/`formatNumber` come
+    // straight from `I18nProvider`'s own `useMemo` (keyed on
+    // `[state.locale, setLocale]`); `tl`/`tm` are `useCallback`s inside
+    // `useI18n()` keyed on that same stable context, and `useI18n()` wraps
+    // its whole return value in `useMemo` too, so none of the five is a
+    // fresh closure on every render (see `useI18n.ts`). Omitting them would
+    // pin the whole chart to whatever language was active when it first
+    // mounted — switching the app language would leave every legend/title/
+    // tooltip stuck in the old language until `weights`/`overTime` next
+    // changed. See spec.i18n-dashboard.md §5.3 trap 2 (the single biggest
+    // risk in this chunk) — `paletteTick` already exists in this array for
+    // the exact same reason (theme changes with no data change). Because all
+    // five are locale-stable, this memo only actually rebuilds on a real
+    // locale/theme/data change — an unrelated re-render (e.g. a
+    // `ResizeObserver` tick from `useElementWidth` elsewhere in the tree)
+    // does NOT rebuild it.
   }, [weights, overTime, paletteTick, t, tl, tm, formatDate, formatNumber]);
 
   if (weights.length === 0) {

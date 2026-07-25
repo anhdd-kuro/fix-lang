@@ -62,24 +62,12 @@ describe("SettingUpdates", () => {
   let container: HTMLDivElement;
   let root: Root;
   let updateListener: ((state: UpdateState) => void) | undefined;
+  let localeListener: ((locale: "en" | "ja") => void) | undefined;
   let unsubscribe: ReturnType<typeof vi.fn>;
   let api: UpdateApi;
 
-  const render = async (state: UpdateState) => {
-    unsubscribe = vi.fn();
-    api = {
-      getUpdateState: vi.fn().mockResolvedValue(state),
-      checkForUpdates: vi.fn().mockResolvedValue(undefined),
-      openUpdateRelease: vi.fn().mockResolvedValue(undefined),
-      openExternalLink: vi.fn().mockResolvedValue({ success: true }),
-      onUpdateStateChanged: vi.fn((listener: (next: UpdateState) => void) => {
-        updateListener = listener;
-        return unsubscribe;
-      }),
-      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
-      setLocale: vi.fn().mockResolvedValue({ success: true }),
-      onLocaleChanged: vi.fn().mockReturnValue(vi.fn()),
-    };
+  const renderWithApi = async (customApi: UpdateApi) => {
+    api = customApi;
     Object.defineProperty(window, "electronAPI", {
       configurable: true,
       value: api,
@@ -99,6 +87,23 @@ describe("SettingUpdates", () => {
     await waitForUi();
   };
 
+  const render = async (state: UpdateState) => {
+    unsubscribe = vi.fn();
+    await renderWithApi({
+      getUpdateState: vi.fn().mockResolvedValue(state),
+      checkForUpdates: vi.fn().mockResolvedValue(undefined),
+      openUpdateRelease: vi.fn().mockResolvedValue(undefined),
+      openExternalLink: vi.fn().mockResolvedValue({ success: true }),
+      onUpdateStateChanged: vi.fn((listener: (next: UpdateState) => void) => {
+        updateListener = listener;
+        return unsubscribe;
+      }),
+      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+      setLocale: vi.fn().mockResolvedValue({ success: true }),
+      onLocaleChanged: vi.fn().mockReturnValue(vi.fn()),
+    });
+  };
+
   afterEach(async () => {
     if (root) {
       await act(async () => {
@@ -107,6 +112,7 @@ describe("SettingUpdates", () => {
     }
     container?.remove();
     updateListener = undefined;
+    localeListener = undefined;
     vi.restoreAllMocks();
   });
 
@@ -308,5 +314,42 @@ describe("SettingUpdates", () => {
 
     expect(container.textContent).toContain("Version v0.2.0 is available");
     expect(container.textContent).not.toContain("Could not load update status");
+  });
+
+  it("shows a locale-free load-failure descriptor that re-renders in Japanese without an extra fetch", async () => {
+    const getUpdateState = vi.fn().mockRejectedValue(new Error("network down"));
+    await renderWithApi({
+      getUpdateState,
+      checkForUpdates: vi.fn().mockResolvedValue(undefined),
+      openUpdateRelease: vi.fn().mockResolvedValue(undefined),
+      openExternalLink: vi.fn().mockResolvedValue({ success: true }),
+      onUpdateStateChanged: vi.fn((listener: (next: UpdateState) => void) => {
+        updateListener = listener;
+        return vi.fn();
+      }),
+      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+      setLocale: vi.fn().mockResolvedValue({ success: true }),
+      onLocaleChanged: vi.fn((callback: (locale: "en" | "ja") => void) => {
+        localeListener = callback;
+        return vi.fn();
+      }),
+    });
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      "Could not load update status.",
+    );
+
+    await act(async () => {
+      localeListener?.("ja");
+    });
+    await waitForUi();
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      "アップデート状況を読み込めませんでした。",
+    );
+    // The locale switch must not re-run `getUpdateState()` — the mount
+    // effect's dependency array stays `[]` because it no longer resolves
+    // `t()` itself.
+    expect(getUpdateState).toHaveBeenCalledTimes(1);
   });
 });

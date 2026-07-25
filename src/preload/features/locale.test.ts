@@ -42,6 +42,20 @@ describe("locale preload boundary", () => {
     });
   });
 
+  it("setLocale rejects an invalid locale without an IPC round-trip", async () => {
+    // why: locale is typed `Locale` for TS call sites, but the renderer is
+    // untrusted at runtime — cast past the type to simulate a bad caller.
+    const invalid = "not-a-real-locale" as unknown as Parameters<
+      typeof localeFeature.setLocale
+    >[0];
+
+    await expect(localeFeature.setLocale(invalid)).resolves.toEqual({
+      success: false,
+      error: "Invalid locale",
+    });
+    expect(electronMocks.invoke).not.toHaveBeenCalled();
+  });
+
   it("onLocaleChanged forwards the payload to the callback", () => {
     const callback = vi.fn();
     localeFeature.onLocaleChanged(callback);

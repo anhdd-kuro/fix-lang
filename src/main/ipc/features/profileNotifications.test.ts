@@ -26,29 +26,29 @@ const KIND_EXPECTATIONS: Record<
       body: 'Profile "{name}" has been created and activated.',
     },
     ja: {
-      title: "プロフィールを作成しました",
-      body: "プロフィール「{name}」を作成し、有効にしました。",
+      title: "プロファイルを作成しました",
+      body: "プロファイル「{name}」を作成し、有効にしました。",
     },
   },
   applied: {
     en: { title: "Profile Applied", body: 'Profile "{name}" has been activated.' },
-    ja: { title: "プロフィールを適用しました", body: "プロフィール「{name}」を有効にしました。" },
+    ja: { title: "プロファイルを適用しました", body: "プロファイル「{name}」を有効にしました。" },
   },
   updated: {
     en: { title: "Profile Updated", body: 'Profile "{name}" has been updated.' },
-    ja: { title: "プロフィールを更新しました", body: "プロフィール「{name}」を更新しました。" },
+    ja: { title: "プロファイルを更新しました", body: "プロファイル「{name}」を更新しました。" },
   },
   deleted: {
     en: { title: "Profile Deleted", body: 'Profile "{name}" has been deleted.' },
-    ja: { title: "プロフィールを削除しました", body: "プロフィール「{name}」を削除しました。" },
+    ja: { title: "プロファイルを削除しました", body: "プロファイル「{name}」を削除しました。" },
   },
   imported: {
     en: { title: "Profile Imported", body: 'Profile "{name}" has been imported.' },
-    ja: { title: "プロフィールをインポートしました", body: "プロフィール「{name}」をインポートしました。" },
+    ja: { title: "プロファイルをインポートしました", body: "プロファイル「{name}」をインポートしました。" },
   },
   switched: {
     en: { title: "Profile Switched", body: 'Profile "{name}" has been activated.' },
-    ja: { title: "プロフィールを切り替えました", body: "プロフィール「{name}」を有効にしました。" },
+    ja: { title: "プロファイルを切り替えました", body: "プロファイル「{name}」を有効にしました。" },
   },
 };
 
@@ -101,8 +101,8 @@ describe("buildProfilesUpdatedNotification", () => {
     localeStoreMocks.getLocale.mockReturnValue("ja");
 
     expect(buildProfilesUpdatedNotification()).toEqual({
-      title: "プロフィール設定を更新しました",
-      body: "プロフィールの設定を更新しました。",
+      title: "プロファイル設定を更新しました",
+      body: "プロファイルの設定を更新しました。",
     });
   });
 });
