@@ -1,7 +1,7 @@
 /**
  * @file settingsCatalog.test.ts
  * @description Parity guard for the `settings.*` keys added by the renderer
- * i18n wave (SettingGeneral migration + LanguageSelect). Reads the raw JSON
+ * i18n wave (SettingGeneral migration + LanguageTabs). Reads the raw JSON
  * catalogs directly rather than the merged `CATALOGS` export from
  * `~/shared/i18n/locales` — this test owns only `settings.json`, so it
  * should not need to change if other namespace files gain/lose keys.
