@@ -1,5 +1,5 @@
 import { execFile, spawn } from "node:child_process";
-import { closeSync, mkdirSync, openSync, statSync } from "node:fs";
+import { closeSync, mkdirSync, openSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -35,13 +35,18 @@ const BREW_ENV = Object.freeze({
 });
 
 const BREW_PROBE_TIMEOUT_MS = 90_000;
+/** A ~128 MB DMG on a slow link is minutes, not seconds. */
+const BREW_FETCH_TIMEOUT_MS = 30 * 60_000;
 const BREW_PROBE_MAX_BUFFER = 4 * 1024 * 1024;
 
 export type FileProbe = (candidatePath: string) => boolean;
+export type DirectoryLister = (directoryPath: string) => readonly string[];
+export type FileSize = (filePath: string) => number | null;
 export type DetachedRunner = (script: string, logFilePath: string) => void;
 export type BrewRunner = (
   brewBinary: string,
   args: readonly string[],
+  timeoutMs?: number,
 ) => Promise<string>;
 
 const isExecutableFile: FileProbe = (candidatePath) => {
@@ -57,6 +62,23 @@ const isDirectory: FileProbe = (candidatePath) => {
     return statSync(candidatePath).isDirectory();
   } catch {
     return false;
+  }
+};
+
+/** An unreadable cache directory just means "nothing downloaded yet". */
+const readDirectory: DirectoryLister = (directoryPath) => {
+  try {
+    return readdirSync(directoryPath);
+  } catch {
+    return [];
+  }
+};
+
+const readFileSize: FileSize = (filePath) => {
+  try {
+    return statSync(filePath).size;
+  } catch {
+    return null;
   }
 };
 
@@ -110,13 +132,44 @@ export const parseCaskVersion = (stdout: string): string | null => {
   return cask.version;
 };
 
-const runBrewCommand: BrewRunner = async (brewBinary, args) => {
+const runBrewCommand: BrewRunner = async (brewBinary, args, timeoutMs) => {
   const { stdout } = await execFileAsync(brewBinary, [...args], {
     env: { ...process.env, ...BREW_ENV },
-    timeout: BREW_PROBE_TIMEOUT_MS,
+    timeout: timeoutMs ?? BREW_PROBE_TIMEOUT_MS,
     maxBuffer: BREW_PROBE_MAX_BUFFER,
   });
   return stdout;
+};
+
+/**
+ * Where Homebrew parks downloads. `HOMEBREW_CACHE` wins when the user set it;
+ * otherwise this is the documented macOS default.
+ */
+export const downloadsCacheDir = (
+  env: NodeJS.ProcessEnv = process.env,
+): string =>
+  path.join(
+    env.HOMEBREW_CACHE ?? path.join(env.HOME ?? "", "Library", "Caches", "Homebrew"),
+    "downloads",
+  );
+
+/**
+ * Homebrew names cached downloads `<url-digest>--<basename>`, and appends
+ * `.incomplete` until the transfer finishes. The digest is an implementation
+ * detail, so match on the basename instead of trying to recompute it.
+ */
+export const matchCachedDownload = (
+  entries: readonly string[],
+  version: string,
+): string | null => {
+  if (!SAFE_VERSION_PATTERN.test(version)) return null;
+  const basename = `FixLang-${version}-arm64.dmg`;
+
+  return (
+    entries.find((entry) => entry.endsWith(`--${basename}`)) ??
+    entries.find((entry) => entry.endsWith(`--${basename}.incomplete`)) ??
+    null
+  );
 };
 
 /**
@@ -169,7 +222,10 @@ export const buildUpgradeScript = (brewBinary: string): string =>
     "  /bin/sleep 1",
     "  waited=$((waited + 1))",
     "done",
-    `"${brewBinary}" update || exit 1`,
+    // No `brew update` here: the tap probe refreshed it moments ago, and the
+    // DMG is already in the download cache. Everything slow happens while the
+    // app is still running, so this window stays a few seconds instead of a
+    // minute — which is how long the user is staring at a vanished app.
     `"${brewBinary}" upgrade --cask ${CASK_TOKEN} || exit 1`,
     `/usr/bin/open -b ${BUNDLE_ID} || /usr/bin/open -a ${PROCESS_NAME}`,
   ].join("\n");
@@ -197,6 +253,9 @@ export type HomebrewUpgraderOptions = Readonly<{
   logFilePath: string;
   fileExists?: FileProbe;
   directoryExists?: FileProbe;
+  listDirectory?: DirectoryLister;
+  fileSize?: FileSize;
+  cacheDir?: string;
   startDetached?: DetachedRunner;
   runBrew?: BrewRunner;
 }>;
@@ -208,6 +267,13 @@ export type HomebrewUpgrader = Readonly<{
   getInstallableVersion: () => Promise<string | null>;
   /** True once Homebrew has staged that version in the Caskroom. */
   isVersionInstalled: (version: string) => boolean;
+  /**
+   * Downloads the DMG without touching the installed bundle, so the slow part
+   * of an upgrade happens while the app is still running. Rejects on failure.
+   */
+  downloadUpdate: () => Promise<void>;
+  /** Bytes cached for that version so far; null when nothing is cached yet. */
+  getDownloadedBytes: (version: string) => number | null;
   /** Launches the detached upgrade helper. Throws when it cannot start. */
   startUpgrade: () => void;
 }>;
@@ -222,6 +288,9 @@ export const createHomebrewUpgrader = (
 ): HomebrewUpgrader => {
   const fileExists = options.fileExists ?? isExecutableFile;
   const directoryExists = options.directoryExists ?? isDirectory;
+  const listDirectory = options.listDirectory ?? readDirectory;
+  const fileSize = options.fileSize ?? readFileSize;
+  const cacheDir = options.cacheDir ?? downloadsCacheDir();
   const startDetached = options.startDetached ?? runDetached;
   const runBrew = options.runBrew ?? runBrewCommand;
 
@@ -239,6 +308,22 @@ export const createHomebrewUpgrader = (
       if (brewBinary === null) return false;
       const versionPath = caskVersionPath(brewBinary, version);
       return versionPath !== null && directoryExists(versionPath);
+    },
+    downloadUpdate: async (): Promise<void> => {
+      if (!canInstall || brewBinary === null) {
+        throw new Error("FixLang was not installed with the Homebrew cask");
+      }
+      // `fetch` only fills the download cache — the installed bundle is
+      // untouched, so this is safe to run with the app still open.
+      await runBrew(
+        brewBinary,
+        ["fetch", "--cask", CASK_TOKEN],
+        BREW_FETCH_TIMEOUT_MS,
+      );
+    },
+    getDownloadedBytes: (version: string): number | null => {
+      const entry = matchCachedDownload(listDirectory(cacheDir), version);
+      return entry === null ? null : fileSize(path.join(cacheDir, entry));
     },
     startUpgrade: (): void => {
       if (!canInstall || brewBinary === null) {

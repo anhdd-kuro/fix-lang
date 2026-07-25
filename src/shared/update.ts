@@ -7,6 +7,7 @@ export type UpdatePhase =
   | "checking"
   | "up-to-date"
   | "available"
+  | "downloading"
   | "installing"
   | "restart-required"
   | "error";
@@ -31,6 +32,13 @@ export type UpdateState = Readonly<{
    */
   message?: Message;
   canInstall?: boolean;
+  /**
+   * Download progress for the `downloading` phase. Bytes rather than a
+   * percentage so the renderer can show "42 MB of 128 MB" and locale-format
+   * both; `totalBytes` comes from the validated GitHub release asset.
+   */
+  downloadedBytes?: number;
+  totalBytes?: number;
 }>;
 
 export type UpdateActionResult =
@@ -47,6 +55,8 @@ const UPDATE_STATE_KEYS = new Set<keyof UpdateState>([
   "releaseNotes",
   "message",
   "canInstall",
+  "downloadedBytes",
+  "totalBytes",
 ]);
 
 const PHASES = new Set<UpdatePhase>([
@@ -55,6 +65,7 @@ const PHASES = new Set<UpdatePhase>([
   "checking",
   "up-to-date",
   "available",
+  "downloading",
   "installing",
   "restart-required",
   "error",
@@ -62,6 +73,11 @@ const PHASES = new Set<UpdatePhase>([
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** Byte counts cross the bridge as plain non-negative safe integers. */
+const isOptionalByteCount = (value: unknown): boolean =>
+  value === undefined ||
+  (typeof value === "number" && Number.isSafeInteger(value) && value >= 0);
 
 /** Validates the small, serializable snapshot crossing the preload boundary. */
 export const isUpdateState = (value: unknown): value is UpdateState => {
@@ -81,7 +97,9 @@ export const isUpdateState = (value: unknown): value is UpdateState => {
       typeof value.availableVersion !== "string") ||
     (value.releaseNotes !== undefined && typeof value.releaseNotes !== "string") ||
     (value.message !== undefined && !isMessage(value.message)) ||
-    (value.canInstall !== undefined && typeof value.canInstall !== "boolean")
+    (value.canInstall !== undefined && typeof value.canInstall !== "boolean") ||
+    !isOptionalByteCount(value.downloadedBytes) ||
+    !isOptionalByteCount(value.totalBytes)
   ) {
     return false;
   }

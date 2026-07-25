@@ -38,6 +38,9 @@ const createService = (
     installableVersion: string | null;
     /** Versions already staged in the Caskroom. */
     installedVersions: readonly string[];
+    /** Bytes reported as cached while the download is polled. */
+    downloadedBytes: number | null;
+    downloadUpdate: () => Promise<void>;
     pending: {
       fromVersion: string;
       toVersion: string;
@@ -68,6 +71,12 @@ const createService = (
   const isVersionInstalled = vi.fn((version: string) =>
     installedVersions.has(version),
   );
+  const downloadUpdate = vi.fn<() => Promise<void>>(
+    overrides.downloadUpdate ?? (() => Promise.resolve()),
+  );
+  const getDownloadedBytes = vi.fn<(version: string) => number | null>(
+    () => overrides.downloadedBytes ?? null,
+  );
   const pendingInstall = {
     read: vi.fn(() => overrides.pending ?? null),
     write: vi.fn(),
@@ -88,6 +97,8 @@ const createService = (
       canInstall: overrides.canInstall ?? false,
       getInstallableVersion,
       isVersionInstalled,
+      downloadUpdate,
+      getDownloadedBytes,
       startUpgrade,
     },
     pendingInstall,
@@ -107,6 +118,8 @@ const createService = (
     startUpgrade,
     getInstallableVersion,
     isVersionInstalled,
+    downloadUpdate,
+    getDownloadedBytes,
     installedVersions,
     pendingInstall,
     quitApp,
@@ -486,7 +499,7 @@ describe("Homebrew tap lag", () => {
     },
   );
 
-  it("shows the installing phase while the tap is being probed", async () => {
+  it("shows the downloading phase while the tap is being probed", async () => {
     let resolveProbe: ((version: string | null) => void) | undefined;
     const { service, getInstallableVersion } = createService({
       canInstall: true,
@@ -499,7 +512,7 @@ describe("Homebrew tap lag", () => {
     );
 
     const install = service.installUpdate();
-    expect(service.getState().phase).toBe("installing");
+    expect(service.getState().phase).toBe("downloading");
 
     resolveProbe?.("0.2.0");
     await install;
@@ -685,6 +698,128 @@ describe("reopening during a background upgrade", () => {
     });
     expect(pendingInstall.clear).toHaveBeenCalledTimes(1);
     expect(cancelPoll).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * The download is the slow part of an upgrade, so it runs with the app still
+ * open and reporting progress. Only the bundle swap — a local file move —
+ * happens after the quit.
+ */
+describe("downloading before quitting", () => {
+  const ready = async (
+    overrides: Parameters<typeof createService>[0] = {},
+  ) => {
+    const harness = createService({ canInstall: true, ...overrides });
+    await harness.service.checkForUpdates();
+    return harness;
+  };
+
+  it("downloads first and only then hands over to the helper", async () => {
+    const order: string[] = [];
+    const { service, startUpgrade, quitApp } = await ready({
+      downloadUpdate: () => {
+        order.push("download");
+        return Promise.resolve();
+      },
+      startUpgrade: () => order.push("upgrade"),
+    });
+
+    await expect(service.installUpdate()).resolves.toEqual({ success: true });
+
+    expect(order).toEqual(["download", "upgrade"]);
+    expect(startUpgrade).toHaveBeenCalledTimes(1);
+    expect(quitApp).toHaveBeenCalledTimes(1);
+  });
+
+  it("never quits for an upgrade whose download failed", async () => {
+    const { service, startUpgrade, quitApp, pendingInstall } = await ready({
+      downloadUpdate: () => Promise.reject(new Error("network down")),
+    });
+
+    await expect(service.installUpdate()).resolves.toEqual({
+      success: false,
+      error: msg("settings.updates.downloadErrorMessage"),
+    });
+
+    expect(startUpgrade).not.toHaveBeenCalled();
+    expect(quitApp).not.toHaveBeenCalled();
+    expect(pendingInstall.write).not.toHaveBeenCalled();
+    expect(service.getState()).toMatchObject({
+      phase: "error",
+      message: msg("settings.updates.downloadErrorMessage"),
+    });
+  });
+
+  it("lets the user retry after a failed download", async () => {
+    const { service } = await ready({
+      downloadUpdate: () => Promise.reject(new Error("network down")),
+    });
+    await service.installUpdate();
+
+    await service.checkForUpdates();
+
+    expect(service.getState().phase).toBe("available");
+  });
+
+  it("publishes byte progress against the release asset size", async () => {
+    const states: unknown[] = [];
+    let finishDownload: (() => void) | undefined;
+    const { service, tickPoll } = await ready({
+      downloadedBytes: 512,
+      getLatestRelease: () =>
+        Promise.resolve(
+          stableRelease("v0.2.0", {
+            assets: [
+              {
+                name: "FixLang-0.2.0-arm64.dmg",
+                state: "uploaded",
+                size: 2_048,
+              },
+            ],
+          }),
+        ),
+      // Held open so the poll can run while the download is genuinely pending.
+      downloadUpdate: () =>
+        new Promise<void>((resolve) => {
+          finishDownload = resolve;
+        }),
+    });
+    service.subscribe((next) => states.push({ ...next }));
+
+    const install = service.installUpdate();
+    // Let the tap probe settle so the download poll is registered.
+    await new Promise((resolve) => setImmediate(resolve));
+    tickPoll();
+    finishDownload?.();
+    await install;
+
+    expect(states).toContainEqual(
+      expect.objectContaining({
+        phase: "downloading",
+        downloadedBytes: 512,
+        totalBytes: 2_048,
+      }),
+    );
+  });
+
+  it("stops polling once the download settles", async () => {
+    const { service, cancelPoll } = await ready();
+
+    await service.installUpdate();
+
+    expect(cancelPoll).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports no progress rather than a wrong total when nothing is cached", async () => {
+    const { service, tickPoll } = await ready({ downloadedBytes: null });
+
+    const install = service.installUpdate();
+    tickPoll();
+    await install;
+
+    // A null read means "cannot tell yet", never "0 bytes of nothing".
+    expect(service.getState().phase).toBe("installing");
   });
 });
 

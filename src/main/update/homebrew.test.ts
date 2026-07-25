@@ -4,6 +4,8 @@ import {
   buildUpgradeScript,
   caskroomPath,
   caskVersionPath,
+  downloadsCacheDir,
+  matchCachedDownload,
   createHomebrewUpgrader,
   findBrewBinary,
   parseCaskVersion,
@@ -18,6 +20,8 @@ const upgrader = (
     isInstalledApp: boolean;
     files: readonly string[];
     directories: readonly string[];
+    cacheEntries: readonly string[];
+    fileSizes: Readonly<Record<string, number>>;
     runBrew: BrewRunner;
   }> = {},
 ) => {
@@ -38,6 +42,9 @@ const upgrader = (
       logFilePath: "/tmp/userData/logs/homebrew-update.log",
       fileExists: (candidate) => files.has(candidate),
       directoryExists: (candidate) => directories.has(candidate),
+      cacheDir: "/cache/downloads",
+      listDirectory: () => overrides.cacheEntries ?? [],
+      fileSize: (candidate) => (overrides.fileSizes ?? {})[candidate] ?? null,
       startDetached,
       runBrew,
     }),
@@ -134,6 +141,48 @@ describe("cask version parsing", () => {
   });
 });
 
+describe("download cache lookup", () => {
+  it("matches Homebrew's <digest>--<basename> naming without recomputing it", () => {
+    expect(
+      matchCachedDownload(
+        ["unrelated.dmg", "4cc981a4--FixLang-0.4.6-arm64.dmg"],
+        "0.4.6",
+      ),
+    ).toBe("4cc981a4--FixLang-0.4.6-arm64.dmg");
+  });
+
+  it("falls back to the in-progress file", () => {
+    expect(
+      matchCachedDownload(["4cc981a4--FixLang-0.4.6-arm64.dmg.incomplete"], "0.4.6"),
+    ).toBe("4cc981a4--FixLang-0.4.6-arm64.dmg.incomplete");
+  });
+
+  it.each([[[], "0.4.6"], [["4cc981a4--FixLang-0.4.5-arm64.dmg"], "0.4.6"]] as const)(
+    "returns null when nothing matches",
+    (entries, version) => {
+      expect(matchCachedDownload(entries, version)).toBeNull();
+    },
+  );
+
+  it.each(["../etc", "a/b", ""])(
+    "refuses an unsafe version rather than building a pattern from it: %s",
+    (version) => {
+      expect(
+        matchCachedDownload([`x--FixLang-${version}-arm64.dmg`], version),
+      ).toBeNull();
+    },
+  );
+
+  it("honours HOMEBREW_CACHE and otherwise uses the macOS default", () => {
+    expect(downloadsCacheDir({ HOMEBREW_CACHE: "/custom" })).toBe(
+      "/custom/downloads",
+    );
+    expect(downloadsCacheDir({ HOME: "/Users/x" })).toBe(
+      "/Users/x/Library/Caches/Homebrew/downloads",
+    );
+  });
+});
+
 describe("Homebrew upgrader", () => {
   it("enables one-click updates for a cask install", () => {
     expect(upgrader().instance.canInstall).toBe(true);
@@ -220,6 +269,79 @@ describe("Homebrew upgrader", () => {
       expect(caskVersionPath("/opt/homebrew/bin/brew", version)).toBeNull();
     },
   );
+
+  it("fetches only the cask download, leaving the installed bundle alone", async () => {
+    const { instance, runBrew } = upgrader();
+
+    await instance.downloadUpdate();
+
+    expect(runBrew.mock.calls.map(([, args]) => [...args])).toEqual([
+      ["fetch", "--cask", "fixlang"],
+    ]);
+    // A fetch must never be able to replace the running app.
+    expect(runBrew.mock.calls.some(([, args]) => args.includes("upgrade"))).toBe(
+      false,
+    );
+  });
+
+  it("gives the download far longer than the metadata probes", async () => {
+    const { instance, runBrew } = upgrader();
+
+    await instance.getInstallableVersion();
+    await instance.downloadUpdate();
+
+    const [, , fetchTimeout] = runBrew.mock.calls.at(-1) ?? [];
+    const probeTimeouts = runBrew.mock.calls
+      .slice(0, -1)
+      .map(([, , timeout]) => timeout);
+
+    expect(fetchTimeout).toBeGreaterThan(90_000);
+    expect(probeTimeouts.every((timeout) => timeout === undefined)).toBe(true);
+  });
+
+  it("refuses to download for an install it cannot upgrade", async () => {
+    const { instance, runBrew } = upgrader({ directories: [] });
+
+    await expect(instance.downloadUpdate()).rejects.toThrow(
+      "FixLang was not installed with the Homebrew cask",
+    );
+    expect(runBrew).not.toHaveBeenCalled();
+  });
+
+  it("reads progress from the partial download as it grows", () => {
+    const { instance } = upgrader({
+      cacheEntries: ["abc123--FixLang-0.4.6-arm64.dmg.incomplete"],
+      fileSizes: {
+        "/cache/downloads/abc123--FixLang-0.4.6-arm64.dmg.incomplete": 42,
+      },
+    });
+
+    expect(instance.getDownloadedBytes("0.4.6")).toBe(42);
+  });
+
+  it("prefers the completed download over a stale partial file", () => {
+    const { instance } = upgrader({
+      cacheEntries: [
+        "abc123--FixLang-0.4.6-arm64.dmg.incomplete",
+        "abc123--FixLang-0.4.6-arm64.dmg",
+      ],
+      fileSizes: {
+        "/cache/downloads/abc123--FixLang-0.4.6-arm64.dmg.incomplete": 42,
+        "/cache/downloads/abc123--FixLang-0.4.6-arm64.dmg": 128,
+      },
+    });
+
+    expect(instance.getDownloadedBytes("0.4.6")).toBe(128);
+  });
+
+  it("reports nothing cached for another version", () => {
+    const { instance } = upgrader({
+      cacheEntries: ["abc123--FixLang-0.4.5-arm64.dmg"],
+      fileSizes: { "/cache/downloads/abc123--FixLang-0.4.5-arm64.dmg": 128 },
+    });
+
+    expect(instance.getDownloadedBytes("0.4.6")).toBeNull();
+  });
 
   it("refuses to run anything when the install is not cask-managed", () => {
     const { instance, startDetached } = upgrader({ directories: [] });

@@ -106,6 +106,8 @@ Rules now baked into `pendingInstall.ts` + `updateService.ts`:
 - Poll it every 15s while waiting, deadline `startedAt + grace` (not `launch + grace`).
 - `restart-required` restarts with `app.relaunch()` + `app.exit(0)`. **Never `open -b`** — that is the trap above. `execPath` is the replaced bundle, so re-exec runs the new version.
 
+**Shrink the window too, not just the message.** `installUpdate` now runs `brew fetch --cask fixlang` BEFORE quitting. `fetch` fill download cache only — installed bundle untouched — so safe with app open. App quit only after DMG on disk; helper then do `brew upgrade` off cache (and no `brew update`, probe already refresh tap), so app away seconds not minute. Progress read with `statSync` on `<HOMEBREW_CACHE>/downloads/*--FixLang-<v>-arm64.dmg[.incomplete]`, denominator = GitHub release asset `size`. **Never parse brew output for progress** — format drift silently, file size never lie. Digest prefix in cache filename is Homebrew internal; match on basename suffix, don't recompute it.
+
 WHY THIS WAS MISSED: the reconcile tests only ever modeled two worlds — same version (failed) or new version (installed). "Same version, upgrade still running" was not a state anyone named, because every test injects a fake upgrader that finishes instantly, and manual verification (`brew upgrade` in a terminal) is synchronous and blocking. The bug only exists in the asynchronous, detached, user-can-interfere world.
 
 ### TRAP 2 — cask write doubles newline
