@@ -42,6 +42,12 @@ export const initializeUpdateService = (): UpdateService => {
         app.quit();
       }, QUIT_FOR_UPGRADE_DELAY_MS);
     },
+    // `execPath` is the bundle Homebrew already replaced, so re-exec starts
+    // the new version. `app.exit` rather than `quit`: nothing may veto this.
+    relaunchApp: () => {
+      app.relaunch();
+      app.exit(0);
+    },
     onLog: (level, message) => logger[level]("updates", message),
   });
   return updateService;

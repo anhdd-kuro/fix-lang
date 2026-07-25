@@ -389,6 +389,22 @@ export const SettingUpdates = () => {
             >
               {t("settings.updates.viewReleases")}
             </button>
+            {/* Still offered here: a newer release can land while this panel
+                sits on an older "available" result, and re-checking is also
+                the way out of a stale offer after a manual install. */}
+            <button
+              type="button"
+              onClick={() =>
+                void run(
+                  () => updateApi().checkForUpdates(),
+                  msg("settings.updates.checkFailed"),
+                )
+              }
+              disabled={isBusy}
+              className="rounded border border-border px-3 py-1.5 text-base text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t("settings.updates.checkButton")}
+            </button>
           </div>
         </>
       )}
@@ -400,8 +416,43 @@ export const SettingUpdates = () => {
           aria-live="polite"
         >
           <Spinner className="mr-2 inline size-4 align-[-2px]" />
-          {t("settings.updates.installingDescription", { version: latestVersion })}
+          {/* Reopened mid-upgrade: main sends the "still working" text so the
+              default "quits and reopens" copy cannot contradict what is
+              actually happening. */}
+          {state.message
+            ? tm(state.message)
+            : t("settings.updates.installingDescription", { version: latestVersion })}
         </p>
+      )}
+
+      {state.phase === "restart-required" && (
+        <>
+          <p className="mt-1 text-sm text-success" role="status" aria-live="polite">
+            {state.message
+              ? tm(state.message)
+              : t("settings.updates.restartRequiredMessage", {
+                  targetVersion: latestVersion,
+                })}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                void run(
+                  () => updateApi().restartForUpdate(),
+                  msg("settings.updates.restartErrorMessage"),
+                )
+              }
+              disabled={actionPending}
+              className="rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {actionPending && (
+                <Spinner className="mr-2 inline size-4 align-[-2px]" />
+              )}
+              {t("settings.updates.restartButton")}
+            </button>
+          </div>
+        </>
       )}
 
       {state.phase === "error" && (
