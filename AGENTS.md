@@ -13,7 +13,7 @@ Local macOS menu-bar app: fixes grammar and improves writing on selected text vi
 - **Multi-provider** — OpenAI, OpenRouter, Ollama; model discovery/compat/monitor.
 - **History** — SQLite-backed transform + PromptGen history with cost tracking.
 - **Analytics** — Overview dashboard: stat cards, preset donut/time-series charts (`PresetWeightChart`), token activity calendar, benchmark sentence; shared All/30d/7d range with Models tab.
-- **Logs** — structured, redacted JSONL persistence (`userData/logs/{YYYY-MM-DD}/fixlang.jsonl`); Logs tab with level filter, search, copy/export, virtual infinite scroll.
+- **Logs** — structured, redacted JSONL persistence (`userData/logs/{YYYY-MM-DD}/fixlang.jsonl`); Logs tab with multi-select level filter (`LogQueryRequest.levels`; empty array = every level), search, copy/export, virtual infinite scroll, timezone stated once in the footer instead of per row.
 - **Hotkeys** — customizable global shortcuts (promptGen, profileSwitch) plus per-preset transform hotkeys.
 - **Updates** — Settings → About checks GitHub Releases; cask installs get a one-click **Update now** that delegates to `brew upgrade --cask fixlang` (`src/main/update/homebrew.ts`). No self-updater.
 

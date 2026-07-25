@@ -2,6 +2,7 @@ import { ipcRenderer } from "electron";
 import {
   isLogEntry,
   LOG_QUERY_PAGE_SIZE,
+  normalizeLogLevels,
 } from "~/shared/logging";
 import type {
   LogEntry,
@@ -41,12 +42,15 @@ const createLogsFeature = () => ({
   queryLogs: async (
     request: LogQueryRequest = {},
   ): Promise<LogQueryResult> => {
+    // Drops unknown severities and collapses a full selection to "no filter",
+    // so the main process never sees a shape it has to guess at.
+    const levels = normalizeLogLevels(request.levels);
     const payload: LogQueryRequest = {
       limit: request.limit ?? LOG_QUERY_PAGE_SIZE,
       ...(request.beforeTimestamp
         ? { beforeTimestamp: request.beforeTimestamp }
         : {}),
-      ...(request.level ? { level: request.level } : {}),
+      ...(levels.length > 0 ? { levels } : {}),
       ...(request.search !== undefined ? { search: request.search } : {}),
     };
     const result: unknown = await ipcRenderer.invoke("logs:query", payload);

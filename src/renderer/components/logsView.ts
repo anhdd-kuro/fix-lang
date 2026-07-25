@@ -1,6 +1,8 @@
+import {
+  logEntryMatchesLevels,
+  logEntryMatchesSearch,
+} from "~/shared/logging";
 import type { LogEntry, LogLevel } from "~/shared/logging";
-
-export type LogLevelFilter = LogLevel | "all";
 
 /** Stable virtual-row identity; indexes change whenever live entries prepend. */
 export const logRowKey = (
@@ -8,29 +10,45 @@ export const logRowKey = (
   index: number,
 ): string | number => entries[index]?.id ?? index;
 
-/** Applies dashboard level and case-insensitive text filters. */
+/**
+ * Applies the dashboard level and case-insensitive text filters. An empty
+ * `levels` selection means "every level" (see `normalizeLogLevels`).
+ */
 export const filterLogs = (
   entries: readonly LogEntry[],
-  level: LogLevelFilter,
+  levels: readonly LogLevel[],
   search: string,
-): LogEntry[] => {
-  const normalizedSearch = search.trim().toLocaleLowerCase();
-  return entries.filter((entry) => {
-    if (level !== "all" && entry.level !== level) {
-      return false;
-    }
-    if (normalizedSearch.length === 0) {
-      return true;
-    }
-    const searchable = [
-      entry.timestamp,
-      entry.level,
-      entry.scope,
-      entry.message,
-      entry.context ? JSON.stringify(entry.context) : "",
-    ]
-      .join(" ")
-      .toLocaleLowerCase();
-    return searchable.includes(normalizedSearch);
-  });
+): LogEntry[] =>
+  entries.filter(
+    (entry) =>
+      logEntryMatchesLevels(entry, levels) &&
+      logEntryMatchesSearch(entry, search),
+  );
+
+/**
+ * `UTC+09:00` / `UTC-05:30` / `UTC` from a `Date#getTimezoneOffset()` value
+ * (minutes *behind* UTC, so the sign is inverted here).
+ */
+export const utcOffsetLabel = (offsetMinutes: number): string => {
+  const minutesAheadOfUtc = -offsetMinutes;
+  if (minutesAheadOfUtc === 0) {
+    return "UTC";
+  }
+  const sign = minutesAheadOfUtc > 0 ? "+" : "-";
+  const absolute = Math.abs(minutesAheadOfUtc);
+  const hours = String(Math.floor(absolute / 60)).padStart(2, "0");
+  const minutes = String(absolute % 60).padStart(2, "0");
+  return `UTC${sign}${hours}:${minutes}`;
+};
+
+/**
+ * `Asia/Tokyo (UTC+09:00)` — shown once in the logs footer so row timestamps
+ * can drop their per-entry offset. Falls back to the offset alone when the
+ * IANA zone name is unavailable.
+ */
+export const timeZoneLabel = (date: Date, zoneName?: string): string => {
+  const offset = utcOffsetLabel(date.getTimezoneOffset());
+  return zoneName === undefined || zoneName.length === 0
+    ? offset
+    : `${zoneName} (${offset})`;
 };

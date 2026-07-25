@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { DEFAULT_OPENAI_MODEL } from "~/const";
 import { messageLabel } from "~/shared/i18n/message";
+import { Checkbox } from "./Checkbox";
 import { HotkeyInput } from "./HotkeyInput";
 import { ModelSelect } from "./ModelSelect";
 import { plainStatus, wrappedError, resolveStatus, type StatusDescriptor } from "./statusDescriptor";
@@ -316,40 +317,32 @@ export const SettingPromptGen: React.FC = () => {
         </div>
 
         <div className="flex flex-col gap-2 mt-4">
-          <label className="inline-flex items-center text-card-foreground">
-            <input
-              type="checkbox"
-              name="nsfw"
-              checked={promptGenSettings.nsfw}
-              onChange={() =>
-                setPromptGenSettings({
-                  ...promptGenSettings,
-                  nsfw: !promptGenSettings.nsfw,
-                })
-              }
-              className="form-checkbox h-4 w-4 text-primary"
-            />
-            <span className="ml-2">{t("settings.promptGen.allowNsfw")}</span>
-          </label>
+          <Checkbox
+            name="nsfw"
+            checked={promptGenSettings.nsfw}
+            onChange={(nsfw) =>
+              setPromptGenSettings({ ...promptGenSettings, nsfw })
+            }
+            label={t("settings.promptGen.allowNsfw")}
+            className="text-card-foreground"
+          />
 
-          <label className="inline-flex items-center text-card-foreground">
-            <input
-              type="checkbox"
-              name="autoCopy"
-              checked={promptGenSettings.autoCopy}
-              onChange={() =>
-                setPromptGenSettings({
-                  ...promptGenSettings,
-                  autoCopy: !promptGenSettings.autoCopy,
-                })
-              }
-              className="form-checkbox h-4 w-4 text-primary"
-            />
-            <span className="ml-2">{t("settings.promptGen.autoCopy")}</span>
-            <span className="ml-2 text-xs text-muted-foreground">
-              {t("settings.promptGen.autoCopyHint")}
-            </span>
-          </label>
+          <Checkbox
+            name="autoCopy"
+            checked={promptGenSettings.autoCopy}
+            onChange={(autoCopy) =>
+              setPromptGenSettings({ ...promptGenSettings, autoCopy })
+            }
+            label={
+              <>
+                {t("settings.promptGen.autoCopy")}
+                <span className="ml-2 text-xs text-muted-foreground">
+                  {t("settings.promptGen.autoCopyHint")}
+                </span>
+              </>
+            }
+            className="text-card-foreground"
+          />
         </div>
       </fieldset>
 

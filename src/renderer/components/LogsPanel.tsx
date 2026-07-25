@@ -9,22 +9,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { twJoin } from "tailwind-merge";
 import { msg, type Message } from "~/shared/i18n/message";
 import {
+  isLogLevel,
+  LOG_LEVEL_ORDER,
   LOG_QUERY_PAGE_SIZE,
+  logEntryMatchesLevels,
   logEntryMatchesSearch,
 } from "~/shared/logging";
-import { logRowKey } from "./logsView";
+import { Checkbox } from "./Checkbox";
+import { logRowKey, timeZoneLabel } from "./logsView";
+import { MultiSelect } from "./MultiSelect";
 import { useI18n } from "../i18n/useI18n";
-import type { LogLevelFilter } from "./logsView";
 import type { TranslationKey } from "~/shared/i18n/keys";
 import type { LogEntry, LogLevel } from "~/shared/logging";
-
-const LEVELS: readonly LogLevelFilter[] = [
-  "all",
-  "debug",
-  "info",
-  "warn",
-  "error",
-];
 
 const LEVEL_CLASS: Record<LogLevel, string> = {
   debug: "text-muted-foreground",
@@ -34,12 +30,11 @@ const LEVEL_CLASS: Record<LogLevel, string> = {
 };
 
 /**
- * Filter dropdown labels are UI chrome and get translated; the underlying
- * `LogLevelFilter` value (used for querying/filtering) stays the raw English
- * token — level names are machine data, not prose.
+ * Filter labels are UI chrome and get translated; the underlying `LogLevel`
+ * values (used for querying/filtering) stay raw English tokens — level names
+ * are machine data, not prose.
  */
-const LEVEL_LABEL_KEYS: Record<LogLevelFilter, TranslationKey> = {
-  all: "logs.panel.level.all",
+const LEVEL_LABEL_KEYS: Record<LogLevel, TranslationKey> = {
   debug: "logs.panel.level.debug",
   info: "logs.panel.level.info",
   warn: "logs.panel.level.warn",
@@ -50,23 +45,13 @@ const ROW_ESTIMATE_PX = 44;
 const LOAD_MORE_THRESHOLD = 12;
 const SEARCH_DEBOUNCE_MS = 250;
 
-const isLogLevelFilter = (value: string): value is LogLevelFilter =>
-  value === "all" ||
-  value === "debug" ||
-  value === "info" ||
-  value === "warn" ||
-  value === "error";
-
 const entryMatchesFilters = (
   entry: LogEntry,
-  level: LogLevelFilter,
+  levels: readonly LogLevel[],
   search: string,
-): boolean => {
-  if (level !== "all" && entry.level !== level) {
-    return false;
-  }
-  return logEntryMatchesSearch(entry, search);
-};
+): boolean =>
+  logEntryMatchesLevels(entry, levels) &&
+  logEntryMatchesSearch(entry, search);
 
 const mergeNewestFirst = (
   existing: readonly LogEntry[],
@@ -87,7 +72,9 @@ export const LogsPanel = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [level, setLevel] = useState<LogLevelFilter>("all");
+  // Empty selection means "every level" — the same normalization the query
+  // layer applies, so a full selection and no selection query identically.
+  const [levels, setLevels] = useState<LogLevel[]>([]);
   const [autoScroll, setAutoScroll] = useState(true);
   // Holds a locale-free descriptor (never rendered prose) so `loadInitialPage`/
   // `loadOlderPage` do not need `t` in their dependency arrays — see those
@@ -121,7 +108,7 @@ export const LogsPanel = () => {
     try {
       const page = await window.electronAPI.queryLogs({
         limit: LOG_QUERY_PAGE_SIZE,
-        level,
+        levels,
         search: debouncedSearch,
       });
       setLogs(page.entries);
@@ -139,7 +126,7 @@ export const LogsPanel = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [debouncedSearch, level]);
+  }, [debouncedSearch, levels]);
 
   // Same rationale as `loadInitialPage` above.
   const loadOlderPage = useCallback(async (): Promise<void> => {
@@ -152,7 +139,7 @@ export const LogsPanel = () => {
       const page = await window.electronAPI.queryLogs({
         beforeTimestamp: nextCursor,
         limit: LOG_QUERY_PAGE_SIZE,
-        level,
+        levels,
         search: debouncedSearch,
       });
       setLogs((current) => mergeNewestFirst(current, page.entries));
@@ -168,7 +155,7 @@ export const LogsPanel = () => {
       setIsLoadingMore(false);
       loadMoreLock.current = false;
     }
-  }, [debouncedSearch, hasMore, level, nextCursor]);
+  }, [debouncedSearch, hasMore, levels, nextCursor]);
 
   useEffect(() => {
     void loadInitialPage();
@@ -176,13 +163,13 @@ export const LogsPanel = () => {
 
   useEffect(() => {
     const removeListener = window.electronAPI.onLogAppend((entry) => {
-      if (!entryMatchesFilters(entry, level, debouncedSearch)) {
+      if (!entryMatchesFilters(entry, levels, debouncedSearch)) {
         return;
       }
       setLogs((current) => mergeNewestFirst(current, [entry]));
     });
     return removeListener;
-  }, [debouncedSearch, level]);
+  }, [debouncedSearch, levels]);
 
   const getLogRowKey = useCallback(
     (index: number) => logRowKey(logs, index),
@@ -281,6 +268,39 @@ export const LogsPanel = () => {
     return t("logs.panel.footer.count", { count: logs.length });
   }, [hasMore, isLoading, isLoadingMore, logs.length, t]);
 
+  const levelOptions = useMemo(
+    () =>
+      LOG_LEVEL_ORDER.map((option) => ({
+        value: option,
+        label: t(LEVEL_LABEL_KEYS[option]),
+      })),
+    [t],
+  );
+
+  // Same memoization trap as `footerLabel`: derived prose, so `t` belongs in
+  // the dependency array. "Nothing checked" and "everything checked" query
+  // identically, so both read as "All levels" rather than one of them
+  // rendering a four-item list that the trigger would truncate anyway.
+  const levelTriggerLabel = useMemo(
+    () =>
+      levels.length === 0 || levels.length === LOG_LEVEL_ORDER.length
+        ? t("logs.panel.level.all")
+        : levels.map((option) => t(LEVEL_LABEL_KEYS[option])).join(", "),
+    [levels, t],
+  );
+
+  // Row timestamps render without an offset; the zone is stated once here so
+  // it is not repeated on every line. Resolved once — the app does not survive
+  // a host timezone change without a restart anyway.
+  const timezone = useMemo(
+    () =>
+      timeZoneLabel(
+        new Date(),
+        new Intl.DateTimeFormat().resolvedOptions().timeZone,
+      ),
+    [],
+  );
+
   return (
     <section className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -295,33 +315,21 @@ export const LogsPanel = () => {
           />
         </label>
 
-        <label>
-          <span className="sr-only">{t("logs.panel.levelLabel")}</span>
-          <select
-            value={level}
-            onChange={(event) => {
-              if (isLogLevelFilter(event.target.value)) {
-                setLevel(event.target.value);
-              }
-            }}
-            className="rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground"
-          >
-            {LEVELS.map((option) => (
-              <option key={option} value={option}>
-                {t(LEVEL_LABEL_KEYS[option])}
-              </option>
-            ))}
-          </select>
-        </label>
+        <MultiSelect
+          options={levelOptions}
+          selected={levels}
+          onChange={(values) => setLevels(values.filter(isLogLevel))}
+          triggerLabel={levelTriggerLabel}
+          ariaLabel={t("logs.panel.levelLabel")}
+          className="w-44"
+        />
 
-        <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={autoScroll}
-            onChange={(event) => setAutoScroll(event.target.checked)}
-          />
-          {t("logs.panel.autoScroll")}
-        </label>
+        <Checkbox
+          checked={autoScroll}
+          onChange={setAutoScroll}
+          label={t("logs.panel.autoScroll")}
+          className="text-muted-foreground"
+        />
 
         <button
           type="button"
@@ -346,8 +354,12 @@ export const LogsPanel = () => {
         </button>
       </div>
 
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{footerLabel}</span>
+      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span>
+          {footerLabel}
+          {" · "}
+          {t("logs.panel.footer.timezone", { zone: timezone })}
+        </span>
         <span role="status" aria-live="polite">
           {status ? tm(status) : ""}
         </span>
@@ -384,9 +396,10 @@ export const LogsPanel = () => {
                 >
                   <div className="grid grid-cols-[auto_auto_1fr] gap-2 p-2">
                     <time className="whitespace-nowrap text-muted-foreground">
+                      {/* No offset here — the footer states the zone once. */}
                       {format(
                         new Date(entry.timestamp),
-                        "yyyy-MM-dd HH:mm:ss XXX",
+                        "yyyy-MM-dd HH:mm:ss",
                         { locale: dateFnsLocale },
                       )}
                     </time>
