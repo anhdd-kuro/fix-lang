@@ -169,7 +169,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Tab Navigation */}
         <div className="mb-4 shrink-0">
           <div
-            className="grid w-full grid-cols-2 gap-2 rounded-lg p-1 sm:grid-cols-3 lg:grid-cols-4"
+            className="grid w-full grid-cols-2 gap-2 rounded-lg p-1 sm:grid-cols-3 md:grid-cols-4"
             role="tablist"
             aria-label={t("settings.modal.tabsAriaLabel")}
           >
