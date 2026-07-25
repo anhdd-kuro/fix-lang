@@ -49,11 +49,11 @@ fix-lang/
 ## Tech Stack
 
 - Runtime/build
-  - Electron 43.1, electron-vite 5.0, Vite 8.1, bun
+  - Electron 43.2, electron-vite 5.0, Vite 8.1, bun
 - Frontend
   - React 19.2, TypeScript 6.0 (stay on 6.x until typescript-eslint supports 7), Tailwind 4.3
 - AI
-  - openai 6.48, @openrouter/ai-sdk-provider 3.0, ai 7.0, ollama 0.6
+  - openai 6.49, @openrouter/ai-sdk-provider 3.0, ai 7.0, ollama 0.6
 - Persistence
   - node:sqlite (history) + electron-store 11 + JSONL logs under userData — no zustand
 - Testing
