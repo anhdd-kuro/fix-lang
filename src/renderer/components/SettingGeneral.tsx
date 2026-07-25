@@ -1,27 +1,38 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { LanguageSelect } from "./LanguageSelect";
+import { useI18n } from "../i18n/useI18n";
+import type { TranslationKey } from "~/shared/i18n/keys";
 import type { CorrectionOutputMode } from "~/shared/outputMode";
 import type { Model, ProviderId } from "~/stores/apiStore";
 
 /** Keep value import out of apiStore — that module loads electron-store and breaks the renderer. */
 const PROVIDER_IDS: readonly ProviderId[] = ["openai", "openrouter", "ollama"];
 
-const PROVIDER_LABELS: Record<ProviderId, string> = {
-  openai: "OpenAI",
-  openrouter: "OpenRouter",
-  ollama: "Ollama",
+/** Provider brand names are proper nouns (unchanged across locales) but are
+ * still routed through `t()` so this file has zero hardcoded UI strings —
+ * the reference conversion for later migration waves. */
+const PROVIDER_LABEL_KEYS: Record<ProviderId, TranslationKey> = {
+  openai: "settings.general.provider.openai",
+  openrouter: "settings.general.provider.openrouter",
+  ollama: "settings.general.provider.ollama",
 };
 
 /**
- * General settings tab: correction output mode plus staged provider setup
- * (select provider, supply credentials, fetch models, choose a default, then
- * Apply). The previously active provider stays in effect until Apply succeeds —
- * nothing commits on every keystroke or on Fetch.
+ * General settings tab: interface language, correction output mode, plus
+ * staged provider setup (select provider, supply credentials, fetch models,
+ * choose a default, then Apply). The previously active provider stays in
+ * effect until Apply succeeds — nothing commits on every keystroke or on
+ * Fetch.
  */
 export const SettingGeneral: React.FC = () => {
+  const { t } = useI18n();
+
   const [resetStatus, setResetStatus] = useState<string>("");
+  const [resetIsError, setResetIsError] = useState<boolean>(false);
   const [correctionOutputMode, setCorrectionOutputMode] =
     useState<CorrectionOutputMode>("paste");
   const [outputModeStatus, setOutputModeStatus] = useState<string>("");
+  const [outputModeIsError, setOutputModeIsError] = useState<boolean>(false);
   const [savingOutputMode, setSavingOutputMode] = useState(false);
 
   // The provider currently staged for setup. Starts as the active provider so
@@ -106,8 +117,14 @@ export const SettingGeneral: React.FC = () => {
       .then(setCorrectionOutputMode)
       .catch((error) => {
         console.error("SettingGeneral: Error loading output mode:", error);
-        setOutputModeStatus("Error loading correction output setting");
+        setOutputModeIsError(true);
+        setOutputModeStatus(
+          t("settings.general.error", {
+            message: t("settings.general.outputMode.unavailable"),
+          }),
+        );
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load-once on mount; `t` is locale-stable (see I18nProvider), re-running per render would refetch for no reason.
   }, []);
 
   // On mount and on every provider change: refresh masked secret state and
@@ -125,29 +142,42 @@ export const SettingGeneral: React.FC = () => {
 
   const handleOutputModeChange = async (mode: CorrectionOutputMode) => {
     if (!window.electronAPI?.setCorrectionOutputMode) {
-      setOutputModeStatus("Error: Output setting is not available");
+      setOutputModeIsError(true);
+      setOutputModeStatus(
+        t("settings.general.error", {
+          message: t("settings.general.outputMode.unavailable"),
+        }),
+      );
       return;
     }
 
     const previousMode = correctionOutputMode;
     setCorrectionOutputMode(mode);
     setSavingOutputMode(true);
-    setOutputModeStatus("Saving...");
+    setOutputModeIsError(false);
+    setOutputModeStatus(t("settings.general.outputMode.saving"));
 
     try {
       const result = await window.electronAPI.setCorrectionOutputMode(mode);
       if (!result.success) {
         setCorrectionOutputMode(previousMode);
-        setOutputModeStatus(`Error: ${result.error || "Failed to save"}`);
+        setOutputModeIsError(true);
+        setOutputModeStatus(
+          t("settings.general.error", {
+            message: result.error || t("settings.general.outputMode.saveFailed"),
+          }),
+        );
         return;
       }
       setCorrectionOutputMode(result.mode ?? mode);
-      setOutputModeStatus("Saved.");
+      setOutputModeIsError(false);
+      setOutputModeStatus(t("settings.general.outputMode.saved"));
       setTimeout(() => setOutputModeStatus(""), 2000);
     } catch (error) {
       console.error("SettingGeneral: Error saving output mode:", error);
       setCorrectionOutputMode(previousMode);
-      setOutputModeStatus("Error saving correction output setting");
+      setOutputModeIsError(true);
+      setOutputModeStatus(t("settings.general.outputMode.saveError"));
     } finally {
       setSavingOutputMode(false);
     }
@@ -155,12 +185,12 @@ export const SettingGeneral: React.FC = () => {
 
   const handleFetchModels = async () => {
     if (!window.electronAPI?.fetchProviderModels) {
-      setFetchError("Fetching models is not available");
+      setFetchError(t("settings.general.models.fetchError"));
       return;
     }
     setIsFetching(true);
     setFetchError("");
-    setFetchStatus("Fetching models...");
+    setFetchStatus(t("settings.general.models.fetching"));
     try {
       const result = await window.electronAPI.fetchProviderModels({
         provider: stagedProvider,
@@ -174,18 +204,20 @@ export const SettingGeneral: React.FC = () => {
         setStagedModelId(result.models[0]?.id ?? "");
         setFetchStatus(
           result.models.length > 0
-            ? `Loaded ${result.models.length} model${result.models.length === 1 ? "" : "s"}.`
-            : "No models found for this provider.",
+            ? t("settings.general.models.loaded", { count: result.models.length })
+            : t("settings.general.models.none"),
         );
       } else {
         setStagedModels([]);
         setStagedModelId("");
         setFetchStatus("");
-        setFetchError(result.error || "Failed to fetch models");
+        setFetchError(result.error || t("settings.general.models.fetchError"));
       }
     } catch (error) {
       setFetchStatus("");
-      setFetchError(error instanceof Error ? error.message : "Failed to fetch models");
+      setFetchError(
+        error instanceof Error ? error.message : t("settings.general.models.fetchError"),
+      );
     } finally {
       setIsFetching(false);
     }
@@ -197,7 +229,7 @@ export const SettingGeneral: React.FC = () => {
     }
     setIsApplying(true);
     setApplyError("");
-    setApplyStatus("Applying...");
+    setApplyStatus(t("settings.general.apply.applying"));
     try {
       const result = await window.electronAPI.applyProviderSetup({
         provider: stagedProvider,
@@ -210,15 +242,15 @@ export const SettingGeneral: React.FC = () => {
         setApiKeyInput("");
         setProvisioningInput("");
         refreshSecretStatus(stagedProvider);
-        setApplyStatus("Applied!");
+        setApplyStatus(t("settings.general.apply.applied"));
       } else {
         setApplyStatus("");
-        setApplyError(result.error || "Failed to apply provider setup");
+        setApplyError(result.error || t("settings.general.apply.error"));
       }
     } catch (error) {
       setApplyStatus("");
       setApplyError(
-        error instanceof Error ? error.message : "Failed to apply provider setup",
+        error instanceof Error ? error.message : t("settings.general.apply.error"),
       );
     } finally {
       setIsApplying(false);
@@ -227,52 +259,72 @@ export const SettingGeneral: React.FC = () => {
 
   // Reset the current profile's settings to defaults (keeps the API key).
   const handleResetDefaults = async () => {
-    const confirmed = window.confirm(
-      "Reset all settings for the current profile to defaults?\n\n" +
-        "Your API key is kept. Correction presets, summarize, prompt-gen, " +
-        "model settings and global hotkeys will be restored to defaults. " +
-        "This cannot be undone.",
-    );
+    const confirmed = window.confirm(t("settings.general.reset.confirm"));
     if (!confirmed) {
       return;
     }
 
     if (!window.electronAPI?.resetProfileSettings) {
-      setResetStatus("Error: Reset is not available");
+      setResetIsError(true);
+      setResetStatus(
+        t("settings.general.error", {
+          message: t("settings.general.reset.unavailable"),
+        }),
+      );
       return;
     }
 
-    setResetStatus("Resetting...");
+    setResetIsError(false);
+    setResetStatus(t("settings.general.reset.inProgress"));
     try {
       const result = await window.electronAPI.resetProfileSettings();
       if (result.success) {
-        setResetStatus("Settings reset to defaults.");
+        setResetIsError(false);
+        setResetStatus(t("settings.general.reset.success"));
         clearStagedSetupState();
         reloadActiveProvider();
         setTimeout(() => setResetStatus(""), 2500);
       } else {
-        setResetStatus(`Error: ${result.error || "Failed to reset"}`);
+        setResetIsError(true);
+        setResetStatus(
+          t("settings.general.error", {
+            message: result.error || t("settings.general.reset.failed"),
+          }),
+        );
       }
     } catch (error) {
       console.error("SettingGeneral: Error resetting settings:", error);
-      setResetStatus("Error resetting settings");
+      setResetIsError(true);
+      setResetStatus(t("settings.general.reset.error"));
     }
   };
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Interface language — global, applies to every window instantly. */}
       <section className="mb-4">
         <h2 className="text-sm font-medium text-card-foreground">
-          Correction output
+          {t("settings.general.language.title")}
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Choose what FixLang does with the AI result after a correction hotkey
-          finishes.
+          {t("settings.general.language.description")}
+        </p>
+        <div className="mt-3">
+          <LanguageSelect />
+        </div>
+      </section>
+
+      <section className="mb-4">
+        <h2 className="text-sm font-medium text-card-foreground">
+          {t("settings.general.correctionOutput.title")}
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t("settings.general.correctionOutput.description")}
         </p>
         <div
           className="mt-3 grid grid-cols-2 gap-2"
           role="radiogroup"
-          aria-label="Correction output"
+          aria-label={t("settings.general.correctionOutput.title")}
         >
           <button
             type="button"
@@ -286,9 +338,11 @@ export const SettingGeneral: React.FC = () => {
                 : "border-border hover:bg-secondary"
             }`}
           >
-            <span className="block text-sm font-medium">Direct paste</span>
+            <span className="block text-sm font-medium">
+              {t("settings.general.correctionOutput.paste.label")}
+            </span>
             <span className="mt-0.5 block text-xs text-muted-foreground">
-              Replace the selected text.
+              {t("settings.general.correctionOutput.paste.description")}
             </span>
           </button>
           <button
@@ -303,15 +357,17 @@ export const SettingGeneral: React.FC = () => {
                 : "border-border hover:bg-secondary"
             }`}
           >
-            <span className="block text-sm font-medium">Show popup</span>
+            <span className="block text-sm font-medium">
+              {t("settings.general.correctionOutput.popup.label")}
+            </span>
             <span className="mt-0.5 block text-xs text-muted-foreground">
-              Show the result without changing the source.
+              {t("settings.general.correctionOutput.popup.description")}
             </span>
           </button>
         </div>
         {outputModeStatus && (
           <p
-            className={`mt-1 text-xs ${outputModeStatus.startsWith("Error") ? "text-destructive" : "text-success"}`}
+            className={`mt-1 text-xs ${outputModeIsError ? "text-destructive" : "text-success"}`}
             role="status"
           >
             {outputModeStatus}
@@ -325,7 +381,7 @@ export const SettingGeneral: React.FC = () => {
           htmlFor="provider-select"
           className="block text-sm font-medium text-card-foreground mb-1"
         >
-          AI Provider
+          {t("settings.general.provider.label")}
         </label>
         <select
           id="provider-select"
@@ -335,12 +391,12 @@ export const SettingGeneral: React.FC = () => {
         >
           {PROVIDER_IDS.map((provider) => (
             <option key={provider} value={provider}>
-              {PROVIDER_LABELS[provider]}
+              {t(PROVIDER_LABEL_KEYS[provider])}
             </option>
           ))}
         </select>
         <p className="text-xs text-muted-foreground mt-1">
-          The old provider stays active until Apply succeeds below.
+          {t("settings.general.provider.hint")}
         </p>
       </div>
 
@@ -351,13 +407,15 @@ export const SettingGeneral: React.FC = () => {
             htmlFor="staged-api-key-input"
             className="block text-sm font-medium text-card-foreground mb-1"
           >
-            {stagedProvider === "openai" ? "OpenAI API Key" : "OpenRouter API Key"}
+            {t("settings.general.apiKey.label", {
+              provider: t(PROVIDER_LABEL_KEYS[stagedProvider]),
+            })}
           </label>
           <p
             className={`text-xs mb-1 ${apiKeySet ? "text-success" : "text-muted-foreground"}`}
             role="status"
           >
-            {apiKeySet ? "Key is set" : "No key set"}
+            {apiKeySet ? t("settings.general.secret.set") : t("settings.general.secret.unset")}
           </p>
           <input
             id="staged-api-key-input"
@@ -368,14 +426,20 @@ export const SettingGeneral: React.FC = () => {
             onChange={(event) => setApiKeyInput(event.target.value)}
             placeholder={
               apiKeySet
-                ? "Enter a new key to replace the stored one"
-                : `Enter your ${stagedProvider === "openai" ? "OpenAI" : "OpenRouter"} API key`
+                ? t("settings.general.secret.placeholderReplace")
+                : t("settings.general.apiKey.placeholderNew", {
+                    provider: t(PROVIDER_LABEL_KEYS[stagedProvider]),
+                  })
             }
-            aria-label={stagedProvider === "openai" ? "OpenAI API Key" : "OpenRouter API Key"}
+            aria-label={t("settings.general.apiKey.label", {
+              provider: t(PROVIDER_LABEL_KEYS[stagedProvider]),
+            })}
           />
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground mb-2">No API key required</p>
+        <p className="text-xs text-muted-foreground mb-2">
+          {t("settings.general.apiKey.notRequired")}
+        </p>
       )}
 
       {stagedProvider === "openrouter" && (
@@ -384,13 +448,15 @@ export const SettingGeneral: React.FC = () => {
             htmlFor="staged-provisioning-key-input"
             className="block text-sm font-medium text-card-foreground mb-1"
           >
-            OpenRouter Provisioning Key
+            {t("settings.general.provisioningKey.label")}
           </label>
           <p
             className={`text-xs mb-1 ${provisioningKeySet ? "text-success" : "text-muted-foreground"}`}
             role="status"
           >
-            {provisioningKeySet ? "Key is set" : "No key set"}
+            {provisioningKeySet
+              ? t("settings.general.secret.set")
+              : t("settings.general.secret.unset")}
           </p>
           <input
             id="staged-provisioning-key-input"
@@ -401,10 +467,10 @@ export const SettingGeneral: React.FC = () => {
             onChange={(event) => setProvisioningInput(event.target.value)}
             placeholder={
               provisioningKeySet
-                ? "Enter a new key to replace the stored one"
-                : "Enter your OpenRouter provisioning key"
+                ? t("settings.general.secret.placeholderReplace")
+                : t("settings.general.provisioningKey.placeholderNew")
             }
-            aria-label="OpenRouter Provisioning Key"
+            aria-label={t("settings.general.provisioningKey.label")}
           />
         </div>
       )}
@@ -417,7 +483,9 @@ export const SettingGeneral: React.FC = () => {
           disabled={isFetching}
           className="rounded bg-primary px-3 py-1.5 text-sm text-foreground hover:bg-primary disabled:opacity-50"
         >
-          {isFetching ? "Fetching models..." : "Fetch models"}
+          {isFetching
+            ? t("settings.general.models.fetching")
+            : t("settings.general.models.fetchButton")}
         </button>
         {fetchStatus && (
           <p className="text-xs mt-1 text-success" role="status">
@@ -437,7 +505,7 @@ export const SettingGeneral: React.FC = () => {
           htmlFor="staged-model-select"
           className="block text-sm font-medium text-card-foreground mb-1"
         >
-          Default Model
+          {t("settings.general.models.defaultLabel")}
         </label>
         <select
           id="staged-model-select"
@@ -448,7 +516,9 @@ export const SettingGeneral: React.FC = () => {
           disabled={stagedModels.length === 0}
         >
           <option value="" disabled>
-            {stagedModels.length > 0 ? "Select a model" : "Fetch models first"}
+            {stagedModels.length > 0
+              ? t("settings.general.models.selectPlaceholder")
+              : t("settings.general.models.fetchFirst")}
           </option>
           {stagedModels.map((model) => (
             <option key={model.id} value={model.id}>
@@ -466,7 +536,9 @@ export const SettingGeneral: React.FC = () => {
           disabled={!stagedModelId || isApplying}
           className="w-full rounded bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {isApplying ? "Applying..." : "Apply"}
+          {isApplying
+            ? t("settings.general.apply.applying")
+            : t("settings.general.apply.button")}
         </button>
         {applyStatus && (
           <p className="text-xs mt-1 text-success" role="status">
@@ -487,19 +559,18 @@ export const SettingGeneral: React.FC = () => {
           onClick={handleResetDefaults}
           className="w-full rounded border border-destructive/50 px-4 py-2 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 focus:outline-none focus:ring-2 focus:ring-destructive"
         >
-          Reset all settings to default
+          {t("settings.general.reset.button")}
         </button>
         {resetStatus && (
           <p
-            className={`text-xs mt-1 ${resetStatus.startsWith("Error") ? "text-destructive" : "text-success"}`}
+            className={`text-xs mt-1 ${resetIsError ? "text-destructive" : "text-success"}`}
             role="status"
           >
             {resetStatus}
           </p>
         )}
         <p className="text-xs text-muted-foreground mt-1">
-          Restores correction presets, summarize, prompt-gen, model settings
-          and global hotkeys for the current profile. Your API key is kept.
+          {t("settings.general.reset.description")}
         </p>
       </div>
     </div>

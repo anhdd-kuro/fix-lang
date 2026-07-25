@@ -23,10 +23,13 @@ const fixtureCatalogs = {
     "fixture.count_one": "{count} item",
     "fixture.count_other": "{count} items",
     "fixture.onlyOther_other": "always other",
+    "fixture.preformatted": "{amount} spent on {date}",
+    "fixture.raw": "value: {value}",
   },
   ja: {
     "common.cancel": "キャンセル",
     "fixture.count_other": "{count} 件",
+    "fixture.preformatted": "{date} に {amount} 使用",
   },
 } as unknown as FixtureCatalogs;
 
@@ -52,6 +55,42 @@ describe("createTranslator direct hits", () => {
     const t = createTranslator("ja");
     expect(t("common.cancel")).toBe("キャンセル");
     expect(warnSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("createTranslator numeric params", () => {
+  it("locale-formats numeric params with grouping separators", () => {
+    const t = createTranslator("en", fixtureCatalogs);
+    expect(t("fixture.count" as TKey, { count: 1234567 })).toBe(
+      "1,234,567 items",
+    );
+  });
+
+  it("locale-formats the numeric param that also drives plural selection", () => {
+    const t = createTranslator("ja", fixtureCatalogs);
+    expect(t("fixture.count" as TKey, { count: 12345 })).toBe("12,345 件");
+  });
+
+  it("inserts string params verbatim so pre-formatted values survive", () => {
+    const t = createTranslator("en", fixtureCatalogs);
+    // why: currency and dates are formatted by the caller via format.ts and
+    // must not be re-grouped or mangled by the translator.
+    expect(
+      t("fixture.preformatted" as TKey, {
+        amount: "$1,234.50",
+        date: "Jul 25, 2026",
+      }),
+    ).toBe("$1,234.50 spent on Jul 25, 2026");
+  });
+
+  it("leaves non-finite numbers readable instead of emitting a formatted NaN", () => {
+    const t = createTranslator("en", fixtureCatalogs);
+    // why: a non-finite `count` deliberately skips plural selection, so this
+    // uses a non-plural key to isolate the interpolation behavior.
+    expect(t("fixture.raw" as TKey, { value: Number.NaN })).toBe("value: NaN");
+    expect(t("fixture.raw" as TKey, { value: Number.POSITIVE_INFINITY })).toBe(
+      "value: Infinity",
+    );
   });
 });
 

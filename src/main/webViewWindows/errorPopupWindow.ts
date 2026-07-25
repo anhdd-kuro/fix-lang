@@ -1,6 +1,7 @@
 import { app, BrowserWindow, screen } from "electron";
 import { themeStore } from "~/stores/themeStore";
 import errorPopupHtml from "./overlay.html?asset";
+import { buildErrorPopupTitle } from "./windowTitles";
 import type { ThemeId } from "~/stores/themeIds";
 
 const ERROR_POPUP_WIDTH = 360;
@@ -35,9 +36,10 @@ const displayErrorPopup = (message: string): void => {
   }
 
   const popup = errorPopupWindow;
+  const title = buildErrorPopupTitle();
   void popup.webContents
     .executeJavaScript(
-      `document.body.dataset.overlayMode = "error"; document.querySelector("#error-message").textContent = ${JSON.stringify(message)};`,
+      `document.body.dataset.overlayMode = "error"; document.querySelector(".error-title").textContent = ${JSON.stringify(title)}; document.querySelector("#error-message").textContent = ${JSON.stringify(message)};`,
     )
     .then(() => {
       if (popup.isDestroyed() || pendingMessage !== message) return;
@@ -81,6 +83,7 @@ export const createErrorPopupWindow = (): BrowserWindow => {
   errorPopupWindow.webContents.on("did-finish-load", () => {
     errorPopupReady = true;
     syncErrorPopupTheme(themeStore.getThemeId());
+    syncErrorPopupLocale();
     if (pendingMessage) displayErrorPopup(pendingMessage);
   });
   errorPopupWindow.on("closed", () => {
@@ -115,5 +118,21 @@ export const syncErrorPopupTheme = (themeId: ThemeId): void => {
 
   void errorPopupWindow.webContents.executeJavaScript(
     `document.documentElement.dataset.theme = ${JSON.stringify(themeId)}`,
+  );
+};
+
+/**
+ * Refreshes the `.error-title` heading to the current locale, the same way
+ * {@link syncErrorPopupTheme} pushes the theme: an `executeJavaScript` call
+ * against the standalone `overlay.html` document (no renderer/preload script
+ * runs there to react to a `locale-changed` IPC message on its own). Called on
+ * load and again whenever `displayErrorPopup` shows a new message, so the
+ * title is never a locale switch behind.
+ */
+export const syncErrorPopupLocale = (): void => {
+  if (!errorPopupWindow || errorPopupWindow.isDestroyed()) return;
+
+  void errorPopupWindow.webContents.executeJavaScript(
+    `document.querySelector(".error-title").textContent = ${JSON.stringify(buildErrorPopupTitle())}`,
   );
 };

@@ -1,1 +1,23 @@
-{}
+{
+  "notifications.correction.goodJob.body": "文章はすでに正しいため、変更はありません。",
+  "notifications.correction.goodJob.title": "お見事です！",
+  "notifications.correction.resultTitle": "{presetName}の結果",
+  "notifications.errorPopup.title": "FixLang エラー",
+  "notifications.profile.applied.body": "プロフィール「{name}」を有効にしました。",
+  "notifications.profile.applied.title": "プロフィールを適用しました",
+  "notifications.profile.created.body": "プロフィール「{name}」を作成し、有効にしました。",
+  "notifications.profile.created.title": "プロフィールを作成しました",
+  "notifications.profile.deleted.body": "プロフィール「{name}」を削除しました。",
+  "notifications.profile.deleted.title": "プロフィールを削除しました",
+  "notifications.profile.imported.body": "プロフィール「{name}」をインポートしました。",
+  "notifications.profile.imported.title": "プロフィールをインポートしました",
+  "notifications.profile.switched.body": "プロフィール「{name}」を有効にしました。",
+  "notifications.profile.switched.title": "プロフィールを切り替えました",
+  "notifications.profile.switchedByHotkey.body": "プロフィール「{name}」に切り替えました。",
+  "notifications.profile.updated.body": "プロフィール「{name}」を更新しました。",
+  "notifications.profile.updated.title": "プロフィールを更新しました",
+  "notifications.profilesUpdated.body": "プロフィールの設定を更新しました。",
+  "notifications.profilesUpdated.title": "プロフィール設定を更新しました",
+  "notifications.window.correctionResult.title": "FixLangの結果",
+  "notifications.window.promptGen.title": "生成されたプロンプト"
+}

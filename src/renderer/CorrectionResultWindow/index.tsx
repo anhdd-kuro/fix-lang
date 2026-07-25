@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import CopyButton from "../components/CopyButton";
 import { useTheme } from "../hooks/useTheme";
+import { I18nProvider } from "../i18n/I18nProvider";
 import "../main.css";
 import type { CorrectionResultPayload } from "~/shared/correctionResult";
 
@@ -49,5 +50,9 @@ const CorrectionResultWindow = () => {
 
 const container = document.getElementById("root");
 if (container) {
-  createRoot(container).render(<CorrectionResultWindow />);
+  createRoot(container).render(
+    <I18nProvider>
+      <CorrectionResultWindow />
+    </I18nProvider>
+  );
 }

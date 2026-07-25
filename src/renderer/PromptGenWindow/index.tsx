@@ -4,6 +4,7 @@ import "../main.css";
 import CopyButton from "../components/CopyButton";
 import { formatModelLineage } from "../components/historyModel";
 import { useTheme } from "../hooks/useTheme";
+import { I18nProvider } from "../i18n/I18nProvider";
 
 type PromptGenData = {
   prompts: string[];
@@ -95,5 +96,9 @@ const PromptGenWindow: React.FC = () => {
 const container = document.getElementById("root");
 if (container) {
   const root = createRoot(container);
-  root.render(<PromptGenWindow />);
+  root.render(
+    <I18nProvider>
+      <PromptGenWindow />
+    </I18nProvider>
+  );
 }

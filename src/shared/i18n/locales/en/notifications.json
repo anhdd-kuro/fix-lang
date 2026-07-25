@@ -1,1 +1,23 @@
-{}
+{
+  "notifications.correction.goodJob.body": "Your text is already correct. No changes have been made.",
+  "notifications.correction.goodJob.title": "Good job!",
+  "notifications.correction.resultTitle": "{presetName} result",
+  "notifications.errorPopup.title": "FixLang Error",
+  "notifications.profile.applied.body": "Profile \"{name}\" has been activated.",
+  "notifications.profile.applied.title": "Profile Applied",
+  "notifications.profile.created.body": "Profile \"{name}\" has been created and activated.",
+  "notifications.profile.created.title": "Profile Created",
+  "notifications.profile.deleted.body": "Profile \"{name}\" has been deleted.",
+  "notifications.profile.deleted.title": "Profile Deleted",
+  "notifications.profile.imported.body": "Profile \"{name}\" has been imported.",
+  "notifications.profile.imported.title": "Profile Imported",
+  "notifications.profile.switched.body": "Profile \"{name}\" has been activated.",
+  "notifications.profile.switched.title": "Profile Switched",
+  "notifications.profile.switchedByHotkey.body": "Switched to profile: {name}",
+  "notifications.profile.updated.body": "Profile \"{name}\" has been updated.",
+  "notifications.profile.updated.title": "Profile Updated",
+  "notifications.profilesUpdated.body": "Your profile settings have been updated.",
+  "notifications.profilesUpdated.title": "Profiles Updated",
+  "notifications.window.correctionResult.title": "FixLang result",
+  "notifications.window.promptGen.title": "Generated Prompts"
+}

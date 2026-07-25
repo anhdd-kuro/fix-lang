@@ -1,6 +1,7 @@
 import path from "node:path";
 import { app, BrowserWindow, ipcMain, screen } from "electron";
 import { attachThemeSync } from "./attachThemeSync";
+import { buildCorrectionResultWindowTitle } from "./windowTitles";
 import type { CorrectionResultPayload } from "~/shared/correctionResult";
 
 const WINDOW_WIDTH = 560;
@@ -45,7 +46,7 @@ const createCorrectionResultWindow = (): BrowserWindow => {
     minHeight: 280,
     show: false,
     skipTaskbar: true,
-    title: "FixLang result",
+    title: buildCorrectionResultWindowTitle(),
     webPreferences: {
       preload: path.join(app.getAppPath(), "out/preload/index.cjs"),
       contextIsolation: true,

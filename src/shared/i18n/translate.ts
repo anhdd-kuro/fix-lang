@@ -12,8 +12,10 @@
  *      locale's `intlTag`.
  *   2. Fallback chain — active-locale catalog → English catalog → the key
  *      string itself. Never returns `undefined`, `null`, or `""`.
- *   3. Interpolation — `{token}` occurrences are replaced from `params`;
- *      numbers are stringified with `String(value)`.
+ *   3. Interpolation — `{token}` occurrences are replaced from `params`.
+ *      `number` params are locale-formatted (grouping separators); `string`
+ *      params are inserted verbatim, so a caller that needs currency, fixed
+ *      decimals, or a date formats it via `format.ts` first.
  *
  * Dev-only diagnostics warn once per missing key and once per unreplaced
  * `{token}`, de-duplicated via module-level `Set`s so a re-rendering tray does
@@ -143,6 +145,29 @@ const resolveTemplate = (
   return key;
 };
 
+const numberFormatters = new Map<Locale, Intl.NumberFormat>();
+
+/**
+ * Locale-formats a numeric param (grouping separators, native digits).
+ *
+ * This is the bright line for callers: a `number` param means "plain count or
+ * total — format it for me", a `string` param means "already formatted, insert
+ * verbatim". Anything needing a non-default shape (currency, fixed decimals,
+ * zero-padded hours, dates) is formatted by the caller via `format.ts` and
+ * passed as a string.
+ */
+const formatNumberParam = (value: number, locale: Locale): string => {
+  if (!Number.isFinite(value)) {
+    return String(value);
+  }
+  let formatter = numberFormatters.get(locale);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(LOCALE_META[locale].intlTag);
+    numberFormatters.set(locale, formatter);
+  }
+  return formatter.format(value);
+};
+
 const interpolate = (
   template: string,
   params: TranslateParams | undefined,
@@ -159,7 +184,10 @@ const interpolate = (
       );
       return match;
     }
-    return String(values[token]);
+    const value = values[token];
+    return typeof value === "number"
+      ? formatNumberParam(value, locale)
+      : String(value);
   });
 };
 

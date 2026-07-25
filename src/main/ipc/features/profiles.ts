@@ -31,6 +31,10 @@ import {
   clearLegacyProvisioningKey,
   getLegacyProvisioningKey,
 } from "~/stores/provisioningKeyStore";
+import {
+  buildProfileNotification,
+  buildProfilesUpdatedNotification,
+} from "./profileNotifications";
 import type { Profile } from "~/stores/apiStore";
 
 /**
@@ -153,10 +157,7 @@ export const registerProfileHandlers = () => {
       try {
         const profile = createProfile(name, description);
 
-        new Notification({
-          title: "Profile Created",
-          body: `Profile "${name}" has been created and activated.`,
-        }).show();
+        new Notification(buildProfileNotification("created", name)).show();
 
         return {
           success: true,
@@ -183,10 +184,9 @@ export const registerProfileHandlers = () => {
           reloadHotkeys();
           const profile = getProfileById(profileId);
 
-          new Notification({
-            title: "Profile Applied",
-            body: `Profile "${profile?.name}" has been activated.`,
-          }).show();
+          new Notification(
+            buildProfileNotification("applied", profile?.name ?? ""),
+          ).show();
         }
 
         return result;
@@ -215,10 +215,9 @@ export const registerProfileHandlers = () => {
         const updatedProfile = updateProfile(profileId, name, description);
 
         if (updatedProfile) {
-          new Notification({
-            title: "Profile Updated",
-            body: `Profile "${updatedProfile.name}" has been updated.`,
-          }).show();
+          new Notification(
+            buildProfileNotification("updated", updatedProfile.name),
+          ).show();
 
           return {
             success: true,
@@ -252,10 +251,9 @@ export const registerProfileHandlers = () => {
           : { success: true };
 
         if (success && profile) {
-          new Notification({
-            title: "Profile Deleted",
-            body: `Profile "${profile.name}" has been deleted.`,
-          }).show();
+          new Notification(
+            buildProfileNotification("deleted", profile.name),
+          ).show();
         }
 
         return {
@@ -281,10 +279,9 @@ export const registerProfileHandlers = () => {
 
       if (nextProfile) {
         reloadHotkeys();
-        new Notification({
-          title: "Profile Switched",
-          body: `Profile "${nextProfile.name}" has been activated.`,
-        }).show();
+        new Notification(
+          buildProfileNotification("switched", nextProfile.name),
+        ).show();
 
         return {
           success: true,
@@ -346,10 +343,9 @@ export const registerProfileHandlers = () => {
         // Save updated profiles
         apiStore.set("profiles", profiles);
 
-        new Notification({
-          title: "Profile Imported",
-          body: `Profile "${profileData.name}" has been imported.`,
-        }).show();
+        new Notification(
+          buildProfileNotification("imported", profileData.name),
+        ).show();
 
         return {
           success: true,
@@ -396,9 +392,6 @@ export const registerProfileHandlers = () => {
 
   // Notification for profile updates
   ipcMain.on("profile-updated", () => {
-    new Notification({
-      title: "Profiles Updated",
-      body: "Your profile settings have been updated.",
-    }).show();
+    new Notification(buildProfilesUpdatedNotification()).show();
   });
 };
