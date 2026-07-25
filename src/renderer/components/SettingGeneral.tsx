@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { PROVIDER_IDS } from "~/stores/apiStore";
 import type { CorrectionOutputMode } from "~/shared/outputMode";
 import type { Model, ProviderId } from "~/stores/apiStore";
+
+/** Keep value import out of apiStore — that module loads electron-store and breaks the renderer. */
+const PROVIDER_IDS: readonly ProviderId[] = ["openai", "openrouter", "ollama"];
 
 const PROVIDER_LABELS: Record<ProviderId, string> = {
   openai: "OpenAI",
