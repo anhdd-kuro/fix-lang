@@ -67,8 +67,18 @@ describe("buildModelOptionLabel", () => {
       created: CREATED_SECONDS,
       local: { path: "/models/custom.gguf" } as ModelForLabel["local"],
     };
-    const label = buildModelOptionLabel(model, depsFor("en"));
-    expect(label).toBe("custom-local-model, 2024-03-15, Local LLM");
+    const deps = depsFor("en");
+    const label = buildModelOptionLabel(model, deps);
+    // The "Local LLM" badge text is a catalog value (models.select.localLlm)
+    // — derived through the real translator, not hand-restated, so a catalog
+    // reword doesn't spuriously break this composition test.
+    expect(label).toBe(
+      deps.t("models.select.optionLabel.local", {
+        id: "custom-local-model",
+        createdAt: "2024-03-15",
+        size: deps.t("models.select.localLlm"),
+      }),
+    );
   });
 
   it("falls back to the localized 'Local LLM' badge when size is unknown (JA)", () => {
@@ -77,8 +87,19 @@ describe("buildModelOptionLabel", () => {
       created: CREATED_SECONDS,
       local: { path: "/models/custom.gguf" } as ModelForLabel["local"],
     };
-    const label = buildModelOptionLabel(model, depsFor("ja"));
-    expect(label).toBe("custom-local-model, 2024-03-15, ローカル LLM");
+    const deps = depsFor("ja");
+    const label = buildModelOptionLabel(model, deps);
+    expect(label).toBe(
+      deps.t("models.select.optionLabel.local", {
+        id: "custom-local-model",
+        createdAt: "2024-03-15",
+        size: deps.t("models.select.localLlm"),
+      }),
+    );
+    // Prove the locale genuinely changes the badge wording.
+    expect(deps.t("models.select.localLlm")).not.toBe(
+      depsFor("en").t("models.select.localLlm"),
+    );
   });
 
   it("normalizes millisecond timestamps the same as second timestamps", () => {

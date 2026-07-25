@@ -2,6 +2,7 @@
  * @file correctionNotifications.test.ts
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createTranslator } from "~/shared/i18n/translate";
 import {
   buildCorrectionGoodJobNotification,
   buildCorrectionResultTitle,
@@ -15,6 +16,11 @@ vi.mock("~/stores/localeStore", () => ({
   getLocale: localeStoreMocks.getLocale,
 }));
 
+// Expected copy is derived through the real translator kernel so a catalog
+// reword can't silently break this file.
+const tEn = createTranslator("en");
+const tJa = createTranslator("ja");
+
 describe("buildCorrectionGoodJobNotification", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -22,18 +28,21 @@ describe("buildCorrectionGoodJobNotification", () => {
     localeStoreMocks.getLocale.mockReturnValue("en");
 
     expect(buildCorrectionGoodJobNotification()).toEqual({
-      title: "Good job!",
-      body: "Your text is already correct. No changes have been made.",
+      title: tEn("notifications.correction.goodJob.title"),
+      body: tEn("notifications.correction.goodJob.body"),
     });
   });
 
   it("builds the Japanese payload", () => {
     localeStoreMocks.getLocale.mockReturnValue("ja");
 
-    expect(buildCorrectionGoodJobNotification()).toEqual({
-      title: "お見事です！",
-      body: "文章はすでに正しいため、変更はありません。",
+    const result = buildCorrectionGoodJobNotification();
+    expect(result).toEqual({
+      title: tJa("notifications.correction.goodJob.title"),
+      body: tJa("notifications.correction.goodJob.body"),
     });
+    // Prove the locale actually changed the wording.
+    expect(result.title).not.toBe(tEn("notifications.correction.goodJob.title"));
   });
 });
 
@@ -43,18 +52,29 @@ describe("buildCorrectionResultTitle", () => {
   it("interpolates the preset name in English", () => {
     localeStoreMocks.getLocale.mockReturnValue("en");
 
-    expect(buildCorrectionResultTitle("Correction")).toBe("Correction result");
+    expect(buildCorrectionResultTitle("Correction")).toBe(
+      tEn("notifications.correction.resultTitle", { presetName: "Correction" }),
+    );
   });
 
   it("interpolates the preset name in Japanese", () => {
     localeStoreMocks.getLocale.mockReturnValue("ja");
 
-    expect(buildCorrectionResultTitle("Correction")).toBe("Correctionの結果");
+    const result = buildCorrectionResultTitle("Correction");
+    expect(result).toBe(
+      tJa("notifications.correction.resultTitle", { presetName: "Correction" }),
+    );
+    // Prove the locale actually changed the surrounding template wording.
+    expect(result).not.toBe(
+      tEn("notifications.correction.resultTitle", { presetName: "Correction" }),
+    );
   });
 
   it("passes an untrusted/non-ASCII preset name through untouched", () => {
     localeStoreMocks.getLocale.mockReturnValue("en");
 
-    expect(buildCorrectionResultTitle("Работа")).toBe("Работа result");
+    expect(buildCorrectionResultTitle("Работа")).toBe(
+      tEn("notifications.correction.resultTitle", { presetName: "Работа" }),
+    );
   });
 });

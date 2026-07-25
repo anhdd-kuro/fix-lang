@@ -17,9 +17,16 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createTranslator } from "~/shared/i18n/translate";
 import { ModelSelect } from "./ModelSelect";
 import { I18nProvider } from "../i18n/I18nProvider";
 import type { Locale } from "~/shared/i18n/registry";
+
+// Expected copy is derived through the real translator kernel so a catalog
+// reword can't silently break this file, and an English-fallback regression
+// still fails a test that asserts the JA text.
+const tEn = createTranslator("en");
+const tJa = createTranslator("ja");
 
 const waitForUi = async () => {
   await act(async () => {
@@ -82,8 +89,9 @@ describe("ModelSelect", () => {
   it("shows a locale-free fetch-failure descriptor that re-renders in Japanese without refetching models", async () => {
     await render();
 
+    const key = "models.select.error.fetchFailed";
     const alert = () => container.querySelector('[role="alert"]');
-    expect(alert()?.textContent).toBe("Failed to fetch models");
+    expect(alert()?.textContent).toBe(tEn(key));
     expect(fetchAIModels).toHaveBeenCalledTimes(1);
 
     await act(async () => {
@@ -91,7 +99,10 @@ describe("ModelSelect", () => {
     });
     await waitForUi();
 
-    expect(alert()?.textContent).toBe("モデルの取得に失敗しました");
+    // Prove the locale actually changed: the JA-derived text is returned,
+    // and it differs from the EN-derived text.
+    expect(alert()?.textContent).toBe(tJa(key));
+    expect(tJa(key)).not.toBe(tEn(key));
     // Switching locale must not re-run `fetchAIModels()` — `fetchModels`'s
     // dependency array must stay `[]` (it no longer closes over `t`), and it
     // is itself a dependency of the mount effect and the

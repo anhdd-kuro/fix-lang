@@ -6,6 +6,7 @@
  * locale directly instead of touching `electron-store`.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createTranslator } from "~/shared/i18n/translate";
 import { mainFormatters, mainT, refreshMainLocale } from "./i18n";
 
 const localeStoreMocks = vi.hoisted(() => ({
@@ -16,6 +17,11 @@ vi.mock("~/stores/localeStore", () => ({
   getLocale: localeStoreMocks.getLocale,
 }));
 
+// Expected text is derived through the real translator kernel — the same one
+// `mainT` wraps — so a catalog reword can't silently break this file.
+const tEn = createTranslator("en");
+const tJa = createTranslator("ja");
+
 describe("mainT", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -25,24 +31,26 @@ describe("mainT", () => {
   it("returns English text under locale \"en\"", () => {
     localeStoreMocks.getLocale.mockReturnValue("en");
 
-    expect(mainT("common.save")).toBe("Save");
+    expect(mainT("common.save")).toBe(tEn("common.save"));
   });
 
   it("returns Japanese text under locale \"ja\"", () => {
     localeStoreMocks.getLocale.mockReturnValue("ja");
 
-    expect(mainT("common.save")).toBe("保存");
+    expect(mainT("common.save")).toBe(tJa("common.save"));
+    // Prove the locale actually changed the wording.
+    expect(tJa("common.save")).not.toBe(tEn("common.save"));
   });
 
   it("reflects a locale change between two calls with no explicit refresh", () => {
     localeStoreMocks.getLocale.mockReturnValue("en");
-    expect(mainT("common.save")).toBe("Save");
+    expect(mainT("common.save")).toBe(tEn("common.save"));
 
     localeStoreMocks.getLocale.mockReturnValue("ja");
-    expect(mainT("common.save")).toBe("保存");
+    expect(mainT("common.save")).toBe(tJa("common.save"));
 
     localeStoreMocks.getLocale.mockReturnValue("en");
-    expect(mainT("common.save")).toBe("Save");
+    expect(mainT("common.save")).toBe(tEn("common.save"));
   });
 
   it("interpolates params without touching user-authored values", () => {
@@ -52,7 +60,7 @@ describe("mainT", () => {
       mainT("notifications.correction.resultTitle", {
         presetName: "日本語プロファイル",
       }),
-    ).toBe("日本語プロファイル result");
+    ).toBe(tEn("notifications.correction.resultTitle", { presetName: "日本語プロファイル" }));
   });
 });
 
@@ -74,10 +82,10 @@ describe("mainFormatters", () => {
 describe("refreshMainLocale", () => {
   it("does not break subsequent lookups for the same locale", () => {
     localeStoreMocks.getLocale.mockReturnValue("en");
-    expect(mainT("common.save")).toBe("Save");
+    expect(mainT("common.save")).toBe(tEn("common.save"));
 
     refreshMainLocale();
 
-    expect(mainT("common.save")).toBe("Save");
+    expect(mainT("common.save")).toBe(tEn("common.save"));
   });
 });

@@ -25,35 +25,51 @@ describe("openRouterDegradedMessage", () => {
   const en = createTranslator("en");
   const ja = createTranslator("ja");
 
+  // The real subject here is which `models.openrouter.degraded.*` key gets
+  // picked for a given reason code — text is derived through the real
+  // translator (not hand-restated) so a catalog reword doesn't spuriously
+  // break this file, and the EN/JA pair proves the locale genuinely changes
+  // the wording (guards against an English-fallback regression).
   it("translates the unauthorized reason (EN)", () => {
     expect(openRouterDegradedMessage("unauthorized", en)).toBe(
-      "Unauthorized — check your provisioning key.",
+      en("models.openrouter.degraded.unauthorized"),
     );
   });
 
   it("translates the unauthorized reason (JA)", () => {
     expect(openRouterDegradedMessage("unauthorized", ja)).toBe(
-      "認証エラー — プロビジョニングキーを確認してください。",
+      ja("models.openrouter.degraded.unauthorized"),
+    );
+    expect(openRouterDegradedMessage("unauthorized", ja)).not.toBe(
+      openRouterDegradedMessage("unauthorized", en),
     );
   });
 
   it("translates the no_key reason (EN)", () => {
-    expect(openRouterDegradedMessage("no_key", en)).toBe("No provisioning key set.");
+    expect(openRouterDegradedMessage("no_key", en)).toBe(
+      en("models.openrouter.degraded.noKey"),
+    );
   });
 
   it("translates the no_key reason (JA)", () => {
     expect(openRouterDegradedMessage("no_key", ja)).toBe(
-      "プロビジョニングキーが設定されていません。",
+      ja("models.openrouter.degraded.noKey"),
+    );
+    expect(openRouterDegradedMessage("no_key", ja)).not.toBe(
+      openRouterDegradedMessage("no_key", en),
     );
   });
 
   it("falls back to the generic unavailable message for other reasons (EN)", () => {
-    expect(openRouterDegradedMessage("parse_error", en)).toBe("Unavailable right now.");
-    expect(openRouterDegradedMessage("unavailable", en)).toBe("Unavailable right now.");
+    const expected = en("models.openrouter.degraded.unavailable");
+    expect(openRouterDegradedMessage("parse_error", en)).toBe(expected);
+    expect(openRouterDegradedMessage("unavailable", en)).toBe(expected);
   });
 
   it("falls back to the generic unavailable message for other reasons (JA)", () => {
-    expect(openRouterDegradedMessage("parse_error", ja)).toBe("現在利用できません。");
-    expect(openRouterDegradedMessage("unavailable", ja)).toBe("現在利用できません。");
+    const expected = ja("models.openrouter.degraded.unavailable");
+    expect(openRouterDegradedMessage("parse_error", ja)).toBe(expected);
+    expect(openRouterDegradedMessage("unavailable", ja)).toBe(expected);
+    expect(expected).not.toBe(en("models.openrouter.degraded.unavailable"));
   });
 });

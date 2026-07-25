@@ -2,6 +2,7 @@
  * @file profileNotifications.test.ts
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createTranslator } from "~/shared/i18n/translate";
 import {
   buildProfileNotification,
   buildProfilesUpdatedNotification,
@@ -16,71 +17,52 @@ vi.mock("~/stores/localeStore", () => ({
   getLocale: localeStoreMocks.getLocale,
 }));
 
-const KIND_EXPECTATIONS: Record<
-  ProfileNotificationKind,
-  { en: NotificationPayload; ja: NotificationPayload }
-> = {
-  created: {
-    en: {
-      title: "Profile Created",
-      body: 'Profile "{name}" has been created and activated.',
-    },
-    ja: {
-      title: "プロファイルを作成しました",
-      body: "プロファイル「{name}」を作成し、有効にしました。",
-    },
-  },
-  applied: {
-    en: { title: "Profile Applied", body: 'Profile "{name}" has been activated.' },
-    ja: { title: "プロファイルを適用しました", body: "プロファイル「{name}」を有効にしました。" },
-  },
-  updated: {
-    en: { title: "Profile Updated", body: 'Profile "{name}" has been updated.' },
-    ja: { title: "プロファイルを更新しました", body: "プロファイル「{name}」を更新しました。" },
-  },
-  deleted: {
-    en: { title: "Profile Deleted", body: 'Profile "{name}" has been deleted.' },
-    ja: { title: "プロファイルを削除しました", body: "プロファイル「{name}」を削除しました。" },
-  },
-  imported: {
-    en: { title: "Profile Imported", body: 'Profile "{name}" has been imported.' },
-    ja: { title: "プロファイルをインポートしました", body: "プロファイル「{name}」をインポートしました。" },
-  },
-  switched: {
-    en: { title: "Profile Switched", body: 'Profile "{name}" has been activated.' },
-    ja: { title: "プロファイルを切り替えました", body: "プロファイル「{name}」を有効にしました。" },
-  },
-};
+// Expected copy is derived through the real translator kernel — never
+// hand-restated, and never hand-interpolated via `.replace(...)` — so a
+// catalog reword can't silently break this file, and an English-fallback
+// regression still fails a test that asserts JA text.
+const tEn = createTranslator("en");
+const tJa = createTranslator("ja");
 
-type NotificationPayload = { title: string; body: string };
-
-const withName = (payload: NotificationPayload, name: string): NotificationPayload => ({
-  title: payload.title,
-  body: payload.body.replace("{name}", name),
-});
+const KINDS: ProfileNotificationKind[] = [
+  "created",
+  "applied",
+  "updated",
+  "deleted",
+  "imported",
+  "switched",
+];
 
 describe("buildProfileNotification", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it.each(Object.keys(KIND_EXPECTATIONS) as ProfileNotificationKind[])(
+  it.each(KINDS)(
     "builds the English payload for kind %s with the profile name interpolated",
     (kind) => {
       localeStoreMocks.getLocale.mockReturnValue("en");
+      const name = "日本語プロファイル";
 
-      expect(buildProfileNotification(kind, "日本語プロファイル")).toEqual(
-        withName(KIND_EXPECTATIONS[kind].en, "日本語プロファイル"),
-      );
+      expect(buildProfileNotification(kind, name)).toEqual({
+        title: tEn(`notifications.profile.${kind}.title`),
+        body: tEn(`notifications.profile.${kind}.body`, { name }),
+      });
     },
   );
 
-  it.each(Object.keys(KIND_EXPECTATIONS) as ProfileNotificationKind[])(
+  it.each(KINDS)(
     "builds the Japanese payload for kind %s with the profile name interpolated",
     (kind) => {
       localeStoreMocks.getLocale.mockReturnValue("ja");
+      const name = "Работа";
 
-      expect(buildProfileNotification(kind, "Работа")).toEqual(
-        withName(KIND_EXPECTATIONS[kind].ja, "Работа"),
-      );
+      const result = buildProfileNotification(kind, name);
+      expect(result).toEqual({
+        title: tJa(`notifications.profile.${kind}.title`),
+        body: tJa(`notifications.profile.${kind}.body`, { name }),
+      });
+      // Prove the locale actually changed the wording (title has no
+      // interpolated user data, so it's a clean EN/JA comparison).
+      expect(result.title).not.toBe(tEn(`notifications.profile.${kind}.title`));
     },
   );
 });
@@ -92,17 +74,19 @@ describe("buildProfilesUpdatedNotification", () => {
     localeStoreMocks.getLocale.mockReturnValue("en");
 
     expect(buildProfilesUpdatedNotification()).toEqual({
-      title: "Profiles Updated",
-      body: "Your profile settings have been updated.",
+      title: tEn("notifications.profilesUpdated.title"),
+      body: tEn("notifications.profilesUpdated.body"),
     });
   });
 
   it("builds the Japanese payload", () => {
     localeStoreMocks.getLocale.mockReturnValue("ja");
 
-    expect(buildProfilesUpdatedNotification()).toEqual({
-      title: "プロファイル設定を更新しました",
-      body: "プロファイルの設定を更新しました。",
+    const result = buildProfilesUpdatedNotification();
+    expect(result).toEqual({
+      title: tJa("notifications.profilesUpdated.title"),
+      body: tJa("notifications.profilesUpdated.body"),
     });
+    expect(result.title).not.toBe(tEn("notifications.profilesUpdated.title"));
   });
 });

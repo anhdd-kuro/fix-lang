@@ -16,9 +16,16 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createTranslator } from "~/shared/i18n/translate";
 import { HotkeyInput } from "./HotkeyInput";
 import { I18nProvider } from "../i18n/I18nProvider";
 import type { Locale } from "~/shared/i18n/registry";
+
+// Expected copy is derived through the real translator kernel so a catalog
+// reword can't silently break this file, and an English-fallback regression
+// still fails a test that asserts the JA text.
+const tEn = createTranslator("en");
+const tJa = createTranslator("ja");
 
 const waitForUi = async () => {
   await act(async () => {
@@ -88,7 +95,7 @@ describe("HotkeyInput", () => {
     await render();
 
     const status = () => container.querySelector('[role="status"]');
-    expect(status()?.textContent).toBe("Error loading keybindings");
+    expect(status()?.textContent).toBe(tEn("settings.hotkeys.loadError"));
     expect(getKeyBindings).toHaveBeenCalledTimes(1);
 
     await act(async () => {
@@ -96,8 +103,11 @@ describe("HotkeyInput", () => {
     });
     await waitForUi();
 
-    expect(status()?.textContent).toBe(
-      "ホットキーの読み込み中にエラーが発生しました",
+    // Prove the locale actually changed: the JA-derived text is returned,
+    // and it differs from the EN-derived text.
+    expect(status()?.textContent).toBe(tJa("settings.hotkeys.loadError"));
+    expect(tJa("settings.hotkeys.loadError")).not.toBe(
+      tEn("settings.hotkeys.loadError"),
     );
     // Switching locale must not re-run the mount effect — it would discard
     // an unsaved captured combo and resume global hotkeys mid-capture (see

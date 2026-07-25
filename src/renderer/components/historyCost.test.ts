@@ -69,23 +69,26 @@ describe("resolveCostDisplay", () => {
 });
 
 describe("formatCostLabel", () => {
-  const localeCases = [
-    { locale: "en" as const, na: "N/A" },
-    { locale: "ja" as const, na: "該当なし" },
-  ];
+  const localeCases = ["en" as const, "ja" as const];
 
   it.each(localeCases)(
-    "renders the translated N/A key in $locale",
-    ({ locale, na }) => {
+    "renders the translated N/A key in %s",
+    (locale) => {
       const t = createTranslator(locale);
       const { formatNumber } = createFormatters(locale);
       expect(
         formatCostLabel({ costStatus: "na", estimatedCostUsd: null }, t, formatNumber)
-      ).toBe(na);
+      ).toBe(t("history.cost.na"));
     }
   );
 
-  it.each(localeCases.map((c) => c.locale))(
+  it("renders different N/A wording per locale — not a coincidental match", () => {
+    expect(createTranslator("en")("history.cost.na")).not.toBe(
+      createTranslator("ja")("history.cost.na"),
+    );
+  });
+
+  it.each(localeCases)(
     "renders $0.00 for a genuine zero in %s",
     (locale) => {
       const t = createTranslator(locale);
@@ -96,7 +99,7 @@ describe("formatCostLabel", () => {
     }
   );
 
-  it.each(localeCases.map((c) => c.locale))(
+  it.each(localeCases)(
     "renders a two-decimal USD amount for a priced cost in %s",
     (locale) => {
       const t = createTranslator(locale);
@@ -107,7 +110,7 @@ describe("formatCostLabel", () => {
     }
   );
 
-  it.each(localeCases.map((c) => c.locale))(
+  it.each(localeCases)(
     "does not collapse a tiny sub-cent cost to $0.00 in %s",
     (locale) => {
       const t = createTranslator(locale);

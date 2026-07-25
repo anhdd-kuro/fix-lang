@@ -47,22 +47,37 @@ describe("showMoreMessage", () => {
 });
 
 describe("rendered strings (EN + JA)", () => {
+  const tEn = createTranslator("en");
+  const tJa = createTranslator("ja");
+
   it("barTooltipMessage", () => {
     const message = barTooltipMessage({ tokens: 12_345 }, "Jun 18");
-    expect(resolveMessage(message, createTranslator("en"))).toBe(
-      "Jun 18 — 12,345 tokens",
+    // Expected text is derived through the same key + params via the real
+    // kernel (not hand-interpolated) so a catalog reword of the template or
+    // the "tokens" wording doesn't spuriously break this test.
+    expect(resolveMessage(message, tEn)).toBe(
+      tEn("models.usage.barTooltip", { date: "Jun 18", tokens: 12_345 }),
     );
-    expect(resolveMessage(message, createTranslator("ja"))).toBe(
-      "Jun 18 — 12,345 トークン",
+    expect(resolveMessage(message, tJa)).toBe(
+      tJa("models.usage.barTooltip", { date: "Jun 18", tokens: 12_345 }),
     );
+    // The locale genuinely changes the wording — guards against a fallback
+    // that would otherwise pass both assertions above.
+    expect(resolveMessage(message, tJa)).not.toBe(resolveMessage(message, tEn));
   });
 
   it("showMoreMessage collapsed/expanded", () => {
     const collapsed = showMoreMessage(false, 3);
     const expanded = showMoreMessage(true, 3);
-    expect(resolveMessage(collapsed, createTranslator("en"))).toBe("Show 3 more");
-    expect(resolveMessage(collapsed, createTranslator("ja"))).toBe("他 3 件を表示");
-    expect(resolveMessage(expanded, createTranslator("en"))).toBe("Show less");
-    expect(resolveMessage(expanded, createTranslator("ja"))).toBe("表示を減らす");
+    expect(resolveMessage(collapsed, tEn)).toBe(
+      tEn("models.table.showMore", { count: 3 }),
+    );
+    expect(resolveMessage(collapsed, tJa)).toBe(
+      tJa("models.table.showMore", { count: 3 }),
+    );
+    expect(resolveMessage(expanded, tEn)).toBe(tEn("models.table.showLess"));
+    expect(resolveMessage(expanded, tJa)).toBe(tJa("models.table.showLess"));
+    expect(resolveMessage(collapsed, tJa)).not.toBe(resolveMessage(collapsed, tEn));
+    expect(resolveMessage(expanded, tJa)).not.toBe(resolveMessage(expanded, tEn));
   });
 });

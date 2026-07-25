@@ -2,8 +2,13 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { msg, type Message } from "~/shared/i18n/message";
+import { createTranslator } from "~/shared/i18n/translate";
 import { TrayToolbar } from "./TrayToolbar";
 import { I18nProvider } from "../../i18n/I18nProvider";
+
+// Expected copy is derived through the real translator kernel so a catalog
+// reword can't silently break this file.
+const tEn = createTranslator("en");
 
 type UpdatePhase =
   | "unsupported"
@@ -94,7 +99,7 @@ describe("TrayToolbar", () => {
 
   const checkForUpdatesButton = (): HTMLButtonElement => {
     const button = container.querySelector<HTMLButtonElement>(
-      '[aria-label="Check for updates"]',
+      `[aria-label="${tEn("tray.toolbar.checkForUpdates")}"]`,
     );
     if (!button) {
       throw new Error("Expected a 'Check for updates' button");
@@ -119,7 +124,9 @@ describe("TrayToolbar", () => {
     expect(api.checkForUpdates).toHaveBeenCalledTimes(1);
     expect(api.showMessageBox).toHaveBeenCalledTimes(1);
     const [options] = api.showMessageBox.mock.calls[0];
-    expect(options.message).toContain("FixLang is up to date (v1.2.3)");
+    expect(options.message).toContain(
+      tEn("tray.toolbar.updateCheck.upToDate", { version: "1.2.3" }),
+    );
     expect(api.openUpdateRelease).not.toHaveBeenCalled();
   });
 
@@ -139,9 +146,15 @@ describe("TrayToolbar", () => {
     expect(api.checkForUpdates).toHaveBeenCalledTimes(1);
     const [options] = api.showMessageBox.mock.calls[0];
     expect(options.message).toContain(
-      "Update available: v1.3.0 (installed v1.2.3)",
+      tEn("tray.toolbar.updateCheck.available", {
+        availableVersion: "1.3.0",
+        currentVersion: "1.2.3",
+      }),
     );
-    expect(options.buttons).toEqual(["View release", "Close"]);
+    expect(options.buttons).toEqual([
+      tEn("tray.toolbar.updateCheck.viewRelease"),
+      tEn("common.close"),
+    ]);
     expect(api.openUpdateRelease).toHaveBeenCalledTimes(1);
   });
 
@@ -173,7 +186,9 @@ describe("TrayToolbar", () => {
 
     const [options] = api.showMessageBox.mock.calls[0];
     expect(options.message).toBe(
-      "Update check failed. Could not check for updates. Try again later.",
+      tEn("tray.toolbar.updateCheck.failed", {
+        reason: tEn("settings.updates.checkErrorMessage"),
+      }),
     );
   });
 
@@ -192,9 +207,12 @@ describe("TrayToolbar", () => {
 
     const [options] = api.showMessageBox.mock.calls[0];
     expect(options.message).toBe(
-      "Update check failed. Homebrew does not have v1.3.0 yet — it still " +
-        "offers v1.2.5. The tap syncs shortly after each release; try again " +
-        "later, or update manually with the command below.",
+      tEn("tray.toolbar.updateCheck.failed", {
+        reason: tEn("settings.updates.tapBehindMessage", {
+          targetVersion: "1.3.0",
+          offeredVersion: "1.2.5",
+        }),
+      }),
     );
   });
 
@@ -215,8 +233,8 @@ describe("TrayToolbar", () => {
     await waitForUi();
 
     const [options] = api.showMessageBox.mock.calls[0];
-    expect(options.message).toContain("aren't available for this build");
-    expect(options.buttons).toEqual(["OK"]);
+    expect(options.message).toContain(tEn("tray.toolbar.updateCheck.unsupported"));
+    expect(options.buttons).toEqual([tEn("common.ok")]);
     expect(api.openUpdateRelease).not.toHaveBeenCalled();
   });
 
@@ -272,8 +290,12 @@ describe("TrayToolbar", () => {
 
     expect(api.showMessageBox).toHaveBeenCalledTimes(1);
     const [options] = api.showMessageBox.mock.calls[0];
-    expect(options.message).toBe("Update check failed. Please try again later.");
-    expect(options.buttons).toEqual(["OK"]);
+    expect(options.message).toBe(
+      tEn("tray.toolbar.updateCheck.failed", {
+        reason: tEn("tray.toolbar.updateCheck.genericFailure"),
+      }),
+    );
+    expect(options.buttons).toEqual([tEn("common.ok")]);
     expect(button.hasAttribute("disabled")).toBe(false);
   });
 });

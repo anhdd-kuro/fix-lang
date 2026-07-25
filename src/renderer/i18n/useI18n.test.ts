@@ -20,9 +20,16 @@
 import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createTranslator } from "~/shared/i18n/translate";
 import { I18nProvider } from "./I18nProvider";
 import { useI18n, type UseI18nResult } from "./useI18n";
 import type { Locale } from "~/shared/i18n/registry";
+
+// Expected text is derived through the real translator kernel (never
+// hand-replicated) so a catalog reword doesn't break this test, and so an
+// English-fallback regression in `tm` would still be caught.
+const tEn = createTranslator("en");
+const tJa = createTranslator("ja");
 
 const waitForUi = async () => {
   await act(async () => {
@@ -133,7 +140,7 @@ describe("useI18n — tm/tl referential stability", () => {
   it("resolves a Message through the locale active when tm is called, not when it was created", async () => {
     await render();
     const { tm } = snapshots[0];
-    expect(tm({ key: "common.loading" })).toBe("Loading…");
+    expect(tm({ key: "common.loading" })).toBe(tEn("common.loading"));
 
     await act(async () => {
       localeListener?.("ja");
@@ -141,6 +148,11 @@ describe("useI18n — tm/tl referential stability", () => {
     await waitForUi();
 
     const { tm: tmAfter } = snapshots[snapshots.length - 1];
-    expect(tmAfter({ key: "common.loading" })).not.toBe("Loading…");
+    // Prove the locale actually changed: the JA-derived text is returned,
+    // and it differs from the EN-derived text (guards against a silent
+    // English-fallback regression that would still pass a mere "not EN"
+    // check if `tm` returned some other, unrelated string).
+    expect(tmAfter({ key: "common.loading" })).toBe(tJa("common.loading"));
+    expect(tmAfter({ key: "common.loading" })).not.toBe(tEn("common.loading"));
   });
 });
