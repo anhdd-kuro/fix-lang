@@ -21,6 +21,7 @@ import {
   initializeDefaultProfile,
   apiStore,
   withoutProfileSecrets,
+  toExportableProfile,
   sanitizeImportedProfile,
 } from "~/stores/apiStore";
 import {
@@ -392,7 +393,12 @@ export const registerProfileHandlers = () => {
 
         return {
           success: true,
-          profileJson: JSON.stringify(withoutProfileSecrets(profile), null, 2),
+          // `toExportableProfile`, not `withoutProfileSecrets`: an export
+          // travels to another machine, where this one's cached models,
+          // enabledProviders and composite model refs are meaningless. The
+          // narrow helper stays in use at the disk writeback above, which must
+          // not strip model state.
+          profileJson: JSON.stringify(toExportableProfile(profile), null, 2),
         };
       } catch (error) {
         console.error("Failed to export profile:", error);

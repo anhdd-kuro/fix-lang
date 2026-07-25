@@ -82,6 +82,7 @@ const {
   getProfileByIdMock,
   initializeDefaultProfileMock,
   withoutProfileSecretsMock,
+  toExportableProfileMock,
   sanitizeImportedProfileMock,
 } = vi.hoisted(() => ({
   getProfilesMock: vi.fn(),
@@ -94,6 +95,7 @@ const {
   getProfileByIdMock: vi.fn(),
   initializeDefaultProfileMock: vi.fn(),
   withoutProfileSecretsMock: vi.fn((profile: unknown) => profile),
+  toExportableProfileMock: vi.fn((profile: unknown) => profile),
   sanitizeImportedProfileMock: vi.fn((profile: unknown) => profile),
 }));
 
@@ -109,6 +111,7 @@ vi.mock("~/stores/apiStore", () => ({
   initializeDefaultProfile: initializeDefaultProfileMock,
   apiStore: { get: vi.fn().mockReturnValue([]), set: vi.fn() },
   withoutProfileSecrets: withoutProfileSecretsMock,
+  toExportableProfile: toExportableProfileMock,
   sanitizeImportedProfile: sanitizeImportedProfileMock,
 }));
 
@@ -153,6 +156,36 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
     expect(en).toBe(tEn("common.error.profileNotFound"));
     expect(ja).toBe(tJa("common.error.profileNotFound"));
     expect(ja).not.toBe(en);
+  });
+
+  // The two strippers are NOT interchangeable and the difference is load
+  // bearing: `withoutProfileSecrets` is written back to disk during legacy
+  // secret migration, so widening it wipes an upgrading user's model cache.
+  // `toExportableProfile` additionally drops models/enabledProviders/refs,
+  // which is only correct for a file leaving this machine. These tests pin
+  // which one each path calls, via distinguishable return values — the
+  // stripping behaviour itself is pinned in apiStore.test.ts (D13).
+  it("export-profile serialises toExportableProfile, not the disk-writeback stripper", async () => {
+    getProfileByIdMock.mockReturnValue({ id: "profile_1", name: "Work" });
+    toExportableProfileMock.mockReturnValue({ id: "profile_1", strippedBy: "toExportableProfile" });
+    withoutProfileSecretsMock.mockReturnValue({
+      id: "profile_1",
+      strippedBy: "withoutProfileSecrets",
+    });
+
+    const handler = handlers.get("export-profile");
+    const result = (await handler?.(undefined, { profileId: "profile_1" })) as {
+      success: boolean;
+      profileJson?: string;
+    };
+
+    expect(result.success).toBe(true);
+    expect(JSON.parse(result.profileJson ?? "{}")).toEqual({
+      id: "profile_1",
+      strippedBy: "toExportableProfile",
+    });
+    expect(toExportableProfileMock).toHaveBeenCalledWith({ id: "profile_1", name: "Work" });
+    expect(withoutProfileSecretsMock).not.toHaveBeenCalled();
   });
 
   it("switch-to-next-profile: 'No profiles available' resolves to different EN/JA text via the catalog", async () => {
