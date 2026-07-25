@@ -1,6 +1,7 @@
 // Export all features
 export * from "./api";
 export * from "./correction";
+export * from "./correctionResult";
 export * from "./logs";
 export * from "./promptgen";
 export * from "./profiles";
@@ -9,3 +10,4 @@ export * from "./theme";
 export * from "./ui";
 export * from "./history";
 export * from "./openrouter";
+export * from "./update";

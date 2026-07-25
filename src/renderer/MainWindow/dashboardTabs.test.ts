@@ -24,13 +24,14 @@ const makeEntry = (overrides: Partial<HistoryEntry> = {}): HistoryEntry => ({
 });
 
 describe("DASHBOARD_TABS", () => {
-  it("exposes the five tabs in order Overview/History/Models/OpenRouter/Logs", () => {
+  it("exposes the six tabs in order Overview/History/Models/OpenRouter/Logs/About", () => {
     expect(DASHBOARD_TABS.map((t) => t.id)).toEqual([
       "overview",
       "history",
       "models",
       "openrouter",
       "logs",
+      "about",
     ]);
     expect(DASHBOARD_TABS.map((t) => t.label)).toEqual([
       "Overview",
@@ -38,6 +39,7 @@ describe("DASHBOARD_TABS", () => {
       "Models",
       "OpenRouter",
       "Logs",
+      "About",
     ]);
   });
 

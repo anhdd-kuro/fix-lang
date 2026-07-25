@@ -146,6 +146,15 @@ export const registerUiHandlers = () => {
     "open-external-link",
     async (_event: Electron.IpcMainInvokeEvent, url: string) => {
       try {
+        let parsed: URL;
+        try {
+          parsed = new URL(url);
+        } catch {
+          return { success: false, error: "Unsupported URL scheme" };
+        }
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          return { success: false, error: "Unsupported URL scheme" };
+        }
         await shell.openExternal(url);
         return { success: true };
       } catch (error) {

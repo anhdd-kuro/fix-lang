@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { PROVIDER_IDS } from "~/stores/apiStore";
+import type { CorrectionOutputMode } from "~/shared/outputMode";
 import type { Model, ProviderId } from "~/stores/apiStore";
 
 const PROVIDER_LABELS: Record<ProviderId, string> = {
@@ -9,13 +10,17 @@ const PROVIDER_LABELS: Record<ProviderId, string> = {
 };
 
 /**
- * General settings tab: staged provider setup (select provider, supply its
- * credentials, fetch its models, choose a default, then Apply). The previously
- * active provider stays in effect until Apply succeeds — nothing commits on
- * every keystroke or on Fetch.
+ * General settings tab: correction output mode plus staged provider setup
+ * (select provider, supply credentials, fetch models, choose a default, then
+ * Apply). The previously active provider stays in effect until Apply succeeds —
+ * nothing commits on every keystroke or on Fetch.
  */
 export const SettingGeneral: React.FC = () => {
   const [resetStatus, setResetStatus] = useState<string>("");
+  const [correctionOutputMode, setCorrectionOutputMode] =
+    useState<CorrectionOutputMode>("paste");
+  const [outputModeStatus, setOutputModeStatus] = useState<string>("");
+  const [savingOutputMode, setSavingOutputMode] = useState(false);
 
   // The provider currently staged for setup. Starts as the active provider so
   // opening General shows what is really in effect, not a stale default.
@@ -40,16 +45,15 @@ export const SettingGeneral: React.FC = () => {
   const [applyStatus, setApplyStatus] = useState<string>("");
   const [applyError, setApplyError] = useState<string>("");
 
-  // Load the real active provider once on mount.
-  useEffect(() => {
-    window.electronAPI
-      ?.getActiveProvider?.()
-      .then((provider) => {
-        if (provider) setStagedProvider(provider);
-      })
-      .catch((error) => {
-        console.error("SettingGeneral: Error reading active provider:", error);
-      });
+  const clearStagedSetupState = useCallback(() => {
+    setStagedModels([]);
+    setStagedModelId("");
+    setFetchStatus("");
+    setFetchError("");
+    setApplyStatus("");
+    setApplyError("");
+    setApiKeyInput("");
+    setProvisioningInput("");
   }, []);
 
   const refreshSecretStatus = useCallback((provider: ProviderId) => {
@@ -67,6 +71,43 @@ export const SettingGeneral: React.FC = () => {
       });
   }, []);
 
+  const reloadActiveProvider = useCallback(() => {
+    window.electronAPI
+      ?.getActiveProvider?.()
+      .then((provider) => {
+        if (provider) {
+          setStagedProvider(provider);
+        }
+      })
+      .catch((error) => {
+        console.error("SettingGeneral: Error reading active provider:", error);
+      });
+  }, []);
+
+  // Load active provider on mount; reload when the active profile changes so
+  // Apply never commits a previous profile's staged setup into the new one.
+  useEffect(() => {
+    reloadActiveProvider();
+    const offProfile = window.electronAPI?.onProfileUpdated?.(() => {
+      clearStagedSetupState();
+      reloadActiveProvider();
+    });
+    return () => {
+      offProfile?.();
+    };
+  }, [clearStagedSetupState, reloadActiveProvider]);
+
+  // Correction output mode is global — load once on mount.
+  useEffect(() => {
+    window.electronAPI
+      ?.getCorrectionOutputMode?.()
+      .then(setCorrectionOutputMode)
+      .catch((error) => {
+        console.error("SettingGeneral: Error loading output mode:", error);
+        setOutputModeStatus("Error loading correction output setting");
+      });
+  }, []);
+
   // On mount and on every provider change: refresh masked secret state and
   // reset the staged model list — a model fetched for one provider must never
   // be offered as the default for another.
@@ -77,15 +118,38 @@ export const SettingGeneral: React.FC = () => {
     // Staged credential inputs are cleared too so one provider's typed key
     // can never be submitted for a different provider.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setStagedModels([]);
-    setStagedModelId("");
-    setFetchStatus("");
-    setFetchError("");
-    setApplyStatus("");
-    setApplyError("");
-    setApiKeyInput("");
-    setProvisioningInput("");
-  }, [stagedProvider, refreshSecretStatus]);
+    clearStagedSetupState();
+  }, [stagedProvider, refreshSecretStatus, clearStagedSetupState]);
+
+  const handleOutputModeChange = async (mode: CorrectionOutputMode) => {
+    if (!window.electronAPI?.setCorrectionOutputMode) {
+      setOutputModeStatus("Error: Output setting is not available");
+      return;
+    }
+
+    const previousMode = correctionOutputMode;
+    setCorrectionOutputMode(mode);
+    setSavingOutputMode(true);
+    setOutputModeStatus("Saving...");
+
+    try {
+      const result = await window.electronAPI.setCorrectionOutputMode(mode);
+      if (!result.success) {
+        setCorrectionOutputMode(previousMode);
+        setOutputModeStatus(`Error: ${result.error || "Failed to save"}`);
+        return;
+      }
+      setCorrectionOutputMode(result.mode ?? mode);
+      setOutputModeStatus("Saved.");
+      setTimeout(() => setOutputModeStatus(""), 2000);
+    } catch (error) {
+      console.error("SettingGeneral: Error saving output mode:", error);
+      setCorrectionOutputMode(previousMode);
+      setOutputModeStatus("Error saving correction output setting");
+    } finally {
+      setSavingOutputMode(false);
+    }
+  };
 
   const handleFetchModels = async () => {
     if (!window.electronAPI?.fetchProviderModels) {
@@ -181,6 +245,8 @@ export const SettingGeneral: React.FC = () => {
       const result = await window.electronAPI.resetProfileSettings();
       if (result.success) {
         setResetStatus("Settings reset to defaults.");
+        clearStagedSetupState();
+        reloadActiveProvider();
         setTimeout(() => setResetStatus(""), 2500);
       } else {
         setResetStatus(`Error: ${result.error || "Failed to reset"}`);
@@ -193,6 +259,64 @@ export const SettingGeneral: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-4">
+      <section className="mb-4">
+        <h2 className="text-sm font-medium text-card-foreground">
+          Correction output
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Choose what FixLang does with the AI result after a correction hotkey
+          finishes.
+        </p>
+        <div
+          className="mt-3 grid grid-cols-2 gap-2"
+          role="radiogroup"
+          aria-label="Correction output"
+        >
+          <button
+            type="button"
+            role="radio"
+            aria-checked={correctionOutputMode === "paste"}
+            disabled={savingOutputMode}
+            onClick={() => void handleOutputModeChange("paste")}
+            className={`rounded border px-3 py-2 text-left transition-colors disabled:opacity-60 ${
+              correctionOutputMode === "paste"
+                ? "border-primary bg-primary/10"
+                : "border-border hover:bg-secondary"
+            }`}
+          >
+            <span className="block text-sm font-medium">Direct paste</span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              Replace the selected text.
+            </span>
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={correctionOutputMode === "popup"}
+            disabled={savingOutputMode}
+            onClick={() => void handleOutputModeChange("popup")}
+            className={`rounded border px-3 py-2 text-left transition-colors disabled:opacity-60 ${
+              correctionOutputMode === "popup"
+                ? "border-primary bg-primary/10"
+                : "border-border hover:bg-secondary"
+            }`}
+          >
+            <span className="block text-sm font-medium">Show popup</span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              Show the result without changing the source.
+            </span>
+          </button>
+        </div>
+        {outputModeStatus && (
+          <p
+            className={`mt-1 text-xs ${outputModeStatus.startsWith("Error") ? "text-destructive" : "text-success"}`}
+            role="status"
+          >
+            {outputModeStatus}
+          </p>
+        )}
+      </section>
+
       {/* Provider selection — the only provider control in the whole app. */}
       <div className="mb-2">
         <label

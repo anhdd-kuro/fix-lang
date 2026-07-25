@@ -2,6 +2,12 @@ import type { LogEntry, LogLevel } from "~/shared/logging";
 
 export type LogLevelFilter = LogLevel | "all";
 
+/** Stable virtual-row identity; indexes change whenever live entries prepend. */
+export const logRowKey = (
+  entries: readonly LogEntry[],
+  index: number,
+): string | number => entries[index]?.id ?? index;
+
 /** Applies dashboard level and case-insensitive text filters. */
 export const filterLogs = (
   entries: readonly LogEntry[],

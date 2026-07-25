@@ -11,6 +11,7 @@ import {
   LOG_QUERY_PAGE_SIZE,
   logEntryMatchesSearch,
 } from "~/shared/logging";
+import { logRowKey } from "./logsView";
 import type { LogLevelFilter } from "./logsView";
 import type { LogEntry, LogLevel } from "~/shared/logging";
 
@@ -150,9 +151,15 @@ export const LogsPanel = () => {
     return removeListener;
   }, [debouncedSearch, level]);
 
+  const getLogRowKey = useCallback(
+    (index: number) => logRowKey(logs, index),
+    [logs],
+  );
+
   const virtualizer = useVirtualizer({
     count: logs.length,
     getScrollElement: () => listRef.current,
+    getItemKey: getLogRowKey,
     estimateSize: () => ROW_ESTIMATE_PX,
     overscan: 12,
   });
@@ -346,13 +353,13 @@ export const LogsPanel = () => {
                     >
                       {entry.level}
                     </span>
-                    <span className="min-w-0 wrap-break-word text-foreground">
+                    <span className="min-w-0 break-words [overflow-wrap:anywhere] text-foreground">
                       <span className="text-muted-foreground">
                         [{entry.scope}]
                       </span>{" "}
                       {entry.message}
                       {entry.context ? (
-                        <span className="ml-2 text-muted-foreground">
+                        <span className="ml-2 break-words [overflow-wrap:anywhere] text-muted-foreground">
                           {JSON.stringify(entry.context)}
                         </span>
                       ) : null}
