@@ -17,6 +17,7 @@
   "logs.panel.footer.loadingMore_other": "Showing {count} entries · loading older…",
   "logs.panel.footer.moreAvailable_one": "Showing {count} entry · scroll for older",
   "logs.panel.footer.moreAvailable_other": "Showing {count} entries · scroll for older",
+  "logs.panel.footer.timezone": "times in {zone}",
   "logs.panel.level.all": "All levels",
   "logs.panel.level.debug": "Debug",
   "logs.panel.level.error": "Error",

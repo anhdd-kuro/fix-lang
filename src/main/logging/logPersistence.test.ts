@@ -64,4 +64,44 @@ describe("queryPersistedLogs", () => {
     const all = await readAllPersistedLogs(root);
     expect(all.map((entry) => entry.id)).toEqual(["a1", "a2", "b1", "b2"]);
   });
+
+  it("keeps every selected severity and treats an empty selection as all", async () => {
+    root = await mkdtemp(path.join(os.tmpdir(), "fixlang-logs-levels-"));
+    const day = path.join(root, "2026-07-21");
+    await mkdir(day, { recursive: true });
+    await writeFile(
+      path.join(day, "fixlang.jsonl"),
+      [
+        serializeLogJsonLine(makeEntry("d", "2026-07-21T10:00:00.000Z", "debug")),
+        serializeLogJsonLine(makeEntry("i", "2026-07-21T11:00:00.000Z", "info")),
+        serializeLogJsonLine(makeEntry("w", "2026-07-21T12:00:00.000Z", "warn")),
+        serializeLogJsonLine(makeEntry("e", "2026-07-21T13:00:00.000Z", "error")),
+      ].join("\n"),
+      "utf8",
+    );
+
+    const warnAndError = await queryPersistedLogs(root, {
+      levels: ["warn", "error"],
+    });
+    expect(warnAndError.entries.map((entry) => entry.id)).toEqual(["e", "w"]);
+
+    const empty = await queryPersistedLogs(root, { levels: [] });
+    expect(empty.entries.map((entry) => entry.id)).toEqual([
+      "e",
+      "w",
+      "i",
+      "d",
+    ]);
+
+    // A full selection normalizes to the same "no filter" shape as `[]`.
+    const everyLevel = await queryPersistedLogs(root, {
+      levels: ["debug", "info", "warn", "error"],
+    });
+    expect(everyLevel.entries.map((entry) => entry.id)).toEqual([
+      "e",
+      "w",
+      "i",
+      "d",
+    ]);
+  });
 });

@@ -29,7 +29,7 @@ Five tabs, opened from the menu-bar tray or after a transform:
 | **History** | Transform + PromptGen history with cost tracking; last-action preview |
 | **Models** | Provider model discovery, compatibility, and monitoring |
 | **OpenRouter** | OpenRouter-specific model and routing controls |
-| **Logs** | Structured, redacted app events — filter by level, search, copy/export as `.txt` |
+| **Logs** | Structured, redacted app events — multi-select level filter, search, copy/export as `.txt` |
 
 Overview and Models share a time-range filter (All / 30d / 7d).
 
@@ -38,6 +38,7 @@ Overview and Models share a time-range filter (All / 30d / 7d).
 - `src/shared/logging.ts` + `src/main/logging/logService.ts` — structured logs with API-key and clipboard redaction
 - Persisted to `userData/logs/{YYYY-MM-DD}/fixlang.jsonl` (one folder per local day)
 - Logs tab reloads from disk with virtual infinite scroll (`@tanstack/react-virtual`)
+- Any subset of levels can be checked at once (no selection = all levels); the row timestamps omit the UTC offset because the footer states the zone once
 - Errors use a native macOS notification when available; if macOS rejects it, FixLang shows a brief in-app popup near the cursor instead.
 
 ### Appearance

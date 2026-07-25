@@ -1,6 +1,14 @@
 /** Supported structured-log severities, ordered from least to most severe. */
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
+/** Every severity in severity order — display order for the dashboard filter. */
+export const LOG_LEVEL_ORDER: readonly LogLevel[] = [
+  "debug",
+  "info",
+  "warn",
+  "error",
+];
+
 /** JSON-safe values accepted as structured log metadata. */
 export type LogValue =
   string | number | boolean | null | LogValue[] | { [key: string]: LogValue };
@@ -107,7 +115,11 @@ export type LogQueryRequest = {
   /** Exclusive upper bound — return entries strictly older than this ISO time. */
   beforeTimestamp?: string;
   limit?: number;
-  level?: LogLevel | "all";
+  /**
+   * Severities to include. Omitted, empty, or "every level selected" all mean
+   * the same thing: no level filtering (see `normalizeLogLevels`).
+   */
+  levels?: readonly LogLevel[];
   search?: string;
 };
 
@@ -119,7 +131,31 @@ export type LogQueryResult = {
   hasMore: boolean;
 };
 
-const LOG_LEVELS = new Set<LogLevel>(["debug", "info", "warn", "error"]);
+const LOG_LEVELS = new Set<LogLevel>(LOG_LEVEL_ORDER);
+
+/** Type guard for one severity token (used at every untrusted boundary). */
+export const isLogLevel = (value: unknown): value is LogLevel =>
+  typeof value === "string" && LOG_LEVELS.has(value as LogLevel);
+
+/**
+ * Canonicalizes an untrusted level selection: keeps only known severities, in
+ * severity order, and collapses a full selection to `[]`. Both `[]` and "all
+ * four checked" mean "no level filter", so downstream code has exactly one
+ * shape to reason about.
+ */
+export const normalizeLogLevels = (value: unknown): LogLevel[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const selected = LOG_LEVEL_ORDER.filter((level) => value.includes(level));
+  return selected.length === LOG_LEVEL_ORDER.length ? [] : selected;
+};
+
+/** Level gate shared by the disk query, the live IPC push, and the dashboard. */
+export const logEntryMatchesLevels = (
+  entry: LogEntry,
+  levels: readonly LogLevel[],
+): boolean => levels.length === 0 || levels.includes(entry.level);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -149,8 +185,7 @@ export const isLogEntry = (value: unknown): value is LogEntry =>
   isRecord(value) &&
   typeof value.id === "string" &&
   typeof value.timestamp === "string" &&
-  typeof value.level === "string" &&
-  LOG_LEVELS.has(value.level as LogLevel) &&
+  isLogLevel(value.level) &&
   typeof value.scope === "string" &&
   typeof value.message === "string" &&
   (value.context === undefined || isLogContext(value.context));

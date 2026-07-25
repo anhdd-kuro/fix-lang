@@ -3,8 +3,8 @@ import path from "node:path";
 import { app, BrowserWindow, clipboard, dialog, ipcMain } from "electron";
 import { mainT } from "~/main/i18n";
 import { logService, logger } from "~/main/logging/logService";
-import { LOG_QUERY_PAGE_SIZE } from "~/shared/logging";
-import type { LogLevel, LogQueryRequest } from "~/shared/logging";
+import { LOG_QUERY_PAGE_SIZE, normalizeLogLevels } from "~/shared/logging";
+import type { LogQueryRequest } from "~/shared/logging";
 
 const MAX_RECENT_LOGS = 500;
 
@@ -14,13 +14,6 @@ const normalizeLimit = (value: unknown): number => {
   }
   return Math.max(0, Math.min(MAX_RECENT_LOGS, Math.floor(value)));
 };
-
-const isLogLevelOrAll = (value: unknown): value is LogLevel | "all" =>
-  value === "all" ||
-  value === "debug" ||
-  value === "info" ||
-  value === "warn" ||
-  value === "error";
 
 const normalizeQueryRequest = (value: unknown): LogQueryRequest => {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -39,8 +32,9 @@ const normalizeQueryRequest = (value: unknown): LogQueryRequest => {
   ) {
     request.beforeTimestamp = record.beforeTimestamp;
   }
-  if (isLogLevelOrAll(record.level)) {
-    request.level = record.level;
+  const levels = normalizeLogLevels(record.levels);
+  if (levels.length > 0) {
+    request.levels = levels;
   }
   if (typeof record.search === "string") {
     request.search = record.search;

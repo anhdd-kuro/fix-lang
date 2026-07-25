@@ -6,8 +6,10 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import {
+  logEntryMatchesLevels,
   logEntryMatchesSearch,
   LOG_QUERY_PAGE_SIZE,
+  normalizeLogLevels,
   parseLogJsonLine,
 } from "~/shared/logging";
 import type {
@@ -62,7 +64,7 @@ const normalizeQuery = (
 ): {
   beforeTimestamp: string | undefined;
   limit: number;
-  level: LogLevel | "all";
+  levels: LogLevel[];
   search: string;
 } => {
   const limitRaw = request.limit;
@@ -70,7 +72,6 @@ const normalizeQuery = (
     typeof limitRaw === "number" && Number.isFinite(limitRaw)
       ? Math.max(1, Math.min(500, Math.floor(limitRaw)))
       : LOG_QUERY_PAGE_SIZE;
-  const level = request.level ?? "all";
   return {
     beforeTimestamp:
       typeof request.beforeTimestamp === "string" &&
@@ -78,16 +79,14 @@ const normalizeQuery = (
         ? request.beforeTimestamp
         : undefined,
     limit,
-    level: level === "all" || level === "debug" || level === "info" || level === "warn" || level === "error"
-      ? level
-      : "all",
+    levels: normalizeLogLevels(request.levels),
     search: typeof request.search === "string" ? request.search : "",
   };
 };
 
 const matchesFilters = (
   entry: LogEntry,
-  level: LogLevel | "all",
+  levels: readonly LogLevel[],
   search: string,
   beforeTimestamp: string | undefined,
 ): boolean => {
@@ -97,7 +96,7 @@ const matchesFilters = (
   ) {
     return false;
   }
-  if (level !== "all" && entry.level !== level) {
+  if (!logEntryMatchesLevels(entry, levels)) {
     return false;
   }
   return logEntryMatchesSearch(entry, search);
@@ -111,7 +110,7 @@ export const queryPersistedLogs = async (
   logsDirectory: string,
   request: LogQueryRequest = {},
 ): Promise<LogQueryResult> => {
-  const { beforeTimestamp, limit, level, search } = normalizeQuery(request);
+  const { beforeTimestamp, limit, levels, search } = normalizeQuery(request);
   const days = await listDayFoldersNewestFirst(logsDirectory);
   const collected: LogEntry[] = [];
   let scannedPastPage = false;
@@ -124,7 +123,7 @@ export const queryPersistedLogs = async (
       if (entry === undefined) {
         continue;
       }
-      if (!matchesFilters(entry, level, search, beforeTimestamp)) {
+      if (!matchesFilters(entry, levels, search, beforeTimestamp)) {
         continue;
       }
       if (collected.length >= limit) {
