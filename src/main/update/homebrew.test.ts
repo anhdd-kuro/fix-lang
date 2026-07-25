@@ -3,6 +3,7 @@ import {
   BREW_BINARY_CANDIDATES,
   buildUpgradeScript,
   caskroomPath,
+  caskVersionPath,
   createHomebrewUpgrader,
   findBrewBinary,
   parseCaskVersion,
@@ -197,6 +198,28 @@ describe("Homebrew upgrader", () => {
     await expect(instance.getInstallableVersion()).resolves.toBeNull();
     expect(runBrew).not.toHaveBeenCalled();
   });
+
+  it("sees a version Homebrew already staged in the Caskroom", () => {
+    const { instance } = upgrader({
+      directories: [
+        "/opt/homebrew/Caskroom/fixlang",
+        "/opt/homebrew/Caskroom/fixlang/0.4.0",
+      ],
+    });
+
+    expect(instance.isVersionInstalled("0.4.0")).toBe(true);
+    expect(instance.isVersionInstalled("0.3.7")).toBe(false);
+  });
+
+  it.each(["../../../etc", "0.4.0/../..", "", "a/b", "0.4.0 "])(
+    "never lets a version string escape the Caskroom: %s",
+    (version) => {
+      const { instance } = upgrader();
+
+      expect(instance.isVersionInstalled(version)).toBe(false);
+      expect(caskVersionPath("/opt/homebrew/bin/brew", version)).toBeNull();
+    },
+  );
 
   it("refuses to run anything when the install is not cask-managed", () => {
     const { instance, startDetached } = upgrader({ directories: [] });

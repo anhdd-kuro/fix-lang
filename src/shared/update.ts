@@ -8,6 +8,7 @@ export type UpdatePhase =
   | "up-to-date"
   | "available"
   | "installing"
+  | "restart-required"
   | "error";
 
 /**
@@ -55,6 +56,7 @@ const PHASES = new Set<UpdatePhase>([
   "up-to-date",
   "available",
   "installing",
+  "restart-required",
   "error",
 ]);
 

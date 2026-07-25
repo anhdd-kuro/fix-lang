@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { msg } from "~/shared/i18n/message";
+import { UPGRADE_GRACE_MS } from "./pendingInstall";
 import { createUpdateService } from "./updateService";
+
+/** Fixed clock so marker ages are exact rather than wall-clock dependent. */
+const NOW = 1_700_000_000_000;
 
 const stableRelease = (
   tagName = "v0.2.0",
@@ -32,7 +36,14 @@ const createService = (
     startUpgrade: () => void;
     /** Version the tap can install; null models a brew that cannot be asked. */
     installableVersion: string | null;
-    pending: { fromVersion: string; toVersion: string } | null;
+    /** Versions already staged in the Caskroom. */
+    installedVersions: readonly string[];
+    pending: {
+      fromVersion: string;
+      toVersion: string;
+      startedAt: number;
+    } | null;
+    now: () => number;
     getLatestRelease: () => Promise<unknown>;
     onLog: (level: "info" | "warn" | "error", message: string) => void;
   }> = {},
@@ -53,12 +64,20 @@ const createService = (
         : overrides.installableVersion,
     ),
   );
+  const installedVersions = new Set(overrides.installedVersions ?? []);
+  const isVersionInstalled = vi.fn((version: string) =>
+    installedVersions.has(version),
+  );
   const pendingInstall = {
     read: vi.fn(() => overrides.pending ?? null),
     write: vi.fn(),
     clear: vi.fn(),
   };
   const quitApp = vi.fn();
+  const relaunchApp = vi.fn();
+  // Collected instead of timed: tests drive the poll by hand.
+  const polls: (() => void)[] = [];
+  const cancelPoll = vi.fn();
   const service = createUpdateService({
     releaseSource,
     isPackaged: overrides.isPackaged ?? true,
@@ -68,11 +87,18 @@ const createService = (
     upgrader: {
       canInstall: overrides.canInstall ?? false,
       getInstallableVersion,
+      isVersionInstalled,
       startUpgrade,
     },
     pendingInstall,
     quitApp,
+    relaunchApp,
     onLog: overrides.onLog,
+    now: overrides.now ?? (() => NOW),
+    schedulePoll: (run) => {
+      polls.push(run);
+      return cancelPoll;
+    },
   });
 
   return {
@@ -80,8 +106,16 @@ const createService = (
     releaseSource,
     startUpgrade,
     getInstallableVersion,
+    isVersionInstalled,
+    installedVersions,
     pendingInstall,
     quitApp,
+    relaunchApp,
+    cancelPoll,
+    /** Runs every scheduled poll once, as the real interval would. */
+    tickPoll: () => {
+      for (const run of [...polls]) run();
+    },
   };
 };
 
@@ -291,6 +325,7 @@ describe("Homebrew one-click install", () => {
     expect(pendingInstall.write).toHaveBeenCalledWith({
       fromVersion: "0.1.0",
       toVersion: "0.2.0",
+      startedAt: NOW,
     });
     expect(quitApp).toHaveBeenCalledTimes(1);
     expect(service.getState()).toMatchObject({
@@ -490,11 +525,19 @@ describe("Homebrew tap lag", () => {
 });
 
 describe("pending Homebrew update reconciliation", () => {
+  const STALE = NOW - UPGRADE_GRACE_MS;
+  const FRESH = NOW - 10_000;
+  const marker = (startedAt: number) => ({
+    fromVersion: "0.1.0",
+    toVersion: "0.2.0",
+    startedAt,
+  });
+
   it("reports a completed upgrade on the next launch", () => {
     const { service, pendingInstall } = createService({
       canInstall: true,
       currentVersion: "0.2.0",
-      pending: { fromVersion: "0.1.0", toVersion: "0.2.0" },
+      pending: marker(FRESH),
     });
 
     expect(service.getState()).toMatchObject({
@@ -508,14 +551,14 @@ describe("pending Homebrew update reconciliation", () => {
     const { service, pendingInstall } = createService({
       canInstall: true,
       currentVersion: "0.1.0",
-      pending: { fromVersion: "0.1.0", toVersion: "0.2.0" },
+      pending: marker(STALE),
     });
 
     expect(service.getState()).toMatchObject({
       phase: "error",
       message: msg("settings.updates.installIncompleteMessage"),
     });
-    expect(pendingInstall.clear).toHaveBeenCalledTimes(1);
+    expect(pendingInstall.clear).toHaveBeenCalled();
   });
 
   it("stays idle when nothing was pending", () => {
@@ -528,10 +571,152 @@ describe("pending Homebrew update reconciliation", () => {
   it("ignores a marker left behind for an unsupported build", () => {
     const { service, pendingInstall } = createService({
       isPackaged: false,
-      pending: { fromVersion: "0.1.0", toVersion: "0.2.0" },
+      pending: marker(FRESH),
     });
 
     expect(service.getState().phase).toBe("unsupported");
     expect(pendingInstall.read).not.toHaveBeenCalled();
   });
+});
+
+/**
+ * The app quits in under a second while Homebrew keeps working for minutes.
+ * Reopening FixLang in that window used to be reported as a failed upgrade,
+ * which cleared the marker and re-armed a button whose second click collided
+ * with the running helper's download lock.
+ */
+describe("reopening during a background upgrade", () => {
+  const inFlight = {
+    fromVersion: "0.1.0",
+    toVersion: "0.2.0",
+    startedAt: NOW - 10_000,
+  };
+
+  it("says the upgrade is still running instead of calling it failed", () => {
+    const { service, pendingInstall } = createService({
+      canInstall: true,
+      currentVersion: "0.1.0",
+      pending: inFlight,
+    });
+
+    expect(service.getState()).toMatchObject({
+      phase: "installing",
+      availableVersion: "0.2.0",
+      message: msg("settings.updates.backgroundInstallMessage", {
+        targetVersion: "0.2.0",
+      }),
+    });
+    // Clearing it would throw away the only record of this upgrade.
+    expect(pendingInstall.clear).not.toHaveBeenCalled();
+  });
+
+  it("refuses a second upgrade that would collide with the running helper", async () => {
+    const { service, startUpgrade, quitApp } = createService({
+      canInstall: true,
+      currentVersion: "0.1.0",
+      pending: inFlight,
+    });
+
+    await service.checkForUpdates();
+    await service.installUpdate();
+
+    expect(startUpgrade).not.toHaveBeenCalled();
+    expect(quitApp).not.toHaveBeenCalled();
+    expect(service.getState().phase).toBe("installing");
+  });
+
+  it("asks for a restart when the helper finished before this launch", () => {
+    const { service, pendingInstall } = createService({
+      canInstall: true,
+      currentVersion: "0.1.0",
+      pending: inFlight,
+      installedVersions: ["0.2.0"],
+    });
+
+    expect(service.getState()).toMatchObject({
+      phase: "restart-required",
+      availableVersion: "0.2.0",
+      message: msg("settings.updates.restartRequiredMessage", {
+        targetVersion: "0.2.0",
+      }),
+    });
+    expect(pendingInstall.clear).toHaveBeenCalledTimes(1);
+  });
+
+  it("notices the upgrade landing while the app stays open", () => {
+    const { service, pendingInstall, installedVersions, tickPoll, cancelPoll } =
+      createService({
+        canInstall: true,
+        currentVersion: "0.1.0",
+        pending: inFlight,
+      });
+
+    tickPoll();
+    expect(service.getState().phase).toBe("installing");
+
+    installedVersions.add("0.2.0");
+    tickPoll();
+
+    expect(service.getState()).toMatchObject({
+      phase: "restart-required",
+      message: msg("settings.updates.restartRequiredMessage", {
+        targetVersion: "0.2.0",
+      }),
+    });
+    expect(pendingInstall.clear).toHaveBeenCalledTimes(1);
+    expect(cancelPoll).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives up once the grace window closes with nothing installed", () => {
+    let clock = NOW;
+    const { service, pendingInstall, tickPoll, cancelPoll } = createService({
+      canInstall: true,
+      currentVersion: "0.1.0",
+      pending: inFlight,
+      now: () => clock,
+    });
+
+    clock = NOW + UPGRADE_GRACE_MS;
+    tickPoll();
+
+    expect(service.getState()).toMatchObject({
+      phase: "error",
+      message: msg("settings.updates.installIncompleteMessage"),
+    });
+    expect(pendingInstall.clear).toHaveBeenCalledTimes(1);
+    expect(cancelPoll).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * `open -b` cannot replace a running app — LaunchServices just focuses it — so
+ * the helper's own reopen leaves a user who reopened FixLang early stuck on
+ * the old binary. Re-executing the bundle is the only way out.
+ */
+describe("restarting into an installed update", () => {
+  it("re-executes the bundle Homebrew already replaced", () => {
+    const { service, relaunchApp } = createService({
+      canInstall: true,
+      currentVersion: "0.1.0",
+      pending: { fromVersion: "0.1.0", toVersion: "0.2.0", startedAt: NOW },
+      installedVersions: ["0.2.0"],
+    });
+
+    expect(service.restartForUpdate()).toEqual({ success: true });
+    expect(relaunchApp).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["idle", "available"] as const)(
+    "never restarts from an unrelated phase: %s",
+    async (phase) => {
+      const { service, relaunchApp } = createService({ canInstall: true });
+      if (phase === "available") await service.checkForUpdates();
+
+      expect(service.restartForUpdate()).toEqual({
+        success: false,
+        error: msg("settings.updates.restartErrorMessage"),
+      });
+      expect(relaunchApp).not.toHaveBeenCalled();
+    },
+  );
 });

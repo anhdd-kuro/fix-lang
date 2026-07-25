@@ -4,6 +4,7 @@ import type { UpdateService } from "~/main/update";
 import type {
   InstallUpdateResult,
   OpenUpdateReleaseResult,
+  UpdateActionResult,
   UpdateState,
 } from "~/shared/update";
 
@@ -29,6 +30,12 @@ export const registerUpdateHandlers = (service: UpdateService): void => {
   ipcMain.handle(
     "updates:install",
     (): Promise<InstallUpdateResult> => service.installUpdate(),
+  );
+  // Also input-free, and the service refuses unless it is already in
+  // `restart-required` — a renderer message cannot restart the app at will.
+  ipcMain.handle(
+    "updates:restart",
+    (): UpdateActionResult => service.restartForUpdate(),
   );
   ipcMain.handle("updates:open-release", async () => {
     try {

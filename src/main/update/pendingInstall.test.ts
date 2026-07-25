@@ -6,6 +6,7 @@ import {
   createPendingInstallStore,
   parsePendingInstall,
   reconcilePendingInstall,
+  UPGRADE_GRACE_MS,
 } from "./pendingInstall";
 
 const temporaryDirectories: string[] = [];
@@ -29,9 +30,13 @@ describe("pending install marker", () => {
   it("round-trips the recorded versions", () => {
     const store = createPendingInstallStore(markerPath());
 
-    store.write({ fromVersion: "0.3.2", toVersion: "0.3.3" });
+    store.write({ fromVersion: "0.3.2", toVersion: "0.3.3", startedAt: 1_000 });
 
-    expect(store.read()).toEqual({ fromVersion: "0.3.2", toVersion: "0.3.3" });
+    expect(store.read()).toEqual({
+      fromVersion: "0.3.2",
+      toVersion: "0.3.3",
+      startedAt: 1_000,
+    });
   });
 
   it("reads nothing when no update is pending", () => {
@@ -40,7 +45,7 @@ describe("pending install marker", () => {
 
   it("clears the marker without failing on a missing file", () => {
     const store = createPendingInstallStore(markerPath());
-    store.write({ fromVersion: "0.3.2", toVersion: "0.3.3" });
+    store.write({ fromVersion: "0.3.2", toVersion: "0.3.3", startedAt: 1_000 });
 
     store.clear();
     store.clear();
@@ -51,7 +56,7 @@ describe("pending install marker", () => {
   it("ignores a corrupt marker instead of breaking startup", () => {
     const filePath = markerPath();
     const store = createPendingInstallStore(filePath);
-    store.write({ fromVersion: "0.3.2", toVersion: "0.3.3" });
+    store.write({ fromVersion: "0.3.2", toVersion: "0.3.3", startedAt: 1_000 });
     writeFileSync(filePath, "{ not json", "utf8");
 
     expect(store.read()).toBeNull();
@@ -62,6 +67,7 @@ describe("pending install marker", () => {
     createPendingInstallStore(filePath).write({
       fromVersion: "0.3.2",
       toVersion: "0.3.3",
+      startedAt: 1_000,
     });
 
     expect(readFileSync(filePath, "utf8").endsWith("}\n")).toBe(true);
@@ -80,25 +86,90 @@ describe("pending install marker", () => {
 });
 
 describe("pending install reconciliation", () => {
+  const STARTED_AT = 1_000_000;
+  const marker = {
+    fromVersion: "0.3.2",
+    toVersion: "0.3.3",
+    startedAt: STARTED_AT,
+  };
+  const context = (
+    overrides: Partial<{ now: number; isTargetInstalled: boolean }> = {},
+  ) => ({
+    now: overrides.now ?? STARTED_AT + 1_000,
+    isTargetInstalled: overrides.isTargetInstalled ?? false,
+  });
+
   it("reports nothing when no update was started", () => {
-    expect(reconcilePendingInstall(null, "0.3.2")).toBe("none");
+    expect(reconcilePendingInstall(null, "0.3.2", context())).toBe("none");
   });
 
   it("reports success once the version actually changed", () => {
-    expect(
-      reconcilePendingInstall(
-        { fromVersion: "0.3.2", toVersion: "0.3.3" },
-        "0.3.3",
-      ),
-    ).toBe("installed");
+    expect(reconcilePendingInstall(marker, "0.3.3", context())).toBe(
+      "installed",
+    );
   });
 
-  it("reports failure when Homebrew left the old bundle in place", () => {
+  it("keeps waiting when the helper is still inside the grace window", () => {
     expect(
       reconcilePendingInstall(
-        { fromVersion: "0.3.2", toVersion: "0.3.3" },
+        marker,
         "0.3.2",
+        context({ now: STARTED_AT + UPGRADE_GRACE_MS - 1 }),
+      ),
+    ).toBe("in-progress");
+  });
+
+  it("asks for a restart once Homebrew staged the new version", () => {
+    expect(
+      reconcilePendingInstall(
+        marker,
+        "0.3.2",
+        context({ isTargetInstalled: true }),
+      ),
+    ).toBe("restart-required");
+  });
+
+  it("prefers the installed result over an expired grace window", () => {
+    expect(
+      reconcilePendingInstall(marker, "0.3.2", {
+        now: STARTED_AT + UPGRADE_GRACE_MS * 10,
+        isTargetInstalled: true,
+      }),
+    ).toBe("restart-required");
+  });
+
+  it("reports failure once the grace window closes with nothing installed", () => {
+    expect(
+      reconcilePendingInstall(
+        marker,
+        "0.3.2",
+        context({ now: STARTED_AT + UPGRADE_GRACE_MS }),
       ),
     ).toBe("failed");
   });
+
+  it("treats a marker with no timestamp as long expired", () => {
+    expect(
+      reconcilePendingInstall(
+        { fromVersion: "0.3.2", toVersion: "0.3.3", startedAt: 0 },
+        "0.3.2",
+        context({ now: UPGRADE_GRACE_MS }),
+      ),
+    ).toBe("failed");
+  });
+
+  it.each([undefined, -1, 1.5, "1000", Number.MAX_VALUE])(
+    "reads an unusable startedAt as 0 rather than trusting it: %s",
+    (startedAt) => {
+      expect(
+        parsePendingInstall(
+          JSON.stringify({
+            fromVersion: "0.3.2",
+            toVersion: "0.3.3",
+            startedAt,
+          }),
+        ),
+      ).toEqual({ fromVersion: "0.3.2", toVersion: "0.3.3", startedAt: 0 });
+    },
+  );
 });

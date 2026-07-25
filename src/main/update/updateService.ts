@@ -1,13 +1,22 @@
 import { msg, type Message } from "~/shared/i18n/message";
-import { reconcilePendingInstall, type PendingInstallStore } from "./pendingInstall";
+import {
+  reconcilePendingInstall,
+  UPGRADE_GRACE_MS,
+  type PendingInstallStore,
+} from "./pendingInstall";
 import type { GitHubReleaseSource } from "./githubReleaseSource";
 import type { HomebrewUpgrader } from "./homebrew";
-import type { InstallUpdateResult, UpdateState } from "~/shared/update";
+import type {
+  InstallUpdateResult,
+  UpdateActionResult,
+  UpdateState,
+} from "~/shared/update";
 
 export type UpdateService = {
   getState: () => UpdateState;
   checkForUpdates: () => Promise<void>;
   installUpdate: () => Promise<InstallUpdateResult>;
+  restartForUpdate: () => UpdateActionResult;
   getReleaseUrl: () => string | null;
   subscribe: (listener: (state: UpdateState) => void) => () => void;
 };
@@ -23,7 +32,13 @@ type UpdateServiceOptions = {
   pendingInstall?: PendingInstallStore;
   /** Called after the detached helper starts, so it can replace the bundle. */
   quitApp?: () => void;
+  /** Re-executes the (already replaced) bundle so the new version runs. */
+  relaunchApp?: () => void;
   onLog?: (level: "info" | "warn" | "error", message: string) => void;
+  /** Injectable clock so marker ages are testable. */
+  now?: () => number;
+  /** Injectable repeating timer; returns its own cancel function. */
+  schedulePoll?: (run: () => void, intervalMs: number) => () => void;
 };
 
 type StableVersion = Readonly<{
@@ -49,6 +64,35 @@ const INSTALL_ERROR_MESSAGE: Message = msg("settings.updates.installErrorMessage
 const INSTALL_INCOMPLETE_MESSAGE: Message = msg(
   "settings.updates.installIncompleteMessage",
 );
+const RESTART_ERROR_MESSAGE: Message = msg("settings.updates.restartErrorMessage");
+
+/** How often a background upgrade is re-checked while the app is reopened. */
+const UPGRADE_POLL_INTERVAL_MS = 15_000;
+
+/**
+ * Homebrew is still working and this app was reopened before it finished. Not
+ * an error — saying so is the whole point.
+ */
+const backgroundInstallMessage = (target: string): Message =>
+  msg("settings.updates.backgroundInstallMessage", { targetVersion: target });
+
+/**
+ * The bundle on disk is already the new version; only this process is stale.
+ * The helper's closing `open -b` cannot fix that — it just focuses the running
+ * app — so the user is offered an explicit restart instead.
+ */
+const restartRequiredMessage = (target: string): Message =>
+  msg("settings.updates.restartRequiredMessage", { targetVersion: target });
+
+const defaultSchedulePoll = (
+  run: () => void,
+  intervalMs: number,
+): (() => void) => {
+  const timer = setInterval(run, intervalMs);
+  // Never hold the process open just to watch an upgrade.
+  timer.unref?.();
+  return () => clearInterval(timer);
+};
 
 /**
  * Releases reach GitHub before the Homebrew tap picks them up, so the app can
@@ -157,6 +201,8 @@ export const createUpdateService = (
     options.isPackaged && options.platform === "darwin" && options.arch === "arm64";
   const canInstall = supported && (options.upgrader?.canInstall ?? false);
   const listeners = new Set<(state: UpdateState) => void>();
+  const now = options.now ?? Date.now;
+  const schedulePoll = options.schedulePoll ?? defaultSchedulePoll;
   let checking = false;
   let installing = false;
   let releaseUrl: string | null = null;
@@ -177,17 +223,96 @@ export const createUpdateService = (
     for (const listener of listeners) listener(state);
   };
 
+  /** The bundle is new but this process is not; only a restart fixes that. */
+  const publishRestartRequired = (targetVersion: string): void => {
+    // Keeps the install button inert: there is nothing left to install.
+    installing = true;
+    options.onLog?.(
+      "info",
+      `Homebrew installed ${targetVersion}; restart required to run it`,
+    );
+    publish({
+      phase: "restart-required",
+      currentVersion,
+      availableVersion: targetVersion,
+      message: restartRequiredMessage(targetVersion),
+    });
+  };
+
+  const publishIncomplete = (): void => {
+    installing = false;
+    options.pendingInstall?.clear();
+    options.onLog?.("warn", "Homebrew update did not change the app version");
+    publish({
+      phase: "error",
+      currentVersion,
+      message: INSTALL_INCOMPLETE_MESSAGE,
+    });
+  };
+
+  /**
+   * The helper reopens FixLang when it is done, but a user who reopened it
+   * early is already running: that `open -b` only focuses the stale process.
+   * Poll the Caskroom so this session still learns the upgrade landed.
+   */
+  const watchBackgroundUpgrade = (
+    targetVersion: string,
+    /** Measured from when the helper started, not from this launch. */
+    deadline: number,
+  ): void => {
+    const stop = schedulePoll(() => {
+      if (options.upgrader?.isVersionInstalled(targetVersion) === true) {
+        stop();
+        options.pendingInstall?.clear();
+        publishRestartRequired(targetVersion);
+        return;
+      }
+      if (now() < deadline) return;
+
+      stop();
+      publishIncomplete();
+    }, UPGRADE_POLL_INTERVAL_MS);
+  };
+
   /**
    * Homebrew finishes after this app has quit, so the previous run's marker is
-   * the only evidence of what happened. Report a stalled upgrade loudly.
+   * the only evidence of what happened.
+   *
+   * Reopening FixLang while the helper is mid-download must not be mistaken
+   * for a failed upgrade: that used to clear the marker, show an error, and
+   * leave the button live, so the next click raced the running helper and died
+   * on Homebrew's download lock. An unchanged version is only a failure once
+   * the grace window has passed with nothing installed.
    */
   const reconcileLastInstall = (): void => {
     const store = options.pendingInstall;
     if (!supported || !store) return;
 
     const pending = store.read();
-    const outcome = reconcilePendingInstall(pending, currentVersion);
+    if (pending === null) return;
+
+    const outcome = reconcilePendingInstall(pending, currentVersion, {
+      now: now(),
+      isTargetInstalled:
+        options.upgrader?.isVersionInstalled(pending.toVersion) ?? false,
+    });
     if (outcome === "none") return;
+
+    if (outcome === "in-progress") {
+      // Marker stays: the helper still owns this upgrade and will finish it.
+      installing = true;
+      publish({
+        phase: "installing",
+        currentVersion,
+        availableVersion: pending.toVersion,
+        message: backgroundInstallMessage(pending.toVersion),
+      });
+      watchBackgroundUpgrade(
+        pending.toVersion,
+        pending.startedAt + UPGRADE_GRACE_MS,
+      );
+      return;
+    }
 
     store.clear();
     if (outcome === "installed") {
@@ -196,12 +321,12 @@ export const createUpdateService = (
       return;
     }
 
-    options.onLog?.("warn", "Homebrew update did not change the app version");
-    publish({
-      phase: "error",
-      currentVersion,
-      message: INSTALL_INCOMPLETE_MESSAGE,
-    });
+    if (outcome === "restart-required") {
+      publishRestartRequired(pending.toVersion);
+      return;
+    }
+
+    publishIncomplete();
   };
 
   reconcileLastInstall();
@@ -235,7 +360,9 @@ export const createUpdateService = (
     getReleaseUrl: () => releaseUrl,
 
     checkForUpdates: async (): Promise<void> => {
-      if (!supported || checking) return;
+      // An upgrade already in flight owns the state; a check would overwrite
+      // it with "available" and re-arm a button that must stay inert.
+      if (!supported || checking || installing) return;
 
       checking = true;
       publish({ phase: "checking", currentVersion });
@@ -335,6 +462,8 @@ export const createUpdateService = (
         options.pendingInstall?.write({
           fromVersion: currentVersion,
           toVersion: targetVersion,
+          // Stamped so the next launch can tell "still working" from "failed".
+          startedAt: now(),
         });
       } catch (error) {
         // The upgrade still runs; only the outcome report is lost.
@@ -346,6 +475,30 @@ export const createUpdateService = (
 
       options.onLog?.("info", `Homebrew update to ${targetVersion} started`);
       options.quitApp?.();
+      return { success: true };
+    },
+
+    /**
+     * Re-executes the bundle Homebrew already replaced. Allowed only from
+     * `restart-required`, so a renderer message can never restart the app at
+     * an arbitrary moment. Re-exec is not `open -b`: LaunchServices would find
+     * this process and merely focus it, which is exactly the trap that leaves
+     * the user on the old binary.
+     */
+    restartForUpdate: (): UpdateActionResult => {
+      if (state.phase !== "restart-required" || !options.relaunchApp) {
+        return { success: false, error: RESTART_ERROR_MESSAGE };
+      }
+      try {
+        options.relaunchApp();
+      } catch (error) {
+        options.onLog?.(
+          "error",
+          `Could not restart for the update (${safeErrorName(error)})`,
+        );
+        return { success: false, error: RESTART_ERROR_MESSAGE };
+      }
+      options.onLog?.("info", "Restarting to run the installed update");
       return { success: true };
     },
 

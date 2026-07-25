@@ -70,6 +70,22 @@ export const findBrewBinary = (
 export const caskroomPath = (brewBinary: string): string =>
   path.join(path.dirname(path.dirname(brewBinary)), "Caskroom", CASK_TOKEN);
 
+/** Rejects anything that could escape the Caskroom directory. */
+const SAFE_VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+_-]*$/;
+
+/**
+ * Homebrew keeps one directory per installed version, so its presence is the
+ * cheapest proof that the upgrade already replaced the bundle — no subprocess,
+ * and it stays true after the helper has exited.
+ */
+export const caskVersionPath = (
+  brewBinary: string,
+  version: string,
+): string | null =>
+  SAFE_VERSION_PATTERN.test(version) && !version.includes("..")
+    ? path.join(caskroomPath(brewBinary), version)
+    : null;
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -190,6 +206,8 @@ export type HomebrewUpgrader = Readonly<{
   canInstall: boolean;
   /** Version the tap can install now; null when brew could not be asked. */
   getInstallableVersion: () => Promise<string | null>;
+  /** True once Homebrew has staged that version in the Caskroom. */
+  isVersionInstalled: (version: string) => boolean;
   /** Launches the detached upgrade helper. Throws when it cannot start. */
   startUpgrade: () => void;
 }>;
@@ -217,6 +235,11 @@ export const createHomebrewUpgrader = (
       canInstall && brewBinary !== null
         ? readInstallableVersion(brewBinary, runBrew)
         : Promise.resolve(null),
+    isVersionInstalled: (version: string): boolean => {
+      if (brewBinary === null) return false;
+      const versionPath = caskVersionPath(brewBinary, version);
+      return versionPath !== null && directoryExists(versionPath);
+    },
     startUpgrade: (): void => {
       if (!canInstall || brewBinary === null) {
         throw new Error("FixLang was not installed with the Homebrew cask");
