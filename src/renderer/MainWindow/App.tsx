@@ -270,7 +270,7 @@ const App: React.FC = () => {
     ),
     logs: <LogsPanel />,
     about: (
-      <div className="mx-auto h-full max-w-2xl overflow-y-auto rounded-lg border border-border bg-card p-4">
+      <div className="h-full w-full overflow-y-auto rounded-lg border border-border bg-card p-4">
         <SettingUpdates />
       </div>
     ),
