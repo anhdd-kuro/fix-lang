@@ -51,6 +51,8 @@ type StableVersion = Readonly<{
 type ValidatedRelease = Readonly<{
   version: StableVersion;
   releaseNotes?: string;
+  /** DMG byte count from the release asset — the denominator for progress. */
+  dmgSize: number;
 }>;
 
 const RELEASE_NOTES_MAX_LENGTH = 12_000;
@@ -65,9 +67,12 @@ const INSTALL_INCOMPLETE_MESSAGE: Message = msg(
   "settings.updates.installIncompleteMessage",
 );
 const RESTART_ERROR_MESSAGE: Message = msg("settings.updates.restartErrorMessage");
+const DOWNLOAD_ERROR_MESSAGE: Message = msg("settings.updates.downloadErrorMessage");
 
 /** How often a background upgrade is re-checked while the app is reopened. */
 const UPGRADE_POLL_INTERVAL_MS = 15_000;
+/** Fast enough that a progress bar looks live without churning the renderer. */
+const DOWNLOAD_POLL_INTERVAL_MS = 500;
 
 /**
  * Homebrew is still working and this app was reopened before it finished. Not
@@ -142,19 +147,24 @@ const normalizeReleaseNotes = (raw: string | undefined): string | undefined => {
     : undefined;
 };
 
-const hasExpectedDmg = (assets: unknown, version: StableVersion): boolean => {
-  if (!Array.isArray(assets)) return false;
+/** Size of the expected, fully uploaded DMG asset, or null when absent. */
+const expectedDmgSize = (
+  assets: unknown,
+  version: StableVersion,
+): number | null => {
+  if (!Array.isArray(assets)) return null;
   const expectedName = `FixLang-${version.raw}-arm64.dmg`;
 
-  return assets.some(
-    (asset) =>
-      isRecord(asset) &&
-      asset.name === expectedName &&
-      asset.state === "uploaded" &&
-      typeof asset.size === "number" &&
-      Number.isSafeInteger(asset.size) &&
-      asset.size > 0,
+  const asset = assets.find(
+    (candidate) =>
+      isRecord(candidate) &&
+      candidate.name === expectedName &&
+      candidate.state === "uploaded" &&
+      typeof candidate.size === "number" &&
+      Number.isSafeInteger(candidate.size) &&
+      candidate.size > 0,
   );
+  return isRecord(asset) && typeof asset.size === "number" ? asset.size : null;
 };
 
 const validateRelease = (value: unknown): ValidatedRelease | null => {
@@ -165,12 +175,14 @@ const validateRelease = (value: unknown): ValidatedRelease | null => {
 
   const tagMatch = /^v(.+)$/.exec(value.tag_name);
   const version = tagMatch ? parseStableVersion(tagMatch[1]) : null;
-  if (!version || !hasExpectedDmg(value.assets, version)) return null;
+  const dmgSize = version === null ? null : expectedDmgSize(value.assets, version);
+  if (!version || dmgSize === null) return null;
   // GitHub returns JSON null when a release has no notes.
   if (value.body != null && typeof value.body !== "string") return null;
 
   return Object.freeze({
     version,
+    dmgSize,
     releaseNotes: normalizeReleaseNotes(
       typeof value.body === "string" ? value.body : undefined,
     ),
@@ -206,6 +218,8 @@ export const createUpdateService = (
   let checking = false;
   let installing = false;
   let releaseUrl: string | null = null;
+  /** Denominator for download progress; only known after a successful check. */
+  let availableDmgSize: number | null = null;
 
   const withCanInstall = (next: Omit<UpdateState, "canInstall">): UpdateState =>
     freezeState({ ...next, canInstall });
@@ -331,6 +345,51 @@ export const createUpdateService = (
 
   reconcileLastInstall();
 
+  /**
+   * Runs `brew fetch` while publishing byte progress from the download cache.
+   *
+   * Progress is read from the cache file rather than parsed out of brew's
+   * output: the `.incomplete` file grows in place, its final size is the
+   * release asset size GitHub already told us, and no output format can drift
+   * underneath us. Resolves false when the download failed.
+   */
+  const downloadWithProgress = async (
+    targetVersion: string,
+  ): Promise<boolean> => {
+    const publishProgress = (): void => {
+      const downloadedBytes =
+        options.upgrader?.getDownloadedBytes(targetVersion) ?? null;
+      if (downloadedBytes === null) return;
+      publish({
+        phase: "downloading",
+        currentVersion,
+        availableVersion: targetVersion,
+        downloadedBytes,
+        totalBytes: availableDmgSize ?? undefined,
+      });
+    };
+
+    const stop = schedulePoll(publishProgress, DOWNLOAD_POLL_INTERVAL_MS);
+    try {
+      await options.upgrader?.downloadUpdate();
+      return true;
+    } catch (error) {
+      options.onLog?.(
+        "error",
+        `Homebrew could not download ${targetVersion} (${safeErrorName(error)})`,
+      );
+      publish({
+        phase: "error",
+        currentVersion,
+        availableVersion: targetVersion,
+        message: DOWNLOAD_ERROR_MESSAGE,
+      });
+      return false;
+    } finally {
+      stop();
+    }
+  };
+
   /** Never rejects: a broken probe must not strand the install flow. */
   const probeInstallableVersion = async (): Promise<string | null> => {
     try {
@@ -375,6 +434,7 @@ export const createUpdateService = (
 
         if (compareVersions(release.version, current) > 0) {
           releaseUrl = `${RELEASES_URL}/tag/v${release.version.raw}`;
+          availableDmgSize = release.dmgSize;
           publish({
             phase: "available",
             currentVersion,
@@ -385,9 +445,11 @@ export const createUpdateService = (
         }
 
         releaseUrl = null;
+        availableDmgSize = null;
         publish({ phase: "up-to-date", currentVersion });
       } catch (error) {
         releaseUrl = null;
+        availableDmgSize = null;
         fail(error);
       } finally {
         checking = false;
@@ -417,9 +479,11 @@ export const createUpdateService = (
       // second click would otherwise start a second upgrade.
       installing = true;
       publish({
-        phase: "installing",
+        phase: "downloading",
         currentVersion,
         availableVersion: targetVersion,
+        downloadedBytes: 0,
+        totalBytes: availableDmgSize ?? undefined,
       });
 
       const offered = parseStableVersion(await probeInstallableVersion());
@@ -440,6 +504,23 @@ export const createUpdateService = (
         });
         return { success: false, error: message };
       }
+
+      // Download first, with the app still running. `brew fetch` only fills
+      // the download cache, so nothing is replaced yet and the user can watch
+      // progress instead of staring at an app that vanished for a minute.
+      const downloaded = await downloadWithProgress(targetVersion);
+      if (!downloaded) {
+        installing = false;
+        return { success: false, error: DOWNLOAD_ERROR_MESSAGE };
+      }
+
+      // Everything left is a local file move, so the app is only away for a
+      // few seconds.
+      publish({
+        phase: "installing",
+        currentVersion,
+        availableVersion: targetVersion,
+      });
 
       try {
         options.upgrader.startUpgrade();

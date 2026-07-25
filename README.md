@@ -71,13 +71,15 @@ Model selectors elsewhere (Tray, Models tab, Transform presets, PromptGen) show 
   **Update now** runs `brew update && brew upgrade --cask fixlang` for you.
   FixLang quits so Homebrew can replace the bundle, then reopens on the new
   version. The button appears only when the running app came from the cask.
-- **Give it a minute, and don't reopen FixLang yourself.** The app quits at
-  once, but Homebrew is still fetching ~128 MB in the background. If you reopen
-  it early you get the old version back and macOS re-verifies the bundle, which
-  is what makes that first launch slow. The About panel then says the upgrade is
-  still running — that is not a failure, and clicking **Update now** again would
-  only collide with the download already in progress. When Homebrew finishes,
-  the panel offers **Restart now** to switch to the installed version.
+- **The download runs with FixLang still open**, showing a progress bar and a
+  byte count in the About panel. The app only quits once the DMG is on disk, and
+  the remaining bundle swap takes a few seconds before it reopens itself.
+- **Don't reopen FixLang during those few seconds.** If you do, you get the old
+  version back and macOS re-verifies the freshly installed bundle, which is what
+  makes that launch slow. The About panel then says the upgrade is still running
+  — that is not a failure, and clicking **Update now** again would only collide
+  with the upgrade in progress. Once Homebrew finishes, the panel offers
+  **Restart now** to switch to the installed version.
 - **Right after a release**, the Homebrew tap can still be a few hours behind
   GitHub. **Update now** checks the tap first and says so rather than restarting
   for an upgrade that would do nothing — try again later, or use the DMG.
