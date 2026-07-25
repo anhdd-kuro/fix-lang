@@ -184,7 +184,8 @@ export const SettingUpdates = () => {
     }
   };
 
-  const isBusy = actionPending || state.phase === "checking";
+  const isBusy =
+    actionPending || state.phase === "checking" || state.phase === "installing";
   const latestVersion = displayVersion(state.availableVersion);
 
   return (
@@ -299,12 +300,39 @@ export const SettingUpdates = () => {
               </ReactMarkdown>
             </div>
           )}
-          <p className="mt-1 text-sm text-muted-foreground">
-            Install the DMG, replace FixLang in Applications, then run this if
-            macOS blocks it:
-          </p>
-          <CommandBlock command={'xattr -dr com.apple.quarantine "/Applications/FixLang.app"'} />
+          {state.canInstall ? (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Homebrew installs the update and reopens FixLang. The app quits
+              first so the bundle can be replaced.
+            </p>
+          ) : (
+            <>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Install the DMG, replace FixLang in Applications, then run this
+                if macOS blocks it:
+              </p>
+              <CommandBlock
+                command={'xattr -dr com.apple.quarantine "/Applications/FixLang.app"'}
+              />
+            </>
+          )}
           <div className="mt-2 flex flex-wrap gap-2">
+            {state.canInstall && (
+              <button
+                type="button"
+                onClick={() =>
+                  void run(
+                    () => updateApi().installUpdate(),
+                    "Could not start the Homebrew update.",
+                  )
+                }
+                disabled={isBusy}
+                className="rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isBusy && <Spinner className="mr-2 inline size-4 align-[-2px]" />}
+                Update now
+              </button>
+            )}
             <button
               type="button"
               onClick={() =>
@@ -314,7 +342,11 @@ export const SettingUpdates = () => {
                 )
               }
               disabled={isBusy}
-              className="rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+              className={
+                state.canInstall
+                  ? "rounded border border-border px-3 py-1.5 text-base text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                  : "rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+              }
             >
               Download from GitHub
             </button>
@@ -333,6 +365,18 @@ export const SettingUpdates = () => {
             </button>
           </div>
         </>
+      )}
+
+      {state.phase === "installing" && (
+        <p
+          className="mt-1 text-sm text-muted-foreground"
+          role="status"
+          aria-live="polite"
+        >
+          <Spinner className="mr-2 inline size-4 align-[-2px]" />
+          Installing {latestVersion} with Homebrew. FixLang quits and reopens on
+          its own.
+        </p>
       )}
 
       {state.phase === "error" && (
@@ -419,8 +463,9 @@ export const SettingUpdates = () => {
         <CommandBlock command={'xattr -dr com.apple.quarantine "/Applications/FixLang.app"'} />
 
         <p className="mt-2 text-sm text-muted-foreground">
-          FixLang releases are unsigned and not notarized — updates are
-          installed manually, the app never installs them automatically.
+          FixLang releases are unsigned and not notarized. Update now hands the
+          install to Homebrew — the app never downloads or replaces itself, and
+          nothing is installed without this explicit action.
         </p>
       </div>
     </section>

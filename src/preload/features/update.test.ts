@@ -37,6 +37,23 @@ describe("update preload boundary", () => {
     });
   });
 
+  it("forwards the install request without renderer-supplied arguments", async () => {
+    electronMocks.invoke.mockResolvedValueOnce({ success: true });
+
+    await expect(updateFeature.installUpdate()).resolves.toEqual({
+      success: true,
+    });
+    expect(electronMocks.invoke).toHaveBeenCalledWith("updates:install");
+  });
+
+  it("rejects malformed install results", async () => {
+    electronMocks.invoke.mockResolvedValueOnce({ success: false });
+
+    await expect(updateFeature.installUpdate()).rejects.toThrow(
+      "Received an invalid install result",
+    );
+  });
+
   it.each([
     undefined,
     null,

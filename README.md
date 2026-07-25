@@ -63,10 +63,17 @@ Model selectors elsewhere (Tray, Models tab, Correction presets, PromptGen) show
 
 - **Settings → About → App updates** compares the installed version with the
   latest stable GitHub Release.
-- When a newer version is available, choose **View release** to open that exact
-  release in your browser. FixLang does not download or install updates itself.
-- Download the DMG and replace the app manually. Source and development builds
-  are not updated by this flow.
+- **Homebrew installs (recommended)**: when a newer version is available,
+  **Update now** runs `brew update && brew upgrade --cask fixlang` for you.
+  FixLang quits so Homebrew can replace the bundle, then reopens on the new
+  version. The button appears only when the running app came from the cask.
+- **Manual DMG installs**: **Download from GitHub** opens that exact release;
+  replace the app in `/Applications` yourself. Source and development builds are
+  not updated by this flow.
+- FixLang never downloads or replaces itself, and nothing installs without that
+  explicit click. If the upgrade does not complete, the next launch reports it
+  instead of failing silently; details are in
+  `~/Library/Application Support/FixLang/logs/homebrew-update.log`.
 
 ## Installation
 
@@ -156,8 +163,9 @@ brew trust --cask anhdd-kuro/tap/fixlang
 FixLang remains unsigned. Homebrew does not bypass Gatekeeper or grant
 Accessibility permission. If macOS blocks a release you trust, use the manual
 `xattr` command above; grant Accessibility permission when FixLang asks. The
-app's **Settings → About → App updates** check remains a manual GitHub
-Release download flow, not an automatic installer.
+app's **Settings → About → App updates** panel delegates its **Update now**
+button to `brew upgrade --cask fixlang` — it is not a self-updater, and it never
+touches Gatekeeper.
 
 ### Build from source
 

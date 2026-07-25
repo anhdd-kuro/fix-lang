@@ -15,6 +15,7 @@ Local macOS menu-bar app: fixes grammar and improves writing on selected text vi
 - **Analytics** — Overview dashboard: stat cards, preset donut/time-series charts (`PresetWeightChart`), token activity calendar, benchmark sentence; shared All/30d/7d range with Models tab.
 - **Logs** — structured, redacted JSONL persistence (`userData/logs/{YYYY-MM-DD}/fixlang.jsonl`); Logs tab with level filter, search, copy/export, virtual infinite scroll.
 - **Hotkeys** — customizable global shortcuts (promptGen, profileSwitch) plus per-preset correction hotkeys.
+- **Updates** — Settings → About checks GitHub Releases; cask installs get a one-click **Update now** that delegates to `brew upgrade --cask fixlang` (`src/main/update/homebrew.ts`). No self-updater.
 
 ## Purpose
 
@@ -110,6 +111,7 @@ bun run build:promptgen # feature-tag build (also dev:promptgen, pack:mac:prompt
 
 - **Trigger** — bump `package.json` to a strictly higher stable semver, PR to `main`, merge. Push to `main` fires `.github/workflows/release.yml` (`prepare` on ubuntu creates the `v<version>` tag; `release` on macos-14 lints/tests/builds, validates the DMG, publishes `FixLang-<v>-arm64.dmg` + `SHA256SUMS.txt`). Docs-only pushes no-op (version already public).
 - **Homebrew** — public tap `anhdd-kuro/homebrew-tap` auto-syncs verified releases into `Casks/fixlang.rb`; users run `brew install --cask anhdd-kuro/tap/fixlang` and `brew update && brew upgrade --cask fixlang`. arm64-only, unsigned — never automate Gatekeeper/`xattr`.
+- **In-app update** — `updates:install` starts a detached `/bin/sh` helper that waits for FixLang to exit, runs `brew update && brew upgrade --cask fixlang` (`NONINTERACTIVE=1`), then reopens the app; the app quits itself right after. brew is resolved only from `/opt/homebrew/bin/brew` or `/usr/local/bin/brew` (never PATH), and the button is off unless `<prefix>/Caskroom/fixlang` exists. A `pending-update.json` marker under `userData` reports a stalled upgrade on the next launch; helper output goes to `userData/logs/homebrew-update.log`.
 - **Traps** — release Test step needs Node 24 on macos runners (`node:sqlite` builtin); tap cask generation + `brew style/audit` have several traps. See the gotcha below before touching release or tap code.
 
 ## References

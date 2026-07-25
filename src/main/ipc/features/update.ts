@@ -1,6 +1,10 @@
 import { BrowserWindow, ipcMain, shell } from "electron";
 import type { UpdateService } from "~/main/update";
-import type { OpenUpdateReleaseResult, UpdateState } from "~/shared/update";
+import type {
+  InstallUpdateResult,
+  OpenUpdateReleaseResult,
+  UpdateState,
+} from "~/shared/update";
 
 const RELEASES_URL = "https://github.com/anhdd-kuro/fix-lang/releases/latest";
 
@@ -19,6 +23,12 @@ export const registerUpdateHandlers = (service: UpdateService): void => {
     await service.checkForUpdates();
     return service.getState();
   });
+  // Takes no renderer input: the target release and the shell command are both
+  // decided in main, so nothing crossing the bridge can influence what runs.
+  ipcMain.handle(
+    "updates:install",
+    (): InstallUpdateResult => service.installUpdate(),
+  );
   ipcMain.handle("updates:open-release", async () => {
     try {
       await shell.openExternal(service.getReleaseUrl() ?? RELEASES_URL);
