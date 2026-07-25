@@ -6,15 +6,15 @@ Local macOS menu-bar app: fixes grammar and improves writing on selected text vi
 
 ## Main Features
 
-- **Correction** — fix grammar/style on selected text via per-preset global hotkeys.
+- **Transform** — fix grammar/style or otherwise rewrite selected text via per-preset global hotkeys.
 - **Presets** — built-in Correction, Summarize, Translate, Prompt optimization; each preset has its own hotkey, model, and system prompt.
 - **Prompt generation** — build AI prompts from selected text (PromptGen window).
-- **Profiles** — switch correction presets; switch reloads hotkeys + settings + history.
+- **Profiles** — switch transform presets; switch reloads hotkeys + settings + history.
 - **Multi-provider** — OpenAI, OpenRouter, Ollama; model discovery/compat/monitor.
-- **History** — SQLite-backed correction + PromptGen history with cost tracking.
+- **History** — SQLite-backed transform + PromptGen history with cost tracking.
 - **Analytics** — Overview dashboard: stat cards, preset donut/time-series charts (`PresetWeightChart`), token activity calendar, benchmark sentence; shared All/30d/7d range with Models tab.
 - **Logs** — structured, redacted JSONL persistence (`userData/logs/{YYYY-MM-DD}/fixlang.jsonl`); Logs tab with level filter, search, copy/export, virtual infinite scroll.
-- **Hotkeys** — customizable global shortcuts (promptGen, profileSwitch) plus per-preset correction hotkeys.
+- **Hotkeys** — customizable global shortcuts (promptGen, profileSwitch) plus per-preset transform hotkeys.
 - **Updates** — Settings → About checks GitHub Releases; cask installs get a one-click **Update now** that delegates to `brew upgrade --cask fixlang` (`src/main/update/homebrew.ts`). No self-updater.
 
 ## Purpose
@@ -89,14 +89,19 @@ Translation strings live in `src/shared/i18n/locales/{en,ja}/` as per-namespace 
 ### Add a translatable string (recipe)
 
 1. **English**: Add the key-value pair to `src/shared/i18n/locales/en/{namespace}.json`:
+
    ```json
    { "overview.stat.sessions": "Sessions" }
    ```
+
 2. **Japanese**: Add the translation to `src/shared/i18n/locales/ja/{namespace}.json`:
+
    ```json
    { "overview.stat.sessions": "セッション" }
    ```
+
 3. **Use it**: The key is type-checked at compile time — a typo will be caught by the TypeScript compiler and displayed in your editor:
+
    ```tsx
    import { useI18n } from "~/renderer/i18n/useI18n";
    const { t } = useI18n();
@@ -109,17 +114,17 @@ English defines both singular and plural variants; Japanese defines only the plu
 
 ```json
 // en/history.json
-{ "history.count_one": "{count} correction", "history.count_other": "{count} corrections" }
+{ "history.count_one": "{count} transform", "history.count_other": "{count} transforms" }
 
 // ja/history.json
-{ "history.count_other": "{count} 件の校正" }
+{ "history.count_other": "{count} 件の変換" }
 ```
 
 ```tsx
 const { t, formatNumber } = useI18n();
 // Calls t("history.count_one") if count is 1, t("history.count_other") otherwise;
 // the raw count is never shown, so never pass count as a string.
-t("history.count", { count: 12 })  // "12 corrections" (EN) / "12 件の校正" (JA)
+t("history.count", { count: 12 })  // "12 transforms" (EN) / "12 件の変換" (JA)
 ```
 
 ### Number and date formatting
@@ -178,6 +183,7 @@ new Notification({
 
 ✅ Always:
 
+- Work in the work tree if the user does not ask for a new branch or directly mention a branch name.
 - Keep prompts bundled locally from `src/prompts/` — no runtime fetch.
 - Store SQLite/JSONL under `app.getPath("userData")` — never inside the signed bundle.
 - Use async I/O only in the main process.
