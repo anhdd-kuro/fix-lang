@@ -1,6 +1,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { msg, type Message } from "~/shared/i18n/message";
 import { TrayToolbar } from "./TrayToolbar";
 import { I18nProvider } from "../../i18n/I18nProvider";
 
@@ -17,7 +18,7 @@ type UpdateState = {
   currentVersion: string;
   availableVersion?: string;
   releaseNotes?: string;
-  message?: string;
+  message?: Message;
 };
 
 type TrayApi = {
@@ -164,7 +165,7 @@ describe("TrayToolbar", () => {
     await render({
       phase: "error",
       currentVersion: "1.2.3",
-      message: "Network unreachable.",
+      message: msg("settings.updates.checkErrorMessage"),
     });
 
     await click(checkForUpdatesButton());
@@ -172,7 +173,28 @@ describe("TrayToolbar", () => {
 
     const [options] = api.showMessageBox.mock.calls[0];
     expect(options.message).toBe(
-      "Update check failed. Network unreachable.",
+      "Update check failed. Could not check for updates. Try again later.",
+    );
+  });
+
+  it("resolves a parameterized `message` descriptor (e.g. Homebrew tap lag) instead of showing it raw", async () => {
+    await render({
+      phase: "error",
+      currentVersion: "1.2.3",
+      message: msg("settings.updates.tapBehindMessage", {
+        targetVersion: "1.3.0",
+        offeredVersion: "1.2.5",
+      }),
+    });
+
+    await click(checkForUpdatesButton());
+    await waitForUi();
+
+    const [options] = api.showMessageBox.mock.calls[0];
+    expect(options.message).toBe(
+      "Update check failed. Homebrew does not have v1.3.0 yet — it still " +
+        "offers v1.2.5. The tap syncs shortly after each release; try again " +
+        "later, or update manually with the command below.",
     );
   });
 
@@ -228,7 +250,7 @@ describe("TrayToolbar", () => {
     await render({
       phase: "error",
       currentVersion: "1.2.3",
-      message: "Network unreachable.",
+      message: msg("settings.updates.checkErrorMessage"),
     });
 
     const button = checkForUpdatesButton();

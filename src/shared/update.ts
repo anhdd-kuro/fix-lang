@@ -1,3 +1,5 @@
+import type { Message, MessageParams } from "./i18n/message";
+
 /** Renderer-safe state for the app-update flow. */
 export type UpdatePhase =
   | "unsupported"
@@ -20,13 +22,19 @@ export type UpdateState = Readonly<{
   currentVersion: string;
   availableVersion?: string;
   releaseNotes?: string;
-  message?: string;
+  /**
+   * A locale-free descriptor rather than a pre-resolved string: main builds
+   * this state once, but the renderer may still be open across a locale
+   * switch, and only the renderer's `tm()` (via `useI18n()`) can re-resolve
+   * it into the currently active language.
+   */
+  message?: Message;
   canInstall?: boolean;
 }>;
 
 export type UpdateActionResult =
   | Readonly<{ success: true }>
-  | Readonly<{ success: false; error: string }>;
+  | Readonly<{ success: false; error: Message }>;
 
 export type OpenUpdateReleaseResult = UpdateActionResult;
 export type InstallUpdateResult = UpdateActionResult;
@@ -53,6 +61,26 @@ const PHASES = new Set<UpdatePhase>([
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+/**
+ * Validates a `Message` descriptor's shape. `key` can only be checked as a
+ * non-empty string here — `MessageKey` is a compile-time union derived from
+ * the JSON catalogs, not a runtime-enumerable set — matching how this file
+ * already treats `phase` as the one field with a real runtime-checkable set.
+ */
+const isMessageParams = (value: unknown): value is MessageParams =>
+  isRecord(value) &&
+  Object.values(value).every(
+    (param) => typeof param === "string" || typeof param === "number",
+  );
+
+const isMessage = (value: unknown): value is Message => {
+  if (!isRecord(value)) return false;
+  const keys = Object.keys(value);
+  if (keys.some((key) => key !== "key" && key !== "params")) return false;
+  if (typeof value.key !== "string" || value.key.length === 0) return false;
+  return value.params === undefined || isMessageParams(value.params);
+};
+
 /** Validates the small, serializable snapshot crossing the preload boundary. */
 export const isUpdateState = (value: unknown): value is UpdateState => {
   if (
@@ -70,7 +98,7 @@ export const isUpdateState = (value: unknown): value is UpdateState => {
     (value.availableVersion !== undefined &&
       typeof value.availableVersion !== "string") ||
     (value.releaseNotes !== undefined && typeof value.releaseNotes !== "string") ||
-    (value.message !== undefined && typeof value.message !== "string") ||
+    (value.message !== undefined && !isMessage(value.message)) ||
     (value.canInstall !== undefined && typeof value.canInstall !== "boolean")
   ) {
     return false;
@@ -94,8 +122,7 @@ export const isUpdateActionResult = (
     keys.length === 2 &&
     keys.includes("success") &&
     keys.includes("error") &&
-    typeof value.error === "string" &&
-    value.error.length > 0
+    isMessage(value.error)
   );
 };
 

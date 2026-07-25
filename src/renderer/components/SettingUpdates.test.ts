@@ -1,6 +1,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { msg, type Message } from "~/shared/i18n/message";
 import { SettingUpdates } from "./SettingUpdates";
 import { I18nProvider } from "../i18n/I18nProvider";
 
@@ -16,7 +17,7 @@ type UpdateState = {
   currentVersion: string;
   availableVersion?: string;
   releaseNotes?: string;
-  message?: string;
+  message?: Message;
   canInstall?: boolean;
 };
 
@@ -234,9 +235,12 @@ describe("SettingUpdates", () => {
       availableVersion: "0.2.0",
       canInstall: true,
     });
+    // `run()` never reads this `error` descriptor — it always sets
+    // `state.message` from its own bound failure message (see below) — but
+    // the mock still needs the shape `installUpdate()` actually resolves to.
     api.installUpdate.mockResolvedValueOnce({
       success: false,
-      error: "Could not start the Homebrew update.",
+      error: msg("settings.updates.installErrorMessage"),
     });
 
     await click(buttonNamed(container, "Update now"));
@@ -285,11 +289,11 @@ describe("SettingUpdates", () => {
   it("lets the user retry and open the release page after an error", async () => {
     await render({
       ...readyState("error"),
-      message: "Could not reach GitHub Releases.",
+      message: msg("settings.updates.checkErrorMessage"),
     });
 
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      "Could not reach GitHub Releases.",
+      "Could not check for updates. Try again later.",
     );
     await click(buttonNamed(container, "Try again"));
     await click(buttonNamed(container, "View releases"));
@@ -425,5 +429,54 @@ describe("SettingUpdates", () => {
     // effect's dependency array stays `[]` because it no longer resolves
     // `t()` itself.
     expect(getUpdateState).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-resolves a parameterized service-reported error (e.g. Homebrew tap lag) in Japanese after a locale switch", async () => {
+    await renderWithApi({
+      getUpdateState: vi.fn().mockResolvedValue(readyState()),
+      checkForUpdates: vi.fn().mockResolvedValue(undefined),
+      openUpdateRelease: vi.fn().mockResolvedValue(undefined),
+      installUpdate: vi.fn().mockResolvedValue({ success: true }),
+      openExternalLink: vi.fn().mockResolvedValue({ success: true }),
+      onUpdateStateChanged: vi.fn((listener: (next: UpdateState) => void) => {
+        updateListener = listener;
+        return vi.fn();
+      }),
+      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+      setLocale: vi.fn().mockResolvedValue({ success: true }),
+      onLocaleChanged: vi.fn((callback: (locale: "en" | "ja") => void) => {
+        localeListener = callback;
+        return vi.fn();
+      }),
+    });
+
+    await act(async () => {
+      updateListener?.({
+        phase: "error",
+        currentVersion: "0.1.0",
+        availableVersion: "0.2.0",
+        message: msg("settings.updates.tapBehindMessage", {
+          targetVersion: "0.2.0",
+          offeredVersion: "0.1.0",
+        }),
+      });
+    });
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      "Homebrew does not have v0.2.0 yet — it still offers v0.1.0. " +
+        "The tap syncs shortly after each release; try again later, or update " +
+        "manually with the command below.",
+    );
+
+    await act(async () => {
+      localeListener?.("ja");
+    });
+    await waitForUi();
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      "Homebrewはまだv0.2.0を提供していません — 現在提供しているのはv0.1.0です。" +
+        "tapは各リリース後にしばらくして同期されます。しばらくしてから再度お試しいただくか、" +
+        "以下のコマンドを使って手動で更新してください。",
+    );
   });
 });

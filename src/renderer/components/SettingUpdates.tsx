@@ -128,11 +128,10 @@ export const SettingUpdates = () => {
   const [actionPending, setActionPending] = useState(false);
   // Locale-free descriptor for the ONE error message the mount effect below
   // can produce (`getUpdateState()` rejecting before any live event arrives).
-  // Kept separate from `state.message` (a plain `string` on the shared
-  // `UpdateState` type from `~/shared/update`, set by `run()` below with an
-  // already-resolved string — safe, since `run()` is an event handler, not a
-  // memoized/effect closure) so the mount effect never needs to call `t()`
-  // itself, and therefore never needs `t` in its dependency array. Cleared
+  // Kept as separate state from `state.message` (also a `Message` descriptor
+  // on the shared `UpdateState` type from `~/shared/update`, but one only
+  // ever set by `run()` below or a live broadcast) so a mount-time IPC
+  // failure is never confused with a service-reported error state. Cleared
   // whenever fresher state arrives (a live broadcast, the initial snapshot,
   // or a later `run()` failure) so it can never shadow newer information.
   const [mountLoadError, setMountLoadError] = useState<Message | null>(null);
@@ -175,7 +174,7 @@ export const SettingUpdates = () => {
 
   const run = async (
     request: () => Promise<unknown>,
-    failureMessage: string,
+    failureMessage: Message,
   ) => {
     if (actionPending) return;
 
@@ -188,7 +187,7 @@ export const SettingUpdates = () => {
         "success" in result &&
         result.success === false
       ) {
-        throw new Error(failureMessage);
+        throw new Error(failureMessage.key);
       }
     } catch {
       setMountLoadError(null);
@@ -249,7 +248,7 @@ export const SettingUpdates = () => {
             onClick={() =>
               void run(
                 () => updateApi().checkForUpdates(),
-                t("settings.updates.checkFailed"),
+                msg("settings.updates.checkFailed"),
               )
             }
             disabled={isBusy}
@@ -289,7 +288,7 @@ export const SettingUpdates = () => {
             onClick={() =>
               void run(
                 () => updateApi().checkForUpdates(),
-                t("settings.updates.checkFailed"),
+                msg("settings.updates.checkFailed"),
               )
             }
             disabled={isBusy}
@@ -342,7 +341,7 @@ export const SettingUpdates = () => {
                 onClick={() =>
                   void run(
                     () => updateApi().installUpdate(),
-                    t("settings.updates.installFailed"),
+                    msg("settings.updates.installFailed"),
                   )
                 }
                 disabled={isBusy}
@@ -357,7 +356,7 @@ export const SettingUpdates = () => {
               onClick={() =>
                 void run(
                   () => updateApi().openUpdateRelease(),
-                  t("settings.updates.openReleaseFailed"),
+                  msg("settings.updates.openReleaseFailed"),
                 )
               }
               disabled={isBusy}
@@ -374,7 +373,7 @@ export const SettingUpdates = () => {
               onClick={() =>
                 void run(
                   () => updateApi().openUpdateRelease(),
-                  t("settings.updates.openReleaseFailed"),
+                  msg("settings.updates.openReleaseFailed"),
                 )
               }
               disabled={isBusy}
@@ -402,7 +401,9 @@ export const SettingUpdates = () => {
           <p className="mt-1 text-sm text-destructive" role="alert">
             {mountLoadError
               ? tm(mountLoadError)
-              : (state.message ?? t("settings.updates.genericError"))}
+              : state.message
+                ? tm(state.message)
+                : t("settings.updates.genericError")}
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             <button
@@ -410,7 +411,7 @@ export const SettingUpdates = () => {
               onClick={() =>
                 void run(
                   () => updateApi().checkForUpdates(),
-                  t("settings.updates.checkFailed"),
+                  msg("settings.updates.checkFailed"),
                 )
               }
               disabled={isBusy}
@@ -423,7 +424,7 @@ export const SettingUpdates = () => {
               onClick={() =>
                 void run(
                   () => updateApi().openUpdateRelease(),
-                  t("settings.updates.openReleaseFailed"),
+                  msg("settings.updates.openReleaseFailed"),
                 )
               }
               disabled={isBusy}

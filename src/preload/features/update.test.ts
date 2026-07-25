@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { msg } from "~/shared/i18n/message";
 import { updateFeature } from "./update";
 
 const electronMocks = vi.hoisted(() => ({
@@ -26,14 +27,12 @@ describe("update preload boundary", () => {
   });
 
   it("accepts only the failed open-release result shape", async () => {
-    electronMocks.invoke.mockResolvedValueOnce({
-      success: false,
-      error: "Could not open the releases page",
-    });
+    const error = msg("settings.updates.openReleaseFailed");
+    electronMocks.invoke.mockResolvedValueOnce({ success: false, error });
 
     await expect(updateFeature.openUpdateRelease()).resolves.toEqual({
       success: false,
-      error: "Could not open the releases page",
+      error,
     });
   });
 
@@ -61,7 +60,15 @@ describe("update preload boundary", () => {
     { success: true, error: "unexpected" },
     { success: false },
     { success: false, error: 42 },
-    { success: false, error: "failure", path: "/private/cache" },
+    // A pre-resolved string is no longer valid — `error` must be a
+    // locale-free `Message` descriptor so the renderer can `tm()` it.
+    { success: false, error: "failure" },
+    { success: false, error: { key: "" } },
+    {
+      success: false,
+      error: msg("settings.updates.openReleaseFailed"),
+      path: "/private/cache",
+    },
   ])("rejects malformed open-release IPC data: %j", async (result) => {
     electronMocks.invoke.mockResolvedValueOnce(result);
 

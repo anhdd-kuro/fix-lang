@@ -105,7 +105,7 @@ const openDashboard = (): void => {
 };
 
 export const TrayToolbar: React.FC = () => {
-  const { t } = useI18n();
+  const { t, tm } = useI18n();
   const [checkingForUpdates, setCheckingForUpdates] = useState(false);
 
   const handleQuit = async (): Promise<void> => {
@@ -169,7 +169,9 @@ export const TrayToolbar: React.FC = () => {
             defaultId: 0,
             cancelId: 0,
             message: t("tray.toolbar.updateCheck.failed", {
-              reason: state.message ?? t("tray.toolbar.updateCheck.genericFailure"),
+              reason: state.message
+                ? tm(state.message)
+                : t("tray.toolbar.updateCheck.genericFailure"),
             }),
           });
           break;
