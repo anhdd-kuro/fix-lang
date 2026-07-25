@@ -33,13 +33,16 @@ describe("DASHBOARD_TABS", () => {
       "logs",
       "about",
     ]);
-    expect(DASHBOARD_TABS.map((t) => t.label)).toEqual([
-      "Overview",
-      "History",
-      "Models",
-      "OpenRouter",
-      "Logs",
-      "About",
+    // Labels are translation keys, not prose — this file must stay
+    // locale-free (Chunk 8 i18n). Rendered-string coverage for these keys
+    // lives in `dashboardKeys.test.ts` / the `dashboard.json` catalogs, not here.
+    expect(DASHBOARD_TABS.map((t) => t.labelKey)).toEqual([
+      "dashboard.tab.overview",
+      "dashboard.tab.history",
+      "dashboard.tab.models",
+      "dashboard.tab.openrouter",
+      "dashboard.tab.logs",
+      "dashboard.tab.about",
     ]);
   });
 

@@ -1,6 +1,7 @@
 export * from "./api";
 export * from "./correction";
 export * from "./history";
+export * from "./locale";
 export * from "./logs";
 export * from "./openrouter";
 export * from "./profiles";

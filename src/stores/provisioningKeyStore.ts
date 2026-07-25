@@ -35,30 +35,20 @@ export const getLegacyProvisioningKeyPath = getProvisioningKeyPath;
 // Pure helpers (the unit-test seam — no electron, no fs).
 // ---------------------------------------------------------------------------
 
-/** OpenRouter provisioning keys conventionally start with this prefix. */
-export const OPENROUTER_KEY_PREFIX = "sk-or-";
-
 export type ValidateResult =
-  | { ok: true; value: string; warning?: string }
+  | { ok: true; value: string }
   | { ok: false; error: string };
 
 /**
  * Validate + normalize a provisioning-key input. Trims surrounding whitespace,
- * rejects empty/whitespace-only input. The `sk-or-` prefix is a SOFT warning
- * (not a hard block), mirroring the existing soft `sk-` check for the OpenAI
- * key in SettingGeneral (HITL #2 default).
+ * rejects empty/whitespace-only input. A non-"sk-or-" prefixed key is still
+ * accepted (no hard block) — nothing downstream ever surfaced that as a
+ * warning, so this doesn't manufacture one.
  */
 export const validateProvisioningKeyInput = (raw: string): ValidateResult => {
   const value = raw.trim();
   if (value.length === 0) {
     return { ok: false, error: "Provisioning key must not be empty" };
-  }
-  if (!value.startsWith(OPENROUTER_KEY_PREFIX)) {
-    return {
-      ok: true,
-      value,
-      warning: `Key does not start with "${OPENROUTER_KEY_PREFIX}" — saving anyway`,
-    };
   }
   return { ok: true, value };
 };

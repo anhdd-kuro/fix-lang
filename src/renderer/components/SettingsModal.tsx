@@ -6,11 +6,16 @@ import { SettingAppearance } from "./SettingAppearance";
 import { SettingCorrection } from "./SettingCorrection";
 import { SettingGeneral } from "./SettingGeneral";
 import { SettingPromptGen } from "./SettingPromptGen";
+import { useI18n } from "../i18n/useI18n";
+import type { TranslationKey } from "~/shared/i18n/keys";
 
 // Define the tab configuration type
+// `labelKey` (not a translated string) is resolved via `t()` at render time,
+// so the tab table itself stays locale-free — the same pattern used for the
+// dashboard tab table (see `dashboardTabs.ts`).
 type SettingsTab = {
   id: string;
-  label: string;
+  labelKey: TranslationKey;
   icon: React.ReactNode;
   component: React.ReactNode;
 };
@@ -35,11 +40,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   initialTab = 0,
 }) => {
+  const { t } = useI18n();
   // Define all tab configurations - you can easily reorder these tabs by changing their position in the array
   const tabs: SettingsTab[] = [
     {
       id: "profiles",
-      label: "Profiles",
+      labelKey: "settings.modal.tabs.profiles",
       icon: (
         <svg
           className="h-4 w-4"
@@ -59,7 +65,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     },
     {
       id: "general",
-      label: "General",
+      labelKey: "settings.modal.tabs.general",
       icon: (
         <svg
           className="h-4 w-4"
@@ -85,7 +91,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     },
     {
       id: "appearance",
-      label: "Appearance",
+      labelKey: "settings.modal.tabs.appearance",
       icon: (
         <svg
           className="h-4 w-4"
@@ -106,20 +112,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
     {
       id: "correction",
-      label: "Correction",
+      labelKey: "settings.modal.tabs.correction",
       icon: <></>,
       component: <SettingCorrection />,
     },
     // Build-time feature tag: no `--promptgen` => no PromptGen tab at all.
     ...(isPromptGenEnabled()
-      ? [
+      ? ([
           {
             id: "promptGen",
-            label: "PromptGen",
+            labelKey: "settings.modal.tabs.promptGen",
             icon: <></>,
             component: <SettingPromptGen />,
           },
-        ]
+        ] satisfies SettingsTab[])
       : []),
   ];
 
@@ -148,13 +154,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     >
       <div className="flex h-[85vh] min-h-120 max-h-250 w-[80%] max-w-250 flex-col overflow-hidden rounded-lg bg-card p-6 shadow-xl">
         <div className="mb-4 flex shrink-0 items-center justify-between">
-          <h2 className="text-xl font-semibold text-primary">Settings</h2>
+          <h2 className="text-xl font-semibold text-primary">{t("settings.modal.title")}</h2>
           <button
             type="button"
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground text-2xl font-bold"
-            aria-label="Close settings modal"
-            title="Close settings modal"
+            aria-label={t("settings.modal.close")}
+            title={t("settings.modal.close")}
           >
             &times;
           </button>
@@ -165,7 +171,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div
             className="grid w-full grid-cols-2 gap-2 rounded-lg p-1 sm:grid-cols-3 lg:grid-cols-5"
             role="tablist"
-            aria-label="Settings tabs"
+            aria-label={t("settings.modal.tabsAriaLabel")}
           >
             {tabs.map((tab, index) => {
               const isActive = activeTab === index;
@@ -191,7 +197,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   type="button"
                 >
                   {tab.icon}
-                  <span className="whitespace-nowrap">{tab.label}</span>
+                  <span className="whitespace-nowrap">{t(tab.labelKey)}</span>
                 </button>
               );
             })}

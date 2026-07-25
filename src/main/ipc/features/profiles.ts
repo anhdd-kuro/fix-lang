@@ -4,6 +4,7 @@
  */
 import { ipcMain, Notification } from "electron";
 import { reloadHotkeys } from "~/main/keybindings";
+import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
 import {
   clearLegacyApiKey,
   getLegacyApiKey,
@@ -31,6 +32,11 @@ import {
   clearLegacyProvisioningKey,
   getLegacyProvisioningKey,
 } from "~/stores/provisioningKeyStore";
+import { wrapStoreResult } from "./ipcResultLabel";
+import {
+  buildProfileNotification,
+  buildProfilesUpdatedNotification,
+} from "./profileNotifications";
 import type { Profile } from "~/stores/apiStore";
 
 /**
@@ -97,6 +103,19 @@ const migrateLegacySecretsToActiveProfile = async (): Promise<void> => {
 };
 
 /**
+ * Wraps an exception caught by a profile handler. Mirrors `exceptionLabel`
+ * (`./ipcResultLabel.ts`) for the `Error` case (opaque, `textLabel`), but this
+ * file's non-`Error` fallback was always the hardcoded UI copy "Unknown
+ * error" (not `String(error)`) — kept as a translatable `messageLabel`,
+ * reusing the identical existing `models.select.error.unknown` catalog entry
+ * rather than adding a duplicate key.
+ */
+const catchLabel = (error: unknown): Label =>
+  error instanceof Error
+    ? textLabel(error.message)
+    : messageLabel("models.select.error.unknown");
+
+/**
  * Registers profile-related IPC handlers
  */
 export const registerProfileHandlers = () => {
@@ -117,7 +136,7 @@ export const registerProfileHandlers = () => {
       return {
         profiles: [],
         currentProfileId: "",
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: catchLabel(error),
       };
     }
   });
@@ -138,7 +157,7 @@ export const registerProfileHandlers = () => {
       return {
         currentProfileId: "",
         currentProfile: null,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: catchLabel(error),
       };
     }
   });
@@ -153,10 +172,7 @@ export const registerProfileHandlers = () => {
       try {
         const profile = createProfile(name, description);
 
-        new Notification({
-          title: "Profile Created",
-          body: `Profile "${name}" has been created and activated.`,
-        }).show();
+        new Notification(buildProfileNotification("created", name)).show();
 
         return {
           success: true,
@@ -164,10 +180,7 @@ export const registerProfileHandlers = () => {
         };
       } catch (error) {
         console.error("Failed to create profile:", error);
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        };
+        return { success: false, error: catchLabel(error) };
       }
     },
   );
@@ -183,19 +196,18 @@ export const registerProfileHandlers = () => {
           reloadHotkeys();
           const profile = getProfileById(profileId);
 
-          new Notification({
-            title: "Profile Applied",
-            body: `Profile "${profile?.name}" has been activated.`,
-          }).show();
+          new Notification(
+            buildProfileNotification("applied", profile?.name ?? ""),
+          ).show();
         }
 
-        return result;
+        // `applyProfile` (apiStore.ts) is outside this migration's scope —
+        // its error text ("Profile not found", …) is boundary-wrapped as
+        // opaque here rather than guessed at as translatable.
+        return wrapStoreResult(result);
       } catch (error) {
         console.error("Failed to apply profile:", error);
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        };
+        return { success: false, error: catchLabel(error) };
       }
     },
   );
@@ -215,10 +227,9 @@ export const registerProfileHandlers = () => {
         const updatedProfile = updateProfile(profileId, name, description);
 
         if (updatedProfile) {
-          new Notification({
-            title: "Profile Updated",
-            body: `Profile "${updatedProfile.name}" has been updated.`,
-          }).show();
+          new Notification(
+            buildProfileNotification("updated", updatedProfile.name),
+          ).show();
 
           return {
             success: true,
@@ -228,14 +239,11 @@ export const registerProfileHandlers = () => {
 
         return {
           success: false,
-          error: "Profile not found",
+          error: messageLabel("common.error.profileNotFound"),
         };
       } catch (error) {
         console.error("Failed to update profile:", error);
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        };
+        return { success: false, error: catchLabel(error) };
       }
     },
   );
@@ -252,24 +260,25 @@ export const registerProfileHandlers = () => {
           : { success: true };
 
         if (success && profile) {
-          new Notification({
-            title: "Profile Deleted",
-            body: `Profile "${profile.name}" has been deleted.`,
-          }).show();
+          new Notification(
+            buildProfileNotification("deleted", profile.name),
+          ).show();
         }
 
-        return {
-          success,
-          ...(secretCleanup.success
-            ? {}
-            : { warning: "Profile deleted, but some credentials could not be removed" }),
-        };
+        if (!secretCleanup.success) {
+          // Not surfaced to the renderer: no UI ever read this signal, and a
+          // partially-failed cleanup shouldn't block the deletion itself.
+          // Server-side visibility is enough here.
+          console.error(
+            "Failed to fully clean up credentials after profile deletion:",
+            secretCleanup.error,
+          );
+        }
+
+        return { success };
       } catch (error) {
         console.error("Failed to delete profile:", error);
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        };
+        return { success: false, error: catchLabel(error) };
       }
     },
   );
@@ -281,10 +290,9 @@ export const registerProfileHandlers = () => {
 
       if (nextProfile) {
         reloadHotkeys();
-        new Notification({
-          title: "Profile Switched",
-          body: `Profile "${nextProfile.name}" has been activated.`,
-        }).show();
+        new Notification(
+          buildProfileNotification("switched", nextProfile.name),
+        ).show();
 
         return {
           success: true,
@@ -294,14 +302,11 @@ export const registerProfileHandlers = () => {
 
       return {
         success: false,
-        error: "No profiles available",
+        error: messageLabel("common.error.noProfilesAvailable"),
       };
     } catch (error) {
       console.error("Failed to switch profile:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
+      return { success: false, error: catchLabel(error) };
     }
   });
 
@@ -319,7 +324,7 @@ export const registerProfileHandlers = () => {
         if (!profileData.id || !profileData.name || !profileData.settings) {
           return {
             success: false,
-            error: "Invalid profile format",
+            error: messageLabel("common.error.invalidProfileFormat"),
           };
         }
 
@@ -346,10 +351,9 @@ export const registerProfileHandlers = () => {
         // Save updated profiles
         apiStore.set("profiles", profiles);
 
-        new Notification({
-          title: "Profile Imported",
-          body: `Profile "${profileData.name}" has been imported.`,
-        }).show();
+        new Notification(
+          buildProfileNotification("imported", profileData.name),
+        ).show();
 
         return {
           success: true,
@@ -359,8 +363,14 @@ export const registerProfileHandlers = () => {
         console.error("Failed to import profile:", error);
         return {
           success: false,
+          // Reuses the existing `profiles.manager.error.importFailed` catalog
+          // entry (identical wording) rather than adding a duplicate key —
+          // `profiles.json` is outside this migration's catalog scope, but
+          // referencing an existing key from it is just a lookup.
           error:
-            error instanceof Error ? error.message : "Failed to import profile",
+            error instanceof Error
+              ? textLabel(error.message)
+              : messageLabel("profiles.manager.error.importFailed"),
         };
       }
     },
@@ -376,7 +386,7 @@ export const registerProfileHandlers = () => {
         if (!profile) {
           return {
             success: false,
-            error: "Profile not found",
+            error: messageLabel("common.error.profileNotFound"),
           };
         }
 
@@ -386,19 +396,13 @@ export const registerProfileHandlers = () => {
         };
       } catch (error) {
         console.error("Failed to export profile:", error);
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        };
+        return { success: false, error: catchLabel(error) };
       }
     },
   );
 
   // Notification for profile updates
   ipcMain.on("profile-updated", () => {
-    new Notification({
-      title: "Profiles Updated",
-      body: "Your profile settings have been updated.",
-    }).show();
+    new Notification(buildProfilesUpdatedNotification()).show();
   });
 };

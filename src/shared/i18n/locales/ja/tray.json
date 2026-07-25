@@ -1,0 +1,23 @@
+{
+  "tray.credit.lowBalance": "残高わずか",
+  "tray.credit.missingKey": "設定でプロビジョニングキーを追加してください",
+  "tray.credit.title": "OpenRouterクレジット",
+  "tray.heatmap.empty": "まだアクティビティがありません",
+  "tray.heatmap.title": "直近7日間のアクティビティ",
+  "tray.heatmap.tooltip_other": "{weekday} {hours}: {count} 件の校正",
+  "tray.toolbar.checkForUpdates": "アップデートを確認",
+  "tray.toolbar.checkingForUpdates": "アップデートを確認中…",
+  "tray.toolbar.openDashboard": "ダッシュボードを開く",
+  "tray.toolbar.openSettings": "設定を開く",
+  "tray.toolbar.quitApp": "アプリケーションを終了",
+  "tray.toolbar.quitConfirm.confirmButton": "終了",
+  "tray.toolbar.quitConfirm.detail": "アプリケーションが終了します。",
+  "tray.toolbar.quitConfirm.message": "FixLangを終了しますか？",
+  "tray.toolbar.restartApp": "アプリケーションを再起動",
+  "tray.toolbar.updateCheck.available": "アップデートがあります: v{availableVersion}（インストール済み v{currentVersion}）。",
+  "tray.toolbar.updateCheck.failed": "アップデートの確認に失敗しました。{reason}",
+  "tray.toolbar.updateCheck.genericFailure": "しばらくしてから再度お試しください。",
+  "tray.toolbar.updateCheck.unsupported": "このビルドでは自動アップデート確認を利用できません。",
+  "tray.toolbar.updateCheck.upToDate": "FixLangは最新版です（v{version}）。",
+  "tray.toolbar.updateCheck.viewRelease": "リリースを表示"
+}

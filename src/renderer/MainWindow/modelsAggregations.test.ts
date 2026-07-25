@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-  UNKNOWN_MODEL_LABEL,
+  UNKNOWN_MODEL_ID,
   groupKeyForEntry,
   perModelBreakdown,
   tokensPerDay,
@@ -40,9 +40,9 @@ describe("groupKeyForEntry", () => {
       groupKeyForEntry(entry({ model: "m", resolvedModel: "   " }))
     ).toBe("m");
   });
-  it("returns the unknown label when both are absent", () => {
+  it("returns the unknown sentinel when both are absent", () => {
     expect(groupKeyForEntry(entry({ model: undefined }))).toBe(
-      UNKNOWN_MODEL_LABEL
+      UNKNOWN_MODEL_ID
     );
   });
 });
@@ -61,6 +61,17 @@ describe("perModelBreakdown", () => {
     expect(rows).toHaveLength(2);
     const gpt = rows.find((r) => r.model === "openai/gpt-4o");
     expect(gpt?.usageCount).toBe(2);
+    // A real served model id is user data: verbatim `textLabel`, never translated.
+    expect(gpt?.modelLabel).toEqual({ kind: "text", text: "openai/gpt-4o" });
+  });
+
+  it("labels the unknown-model sentinel as translated UI chrome, not user data", () => {
+    const rows = perModelBreakdown([entry({ model: undefined })]);
+    expect(rows[0].model).toBe(UNKNOWN_MODEL_ID);
+    expect(rows[0].modelLabel).toEqual({
+      kind: "message",
+      message: { key: "models.unknown" },
+    });
   });
 
   it("usage shares sum to ~100% and single model → 100%", () => {

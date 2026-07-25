@@ -19,15 +19,22 @@ import { SettingsModal } from "../components/SettingsModal";
 import { SettingUpdates } from "../components/SettingUpdates";
 import { TextAreaBox } from "../components/TextAreaBox";
 import { useTheme } from "../hooks/useTheme";
+import { useI18n } from "../i18n/useI18n";
 import type { DashboardTabId } from "./dashboardTabs";
 import type { AnalyticsRange } from "../analytics/shared";
+import type { MessageKey } from "~/shared/i18n/message";
 import type { HistoryEntry, HistoryFeatureId } from "~/stores/historyStore";
 
-/** Range options for the analytics tabs (shared header pill group). */
-const RANGES: { id: AnalyticsRange; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "30d", label: "30d" },
-  { id: "7d", label: "7d" },
+/**
+ * Range options for the analytics tabs (shared header pill group). Kept as a
+ * module-level `labelKey` table (mirrors `DASHBOARD_TABS`) rather than raw
+ * `label` prose, so the range pills stay locale-free data resolved via `t()`
+ * at render time — no memo needed since nothing here closes over `t`.
+ */
+const RANGES: { id: AnalyticsRange; labelKey: MessageKey }[] = [
+  { id: "all", labelKey: "dashboard.range.all" },
+  { id: "30d", labelKey: "dashboard.range.last30Days" },
+  { id: "7d", labelKey: "dashboard.range.last7Days" },
 ];
 
 /** Tabs that read the shared time-range pills. */
@@ -43,6 +50,10 @@ const RANGE_AWARE_TABS = new Set(["overview", "models"]);
  */
 const App: React.FC = () => {
   useTheme();
+  // Resolves DASHBOARD_TABS[]/RANGES[] labelKeys plus every other
+  // user-facing string in this file (headings, TextAreaBox labels,
+  // aria-labels) at render time.
+  const { t } = useI18n();
   // History state — flat list combining corrections + promptGen buckets
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
@@ -221,11 +232,11 @@ const App: React.FC = () => {
       </aside>
       <section className="flex flex-1 flex-col gap-6 overflow-y-auto">
         <h2 className="text-center text-2xl font-bold text-primary">
-          Last Action Preview
+          {t("dashboard.lastActionPreview.title")}
         </h2>
         <div className="flex flex-1 flex-col gap-8">
           <TextAreaBox
-            label="Original Text"
+            label={t("dashboard.lastActionPreview.originalLabel")}
             value={lastHistoryData.original}
             onChange={(value) =>
               setLastHistoryData({
@@ -242,7 +253,7 @@ const App: React.FC = () => {
             className="flex-1"
           />
           <TextAreaBox
-            label="Result Text"
+            label={t("dashboard.lastActionPreview.resultLabel")}
             value={lastHistoryData.corrected}
             onChange={(value) =>
               setLastHistoryData({
@@ -286,7 +297,7 @@ const App: React.FC = () => {
         <nav
           className="flex gap-1"
           role="tablist"
-          aria-label="Dashboard tabs"
+          aria-label={t("dashboard.tabs.ariaLabel")}
         >
           {DASHBOARD_TABS.map((tab, index) => {
             const isActive = activeDashboardTab === index;
@@ -307,7 +318,7 @@ const App: React.FC = () => {
                     : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                 )}
               >
-                {tab.label}
+                {t(tab.labelKey)}
               </button>
             );
           })}
@@ -318,7 +329,7 @@ const App: React.FC = () => {
             <div
               className="flex gap-1 rounded-lg bg-background/60 p-0.5"
               role="group"
-              aria-label="Time range"
+              aria-label={t("dashboard.range.ariaLabel")}
             >
               {RANGES.map((r) => (
                 <button
@@ -333,7 +344,7 @@ const App: React.FC = () => {
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  {r.label}
+                  {t(r.labelKey)}
                 </button>
               ))}
             </div>

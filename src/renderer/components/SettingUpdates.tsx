@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { msg, type Message } from "~/shared/i18n/message";
 import CopyButton from "./CopyButton";
 import { Spinner } from "./Spinner";
+import { useI18n } from "../i18n/useI18n";
 import type { UpdateState } from "~/shared/update";
 
 /** Author GitHub profile — opened from the About tab header icon. */
@@ -27,19 +29,22 @@ const GitHubProfileIcon = ({ className }: { className?: string }) => (
  * single source of truth for both the display and the clipboard value, so the
  * user always copies exactly what they see.
  */
-const CommandBlock = ({ command }: { command: string }) => (
-  <div className="relative mt-1 rounded border border-border bg-secondary/60">
-    <pre className="overflow-x-auto whitespace-pre-wrap break-all px-2 py-1.5 pr-6 font-mono text-sm text-card-foreground">
-      {command}
-    </pre>
-    <CopyButton
-      value={command}
-      label={`Copy: ${command}`}
-      size="sm"
-      className="absolute right-1 top-1"
-    />
-  </div>
-);
+const CommandBlock = ({ command }: { command: string }) => {
+  const { t } = useI18n();
+  return (
+    <div className="relative mt-1 rounded border border-border bg-secondary/60">
+      <pre className="overflow-x-auto whitespace-pre-wrap break-all px-2 py-1.5 pr-6 font-mono text-sm text-card-foreground">
+        {command}
+      </pre>
+      <CopyButton
+        value={command}
+        label={t("settings.updates.copyCommand", { command })}
+        size="sm"
+        className="absolute right-1 top-1"
+      />
+    </div>
+  );
+};
 
 /**
  * Compact markdown component overrides so GitHub release notes fit the
@@ -118,8 +123,18 @@ const displayVersion = (version: string | undefined): string =>
  * GitHub metadata; this component only renders safe state and opens releases.
  */
 export const SettingUpdates = () => {
+  const { t, tm } = useI18n();
   const [state, setState] = useState<UpdateState>(initialState);
   const [actionPending, setActionPending] = useState(false);
+  // Locale-free descriptor for the ONE error message the mount effect below
+  // can produce (`getUpdateState()` rejecting before any live event arrives).
+  // Kept as separate state from `state.message` (also a `Message` descriptor
+  // on the shared `UpdateState` type from `~/shared/update`, but one only
+  // ever set by `run()` below or a live broadcast) so a mount-time IPC
+  // failure is never confused with a service-reported error state. Cleared
+  // whenever fresher state arrives (a live broadcast, the initial snapshot,
+  // or a later `run()` failure) so it can never shadow newer information.
+  const [mountLoadError, setMountLoadError] = useState<Message | null>(null);
 
   useEffect(() => {
     const api = updateApi();
@@ -132,21 +147,22 @@ export const SettingUpdates = () => {
       receivedLiveState = true;
       if (mounted) {
         setActionPending(false);
+        setMountLoadError(null);
         setState(next);
       }
     });
 
     void api.getUpdateState()
       .then((next) => {
-        if (mounted && !receivedLiveState) setState(next);
+        if (mounted && !receivedLiveState) {
+          setMountLoadError(null);
+          setState(next);
+        }
       })
       .catch(() => {
         if (mounted && !receivedLiveState) {
-          setState((current) => ({
-            ...current,
-            phase: "error",
-            message: "Could not load update status.",
-          }));
+          setMountLoadError(msg("settings.updates.loadFailed"));
+          setState((current) => ({ ...current, phase: "error" }));
         }
       });
 
@@ -158,9 +174,21 @@ export const SettingUpdates = () => {
 
   const run = async (
     request: () => Promise<unknown>,
-    failureMessage: string,
+    failureMessage: Message,
   ) => {
     if (actionPending) return;
+
+    // Shared by both failure paths below (a rejected request and a
+    // resolved-but-`success: false` result) so a translation key never has to
+    // be smuggled through as an `Error` message just to reach one handler.
+    const reportFailure = () => {
+      setMountLoadError(null);
+      setState((current) => ({
+        ...current,
+        phase: "error",
+        message: failureMessage,
+      }));
+    };
 
     setActionPending(true);
     try {
@@ -171,14 +199,11 @@ export const SettingUpdates = () => {
         "success" in result &&
         result.success === false
       ) {
-        throw new Error(failureMessage);
+        reportFailure();
+        return;
       }
     } catch {
-      setState((current) => ({
-        ...current,
-        phase: "error",
-        message: failureMessage,
-      }));
+      reportFailure();
     } finally {
       setActionPending(false);
     }
@@ -193,11 +218,11 @@ export const SettingUpdates = () => {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 id="app-updates-heading" className="text-base font-medium text-card-foreground">
-            App updates
+            {t("settings.updates.title")}
           </h2>
           {state.currentVersion && (
             <p className="mt-1 text-sm text-muted-foreground">
-              FixLang v{state.currentVersion}
+              {t("settings.updates.versionLabel", { version: state.currentVersion })}
             </p>
           )}
         </div>
@@ -208,8 +233,8 @@ export const SettingUpdates = () => {
             void window.electronAPI.openExternalLink(GITHUB_PROFILE_URL);
           }}
           className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="Open anhdd-kuro on GitHub"
-          title="anhdd-kuro on GitHub"
+          aria-label={t("settings.updates.githubLinkLabel")}
+          title={t("settings.updates.githubLinkLabel")}
         >
           <GitHubProfileIcon className="size-5" />
         </a>
@@ -217,21 +242,21 @@ export const SettingUpdates = () => {
 
       {state.phase === "unsupported" && (
         <p className="mt-1 text-sm text-muted-foreground" role="status" aria-live="polite">
-          Updates are available in installed release builds.
+          {t("settings.updates.unsupported")}
         </p>
       )}
 
       {state.phase === "idle" && (
         <>
           <p className="mt-1 text-sm text-muted-foreground">
-            Checks GitHub Releases. Updates install manually.
+            {t("settings.updates.idleDescription")}
           </p>
           <button
             type="button"
             onClick={() =>
               void run(
                 () => updateApi().checkForUpdates(),
-                "Could not check for updates.",
+                msg("settings.updates.checkFailed"),
               )
             }
             disabled={isBusy}
@@ -240,7 +265,7 @@ export const SettingUpdates = () => {
             {isBusy && (
               <Spinner className="mr-2 inline size-4 align-[-2px]" />
             )}
-            Check for updates
+            {t("settings.updates.checkButton")}
           </button>
         </>
       )}
@@ -248,7 +273,7 @@ export const SettingUpdates = () => {
       {state.phase === "checking" && (
         <>
           <p className="mt-1 text-sm text-muted-foreground" role="status" aria-live="polite">
-            Checking for updates…
+            {t("settings.updates.checking")}
           </p>
           <button
             type="button"
@@ -256,7 +281,7 @@ export const SettingUpdates = () => {
             className="mt-2 rounded bg-primary px-3 py-1.5 text-base text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Spinner className="mr-2 inline size-4 align-[-2px]" />
-            Check for updates
+            {t("settings.updates.checkButton")}
           </button>
         </>
       )}
@@ -264,14 +289,14 @@ export const SettingUpdates = () => {
       {state.phase === "up-to-date" && (
         <>
           <p className="mt-1 text-sm text-success" role="status" aria-live="polite">
-            FixLang is up to date.
+            {t("settings.updates.upToDate")}
           </p>
           <button
             type="button"
             onClick={() =>
               void run(
                 () => updateApi().checkForUpdates(),
-                "Could not check for updates.",
+                msg("settings.updates.checkFailed"),
               )
             }
             disabled={isBusy}
@@ -280,7 +305,7 @@ export const SettingUpdates = () => {
             {isBusy && (
               <Spinner className="mr-2 inline size-4 align-[-2px]" />
             )}
-            Check for update
+            {t("settings.updates.checkButton")}
           </button>
         </>
       )}
@@ -288,7 +313,10 @@ export const SettingUpdates = () => {
       {state.phase === "available" && (
         <>
           <p className="mt-1 text-sm text-success" role="status" aria-live="polite">
-            Version {latestVersion} is available (you have v{state.currentVersion}).
+            {t("settings.updates.available", {
+              version: latestVersion,
+              currentVersion: state.currentVersion,
+            })}
           </p>
           {state.releaseNotes && (
             <div className="mt-1 text-sm text-muted-foreground">
@@ -302,14 +330,12 @@ export const SettingUpdates = () => {
           )}
           {state.canInstall ? (
             <p className="mt-1 text-sm text-muted-foreground">
-              Homebrew installs the update and reopens FixLang. The app quits
-              first so the bundle can be replaced.
+              {t("settings.updates.canInstallDescription")}
             </p>
           ) : (
             <>
               <p className="mt-1 text-sm text-muted-foreground">
-                Install the DMG, replace FixLang in Applications, then run this
-                if macOS blocks it:
+                {t("settings.updates.installInstructions")}
               </p>
               <CommandBlock
                 command={'xattr -dr com.apple.quarantine "/Applications/FixLang.app"'}
@@ -323,14 +349,14 @@ export const SettingUpdates = () => {
                 onClick={() =>
                   void run(
                     () => updateApi().installUpdate(),
-                    "Could not start the Homebrew update.",
+                    msg("settings.updates.installFailed"),
                   )
                 }
                 disabled={isBusy}
                 className="rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isBusy && <Spinner className="mr-2 inline size-4 align-[-2px]" />}
-                Update now
+                {t("settings.updates.installNow")}
               </button>
             )}
             <button
@@ -338,7 +364,7 @@ export const SettingUpdates = () => {
               onClick={() =>
                 void run(
                   () => updateApi().openUpdateRelease(),
-                  "Could not open the release page.",
+                  msg("settings.updates.openReleaseFailed"),
                 )
               }
               disabled={isBusy}
@@ -348,20 +374,20 @@ export const SettingUpdates = () => {
                   : "rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
               }
             >
-              Download from GitHub
+              {t("settings.updates.downloadButton")}
             </button>
             <button
               type="button"
               onClick={() =>
                 void run(
                   () => updateApi().openUpdateRelease(),
-                  "Could not open the release page.",
+                  msg("settings.updates.openReleaseFailed"),
                 )
               }
               disabled={isBusy}
               className="rounded border border-border px-3 py-1.5 text-base text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
             >
-              View releases
+              {t("settings.updates.viewReleases")}
             </button>
           </div>
         </>
@@ -374,15 +400,18 @@ export const SettingUpdates = () => {
           aria-live="polite"
         >
           <Spinner className="mr-2 inline size-4 align-[-2px]" />
-          Installing {latestVersion} with Homebrew. FixLang quits and reopens on
-          its own.
+          {t("settings.updates.installingDescription", { version: latestVersion })}
         </p>
       )}
 
       {state.phase === "error" && (
         <>
           <p className="mt-1 text-sm text-destructive" role="alert">
-            {state.message ?? "Could not update FixLang."}
+            {mountLoadError
+              ? tm(mountLoadError)
+              : state.message
+                ? tm(state.message)
+                : t("settings.updates.genericError")}
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             <button
@@ -390,26 +419,26 @@ export const SettingUpdates = () => {
               onClick={() =>
                 void run(
                   () => updateApi().checkForUpdates(),
-                  "Could not check for updates.",
+                  msg("settings.updates.checkFailed"),
                 )
               }
               disabled={isBusy}
               className="rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Try again
+              {t("settings.updates.tryAgain")}
             </button>
             <button
               type="button"
               onClick={() =>
                 void run(
                   () => updateApi().openUpdateRelease(),
-                  "Could not open the release page.",
+                  msg("settings.updates.openReleaseFailed"),
                 )
               }
               disabled={isBusy}
               className="rounded border border-border px-3 py-1.5 text-base text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
             >
-              View releases
+              {t("settings.updates.viewReleases")}
             </button>
           </div>
         </>
@@ -417,55 +446,60 @@ export const SettingUpdates = () => {
 
       <div className="mt-4">
         <h3 className="text-base font-medium text-card-foreground">
-          How to update
+          {t("settings.updates.howToTitle")}
         </h3>
 
         <h4 className="mt-2 text-sm font-semibold text-card-foreground">
-          Homebrew (Apple Silicon)
+          {t("settings.updates.homebrewTitle")}
         </h4>
         <p className="mt-1 text-sm text-muted-foreground">
-          Update to the latest release:
+          {t("settings.updates.homebrewUpdateHint")}
         </p>
         <CommandBlock command="brew update && brew upgrade --cask fixlang" />
 
+        {/* Two independent sentences bracket the literal Homebrew output
+            (never translated — it's what the user's terminal actually shows)
+            instead of interpolating it mid-sentence, so JA word order isn't
+            forced to match the EN clause order. */}
         <p className="mt-2 text-sm text-muted-foreground">
-          Seeing{" "}
-          <code className="rounded bg-secondary px-1 py-0.5 font-mono text-sm">
-            No Cask with this name exists
-          </code>
-          ? The tap is not added yet (for example, you installed the DMG
-          manually). Add the tap and install once:
+          {t("settings.updates.tapMissingIntro")}
+        </p>
+        <code className="mt-1 block rounded bg-secondary px-2 py-1 font-mono text-sm text-card-foreground">
+          No Cask with this name exists
+        </code>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {t("settings.updates.tapMissingAction")}
         </p>
         <CommandBlock command="brew tap anhdd-kuro/tap" />
         <CommandBlock command="brew install --cask anhdd-kuro/tap/fixlang" />
         <p className="mt-2 text-sm text-muted-foreground">
-          If the app already exists from a manual install, adopt it with{" "}
-          <code className="rounded bg-secondary px-1 py-0.5 font-mono text-sm">
-            --force
-          </code>
-          :
+          {t("settings.updates.adoptExistingIntro")}
         </p>
+        <code className="mt-1 block rounded bg-secondary px-2 py-1 font-mono text-sm text-card-foreground">
+          --force
+        </code>
         <CommandBlock command="brew install --cask --force anhdd-kuro/tap/fixlang" />
         <p className="mt-2 text-sm text-muted-foreground">
-          After the tap is added, future upgrades also work with the
-          fully-qualified name:
+          {t("settings.updates.futureUpgrades")}
         </p>
         <CommandBlock command="brew upgrade --cask anhdd-kuro/tap/fixlang" />
 
         <h4 className="mt-3 text-sm font-semibold text-card-foreground">
-          Manual (DMG)
+          {t("settings.updates.manualTitle")}
         </h4>
         <p className="mt-1 text-sm text-muted-foreground">
-          Download the latest release from GitHub (see the buttons above), open
-          the DMG, and replace FixLang in <code>/Applications</code>. If macOS
-          blocks the unsigned app, run:
+          {t("settings.updates.manualInstructionsIntro")}
+        </p>
+        <code className="mt-1 block rounded bg-secondary px-2 py-1 font-mono text-sm text-card-foreground">
+          /Applications
+        </code>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {t("settings.updates.manualBlockedNotice")}
         </p>
         <CommandBlock command={'xattr -dr com.apple.quarantine "/Applications/FixLang.app"'} />
 
         <p className="mt-2 text-sm text-muted-foreground">
-          FixLang releases are unsigned and not notarized. Update now hands the
-          install to Homebrew — the app never downloads or replaces itself, and
-          nothing is installed without this explicit action.
+          {t("settings.updates.unsignedNotice")}
         </p>
       </div>
     </section>

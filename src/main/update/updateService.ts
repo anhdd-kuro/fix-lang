@@ -1,3 +1,4 @@
+import { msg, type Message } from "~/shared/i18n/message";
 import { reconcilePendingInstall, type PendingInstallStore } from "./pendingInstall";
 import type { GitHubReleaseSource } from "./githubReleaseSource";
 import type { HomebrewUpgrader } from "./homebrew";
@@ -38,21 +39,27 @@ type ValidatedRelease = Readonly<{
 }>;
 
 const RELEASE_NOTES_MAX_LENGTH = 12_000;
-const UPDATE_ERROR_MESSAGE = "Could not check for updates. Try again later.";
-const INSTALL_ERROR_MESSAGE =
-  "Could not start the Homebrew update. Update manually with the command below.";
-const INSTALL_INCOMPLETE_MESSAGE =
-  "Homebrew did not finish the last update. Update manually with the command below.";
+// These are locale-free descriptors, not prose — the strings underneath
+// live in `settings.updates.*` (en/ja), and the renderer resolves them via
+// `tm()` so an already-open Settings panel updates on a locale switch
+// instead of freezing in whatever locale was active when this state was
+// published (see `~/shared/update.ts`'s `UpdateState.message`).
+const UPDATE_ERROR_MESSAGE: Message = msg("settings.updates.checkErrorMessage");
+const INSTALL_ERROR_MESSAGE: Message = msg("settings.updates.installErrorMessage");
+const INSTALL_INCOMPLETE_MESSAGE: Message = msg(
+  "settings.updates.installIncompleteMessage",
+);
 
 /**
  * Releases reach GitHub before the Homebrew tap picks them up, so the app can
  * advertise a version the cask cannot install yet. Say so instead of quitting
  * for an upgrade that would silently no-op.
  */
-const tapBehindMessage = (target: string, offered: string): string =>
-  `Homebrew does not have v${target} yet — it still offers v${offered}. ` +
-  "The tap syncs shortly after each release; try again later, or update " +
-  "manually with the command below.";
+const tapBehindMessage = (target: string, offered: string): Message =>
+  msg("settings.updates.tapBehindMessage", {
+    targetVersion: target,
+    offeredVersion: offered,
+  });
 const RELEASES_URL = "https://github.com/anhdd-kuro/fix-lang/releases";
 const STABLE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
@@ -162,7 +169,7 @@ export const createUpdateService = (
     currentVersion,
     ...(supported
       ? {}
-      : { message: "Updates are available in installed release builds." }),
+      : { message: msg("settings.updates.unsupported") }),
   });
 
   const publish = (next: Omit<UpdateState, "canInstall">): void => {

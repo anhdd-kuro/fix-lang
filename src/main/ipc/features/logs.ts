@@ -1,6 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { app, BrowserWindow, clipboard, dialog, ipcMain } from "electron";
+import { mainT } from "~/main/i18n";
 import { logService, logger } from "~/main/logging/logService";
 import { LOG_QUERY_PAGE_SIZE } from "~/shared/logging";
 import type { LogLevel, LogQueryRequest } from "~/shared/logging";
@@ -82,12 +83,12 @@ export const registerLogHandlers = (): void => {
   ipcMain.handle("logs:export", async () => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const result = await dialog.showSaveDialog({
-      title: "Export FixLang Logs",
+      title: mainT("logs.export.dialogTitle"),
       defaultPath: path.join(
         app.getPath("documents"),
         `fixlang-logs-${timestamp}.txt`,
       ),
-      filters: [{ name: "Text files", extensions: ["txt"] }],
+      filters: [{ name: mainT("logs.export.filterName"), extensions: ["txt"] }],
     });
 
     if (result.canceled || !result.filePath) {

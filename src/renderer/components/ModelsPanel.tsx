@@ -9,10 +9,13 @@
  */
 import { useMemo, useState } from "react";
 import { ModelSelect } from "./ModelSelect";
+import { barDateLabel, barTooltipMessage, MODEL_TABLE_HEADER_KEYS, showMoreMessage } from "./modelsView";
 import { filterByRange, type AnalyticsRange } from "../analytics/shared";
+import { useI18n } from "../i18n/useI18n";
 import {
   perModelBreakdown,
   tokensPerDay,
+  UNKNOWN_MODEL_ID,
 } from "../MainWindow/modelsAggregations";
 import type { HistoryEntry } from "~/stores/historyStore";
 
@@ -42,8 +45,13 @@ const markerColor = (rank: number): string =>
   MARKER_VARS[rank % MARKER_VARS.length];
 
 export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
+  const { t, tl, tm, formatNumber, formatDate } = useI18n();
   const [expanded, setExpanded] = useState<boolean>(false);
 
+  // Descriptor-free data only — no locale-sensitive string is built inside
+  // this memo, so it needs no `t`/`locale` dependency (unlike
+  // `PresetWeightChart`'s chart-options memo — see spec.i18n-dashboard.md §5.3
+  // trap 2, which calls out reviewing this memo for the same risk).
   const { rows, bars, maxTokens } = useMemo(() => {
     const now = new Date();
     const filtered = filterByRange(history, range, now);
@@ -67,14 +75,14 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
 
       {rows.length === 0 ? (
         <p className="p-4 text-sm text-muted-foreground">
-          No model usage in this range yet.
+          {t("models.usage.empty")}
         </p>
       ) : (
         <>
           {/* Token volume over time — thin blue bars. */}
           <div className="rounded-lg border border-border bg-card p-4">
             <div className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">
-              Token usage over time
+              {t("models.usage.chartTitle")}
             </div>
             <div className="overflow-x-auto">
               <div className="flex h-28 items-end gap-[2px]">
@@ -83,7 +91,12 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
                   return (
                     <div
                       key={b.date}
-                      title={`${b.date} — ${b.tokens.toLocaleString()} tokens`}
+                      // `b.date` is a raw "YYYY-MM-DD" day key, not a display
+                      // label — `barDateLabel` formats it via the
+                      // locale-aware `formatDate` at render time (this map
+                      // runs directly in JSX, outside any memo, so there is
+                      // no stale-locale dependency-array risk to guard here).
+                      title={tm(barTooltipMessage(b, barDateLabel(formatDate, b.date)))}
                       className="w-[5px] shrink-0 rounded-t-[1px] bg-primary/80 hover:bg-primary/90"
                       // Inline height: a data-driven per-bar value, not a static
                       // style — keep at least a 1px sliver for non-zero days.
@@ -102,10 +115,16 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="px-2 py-2 font-medium">Model</th>
-                  <th className="px-2 py-2 text-right font-medium">Input</th>
-                  <th className="px-2 py-2 text-right font-medium">Output</th>
-                  <th className="px-2 py-2 text-right font-medium">Usage</th>
+                  <th className="px-2 py-2 font-medium">{t(MODEL_TABLE_HEADER_KEYS.model)}</th>
+                  <th className="px-2 py-2 text-right font-medium">
+                    {t(MODEL_TABLE_HEADER_KEYS.input)}
+                  </th>
+                  <th className="px-2 py-2 text-right font-medium">
+                    {t(MODEL_TABLE_HEADER_KEYS.output)}
+                  </th>
+                  <th className="px-2 py-2 text-right font-medium">
+                    {t(MODEL_TABLE_HEADER_KEYS.usage)}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -119,20 +138,35 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
                         />
                         <span
                           className="max-w-[16rem] truncate"
-                          title={row.model}
+                          // Raw model id — identity, never translated (see
+                          // spec.i18n-dashboard.md §1.3). Display text below
+                          // uses `modelLabel` instead. Except the
+                          // UNKNOWN_MODEL_ID sentinel is not a real id (it's
+                          // never shown to the user anywhere else) — fall
+                          // back to the translated label so the tooltip
+                          // doesn't leak the raw "__unknown__" token.
+                          title={
+                            row.model === UNKNOWN_MODEL_ID
+                              ? tl(row.modelLabel)
+                              : row.model
+                          }
                         >
-                          {row.model}
+                          {tl(row.modelLabel)}
                         </span>
                       </span>
                     </td>
                     <td className="px-2 py-2 text-right tabular-nums text-card-foreground">
-                      {row.inputTokens.toLocaleString()}
+                      {formatNumber(row.inputTokens)}
                     </td>
                     <td className="px-2 py-2 text-right tabular-nums text-card-foreground">
-                      {row.outputTokens.toLocaleString()}
+                      {formatNumber(row.outputTokens)}
                     </td>
                     <td className="px-2 py-2 text-right tabular-nums text-card-foreground">
-                      {row.usageSharePct.toFixed(1)}%
+                      {formatNumber(row.usageSharePct, {
+                        minimumFractionDigits: 1,
+                        maximumFractionDigits: 1,
+                      })}
+                      %
                     </td>
                   </tr>
                 ))}
@@ -145,7 +179,7 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
                 onClick={() => setExpanded((v) => !v)}
                 className="mt-1 w-full rounded-md px-2 py-1.5 text-xs text-primary hover:bg-secondary/60"
               >
-                {expanded ? "Show less" : `Show ${hiddenCount} more`}
+                {tm(showMoreMessage(expanded, hiddenCount))}
               </button>
             )}
           </div>

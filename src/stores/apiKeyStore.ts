@@ -31,29 +31,20 @@ export const getLegacyApiKeyPath = getApiKeyPath;
 // Pure helpers (unit-test seam — no electron, no fs).
 // ---------------------------------------------------------------------------
 
-/** OpenAI API keys conventionally start with this prefix. */
-export const OPENAI_KEY_PREFIX = "sk-";
-
 export type ValidateResult =
-  | { ok: true; value: string; warning?: string }
+  | { ok: true; value: string }
   | { ok: false; error: string };
 
 /**
  * Validate + normalize an API key input. Trims surrounding whitespace, rejects
- * empty/whitespace-only input. The `sk-` prefix is a SOFT warning (not a hard
- * block), mirroring the provisioning key's `sk-or-` soft check.
+ * empty/whitespace-only input. A non-"sk-" prefixed key is still accepted (no
+ * hard block) — nothing downstream ever surfaced that as a warning, so this
+ * doesn't manufacture one.
  */
 export const validateApiKeyInput = (raw: string): ValidateResult => {
   const value = raw.trim();
   if (value.length === 0) {
     return { ok: false, error: "API key must not be empty" };
-  }
-  if (!value.startsWith(OPENAI_KEY_PREFIX)) {
-    return {
-      ok: true,
-      value,
-      warning: `Key does not start with "${OPENAI_KEY_PREFIX}" — saving anyway`,
-    };
   }
   return { ok: true, value };
 };
@@ -76,7 +67,6 @@ export const isBlankStoredBlob = (content: string): boolean =>
 
 export type SecretWriteResult = {
   success: boolean;
-  warning?: string;
   error?: string;
 };
 
@@ -105,10 +95,7 @@ export const setLegacyApiKey = async (
       encoding: "utf8",
       mode: 0o600,
     });
-    return {
-      success: true,
-      ...(validated.warning ? { warning: validated.warning } : {}),
-    };
+    return { success: true };
   } catch (error) {
     return {
       success: false,

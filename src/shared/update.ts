@@ -1,3 +1,5 @@
+import { isMessage, type Message } from "./i18n/message";
+
 /** Renderer-safe state for the app-update flow. */
 export type UpdatePhase =
   | "unsupported"
@@ -20,13 +22,19 @@ export type UpdateState = Readonly<{
   currentVersion: string;
   availableVersion?: string;
   releaseNotes?: string;
-  message?: string;
+  /**
+   * A locale-free descriptor rather than a pre-resolved string: main builds
+   * this state once, but the renderer may still be open across a locale
+   * switch, and only the renderer's `tm()` (via `useI18n()`) can re-resolve
+   * it into the currently active language.
+   */
+  message?: Message;
   canInstall?: boolean;
 }>;
 
 export type UpdateActionResult =
   | Readonly<{ success: true }>
-  | Readonly<{ success: false; error: string }>;
+  | Readonly<{ success: false; error: Message }>;
 
 export type OpenUpdateReleaseResult = UpdateActionResult;
 export type InstallUpdateResult = UpdateActionResult;
@@ -70,7 +78,7 @@ export const isUpdateState = (value: unknown): value is UpdateState => {
     (value.availableVersion !== undefined &&
       typeof value.availableVersion !== "string") ||
     (value.releaseNotes !== undefined && typeof value.releaseNotes !== "string") ||
-    (value.message !== undefined && typeof value.message !== "string") ||
+    (value.message !== undefined && !isMessage(value.message)) ||
     (value.canInstall !== undefined && typeof value.canInstall !== "boolean")
   ) {
     return false;
@@ -94,8 +102,7 @@ export const isUpdateActionResult = (
     keys.length === 2 &&
     keys.includes("success") &&
     keys.includes("error") &&
-    typeof value.error === "string" &&
-    value.error.length > 0
+    isMessage(value.error)
   );
 };
 

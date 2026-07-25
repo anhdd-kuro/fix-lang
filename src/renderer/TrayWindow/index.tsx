@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import "../main.css";
 import { ModelSelect } from "../components/ModelSelect";
 import { useTheme } from "../hooks/useTheme";
+import { I18nProvider } from "../i18n/I18nProvider";
 import { TrayActivityHeatmapLoader } from "./components/TrayActivityHeatmap";
 import { TrayCreditBalance } from "./components/TrayCreditBalance";
 import { TrayToolbar } from "./components/TrayToolbar";
@@ -36,7 +37,9 @@ if (!rootElement) {
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <TrayWindowMain />
+    <I18nProvider>
+      <TrayWindowMain />
+    </I18nProvider>
   </React.StrictMode>
 );
 

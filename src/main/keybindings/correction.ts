@@ -6,12 +6,14 @@ import { keybindingStore } from "~/stores/keybindingStore";
 import { outputModeStore } from "~/stores/outputModeStore";
 import { getHighlightedText, pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
+import { buildCorrectionGoodJobNotification } from "./correctionNotifications";
 import { deliverCorrectionOutput } from "./correctionOutput";
 import { checkShortcut, handleError } from "./utils";
 import { buildPriceMap, computeCost } from "../ai.request/cost";
 import { getCachedModels, isLocalModelId } from "../ai.request/shared";
 import { syncHistory } from "../ipc/features/history";
 import { logger } from "../logging/logService";
+import { LocalizedError } from "../notifications/error";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
 import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWindow";
 import type { BrowserWindow } from "electron";
@@ -60,7 +62,12 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
             "No text selected or clipboard is empty",
             { presetId: preset.id },
           );
-          handleError(new Error("No text selected or clipboard is empty."));
+          handleError(
+            new LocalizedError(
+              "No text selected or clipboard is empty.",
+              "notifications.error.noTextSelected.body",
+            ),
+          );
           return;
         }
 
@@ -75,16 +82,13 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           result.correctedText === selectedText &&
           preset.id === DEFAULT_CORRECTION_PRESET_ID
         ) {
-          new Notification({
-            title: "Good job!",
-            body: "Your text is already correct. No changes have been made.",
-          }).show();
+          new Notification(buildCorrectionGoodJobNotification()).show();
         }
 
         const delivery = await deliverCorrectionOutput(
           outputModeStore.getCorrectionOutputMode(),
           {
-            title: `${preset.name} result`,
+            presetName: preset.name,
             text: result.correctedText,
           },
           {

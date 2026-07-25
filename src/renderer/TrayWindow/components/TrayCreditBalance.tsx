@@ -6,6 +6,7 @@ import {
   type OpenRouterDegradedReason,
 } from "../../components/openRouterFormat";
 import { useOpenRouterAnalytics } from "../../hooks/useOpenRouterAnalytics";
+import { useI18n } from "../../i18n/useI18n";
 import type { CardResult, Credits } from "~/main/llm/openrouter/parsers";
 
 const openOpenRouterTab = (): void => {
@@ -14,6 +15,7 @@ const openOpenRouterTab = (): void => {
 };
 
 export const TrayCreditBalance: React.FC = () => {
+  const { t } = useI18n();
   const { data, loading, hasKey } = useOpenRouterAnalytics("7d");
 
   const credits = data?.credits as CardResult<Credits> | undefined;
@@ -23,11 +25,13 @@ export const TrayCreditBalance: React.FC = () => {
   if (hasKey === false) {
     content = (
       <span className="text-sm text-muted-foreground">
-        Add provisioning key in Settings
+        {t("tray.credit.missingKey")}
       </span>
     );
   } else if (loading && !credits) {
-    content = <span className="text-sm text-muted-foreground">Loading…</span>;
+    content = (
+      <span className="text-sm text-muted-foreground">{t("common.loading")}</span>
+    );
   } else if (credits?.ok) {
     content = (
       <div className="flex items-baseline gap-2">
@@ -40,7 +44,9 @@ export const TrayCreditBalance: React.FC = () => {
           {formatOpenRouterUsd(credits.data.availableUsd)}
         </span>
         {credits.data.lowBalance && (
-          <span className="text-xs text-destructive">Low balance</span>
+          <span className="text-xs text-destructive">
+            {t("tray.credit.lowBalance")}
+          </span>
         )}
       </div>
     );
@@ -48,7 +54,7 @@ export const TrayCreditBalance: React.FC = () => {
     const reason = (credits?.reason ?? "unavailable") as OpenRouterDegradedReason;
     content = (
       <span className="text-sm text-muted-foreground">
-        {openRouterDegradedMessage(reason)}
+        {openRouterDegradedMessage(reason, t)}
       </span>
     );
   }
@@ -63,7 +69,7 @@ export const TrayCreditBalance: React.FC = () => {
       )}
     >
       <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
-        OpenRouter credit
+        {t("tray.credit.title")}
       </div>
       {content}
     </button>

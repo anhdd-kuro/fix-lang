@@ -1,6 +1,6 @@
 {
   "name": "fix-lang",
-  "version": "0.3.7",
+  "version": "0.4.0",
   "description": "Local macOS menu-bar app: AI text correction and writing tools via OpenAI, OpenRouter, or Ollama",
   "author": {
     "name": "Anhdd Kuro",
@@ -27,6 +27,7 @@
     "build": "electron-vite build",
     "build:promptgen": "FIXLANG_FEATURES=promptgen bun run build",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint ./src",
+    "i18n:check": "bun run scripts/i18n-check.ts",
     "vitest": "vitest",
     "test": "vitest --watch=false",
     "test:w": "vitest",

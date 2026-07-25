@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
 import { Dialog } from "./Dialog";
 import { HotkeyInput } from "./HotkeyInput";
+import { useI18n } from "../i18n/useI18n";
 import type { Profile } from "~/stores/apiStore";
 
 type ProfileManagerProps = {
@@ -8,6 +10,7 @@ type ProfileManagerProps = {
 };
 
 const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
+  const { t, tl, formatDateTime } = useI18n();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [currentProfileId, setCurrentProfileId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
@@ -19,7 +22,14 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
   const [importProfileJson, setImportProfileJson] = useState("");
   const [exportProfileJson, setExportProfileJson] = useState("");
   const [exportProfileName, setExportProfileName] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  // Error state is a locale-free `Label` (a translation key + params, or
+  // verbatim text) rather than an already-resolved string: `fetchProfiles`
+  // is called from an effect with an empty dep array, and if it called `t()`
+  // directly, the effect would need `t` in its deps (`t`'s identity changes
+  // per locale) — an honest dep array would then re-fetch on every locale
+  // switch just to keep the closure fresh. Deferring resolution to render
+  // time via `tl()` keeps `fetchProfiles` free of any reactive closure.
+  const [error, setError] = useState<Label | null>(null);
 
   const fetchProfiles = async () => {
     try {
@@ -29,6 +39,8 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       const result = await window.electronAPI.getProfiles();
 
       if (result.error) {
+        // Already a `Label` built by main — raw passthrough for
+        // provider/exception text, a catalog descriptor for app-authored copy.
         setError(result.error);
         return;
       }
@@ -36,7 +48,11 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       setProfiles(result.profiles || []);
       setCurrentProfileId(result.currentProfileId || "");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch profiles");
+      setError(
+        err instanceof Error
+          ? textLabel(err.message)
+          : messageLabel("profiles.manager.error.fetchFailed"),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -59,7 +75,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
 
   const handleCreateProfile = async () => {
     if (!newProfileName.trim()) {
-      setError("Profile name is required");
+      setError(messageLabel("profiles.manager.error.nameRequired"));
       return;
     }
 
@@ -73,7 +89,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       });
 
       if (!result.success) {
-        setError(result.error || "Failed to create profile");
+        setError(result.error ?? messageLabel("profiles.manager.error.createFailed"));
         return;
       }
 
@@ -82,7 +98,11 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       setNewProfileName("");
       setNewProfileDescription("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create profile");
+      setError(
+        err instanceof Error
+          ? textLabel(err.message)
+          : messageLabel("profiles.manager.error.createFailed"),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -96,13 +116,17 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       const result = await window.electronAPI.applyProfile({ profileId });
 
       if (!result.success) {
-        setError(result.error || "Failed to apply profile");
+        setError(result.error ?? messageLabel("profiles.manager.error.applyFailed"));
         return;
       }
 
       setCurrentProfileId(profileId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to apply profile");
+      setError(
+        err instanceof Error
+          ? textLabel(err.message)
+          : messageLabel("profiles.manager.error.applyFailed"),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -110,11 +134,11 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
 
   const handleDeleteProfile = async (profileId: string) => {
     if (profiles.length <= 1) {
-      setError("Cannot delete the last profile");
+      setError(messageLabel("profiles.manager.error.cannotDeleteLast"));
       return;
     }
 
-    if (window.confirm("Are you sure you want to delete this profile?")) {
+    if (window.confirm(t("profiles.manager.confirmDelete"))) {
       try {
         setIsLoading(true);
         setError(null);
@@ -122,14 +146,16 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
         const result = await window.electronAPI.deleteProfile({ profileId });
 
         if (!result.success) {
-          setError(result.error || "Failed to delete profile");
+          setError(result.error ?? messageLabel("profiles.manager.error.deleteFailed"));
           return;
         }
 
         await fetchProfiles();
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Failed to delete profile"
+          err instanceof Error
+            ? textLabel(err.message)
+            : messageLabel("profiles.manager.error.deleteFailed"),
         );
       } finally {
         setIsLoading(false);
@@ -145,7 +171,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       const result = await window.electronAPI.exportProfile({ profileId });
 
       if (!result.success) {
-        setError(result.error || "Failed to export profile");
+        setError(result.error ?? messageLabel("profiles.manager.error.exportFailed"));
         return;
       }
 
@@ -157,7 +183,11 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
         setIsExportDialogOpen(true);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to export profile");
+      setError(
+        err instanceof Error
+          ? textLabel(err.message)
+          : messageLabel("profiles.manager.error.exportFailed"),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -169,15 +199,15 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       setError(null);
 
       if (!importProfileJson) {
-        setError("No profile data provided");
+        setError(messageLabel("profiles.manager.error.noData"));
         return;
       }
 
       // Validate JSON format
       try {
         JSON.parse(importProfileJson);
-      } catch (err) {
-        setError("Invalid JSON format");
+      } catch {
+        setError(messageLabel("profiles.manager.error.invalidJson"));
         setIsLoading(false);
         return;
       }
@@ -187,7 +217,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       });
 
       if (!result.success) {
-        setError(result.error || "Failed to import profile");
+        setError(result.error ?? messageLabel("profiles.manager.error.importFailed"));
         return;
       }
 
@@ -195,7 +225,11 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       setIsImportDialogOpen(false);
       setImportProfileJson("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to import profile");
+      setError(
+        err instanceof Error
+          ? textLabel(err.message)
+          : messageLabel("profiles.manager.error.importFailed"),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -205,18 +239,18 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
     navigator.clipboard
       .writeText(text)
       .then(() => {
-        alert("Profile JSON copied to clipboard");
+        alert(t("profiles.manager.copiedAlert"));
       })
       .catch((err) => {
         console.error("Failed to copy to clipboard:", err);
-        setError("Failed to copy to clipboard");
+        setError(messageLabel("profiles.manager.error.copyFailed"));
       });
   };
 
   return (
     <div className={`flex flex-col ${className}`}>
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-medium text-foreground">Profiles</h3>
+        <h3 className="text-lg font-medium text-foreground">{t("profiles.manager.title")}</h3>
         <div className="flex gap-2">
           <button
             type="button"
@@ -224,7 +258,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
             className="px-3 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded hover:bg-primary/90"
             disabled={isLoading}
           >
-            New Profile
+            {t("profiles.manager.newProfile")}
           </button>
           <button
             type="button"
@@ -232,14 +266,14 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
             className="px-3 py-1.5 bg-secondary text-secondary-foreground text-sm font-medium rounded hover:bg-secondary"
             disabled={isLoading}
           >
-            Import
+            {t("profiles.manager.import")}
           </button>
         </div>
       </div>
 
       {error && (
         <div className="bg-destructive/50 border border-destructive text-destructive-foreground px-4 py-2 mb-4 rounded">
-          {error}
+          {tl(error)}
         </div>
       )}
 
@@ -251,7 +285,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
         <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
           {profiles.length === 0 ? (
             <div className="text-muted-foreground text-center py-8">
-              No profiles found. Create a new profile to get started.
+              {t("profiles.manager.empty")}
             </div>
           ) : (
             profiles.map((profile) => (
@@ -272,7 +306,9 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
                       </p>
                     )}
                     <div className="text-xs text-muted-foreground mt-1">
-                      Updated: {new Date(profile.updatedAt).toLocaleString()}
+                      {t("profiles.manager.updatedLabel", {
+                        date: formatDateTime(profile.updatedAt),
+                      })}
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -282,7 +318,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
                         onClick={() => handleApplyProfile(profile.id)}
                         className="px-2.5 py-1 bg-primary text-primary-foreground text-xs font-medium rounded hover:bg-primary/90"
                       >
-                        Apply
+                        {t("profiles.manager.apply")}
                       </button>
                     )}
                     <button
@@ -290,7 +326,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
                       onClick={() => handleExportProfile(profile.id)}
                       className="px-2.5 py-1 bg-secondary text-secondary-foreground text-xs font-medium rounded hover:bg-secondary"
                     >
-                      Export
+                      {t("profiles.manager.export")}
                     </button>
                     {profiles.length > 1 && (
                       <button
@@ -298,7 +334,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
                         onClick={() => handleDeleteProfile(profile.id)}
                         className="px-2.5 py-1 bg-destructive text-destructive-foreground text-xs font-medium rounded hover:bg-destructive/90"
                       >
-                        Delete
+                        {t("common.delete")}
                       </button>
                     )}
                   </div>
@@ -313,7 +349,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       <Dialog
         isOpen={isCreateDialogOpen}
         onClose={() => setIsCreateDialogOpen(false)}
-        title="Create New Profile"
+        title={t("profiles.manager.createDialogTitle")}
       >
         <div className="space-y-4">
           <div>
@@ -321,14 +357,14 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
               htmlFor="profileName"
               className="block text-sm font-medium text-card-foreground mb-1"
             >
-              Profile Name *
+              {t("profiles.manager.nameLabel")}
             </label>
             <input
               id="profileName"
               type="text"
               value={newProfileName}
               onChange={(e) => setNewProfileName(e.target.value)}
-              placeholder="My Profile"
+              placeholder={t("profiles.manager.namePlaceholder")}
               className="w-full px-3 py-2 text-foreground bg-card rounded border border-border focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
               required
             />
@@ -339,13 +375,13 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
               htmlFor="profileDescription"
               className="block text-sm font-medium text-card-foreground mb-1"
             >
-              Description (Optional)
+              {t("profiles.manager.descriptionLabel")}
             </label>
             <textarea
               id="profileDescription"
               value={newProfileDescription}
               onChange={(e) => setNewProfileDescription(e.target.value)}
-              placeholder="Profile description..."
+              placeholder={t("profiles.manager.descriptionPlaceholder")}
               className="w-full px-3 py-2 text-foreground bg-card rounded border border-border focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
               rows={3}
             />
@@ -357,7 +393,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
               onClick={() => setIsCreateDialogOpen(false)}
               className="px-4 py-2 bg-secondary text-secondary-foreground font-medium rounded hover:bg-secondary"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               type="button"
@@ -365,7 +401,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
               className="px-4 py-2 bg-primary text-primary-foreground font-medium rounded hover:bg-primary/90"
               disabled={!newProfileName.trim()}
             >
-              Create
+              {t("profiles.manager.create")}
             </button>
           </div>
         </div>
@@ -375,7 +411,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       <Dialog
         isOpen={isExportDialogOpen}
         onClose={() => setIsExportDialogOpen(false)}
-        title={`Export Profile: ${exportProfileName}`}
+        title={t("profiles.manager.exportDialogTitle", { name: exportProfileName })}
       >
         <div className="space-y-4">
           <div>
@@ -383,7 +419,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
               htmlFor="exportJson"
               className="block text-sm font-medium text-card-foreground mb-1"
             >
-              Profile JSON
+              {t("profiles.manager.jsonLabel")}
             </label>
             <textarea
               id="exportJson"
@@ -400,14 +436,14 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
               onClick={() => setIsExportDialogOpen(false)}
               className="px-4 py-2 bg-secondary text-secondary-foreground font-medium rounded hover:bg-secondary"
             >
-              Close
+              {t("common.close")}
             </button>
             <button
               type="button"
               onClick={() => handleCopyToClipboard(exportProfileJson)}
               className="px-4 py-2 bg-primary text-primary-foreground font-medium rounded hover:bg-primary/90"
             >
-              Copy to Clipboard
+              {t("profiles.manager.copyToClipboard")}
             </button>
           </div>
         </div>
@@ -417,7 +453,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       <Dialog
         isOpen={isImportDialogOpen}
         onClose={() => setIsImportDialogOpen(false)}
-        title="Import Profile"
+        title={t("profiles.manager.importDialogTitle")}
       >
         <div className="space-y-4">
           <div>
@@ -425,13 +461,13 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
               htmlFor="importJson"
               className="block text-sm font-medium text-card-foreground mb-1"
             >
-              Paste Profile JSON
+              {t("profiles.manager.pasteJsonLabel")}
             </label>
             <textarea
               id="importJson"
               value={importProfileJson}
               onChange={(e) => setImportProfileJson(e.target.value)}
-              placeholder="Paste profile JSON here..."
+              placeholder={t("profiles.manager.pasteJsonPlaceholder")}
               className="w-full px-3 py-2 text-foreground bg-card rounded border border-border focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
               rows={10}
             />
@@ -443,7 +479,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
               onClick={() => setIsImportDialogOpen(false)}
               className="px-4 py-2 bg-secondary text-secondary-foreground font-medium rounded hover:bg-secondary"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               type="button"
@@ -451,7 +487,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
               className="px-4 py-2 bg-primary text-primary-foreground font-medium rounded hover:bg-primary/90"
               disabled={!importProfileJson.trim()}
             >
-              Import
+              {t("profiles.manager.import")}
             </button>
           </div>
         </div>
@@ -460,11 +496,11 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       {/* Profile Switch Shortcut — co-located per issue #45 */}
       <div className="mt-6 rounded-lg border border-border bg-card/60 p-4">
         <h4 className="text-sm font-semibold text-card-foreground mb-3">
-          Profile Switch Shortcut
+          {t("profiles.manager.shortcutHeading")}
         </h4>
         <HotkeyInput
           hotkeyKey="profileSwitch"
-          label="Shortcut to cycle through profiles"
+          label={t("profiles.manager.shortcutLabel")}
         />
       </div>
     </div>

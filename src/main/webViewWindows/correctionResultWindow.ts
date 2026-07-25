@@ -1,6 +1,7 @@
 import path from "node:path";
 import { app, BrowserWindow, ipcMain, screen } from "electron";
 import { attachThemeSync } from "./attachThemeSync";
+import { buildCorrectionResultWindowTitle } from "./windowTitles";
 import type { CorrectionResultPayload } from "~/shared/correctionResult";
 
 const WINDOW_WIDTH = 560;
@@ -45,7 +46,7 @@ const createCorrectionResultWindow = (): BrowserWindow => {
     minHeight: 280,
     show: false,
     skipTaskbar: true,
-    title: "FixLang result",
+    title: buildCorrectionResultWindowTitle(),
     webPreferences: {
       preload: path.join(app.getAppPath(), "out/preload/index.cjs"),
       contextIsolation: true,
@@ -57,6 +58,14 @@ const createCorrectionResultWindow = (): BrowserWindow => {
 
   resultWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   attachThemeSync(resultWindow);
+
+  // Electron's default behavior re-titles the native window from the loaded
+  // document's <title> tag (a static, English-only fallback in index.html)
+  // once it finishes parsing. Without this, that would silently clobber the
+  // locale-aware title set above and by `syncCorrectionResultWindowLocale`.
+  resultWindow.on("page-title-updated", (event) => {
+    event.preventDefault();
+  });
 
   // Reset readiness when a load starts so DevTools reloads wait for a new
   // handshake instead of pushing into a listener that no longer exists.
@@ -106,6 +115,18 @@ export const showCorrectionResultWindow = (
   if (rendererReady) {
     revealWindow();
   }
+};
+
+/**
+ * Retitles an already-open correction result window to the current locale.
+ * `title` is only read once, at `BrowserWindow` construction, and this window
+ * is a creation-cached singleton — so without this, a window opened before a
+ * locale switch keeps showing the previous language. Mirrors
+ * `syncErrorPopupLocale` in `errorPopupWindow.ts`.
+ */
+export const syncCorrectionResultWindowLocale = (): void => {
+  if (!resultWindow || resultWindow.isDestroyed()) return;
+  resultWindow.setTitle(buildCorrectionResultWindowTitle());
 };
 
 ipcMain.on("correction-result-ready", () => {

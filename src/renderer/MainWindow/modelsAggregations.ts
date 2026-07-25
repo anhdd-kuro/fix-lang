@@ -7,6 +7,7 @@
  * range filter + cost-sum from `../analytics/shared` (no duplication). No
  * electron/sqlite/DOM dependency — unit-tested directly.
  */
+import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
 import {
   denseDayKeys,
   dayKeyOfIso,
@@ -15,12 +16,17 @@ import {
 } from "../analytics/shared";
 import type { HistoryEntry } from "~/stores/historyStore";
 
-/** Label for entries whose served model id is absent. */
-export const UNKNOWN_MODEL_LABEL = "(unknown)";
+/**
+ * Identity/grouping-key sentinel for entries whose served model id is absent
+ * (Map keys, sort stability, React `key`). Locale-free by design — display
+ * goes through `modelLabel` (`messageLabel("models.unknown")`), never this
+ * string. Was `UNKNOWN_MODEL_LABEL = "(unknown)"` before Chunk 8.
+ */
+export const UNKNOWN_MODEL_ID = "__unknown__";
 
 /**
  * The canonical "served model" grouping key: prefer `resolvedModel`, fall back
- * to `model`, else the unknown label. Matches the project-wide
+ * to `model`, else the unknown sentinel. Matches the project-wide
  * `resolvedModel ?? model` rule.
  */
 export const groupKeyForEntry = (entry: HistoryEntry): string => {
@@ -32,11 +38,17 @@ export const groupKeyForEntry = (entry: HistoryEntry): string => {
   if (model) {
     return model;
   }
-  return UNKNOWN_MODEL_LABEL;
+  return UNKNOWN_MODEL_ID;
 };
+
+/** Display label for a grouping key: real ids are user data (verbatim); the sentinel is UI chrome (translated). */
+const modelLabelFor = (model: string): Label =>
+  model === UNKNOWN_MODEL_ID ? messageLabel("models.unknown") : textLabel(model);
 
 export type ModelRow = {
   model: string;
+  /** Display label — real model id (verbatim) or the translated "unknown" chrome. */
+  modelLabel: Label;
   usageCount: number;
   /** Percent of the filtered set's total usage (rows sum to ~100%). */
   usageSharePct: number;
@@ -106,6 +118,7 @@ export const perModelBreakdown = (entries: HistoryEntry[]): ModelRow[] => {
   return [...groups.values()]
     .map((acc) => ({
       model: acc.model,
+      modelLabel: modelLabelFor(acc.model),
       usageCount: acc.usageCount,
       // Guard divide-by-zero: empty set yields no rows, but keep it explicit.
       usageSharePct:

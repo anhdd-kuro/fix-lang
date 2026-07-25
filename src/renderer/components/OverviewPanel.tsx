@@ -19,10 +19,18 @@ import { twJoin } from "tailwind-merge";
 import { heatmapCellClass, heatmapLevelClass } from "./heatmapIntensity";
 import { PresetWeightChart } from "./PresetWeightChart";
 import { StatCard } from "./StatCard";
+import {
+  dayKeyDateFormatter,
+  peakHourMessage,
+  STAT_CARD_KEYS,
+  TOKEN_ACTIVITY_TABS,
+  tooltipMessageForCell,
+} from "./tokenActivityView";
 import { filterByRange, type AnalyticsRange } from "../analytics/shared";
+import { useI18n } from "../i18n/useI18n";
 import {
   activeDays,
-  benchmarkSentence,
+  benchmarkMessage,
   favoriteModel,
   messageCount,
   peakHour,
@@ -45,15 +53,6 @@ type OverviewPanelProps = {
   /** Active time range (All / 30d / 7d), owned by the shared header. */
   range: AnalyticsRange;
 };
-
-const TOKEN_ACTIVITY_TABS: readonly {
-  label: string;
-  mode: TokenActivityMode;
-}[] = [
-  { label: "Daily", mode: "daily" },
-  { label: "Weekly", mode: "weekly" },
-  { label: "Cumulative", mode: "cumulative" },
-] as const;
 
 const MIN_CELL_SIZE_PX = 12;
 const CELL_GAP_PX = 4;
@@ -86,53 +85,6 @@ const calendarColumns = (
   }
 
   return columns;
-};
-
-const dateFromDayKey = (dayKey: string): Date => {
-  const [year, month, day] = dayKey.split("-").map(Number);
-  return new Date(year, month - 1, day);
-};
-
-const dayKeyOfDate = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, "0");
-  const day = `${date.getDate()}`.padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
-const addDays = (date: Date, days: number): Date => {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-};
-
-const weeklyRangeLabel = (dayKey: string): string => {
-  const day = dateFromDayKey(dayKey);
-  const start = addDays(day, -day.getDay());
-  const end = addDays(start, 6);
-  return `${dayKeyOfDate(start)} to ${dayKeyOfDate(end)}`;
-};
-
-const tooltipForCell = (
-  mode: TokenActivityMode,
-  cell: TokenActivityCalendarCell
-): string | undefined => {
-  if (cell.kind === "placeholder") {
-    return undefined;
-  }
-
-  const correctionSuffix =
-    cell.correctionCount > 0
-      ? `, ${cell.correctionCount} correction${cell.correctionCount === 1 ? "" : "s"}`
-      : "";
-
-  if (mode === "daily") {
-    return `${cell.tokenTotal.toLocaleString()} tokens on ${cell.date}${correctionSuffix}`;
-  }
-  if (mode === "weekly") {
-    return `${cell.tokenTotal.toLocaleString()} tokens during ${weeklyRangeLabel(cell.date)}${correctionSuffix}`;
-  }
-  return `${cell.tokenTotal.toLocaleString()} tokens through ${cell.date}${correctionSuffix}`;
 };
 
 const calendarGapTotal = (columnCount: number): number =>
@@ -189,10 +141,15 @@ const monthLabelStyle = (column: number, cellSize: number): CSSProperties => ({
 });
 
 export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
+  const { t, tm, formatNumber, formatDate } = useI18n();
   const [activityMode, setActivityMode] =
     useState<TokenActivityMode>("daily");
   const [activityWidthRef, activityWidth] = useElementWidth();
 
+  // Aggregation memo stays STRING-FREE (descriptors + raw data only) — see
+  // spec.i18n-dashboard.md §5.3 trap 2. Descriptors are resolved during
+  // render below, never inside this `useMemo`, so a locale switch is visible
+  // immediately without needing `t`/`locale` in this dependency array.
   const view = useMemo(() => {
     const now = new Date();
     const filtered = filterByRange(history, range, now);
@@ -224,21 +181,37 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
     [activityWidth, tokenCalendar.columns]
   );
 
-  const peakValue =
-    view.peak === null ? "—" : `${`${view.peak}`.padStart(2, "0")}:00`;
+  const peakValue = tm(peakHourMessage(view.peak));
+
+  // Rebuilt every render (cheap — a single closure over `formatDate`), never
+  // memoized: it is only ever read directly inside the JSX map below, never
+  // stashed in a `useMemo`/`useCallback` dependency array, so there is no
+  // stale-locale risk to guard against here (contrast `PresetWeightChart`'s
+  // chart-options memo, which DOES need `formatDate` in its deps because it
+  // caches the built value across renders).
+  const dayFmt = dayKeyDateFormatter(formatDate);
 
   return (
     <div className="mx-auto flex w-full flex-col gap-6">
       {/* Summary stat cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        <StatCard label="Sessions" value={view.sessions.toLocaleString()} />
-        <StatCard label="Messages" value={view.messages.toLocaleString()} />
-        <StatCard label="Total tokens" value={view.tokens.toLocaleString()} />
-        <StatCard label="Active days" value={`${view.days}`} />
-        <StatCard label="Current streak" value={`${view.streak.current}d`} />
-        <StatCard label="Longest streak" value={`${view.streak.longest}d`} />
-        <StatCard label="Peak hour" value={peakValue} />
-        <StatCard label="Favorite model" value={view.favorite ?? "—"} />
+        <StatCard label={t(STAT_CARD_KEYS.sessions)} value={formatNumber(view.sessions)} />
+        <StatCard label={t(STAT_CARD_KEYS.messages)} value={formatNumber(view.messages)} />
+        <StatCard label={t(STAT_CARD_KEYS.totalTokens)} value={formatNumber(view.tokens)} />
+        <StatCard label={t(STAT_CARD_KEYS.activeDays)} value={formatNumber(view.days)} />
+        <StatCard
+          label={t(STAT_CARD_KEYS.currentStreak)}
+          value={t("overview.value.days", { count: view.streak.current })}
+        />
+        <StatCard
+          label={t(STAT_CARD_KEYS.longestStreak)}
+          value={t("overview.value.days", { count: view.streak.longest })}
+        />
+        <StatCard label={t(STAT_CARD_KEYS.peakHour)} value={peakValue} />
+        <StatCard
+          label={t(STAT_CARD_KEYS.favoriteModel)}
+          value={view.favorite ?? t("overview.value.empty")}
+        />
       </div>
 
       {/* Correction preset weight distribution (Chart.js). */}
@@ -253,7 +226,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
       <section className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-base font-semibold text-foreground">
-            Token activity
+            {t("overview.tokenActivity.title")}
           </h2>
           <div className="flex items-center gap-5 text-sm">
             {TOKEN_ACTIVITY_TABS.map((tab) => (
@@ -269,7 +242,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
                     : "text-muted-foreground hover:text-card-foreground"
                 )}
               >
-                {tab.label}
+                {t(tab.labelKey)}
               </button>
             ))}
           </div>
@@ -292,12 +265,21 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
                   style={{ gap: CELL_GAP_PX }}
                 >
                   {column.map((cell, rowIndex) => {
-                    const tooltip = tooltipForCell(activityMode, cell);
+                    // Resolve once per cell — never call `tm()` twice for the
+                    // same value (spec.i18n-dashboard.md §5.3 trap 10).
+                    const tooltipMessage = tooltipMessageForCell(
+                      activityMode,
+                      cell,
+                      dayFmt
+                    );
+                    const tooltipText = tooltipMessage
+                      ? tm(tooltipMessage)
+                      : undefined;
                     return (
                       <div
                         key={`${columnIndex}-${rowIndex}-${cell.date ?? "empty"}`}
-                        title={tooltip}
-                        aria-label={tooltip}
+                        title={tooltipText}
+                        aria-label={tooltipText}
                         style={{
                           width: tokenActivityCellSize,
                           height: tokenActivityCellSize,
@@ -319,14 +301,14 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
             >
               {tokenCalendar.monthLabels.map((label) => (
                 <span
-                  key={`${label.label}-${label.column}`}
+                  key={`${label.key}-${label.column}`}
                   className="absolute top-0 whitespace-nowrap"
                   style={monthLabelStyle(
                     label.column,
                     tokenActivityCellSize
                   )}
                 >
-                  {label.label}
+                  {t(label.key)}
                 </span>
               ))}
             </div>
@@ -335,7 +317,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
       </section>
 
       {/* Benchmark comparison sentence. */}
-      <p className="text-sm text-muted-foreground">{benchmarkSentence(view.tokens)}</p>
+      <p className="text-sm text-muted-foreground">{tm(benchmarkMessage(view.tokens))}</p>
     </div>
   );
 };

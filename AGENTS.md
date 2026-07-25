@@ -67,10 +67,103 @@ bun run test            # verify changes — use `bun run test`, not `bun test`
 bun run lint            # ESLint (cached)
 bun run pack:mac        # package macOS app → release/
 bun run themes:generate # after theme .ts edits
+bun run i18n:check      # catalog parity/plural/sort audit + JA coverage
 bun run build:promptgen # feature-tag build (also dev:promptgen, pack:mac:promptgen)
 ```
 
 - **Feature tags are opt-in** — features listed in `src/shared/features.ts` are excluded unless the build carries their tag (`FIXLANG_FEATURES=promptgen` env, or `--promptgen` CLI). Flag-off builds emit no renderer bundle for the feature and skip its hotkey, IPC handlers, and settings tab. Read flags at runtime via `isPromptGenEnabled()`, never `__FEATURE_PROMPT_GEN__` directly (the define is absent under vitest). Plain `bun run build` (what the release workflow runs) ships PromptGen OFF.
+
+## Internationalization (i18n)
+
+The app supports **English** and **Japanese** (easily extensible to a third language). All user-facing text in the renderer and main process is translatable via `t()` (renderer) or `mainT()` (main process).
+
+### Catalog structure
+
+Translation strings live in `src/shared/i18n/locales/{en,ja}/` as per-namespace JSON files (`common.json`, `dashboard.json`, `tray.json`, `notifications.json`, etc.). This split prevents merge conflicts when separate features add keys to the same catalog.
+
+- Keys are globally unique and dotted (`"settings.general.language.label"`).
+- English (`en/`) is the source of truth — every key must exist there; Japanese (`ja/`) may be partial (missing keys fall back to English).
+- Both catalogs are merged at build time into `EN_CATALOG` and `JA_CATALOG` in `src/shared/i18n/locales/index.ts`.
+- Key names are type-checked at compile time: `t("key")` is a compile error if `"key"` is absent.
+
+### Add a translatable string (recipe)
+
+1. **English**: Add the key-value pair to `src/shared/i18n/locales/en/{namespace}.json`:
+   ```json
+   { "overview.stat.sessions": "Sessions" }
+   ```
+2. **Japanese**: Add the translation to `src/shared/i18n/locales/ja/{namespace}.json`:
+   ```json
+   { "overview.stat.sessions": "セッション" }
+   ```
+3. **Use it**: The key is type-checked at compile time — a typo will be caught by the TypeScript compiler and displayed in your editor:
+   ```tsx
+   import { useI18n } from "~/renderer/i18n/useI18n";
+   const { t } = useI18n();
+   <h1>{t("overview.stat.sessions")}</h1>
+   ```
+
+### Plurals
+
+English defines both singular and plural variants; Japanese defines only the plural (other) variant. Use the base key plus a numeric `count` param:
+
+```json
+// en/history.json
+{ "history.count_one": "{count} correction", "history.count_other": "{count} corrections" }
+
+// ja/history.json
+{ "history.count_other": "{count} 件の校正" }
+```
+
+```tsx
+const { t, formatNumber } = useI18n();
+// Calls t("history.count_one") if count is 1, t("history.count_other") otherwise;
+// the raw count is never shown, so never pass count as a string.
+t("history.count", { count: 12 })  // "12 corrections" (EN) / "12 件の校正" (JA)
+```
+
+### Number and date formatting
+
+`t()` locale-formats every numeric param automatically (grouping separators, native digits). Pre-formatted values (currency, dates, fixed decimals) are passed as strings so they are not re-formatted:
+
+```tsx
+const { t, formatCurrency, formatDate } = useI18n();
+t("overview.tokenBudget", {
+  tokens: 123456,           // auto-formatted: "123,456" (EN) / "123,456" (JA)
+  pct: 50,
+  budget: 100_000,
+});
+
+// For dates and currency, format first, pass as string:
+t("model.lastUsed", {
+  date: formatDate(new Date()),      // "Jul 25, 2026" (EN) / "2026年7月25日" (JA)
+  cost: formatCurrency(12.5, "USD"), // "$12.50"
+});
+```
+
+### Adding a third language
+
+Add the language to `LOCALE_CODES` and `LOCALE_META` in `src/shared/i18n/registry.ts`; then create one JSON file per namespace under `src/shared/i18n/locales/{code}/` (e.g., `src/shared/i18n/locales/fr/common.json`). The language picker grows automatically; IPC, formatters, and storage need no changes.
+
+### Main process strings
+
+Notifications and window titles are built in the main process, which has no React context. Use `mainT()` instead of `useI18n()`:
+
+```ts
+import { mainT } from "~/main/i18n";
+
+new Notification({
+  title: mainT("notification.title"),
+  body: mainT("notification.body", { name: "John" }),
+}).show();
+```
+
+### Locale persistence and broadcast
+
+- The user's locale choice is persisted via `electron-store` in `src/stores/localeStore.ts`.
+- On first run, the system locale (from `app.getLocale()`) is auto-detected and stored.
+- Changing the language via Settings broadcasts the new locale to every open window (tray, dashboard, PromptGen) via IPC, so they update immediately without an app restart.
+- See `src/main/ipc/features/locale.ts` for the IPC handlers; `src/preload/features/locale.ts` for the bridge; `src/renderer/i18n/I18nProvider.tsx` for the context subscription.
 
 ## How to Work
 
@@ -124,6 +217,7 @@ bun run build:promptgen # feature-tag build (also dev:promptgen, pack:mac:prompt
 Project-specific traps under `.claude/skills/fixlang/`:
 
 - [Hotkeys](.claude/skills/fixlang/fixlang-hotkeys/SKILL.md) — preset hotkey reload on profile switch (silent failures) + pre-save conflict validation.
+- [i18n](.claude/skills/fixlang/fixlang-i18n/SKILL.md) — JSON values widen to `string` (params not type-checked); tests must be `.test.ts` (no RTL); aggregations return descriptors; memoized callbacks over `t` or formatters must list them in deps; `date-fns` needs explicit `{ locale }`; main process uses `mainT()`, not `useI18n()`.
 - [Prompt bundling](.claude/skills/fixlang/fixlang-prompt-bundling/SKILL.md) — prompts bundle at build time from `src/prompts/`, not `~/.agents/`; rebuild + reinstall to apply.
 - [Profile state](.claude/skills/fixlang/fixlang-profile-state/SKILL.md) — profile switch must atomically reload hotkeys + settings UI + history.
 - [Theme mapping](.claude/skills/fixlang/fixlang-theme-mapping/SKILL.md) — derive-ladder + composite-alpha strategy; run `bun run themes:generate` after theme .ts edits, then `bun run test` to validate all 149 themes.

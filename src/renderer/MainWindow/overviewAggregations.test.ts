@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { estimateTextTokens, type HistoryEntry } from "~/stores/historyTypes";
 import {
   activeDays,
-  benchmarkSentence,
+  benchmarkMessage,
   costTotal,
   favoriteModel,
   filterByRange,
@@ -31,7 +31,7 @@ import {
   totalCorrections,
   totalTokens,
   type TokenActivityCalendar,
-  UNTITLED_PRESET_LABEL,
+  UNTITLED_PRESET_ID,
 } from "./overviewAggregations";
 
 // A local-time timestamp for the given Y/M/D/H so local-day buckets are stable.
@@ -211,7 +211,7 @@ describe("favoriteModel", () => {
 });
 
 describe("perPresetBreakdown", () => {
-  it("groups + sorts desc; undefined presetName → Other bucket", () => {
+  it("groups + sorts desc; undefined presetName → untitled bucket", () => {
     const entries = [
       entry({ presetName: "Correction" }),
       entry({ presetName: "Correction" }),
@@ -219,9 +219,17 @@ describe("perPresetBreakdown", () => {
       entry({ presetName: undefined }),
     ];
     const result = perPresetBreakdown(entries);
-    expect(result[0]).toEqual({ presetName: "Correction", count: 2 });
-    const other = result.find((r) => r.presetName === UNTITLED_PRESET_LABEL);
+    expect(result[0]).toEqual({
+      presetName: "Correction",
+      presetLabel: { kind: "text", text: "Correction" },
+      count: 2,
+    });
+    const other = result.find((r) => r.presetName === UNTITLED_PRESET_ID);
     expect(other?.count).toBe(1);
+    expect(other?.presetLabel).toEqual({
+      kind: "message",
+      message: { key: "overview.preset.untitled" },
+    });
   });
 });
 
@@ -235,9 +243,24 @@ describe("perPresetWeights", () => {
     ];
     const result = perPresetWeights(entries);
     expect(result).toEqual([
-      { presetName: "Correction", count: 2, weight: 0.5 },
-      { presetName: "Translate", count: 1, weight: 0.25 },
-      { presetName: UNTITLED_PRESET_LABEL, count: 1, weight: 0.25 },
+      {
+        presetName: "Correction",
+        presetLabel: { kind: "text", text: "Correction" },
+        count: 2,
+        weight: 0.5,
+      },
+      {
+        presetName: "Translate",
+        presetLabel: { kind: "text", text: "Translate" },
+        count: 1,
+        weight: 0.25,
+      },
+      {
+        presetName: UNTITLED_PRESET_ID,
+        presetLabel: { kind: "message", message: { key: "overview.preset.untitled" } },
+        count: 1,
+        weight: 0.25,
+      },
     ]);
     const sum = result.reduce((acc, row) => acc + row.weight, 0);
     expect(sum).toBeCloseTo(1, 10);
@@ -263,11 +286,15 @@ describe("presetCountsOverTime", () => {
 
     const correction = result.series.find((row) => row.presetName === "Correction");
     const translate = result.series.find((row) => row.presetName === "Translate");
-    const other = result.series.find((row) => row.presetName === UNTITLED_PRESET_LABEL);
+    const other = result.series.find((row) => row.presetName === UNTITLED_PRESET_ID);
     expect(correction?.counts).toEqual([0, 0, 0, 0, 2, 0, 0]);
     expect(translate?.counts).toEqual([0, 0, 0, 0, 0, 0, 1]);
     expect(other?.counts).toEqual([0, 0, 0, 0, 0, 0, 1]);
     expect(result.totalsByDay).toEqual([0, 0, 0, 0, 2, 0, 2]);
+    expect(other?.presetLabel).toEqual({
+      kind: "message",
+      message: { key: "overview.preset.untitled" },
+    });
   });
 
   it("returns empty series for empty history but still spans the range window", () => {
@@ -481,31 +508,31 @@ describe("tokenActivityCalendar", () => {
     );
 
     expect(calendar.startDate).toBe("2025-06-23");
-    expect(calendar.monthLabels[0]).toEqual({ label: "Jul", column: 1 });
+    expect(calendar.monthLabels[0]).toEqual({ key: "charts.month.jul", column: 1 });
     expect(
       calendar.monthLabels.some(
-        (label) => label.label === "Jun" && label.column === 0
+        (label) => label.key === "charts.month.jun" && label.column === 0
       )
     ).toBe(false);
   });
 
-  it("exposes month labels with short names and week-column positions", () => {
+  it("exposes month labels with translation keys and week-column positions", () => {
     const monthEndNow = new Date(2024, 5, 30, 10, 0, 0);
     const calendar = tokenActivityCalendar([], "daily", monthEndNow);
 
     expect(calendar.monthLabels).toEqual([
-      { label: "Jul", column: 0 },
-      { label: "Aug", column: 5 },
-      { label: "Sep", column: 9 },
-      { label: "Oct", column: 14 },
-      { label: "Nov", column: 18 },
-      { label: "Dec", column: 22 },
-      { label: "Jan", column: 27 },
-      { label: "Feb", column: 31 },
-      { label: "Mar", column: 35 },
-      { label: "Apr", column: 40 },
-      { label: "May", column: 44 },
-      { label: "Jun", column: 48 },
+      { key: "charts.month.jul", column: 0 },
+      { key: "charts.month.aug", column: 5 },
+      { key: "charts.month.sep", column: 9 },
+      { key: "charts.month.oct", column: 14 },
+      { key: "charts.month.nov", column: 18 },
+      { key: "charts.month.dec", column: 22 },
+      { key: "charts.month.jan", column: 27 },
+      { key: "charts.month.feb", column: 31 },
+      { key: "charts.month.mar", column: 35 },
+      { key: "charts.month.apr", column: 40 },
+      { key: "charts.month.may", column: 44 },
+      { key: "charts.month.jun", column: 48 },
     ]);
   });
 
@@ -587,13 +614,55 @@ describe("hourBlockHeatmap", () => {
   });
 });
 
-describe("benchmarkSentence", () => {
-  it("reports an empty message when there is no usage", () => {
-    expect(benchmarkSentence(0)).toBe("No token usage in this range yet.");
+describe("benchmarkMessage", () => {
+  it("reports an empty descriptor when there is no usage", () => {
+    expect(benchmarkMessage(0)).toEqual({ key: "overview.benchmark.empty" });
   });
-  it("reports a percentage of the reference budget", () => {
-    expect(benchmarkSentence(50_000, 100_000)).toContain("50%");
-    expect(benchmarkSentence(150_000, 100_000)).toContain("150%");
+
+  it("reports an empty descriptor for negative tokens (tokens <= 0 guard)", () => {
+    expect(benchmarkMessage(-5)).toEqual({ key: "overview.benchmark.empty" });
+  });
+
+  it("reports headroom below the reference budget", () => {
+    expect(benchmarkMessage(50_000, 100_000)).toEqual({
+      key: "overview.benchmark.withHeadroom",
+      params: { tokens: 50_000, pct: 50, budgetK: 100, headroom: 50 },
+    });
+  });
+
+  it("reports over-budget above the reference budget", () => {
+    expect(benchmarkMessage(150_000, 100_000)).toEqual({
+      key: "overview.benchmark.overBudget",
+      params: { tokens: 150_000, pct: 150, budgetK: 100 },
+    });
+  });
+
+  it("treats exactly 100% as over-budget (the >= boundary)", () => {
+    expect(benchmarkMessage(100_000, 100_000)).toEqual({
+      key: "overview.benchmark.overBudget",
+      params: { tokens: 100_000, pct: 100, budgetK: 100 },
+    });
+  });
+
+  it("rounds the percentage (Math.round)", () => {
+    expect(benchmarkMessage(1_234, 100_000)).toEqual({
+      key: "overview.benchmark.withHeadroom",
+      params: { tokens: 1_234, pct: 1, budgetK: 100, headroom: 99 },
+    });
+  });
+
+  it("rounds half-up", () => {
+    expect(benchmarkMessage(1_500, 100_000)).toEqual({
+      key: "overview.benchmark.withHeadroom",
+      params: { tokens: 1_500, pct: 2, budgetK: 100, headroom: 98 },
+    });
+  });
+
+  it("computes budgetK as benchmark/1000, unrounded", () => {
+    expect(benchmarkMessage(50_000, 500)).toEqual({
+      key: "overview.benchmark.overBudget",
+      params: { tokens: 50_000, pct: 10_000, budgetK: 0.5 },
+    });
   });
 });
 

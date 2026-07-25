@@ -4,8 +4,13 @@
  * shell (issue #54). Kept separate from the React component so the tab-state
  * logic and the history filter/derivation logic are unit-testable without a
  * DOM testing library (none is installed; see #54 plan HITL #4).
+ *
+ * Tab labels are translation keys, not prose (Chunk 8 i18n) — this file stays
+ * locale-free by design; `App.tsx` resolves `labelKey` via `t()` at render
+ * time, so `dashboardTabs.test.ts` never has to assert rendered English.
  */
 import { isPromptGenEnabled } from "~/shared/features";
+import type { MessageKey } from "~/shared/i18n/message";
 import type { HistoryEntry } from "~/stores/historyStore";
 
 /** Stable identifiers for the six dashboard tabs, in display order. */
@@ -19,20 +24,21 @@ export type DashboardTabId =
 
 export type DashboardTabMeta = {
   id: DashboardTabId;
-  label: string;
+  /** `dashboard.tab.*` translation key — resolved via `t()` at render time. */
+  labelKey: MessageKey;
 };
 
 /**
- * Tab order + labels. History is index 1 so existing users land on the
+ * Tab order + label keys. History is index 1 so existing users land on the
  * familiar list and nothing visibly regresses on first open (#54 plan HITL #2).
  */
 export const DASHBOARD_TABS: readonly DashboardTabMeta[] = [
-  { id: "overview", label: "Overview" },
-  { id: "history", label: "History" },
-  { id: "models", label: "Models" },
-  { id: "openrouter", label: "OpenRouter" },
-  { id: "logs", label: "Logs" },
-  { id: "about", label: "About" },
+  { id: "overview", labelKey: "dashboard.tab.overview" },
+  { id: "history", labelKey: "dashboard.tab.history" },
+  { id: "models", labelKey: "dashboard.tab.models" },
+  { id: "openrouter", labelKey: "dashboard.tab.openrouter" },
+  { id: "logs", labelKey: "dashboard.tab.logs" },
+  { id: "about", labelKey: "dashboard.tab.about" },
 ] as const;
 
 /** Default active tab index — Overview (analytics landing view). */

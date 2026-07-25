@@ -3,13 +3,19 @@ import type { CorrectionResultPayload } from "~/shared/correctionResult";
 
 /**
  * Validates the correction-result payload crossing the preload boundary.
+ * `presetName` is optional (a correction delivered outside any preset
+ * context omits it) but must be a string when present — never widen this to
+ * accept arbitrary shapes just because the field is optional.
  */
 const isCorrectionResultPayload = (
   value: unknown,
 ): value is CorrectionResultPayload => {
   if (typeof value !== "object" || value === null) return false;
-  if (!("title" in value) || !("text" in value)) return false;
-  return typeof value.title === "string" && typeof value.text === "string";
+  if (!("text" in value) || typeof value.text !== "string") return false;
+  if ("presetName" in value && typeof value.presetName !== "string") {
+    return false;
+  }
+  return true;
 };
 
 export const correctionResultFeature = {

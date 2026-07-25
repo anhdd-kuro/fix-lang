@@ -1,5 +1,7 @@
 // Settings-related preload functionality
 import { ipcRenderer } from "electron";
+import { messageLabel, type Label } from "~/shared/i18n/message";
+import { asLabel } from "./ipcLabel";
 import type { CorrectionOutputMode } from "~/shared/outputMode";
 import type { KeyBindings } from "~/stores/apiStore";
 
@@ -10,20 +12,21 @@ export const settingsFeature = {
   getCorrectionOutputMode: (): Promise<CorrectionOutputMode> =>
     ipcRenderer.invoke("get-correction-output-mode"),
 
-  setCorrectionOutputMode: (
+  setCorrectionOutputMode: async (
     mode: CorrectionOutputMode,
   ): Promise<{
     success: boolean;
     mode?: CorrectionOutputMode;
-    error?: string;
+    error?: Label;
   }> => {
     if (mode !== "paste" && mode !== "popup") {
-      return Promise.resolve({
+      return {
         success: false,
-        error: "Invalid correction output mode",
-      });
+        error: messageLabel("settings.general.outputMode.invalid"),
+      };
     }
-    return ipcRenderer.invoke("set-correction-output-mode", mode);
+    const result = await ipcRenderer.invoke("set-correction-output-mode", mode);
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /**
@@ -42,11 +45,11 @@ export const settingsFeature = {
    */
   setKeyBindings: async (
     bindings: KeyBindings
-  ): Promise<{ success: boolean; error?: string }> => {
+  ): Promise<{ success: boolean; error?: Label }> => {
     console.log("Preload: Invoking set-key-bindings with:", bindings);
     const result = await ipcRenderer.invoke("set-key-bindings", bindings);
     ipcRenderer.send("settings-updated");
-    return result;
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /**
@@ -71,20 +74,26 @@ export const settingsFeature = {
    * invoking; rejects non-strings without crossing IPC. The plaintext key is
    * sent to main only to be encrypted — it is never returned to the renderer.
    */
-  setProvisioningKey: (
+  setProvisioningKey: async (
     key: string
-  ): Promise<{ success: boolean; error?: string }> => {
+  ): Promise<{ success: boolean; error?: Label }> => {
     if (typeof key !== "string") {
-      return Promise.resolve({ success: false, error: "Invalid key" });
+      return {
+        success: false,
+        error: messageLabel("settings.general.provisioningKey.invalid"),
+      };
     }
-    return ipcRenderer.invoke("set-provisioning-key", key);
+    const result = await ipcRenderer.invoke("set-provisioning-key", key);
+    return { ...result, error: asLabel(result?.error) };
   },
 
   /**
    * Remove the stored OpenRouter provisioning key.
    */
-  clearProvisioningKey: (): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke("clear-provisioning-key"),
+  clearProvisioningKey: async (): Promise<{ success: boolean; error?: Label }> => {
+    const result = await ipcRenderer.invoke("clear-provisioning-key");
+    return { ...result, error: asLabel(result?.error) };
+  },
 
   /**
    * Whether a provisioning key is currently stored. Drives the masked UI state;

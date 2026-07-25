@@ -5,6 +5,7 @@
 import { BrowserWindow, ipcMain, Notification } from "electron";
 import { DEFAULT_KEY_BINDINGS } from "~/const";
 import { reloadHotkeys, unregisterHotkeys } from "~/main/keybindings";
+import { messageLabel } from "~/shared/i18n/message";
 import { normalizeCorrectionOutputMode } from "~/shared/outputMode";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { outputModeStore } from "~/stores/outputModeStore";
@@ -13,6 +14,8 @@ import {
   hasProvisioningKey,
   setProvisioningKey,
 } from "~/stores/provisioningKeyStore";
+import { exceptionLabel, wrapStoreResult } from "./ipcResultLabel";
+import { buildSettingsSavedNotification } from "./settingsNotifications";
 import type { KeyBindings } from "~/stores/apiStore";
 
 /**
@@ -27,7 +30,10 @@ export const registerSettingsHandlers = () => {
     "set-correction-output-mode",
     async (_event: Electron.IpcMainInvokeEvent, raw: unknown) => {
       if (raw !== "paste" && raw !== "popup") {
-        return { success: false, error: "Invalid correction output mode" };
+        return {
+          success: false,
+          error: messageLabel("settings.general.outputMode.invalid"),
+        };
       }
 
       const mode = normalizeCorrectionOutputMode(raw);
@@ -60,7 +66,7 @@ export const registerSettingsHandlers = () => {
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
+          error: exceptionLabel(error),
         };
       }
     },
@@ -112,15 +118,24 @@ export const registerSettingsHandlers = () => {
       // Defense-in-depth: re-validate the IPC payload type in main (preload
       // also guards). Reject non-strings without touching the store.
       if (typeof raw !== "string") {
-        return { success: false, error: "Invalid key" };
+        return {
+          success: false,
+          error: messageLabel("settings.general.provisioningKey.invalid"),
+        };
       }
-      return setProvisioningKey(raw);
+      // `setProvisioningKey` (provisioningKeyStore.ts) is outside this
+      // migration's scope — its error text is boundary-wrapped as opaque
+      // via `wrapStoreResult` rather than guessed at as translatable, and it
+      // keeps this handler's `error` field uniformly `Label`-shaped so the
+      // preload boundary's `asLabel()` never has to drop a legitimate string.
+      return wrapStoreResult(await setProvisioningKey(raw));
     },
   );
 
   ipcMain.handle(
     "clear-provisioning-key",
-    async (_event: Electron.IpcMainInvokeEvent) => clearProvisioningKey(),
+    async (_event: Electron.IpcMainInvokeEvent) =>
+      wrapStoreResult(await clearProvisioningKey()),
   );
 
   ipcMain.handle(
@@ -138,9 +153,6 @@ export const registerSettingsHandlers = () => {
         window.webContents.send("settings-updated");
       }
     });
-    new Notification({
-      title: "Settings Updated",
-      body: "Your settings have been saved.",
-    }).show();
+    new Notification(buildSettingsSavedNotification()).show();
   });
 };

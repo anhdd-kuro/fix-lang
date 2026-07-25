@@ -2,11 +2,21 @@ import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import CopyButton from "../components/CopyButton";
 import { useTheme } from "../hooks/useTheme";
+import { I18nProvider } from "../i18n/I18nProvider";
+import { useI18n } from "../i18n/useI18n";
 import "../main.css";
 import type { CorrectionResultPayload } from "~/shared/correctionResult";
 
-const CorrectionResultWindow = () => {
+/**
+ * Exported (not just used below for the entry-point auto-render) so
+ * `index.test.ts` can mount it directly via `react-dom/client` + `act`,
+ * bypassing the `document.getElementById("root")` side effect at the bottom
+ * of this file — Vitest only collects `.test.ts`, not `.test.tsx`, and this
+ * component has no other pure-logic sibling module to test against instead.
+ */
+export const CorrectionResultWindow = () => {
   useTheme();
+  const { t } = useI18n();
   const [payload, setPayload] = useState<CorrectionResultPayload | null>(null);
 
   useEffect(() => {
@@ -18,12 +28,25 @@ const CorrectionResultWindow = () => {
 
   if (!payload) return null;
 
+  // Built from raw data (`payload.presetName`) via `t()` on every render —
+  // never a pre-rendered sentence — so it re-resolves after a locale switch.
+  // Mirrors `buildCorrectionResultWindowTitle()`'s fallback in
+  // `src/main/webViewWindows/windowTitles.ts`: no presetName (a correction
+  // delivered outside any preset context) falls back to the same generic
+  // `notifications.window.correctionResult.title` key used for the native
+  // window title, so the two only ever diverge when a preset is known.
+  const title = payload.presetName
+    ? t("notifications.correction.resultTitle", {
+        presetName: payload.presetName,
+      })
+    : t("notifications.window.correctionResult.title");
+
   return (
     <main className="flex h-screen flex-col gap-3 bg-background p-4 text-foreground">
       <header>
-        <h1 className="text-base font-semibold">{payload.title}</h1>
+        <h1 className="text-base font-semibold">{title}</h1>
         <p className="text-xs text-muted-foreground">
-          Result only — the source text was not changed.
+          {t("notifications.window.correctionResult.subtitle")}
         </p>
       </header>
 
@@ -39,9 +62,9 @@ const CorrectionResultWindow = () => {
           className="rounded border border-border px-3 py-1.5 text-sm hover:bg-secondary"
           onClick={() => window.electronAPI.closeCorrectionResultWindow()}
         >
-          Close
+          {t("common.close")}
         </button>
-        <CopyButton value={payload.text} label="Copy" showLabel />
+        <CopyButton value={payload.text} label={t("common.copy")} showLabel />
       </footer>
     </main>
   );
@@ -49,5 +72,9 @@ const CorrectionResultWindow = () => {
 
 const container = document.getElementById("root");
 if (container) {
-  createRoot(container).render(<CorrectionResultWindow />);
+  createRoot(container).render(
+    <I18nProvider>
+      <CorrectionResultWindow />
+    </I18nProvider>
+  );
 }

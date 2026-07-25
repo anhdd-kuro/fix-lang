@@ -9,7 +9,7 @@ describe("correction output delivery", () => {
     await expect(
       deliverCorrectionOutput(
         "paste",
-        { title: "Correction result", text: "corrected" },
+        { presetName: "Correction", text: "corrected" },
         { paste, showPopup },
       ),
     ).resolves.toBe("pasted");
@@ -21,7 +21,7 @@ describe("correction output delivery", () => {
   it("shows result-only popup mode without pasting", async () => {
     const paste = vi.fn().mockResolvedValue(undefined);
     const showPopup = vi.fn();
-    const payload = { title: "Translate result", text: "translated" };
+    const payload = { presetName: "Translate", text: "translated" };
 
     await expect(
       deliverCorrectionOutput("popup", payload, { paste, showPopup }),

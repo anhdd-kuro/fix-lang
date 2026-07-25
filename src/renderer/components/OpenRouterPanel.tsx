@@ -18,6 +18,7 @@ import {
   type OpenRouterDegradedReason,
 } from "./openRouterFormat";
 import { useOpenRouterAnalytics } from "../hooks/useOpenRouterAnalytics";
+import { useI18n } from "../i18n/useI18n";
 import type {
   Activity,
   CardResult,
@@ -26,15 +27,17 @@ import type {
   KeyUsage,
 } from "~/main/llm/openrouter/parsers";
 import type { OpenRouterRange } from "~/preload/features/openrouter";
+import type { TranslationKey } from "~/shared/i18n/keys";
+import type { Translator } from "~/shared/i18n/translate";
 
 type OpenRouterPanelProps = {
   /** Opens the Settings modal (General tab) for the empty-state affordance. */
   onOpenSettings: () => void;
 };
 
-const RANGES: { id: OpenRouterRange; label: string }[] = [
-  { id: "7d", label: "7d" },
-  { id: "30d", label: "30d" },
+const RANGES: { id: OpenRouterRange; labelKey: TranslationKey }[] = [
+  { id: "7d", labelKey: "models.openrouter.range.7d" },
+  { id: "30d", labelKey: "models.openrouter.range.30d" },
 ];
 
 type Card = { ok: false; reason: string } | { ok: true };
@@ -42,10 +45,12 @@ type Card = { ok: false; reason: string } | { ok: true };
 const Card = ({
   title,
   result,
+  t,
   children,
 }: {
   title: string;
   result: Card;
+  t: Translator;
   children: React.ReactNode;
 }) => (
   <div className="rounded-lg border border-border bg-card p-3">
@@ -57,7 +62,8 @@ const Card = ({
     ) : (
       <div className="text-sm text-muted-foreground">
         {openRouterDegradedMessage(
-          (result as { reason: OpenRouterDegradedReason }).reason
+          (result as { reason: OpenRouterDegradedReason }).reason,
+          t,
         )}
       </div>
     )}
@@ -65,6 +71,7 @@ const Card = ({
 );
 
 export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
+  const { t } = useI18n();
   const [range, setRange] = useState<OpenRouterRange>("7d");
   const { data, loading, hasKey, refresh } = useOpenRouterAnalytics(range);
 
@@ -77,15 +84,14 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
             OpenRouter
           </h2>
           <p className="mb-3 text-sm text-muted-foreground">
-            Add an OpenRouter provisioning key in General settings to see your
-            account credit, usage, and activity.
+            {t("models.openrouter.emptyState.description")}
           </p>
           <button
             type="button"
             onClick={onOpenSettings}
             className="rounded bg-primary px-3 py-1.5 text-sm text-foreground hover:bg-primary"
           >
-            Open Settings
+            {t("models.openrouter.emptyState.openSettings")}
           </button>
         </div>
       </div>
@@ -98,11 +104,12 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
   const enabledKeys = data?.enabledKeys as CardResult<EnabledKeys> | undefined;
 
   const fallback = { ok: false as const, reason: "unavailable" as const };
+  const rangeLabel = t(RANGES.find((r) => r.id === range)?.labelKey ?? RANGES[0].labelKey);
 
   return (
     <div className="flex h-full flex-col gap-3 overflow-y-auto p-1">
       <div className="flex items-center gap-2">
-        <div className="flex gap-1" role="group" aria-label="OpenRouter range">
+        <div className="flex gap-1" role="group" aria-label={t("models.openrouter.rangeGroupLabel")}>
           {RANGES.map((r) => (
             <button
               key={r.id}
@@ -116,7 +123,7 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
                   : "bg-secondary text-card-foreground hover:bg-secondary"
               )}
             >
-              {r.label}
+              {t(r.labelKey)}
             </button>
           ))}
         </div>
@@ -126,12 +133,12 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
           disabled={loading}
           className="ml-auto rounded-sm bg-secondary px-2 py-0.5 text-xs text-card-foreground hover:bg-secondary disabled:opacity-50"
         >
-          {loading ? "Refreshing…" : "Refresh"}
+          {loading ? t("models.openrouter.refreshing") : t("common.refresh")}
         </button>
       </div>
 
       {/* Available credit */}
-      <Card title="Available credit" result={credits ?? fallback}>
+      <Card title={t("models.openrouter.credits.title")} result={credits ?? fallback} t={t}>
         {credits?.ok && (
           <div>
             <div
@@ -144,7 +151,7 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
             </div>
             {credits.data.lowBalance && (
               <div className="mt-0.5 text-xs text-destructive">
-                Low balance — consider topping up.
+                {t("models.openrouter.credits.lowBalance")}
               </div>
             )}
           </div>
@@ -152,36 +159,40 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
       </Card>
 
       {/* Key usage */}
-      <Card title="Key usage" result={keyUsage ?? fallback}>
+      <Card title={t("models.openrouter.keyUsage.title")} result={keyUsage ?? fallback} t={t}>
         {keyUsage?.ok && (
           <div className="text-sm text-card-foreground">
             <div>
-              Used:{" "}
+              {t("models.openrouter.keyUsage.used")}{" "}
               <span className="tabular-nums">{formatOpenRouterUsd(keyUsage.data.usageUsd)}</span>
             </div>
             <div className="text-muted-foreground">
-              Limit:{" "}
+              {t("models.openrouter.keyUsage.limit")}{" "}
               {keyUsage.data.limitUsd === null
-                ? "Unlimited"
+                ? t("models.openrouter.keyUsage.unlimited")
                 : formatOpenRouterUsd(keyUsage.data.limitUsd)}
-              {keyUsage.data.limitReached && " (reached)"}
+              {keyUsage.data.limitReached && ` ${t("models.openrouter.keyUsage.limitReached")}`}
             </div>
           </div>
         )}
       </Card>
 
       {/* Per-model activity */}
-      <Card title={`Activity (${range})`} result={activity ?? fallback}>
+      <Card
+        title={t("models.openrouter.activity.title", { range: rangeLabel })}
+        result={activity ?? fallback}
+        t={t}
+      >
         {activity?.ok &&
           (activity.data.rows.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No activity in range.</div>
+            <div className="text-sm text-muted-foreground">{t("models.openrouter.activity.empty")}</div>
           ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="py-1 pr-2 font-medium">Model</th>
-                  <th className="py-1 px-2 text-right font-medium">Requests</th>
-                  <th className="py-1 pl-2 text-right font-medium">Cost</th>
+                  <th className="py-1 pr-2 font-medium">{t("models.openrouter.activity.columns.model")}</th>
+                  <th className="py-1 px-2 text-right font-medium">{t("models.openrouter.activity.columns.requests")}</th>
+                  <th className="py-1 pl-2 text-right font-medium">{t("models.openrouter.activity.columns.cost")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -207,12 +218,12 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
       </Card>
 
       {/* Enabled keys */}
-      <Card title="Enabled keys" result={enabledKeys ?? fallback}>
+      <Card title={t("models.openrouter.enabledKeys.title")} result={enabledKeys ?? fallback} t={t}>
         {enabledKeys?.ok && (
           <div className="text-xl font-semibold tabular-nums text-foreground">
             {enabledKeys.data.enabledCount}
             <span className="ml-1 text-xs text-muted-foreground">
-              of {enabledKeys.data.totalCount}
+              {t("models.openrouter.enabledKeys.of", { total: enabledKeys.data.totalCount })}
             </span>
           </div>
         )}

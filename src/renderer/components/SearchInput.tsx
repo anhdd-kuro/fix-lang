@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useI18n } from "../i18n/useI18n";
 
 type SearchInputProps = {
   onSearch: (value: string) => void;
@@ -14,12 +15,13 @@ type SearchInputProps = {
  */
 export const SearchInput: React.FC<SearchInputProps> = ({
   onSearch,
-  placeholder = "Search...",
+  placeholder,
   debounceMs = 300,
   className = "",
   suggestions = [],
   dataListId = "search-suggestions",
 }) => {
+  const { t } = useI18n();
   const [inputValue, setInputValue] = useState("");
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -60,9 +62,9 @@ export const SearchInput: React.FC<SearchInputProps> = ({
         type="text"
         value={inputValue}
         onChange={handleChange}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t("common.searchInput.placeholder")}
         className="w-full bg-input border border-border text-foreground px-8 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-        aria-label="Search history"
+        aria-label={t("common.searchInput.ariaLabel")}
         list={dataListId}
         autoComplete="on"
       />
@@ -96,7 +98,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
             onSearch("");
           }}
           className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          aria-label="Clear search"
+          aria-label={t("common.searchInput.clearAriaLabel")}
         >
           <svg
             className="size-4"

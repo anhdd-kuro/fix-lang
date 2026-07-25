@@ -44,6 +44,10 @@ Overview and Models share a time-range filter (All / 30d / 7d).
 
 - 149 terminal-inspired themes with derive-ladder color mapping
 
+### Language
+
+FixLang is available in **English** and **Japanese**. On first run, the app automatically uses your system language (English if your system language is not one of the supported ones). You can change the language anytime in **Settings → General → Language** without restarting the app.
+
 ### Provider setup (General settings)
 
 The **General** tab is the only place a provider is selected — no other tab or window offers a provider control. Setup is staged, so the previously active provider stays in effect until you explicitly apply the new one:

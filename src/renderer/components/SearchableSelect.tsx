@@ -20,8 +20,13 @@ export type SearchableSelectProps<Option extends SearchableOption> = {
   ariaLabel?: string;
   className?: string;
   placeholder?: string;
-  /** Text shown when the filter matches nothing. */
-  noOptionsMessage?: string;
+  /**
+   * Text shown when the filter matches nothing. Required (no hardcoded
+   * default) so every caller supplies an already-`t()`-resolved string —
+   * this component has no `useI18n()` access of its own, matching the
+   * locale-free presentational pattern used by `dashboardTabs.ts`.
+   */
+  noOptionsMessage: string;
   isDisabled?: boolean;
   /** Render the menu in a portal on document.body with fixed positioning. */
   menuPortal?: boolean;
@@ -63,7 +68,7 @@ export const SearchableSelect = <Option extends SearchableOption>({
   ariaLabel,
   className = "w-full",
   placeholder,
-  noOptionsMessage = "No options found",
+  noOptionsMessage,
   isDisabled = false,
   menuPortal = false,
   menuMaxHeight,

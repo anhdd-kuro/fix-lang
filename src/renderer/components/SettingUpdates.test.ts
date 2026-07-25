@@ -1,7 +1,16 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { msg, type Message } from "~/shared/i18n/message";
+import { createTranslator } from "~/shared/i18n/translate";
 import { SettingUpdates } from "./SettingUpdates";
+import { I18nProvider } from "../i18n/I18nProvider";
+
+// Expected copy is derived through the real translator kernel — never
+// hand-restated — so a catalog reword can't silently break this file, and an
+// English-fallback regression still fails a test that asserts JA text.
+const tEn = createTranslator("en");
+const tJa = createTranslator("ja");
 
 type UpdateState = {
   phase:
@@ -15,7 +24,7 @@ type UpdateState = {
   currentVersion: string;
   availableVersion?: string;
   releaseNotes?: string;
-  message?: string;
+  message?: Message;
   canInstall?: boolean;
 };
 
@@ -26,6 +35,11 @@ type UpdateApi = {
   installUpdate: ReturnType<typeof vi.fn>;
   onUpdateStateChanged: ReturnType<typeof vi.fn>;
   openExternalLink: ReturnType<typeof vi.fn>;
+  // `SettingUpdates` renders inside `<I18nProvider>`, which reads these off
+  // `window.electronAPI` on mount (see `localeState.ts`'s `LocaleBridge`).
+  getLocale: ReturnType<typeof vi.fn>;
+  setLocale: ReturnType<typeof vi.fn>;
+  onLocaleChanged: ReturnType<typeof vi.fn>;
 };
 
 const readyState = (phase: UpdateState["phase"] = "idle"): UpdateState => ({
@@ -59,22 +73,12 @@ describe("SettingUpdates", () => {
   let container: HTMLDivElement;
   let root: Root;
   let updateListener: ((state: UpdateState) => void) | undefined;
+  let localeListener: ((locale: "en" | "ja") => void) | undefined;
   let unsubscribe: ReturnType<typeof vi.fn>;
   let api: UpdateApi;
 
-  const render = async (state: UpdateState) => {
-    unsubscribe = vi.fn();
-    api = {
-      getUpdateState: vi.fn().mockResolvedValue(state),
-      checkForUpdates: vi.fn().mockResolvedValue(undefined),
-      openUpdateRelease: vi.fn().mockResolvedValue(undefined),
-      installUpdate: vi.fn().mockResolvedValue({ success: true }),
-      openExternalLink: vi.fn().mockResolvedValue({ success: true }),
-      onUpdateStateChanged: vi.fn((listener: (next: UpdateState) => void) => {
-        updateListener = listener;
-        return unsubscribe;
-      }),
-    };
+  const renderWithApi = async (customApi: UpdateApi) => {
+    api = customApi;
     Object.defineProperty(window, "electronAPI", {
       configurable: true,
       value: api,
@@ -84,9 +88,32 @@ describe("SettingUpdates", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(createElement(SettingUpdates));
+      root.render(createElement(I18nProvider, null, createElement(SettingUpdates)));
     });
+    // `<I18nProvider>` resolves its initial locale via an async `getLocale()`
+    // call before rendering children (it renders null until "ready" — see
+    // `I18nProvider.tsx` — to avoid an EN -> JA flash), so this needs an extra
+    // tick beyond the single `waitForUi()` the update-state fetch itself uses.
     await waitForUi();
+    await waitForUi();
+  };
+
+  const render = async (state: UpdateState) => {
+    unsubscribe = vi.fn();
+    await renderWithApi({
+      getUpdateState: vi.fn().mockResolvedValue(state),
+      checkForUpdates: vi.fn().mockResolvedValue(undefined),
+      openUpdateRelease: vi.fn().mockResolvedValue(undefined),
+      installUpdate: vi.fn().mockResolvedValue({ success: true }),
+      openExternalLink: vi.fn().mockResolvedValue({ success: true }),
+      onUpdateStateChanged: vi.fn((listener: (next: UpdateState) => void) => {
+        updateListener = listener;
+        return unsubscribe;
+      }),
+      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+      setLocale: vi.fn().mockResolvedValue({ success: true }),
+      onLocaleChanged: vi.fn().mockReturnValue(vi.fn()),
+    });
   };
 
   afterEach(async () => {
@@ -97,6 +124,7 @@ describe("SettingUpdates", () => {
     }
     container?.remove();
     updateListener = undefined;
+    localeListener = undefined;
     vi.restoreAllMocks();
   });
 
@@ -106,13 +134,13 @@ describe("SettingUpdates", () => {
       currentVersion: "0.1.0-dev",
     });
 
-    expect(container.textContent).toContain("FixLang v0.1.0-dev");
     expect(container.textContent).toContain(
-      "Updates are available in installed release builds.",
+      tEn("settings.updates.versionLabel", { version: "0.1.0-dev" }),
     );
+    expect(container.textContent).toContain(tEn("settings.updates.unsupported"));
     expect(
       [...container.querySelectorAll("button")].find(
-        (button) => button.textContent === "Check for updates",
+        (button) => button.textContent === tEn("settings.updates.checkButton"),
       ),
     ).toBeUndefined();
   });
@@ -120,7 +148,7 @@ describe("SettingUpdates", () => {
   it("checks for updates from the idle state", async () => {
     await render(readyState());
 
-    const check = buttonNamed(container, "Check for updates");
+    const check = buttonNamed(container, tEn("settings.updates.checkButton"));
 
     await click(check);
     expect(api.checkForUpdates).toHaveBeenCalledTimes(1);
@@ -130,10 +158,10 @@ describe("SettingUpdates", () => {
     await render(readyState("checking"));
 
     expect(container.querySelector('[role="status"]')?.textContent).toContain(
-      "Checking for updates…",
+      tEn("settings.updates.checking"),
     );
     const check = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === "Check for updates",
+      (button) => button.textContent === tEn("settings.updates.checkButton"),
     );
     expect(check?.hasAttribute("disabled")).toBe(true);
   });
@@ -142,9 +170,10 @@ describe("SettingUpdates", () => {
     await render(readyState("up-to-date"));
 
     expect(container.querySelector('[role="status"]')?.textContent).toContain(
-      "FixLang is up to date.",
+      tEn("settings.updates.upToDate"),
     );
-    expect(container.textContent).toContain("Check for update");
+    // The check button stays available so the user can re-check on demand.
+    expect(buttonNamed(container, tEn("settings.updates.checkButton"))).toBeTruthy();
   });
 
   it("offers a manual GitHub download without rendering its notes as HTML", async () => {
@@ -155,17 +184,22 @@ describe("SettingUpdates", () => {
     });
 
     expect(container.textContent).toContain(
-      "Version v0.2.0 is available (you have v0.1.0).",
+      tEn("settings.updates.available", {
+        version: "v0.2.0",
+        currentVersion: "0.1.0",
+      }),
     );
     expect(container.innerHTML).toContain("&lt;strong&gt;Safer updater&lt;/strong&gt;");
 
+    // `installInstructions` is a longer prose string; assert the whole
+    // catalog value rather than a hand-picked prefix.
     expect(container.textContent).toContain(
-      "Install the DMG, replace FixLang in Applications",
+      tEn("settings.updates.installInstructions"),
     );
     expect(container.textContent).toContain(
       'xattr -dr com.apple.quarantine "/Applications/FixLang.app"',
     );
-    await click(buttonNamed(container, "Download from GitHub"));
+    await click(buttonNamed(container, tEn("settings.updates.downloadButton")));
     expect(api.openUpdateRelease).toHaveBeenCalledTimes(1);
   });
 
@@ -177,15 +211,15 @@ describe("SettingUpdates", () => {
     });
 
     expect(container.textContent).toContain(
-      "Homebrew installs the update and reopens FixLang.",
+      tEn("settings.updates.canInstallDescription"),
     );
     // The manual replace-the-bundle instructions belong to the DMG path only;
     // the static "How to update" reference below still documents them.
     expect(container.textContent).not.toContain(
-      "Install the DMG, replace FixLang in Applications",
+      tEn("settings.updates.installInstructions"),
     );
 
-    await click(buttonNamed(container, "Update now"));
+    await click(buttonNamed(container, tEn("settings.updates.installNow")));
 
     expect(api.installUpdate).toHaveBeenCalledTimes(1);
     expect(api.openUpdateRelease).not.toHaveBeenCalled();
@@ -200,7 +234,7 @@ describe("SettingUpdates", () => {
 
     expect(
       [...container.querySelectorAll("button")].find(
-        (button) => button.textContent === "Update now",
+        (button) => button.textContent === tEn("settings.updates.installNow"),
       ),
     ).toBeUndefined();
     expect(container.textContent).toContain(
@@ -214,15 +248,18 @@ describe("SettingUpdates", () => {
       availableVersion: "0.2.0",
       canInstall: true,
     });
+    // `run()` never reads this `error` descriptor — it always sets
+    // `state.message` from its own bound failure message (see below) — but
+    // the mock still needs the shape `installUpdate()` actually resolves to.
     api.installUpdate.mockResolvedValueOnce({
       success: false,
-      error: "Could not start the Homebrew update.",
+      error: msg("settings.updates.installErrorMessage"),
     });
 
-    await click(buttonNamed(container, "Update now"));
+    await click(buttonNamed(container, tEn("settings.updates.installNow")));
 
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      "Could not start the Homebrew update.",
+      tEn("settings.updates.installFailed"),
     );
   });
 
@@ -234,7 +271,7 @@ describe("SettingUpdates", () => {
     });
 
     expect(container.querySelector('[role="status"]')?.textContent).toContain(
-      "Installing v0.2.0 with Homebrew.",
+      tEn("settings.updates.installingDescription", { version: "v0.2.0" }),
     );
   });
 
@@ -265,14 +302,14 @@ describe("SettingUpdates", () => {
   it("lets the user retry and open the release page after an error", async () => {
     await render({
       ...readyState("error"),
-      message: "Could not reach GitHub Releases.",
+      message: msg("settings.updates.checkErrorMessage"),
     });
 
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      "Could not reach GitHub Releases.",
+      tEn("settings.updates.checkErrorMessage"),
     );
-    await click(buttonNamed(container, "Try again"));
-    await click(buttonNamed(container, "View releases"));
+    await click(buttonNamed(container, tEn("settings.updates.tryAgain")));
+    await click(buttonNamed(container, tEn("settings.updates.viewReleases")));
 
     expect(api.checkForUpdates).toHaveBeenCalledTimes(1);
     expect(api.openUpdateRelease).toHaveBeenCalledTimes(1);
@@ -288,7 +325,12 @@ describe("SettingUpdates", () => {
         availableVersion: "0.2.0",
       });
     });
-    expect(container.textContent).toContain("Version v0.2.0 is available");
+    expect(container.textContent).toContain(
+      tEn("settings.updates.available", {
+        version: "v0.2.0",
+        currentVersion: "0.1.0",
+      }),
+    );
 
     await act(async () => {
       root.unmount();
@@ -315,8 +357,10 @@ describe("SettingUpdates", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(createElement(SettingUpdates));
+      root.render(createElement(I18nProvider, null, createElement(SettingUpdates)));
     });
+    await waitForUi();
+    await waitForUi();
 
     await act(async () => {
       updateListener?.({
@@ -327,8 +371,15 @@ describe("SettingUpdates", () => {
       await initial;
     });
 
-    expect(container.textContent).toContain("Version v0.2.0 is available");
-    expect(container.textContent).not.toContain("Checks GitHub Releases");
+    expect(container.textContent).toContain(
+      tEn("settings.updates.available", {
+        version: "v0.2.0",
+        currentVersion: "0.1.0",
+      }),
+    );
+    expect(container.textContent).not.toContain(
+      tEn("settings.updates.idleDescription"),
+    );
   });
 
   it("does not let a late snapshot failure overwrite a newer update event", async () => {
@@ -349,8 +400,10 @@ describe("SettingUpdates", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(createElement(SettingUpdates));
+      root.render(createElement(I18nProvider, null, createElement(SettingUpdates)));
     });
+    await waitForUi();
+    await waitForUi();
 
     await act(async () => {
       updateListener?.({
@@ -361,7 +414,104 @@ describe("SettingUpdates", () => {
       await initial.catch(() => undefined);
     });
 
-    expect(container.textContent).toContain("Version v0.2.0 is available");
-    expect(container.textContent).not.toContain("Could not load update status");
+    expect(container.textContent).toContain(
+      tEn("settings.updates.available", {
+        version: "v0.2.0",
+        currentVersion: "0.1.0",
+      }),
+    );
+    expect(container.textContent).not.toContain(
+      tEn("settings.updates.loadFailed"),
+    );
+  });
+
+  it("shows a locale-free load-failure descriptor that re-renders in Japanese without an extra fetch", async () => {
+    const getUpdateState = vi.fn().mockRejectedValue(new Error("network down"));
+    await renderWithApi({
+      getUpdateState,
+      checkForUpdates: vi.fn().mockResolvedValue(undefined),
+      openUpdateRelease: vi.fn().mockResolvedValue(undefined),
+      installUpdate: vi.fn().mockResolvedValue({ success: true }),
+      openExternalLink: vi.fn().mockResolvedValue({ success: true }),
+      onUpdateStateChanged: vi.fn((listener: (next: UpdateState) => void) => {
+        updateListener = listener;
+        return vi.fn();
+      }),
+      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+      setLocale: vi.fn().mockResolvedValue({ success: true }),
+      onLocaleChanged: vi.fn((callback: (locale: "en" | "ja") => void) => {
+        localeListener = callback;
+        return vi.fn();
+      }),
+    });
+
+    const enExpected = tEn("settings.updates.loadFailed");
+    const jaExpected = tJa("settings.updates.loadFailed");
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(enExpected);
+
+    await act(async () => {
+      localeListener?.("ja");
+    });
+    await waitForUi();
+
+    // Prove the locale actually changed: JA text matches the JA-derived
+    // expectation and differs from the EN one (this is the exact regression
+    // this file used to hide — a JA catalog reword failed here even though
+    // the component itself was correct).
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(jaExpected);
+    expect(jaExpected).not.toBe(enExpected);
+    // The locale switch must not re-run `getUpdateState()` — the mount
+    // effect's dependency array stays `[]` because it no longer resolves
+    // `t()` itself.
+    expect(getUpdateState).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-resolves a parameterized service-reported error (e.g. Homebrew tap lag) in Japanese after a locale switch", async () => {
+    await renderWithApi({
+      getUpdateState: vi.fn().mockResolvedValue(readyState()),
+      checkForUpdates: vi.fn().mockResolvedValue(undefined),
+      openUpdateRelease: vi.fn().mockResolvedValue(undefined),
+      installUpdate: vi.fn().mockResolvedValue({ success: true }),
+      openExternalLink: vi.fn().mockResolvedValue({ success: true }),
+      onUpdateStateChanged: vi.fn((listener: (next: UpdateState) => void) => {
+        updateListener = listener;
+        return vi.fn();
+      }),
+      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+      setLocale: vi.fn().mockResolvedValue({ success: true }),
+      onLocaleChanged: vi.fn((callback: (locale: "en" | "ja") => void) => {
+        localeListener = callback;
+        return vi.fn();
+      }),
+    });
+
+    await act(async () => {
+      updateListener?.({
+        phase: "error",
+        currentVersion: "0.1.0",
+        availableVersion: "0.2.0",
+        message: msg("settings.updates.tapBehindMessage", {
+          targetVersion: "0.2.0",
+          offeredVersion: "0.1.0",
+        }),
+      });
+    });
+
+    const tapBehindParams = { targetVersion: "0.2.0", offeredVersion: "0.1.0" };
+    const enExpected = tEn("settings.updates.tapBehindMessage", tapBehindParams);
+    const jaExpected = tJa("settings.updates.tapBehindMessage", tapBehindParams);
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(enExpected);
+
+    await act(async () => {
+      localeListener?.("ja");
+    });
+    await waitForUi();
+
+    // Prove the locale actually changed (see the loadFailed test above for
+    // why both the positive and the "differs from EN" assertion matter).
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(jaExpected);
+    expect(jaExpected).not.toBe(enExpected);
   });
 });

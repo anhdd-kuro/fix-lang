@@ -33,6 +33,15 @@ vi.mock("electron", () => ({
   },
 }));
 
+// `~/main/notifications/error`'s notification title/body now go through
+// `mainT()`, which reads `~/stores/localeStore` (a real `electron-store`
+// instance requiring a `projectName`/`cwd` outside a real Electron `app`).
+// Mocking the store directly — same pattern as
+// `keybindings/correctionNotifications.test.ts` — avoids that entirely.
+vi.mock("~/stores/localeStore", () => ({
+  getLocale: vi.fn(() => "en"),
+}));
+
 vi.mock("~/stores/apiKeyStore", () => ({
   getApiKey: vi.fn().mockResolvedValue("test-api-key"),
 }));

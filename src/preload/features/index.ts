@@ -2,6 +2,7 @@
 export * from "./api";
 export * from "./correction";
 export * from "./correctionResult";
+export * from "./locale";
 export * from "./logs";
 export * from "./promptgen";
 export * from "./profiles";

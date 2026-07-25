@@ -1,8 +1,8 @@
-import { format } from "date-fns";
 import React from "react";
-import { formatCost } from "./historyCost";
+import { formatCostLabel } from "./historyCost";
 import { formatModelLineage } from "./historyModel";
 import { TrashButton } from "./TrashButton";
+import { useI18n } from "../i18n/useI18n";
 import type { HistoryEntry, HistoryFeatureId } from "~/stores/historyStore";
 
 type HistoryEntryItemProps = {
@@ -23,6 +23,8 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
   onSelect,
   onDelete,
 }) => {
+  const { t, formatNumber, formatDateTime } = useI18n();
+
   return (
     <div className="flex justify-between items-start gap-2">
       <div
@@ -31,11 +33,20 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
       >
         <div className="flex items-center gap-2 text-xs">
           <span className="text-muted-foreground">
-            {format(new Date(entry.timestamp), "MM/dd HH:mm")}
+            {/* `entry.timestamp` is a full ISO instant (`new Date().toISOString()`
+                at write time — see historyRepo.ts), not a UTC-midnight day-bucket
+                key, so there is no local/UTC boundary hazard here — only the
+                display format needs to be locale-aware. The previous hardcoded
+                "MM/dd HH:mm" `date-fns` pattern only localized month/day *names*;
+                the field order and separators stayed US-shaped even in Japanese.
+                `formatDateTime` (shared/i18n/format.ts) resolves both the field
+                order and the 12h/24h convention per locale via `Intl.DateTimeFormat`
+                — reusing it here instead of inventing a new formatter. */}
+            {formatDateTime(entry.timestamp)}
           </span>
           <div className="ml-auto flex items-center gap-1">
             <span className="px-1.5 py-0.5 bg-primary text-primary-foreground rounded-sm">
-              {entry.presetName ?? "Unknown"}
+              {entry.presetName ?? t("common.unknown")}
             </span>
             <TrashButton
               onClick={(e) => {
@@ -61,9 +72,9 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
           </p>
           <span
             className="shrink-0 text-xs text-muted-foreground tabular-nums"
-            title="Estimated cost at time of correction"
+            title={t("history.cost.tooltip")}
           >
-            {formatCost(entry)}
+            {formatCostLabel(entry, t, formatNumber)}
           </span>
         </div>
       </div>

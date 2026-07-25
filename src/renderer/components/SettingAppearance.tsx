@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { twJoin } from "tailwind-merge";
 import { useTheme } from "../hooks/useTheme";
+import { useI18n } from "../i18n/useI18n";
 import { THEME_PRESETS } from "../themes";
 import type { ThemeId } from "~/stores/themeIds";
 
@@ -11,6 +12,7 @@ const THEME_CARD_MAX = "13rem";
  * Appearance settings — searchable theme preset picker with square preview cards.
  */
 export const SettingAppearance: React.FC = () => {
+  const { t } = useI18n();
   const { themeId, setTheme, isLoading } = useTheme();
   const [query, setQuery] = useState("");
 
@@ -38,35 +40,34 @@ export const SettingAppearance: React.FC = () => {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="shrink-0">
-        <h3 className="text-lg font-medium text-foreground">Theme</h3>
+        <h3 className="text-lg font-medium text-foreground">{t("settings.appearance.title")}</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Choose from {THEME_PRESETS.length} bundled themes. Changes apply
-          instantly across all windows.
+          {t("settings.appearance.description", { count: THEME_PRESETS.length })}
         </p>
       </div>
 
       <label className="block shrink-0">
-        <span className="sr-only">Search themes</span>
+        <span className="sr-only">{t("settings.appearance.searchLabel")}</span>
         <input
           type="search"
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
           }}
-          placeholder="Search themes…"
+          placeholder={t("settings.appearance.searchPlaceholder")}
           className="w-full rounded-md border border-input bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </label>
 
       {filteredPresets.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
-          No themes match &ldquo;{query}&rdquo;
+          {t("settings.appearance.noMatches", { query })}
         </p>
       ) : (
         <div
           className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-1"
           role="radiogroup"
-          aria-label="Theme preset"
+          aria-label={t("settings.appearance.radioGroupLabel")}
         >
           <div
             className="grid gap-3"

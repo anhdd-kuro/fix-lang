@@ -6,7 +6,10 @@
  * hotkeys and the sibling app keybinding before saving.
  */
 import React, { useState, useEffect } from "react";
+import { messageLabel, msg, type Message } from "~/shared/i18n/message";
+import { plainStatus, wrappedError, resolveStatus, type StatusDescriptor } from "./statusDescriptor";
 import { validateHotkeys } from "./validateHotkeys";
+import { useI18n } from "../i18n/useI18n";
 import type { KeyBindings } from "~/stores/apiStore";
 
 type HotkeyKey = keyof KeyBindings; // "promptGen" | "profileSwitch"
@@ -30,10 +33,30 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
   hotkeyKey,
   label,
 }) => {
+  const { t, tm, tl } = useI18n();
   const [keyBindings, setKeyBindings] = useState<KeyBindings | null>(null);
   const [pendingCombo, setPendingCombo] = useState<string>("");
-  const [fieldError, setFieldError] = useState<string>("");
-  const [status, setStatus] = useState<string>("");
+  // Locale-free descriptor — was `useState<string>` filled by `t()` in
+  // `handleKeyDown` (a synchronous key handler), which froze the message
+  // into whatever locale was active at the keystroke and never re-translated
+  // on a later locale switch.
+  const [fieldError, setFieldError] = useState<Message | null>(null);
+  // Same fix as `fieldError` — was `useState<string>` filled by `t()` in
+  // `handleApply`.
+  const [status, setStatus] = useState<StatusDescriptor | null>(null);
+  // Separate from `status` text so styling never depends on matching an
+  // English prefix — `status` itself is always already localized.
+  const [statusKind, setStatusKind] = useState<"idle" | "error" | "applying" | "success">(
+    "idle",
+  );
+  // Locale-free descriptor for the ONE error the mount effect below can
+  // produce (`getKeyBindings()` rejecting). Kept separate from `status` (set
+  // by `handleApply` below, an event handler — safe to resolve via `t()`
+  // directly, since it is not a memoized/effect closure) so this effect never
+  // needs to call `t()` itself, and therefore never needs `t` in its
+  // dependency array. `handleApply` clears it so a later action's status
+  // always supersedes a stale load-error banner.
+  const [loadError, setLoadError] = useState<Message | null>(null);
 
   useEffect(() => {
     window.electronAPI
@@ -44,7 +67,8 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
       })
       .catch((err) => {
         console.error("HotkeyInput: failed to load key bindings", err);
-        setStatus("Error loading keybindings");
+        setStatusKind("error");
+        setLoadError(msg("settings.hotkeys.loadError"));
       });
 
     // Safety net: if the widget unmounts while the field is still focused
@@ -79,7 +103,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
     const newCombo = parts.join("+");
 
     if (!parts.some((p) => !modifierOnly.includes(p))) {
-      setFieldError("Include a non-modifier key");
+      setFieldError(msg("settings.hotkeys.needsKey"));
       return;
     }
 
@@ -90,18 +114,21 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
       );
       const sibling = siblingKeys.find((k) => keyBindings[k] === newCombo);
       if (sibling) {
-        setFieldError(`Duplicate with ${sibling}`);
+        setFieldError(msg("settings.hotkeys.duplicateWith", { sibling }));
         return;
       }
     }
 
-    setFieldError("");
+    setFieldError(null);
     setPendingCombo(newCombo);
   };
 
   const handleApply = async (): Promise<void> => {
+    // Any user-triggered apply supersedes a stale mount-time load-error banner.
+    setLoadError(null);
     if (fieldError) {
-      setStatus(`Error: ${fieldError}`);
+      setStatusKind("error");
+      setStatus(wrappedError({ kind: "message", message: fieldError }));
       return;
     }
     if (!keyBindings || !pendingCombo) return;
@@ -113,24 +140,38 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
     const correctionSettings = await window.electronAPI.getCorrectSettings();
     const conflict = validateHotkeys(correctionSettings.presets, updated);
     if (conflict) {
+      setStatusKind("error");
       setStatus(
-        `Error: "${conflict.hotkey}" conflicts with correction preset "${conflict.presetOrKey}".`,
+        wrappedError(
+          messageLabel("settings.hotkeys.conflict", {
+            hotkey: conflict.hotkey,
+            presetOrKey: conflict.presetOrKey,
+          }),
+        ),
       );
       return;
     }
 
-    setStatus("Applying...");
+    setStatusKind("applying");
+    setStatus(plainStatus("settings.hotkeys.applying"));
     await window.electronAPI.pauseHotkeys();
     try {
       const result = await window.electronAPI.setKeyBindings(updated);
       if (result.success) {
         setKeyBindings(updated);
-        setStatus("Applied! Shortcut updated.");
+        setStatusKind("success");
+        setStatus(plainStatus("settings.hotkeys.applied"));
       } else {
-        setStatus(`Error: ${result.error ?? "Unknown"}`);
+        setStatusKind("error");
+        setStatus(
+          wrappedError(
+            result.error ?? messageLabel("settings.hotkeys.applyErrorUnknown"),
+          ),
+        );
       }
     } catch {
-      setStatus("Error applying keybinding");
+      setStatusKind("error");
+      setStatus(plainStatus("settings.hotkeys.applyError"));
     } finally {
       await window.electronAPI.resumeHotkeys();
     }
@@ -153,8 +194,8 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
           onFocus={handleFocus}
           onBlur={handleBlur}
           readOnly
-          placeholder="Press shortcut…"
-          aria-label={`Hotkey for ${hotkeyKey}`}
+          placeholder={t("settings.hotkeys.pressShortcut")}
+          aria-label={t("settings.hotkeys.ariaLabel", { hotkeyKey })}
           className={`flex-1 rounded px-2 py-1 bg-secondary text-secondary-foreground ${
             fieldError ? "border border-destructive" : "border border-border"
           }`}
@@ -165,26 +206,26 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
           disabled={!pendingCombo || !!fieldError}
           className="px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Apply
+          {t("settings.hotkeys.applyButton")}
         </button>
       </div>
       {fieldError && (
         <p className="text-xs text-destructive" role="alert">
-          {fieldError}
+          {tm(fieldError)}
         </p>
       )}
-      {status && (
+      {(loadError || status) && (
         <p
           role="status"
           className={`text-xs ${
-            status.startsWith("Error")
+            statusKind === "error"
               ? "text-destructive"
-              : status.startsWith("Applying")
+              : statusKind === "applying"
                 ? "text-warning"
                 : "text-success"
           }`}
         >
-          {status}
+          {loadError ? tm(loadError) : resolveStatus(status, t, tm, tl)}
         </p>
       )}
     </div>

@@ -1,6 +1,7 @@
 import path from "path";
 import { BrowserWindow, screen, ipcMain, app } from "electron";
 import { attachThemeSync } from "./attachThemeSync";
+import { buildPromptGenWindowTitle } from "./windowTitles";
 import appIcon from "../../../resources/icon.ico?asset";
 
 let promptGenWindow: BrowserWindow | null = null;
@@ -26,7 +27,7 @@ export function createPromptGenWindow() {
     backgroundColor: "#1e2939",
     icon: appIcon,
     titleBarStyle: "default",
-    title: "Generated Prompts",
+    title: buildPromptGenWindowTitle(),
     frame: true,
     webPreferences: {
       preload: path.join(app.getAppPath(), "out/preload/index.cjs"),
@@ -40,6 +41,14 @@ export function createPromptGenWindow() {
     visibleOnFullScreen: true,
   });
   attachThemeSync(promptGenWindow);
+
+  // Electron's default behavior re-titles the native window from the loaded
+  // document's <title> tag (a static, English-only fallback in index.html)
+  // once it finishes parsing. Without this, that would silently clobber the
+  // locale-aware title set above and by `syncPromptGenWindowLocale`.
+  promptGenWindow.on("page-title-updated", (event) => {
+    event.preventDefault();
+  });
 
   ipcMain.on("close-promptGen-window", () => promptGenWindow?.hide());
   app.on("will-quit", () => {
@@ -58,6 +67,18 @@ export function destroyPromptGenWindow() {
   }
   promptGenWindow = null;
 }
+
+/**
+ * Retitles an already-open PromptGen window to the current locale. `title` is
+ * only read once, at `BrowserWindow` construction, and this window is a
+ * creation-cached singleton — so without this, a window opened before a
+ * locale switch keeps showing the previous language. Mirrors
+ * `syncErrorPopupLocale` in `errorPopupWindow.ts`.
+ */
+export const syncPromptGenWindowLocale = (): void => {
+  if (!promptGenWindow || promptGenWindow.isDestroyed()) return;
+  promptGenWindow.setTitle(buildPromptGenWindowTitle());
+};
 
 export function showPromptGenWindow(payload: PromptGenPayload) {
   console.log("showPromptGenWindow called with:", payload);

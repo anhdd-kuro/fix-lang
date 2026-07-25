@@ -7,12 +7,15 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { format } from "date-fns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { twJoin } from "tailwind-merge";
+import { msg, type Message } from "~/shared/i18n/message";
 import {
   LOG_QUERY_PAGE_SIZE,
   logEntryMatchesSearch,
 } from "~/shared/logging";
 import { logRowKey } from "./logsView";
+import { useI18n } from "../i18n/useI18n";
 import type { LogLevelFilter } from "./logsView";
+import type { TranslationKey } from "~/shared/i18n/keys";
 import type { LogEntry, LogLevel } from "~/shared/logging";
 
 const LEVELS: readonly LogLevelFilter[] = [
@@ -28,6 +31,19 @@ const LEVEL_CLASS: Record<LogLevel, string> = {
   info: "text-primary",
   warn: "text-yellow-500",
   error: "text-destructive",
+};
+
+/**
+ * Filter dropdown labels are UI chrome and get translated; the underlying
+ * `LogLevelFilter` value (used for querying/filtering) stays the raw English
+ * token — level names are machine data, not prose.
+ */
+const LEVEL_LABEL_KEYS: Record<LogLevelFilter, TranslationKey> = {
+  all: "logs.panel.level.all",
+  debug: "logs.panel.level.debug",
+  info: "logs.panel.level.info",
+  warn: "logs.panel.level.warn",
+  error: "logs.panel.level.error",
 };
 
 const ROW_ESTIMATE_PX = 44;
@@ -67,12 +83,16 @@ const mergeNewestFirst = (
 
 /** Searchable live view of redacted main-process logs (persisted + live). */
 export const LogsPanel = () => {
+  const { t, tm, dateFnsLocale } = useI18n();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [level, setLevel] = useState<LogLevelFilter>("all");
   const [autoScroll, setAutoScroll] = useState(true);
-  const [status, setStatus] = useState("");
+  // Holds a locale-free descriptor (never rendered prose) so `loadInitialPage`/
+  // `loadOlderPage` do not need `t` in their dependency arrays — see those
+  // callbacks below. Resolved via `tm()` at render time instead.
+  const [status, setStatus] = useState<Message | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -87,9 +107,17 @@ export const LogsPanel = () => {
     return () => window.clearTimeout(timer);
   }, [search]);
 
+  // `t` is intentionally NOT a dependency: this fetches on mount and again
+  // whenever `debouncedSearch`/`level` change, and closing over `t` would
+  // force a re-fetch on every locale switch for no reason. That does NOT
+  // mean the error banner is unreachable in the old language after a switch
+  // though — `status` stores a locale-free descriptor (`Message`), resolved
+  // via `tm()` at render, so a stale `queryLogs()` failure renders correctly
+  // in whichever locale is active when the banner is shown, not whichever
+  // was active when the request failed.
   const loadInitialPage = useCallback(async (): Promise<void> => {
     setIsLoading(true);
-    setStatus("");
+    setStatus(null);
     try {
       const page = await window.electronAPI.queryLogs({
         limit: LOG_QUERY_PAGE_SIZE,
@@ -104,13 +132,16 @@ export const LogsPanel = () => {
       setNextCursor(null);
       setHasMore(false);
       setStatus(
-        `Failed to load logs: ${error instanceof Error ? error.message : String(error)}`,
+        msg("logs.panel.error.loadFailed", {
+          message: error instanceof Error ? error.message : String(error),
+        }),
       );
     } finally {
       setIsLoading(false);
     }
   }, [debouncedSearch, level]);
 
+  // Same rationale as `loadInitialPage` above.
   const loadOlderPage = useCallback(async (): Promise<void> => {
     if (!hasMore || nextCursor === null || loadMoreLock.current) {
       return;
@@ -129,7 +160,9 @@ export const LogsPanel = () => {
       setHasMore(page.hasMore);
     } catch (error) {
       setStatus(
-        `Failed to load older logs: ${error instanceof Error ? error.message : String(error)}`,
+        msg("logs.panel.error.loadMoreFailed", {
+          message: error instanceof Error ? error.message : String(error),
+        }),
       );
     } finally {
       setIsLoadingMore(false);
@@ -190,10 +223,12 @@ export const LogsPanel = () => {
       setLogs([]);
       setNextCursor(null);
       setHasMore(false);
-      setStatus("Logs cleared");
+      setStatus(msg("logs.panel.status.cleared"));
     } catch (error) {
       setStatus(
-        `Failed to clear logs: ${error instanceof Error ? error.message : String(error)}`,
+        msg("logs.panel.error.clearFailed", {
+          message: error instanceof Error ? error.message : String(error),
+        }),
       );
     }
   };
@@ -201,10 +236,12 @@ export const LogsPanel = () => {
   const handleCopy = async (): Promise<void> => {
     try {
       const result = await window.electronAPI.copyLogs();
-      setStatus(`Copied ${result.count} log entries`);
+      setStatus(msg("logs.panel.status.copied", { count: result.count }));
     } catch (error) {
       setStatus(
-        `Failed to copy logs: ${error instanceof Error ? error.message : String(error)}`,
+        msg("logs.panel.error.copyFailed", {
+          message: error instanceof Error ? error.message : String(error),
+        }),
       );
     }
   };
@@ -213,46 +250,53 @@ export const LogsPanel = () => {
     try {
       const result = await window.electronAPI.exportLogs();
       if (result.success) {
-        setStatus("Logs exported");
+        setStatus(msg("logs.panel.status.exported"));
       } else if (!result.canceled) {
-        setStatus(`Failed to export logs: ${result.error}`);
+        setStatus(
+          msg("logs.panel.error.exportFailed", { message: result.error }),
+        );
       }
     } catch (error) {
       setStatus(
-        `Failed to export logs: ${error instanceof Error ? error.message : String(error)}`,
+        msg("logs.panel.error.exportFailed", {
+          message: error instanceof Error ? error.message : String(error),
+        }),
       );
     }
   };
 
+  // `t`/`locale` are in the dependency array on purpose (memoization trap):
+  // this label is derived state, not a mount-once fetch, so a stale memo here
+  // would leave the footer in the old language after a locale switch.
   const footerLabel = useMemo(() => {
     if (isLoading) {
-      return "Loading…";
+      return t("common.loading");
     }
     if (isLoadingMore) {
-      return `Showing ${logs.length} · loading older…`;
+      return t("logs.panel.footer.loadingMore", { count: logs.length });
     }
     if (hasMore) {
-      return `Showing ${logs.length} · scroll for older`;
+      return t("logs.panel.footer.moreAvailable", { count: logs.length });
     }
-    return `${logs.length} entries`;
-  }, [hasMore, isLoading, isLoadingMore, logs.length]);
+    return t("logs.panel.footer.count", { count: logs.length });
+  }, [hasMore, isLoading, isLoadingMore, logs.length, t]);
 
   return (
     <section className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <label className="min-w-48 flex-1">
-          <span className="sr-only">Search logs</span>
+          <span className="sr-only">{t("logs.panel.search")}</span>
           <input
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search logs"
+            placeholder={t("logs.panel.search")}
             className="w-full rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
           />
         </label>
 
         <label>
-          <span className="sr-only">Log level</span>
+          <span className="sr-only">{t("logs.panel.levelLabel")}</span>
           <select
             value={level}
             onChange={(event) => {
@@ -264,7 +308,7 @@ export const LogsPanel = () => {
           >
             {LEVELS.map((option) => (
               <option key={option} value={option}>
-                {option === "all" ? "All levels" : option.toUpperCase()}
+                {t(LEVEL_LABEL_KEYS[option])}
               </option>
             ))}
           </select>
@@ -276,7 +320,7 @@ export const LogsPanel = () => {
             checked={autoScroll}
             onChange={(event) => setAutoScroll(event.target.checked)}
           />
-          Auto-scroll
+          {t("logs.panel.autoScroll")}
         </label>
 
         <button
@@ -284,39 +328,39 @@ export const LogsPanel = () => {
           onClick={() => void handleClear()}
           className="rounded-md bg-secondary px-3 py-1.5 text-sm text-secondary-foreground hover:opacity-90"
         >
-          Clear
+          {t("logs.panel.clearButton")}
         </button>
         <button
           type="button"
           onClick={() => void handleCopy()}
           className="rounded-md bg-secondary px-3 py-1.5 text-sm text-secondary-foreground hover:opacity-90"
         >
-          Copy all
+          {t("logs.panel.copyAllButton")}
         </button>
         <button
           type="button"
           onClick={() => void handleExport()}
           className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:opacity-90"
         >
-          Export .txt
+          {t("logs.panel.exportButton")}
         </button>
       </div>
 
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>{footerLabel}</span>
         <span role="status" aria-live="polite">
-          {status}
+          {status ? tm(status) : ""}
         </span>
       </div>
 
       <div
         ref={listRef}
         className="min-h-0 flex-1 overflow-auto rounded-lg border border-border bg-card font-mono text-xs"
-        aria-label="Application logs"
+        aria-label={t("logs.panel.listAriaLabel")}
       >
         {logs.length === 0 && !isLoading ? (
           <p className="p-4 text-center text-muted-foreground">
-            No logs found.
+            {t("logs.panel.empty")}
           </p>
         ) : (
           <div
@@ -343,6 +387,7 @@ export const LogsPanel = () => {
                       {format(
                         new Date(entry.timestamp),
                         "yyyy-MM-dd HH:mm:ss XXX",
+                        { locale: dateFnsLocale },
                       )}
                     </time>
                     <span

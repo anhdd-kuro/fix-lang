@@ -1,4 +1,5 @@
 import { BrowserWindow, ipcMain, shell } from "electron";
+import { msg } from "~/shared/i18n/message";
 import type { UpdateService } from "~/main/update";
 import type {
   InstallUpdateResult,
@@ -36,7 +37,7 @@ export const registerUpdateHandlers = (service: UpdateService): void => {
     } catch {
       return {
         success: false,
-        error: "Could not open the releases page",
+        error: msg("settings.updates.openReleaseFailed"),
       } satisfies OpenUpdateReleaseResult;
     }
   });

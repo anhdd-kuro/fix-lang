@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { msg } from "~/shared/i18n/message";
 import { createUpdateService } from "./updateService";
 
 const stableRelease = (
@@ -191,7 +192,7 @@ describe("unsigned GitHub update service", () => {
 
     expect(service.getState()).toMatchObject({
       phase: "error",
-      message: "Could not check for updates. Try again later.",
+      message: msg("settings.updates.checkErrorMessage"),
     });
     expect(service.getReleaseUrl()).toBeNull();
   });
@@ -242,7 +243,7 @@ describe("unsigned GitHub update service", () => {
 
     expect(service.getState()).toMatchObject({
       phase: "error",
-      message: "Could not check for updates. Try again later.",
+      message: msg("settings.updates.checkErrorMessage"),
     });
     expect(JSON.stringify(onLog.mock.calls)).not.toContain("private.example");
     expect(JSON.stringify(onLog.mock.calls)).not.toContain("token=secret");
@@ -263,8 +264,7 @@ describe("unsigned GitHub update service", () => {
 });
 
 describe("Homebrew one-click install", () => {
-  const INSTALL_ERROR =
-    "Could not start the Homebrew update. Update manually with the command below.";
+  const INSTALL_ERROR = msg("settings.updates.installErrorMessage");
 
   it("advertises one-click install only for a cask-managed app", () => {
     expect(createService({ canInstall: true }).service.getState().canInstall).toBe(
@@ -396,10 +396,10 @@ describe("Homebrew tap lag", () => {
 
     expect(result).toEqual({
       success: false,
-      error:
-        "Homebrew does not have v0.2.0 yet — it still offers v0.1.0. " +
-        "The tap syncs shortly after each release; try again later, or update " +
-        "manually with the command below.",
+      error: msg("settings.updates.tapBehindMessage", {
+        targetVersion: "0.2.0",
+        offeredVersion: "0.1.0",
+      }),
     });
     expect(startUpgrade).not.toHaveBeenCalled();
     expect(pendingInstall.write).not.toHaveBeenCalled();
@@ -513,8 +513,7 @@ describe("pending Homebrew update reconciliation", () => {
 
     expect(service.getState()).toMatchObject({
       phase: "error",
-      message:
-        "Homebrew did not finish the last update. Update manually with the command below.",
+      message: msg("settings.updates.installIncompleteMessage"),
     });
     expect(pendingInstall.clear).toHaveBeenCalledTimes(1);
   });
