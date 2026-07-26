@@ -182,5 +182,6 @@
   "settings.updates.unsupported": "Updates are available in installed release builds.",
   "settings.updates.upToDate": "FixLang is up to date.",
   "settings.updates.versionLabel": "FixLang v{version}",
-  "settings.updates.viewReleases": "View releases"
+  "settings.updates.viewReleases": "View releases",
+  "settings.updates.wrongBundleMessage": "Homebrew installed v{targetVersion} into {targetPath}, but this window is running a different copy of FixLang. Restart to switch to the updated one."
 }

@@ -211,7 +211,40 @@ const readInstallableVersion = async (
  * NONINTERACTIVE makes Homebrew fail rather than block on a hidden prompt in a
  * process with no terminal.
  */
-export const buildUpgradeScript = (brewBinary: string): string =>
+/**
+ * Only an absolute `.app` path, with nothing that could end the shell string
+ * it is interpolated into. The value comes from `app.getPath("exe")` rather
+ * than from any input, but the script is still text handed to `/bin/sh`, so it
+ * is checked at the boundary instead of trusted by provenance.
+ */
+const isSafeBundlePath = (candidate: string): boolean =>
+  candidate.startsWith("/") &&
+  candidate.endsWith(".app") &&
+  // Quoting handles spaces; these characters would escape the quotes. Control
+  // characters are rejected by the printable test below rather than by a
+  // regex, so nothing rests on how a control escape happens to be spelled.
+  !/["`$\\]/.test(candidate) &&
+  [...candidate].every((character) => character >= " ");
+
+/**
+ * How the helper brings FixLang back.
+ *
+ * `open -b <bundle id>` is wrong here even though it looks tidier: a stray
+ * build of FixLang elsewhere on disk carries the same id, and Homebrew has
+ * just deleted and recreated `/Applications/FixLang.app`, so LaunchServices
+ * can resolve the id to that other copy and reopen an *older* app. The path
+ * Homebrew replaced is unambiguous, so reopen that; the id is only a fallback
+ * for when no usable path was recorded.
+ */
+const buildReopenCommand = (appPath: string | null): string =>
+  appPath !== null && isSafeBundlePath(appPath)
+    ? `/usr/bin/open -a "${appPath}" || /usr/bin/open -b ${BUNDLE_ID}`
+    : `/usr/bin/open -b ${BUNDLE_ID} || /usr/bin/open -a ${PROCESS_NAME}`;
+
+export const buildUpgradeScript = (
+  brewBinary: string,
+  appPath: string | null = null,
+): string =>
   [
     "set -u",
     "export NONINTERACTIVE=1",
@@ -230,7 +263,7 @@ export const buildUpgradeScript = (brewBinary: string): string =>
     // app is still running, so this window stays a few seconds instead of a
     // minute — which is how long the user is staring at a vanished app.
     `"${brewBinary}" upgrade --cask ${CASK_TOKEN} || exit 1`,
-    `/usr/bin/open -b ${BUNDLE_ID} || /usr/bin/open -a ${PROCESS_NAME}`,
+    buildReopenCommand(appPath),
   ].join("\n");
 
 const runDetached: DetachedRunner = (script, logFilePath) => {
@@ -283,8 +316,14 @@ export type HomebrewUpgrader = Readonly<{
   downloadUpdate: () => Promise<void>;
   /** Bytes cached for that version so far; null when nothing is cached yet. */
   getDownloadedBytes: (version: string) => number | null;
-  /** Launches the detached upgrade helper. Throws when it cannot start. */
-  startUpgrade: () => void;
+  /**
+   * Launches the detached upgrade helper. Throws when it cannot start.
+   *
+   * `appPath` is the `.app` root to reopen once Homebrew is done — the bundle
+   * it replaced. Omit it only when the path is unknown; the helper then falls
+   * back to the bundle id, which can resolve to a different copy of FixLang.
+   */
+  startUpgrade: (appPath?: string | null) => void;
 }>;
 
 /**
@@ -334,11 +373,14 @@ export const createHomebrewUpgrader = (
       const entry = matchCachedDownload(listDirectory(cacheDir), version);
       return entry === null ? null : fileSize(path.join(cacheDir, entry));
     },
-    startUpgrade: (): void => {
+    startUpgrade: (appPath: string | null = null): void => {
       if (!canInstall || brewBinary === null) {
         throw new Error("FixLang was not installed with the Homebrew cask");
       }
-      startDetached(buildUpgradeScript(brewBinary), options.logFilePath);
+      startDetached(
+        buildUpgradeScript(brewBinary, appPath),
+        options.logFilePath,
+      );
     },
   });
 };

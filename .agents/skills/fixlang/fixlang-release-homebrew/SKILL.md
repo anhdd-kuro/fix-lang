@@ -52,6 +52,25 @@ Cron is `17 */6 * * *` — **up to 6h between a GitHub release and the cask carr
 gh workflow run sync-fixlang.yml --repo anhdd-kuro/homebrew-tap
 ```
 
+### TRAP 0-A — two apps, one bundle id. `open -b` reopen wrong one.
+
+Symptom: upgrade succeed, app come back **older** (brew put 0.5.0 in `/Applications`, app say 0.4.5). Not a brew failure — brew log show `🍺 successfully upgraded`, `/Applications/FixLang.app` really is new.
+
+Cause: `bun run pack:mac` build in checkout carry same `com.fixlang.app`. Helper end with `open -b <id>`; brew just did `Removing App` + `Moving App`, so LaunchServices registration for `/Applications` can be gone that instant → id resolve to stray build → old app open. Intermittent (race), so it look random.
+
+Find every copy:
+```bash
+mdfind 'kMDItemCFBundleIdentifier == "com.fixlang.app"' | while read -r p; do echo "$(defaults read "$p/Contents/Info.plist" CFBundleShortVersionString)  $p"; done
+```
+
+Fixes now in tree — keep all four:
+- Helper reopen **path**, not id: `open -a "<pending.appPath>"`, id only fallback (`buildReopenCommand`). Path pass `isSafeBundlePath` before it reach `/bin/sh`.
+- `reconcilePendingInstall` compare `toVersion` **and** `appPath`. Old test was `currentVersion !== fromVersion` = "any change is success" → report a DOWNGRADE as installed update. Path mismatch → `wrong-bundle` → `restart-required` + `wrongBundleMessage`.
+- Restart open `pending.appPath` instead of `process.execPath`. Re-exec from stray copy relaunch stray copy forever.
+- `pack:mac` build as `com.fixlang.app.dev` / `FixLang Dev` so it never compete again. `pack:mac:prod` for production identity. Dev build still share `userData` — `app.getName()` read packaged `package.json` `name`, which CLI `-c.productName` do not touch.
+
+Log evidence: `Homebrew update to 0.4.8 started`, then seconds later `App updated to 0.4.5 via Homebrew`. Target version and reported version disagree = this trap, not a failed upgrade.
+
 ### TRAP 0 — app checks GitHub, installs from the tap. Those disagree for hours.
 
 Settings → About reads **GitHub Releases**. **Update now** runs **the tap cask**. Right after a release the app offers vX while the cask still has vX-1.

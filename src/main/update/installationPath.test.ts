@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shouldCheckForUpdatesOnLaunch } from "./installationPath";
+import { appBundlePath, shouldCheckForUpdatesOnLaunch } from "./installationPath";
 
 describe("automatic update installation path", () => {
   const homePath = "/Users/kuro";
@@ -27,5 +27,31 @@ describe("automatic update installation path", () => {
         homePath,
       ),
     ).toBe(false);
+  });
+});
+
+describe("running bundle path", () => {
+  it("reduces an executable path to its .app root", () => {
+    expect(
+      appBundlePath("/Applications/FixLang.app/Contents/MacOS/FixLang"),
+    ).toBe("/Applications/FixLang.app");
+  });
+
+  it("distinguishes a checkout build from the installed copy", () => {
+    // Both carry the same bundle id, which is exactly why the path matters.
+    expect(
+      appBundlePath(
+        "/Users/kuro/code/fix-lang/release/mac-arm64/FixLang.app/Contents/MacOS/FixLang",
+      ),
+    ).toBe("/Users/kuro/code/fix-lang/release/mac-arm64/FixLang.app");
+  });
+
+  it.each([
+    "/usr/local/bin/fixlang",
+    "relative/FixLang.app/Contents/MacOS/FixLang",
+    "/Applications/FixLang.app",
+    "",
+  ])("returns null for a non-bundle executable path: %s", (executablePath) => {
+    expect(appBundlePath(executablePath)).toBeNull();
   });
 });
