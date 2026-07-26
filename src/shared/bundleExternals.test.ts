@@ -258,6 +258,28 @@ describe("scanBundleSource", () => {
     ]);
   });
 
+  it("flags bracket-form require.resolve()", () => {
+    // Minifiers and property-mangler configs emit `require["resolve"]` for the
+    // same call `require.resolve` expresses; `["require"]` was already handled,
+    // so handling only the dotted `.resolve` was an inconsistency, not a
+    // decision.
+    expect(details('require["resolve"]("left-pad");')).toEqual(["left-pad"]);
+    expect(details('var r = require;\nr["resolve"]("left-pad");')).toEqual(["left-pad"]);
+    expect(details('(0, require["resolve"])("left-pad");')).toEqual(["left-pad"]);
+  });
+
+  it("does not flag an unrelated bracket-form .resolve()", () => {
+    expect(kinds('path["resolve"](dir, "left-pad");')).toEqual([]);
+  });
+
+  it("does not flag a computed .resolve() on a require alias", () => {
+    // A non-literal key could be anything; there is no specifier to read, and
+    // `require[k]("x")` would be reported by the non-literal path only if it
+    // were a require call, which cannot be decided here. Stay quiet rather
+    // than fail a release on an unknowable.
+    expect(kinds('var r = require;\nr[key]("left-pad");')).toEqual([]);
+  });
+
   it("flags a non-literal argument through an aliased require", () => {
     expect(kinds('var r = require;\nr(computeName());')).toEqual([
       "non-literal-argument",
@@ -632,6 +654,7 @@ describe("check-bundle-externals CLI under bun", () => {
         'const { createRequire: mk } = require("node:module");\n' +
         "const r = mk(__filename);\n" +
         'r("left-pad");',
+      "main/bracketResolve.cjs": 'require["resolve"]("left-pad");',
       "preload/chunks/testChunk.cjs": 'require("left-pad");',
     };
 

@@ -187,14 +187,29 @@ const unwrapExpression = (node: ts.Expression): ts.Expression => {
   return node;
 };
 
-/** The string of a `foo.bar` / `foo["bar"]` member access, if it is one. */
-const memberName = (node: ts.Expression): string | undefined => {
-  if (ts.isPropertyAccessExpression(node)) return node.name.text;
+/**
+ * Splits a statically-known member access into its object and property name.
+ * Covers both `foo.bar` and `foo["bar"]` — minifiers and property-mangler
+ * configs emit the bracket form for the same access.
+ *
+ * A computed key (`foo[k]`) is deliberately not a member access here: there is
+ * no property name to compare, and guessing would fail a release on something
+ * unknowable.
+ */
+const memberAccess = (
+  node: ts.Expression,
+): { readonly object: ts.Expression; readonly name: string } | undefined => {
+  if (ts.isPropertyAccessExpression(node)) {
+    return { object: node.expression, name: node.name.text };
+  }
   if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) {
-    return node.argumentExpression.text;
+    return { object: node.expression, name: node.argumentExpression.text };
   }
   return undefined;
 };
+
+/** The property name of a `foo.bar` / `foo["bar"]` access, if it is one. */
+const memberName = (node: ts.Expression): string | undefined => memberAccess(node)?.name;
 
 /** Strips wrappers and returns the identifier name, if that is all there is. */
 const identifierName = (node: ts.Expression): string | undefined => {
@@ -416,11 +431,8 @@ const isModuleResolvingCall = (node: ts.CallExpression, names: RequireNames): bo
   const callee = unwrapExpression(node.expression);
   if (callee.kind === ts.SyntaxKind.ImportKeyword) return true;
   if (isRequireExpression(callee, names)) return true;
-  return (
-    ts.isPropertyAccessExpression(callee) &&
-    callee.name.text === "resolve" &&
-    isRequireExpression(callee.expression, names)
-  );
+  const member = memberAccess(callee);
+  return member?.name === "resolve" && isRequireExpression(member.object, names);
 };
 
 const lineOf = (sourceFile: ts.SourceFile, pos: number): number =>
