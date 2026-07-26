@@ -1,7 +1,7 @@
 {
-  "charts.correctionsOverTime.tooltipTotal": "Total: {count}",
   "charts.correctionsOverTime.empty": "No daily transforms in this range yet.",
   "charts.correctionsOverTime.title": "Transforms over time",
+  "charts.correctionsOverTime.tooltipTotal": "Total: {count}",
   "charts.correctionsOverTime.yAxis": "Transforms",
   "charts.month.apr": "Apr",
   "charts.month.aug": "Aug",

@@ -1,6 +1,6 @@
 # FixLang
 
-A local macOS menu-bar app that fixes grammar, improves writing, and runs other text transformations on selected text via AI. Supports **OpenAI**, **OpenRouter**, and **Ollama**. Runs entirely on your machine; API keys never leave it and are encrypted at rest via the macOS keychain.
+A local macOS menu-bar app that fixes grammar, improves writing, and runs other text transformations on selected text via AI. Supports **OpenAI**, **OpenRouter**, **Ollama**, and **LM Studio**. Runs entirely on your machine; API keys never leave it and are encrypted at rest via the macOS keychain.
 
 ## Features
 
@@ -60,7 +60,7 @@ You can connect multiple providers at once. Each connected provider's models app
 
 1. Open Settings → General → Providers
 2. For each provider you want to use:
-   - Enter its API key (OpenAI and OpenRouter need keys; Ollama needs none)
+   - Enter its API key when required (OpenAI and OpenRouter need keys; Ollama needs none; LM Studio accepts an optional key plus host/port for its local server)
    - OpenRouter: optionally add a provisioning key for model discovery and billing
    - Click **Test & fetch models** — this validates the credentials and fetches that provider's model list
 3. Choose a default model for the profile
@@ -70,7 +70,7 @@ You can connect multiple providers at once. Each connected provider's models app
 
 If you disconnect a provider, only the presets and settings that were using it get reset — their model reference changes to "inherit from global default". Other presets keep their settings intact.
 
-**Cost:** Direct OpenAI requests report cost as N/A (no per-token pricing available). OpenRouter cost is estimated from OpenRouter's published pricing. Ollama (local) is always zero cost.
+**Cost:** Direct OpenAI requests report cost as N/A (no per-token pricing available). OpenRouter cost is estimated from OpenRouter's published pricing. Ollama and LM Studio (local) are always zero cost.
 
 ### App updates
 
@@ -342,7 +342,7 @@ GitHub Releases.
 - Keys are never included in profile import or export; exporting a profile shares its settings, never its credentials.
 - Secrets are scoped to one profile and one provider at a time — switching profiles switches the whole connected set, and neither another profile nor another provider can read a key it did not store.
 - A freshly created profile has no provider connected — nothing is auto-selected or auto-populated from another profile.
-- Requests are sent only to the providers you connect (OpenAI, OpenRouter, or your local Ollama instance), and each request carries only that provider's key. Structured logs redact keys, tokens, and clipboard content before writing to disk.
+- Requests are sent only to the providers you connect (OpenAI, OpenRouter, Ollama, or LM Studio), and each request carries only that provider's key. Structured logs redact keys, tokens, and clipboard content before writing to disk.
 
 ## License
 

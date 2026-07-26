@@ -97,6 +97,19 @@ describe("computeCost", () => {
     expect(result.priceCompletion).toBeNull();
   });
 
+  it("prices lmstudio provider usage as zero", () => {
+    const snapshot = computeCost(
+      { provider: "lmstudio", model: "local-model", promptTokens: 100, completionTokens: 50 },
+      new Map(),
+    );
+    expect(snapshot).toEqual({
+      status: "zero",
+      estimatedCostUsd: 0,
+      pricePrompt: null,
+      priceCompletion: null,
+    });
+  });
+
   it("records N/A for an unmatched model (never $0, never a guess)", () => {
     const result = computeCost(
       { resolvedModel: "totally-unknown-xyz-9000", promptTokens: 100 },

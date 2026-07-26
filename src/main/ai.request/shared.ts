@@ -11,8 +11,16 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
 import { OpenAI } from "openai";
 import { mainT } from "~/main/i18n";
+import {
+  probeLmStudio,
+  resolveLmStudioApiKey,
+} from "~/main/llm/lmstudio/client";
 import { getLocalModels, probeOllama } from "~/main/llm/models/discover";
 import { showErrorNotification } from "~/main/notifications/error";
+import {
+  buildLmStudioBaseUrl,
+  resolveLmStudioEndpoint,
+} from "~/shared/lmstudioEndpoint";
 import { parseModelRef, resolveModelRef } from "~/shared/modelRef";
 import {
   modelsForProvider,
@@ -25,6 +33,7 @@ import {
   getCurrentProfileId,
   getDefaultModelId,
   getProfileSetting,
+  getProviderEndpoint,
   isModelForProvider,
   updateProfileSetting,
 } from "~/stores/apiStore";
@@ -48,6 +57,7 @@ const PROVIDER_NAME_KEYS = {
   openai: "models.select.provider.openai",
   openrouter: "models.select.provider.openrouter",
   ollama: "models.select.provider.ollama",
+  lmstudio: "models.select.provider.lmstudio",
 } as const satisfies Record<ProviderId, TKey>;
 
 const isCachedForProvider = isModelForProvider;
@@ -183,6 +193,18 @@ const fetchProviderModels = async (
       if (!probe.reachable) {
         console.error("Error fetching ollama models:", probe.error);
       }
+    } else if (provider === "lmstudio") {
+      const endpoint = resolveLmStudioEndpoint(getProviderEndpoint("lmstudio"));
+      const probe = await probeLmStudio({
+        endpoint,
+        apiKey: apiKey || undefined,
+      });
+      models = probe.models;
+      liveFetch = probe.reachable;
+      emptyMeansRemoved = probe.reachable;
+      if (!probe.reachable) {
+        console.error("Error fetching lmstudio models:", probe.error);
+      }
     } else if (!apiKey) {
       console.log(`No ${provider} API key provided; using cached models`);
       models = cachedForProvider;
@@ -190,8 +212,10 @@ const fetchProviderModels = async (
       liveFetch = false;
     } else if (provider === "openai") {
       models = await fetchOpenAIModels(apiKey);
-    } else {
+    } else if (provider === "openrouter") {
       models = await fetchOpenRouterModels(apiKey);
+    } else {
+      throw new Error(`Unsupported provider: ${provider}`);
     }
 
     if (liveFetch) {
@@ -204,7 +228,7 @@ const fetchProviderModels = async (
     return { models: sortedModels, emptyMeansRemoved };
   } catch (error) {
     console.error(`Error fetching ${provider} models:`, error);
-    if (strict && provider !== "ollama") {
+    if (strict && provider !== "ollama" && provider !== "lmstudio") {
       throw error;
     }
     return { models: sortModels(cachedForProvider), emptyMeansRemoved: false };
@@ -367,10 +391,14 @@ export const isLocalModelId = (
     return false;
   }
   if (provider !== undefined) {
-    return provider === "ollama";
+    return provider === "ollama" || provider === "lmstudio";
   }
   const models = getCachedModels();
-  return models.some((m) => m.id === servedId && m.local !== undefined);
+  return models.some(
+    (m) =>
+      m.id === servedId &&
+      (m.local !== undefined || m.provider === "ollama" || m.provider === "lmstudio"),
+  );
 };
 
 /**
@@ -443,11 +471,20 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
     return makeLocalAIRequest(request);
   }
 
+  if (resolution.provider === "lmstudio") {
+    console.log("Routing to local LM Studio inference");
+    return makeLmStudioAIRequest(request);
+  }
+
   if (resolution.provider === "openai") {
     return makeOpenAIAIRequest(request);
   }
 
-  return makeOpenRouterAIRequest(request);
+  if (resolution.provider === "openrouter") {
+    return makeOpenRouterAIRequest(request);
+  }
+
+  throw new Error(`Unsupported provider: ${resolution.provider}`);
 };
 
 /**
@@ -717,6 +754,66 @@ const usageCounts = (usage: unknown): { promptTokens: number | null; completionT
  * OpenRouter cache controls and raw response parsing. Multiple choices are
  * separate AI SDK calls because the SDK's standard interface emits one text.
  */
+
+/**
+ * LM Studio OpenAI-compatible Chat Completions through the AI SDK.
+ */
+export const makeLmStudioAIRequest = async (options: AIRequestOptions) => {
+  const profileId = getCurrentProfileId();
+  const storedKey = profileId
+    ? await getProfileSecret(profileId, "lmstudio", "api")
+    : null;
+  const endpoint = resolveLmStudioEndpoint(getProviderEndpoint("lmstudio"));
+  const apiKey = resolveLmStudioApiKey(storedKey);
+  const baseURL = buildLmStudioBaseUrl(endpoint);
+
+  const rawMessages = options.messages;
+  if (!rawMessages || rawMessages.length === 0) {
+    throw new Error("makeLmStudioAIRequest requires non-empty messages.");
+  }
+
+  try {
+    const modelId = options.model as string;
+    const openai = createOpenAI({ apiKey, baseURL });
+    const conversation = toConversation(rawMessages);
+    const request = () =>
+      generateText({
+        model: openai.chat(modelId),
+        ...(conversation.system ? { system: conversation.system } : {}),
+        messages: conversation.messages,
+        temperature: options.temperature,
+        topP: options.top_p,
+        maxOutputTokens: options.maxTokens,
+        ...(options.stop ? { stopSequences: options.stop } : {}),
+      });
+    const responses = await Promise.all(
+      Array.from({ length: Math.max(1, options.n ?? 1) }, request),
+    );
+    const counts = responses.map((response) => usageCounts(response.usage));
+    const sum = (key: "promptTokens" | "completionTokens") => {
+      const values = counts
+        .map((count) => count[key])
+        .filter((count): count is number => count !== null);
+      return values.length > 0 ? values.reduce((total, count) => total + count, 0) : null;
+    };
+    const firstBody = responses[0]?.response.body;
+
+    return {
+      content: responses.map((response) => response.text),
+      prompts: responses.map((response) => response.text),
+      promptTokens: sum("promptTokens"),
+      completionTokens: sum("completionTokens"),
+      model: modelId,
+      provider: "lmstudio" as const,
+      resolvedModel: extractResolvedModel(firstBody, modelId),
+    };
+  } catch (error) {
+    console.error("makeLmStudioAIRequest error:", error);
+    showErrorNotification(error, "Failed to get a response from LM Studio.");
+    throw error;
+  }
+};
+
 export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
   const profileId = getCurrentProfileId();
   const apiKey = profileId

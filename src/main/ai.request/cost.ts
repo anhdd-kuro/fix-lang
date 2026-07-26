@@ -151,7 +151,7 @@ export const computeCost = (
   }
 
   // 1. Local/Ollama short-circuits to $0 regardless of any fuzzy price.
-  if (input.isLocal) {
+  if (input.isLocal || input.provider === "ollama" || input.provider === "lmstudio") {
     return {
       status: "zero",
       estimatedCostUsd: 0,

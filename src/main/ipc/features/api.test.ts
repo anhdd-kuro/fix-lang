@@ -26,6 +26,7 @@ vi.mock("~/main/llm/models/compatibility", () => ({
 }));
 vi.mock("~/main/llm/models/discover", () => ({
   probeOllama: vi.fn(),
+  probeLmStudio: vi.fn(),
 }));
 vi.mock("~/main/llm/models/recommended", () => ({
   findRecommendedModel: vi.fn(),

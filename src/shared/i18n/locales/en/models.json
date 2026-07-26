@@ -77,6 +77,7 @@
   "models.select.optionLabel.local": "{id}, {createdAt}, {size}",
   "models.select.placeholder": "Select model",
   "models.select.placeholder.noProviders": "Connect a provider to choose a model",
+  "models.select.provider.lmstudio": "LM Studio",
   "models.select.provider.ollama": "Ollama",
   "models.select.provider.openai": "OpenAI",
   "models.select.provider.openrouter": "OpenRouter",
