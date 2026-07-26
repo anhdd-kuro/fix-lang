@@ -20,7 +20,7 @@ html[data-theme="tc-sonokai-andromeda"] {
   --accent-foreground: #292c2d;
   --destructive: #fb617e;
   --destructive-foreground: #18181b;
-  --border: #a3a3a3;
+  --border: #454752;
   --input: #7e8294;
   --ring: #6dcae8;
   --success: #9ed06c;
@@ -33,6 +33,6 @@ html[data-theme="tc-sonokai-andromeda"] {
   --chart-4: #f89860;
   --chart-5: #edc763;
   --overlay-spinner: #6dcae8;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #8a8c9c;
   --overlay-backdrop: rgba(43, 45, 58, 0.72);
 }

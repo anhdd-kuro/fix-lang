@@ -20,7 +20,7 @@ html[data-theme="tc-tomorrow-night-blue"] {
   --accent-foreground: #ffffff;
   --destructive: #ff9da4;
   --destructive-foreground: #18181b;
-  --border: #a3a3a3;
+  --border: #31426b;
   --input: #000000;
   --ring: #bbdaff;
   --success: #d1f1a9;
@@ -33,6 +33,6 @@ html[data-theme="tc-tomorrow-night-blue"] {
   --chart-4: #99ffff;
   --chart-5: #ffeead;
   --overlay-spinner: #bbdaff;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #6e85bd;
   --overlay-backdrop: rgba(0, 36, 81, 0.72);
 }

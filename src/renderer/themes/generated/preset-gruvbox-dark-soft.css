@@ -20,7 +20,7 @@ html[data-theme="gruvbox-dark-soft"] {
   --accent-foreground: #ebdbb2;
   --destructive: #fb4934;
   --destructive-foreground: #e4e4e7;
-  --border: #a3a3a3;
+  --border: #4c4842;
   --input: #423f3e;
   --ring: #458588;
   --success: #98971a;
@@ -33,6 +33,6 @@ html[data-theme="gruvbox-dark-soft"] {
   --chart-4: #689d6a;
   --chart-5: #d79921;
   --overlay-spinner: #43878a;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #8d867c;
   --overlay-backdrop: rgba(50, 48, 47, 0.72);
 }

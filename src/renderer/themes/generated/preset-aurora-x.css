@@ -20,7 +20,7 @@ html[data-theme="aurora-x"] {
   --accent-foreground: #7385bc;
   --destructive: #dd5073;
   --destructive-foreground: #e4e4e7;
-  --border: #a3a3a3;
+  --border: #171a26;
   --input: #15182b;
   --ring: #262e47;
   --success: #63eb90;
@@ -33,6 +33,6 @@ html[data-theme="aurora-x"] {
   --chart-4: #eab308;
   --chart-5: #dd5073;
   --overlay-spinner: #86a5ff;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #5c6898;
   --overlay-backdrop: rgba(7, 9, 15, 0.72);
 }

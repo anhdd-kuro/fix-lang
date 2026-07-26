@@ -20,7 +20,7 @@ html[data-theme="tc-tokyo-night-moon"] {
   --accent-foreground: #c8d3f5;
   --destructive: #ff757f;
   --destructive-foreground: #18181b;
-  --border: #a3a3a3;
+  --border: #393c51;
   --input: #444a73;
   --ring: #82aaff;
   --success: #c3e88d;
@@ -33,6 +33,6 @@ html[data-theme="tc-tokyo-night-moon"] {
   --chart-4: #86e1fc;
   --chart-5: #ffc777;
   --overlay-spinner: #82aaff;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #787da0;
   --overlay-backdrop: rgba(34, 36, 54, 0.72);
 }

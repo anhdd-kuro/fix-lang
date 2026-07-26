@@ -20,7 +20,7 @@ html[data-theme="tc-kanagawa-dragon"] {
   --accent-foreground: #404540;
   --destructive: #c4746e;
   --destructive-foreground: #18181b;
-  --border: #a3a3a3;
+  --border: #302e2e;
   --input: #a6a69c;
   --ring: #8ba4b0;
   --success: #8a9a7b;
@@ -33,6 +33,6 @@ html[data-theme="tc-kanagawa-dragon"] {
   --chart-4: #7aa89f;
   --chart-5: #c4b28a;
   --overlay-spinner: #7ba9c0;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #797474;
   --overlay-backdrop: rgba(24, 22, 22, 0.72);
 }

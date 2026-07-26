@@ -20,7 +20,7 @@ html[data-theme="tc-rose-pine-moon"] {
   --accent-foreground: #2f2878;
   --destructive: #eb6f92;
   --destructive-foreground: #18181b;
-  --border: #a3a3a3;
+  --border: #444059;
   --input: #908caa;
   --ring: #9ccfd8;
   --success: #3e8fb0;
@@ -33,6 +33,6 @@ html[data-theme="tc-rose-pine-moon"] {
   --chart-4: #ea9a97;
   --chart-5: #f6c177;
   --overlay-spinner: #9ccfd8;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #8882a5;
   --overlay-backdrop: rgba(42, 39, 63, 0.72);
 }

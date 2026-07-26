@@ -20,7 +20,7 @@ html[data-theme="material-theme-palenight"] {
   --accent-foreground: #babed8;
   --destructive: #7e4c57;
   --destructive-foreground: #fafafa;
-  --border: #a3a3a3;
+  --border: #3e4254;
   --input: #373c4d;
   --ring: #80cbc4;
   --success: #c3e88d;
@@ -33,6 +33,6 @@ html[data-theme="material-theme-palenight"] {
   --chart-4: #89ddff;
   --chart-5: #ffcb6b;
   --overlay-spinner: #80cbc4;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #8086a1;
   --overlay-backdrop: rgba(41, 45, 62, 0.72);
 }

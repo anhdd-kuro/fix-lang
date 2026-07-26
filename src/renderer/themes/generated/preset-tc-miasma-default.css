@@ -20,7 +20,7 @@ html[data-theme="tc-miasma-default"] {
   --accent-foreground: #d4d4c7;
   --destructive: #685742;
   --destructive-foreground: #fafafa;
-  --border: #a3a3a3;
+  --border: #383836;
   --input: #666666;
   --ring: #78824b;
   --success: #5f875f;
@@ -33,6 +33,6 @@ html[data-theme="tc-miasma-default"] {
   --chart-4: #c9a554;
   --chart-5: #b36d43;
   --overlay-spinner: #7d8a43;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #81817c;
   --overlay-backdrop: rgba(34, 34, 34, 0.72);
 }

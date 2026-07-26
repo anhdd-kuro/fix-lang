@@ -20,7 +20,7 @@ html[data-theme="tc-noctis-bordo"] {
   --accent-foreground: #cbbec2;
   --destructive: #e66533;
   --destructive-foreground: #18181b;
-  --border: #a3a3a3;
+  --border: #3e3638;
   --input: #69545b;
   --ring: #49ace9;
   --success: #49e9a6;
@@ -33,6 +33,6 @@ html[data-theme="tc-noctis-bordo"] {
   --chart-4: #49d6e9;
   --chart-5: #e4b781;
   --overlay-spinner: #49ace9;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #8a797d;
   --overlay-backdrop: rgba(39, 32, 34, 0.72);
 }

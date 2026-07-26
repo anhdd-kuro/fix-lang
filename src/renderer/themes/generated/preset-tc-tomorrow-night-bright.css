@@ -20,7 +20,7 @@ html[data-theme="tc-tomorrow-night-bright"] {
   --accent-foreground: #eaeaea;
   --destructive: #d54e53;
   --destructive-foreground: #e4e4e7;
-  --border: #a3a3a3;
+  --border: #252525;
   --input: #0f0f0f;
   --ring: #7aa6da;
   --success: #b9ca4a;
@@ -33,6 +33,6 @@ html[data-theme="tc-tomorrow-night-bright"] {
   --chart-4: #70c0b1;
   --chart-5: #e7c547;
   --overlay-spinner: #7aa6da;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #6c6c6c;
   --overlay-backdrop: rgba(0, 0, 0, 0.72);
 }

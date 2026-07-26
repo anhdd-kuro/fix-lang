@@ -20,7 +20,7 @@ html[data-theme="tc-shades-of-purple-default"] {
   --accent-foreground: #ffffff;
   --destructive: #e43937;
   --destructive-foreground: #e4e4e7;
-  --border: #a3a3a3;
+  --border: #3e3c5b;
   --input: #5c5c61;
   --ring: #7857fe;
   --success: #3ad900;
@@ -33,6 +33,6 @@ html[data-theme="tc-shades-of-purple-default"] {
   --chart-4: #80fcff;
   --chart-5: #fad000;
   --overlay-spinner: #7857fe;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #807da9;
   --overlay-backdrop: rgba(30, 30, 63, 0.72);
 }

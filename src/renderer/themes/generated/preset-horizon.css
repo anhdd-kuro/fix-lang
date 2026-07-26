@@ -20,7 +20,7 @@ html[data-theme="horizon"] {
   --accent-foreground: #d5d8da;
   --destructive: #f43e5c;
   --destructive-foreground: #e4e4e7;
-  --border: #a3a3a3;
+  --border: #35373f;
   --input: #2e303e;
   --ring: #e95378;
   --success: #29d398;
@@ -33,6 +33,6 @@ html[data-theme="horizon"] {
   --chart-4: #59e1e3;
   --chart-5: #fab795;
   --overlay-spinner: #e95378;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #777b8c;
   --overlay-backdrop: rgba(28, 30, 38, 0.72);
 }

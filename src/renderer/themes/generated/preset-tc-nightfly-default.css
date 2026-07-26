@@ -20,7 +20,7 @@ html[data-theme="tc-nightfly-default"] {
   --accent-foreground: #2f3236;
   --destructive: #fc514e;
   --destructive-foreground: #18181b;
-  --border: #a3a3a3;
+  --border: #1e2d3e;
   --input: #7c8f8f;
   --ring: #82aaff;
   --success: #a1cd5e;
@@ -33,6 +33,6 @@ html[data-theme="tc-nightfly-default"] {
   --chart-4: #7fdbca;
   --chart-5: #e7d37a;
   --overlay-spinner: #82aaff;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #4d739e;
   --overlay-backdrop: rgba(1, 22, 39, 0.72);
 }

@@ -20,7 +20,7 @@ html[data-theme="tc-panda-default"] {
   --accent-foreground: #ebebeb;
   --destructive: #ff2c6d;
   --destructive-foreground: #e4e4e7;
-  --border: #a3a3a3;
+  --border: #404142;
   --input: #757575;
   --ring: #45a9f9;
   --success: #19f9d8;
@@ -33,6 +33,6 @@ html[data-theme="tc-panda-default"] {
   --chart-4: #b084eb;
   --chart-5: #ffb86c;
   --overlay-spinner: #45a9f9;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #87888a;
   --overlay-backdrop: rgba(41, 42, 43, 0.72);
 }

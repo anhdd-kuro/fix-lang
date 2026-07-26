@@ -20,7 +20,7 @@ html[data-theme="tc-solarized-dark"] {
   --accent-foreground: #a4b1b2;
   --destructive: #dc322f;
   --destructive-foreground: #ffffff;
-  --border: #a3a3a3;
+  --border: #183a44;
   --input: #003b4a;
   --ring: #268bd2;
   --success: #859900;
@@ -33,6 +33,6 @@ html[data-theme="tc-solarized-dark"] {
   --chart-4: #2aa198;
   --chart-5: #b58900;
   --overlay-spinner: #268bd2;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #38879e;
   --overlay-backdrop: rgba(0, 43, 54, 0.72);
 }

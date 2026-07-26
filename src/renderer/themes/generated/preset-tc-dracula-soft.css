@@ -20,7 +20,7 @@ html[data-theme="tc-dracula-soft"] {
   --accent-foreground: #f6f6f4;
   --destructive: #ee6666;
   --destructive-foreground: #18181b;
-  --border: #a3a3a3;
+  --border: #454651;
   --input: #7b7f8b;
   --ring: #bf9eee;
   --success: #62e884;
@@ -33,6 +33,6 @@ html[data-theme="tc-dracula-soft"] {
   --chart-4: #97e1f1;
   --chart-5: #e7ee98;
   --overlay-spinner: #bf9eee;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #7f8092;
   --overlay-backdrop: rgba(40, 42, 54, 0.72);
 }

@@ -20,7 +20,7 @@ html[data-theme="monokai"] {
   --accent-foreground: #f8f8f2;
   --destructive: #c4265e;
   --destructive-foreground: #fafafa;
-  --border: #a3a3a3;
+  --border: #44453e;
   --input: #414339;
   --ring: #99947c;
   --success: #86b42b;
@@ -33,6 +33,6 @@ html[data-theme="monokai"] {
   --chart-4: #56adbc;
   --chart-5: #b3b42b;
   --overlay-spinner: #6a7ec8;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #848578;
   --overlay-backdrop: rgba(39, 40, 34, 0.72);
 }

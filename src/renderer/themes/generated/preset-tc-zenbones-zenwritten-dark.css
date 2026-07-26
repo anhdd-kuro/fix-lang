@@ -20,7 +20,7 @@ html[data-theme="tc-zenbones-zenwritten-dark"] {
   --accent-foreground: #bbbbbb;
   --destructive: #de6e7c;
   --destructive-foreground: #18181b;
-  --border: #a3a3a3;
+  --border: #2f2f2f;
   --input: #3d3839;
   --ring: #6099c0;
   --success: #819b69;
@@ -33,6 +33,6 @@ html[data-theme="tc-zenbones-zenwritten-dark"] {
   --chart-4: #66a5ad;
   --chart-5: #b77e64;
   --overlay-spinner: #6099c0;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #767676;
   --overlay-backdrop: rgba(25, 25, 25, 0.72);
 }

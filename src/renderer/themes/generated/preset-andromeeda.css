@@ -20,7 +20,7 @@ html[data-theme="andromeeda"] {
   --accent-foreground: #d5ced9;
   --destructive: #fc644d;
   --destructive-foreground: #18181b;
-  --border: #a3a3a3;
+  --border: #3c3d46;
   --input: #2f3541;
   --ring: #00b0ff;
   --success: #96e072;
@@ -33,6 +33,6 @@ html[data-theme="andromeeda"] {
   --chart-4: #00e8c6;
   --chart-5: #ffe66d;
   --overlay-spinner: #00b0ff;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #7f8192;
   --overlay-backdrop: rgba(35, 38, 46, 0.72);
 }

@@ -20,7 +20,7 @@ html[data-theme="houston"] {
   --accent-foreground: #eef0f9;
   --destructive: #f4587e;
   --destructive-foreground: #18181b;
-  --border: #a3a3a3;
+  --border: #34363c;
   --input: #272b33;
   --ring: #00daef;
   --success: #23d18b;
@@ -33,6 +33,6 @@ html[data-theme="houston"] {
   --chart-4: #24c0cf;
   --chart-5: #ffc368;
   --overlay-spinner: #4bf3c8;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #6d717e;
   --overlay-backdrop: rgba(23, 25, 30, 0.72);
 }

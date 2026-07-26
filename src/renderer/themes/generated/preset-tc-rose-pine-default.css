@@ -20,7 +20,7 @@ html[data-theme="tc-rose-pine-default"] {
   --accent-foreground: #2f2878;
   --destructive: #eb6f92;
   --destructive-foreground: #18181b;
-  --border: #a3a3a3;
+  --border: #3a374a;
   --input: #908caa;
   --ring: #9ccfd8;
   --success: #31748f;
@@ -33,6 +33,6 @@ html[data-theme="tc-rose-pine-default"] {
   --chart-4: #ebbcba;
   --chart-5: #f6c177;
   --overlay-spinner: #9ccfd8;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #7c7699;
   --overlay-backdrop: rgba(31, 29, 46, 0.72);
 }

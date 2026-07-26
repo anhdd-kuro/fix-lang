@@ -20,7 +20,7 @@ html[data-theme="tc-gotham-default"] {
   --accent-foreground: #99d1ce;
   --destructive: #c23127;
   --destructive-foreground: #fafafa;
-  --border: #a3a3a3;
+  --border: #212b2d;
   --input: #171f27;
   --ring: #195466;
   --success: #2aa889;
@@ -33,6 +33,6 @@ html[data-theme="tc-gotham-default"] {
   --chart-4: #33859e;
   --chart-5: #edb443;
   --overlay-spinner: #195466;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #5d7a7f;
   --overlay-backdrop: rgba(12, 16, 20, 0.72);
 }

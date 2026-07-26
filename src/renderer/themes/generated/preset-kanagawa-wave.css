@@ -20,7 +20,7 @@ html[data-theme="kanagawa-wave"] {
   --accent-foreground: #dcd7ba;
   --destructive: #e82424;
   --destructive-foreground: #e4e4e7;
-  --border: #a3a3a3;
+  --border: #39383d;
   --input: #303040;
   --ring: #223249;
   --success: #76946a;
@@ -33,6 +33,6 @@ html[data-theme="kanagawa-wave"] {
   --chart-4: #7aa89f;
   --chart-5: #c0a36e;
   --overlay-spinner: #518ca8;
-  --overlay-spinner-track: #a3a3a3;
+  --overlay-spinner-track: #7f7d87;
   --overlay-backdrop: rgba(31, 31, 40, 0.72);
 }
