@@ -42,11 +42,9 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@openrouter/ai-sdk-provider": "3.0.0",
-    "@rollup/plugin-commonjs": "29.0.3",
     "@tailwindcss/vite": "4.3.3",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
-    "@types/uuid": "11.0.0",
     "@typescript-eslint/parser": "8.65.0",
     "@vitest/coverage-v8": "4.1.10",
     "@vitest/eslint-plugin": "1.6.24",
