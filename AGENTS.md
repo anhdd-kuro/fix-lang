@@ -191,6 +191,10 @@ new Notification({
 - **Ask through tools** — use structured question tools, not plain-prose questions.
 - **Update docs when behavior changes** — spawn sub-agents or update instruction files at task end.
 - **Commits** — Conventional Commits on `feature/*` or `fix/*` branches from `main`.
+- When user ask for "Ship as new version", you should:
+  - Check version & Release as new version in main repository.
+  - Manually trigger brew cask update sync.
+  - Wait and confirm the new version is available in the cask.
 
 ## Boundaries
 
@@ -219,6 +223,10 @@ new Notification({
 - Reintroduce pnpm or bypass preload IPC validation.
 - Use `any` without a why-comment.
 - Bump TypeScript to 7.x until ESLint support lands.
+
+## CI
+
+- **PR + push to `main`** — `.github/workflows/ci.yml` runs `bun run lint` then `bun run test` on `ubuntu-latest` (Bun 1.3.14, Node 24 for `node:sqlite`). Concurrency cancels superseded runs. Release packaging stays in `release.yml` only.
 
 ## Release & Distribution
 
