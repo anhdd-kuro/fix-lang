@@ -30,10 +30,20 @@ type UpdateServiceOptions = {
   /** Absent in unsupported builds; then one-click install is simply off. */
   upgrader?: HomebrewUpgrader;
   pendingInstall?: PendingInstallStore;
+  /**
+   * `.app` root of the running process. Recorded in the pending marker so the
+   * helper reopens this exact bundle and the next launch can tell it apart
+   * from another copy of FixLang carrying the same bundle id.
+   */
+  appPath?: string | null;
   /** Called after the detached helper starts, so it can replace the bundle. */
   quitApp?: () => void;
-  /** Re-executes the (already replaced) bundle so the new version runs. */
-  relaunchApp?: () => void;
+  /**
+   * Restarts into the updated app. With a target path, that bundle is opened
+   * (this process is running a different one); otherwise the current bundle —
+   * which Homebrew already replaced — is re-executed.
+   */
+  relaunchApp?: (targetPath: string | null) => void;
   onLog?: (level: "info" | "warn" | "error", message: string) => void;
   /** Injectable clock so marker ages are testable. */
   now?: () => number;
@@ -88,6 +98,18 @@ const backgroundInstallMessage = (target: string): Message =>
  */
 const restartRequiredMessage = (target: string): Message =>
   msg("settings.updates.restartRequiredMessage", { targetVersion: target });
+
+/**
+ * The upgrade succeeded, but a *different* copy of FixLang was reopened — one
+ * that shares the bundle id, so `open -b` could resolve to it. Naming the
+ * upgraded bundle is the whole point: the stray copy is usually a forgotten
+ * `pack:mac` build in a checkout, and nothing else on screen would reveal it.
+ */
+const wrongBundleMessage = (target: string, targetPath: string): Message =>
+  msg("settings.updates.wrongBundleMessage", {
+    targetVersion: target,
+    targetPath,
+  });
 
 const defaultSchedulePoll = (
   run: () => void,
@@ -228,6 +250,13 @@ export const createUpdateService = (
   let releaseUrl: string | null = null;
   /** Denominator for download progress; only known after a successful check. */
   let availableDmgSize: number | null = null;
+  const appPath = options.appPath ?? null;
+  /**
+   * Bundle a restart must open instead of re-executing this one. Set only when
+   * this process turns out to be a different copy of FixLang than the one that
+   * was upgraded, where re-exec would just relaunch the wrong app again.
+   */
+  let restartTargetPath: string | null = null;
 
   const withCanInstall = (next: Omit<UpdateState, "canInstall">): UpdateState =>
     freezeState({ ...next, canInstall });
@@ -317,6 +346,7 @@ export const createUpdateService = (
       now: now(),
       isTargetInstalled:
         options.upgrader?.isVersionInstalled(pending.toVersion) ?? false,
+      runningAppPath: appPath,
     });
     if (outcome === "none") return;
 
@@ -345,6 +375,25 @@ export const createUpdateService = (
 
     if (outcome === "restart-required") {
       publishRestartRequired(pending.toVersion);
+      return;
+    }
+
+    if (outcome === "wrong-bundle") {
+      // Homebrew did its job; something else reopened. Say which bundle is
+      // running — a version number alone reads as a failed update, and the
+      // user would have no idea a second copy of the app exists.
+      options.onLog?.(
+        "warn",
+        `Reopened ${currentVersion} from ${appPath ?? "an unknown bundle"} instead of ${pending.toVersion} from ${pending.appPath}`,
+      );
+      restartTargetPath = pending.appPath;
+      installing = true;
+      publish({
+        phase: "restart-required",
+        currentVersion,
+        availableVersion: pending.toVersion,
+        message: wrongBundleMessage(pending.toVersion, pending.appPath),
+      });
       return;
     }
 
@@ -595,7 +644,7 @@ export const createUpdateService = (
       });
 
       try {
-        options.upgrader.startUpgrade();
+        options.upgrader.startUpgrade(appPath);
       } catch (error) {
         installing = false;
         options.onLog?.(
@@ -617,6 +666,9 @@ export const createUpdateService = (
           toVersion: targetVersion,
           // Stamped so the next launch can tell "still working" from "failed".
           startedAt: now(),
+          // Recorded so the next launch can tell "the upgrade landed" from
+          // "some other copy of FixLang opened instead".
+          appPath,
         });
       } catch (error) {
         // The upgrade still runs; only the outcome report is lost.
@@ -637,13 +689,17 @@ export const createUpdateService = (
      * an arbitrary moment. Re-exec is not `open -b`: LaunchServices would find
      * this process and merely focus it, which is exactly the trap that leaves
      * the user on the old binary.
+     *
+     * When the running process is a different copy of FixLang, re-exec would
+     * relaunch that same wrong copy forever, so the upgraded bundle's path is
+     * handed over instead.
      */
     restartForUpdate: (): UpdateActionResult => {
       if (state.phase !== "restart-required" || !options.relaunchApp) {
         return { success: false, error: RESTART_ERROR_MESSAGE };
       }
       try {
-        options.relaunchApp();
+        options.relaunchApp(restartTargetPath);
       } catch (error) {
         options.onLog?.(
           "error",

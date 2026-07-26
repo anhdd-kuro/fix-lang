@@ -5,6 +5,9 @@ import { createUpdateService } from "./updateService";
 
 /** Fixed clock so marker ages are exact rather than wall-clock dependent. */
 const NOW = 1_700_000_000_000;
+const INSTALLED_APP_PATH = "/Applications/FixLang.app";
+/** Same bundle id, different copy — a forgotten `pack:mac` build. */
+const STRAY_APP_PATH = "/Users/dev/fix-lang/release/mac-arm64/FixLang.app";
 
 const stableRelease = (
   tagName = "v0.2.0",
@@ -45,7 +48,9 @@ const createService = (
       fromVersion: string;
       toVersion: string;
       startedAt: number;
+      appPath: string;
     } | null;
+    appPath: string | null;
     now: () => number;
     getLatestRelease: () => Promise<unknown>;
     onLog: (level: "info" | "warn" | "error", message: string) => void;
@@ -102,6 +107,8 @@ const createService = (
       startUpgrade,
     },
     pendingInstall,
+    appPath:
+      overrides.appPath === undefined ? INSTALLED_APP_PATH : overrides.appPath,
     quitApp,
     relaunchApp,
     onLog: overrides.onLog,
@@ -335,10 +342,14 @@ describe("Homebrew one-click install", () => {
     await expect(service.installUpdate()).resolves.toEqual({ success: true });
 
     expect(startUpgrade).toHaveBeenCalledTimes(1);
+    // The helper reopens this exact bundle instead of resolving the bundle id,
+    // which can point at another copy of FixLang.
+    expect(startUpgrade).toHaveBeenCalledWith(INSTALLED_APP_PATH);
     expect(pendingInstall.write).toHaveBeenCalledWith({
       fromVersion: "0.1.0",
       toVersion: "0.2.0",
       startedAt: NOW,
+      appPath: INSTALLED_APP_PATH,
     });
     expect(quitApp).toHaveBeenCalledTimes(1);
     expect(service.getState()).toMatchObject({
@@ -703,6 +714,7 @@ describe("pending Homebrew update reconciliation", () => {
     fromVersion: "0.1.0",
     toVersion: "0.2.0",
     startedAt,
+    appPath: INSTALLED_APP_PATH,
   });
 
   it("reports a completed upgrade on the next launch", () => {
@@ -762,6 +774,7 @@ describe("reopening during a background upgrade", () => {
     fromVersion: "0.1.0",
     toVersion: "0.2.0",
     startedAt: NOW - 10_000,
+    appPath: INSTALLED_APP_PATH,
   };
 
   it("says the upgrade is still running instead of calling it failed", () => {
@@ -992,12 +1005,78 @@ describe("restarting into an installed update", () => {
     const { service, relaunchApp } = createService({
       canInstall: true,
       currentVersion: "0.1.0",
-      pending: { fromVersion: "0.1.0", toVersion: "0.2.0", startedAt: NOW },
+      pending: {
+        fromVersion: "0.1.0",
+        toVersion: "0.2.0",
+        startedAt: NOW,
+        appPath: INSTALLED_APP_PATH,
+      },
       installedVersions: ["0.2.0"],
     });
 
     expect(service.restartForUpdate()).toEqual({ success: true });
-    expect(relaunchApp).toHaveBeenCalledTimes(1);
+    // No target path: this process is the upgraded bundle, so re-exec is right.
+    expect(relaunchApp).toHaveBeenCalledWith(null);
+  });
+
+  /**
+   * The failure this covers: Homebrew upgrades `/Applications`, the helper's
+   * `open -b` resolves the shared bundle id to a stray build elsewhere, and
+   * that older copy comes up reporting a completed update.
+   */
+  describe("when a different copy of FixLang reopened", () => {
+    const strayLaunch = (onLog?: ReturnType<typeof vi.fn>) =>
+      createService({
+        canInstall: true,
+        currentVersion: "0.1.5",
+        appPath: STRAY_APP_PATH,
+        pending: {
+          fromVersion: "0.1.0",
+          toVersion: "0.2.0",
+          startedAt: NOW,
+          appPath: INSTALLED_APP_PATH,
+        },
+        installedVersions: ["0.2.0"],
+        ...(onLog ? { onLog } : {}),
+      });
+
+    it("never reports the stray version as the installed update", () => {
+      const { service } = strayLaunch();
+
+      expect(service.getState()).toMatchObject({
+        phase: "restart-required",
+        availableVersion: "0.2.0",
+        message: msg("settings.updates.wrongBundleMessage", {
+          targetVersion: "0.2.0",
+          targetPath: INSTALLED_APP_PATH,
+        }),
+      });
+    });
+
+    it("restarts into the upgraded bundle rather than re-executing itself", () => {
+      const { service, relaunchApp } = strayLaunch();
+
+      expect(service.restartForUpdate()).toEqual({ success: true });
+      expect(relaunchApp).toHaveBeenCalledWith(INSTALLED_APP_PATH);
+    });
+
+    it("logs both bundles so the stray copy can be found and removed", () => {
+      const onLog = vi.fn();
+      strayLaunch(onLog);
+
+      expect(onLog).toHaveBeenCalledWith(
+        "warn",
+        expect.stringContaining(STRAY_APP_PATH),
+      );
+    });
+
+    it("keeps the install button inert", () => {
+      const { service, startUpgrade } = strayLaunch();
+
+      // Nothing left to install: the bundle on disk is already the new one.
+      void service.installUpdate();
+      expect(startUpgrade).not.toHaveBeenCalled();
+    });
   });
 
   it.each(["idle", "available"] as const)(

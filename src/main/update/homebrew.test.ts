@@ -109,6 +109,43 @@ describe("upgrade script", () => {
   it("never automates Gatekeeper or escalates privileges", () => {
     expect(script).not.toMatch(/xattr|sudo|quarantine/);
   });
+
+  /**
+   * `open -b` resolves a bundle id, and a stray build in a checkout carries
+   * the same one — so it can reopen an older copy of the app right after a
+   * successful upgrade. The replaced path is the only unambiguous target.
+   */
+  it("reopens the exact bundle Homebrew replaced when the path is known", () => {
+    const pinned = buildUpgradeScript(
+      "/opt/homebrew/bin/brew",
+      "/Applications/FixLang.app",
+    );
+
+    expect(pinned).toContain('/usr/bin/open -a "/Applications/FixLang.app"');
+    // The id survives only as a fallback, after the path attempt.
+    expect(pinned.indexOf("open -a")).toBeLessThan(pinned.indexOf("open -b"));
+  });
+
+  it("quotes a path containing spaces rather than rejecting it", () => {
+    expect(
+      buildUpgradeScript("/opt/homebrew/bin/brew", "/Applications/Fix Lang.app"),
+    ).toContain('/usr/bin/open -a "/Applications/Fix Lang.app"');
+  });
+
+  it.each([
+    'relative/FixLang.app',
+    '/Applications/FixLang.app"; rm -rf /tmp/x; echo ".app',
+    "/Applications/$(whoami).app",
+    "/Applications/`id`.app",
+    "/Applications/Fix\\Lang.app",
+    "/Applications/Fix\nLang.app",
+    "/Applications/FixLang",
+  ])("falls back to the bundle id for an unsafe path: %s", (appPath) => {
+    const fallback = buildUpgradeScript("/opt/homebrew/bin/brew", appPath);
+
+    expect(fallback).not.toContain("open -a \"");
+    expect(fallback).toContain("/usr/bin/open -b com.fixlang.app");
+  });
 });
 
 describe("cask version parsing", () => {

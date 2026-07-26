@@ -11,6 +11,13 @@ export type PendingInstall = Readonly<{
   toVersion: string;
   /** Epoch ms the helper was started; 0 for markers written before this field. */
   startedAt: number;
+  /**
+   * `.app` root that was running when the upgrade started — the exact bundle
+   * Homebrew replaces. Empty for markers written before this field, and for a
+   * non-macOS layout. Lets the next launch tell "the upgrade landed" from "a
+   * different copy of the app opened instead".
+   */
+  appPath: string;
 }>;
 
 export type PendingInstallStore = Readonly<{
@@ -23,6 +30,7 @@ export type InstallOutcome =
   | "none"
   | "installed"
   | "restart-required"
+  | "wrong-bundle"
   | "in-progress"
   | "failed";
 
@@ -31,6 +39,8 @@ export type ReconcileContext = Readonly<{
   now: number;
   /** True once the Caskroom holds the target version, i.e. Homebrew finished. */
   isTargetInstalled: boolean;
+  /** `.app` root of the process doing the reconcile; null when unknown. */
+  runningAppPath: string | null;
 }>;
 
 /**
@@ -67,6 +77,7 @@ export const parsePendingInstall = (raw: string): PendingInstall | null => {
       fromVersion: value.fromVersion,
       toVersion: value.toVersion,
       startedAt: parseStartedAt(value.startedAt),
+      appPath: typeof value.appPath === "string" ? value.appPath : "",
     });
   } catch {
     return null;
@@ -82,6 +93,12 @@ export const parsePendingInstall = (raw: string): PendingInstall | null => {
  * that a failure both lies and clears the marker, so the real outcome is never
  * reported and a second click collides with the running helper's download
  * lock. Only a grace window with no installed result means it genuinely failed.
+ *
+ * Nor is a *changed* version proof of success. When a second copy of FixLang
+ * shares the bundle id, `open -b` can reopen that copy instead of the upgraded
+ * one, and a bare "version differs from before" test reports a downgrade as a
+ * completed update. Bundle path is the reliable identity: the target one is
+ * the path Homebrew replaced, and anything else is a different app.
  */
 export const reconcilePendingInstall = (
   pending: PendingInstall | null,
@@ -89,7 +106,22 @@ export const reconcilePendingInstall = (
   context: ReconcileContext,
 ): InstallOutcome => {
   if (pending === null) return "none";
+  if (currentVersion === pending.toVersion) return "installed";
+
+  // Running from somewhere else entirely — a stray build with the same bundle
+  // id won the `open` race. Never report that as an update.
+  if (
+    pending.appPath.length > 0 &&
+    context.runningAppPath !== null &&
+    context.runningAppPath !== pending.appPath
+  ) {
+    return "wrong-bundle";
+  }
+
+  // Same bundle, version moved anyway: the user upgraded past the target by
+  // hand between the click and this launch. Still an update.
   if (currentVersion !== pending.fromVersion) return "installed";
+
   // The bundle is already replaced; only this stale process is still old.
   if (context.isTargetInstalled) return "restart-required";
   return context.now - pending.startedAt < UPGRADE_GRACE_MS

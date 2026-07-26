@@ -181,5 +181,6 @@
   "settings.updates.unsupported": "アップデートはインストール済みのリリースビルドでのみ利用できます。",
   "settings.updates.upToDate": "FixLangは最新の状態です。",
   "settings.updates.versionLabel": "FixLang v{version}",
-  "settings.updates.viewReleases": "リリースを見る"
+  "settings.updates.viewReleases": "リリースを見る",
+  "settings.updates.wrongBundleMessage": "Homebrewは v{targetVersion} を {targetPath} にインストールしましたが、このウィンドウは別のFixLangのコピーで動作しています。再起動すると更新されたほうに切り替わります。"
 }
