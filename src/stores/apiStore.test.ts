@@ -232,6 +232,32 @@ describe("connectProviderToActiveProfile — D10", () => {
     expect(result?.settings.models).toHaveLength(1);
   });
 
+  // The idempotence test above cannot catch a `model.provider === provider`
+  // regression: its first connect tags every entry, so the second call filters
+  // them either way. Only a cache written BEFORE provider tagging existed
+  // distinguishes the two. An untagged, non-local entry belongs to openrouter
+  // (`isModelForProvider`'s fallback), so reconnecting openrouter must replace
+  // it — under `===` it survives alongside the refreshed row and the picker
+  // shows the same model twice, one of them stale.
+  it("replaces an untagged legacy cache entry on reconnect instead of duplicating it", () => {
+    const untagged: Model = { id: "gpt-4o", name: "gpt-4o", created: 1 };
+    const profile = buildProfile({
+      settings: buildSettings({
+        models: [untagged],
+        enabledProviders: ["openrouter"],
+      }),
+    });
+    seedProfiles([profile], profile.id);
+
+    const result = connectProviderToActiveProfile("openrouter", [
+      { id: "gpt-4o", name: "gpt-4o", created: 9 },
+    ]);
+
+    expect(result?.settings.models).toEqual([
+      { id: "gpt-4o", name: "gpt-4o", created: 9, provider: "openrouter" },
+    ]);
+  });
+
   it("does not mutate the profile it was given", () => {
     const profile = buildProfile({
       settings: buildSettings({ models: [openRouterModel] }),

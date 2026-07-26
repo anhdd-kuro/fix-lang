@@ -299,6 +299,19 @@ describe("resolveModelRef", () => {
     expect(resolveModelRef("openai::ghost", models)).toBeNull();
   });
 
+  // The exclusivity half of the contract documented on `resolveModelRef`: a
+  // prefixed ref checks its own provider and stops. Note "gpt-4o" IS in this
+  // cache — under openai — so a candidate list that widened to PROVIDER_ORDER
+  // would return the openai row for an ollama ref, and the request would be
+  // routed to openai and billed against its key with no error anywhere. That
+  // is the exact ambiguity the composite ref exists to remove. Every other
+  // miss case here uses an id absent from every provider, so none of them can
+  // catch the widening.
+  it("returns null for a prefixed ref whose id exists only under a DIFFERENT provider", () => {
+    expect(resolveModelRef("ollama::gpt-4o", models)).toBeNull();
+    expect(resolveModelRef("openai::shared-id", models)).toBeNull();
+  });
+
   // F2 — named for the routing consequence, not for the constant's contents.
   // PROVIDER_ORDER is resolution precedence as well as display order: an
   // un-migrated bare id bills against the API key of whichever provider comes
