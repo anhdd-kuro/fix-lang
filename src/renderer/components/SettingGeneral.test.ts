@@ -58,20 +58,49 @@ const buttonNamed = (container: HTMLElement, label: string): HTMLButtonElement =
 type ResetResult = { success: boolean; error?: Label };
 
 type SettingGeneralApi = {
-  getActiveProvider: ReturnType<typeof vi.fn>;
-  getProviderSecretStatus: ReturnType<typeof vi.fn>;
+  getProviderStates: ReturnType<typeof vi.fn>;
+  connectProvider: ReturnType<typeof vi.fn>;
+  disconnectProvider: ReturnType<typeof vi.fn>;
   onProfileUpdated: ReturnType<typeof vi.fn>;
   getCorrectionOutputMode: ReturnType<typeof vi.fn>;
   setCorrectionOutputMode: ReturnType<typeof vi.fn>;
   resetProfileSettings: ReturnType<typeof vi.fn>;
-  fetchProviderModels: ReturnType<typeof vi.fn>;
-  applyProviderSetup: ReturnType<typeof vi.fn>;
+  // Read by the embedded `<ModelSelect>` — the General tab uses the shared
+  // picker rather than a second implementation of its own (D35).
+  fetchAIModels: ReturnType<typeof vi.fn>;
+  getSelectedModel: ReturnType<typeof vi.fn>;
+  setSelectedModel: ReturnType<typeof vi.fn>;
+  onSettingsUpdated: ReturnType<typeof vi.fn>;
   // `SettingGeneral` renders inside `<I18nProvider>`, which reads these off
   // `window.electronAPI` on mount (see `localeState.ts`'s `LocaleBridge`).
   getLocale: ReturnType<typeof vi.fn>;
   setLocale: ReturnType<typeof vi.fn>;
   onLocaleChanged: ReturnType<typeof vi.fn>;
 };
+
+/**
+ * React tracks the last value it set on a DOM node, so assigning `.value`
+ * directly is ignored — the native setter has to be called to bypass it.
+ */
+const type = async (input: HTMLInputElement, value: string) => {
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set;
+    setter?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+};
+
+const providerState = (overrides: Record<string, unknown> = {}) => ({
+  connected: false,
+  configured: false,
+  apiKeySet: false,
+  provisioningKeySet: false,
+  modelCount: 0,
+  ...overrides,
+});
 
 describe("SettingGeneral", () => {
   let container: HTMLDivElement;
@@ -80,18 +109,48 @@ describe("SettingGeneral", () => {
   let api: SettingGeneralApi;
   let confirmSpy: ReturnType<typeof vi.spyOn>;
 
-  const render = async (resetResult: ResetResult) => {
+  /**
+   * The Disconnect button inside the open confirmation panel. The card's own
+   * Disconnect button is hidden while its panel is open, so exactly one
+   * control with that name exists at a time.
+   */
+  const confirmDisconnectButton = (): HTMLButtonElement => {
+    const panel = container.querySelector('[role="alertdialog"]');
+    if (!panel) throw new Error("expected the disconnect confirmation panel");
+    const button = [...panel.querySelectorAll("button")].find(
+      (candidate) =>
+        candidate.textContent === tEn("settings.general.providers.card.disconnect"),
+    );
+    if (!button) throw new Error("expected the panel's Disconnect button");
+    return button;
+  };
+
+  const render = async (
+    resetResult: ResetResult,
+    states: Record<string, unknown> = {
+      openai: providerState({ connected: true, configured: true, apiKeySet: true, modelCount: 3 }),
+      openrouter: providerState(),
+      ollama: providerState(),
+    },
+  ) => {
     api = {
-      getActiveProvider: vi.fn().mockResolvedValue("openrouter"),
-      getProviderSecretStatus: vi
-        .fn()
-        .mockResolvedValue({ apiKeySet: false, provisioningKeySet: false }),
+      // Return values are set explicitly on EVERY render, never only in a
+      // shared `beforeEach`: `vi.clearAllMocks()` clears calls but not return
+      // values, so a stale resolution leaks into later tests in this file.
+      getProviderStates: vi.fn().mockResolvedValue(states),
+      connectProvider: vi.fn().mockResolvedValue({ success: true }),
+      disconnectProvider: vi.fn().mockResolvedValue({
+        success: true,
+        cleared: { selectedModel: false, presetIds: [], features: [] },
+      }),
       onProfileUpdated: vi.fn().mockReturnValue(vi.fn()),
       getCorrectionOutputMode: vi.fn().mockResolvedValue("paste"),
       setCorrectionOutputMode: vi.fn().mockResolvedValue({ success: true, mode: "paste" }),
       resetProfileSettings: vi.fn().mockResolvedValue(resetResult),
-      fetchProviderModels: vi.fn().mockResolvedValue({ success: true, models: [] }),
-      applyProviderSetup: vi.fn().mockResolvedValue({ success: true }),
+      fetchAIModels: vi.fn().mockResolvedValue({ success: true, models: [] }),
+      getSelectedModel: vi.fn().mockResolvedValue(""),
+      setSelectedModel: vi.fn().mockResolvedValue({ success: true }),
+      onSettingsUpdated: vi.fn().mockReturnValue(vi.fn()),
       getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
       setLocale: vi.fn().mockResolvedValue({ success: true }),
       onLocaleChanged: vi.fn((callback: (locale: Locale) => void) => {
@@ -238,4 +297,335 @@ describe("SettingGeneral", () => {
     expect(statuses()).toContain(jaWrapped);
     expect(jaWrapped).not.toBe(enWrapped);
   });
+
+  describe("provider cards", () => {
+    it("renders one card per provider, each with its own connection state", async () => {
+      await render({ success: true });
+
+      for (const key of [
+        "models.select.provider.openai",
+        "models.select.provider.openrouter",
+        "models.select.provider.ollama",
+      ] as const) {
+        expect(container.textContent).toContain(tEn(key));
+      }
+      expect(container.textContent).toContain(
+        tEn("settings.general.providers.card.connected"),
+      );
+      expect(container.textContent).toContain(
+        tEn("settings.general.providers.card.notConnected"),
+      );
+      expect(container.textContent).toContain(
+        tEn("settings.general.providers.card.modelCount", { count: 3 }),
+      );
+    });
+
+    it("connects one provider without a modelId and without touching the others", async () => {
+      await render({ success: true });
+
+      const input = container.querySelector<HTMLInputElement>("#api-key-openrouter");
+      if (!input) throw new Error("expected an OpenRouter API key field");
+      await type(input, "sk-or-typed");
+
+      await click(buttonNamed(container, tEn("settings.general.providers.card.connect")));
+      await waitForUi();
+
+      expect(api.connectProvider).toHaveBeenCalledTimes(1);
+      expect(api.connectProvider).toHaveBeenCalledWith({
+        provider: "openrouter",
+        apiKey: "sk-or-typed",
+        provisioningKey: undefined,
+      });
+      // Connecting never seeds a default model — that is the picker's job.
+      expect(api.setSelectedModel).not.toHaveBeenCalled();
+    });
+
+    it("requires an explicit confirm before disconnecting, and can be cancelled", async () => {
+      await render({ success: true });
+
+      await click(
+        buttonNamed(container, tEn("settings.general.providers.card.disconnect")),
+      );
+      const panel = container.querySelector('[role="alertdialog"]');
+      expect(panel).not.toBeNull();
+      expect(panel?.getAttribute("aria-labelledby")).toBe("disconnect-title-openai");
+      expect(container.textContent).toContain(
+        tEn("settings.general.providers.disconnect.warning.title", {
+          provider: tEn("models.select.provider.openai"),
+        }),
+      );
+      expect(api.disconnectProvider).not.toHaveBeenCalled();
+      // Exactly one control named "Disconnect" while the panel is open.
+      expect(
+        [...container.querySelectorAll("button")].filter(
+          (button) =>
+            button.textContent === tEn("settings.general.providers.card.disconnect"),
+        ),
+      ).toHaveLength(1);
+
+      await click(buttonNamed(container, tEn("common.cancel")));
+      expect(api.disconnectProvider).not.toHaveBeenCalled();
+      expect(container.querySelector('[role="alertdialog"]')).toBeNull();
+    });
+
+    it("reports exactly what a disconnect cleared, keeping the presets fact off the default-model fact", async () => {
+      await render({ success: true });
+      api.disconnectProvider.mockResolvedValueOnce({
+        success: true,
+        cleared: { selectedModel: false, presetIds: ["p1", "p2"], features: [] },
+      });
+
+      await click(
+        buttonNamed(container, tEn("settings.general.providers.card.disconnect")),
+      );
+      await click(confirmDisconnectButton());
+      await waitForUi();
+
+      expect(api.disconnectProvider).toHaveBeenCalledWith("openai");
+      expect(container.textContent).toContain(
+        tEn("settings.general.providers.disconnect.warning.cleared", { count: 2 }),
+      );
+      expect(container.textContent).toContain(
+        tEn("settings.general.providers.disconnect.warning.key"),
+      );
+      // The default model was NOT cleared, so that sentence must not appear.
+      expect(container.textContent).not.toContain(
+        tEn("settings.general.providers.disconnect.warning.selectedModel"),
+      );
+    });
+
+    it("keeps credential fields masked and out of browser autofill", async () => {
+      await render({ success: true });
+
+      for (const id of ["#api-key-openai", "#api-key-openrouter", "#provisioning-key-openrouter"]) {
+        const field = container.querySelector<HTMLInputElement>(id);
+        if (!field) throw new Error(`expected ${id}`);
+        expect(field.type).toBe("password");
+        expect(field.getAttribute("autocomplete")).toBe("off");
+      }
+
+      // NOTE: React 19 reflects a controlled input's value into the `value`
+      // ATTRIBUTE, so a typed key is briefly present in `innerHTML`. That is
+      // React's behaviour, not this component's, and it is why the typed key
+      // is dropped from state the moment main has it (next test).
+    });
+
+    it("drops the typed key from renderer state as soon as main has it", async () => {
+      await render({ success: true });
+
+      const input = () =>
+        container.querySelector<HTMLInputElement>("#api-key-openrouter");
+      const field = input();
+      if (!field) throw new Error("expected an OpenRouter API key field");
+      await type(field, "sk-or-typed");
+      expect(input()?.value).toBe("sk-or-typed");
+
+      await click(buttonNamed(container, tEn("settings.general.providers.card.connect")));
+      await waitForUi();
+
+      // The secret is written once and then must not linger in the renderer.
+      expect(input()?.value).toBe("");
+    });
+
+    it("drops the typed key after a disconnect too", async () => {
+      await render({ success: true });
+
+      const input = () => container.querySelector<HTMLInputElement>("#api-key-openai");
+      const field = input();
+      if (!field) throw new Error("expected an OpenAI API key field");
+      await type(field, "sk-typed");
+
+      await click(
+        buttonNamed(container, tEn("settings.general.providers.card.disconnect")),
+      );
+      await click(confirmDisconnectButton());
+      await waitForUi();
+
+      expect(input()?.value).toBe("");
+    });
+
+    it("keeps one provider's in-flight connect from unlocking another's button", async () => {
+      await render({ success: true });
+
+      // Hold OpenRouter's connect open.
+      let settle: (value: unknown) => void = () => undefined;
+      api.connectProvider.mockReturnValueOnce(
+        new Promise((resolve) => {
+          settle = resolve;
+        }),
+      );
+
+      const field = container.querySelector<HTMLInputElement>("#api-key-openrouter");
+      if (!field) throw new Error("expected an OpenRouter API key field");
+      await type(field, "sk-or-typed");
+
+      const connectButtons = () =>
+        [...container.querySelectorAll("button")].filter(
+          (button) =>
+            button.textContent === tEn("settings.general.providers.card.connect") ||
+            button.textContent === tEn("settings.general.providers.card.testing"),
+        );
+      await click(connectButtons()[0] ?? never());
+
+      const testing = connectButtons().filter(
+        (button) => button.textContent === tEn("settings.general.providers.card.testing"),
+      );
+      // Exactly ONE card is busy. A single shared `busyProvider` slot would
+      // have the first request to settle clear the other's flag, re-enabling a
+      // button whose request is still running.
+      expect(testing).toHaveLength(1);
+
+      // Ollama needs no key and must still be connectable meanwhile.
+      const ollamaConnect = connectButtons().find(
+        (button) => button.textContent === tEn("settings.general.providers.card.connect"),
+      );
+      expect(ollamaConnect?.disabled).toBe(false);
+
+      await act(async () => {
+        settle({ success: true });
+      });
+      await waitForUi();
+    });
+
+    it("refuses to attempt a connect with no stored and no typed key", async () => {
+      await render({ success: true });
+
+      const connect = [...container.querySelectorAll("button")].find(
+        (button) => button.textContent === tEn("settings.general.providers.card.connect"),
+      );
+      // OpenRouter: no stored key, nothing typed.
+      expect(connect?.disabled).toBe(true);
+
+      const field = container.querySelector<HTMLInputElement>("#api-key-openrouter");
+      if (!field) throw new Error("expected an OpenRouter API key field");
+      await type(field, "sk-or-typed");
+
+      expect(
+        [...container.querySelectorAll("button")].find(
+          (button) =>
+            button.textContent === tEn("settings.general.providers.card.connect"),
+        )?.disabled,
+      ).toBe(false);
+    });
+
+    it("renders a SUCCESS-path note verbatim, never through the Error wrapper", async () => {
+      // Card 06 split `note` from `error` so a reachable-but-empty Ollama is a
+      // SUCCESS. Routing it through `wrappedError` would announce a connect
+      // that worked as "Error: Ollama is running but has no models pulled…".
+      await render({ success: true }, {
+        openai: providerState({ connected: true, configured: true, apiKeySet: true }),
+        openrouter: providerState(),
+        ollama: providerState(),
+      });
+      api.connectProvider.mockResolvedValueOnce({
+        success: true,
+        note: messageLabel("settings.general.providers.ollama.noModels"),
+      });
+
+      const connectButtons = [...container.querySelectorAll("button")].filter(
+        (button) => button.textContent === tEn("settings.general.providers.card.connect"),
+      );
+      // Ollama's card is last in PROVIDER_ORDER and needs no key.
+      await click(connectButtons[connectButtons.length - 1] ?? never());
+      await waitForUi();
+
+      const note = tEn("settings.general.providers.ollama.noModels");
+      expect(container.textContent).toContain(note);
+      expect(container.textContent).not.toContain(
+        tEn("settings.general.error", { message: note }),
+      );
+    });
+
+    it("reports the disconnect on its own card only", async () => {
+      await render({ success: true });
+
+      await click(
+        buttonNamed(container, tEn("settings.general.providers.card.disconnect")),
+      );
+      await click(confirmDisconnectButton());
+      await waitForUi();
+
+      const reports = [...container.querySelectorAll('[role="status"]')].filter((node) =>
+        node.textContent?.includes(
+          tEn("settings.general.providers.disconnect.warning.nothing"),
+        ),
+      );
+      expect(reports).toHaveLength(1);
+    });
+
+    it("does not claim a stored key will be deleted for a provider that has none", async () => {
+      await render({ success: true }, {
+        openai: providerState(),
+        openrouter: providerState(),
+        ollama: providerState({ connected: true, configured: true }),
+      });
+
+      await click(
+        buttonNamed(container, tEn("settings.general.providers.card.disconnect")),
+      );
+
+      expect(container.textContent).toContain(
+        tEn("settings.general.providers.disconnect.warning.title", {
+          provider: tEn("models.select.provider.ollama"),
+        }),
+      );
+      expect(container.textContent).not.toContain(
+        tEn("settings.general.providers.disconnect.warning.key"),
+      );
+    });
+
+    it("shows the stored-secret indicator per credential slot", async () => {
+      await render({ success: true }, {
+        openai: providerState({ connected: true, configured: true, apiKeySet: true }),
+        openrouter: providerState({ apiKeySet: true, provisioningKeySet: false }),
+        ollama: providerState(),
+      });
+
+      const near = (id: string): string => {
+        const field = container.querySelector(id);
+        return field?.parentElement?.textContent ?? "";
+      };
+      expect(near("#api-key-openrouter")).toContain(tEn("settings.general.secret.set"));
+      expect(near("#provisioning-key-openrouter")).toContain(
+        tEn("settings.general.secret.unset"),
+      );
+    });
+
+    it("says nothing will be lost when the disconnect cleared nothing", async () => {
+      await render({ success: true });
+
+      await click(
+        buttonNamed(container, tEn("settings.general.providers.card.disconnect")),
+      );
+      await click(confirmDisconnectButton());
+      await waitForUi();
+
+      expect(container.textContent).toContain(
+        tEn("settings.general.providers.disconnect.warning.nothing"),
+      );
+    });
+  });
+
+  describe("D35/D36 — the default-model picker is the shared component", () => {
+    it("renders <ModelSelect> with the Default model copy and its own refresh", async () => {
+      await render({ success: true });
+
+      expect(container.textContent).toContain(tEn("settings.general.defaultModel.label"));
+      expect(container.textContent).toContain(
+        tEn("settings.general.defaultModel.description"),
+      );
+      // `fetchAIModels` is only ever called by `<ModelSelect>`; a hand-rolled
+      // picker in this tab would call `fetchProviderModels` instead.
+      expect(api.fetchAIModels).toHaveBeenCalled();
+      // ModelSelect owns refresh — the deleted "Fetch models" button is gone.
+      expect(
+        container.querySelector('[aria-label="' + tEn("models.select.refetch") + '"]'),
+      ).not.toBeNull();
+    });
+  });
 });
+
+/** Fails loudly instead of letting an `undefined` element silently skip a click. */
+function never(): never {
+  throw new Error("expected the element to be present");
+}

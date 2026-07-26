@@ -1,32 +1,49 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { messageLabel, msg, textLabel, type Label, type Message } from "~/shared/i18n/message";
+import { messageLabel, type Label, type Message } from "~/shared/i18n/message";
 import { LanguageTabs } from "./LanguageTabs";
-import { SearchableSelect } from "./SearchableSelect";
+import { ModelSelect } from "./ModelSelect";
+import { PROVIDER_LABEL_KEYS } from "./modelSelectOptions";
+import {
+  buildProviderCards,
+  describeDisconnectImpact,
+  type ProviderCardState,
+  type ProviderConnectionState,
+  type TypedProviderKeys,
+} from "./providerCards";
 import { plainStatus, wrappedError, resolveStatus as resolveStatusDescriptor, type StatusDescriptor } from "./statusDescriptor";
 import { useI18n } from "../i18n/useI18n";
-import type { SearchableOption } from "./SearchableSelect";
-import type { TranslationKey } from "~/shared/i18n/keys";
 import type { CorrectionOutputMode } from "~/shared/outputMode";
-import type { Model, ProviderId } from "~/stores/apiStore";
+// Types only — provider *values* come from `~/shared/providers` via
+// `providerCards.ts`; `~/stores/apiStore` loads `electron-store` and must
+// never enter the renderer bundle (finding F9).
+import type { ProviderId } from "~/stores/apiStore";
 
-/** Keep value import out of apiStore — that module loads electron-store and breaks the renderer. */
-const PROVIDER_IDS: readonly ProviderId[] = ["openai", "openrouter", "ollama"];
-
-/** Provider brand names are proper nouns (unchanged across locales) but are
- * still routed through `t()` so this file has zero hardcoded UI strings —
- * the reference conversion for later migration waves. */
-const PROVIDER_LABEL_KEYS: Record<ProviderId, TranslationKey> = {
-  openai: "settings.general.provider.openai",
-  openrouter: "settings.general.provider.openrouter",
-  ollama: "settings.general.provider.ollama",
+type ProviderStatus = {
+  /** Errors and plain successes — resolved through `resolveStatus`. */
+  status?: StatusDescriptor;
+  /**
+   * A SUCCESS-path advisory from `connect-provider` (Ollama reachable with
+   * nothing pulled). Rendered VERBATIM through `tl()`.
+   *
+   * It must never reach `wrappedError`: that descriptor resolves through the
+   * generic `settings.general.error` ("Error: {message}") template, so a
+   * connect that actually succeeded would be announced to the user as
+   * "Error: Ollama is running but has no models pulled…". Card 06 split
+   * `note` from `error` precisely so this path could stay a success.
+   */
+  note?: Label;
+  isError: boolean;
 };
 
 /**
- * General settings tab: interface language, correction output mode, plus
- * staged provider setup (select provider, supply credentials, fetch models,
- * choose a default, then Apply). The previously active provider stays in
- * effect until Apply succeeds — nothing commits on every keystroke or on
- * Fetch.
+ * General settings tab: interface language, correction output mode, one
+ * independently connectable card per provider, the profile's default model,
+ * and reset-to-defaults.
+ *
+ * There is no staged "Apply" step any more. Each provider connects on its own
+ * button and each disconnects on its own — connecting one no longer switches
+ * away from another, and connecting deliberately does **not** set a default
+ * model (that is the picker below the cards).
  */
 export const SettingGeneral: React.FC = () => {
   const { t, tm, tl } = useI18n();
@@ -40,109 +57,81 @@ export const SettingGeneral: React.FC = () => {
   const [outputModeIsError, setOutputModeIsError] = useState<boolean>(false);
   const [savingOutputMode, setSavingOutputMode] = useState(false);
 
-  // The provider currently staged for setup. Starts as the active provider so
-  // opening General shows what is really in effect, not a stale default.
-  const [stagedProvider, setStagedProvider] = useState<ProviderId>("openrouter");
+  const [providerStates, setProviderStates] = useState<
+    Partial<Record<ProviderId, ProviderConnectionState>>
+  >({});
+  // Typed credentials — write-only; never round-tripped from main, and kept
+  // per provider so one card's key can never be submitted for another.
+  const [typedKeys, setTypedKeys] = useState<TypedProviderKeys>({});
+  // Per provider, not one slot: two connects can be in flight at once, and a
+  // single `busyProvider` would have the first to settle clear the second's
+  // flag — re-enabling a button whose request is still running and inviting a
+  // duplicate credential submission.
+  const [busyProviders, setBusyProviders] = useState<
+    Partial<Record<ProviderId, boolean>>
+  >({});
+  const [providerStatus, setProviderStatus] = useState<
+    Partial<Record<ProviderId, ProviderStatus>>
+  >({});
 
-  // Staged credentials — write-only; never round-tripped from main. Cleared
-  // whenever the staged provider changes so one provider's typed key can never
-  // be submitted for a different provider.
-  const [apiKeyInput, setApiKeyInput] = useState<string>("");
-  const [provisioningInput, setProvisioningInput] = useState<string>("");
-  const [apiKeySet, setApiKeySet] = useState<boolean>(false);
-  const [provisioningKeySet, setProvisioningKeySet] = useState<boolean>(false);
-
-  const [stagedModels, setStagedModels] = useState<Model[]>([]);
-  const [stagedModelId, setStagedModelId] = useState<string>("");
-
-  const [isFetching, setIsFetching] = useState<boolean>(false);
-  // Always a single catalog message (never wrapped, never raw text) — a
-  // locale-free `Message` descriptor is enough here.
-  const [fetchStatus, setFetchStatus] = useState<Message | null>(null);
-  // May carry a raw provider-reported error string (untranslatable user
-  // data) or a catalog fallback key (translatable) — a `Label`, resolved via
-  // `tl()` at render time.
-  const [fetchError, setFetchError] = useState<Label | null>(null);
-
-  const [isApplying, setIsApplying] = useState<boolean>(false);
-  const [applyStatus, setApplyStatus] = useState<Message | null>(null);
-  const [applyError, setApplyError] = useState<Label | null>(null);
-
-  const stagedModelOptions = useMemo<SearchableOption[]>(
-    () =>
-      stagedModels.map((model) => ({
-        value: model.id,
-        label: model.name || model.id,
-      })),
-    [stagedModels],
-  );
-
-  const selectedStagedModelOption =
-    stagedModelOptions.find((option) => option.value === stagedModelId) ?? null;
+  /** Provider awaiting an explicit confirm before its disconnect runs. */
+  const [confirmDisconnect, setConfirmDisconnect] = useState<ProviderId | null>(null);
+  /** What a completed disconnect actually cleared — locale-free descriptors. */
+  const [disconnectReport, setDisconnectReport] = useState<{
+    provider: ProviderId;
+    lines: Message[];
+  } | null>(null);
 
   // Deliberately not memoized — invoked only during render, so it always
   // sees the current `t`/`tm`/`tl` for the active locale.
   const resolveStatus = (status: StatusDescriptor | null): string =>
     resolveStatusDescriptor(status, t, tm, tl);
 
-  const clearStagedSetupState = useCallback(() => {
-    setStagedModels([]);
-    setStagedModelId("");
-    setFetchStatus(null);
-    setFetchError(null);
-    setApplyStatus(null);
-    setApplyError(null);
-    setApiKeyInput("");
-    setProvisioningInput("");
+  const providerName = (provider: ProviderId): string =>
+    t(PROVIDER_LABEL_KEYS[provider]);
+
+  const refreshProviderStates = useCallback(async () => {
+    try {
+      const states = await window.electronAPI?.getProviderStates?.();
+      if (states) setProviderStates(states);
+    } catch (error) {
+      console.error("SettingGeneral: Error reading provider states:", error);
+    }
   }, []);
 
-  const refreshSecretStatus = useCallback((provider: ProviderId) => {
-    window.electronAPI
-      ?.getProviderSecretStatus?.(provider)
-      .then((status) => {
-        setApiKeySet(Boolean(status?.apiKeySet));
-        setProvisioningKeySet(Boolean(status?.provisioningKeySet));
-      })
-      .catch((error) => {
-        console.error(
-          "SettingGeneral: Error checking provider secret status:",
-          error,
-        );
-      });
-  }, []);
-
-  const reloadActiveProvider = useCallback(() => {
-    window.electronAPI
-      ?.getActiveProvider?.()
-      .then((provider) => {
-        if (provider) {
-          setStagedProvider(provider);
-        }
-      })
-      .catch((error) => {
-        console.error("SettingGeneral: Error reading active provider:", error);
-      });
-  }, []);
-
-  // Load active provider on mount; reload when the active profile changes so
-  // Apply never commits a previous profile's staged setup into the new one.
+  // Load provider states on mount; reload when the active profile changes so
+  // the cards never describe a previous profile's connections.
   useEffect(() => {
-    reloadActiveProvider();
+    // Reading main's provider state on mount IS the external-system sync this
+    // rule carves out; the setState happens in the awaited continuation, not
+    // synchronously in the effect body.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    refreshProviderStates();
     const offProfile = window.electronAPI?.onProfileUpdated?.(() => {
-      clearStagedSetupState();
-      reloadActiveProvider();
+      setTypedKeys({});
+      setProviderStatus({});
+      setConfirmDisconnect(null);
+      setDisconnectReport(null);
+      refreshProviderStates();
+    });
+    // A connect/disconnect performed from another window broadcasts
+    // `settings-updated`; without this the cards keep showing the old
+    // connection state while the embedded `<ModelSelect>` already refreshed.
+    const offSettings = window.electronAPI?.onSettingsUpdated?.(() => {
+      refreshProviderStates();
     });
     return () => {
       offProfile?.();
+      offSettings?.();
     };
-  }, [clearStagedSetupState, reloadActiveProvider]);
+  }, [refreshProviderStates]);
 
   // Correction output mode is global — load once on mount.
   useEffect(() => {
     window.electronAPI
       ?.getCorrectionOutputMode?.()
       .then(setCorrectionOutputMode)
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.error("SettingGeneral: Error loading output mode:", error);
         setOutputModeIsError(true);
         setOutputModeStatus(wrappedError(messageLabel("settings.general.outputMode.unavailable")));
@@ -151,18 +140,21 @@ export const SettingGeneral: React.FC = () => {
     // dependency to worry about; load-once on mount is correct as written.
   }, []);
 
-  // On mount and on every provider change: refresh masked secret state and
-  // reset the staged model list — a model fetched for one provider must never
-  // be offered as the default for another.
-  useEffect(() => {
-    refreshSecretStatus(stagedProvider);
-    // Reset staged setup state for the newly selected provider — a
-    // derived-state reset on a state change, not an external-system sync.
-    // Staged credential inputs are cleared too so one provider's typed key
-    // can never be submitted for a different provider.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    clearStagedSetupState();
-  }, [stagedProvider, refreshSecretStatus, clearStagedSetupState]);
+  const cards = useMemo<ProviderCardState[]>(
+    () => buildProviderCards(providerStates, typedKeys),
+    [providerStates, typedKeys],
+  );
+
+  const setTypedKey = (
+    provider: ProviderId,
+    field: "apiKey" | "provisioningKey",
+    value: string,
+  ): void => {
+    setTypedKeys((current) => ({
+      ...current,
+      [provider]: { ...current[provider], [field]: value },
+    }));
+  };
 
   const handleOutputModeChange = async (mode: CorrectionOutputMode) => {
     if (!window.electronAPI?.setCorrectionOutputMode) {
@@ -203,82 +195,125 @@ export const SettingGeneral: React.FC = () => {
     }
   };
 
-  const handleFetchModels = async () => {
-    if (!window.electronAPI?.fetchProviderModels) {
-      setFetchError(messageLabel("settings.general.models.fetchError"));
+  const reportProvider = (
+    provider: ProviderId,
+    status: StatusDescriptor,
+    isError: boolean,
+  ): void => {
+    setProviderStatus((current) => ({ ...current, [provider]: { status, isError } }));
+  };
+
+  /**
+   * Verify credentials, store them, and install the provider's model list.
+   *
+   * `note` is a SUCCESS-path advisory (Ollama reachable with nothing pulled) —
+   * rendered, but never as an error: the provider really is connected.
+   */
+  const handleConnect = async (provider: ProviderId) => {
+    if (!window.electronAPI?.connectProvider) {
+      reportProvider(
+        provider,
+        wrappedError(messageLabel("models.providerSetup.error.invalidSetup")),
+        true,
+      );
       return;
     }
-    setIsFetching(true);
-    setFetchError(null);
-    setFetchStatus(msg("settings.general.models.fetching"));
+    setBusyProviders((current) => ({ ...current, [provider]: true }));
+    setDisconnectReport(null);
+    setProviderStatus((current) => ({ ...current, [provider]: undefined }));
     try {
-      const result = await window.electronAPI.fetchProviderModels({
-        provider: stagedProvider,
-        modelId: "",
-        apiKey: apiKeyInput || undefined,
-        provisioningKey:
-          stagedProvider === "openrouter" ? provisioningInput || undefined : undefined,
+      const typed = typedKeys[provider];
+      const result = await window.electronAPI.connectProvider({
+        provider,
+        apiKey: typed?.apiKey || undefined,
+        provisioningKey: typed?.provisioningKey || undefined,
       });
-      if (result.success && result.models) {
-        setStagedModels(result.models);
-        setStagedModelId(result.models[0]?.id ?? "");
-        setFetchStatus(
-          result.models.length > 0
-            ? msg("settings.general.models.loaded", { count: result.models.length })
-            : msg("settings.general.models.none"),
-        );
+      if (result.success) {
+        // Typed secrets are dropped as soon as main has them — this component
+        // must never keep a credential around after a successful write.
+        setTypedKeys((current) => ({ ...current, [provider]: {} }));
+        if (result.note) {
+          setProviderStatus((current) => ({
+            ...current,
+            [provider]: { note: result.note, isError: false },
+          }));
+        } else {
+          reportProvider(
+            provider,
+            plainStatus("settings.general.providers.card.connected"),
+            false,
+          );
+        }
+        await refreshProviderStates();
       } else {
-        setStagedModels([]);
-        setStagedModelId("");
-        setFetchStatus(null);
-        // `result.error` is already a `Label` built by main (raw passthrough
-        // for provider/exception text, a catalog descriptor for app-authored
-        // validation copy) — this fallback only covers a missing/malformed field.
-        setFetchError(result.error ?? messageLabel("settings.general.models.fetchError"));
+        reportProvider(
+          provider,
+          wrappedError(result.error ?? messageLabel("models.providerSetup.error.invalidSetup")),
+          true,
+        );
       }
     } catch (error) {
-      setFetchStatus(null);
-      setFetchError(
-        error instanceof Error
-          ? textLabel(error.message)
-          : messageLabel("settings.general.models.fetchError"),
+      console.error("SettingGeneral: Error connecting provider:", error);
+      reportProvider(
+        provider,
+        wrappedError(messageLabel("models.providerSetup.error.invalidSetup")),
+        true,
       );
     } finally {
-      setIsFetching(false);
+      setBusyProviders((current) => ({ ...current, [provider]: false }));
     }
   };
 
-  const handleApply = async () => {
-    if (!stagedModelId || !window.electronAPI?.applyProviderSetup) {
+  const handleDisconnect = async (provider: ProviderId) => {
+    setConfirmDisconnect(null);
+    if (!window.electronAPI?.disconnectProvider) {
+      reportProvider(
+        provider,
+        wrappedError(messageLabel("models.providerSetup.error.invalidSetup")),
+        true,
+      );
       return;
     }
-    setIsApplying(true);
-    setApplyError(null);
-    setApplyStatus(msg("settings.general.apply.applying"));
+    setBusyProviders((current) => ({ ...current, [provider]: true }));
+    setProviderStatus((current) => ({ ...current, [provider]: undefined }));
     try {
-      const result = await window.electronAPI.applyProviderSetup({
-        provider: stagedProvider,
-        modelId: stagedModelId,
-        apiKey: apiKeyInput || undefined,
-        provisioningKey:
-          stagedProvider === "openrouter" ? provisioningInput || undefined : undefined,
-      });
+      const result = await window.electronAPI.disconnectProvider(provider);
       if (result.success) {
-        setApiKeyInput("");
-        setProvisioningInput("");
-        refreshSecretStatus(stagedProvider);
-        setApplyStatus(msg("settings.general.apply.applied"));
+        // The report is built from main's `cleared` record, so it states what
+        // was ACTUALLY reset. The three facts in that record are independent —
+        // `describeDisconnectImpact` keeps them on separate lines so a preset
+        // being cleared never implies the default model was.
+        setDisconnectReport({
+          provider,
+          lines: describeDisconnectImpact(
+            provider,
+            result.cleared ?? { selectedModel: false, presetIds: [], features: [] },
+            // Read BEFORE the refresh below, which zeroes these.
+            {
+              apiKeySet: providerStates[provider]?.apiKeySet ?? false,
+              provisioningKeySet:
+                providerStates[provider]?.provisioningKeySet ?? false,
+            },
+          ),
+        });
+        setTypedKeys((current) => ({ ...current, [provider]: {} }));
+        await refreshProviderStates();
       } else {
-        setApplyStatus(null);
-        setApplyError(result.error ?? messageLabel("settings.general.apply.error"));
+        reportProvider(
+          provider,
+          wrappedError(result.error ?? messageLabel("models.providerSetup.error.invalidSetup")),
+          true,
+        );
       }
     } catch (error) {
-      setApplyStatus(null);
-      setApplyError(
-        error instanceof Error ? textLabel(error.message) : messageLabel("settings.general.apply.error"),
+      console.error("SettingGeneral: Error disconnecting provider:", error);
+      reportProvider(
+        provider,
+        wrappedError(messageLabel("models.providerSetup.error.invalidSetup")),
+        true,
       );
     } finally {
-      setIsApplying(false);
+      setBusyProviders((current) => ({ ...current, [provider]: false }));
     }
   };
 
@@ -302,8 +337,10 @@ export const SettingGeneral: React.FC = () => {
       if (result.success) {
         setResetIsError(false);
         setResetStatus(plainStatus("settings.general.reset.success"));
-        clearStagedSetupState();
-        reloadActiveProvider();
+        setTypedKeys({});
+        setProviderStatus({});
+        setDisconnectReport(null);
+        await refreshProviderStates();
         setTimeout(() => setResetStatus(null), 2500);
       } else {
         setResetIsError(true);
@@ -316,6 +353,207 @@ export const SettingGeneral: React.FC = () => {
       setResetIsError(true);
       setResetStatus(plainStatus("settings.general.reset.error"));
     }
+  };
+
+  const renderProviderCard = (card: ProviderCardState): React.ReactElement => {
+    const { provider } = card;
+    const name = providerName(provider);
+    const typed = typedKeys[provider] ?? {};
+    const busy = busyProviders[provider] === true;
+    const status = providerStatus[provider];
+
+    return (
+      <div key={provider} className="rounded border border-border p-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm font-medium text-card-foreground">{name}</span>
+          <span
+            className={`text-xs ${card.connected ? "text-success" : "text-muted-foreground"}`}
+            role="status"
+          >
+            {card.connected
+              ? t("settings.general.providers.card.connected")
+              : t("settings.general.providers.card.notConnected")}
+          </span>
+        </div>
+
+        {card.connected && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t("settings.general.providers.card.modelCount", {
+              count: card.modelCount,
+            })}
+          </p>
+        )}
+
+        {card.requiresApiKey ? (
+          <div className="mt-2">
+            <label
+              htmlFor={`api-key-${provider}`}
+              className="block text-xs font-medium text-card-foreground mb-1"
+            >
+              {t("settings.general.apiKey.label", { provider: name })}
+            </label>
+            <p
+              className={`text-xs mb-1 ${card.apiKeySet ? "text-success" : "text-muted-foreground"}`}
+              role="status"
+            >
+              {card.apiKeySet
+                ? t("settings.general.secret.set")
+                : t("settings.general.secret.unset")}
+            </p>
+            <input
+              id={`api-key-${provider}`}
+              type="password"
+              autoComplete="off"
+              className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              value={typed.apiKey ?? ""}
+              onChange={(event) => setTypedKey(provider, "apiKey", event.target.value)}
+              placeholder={
+                card.apiKeySet
+                  ? t("settings.general.secret.placeholderReplace")
+                  : t("settings.general.apiKey.placeholderNew", { provider: name })
+              }
+              aria-label={t("settings.general.apiKey.label", { provider: name })}
+            />
+          </div>
+        ) : (
+          <p className="mt-2 text-xs text-muted-foreground">
+            {t("settings.general.providers.ollama.hint")}
+          </p>
+        )}
+
+        {card.supportsProvisioningKey && (
+          <div className="mt-2">
+            <label
+              htmlFor={`provisioning-key-${provider}`}
+              className="block text-xs font-medium text-card-foreground mb-1"
+            >
+              {t("settings.general.provisioningKey.label")}
+            </label>
+            <p
+              className={`text-xs mb-1 ${card.provisioningKeySet ? "text-success" : "text-muted-foreground"}`}
+              role="status"
+            >
+              {card.provisioningKeySet
+                ? t("settings.general.secret.set")
+                : t("settings.general.secret.unset")}
+            </p>
+            <input
+              id={`provisioning-key-${provider}`}
+              type="password"
+              autoComplete="off"
+              className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              value={typed.provisioningKey ?? ""}
+              onChange={(event) =>
+                setTypedKey(provider, "provisioningKey", event.target.value)
+              }
+              placeholder={
+                card.provisioningKeySet
+                  ? t("settings.general.secret.placeholderReplace")
+                  : t("settings.general.provisioningKey.placeholderNew")
+              }
+              aria-label={t("settings.general.provisioningKey.label")}
+            />
+          </div>
+        )}
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void handleConnect(provider)}
+            disabled={busy || !card.canConnect}
+            className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {busy
+              ? t("settings.general.providers.card.testing")
+              : card.connected
+                ? t("settings.general.providers.card.testAndFetch")
+                : t("settings.general.providers.card.connect")}
+          </button>
+          {/* Hidden while its own confirmation is open, so the panel's
+              Disconnect is never one of two identically-named controls. */}
+          {card.connected && confirmDisconnect !== provider && (
+            <button
+              type="button"
+              onClick={() => setConfirmDisconnect(provider)}
+              disabled={busy}
+              className="rounded border border-destructive/50 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 disabled:opacity-50"
+            >
+              {t("settings.general.providers.card.disconnect")}
+            </button>
+          )}
+        </div>
+
+        {/* Inline confirmation — deliberately not a modal. */}
+        {confirmDisconnect === provider && (
+          <div
+            role="alertdialog"
+            aria-labelledby={`disconnect-title-${provider}`}
+            className="mt-2 rounded border border-destructive/50 bg-destructive/10 p-2"
+          >
+            <p
+              id={`disconnect-title-${provider}`}
+              className="text-xs font-semibold text-destructive"
+            >
+              {t("settings.general.providers.disconnect.warning.title", {
+                provider: name,
+              })}
+            </p>
+            {/* Gated on a key actually being ON DISK, not on the provider
+                merely supporting one — Ollama has none, and a key-provider
+                connected without a stored key has none either. */}
+            {(card.apiKeySet || card.provisioningKeySet) && (
+              <p className="mt-1 text-xs text-card-foreground">
+                {t("settings.general.providers.disconnect.warning.key")}
+              </p>
+            )}
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={() => void handleDisconnect(provider)}
+                className="rounded bg-destructive px-3 py-1 text-xs font-semibold text-primary-foreground hover:bg-destructive/90"
+              >
+                {t("settings.general.providers.card.disconnect")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDisconnect(null)}
+                className="rounded border border-border px-3 py-1 text-xs text-card-foreground hover:bg-secondary"
+              >
+                {t("common.cancel")}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* What the completed disconnect actually cleared. */}
+        {disconnectReport?.provider === provider && (
+          <div
+            className="mt-2 rounded border border-border bg-secondary p-2"
+            role="status"
+          >
+            <p className="text-xs font-semibold text-card-foreground">
+              {t("settings.general.providers.disconnect.warning.title", {
+                provider: name,
+              })}
+            </p>
+            {disconnectReport.lines.map((line) => (
+              <p key={line.key} className="mt-1 text-xs text-muted-foreground">
+                {tm(line)}
+              </p>
+            ))}
+          </div>
+        )}
+
+        {status && (
+          <p
+            className={`mt-2 text-xs ${status.isError ? "text-destructive" : "text-success"}`}
+            role={status.isError ? "alert" : "status"}
+          >
+            {status.note ? tl(status.note) : resolveStatus(status.status ?? null)}
+          </p>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -394,183 +632,39 @@ export const SettingGeneral: React.FC = () => {
         )}
       </section>
 
-      {/* Provider selection — the only provider control in the whole app. */}
-      <div className="mb-2">
-        <label
-          htmlFor="provider-select"
-          className="block text-sm font-medium text-card-foreground mb-1"
-        >
-          {t("settings.general.provider.label")}
-        </label>
-        <select
-          id="provider-select"
-          className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          value={stagedProvider}
-          onChange={(event) => setStagedProvider(event.target.value as ProviderId)}
-        >
-          {PROVIDER_IDS.map((provider) => (
-            <option key={provider} value={provider}>
-              {t(PROVIDER_LABEL_KEYS[provider])}
-            </option>
-          ))}
-        </select>
-        <p className="text-xs text-muted-foreground mt-1">
-          {t("settings.general.provider.hint")}
+      {/* Providers — each connects and disconnects on its own. */}
+      <section className="mb-4">
+        <h2 className="text-sm font-medium text-card-foreground">
+          {t("settings.general.providers.title")}
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t("settings.general.providers.description")}
         </p>
-      </div>
+        <div className="mt-3 flex flex-col gap-3">{cards.map(renderProviderCard)}</div>
+      </section>
 
-      {/* Credentials — conditional on the staged provider. */}
-      {stagedProvider !== "ollama" ? (
-        <div className="mb-2">
-          <label
-            htmlFor="staged-api-key-input"
-            className="block text-sm font-medium text-card-foreground mb-1"
-          >
-            {t("settings.general.apiKey.label", {
-              provider: t(PROVIDER_LABEL_KEYS[stagedProvider]),
-            })}
-          </label>
-          <p
-            className={`text-xs mb-1 ${apiKeySet ? "text-success" : "text-muted-foreground"}`}
-            role="status"
-          >
-            {apiKeySet ? t("settings.general.secret.set") : t("settings.general.secret.unset")}
-          </p>
-          <input
-            id="staged-api-key-input"
-            type="password"
-            autoComplete="off"
-            className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            value={apiKeyInput}
-            onChange={(event) => setApiKeyInput(event.target.value)}
-            placeholder={
-              apiKeySet
-                ? t("settings.general.secret.placeholderReplace")
-                : t("settings.general.apiKey.placeholderNew", {
-                    provider: t(PROVIDER_LABEL_KEYS[stagedProvider]),
-                  })
-            }
-            aria-label={t("settings.general.apiKey.label", {
-              provider: t(PROVIDER_LABEL_KEYS[stagedProvider]),
-            })}
-          />
-        </div>
-      ) : (
-        <p className="text-xs text-muted-foreground mb-2">
-          {t("settings.general.apiKey.notRequired")}
-        </p>
-      )}
-
-      {stagedProvider === "openrouter" && (
-        <div className="mb-2">
-          <label
-            htmlFor="staged-provisioning-key-input"
-            className="block text-sm font-medium text-card-foreground mb-1"
-          >
-            {t("settings.general.provisioningKey.label")}
-          </label>
-          <p
-            className={`text-xs mb-1 ${provisioningKeySet ? "text-success" : "text-muted-foreground"}`}
-            role="status"
-          >
-            {provisioningKeySet
-              ? t("settings.general.secret.set")
-              : t("settings.general.secret.unset")}
-          </p>
-          <input
-            id="staged-provisioning-key-input"
-            type="password"
-            autoComplete="off"
-            className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            value={provisioningInput}
-            onChange={(event) => setProvisioningInput(event.target.value)}
-            placeholder={
-              provisioningKeySet
-                ? t("settings.general.secret.placeholderReplace")
-                : t("settings.general.provisioningKey.placeholderNew")
-            }
-            aria-label={t("settings.general.provisioningKey.label")}
-          />
-        </div>
-      )}
-
-      {/* Fetch models for the staged provider. */}
-      <div>
-        <button
-          type="button"
-          onClick={handleFetchModels}
-          disabled={isFetching}
-          className="rounded bg-primary px-3 py-1.5 text-sm text-foreground hover:bg-primary disabled:opacity-50"
-        >
-          {isFetching
-            ? t("settings.general.models.fetching")
-            : t("settings.general.models.fetchButton")}
-        </button>
-        {fetchStatus && (
-          <p className="text-xs mt-1 text-success" role="status">
-            {tm(fetchStatus)}
-          </p>
-        )}
-        {fetchError && (
-          <p className="text-xs mt-1 text-destructive" role="alert">
-            {tl(fetchError)}
-          </p>
-        )}
-      </div>
-
-      {/* Staged default model — required before Apply is enabled. */}
-      <div>
-        <label
-          htmlFor="staged-model-select"
-          className="block text-sm font-medium text-card-foreground mb-1"
-        >
-          {t("settings.general.models.defaultLabel")}
-        </label>
-        <SearchableSelect
-          inputId="staged-model-select"
-          ariaLabel={t("settings.general.models.defaultLabel")}
-          options={stagedModelOptions}
-          value={selectedStagedModelOption}
-          onChange={(option) => setStagedModelId(option?.value ?? "")}
-          isDisabled={stagedModels.length === 0}
-          placeholder={
-            stagedModels.length > 0
-              ? t("settings.general.models.selectPlaceholder")
-              : t("settings.general.models.fetchFirst")
-          }
-          noOptionsMessage={t("models.select.noOptions")}
+      {/*
+        The profile's default model. This is `<ModelSelect>` — the same
+        component the tray, the Models dashboard, the correction presets and
+        PromptGen use — so grouping, the Unavailable option and the inherit
+        option reach every picker at once instead of drifting between two
+        implementations. It owns its own refresh and persistence, which is why
+        there is no fetch button or staged model state here any more.
+      */}
+      <section className="mb-4">
+        <ModelSelect
+          saveOnChange
+          showAdditionalInfo
+          labelKey="settings.general.defaultModel.label"
+          descriptionKey="settings.general.defaultModel.description"
         />
-      </div>
-
-      {/* Apply — commits provider, model, cache, and any typed credentials together. */}
-      <div>
-        <button
-          type="button"
-          onClick={handleApply}
-          disabled={!stagedModelId || isApplying}
-          className="w-full rounded bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-        >
-          {isApplying
-            ? t("settings.general.apply.applying")
-            : t("settings.general.apply.button")}
-        </button>
-        {applyStatus && (
-          <p className="text-xs mt-1 text-success" role="status">
-            {tm(applyStatus)}
-          </p>
-        )}
-        {applyError && (
-          <p className="text-xs mt-1 text-destructive" role="alert">
-            {tl(applyError)}
-          </p>
-        )}
-      </div>
+      </section>
 
       {/* Reset to defaults */}
       <div className="mt-2 border-t border-border pt-4">
         <button
           type="button"
-          onClick={handleResetDefaults}
+          onClick={() => void handleResetDefaults()}
           className="w-full rounded border border-destructive/50 px-4 py-2 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 focus:outline-none focus:ring-2 focus:ring-destructive"
         >
           {t("settings.general.reset.button")}

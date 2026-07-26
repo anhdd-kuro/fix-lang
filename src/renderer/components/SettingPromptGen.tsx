@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { DEFAULT_OPENAI_MODEL } from "~/const";
 import { messageLabel } from "~/shared/i18n/message";
 import { HotkeyInput } from "./HotkeyInput";
 import { ModelSelect } from "./ModelSelect";
@@ -17,7 +16,9 @@ const defaultSettings = {
   batchCount: 5,
   nsfw: true,
   context: "",
-  model: DEFAULT_OPENAI_MODEL,
+  // Inherit sentinel — PromptGen falls back to the profile default
+  // instead of pinning a hardcoded OpenAI id that may not be connected.
+  model: "",
   autoCopy: false,
 };
 

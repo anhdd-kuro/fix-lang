@@ -1,33 +1,44 @@
+import { format as formatDateFns } from "date-fns";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { components as reactSelectComponents } from "react-select";
 import { twJoin } from "tailwind-merge";
-import { DEFAULT_OPENAI_MODEL, resolveDefaultOpenAIModel } from "~/const";
 import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
-import { buildModelOptionLabel } from "./modelOptionLabel";
+// A VALUE import, and deliberately from `~/shared/providers` — importing it
+// from `~/stores/apiStore`'s re-export shim would pull `electron-store` into
+// the renderer bundle (finding F9). `bun run test` would not catch that;
+// `bun run build` would.
+import { isProviderId } from "~/shared/providers";
+import {
+  buildModelOptionGroups,
+  findOption,
+  modelOptionText,
+  resolveModelSelectCopy,
+  withInheritOption,
+  withUnavailableOption,
+  type ModelOption,
+  type ModelOptionGroup,
+} from "./modelSelectOptions";
 import { SearchableSelect } from "./SearchableSelect";
 import SettingsButton from "./SettingsIcon";
 import { useI18n } from "../i18n/useI18n";
+import type { GroupBase, GroupHeadingProps } from "react-select";
 import type { TranslationKey } from "~/shared/i18n/keys";
+// Types only — provider *values* are imported from `~/shared/providers`
+// (see `modelSelectOptions.ts`); `~/stores/apiStore` builds an
+// `electron-store` at import and must never enter the renderer bundle (F9).
 import type { Model, ProviderId } from "~/stores/apiStore";
 
-// Define the extended option type for the select component
-type ModelSelectOption = {
-  value: string;
-  label: string;
-  isLocal: boolean;
-  modelSize?: number;
-};
-
-/** Provider brand names are proper nouns (unchanged across locales) but are
- * still routed through `t()`, matching the reference conversion in
- * `SettingGeneral.tsx`. */
-const PROVIDER_LABEL_KEYS: Record<ProviderId, TranslationKey> = {
-  openai: "models.select.provider.openai",
-  openrouter: "models.select.provider.openrouter",
-  ollama: "models.select.provider.ollama",
-};
+/** Stable identity so an errorless fetch does not invalidate the option memo. */
+const NO_PROVIDER_ERRORS: Partial<Record<ProviderId, string>> = Object.freeze({});
 
 /**
- * Shared component for OpenAI model selection with refresh.
+ * Shared model picker. Options are grouped by provider, with the provider
+ * name in the group heading and nowhere else.
+ *
+ * Every model picker in the app is this component — the tray, the Models
+ * dashboard, the correction presets, PromptGen and Settings → General. That
+ * is deliberate: grouping, the "no longer available" option and the inherit
+ * option have to reach every picker at once, or two implementations drift.
  *
  * @param onChange - Callback when model changes
  * @param featureId - Optional feature ID for feature-specific model settings
@@ -44,6 +55,15 @@ export const ModelSelect: React.FC<{
   menuPortal?: boolean;
   compact?: boolean;
   menuMaxHeight?: number;
+  /**
+   * Override the field label. Settings → General is the profile's "Default
+   * model" section rather than a generic "AI Model" picker; every other call
+   * site leaves this alone. The default is pinned by
+   * `resolveModelSelectCopy`'s test.
+   */
+  labelKey?: TranslationKey;
+  /** Override the helper text below the control. Same rationale as `labelKey`. */
+  descriptionKey?: TranslationKey;
 }> = ({
   onChange,
   featureId,
@@ -55,11 +75,26 @@ export const ModelSelect: React.FC<{
   menuPortal = false,
   compact = false,
   menuMaxHeight,
+  labelKey,
+  descriptionKey,
 }) => {
   const { t, tl, formatCurrency, dateFnsLocale } = useI18n();
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("");
-  const [activeProvider, setActiveProvider] = useState<ProviderId | null>(null);
+  /**
+   * The profile-wide default, used only to show *which* model the inherit row
+   * currently resolves to. Never the control's own value.
+   */
+  const [globalDefaultModel, setGlobalDefaultModel] = useState<string>("");
+  /**
+   * Providers in `enabledProviders`. `undefined` means "not known yet" (or no
+   * bridge), which renders every provider rather than an empty picker.
+   */
+  const [connectedProviders, setConnectedProviders] = useState<
+    ProviderId[] | undefined
+  >(undefined);
+  const [providerErrors, setProviderErrors] =
+    useState<Partial<Record<ProviderId, string>>>(NO_PROVIDER_ERRORS);
   // Store the currently saved feature-specific model to detect changes and enable reset
   const [savedFeatureModel, setSavedFeatureModel] = useState<string>("");
   const [modelsLoading, setModelsLoading] = useState<boolean>(false);
@@ -70,6 +105,14 @@ export const ModelSelect: React.FC<{
   const containerRef = useRef<HTMLDivElement>(null);
   const [menuWidth, setMenuWidth] = useState<number | undefined>(undefined);
 
+  const copy = resolveModelSelectCopy({ labelKey, descriptionKey, useFeatureModel });
+
+  /**
+   * Only a picker that can *inherit* gets the inherit row. The global default
+   * picker cannot inherit from itself, so offering it there would let a user
+   * store "use the default" as the default.
+   */
+  const offersInherit = selectedModelId !== undefined || useFeatureModel;
 
   useEffect(() => {
     if (!menuPortal || !containerRef.current) {
@@ -99,6 +142,10 @@ export const ModelSelect: React.FC<{
   // (raw `textLabel` passthrough for provider/exception text, `messageLabel`
   // for app-authored validation copy) — the catalog fallback below only
   // covers a missing/malformed `error` field.
+  //
+  // `result.errors` is per provider and must be read separately: a successful
+  // call with a populated `errors` map means SOME group is stale, not that
+  // everything refreshed.
   const fetchModels = useCallback(async (refetch = false) => {
     setModelsLoading(true);
     setModelsError(null);
@@ -111,6 +158,7 @@ export const ModelSelect: React.FC<{
       const result = await window.electronAPI.fetchAIModels(refetch);
       if (result.success && result.models) {
         setModels(result.models);
+        setProviderErrors(result.errors ?? NO_PROVIDER_ERRORS);
       } else {
         setModelsError(result.error ?? messageLabel("models.select.error.fetchFailed"));
       }
@@ -125,36 +173,49 @@ export const ModelSelect: React.FC<{
     }
   }, []);
 
-  const loadActiveProvider = useCallback(async () => {
+  /**
+   * Which providers are connected, in one round-trip. Replaces the old
+   * single-active-provider badge: there is no single active provider now,
+   * every connected one serves models at once.
+   */
+  const loadProviderStates = useCallback(async () => {
     try {
-      const provider = await window.electronAPI?.getActiveProvider?.();
-      if (provider) setActiveProvider(provider);
+      const states = await window.electronAPI?.getProviderStates?.();
+      if (!states) return;
+      // Filtered through the real guard rather than cast: these keys come
+      // from main's response, and an unrecognized one would otherwise be
+      // handed to `PROVIDER_LABEL_KEYS` as if it were a provider id.
+      setConnectedProviders(
+        Object.keys(states)
+          .filter(isProviderId)
+          .filter((provider) => states[provider].connected),
+      );
     } catch (err) {
-      console.error("ModelSelect: Error loading active provider:", err);
+      console.error("ModelSelect: Error loading provider states:", err);
     }
   }, []);
 
   const loadModelSetting = useCallback(async () => {
     try {
+      const globalDefault =
+        (await window.electronAPI?.getSelectedModel?.()) || "";
+      setGlobalDefaultModel(globalDefault);
+
+      // Parent-controlled (a preset): the parent owns the value, we only
+      // needed the global default above to describe what inherit means.
+      if (selectedModelId !== undefined) return;
+
       if (useFeatureModel && featureId && window.electronAPI?.getFeatureModel) {
-        // Get feature-specific model if this is a feature model selector
-        const featureModel =
-          await window.electronAPI.getFeatureModel(featureId);
-        if (featureModel) {
-          setSelectedModel(featureModel);
-          setSavedFeatureModel(featureModel);
-        }
-      } else if (window.electronAPI?.getSelectedModel) {
-        // Otherwise get the default model
-        const defaultModel = await window.electronAPI.getSelectedModel();
-        if (defaultModel) {
-          setSelectedModel(defaultModel);
-        }
+        const featureModel = await window.electronAPI.getFeatureModel(featureId);
+        setSelectedModel(featureModel || "");
+        setSavedFeatureModel(featureModel || "");
+        return;
       }
+      setSelectedModel(globalDefault);
     } catch (err) {
       console.error("Error loading model settings:", err);
     }
-  }, [featureId, useFeatureModel]);
+  }, [featureId, useFeatureModel, selectedModelId]);
 
   const handleModelChange = async (value: string) => {
     setSelectedModel(value);
@@ -186,87 +247,65 @@ export const ModelSelect: React.FC<{
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchModels();
-    loadActiveProvider();
-    if (selectedModelId) {
-      setSelectedModel(selectedModelId);
-      return;
-    }
-
+    loadProviderStates();
     loadModelSetting();
-  }, [
-    featureId,
-    useFeatureModel,
-    fetchModels,
-    loadActiveProvider,
-    loadModelSetting,
-    selectedModelId,
-  ]);
+  }, [fetchModels, loadProviderStates, loadModelSetting]);
 
-  // Cross-window sync: a provider/model change applied from any window (Main,
-  // Tray, PromptGen, …) broadcasts 'settings-updated'. Refetch models and the
-  // active-provider label here so every ModelSelect instance reflects the
-  // switch immediately, without a manual remount.
+  // Cross-window sync: a connect/disconnect/model change applied from any
+  // window (Main, Tray, PromptGen, …) broadcasts 'settings-updated'. Refetch
+  // models and provider states here so every ModelSelect instance reflects
+  // the change immediately, without a manual remount.
   useEffect(() => {
     const off = window.electronAPI?.onSettingsUpdated?.(() => {
       fetchModels(true);
-      loadActiveProvider();
+      loadProviderStates();
+      loadModelSetting();
     });
     return () => off?.();
-  }, [fetchModels, loadActiveProvider]);
+  }, [fetchModels, loadProviderStates, loadModelSetting]);
 
   useEffect(() => {
-    // Controlled by the parent when provided (including the empty "inherit"
-    // sentinel). Empty is then resolved to the dynamic default by the effect
-    // below, so an inheriting preset shows the global model.
+    // Controlled by the parent when provided, INCLUDING the empty "inherit"
+    // sentinel — which `withInheritOption` gives a real `value: ""` option, so
+    // it renders as "Use global default" instead of a blank control.
     if (selectedModelId !== undefined) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedModel(selectedModelId);
     }
   }, [selectedModelId]);
 
-  // Keep the displayed model valid. When the parent does not pin a model
-  // (e.g. the General selector) and the current selection is empty or absent
-  // from the fetched list (stale/unknown id, different provider), fall back to
-  // the dynamic default (latest GPT mini) from the actual fetched list. This
-  // prevents the selector rendering empty while presets still show a model.
-  useEffect(() => {
-    if (selectedModelId || models.length === 0) {
-      return;
-    }
-    const isValid =
-      !!selectedModel && models.some((model) => model.id === selectedModel);
-    if (!isValid) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedModel(resolveDefaultOpenAIModel(models));
-    }
-  }, [models, selectedModel, selectedModelId]);
+  const optionGroups = useMemo<ModelOptionGroup[]>(() => {
+    const grouped = buildModelOptionGroups(models, {
+      showAdditionalInfo,
+      errors: providerErrors,
+      enabledProviders: connectedProviders,
+      t,
+      formatCurrency,
+    });
+    // Unavailable first, then inherit: the unavailable probe must not see the
+    // inherit row (a stored `""` is inherit, never "no longer available").
+    const withUnavailable = withUnavailableOption(grouped, selectedModel, t);
+    return offersInherit
+      ? withInheritOption(withUnavailable, globalDefaultModel)
+      : withUnavailable;
+    // `t` and `formatCurrency` are recreated when the interface locale changes
+    // (see `useI18n`/`I18nProvider`) — omitting them would leave already-built
+    // group headings and price badges in the old language after a switch.
+  }, [
+    models,
+    showAdditionalInfo,
+    providerErrors,
+    connectedProviders,
+    selectedModel,
+    offersInherit,
+    globalDefaultModel,
+    t,
+    formatCurrency,
+  ]);
 
-  const modelOptions = useMemo<ModelSelectOption[]>(
-    () =>
-      models.map((model) => {
-        const isLocalModel = model.local !== undefined;
-        if (!showAdditionalInfo) {
-          return {
-            value: model.id,
-            isLocal: isLocalModel,
-            label: model.id,
-            modelSize: model.local?.size,
-          };
-        }
-
-        return {
-          value: model.id,
-          label: buildModelOptionLabel(model, { t, formatCurrency, dateFnsLocale }),
-          isLocal: isLocalModel,
-          modelSize: model.local?.size,
-        };
-      }),
-    // `t`, `formatCurrency`, and `dateFnsLocale` are all recreated when the
-    // interface locale changes (see `useI18n`/`I18nProvider`) — omitting them
-    // here would leave already-fetched option labels in the old language
-    // after a locale switch.
-    [models, showAdditionalInfo, t, formatCurrency, dateFnsLocale],
-  );
+  const selectedOption = findOption(optionGroups, selectedModel);
+  const hasNoConnectedProviders =
+    connectedProviders !== undefined && connectedProviders.length === 0;
 
   return (
     <div className={compact ? "mb-0" : "mb-4"}>
@@ -275,69 +314,105 @@ export const ModelSelect: React.FC<{
         htmlFor="model-select"
         className="mb-1 flex items-center gap-2 text-sm font-medium text-card-foreground"
       >
-        {t("models.select.label")}
-        {activeProvider && (
-          <span
-            className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-secondary-foreground"
-            title={t("models.select.activeProviderTitle")}
-          >
-            {t(PROVIDER_LABEL_KEYS[activeProvider])}
-          </span>
-        )}
+        {t(copy.labelKey)}
       </label>
       )}
       <div ref={containerRef} className="flex gap-2 items-center">
-        <SearchableSelect<ModelSelectOption>
+        <SearchableSelect<ModelOption>
           id="model-select"
           inputId="model-input"
           className="w-full"
           ariaLabel={t("models.select.ariaLabel")}
-          value={
-            models.length > 0 && selectedModel
-              ? modelOptions.find((option) => option.value === selectedModel) ||
-                null
-              : null
-          }
+          value={selectedOption}
           onChange={(option) => option && handleModelChange(option.value)}
-          options={modelOptions}
+          options={optionGroups}
           isDisabled={modelsLoading || !!modelsError}
-          placeholder={modelsLoading ? t("models.select.loading") : t("models.select.placeholder")}
+          placeholder={
+            modelsLoading
+              ? t("models.select.loading")
+              : hasNoConnectedProviders
+                ? t("models.select.placeholder.noProviders")
+                : t("models.select.placeholder")
+          }
           noOptionsMessage={t("models.select.noOptions")}
           menuPortal={menuPortal}
           menuMaxHeight={menuMaxHeight}
           menuWidth={menuWidth}
           components={{
+            // The provider name lives HERE and only here (D31). An option row
+            // never names its provider — that is what made the old
+            // comma-joined label unreadable once groups existed.
+            GroupHeading: (
+              props: GroupHeadingProps<ModelOption, false, GroupBase<ModelOption>>,
+            ) => {
+              // `GroupBase` only declares `label`/`options`; the per-provider
+              // `error` is ours. Narrowing to the group type we actually build
+              // is safe because `options` is always a `ModelOptionGroup[]`.
+              const group = props.data as ModelOptionGroup;
+              if (!group.label && !group.error) return null;
+              return (
+                <div className="px-3 pt-2 pb-1">
+                  {group.label ? (
+                    <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {group.label}
+                    </span>
+                  ) : null}
+                  {group.error ? (
+                    <span className="block text-[11px] text-destructive" role="alert">
+                      {group.error}
+                    </span>
+                  ) : null}
+                </div>
+              );
+            },
+            // Wraps react-select's own SingleValue so the control keeps its
+            // grid placement and `styles.singleValue`, while the TEXT comes
+            // from `modelOptionText`. Without this, an inherit selection
+            // (`label: ""`) renders as a blank control and an unavailable one
+            // renders as a bare id with no hint that it is gone.
+            SingleValue: (props) => (
+              <reactSelectComponents.SingleValue {...props}>
+                {modelOptionText(props.data, t)}
+              </reactSelectComponents.SingleValue>
+            ),
             Option: ({ data, isFocused, isSelected, innerProps }) => {
-              const { label, isLocal } = data;
-              // CONTRACT (see `modelOptionLabel.ts`): `label` comes from
-              // `buildModelOptionLabel`, whose `models.select.optionLabel.*`
-              // catalog templates are guaranteed — for every locale, by
-              // `modelOptionLabel.test.ts` — to contain exactly two literal
-              // ASCII commas. Do not change this split without updating that
-              // guard test and every catalog template it checks.
-              const parts = label.split(",").map((part) => part.trim());
-              const modelId = parts[0] ?? label;
-              const createdAt = parts[1];
-              const thirdPart = parts[2];
+              const text = modelOptionText(data, t);
 
-              if (!showAdditionalInfo || parts.length === 1) {
+              if (data.isDisabled) {
+                return (
+                  <p
+                    className="px-4 py-1.5 text-xs italic text-muted-foreground"
+                    title={text}
+                    {...innerProps}
+                  >
+                    {text}
+                  </p>
+                );
+              }
+
+              if (!showAdditionalInfo || data.kind !== "model") {
                 return (
                   <p
                     className={twJoin(
                       "px-4 py-1.5 text-foreground cursor-pointer truncate",
-                      isSelected
-                        ? "bg-primary"
-                        : isFocused
-                          ? "bg-secondary"
-                          : "",
+                      isSelected ? "bg-primary" : isFocused ? "bg-secondary" : "",
                     )}
-                    title={label}
+                    title={text}
                     {...innerProps}
                   >
-                    {modelId}
+                    {text}
                   </p>
                 );
               }
+
+              // `date-fns` needs the locale passed explicitly — it does not
+              // read one from the i18n context (see the fixlang-i18n skill).
+              const createdAt =
+                data.createdAt === null
+                  ? null
+                  : formatDateFns(new Date(data.createdAt), "yyyy-MM-dd", {
+                      locale: dateFnsLocale,
+                    });
 
               return (
                 <p
@@ -345,11 +420,11 @@ export const ModelSelect: React.FC<{
                     "flex flex-wrap items-center gap-1.5 px-3 py-1.5 text-foreground cursor-pointer",
                     isSelected ? "bg-primary" : isFocused ? "bg-secondary" : "",
                   )}
-                  title={label}
+                  title={text}
                   {...innerProps}
                 >
                   <span className={twJoin(compact ? "min-w-0 break-all" : "truncate min-w-0")}>
-                    {modelId}
+                    {text}
                   </span>
                   {createdAt ? (
                     <span
@@ -361,29 +436,27 @@ export const ModelSelect: React.FC<{
                       {createdAt}
                     </span>
                   ) : null}
-                  {thirdPart ? (
+                  {data.detail ? (
                     <span
                       className={twJoin(
                         "shrink-0 text-xs text-foreground rounded px-2 py-1",
-                        isLocal
-                          ? isFocused || isSelected
-                            ? "bg-success"
-                            : "bg-success"
+                        data.isLocal
+                          ? "bg-success"
                           : isFocused || isSelected
                             ? "bg-card"
                             : "bg-secondary",
                       )}
                     >
-                      {isLocal ? (
+                      {data.isLocal ? (
                         <>
                           <span
                             className="inline-block w-2 h-2 rounded-full bg-success mr-1"
                             title={t("models.select.localModelTitle")}
                           />
-                          {thirdPart}
+                          {data.detail}
                         </>
                       ) : (
-                        thirdPart
+                        data.detail
                       )}
                     </span>
                   ) : null}
@@ -428,16 +501,13 @@ export const ModelSelect: React.FC<{
             onClick={async () => {
               if (window.electronAPI?.setFeatureModel) {
                 try {
-                  // Set to empty string to use default model
+                  // Empty string is the inherit sentinel — the feature falls
+                  // back to the profile default. It is NOT a model id, so
+                  // there is no hardcoded fallback id to substitute here.
                   await window.electronAPI.setFeatureModel(featureId, "");
                   setSavedFeatureModel("");
-                  // Get the default model to display
-                  const defaultModel =
-                    await window.electronAPI.getSelectedModel();
-                  setSelectedModel(defaultModel || DEFAULT_OPENAI_MODEL);
-
-                  // Notify parent of change
-                  if (onChange) onChange(defaultModel || DEFAULT_OPENAI_MODEL);
+                  setSelectedModel("");
+                  if (onChange) onChange("");
                 } catch (err) {
                   console.error("Error resetting to default model:", err);
                 }
@@ -456,9 +526,7 @@ export const ModelSelect: React.FC<{
       )}
       {!compact && (
       <p className="text-xs text-muted-foreground mt-1">
-        {useFeatureModel
-          ? t("models.select.description.feature")
-          : t("models.select.description.default")}
+        {t(copy.descriptionKey)}
       </p>
       )}
     </div>
