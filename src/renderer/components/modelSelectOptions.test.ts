@@ -12,8 +12,10 @@ import {
   normalizeModelTimestamp,
   PROVIDER_LABEL_KEYS,
   resolveModelSelectCopy,
+  selectedModelOptionText,
   withInheritOption,
   withUnavailableOption,
+  type ModelOption,
   type ModelOptionGroup,
 } from "./modelSelectOptions";
 import { matchesSearch } from "./SearchableSelect";
@@ -344,6 +346,102 @@ describe("normalizeModelTimestamp", () => {
     const byProvider = indexByProvider(groups);
     expect(byProvider.openai?.options[0]?.createdAt).toBe(1_700_000_000_000);
     expect(byProvider.ollama?.options[0]?.createdAt).toBe(1_700_000_000_000);
+  });
+});
+
+describe("selectedModelOptionText — the closed control names the provider", () => {
+  const PICKABLE: Model[] = [
+    cloud("gpt-5-mini", "openai"),
+    cloud("google/gemma-2-9b-it", "openrouter"),
+    local("llama3.2:3b", 3),
+  ];
+  const optionFor = (ref: string): ModelOption =>
+    findOption(build(PICKABLE), ref) ?? never();
+
+  it("prefixes the model id with the SAME label the group heading uses", () => {
+    const option = optionFor("openai::gpt-5-mini");
+
+    expect(selectedModelOptionText(option, t)).toBe("OpenAI · gpt-5-mini");
+    expect(selectedModelOptionText(option, t)).toBe(
+      t("models.select.option.selected", {
+        provider: t(PROVIDER_LABEL_KEYS.openai),
+        model: "gpt-5-mini",
+      }),
+    );
+  });
+
+  it("shows the composite ref's provider, never the raw composite ref itself", () => {
+    expect(selectedModelOptionText(optionFor("openai::gpt-5-mini"), t)).not.toContain(
+      "openai::",
+    );
+  });
+
+  it("uses each provider's own label", () => {
+    expect(selectedModelOptionText(optionFor("openrouter::google/gemma-2-9b-it"), t)).toBe(
+      "OpenRouter · google/gemma-2-9b-it",
+    );
+    expect(selectedModelOptionText(optionFor("ollama::llama3.2:3b"), t)).toBe(
+      "Ollama · llama3.2:3b",
+    );
+  });
+
+  it("leaves the menu rows bare — modelOptionText must NOT gain the prefix", () => {
+    // Kills: "deduplicating" the two functions, which repeats the provider on
+    // every row under a heading that already says it.
+    for (const option of build(PICKABLE).flatMap((group) => group.options)) {
+      expect(modelOptionText(option, t)).toBe(option.modelId);
+      for (const provider of PROVIDER_ORDER) {
+        expect(modelOptionText(option, t)).not.toContain(t(PROVIDER_LABEL_KEYS[provider]));
+      }
+    }
+  });
+
+  it("leaves inherit, unavailable and empty rows verbatim", () => {
+    const inherit = findOption(withInheritOption(build(PICKABLE), ""), "") ?? never();
+    expect(selectedModelOptionText(inherit, t)).toBe(t("models.select.option.inherit"));
+
+    const unavailableGroups = withUnavailableOption(build(PICKABLE), "openai::ghost", t);
+    const unavailable = findOption(unavailableGroups, "openai::ghost") ?? never();
+    expect(selectedModelOptionText(unavailable, t)).toBe(
+      t("models.select.option.unavailable", { model: "ghost" }),
+    );
+
+    const emptyRow =
+      build([cloud("gpt-5-mini", "openai")]).find((group) => group.provider === "ollama")
+        ?.options[0] ?? never();
+    expect(selectedModelOptionText(emptyRow, t)).toBe(
+      t("models.select.group.empty", { provider: t(PROVIDER_LABEL_KEYS.ollama) }),
+    );
+  });
+
+  it("falls back to the bare id for a model option carrying no provider", () => {
+    const bare: ModelOption = {
+      value: "gpt-5-mini",
+      label: "gpt-5-mini",
+      modelId: "gpt-5-mini",
+      provider: null,
+      createdAt: null,
+      detail: "",
+      isLocal: false,
+      isUnavailable: false,
+      isDisabled: false,
+      kind: "model",
+    };
+    // Kills: rendering an empty prefix, or the string "null", as the provider.
+    expect(selectedModelOptionText(bare, t)).toBe("gpt-5-mini");
+  });
+
+  it("takes the separator from the catalog, so Japanese can punctuate its own way", () => {
+    const option = optionFor("openai::gpt-5-mini");
+    expect(selectedModelOptionText(option, tJa)).toBe(
+      tJa("models.select.option.selected", {
+        provider: tJa(PROVIDER_LABEL_KEYS.openai),
+        model: "gpt-5-mini",
+      }),
+    );
+    expect(selectedModelOptionText(option, tJa)).not.toBe(
+      selectedModelOptionText(option, t),
+    );
   });
 });
 

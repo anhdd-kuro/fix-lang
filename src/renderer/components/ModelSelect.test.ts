@@ -6,8 +6,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { messageLabel } from "~/shared/i18n/message";
 import { createTranslator } from "~/shared/i18n/translate";
 import { ModelSelect } from "./ModelSelect";
+import { PROVIDER_LABEL_KEYS } from "./modelSelectOptions";
 import { I18nProvider } from "../i18n/I18nProvider";
 import type { Locale } from "~/shared/i18n/registry";
+import type { ProviderId } from "~/shared/providers";
 
 // Expected copy is derived through the real translator kernel so a catalog
 // reword cannot silently pass.
@@ -238,7 +240,7 @@ describe("ModelSelect", () => {
       );
     });
 
-    it("shows the plain model id for a resolvable selection", async () => {
+    it("resolves a composite ref to its model rather than the inherit row", async () => {
       await mount({ selectedModelId: "openai::gpt-5-mini", persistSelection: false });
 
       expect(container.textContent).toContain("gpt-5-mini");
@@ -292,6 +294,121 @@ describe("ModelSelect", () => {
 
       expect(container.textContent).toContain(
         tEn("models.select.option.unavailable", { model: "gpt-5-mini" }),
+      );
+    });
+
+    const openMenu = async () => {
+      const input = container.querySelector("input");
+      await act(async () => {
+        input?.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+        );
+      });
+      await waitForUi();
+    };
+
+    /** Every menu row is a `<p title>`; the group heading is not. */
+    const menuRowTexts = (): string[] =>
+      [...container.querySelectorAll("p[title]")].map(
+        (row) => row.getAttribute("title") ?? "",
+      );
+
+    const selectedText = (provider: ProviderId, model: string) =>
+      tEn("models.select.option.selected", {
+        provider: tEn(PROVIDER_LABEL_KEYS[provider]),
+        model,
+      });
+
+    it("names the selected model's provider in the closed control", async () => {
+      await mount({ selectedModelId: "openai::gpt-5-mini", persistSelection: false });
+
+      expect(container.textContent).toContain(selectedText("openai", "gpt-5-mini"));
+      // The control must show the provider's label, not the composite ref.
+      expect(container.textContent).not.toContain("openai::gpt-5-mini");
+    });
+
+    it("keeps the provider out of the menu rows, which sit under its heading", async () => {
+      await mount({ selectedModelId: "openai::gpt-5-mini", persistSelection: false });
+      await openMenu();
+
+      const rows = menuRowTexts();
+      expect(rows).toContain("gpt-5-mini");
+      expect(rows).not.toContain(selectedText("openai", "gpt-5-mini"));
+      expect(
+        rows.some((row) => row.includes(tEn("models.select.provider.openai"))),
+      ).toBe(false);
+    });
+
+    it("leaves the inherit control text unprefixed", async () => {
+      await mount({ selectedModelId: "", persistSelection: false });
+
+      expect(container.textContent).toContain(tEn("models.select.option.inherit"));
+      expect(container.textContent).not.toContain(
+        tEn("models.select.provider.openai"),
+      );
+    });
+
+    it("leaves the unavailable control text unprefixed", async () => {
+      await mount({ selectedModelId: "openai::ghost", persistSelection: false });
+
+      expect(container.textContent).toContain(
+        tEn("models.select.option.unavailable", { model: "ghost" }),
+      );
+      expect(container.textContent).not.toContain(
+        tEn("models.select.provider.openai"),
+      );
+    });
+
+    it("names Ollama for a selected local model", async () => {
+      await mount(
+        { selectedModelId: "ollama::llama3.2:3b", persistSelection: false },
+        {
+          models: [MODEL, OLLAMA_MODEL],
+          states: {
+            ...connectedOpenAI,
+            ollama: {
+              connected: true,
+              configured: true,
+              apiKeySet: false,
+              provisioningKeySet: false,
+              modelCount: 1,
+            },
+          },
+        },
+      );
+
+      expect(container.textContent).toContain(selectedText("ollama", "llama3.2:3b"));
+    });
+
+    it("names OpenRouter for a selected OpenRouter model", async () => {
+      const OPENROUTER_MODEL = {
+        ...MODEL,
+        id: "google/gemma-2-9b-it",
+        name: "google/gemma-2-9b-it",
+        provider: "openrouter" as const,
+      };
+      await mount(
+        {
+          selectedModelId: "openrouter::google/gemma-2-9b-it",
+          persistSelection: false,
+        },
+        {
+          models: [OPENROUTER_MODEL],
+          states: {
+            ...connectedOpenAI,
+            openrouter: {
+              connected: true,
+              configured: true,
+              apiKeySet: true,
+              provisioningKeySet: false,
+              modelCount: 1,
+            },
+          },
+        },
+      );
+
+      expect(container.textContent).toContain(
+        selectedText("openrouter", "google/gemma-2-9b-it"),
       );
     });
 

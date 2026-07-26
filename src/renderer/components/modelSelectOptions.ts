@@ -253,6 +253,18 @@ export const modelOptionText = (option: ModelOption, t: Translator): string => {
   }
 };
 
+// Separate from `modelOptionText` on purpose: the menu rows sit under a
+// provider heading already, so only the closed control gets the provider.
+export const selectedModelOptionText = (option: ModelOption, t: Translator): string => {
+  if (option.kind !== "model" || option.provider === null) {
+    return modelOptionText(option, t);
+  }
+  return t("models.select.option.selected", {
+    provider: t(PROVIDER_LABEL_KEYS[option.provider]),
+    model: option.modelId,
+  });
+};
+
 export type ModelSelectCopyKeys = {
   labelKey: TranslationKey;
   descriptionKey: TranslationKey;

@@ -71,6 +71,7 @@
   "models.select.managerUnavailable": "モデル管理はまだ利用できません",
   "models.select.noOptions": "モデルが見つかりません",
   "models.select.option.inherit": "グローバルデフォルトを使用",
+  "models.select.option.selected": "{provider}・{model}",
   "models.select.option.unavailable": "{model} — 利用できなくなりました",
   "models.select.optionLabel.cloud": "{id}, {createdAt}, 100万トークンあたり{price}",
   "models.select.optionLabel.local": "{id}, {createdAt}, {size}",

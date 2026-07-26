@@ -71,6 +71,7 @@
   "models.select.managerUnavailable": "Model management is not available yet",
   "models.select.noOptions": "No models found",
   "models.select.option.inherit": "Use global default",
+  "models.select.option.selected": "{provider} · {model}",
   "models.select.option.unavailable": "{model} — no longer available",
   "models.select.optionLabel.cloud": "{id}, {createdAt}, {price} / 1M tokens",
   "models.select.optionLabel.local": "{id}, {createdAt}, {size}",
