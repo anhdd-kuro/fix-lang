@@ -227,6 +227,9 @@ jobs:
       - name: Build renderer and processes
         run: bun run build
 
+      - name: Check bundle externals
+        run: bun run check:bundle
+
       - name: Build unsigned arm64 DMG
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
@@ -252,6 +255,28 @@ jobs:
           app_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "${mount_path}/FixLang.app/Contents/Info.plist")"
           if [ "${app_version}" != "${package_version}" ]; then
             echo "DMG contains FixLang ${app_version}, expected ${package_version}." >&2
+            exit 1
+          fi
+
+          # build.files excludes node_modules from app.asar on the premise that
+          # electron-vite inlines every runtime dependency into out/ (see
+          # check:bundle above). Assert the packed artifact actually matches
+          # that premise: no node_modules made it in, and the renderer output
+          # (whose absence would ship a white-screen app) did.
+          asar_path="${mount_path}/FixLang.app/Contents/Resources/app.asar"
+          test -s "${asar_path}"
+          # Scoped name, and declared in devDependencies, on purpose. The bare
+          # `asar` bin is only hoisted here transitively via electron-builder;
+          # if that ever stops, `bunx asar` silently fetches the *deprecated*
+          # standalone `asar` package from the registry instead of the
+          # @electron/asar this repo actually pins.
+          asar_entries="$(bunx @electron/asar list "${asar_path}")"
+          if grep -q '/node_modules/' <<< "${asar_entries}"; then
+            echo "app.asar contains node_modules entries; build.files must exclude them." >&2
+            exit 1
+          fi
+          if ! grep -q '^/out/renderer/' <<< "${asar_entries}"; then
+            echo "app.asar is missing out/renderer; the packaged app would show a white screen." >&2
             exit 1
           fi
 

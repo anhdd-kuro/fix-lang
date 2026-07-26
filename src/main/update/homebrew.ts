@@ -35,7 +35,7 @@ const BREW_ENV = Object.freeze({
 });
 
 const BREW_PROBE_TIMEOUT_MS = 90_000;
-/** A ~128 MB DMG on a slow link is minutes, not seconds. */
+/** A ~101.6 MiB DMG on a slow link is minutes, not seconds. */
 const BREW_FETCH_TIMEOUT_MS = 30 * 60_000;
 const BREW_PROBE_MAX_BUFFER = 4 * 1024 * 1024;
 
