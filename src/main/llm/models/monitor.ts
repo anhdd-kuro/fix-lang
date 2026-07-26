@@ -5,7 +5,7 @@
 import { app, BrowserWindow } from "electron";
 import { fetchAvailableModels, getCachedModels } from "~/main/ai.request/shared";
 import { getProfileSetting } from "~/stores/apiStore";
-import { getLocalModels } from "./discover";
+import { probeOllama } from "./discover";
 import type { Model } from "~/stores/apiStore";
 
 // Configuration
@@ -104,13 +104,19 @@ export async function checkForModelChanges(): Promise<void> {
     // The per-profile Ollama slice, not the legacy global `models` key.
     const storedLocalModels = getCachedModels("ollama");
 
-    // Get latest models from Ollama
-    const currentLocalModels = await getLocalModels();
+    // `probeOllama`, not `getLocalModels`: a down daemon also answers `[]`,
+    // which reads as "every local model was removed" and notifies the renderer
+    // of a removal that never happened, once every five minutes.
+    const probe = await probeOllama();
+    if (!probe.reachable) {
+      console.log(`Ollama unreachable, skipping model check: ${probe.error}`);
+      return;
+    }
 
     // Check if models have changed
     const { hasChanges, added, removed } = detectModelChanges(
       storedLocalModels,
-      currentLocalModels
+      probe.models
     );
 
     // Handle changes if any detected

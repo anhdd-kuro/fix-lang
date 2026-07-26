@@ -51,6 +51,7 @@ vi.mock("./shared", () => ({
 // ---------------------------------------------------------------------------
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
+import { DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID } from "~/prompts";
 import {
   getDefaultModelId,
   getProfileSetting,
@@ -177,6 +178,52 @@ describe("fixGrammar — per-preset temperature and maxTokens", () => {
 
     expect(result.promptTokens).toBe(estimateTextTokens("hello world"));
     expect(result.completionTokens).toBe(estimateTextTokens("Fixed text"));
+  });
+});
+
+describe("fixGrammar — prompt-optimization target model id", () => {
+  const PROMPT_OPTIMIZATION_REF = "openrouter::google/gemma-2-9b-it";
+  const PROMPT_OPTIMIZATION_RAW_ID = "google/gemma-2-9b-it";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupMockSettings(
+      makePreset({
+        id: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+        model: PROMPT_OPTIMIZATION_REF,
+      }),
+    );
+  });
+
+  it("names the RAW model id in the user prompt, never the composite ref", async () => {
+    await fixGrammar("draft prompt");
+
+    const { userPrompt } = (makeAIRequest as Mock).mock.calls[0][0];
+    expect(userPrompt).toContain(
+      `- The selected target model ID is: ${PROMPT_OPTIMIZATION_RAW_ID}.`,
+    );
+    expect(userPrompt).not.toContain("openrouter::");
+  });
+
+  it("still routes on the composite ref", async () => {
+    await fixGrammar("draft prompt");
+
+    const { model } = (makeAIRequest as Mock).mock.calls[0][0];
+    expect(model).toBe(PROMPT_OPTIMIZATION_REF);
+  });
+
+  it("names the inherited default's raw id when the preset inherits", async () => {
+    setupMockSettings(
+      makePreset({ id: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID, model: "" }),
+    );
+    (getDefaultModelId as Mock).mockReturnValue("ollama::llama3.2:3b");
+
+    await fixGrammar("draft prompt");
+
+    const { userPrompt, model } = (makeAIRequest as Mock).mock.calls[0][0];
+    expect(userPrompt).toContain("- The selected target model ID is: llama3.2:3b.");
+    expect(userPrompt).not.toContain("ollama::");
+    expect(model).toBe("ollama::llama3.2:3b");
   });
 });
 

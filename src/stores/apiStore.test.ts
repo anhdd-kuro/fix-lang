@@ -45,7 +45,9 @@ import {
   apiStore,
   apiStoreSchema,
   connectProviderToActiveProfile,
+  connectProviderToProfile,
   disconnectProviderFromActiveProfile,
+  disconnectProviderFromProfile,
   getDefaultModelId,
   getProfiles,
   initializeDefaultProfile,
@@ -414,6 +416,51 @@ describe("disconnectProviderFromActiveProfile — clears only that provider's re
     disconnectProviderFromActiveProfile("openai");
 
     expect(profile).toEqual(snapshot);
+  });
+});
+
+describe("the profile-bound variants write to the id they are handed, not the active one", () => {
+  const openAIModel: Model = { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" };
+
+  const seedTwoConnected = (): void => {
+    const connected = () =>
+      buildSettings({ enabledProviders: ["openai"], models: [openAIModel] });
+    seedProfiles(
+      [
+        buildProfile({ id: "profile_1", settings: connected() }),
+        buildProfile({ id: "profile_2", settings: connected() }),
+      ],
+      // The switched-to profile is active; the write must ignore it.
+      "profile_2",
+    );
+  };
+
+  it("disconnects the named profile and leaves the active one alone", () => {
+    seedTwoConnected();
+
+    const result = disconnectProviderFromProfile("profile_1", "openai");
+
+    expect(result?.profile.id).toBe("profile_1");
+    expect(getProfiles()[0].settings.enabledProviders).toEqual([]);
+    expect(getProfiles()[1].settings.enabledProviders).toEqual(["openai"]);
+    expect(getProfiles()[1].settings.models).toEqual([openAIModel]);
+  });
+
+  it("connects the named profile and leaves the active one alone", () => {
+    seedTwoConnected();
+
+    const result = connectProviderToProfile("profile_1", "openrouter", [openRouterModel]);
+
+    expect(result?.id).toBe("profile_1");
+    expect(result?.settings.enabledProviders).toEqual(["openai", "openrouter"]);
+    expect(getProfiles()[1].settings.enabledProviders).toEqual(["openai"]);
+  });
+
+  it("returns null for a profile id that no longer exists", () => {
+    seedTwoConnected();
+
+    expect(disconnectProviderFromProfile("profile_gone", "openai")).toBeNull();
+    expect(connectProviderToProfile("profile_gone", "openai", [])).toBeNull();
   });
 });
 

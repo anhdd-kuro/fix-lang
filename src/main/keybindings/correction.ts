@@ -126,7 +126,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
               promptTokens: result.promptTokens ?? 0,
               completionTokens: result.completionTokens ?? 0,
               provider: result.provider,
-              isLocal: isLocalModelId(servedId),
+              isLocal: isLocalModelId(servedId, result.provider),
             },
             buildPriceMap(getCachedModels()),
           );

@@ -591,15 +591,15 @@ const commitProfileAt = (
 };
 
 /**
- * Connect a provider to the active profile: mark it enabled and replace its model
- * slice. Must NOT touch `selectedModel` or any preset/feature model — a composite
- * ref names its own provider, so connecting one provider never invalidates another's.
+ * Connect a provider to `profileId`: mark it enabled and replace its model slice.
+ * Must NOT touch `selectedModel` or any preset/feature model — a composite ref
+ * names its own provider, so connecting one provider never invalidates another's.
  */
-export const connectProviderToActiveProfile = (
+export const connectProviderToProfile = (
+  profileId: string,
   provider: ProviderId,
   providerModels: Model[],
 ): Profile | null => {
-  const profileId = getCurrentProfileId();
   const profiles = getProfiles();
   const index = profiles.findIndex((profile) => profile.id === profileId);
   if (index === -1) return null;
@@ -628,21 +628,27 @@ export const connectProviderToActiveProfile = (
   });
 };
 
+export const connectProviderToActiveProfile = (
+  provider: ProviderId,
+  providerModels: Model[],
+): Profile | null =>
+  connectProviderToProfile(getCurrentProfileId(), provider, providerModels);
+
 /** True when `ref` explicitly names `provider`. A bare ref never matches. */
 const refBelongsToProvider = (ref: string, provider: ProviderId): boolean =>
   parseModelRef(ref).provider === provider;
 
 /**
- * Disconnect a provider from the active profile: drop it from `enabledProviders`,
- * drop its model slice, and reset every ref that named it to the inherit sentinel.
+ * Disconnect a provider from `profileId`: drop it from `enabledProviders`, drop
+ * its model slice, and reset every ref that named it to the inherit sentinel.
  * Bare (provider-less) refs are deliberately left alone — clearing them would mean
  * guessing ownership from the id shape, which composite refs exist to prevent.
  * Disconnecting an unconnected provider writes nothing.
  */
-export const disconnectProviderFromActiveProfile = (
+export const disconnectProviderFromProfile = (
+  profileId: string,
   provider: ProviderId,
 ): { profile: Profile; cleared: ClearedModelRefs } | null => {
-  const profileId = getCurrentProfileId();
   const profiles = getProfiles();
   const index = profiles.findIndex((profile) => profile.id === profileId);
   if (index === -1) return null;
@@ -707,6 +713,11 @@ export const disconnectProviderFromActiveProfile = (
     },
   };
 };
+
+export const disconnectProviderFromActiveProfile = (
+  provider: ProviderId,
+): { profile: Profile; cleared: ClearedModelRefs } | null =>
+  disconnectProviderFromProfile(getCurrentProfileId(), provider);
 
 /**
  * One-shot driver for `migrateProfileForModelRefs`, gated by `configVersion`.

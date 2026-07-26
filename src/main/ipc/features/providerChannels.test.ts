@@ -17,7 +17,9 @@ const {
   probeOllamaMock,
   getApiKeyMock,
   connectProviderToActiveProfileMock,
+  connectProviderToProfileMock,
   disconnectProviderFromActiveProfileMock,
+  disconnectProviderFromProfileMock,
   getCurrentProfileIdMock,
   getProfileSettingMock,
   updateProfileSettingMock,
@@ -32,7 +34,9 @@ const {
   probeOllamaMock: vi.fn(),
   getApiKeyMock: vi.fn(),
   connectProviderToActiveProfileMock: vi.fn(),
+  connectProviderToProfileMock: vi.fn(),
   disconnectProviderFromActiveProfileMock: vi.fn(),
+  disconnectProviderFromProfileMock: vi.fn(),
   getCurrentProfileIdMock: vi.fn(),
   getProfileSettingMock: vi.fn(),
   updateProfileSettingMock: vi.fn(),
@@ -73,7 +77,9 @@ vi.mock("~/stores/apiKeyStore", () => ({
 }));
 vi.mock("~/stores/apiStore", () => ({
   connectProviderToActiveProfile: connectProviderToActiveProfileMock,
+  connectProviderToProfile: connectProviderToProfileMock,
   disconnectProviderFromActiveProfile: disconnectProviderFromActiveProfileMock,
+  disconnectProviderFromProfile: disconnectProviderFromProfileMock,
   getCurrentProfileId: getCurrentProfileIdMock,
   getDefaultModelId: vi.fn(),
   getProfileSetting: getProfileSettingMock,
@@ -145,7 +151,9 @@ beforeEach(() => {
   probeOllamaMock.mockResolvedValue({ reachable: true, models: [] });
   getApiKeyMock.mockResolvedValue(null);
   connectProviderToActiveProfileMock.mockReturnValue({ id: "profile_1" });
+  connectProviderToProfileMock.mockReturnValue({ id: "profile_1" });
   disconnectProviderFromActiveProfileMock.mockReturnValue(null);
+  disconnectProviderFromProfileMock.mockReturnValue(null);
   getCurrentProfileIdMock.mockReturnValue("profile_1");
   updateProfileSettingMock.mockReturnValue({ success: true });
   getProfileSecretMock.mockResolvedValue(null);
@@ -306,7 +314,7 @@ describe("disconnect-provider", () => {
   };
 
   it("clears the API key and returns `cleared` byte-identical to the store's answer", async () => {
-    disconnectProviderFromActiveProfileMock.mockReturnValue({
+    disconnectProviderFromProfileMock.mockReturnValue({
       profile: { id: "profile_1" },
       cleared: CLEARED,
     });
@@ -319,13 +327,13 @@ describe("disconnect-provider", () => {
     expect(result.success).toBe(true);
     expect(clearProfileSecretMock).toHaveBeenCalledTimes(1);
     expect(clearProfileSecretMock).toHaveBeenCalledWith("profile_1", "openai", "api");
-    expect(disconnectProviderFromActiveProfileMock).toHaveBeenCalledWith("openai");
+    expect(disconnectProviderFromProfileMock).toHaveBeenCalledWith("profile_1", "openai");
     // Identity, not deep equality: the warning renders exactly this object.
     expect(result.cleared).toBe(CLEARED);
   });
 
   it("clears the provisioning key too, for openrouter only", async () => {
-    disconnectProviderFromActiveProfileMock.mockReturnValue({
+    disconnectProviderFromProfileMock.mockReturnValue({
       profile: { id: "profile_1" },
       cleared: CLEARED,
     });
@@ -339,7 +347,7 @@ describe("disconnect-provider", () => {
   });
 
   it("clears nothing for ollama, which has no credential slots", async () => {
-    disconnectProviderFromActiveProfileMock.mockReturnValue({
+    disconnectProviderFromProfileMock.mockReturnValue({
       profile: { id: "profile_1" },
       cleared: { selectedModel: false, presetIds: [], features: [] },
     });
@@ -348,7 +356,7 @@ describe("disconnect-provider", () => {
 
     expect(result.success).toBe(true);
     expect(clearProfileSecretMock).not.toHaveBeenCalled();
-    expect(disconnectProviderFromActiveProfileMock).toHaveBeenCalledWith("ollama");
+    expect(disconnectProviderFromProfileMock).toHaveBeenCalledWith("profile_1", "ollama");
   });
 
   it("rejects an unknown provider without deleting anything", async () => {
@@ -363,7 +371,7 @@ describe("disconnect-provider", () => {
       message: { key: "models.providerSetup.error.invalidSetup" },
     });
     expect(clearProfileSecretMock).not.toHaveBeenCalled();
-    expect(disconnectProviderFromActiveProfileMock).not.toHaveBeenCalled();
+    expect(disconnectProviderFromProfileMock).not.toHaveBeenCalled();
   });
 
   it("returns the SECRET-STRIPPED profile, never the raw one", async () => {
@@ -371,7 +379,7 @@ describe("disconnect-provider", () => {
       id: "profile_1",
       settings: { apiKey: "sk-plaintext-legacy-not-yet-migrated" },
     };
-    disconnectProviderFromActiveProfileMock.mockReturnValue({
+    disconnectProviderFromProfileMock.mockReturnValue({
       profile: rawProfile,
       cleared: CLEARED,
     });
@@ -397,6 +405,7 @@ describe("disconnect-provider", () => {
     expect(result.error).toEqual({ kind: "text", text: "EPERM" });
     // Disconnecting with the key still on disk would make the confirmation
     // copy a lie.
+    expect(disconnectProviderFromProfileMock).not.toHaveBeenCalled();
     expect(disconnectProviderFromActiveProfileMock).not.toHaveBeenCalled();
   });
 
@@ -417,6 +426,75 @@ describe("disconnect-provider", () => {
       ["profile_1", "openrouter", "api"],
       ["profile_1", "openrouter", "provisioning"],
     ]);
+  });
+});
+
+describe("disconnect-provider is bound to the profile whose credentials it cleared", () => {
+  const NOTHING_CLEARED = { selectedModel: false, presetIds: [], features: [] };
+
+  // Two connected profiles behind both store entry points, each faked the way
+  // apiStore.ts implements it: the bound variant writes to the id it is handed,
+  // the active variant re-resolves the current profile at call time.
+  const seedTwoConnectedProfiles = (): Map<string, ProviderId[]> => {
+    const enabled = new Map<string, ProviderId[]>([
+      ["profile_1", ["openai"]],
+      ["profile_2", ["openai"]],
+    ]);
+    const disconnect = (profileId: string, provider: ProviderId) => {
+      const providers = enabled.get(profileId);
+      if (!providers) return null;
+      enabled.set(
+        profileId,
+        providers.filter((entry) => entry !== provider),
+      );
+      return { profile: { id: profileId }, cleared: NOTHING_CLEARED };
+    };
+    disconnectProviderFromProfileMock.mockImplementation(disconnect);
+    disconnectProviderFromActiveProfileMock.mockImplementation((provider: ProviderId) =>
+      disconnect(getCurrentProfileIdMock() as string, provider),
+    );
+    return enabled;
+  };
+
+  // Ctrl+Shift+P landing while the credential delete is still in flight.
+  const switchProfileDuringClear = (onSwitch?: () => void): void => {
+    clearProfileSecretMock.mockImplementation(async () => {
+      onSwitch?.();
+      getCurrentProfileIdMock.mockReturnValue("profile_2");
+      return { success: true };
+    });
+  };
+
+  it("disconnects the originating profile, not the one switched to mid-flight", async () => {
+    const enabled = seedTwoConnectedProfiles();
+    switchProfileDuringClear();
+
+    const result = (await invoke("disconnect-provider", "openai")) as { success: boolean };
+
+    expect(result.success).toBe(true);
+    expect(clearProfileSecretMock).toHaveBeenCalledWith("profile_1", "openai", "api");
+    expect(enabled.get("profile_1")).toEqual([]);
+    // profile_2 nobody disconnected keeps its refs — and its key on disk.
+    expect(enabled.get("profile_2")).toEqual(["openai"]);
+  });
+
+  it("leaves nothing connected with its key already deleted when the store update fails", async () => {
+    const enabled = seedTwoConnectedProfiles();
+    switchProfileDuringClear(() => enabled.delete("profile_1"));
+
+    const result = (await invoke("disconnect-provider", "openai")) as {
+      success: boolean;
+      error?: unknown;
+    };
+
+    expect(result.success).toBe(false);
+    expect(result.error).toEqual({
+      kind: "message",
+      message: { key: "models.providerSetup.error.activeProfileNotFound" },
+    });
+    // The deleted keys were profile_1's, and profile_1 is gone.
+    expect(enabled.has("profile_1")).toBe(false);
+    expect(enabled.get("profile_2")).toEqual(["openai"]);
   });
 });
 

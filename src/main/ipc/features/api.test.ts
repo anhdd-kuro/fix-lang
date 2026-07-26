@@ -39,7 +39,9 @@ vi.mock("~/stores/apiKeyStore", () => ({
 }));
 vi.mock("~/stores/apiStore", () => ({
   connectProviderToActiveProfile: vi.fn(),
+  connectProviderToProfile: vi.fn(),
   disconnectProviderFromActiveProfile: vi.fn(),
+  disconnectProviderFromProfile: vi.fn(),
   getCurrentProfileId: vi.fn(),
   getDefaultModelId: vi.fn(),
   getProfileSetting: vi.fn(),

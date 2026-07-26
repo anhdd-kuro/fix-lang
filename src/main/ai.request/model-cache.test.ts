@@ -4,12 +4,14 @@
  * fetchAvailableModels: fetching with persistCache=false must never write the
  * profile's cached models; fetching with persistCache=true must replace only
  * the fetched provider's entries while preserving other providers' cached
- * models; and an empty fetch result must never clear the existing cache.
+ * models; and an empty fetch result must never clear the existing cache —
+ * except for a reachable Ollama, where empty is the user's own deletion.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-const { openAIModelsListMock, getLocalModelsMock } = vi.hoisted(() => ({
+const { openAIModelsListMock, getLocalModelsMock, probeOllamaMock } = vi.hoisted(() => ({
   openAIModelsListMock: vi.fn(),
   getLocalModelsMock: vi.fn().mockResolvedValue([]),
+  probeOllamaMock: vi.fn().mockResolvedValue({ reachable: true, models: [] }),
 }));
 // Stateful mock of electron-store so seeded profiles/currentProfileId are
 // readable by the real apiStore.ts helpers, and writes are observable.
@@ -64,6 +66,7 @@ vi.mock("~/stores/profileSecretStore", () => ({
 }));
 vi.mock("~/main/llm/models/discover", () => ({
   getLocalModels: getLocalModelsMock,
+  probeOllama: probeOllamaMock,
 }));
 vi.mock("../llm", () => ({
   ollamaClient: { chat: vi.fn() },
@@ -190,6 +193,90 @@ describe("fetchAvailableModels — cache persistence", () => {
     // Empty fetch result must not wipe the previously cached entries.
     expect(currentModels()).toEqual(existing);
   });
+
+  it("does not clear the cache when a cloud fetch fails outright", async () => {
+    const existing: Model[] = [
+      { id: "openai/gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
+    ];
+    seedProfile(existing);
+    openAIModelsListMock.mockRejectedValue(new Error("401 Unauthorized"));
+
+    const result = await fetchAvailableModels("revoked-key", "openai", true);
+
+    expect(result).toEqual(existing);
+    expect(currentModels()).toEqual(existing);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A removed local model must actually leave the cache. `[]` from a REACHABLE
+// Ollama means the user deleted their models; `[]` from a down daemon means
+// nothing at all, and the two must not persist the same way.
+// ---------------------------------------------------------------------------
+
+describe("fetchAvailableModels — an empty Ollama result", () => {
+  const cachedOllama: Model = {
+    id: "llama3.2:3b",
+    name: "llama3.2",
+    created: 2,
+    provider: "ollama",
+    local: { path: "llama3.2:3b" },
+  };
+  const cachedOpenAi: Model = {
+    id: "gpt-4o",
+    name: "gpt-4o",
+    created: 1,
+    provider: "openai",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    apiStore.set("profiles", []);
+    apiStore.set("currentProfileId", "");
+  });
+
+  it("clears the Ollama slice when the daemon is reachable and has nothing pulled", async () => {
+    seedProfile([cachedOpenAi, cachedOllama]);
+    probeOllamaMock.mockResolvedValue({ reachable: true, models: [] });
+
+    const result = await fetchAvailableModels("", "ollama", true);
+
+    expect(result).toEqual([]);
+    // The removed model is gone; the cloud slice is untouched.
+    expect(currentModels()).toEqual([cachedOpenAi]);
+    expect(probeOllamaMock).toHaveBeenCalled();
+  });
+
+  it("leaves the Ollama slice alone when the probe could not reach the daemon", async () => {
+    seedProfile([cachedOpenAi, cachedOllama]);
+    probeOllamaMock.mockResolvedValue({
+      reachable: false,
+      models: [],
+      error: "connect ECONNREFUSED 127.0.0.1:11434",
+    });
+
+    const result = await fetchAvailableModels("", "ollama", true);
+
+    expect(probeOllamaMock).toHaveBeenCalled();
+    expect(result).toEqual([]);
+    expect(currentModels()).toEqual([cachedOpenAi, cachedOllama]);
+  });
+
+  it("still replaces the Ollama slice when the daemon has models", async () => {
+    seedProfile([cachedOpenAi, cachedOllama]);
+    const pulled: Model = {
+      id: "qwen2.5-coder:7b",
+      name: "qwen2.5-coder",
+      created: 3,
+      provider: "ollama",
+      local: { path: "qwen2.5-coder:7b" },
+    };
+    probeOllamaMock.mockResolvedValue({ reachable: true, models: [pulled] });
+
+    await fetchAvailableModels("", "ollama", true);
+
+    expect(currentModels()).toEqual([cachedOpenAi, pulled]);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -256,15 +343,19 @@ describe("fetchModelsForProviders — fan-out across every enabled provider", ()
     fetchMock.mockResolvedValue(
       openRouterPayload([{ id: "anthropic/claude-3.5-sonnet", created: 200 }]),
     );
-    getLocalModelsMock.mockResolvedValue([
-      {
-        id: "llama3.2:3b",
-        name: "llama3.2",
-        // Milliseconds, where the cloud providers use seconds.
-        created: 1_700_000_000_000,
-        local: { path: "/models/llama3.2" },
-      },
-    ]);
+    probeOllamaMock.mockResolvedValue({
+      reachable: true,
+      models: [
+        {
+          id: "llama3.2:3b",
+          name: "llama3.2",
+          // Milliseconds, where the cloud providers use seconds.
+          created: 1_700_000_000_000,
+          provider: "ollama",
+          local: { path: "/models/llama3.2" },
+        },
+      ],
+    });
   });
 
   afterEach(() => {
@@ -374,7 +465,7 @@ describe("fetchModelsForProviders — fan-out across every enabled provider", ()
       true,
     );
 
-    expect(getLocalModelsMock).not.toHaveBeenCalled();
+    expect(probeOllamaMock).not.toHaveBeenCalled();
     expect(result.models).toContainEqual(untouchedOllama);
     expect(currentModels()).toContainEqual(untouchedOllama);
   });

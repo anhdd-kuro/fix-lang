@@ -11,7 +11,7 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
 import { OpenAI } from "openai";
 import { mainT } from "~/main/i18n";
-import { getLocalModels } from "~/main/llm/models/discover";
+import { getLocalModels, probeOllama } from "~/main/llm/models/discover";
 import { showErrorNotification } from "~/main/notifications/error";
 import { parseModelRef, resolveModelRef } from "~/shared/modelRef";
 import {
@@ -162,8 +162,20 @@ export const fetchAvailableModels = async (
   try {
     let models: Model[];
     let liveFetch = true;
+    // Writing `[]` is only safe when discovery REACHED the provider: empty then
+    // means the user removed everything. Every other empty result may be a
+    // failure, and must leave the cached slice alone.
+    let emptyMeansRemoved = false;
     if (provider === "ollama") {
-      models = (await getLocalModels()).map((model) => ({ ...model, provider: "ollama" }));
+      // `probeOllama`, not `getLocalModels`: the latter answers `[]` for both a
+      // down daemon and a daemon with nothing pulled.
+      const probe = await probeOllama();
+      models = probe.models;
+      liveFetch = probe.reachable;
+      emptyMeansRemoved = probe.reachable;
+      if (!probe.reachable) {
+        console.error("Error fetching ollama models:", probe.error);
+      }
     } else if (!apiKey) {
       console.log(`No ${provider} API key provided; using cached models`);
       models = cachedForProvider;
@@ -179,7 +191,7 @@ export const fetchAvailableModels = async (
       lastLiveFetchAt.set(provider, Date.now());
     }
     const sortedModels = sortModels(models);
-    if (persistCache && sortedModels.length > 0) {
+    if (persistCache && (sortedModels.length > 0 || emptyMeansRemoved)) {
       cacheModelsForProvider(provider, sortedModels);
     }
     return sortedModels;

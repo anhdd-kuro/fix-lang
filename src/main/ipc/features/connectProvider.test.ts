@@ -14,7 +14,9 @@ const {
   fetchModelsForProvidersMock,
   probeOllamaMock,
   connectProviderToActiveProfileMock,
+  connectProviderToProfileMock,
   disconnectProviderFromActiveProfileMock,
+  disconnectProviderFromProfileMock,
   getCurrentProfileIdMock,
   getProfileSettingMock,
   updateProfileSettingMock,
@@ -28,7 +30,9 @@ const {
   fetchModelsForProvidersMock: vi.fn(),
   probeOllamaMock: vi.fn(),
   connectProviderToActiveProfileMock: vi.fn(),
+  connectProviderToProfileMock: vi.fn(),
   disconnectProviderFromActiveProfileMock: vi.fn(),
+  disconnectProviderFromProfileMock: vi.fn(),
   getCurrentProfileIdMock: vi.fn(),
   getProfileSettingMock: vi.fn(),
   updateProfileSettingMock: vi.fn(),
@@ -71,7 +75,9 @@ vi.mock("~/stores/apiKeyStore", () => ({
 }));
 vi.mock("~/stores/apiStore", () => ({
   connectProviderToActiveProfile: connectProviderToActiveProfileMock,
+  connectProviderToProfile: connectProviderToProfileMock,
   disconnectProviderFromActiveProfile: disconnectProviderFromActiveProfileMock,
+  disconnectProviderFromProfile: disconnectProviderFromProfileMock,
   getCurrentProfileId: getCurrentProfileIdMock,
   getDefaultModelId: vi.fn(),
   getProfileSetting: getProfileSettingMock,
@@ -135,7 +141,9 @@ beforeEach(() => {
   fetchModelsForProvidersMock.mockResolvedValue({ models: [], errors: {} });
   probeOllamaMock.mockResolvedValue({ reachable: true, models: [] });
   connectProviderToActiveProfileMock.mockReturnValue({ id: "profile_1" });
+  connectProviderToProfileMock.mockReturnValue({ id: "profile_1" });
   disconnectProviderFromActiveProfileMock.mockReturnValue(null);
+  disconnectProviderFromProfileMock.mockReturnValue(null);
   getCurrentProfileIdMock.mockReturnValue("profile_1");
   getProfileSettingMock.mockReturnValue([]);
   updateProfileSettingMock.mockReturnValue({ success: true });
@@ -174,7 +182,7 @@ describe("connect-provider — payload validation", () => {
       message: { key: "models.providerSetup.error.invalidSetup" },
     });
     expect(fetchAvailableModelsMock).not.toHaveBeenCalled();
-    expect(connectProviderToActiveProfileMock).not.toHaveBeenCalled();
+    expect(connectProviderToProfileMock).not.toHaveBeenCalled();
   });
 
   it("rejects a non-object payload", async () => {
@@ -182,7 +190,7 @@ describe("connect-provider — payload validation", () => {
       const result = await connect(payload);
       expect(result.success).toBe(false);
     }
-    expect(connectProviderToActiveProfileMock).not.toHaveBeenCalled();
+    expect(connectProviderToProfileMock).not.toHaveBeenCalled();
   });
 
   it("rejects a provisioning key on a provider that has no provisioning slot", async () => {
@@ -197,7 +205,7 @@ describe("connect-provider — payload validation", () => {
       kind: "message",
       message: { key: "models.providerSetup.error.provisioningKeyOpenRouterOnly" },
     });
-    expect(connectProviderToActiveProfileMock).not.toHaveBeenCalled();
+    expect(connectProviderToProfileMock).not.toHaveBeenCalled();
   });
 
   it("rejects a missing key for a key-requiring provider", async () => {
@@ -214,7 +222,7 @@ describe("connect-provider — payload validation", () => {
       },
     });
     expect(fetchAvailableModelsMock).not.toHaveBeenCalled();
-    expect(connectProviderToActiveProfileMock).not.toHaveBeenCalled();
+    expect(connectProviderToProfileMock).not.toHaveBeenCalled();
   });
 
   it("does NOT require a key for ollama", async () => {
@@ -229,7 +237,7 @@ describe("connect-provider — payload validation", () => {
     expect(getProfileSecretMock).not.toHaveBeenCalled();
     expect(setProfileSecretMock).not.toHaveBeenCalled();
     expect(fetchAvailableModelsMock).not.toHaveBeenCalled();
-    expect(connectProviderToActiveProfileMock).toHaveBeenCalledWith("ollama", [
+    expect(connectProviderToProfileMock).toHaveBeenCalledWith("profile_1", "ollama", [
       { id: "llama3.2:3b", name: "llama3.2", created: 1, provider: "ollama" },
     ]);
   });
@@ -259,7 +267,7 @@ describe("connect-provider — M1: a stale key must fail, not pass via the cache
       false,
       true,
     );
-    expect(connectProviderToActiveProfileMock).not.toHaveBeenCalled();
+    expect(connectProviderToProfileMock).not.toHaveBeenCalled();
     expect(setProfileSecretMock).not.toHaveBeenCalled();
   });
 
@@ -270,7 +278,9 @@ describe("connect-provider — M1: a stale key must fail, not pass via the cache
     const result = await connect({ provider: "openai" });
 
     expect(result.success).toBe(true);
-    expect(connectProviderToActiveProfileMock).toHaveBeenCalledWith("openai", [OPENAI_MODEL]);
+    expect(connectProviderToProfileMock).toHaveBeenCalledWith("profile_1", "openai", [
+      OPENAI_MODEL,
+    ]);
   });
 
   it("stores a newly supplied key only AFTER the live fetch validated it", async () => {
@@ -294,7 +304,65 @@ describe("connect-provider — M1: a stale key must fail, not pass via the cache
 
     expect(result.success).toBe(false);
     expect(setProfileSecretMock).not.toHaveBeenCalled();
-    expect(connectProviderToActiveProfileMock).not.toHaveBeenCalled();
+    expect(connectProviderToProfileMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("connect-provider is bound to the profile whose key it stored", () => {
+  // Two profiles behind both store entry points, each faked the way apiStore.ts
+  // implements it: the bound variant writes to the id it is handed, the active
+  // variant re-resolves the current profile at call time.
+  const seedTwoProfiles = (): Map<string, Model[]> => {
+    const models = new Map<string, Model[]>([
+      ["profile_1", []],
+      ["profile_2", []],
+    ]);
+    const apply = (profileId: string, _provider: string, connected: Model[]) => {
+      if (!models.has(profileId)) return null;
+      models.set(profileId, connected);
+      return { id: profileId };
+    };
+    connectProviderToProfileMock.mockImplementation(apply);
+    connectProviderToActiveProfileMock.mockImplementation(
+      (provider: string, connected: Model[]) =>
+        apply(getCurrentProfileIdMock() as string, provider, connected),
+    );
+    return models;
+  };
+
+  it("connects the originating profile when a hotkey switches profiles during the fetch", async () => {
+    const models = seedTwoProfiles();
+    // Ctrl+Shift+P landing while the model fetch is still in flight.
+    fetchAvailableModelsMock.mockImplementation(async () => {
+      getCurrentProfileIdMock.mockReturnValue("profile_2");
+      return [OPENAI_MODEL];
+    });
+
+    const result = await connect({ provider: "openai", apiKey: "sk-new" });
+
+    expect(result.success).toBe(true);
+    expect(setProfileSecretMock).toHaveBeenCalledWith("profile_1", "openai", "api", "sk-new");
+    expect(models.get("profile_1")).toEqual([OPENAI_MODEL]);
+    // profile_2 never gets a slice it has no key for.
+    expect(models.get("profile_2")).toEqual([]);
+  });
+
+  it("fails without connecting anything when the originating profile is gone", async () => {
+    const models = seedTwoProfiles();
+    fetchAvailableModelsMock.mockImplementation(async () => {
+      models.delete("profile_1");
+      getCurrentProfileIdMock.mockReturnValue("profile_2");
+      return [OPENAI_MODEL];
+    });
+
+    const result = await connect({ provider: "openai", apiKey: "sk-new" });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toEqual({
+      kind: "message",
+      message: { key: "models.providerSetup.error.activeProfileNotFound" },
+    });
+    expect(models.get("profile_2")).toEqual([]);
   });
 });
 
@@ -304,7 +372,7 @@ describe("connect-provider — what crosses back to the renderer", () => {
     // `apiKey`, so the raw profile would hand the renderer a decrypted key.
     getProfileSecretMock.mockResolvedValue("sk-good-key");
     hasProfileSecretMock.mockResolvedValue(true);
-    connectProviderToActiveProfileMock.mockReturnValue(RAW_PROFILE);
+    connectProviderToProfileMock.mockReturnValue(RAW_PROFILE);
 
     const result = await connect({ provider: "openai" });
 
@@ -353,8 +421,10 @@ describe("connect-provider — it never seeds a model", () => {
 
     expect(result.success).toBe(true);
     expect(updateProfileSettingMock).not.toHaveBeenCalled();
-    expect(connectProviderToActiveProfileMock).toHaveBeenCalledTimes(1);
-    expect(connectProviderToActiveProfileMock).toHaveBeenCalledWith("openai", [OPENAI_MODEL]);
+    expect(connectProviderToProfileMock).toHaveBeenCalledTimes(1);
+    expect(connectProviderToProfileMock).toHaveBeenCalledWith("profile_1", "openai", [
+      OPENAI_MODEL,
+    ]);
   });
 
   it("leaves selectedModel untouched when it is currently '' (the inherit sentinel)", async () => {
@@ -379,7 +449,9 @@ describe("connect-provider — it never seeds a model", () => {
 
     expect(result.success).toBe(true);
     expect(updateProfileSettingMock).not.toHaveBeenCalled();
-    expect(connectProviderToActiveProfileMock).toHaveBeenCalledWith("openai", [OPENAI_MODEL]);
+    expect(connectProviderToProfileMock).toHaveBeenCalledWith("profile_1", "openai", [
+      OPENAI_MODEL,
+    ]);
   });
 });
 
@@ -398,7 +470,7 @@ describe("connecting Ollama distinguishes 'down' from 'empty'", () => {
       kind: "message",
       message: { key: "settings.general.providers.ollama.unreachable" },
     });
-    expect(connectProviderToActiveProfileMock).not.toHaveBeenCalled();
+    expect(connectProviderToProfileMock).not.toHaveBeenCalled();
   });
 
   it("SUCCEEDS with a note when the daemon is reachable but has nothing pulled", async () => {
@@ -413,7 +485,7 @@ describe("connecting Ollama distinguishes 'down' from 'empty'", () => {
       kind: "message",
       message: { key: "settings.general.providers.ollama.noModels" },
     });
-    expect(connectProviderToActiveProfileMock).toHaveBeenCalledWith("ollama", []);
+    expect(connectProviderToProfileMock).toHaveBeenCalledWith("profile_1", "ollama", []);
   });
 
   it("carries no note when the daemon is reachable with models", async () => {

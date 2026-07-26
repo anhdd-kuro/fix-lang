@@ -1,8 +1,9 @@
 /**
  * @file monitor.test.ts
  * @description Tests for the background local-model monitor: it must not poll
- * a provider the user has not connected, and must not write the legacy
- * top-level `models` key. Pure unit tests — no Electron, no network.
+ * a provider the user has not connected, must not write the legacy top-level
+ * `models` key, and must not report a removal it cannot verify. Pure unit
+ * tests — no Electron, no network.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 // Mocks must be hoisted above the module under test.
@@ -12,18 +13,22 @@ const {
   getProfileSettingMock,
   fetchAvailableModelsMock,
   getCachedModelsMock,
-  getLocalModelsMock,
+  probeOllamaMock,
+  getAllWindowsMock,
+  sendMock,
 } = vi.hoisted(() => ({
   apiStoreGetMock: vi.fn(),
   apiStoreSetMock: vi.fn(),
   getProfileSettingMock: vi.fn(),
   fetchAvailableModelsMock: vi.fn(),
   getCachedModelsMock: vi.fn(),
-  getLocalModelsMock: vi.fn(),
+  probeOllamaMock: vi.fn(),
+  getAllWindowsMock: vi.fn(),
+  sendMock: vi.fn(),
 }));
 vi.mock("electron", () => ({
   app: { on: vi.fn() },
-  BrowserWindow: { getAllWindows: vi.fn().mockReturnValue([]) },
+  BrowserWindow: { getAllWindows: getAllWindowsMock },
 }));
 vi.mock("~/stores/apiStore", () => ({
   apiStore: { get: apiStoreGetMock, set: apiStoreSetMock },
@@ -33,7 +38,7 @@ vi.mock("~/main/ai.request/shared", () => ({
   fetchAvailableModels: fetchAvailableModelsMock,
   getCachedModels: getCachedModelsMock,
 }));
-vi.mock("./discover", () => ({ getLocalModels: getLocalModelsMock }));
+vi.mock("./discover", () => ({ probeOllama: probeOllamaMock }));
 import { checkForModelChanges } from "./monitor";
 import type { Model } from "~/stores/apiStore";
 
@@ -52,13 +57,18 @@ const enable = (...providers: string[]) => {
   );
 };
 
+/** A daemon that answered, with exactly these models pulled. */
+const pulled = (...models: Model[]) =>
+  probeOllamaMock.mockResolvedValue({ reachable: true, models });
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.spyOn(console, "log").mockImplementation(() => undefined);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   getCachedModelsMock.mockReturnValue([]);
-  getLocalModelsMock.mockResolvedValue([]);
+  pulled();
   fetchAvailableModelsMock.mockResolvedValue([]);
+  getAllWindowsMock.mockReturnValue([{ webContents: { send: sendMock } }]);
   enable("openai", "openrouter", "ollama");
 });
 
@@ -70,7 +80,7 @@ describe("checkForModelChanges — gates on enabledProviders", () => {
 
     await checkForModelChanges();
 
-    expect(getLocalModelsMock).not.toHaveBeenCalled();
+    expect(probeOllamaMock).not.toHaveBeenCalled();
     expect(fetchAvailableModelsMock).not.toHaveBeenCalled();
     expect(apiStoreSetMock).not.toHaveBeenCalled();
   });
@@ -80,7 +90,7 @@ describe("checkForModelChanges — gates on enabledProviders", () => {
 
     await checkForModelChanges();
 
-    expect(getLocalModelsMock).not.toHaveBeenCalled();
+    expect(probeOllamaMock).not.toHaveBeenCalled();
   });
 
   it("polls when Ollama is connected alongside other providers", async () => {
@@ -88,14 +98,14 @@ describe("checkForModelChanges — gates on enabledProviders", () => {
 
     await checkForModelChanges();
 
-    expect(getLocalModelsMock).toHaveBeenCalledTimes(1);
+    expect(probeOllamaMock).toHaveBeenCalledTimes(1);
   });
 
   it("tolerates a missing/garbled enabledProviders without throwing", async () => {
     getProfileSettingMock.mockReturnValue(undefined);
 
     await expect(checkForModelChanges()).resolves.toBeUndefined();
-    expect(getLocalModelsMock).not.toHaveBeenCalled();
+    expect(probeOllamaMock).not.toHaveBeenCalled();
   });
 });
 
@@ -104,7 +114,7 @@ describe("checkForModelChanges — profile cache, not the legacy top-level key",
     // That global key no longer backs anything; writing it clobbers state for
     // every other profile.
     getCachedModelsMock.mockReturnValue([]);
-    getLocalModelsMock.mockResolvedValue([localModel("llama3.2:3b")]);
+    pulled(localModel("llama3.2:3b"));
     fetchAvailableModelsMock.mockResolvedValue([localModel("llama3.2:3b")]);
 
     await checkForModelChanges();
@@ -122,7 +132,7 @@ describe("checkForModelChanges — profile cache, not the legacy top-level key",
 
   it("delegates persistence to fetchAvailableModels with persistCache true", async () => {
     // The only writer that keeps the other providers' slices intact.
-    getLocalModelsMock.mockResolvedValue([localModel("llama3.2:3b")]);
+    pulled(localModel("llama3.2:3b"));
 
     await checkForModelChanges();
 
@@ -132,7 +142,7 @@ describe("checkForModelChanges — profile cache, not the legacy top-level key",
   it("compares against the cached Ollama slice, not the whole cache", async () => {
     // A cloud model in the cache must not read as a "removed" local model.
     getCachedModelsMock.mockReturnValue([localModel("llama3.2:3b")]);
-    getLocalModelsMock.mockResolvedValue([localModel("llama3.2:3b")]);
+    pulled(localModel("llama3.2:3b"));
 
     await checkForModelChanges();
 
@@ -143,7 +153,7 @@ describe("checkForModelChanges — profile cache, not the legacy top-level key",
 
   it("refetches when a model appears", async () => {
     getCachedModelsMock.mockReturnValue([]);
-    getLocalModelsMock.mockResolvedValue([localModel("llama3.2:3b")]);
+    pulled(localModel("llama3.2:3b"));
 
     await checkForModelChanges();
 
@@ -152,7 +162,7 @@ describe("checkForModelChanges — profile cache, not the legacy top-level key",
 
   it("refetches when a model disappears", async () => {
     getCachedModelsMock.mockReturnValue([localModel("llama3.2:3b")]);
-    getLocalModelsMock.mockResolvedValue([]);
+    pulled();
 
     await checkForModelChanges();
 
@@ -160,8 +170,49 @@ describe("checkForModelChanges — profile cache, not the legacy top-level key",
   });
 
   it("swallows a poll failure instead of rejecting", async () => {
-    getLocalModelsMock.mockRejectedValue(new Error("daemon down"));
+    // `probeOllama` reports failure rather than throwing, but the monitor is
+    // a periodic timer callback — nothing above it catches.
+    probeOllamaMock.mockRejectedValue(new Error("daemon down"));
 
     await expect(checkForModelChanges()).resolves.toBeUndefined();
+  });
+});
+
+describe("checkForModelChanges — an unreachable daemon is not a removal", () => {
+  const cached = [localModel("llama3.2:3b"), localModel("qwen2.5-coder:7b")];
+
+  beforeEach(() => {
+    getCachedModelsMock.mockReturnValue(cached);
+    probeOllamaMock.mockResolvedValue({
+      reachable: false,
+      models: [],
+      error: "connect ECONNREFUSED 127.0.0.1:11434",
+    });
+  });
+
+  it("tells the renderer nothing when the probe could not reach Ollama", async () => {
+    // `[]` from a down daemon looks exactly like "the user deleted everything",
+    // and this fires every five minutes for as long as the daemon is off.
+    await checkForModelChanges();
+
+    expect(sendMock).not.toHaveBeenCalled();
+  });
+
+  it("does not refetch either — there is nothing trustworthy to persist", async () => {
+    await checkForModelChanges();
+
+    expect(fetchAvailableModelsMock).not.toHaveBeenCalled();
+  });
+
+  it("still announces a genuine removal when the daemon answers", async () => {
+    // The positive control: without it, "sends nothing" passes by doing nothing.
+    pulled(localModel("llama3.2:3b"));
+
+    await checkForModelChanges();
+
+    expect(sendMock).toHaveBeenCalledWith("models-updated", {
+      added: 0,
+      removed: 1,
+    });
   });
 });

@@ -30,8 +30,8 @@ import {
   setApiKey,
 } from "~/stores/apiKeyStore";
 import {
-  connectProviderToActiveProfile,
-  disconnectProviderFromActiveProfile,
+  connectProviderToProfile,
+  disconnectProviderFromProfile,
   getCurrentProfileId,
   getDefaultModelId,
   getProfileSetting,
@@ -370,7 +370,9 @@ export const registerApiHandlers = (): void => {
         }
       }
 
-      const profile = connectProviderToActiveProfile(payload.provider, models);
+      // Bound to the captured `profileId`: the profile-switch hotkey can land
+      // during the fetch above, and the key was written to THAT profile.
+      const profile = connectProviderToProfile(profileId, payload.provider, models);
       if (!profile) {
         return {
           success: false,
@@ -419,7 +421,10 @@ export const registerApiHandlers = (): void => {
         return wrapStoreResult(failedClear);
       }
 
-      const outcome = disconnectProviderFromActiveProfile(raw);
+      // Bound to the captured `profileId`: a profile switch during the clear
+      // above must not clear a different profile's model refs. Null therefore
+      // means that profile is gone, and its deleted keys are moot.
+      const outcome = disconnectProviderFromProfile(profileId, raw);
       if (!outcome) {
         return {
           success: false,

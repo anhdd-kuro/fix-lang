@@ -2,7 +2,7 @@ import {
   DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
   DEFAULT_SUMMARIZE_PRESET_ID,
 } from "~/prompts";
-import { parseModelRef } from "~/shared/modelRef";
+import { parseModelRef, stripModelRefPrefix } from "~/shared/modelRef";
 import {
   getDefaultModelId,
   getProfileSetting,
@@ -48,7 +48,7 @@ const getCorrectionPreset = (presetId?: string): CorrectionPreset => {
 const buildCorrectionUserPrompt = (
   text: string,
   preset: CorrectionPreset,
-  model: string,
+  rawTargetModelId: string,
 ): string => {
   if (preset.id !== DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID) {
     if (preset.id !== DEFAULT_SUMMARIZE_PRESET_ID) {
@@ -74,7 +74,7 @@ const buildCorrectionUserPrompt = (
     "Optimize the draft prompt below immediately.",
     "Requirements:",
     "- Treat the selected text as the rough prompt to improve.",
-    `- The selected target model ID is: ${model}.`,
+    `- The selected target model ID is: ${rawTargetModelId}.`,
     "- If the model ID is provider-specific or not listed exactly, infer the closest supported model or tool family from the ID and optimize for that family.",
     "- If the draft already names a target AI tool, use it.",
     "- Otherwise, default to the selected target model above instead of assuming ChatGPT.",
@@ -142,7 +142,11 @@ export const fixGrammar = async (
       // Source-app context goes on the system prompt, not the user prompt:
       // metadata beside the text to transform is easy to mistake for content.
       systemPrompt: withActiveAppContext(preset.systemPrompt, context),
-      userPrompt: buildCorrectionUserPrompt(text, preset, effectiveModel),
+      userPrompt: buildCorrectionUserPrompt(
+        text,
+        preset,
+        stripModelRefPrefix(effectiveModel),
+      ),
       model: effectiveModel,
       temperature: preset.temperature,
       maxTokens: preset.maxTokens,

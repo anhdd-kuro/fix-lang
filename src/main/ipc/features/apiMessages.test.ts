@@ -110,9 +110,13 @@ vi.mock("~/stores/apiKeyStore", () => ({
 }));
 // No hand-rolled isProviderId/isModelForProvider here: api.ts imports those
 // from the unmocked `~/shared/providers`, so the real predicates run.
+// `api.ts` calls the profile-bound variants; both names share one mock so the
+// active-profile wrappers the real module still exports stay exposed too.
 vi.mock("~/stores/apiStore", () => ({
   connectProviderToActiveProfile: connectProviderToActiveProfileMock,
+  connectProviderToProfile: connectProviderToActiveProfileMock,
   disconnectProviderFromActiveProfile: disconnectProviderFromActiveProfileMock,
+  disconnectProviderFromProfile: disconnectProviderFromActiveProfileMock,
   getCurrentProfileId: getCurrentProfileIdMock,
   getDefaultModelId: vi.fn(),
   getProfileSetting: getProfileSettingMock,
