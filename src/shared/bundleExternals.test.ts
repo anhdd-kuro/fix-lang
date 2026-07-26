@@ -374,6 +374,34 @@ describe("scanBundleSource", () => {
     ).toEqual([]);
   });
 
+  it("does not flag the electron/* runtime entry points", () => {
+    // Verified in a real Electron 43 main process launched from a directory
+    // with no node_modules anywhere on its resolution path: `electron`,
+    // `electron/main`, `electron/common`, `electron/renderer` and
+    // `electron/utility` all resolve, because the Electron runtime provides
+    // them itself. Flagging them blocked a release for working code.
+    expect(
+      kinds(
+        [
+          'require("electron/main");',
+          'require("electron/common");',
+          'require("electron/renderer");',
+          'require("electron/utility");',
+          'import { app } from "electron/main";',
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("still flags an electron subpath the runtime does not provide", () => {
+    // Matched exactly, never by root segment: `electron/nope` throws
+    // MODULE_NOT_FOUND in the same runtime, and `electron-store` is an
+    // ordinary npm package that merely starts with the same letters.
+    expect(details('require("electron/nope");')).toEqual(["electron/nope"]);
+    expect(details('require("electron-store");')).toEqual(["electron-store"]);
+    expect(details('require("electron/main/extra");')).toEqual(["electron/main/extra"]);
+  });
+
   it("does not flag relative or absolute specifiers", () => {
     expect(
       kinds(

@@ -139,6 +139,31 @@ const BARE_BUILTIN_SUBPATHS = new Set<string>([
   "util/types",
 ]);
 
+/**
+ * Specifiers the Electron runtime resolves itself, with no `node_modules`
+ * involved. `electron` plus the four process-scoped entry points Electron's own
+ * `electron.d.ts` declares (`declare module 'electron/main'`, …).
+ *
+ * Verified by launching a real Electron 43 main process from a directory with
+ * no `node_modules` anywhere on its resolution path: all five require cleanly,
+ * while `electron/nope` throws MODULE_NOT_FOUND. This is the allowlist case the
+ * file header calls legitimate — "a module provided by the Electron runtime
+ * itself" — so it belongs here rather than in {@link ALLOWLIST}, which exists
+ * to stay empty.
+ *
+ * Matched exactly rather than by root segment, for the same reason
+ * {@link BARE_BUILTIN_SUBPATHS} is: `electron/nope` and `electron/main/extra`
+ * really would try to load from `node_modules`, and a prefix rule would wave
+ * them through.
+ */
+const ELECTRON_RUNTIME_SPECIFIERS = new Set<string>([
+  "electron",
+  "electron/main",
+  "electron/common",
+  "electron/renderer",
+  "electron/utility",
+]);
+
 /** File extensions Node will actually load from `out/`. */
 export const BUNDLE_SCRIPT_EXTENSIONS: readonly string[] = [".cjs", ".js", ".mjs"];
 
@@ -154,7 +179,7 @@ const isRelativeOrAbsolute = (specifier: string): boolean =>
   specifier.startsWith(".") || specifier.startsWith("/");
 
 const isBuiltinOrElectron = (specifier: string): boolean =>
-  specifier === "electron" ||
+  ELECTRON_RUNTIME_SPECIFIERS.has(specifier) ||
   specifier.startsWith("node:") ||
   BARE_BUILTIN_NAMES.has(specifier) ||
   BARE_BUILTIN_SUBPATHS.has(specifier);
