@@ -123,10 +123,15 @@
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "notarize": false,
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "electronLanguages": [
+        "en",
+        "ja"
+      ]
     },
     "dmg": {
       "writeUpdateInfo": false,
+      "format": "ULFO",
       "contents": [
         {
           "x": 130,

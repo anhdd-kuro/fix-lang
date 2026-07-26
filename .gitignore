@@ -14,3 +14,4 @@ tmp
 .superpowers
 # Local Claude permissions contain machine-specific paths and policies.
 .claude/settings.local.json
+.scratch
