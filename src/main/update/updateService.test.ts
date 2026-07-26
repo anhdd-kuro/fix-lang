@@ -499,6 +499,28 @@ describe("checking against Homebrew rather than GitHub", () => {
       }),
     });
     expect(service.getState().availableVersion).toBeUndefined();
+    // Not installable, but readable: the panel offers a link to that exact
+    // release rather than the generic /releases/latest fallback.
+    expect(service.getReleaseUrl()).toBe(
+      "https://github.com/anhdd-kuro/fix-lang/releases/tag/v0.2.0",
+    );
+    // The notes describe the version the message names, so they belong here.
+    expect(service.getState().releaseNotes).toBe(
+      "Improved update reliability.",
+    );
+  });
+
+  it("keeps the release link empty when nothing newer has been published", async () => {
+    const { service } = createService({
+      canInstall: true,
+      installableVersion: "0.1.0",
+      getLatestRelease: () => Promise.resolve(stableRelease("v0.1.0")),
+    });
+
+    await service.checkForUpdates();
+
+    expect(service.getState().message).toBeUndefined();
+    expect(service.getReleaseUrl()).toBeNull();
   });
 
   it("reads the local tap clone first and only refreshes when GitHub is ahead", async () => {
