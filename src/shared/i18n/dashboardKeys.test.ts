@@ -79,7 +79,7 @@ const SPEC_KEYS = [
   "charts.presetShare.tooltip_other",
   "charts.presetShare.empty",
   "charts.correctionsOverTime.title",
-  "charts.correctionsOverTime.dailyTotal",
+  "charts.correctionsOverTime.tooltipTotal",
   "charts.correctionsOverTime.yAxis",
   "charts.correctionsOverTime.empty",
   // models.* (10)

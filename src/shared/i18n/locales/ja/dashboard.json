@@ -1,5 +1,5 @@
 {
-  "charts.correctionsOverTime.dailyTotal": "日次合計",
+  "charts.correctionsOverTime.tooltipTotal": "合計: {count}",
   "charts.correctionsOverTime.empty": "この範囲ではまだ日次の変換がありません。",
   "charts.correctionsOverTime.title": "変換数の推移",
   "charts.correctionsOverTime.yAxis": "変換数",

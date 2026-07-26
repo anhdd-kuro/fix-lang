@@ -1,7 +1,7 @@
 /**
  * @file presetChartView.ts
  * @description PURE view-layer helpers for the Overview preset donut +
- * corrections-over-time combo chart, extracted from `PresetWeightChart.tsx`
+ * corrections-over-time stacked-bar chart, extracted from `PresetWeightChart.tsx`
  * (Chunk 8) so the descriptor logic is unit-testable without a DOM testing
  * library (none is installed).
  */

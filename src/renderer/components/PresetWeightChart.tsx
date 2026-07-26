@@ -1,8 +1,8 @@
 /**
  * @file PresetWeightChart.tsx
  * @description Chart.js preset usage charts for the Overview dashboard:
- * a donut for total share (%) and a combo (stacked bars + line) for counts
- * over time. Presentational — receives pre-aggregated rows + time series.
+ * a donut for total share (%) and stacked bars for counts over time.
+ * Presentational — receives pre-aggregated rows + time series.
  */
 import {
   ArcElement,
@@ -13,9 +13,6 @@ import {
   DoughnutController,
   Legend,
   LinearScale,
-  LineController,
-  LineElement,
-  PointElement,
   Title,
   Tooltip,
   type ChartData,
@@ -24,7 +21,7 @@ import {
   type TooltipItem,
 } from "chart.js";
 import { useEffect, useMemo, useState } from "react";
-import { Chart, Doughnut } from "react-chartjs-2";
+import { Bar, Doughnut } from "react-chartjs-2";
 import { CHART_TITLE_KEYS, donutTooltipMessage, weightPercent } from "./presetChartView";
 import { useI18n } from "../i18n/useI18n";
 import type {
@@ -34,13 +31,10 @@ import type {
 
 ChartJS.register(
   BarController,
-  LineController,
   DoughnutController,
   CategoryScale,
   LinearScale,
   BarElement,
-  LineElement,
-  PointElement,
   ArcElement,
   Title,
   Tooltip,
@@ -72,9 +66,7 @@ const FALLBACK_COLORS = [
 ] as const;
 
 const DONUT_HEIGHT_PX = 280;
-const COMBO_HEIGHT_PX = 280;
-const LINE_COLOR_VAR = "--warning";
-const LINE_FALLBACK = "#f59e0b";
+const OVER_TIME_HEIGHT_PX = 280;
 
 /**
  * Resolve a CSS custom property to a concrete color Chart.js can paint.
@@ -128,12 +120,11 @@ export const PresetWeightChart = ({
   const paletteTick = useThemePaletteTick();
   const { t, tl, tm, formatDate, formatNumber } = useI18n();
 
-  const { donutData, donutOptions, comboData, comboOptions } = useMemo(() => {
+  const { donutData, donutOptions, overTimeData, overTimeOptions } = useMemo(() => {
     const foreground = readCssColor("--foreground", "#18181b");
     const muted = readCssColor("--muted-foreground", "#71717a");
     const border = readCssColor("--border", "#e4e4e7");
     const card = readCssColor("--card", "#ffffff");
-    const lineColor = readCssColor(LINE_COLOR_VAR, LINE_FALLBACK);
 
     const colors = weights.map((_, index) => paletteColor(index, paletteTick));
     const percents = weights.map((row) => weightPercent(row.weight));
@@ -201,39 +192,20 @@ export const PresetWeightChart = ({
 
     const barDatasets: ChartDataset<"bar">[] = overTime.series.map(
       (series, index) => ({
-        type: "bar" as const,
         label: tl(series.presetLabel),
         data: series.counts,
         backgroundColor: paletteColor(index, paletteTick),
         stack: "presets",
         borderRadius: 2,
-        order: 2,
       })
     );
 
-    const lineDataset: ChartDataset<"line"> = {
-      type: "line" as const,
-      label: t("charts.correctionsOverTime.dailyTotal"),
-      data: overTime.totalsByDay,
-      borderColor: lineColor,
-      backgroundColor: lineColor,
-      pointBackgroundColor: card,
-      pointBorderColor: lineColor,
-      pointBorderWidth: 2,
-      borderWidth: 2,
-      pointRadius: 3,
-      pointHoverRadius: 5,
-      tension: 0.25,
-      fill: false,
-      order: 1,
-    };
-
-    const comboChartData: ChartData<"bar" | "line"> = {
+    const overTimeChartData: ChartData<"bar"> = {
       labels: dayLabels,
-      datasets: [...barDatasets, lineDataset],
+      datasets: barDatasets,
     };
 
-    const comboChartOptions: ChartOptions<"bar" | "line"> = {
+    const overTimeChartOptions: ChartOptions<"bar"> = {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
@@ -259,6 +231,17 @@ export const PresetWeightChart = ({
           bodyColor: muted,
           borderColor: border,
           borderWidth: 1,
+          callbacks: {
+            footer: (items: TooltipItem<"bar">[]) => {
+              const total = items.reduce(
+                (sum, item) => sum + (item.parsed.y ?? 0),
+                0
+              );
+              return t("charts.correctionsOverTime.tooltipTotal", {
+                count: total,
+              });
+            },
+          },
         },
       },
       scales: {
@@ -295,8 +278,8 @@ export const PresetWeightChart = ({
     return {
       donutData: doughnutData,
       donutOptions: doughnutOptions,
-      comboData: comboChartData,
-      comboOptions: comboChartOptions,
+      overTimeData: overTimeChartData,
+      overTimeOptions: overTimeChartOptions,
     };
     // `t`/`tl`/`tm`/`formatDate`/`formatNumber` are REQUIRED dependencies
     // here, not an oversight: every label, title, axis title, and tooltip
@@ -335,9 +318,9 @@ export const PresetWeightChart = ({
       <div style={{ height: DONUT_HEIGHT_PX }} className="min-w-0">
         <Doughnut data={donutData} options={donutOptions} />
       </div>
-      <div style={{ height: COMBO_HEIGHT_PX }} className="min-w-0">
+      <div style={{ height: OVER_TIME_HEIGHT_PX }} className="min-w-0">
         {hasActivity ? (
-          <Chart type="bar" data={comboData} options={comboOptions} />
+          <Bar data={overTimeData} options={overTimeOptions} />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             {t("charts.correctionsOverTime.empty")}

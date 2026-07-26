@@ -10,7 +10,7 @@ import { createTranslator } from "~/shared/i18n/translate";
 import { CHART_TITLE_KEYS, donutTooltipMessage, weightPercent } from "./presetChartView";
 
 describe("CHART_TITLE_KEYS", () => {
-  it("maps the donut + combo chart titles to their keys", () => {
+  it("maps the donut + over-time chart titles to their keys", () => {
     expect(CHART_TITLE_KEYS).toEqual({
       presetShare: "charts.presetShare.title",
       correctionsOverTime: "charts.correctionsOverTime.title",

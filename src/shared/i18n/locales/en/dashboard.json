@@ -1,5 +1,5 @@
 {
-  "charts.correctionsOverTime.dailyTotal": "Daily total",
+  "charts.correctionsOverTime.tooltipTotal": "Total: {count}",
   "charts.correctionsOverTime.empty": "No daily transforms in this range yet.",
   "charts.correctionsOverTime.title": "Transforms over time",
   "charts.correctionsOverTime.yAxis": "Transforms",
