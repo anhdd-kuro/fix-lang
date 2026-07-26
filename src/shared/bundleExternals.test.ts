@@ -158,6 +158,29 @@ describe("scanBundleSource", () => {
     expect(details('var r = require;\nr("left-pad");')).toEqual(["left-pad"]);
   });
 
+  it("flags a require aliased by bare reassignment, with no declaration keyword", () => {
+    // Distinct from `var r = require`: this is an assignment expression, not a
+    // variable declaration, and it is the only thing that exercises the
+    // assignment arm of the binding walk. Deleting that arm used to leave the
+    // whole suite green.
+    expect(details('r = require;\nr("left-pad");')).toEqual(["left-pad"]);
+    expect(details('module.exports.x = 1;\nr = require;\nr.resolve("left-pad");')).toEqual([
+      "left-pad",
+    ]);
+  });
+
+  it("flags a createRequire factory aliased by bare reassignment", () => {
+    expect(
+      details(
+        [
+          'cr = require("node:module").createRequire;',
+          "const r = cr(__filename);",
+          'r("left-pad");',
+        ].join("\n"),
+      ),
+    ).toEqual(["left-pad"]);
+  });
+
   it("flags a transitively aliased require identifier", () => {
     expect(details('var r = require;\nvar q = r;\nq("left-pad");')).toEqual([
       "left-pad",
@@ -708,6 +731,7 @@ describe("check-bundle-externals CLI under bun", () => {
         "const r = mk(__filename);\n" +
         'r("left-pad");',
       "main/bracketResolve.cjs": 'require["resolve"]("left-pad");',
+      "main/bareReassign.cjs": 'r = require;\nr("left-pad");',
       "preload/chunks/testChunk.cjs": 'require("left-pad");',
     };
 
