@@ -20,7 +20,7 @@ html[data-theme="night-owl"] {
   --accent-foreground: #d6deeb;
   --destructive: #ef5350;
   --destructive-foreground: #18181b;
-  --border: #213142;
+  --border: #a3a3a3;
   --input: #0d2a43;
   --ring: #122d42;
   --success: #22da6e;
@@ -33,6 +33,6 @@ html[data-theme="night-owl"] {
   --chart-4: #21c7a8;
   --chart-5: #c5e478;
   --overlay-spinner: #395a76;
-  --overlay-spinner-track: #5178a1;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(1, 22, 39, 0.72);
 }

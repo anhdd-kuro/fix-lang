@@ -20,7 +20,7 @@ html[data-theme="brand-shopify-dark"] {
   --accent-foreground: #e3e5e7;
   --destructive: #d82c0d;
   --destructive-foreground: #fafafa;
-  --border: #2a2b2b;
+  --border: #a3a3a3;
   --input: #1c1d1f;
   --ring: #008060;
   --success: #95bf47;
@@ -33,6 +33,6 @@ html[data-theme="brand-shopify-dark"] {
   --chart-4: #47c1bf;
   --chart-5: #b98900;
   --overlay-spinner: #008060;
-  --overlay-spinner-track: #717373;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(11, 12, 13, 0.72);
 }

@@ -20,7 +20,7 @@ html[data-theme="tc-apprentice-default"] {
   --accent-foreground: #bcbcbc;
   --destructive: #af5f5f;
   --destructive-foreground: #e4e4e7;
-  --border: #3b3b3b;
+  --border: #a3a3a3;
   --input: #444444;
   --ring: #5f87af;
   --success: #5f875f;
@@ -33,6 +33,6 @@ html[data-theme="tc-apprentice-default"] {
   --chart-4: #5fafaf;
   --chart-5: #ffffaf;
   --overlay-spinner: #5d87b1;
-  --overlay-spinner-track: #828282;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(38, 38, 38, 0.72);
 }

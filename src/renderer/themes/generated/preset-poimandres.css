@@ -20,7 +20,7 @@ html[data-theme="poimandres"] {
   --accent-foreground: #a6accd;
   --destructive: #d0679d;
   --destructive-foreground: #18181b;
-  --border: #2e323f;
+  --border: #a3a3a3;
   --input: #272b38;
   --ring: #89ddff;
   --success: #5de4c7;
@@ -33,6 +33,6 @@ html[data-theme="poimandres"] {
   --chart-4: #89ddff;
   --chart-5: #fffac2;
   --overlay-spinner: #89ddff;
-  --overlay-spinner-track: #767e9b;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(27, 30, 40, 0.72);
 }

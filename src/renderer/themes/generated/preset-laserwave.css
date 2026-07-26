@@ -20,7 +20,7 @@ html[data-theme="laserwave"] {
   --accent-foreground: #ffffff;
   --destructive: #ff3e7b;
   --destructive-foreground: #e4e4e7;
-  --border: #453f4b;
+  --border: #a3a3a3;
   --input: #3a3242;
   --ring: #eb64b9;
   --success: #74dfc4;
@@ -33,6 +33,6 @@ html[data-theme="laserwave"] {
   --chart-4: #b4dce7;
   --chart-5: #ffe261;
   --overlay-spinner: #eb64b9;
-  --overlay-spinner-track: #82778d;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(39, 33, 46, 0.72);
 }

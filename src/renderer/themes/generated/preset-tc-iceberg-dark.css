@@ -20,7 +20,7 @@ html[data-theme="tc-iceberg-dark"] {
   --accent-foreground: #dddee3;
   --destructive: #e27878;
   --destructive-foreground: #18181b;
-  --border: #2e3039;
+  --border: #a3a3a3;
   --input: #6b7089;
   --ring: #84a0c6;
   --success: #b4be82;
@@ -33,6 +33,6 @@ html[data-theme="tc-iceberg-dark"] {
   --chart-4: #89b8c2;
   --chart-5: #e2a478;
   --overlay-spinner: #84a0c6;
-  --overlay-spinner-track: #6e7388;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(22, 24, 33, 0.72);
 }

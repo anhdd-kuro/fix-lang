@@ -20,7 +20,7 @@ html[data-theme="tc-sonokai-default"] {
   --accent-foreground: #2a2a2c;
   --destructive: #fc5d7c;
   --destructive-foreground: #18181b;
-  --border: #46474d;
+  --border: #a3a3a3;
   --input: #7f8490;
   --ring: #76cce0;
   --success: #9ed072;
@@ -33,6 +33,6 @@ html[data-theme="tc-sonokai-default"] {
   --chart-4: #f39660;
   --chart-5: #e7c664;
   --overlay-spinner: #76cce0;
-  --overlay-spinner-track: #8c8d96;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(44, 46, 52, 0.72);
 }

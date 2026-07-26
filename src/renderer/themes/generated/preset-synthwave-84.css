@@ -20,7 +20,7 @@ html[data-theme="synthwave-84"] {
   --accent-foreground: #ffffff;
   --destructive: #fe4450;
   --destructive-foreground: #e4e4e7;
-  --border: #444152;
+  --border: #a3a3a3;
   --input: #382c4c;
   --ring: #f97e72;
   --success: #72f1b8;
@@ -33,6 +33,6 @@ html[data-theme="synthwave-84"] {
   --chart-4: #03edf9;
   --chart-5: #f3e70f;
   --overlay-spinner: #f97e72;
-  --overlay-spinner-track: #7e7995;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(38, 35, 53, 0.72);
 }

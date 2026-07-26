@@ -20,7 +20,7 @@ html[data-theme="catppuccin-mocha"] {
   --accent-foreground: #cdd6f4;
   --destructive: #f38ba8;
   --destructive-foreground: #18181b;
-  --border: #36374a;
+  --border: #a3a3a3;
   --input: #313244;
   --ring: #cba6f7;
   --success: #a6e3a1;
@@ -33,6 +33,6 @@ html[data-theme="catppuccin-mocha"] {
   --chart-4: #94e2d5;
   --chart-5: #f9e2af;
   --overlay-spinner: #cba6f7;
-  --overlay-spinner-track: #75779a;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(30, 30, 46, 0.72);
 }

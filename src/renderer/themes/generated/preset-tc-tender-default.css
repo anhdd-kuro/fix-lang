@@ -20,7 +20,7 @@ html[data-theme="tc-tender-default"] {
   --accent-foreground: #eeeeee;
   --destructive: #f43753;
   --destructive-foreground: #e4e4e7;
-  --border: #434343;
+  --border: #a3a3a3;
   --input: #1d1d1d;
   --ring: #b3deef;
   --success: #c9d05c;
@@ -33,6 +33,6 @@ html[data-theme="tc-tender-default"] {
   --chart-4: #73cef4;
   --chart-5: #ffc24b;
   --overlay-spinner: #b3deef;
-  --overlay-spinner-track: #808080;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(40, 40, 40, 0.72);
 }

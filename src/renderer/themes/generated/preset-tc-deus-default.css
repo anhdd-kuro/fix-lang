@@ -20,7 +20,7 @@ html[data-theme="tc-deus-default"] {
   --accent-foreground: #eaeaea;
   --destructive: #d54e53;
   --destructive-foreground: #e4e4e7;
-  --border: #474c54;
+  --border: #a3a3a3;
   --input: #666666;
   --ring: #83a598;
   --success: #98c379;
@@ -33,6 +33,6 @@ html[data-theme="tc-deus-default"] {
   --chart-4: #70c0ba;
   --chart-5: #e5c07b;
   --overlay-spinner: #6fb99d;
-  --overlay-spinner-track: #818894;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(44, 50, 59, 0.72);
 }

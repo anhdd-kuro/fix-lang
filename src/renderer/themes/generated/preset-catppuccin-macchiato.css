@@ -20,7 +20,7 @@ html[data-theme="catppuccin-macchiato"] {
   --accent-foreground: #cad3f5;
   --destructive: #ed8796;
   --destructive-foreground: #18181b;
-  --border: #3b3f55;
+  --border: #a3a3a3;
   --input: #363a4f;
   --ring: #c6a0f6;
   --success: #a6da95;
@@ -33,6 +33,6 @@ html[data-theme="catppuccin-macchiato"] {
   --chart-4: #8bd5ca;
   --chart-5: #eed49f;
   --overlay-spinner: #c6a0f6;
-  --overlay-spinner-track: #7b81a4;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(36, 39, 58, 0.72);
 }

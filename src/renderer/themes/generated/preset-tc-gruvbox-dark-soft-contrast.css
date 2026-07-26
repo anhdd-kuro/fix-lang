@@ -20,7 +20,7 @@ html[data-theme="tc-gruvbox-dark-soft-contrast"] {
   --accent-foreground: #352a0e;
   --destructive: #cc241d;
   --destructive-foreground: #fafafa;
-  --border: #4c4842;
+  --border: #a3a3a3;
   --input: #928374;
   --ring: #458588;
   --success: #98971a;
@@ -33,6 +33,6 @@ html[data-theme="tc-gruvbox-dark-soft-contrast"] {
   --chart-4: #689d6a;
   --chart-5: #d79921;
   --overlay-spinner: #43878a;
-  --overlay-spinner-track: #8d867c;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(50, 48, 47, 0.72);
 }

@@ -20,7 +20,7 @@ html[data-theme="one-dark-pro"] {
   --accent-foreground: #abb2bf;
   --destructive: #c24038;
   --destructive-foreground: #fafafa;
-  --border: #3b3f48;
+  --border: #a3a3a3;
   --input: #1d1f23;
   --ring: #4d78cc;
   --success: #8cc265;
@@ -33,6 +33,6 @@ html[data-theme="one-dark-pro"] {
   --chart-4: #42b3c2;
   --chart-5: #d18f52;
   --overlay-spinner: #4d78cc;
-  --overlay-spinner-track: #7d8495;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(40, 44, 52, 0.72);
 }

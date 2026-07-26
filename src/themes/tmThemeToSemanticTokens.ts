@@ -26,6 +26,9 @@ import type { SemanticTokens, TmTheme } from "./tmThemeTypes";
 /** Minimum saturation for a candidate to qualify as an accent/status color. */
 const MIN_ACCENT_SATURATION = 0.18;
 
+/** Fixed light-gray hairline used for every dark theme border. */
+const DARK_THEME_BORDER = "#a3a3a3";
+
 /** Returns the first present, non-empty raw color string for the given keys. */
 const rawPick = (
   colors: Record<string, string>,
@@ -198,9 +201,11 @@ export const tmThemeToSemanticTokens = (theme: TmTheme): SemanticTokens => {
     0.12,
     isDark,
   );
-  // Subtle, neutral hairline derived from foreground — never a raw black/white
-  // overlay. This is the key fix for the harsh borders.
-  const border = blend(background, foreground, isDark ? 0.16 : 0.14);
+  // Dark themes use a fixed light-gray hairline so borders stay visible on
+  // near-black surfaces. Light themes keep a subtle foreground blend.
+  const border = isDark
+    ? DARK_THEME_BORDER
+    : blend(background, foreground, 0.14);
 
   // --- Foreground ramp -----------------------------------------------------
   const cardForeground = composite(
@@ -269,7 +274,7 @@ export const tmThemeToSemanticTokens = (theme: TmTheme): SemanticTokens => {
     "--chart-4": chart4,
     "--chart-5": chart5,
     "--overlay-spinner": primary,
-    "--overlay-spinner-track": border,
+    "--overlay-spinner-track": border, // intentionally coupled to --border
     "--overlay-backdrop": "rgba(0, 0, 0, 0.72)",
   };
 

@@ -20,7 +20,7 @@ html[data-theme="github-dark-high-contrast"] {
   --accent-foreground: #f0f3f6;
   --destructive: #ff6a69;
   --destructive-foreground: #18181b;
-  --border: #2b2c2f;
+  --border: #a3a3a3;
   --input: #161a23;
   --ring: #409eff;
   --success: #26cd4d;
@@ -33,6 +33,6 @@ html[data-theme="github-dark-high-contrast"] {
   --chart-4: #39c5cf;
   --chart-5: #f0b72f;
   --overlay-spinner: #409eff;
-  --overlay-spinner-track: #6f727a;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(10, 12, 16, 0.72);
 }

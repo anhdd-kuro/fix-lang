@@ -20,7 +20,7 @@ html[data-theme="ayu-mirage"] {
   --accent-foreground: #cccac2;
   --destructive: #ff6666;
   --destructive-foreground: #18181b;
-  --border: #3c404a;
+  --border: #a3a3a3;
   --input: #303748;
   --ring: #ffcc66;
   --success: #87d96c;
@@ -33,6 +33,6 @@ html[data-theme="ayu-mirage"] {
   --chart-4: #93e2c8;
   --chart-5: #fcca60;
   --overlay-spinner: #ffcc66;
-  --overlay-spinner-track: #7e8597;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(36, 41, 54, 0.72);
 }

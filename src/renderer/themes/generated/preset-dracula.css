@@ -20,7 +20,7 @@ html[data-theme="dracula"] {
   --accent-foreground: #f8f8f2;
   --destructive: #ff5555;
   --destructive-foreground: #18181b;
-  --border: #454651;
+  --border: #a3a3a3;
   --input: #393c4d;
   --ring: #6272a4;
   --success: #50fa7b;
@@ -33,6 +33,6 @@ html[data-theme="dracula"] {
   --chart-4: #8be9fd;
   --chart-5: #f1fa8c;
   --overlay-spinner: #ff79c6;
-  --overlay-spinner-track: #7f8092;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(40, 42, 54, 0.72);
 }

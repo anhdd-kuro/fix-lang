@@ -20,7 +20,7 @@ html[data-theme="everforest-dark"] {
   --accent-foreground: #d3c6aa;
   --destructive: #e67e80;
   --destructive-foreground: #18181b;
-  --border: #454a4b;
+  --border: #a3a3a3;
   --input: #3a454c;
   --ring: #a7c080;
   --success: #a7c080;
@@ -33,6 +33,6 @@ html[data-theme="everforest-dark"] {
   --chart-4: #83c092;
   --chart-5: #dbbc7f;
   --overlay-spinner: #a7c17f;
-  --overlay-spinner-track: #8b9394;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(45, 53, 59, 0.72);
 }

@@ -20,7 +20,7 @@ html[data-theme="ayu-dark"] {
   --accent-foreground: #bfbdb6;
   --destructive: #d95757;
   --destructive-foreground: #e4e4e7;
-  --border: #282b31;
+  --border: #a3a3a3;
   --input: #1b222f;
   --ring: #e6b450;
   --success: #70bf56;
@@ -33,6 +33,6 @@ html[data-theme="ayu-dark"] {
   --chart-4: #93e2c8;
   --chart-5: #fdb04c;
   --overlay-spinner: #e6b450;
-  --overlay-spinner-track: #687080;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(16, 20, 28, 0.72);
 }

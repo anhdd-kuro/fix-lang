@@ -20,7 +20,7 @@ html[data-theme="tc-zenbones-neobones-dark"] {
   --accent-foreground: #c6d5cf;
   --destructive: #de6e7c;
   --destructive-foreground: #18181b;
-  --border: #283237;
+  --border: #a3a3a3;
   --input: #263945;
   --ring: #8190d4;
   --success: #90ff6b;
@@ -33,6 +33,6 @@ html[data-theme="tc-zenbones-neobones-dark"] {
   --chart-4: #66a5ad;
   --chart-5: #b77e64;
   --overlay-spinner: #8190d4;
-  --overlay-spinner-track: #647d8a;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(15, 25, 31, 0.72);
 }

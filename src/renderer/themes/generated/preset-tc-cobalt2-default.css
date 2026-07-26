@@ -20,7 +20,7 @@ html[data-theme="tc-cobalt2-default"] {
   --accent-foreground: #ffffff;
   --destructive: #ff628c;
   --destructive-foreground: #18181b;
-  --border: #354554;
+  --border: #a3a3a3;
   --input: #0050a4;
   --ring: #0088ff;
   --success: #3ad900;
@@ -33,6 +33,6 @@ html[data-theme="tc-cobalt2-default"] {
   --chart-4: #80fcff;
   --chart-5: #ffc600;
   --overlay-spinner: #0088ff;
-  --overlay-spinner-track: #65839e;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(18, 39, 56, 0.72);
 }

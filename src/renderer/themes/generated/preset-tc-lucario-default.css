@@ -20,7 +20,7 @@ html[data-theme="tc-lucario-default"] {
   --accent-foreground: #f8f8f2;
   --destructive: #e94b35;
   --destructive-foreground: #e4e4e7;
-  --border: #495968;
+  --border: #a3a3a3;
   --input: #404d5b;
   --ring: #5c98cd;
   --success: #199c4b;
@@ -33,6 +33,6 @@ html[data-theme="tc-lucario-default"] {
   --chart-4: #8be0fd;
   --chart-5: #f0cc04;
   --overlay-spinner: #5c98cd;
-  --overlay-spinner-track: #8396a8;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(43, 62, 80, 0.72);
 }

@@ -20,7 +20,7 @@ html[data-theme="tc-catppuccin-frappe"] {
   --accent-foreground: #c6d0f5;
   --destructive: #e78284;
   --destructive-foreground: #18181b;
-  --border: #454a5f;
+  --border: #a3a3a3;
   --input: #626880;
   --ring: #8caaee;
   --success: #a6d189;
@@ -33,6 +33,6 @@ html[data-theme="tc-catppuccin-frappe"] {
   --chart-4: #81c8be;
   --chart-5: #e5c890;
   --overlay-spinner: #8caaee;
-  --overlay-spinner-track: #898faa;
+  --overlay-spinner-track: #a3a3a3;
   --overlay-backdrop: rgba(48, 52, 70, 0.72);
 }
