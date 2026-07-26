@@ -34,7 +34,7 @@ export type UpdateState = Readonly<{
   canInstall?: boolean;
   /**
    * Download progress for the `downloading` phase. Bytes rather than a
-   * percentage so the renderer can show "42 MB of 128 MB" and locale-format
+   * percentage so the renderer can show "35 MB of 102 MB" and locale-format
    * both; `totalBytes` comes from the validated GitHub release asset.
    */
   downloadedBytes?: number;

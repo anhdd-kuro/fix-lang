@@ -1,6 +1,6 @@
 {
   "name": "fix-lang",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Local macOS menu-bar app: AI text correction and writing tools via OpenAI, OpenRouter, or Ollama",
   "author": {
     "name": "Anhdd Kuro",
@@ -17,11 +17,11 @@
     "predev": "bun run build",
     "dev": "electron-vite dev",
     "dev:promptgen": "FIXLANG_FEATURES=promptgen bun run dev",
-    "pack": "rm -rf release && electron-vite build && electron-builder --mac",
-    "pack:mac": "rm -rf release && electron-vite build && electron-builder --mac dir -c.appId=com.fixlang.app.dev -c.productName='FixLang Dev'",
-    "pack:mac:prod": "rm -rf release && electron-vite build && electron-builder --mac dir",
+    "pack": "rm -rf release && electron-vite build && bun run check:bundle && electron-builder --mac",
+    "pack:mac": "rm -rf release && electron-vite build && bun run check:bundle && electron-builder --mac dir -c.appId=com.fixlang.app.dev -c.productName='FixLang Dev'",
+    "pack:mac:prod": "rm -rf release && electron-vite build && bun run check:bundle && electron-builder --mac dir",
     "pack:mac:promptgen": "FIXLANG_FEATURES=promptgen bun run pack:mac",
-    "release:mac": "electron-vite build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --publish never",
+    "release:mac": "electron-vite build && bun run check:bundle && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --publish never",
     "install:applications": "if [ -d \"release/mac-arm64/FixLang.app\" ]; then rm -rf \"/Applications/FixLang.app\" && cp -R \"release/mac-arm64/FixLang.app\" \"/Applications/FixLang.app\"; elif [ -d \"release/mac/FixLang.app\" ]; then rm -rf \"/Applications/FixLang.app\" && cp -R \"release/mac/FixLang.app\" \"/Applications/FixLang.app\"; else echo \"Build output not found. Run bun run pack:mac:prod first.\" && exit 1; fi",
     "pack:install": "bun run pack:mac:prod && bun run install:applications",
     "prebuild": "bun run themes:generate",
@@ -29,6 +29,7 @@
     "build:promptgen": "FIXLANG_FEATURES=promptgen bun run build",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint ./src",
     "i18n:check": "bun run scripts/i18n-check.ts",
+    "check:bundle": "bun run scripts/check-bundle-externals.ts",
     "vitest": "vitest",
     "test": "vitest --watch=false",
     "test:w": "vitest",
@@ -39,6 +40,7 @@
     "themes:download:tm": "bun run scripts/download-themes.ts"
   },
   "devDependencies": {
+    "@electron/asar": "3.4.1",
     "@eslint/js": "10.0.1",
     "@openrouter/ai-sdk-provider": "3.0.0",
     "@tailwindcss/vite": "4.3.3",
@@ -78,19 +80,11 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.20",
-    "@rollup/plugin-commonjs": "29.0.3",
     "@tanstack/react-virtual": "3.14.8",
-    "@types/uuid": "11.0.0",
-    "applescript": "1.0.0",
     "chart.js": "^4.5.1",
-    "clipboardy": "5.3.2",
     "date-fns": "4.4.0",
-    "dotenv": "17.4.2",
-    "electron-squirrel-startup": "1.0.1",
     "electron-store": "11.0.2",
     "fuse.js": "7.5.0",
-    "languagedetect": "2.0.0",
-    "node-mac-permissions": "2.5.0",
     "ollama": "0.6.3",
     "openai": "6.49.0",
     "react": "19.2.8",
@@ -111,7 +105,8 @@
     "files": [
       "out/**/*",
       "resources/**/*",
-      "package.json"
+      "package.json",
+      "!node_modules/**/*"
     ],
     "mac": {
       "target": [
@@ -161,7 +156,6 @@
     "electron",
     "electron-winstaller",
     "esbuild",
-    "node-mac-permissions",
     "unrs-resolver"
   ]
 }

@@ -250,10 +250,19 @@ bun run start          # preview production build
 bun run test           # Vitest once — use `bun run test`, NOT `bun test`
 bun run test:w         # Vitest watch
 bun run lint           # ESLint (cached)
+bun run check:bundle   # after `bun run build` — verify no runtime dep needs node_modules
 bun run themes:generate  # after editing theme .ts files
 ```
 
 > `bun test` invokes bun's own runner and ignores the Vitest config.
+
+> **The packaged app ships no `node_modules`** (`build.files` excludes it — see
+> [Publishing a macOS release](#publishing-a-macos-release)). Every runtime
+> dependency must be inlined by Vite into `out/`. Adding a dependency and
+> importing it passes `bun run dev`, `bun run test`, and `bun run lint`
+> unchanged — the only thing that catches a dependency Vite left external is
+> `bun run check:bundle` against a real `bun run build`. Run it locally after
+> adding or upgrading a runtime dependency; CI also runs it before packaging.
 
 ## Publishing a macOS release
 
@@ -269,6 +278,8 @@ to `main`. For example:
 ```bash
 bun run lint
 bun run test
+bun run build
+bun run check:bundle
 git add package.json bun.lock
 git commit -m "chore(release): bump version to 0.3.0"
 git push origin main
