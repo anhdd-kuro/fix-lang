@@ -108,6 +108,19 @@ const releaseNotesComponents: Components = {
   img: () => null,
 };
 
+/**
+ * GitHub release notes. Shown both for an offered update and for a release
+ * Homebrew has not synced yet — in either case the user is deciding whether
+ * they want that version.
+ */
+const ReleaseNotes = ({ notes }: { notes: string }) => (
+  <div className="mt-1 text-sm text-muted-foreground">
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={releaseNotesComponents}>
+      {notes}
+    </ReactMarkdown>
+  </div>
+);
+
 const initialState: UpdateState = {
   phase: "unsupported",
   currentVersion: "",
@@ -320,22 +333,46 @@ export const SettingUpdates = () => {
           {state.message && (
             <p className="mt-1 text-sm text-muted-foreground">{tm(state.message)}</p>
           )}
-          <button
-            type="button"
-            onClick={() =>
-              void run(
-                () => updateApi().checkForUpdates(),
-                msg("settings.updates.checkFailed"),
-              )
-            }
-            disabled={isBusy}
-            className="mt-2 rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isBusy && (
-              <Spinner className="mr-2 inline size-4 align-[-2px]" />
+          {state.message && state.releaseNotes && (
+            <ReleaseNotes notes={state.releaseNotes} />
+          )}
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                void run(
+                  () => updateApi().checkForUpdates(),
+                  msg("settings.updates.checkFailed"),
+                )
+              }
+              disabled={isBusy}
+              className="rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isBusy && (
+                <Spinner className="mr-2 inline size-4 align-[-2px]" />
+              )}
+              {t("settings.updates.checkButton")}
+            </button>
+            {/* Only alongside the tap-pending notice: main has pointed the
+                release URL at that published tag, and the message itself tells
+                the user the DMG is the way to get it now. Without a message
+                there is nothing newer on GitHub to open. */}
+            {state.message && (
+              <button
+                type="button"
+                onClick={() =>
+                  void run(
+                    () => updateApi().openUpdateRelease(),
+                    msg("settings.updates.openReleaseFailed"),
+                  )
+                }
+                disabled={isBusy}
+                className="rounded border border-border px-3 py-1.5 text-base text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t("settings.updates.downloadButton")}
+              </button>
             )}
-            {t("settings.updates.checkButton")}
-          </button>
+          </div>
         </>
       )}
 
@@ -347,16 +384,7 @@ export const SettingUpdates = () => {
               currentVersion: state.currentVersion,
             })}
           </p>
-          {state.releaseNotes && (
-            <div className="mt-1 text-sm text-muted-foreground">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={releaseNotesComponents}
-              >
-                {state.releaseNotes}
-              </ReactMarkdown>
-            </div>
-          )}
+          {state.releaseNotes && <ReleaseNotes notes={state.releaseNotes} />}
           {state.canInstall ? (
             <p className="mt-1 text-sm text-muted-foreground">
               {t("settings.updates.canInstallDescription")}

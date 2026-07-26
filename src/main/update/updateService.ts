@@ -556,17 +556,27 @@ export const createUpdateService = (
           return;
         }
 
-        releaseUrl = null;
-        availableDmgSize = null;
+        const pendingRelease = newerOnGitHub && release !== null ? release : null;
         // Nothing installable, but a release does exist — say so rather than
-        // claiming the app is current, and never offer a button that cannot
-        // work yet.
+        // claiming the app is current, and never offer an install button that
+        // cannot work yet. The release page still can be opened, so point at
+        // that exact tag rather than at the generic /releases/latest fallback.
+        releaseUrl =
+          pendingRelease === null
+            ? null
+            : `${RELEASES_URL}/tag/v${pendingRelease.version.raw}`;
+        availableDmgSize = null;
         publish({
           phase: "up-to-date",
           currentVersion,
-          ...(newerOnGitHub && release !== null
-            ? { message: tapPendingMessage(release.version.raw) }
-            : {}),
+          // Notes are safe to show here: unlike the size, they describe the
+          // release the message names, not some other version.
+          ...(pendingRelease === null
+            ? {}
+            : {
+                message: tapPendingMessage(pendingRelease.version.raw),
+                releaseNotes: pendingRelease.releaseNotes,
+              }),
         });
       } catch (error) {
         releaseUrl = null;
