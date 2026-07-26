@@ -574,10 +574,14 @@ const consoleIo: BundleCheckIo = {
   },
 };
 
+const describeError = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
 /**
  * Scans every bundle under `outDir` and prints a per-file summary.
- * Returns the process exit code: 0 when clean, 1 when anything was found or
- * when `outDir` holds no bundles at all (a missing build must not pass).
+ * Returns the process exit code: 0 when clean, 1 when anything was found, when
+ * any file could not be scanned, or when `outDir` holds no bundles at all (a
+ * missing build must not pass).
  */
 export const runBundleExternalsCheck = (
   outDir: string,
@@ -596,9 +600,23 @@ export const runBundleExternalsCheck = (
   io.log("=======================");
 
   let total = 0;
+  let unscanned = 0;
   for (const file of files) {
     const relPath = path.relative(process.cwd(), file);
-    const violations = scanBundleSource(readFileSync(file, "utf8"), relPath);
+
+    // Isolated per file, and fail-closed. An unreadable file or bundle content
+    // that overflows the parser's recursive descent would otherwise abort the
+    // whole loop with a native error naming no file at all, leaving whoever
+    // reads the CI log to guess which of the bundles caused it — and leaving
+    // every file after it unscanned without saying so.
+    let violations: BundleViolation[];
+    try {
+      violations = scanBundleSource(readFileSync(file, "utf8"), relPath);
+    } catch (error: unknown) {
+      unscanned += 1;
+      io.error(`  ${relPath.padEnd(40)} could not be scanned: ${describeError(error)}`);
+      continue;
+    }
     total += violations.length;
 
     const status = violations.length === 0 ? "OK" : `${String(violations.length)} violation(s)`;
@@ -611,8 +629,13 @@ export const runBundleExternalsCheck = (
   io.log("");
   if (total > 0) {
     io.log(`${String(total)} total violation(s) found.`);
-    return 1;
   }
+  if (unscanned > 0) {
+    io.error(
+      `${String(unscanned)} file(s) could not be scanned; treating that as a failure.`,
+    );
+  }
+  if (total > 0 || unscanned > 0) return 1;
 
   io.log("No non-allowlisted bare specifiers or non-literal require()/import() calls found.");
   return 0;

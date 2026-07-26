@@ -613,6 +613,31 @@ describe("runBundleExternalsCheck", () => {
     expect(err.join("\n")).toContain("no bundle files found");
   });
 
+  // A recursive-descent parse of 100k nested parentheses overflows the stack
+  // on every runtime this suite runs under. It stands in for the whole class of
+  // per-file scan failure -- an unreadable file, or bundle content that blows
+  // up the parser -- all of which used to abort the loop with a native error
+  // naming no file at all.
+  const unparseable = `var x = ${"(".repeat(100_000)}1${")".repeat(100_000)};`;
+
+  it("exits 1 and names the file when one cannot be scanned", () => {
+    write("main/index.cjs", 'require("node:fs");');
+    write("main/broken.cjs", unparseable);
+    expect(run()).toBe(1);
+    const printed = `${out.join("\n")}\n${err.join("\n")}`;
+    expect(printed).toContain("main/broken.cjs");
+    expect(printed).toContain("could not be scanned");
+  });
+
+  it("still scans the remaining files after one fails", () => {
+    // Fail-closed, but not fail-blind: one bad file must not stop the scan from
+    // reporting the real violation sitting in the next one.
+    write("main/broken.cjs", unparseable);
+    write("preload/index.cjs", 'require("left-pad");');
+    expect(run()).toBe(1);
+    expect(out.join("\n")).toContain("left-pad");
+  });
+
   it("prints each violation's kind, line and detail", () => {
     write("main/index.cjs", 'require("left-pad");');
     run();
@@ -698,5 +723,13 @@ describe("check-bundle-externals CLI under bun", () => {
 
   it("exits 1 when out/ holds no bundles at all", () => {
     expect(runCli().status).toBe(1);
+  });
+
+  it("exits 1 and names the file when a bundle cannot be scanned", () => {
+    write("main/broken.cjs", `var x = ${"(".repeat(100_000)}1${")".repeat(100_000)};`);
+    const { status, stdout } = runCli();
+    expect(status).toBe(1);
+    expect(stdout).toContain("main/broken.cjs");
+    expect(stdout).toContain("could not be scanned");
   });
 });
