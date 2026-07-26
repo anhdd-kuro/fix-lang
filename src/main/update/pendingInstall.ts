@@ -45,7 +45,7 @@ export type ReconcileContext = Readonly<{
 
 /**
  * How long the detached helper may still be working before an unchanged
- * version counts as a failure. A cold `brew update` plus a ~128 MB download on
+ * version counts as a failure. A cold `brew update` plus a ~101.6 MiB download on
  * a slow link is minutes, not seconds, and the app can be reopened by hand
  * long before any of it finishes.
  */
