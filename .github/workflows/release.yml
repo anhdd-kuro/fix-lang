@@ -265,7 +265,12 @@ jobs:
           # (whose absence would ship a white-screen app) did.
           asar_path="${mount_path}/FixLang.app/Contents/Resources/app.asar"
           test -s "${asar_path}"
-          asar_entries="$(bunx asar list "${asar_path}")"
+          # Scoped name, and declared in devDependencies, on purpose. The bare
+          # `asar` bin is only hoisted here transitively via electron-builder;
+          # if that ever stops, `bunx asar` silently fetches the *deprecated*
+          # standalone `asar` package from the registry instead of the
+          # @electron/asar this repo actually pins.
+          asar_entries="$(bunx @electron/asar list "${asar_path}")"
           if grep -q '/node_modules/' <<< "${asar_entries}"; then
             echo "app.asar contains node_modules entries; build.files must exclude them." >&2
             exit 1
