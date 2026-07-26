@@ -11,6 +11,7 @@ import {
   findOption,
   modelOptionText,
   resolveModelSelectCopy,
+  selectedModelOptionText,
   withInheritOption,
   withUnavailableOption,
   type ModelOption,
@@ -311,11 +312,11 @@ export const ModelSelect: React.FC<{
               );
             },
             // Wraps react-select's SingleValue to keep its placement and
-            // styling while taking the text from `modelOptionText`: an inherit
-            // selection (`label: ""`) would otherwise render a blank control.
+            // styling while taking the text from `selectedModelOptionText`: an
+            // inherit selection (`label: ""`) would otherwise render blank.
             SingleValue: (props) => (
               <reactSelectComponents.SingleValue {...props}>
-                {modelOptionText(props.data, t)}
+                {selectedModelOptionText(props.data, t)}
               </reactSelectComponents.SingleValue>
             ),
             Option: ({ data, isFocused, isSelected, innerProps }) => {
