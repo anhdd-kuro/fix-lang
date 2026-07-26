@@ -115,9 +115,9 @@ If you disconnect a provider, only the presets and settings that were using it g
    ```
 3. Open the DMG and drag FixLang to `/Applications`. To update an existing
    installation, quit FixLang first and replace `/Applications/FixLang.app`.
-4. Open the app, go to Settings → General to select a provider and apply your
-   setup (see [Provider setup](#provider-setup-general-settings)), and grant
-   Accessibility permission when prompted.
+4. Open the app, go to Settings → General to connect one or more providers (see
+   [Provider setup](#provider-setup-settings--general)), and grant Accessibility
+   permission when prompted.
 
 FixLang releases are unsigned and not notarized. macOS Gatekeeper may warn or
 block the app. Only if you downloaded a release you trust and Gatekeeper blocks

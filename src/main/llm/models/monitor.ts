@@ -83,15 +83,6 @@ function getMainWindow(): BrowserWindow | null {
   return windows.length > 0 ? windows[0] : null;
 }
 
-/**
- * Whether the active profile has explicitly connected Ollama.
- *
- * There is no profile-wide "active provider" any more — a profile can have
- * all three connected at once — so the poll keys off the connection list.
- * Defensive about the shape: this value comes from a user-editable config
- * file, and a monitor that throws on a garbled array would take out the
- * periodic refresh entirely.
- */
 const isOllamaConnected = (): boolean => {
   const enabled: unknown = getProfileSetting("enabledProviders");
   return Array.isArray(enabled) && enabled.includes("ollama");
@@ -99,23 +90,18 @@ const isOllamaConnected = (): boolean => {
 
 /**
  * Check for changes in available local models.
- *
- * Exported for tests: the interval/backoff wrapper around it is timing state,
- * while this is the behaviour worth pinning.
  */
 export async function checkForModelChanges(): Promise<void> {
   try {
-    // Gate BEFORE polling, not after. The old guard sat below the
-    // `getLocalModels()` call, so a user who had never connected Ollama still
-    // hit the local daemon every five minutes and simply discarded the answer.
+    // Gate BEFORE polling, not after: otherwise a user who never connected
+    // Ollama still hits the local daemon every five minutes.
     if (!isOllamaConnected()) {
       return;
     }
 
     console.log("Checking for local model changes...");
 
-    // The cached Ollama slice — NOT the legacy top-level `models` key, which
-    // is global while the real cache is per-profile.
+    // The per-profile Ollama slice, not the legacy global `models` key.
     const storedLocalModels = getCachedModels("ollama");
 
     // Get latest models from Ollama
@@ -133,10 +119,8 @@ export async function checkForModelChanges(): Promise<void> {
         `Local model changes detected: ${added.length} added, ${removed.length} removed`
       );
 
-      // `persistCache: true` (explicit) routes the write through
-      // `cacheModelsForProvider`, which replaces ONLY the Ollama slice. The
-      // old `apiStore.set("models", …)` overwrote the whole list with an
-      // Ollama-only refresh, wiping the user's OpenAI/OpenRouter choices.
+      // Must persist through `cacheModelsForProvider`, which replaces ONLY the
+      // Ollama slice — a whole-list write wipes the user's cloud models.
       await fetchAvailableModels("", "ollama", true);
 
       // Send notification to the renderer process if main window exists

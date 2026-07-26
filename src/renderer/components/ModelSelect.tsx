@@ -3,10 +3,8 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { components as reactSelectComponents } from "react-select";
 import { twJoin } from "tailwind-merge";
 import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
-// A VALUE import, and deliberately from `~/shared/providers` — importing it
-// from `~/stores/apiStore`'s re-export shim would pull `electron-store` into
-// the renderer bundle (finding F9). `bun run test` would not catch that;
-// `bun run build` would.
+// Value import: `~/stores/apiStore`'s re-export shim would pull
+// `electron-store` into the renderer bundle.
 import { isProviderId } from "~/shared/providers";
 import {
   buildModelOptionGroups,
@@ -23,27 +21,11 @@ import SettingsButton from "./SettingsIcon";
 import { useI18n } from "../i18n/useI18n";
 import type { GroupBase, GroupHeadingProps } from "react-select";
 import type { TranslationKey } from "~/shared/i18n/keys";
-// Types only — provider *values* are imported from `~/shared/providers`
-// (see `modelSelectOptions.ts`); `~/stores/apiStore` builds an
-// `electron-store` at import and must never enter the renderer bundle (F9).
 import type { Model, ProviderId } from "~/stores/apiStore";
 
 /** Stable identity so an errorless fetch does not invalidate the option memo. */
 const NO_PROVIDER_ERRORS: Partial<Record<ProviderId, string>> = Object.freeze({});
 
-/**
- * Shared model picker. Options are grouped by provider, with the provider
- * name in the group heading and nowhere else.
- *
- * Every model picker in the app is this component — the tray, the Models
- * dashboard, the correction presets, PromptGen and Settings → General. That
- * is deliberate: grouping, the "no longer available" option and the inherit
- * option have to reach every picker at once, or two implementations drift.
- *
- * @param onChange - Callback when model changes
- * @param featureId - Optional feature ID for feature-specific model settings
- * @param useFeatureModel - Whether to use feature-specific model selection
- */
 export const ModelSelect: React.FC<{
   onChange?: (modelId: string) => void;
   featureId?: string;
@@ -55,14 +37,7 @@ export const ModelSelect: React.FC<{
   menuPortal?: boolean;
   compact?: boolean;
   menuMaxHeight?: number;
-  /**
-   * Override the field label. Settings → General is the profile's "Default
-   * model" section rather than a generic "AI Model" picker; every other call
-   * site leaves this alone. The default is pinned by
-   * `resolveModelSelectCopy`'s test.
-   */
   labelKey?: TranslationKey;
-  /** Override the helper text below the control. Same rationale as `labelKey`. */
   descriptionKey?: TranslationKey;
 }> = ({
   onChange,
@@ -81,15 +56,9 @@ export const ModelSelect: React.FC<{
   const { t, tl, formatCurrency, dateFnsLocale } = useI18n();
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("");
-  /**
-   * The profile-wide default, used only to show *which* model the inherit row
-   * currently resolves to. Never the control's own value.
-   */
+  /** Describes what the inherit row resolves to; never this control's value. */
   const [globalDefaultModel, setGlobalDefaultModel] = useState<string>("");
-  /**
-   * Providers in `enabledProviders`. `undefined` means "not known yet" (or no
-   * bridge), which renders every provider rather than an empty picker.
-   */
+  /** `undefined` means "not known yet" — renders every provider, not none. */
   const [connectedProviders, setConnectedProviders] = useState<
     ProviderId[] | undefined
   >(undefined);
@@ -107,11 +76,7 @@ export const ModelSelect: React.FC<{
 
   const copy = resolveModelSelectCopy({ labelKey, descriptionKey, useFeatureModel });
 
-  /**
-   * Only a picker that can *inherit* gets the inherit row. The global default
-   * picker cannot inherit from itself, so offering it there would let a user
-   * store "use the default" as the default.
-   */
+  /** The global default picker must not offer inherit — it cannot inherit from itself. */
   const offersInherit = selectedModelId !== undefined || useFeatureModel;
 
   useEffect(() => {
@@ -142,10 +107,6 @@ export const ModelSelect: React.FC<{
   // (raw `textLabel` passthrough for provider/exception text, `messageLabel`
   // for app-authored validation copy) — the catalog fallback below only
   // covers a missing/malformed `error` field.
-  //
-  // `result.errors` is per provider and must be read separately: a successful
-  // call with a populated `errors` map means SOME group is stale, not that
-  // everything refreshed.
   const fetchModels = useCallback(async (refetch = false) => {
     setModelsLoading(true);
     setModelsError(null);
@@ -173,18 +134,12 @@ export const ModelSelect: React.FC<{
     }
   }, []);
 
-  /**
-   * Which providers are connected, in one round-trip. Replaces the old
-   * single-active-provider badge: there is no single active provider now,
-   * every connected one serves models at once.
-   */
   const loadProviderStates = useCallback(async () => {
     try {
       const states = await window.electronAPI?.getProviderStates?.();
       if (!states) return;
-      // Filtered through the real guard rather than cast: these keys come
-      // from main's response, and an unrecognized one would otherwise be
-      // handed to `PROVIDER_LABEL_KEYS` as if it were a provider id.
+      // Guard, not cast: these keys cross the IPC boundary, and an
+      // unrecognized one must not be treated as a provider id.
       setConnectedProviders(
         Object.keys(states)
           .filter(isProviderId)
@@ -201,8 +156,8 @@ export const ModelSelect: React.FC<{
         (await window.electronAPI?.getSelectedModel?.()) || "";
       setGlobalDefaultModel(globalDefault);
 
-      // Parent-controlled (a preset): the parent owns the value, we only
-      // needed the global default above to describe what inherit means.
+      // Parent-controlled: it owns the value; only the global default above
+      // was needed here.
       if (selectedModelId !== undefined) return;
 
       if (useFeatureModel && featureId && window.electronAPI?.getFeatureModel) {
@@ -251,10 +206,8 @@ export const ModelSelect: React.FC<{
     loadModelSetting();
   }, [fetchModels, loadProviderStates, loadModelSetting]);
 
-  // Cross-window sync: a connect/disconnect/model change applied from any
-  // window (Main, Tray, PromptGen, …) broadcasts 'settings-updated'. Refetch
-  // models and provider states here so every ModelSelect instance reflects
-  // the change immediately, without a manual remount.
+  // Cross-window sync: any window's connect/disconnect/model change broadcasts
+  // 'settings-updated', so every mounted instance refreshes without a remount.
   useEffect(() => {
     const off = window.electronAPI?.onSettingsUpdated?.(() => {
       fetchModels(true);
@@ -265,9 +218,7 @@ export const ModelSelect: React.FC<{
   }, [fetchModels, loadProviderStates, loadModelSetting]);
 
   useEffect(() => {
-    // Controlled by the parent when provided, INCLUDING the empty "inherit"
-    // sentinel — which `withInheritOption` gives a real `value: ""` option, so
-    // it renders as "Use global default" instead of a blank control.
+    // Parent-controlled when provided, including the `""` inherit sentinel.
     if (selectedModelId !== undefined) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedModel(selectedModelId);
@@ -282,15 +233,13 @@ export const ModelSelect: React.FC<{
       t,
       formatCurrency,
     });
-    // Unavailable first, then inherit: the unavailable probe must not see the
-    // inherit row (a stored `""` is inherit, never "no longer available").
+    // Unavailable first: the probe must not see the inherit row.
     const withUnavailable = withUnavailableOption(grouped, selectedModel, t);
     return offersInherit
       ? withInheritOption(withUnavailable, globalDefaultModel)
       : withUnavailable;
-    // `t` and `formatCurrency` are recreated when the interface locale changes
-    // (see `useI18n`/`I18nProvider`) — omitting them would leave already-built
-    // group headings and price badges in the old language after a switch.
+    // `t`/`formatCurrency` change identity on a locale switch and must stay in
+    // the deps, or headings and price badges keep the old language.
   }, [
     models,
     showAdditionalInfo,
@@ -339,15 +288,11 @@ export const ModelSelect: React.FC<{
           menuMaxHeight={menuMaxHeight}
           menuWidth={menuWidth}
           components={{
-            // The provider name lives HERE and only here (D31). An option row
-            // never names its provider — that is what made the old
-            // comma-joined label unreadable once groups existed.
             GroupHeading: (
               props: GroupHeadingProps<ModelOption, false, GroupBase<ModelOption>>,
             ) => {
-              // `GroupBase` only declares `label`/`options`; the per-provider
-              // `error` is ours. Narrowing to the group type we actually build
-              // is safe because `options` is always a `ModelOptionGroup[]`.
+              // `GroupBase` declares no `error`; `options` is always a
+              // `ModelOptionGroup[]`, so the narrowing holds.
               const group = props.data as ModelOptionGroup;
               if (!group.label && !group.error) return null;
               return (
@@ -365,11 +310,9 @@ export const ModelSelect: React.FC<{
                 </div>
               );
             },
-            // Wraps react-select's own SingleValue so the control keeps its
-            // grid placement and `styles.singleValue`, while the TEXT comes
-            // from `modelOptionText`. Without this, an inherit selection
-            // (`label: ""`) renders as a blank control and an unavailable one
-            // renders as a bare id with no hint that it is gone.
+            // Wraps react-select's SingleValue to keep its placement and
+            // styling while taking the text from `modelOptionText`: an inherit
+            // selection (`label: ""`) would otherwise render a blank control.
             SingleValue: (props) => (
               <reactSelectComponents.SingleValue {...props}>
                 {modelOptionText(props.data, t)}
@@ -405,8 +348,7 @@ export const ModelSelect: React.FC<{
                 );
               }
 
-              // `date-fns` needs the locale passed explicitly — it does not
-              // read one from the i18n context (see the fixlang-i18n skill).
+              // `date-fns` reads no locale from the i18n context — pass it.
               const createdAt =
                 data.createdAt === null
                   ? null
@@ -501,9 +443,7 @@ export const ModelSelect: React.FC<{
             onClick={async () => {
               if (window.electronAPI?.setFeatureModel) {
                 try {
-                  // Empty string is the inherit sentinel — the feature falls
-                  // back to the profile default. It is NOT a model id, so
-                  // there is no hardcoded fallback id to substitute here.
+                  // `""` is the inherit sentinel, not a model id.
                   await window.electronAPI.setFeatureModel(featureId, "");
                   setSavedFeatureModel("");
                   setSelectedModel("");

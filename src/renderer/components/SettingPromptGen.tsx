@@ -17,8 +17,7 @@ const defaultSettings = {
   batchCount: 5,
   nsfw: true,
   context: "",
-  // Inherit sentinel — PromptGen falls back to the profile default
-  // instead of pinning a hardcoded OpenAI id that may not be connected.
+  // `""` inherits the profile default rather than pinning a hardcoded id.
   model: "",
   autoCopy: false,
 };

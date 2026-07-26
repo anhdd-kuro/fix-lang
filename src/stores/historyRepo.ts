@@ -110,11 +110,8 @@ export const rowToEntry = (row: HistoryRow): HistoryEntry => {
   if (row.model !== null) {
     entry.model = row.model;
   }
-  // `isProviderId`, not an inline union: `PROVIDER_IDS` is the single source
-  // of truth for what a provider is. The hand-written union silently dropped
-  // any provider added there, turning a fourth provider's history rows into
-  // provider-less ones — a data loss no type error would have caught, since
-  // the union narrowed `string` perfectly well.
+  // Never inline this as a literal union: it type-checks fine while silently
+  // dropping the provider off every row of a newly added provider.
   if (isProviderId(row.provider)) {
     entry.provider = row.provider;
   }

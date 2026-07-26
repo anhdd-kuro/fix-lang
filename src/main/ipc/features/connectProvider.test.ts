@@ -1,25 +1,11 @@
 /**
  * @file connectProvider.test.ts
- * @description The `connect-provider` handler (formerly `apply-provider-setup`).
+ * @description The `connect-provider` handler. Captures the real handlers
+ * registered by `registerApiHandlers` (via a stub `ipcMain.handle`) and
+ * invokes them directly.
  *
- * Two jobs. It carries forward the original M1 regression — Apply must FAIL
- * when the live model fetch used for validation throws (a stale/revoked key),
- * even though models for that provider are still cached — and it pins the new
- * connect contract: no `modelId` in the payload, no write to `selectedModel`,
- * an Ollama probe that distinguishes "daemon down" from "nothing pulled", and
- * the removal of `get-active-provider`.
- *
- * This captures the real handlers registered by `registerApiHandlers` (via a
- * stub `ipcMain.handle`) and invokes them directly, so the test exercises the
- * actual handler wiring.
- *
- * **`~/shared/providers` and `~/shared/modelRef` are deliberately NOT mocked.**
- * The file this replaces hand-rolled `isProviderId` and `isModelForProvider`
- * in the `~/stores/apiStore` mock; a hand-written stand-in for the predicate
- * under refactor tests the stand-in, not the code, and it stayed green through
- * the whole refactor precisely because it did. `api.ts` now imports those
- * predicates straight from the shared registry, so the real implementations
- * run here with no mock at all.
+ * `~/shared/providers` and `~/shared/modelRef` are deliberately NOT mocked — a
+ * hand-written stand-in for the predicate under refactor tests the stand-in.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { isLabel } from "~/shared/i18n/message";
@@ -97,10 +83,8 @@ vi.mock("~/stores/keybindingStore", () => ({
   keybindingStore: { resetKeyBindings: vi.fn() },
 }));
 // `profileSecretStore` reaches `app.getPath` at import, so it cannot be
-// `importActual`'d here. `secretKindsForProvider` is DERIVED from the real,
-// unmocked provider tables rather than hand-listed per provider, so a fourth
-// provider inherits the right slots in this mock exactly as it does in
-// production.
+// `importActual`'d. `secretKindsForProvider` derives from the real provider
+// tables so a fourth provider inherits the right slots here too.
 vi.mock("~/stores/profileSecretStore", async () => {
   const { PROVIDER_REQUIRES_API_KEY, PROVIDER_SUPPORTS_PROVISIONING_KEY } =
     await import("~/shared/providers");
@@ -143,9 +127,8 @@ const connect = async (payload: unknown): Promise<HandlerResult> =>
   (await handlers.get("connect-provider")?.(undefined, payload)) as HandlerResult;
 
 beforeEach(() => {
-  // vi.clearAllMocks() clears CALLS but not return values, so every default
-  // is restored explicitly — a value set by one test otherwise leaks into
-  // every later test in this file.
+  // vi.clearAllMocks() clears calls but not return values, so a value set by
+  // one test would otherwise leak into every later one.
   vi.clearAllMocks();
   handlers.clear();
   fetchAvailableModelsMock.mockResolvedValue([OPENAI_MODEL]);
@@ -164,7 +147,7 @@ beforeEach(() => {
   registerApiHandlers();
 });
 
-describe("D23 — the registered channel set", () => {
+describe("the registered channel set", () => {
   it("does not register get-active-provider anywhere", () => {
     expect(handlers.has("get-active-provider")).toBe(false);
     expect([...handlers.keys()]).not.toContain("get-active-provider");
@@ -243,7 +226,6 @@ describe("connect-provider — payload validation", () => {
     const result = await connect({ provider: "ollama" });
 
     expect(result.success).toBe(true);
-    // No credential path is touched at all for a keyless provider.
     expect(getProfileSecretMock).not.toHaveBeenCalled();
     expect(setProfileSecretMock).not.toHaveBeenCalled();
     expect(fetchAvailableModelsMock).not.toHaveBeenCalled();
@@ -255,8 +237,8 @@ describe("connect-provider — payload validation", () => {
 
 describe("connect-provider — M1: a stale key must fail, not pass via the cache", () => {
   it("fails when the live fetch throws, even though the provider has cached models", async () => {
-    // Cached models exist for openai from a previously successful connect —
-    // this is exactly what let a stale key silently "pass" before the fix.
+    // Cached models from an earlier successful connect are what let a stale
+    // key silently "pass" before the fix.
     getProfileSecretMock.mockResolvedValue("sk-stale-revoked-key");
     getProfileSettingMock.mockReturnValue([OPENAI_MODEL]);
     fetchAvailableModelsMock.mockImplementation(
@@ -269,7 +251,6 @@ describe("connect-provider — M1: a stale key must fail, not pass via the cache
     const result = await connect({ provider: "openai" });
 
     expect(result.success).toBe(false);
-    // A provider-reported failure is opaque text, never app copy.
     expect(isLabel(result.error)).toBe(true);
     expect(result.error).toEqual({ kind: "text", text: "401 Unauthorized" });
     expect(fetchAvailableModelsMock).toHaveBeenCalledWith(
@@ -278,7 +259,6 @@ describe("connect-provider — M1: a stale key must fail, not pass via the cache
       false,
       true,
     );
-    // Nothing is committed and no credential is written when validation fails.
     expect(connectProviderToActiveProfileMock).not.toHaveBeenCalled();
     expect(setProfileSecretMock).not.toHaveBeenCalled();
   });
@@ -299,19 +279,15 @@ describe("connect-provider — M1: a stale key must fail, not pass via the cache
     expect(result.success).toBe(true);
     expect(setProfileSecretMock).toHaveBeenCalledWith("profile_1", "openai", "api", "sk-new");
     expect(fetchAvailableModelsMock).toHaveBeenCalledWith("sk-new", "openai", false, true);
-    // ORDER, not just "both happened". Asserting only that each was called
-    // passes just as happily when the write is moved above the fetch, which
-    // is the whole failure this test exists for.
+    // ORDER, not just "both happened": kills a write moved above the fetch.
     expect(setProfileSecretMock.mock.invocationCallOrder[0]).toBeGreaterThan(
       fetchAvailableModelsMock.mock.invocationCallOrder[0],
     );
   });
 
   it("never persists a SUPPLIED key that the live fetch rejected", async () => {
-    // The M1 test above covers a key already on disk, so its `payload.apiKey`
-    // branch is skipped — a write moved above the fetch would be invisible to
-    // it. This drives the typed-key path: a user pastes a typo, the provider
-    // 401s, and the typo must not land on disk over a working key.
+    // Drives the typed-key path the M1 test above skips: a pasted typo must
+    // not land on disk over a working key.
     fetchAvailableModelsMock.mockRejectedValue(new Error("401 Unauthorized"));
 
     const result = await connect({ provider: "openai", apiKey: "sk-typo" });
@@ -324,10 +300,8 @@ describe("connect-provider — M1: a stale key must fail, not pass via the cache
 
 describe("connect-provider — what crosses back to the renderer", () => {
   it("returns the SECRET-STRIPPED profile, never the raw one", async () => {
-    // `SettingsStore` still declares the deprecated plaintext `apiKey`, and
-    // the legacy migration scrubs only the active profile and only on a
-    // successful secret write. Returning the raw profile would hand the
-    // renderer a decrypted key.
+    // SECURITY: `SettingsStore` still declares the deprecated plaintext
+    // `apiKey`, so the raw profile would hand the renderer a decrypted key.
     getProfileSecretMock.mockResolvedValue("sk-good-key");
     hasProfileSecretMock.mockResolvedValue(true);
     connectProviderToActiveProfileMock.mockReturnValue(RAW_PROFILE);
@@ -340,9 +314,8 @@ describe("connect-provider — what crosses back to the renderer", () => {
   });
 
   it("redacts a provider error that quotes the key back", async () => {
-    // OpenAI's own 401 body echoes a masked key: prefix AND suffix of a
-    // credential the renderer never typed (this path authenticates with the
-    // STORED key). Neither half may cross.
+    // SECURITY: OpenAI's 401 body echoes a prefix AND suffix of the stored
+    // key, which the renderer never typed. Neither half may cross.
     getProfileSecretMock.mockResolvedValue("sk-proj-abcdefgh12345678WXYZ");
     fetchAvailableModelsMock.mockRejectedValue(
       new Error(
@@ -357,8 +330,7 @@ describe("connect-provider — what crosses back to the renderer", () => {
     expect(serialized).not.toContain("sk-proj-");
     expect(serialized).not.toContain("abcd");
     expect(serialized).not.toContain("WXYZ");
-    // The useful part of the message survives, which is why it is redacted
-    // rather than swallowed.
+    // Redacted, not swallowed — the useful part of the message survives.
     expect(serialized).toContain("Incorrect API key provided");
   });
 
@@ -380,17 +352,13 @@ describe("connect-provider — it never seeds a model", () => {
     const result = await connect({ provider: "openai" });
 
     expect(result.success).toBe(true);
-    // The whole point of splitting connect from model choice: no write to
-    // selectedModel, and no write to any other profile setting either.
     expect(updateProfileSettingMock).not.toHaveBeenCalled();
     expect(connectProviderToActiveProfileMock).toHaveBeenCalledTimes(1);
     expect(connectProviderToActiveProfileMock).toHaveBeenCalledWith("openai", [OPENAI_MODEL]);
   });
 
   it("leaves selectedModel untouched when it is currently '' (the inherit sentinel)", async () => {
-    // "" is the case a re-seeding handler would look harmless on: there is
-    // nothing to overwrite, so a regression here would only bite the users
-    // who had already chosen a model. Pinned separately for that reason.
+    // "" is where a re-seeding handler looks harmless: nothing to overwrite.
     getProfileSettingMock.mockImplementation((key: string) =>
       key === "selectedModel" ? "" : [],
     );
@@ -404,8 +372,6 @@ describe("connect-provider — it never seeds a model", () => {
   });
 
   it("ignores a modelId a stale renderer still sends", async () => {
-    // `modelId` is gone from the payload type. A caller that still sends one
-    // must not be able to reach the profile default through this channel.
     getProfileSecretMock.mockResolvedValue("sk-good-key");
     hasProfileSecretMock.mockResolvedValue(true);
 
@@ -417,7 +383,7 @@ describe("connect-provider — it never seeds a model", () => {
   });
 });
 
-describe("D26 — connecting Ollama distinguishes 'down' from 'empty'", () => {
+describe("connecting Ollama distinguishes 'down' from 'empty'", () => {
   it("fails when probeOllama reports the daemon unreachable", async () => {
     probeOllamaMock.mockResolvedValue({
       reachable: false,
@@ -440,9 +406,7 @@ describe("D26 — connecting Ollama distinguishes 'down' from 'empty'", () => {
 
     const result = await connect({ provider: "ollama" });
 
-    // Reachable-but-empty is a real connection: the provider is connected and
-    // the note tells the user to pull something. Reporting it as a failure
-    // would leave Ollama permanently unconnectable on a fresh install.
+    // Failing here would leave Ollama unconnectable on a fresh install.
     expect(result.success).toBe(true);
     expect(result.error).toBeUndefined();
     expect(result.note).toEqual({
@@ -465,8 +429,7 @@ describe("D26 — connecting Ollama distinguishes 'down' from 'empty'", () => {
   });
 
   it("never falls back to fetchAvailableModels for ollama", async () => {
-    // fetchAvailableModels swallows the connection error and answers `[]`, so
-    // routing Ollama through it collapses "down" and "empty" into one answer.
+    // fetchAvailableModels answers `[]` for both, collapsing the two cases.
     await connect({ provider: "ollama" });
 
     expect(probeOllamaMock).toHaveBeenCalledTimes(1);

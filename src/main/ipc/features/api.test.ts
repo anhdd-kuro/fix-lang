@@ -3,11 +3,8 @@
  * @description Validation unit tests for the provider-connect payload parser
  * (`parseProviderConnect`). Pure input-shape rejection tests — no Electron IPC
  * is exercised (`registerApiHandlers` is never called), so every heavy
- * dependency the module imports is mocked at the module boundary.
- *
- * `~/shared/providers` is NOT mocked: `isProviderId` is the predicate the
- * parser's provider check is built on, and a hand-rolled stand-in for it would
- * test the stand-in.
+ * dependency the module imports is mocked at the module boundary, except
+ * `~/shared/providers` — a stand-in for `isProviderId` would test the stand-in.
  */
 import { describe, expect, it, vi } from "vitest";
 import { PROVIDER_IDS } from "~/shared/providers";
@@ -83,9 +80,6 @@ describe("parseProviderConnect", () => {
   });
 
   it("DROPS a modelId a stale caller still sends", () => {
-    // Connecting must not be able to seed a model. The field is not merely
-    // unused — it never reaches the parsed payload, so no later edit to the
-    // handler can accidentally start honouring it.
     const parsed = parseProviderConnect({ provider: "ollama", modelId: "llama3" });
 
     expect(parsed).toEqual({ provider: "ollama" });
@@ -106,8 +100,6 @@ describe("parseProviderConnect", () => {
   });
 
   it("rejects a provider carried on the prototype rather than the object", () => {
-    // `isProviderId` re-validates rather than trusting a lookup, because the
-    // values that reach here originate in user-editable config.
     expect(parseProviderConnect({ provider: "constructor" })).toBeNull();
     expect(parseProviderConnect({ provider: "toString" })).toBeNull();
   });
@@ -124,8 +116,6 @@ describe("parseProviderConnect", () => {
   });
 
   it("accepts every provider id, derived from the registry rather than listed", () => {
-    // Driven by PROVIDER_IDS so a fourth provider is covered automatically —
-    // a hand-written list would silently stop testing the new one.
     expect(PROVIDER_IDS.length).toBeGreaterThan(0);
     for (const provider of PROVIDER_IDS) {
       expect(parseProviderConnect({ provider })).toEqual({ provider });

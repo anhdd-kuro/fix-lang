@@ -93,11 +93,8 @@ export const registerCorrectionHandlers = () => {
       promptTokens?: number;
       completionTokens?: number;
       model?: string;
-      // `ProviderId`, not a hand-written union. The union narrowed `string`
-      // perfectly well, so a fourth provider would have been dropped from
-      // every `fix-grammar` result silently, with no type error anywhere.
-      // (The card asked for `isProviderId` here; this is a TYPE position, and
-      // `ProviderId` is the type that guard narrows to — see notes.md.)
+      // `ProviderId`, not a hand-written union: a fourth provider would be
+      // dropped from every `fix-grammar` result with no type error anywhere.
       provider?: ProviderId;
       resolvedModel?: string;
       presetId?: string;

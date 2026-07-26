@@ -57,15 +57,9 @@ const NA: CostSnapshot = {
 
 /**
  * Build a price map from the already-fetched `Model[]`. Models without
- * `pricing` are skipped (they can't be priced). Keyed by lowercased **raw**
- * id.
- *
- * The `stripModelRefPrefix` here is defensive: every `Model` the app caches
- * carries a raw id — a composite `<providerId>::<rawId>` ref lives in
- * `selectedModel` and preset `model` fields, never in `Model.id`. Keying on
- * the stripped id costs nothing and means an entry corrupted by some future
- * writer still produces a key that a served id can match, instead of a dead
- * row that silently prices nothing.
+ * `pricing` are skipped (they can't be priced). Keys are stripped to the raw
+ * id so a composite-ref entry still matches a served id instead of becoming a
+ * dead row that silently prices nothing.
  */
 export const buildPriceMap = (models: Model[]): PriceMap => {
   const map: PriceMap = new Map();
@@ -87,10 +81,8 @@ export const buildPriceMap = (models: Model[]): PriceMap => {
  * e.g. "OpenAI/GPT-5.4-mini" → "gpt-5.4-mini",
  *      "ollama::Llama3.2:3b" → "llama3.2:3b".
  *
- * The ref prefix has to go first and separately: the `/` rule only happens to
- * absorb it for ids that carry a vendor path, and does nothing for a
- * slash-less Ollama tag, whose fuzzy key would otherwise keep the whole
- * `"ollama::…"` string.
+ * The ref prefix must be stripped separately: the `/` rule does nothing for a
+ * slash-less Ollama tag, whose key would otherwise keep the `"ollama::"` part.
  */
 export const normalizeModelId = (id: string): string => {
   const trimmed = stripModelRefPrefix(id.trim());
@@ -110,13 +102,9 @@ const parsePrice = (raw: string): number | null => {
  * then a normalized-key fuzzy match via fuse.js under the score threshold.
  * Returns the matched price pair, or null when nothing is confident enough.
  *
- * `servedId` may be a raw id or a composite `<providerId>::<rawId>` ref, so
- * the ref prefix is dropped before the exact lookup. **This is the whole
- * point of the strip.** The price map is keyed on raw ids, so a composite ref
- * misses the exact `get` and falls into fuzzy matching — which does not fail,
- * it MIS-PRICES: it returns whichever key normalizes closest, with
- * `status: "ok"` and a fabricated-looking-confident number. An unprefixed
- * lookup that misses is loud; a prefixed one that lands in fuzzy is silent.
+ * The ref prefix must be stripped before the exact lookup: a composite ref
+ * misses the raw-keyed map and falls into fuzzy matching, which does not fail
+ * — it MIS-PRICES, confidently, with `status: "ok"`.
  */
 const matchPrice = (
   servedId: string,

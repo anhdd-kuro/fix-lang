@@ -1,18 +1,7 @@
 /**
  * @file model-routing.test.ts
- * @description Ref-based request routing (plan D17/D18). `makeAIRequest` no
- * longer asks a profile-wide `getActiveProvider()` which provider to use — it
- * resolves the composite model ref (`<providerId>::<rawId>`) against the
- * profile's cached models and routes on the provider that resolution names.
- *
- * The three invariants pinned here:
- *   1. A composite ref routes to its own provider, and the id handed to the
- *      provider SDK is the RAW id — never the ref. That is what keeps
- *      `AIRequestResponse.model` / `resolvedModel` raw and SQLite unmigrated.
- *   2. A bare (un-prefixed) id still resolves, via the `PROVIDER_ORDER` cache
- *      scan, so a pre-migration preset keeps working.
- *   3. An unresolvable ref throws a message naming the model id, plus the
- *      provider when — and only when — the ref actually carried one.
+ * @description `makeAIRequest` routes on the provider named by the composite
+ * model ref (`<providerId>::<rawId>`), and hands the provider SDK the RAW id.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
@@ -40,8 +29,7 @@ const {
     showErrorNotificationMock: vi.fn(),
   };
 });
-// Stateful electron-store mock so the real apiStore helpers can read the
-// seeded profile and the model cache that resolution scans.
+// Stateful so the real apiStore helpers can read back the seeded profile.
 vi.mock("electron-store", () => {
   class MockStore {
     private data: Record<string, unknown> = {};
@@ -94,15 +82,10 @@ vi.mock("~/main/llm/models/discover", () => ({
   getLocalModels: getLocalModelsMock,
 }));
 vi.mock("../llm", () => ({ ollamaClient: { chat: ollamaChatMock } }));
-// Imports (after mocks) — the real implementation under test.
 import { apiStore } from "~/stores/apiStore";
 import * as sharedModule from "./shared";
 import { isLocalModelId, makeAIRequest } from "./shared";
 import type { Model, Profile, SettingsStore } from "~/stores/apiStore";
-
-// ---------------------------------------------------------------------------
-// Fixtures
-// ---------------------------------------------------------------------------
 
 const buildSettings = (models: Model[], selectedModel = ""): SettingsStore =>
   ({
@@ -124,9 +107,8 @@ const buildSettings = (models: Model[], selectedModel = ""): SettingsStore =>
       autoCopy: false,
       model: "",
     },
-    // Via `unknown`: `SettingsStore` also carries `profiles` /
-    // `currentProfileId`, which no per-profile fixture ever sets. A direct
-    // `as SettingsStore` is a TS2352 no-overlap error.
+    // Via `unknown`: no per-profile fixture sets `profiles`/`currentProfileId`,
+    // so a direct `as SettingsStore` is a TS2352 no-overlap error.
   }) as unknown as SettingsStore;
 
 const seed = (models: Model[], selectedModel = ""): void => {
@@ -165,10 +147,6 @@ const ollamaModel: Model = {
 const request = (model: string) =>
   makeAIRequest({ systemPrompt: "sys", userPrompt: "user", model });
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("makeAIRequest — ref-based routing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -186,7 +164,7 @@ describe("makeAIRequest — ref-based routing", () => {
     });
   });
 
-  it("D17 — an openai:: ref routes to the OpenAI path with the RAW id", async () => {
+  it("an openai:: ref routes to the OpenAI path with the RAW id", async () => {
     const response = await request("openai::gpt-4o");
 
     expect(createOpenAIMock).toHaveBeenCalledOnce();
@@ -230,8 +208,6 @@ describe("makeAIRequest — ref-based routing", () => {
   });
 
   it("routes an ollama-only model correctly even when the profile also holds cloud models", async () => {
-    // Pre-refactor this needed `getActiveProvider() === "ollama"`, which a
-    // multi-provider profile can no longer answer.
     await request("ollama::llama3.2:3b");
     expect(ollamaChatMock).toHaveBeenCalledOnce();
   });
@@ -250,7 +226,7 @@ describe("makeAIRequest — ref-based routing", () => {
     expect(response.resolvedModel).not.toContain("::");
   });
 
-  it("D18 — a prefixed unresolvable ref throws naming both the provider and the model id", async () => {
+  it("a prefixed unresolvable ref throws naming both the provider and the model id", async () => {
     await expect(request("openai::ghost-model")).rejects.toThrow(
       /ghost-model/,
     );
@@ -258,7 +234,7 @@ describe("makeAIRequest — ref-based routing", () => {
     expect(showErrorNotificationMock).toHaveBeenCalled();
   });
 
-  it("D18 — a bare unresolvable id throws naming the model id and no guessed provider", async () => {
+  it("a bare unresolvable id throws naming the model id and no guessed provider", async () => {
     let message = "";
     await request("ghost-model").catch((error: unknown) => {
       message = error instanceof Error ? error.message : String(error);
@@ -271,12 +247,8 @@ describe("makeAIRequest — ref-based routing", () => {
     expect(message).not.toContain("Ollama");
   });
 
-  // The shape EVERY upgrading user has on first launch after card 03's
-  // migration: `selectedModel` was rewritten to a composite ref while the
-  // cached models on disk still carry raw ids. The pre-card-04 reader compared
-  // `model.id === modelId` against the whole ref, so it missed for every
-  // profile and every provider — every transform threw "not found in model
-  // registry". This is the regression test for that window.
+  // The shape every upgrading user has on first launch: a migrated composite
+  // `selectedModel` over cached models whose ids are still raw.
   it("a migrated composite selectedModel resolves against raw cached ids", async () => {
     seed([openAiModel, openRouterModel], "openai::gpt-4o");
 
@@ -316,11 +288,8 @@ describe("makeAIRequest — ref-based routing", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// isLocalModelId — hazard 3: a raw id is ambiguous once one cache holds three
-// providers' models, so an explicit provider must win over the id scan.
-// ---------------------------------------------------------------------------
-
+// A raw id is ambiguous once one cache holds three providers' models, so an
+// explicit provider must win over the id scan.
 describe("isLocalModelId", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -346,10 +315,6 @@ describe("isLocalModelId", () => {
     expect(isLocalModelId(undefined)).toBe(false);
   });
 });
-
-// ---------------------------------------------------------------------------
-// The stub this card deletes.
-// ---------------------------------------------------------------------------
 
 describe("getActiveProvider", () => {
   it("no longer exists in src/main/ai.request/shared.ts", () => {

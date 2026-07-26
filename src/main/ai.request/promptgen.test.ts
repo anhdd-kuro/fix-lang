@@ -3,9 +3,6 @@
  * @description Tests for `generatePrompt`'s option precedence over the stored
  * profile settings. Pure unit tests — no Electron, no IPC, no network.
  */
-// ---------------------------------------------------------------------------
-// Mocks — must be hoisted before imports
-// ---------------------------------------------------------------------------
 import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("electron-store", () => {
   class MockStore {
@@ -24,10 +21,8 @@ vi.mock("electron", () => ({
   ipcMain: { handle: vi.fn(), on: vi.fn() },
   app: { getPath: vi.fn().mockReturnValue("/tmp") },
 }));
-// `promptgen.ts` → `~/utils` (StringPrettifier) → `~/main/notifications/error`
-// → `errorPopupWindow` → `import … from "./overlay.html?asset"`, which vitest
-// cannot parse as JS. Stubbing this one leaf keeps the REAL StringPrettifier,
-// so the system-prompt assertions below still exercise the real formatting.
+// Transitively imports `overlay.html?asset`, which vitest cannot parse.
+// Stubbing this one leaf keeps the REAL StringPrettifier in play.
 vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
   showErrorPopup: vi.fn(),
 }));
@@ -41,17 +36,10 @@ vi.mock("~/stores/apiStore", async (importOriginal) => {
   };
 });
 vi.mock("./shared", () => ({ makeAIRequest: vi.fn() }));
-// ---------------------------------------------------------------------------
-// Imports (after mocks)
-// ---------------------------------------------------------------------------
 import { getProfileSetting } from "~/stores/apiStore";
 import { generatePrompt } from "./promptgen";
 import { makeAIRequest } from "./shared";
 import type { Mock } from "vitest";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 type StoredPromptGenSettings = {
   minLength: number;
@@ -92,17 +80,8 @@ const setup = (overrides: Partial<StoredPromptGenSettings> = {}) => {
 const requestOptions = (): Record<string, unknown> =>
   (makeAIRequest as Mock).mock.calls[0][0];
 
-// ---------------------------------------------------------------------------
-// Option precedence
-//
-// The spread order was `{ ...options, ...currentSettings }`, so the stored
-// profile setting overwrote whatever the CALLER explicitly asked for — an
-// explicit `model` was silently discarded. This is a real pre-existing bug,
-// not a refactor artifact: it is invisible today only because the sole
-// in-tree caller (`keybindings/promptGen.ts`) passes `{ text }` and nothing
-// else, so the two objects never collide.
-// ---------------------------------------------------------------------------
-
+// A stored profile setting overwriting an explicit caller value is silent —
+// the caller's `model` just disappears.
 describe("generatePrompt — explicit options beat the stored profile setting", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -125,8 +104,6 @@ describe("generatePrompt — explicit options beat the stored profile setting", 
   });
 
   it("still falls back to the stored model when the caller passes none", async () => {
-    // The precedence fix must not turn "caller said nothing" into "caller said
-    // undefined" — the profile setting is still the default.
     setup({ model: "openrouter::openai/gpt-4o" });
 
     await generatePrompt({ text: "hello" });
@@ -143,8 +120,6 @@ describe("generatePrompt — explicit options beat the stored profile setting", 
   });
 
   it("leaves the derived system and user prompts alone", async () => {
-    // Both are computed before the spreads; neither object carries those keys,
-    // and the swap must not change that.
     setup();
 
     await generatePrompt({ text: "hello", model: "openai::gpt-4o" });

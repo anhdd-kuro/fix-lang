@@ -20,14 +20,8 @@ type CorrectionResult = {
   completionTokens: number;
   model: string;
   /**
-   * Provider that served (or would have served) the request.
-   *
-   * Optional: the empty-text early return never reaches a provider, and when
-   * the effective model ref is bare or absent there is no provider to name.
-   * Reporting `undefined` there is the point — the alternative is inventing
-   * one, which is what the deleted `getActiveProvider()` did. Every consumer
-   * (`historyTypes.HistoryEntry.provider`, the `fix-grammar` IPC result,
-   * `computeCost`) already types this field optional.
+   * Provider that served the request. Optional because a bare or absent model
+   * ref names no provider, and reporting `undefined` beats inventing one.
    */
   provider?: ProviderId;
   /** Concrete model the provider served (resolves alias indirection) */
@@ -36,13 +30,7 @@ type CorrectionResult = {
   presetName: string;
 };
 
-/**
- * The model a preset will actually request: its own pinned value, or the
- * profile-wide default when it inherits (empty string sentinel).
- *
- * Shared by the request path and the empty-text early return so the two can
- * never disagree about which model the correction concerned.
- */
+/** A preset's pinned model, or the profile default when it inherits (""). */
 const effectiveModelRef = (preset: CorrectionPreset): string =>
   preset.model?.trim() || getDefaultModelId();
 
@@ -104,9 +92,8 @@ const buildCorrectionUserPrompt = (
  * Fixes grammar and style for the given text using OpenAI API.
  * @param text The text to fix.
  * @param presetId Preset to apply; defaults to the profile's selected preset.
- * @param context Best-effort ambient context (source app) appended to the
- *   preset's system prompt. Omit it — as the manual `fix-grammar` IPC path
- *   does — when the text did not come from another app.
+ * @param context Best-effort source-app context; omit when the text did not
+ *   come from another app.
  * @returns A promise that resolves with the fixed text and token information.
  */
 export const fixGrammar = async (
@@ -129,19 +116,9 @@ export const fixGrammar = async (
 
     const preset = getCorrectionPreset(presetId);
 
-    // Report the model this correction *would* have used, decomposed from its
-    // composite ref — never a hardcoded `DEFAULT_OPENAI_MODEL`, and never a
-    // profile-wide "active provider" (there is no such thing any more).
-    //
-    // `parseModelRef` yields the inherit sentinel `{ provider: null,
-    // modelId: "" }` for an empty ref, and `{ provider: null, modelId: <id> }`
-    // for a bare, un-migrated id. Both cases report no provider rather than
-    // guessing one: this branch has no model cache to resolve against, and a
-    // wrong provider here is silently written into history and priced.
-    //
-    // `modelId` (raw), not `raw` (composite): `makeAIRequest` keeps `model`
-    // and `resolvedModel` raw so history rows need no migration, and this
-    // early return has to agree with it.
+    // Reports `provider: undefined` for a bare or empty ref rather than
+    // guessing: a wrong provider is silently written into history and priced.
+    // `modelId` (raw), not `raw` (composite), to match `makeAIRequest`.
     const ref = parseModelRef(effectiveModelRef(preset));
 
     return {
@@ -162,10 +139,8 @@ export const fixGrammar = async (
 
   try {
     const response = await makeAIRequest({
-      // Source-app context rides on the system prompt, alongside the preset's
-      // own instructions, rather than on the user prompt — the user prompt
-      // carries the text to transform, and metadata there is easy for a model
-      // to mistake for content.
+      // Source-app context goes on the system prompt, not the user prompt:
+      // metadata beside the text to transform is easy to mistake for content.
       systemPrompt: withActiveAppContext(preset.systemPrompt, context),
       userPrompt: buildCorrectionUserPrompt(text, preset, effectiveModel),
       model: effectiveModel,

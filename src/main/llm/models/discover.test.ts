@@ -12,34 +12,19 @@ vi.mock("../ollama/client", () => ({
 }));
 import { getLocalModels, probeOllama } from "./discover";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 const listed = (...names: string[]) => ({
   models: names.map((name) => ({ name, size: 1234, parameters: {} })),
 });
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // `discover.ts` is deliberately chatty at [DEBUG] level; keep the suite
-  // output readable without changing behaviour.
+  // `discover.ts` is chatty at [DEBUG] level; keep the suite output readable.
   vi.spyOn(console, "log").mockImplementation(() => undefined);
   vi.spyOn(console, "debug").mockImplementation(() => undefined);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 
-// ---------------------------------------------------------------------------
-// D26 — probeOllama distinguishes "unreachable" from "reachable but empty"
-//
-// `getLocalModels()` swallows every error and returns `[]`, so `[]` means both
-// "Ollama isn't running" and "Ollama is running with nothing pulled". The
-// Enable/connect flow has to tell a user which, so `probeOllama` calls
-// `ollamaClient.list()` directly and keeps the throw that `getLocalModels`
-// discards.
-// ---------------------------------------------------------------------------
-
-describe("probeOllama — D26", () => {
+describe("probeOllama — separates a down daemon from an empty one, and never rejects", () => {
   it("reports reachable:false when the client throws (daemon down)", async () => {
     listMock.mockRejectedValue(
       Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:11434"), {
@@ -65,10 +50,8 @@ describe("probeOllama — D26", () => {
   });
 
   it("is the ONLY thing that separates those two cases", async () => {
-    // The premise of the whole card, asserted rather than assumed:
-    // `getLocalModels()` is `[]` in both states, so a caller reading it alone
-    // literally cannot report the truth. If this ever stops being true,
-    // `probeOllama` may be redundant — and this test says so.
+    // If this ever fails, `getLocalModels()` grew a signal of its own and
+    // `probeOllama` may be redundant.
     listMock.mockRejectedValue(new Error("connect ECONNREFUSED"));
     const downModels = await getLocalModels();
     const downProbe = await probeOllama();
@@ -96,10 +79,8 @@ describe("probeOllama — D26", () => {
   });
 
   it("tags every probed model as ollama and keeps the raw tag as the id", async () => {
-    // The explicit `provider` matches what `fetchAvailableModels` stamps on
-    // `getLocalModels()` output (`shared.ts:176`). Without it a probed model
-    // that reaches the cache would format as `openrouter::…` through
-    // `providerOfModel`'s fallback and be billed as OpenRouter.
+    // Untagged, a probed model reaching the cache formats as an
+    // `openrouter::…` ref and is billed as OpenRouter.
     listMock.mockResolvedValue(listed("llama3.2:3b"));
 
     const [model] = (await probeOllama()).models;
@@ -118,8 +99,7 @@ describe("probeOllama — D26", () => {
   });
 
   it("treats a malformed response as reachable with nothing pulled", async () => {
-    // The daemon answered — that is what `reachable` means. A body we cannot
-    // read is not the same failure as no daemon at all.
+    // The daemon answered — that is what `reachable` means.
     listMock.mockResolvedValue(undefined);
 
     const probe = await probeOllama();
@@ -128,10 +108,6 @@ describe("probeOllama — D26", () => {
     expect(probe.models).toEqual([]);
   });
 });
-
-// ---------------------------------------------------------------------------
-// getLocalModels — unchanged, forgiving contract
-// ---------------------------------------------------------------------------
 
 describe("getLocalModels — forgiving contract is preserved", () => {
   it("returns [] instead of throwing when the client fails", async () => {
@@ -151,9 +127,6 @@ describe("getLocalModels — forgiving contract is preserved", () => {
   });
 
   it("still leaves `provider` unset — its callers stamp it", async () => {
-    // `fetchAvailableModels` does `{ ...model, provider: "ollama" }` on this
-    // result. Pinned so the shared mapper below cannot start stamping here
-    // and silently change what every existing caller receives.
     listMock.mockResolvedValue(listed("llama3.2:3b"));
 
     const [model] = await getLocalModels();

@@ -4,7 +4,6 @@ import {
   PROVIDER_REQUIRES_API_KEY,
   PROVIDER_SUPPORTS_PROVISIONING_KEY,
 } from "~/shared/providers";
-// Mocks must be hoisted above the module under test.
 const { rmMock, readFileMock, getCurrentProfileIdMock } = vi.hoisted(() => ({
   rmMock: vi.fn(),
   readFileMock: vi.fn(),
@@ -16,8 +15,7 @@ vi.mock("node:fs/promises", () => {
     readFile: readFileMock,
     writeFile: vi.fn().mockResolvedValue(undefined),
   };
-  // Some transitive importer pulls this module's default export; without it
-  // vitest fails the whole file before a single test runs.
+  // `default` too: a transitive importer needs it, or the whole file fails to load.
   return { ...api, default: api };
 });
 vi.mock("electron", () => ({
@@ -63,15 +61,8 @@ describe("profile secret targets", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Slot derivation
-//
-// The point of these tests is that adding a fourth provider to `PROVIDER_IDS`
-// needs NO edit in this file. So every expectation is computed from the
-// provider tables, never from a literal list of three — a literal list would
-// pass just as happily against the hand-written branches it replaced.
-// ---------------------------------------------------------------------------
-
+// Expectations below are computed from the provider tables, never a literal list:
+// literals would pass just as happily against the hand-written branches they replaced.
 describe("secretKindsForProvider — derived from the provider tables", () => {
   it.each([...PROVIDER_IDS])("matches the tables for %s", (provider) => {
     const expected: SecretKind[] = [];
@@ -86,9 +77,6 @@ describe("secretKindsForProvider — derived from the provider tables", () => {
   });
 
   it("accepts exactly the pairs getProfileSecretPath accepts", () => {
-    // The derivation and the guard must not be able to disagree: anything the
-    // slot list offers must be constructible, and anything it withholds must
-    // throw.
     for (const provider of PROVIDER_IDS) {
       const kinds = secretKindsForProvider(provider);
       for (const kind of ["api", "provisioning"] as const) {
@@ -116,8 +104,7 @@ describe("clearProfileSecrets — covers every derived slot", () => {
     const clearedPaths = rmMock.mock.calls.map((call) => String(call[0]));
 
     expect(clearedPaths.sort()).toEqual([...expectedPaths].sort());
-    // Not just "covers them" — no extra deletions either. A stray path here
-    // would be a file belonging to some other profile.
+    // No extra deletions either: a stray path would be another profile's file.
     expect(rmMock).toHaveBeenCalledTimes(expectedPaths.length);
   });
 
@@ -155,8 +142,6 @@ describe("getActiveProfileSecret", () => {
   });
 
   it("returns null for a slot the provider does not have, without touching disk", async () => {
-    // Ollama has no API key. Callers should not have to branch on that
-    // themselves — that hand-rolled branch is what this function replaces.
     await expect(getActiveProfileSecret("ollama", "api")).resolves.toBeNull();
     expect(readFileMock).not.toHaveBeenCalled();
   });

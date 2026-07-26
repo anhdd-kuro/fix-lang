@@ -21,18 +21,12 @@ export enum CacheProvider {
 /**
  * Determines which caching strategy to use based on the model ID string.
  *
- * Accepts either a raw model id or a composite `<providerId>::<rawId>` ref;
- * the ref's provider prefix is stripped first. **This is not cosmetic.** The
- * `startsWith(...)` arms below are prefix-sensitive, so a ref such as
- * `"openrouter::google/gemma-2-9b-it"` or `"openai::openai/o3-mini"` matches
- * nothing and falls through to `UNSUPPORTED` — prompt caching silently stops
- * and the bill goes up with no error anywhere. Ids that happen to also carry
- * a family word ("claude", "gemini", "gpt", …) are rescued by the
- * `includes(...)` arms, which is why the failure looked intermittent.
- *
- * `stripModelRefPrefix` is a no-op on a bare id and single-pass by design, so
- * it is safe to apply unconditionally and must not be looped — see its doc
- * comment in `~/shared/modelRef`.
+ * Must strip the composite-ref prefix before the prefix-sensitive
+ * `startsWith` arms, or a ref falls through to `UNSUPPORTED` and prompt
+ * caching silently stops. Only ids classified solely by `startsWith`
+ * (`google/gemma-*`, `openai/o*`, non-Claude Anthropic) break — ids carrying a
+ * family word are rescued by the `includes` arms, so a Claude-id test passes
+ * against broken code.
  */
 export function resolveCacheProvider(modelId: string): CacheProvider {
   const id = stripModelRefPrefix(modelId).toLowerCase();

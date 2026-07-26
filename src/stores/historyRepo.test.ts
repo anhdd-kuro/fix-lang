@@ -293,14 +293,8 @@ describe("cost snapshot persistence", () => {
     expect(repo.getByFeature("corrections")[0]?.provider).toBe("openai");
   });
 
-  // `rowToEntry` used to test `row.provider` against a hand-written
-  // `"openai" | "openrouter" | "ollama"` union. That is extensionally equal to
-  // `isProviderId` for today's three providers, so this block is green both
-  // before and after the swap — it is a source-of-truth guard, not a bug fix.
-  // It is driven by `PROVIDER_IDS` rather than by literals precisely so it
-  // stops being equal the moment a fourth provider is added: the union would
-  // have dropped that provider's rows silently, with no type error, because
-  // it narrowed `string` perfectly well.
+  // Driven by PROVIDER_IDS, not literals: a hand-written union passes for today's
+  // providers and only starts dropping rows when a fourth one is added.
   it.each([...PROVIDER_IDS])(
     "round-trips the %s provider, driven by PROVIDER_IDS",
     (provider) => {
@@ -314,9 +308,7 @@ describe("cost snapshot persistence", () => {
   );
 
   it("keeps an unrecognized provider column out of the entry entirely", () => {
-    // A row written by a newer build, or corrupted. Better absent than
-    // surfaced as a provider the rest of the app cannot route or price.
-    // "constructor" specifically: it is an inherited key, so any lookup-map
+    // "constructor" specifically: an inherited key, so a lookup-map
     // implementation of this check would read it as truthy.
     const entry = rowToEntry({
       feature_id: "corrections",

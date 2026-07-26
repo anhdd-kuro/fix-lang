@@ -1,13 +1,10 @@
 /**
  * @file api.test.ts
  * @description The preload boundary for the provider channels: the connect
- * payload guard (`isProviderConnectInput`), and the rule that **every** new
- * method validates its input BEFORE `ipcRenderer.invoke` is reached. An
- * invalid payload that still crosses is a bypassed boundary even when main
- * would have rejected it.
- *
- * Also pins the negative half of D23: `getActiveProvider` is gone from the
- * bridge, so nothing in the renderer can reach the deleted channel.
+ * payload guard (`isProviderConnectInput`), and the rule that **every** method
+ * validates its input BEFORE `ipcRenderer.invoke` is reached. An invalid
+ * payload that still crosses is a bypassed boundary even when main would have
+ * rejected it.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const { invokeMock, sendMock } = vi.hoisted(() => ({
@@ -21,8 +18,7 @@ import { PROVIDER_IDS } from "~/shared/providers";
 import { apiFeature, isProviderConnectInput, type ProviderConnectInput } from "./api";
 
 beforeEach(() => {
-  // Return values survive vi.clearAllMocks() — reset the resolved value too,
-  // or a value set by one test decides the outcome of every later one.
+  // Resolved values survive vi.clearAllMocks(), so reset them explicitly.
   vi.clearAllMocks();
   invokeMock.mockResolvedValue({ success: true });
 });
@@ -42,9 +38,6 @@ describe("isProviderConnectInput", () => {
   });
 
   it("accepts every provider id, derived from the registry rather than listed", () => {
-    // Driven by PROVIDER_IDS: the hand-written `=== "openai" || …` chain this
-    // guard replaced would have silently rejected a fourth provider, with no
-    // type error and no failing test.
     expect(PROVIDER_IDS.length).toBeGreaterThan(0);
     for (const provider of PROVIDER_IDS) {
       expect(isProviderConnectInput({ provider })).toBe(true);
@@ -75,7 +68,7 @@ describe("isProviderConnectInput", () => {
   });
 });
 
-describe("D23 — the bridge no longer exposes the deleted channel", () => {
+describe("the bridge no longer exposes the deleted channel", () => {
   it("has no getActiveProvider", () => {
     expect("getActiveProvider" in apiFeature).toBe(false);
     expect(Object.keys(apiFeature)).not.toContain("getActiveProvider");
@@ -135,8 +128,6 @@ describe("every mutating method validates BEFORE it invokes", () => {
 
     expect(result.success).toBe(false);
     expect(invokeMock).not.toHaveBeenCalled();
-    // Critically, no settings-updated either: nothing changed, so telling
-    // every window to resync would be a lie.
     expect(sendMock).not.toHaveBeenCalled();
   });
 });
@@ -217,9 +208,6 @@ describe("valid calls reach the right channel and resync open windows", () => {
     expect(sendMock).toHaveBeenCalledWith("settings-updated");
 
     vi.clearAllMocks();
-    // `settings-updated` makes every listener refetch with refetch: true —
-    // a full network fan-out across every connected provider. Firing that
-    // after main REJECTED the ref pays for it to learn nothing changed.
     invokeMock.mockResolvedValue({ success: false });
     await apiFeature.setSelectedModel("openrouter::not-connected");
     expect(invokeMock).toHaveBeenCalledWith("set-selected-model", "openrouter::not-connected");
@@ -227,9 +215,8 @@ describe("valid calls reach the right channel and resync open windows", () => {
   });
 
   it("connectProvider does not forward an unexpected field main might add", async () => {
-    // Explicit field selection, not `{ ...result }`: a spread forwards
-    // whatever main puts on the object, so a future handler edit could carry
-    // credential material across with no review and no failing test.
+    // SECURITY: kills a `{ ...result }` spread, which would forward any
+    // credential-bearing field a future handler edit adds.
     invokeMock.mockResolvedValue({
       success: true,
       profile: { id: "p1" },

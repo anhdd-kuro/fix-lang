@@ -13,38 +13,19 @@ import {
 import { plainStatus, wrappedError, resolveStatus as resolveStatusDescriptor, type StatusDescriptor } from "./statusDescriptor";
 import { useI18n } from "../i18n/useI18n";
 import type { CorrectionOutputMode } from "~/shared/outputMode";
-// Types only — provider *values* come from `~/shared/providers` via
-// `providerCards.ts`; `~/stores/apiStore` loads `electron-store` and must
-// never enter the renderer bundle (finding F9).
 import type { ProviderId } from "~/stores/apiStore";
 
 type ProviderStatus = {
-  /** Errors and plain successes — resolved through `resolveStatus`. */
   status?: StatusDescriptor;
   /**
-   * A SUCCESS-path advisory from `connect-provider` (Ollama reachable with
-   * nothing pulled). Rendered VERBATIM through `tl()`.
-   *
-   * It must never reach `wrappedError`: that descriptor resolves through the
-   * generic `settings.general.error` ("Error: {message}") template, so a
-   * connect that actually succeeded would be announced to the user as
-   * "Error: Ollama is running but has no models pulled…". Card 06 split
-   * `note` from `error` precisely so this path could stay a success.
+   * A success-path advisory (Ollama reachable, nothing pulled), rendered
+   * verbatim. Never route it through `wrappedError`, which would announce a
+   * successful connect as "Error: …".
    */
   note?: Label;
   isError: boolean;
 };
 
-/**
- * General settings tab: interface language, correction output mode, one
- * independently connectable card per provider, the profile's default model,
- * and reset-to-defaults.
- *
- * There is no staged "Apply" step any more. Each provider connects on its own
- * button and each disconnects on its own — connecting one no longer switches
- * away from another, and connecting deliberately does **not** set a default
- * model (that is the picker below the cards).
- */
 export const SettingGeneral: React.FC = () => {
   const { t, tm, tl } = useI18n();
 
@@ -60,13 +41,10 @@ export const SettingGeneral: React.FC = () => {
   const [providerStates, setProviderStates] = useState<
     Partial<Record<ProviderId, ProviderConnectionState>>
   >({});
-  // Typed credentials — write-only; never round-tripped from main, and kept
-  // per provider so one card's key can never be submitted for another.
+  // Write-only, and per provider so one card's key can never be submitted for another.
   const [typedKeys, setTypedKeys] = useState<TypedProviderKeys>({});
-  // Per provider, not one slot: two connects can be in flight at once, and a
-  // single `busyProvider` would have the first to settle clear the second's
-  // flag — re-enabling a button whose request is still running and inviting a
-  // duplicate credential submission.
+  // Per provider, not one slot: concurrent connects would otherwise clear each
+  // other's flag and re-enable a button whose request is still running.
   const [busyProviders, setBusyProviders] = useState<
     Partial<Record<ProviderId, boolean>>
   >({});
@@ -74,9 +52,7 @@ export const SettingGeneral: React.FC = () => {
     Partial<Record<ProviderId, ProviderStatus>>
   >({});
 
-  /** Provider awaiting an explicit confirm before its disconnect runs. */
   const [confirmDisconnect, setConfirmDisconnect] = useState<ProviderId | null>(null);
-  /** What a completed disconnect actually cleared — locale-free descriptors. */
   const [disconnectReport, setDisconnectReport] = useState<{
     provider: ProviderId;
     lines: Message[];
@@ -99,12 +75,10 @@ export const SettingGeneral: React.FC = () => {
     }
   }, []);
 
-  // Load provider states on mount; reload when the active profile changes so
-  // the cards never describe a previous profile's connections.
+  // Reload on profile change so the cards never describe another profile's
+  // connections.
   useEffect(() => {
-    // Reading main's provider state on mount IS the external-system sync this
-    // rule carves out; the setState happens in the awaited continuation, not
-    // synchronously in the effect body.
+    // Reading main's state is the external-system sync the rule carves out.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshProviderStates();
     const offProfile = window.electronAPI?.onProfileUpdated?.(() => {
@@ -114,9 +88,8 @@ export const SettingGeneral: React.FC = () => {
       setDisconnectReport(null);
       refreshProviderStates();
     });
-    // A connect/disconnect performed from another window broadcasts
-    // `settings-updated`; without this the cards keep showing the old
-    // connection state while the embedded `<ModelSelect>` already refreshed.
+    // Another window's connect/disconnect broadcasts `settings-updated`;
+    // without this the cards keep showing stale connection state.
     const offSettings = window.electronAPI?.onSettingsUpdated?.(() => {
       refreshProviderStates();
     });
@@ -203,12 +176,6 @@ export const SettingGeneral: React.FC = () => {
     setProviderStatus((current) => ({ ...current, [provider]: { status, isError } }));
   };
 
-  /**
-   * Verify credentials, store them, and install the provider's model list.
-   *
-   * `note` is a SUCCESS-path advisory (Ollama reachable with nothing pulled) —
-   * rendered, but never as an error: the provider really is connected.
-   */
   const handleConnect = async (provider: ProviderId) => {
     if (!window.electronAPI?.connectProvider) {
       reportProvider(
@@ -229,8 +196,7 @@ export const SettingGeneral: React.FC = () => {
         provisioningKey: typed?.provisioningKey || undefined,
       });
       if (result.success) {
-        // Typed secrets are dropped as soon as main has them — this component
-        // must never keep a credential around after a successful write.
+        // Never keep a credential around after main has stored it.
         setTypedKeys((current) => ({ ...current, [provider]: {} }));
         if (result.note) {
           setProviderStatus((current) => ({
@@ -279,10 +245,6 @@ export const SettingGeneral: React.FC = () => {
     try {
       const result = await window.electronAPI.disconnectProvider(provider);
       if (result.success) {
-        // The report is built from main's `cleared` record, so it states what
-        // was ACTUALLY reset. The three facts in that record are independent —
-        // `describeDisconnectImpact` keeps them on separate lines so a preset
-        // being cleared never implies the default model was.
         setDisconnectReport({
           provider,
           lines: describeDisconnectImpact(
@@ -469,8 +431,8 @@ export const SettingGeneral: React.FC = () => {
                 ? t("settings.general.providers.card.testAndFetch")
                 : t("settings.general.providers.card.connect")}
           </button>
-          {/* Hidden while its own confirmation is open, so the panel's
-              Disconnect is never one of two identically-named controls. */}
+          {/* Hidden while its confirmation is open, so Disconnect is never
+              one of two identically-named controls. */}
           {card.connected && confirmDisconnect !== provider && (
             <button
               type="button"
@@ -483,7 +445,6 @@ export const SettingGeneral: React.FC = () => {
           )}
         </div>
 
-        {/* Inline confirmation — deliberately not a modal. */}
         {confirmDisconnect === provider && (
           <div
             role="alertdialog"
@@ -498,9 +459,8 @@ export const SettingGeneral: React.FC = () => {
                 provider: name,
               })}
             </p>
-            {/* Gated on a key actually being ON DISK, not on the provider
-                merely supporting one — Ollama has none, and a key-provider
-                connected without a stored key has none either. */}
+            {/* Gated on a key actually being on disk, not on the provider
+                merely supporting one. */}
             {(card.apiKeySet || card.provisioningKeySet) && (
               <p className="mt-1 text-xs text-card-foreground">
                 {t("settings.general.providers.disconnect.warning.key")}
@@ -525,7 +485,6 @@ export const SettingGeneral: React.FC = () => {
           </div>
         )}
 
-        {/* What the completed disconnect actually cleared. */}
         {disconnectReport?.provider === provider && (
           <div
             className="mt-2 rounded border border-border bg-secondary p-2"
@@ -632,7 +591,6 @@ export const SettingGeneral: React.FC = () => {
         )}
       </section>
 
-      {/* Providers — each connects and disconnects on its own. */}
       <section className="mb-4">
         <h2 className="text-sm font-medium text-card-foreground">
           {t("settings.general.providers.title")}
@@ -643,14 +601,6 @@ export const SettingGeneral: React.FC = () => {
         <div className="mt-3 flex flex-col gap-3">{cards.map(renderProviderCard)}</div>
       </section>
 
-      {/*
-        The profile's default model. This is `<ModelSelect>` — the same
-        component the tray, the Models dashboard, the correction presets and
-        PromptGen use — so grouping, the Unavailable option and the inherit
-        option reach every picker at once instead of drifting between two
-        implementations. It owns its own refresh and persistence, which is why
-        there is no fetch button or staged model state here any more.
-      */}
       <section className="mb-4">
         <ModelSelect
           saveOnChange

@@ -15,9 +15,8 @@ export type SearchableOption = {
 
 export type SearchableSelectProps<Option extends SearchableOption> = {
   /**
-   * Flat options, grouped options, or a mix. `filterOption` needs no change
-   * for the grouped case: react-select flattens groups before filtering and
-   * drops a heading whose options all filter out.
+   * Flat, grouped, or mixed — `filterOption` needs no group handling because
+   * react-select flattens groups before filtering and hides emptied groups.
    */
   options: readonly (Option | GroupBase<Option>)[];
   value: Option | null;
@@ -49,16 +48,7 @@ export type SearchableSelectProps<Option extends SearchableOption> = {
 
 const DEFAULT_MENU_MAX_HEIGHT = 200;
 
-/**
- * Default heading for a grouped option list.
- *
- * react-select ships its own `GroupHeading`, but it is styled from
- * react-select's defaults (grey `#999`, its own font sizing) and ignores the
- * theme CSS vars every other part of this control uses, so an unstyled group
- * heading is visibly foreign in every one of the 149 bundled themes. Merged
- * *under* the caller's `components` below, so a caller supplying its own
- * `GroupHeading` still wins.
- */
+/** Replaces react-select's own heading, which ignores the theme CSS vars. */
 export const DefaultGroupHeading = <Option extends SearchableOption>({
   data,
 }: GroupHeadingProps<Option, false, GroupBase<Option>>): React.ReactElement | null => {
@@ -82,23 +72,13 @@ export const matchesSearch = (
   const query = normalizeForSearch(rawInput);
   if (!query) return true;
   const haystack = normalizeForSearch(`${option.value} ${option.label}`);
-  // An option with no searchable text at all is never filtered out. The one
-  // such option is `<ModelSelect>`'s inherit row (`value: ""`, `label: ""`,
-  // whose visible text comes from `t()` and so is not searchable by
-  // construction) — without this it would vanish the moment a user typed
-  // anything, making "use the global default" unreachable from the keyboard.
+  // Never filter out an option with no searchable text: `<ModelSelect>`'s
+  // inherit row is one, and would vanish the moment a user typed anything.
   if (!haystack) return true;
   return haystack.includes(query);
 };
 
-/**
- * Merge a caller's sub-components over the defaults this component supplies.
- *
- * The caller's entries win: `<ModelSelect>` renders a `GroupHeading` that also
- * shows a provider's fetch error, and it must not be shadowed by the plain
- * default above. Extracted so that precedence is pinned by a test rather than
- * by the order of a spread inside JSX.
- */
+/** Caller entries win over the defaults. */
 export const withDefaultComponents = <Option extends SearchableOption>(
   components?: SelectComponentsConfig<Option, false, GroupBase<Option>>,
 ): SelectComponentsConfig<Option, false, GroupBase<Option>> => ({
@@ -178,9 +158,6 @@ export const SearchableSelect = <Option extends SearchableOption>({
           ...base,
           color: "var(--foreground)",
         }),
-        // react-select pads groups generously and colours headings from its
-        // own defaults; without these two entries a grouped list ignores the
-        // theme entirely.
         group: (base) => ({
           ...base,
           paddingTop: 0,

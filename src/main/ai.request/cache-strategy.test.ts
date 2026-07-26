@@ -90,46 +90,27 @@ describe("resolveCacheProvider", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// D19 — composite model refs must not silently degrade
-//
-// Every assertion below is `equals the raw-id result`, never `equals a
-// specific CacheProvider literal`. That formulation is the point: this is a
-// SILENT regression — a composite ref that misses a `startsWith(...)` arm
-// falls through to UNSUPPORTED, prompt caching stops, and the only symptom is
-// a bigger bill. A literal assertion would keep passing for the wrong reason
-// if someone later retunes the strategy table; equality with the raw id
-// cannot.
-// ---------------------------------------------------------------------------
+// Assertions compare a ref against its own raw-id result, never a
+// CacheProvider literal: a mis-classified ref falls silently to UNSUPPORTED.
 
-describe("resolveCacheProvider — composite model refs (D19)", () => {
+describe("resolveCacheProvider — composite model refs", () => {
   const equivalent = (raw: string, ref: string) => {
     expect(resolveCacheProvider(ref)).toEqual(resolveCacheProvider(raw));
   };
 
-  // -- The pairs that genuinely regressed ----------------------------------
-  //
-  // Only the `startsWith(...)` arms are prefix-sensitive. An id that also
-  // matches an `includes(...)` arm ("claude", "gemini", "gpt", "grok",
-  // "deepseek") is rescued by that arm, and degrades only when the family
-  // word is absent from the id — the common case for `google/gemma-*`,
-  // `openai/o*` and any non-Claude Anthropic id. These are the pairs that
-  // were actually returning UNSUPPORTED for a composite ref.
+  // Gemma, o-series and non-Claude Anthropic ids carry no family word, so only
+  // a `startsWith` arm can classify them — these are the ids that actually
+  // regressed, and the reason a Claude id would pass against broken code.
 
   it("an openrouter:: ref to a Gemma id matches the raw id", () => {
-    // "google/gemma-2-9b-it" contains no "gemini", so only
-    // `startsWith("google/")` can classify it.
     equivalent("google/gemma-2-9b-it", "openrouter::google/gemma-2-9b-it");
   });
 
   it("an openrouter:: ref to an OpenAI o-series id matches the raw id", () => {
-    // "openai/o3-mini" contains no "gpt" — same shape as the Gemma case.
     equivalent("openai/o3-mini", "openrouter::openai/o3-mini");
   });
 
   it("an openai:: ref to an OpenAI o-series id matches the raw id", () => {
-    // The prefix need not name a different provider than the id's own path
-    // segment: "openai::openai/o3-mini" no longer starts with "openai/".
     equivalent("openai/o3-mini", "openai::openai/o3-mini");
   });
 
@@ -137,13 +118,8 @@ describe("resolveCacheProvider — composite model refs (D19)", () => {
     equivalent("anthropic/haiku-next", "openrouter::anthropic/haiku-next");
   });
 
-  // -- Pairs that were already equal, pinned so they stay equal -------------
-  //
-  // These pass before the fix too, rescued by an `includes(...)` arm. They
-  // are kept because a strip applied at the wrong point in the chain would
-  // break them — and because the card names the first one as the motivating
-  // example, so it is worth recording that this particular id was NOT one of
-  // the ones losing its cache.
+  // The pairs below are rescued by an `includes` arm and already passed; they
+  // are pinned because a strip applied at the wrong point would break them.
 
   it("an openrouter:: ref to a Claude id matches the raw id", () => {
     equivalent(
@@ -161,25 +137,17 @@ describe("resolveCacheProvider — composite model refs (D19)", () => {
   });
 
   it("a ref to a genuinely unsupported model still matches the raw id", () => {
-    // The UNSUPPORTED case has to be pinned too: a strip that accidentally
-    // widened matching would show up here and nowhere else.
     equivalent("meta-llama/llama-3-70b", "openrouter::meta-llama/llama-3-70b");
   });
 
   it("an ollama:: ref keeps the tag's own colon intact", () => {
-    // `::` splits once, so "llama3.2:3b" survives the strip unaltered.
     equivalent("llama3.2:3b", "ollama::llama3.2:3b");
     equivalent("deepseek-r1:7b", "ollama::deepseek-r1:7b");
   });
 
+  // Pinned so a future "just split on any ::" shortcut fails here.
   it("an unrecognized head is NOT a prefix — it stays part of the id", () => {
-    // `parseModelRef` only honors a known provider id, so "bogus::claude-3"
-    // is a bare id whose modelId is the whole string. It still resolves
-    // ANTHROPIC via the `includes("claude")` arm.
     expect(resolveCacheProvider("bogus::claude-3")).toBe(CacheProvider.ANTHROPIC);
-    // …and an unknown head does still hide a `startsWith` id, exactly as it
-    // does for every other consumer of `parseModelRef`. Pinned so a future
-    // "just split on any ::" shortcut fails here.
     expect(resolveCacheProvider("bogus::openai/o3-mini")).toBe(
       CacheProvider.UNSUPPORTED,
     );

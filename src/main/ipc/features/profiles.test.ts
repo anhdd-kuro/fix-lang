@@ -126,16 +126,10 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
     onHandlers.clear();
     getProfilesMock.mockReturnValue([]);
     getCurrentProfileIdMock.mockReturnValue("profile_1");
-    // vi.clearAllMocks() clears calls but NOT return values, so a profile
-    // configured by one test would persist into the next, where
-    // registerProfileHandlers' fire-and-forget
-    // `void migrateLegacySecretsToActiveProfile()` would run against it and
-    // reject unhandled. Restore the no-active-profile default explicitly;
-    // tests that need a profile set their own return value.
+    // vi.clearAllMocks() clears calls but NOT return values or
+    // implementations, so leaked ones would decide later tests — and a leaked
+    // profile makes the fire-and-forget legacy migration reject unhandled.
     getProfileByIdMock.mockReturnValue(undefined);
-    // Same hazard for implementations, not just return values: the writeback
-    // test below replaces this mock's implementation, and vi.clearAllMocks()
-    // does not restore it. Reset it here so it cannot decide a later test.
     withoutProfileSecretsMock.mockImplementation((profile: unknown) => profile);
     toExportableProfileMock.mockImplementation((profile: unknown) => profile);
     sanitizeImportedProfileMock.mockImplementation((profile: unknown) => profile);
@@ -175,19 +169,12 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
     expect(ja).not.toBe(en);
   });
 
-  // The two strippers are NOT interchangeable and the difference is load
-  // bearing: `withoutProfileSecrets` is written back to disk during legacy
-  // secret migration, so widening it wipes an upgrading user's model cache.
-  // `toExportableProfile` additionally drops models/enabledProviders/refs,
-  // which is only correct for a file leaving this machine. These tests pin
-  // which one each path calls, via distinguishable return values — the
-  // stripping behaviour itself is pinned in apiStore.test.ts (D13).
+  // The two strippers are not interchangeable: `withoutProfileSecrets` is
+  // written back to disk by the legacy migration, so widening it to also drop
+  // model state would wipe an upgrading user's cache on first launch.
   it("export-profile serialises toExportableProfile, not the disk-writeback stripper", async () => {
-    // `settings` is required, not decoration: registerProfileHandlers fires
-    // `void migrateLegacySecretsToActiveProfile()`, which dereferences
-    // `profile.settings.apiKey`. vi.clearAllMocks() clears calls but NOT
-    // return values, so a settings-less profile here leaks into every later
-    // test in this file as an unhandled rejection.
+    // `settings` is required: the fire-and-forget legacy migration
+    // dereferences `profile.settings.apiKey` and would reject unhandled.
     const storedProfile = { id: "profile_1", name: "Work", settings: { apiKey: "" } };
     getProfileByIdMock.mockReturnValue(storedProfile);
     toExportableProfileMock.mockReturnValue({ id: "profile_1", strippedBy: "toExportableProfile" });
@@ -211,17 +198,6 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
     expect(withoutProfileSecretsMock).not.toHaveBeenCalled();
   });
 
-  // ---------------------------------------------------------------------
-  // The legacy-secret migration writeback. This is the landmine: line ~99
-  // writes the stripper's result straight BACK TO DISK, so widening it from
-  // `withoutProfileSecrets` to `toExportableProfile` would permanently erase
-  // every upgrading user's model cache, enabledProviders and model refs on
-  // first launch. `apiStore` is mocked here, so this pins the CALL — which
-  // helper the writeback uses, and that what reaches `apiStore.set` still
-  // carries the model state. That the narrow helper genuinely preserves that
-  // state is pinned separately, against the real implementation, by
-  // `apiStore.test.ts` › "withoutProfileSecrets — D13 (first half)".
-  // ---------------------------------------------------------------------
   it("legacy-secret migration writes back withoutProfileSecrets, preserving the model cache", async () => {
     const storedProfile = {
       id: "profile_1",

@@ -36,7 +36,7 @@ type ModelLike = { id: string; created?: number };
  * list is empty. Generic over `ModelLike` so `resolveDefaultOpenAIModel` can
  * call it with a bare `{id, created?}` list without a cast to `Model[]`: a
  * cast there would silently assert the `name`/non-optional `created` fields
- * `Model` requires but `ModelLike` doesn't guarantee (F8) — nothing here
+ * `Model` requires but `ModelLike` doesn't guarantee — nothing here
  * reads either, so there is nothing to assert.
  */
 const resolveNewestGptMini = <T extends ModelLike>(models: readonly T[]): T | null => {

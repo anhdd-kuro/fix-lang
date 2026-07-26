@@ -1,7 +1,7 @@
 /**
  * @file apiStore.test.ts
- * @description Tests for provider-aware model caching and the staged
- * provider-setup commit path. Pure unit tests — no Electron, no IPC, no
+ * @description Tests for provider-aware model caching and the provider
+ * connect/disconnect paths. Pure unit tests — no Electron, no IPC, no
  * network; electron-store is replaced with a stateful in-memory mock so
  * get/set round-trip within a test.
  */
@@ -128,16 +128,6 @@ const seedProfiles = (profiles: Profile[], currentProfileId: string): void => {
   apiStore.set("currentProfileId", currentProfileId);
 };
 
-// ---------------------------------------------------------------------------
-// connectProviderToActiveProfile — D10.
-//
-// This describe block REPLACES the old `commitActiveProfileProviderSetup`
-// suite, which asserted that committing a provider wiped every preset model
-// and `settingsPromptGen.model` to the inherit sentinel. That wipe is the
-// behaviour this card deletes, so the assertions below are its exact inverse:
-// connecting a provider must leave every existing model choice byte-identical.
-// ---------------------------------------------------------------------------
-
 const openRouterModel: Model = {
   id: "anthropic/claude-3.5-sonnet",
   name: "claude",
@@ -151,7 +141,9 @@ const localModel: Model = {
   local: { path: "/models/llama-70b" },
 };
 
-describe("connectProviderToActiveProfile — D10", () => {
+// The "byte-identical" assertions are the exact inverse of the replaced
+// behaviour, which wiped every preset model on each provider commit.
+describe("connectProviderToActiveProfile — adds a provider's slice without touching existing model refs", () => {
   beforeEach(() => {
     apiStore.set("profiles", []);
     apiStore.set("currentProfileId", "");
@@ -199,7 +191,6 @@ describe("connectProviderToActiveProfile — D10", () => {
 
     expect(result?.settings.models).toContainEqual(openRouterModel);
     expect(result?.settings.models).toContainEqual(localModel);
-    // Every persisted entry is tagged, so `modelRefForModel` cannot mislabel it.
     expect(result?.settings.models).toContainEqual({
       id: "gpt-4o",
       name: "gpt-4o",
@@ -232,13 +223,8 @@ describe("connectProviderToActiveProfile — D10", () => {
     expect(result?.settings.models).toHaveLength(1);
   });
 
-  // The idempotence test above cannot catch a `model.provider === provider`
-  // regression: its first connect tags every entry, so the second call filters
-  // them either way. Only a cache written BEFORE provider tagging existed
-  // distinguishes the two. An untagged, non-local entry belongs to openrouter
-  // (`isModelForProvider`'s fallback), so reconnecting openrouter must replace
-  // it — under `===` it survives alongside the refreshed row and the picker
-  // shows the same model twice, one of them stale.
+  // Kills `model.provider === provider`, which the idempotence test above cannot:
+  // its first connect tags every entry, so only a pre-tagging cache tells them apart.
   it("replaces an untagged legacy cache entry on reconnect instead of duplicating it", () => {
     const untagged: Model = { id: "gpt-4o", name: "gpt-4o", created: 1 };
     const profile = buildProfile({
@@ -282,11 +268,7 @@ describe("connectProviderToActiveProfile — D10", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// disconnectProviderFromActiveProfile — D11
-// ---------------------------------------------------------------------------
-
-describe("disconnectProviderFromActiveProfile — D11", () => {
+describe("disconnectProviderFromActiveProfile — clears only that provider's refs and reports what it cleared", () => {
   beforeEach(() => {
     apiStore.set("profiles", []);
     apiStore.set("currentProfileId", "");
@@ -491,12 +473,6 @@ describe("isModelForProvider", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Re-exports from ~/shared/providers (card 03: apiStore.ts must not redefine
-// these — it must re-export the ~/shared/providers originals verbatim so the
-// ~40 existing importers of these names from apiStore keep compiling).
-// ---------------------------------------------------------------------------
-
 describe("apiStore re-exports from ~/shared/providers", () => {
   it("PROVIDER_IDS, isProviderId and isModelForProvider are the exact ~/shared/providers exports", () => {
     expect(PROVIDER_IDS).toBe(sharedProviderIds);
@@ -505,13 +481,7 @@ describe("apiStore re-exports from ~/shared/providers", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// D9 — Profile has no `provider` field; the schema has no `provider`
-// property. (`bunx tsc --noEmit` covers the type-level half of D9; these
-// assertions cover the schema/runtime half.)
-// ---------------------------------------------------------------------------
-
-describe("apiStoreSchema — provider removal and enabledProviders (D9)", () => {
+describe("apiStoreSchema — provider removal and enabledProviders", () => {
   const profileSchemaProperties = apiStoreSchema.profiles.items.properties as Record<
     string,
     unknown
@@ -552,10 +522,6 @@ describe("apiStoreSchema — provider removal and enabledProviders (D9)", () => 
   });
 });
 
-// ---------------------------------------------------------------------------
-// Model schema defaults become "" (inherit); configVersion defaults to 0.
-// ---------------------------------------------------------------------------
-
 describe("apiStoreSchema — model defaults are the inherit sentinel", () => {
   const settingsSchemaProperties = (
     apiStoreSchema.profiles.items.properties.settings as {
@@ -589,11 +555,6 @@ describe("apiStoreSchema — model defaults are the inherit sentinel", () => {
     expect(apiStoreSchema.configVersion).toEqual({ type: "number", default: 0 });
   });
 
-  // Regression: apiKey once defaulted to process.env.OPENAI_API_KEY. ajv's
-  // useDefaults injected it into every profile on read, the migration persisted
-  // it in plaintext to config.json, and migrateLegacySecretsToActiveProfile
-  // promoted it into the *openrouter* secret slot — an OpenAI key sent to
-  // openrouter.ai as a Bearer token. The default must stay valueless.
   it("settings.apiKey defaults to \"\" and never carries a value from the environment", () => {
     expect(settingsSchemaProperties.apiKey.default).toBe("");
   });
@@ -613,21 +574,10 @@ describe("apiStoreSchema — model defaults are the inherit sentinel", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// apiStoreSchema — F4(a)/F4(b) fix, committed-snapshot equality check.
-//
-// `clearInvalidConfig: true` means ANY runtime change to this schema object
-// can wipe a user's entire config (every profile, preset, key reference) —
-// see the block comment above `apiStoreSchema`. The F4 type-only fix (typing
-// nested `properties` against `Profile`/`SettingsStore`, and a separate
-// `ConfigVersionStore` view for `configVersion`) must not change the emitted
-// runtime object by even one byte. This hash is the committed snapshot: if
-// it ever changes, the schema changed, and that needs the same scrutiny as
-// any other schema edit (re-verify clearInvalidConfig safety) — it should
-// never be updated to "make the test pass" without that.
-// ---------------------------------------------------------------------------
-
-describe("apiStoreSchema — serialised schema is byte-identical (F4 regression guard)", () => {
+// Do not update this hash to make the test pass. `clearInvalidConfig: true`
+// means any change to the schema object can wipe a user's whole config, so a
+// changed hash needs the same scrutiny as any other schema edit.
+describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
     const hash = crypto
@@ -639,10 +589,6 @@ describe("apiStoreSchema — serialised schema is byte-identical (F4 regression 
     );
   });
 });
-
-// ---------------------------------------------------------------------------
-// getDefaultModelId
-// ---------------------------------------------------------------------------
 
 describe("getDefaultModelId", () => {
   beforeEach(() => {
@@ -696,11 +642,7 @@ describe("getDefaultModelId", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// resetCurrentProfileSettings preserves enabledProviders (D12)
-// ---------------------------------------------------------------------------
-
-describe("resetCurrentProfileSettings — D12", () => {
+describe("resetCurrentProfileSettings — preserves apiKey, models and enabledProviders", () => {
   beforeEach(() => {
     apiStore.set("profiles", []);
     apiStore.set("currentProfileId", "");
@@ -739,12 +681,7 @@ describe("resetCurrentProfileSettings — D12", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// withoutProfileSecrets — D13, first half (unchanged aside from the removed
-// normalizeProfileProvider call; still strips only secrets).
-// ---------------------------------------------------------------------------
-
-describe("withoutProfileSecrets — D13 (first half)", () => {
+describe("withoutProfileSecrets — strips apiKey and keeps every model field", () => {
   it("strips apiKey but returns models and selectedModel intact", () => {
     const models: Model[] = [{ id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" }];
     const profile = buildProfile({
@@ -764,9 +701,8 @@ describe("withoutProfileSecrets — D13 (first half)", () => {
   });
 
   it("returns enabledProviders and every preset/feature model intact", () => {
-    // The exact reason this helper must stay narrow: profiles.ts:98 writes its
-    // result back to disk during the legacy-secret migration, so anything it
-    // strips is permanently gone from an upgrading user's config.
+    // Anything stripped here is permanently gone: profiles.ts writes this
+    // result back to disk during the legacy-secret migration.
     const profile = buildProfile({
       settings: buildSettings({
         apiKey: "secret-key",
@@ -791,12 +727,7 @@ describe("withoutProfileSecrets — D13 (first half)", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// toExportableProfile — D13, second half. Everything model-shaped is stripped,
-// and a paired assertion pins that the two helpers differ on EXACTLY that set.
-// ---------------------------------------------------------------------------
-
-describe("toExportableProfile — D13 (second half)", () => {
+describe("toExportableProfile — strips apiKey and every model field, keeping the rest", () => {
   const exportableFixture = (): Profile =>
     buildProfile({
       settings: buildSettings({
@@ -862,8 +793,7 @@ describe("toExportableProfile — D13 (second half)", () => {
       exportable.settings.settingsSummarize.model,
     );
 
-    // …and nothing else. Blanking the model fields on the secrets-only copy
-    // must make the two byte-identical.
+    // …and nothing else.
     const blanked = {
       ...secretsOnly,
       settings: {
@@ -898,10 +828,6 @@ describe("toExportableProfile — D13 (second half)", () => {
     expect(sanitizeImportedProfile).toBe(toExportableProfile);
   });
 });
-
-// ---------------------------------------------------------------------------
-// Migration wiring — `initializeDefaultProfile` / `migrateStoredProfilesForModelRefs`
-// ---------------------------------------------------------------------------
 
 describe("migrateStoredProfilesForModelRefs", () => {
   beforeEach(() => {
@@ -945,9 +871,6 @@ describe("migrateStoredProfilesForModelRefs", () => {
 
     migrateStoredProfilesForModelRefs();
 
-    // Untouched: still has the raw, unmigrated shape (still has a raw
-    // provider key, still has an unprefixed selectedModel) because the
-    // version gate short-circuited before the migration ran.
     const rawProfiles = apiStore.get("profiles") as Record<string, unknown>[];
     expect(rawProfiles[0].provider).toBe("openai");
     expect(
@@ -955,7 +878,7 @@ describe("migrateStoredProfilesForModelRefs", () => {
     ).toBe("gpt-4o");
   });
 
-  it("D15b — with configVersion forced back to 0 and already-migrated profiles on disk, replaying the driver rewrites nothing", () => {
+  it("with configVersion forced back to 0 and already-migrated profiles on disk, replaying the driver rewrites nothing", () => {
     apiStore.set("profiles", [
       {
         id: "profile_1",
@@ -970,7 +893,6 @@ describe("migrateStoredProfilesForModelRefs", () => {
     migrateStoredProfilesForModelRefs();
     const afterFirstRun = getProfiles();
 
-    // Force the gate back to 0, simulating a bug or a manual rollback.
     apiStore.set("configVersion", 0);
     migrateStoredProfilesForModelRefs();
     const afterSecondRun = getProfiles();
@@ -999,12 +921,8 @@ describe("migrateStoredProfilesForModelRefs", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Real electron-store schema round trip (via the `conf` package electron-store
-// wraps): a migrated profile must not trip `clearInvalidConfig` — the whole
-// reason `enabledProviders` has no ajv `enum` above.
-// ---------------------------------------------------------------------------
-
+// A migrated profile must survive real ajv validation — the whole reason
+// `enabledProviders` carries no `enum`.
 describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)", () => {
   it("round-trips a migrated profile through the real validation engine without wiping it", async () => {
     const { default: Conf } = await import("conf");
@@ -1014,10 +932,7 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
     const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "fixlang-apistore-schema-"));
 
     try {
-      // Real ajv-backed validator (the same engine electron-store uses under
-      // the hood — `Schema` is literally re-exported from `conf`), isolated
-      // to a throwaway temp directory so this never touches a real user
-      // config file.
+      // A throwaway cwd: this must never touch a real user config file.
       const realStore = new Conf<{ profiles: Profile[] }>({
         cwd,
         configName: "config",
@@ -1045,12 +960,6 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
     }
   });
 });
-
-// ---------------------------------------------------------------------------
-// const.ts — resolveDefaultModel / resolveDefaultOpenAIModel (nearest
-// existing test, per the card's Scope note: no dedicated const.test.ts
-// exists yet, and no other test currently exercises these functions).
-// ---------------------------------------------------------------------------
 
 describe("resolveDefaultModel", () => {
   it("returns null for an empty list", () => {

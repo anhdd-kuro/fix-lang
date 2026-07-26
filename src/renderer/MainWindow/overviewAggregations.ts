@@ -191,20 +191,8 @@ export const stripModelDate = (id: string | null): string | null => {
   return id.replace(/-\d{4}-\d{2}-\d{2}$/, "").replace(/-\d{8}$/, "");
 };
 
-/*
- * Deliberately absent: a helper that split a served model id on its first "/"
- * and reported the head as the provider, plus its result type.
- *
- * Inferring a provider from the shape of an id is the exact anti-pattern the
- * multi-provider refactor removes — id shapes collide across providers
- * ("openai/gpt-4o" is routinely served by OpenRouter, not OpenAI), so the
- * answer was wrong as often as it was right. Provider identity is now carried
- * explicitly: `Model.provider`, and the composite `<providerId>::<rawModelId>`
- * ref in `~/shared/modelRef`. If anything here needs a provider again, read it
- * from one of those. Do not re-derive it from the id.
- *
- * It had no caller but its own test, which was deleted with it.
- */
+// Never infer a provider from an id's shape — ids collide across providers.
+// Read it from `Model.provider` or the composite ref in `~/shared/modelRef`.
 
 export type PresetBreakdownRow = {
   /** Identity/grouping key: user preset name, or `UNTITLED_PRESET_ID`. */

@@ -1,13 +1,3 @@
-/**
- * @file providerCards.test.ts
- * @description Pins the per-provider card state and — the part a user makes
- * an irreversible decision from — the disconnect impact description.
- *
- * The four `cleared` combinations are covered explicitly, because the three
- * facts in that record are independent and a previous draft of this copy
- * coupled two of them: disconnecting a provider that held a preset, while the
- * default model lived elsewhere, told the user their default was clearing.
- */
 import { describe, expect, it } from "vitest";
 import { createTranslator } from "~/shared/i18n/translate";
 import { PROVIDER_ORDER } from "~/shared/providers";
@@ -52,8 +42,7 @@ describe("buildProviderCards", () => {
     const withoutKey = buildProviderCards({ openai: state({ connected: true }) });
 
     expect(withKey.find((card) => card.provider === "openai")?.configured).toBe(true);
-    // Connected but no key on disk: NOT configured. `configured` is the
-    // registry's rule, not a copy of main's field.
+    // Kills: copying main's `configured` field instead of applying the rule.
     expect(withoutKey.find((card) => card.provider === "openai")?.configured).toBe(
       false,
     );
@@ -68,8 +57,7 @@ describe("buildProviderCards", () => {
   });
 
   it("reports `connected` from enabledProviders, separately from `configured`", () => {
-    // A disconnected provider whose key is still on disk. The Disconnect
-    // button gates on `connected`; offering models gates on it too.
+    // A disconnected provider whose key is still on disk.
     const [openai] = buildProviderCards({
       openai: state({ connected: false, apiKeySet: true }),
     });
@@ -109,9 +97,8 @@ describe("buildProviderCards", () => {
   });
 
   it("reports every secret slot as unset for a provider missing from the states map", () => {
-    // Defaulting a `…Set` flag to `true` would have the card claim a stored
-    // provisioning key that does not exist, and offer a Disconnect warning
-    // about deleting it.
+    // Kills: defaulting a `…Set` flag to `true`, which warns about deleting a
+    // key that does not exist.
     const cards = buildProviderCards({});
     for (const card of cards) {
       expect(card.apiKeySet).toBe(false);
@@ -148,8 +135,7 @@ describe("describeDisconnectImpact — all four cleared combinations", () => {
     expect(lines.find((line) => line.key.endsWith("cleared"))?.params).toEqual({
       count: 2,
     });
-    // The regression this file exists for: a preset being cleared must NEVER
-    // drag the default-model sentence in behind it.
+    // Kills: coupling the preset line to the default-model line.
     expect(keys(lines)).not.toContain(
       "settings.general.providers.disconnect.warning.selectedModel",
     );
@@ -191,8 +177,7 @@ describe("describeDisconnectImpact — all four cleared combinations", () => {
   it("neither: states that nothing will be lost — not an empty list, not a hedge", () => {
     const lines = describeDisconnectImpact("ollama", cleared());
 
-    // Ollama has no stored key, so the "nothing will be lost" line is the
-    // WHOLE warning — an empty array here would render a blank warning box.
+    // An empty array here would render a blank warning box.
     expect(keys(lines)).toEqual([
       "settings.general.providers.disconnect.warning.nothing",
     ]);
@@ -210,8 +195,7 @@ describe("describeDisconnectImpact — all four cleared combinations", () => {
       "settings.general.providers.disconnect.warning.key",
       "settings.general.providers.disconnect.warning.nothing",
     ]);
-    // …and the two lines must not contradict: the key line announces a real
-    // loss, so the second line has to be scoped ("Nothing ELSE will be lost").
+    // The key line announces a real loss, so the second must be scoped.
     expect(
       t("settings.general.providers.disconnect.warning.nothing").toLowerCase(),
     ).toContain("nothing else");
@@ -244,8 +228,6 @@ describe("describeDisconnectImpact — all four cleared combinations", () => {
     });
 
     it("is omitted for Ollama even when the caller wrongly reports a key", () => {
-      // Ollama stores no secret at all; `secretKindsForProvider` derives an
-      // empty slot list for it, so nothing can be on disk to delete.
       expect(
         keys(
           describeDisconnectImpact("ollama", cleared({ selectedModel: true }), {
@@ -267,7 +249,6 @@ describe("describeDisconnectImpact — all four cleared combinations", () => {
       "settings.general.providers.disconnect.warning.features",
     ]);
     expect(lines[0]?.params).toEqual({ count: 2 });
-    // Features are cleared, so "nothing will be lost" would be a lie.
     expect(keys(lines)).not.toContain(
       "settings.general.providers.disconnect.warning.nothing",
     );

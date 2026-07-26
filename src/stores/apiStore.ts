@@ -26,9 +26,7 @@ import {
 import { migrateProfileForModelRefs } from "./profileMigration";
 import type { Schema } from "electron-store";
 
-// Re-exported (not redefined) so the ~40 existing importers of these names
-// from `~/stores/apiStore` keep compiling. `~/shared/providers` is the
-// source of truth now — new code should import from there directly.
+// Re-exported for existing importers; `~/shared/providers` is the source of truth.
 export { isModelForProvider, isProviderId, PROVIDER_IDS };
 export type { Model, ProviderId };
 
@@ -73,14 +71,6 @@ export type SettingsStore = {
   apiKey: string;
   models: Model[];
   selectedModel: string;
-  /**
-   * Providers the user has explicitly connected for this profile. Schema-typed
-   * as a bare string array with NO ajv `enum` (see the schema below) —
-   * `apiStore` is constructed with `clearInvalidConfig: true`, so a single
-   * value that fails schema validation wipes the ENTIRE config: every
-   * profile, every preset, every key reference. Validity is enforced in code
-   * via `sanitizeEnabledProviders`, never tightened in the schema.
-   */
   enabledProviders: ProviderId[];
 
   // Feature-specific settings
@@ -369,39 +359,13 @@ export const normalizeCorrectionSettings = (
 };
 
 /**
- * F4(a) — `Schema<T>` (from `conf`, re-exported via `electron-store`) is
- * `{ [Property in keyof T]: ValueSchema }`: it only ties the TOP-LEVEL keys
- * of `apiStoreSchema` to `T`. Every nested `properties` block underneath —
- * `enabledProviders` included — was plain `ValueSchema`, with no link back
- * to `Profile` / `SettingsStore`. Renaming `enabledProviders` to
- * `enabledProvider` in that nested block produced byte-identical `tsc`
- * output: the typo silently orphans the field from ajv validation and
- * defaulting, with zero compiler signal.
- *
- * `ValueSchema` is derived structurally from `Schema<T>` itself (rather than
- * importing `json-schema-typed` directly, which is only a transitive
- * dependency of `conf`, not a direct dependency of this package).
- *
- * `TypedSchemaFor<T>` ties a schema node's `properties` to `keyof T`,
- * recursively through arrays and nested objects, so the `profiles` schema
- * node below is checked against `Profile`, and `Profile["settings"]` against
- * `SettingsStore` — which is exactly where `enabledProviders` lives. This is
- * deliberately structural, not a general JSON-Schema-to-TS validator: leaf
- * (non-object, non-array) nodes still fall back to the library's own
- * `ValueSchema`, so keywords like `default`, `format`, `minimum`, etc. are
- * untouched wherever they apply to a primitive; only `properties` / `items`
- * / `required` / `default` are narrowed.
- *
- * One deliberate carve-out: `Model[]` (the `models` field) stops recursion
- * and falls back to plain `ValueSchema`. The `models` schema node's
- * `properties` (`id`, `object`, `created`, `owned_by`) mirror a raw provider
- * API listing, not the persisted `Model` shape (`id`, `name`, `created`,
- * `provider?`, `pricing?`, `local?`) — schema and type have diverged there
- * since before this fix, which is unrelated to F4. Recursing into `Model`
- * here would turn that pre-existing, out-of-scope mismatch into a *new* tsc
- * error, which the gate for this change forbids. That one field's nested
- * shape remains unchecked by this type; `enabledProviders` is not affected,
- * since it is a sibling property of `models`, not nested inside it.
+ * `Schema<T>` types only the TOP-LEVEL keys of `apiStoreSchema`; nested
+ * `properties` blocks are unchecked, so a typo'd nested key (`enabledProvider`)
+ * compiles clean while silently orphaning the field from ajv validation and
+ * defaulting. `TypedSchemaFor` closes that gap. `Model[]` is carved out because
+ * the `models` schema node mirrors a raw provider listing, not the persisted
+ * `Model` shape. `ValueSchema` is derived structurally because
+ * `json-schema-typed` is only a transitive dependency, never a direct one.
  */
 type ValueSchema = Schema<{ value: unknown }>["value"];
 type ValueSchemaObject = Extract<ValueSchema, object>;
@@ -423,11 +387,7 @@ type TypedSchemaFor<T> = T extends Model[]
 
 export const apiStoreSchema = {
   currentProfileId: { type: "string", default: "" },
-  /**
-   * Bumped by the one-shot migration in `initializeDefaultProfile` (see
-   * `profileMigration.ts`) once every on-disk profile has been converted to
-   * the model-ref shape. Never read directly by feature code.
-   */
+  /** Migration marker only — bumped by `migrateStoredProfilesForModelRefs`, never read by feature code. */
   configVersion: { type: "number", default: 0 },
   profiles: {
     type: "array",
@@ -442,34 +402,23 @@ export const apiStoreSchema = {
         settings: {
           type: "object",
           properties: {
-            // The default is deliberately valueless. It once defaulted to
-            // process.env.OPENAI_API_KEY, which ajv's useDefaults injected into
-            // every profile on read; the migration then persisted it in
-            // plaintext to config.json, and migrateLegacySecretsToActiveProfile
-            // promoted it into the profile's *openrouter* secret slot — sending
-            // an OpenAI key to openrouter.ai as a Bearer token. Secrets belong
-            // in safeStorage, reached via profileSecretStore, never in a schema
-            // default. The "" default is load bearing and must stay: the type
-            // is a required string and withoutProfileSecrets deletes this key,
-            // so without it a scrubbed profile reads back undefined. Never
-            // reintroduce a default that carries a value.
+            // Never give this a valued default: ajv's useDefaults injects it into
+            // every profile on read and it lands in plaintext config.json. Secrets
+            // live in safeStorage via profileSecretStore. The "" is load bearing —
+            // the type is a required string and withoutProfileSecrets deletes the
+            // key, so without it a scrubbed profile reads back undefined.
             apiKey: {
               type: "string",
               default: "",
             },
-            // "" means "inherit the global default", resolved dynamically at
-            // request/display time by `getDefaultModelId`. A non-empty value
-            // is a composite `<providerId>::<rawModelId>` ref once migrated.
+            // "" means "inherit the global default" (resolved by getDefaultModelId);
+            // anything else is a composite `<providerId>::<rawModelId>` ref.
             selectedModel: { type: "string", default: "" },
             /**
-             * Providers explicitly connected on this profile. Deliberately a
-             * bare string array — NO ajv `enum` — because `apiStore` is
-             * constructed with `clearInvalidConfig: true` below: a single
-             * value that fails schema validation wipes the ENTIRE config
-             * (every profile, every preset, every key reference), not just
-             * this field. `sanitizeEnabledProviders` (in `~/shared/providers`)
-             * is where validity is actually enforced, in code, not schema.
-             * Do not "tighten" this to an enum.
+             * NEVER add an ajv `enum` here. `apiStore` is constructed with
+             * `clearInvalidConfig: true`, so one value failing schema validation
+             * wipes the ENTIRE config — every profile, preset, and key reference.
+             * Validity is enforced in code by `sanitizeEnabledProviders`.
              */
             enabledProviders: { type: "array", items: { type: "string" }, default: [] },
             models: {
@@ -522,7 +471,6 @@ export const apiStoreSchema = {
               properties: {
                 minLength: { type: "number", default: 0 },
                 maxLength: { type: "number", default: 0 },
-                // "" inherits the global default, same as selectedModel above.
                 model: { type: "string", default: "" },
                 targetLanguage: { type: "string", default: DEFAULT_LANGUAGE },
               },
@@ -542,7 +490,6 @@ export const apiStoreSchema = {
                 nsfw: { type: "boolean", default: true },
                 context: { type: "string", default: "" },
                 autoCopy: { type: "boolean", default: false },
-                // "" inherits the global default, same as selectedModel above.
                 model: { type: "string", default: "" },
               },
               default: {
@@ -567,8 +514,6 @@ export const apiStoreSchema = {
   currentProfileId: string;
   configVersion: number;
 }> & {
-  // Narrows `profiles`'s nested `properties` (down to and including
-  // `settings`, i.e. `SettingsStore` — see the block comment above).
   profiles: TypedSchemaFor<Profile[]>;
 };
 
@@ -580,21 +525,10 @@ export const apiStore = new Store<{ profiles: Profile[] }>({
 });
 
 /**
- * F4(b) — `configVersion` is not part of `apiStore`'s `Store<{ profiles:
- * Profile[] }>` generic above, and merely adding it there is NOT enough on
- * its own: `conf`'s own `.get`/`.set` always carry a final catch-all overload
- * for any string key that is not already a recognised key of `T`
- * (`get<Key extends string, Value = unknown>(key: Exclude<Key,
- * DotNotationKeyOf<T>>, defaultValue?: Value): Value`, and the analogous
- * plain-`string` overload on `.set`). A typo like `"configVresion"` still
- * satisfies that fallback and type-checks with ZERO errors even with
- * `configVersion: number` added to the generic — verified empirically (see
- * `.scratch/multi-provider/evidence/03/fix-b/mutation-f4b.txt`).
- *
- * `ConfigVersionStore` has no such fallback overload, so a typo'd key fails
- * `keyof ConfigVersionShape` outright and tsc rejects it. The cast below is a
- * type-only re-view of the exact same `apiStore` instance — no behavior
- * change, no new object, nothing added to the schema.
+ * A type-only re-view of `apiStore` — no new instance, no schema change.
+ * `conf`'s `.get`/`.set` carry a catch-all `string` overload, so a typo'd key
+ * (`"configVresion"`) type-checks even if `configVersion` is added to the store
+ * generic. This narrower view has no such fallback, so tsc rejects the typo.
  */
 type ConfigVersionShape = { configVersion: number };
 type ConfigVersionStore = {
@@ -612,15 +546,8 @@ export const getOpenAIKey = () => {
 };
 
 /**
- * Resolves the effective global default model ref: the user's explicit
- * global selection if set (already a composite `<providerId>::<rawId>` ref
- * post-migration), otherwise a ref built from the dynamic latest-GPT-mini in
- * the current profile's fetched model list, otherwise `""`. This is the
- * single source of truth that presets with an empty model inherit.
- *
- * Reads no top-level legacy key — those returned unprefixed,
- * provider-ambiguous ids, which is exactly what the composite ref exists to
- * kill (removed as part of the `Profile.provider` migration).
+ * Resolves the effective global default model ref — the single source of truth
+ * that presets with an empty model inherit.
  */
 export const getDefaultModelId = (): string => {
   const settings = getCurrentProfileSettings();
@@ -631,10 +558,7 @@ export const getDefaultModelId = (): string => {
   return resolved ? modelRefForModel(resolved) : "";
 };
 
-/**
- * The model refs a disconnect reset to the inherit sentinel, so the UI can
- * warn about exactly what it is about to change (and only that).
- */
+/** Which model refs a disconnect reset to the inherit sentinel, for the UI's warning. */
 export type ClearedModelRefs = {
   selectedModel: boolean;
   presetIds: string[];
@@ -647,12 +571,8 @@ const NO_CLEARED_REFS: ClearedModelRefs = {
   features: [],
 };
 
-/**
- * Replace the active profile at `index` and persist. Builds a NEW profiles
- * array rather than assigning into the one `getProfiles()` returned — that
- * array is the store's own value, so an in-place write would mutate state a
- * caller may still be holding.
- */
+// Builds a NEW profiles array: the one `getProfiles()` returns is the store's own
+// value, so an in-place write would mutate state a caller may still be holding.
 const commitProfileAt = (
   profiles: Profile[],
   index: number,
@@ -671,18 +591,9 @@ const commitProfileAt = (
 };
 
 /**
- * Connect a provider to the active profile: mark it enabled and install its
- * freshly fetched model slice.
- *
- * **It deliberately does not touch `selectedModel` or any preset/feature
- * model.** The function this replaces wiped all of them on every call, so
- * connecting a second provider destroyed the model choices the user had made
- * for the first one. With composite refs a preset can point at any connected
- * provider, so there is nothing left to invalidate — every surviving ref
- * still names the provider it always named.
- *
- * Idempotent: `sanitizeEnabledProviders` dedupes, and the slice is replaced
- * rather than appended, so connecting twice changes nothing the second time.
+ * Connect a provider to the active profile: mark it enabled and replace its model
+ * slice. Must NOT touch `selectedModel` or any preset/feature model — a composite
+ * ref names its own provider, so connecting one provider never invalidates another's.
  */
 export const connectProviderToActiveProfile = (
   provider: ProviderId,
@@ -695,9 +606,8 @@ export const connectProviderToActiveProfile = (
 
   const settings = profiles[index].settings;
   const previousModels = settings.models || [];
-  // `isModelForProvider`, not `model.provider === provider`: an untagged
-  // legacy cache entry has no provider field and would otherwise survive as a
-  // duplicate of a model this fetch just replaced.
+  // `isModelForProvider`, not `model.provider === provider`: an untagged legacy
+  // cache entry would otherwise survive as a duplicate of a model just refetched.
   const retainedModels = previousModels.filter(
     (model) => !isModelForProvider(model, provider),
   );
@@ -723,18 +633,11 @@ const refBelongsToProvider = (ref: string, provider: ProviderId): boolean =>
   parseModelRef(ref).provider === provider;
 
 /**
- * Disconnect a provider from the active profile: drop it from
- * `enabledProviders`, drop its model slice, and reset every ref that named it
- * back to the inherit sentinel.
- *
- * **Refs with `provider === null` are left alone.** A bare legacy id is not
- * proven to belong to the provider being disconnected — guessing from the id
- * shape is the exact failure mode composite refs remove. Such a ref keeps
- * resolving through the `PROVIDER_ORDER` cache scan, or becomes unresolvable
- * and fails loudly at request time.
- *
- * Disconnecting a provider that is not connected is a no-op: the profile is
- * returned untouched, with an empty `cleared`, and nothing is written.
+ * Disconnect a provider from the active profile: drop it from `enabledProviders`,
+ * drop its model slice, and reset every ref that named it to the inherit sentinel.
+ * Bare (provider-less) refs are deliberately left alone — clearing them would mean
+ * guessing ownership from the id shape, which composite refs exist to prevent.
+ * Disconnecting an unconnected provider writes nothing.
  */
 export const disconnectProviderFromActiveProfile = (
   provider: ProviderId,
@@ -750,9 +653,8 @@ export const disconnectProviderFromActiveProfile = (
     return { profile: profiles[index], cleared: NO_CLEARED_REFS };
   }
 
-  // Deliberately NOT `normalizeCorrectionSettings`: normalization would
-  // materialize missing built-in presets, so a disconnect would quietly add
-  // presets the user never had. A disconnect only ever clears refs.
+  // Deliberately NOT `normalizeCorrectionSettings` — it materializes missing
+  // built-in presets, so a disconnect would add presets the user never had.
   const correct = settings.settingsCorrect;
   const clearedPresetIds: string[] = [];
   const presets = (correct?.presets ?? []).map((preset) => {
@@ -807,17 +709,11 @@ export const disconnectProviderFromActiveProfile = (
 };
 
 /**
- * One-shot store-facing driver for `migrateProfileForModelRefs`: converts
- * every on-disk profile to the model-ref shape, gated by `configVersion` so
- * it runs at most once. Reads the RAW stored `profiles`, not `getProfiles()`
- * — `getProfiles()` no longer normalizes anything, but reading through it
- * would still couple this migration to whatever shape a later helper layers
- * on top of the raw store, and this driver must see exactly what is on disk.
- *
- * Idempotent twice over, by design: the `configVersion` gate here, and
- * `migrateProfileForModelRefs` itself being a fixed point on an
- * already-migrated profile (see `profileMigration.test.ts`) — so replaying
- * this driver with the gate forced back to 0 still changes nothing.
+ * One-shot driver for `migrateProfileForModelRefs`, gated by `configVersion`.
+ * Reads the RAW stored `profiles`, never `getProfiles()` — a migration must see
+ * exactly what is on disk, not whatever shape a later helper layers on top.
+ * Idempotence rests on two independent guards: this gate, and
+ * `migrateProfileForModelRefs` being a fixed point on an already-migrated profile.
  */
 export const migrateStoredProfilesForModelRefs = (): void => {
   if (configVersionStore.get("configVersion", 0) >= 1) {
@@ -1088,12 +984,9 @@ const buildDefaultProfileSettings = (): SettingsStore =>
   }) as SettingsStore;
 
 /**
- * Resets the currently active profile's settings to defaults, preserving the
- * API key, the fetched model list, and the connected providers
- * (`enabledProviders` — a reset should not disconnect a user's providers).
- * The legacy top-level selected model is cleared so the General selector
- * reverts to the dynamic default.
- * @returns Success status and error message if applicable
+ * Resets the active profile's settings to defaults. Must preserve `apiKey`,
+ * `models` and `enabledProviders` — dropping `enabledProviders` leaves the
+ * Settings page showing Connected provider cards with zero models.
  */
 export const resetCurrentProfileSettings = (): {
   success: boolean;
@@ -1145,15 +1038,13 @@ export const resetCurrentProfileSettings = (): {
 };
 
 /**
- * Remove legacy plaintext secrets before profiles cross a process/device
- * boundary.
+ * Remove legacy plaintext secrets before a profile crosses a process/device boundary.
  *
- * **Must stay secrets-only — do NOT widen it to strip model state.**
- * `src/main/ipc/features/profiles.ts:98` writes this function's result STRAIGHT
- * BACK TO DISK during the one-shot legacy-secret migration on first launch
- * after an upgrade. Anything this strips is therefore permanently deleted from
- * every upgrading user's config, silently, with no error and no failing test.
- * Export/import stripping belongs in {@link toExportableProfile} instead.
+ * **Must stay secrets-only — do NOT widen it to strip model state.** The
+ * legacy-secret migration in `src/main/ipc/features/profiles.ts` writes this
+ * result straight back to disk, so anything stripped here is permanently deleted
+ * from every upgrading user's config. Wider stripping belongs in
+ * {@link toExportableProfile}.
  */
 export const withoutProfileSecrets = (profile: Profile): Profile => {
   const settings = { ...profile.settings } as SettingsStore;
@@ -1165,18 +1056,10 @@ export const withoutProfileSecrets = (profile: Profile): Profile => {
 };
 
 /**
- * The shape a profile takes when it leaves this machine: secrets plus ALL
- * model state removed.
- *
- * Model state is per-machine — cached model lists, the connected providers,
- * and every ref pointing into them are meaningless (and actively misleading)
- * on a machine with different providers connected. Cleared to empty values
- * rather than deleted so the result still validates against `apiStoreSchema`;
- * `""` is the existing inherit sentinel, so a cleared preset simply inherits
- * the importing machine's default.
- *
- * Kept strictly separate from {@link withoutProfileSecrets}, which is written
- * back to disk — see the warning there.
+ * The shape a profile takes when it leaves this machine: secrets plus all
+ * per-machine model state removed. Cleared to empty values rather than deleted so
+ * the result still validates against `apiStoreSchema`. Never call this where
+ * {@link withoutProfileSecrets} is expected — that one is written back to disk.
  */
 export const toExportableProfile = (profile: Profile): Profile => {
   const base = withoutProfileSecrets(profile);
@@ -1208,12 +1091,7 @@ export const toExportableProfile = (profile: Profile): Profile => {
   } as Profile;
 };
 
-/**
- * Treat any imported plaintext key as untrusted legacy data and discard it,
- * along with the exporting machine's model state (same reasoning as
- * {@link toExportableProfile} — an imported cache describes someone else's
- * providers).
- */
+/** An imported profile is untrusted: its plaintext key and model state both go. */
 export const sanitizeImportedProfile = toExportableProfile;
 
 /**

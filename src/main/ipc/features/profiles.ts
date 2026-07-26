@@ -393,11 +393,10 @@ export const registerProfileHandlers = () => {
 
         return {
           success: true,
-          // `toExportableProfile`, not `withoutProfileSecrets`: an export
-          // travels to another machine, where this one's cached models,
-          // enabledProviders and composite model refs are meaningless. The
-          // narrow helper stays in use at the disk writeback above, which must
-          // not strip model state.
+          // `toExportableProfile`, not `withoutProfileSecrets`: cached models,
+          // enabledProviders and composite refs are meaningless on another
+          // machine. `withoutProfileSecrets` must stay secrets-only — it is
+          // written back to disk by the legacy migration above.
           profileJson: JSON.stringify(toExportableProfile(profile), null, 2),
         };
       } catch (error) {

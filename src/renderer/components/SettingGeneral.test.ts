@@ -65,8 +65,7 @@ type SettingGeneralApi = {
   getCorrectionOutputMode: ReturnType<typeof vi.fn>;
   setCorrectionOutputMode: ReturnType<typeof vi.fn>;
   resetProfileSettings: ReturnType<typeof vi.fn>;
-  // Read by the embedded `<ModelSelect>` — the General tab uses the shared
-  // picker rather than a second implementation of its own (D35).
+  // Read by the embedded `<ModelSelect>`.
   fetchAIModels: ReturnType<typeof vi.fn>;
   getSelectedModel: ReturnType<typeof vi.fn>;
   setSelectedModel: ReturnType<typeof vi.fn>;
@@ -78,10 +77,7 @@ type SettingGeneralApi = {
   onLocaleChanged: ReturnType<typeof vi.fn>;
 };
 
-/**
- * React tracks the last value it set on a DOM node, so assigning `.value`
- * directly is ignored — the native setter has to be called to bypass it.
- */
+/** React ignores a direct `.value` assignment; the native setter bypasses it. */
 const type = async (input: HTMLInputElement, value: string) => {
   await act(async () => {
     const setter = Object.getOwnPropertyDescriptor(
@@ -109,11 +105,6 @@ describe("SettingGeneral", () => {
   let api: SettingGeneralApi;
   let confirmSpy: ReturnType<typeof vi.spyOn>;
 
-  /**
-   * The Disconnect button inside the open confirmation panel. The card's own
-   * Disconnect button is hidden while its panel is open, so exactly one
-   * control with that name exists at a time.
-   */
   const confirmDisconnectButton = (): HTMLButtonElement => {
     const panel = container.querySelector('[role="alertdialog"]');
     if (!panel) throw new Error("expected the disconnect confirmation panel");
@@ -134,9 +125,8 @@ describe("SettingGeneral", () => {
     },
   ) => {
     api = {
-      // Return values are set explicitly on EVERY render, never only in a
-      // shared `beforeEach`: `vi.clearAllMocks()` clears calls but not return
-      // values, so a stale resolution leaks into later tests in this file.
+      // Set on every render, not in a `beforeEach`: `vi.clearAllMocks()`
+      // clears calls but not return values.
       getProviderStates: vi.fn().mockResolvedValue(states),
       connectProvider: vi.fn().mockResolvedValue({ success: true }),
       disconnectProvider: vi.fn().mockResolvedValue({
@@ -355,7 +345,6 @@ describe("SettingGeneral", () => {
         }),
       );
       expect(api.disconnectProvider).not.toHaveBeenCalled();
-      // Exactly one control named "Disconnect" while the panel is open.
       expect(
         [...container.querySelectorAll("button")].filter(
           (button) =>
@@ -388,7 +377,6 @@ describe("SettingGeneral", () => {
       expect(container.textContent).toContain(
         tEn("settings.general.providers.disconnect.warning.key"),
       );
-      // The default model was NOT cleared, so that sentence must not appear.
       expect(container.textContent).not.toContain(
         tEn("settings.general.providers.disconnect.warning.selectedModel"),
       );
@@ -404,10 +392,9 @@ describe("SettingGeneral", () => {
         expect(field.getAttribute("autocomplete")).toBe("off");
       }
 
-      // NOTE: React 19 reflects a controlled input's value into the `value`
-      // ATTRIBUTE, so a typed key is briefly present in `innerHTML`. That is
-      // React's behaviour, not this component's, and it is why the typed key
-      // is dropped from state the moment main has it (next test).
+      // React 19 reflects a controlled input's value into the `value`
+      // attribute, so a typed key is briefly present in `innerHTML` — hence
+      // the next test, which pins that it is dropped from state.
     });
 
     it("drops the typed key from renderer state as soon as main has it", async () => {
@@ -470,9 +457,7 @@ describe("SettingGeneral", () => {
       const testing = connectButtons().filter(
         (button) => button.textContent === tEn("settings.general.providers.card.testing"),
       );
-      // Exactly ONE card is busy. A single shared `busyProvider` slot would
-      // have the first request to settle clear the other's flag, re-enabling a
-      // button whose request is still running.
+      // Kills: a single shared busy slot for every provider.
       expect(testing).toHaveLength(1);
 
       // Ollama needs no key and must still be connectable meanwhile.
@@ -509,9 +494,8 @@ describe("SettingGeneral", () => {
     });
 
     it("renders a SUCCESS-path note verbatim, never through the Error wrapper", async () => {
-      // Card 06 split `note` from `error` so a reachable-but-empty Ollama is a
-      // SUCCESS. Routing it through `wrappedError` would announce a connect
-      // that worked as "Error: Ollama is running but has no models pulled…".
+      // Kills: routing `note` through `wrappedError`, which would announce a
+      // connect that worked as "Error: …".
       await render({ success: true }, {
         openai: providerState({ connected: true, configured: true, apiKeySet: true }),
         openrouter: providerState(),
@@ -606,7 +590,7 @@ describe("SettingGeneral", () => {
     });
   });
 
-  describe("D35/D36 — the default-model picker is the shared component", () => {
+  describe("the default-model picker is the shared component", () => {
     it("renders <ModelSelect> with the Default model copy and its own refresh", async () => {
       await render({ success: true });
 
@@ -614,10 +598,9 @@ describe("SettingGeneral", () => {
       expect(container.textContent).toContain(
         tEn("settings.general.defaultModel.description"),
       );
-      // `fetchAIModels` is only ever called by `<ModelSelect>`; a hand-rolled
-      // picker in this tab would call `fetchProviderModels` instead.
+      // Only `<ModelSelect>` calls `fetchAIModels`; a hand-rolled picker here
+      // would call `fetchProviderModels` instead.
       expect(api.fetchAIModels).toHaveBeenCalled();
-      // ModelSelect owns refresh — the deleted "Fetch models" button is gone.
       expect(
         container.querySelector('[aria-label="' + tEn("models.select.refetch") + '"]'),
       ).not.toBeNull();

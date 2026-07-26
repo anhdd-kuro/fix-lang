@@ -127,11 +127,8 @@ describe("shared AI request logging", () => {
         userPrompt: "Hello",
         model: "openai/missing-model",
       }),
-      // Card 04: the unresolvable-model message is now the localized
-      // `models.error.*` string. `openai/missing-model` is a BARE id (the `/`
-      // is an OpenRouter id separator, not the `::` ref prefix), so no
-      // provider may be named — the ref never carried one, and guessing is
-      // exactly what composite refs remove.
+      // A BARE id — `/` is an OpenRouter separator, not the `::` ref prefix —
+      // so the message must name no provider.
     ).rejects.toThrow(
       'Model "openai/missing-model" is not available from any connected provider',
     );

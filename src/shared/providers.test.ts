@@ -1,9 +1,3 @@
-/**
- * @file providers.test.ts
- * @description Tests for the Electron-free provider registry: identity,
- * ordering, credential requirements, and the model/provider matching rules
- * moved verbatim from `apiStore.ts`.
- */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -24,19 +18,12 @@ import {
   type ProviderId,
 } from "./providers";
 
-// ---------------------------------------------------------------------------
-// F9 — the "no Electron, no ~/stores/*, no Node built-in" rule for this module
-// pair was previously enforced only by a manual grep and, indirectly, by
-// `bun run build`. Assert it on the source text so `bun run test` catches it.
 // A source-text assertion on purpose: a dynamic-import probe would only prove
 // the module loads, not that the forbidden dependency is absent.
-// ---------------------------------------------------------------------------
-
 describe("Electron-free module boundary", () => {
   const SOURCE_FILES = ["providers.ts", "modelRef.ts"] as const;
   const FORBIDDEN_SPECIFIER = /^(electron($|\/|-)|~\/stores\/|@\/stores\/|node:)/;
-  // `from "x"`, `require("x")`, `import("x")` — quoted specifiers only, so
-  // prose that merely mentions Electron in a doc comment does not trip it.
+  // Quoted specifiers only, so prose mentioning Electron in a doc comment does not trip it.
   const SPECIFIER = /(?:\bfrom|\brequire\s*\(|\bimport\s*\()\s*["']([^"']+)["']/g;
 
   for (const file of SOURCE_FILES) {
@@ -106,10 +93,6 @@ describe("PROVIDER_ORDER / PROVIDER_LOG_LABELS / credential requirement maps", (
   });
 });
 
-// ---------------------------------------------------------------------------
-// isModelForProvider — matrix reproduced verbatim from apiStore.test.ts:207+
-// ---------------------------------------------------------------------------
-
 describe("isModelForProvider", () => {
   it("matches an openai-tagged model only to openai", () => {
     const model: Model = { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" };
@@ -162,12 +145,7 @@ describe("isModelForProvider", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// F3 — the operation every consumer needs, so it is not hand-rolled (wrongly)
-// three more times. Every fixture below includes an UNTAGGED model, because
-// `model.provider === provider` — the natural hand-rolled version — drops it.
-// ---------------------------------------------------------------------------
-
+// Every fixture includes an untagged model: `model.provider === provider` drops it.
 describe("modelsForProvider", () => {
   const openaiModel: Model = { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" };
   const openrouterModel: Model = {
@@ -261,16 +239,10 @@ describe("providerOfModel", () => {
   });
 
   it("falls back to openrouter when Model.provider is absent, even for a local model", () => {
-    // Deliberately not inferred from id shape or the `local` descriptor — the
-    // card's fallback rule names only the `provider` field.
     const model: Model = { id: "legacy-model", name: "legacy-model", created: 1 };
     expect(providerOfModel(model)).toBe("openrouter");
   });
 });
-
-// ---------------------------------------------------------------------------
-// isProviderConfigured — four combinations across key/no-key and enabled/not
-// ---------------------------------------------------------------------------
 
 describe("isProviderConfigured", () => {
   it("an API-key provider with a key is configured regardless of explicitlyEnabled", () => {
@@ -289,12 +261,9 @@ describe("isProviderConfigured", () => {
     expect(isProviderConfigured("ollama", { hasApiKey: true, explicitlyEnabled: false })).toBe(false);
   });
 
-  // F7 — the argument's real origin is a user-editable config file, so the
-  // compile-time ProviderId is not a guarantee. An inherited Object.prototype
-  // key must not read as a configured provider.
+  // The casts reproduce the untyped value that reaches this function from a config file.
   it("rejects a prototype-chain key masquerading as a provider id", () => {
     const state = { hasApiKey: true, explicitlyEnabled: true };
-    // Casts are the point of the test: they reproduce the untyped runtime value.
     expect(isProviderConfigured("constructor" as ProviderId, state)).toBe(false);
     expect(isProviderConfigured("__proto__" as ProviderId, state)).toBe(false);
     expect(isProviderConfigured("toString" as ProviderId, state)).toBe(false);
@@ -303,10 +272,8 @@ describe("isProviderConfigured", () => {
   });
 });
 
-// F7 — `readonly` / `Readonly<...>` are erased at runtime; a single unguarded
-// `as` cast in any same-process consumer would corrupt the shared instance for
-// every other importer. House precedent: `src/shared/features.ts` freezes its
-// analogous map.
+// `readonly` is erased at runtime, so only the freeze stops one consumer's cast
+// from corrupting the shared instance for every other importer.
 describe("exported collections are frozen at runtime", () => {
   it("freezes every exported provider collection", () => {
     expect(Object.isFrozen(PROVIDER_IDS)).toBe(true);
@@ -318,8 +285,6 @@ describe("exported collections are frozen at runtime", () => {
 
   it("a cast-and-push against PROVIDER_ORDER cannot corrupt the shared instance", () => {
     const before = [...PROVIDER_ORDER];
-    // Deliberate unsound cast — this is exactly the unguarded call the freeze
-    // is there to stop.
     expect(() => (PROVIDER_ORDER as ProviderId[]).push("ollama")).toThrow();
     expect([...PROVIDER_ORDER]).toEqual(before);
   });

@@ -92,17 +92,11 @@ function generateModelDescription(model: ModelMetadata): string {
 }
 
 /**
- * Map one Ollama list entry onto the cached `Model` shape.
- *
- * Shared by `getLocalModels` and `probeOllama` so the two can never disagree
- * about what a local model looks like. Deliberately does NOT set `provider`:
- * `getLocalModels`'s existing callers stamp it themselves
- * (`fetchAvailableModels` does `{ ...model, provider: "ollama" }`), and
- * changing that here would alter what every one of them already receives.
- * `probeOllama` stamps it explicitly instead.
+ * Map one Ollama list entry onto the cached `Model` shape. Deliberately leaves
+ * `provider` unset — `getLocalModels`'s callers already stamp it themselves.
  */
 const toLocalModel = (model: ModelMetadata): Model => ({
-  // The Ollama name IS the id, tag included ("llama3.2:3b") — it is what the
+  // The Ollama name IS the id, tag included ("llama3.2:3b") — that is what the
   // chat API expects back. `name` drops the tag, for display only.
   id: model.name,
   created: Date.now(),
@@ -117,20 +111,9 @@ const toLocalModel = (model: ModelMetadata): Model => ({
 /**
  * Ask Ollama whether it is there, and what it has.
  *
- * `getLocalModels()` swallows every error and returns `[]`, so `[]` means
- * both "Ollama isn't installed/running" and "Ollama is running with nothing
- * pulled" — the connect flow cannot tell a user which, and those need
- * opposite advice ("start Ollama" vs "run `ollama pull …`").
- *
- * This calls `ollamaClient.list()` **directly** precisely to keep the throw
- * that `getLocalModels` discards: the client rejects on ECONNREFUSED, and
- * that rejection is the only signal that separates the two states.
- *
- * - throws          → `{ reachable: false, models: [], error }`
- * - resolves empty  → `{ reachable: true,  models: [] }`
- *
- * A malformed body counts as reachable: the daemon answered, which is what
- * `reachable` claims. Never rejects.
+ * Calls `ollamaClient.list()` directly to keep the rejection that
+ * `getLocalModels` swallows: `[]` alone cannot tell "Ollama not running" from
+ * "running with nothing pulled", and those need opposite advice.
  */
 export type OllamaProbe = {
   reachable: boolean;
@@ -143,10 +126,8 @@ export async function probeOllama(): Promise<OllamaProbe> {
     const response = await ollamaClient.list();
     const models = (response?.models ?? []).map((model) => ({
       ...toLocalModel(model),
-      // Explicit, unlike `getLocalModels`: these models go straight into the
-      // profile cache via the connect flow, and an untagged entry formats as
-      // `openrouter::…` through `providerOfModel`'s fallback — i.e. a local
-      // model billed as OpenRouter.
+      // These go straight into the profile cache, and an untagged entry
+      // formats as an `openrouter::…` ref — a local model billed as OpenRouter.
       provider: "ollama" as const,
     }));
     return { reachable: true, models };
@@ -222,8 +203,6 @@ export async function getLocalModels(): Promise<Model[]> {
       estimateContextLength(model);
       console.debug(`Model description: ${generateModelDescription(model)}`);
 
-      // Same mapper `probeOllama` uses, so the two discovery paths cannot
-      // drift into producing different shapes for the same local model.
       localModels.push(toLocalModel(model));
     }
 

@@ -37,8 +37,6 @@ vi.mock("~/stores/apiStore", async (importOriginal) => {
     // Override only getProfileSetting; keep normalizeCorrectionSettings real
     getProfileSetting: vi.fn(),
     // Mocked too: the real one reads the live profile through electron-store.
-    // The empty-text early return derives its whole reported identity from
-    // this, so the tests below drive it directly.
     getDefaultModelId: vi.fn().mockReturnValue(""),
     // apiStore mock (prevent electron-store calls)
     apiStore: {
@@ -47,10 +45,6 @@ vi.mock("~/stores/apiStore", async (importOriginal) => {
     },
   };
 });
-// `getActiveProvider` is deliberately ABSENT from this mock. Card 04 deleted
-// it from `./shared`; mocking a function the codebase no longer exports would
-// re-create the stub in test-space and assert behaviour production cannot
-// produce. The empty-text tests below drive the real ref-parsing path instead.
 vi.mock("./shared", () => ({
   makeAIRequest: vi.fn(),
 }));
@@ -186,17 +180,6 @@ describe("fixGrammar — per-preset temperature and maxTokens", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Tests: fixGrammar empty-input early return.
-//
-// This block replaces two tests that mocked `getActiveProvider` and asserted
-// the mock's own return value ("reports the active provider instead of a
-// hardcoded value" / "reflects a different active provider (ollama) too").
-// That function no longer exists — the branch now reports the provider named
-// by the composite model ref it would have requested, so the tests are
-// rewritten against that, not re-pointed at a replacement stub.
-// ---------------------------------------------------------------------------
-
 describe("fixGrammar — empty input early return", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -226,9 +209,8 @@ describe("fixGrammar — empty input early return", () => {
   });
 
   it("reports the RAW model id, never the composite ref", async () => {
-    // Matches `makeAIRequest`'s contract: `model` / `resolvedModel` stay raw
-    // so history rows need no migration. The tag's own ":" must survive — the
-    // ref splits on the FIRST "::" only.
+    // Raw, like `makeAIRequest`, so history rows need no migration — and the
+    // tag's own ":" must survive the split.
     withPresetModel("ollama::llama3.2:3b");
 
     const result = await fixGrammar("");
@@ -248,9 +230,6 @@ describe("fixGrammar — empty input early return", () => {
   });
 
   it("invents nothing when getDefaultModelId() is the inherit sentinel", async () => {
-    // The acceptance criterion: no `getActiveProvider`, no
-    // `DEFAULT_OPENAI_MODEL`. With nothing to report the branch must report
-    // nothing rather than name a provider the user never chose.
     withPresetModel("");
     (getDefaultModelId as Mock).mockReturnValue("");
 
@@ -263,10 +242,8 @@ describe("fixGrammar — empty input early return", () => {
   });
 
   it("reports no provider for a bare (un-migrated) model id", async () => {
-    // A bare id names no provider, and this branch has no model cache to
-    // resolve it against. Guessing one is exactly the anti-pattern the
-    // refactor removes, so `provider` stays undefined while `model` is still
-    // reported truthfully.
+    // This branch has no model cache to resolve a bare id against, and a
+    // guessed provider is silently written into history and priced.
     withPresetModel("gpt-4o");
 
     const result = await fixGrammar("");

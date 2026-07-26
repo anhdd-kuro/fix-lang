@@ -37,10 +37,6 @@ vi.mock("./discover", () => ({ getLocalModels: getLocalModelsMock }));
 import { checkForModelChanges } from "./monitor";
 import type { Model } from "~/stores/apiStore";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 const localModel = (id: string): Model => ({
   id,
   name: id.split(":")[0],
@@ -66,15 +62,10 @@ beforeEach(() => {
   enable("openai", "openrouter", "ollama");
 });
 
-// ---------------------------------------------------------------------------
-// Gating on enabledProviders
-// ---------------------------------------------------------------------------
-
 describe("checkForModelChanges — gates on enabledProviders", () => {
+  // The gate must precede the poll, or a user who never connected Ollama still
+  // hits the local daemon every five minutes.
   it("does not poll Ollama at all when it is not a connected provider", async () => {
-    // The old guard was `getActiveProvider() !== "ollama"`, and it sat AFTER
-    // the poll — so a user on OpenRouter still hit the local daemon every
-    // five minutes. The gate now precedes the poll.
     enable("openai", "openrouter");
 
     await checkForModelChanges();
@@ -108,15 +99,10 @@ describe("checkForModelChanges — gates on enabledProviders", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Cache reads and writes
-// ---------------------------------------------------------------------------
-
 describe("checkForModelChanges — profile cache, not the legacy top-level key", () => {
   it("never writes the top-level `models` key", async () => {
-    // `apiStore.set("models", …)` writes a global key that no longer backs
-    // anything: the model cache is per-profile. Writing it made an Ollama
-    // refresh clobber state for every other profile.
+    // That global key no longer backs anything; writing it clobbers state for
+    // every other profile.
     getCachedModelsMock.mockReturnValue([]);
     getLocalModelsMock.mockResolvedValue([localModel("llama3.2:3b")]);
     fetchAvailableModelsMock.mockResolvedValue([localModel("llama3.2:3b")]);
@@ -135,9 +121,7 @@ describe("checkForModelChanges — profile cache, not the legacy top-level key",
   });
 
   it("delegates persistence to fetchAvailableModels with persistCache true", async () => {
-    // `fetchAvailableModels` writes the provider's slice through
-    // `cacheModelsForProvider`, which is the only writer that keeps the other
-    // providers' slices intact.
+    // The only writer that keeps the other providers' slices intact.
     getLocalModelsMock.mockResolvedValue([localModel("llama3.2:3b")]);
 
     await checkForModelChanges();

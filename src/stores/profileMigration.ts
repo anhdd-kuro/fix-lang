@@ -1,10 +1,8 @@
 /**
  * @file profileMigration.ts
- * @description Pure, store-free migration of an on-disk profile from the
- * retired single-provider `Profile.provider` shape to composite model refs
- * (`<providerId>::<rawModelId>`, see `~/shared/modelRef`). Testable without
- * electron-store — the store-facing driver (gated by `configVersion`) lives
- * in `apiStore.ts`.
+ * @description Pure, store-free migration of an on-disk profile from the retired
+ * single-provider `Profile.provider` shape to composite model refs. The
+ * store-facing driver lives in `apiStore.ts`.
  */
 import { formatModelRef, isModelRef } from "~/shared/modelRef";
 import {
@@ -16,19 +14,8 @@ import {
 } from "~/shared/providers";
 import type { CorrectionPreset, Profile, SettingsStore } from "./apiStore";
 
-/** Historical default for a profile carrying no `provider` key at all (D16). */
+/** Historical default for a profile carrying no `provider` key at all. */
 const LEGACY_DEFAULT_PROVIDER: ProviderId = "openrouter";
-
-// ---------------------------------------------------------------------------
-// Defensive narrowing over arbitrary on-disk JSON (F5).
-//
-// `migrateProfileForModelRefs` takes `unknown` but, pre-fix, assumed every
-// nested shape was exactly what the current schema produces. In practice a
-// stored profile can be anything `conf` last wrote — including shapes from a
-// long-retired schema version, or (in tests) deliberately malformed fixtures.
-// These helpers make every read total: unrecognized shapes degrade to an
-// empty/neutral value instead of throwing, they never invent data.
-// ---------------------------------------------------------------------------
 
 const asRecord = (value: unknown): Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value)
@@ -42,17 +29,12 @@ const asObjectArray = (value: unknown): Record<string, unknown>[] =>
     .filter((entry) => entry !== null && typeof entry === "object" && !Array.isArray(entry))
     .map((entry) => entry as Record<string, unknown>);
 
-/** Anything that isn't a string collapses to the empty "inherit" sentinel
- * rather than reaching `formatModelRef`/`isModelRef` as e.g. a bare number. */
 const asModelIdString = (value: unknown): string => (typeof value === "string" ? value : "");
 
 /**
- * Prefix a single stored model value: the empty inherit sentinel and an
- * already-prefixed ref both pass through untouched (this is what makes
- * repeated application a fixed point — D15a/D15b), everything else gets the
- * legacy provider prefixed on. Accepts `unknown` so every call site can pass
- * a raw, unvalidated on-disk value directly (F5) — a non-string value is
- * treated as the empty sentinel, never thrown on.
+ * Prefix a stored model value with the legacy provider. The `isModelRef`
+ * short-circuit is one of the two guards making the whole migration idempotent:
+ * an already-prefixed ref passes through untouched.
  */
 const prefixModelRef = (legacyProvider: ProviderId, value: unknown): string => {
   const raw = asModelIdString(value);
@@ -62,10 +44,6 @@ const prefixModelRef = (legacyProvider: ProviderId, value: unknown): string => {
   return formatModelRef(legacyProvider, raw);
 };
 
-/** True for a stored value that still needs `prefixModelRef` — non-empty and
- * not already a composite ref. Used only to decide whether a profile needs
- * migrating at all (F6); actual prefixing always goes through `prefixModelRef`
- * regardless of this check. */
 const isBareModelValue = (value: unknown): boolean => {
   const raw = asModelIdString(value);
   return raw !== "" && !isModelRef(raw);
@@ -81,12 +59,9 @@ const migratePresets = (legacyProvider: ProviderId, value: unknown): CorrectionP
   );
 
 /**
- * Prefix the retired flat, pre-presets `settingsCorrect.model` field
- * (`LegacyCorrectionSettings.model`) — a sixth model-bearing field, missed by
- * both the original card and its review (found by grepping the settings
- * shape per F12's own instruction). `normalizeCorrectionSettings` reads this
- * bare id straight off the raw `settingsCorrect` object whenever `presets`
- * isn't yet an array, the exact same way it reads `settingsTranslate.model`.
+ * The retired flat `settingsCorrect.model` must be migrated too:
+ * `normalizeCorrectionSettings` still reads it off the raw object whenever
+ * `presets` isn't an array, so an unprefixed value would leak back in at read time.
  */
 const migrateSettingsCorrect = (
   legacyProvider: ProviderId,
@@ -104,13 +79,9 @@ const migrateSettingsCorrect = (
 };
 
 /**
- * Prefix the retired standalone-Translate settings' `model` field (F12).
- * `settingsTranslate` was removed from the typed `SettingsStore` shape (see
- * `apiStore.ts`), but upgrading users still carry it in the raw, on-disk
- * JSON — `extractLegacyTranslateSettings` reads it back out, and
- * `normalizeCorrectionSettings` re-injects its `model` as a bare id into the
- * Translate preset at read time, on a profile already marked migrated. Only
- * touches `model`; every other field round-trips untouched.
+ * `settingsTranslate` is off the typed shape but still on disk for upgrading
+ * users, and `normalizeCorrectionSettings` re-injects its `model` into the
+ * Translate preset at read time — so it needs prefixing like any other ref.
  */
 const migrateLegacyTranslateSettings = (
   legacyProvider: ProviderId,
@@ -123,29 +94,14 @@ const migrateLegacyTranslateSettings = (
   return { ...record, model: prefixModelRef(legacyProvider, record.model) };
 };
 
-/** The models a raw, unvalidated `settings.models` value actually names,
- * dropping anything that isn't itself a plain object (F5). */
 const asModelsArray = (value: unknown): Model[] => asObjectArray(value) as Model[];
 
 /**
- * The `enabledProviders` short-circuit that keeps the migration idempotent
- * (D15a/D15b) even though `legacyProvider` itself is NOT stable across
- * repeated calls (it falls back to "openrouter" the moment `provider` is
- * gone, i.e. after the first migration). Once a real, non-empty
- * `enabledProviders` is already on the settings, later calls just
- * re-sanitize it instead of recomputing from `legacyProvider` + the model
- * cache — recomputing would silently swap in the fallback legacy provider on
- * every subsequent call.
- *
- * That non-empty short-circuit alone is not enough (F6): a profile can have
- * an empty `enabledProviders` and still not be a legacy shape at all —
- * `createProfile()` yields exactly that (no `provider` key, `[]`), and its
- * emptiness means "no providers connected yet", not "unmigrated". `needsMigration`
- * disambiguates the two: it is true only when there is an actual legacy
- * `provider` field or an actual bare (un-prefixed) model id sitting somewhere
- * on the profile. When it is false, an empty `enabledProviders` is left
- * exactly as-is instead of being recomputed from the model cache — the
- * second pass stays genuinely inert, matching D15b's original claim.
+ * Never recompute `enabledProviders` from `legacyProvider` on an already-migrated
+ * profile: `legacyProvider` falls back to "openrouter" once `provider` is gone, so
+ * a second pass would silently swap that in. Both guards are needed — an empty
+ * `enabledProviders` means "nothing connected yet" on a fresh `createProfile()`
+ * profile, which `needsMigration` is what distinguishes from a legacy shape.
  */
 const resolveEnabledProviders = (
   legacyProvider: ProviderId,
@@ -167,15 +123,12 @@ const resolveEnabledProviders = (
 };
 
 /**
- * Migrate a single raw, on-disk profile to the model-ref shape. Pure:
- * returns a new object, never mutates `profile` (`~/.claude/rules/common/coding-style.md`).
- * Total over `profile: unknown` (F5): every nested field is narrowed
- * defensively, so a malformed or historical on-disk shape degrades instead
- * of throwing from `initializeDefaultProfile`'s uncaught call site.
- *
- * Idempotent twice over, by construction: `prefixModelRef`'s `isModelRef`
- * short-circuit, and `resolveEnabledProviders`'s `needsMigration` gate —
- * both hold independently of any version marker the caller may track.
+ * Migrate one raw on-disk profile to the model-ref shape. Must stay total over
+ * `unknown` — the call site in `initializeDefaultProfile` does not catch, so a
+ * malformed or historical shape has to degrade rather than throw.
+ * Idempotence rests on two independent guards that hold with no version marker:
+ * `prefixModelRef`'s `isModelRef` short-circuit and `resolveEnabledProviders`'s
+ * `needsMigration` gate.
  */
 export const migrateProfileForModelRefs = (profile: unknown): Profile => {
   const raw = asRecord(profile);

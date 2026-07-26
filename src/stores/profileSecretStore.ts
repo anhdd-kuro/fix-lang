@@ -28,22 +28,15 @@ const isValidProfileId = (profileId: string): boolean =>
   /^[A-Za-z0-9_-]+$/.test(profileId);
 
 /**
- * The credential slots a provider actually has, derived from the provider
- * tables rather than from per-provider branches.
- *
- * This is the single place the answer is computed, so adding a provider to
- * `PROVIDER_IDS` needs no edit in this file: it inherits the right slots from
- * `PROVIDER_REQUIRES_API_KEY` / `PROVIDER_SUPPORTS_PROVISIONING_KEY`. The
- * hand-written version silently gave a new provider *no* slots, which reads
- * as "this provider has no credentials to clear" — so deleting a profile
- * would leave its key on disk.
+ * Derived from the provider tables, never hand-written per provider: a provider
+ * with no listed slots reads as "nothing to clear", so profile deletion would
+ * leave its key on disk.
  */
 export const secretKindsForProvider = (provider: ProviderId): SecretKind[] => [
   ...(PROVIDER_REQUIRES_API_KEY[provider] ? (["api"] as const) : []),
   ...(PROVIDER_SUPPORTS_PROVISIONING_KEY[provider] ? (["provisioning"] as const) : []),
 ];
 
-/** Providers that have a provisioning key at all, for the guard's message. */
 const provisioningProviderNames = (): string =>
   PROVIDER_IDS.filter((provider) => PROVIDER_SUPPORTS_PROVISIONING_KEY[provider])
     .map((provider) => PROVIDER_LOG_LABELS[provider])
@@ -55,13 +48,8 @@ const invalidSecretTarget = (): SecretWriteResult => ({
 });
 
 /**
- * Returns a deterministic encrypted-secret path for a profile/provider pair.
- *
- * The two guards are diagnostics for a programmer error (asking for a slot
- * the provider has not got), which is why they interpolate
- * `PROVIDER_LOG_LABELS` — the non-i18n diagnostics map — rather than a
- * catalog string. They are unreachable through the UI: every caller picks its
- * pairs from `secretKindsForProvider`.
+ * Deterministic encrypted-secret path for a profile/provider pair. The throws are
+ * unreachable programmer-error diagnostics, hence log labels rather than i18n.
  */
 export const getProfileSecretPath = (
   profileId: string,
@@ -169,15 +157,9 @@ export const clearProfileSecret = async (
 };
 
 /**
- * Clears every credential that may belong to a deleted profile.
- *
- * The slot list is derived, not written out: a provider added to
- * `PROVIDER_IDS` is cleaned up here automatically. A missed slot means a
- * deleted profile's API key stays on disk indefinitely, which no test of the
- * *remaining* slots would notice.
- *
- * Every slot is attempted even if an earlier one fails (`Promise.all` over
- * calls already in flight), so one locked file cannot strand the others.
+ * Clears every credential that may belong to a deleted profile. A slot missed
+ * here leaves the deleted profile's key on disk indefinitely, so the list stays
+ * derived; and every slot is attempted even if an earlier one fails.
  */
 export const clearProfileSecrets = async (
   profileId: string,
@@ -195,17 +177,10 @@ export const clearProfileSecrets = async (
 };
 
 /**
- * Read a secret for whichever profile is active, or `null`.
- *
- * Exists so callers stop hand-rolling
- * `provider === "openrouter" ? getProvisioningKey() : getApiKey()` and the
- * "does this provider even have that slot?" branch that goes with it. An
- * unsupported (provider, kind) pair is `null`, not a throw: "this provider
- * has no such credential" is an ordinary answer, not an error.
- *
- * `apiStore` is imported dynamically, matching `apiKeyStore.activeProfileId`
- * — a static import would make this store depend on the profile store at
- * module load, and the profile store's migration path reaches back here.
+ * Read a secret for whichever profile is active. An unsupported (provider, kind)
+ * pair answers `null` rather than throwing. `apiStore` is imported dynamically:
+ * a static import would create a load-time cycle, since the profile store's
+ * migration path reaches back into this module.
  */
 export const getActiveProfileSecret = async (
   provider: ProviderId,

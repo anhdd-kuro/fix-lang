@@ -1,24 +1,15 @@
 // API-related preload functionality
 import { ipcRenderer } from "electron";
 import { messageLabel, type Label } from "~/shared/i18n/message";
-// `isProviderId` comes from the shared registry, NOT a copy declared here. The
-// copy this replaces was a hand-written `=== "openai" || …` chain, so adding a
-// provider to `PROVIDER_IDS` would have left the preload boundary silently
-// rejecting it with no type error and no failing test.
+// From the shared registry, never a local copy: a hand-written chain would let
+// this boundary silently reject a newly added provider with no type error.
 import { isProviderId } from "~/shared/providers";
 import { asLabel } from "./ipcLabel";
 import type { ProviderStates } from "~/main/ipc/features/api";
 import type { Model, ProviderId } from "~/shared/providers";
 import type { ClearedModelRefs, Profile } from "~/stores/apiStore";
 
-/**
- * The payload of `connectProvider`.
- *
- * **No `modelId`** — connecting a provider and choosing a default model are
- * separate actions on separate surfaces now. Connecting must not seed a
- * model, because that overwrote choices the user had already made against
- * another provider.
- */
+/** No `modelId`: connecting a provider must not seed a default model over the user's existing choice. */
 export type ProviderConnectInput = {
   provider: ProviderId;
   /** Write-only credential; never returned from main. */
@@ -41,18 +32,11 @@ export const isProviderConnectInput = (value: unknown): value is ProviderConnect
  * Exposes API-related functionality to the renderer process
  */
 export const apiFeature = {
-  // No `getActiveProvider`: the channel behind it is gone. There is no single
-  // active provider — every connected provider serves models at once, and a
-  // request is routed by the composite ref it names. Ask `getProviderStates()`
-  // instead, which answers for all providers in one round-trip.
+  // No `getActiveProvider`: requests route by the composite ref they name.
 
   /**
-   * Every provider's connection state in ONE round-trip: `configured`,
-   * `apiKeySet`, `provisioningKeySet`, `modelCount`.
-   *
-   * Booleans and a count — never key material. There is deliberately no
-   * channel that returns a decrypted key, a prefix, a suffix, a length, or a
-   * masked form, and this method must never grow one.
+   * SECURITY: booleans and a count only. No channel returns a decrypted key, a
+   * prefix, a suffix, a length or a masked form, and this must never grow one.
    */
   getProviderStates: (): Promise<ProviderStates> =>
     ipcRenderer.invoke("get-provider-states"),
@@ -82,12 +66,8 @@ export const apiFeature = {
   },
 
   /**
-   * Connect a provider: verify its credentials, store them, and install its
-   * model list. Does **not** set a default model — that is `setSelectedModel`.
-   *
-   * `note` carries advice for a connect that succeeded with a caveat (Ollama
-   * reachable but with nothing pulled), which is why it is separate from
-   * `error`: the provider really is connected.
+   * Does **not** set a default model — that is `setSelectedModel`. `note` is
+   * separate from `error`: it carries advice for a connect that did succeed.
    */
   connectProvider: async (
     input: ProviderConnectInput,
@@ -102,10 +82,8 @@ export const apiFeature = {
     }
     const result = await ipcRenderer.invoke("connect-provider", input);
     if (result?.success) ipcRenderer.send("settings-updated");
-    // Fields are selected explicitly rather than spread. A `{ ...result }`
-    // forwards whatever main happens to put on the object, so any field a
-    // later handler edit adds — including one carrying credential material —
-    // would cross to the renderer with no review and no failing test.
+    // SECURITY: explicit fields, never `{ ...result }` — a spread forwards any
+    // field a later handler edit adds, credential material included.
     return {
       success: result?.success === true,
       profile: result?.profile,
@@ -114,14 +92,7 @@ export const apiFeature = {
     };
   },
 
-  /**
-   * Disconnect a provider: delete its stored credentials, drop it from the
-   * profile, and reset the model refs that named it.
-   *
-   * `cleared` is main's answer verbatim — it is what the confirmation warning
-   * renders, so reshaping it here would make the warning describe something
-   * other than what happened.
-   */
+  /** `cleared` is main's answer verbatim — the confirmation warning renders it. */
   disconnectProvider: async (
     provider: ProviderId,
   ): Promise<{
@@ -145,11 +116,8 @@ export const apiFeature = {
   },
 
   /**
-   * Fetches models from every connected provider in one round-trip.
-   *
-   * `errors` is per provider: one provider being unreachable degrades that
-   * group and leaves the rest usable, so callers must read it rather than
-   * treating `success: true` as "everything refreshed".
+   * `errors` is per provider — callers must read it rather than treating
+   * `success: true` as "everything refreshed".
    */
   fetchAIModels: async (
     refetch?: boolean
@@ -164,8 +132,8 @@ export const apiFeature = {
   },
 
   /**
-   * Sets the profile-wide default model. Pass `""` to inherit the dynamic
-   * default. Main stores the canonical composite ref, not the raw input.
+   * Pass `""` to inherit the dynamic default. Main stores the canonical
+   * composite ref, not the raw input.
    */
   setSelectedModel: async (
     modelId: string,
@@ -174,10 +142,8 @@ export const apiFeature = {
       return { success: false, error: messageLabel("models.select.error.modelNotAvailableForProvider") };
     }
     const result = await ipcRenderer.invoke("set-selected-model", modelId);
-    // Gated on success, matching connect/disconnect. `settings-updated` makes
-    // every listener refetch with `refetch: true`, i.e. a full network fan-out
-    // across every connected provider — firing that after main REJECTED the
-    // ref means paying for it to learn nothing changed.
+    // Gated on success: `settings-updated` triggers a network fan-out across
+    // every connected provider, which a rejected ref must not pay for.
     if (result?.success) ipcRenderer.send("settings-updated");
     return { ...result, error: asLabel(result?.error) };
   },

@@ -1,13 +1,5 @@
-/**
- * @file modelSelectOptions.test.ts
- * @description Pins the grouped model picker's option model: grouping and
- * ordering (D27), the search contract (D27), per-provider errors (D30), the
- * Unavailable option (D28) and the inherit sentinel (D29).
- *
- * Copy is derived through the REAL translator kernel rather than a stub, so a
- * catalog reword cannot silently pass and an English-fallback regression
- * still fails a test asserting Japanese text.
- */
+// Copy is derived through the real translator kernel, not a stub, so a catalog
+// reword cannot silently pass.
 import { describe, expect, it } from "vitest";
 import { createTranslator } from "~/shared/i18n/translate";
 import { PROVIDER_ORDER, type Model } from "~/shared/providers";
@@ -72,7 +64,7 @@ const build = (
     ...overrides,
   });
 
-describe("buildModelOptionGroups — D27 grouping, ordering and the value/label contract", () => {
+describe("buildModelOptionGroups — grouping, ordering and the value/label contract", () => {
   it("emits one group per enabled provider, in PROVIDER_ORDER, headed by the localized provider name", () => {
     const groups = build();
 
@@ -102,7 +94,6 @@ describe("buildModelOptionGroups — D27 grouping, ordering and the value/label 
       "openrouter::anthropic/claude-opus-4.5",
       "ollama::llama3.2:3b",
     ]);
-    // `label` is the raw id — never a price/date/provider-decorated string.
     expect(options.map((option) => option.label)).toEqual([
       "gpt-5-mini",
       "anthropic/claude-opus-4.5",
@@ -112,9 +103,8 @@ describe("buildModelOptionGroups — D27 grouping, ordering and the value/label 
   });
 
   it("refers each row to ITS OWN group's provider when a model is served by two", () => {
-    // An untagged legacy cache entry matches openrouter, and `isModelForProvider`
-    // is what both groups filter on. Building the ref from `modelRefForModel`
-    // (which scans PROVIDER_ORDER) would label the openrouter row "openai::…".
+    // Kills: building the ref from `modelRefForModel` (which scans
+    // PROVIDER_ORDER) would label the openrouter row "openai::…".
     const shared: Model = { id: "shared-1", name: "shared-1", created: 1 };
     const groups = build([shared]);
     const openrouterGroup = groups.find((group) => group.provider === "openrouter");
@@ -137,7 +127,7 @@ describe("buildModelOptionGroups — D27 grouping, ordering and the value/label 
   });
 });
 
-describe("D27 — the search filter still hits raw model ids", () => {
+describe("the search filter still hits raw model ids", () => {
   const optionFor = (id: string) => {
     const option = findOption(build(), id);
     if (!option) throw new Error(`no option for ${id}`);
@@ -149,7 +139,7 @@ describe("D27 — the search filter still hits raw model ids", () => {
     expect(matchesSearch(optionFor("gpt-5-mini"), "GPT-5-MINI")).toBe(true);
   });
 
-  it("never puts the provider name in an option label (D31's data half)", () => {
+  it("never puts the provider name in an option label", () => {
     for (const option of build().flatMap((group) => group.options)) {
       for (const provider of PROVIDER_ORDER) {
         expect(option.label.toLowerCase()).not.toContain(provider);
@@ -158,10 +148,8 @@ describe("D27 — the search filter still hits raw model ids", () => {
   });
 
   it("does not match a model of a DIFFERENT provider when a provider name is searched", () => {
-    // Documented deviation from the card's literal wording: a provider-name
-    // search is not inert, because `matchesSearch` also reads `value`, and
-    // `value` is the composite ref (`openai::…`). What it must never do is
-    // reach across providers.
+    // A provider-name search is not inert — `value` is the composite ref — but
+    // it must never reach across providers.
     expect(matchesSearch(optionFor("llama3.2:3b"), "openai")).toBe(false);
     expect(matchesSearch(optionFor("gpt-5-mini"), "openai")).toBe(true);
   });
@@ -186,7 +174,7 @@ describe("an empty but connected provider keeps its heading", () => {
   });
 });
 
-describe("D30 — a per-provider error degrades only its own group", () => {
+describe("a per-provider error degrades only its own group", () => {
   it("attaches the error to that group and leaves the other groups' options intact", () => {
     const groups = build(MODELS, { errors: { openrouter: "502 Bad Gateway" } });
     const byProvider = indexByProvider(groups);
@@ -211,7 +199,7 @@ describe("D30 — a per-provider error degrades only its own group", () => {
   });
 });
 
-describe("D28 — withUnavailableOption", () => {
+describe("withUnavailableOption — surfaces a stored ref that no longer resolves", () => {
   it("yields a disabled option whose value is EXACTLY the stored ref, in an Unavailable group", () => {
     const groups = withUnavailableOption(build(), "openai::ghost", t);
     const unavailable = groups[groups.length - 1];
@@ -236,7 +224,6 @@ describe("D28 — withUnavailableOption", () => {
   it("adds nothing when the ref already resolves", () => {
     const base = build();
     expect(withUnavailableOption(base, "openai::gpt-5-mini", t)).toEqual(base);
-    // …including via the bare-id fallback.
     expect(withUnavailableOption(base, "gpt-5-mini", t)).toEqual(base);
   });
 
@@ -246,7 +233,7 @@ describe("D28 — withUnavailableOption", () => {
   });
 });
 
-describe("D29 — withInheritOption", () => {
+describe("withInheritOption — adds a selectable \"\" row naming the resolved default", () => {
   it('emits an explicit `value: ""` option that findOption("") returns', () => {
     const groups = withInheritOption(build(), "openai::gpt-5-mini");
     const inherit = findOption(groups, "");
@@ -290,16 +277,14 @@ describe("findOption", () => {
   });
 
   it("never resolves a bare id against a non-model row", () => {
-    // The unavailable row's `modelId` is "ghost", but its `value` is the full
-    // stored ref. A bare "ghost" is not a real model, so it must not resolve.
     const groups = withUnavailableOption(build(), "openai::ghost", t);
     expect(findOption(groups, "openai::ghost")).not.toBeNull();
     expect(findOption(groups, "ghost")).toBeNull();
   });
 
   it("never returns an empty group's placeholder for the inherit sentinel", () => {
-    // The placeholder's `modelId` is "" too; only an exact `value` match may
-    // answer "", or an empty provider group would masquerade as inherit.
+    // The placeholder's `modelId` is "" too, so only an exact `value` match
+    // may answer "".
     const groups = build([cloud("gpt-5-mini", "openai")]);
     expect(findOption(groups, "")).toBeNull();
   });
@@ -321,9 +306,7 @@ describe("formatModelDetail", () => {
   });
 
   it("claims no price for a cloud model that reports none", () => {
-    // OpenAI's /v1/models returns no pricing. Coercing that to 0 printed
-    // "$0.00 / 1M tokens" — in a dedicated badge that reads as a claim that
-    // the model is free, which is a different statement from "unknown".
+    // Kills: coercing an absent price to 0, which claims the model is free.
     expect(formatModelDetail({ id: "gpt-5-mini" } as never, deps)).toBe("");
   });
 
@@ -340,12 +323,9 @@ describe("the empty-group placeholder stays out of the search haystack", () => {
     const placeholder = groups.find((group) => group.provider === "ollama")?.options[0];
     const searchable = { value: placeholder?.value ?? "", label: placeholder?.label ?? "" };
 
-    // A readable prefix (e.g. "__fixlang-empty__") made every placeholder row
-    // match a search for "empty" or "fixlang".
+    // Kills: a readable prefix like "__fixlang-empty__".
     expect(matchesSearch(searchable, "empty")).toBe(false);
     expect(matchesSearch(searchable, "fixlang")).toBe(false);
-    // The provider id survives, which is the useful half: searching "ollama"
-    // surfaces "No models from Ollama".
     expect(matchesSearch(searchable, "ollama")).toBe(true);
   });
 });

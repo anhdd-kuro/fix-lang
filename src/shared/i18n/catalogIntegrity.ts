@@ -503,73 +503,42 @@ export const checkNoEmptyOrSelfReferentialValues = (
 };
 
 /**
- * Individual whitespace/punctuation-delimited Latin-letter word tokens that
- * are legitimately identical between the source locale and any other locale
- * — proper nouns, brand names, and short conventional abbreviations that
- * Japanese UI copy genuinely keeps in Latin script. A translated value is
- * exempt from {@link checkNoVerbatimSourceValues} only if *every* Latin-letter
- * token remaining after `{placeholder}`s are stripped is one of these — so
- * "FixLang v{version}" is exempt (both "FixLang" and "v" are listed) but
- * "Temperature Settings" would not be, because "Settings" is not.
- *
- * First unfiltered run against the untouched catalog (bare EN===JA byte
- * equality, no exemptions at all): **14 hits** — see `notes.md` for the full
- * list. Every entry below is commented with why it is here. Do not widen
- * this list to silence a future genuine miss — that is what
- * {@link KNOWN_PREEXISTING_VERBATIM_GAPS} is for, and it is intentionally a
- * separate, more visible list.
+ * Latin-letter word tokens that may legitimately match the source locale
+ * verbatim. A value is exempt from {@link checkNoVerbatimSourceValues} only if
+ * *every* such token in it is listed here, so "FixLang v{version}" passes but
+ * "Temperature Settings" does not. Widen this only for a genuine proper noun —
+ * a real translation gap belongs in {@link KNOWN_PREEXISTING_VERBATIM_GAPS}.
  */
 export const VERBATIM_ALLOWED_WORDS: ReadonlySet<string> = new Set([
-  // Provider brand names — never translated in any locale FixLang ships.
+  // Brand and product names, untranslated in every locale FixLang ships.
   "OpenAI",
   "OpenRouter",
   "Ollama",
-  // FixLang's own product name and the feature name it coined for its
-  // prompt-generation window — proper nouns, not translatable English prose.
   "FixLang",
   "PromptGen",
-  // Conventional version-string abbreviation, e.g. "FixLang v1.2.3" — kept in
-  // Latin script in every locale, matching upstream release-note convention.
+  // Kept in Latin script by Japanese UI convention (macOS labels its own OK button "OK").
   "v",
-  // Universal dialog-button loanword: macOS's own Japanese system UI labels
-  // the equivalent button "OK" verbatim too, so this is not a translation gap.
   "OK",
 ]);
 
 /**
- * Pre-existing translation gaps this rule's first unfiltered run surfaced on
- * the real catalog that are **not** legitimate — genuine misses reported as
- * findings here (per this card's scope, catalog JSON may not be edited from
- * this file), not silently folded into {@link VERBATIM_ALLOWED_WORDS} as if
- * they were fine. Keeping this list separate keeps "this is fine" and "this
- * is a bug we owe a fix" from being conflated. See `notes.md` (card 09/D38).
- *
- * Remove an entry the moment its target-locale value is genuinely
- * retranslated — do not add a new one without equally direct evidence (a
- * sibling key in the same family that *is* translated, as below).
+ * Genuine untranslated values predating this rule, listed rather than folded
+ * into {@link VERBATIM_ALLOWED_WORDS} so "legitimate" and "owed a fix" stay
+ * distinct. Remove an entry once its value is actually translated.
  */
 export const KNOWN_PREEXISTING_VERBATIM_GAPS: ReadonlySet<string> = new Set([
-  // ja/settings.json defines "settings.correction.temperature" as the
-  // literal English "Temperature", verbatim-identical to en, while its
-  // sibling keys in the same family — temperatureDefault ("デフォルト（1）")
-  // and temperatureHint (fully Japanese) — ARE translated. Not a brand, not
-  // interpolation, not a unit: a genuine pre-existing miss, out of this
-  // card's write-scope (catalogIntegrity.ts / .test.ts only).
+  // ja ships the literal English "Temperature" while its temperatureDefault
+  // and temperatureHint siblings are translated.
   "settings.correction.temperature",
 ]);
 
 const WORD_TOKEN_PATTERN = /[A-Za-z]+/g;
 
-/** Removes `{placeholder}` tokens, leaving only the literal text around them. */
 const withoutPlaceholders = (value: string): string => value.replace(PLACEHOLDER_PATTERN, "");
 
 /**
- * A value identical across locales is legitimate if every Latin-letter word
- * it contains (once placeholders are stripped) is an explicitly allowed
- * token, or if the key is a documented pre-existing gap. A value with no
- * Latin letters at all (pure symbols, digits, or interpolation — e.g. "—" or
- * "{hour}:00") trivially satisfies "every word is allowed" since there are no
- * words to check.
+ * A value with no Latin letters at all (pure symbols, digits, or interpolation
+ * — "—", "{hour}:00") is vacuously legitimate: there are no words to check.
  */
 const isLegitimatelyVerbatim = (key: string, value: string): boolean => {
   if (KNOWN_PREEXISTING_VERBATIM_GAPS.has(key)) {
@@ -580,22 +549,10 @@ const isLegitimatelyVerbatim = (key: string, value: string): boolean => {
 };
 
 /**
- * Hole 1 (card 09 / D38): a target-locale value byte-identical to its source
- * counterpart is invisible to every other check here — `checkKeyParity` only
- * confirms the key exists, `checkPlaceholderParity` only compares placeholder
- * *sets*, and `checkNoEmptyOrSelfReferentialValues` only compares a value to
- * its own **key**, never to the source locale's value for that key. Evidence:
- * setting ja `settings.general.providers.title` to the literal English
- * "Providers" produced zero violations from `bun run i18n:check` before this
- * rule existed.
- *
- * Does not catch: a value that legitimately needs *some* Latin-script token
- * this list has not anticipated (a new brand, a new abbreviation) — that
- * will false-positive once, requiring a new, commented entry in
- * {@link VERBATIM_ALLOWED_WORDS}; and, by design, does not catch a
- * multi-locale value where the source and target differ only in
- * whitespace/casing (e.g. "OpenAI " vs "OpenAI") — those are exact-match
- * only, matching every other byte-identical check in this module.
+ * A target value byte-identical to its source counterpart is invisible to
+ * every other check here: the others compare keys, placeholder sets, or a
+ * value to its own key — never a value to the source locale's value.
+ * Byte-exact, like every other equality check in this module.
  */
 export const checkNoVerbatimSourceValues = (
   source: Catalog,
@@ -608,7 +565,7 @@ export const checkNoVerbatimSourceValues = (
   for (const [key, targetValue] of Object.entries(target)) {
     const sourceValue = source[key];
     if (sourceValue === undefined || sourceValue !== targetValue) {
-      continue; // no source counterpart (orphan-key territory) or already differs
+      continue; // orphan-key territory, or already translated
     }
     if (isLegitimatelyVerbatim(key, targetValue)) {
       continue;
@@ -626,20 +583,11 @@ export const checkNoVerbatimSourceValues = (
 };
 
 /**
- * Hole 2 (card 09 / D39): `resolvesPluralCategory`/`checkPluralFamilyResolution`
- * treat a family's own `_other` member as a valid same-locale fallback for a
- * missing sibling category — correct for ja (which by convention defines
- * only `_other`) but wrong for the source locale, which must define every
- * category its own `Intl.PluralRules` needs directly. Evidence: deleting
- * `settings.general.providers.card.modelCount_one` from `en/settings.json`
- * (while keeping `_other`) produced zero violations and shipped "1 models".
- *
- * Does not catch: a family missing `_other` entirely —
- * `derivePluralFamilyBases` only recognizes a family via its `_other` member
- * (the one category every locale is guaranteed to need), so such a family is
- * invisible to this function *by construction*. That shape (an `_one` with
- * no `_other` sibling) is already reported by `checkPluralSiblings`; this
- * function does not regress it.
+ * `checkPluralFamilyResolution` accepts a family's own `_other` as a fallback
+ * for a missing sibling — right for ja, wrong for the source locale, which
+ * must define every category its `Intl.PluralRules` needs or it ships
+ * "1 models". A family with no `_other` at all is invisible here by
+ * construction and is reported by `checkPluralSiblings` instead.
  */
 export const checkSourceLocalePluralCompleteness = (
   sourceCatalog: Catalog,

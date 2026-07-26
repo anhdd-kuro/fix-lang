@@ -1,19 +1,5 @@
-/**
- * @file ModelSelect.test.ts
- * @description Regression test for the Finding-1 fix: `fetchModels`'s
- * dependency array must stay `[]` (it built an English error string via `t`,
- * which forced switching languages to re-run `fetchAIModels()` for every
- * mounted `<ModelSelect>` — including the always-mounted tray instance, and
- * to tear down/re-register the `onSettingsUpdated` IPC listener). Verifies
- * the error state is a locale-free descriptor — it renders differently in en
- * vs ja after a locale change — and that the switch itself triggers no
- * second `fetchAIModels()` call.
- *
- * No `@testing-library/react` is installed (Vitest only collects
- * `**\/*.test.ts`), so this renders the real component directly via
- * `react-dom/client` + `act` — the same technique already used in
- * `SettingUpdates.test.ts`.
- */
+// No `@testing-library/react` is installed, so these render the real component
+// via `react-dom/client` + `act`, as `SettingUpdates.test.ts` does.
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -24,8 +10,7 @@ import { I18nProvider } from "../i18n/I18nProvider";
 import type { Locale } from "~/shared/i18n/registry";
 
 // Expected copy is derived through the real translator kernel so a catalog
-// reword can't silently break this file, and an English-fallback regression
-// still fails a test that asserts the JA text.
+// reword cannot silently pass.
 const tEn = createTranslator("en");
 const tJa = createTranslator("ja");
 
@@ -69,9 +54,8 @@ describe("ModelSelect", () => {
     await act(async () => {
       root.render(createElement(I18nProvider, null, createElement(ModelSelect)));
     });
-    // `<I18nProvider>` renders null until its initial `getLocale()` resolves,
-    // and `fetchModels()`'s rejection needs a further tick to land in state
-    // (mirrors `SettingUpdates.test.ts`).
+    // Two ticks: `<I18nProvider>` renders null until `getLocale()` resolves,
+    // and `fetchModels()`'s rejection needs a further tick to land in state.
     await waitForUi();
     await waitForUi();
   };
@@ -100,26 +84,16 @@ describe("ModelSelect", () => {
     });
     await waitForUi();
 
-    // Prove the locale actually changed: the JA-derived text is returned,
-    // and it differs from the EN-derived text.
     expect(alert()?.textContent).toBe(tJa(key));
     expect(tJa(key)).not.toBe(tEn(key));
-    // Switching locale must not re-run `fetchAIModels()` — `fetchModels`'s
-    // dependency array must stay `[]` (it no longer closes over `t`), and it
-    // is itself a dependency of the mount effect and the
-    // `onSettingsUpdated` subscription effect.
+    // Kills: letting `fetchModels` close over `t`, which would refetch every
+    // mounted picker on a locale switch.
     expect(fetchAIModels).toHaveBeenCalledTimes(1);
   });
 
   it("passes an app-authored IPC error Label straight through to tl(), re-rendering it translated after a locale switch", async () => {
-    // Simulates the real `fetch-provider-models`/`fetch-ai-models` IPC shape
-    // post-migration: `result.error` already arrives as a `Label` (a
-    // `messageLabel` descriptor for app-authored validation copy, or a
-    // `textLabel` for opaque provider/exception text) — never a bare string.
-    // If `ModelSelect.tsx` regressed to the pre-migration
-    // `result.error ? textLabel(result.error) : …` pattern, this would wrap
-    // the `Label` *object* itself as if it were raw text and render garbage
-    // instead of translated copy.
+    // Kills: re-wrapping `result.error` in `textLabel`, which would render the
+    // `Label` object as raw text.
     fetchAIModels = vi.fn().mockResolvedValue({
       success: false,
       error: messageLabel("models.providerSetup.error.apiKeyNotVerified"),
@@ -163,15 +137,6 @@ describe("ModelSelect", () => {
     expect(tJa(key)).not.toBe(tEn(key));
   });
 
-  /**
-   * D29 — the inherit sentinel, end to end.
-   *
-   * Presets pass `selectedModelId={preset.model}`, which is `""` for "inherit
-   * the global default". react-select can only display a selection it has an
-   * option for, so without `withInheritOption` emitting a real `value: ""`
-   * option every inheriting preset renders as a bare placeholder. The pure
-   * test pins the option; these pin that the control actually shows it.
-   */
   describe("selected-value rendering", () => {
     const MODEL = {
       id: "gpt-5-mini",
@@ -261,8 +226,7 @@ describe("ModelSelect", () => {
       await mount({ selectedModelId: "", persistSelection: false });
 
       expect(container.textContent).toContain(tEn("models.select.option.inherit"));
-      // …and not the fallback placeholder, which is exactly what a missing
-      // inherit option leaves behind.
+      // The placeholder is what a missing inherit option leaves behind.
       expect(container.textContent).not.toContain(tEn("models.select.placeholder"));
     });
 
@@ -298,13 +262,8 @@ describe("ModelSelect", () => {
       expect(container.textContent).toContain(tEn("models.select.description.default"));
     });
 
-    /**
-     * D29's OTHER branch. A feature picker (PromptGen) inherits through the
-     * same empty sentinel, but reaches it via `getFeatureModel()` rather than
-     * via a `selectedModelId` prop — so `offersInherit` has to cover
-     * `useFeatureModel` too, and the reset button's `setSelectedModel("")`
-     * depends on the inherit row existing.
-     */
+    // A feature picker reaches inherit via `getFeatureModel()`, not via the
+    // `selectedModelId` prop — `offersInherit` must cover that branch too.
     it("offers the inherit row to a feature picker whose feature model is unset", async () => {
       await mount({ featureId: "settingsPromptGen", useFeatureModel: true });
 
@@ -313,8 +272,6 @@ describe("ModelSelect", () => {
     });
 
     it("does NOT offer the inherit row to the global default picker", async () => {
-      // The profile default cannot inherit from itself — offering it would let
-      // a user store "use the default" as the default.
       await mount({ saveOnChange: true });
 
       expect(container.textContent).not.toContain(tEn("models.select.option.inherit"));
@@ -331,9 +288,6 @@ describe("ModelSelect", () => {
     });
 
     it("surfaces a stored default that its provider no longer serves", async () => {
-      // Disconnecting the provider that held the default leaves the ref in the
-      // profile. Rendering it blank would look like "no default set" while a
-      // request would still fail on the stale ref.
       await mount({}, { models: [], states: {} });
 
       expect(container.textContent).toContain(
@@ -342,16 +296,13 @@ describe("ModelSelect", () => {
     });
 
     it("hides a disconnected provider's cached models from the picker", async () => {
-      // `get-cached-models` is already restricted to connected providers, but
-      // `fetch-ai-models` merges every provider's slice — so the picker itself
-      // has to filter on the connected set, not just trust the model list.
+      // `fetch-ai-models` merges every provider's slice, so the picker must
+      // filter on the connected set rather than trust the model list.
       await mount(
         { selectedModelId: "ollama::llama3.2:3b", persistSelection: false },
         { models: [MODEL, OLLAMA_MODEL] },
       );
 
-      // Ollama is not connected, so its model is not selectable: it renders
-      // through the Unavailable group instead of as a live option.
       expect(container.textContent).toContain(
         tEn("models.select.option.unavailable", { model: "llama3.2:3b" }),
       );

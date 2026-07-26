@@ -178,21 +178,10 @@ const activeProfileId = async (): Promise<string | null> => {
 };
 
 /*
- * ---------------------------------------------------------------------------
- * OpenRouter-specific shims. The hardcoded "openrouter" below is CORRECT —
- * do not "fix" it into a provider parameter.
- *
- * A provisioning key is an OpenRouter concept and nothing else has one:
- * `PROVIDER_SUPPORTS_PROVISIONING_KEY` in `~/shared/providers` is true for
- * `openrouter` alone, and `getProfileSecretPath` throws for any other
- * provider paired with `"provisioning"`. Parameterising these would produce
- * calls that can only ever throw.
- *
- * The multi-provider entry point is `getActiveProfileSecret(provider, kind)`
- * in `./profileSecretStore`, which answers `null` for a slot a provider has
- * not got. New callers want that; these stay narrow, and keep the
- * legacy-plaintext fallbacks that a migrating install still needs.
- * ---------------------------------------------------------------------------
+ * The hardcoded "openrouter" below is deliberate: only OpenRouter has a
+ * provisioning key, so `getProfileSecretPath` throws for any other provider
+ * paired with `"provisioning"`. Multi-provider callers want
+ * `getActiveProfileSecret(provider, kind)` in `./profileSecretStore`.
  */
 
 export const setProvisioningKey = async (

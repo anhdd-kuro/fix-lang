@@ -19,10 +19,7 @@ export type PromptGenSettings = {
   context?: string;
   model?: string;
   temperature?: number;
-  /**
-   * Frontmost macOS app when the PromptGen hotkey fired. Best-effort ambient
-   * context, appended to the system prompt like the transform path does.
-   */
+  /** Frontmost macOS app when the hotkey fired; best-effort, may be absent. */
   activeAppName?: string | null;
 };
 
@@ -57,9 +54,8 @@ export const generatePrompt = async (
   try {
     // Use shared makeAIRequest function
     const response = await makeAIRequest({
-      // Appended after prettifying: the context block's own newlines and
-      // leading "- " bullets must survive `removeExtraSpaces`, which collapses
-      // the indentation of the template literal above.
+      // Appended after prettifying: the context block's newlines and "- "
+      // bullets must survive `removeExtraSpaces`.
       systemPrompt: withActiveAppContext(
         new StringPrettifier(baseSystemPrompt)
           .removeExtraSpaces()
@@ -67,13 +63,8 @@ export const generatePrompt = async (
         { activeAppName: options.activeAppName },
       ),
       userPrompt: `Input:\n${text}`,
-      // Order matters: the profile settings are the DEFAULTS, so they spread
-      // first and an explicit `options` value wins. The reverse order (the
-      // original) let `settingsPromptGen.model` silently overwrite a model the
-      // caller asked for by name — a pre-existing bug, invisible only because
-      // the sole in-tree caller (`keybindings/promptGen.ts`) passes just
-      // `{ text }`, so the two objects never collided. It surfaces the moment
-      // anything requests a specific model.
+      // Profile settings are the DEFAULTS, so they must spread first — the
+      // reverse lets `settingsPromptGen.model` silently override a caller's.
       ...currentSettings,
       ...options,
     });

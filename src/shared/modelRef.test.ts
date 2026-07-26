@@ -1,8 +1,3 @@
-/**
- * @file modelRef.test.ts
- * @description Tests for the composite model-ref kernel:
- * `<providerId>::<rawModelId>` parse / format / strip / resolve.
- */
 import { describe, expect, it } from "vitest";
 import {
   formatModelRef,
@@ -47,9 +42,8 @@ describe("parseModelRef", () => {
     });
   });
 
-  // F8 — pins the "first `::`" rule against a `lastIndexOf` regression. With
-  // `lastIndexOf` the head would be "openai::ollama", which is not a provider
-  // id, so the whole string would degrade to a bare id.
+  // Kills a `lastIndexOf` regression: the head would be "openai::ollama", so the
+  // whole string would degrade to a bare id.
   it("splits on the FIRST `::` when the value contains two — the tail keeps its own `::`", () => {
     expect(parseModelRef("openai::ollama::llama3.2:3b")).toEqual({
       provider: "openai",
@@ -84,8 +78,6 @@ describe("stripModelRefPrefix", () => {
     "",
   ];
 
-  // F5 — renamed from "is idempotent ...". The guarantee is a fixed point over
-  // the values the system actually produces, not unconditional idempotence.
   it("reaches a fixed point after one pass for every well-formed ref in the parseModelRef matrix", () => {
     for (const value of cases) {
       const once = stripModelRefPrefix(value);
@@ -103,10 +95,8 @@ describe("stripModelRefPrefix", () => {
     expect(stripModelRefPrefix("openai::gpt-4o")).toBe("gpt-4o");
   });
 
-  // F5 — single-pass is the adjudicated contract. A nested ref is unreachable
-  // by construction (every producer guards with `isModelRef`), and a looping
-  // strip would make this the only consumer that silently accepts a value
-  // `resolveModelRef`, `makeAIRequest` and the picker all reject.
+  // Kills a looping strip, which would silently accept a nested ref that
+  // resolveModelRef, makeAIRequest and the picker all reject.
   it("removes exactly one prefix from a nested ref, leaving the inner ref intact", () => {
     expect(stripModelRefPrefix("openai::ollama::llama3.2:3b")).toBe("ollama::llama3.2:3b");
     expect(stripModelRefPrefix("openai::openai::gpt-4o")).toBe("openai::gpt-4o");
@@ -120,8 +110,6 @@ describe("stripModelRefPrefix", () => {
   });
 });
 
-// F5 — the precondition that makes the single-pass contract safe, pinned so a
-// later card cannot quietly rely on `formatModelRef` normalizing for it.
 describe("formatModelRef preconditions", () => {
   const models: Model[] = [
     { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openrouter" },
@@ -168,8 +156,6 @@ describe("modelRefForModel", () => {
     expect(modelRefForModel(model)).toBe("openrouter::legacy-model");
   });
 
-  // F1 — attribution must agree with isModelForProvider, the predicate the rest
-  // of the system matches on.
   it("attributes an untagged local model to ollama, not to the openrouter fallback", () => {
     const model: Model = {
       id: "llama3.2:3b",
@@ -181,8 +167,7 @@ describe("modelRefForModel", () => {
   });
 
   it("prefers the earliest PROVIDER_ORDER match when a model matches two providers", () => {
-    // An openai-tagged model that also carries a local descriptor matches both
-    // openai and ollama; openai comes first, and the ref still round-trips.
+    // An openai tag plus a local descriptor matches both openai and ollama.
     const model: Model = {
       id: "gpt-4o",
       name: "gpt-4o",
@@ -195,9 +180,7 @@ describe("modelRefForModel", () => {
   });
 
   it("falls back to providerOfModel for a cache entry whose provider tag is unrecognized", () => {
-    // Cast reproduces a hand-edited config value; no PROVIDER_ORDER entry
-    // matches, so the `??` arm runs and the result degrades to a bare id that
-    // resolves to nothing rather than to an unintended provider.
+    // The result must degrade to an unresolvable bare id, never to another provider.
     const model: Model = {
       id: "x",
       name: "x",
@@ -214,8 +197,6 @@ describe("modelRefForModel", () => {
   });
 });
 
-// F1 — the kernel's own format -> resolve round trip, for every Model shape the
-// app actually produces.
 describe("modelRefForModel / resolveModelRef round trip", () => {
   const shapes: { label: string; model: Model; provider: string }[] = [
     {
@@ -261,7 +242,6 @@ describe("modelRefForModel / resolveModelRef round trip", () => {
   }
 });
 
-// F6 — a ref to no model *is* the inherit sentinel.
 describe("formatModelRef", () => {
   it("returns the inherit sentinel for an empty model id rather than a degenerate `<provider>::`", () => {
     for (const provider of PROVIDER_IDS) {
@@ -299,24 +279,15 @@ describe("resolveModelRef", () => {
     expect(resolveModelRef("openai::ghost", models)).toBeNull();
   });
 
-  // The exclusivity half of the contract documented on `resolveModelRef`: a
-  // prefixed ref checks its own provider and stops. Note "gpt-4o" IS in this
-  // cache — under openai — so a candidate list that widened to PROVIDER_ORDER
-  // would return the openai row for an ollama ref, and the request would be
-  // routed to openai and billed against its key with no error anywhere. That
-  // is the exact ambiguity the composite ref exists to remove. Every other
-  // miss case here uses an id absent from every provider, so none of them can
-  // catch the widening.
+  // "gpt-4o" IS in this cache under openai, so a widened candidate list would
+  // return the openai row for an ollama ref and bill the OpenAI key.
   it("returns null for a prefixed ref whose id exists only under a DIFFERENT provider", () => {
     expect(resolveModelRef("ollama::gpt-4o", models)).toBeNull();
     expect(resolveModelRef("openai::shared-id", models)).toBeNull();
   });
 
-  // F2 — named for the routing consequence, not for the constant's contents.
-  // PROVIDER_ORDER is resolution precedence as well as display order: an
-  // un-migrated bare id bills against the API key of whichever provider comes
-  // first here. If a display-ordering change makes this test fail, the correct
-  // response is to split the two concerns, NOT to update the expectation.
+  // If a display-order change fails this, split the two concerns rather than
+  // updating the expectation — PROVIDER_ORDER is also billing precedence.
   it("bills a bare id to the earliest PROVIDER_ORDER provider that has it — a reorder reroutes it", () => {
     // "shared-id" exists under both openrouter (paid) and ollama (local).
     const result = resolveModelRef("shared-id", models);

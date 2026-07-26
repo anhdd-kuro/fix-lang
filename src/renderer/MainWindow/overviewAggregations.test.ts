@@ -665,15 +665,6 @@ describe("benchmarkMessage", () => {
   });
 });
 
-// The describe block covering the id-splitting provider helper is deleted
-// along with the helper itself (see the tombstone in overviewAggregations.ts).
-// It was not pinning behaviour that still matters: every assertion in it
-// ("openai/gpt-4o" → provider "openai") asserted an id-shape-to-provider
-// inference the multi-provider refactor classifies as wrong — that id is
-// routinely served by OpenRouter. The helper had no caller but this block.
-
-
-
 describe("sevenDayHourBlockHeatmap", () => {
   it("renders exactly 7 day columns ending today", () => {
     const entries = [

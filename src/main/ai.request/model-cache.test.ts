@@ -232,17 +232,6 @@ describe("fetchAvailableModels — strict validation", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// fetchModelsForProviders — D21/D22 (hazard 2: the read-modify-write clobber).
-//
-// `cacheModelsForProvider` reads the whole profile, swaps one slice and writes
-// the whole profile back. Three of those racing under `Promise.all` silently
-// drop two slices — last writer wins, no error, no failing test. The fan-out
-// must therefore fetch with persistCache=false and perform exactly ONE merged
-// write. The write COUNT is the defence: asserting only that three slices
-// survive can pass by luck of scheduling.
-// ---------------------------------------------------------------------------
-
 describe("fetchModelsForProviders — fan-out across every enabled provider", () => {
   const openRouterPayload = (models: { id: string; created: number }[]) => ({
     ok: true,
@@ -271,8 +260,7 @@ describe("fetchModelsForProviders — fan-out across every enabled provider", ()
       {
         id: "llama3.2:3b",
         name: "llama3.2",
-        // Ollama stamps milliseconds while the cloud providers use seconds —
-        // a naive GLOBAL sort would interleave the groups wrongly.
+        // Milliseconds, where the cloud providers use seconds.
         created: 1_700_000_000_000,
         local: { path: "/models/llama3.2" },
       },
@@ -283,7 +271,7 @@ describe("fetchModelsForProviders — fan-out across every enabled provider", ()
     vi.unstubAllGlobals();
   });
 
-  it("D21 — leaves all three slices present after exactly ONE profile write", async () => {
+  it("leaves all three slices present after exactly ONE profile write", async () => {
     seedProfile([]);
     const setSpy = vi.spyOn(apiStore, "set");
 
@@ -293,9 +281,8 @@ describe("fetchModelsForProviders — fan-out across every enabled provider", ()
       true,
     );
 
-    // One merged write, not one per provider. The COUNT is the assertion that
-    // matters: three surviving slices can happen by luck of scheduling, three
-    // separate writes cannot.
+    // The write COUNT is the real assertion: three surviving slices can happen
+    // by luck of scheduling, one write cannot.
     const writtenKeys = setSpy.mock.calls.map((call) => String(call[0]));
     expect(writtenKeys).toEqual(["profiles"]);
     expect(setSpy).toHaveBeenCalledTimes(1);
@@ -306,8 +293,7 @@ describe("fetchModelsForProviders — fan-out across every enabled provider", ()
       "anthropic/claude-3.5-sonnet",
       "llama3.2:3b",
     ]);
-    // Every persisted entry carries an explicit provider tag — `modelRefForModel`
-    // formats an untagged model as `openrouter::…` regardless of its shape.
+    // Untagged entries format as `openrouter::…` refs whatever their shape.
     expect(persisted.map((model) => model.provider)).toEqual([
       "openai",
       "openrouter",
@@ -320,7 +306,7 @@ describe("fetchModelsForProviders — fan-out across every enabled provider", ()
     setSpy.mockRestore();
   });
 
-  it("D22 — one provider failing still returns the others and keeps the failed slice", async () => {
+  it("one provider failing still returns the others and keeps the failed slice", async () => {
     const staleOpenRouter: Model = {
       id: "anthropic/claude-3-opus",
       name: "claude-3-opus",
@@ -362,8 +348,8 @@ describe("fetchModelsForProviders — fan-out across every enabled provider", ()
       true,
     );
 
-    // Ollama's millisecond `created` (1.7e12) dwarfs every cloud value, so a
-    // global sort would hoist it to the front. Grouping keeps it last.
+    // Ollama's millisecond `created` dwarfs every cloud value, so a global
+    // sort would hoist it to the front. Grouping keeps it last.
     expect(result.models.map((model) => model.id)).toEqual([
       "gpt-4o",
       "gpt-4o-mini",
