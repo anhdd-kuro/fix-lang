@@ -129,6 +129,42 @@ describe("scanBundleSource", () => {
     expect(elapsed).toBeLessThan(2_000);
   });
 
+  // ---- F1: comma-operator callees ----
+  //
+  // `(0, f)(x)` is the standard esbuild/Rollup/tsc idiom for calling `f`
+  // with `this` stripped, and it is everywhere in real output (`grep -c '(0, '`
+  // over out/main/index.cjs: 925). A callee walk that only strips parentheses
+  // sees a BinaryExpression and gives up, so every require shape below
+  // disappears from the scan the moment a bundler emits it this way.
+
+  it("flags a comma-operator-wrapped require callee", () => {
+    expect(details('(0, require)("left-pad");')).toEqual(["left-pad"]);
+  });
+
+  it("flags a comma-operator-wrapped module.require callee", () => {
+    expect(details('(0, module.require)("left-pad");')).toEqual(["left-pad"]);
+  });
+
+  it("flags a comma-operator-wrapped require.resolve callee", () => {
+    expect(details('(0, require.resolve)("left-pad");')).toEqual(["left-pad"]);
+  });
+
+  it("flags a comma-operator-wrapped require alias", () => {
+    expect(details('var r = require;\n(0, r)("left-pad");')).toEqual(["left-pad"]);
+  });
+
+  it("flags a require alias bound through a comma operator", () => {
+    expect(details('var r = (0, require);\nr("left-pad");')).toEqual(["left-pad"]);
+  });
+
+  it("flags a non-literal argument through a comma-operator callee", () => {
+    expect(kinds("(0, require)(computeName());")).toEqual(["non-literal-argument"]);
+  });
+
+  it("does not flag an unrelated comma-operator callee", () => {
+    expect(kinds('(0, path.resolve)(dir, "left-pad");')).toEqual([]);
+  });
+
   it("flags module.require()", () => {
     expect(details('module.require("left-pad");')).toEqual(["left-pad"]);
   });
@@ -512,6 +548,10 @@ describe("check-bundle-externals CLI under bun", () => {
         'const req = createRequire(import.meta.url);\nreq("left-pad");',
       "main/moduleRequire.cjs": 'module.require("left-pad");',
       "main/staticImport.cjs": 'import lp from "left-pad";',
+      "main/commaRequire.cjs": '(0, require)("left-pad");',
+      "main/commaModuleRequire.cjs": '(0, module.require)("left-pad");',
+      "main/commaRequireResolve.cjs": '(0, require.resolve)("left-pad");',
+      "main/commaAlias.cjs": 'var r = require;\n(0, r)("left-pad");',
       "preload/chunks/testChunk.cjs": 'require("left-pad");',
     };
 

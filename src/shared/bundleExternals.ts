@@ -165,15 +165,50 @@ const isBareSpecifier = (specifier: string): boolean =>
 /** Factory that hands back a CommonJS `require` function. */
 const CREATE_REQUIRE = "createRequire";
 
-/** `createRequire` / `module.createRequire` / `Module.createRequire`. */
-const isCreateRequireReference = (node: ts.Expression): boolean =>
-  (ts.isIdentifier(node) && node.text === CREATE_REQUIRE) ||
-  (ts.isPropertyAccessExpression(node) && node.name.text === CREATE_REQUIRE);
+/**
+ * Peels the wrappers that change how an expression is *spelled* without
+ * changing what it evaluates to: parentheses, and the comma (sequence)
+ * operator, whose value is its right operand.
+ *
+ * The comma case is not exotic. `(0, f)(x)` is the standard esbuild / Rollup /
+ * tsc idiom for calling `f` with `this` stripped off a member access, and
+ * today's `out/main/index.cjs` contains 925 occurrences of `(0, `. Without
+ * this, `(0, require)("left-pad")` is a BinaryExpression callee that matches
+ * nothing and the whole scan silently stops seeing the require.
+ *
+ * The left operand is not lost: `visit` walks every child of every node, so a
+ * require living inside the discarded half is still reached on its own.
+ */
+const unwrapExpression = (node: ts.Expression): ts.Expression => {
+  if (ts.isParenthesizedExpression(node)) return unwrapExpression(node.expression);
+  if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.CommaToken) {
+    return unwrapExpression(node.right);
+  }
+  return node;
+};
 
-/** Strips parentheses and returns the identifier name, if that is all there is. */
+/** The string of a `foo.bar` / `foo["bar"]` member access, if it is one. */
+const memberName = (node: ts.Expression): string | undefined => {
+  if (ts.isPropertyAccessExpression(node)) return node.name.text;
+  if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) {
+    return node.argumentExpression.text;
+  }
+  return undefined;
+};
+
+/** Strips wrappers and returns the identifier name, if that is all there is. */
 const identifierName = (node: ts.Expression): string | undefined => {
-  if (ts.isParenthesizedExpression(node)) return identifierName(node.expression);
-  return ts.isIdentifier(node) ? node.text : undefined;
+  const target = unwrapExpression(node);
+  return ts.isIdentifier(target) ? target.text : undefined;
+};
+
+/** `createRequire` / `module.createRequire` / `Module["createRequire"]`. */
+const isCreateRequireReference = (node: ts.Expression): boolean => {
+  const target = unwrapExpression(node);
+  return (
+    (ts.isIdentifier(target) && target.text === CREATE_REQUIRE) ||
+    memberName(target) === CREATE_REQUIRE
+  );
 };
 
 /**
@@ -183,15 +218,9 @@ const identifierName = (node: ts.Expression): string | undefined => {
  * an immediately-invoked `createRequire(import.meta.url)`.
  */
 const isIntrinsicRequireExpression = (node: ts.Expression): boolean => {
-  if (ts.isParenthesizedExpression(node)) return isIntrinsicRequireExpression(node.expression);
-  if (ts.isPropertyAccessExpression(node)) return node.name.text === "require";
-  if (ts.isElementAccessExpression(node)) {
-    return (
-      ts.isStringLiteralLike(node.argumentExpression) &&
-      node.argumentExpression.text === "require"
-    );
-  }
-  if (ts.isCallExpression(node)) return isCreateRequireReference(node.expression);
+  const target = unwrapExpression(node);
+  if (memberName(target) === "require") return true;
+  if (ts.isCallExpression(target)) return isCreateRequireReference(target.expression);
   return false;
 };
 
@@ -301,7 +330,7 @@ const isModuleResolvingCall = (
   node: ts.CallExpression,
   bindings: ReadonlySet<string>,
 ): boolean => {
-  const callee = node.expression;
+  const callee = unwrapExpression(node.expression);
   if (callee.kind === ts.SyntaxKind.ImportKeyword) return true;
   if (isRequireExpression(callee, bindings)) return true;
   return (
