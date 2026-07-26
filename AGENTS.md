@@ -6,15 +6,16 @@ Local macOS menu-bar app: fixes grammar and improves writing on selected text vi
 
 ## Main Features
 
-- **Correction** — fix grammar/style on selected text via per-preset global hotkeys.
+- **Transform** — fix grammar/style or otherwise rewrite selected text via per-preset global hotkeys.
+- **Source-app context** — Transform and PromptGen append the frontmost app name ("Slack", "Mail") to the **system prompt** (`src/main/ai.request/transform-context.ts`), so the model can match that app's register. Best-effort: dropped entirely when the read fails or FixLang itself is frontmost, leaving the system prompt byte-identical. Every read is logged under scope `accessibility.activeApp` (debug on read/drop, warn on failure).
 - **Presets** — built-in Correction, Summarize, Translate, Prompt optimization; each preset has its own hotkey, model, and system prompt.
 - **Prompt generation** — build AI prompts from selected text (PromptGen window).
-- **Profiles** — switch correction presets; switch reloads hotkeys + settings + history.
-- **Multi-provider** — connect multiple providers (OpenAI, OpenRouter, Ollama) at once; each connected provider appears in a grouped model picker; a preset can use any connected provider; model ref is composite `<providerId>::<rawModelId>` in config, raw id downstream.
-- **History** — SQLite-backed correction + PromptGen history with cost tracking.
+- **Profiles** — switch transform presets; switch reloads hotkeys + settings + history.
+- **Multi-provider** — connect multiple providers (OpenAI, OpenRouter, Ollama) at once, each with its own model discovery/compat/monitor; every connected provider appears in a grouped model picker; a preset can use any connected provider; model ref is composite `<providerId>::<rawModelId>` in config, raw id downstream.
+- **History** — SQLite-backed transform + PromptGen history with cost tracking.
 - **Analytics** — Overview dashboard: stat cards, preset donut/time-series charts (`PresetWeightChart`), token activity calendar, benchmark sentence; shared All/30d/7d range with Models tab.
-- **Logs** — structured, redacted JSONL persistence (`userData/logs/{YYYY-MM-DD}/fixlang.jsonl`); Logs tab with level filter, search, copy/export, virtual infinite scroll.
-- **Hotkeys** — customizable global shortcuts (promptGen, profileSwitch) plus per-preset correction hotkeys.
+- **Logs** — structured, redacted JSONL persistence (`userData/logs/{YYYY-MM-DD}/fixlang.jsonl`); Logs tab with multi-select level filter (`LogQueryRequest.levels`; empty array = every level), search, copy/export, virtual infinite scroll, timezone stated once in the footer instead of per row.
+- **Hotkeys** — customizable global shortcuts (promptGen, profileSwitch) plus per-preset transform hotkeys.
 - **Updates** — Settings → About checks GitHub Releases; cask installs get a one-click **Update now** that delegates to `brew upgrade --cask fixlang` (`src/main/update/homebrew.ts`). No self-updater.
 
 ## Purpose
@@ -92,14 +93,19 @@ Translation strings live in `src/shared/i18n/locales/{en,ja}/` as per-namespace 
 ### Add a translatable string (recipe)
 
 1. **English**: Add the key-value pair to `src/shared/i18n/locales/en/{namespace}.json`:
+
    ```json
    { "overview.stat.sessions": "Sessions" }
    ```
+
 2. **Japanese**: Add the translation to `src/shared/i18n/locales/ja/{namespace}.json`:
+
    ```json
    { "overview.stat.sessions": "セッション" }
    ```
+
 3. **Use it**: The key is type-checked at compile time — a typo will be caught by the TypeScript compiler and displayed in your editor:
+
    ```tsx
    import { useI18n } from "~/renderer/i18n/useI18n";
    const { t } = useI18n();
@@ -112,17 +118,17 @@ English defines both singular and plural variants; Japanese defines only the plu
 
 ```json
 // en/history.json
-{ "history.count_one": "{count} correction", "history.count_other": "{count} corrections" }
+{ "history.count_one": "{count} transform", "history.count_other": "{count} transforms" }
 
 // ja/history.json
-{ "history.count_other": "{count} 件の校正" }
+{ "history.count_other": "{count} 件の変換" }
 ```
 
 ```tsx
 const { t, formatNumber } = useI18n();
 // Calls t("history.count_one") if count is 1, t("history.count_other") otherwise;
 // the raw count is never shown, so never pass count as a string.
-t("history.count", { count: 12 })  // "12 corrections" (EN) / "12 件の校正" (JA)
+t("history.count", { count: 12 })  // "12 transforms" (EN) / "12 件の変換" (JA)
 ```
 
 ### Number and date formatting
@@ -181,6 +187,7 @@ new Notification({
 
 ✅ Always:
 
+- Work in the work tree if the user does not ask for a new branch or directly mention a branch name.
 - Keep prompts bundled locally from `src/prompts/` — no runtime fetch.
 - Store SQLite/JSONL under `app.getPath("userData")` — never inside the signed bundle.
 - Use async I/O only in the main process.
@@ -191,6 +198,7 @@ new Notification({
   - Spawn fresh sub-agent to review the changes before committing.
   - Run linting and testing to verify changes.
   - Update AGENTS.md instructions if needed.
+- Use clear function and variable names so the code speaks for itself. Avoid JavaScript comments unless they are absolutely necessary to explain non-obvious intent or constraints. Prioritize readability through naming, structure, and small, focused functions.
 
 ⚠️ Ask first:
 
@@ -208,7 +216,13 @@ new Notification({
 - **Trigger** — bump `package.json` to a strictly higher stable semver, PR to `main`, merge. Push to `main` fires `.github/workflows/release.yml` (`prepare` on ubuntu creates the `v<version>` tag; `release` on macos-14 lints/tests/builds, validates the DMG, publishes `FixLang-<v>-arm64.dmg` + `SHA256SUMS.txt`). Docs-only pushes no-op (version already public).
 - **Homebrew** — public tap `anhdd-kuro/homebrew-tap` auto-syncs verified releases into `Casks/fixlang.rb`; users run `brew install --cask anhdd-kuro/tap/fixlang` and `brew update && brew upgrade --cask fixlang`. arm64-only, unsigned — never automate Gatekeeper/`xattr`.
 - **In-app update** — `updates:install` starts a detached `/bin/sh` helper that waits for FixLang to exit, runs `brew update && brew upgrade --cask fixlang` (`NONINTERACTIVE=1`), then reopens the app; the app quits itself right after. brew is resolved only from `/opt/homebrew/bin/brew` or `/usr/local/bin/brew` (never PATH), and the button is off unless `<prefix>/Caskroom/fixlang` exists. A `pending-update.json` marker under `userData` reports a stalled upgrade on the next launch; helper output goes to `userData/logs/homebrew-update.log`.
+- **The check asks Homebrew, not GitHub** — for a cask install `checkForUpdates` offers `HomebrewUpgrader.getInstallableVersion()`, because Homebrew is what the button runs. GitHub is queried in parallel but only supplies release notes and the DMG size, and only when it describes the exact version being offered. A published release the tap has not synced yet is reported as `up-to-date` + `tapPendingMessage`, never as an offer — but it still carries that release's notes and points `getReleaseUrl()` at its tag, so the panel shows what changed next to a **Download from GitHub** button. Only the DMG size is withheld, because the download bar it feeds belongs to an install that cannot start. Cost control: the routine check reads the local tap clone (`getInstallableVersion(false)`, no `brew update` — that is a git fetch across every tap) and pays for one refresh only when GitHub shows something newer. Manual DMG installs, and casks whose brew probe returns null, still fall back to GitHub.
 - **Two version sources** — the check reads **GitHub Releases**, the install runs **the Homebrew tap**, and the tap lags the release (cron, up to 6h). `installUpdate` therefore probes `brew info --cask fixlang --json=v2` (after `brew update`) and refuses to quit when the tap is still behind. Never delete that gate: `brew upgrade` exits **0** on "already installed", so without it the app quits and reopens unchanged and the button looks dead. A null/unparseable probe means "unknown" → proceed; only a *parsed lower* version blocks.
+- **An unchanged version on relaunch is not proof of failure** — the app quits in under a second, Homebrew keeps downloading ~128 MB for a minute or more, and a user who reopens FixLang meanwhile lands in `reconcileLastInstall` with the old bundle still in place. Treating that as failure clears the marker, shows "Homebrew did not finish the last update", and re-arms the button, so the next click starts a second `brew upgrade` that dies on the first one's **download lock**. The marker therefore carries `startedAt`, and reconcile returns `in-progress` (keep marker, keep the button inert, poll the Caskroom) until either `<prefix>/Caskroom/fixlang/<target>` appears → `restart-required`, or `UPGRADE_GRACE_MS` (20 min) passes → `failed`.
+- **Download happens while the app is alive** — `installUpdate` runs `brew fetch --cask fixlang` first (fills the download cache only, installed bundle untouched) and publishes a `downloading` phase with byte progress read by `statSync` from `<HOMEBREW_CACHE>/downloads/*--FixLang-<v>-arm64.dmg[.incomplete]`. Progress is read from the growing cache file, never parsed out of brew's output, and the denominator is the GitHub release asset `size`. Only after the fetch succeeds does the app quit; the detached helper then just runs `brew upgrade` off the cache (no `brew update` — the tap probe already refreshed it), so the app is away for seconds instead of a minute.
+- **`open -b` cannot replace a running app** — the helper's closing `open -b com.fixlang.app` resolves with `preferIdentical`, so when FixLang is already running it merely *focuses* the stale process while `/Applications` already holds the new bundle. That is why the `restart-required` phase exists, and why its restart re-executes `process.execPath` (`app.relaunch()` + `app.exit(0)`) instead of shelling out to `open`.
+- **The bundle id is not a unique app** — a `pack:mac` build sitting in a checkout used to carry `com.fixlang.app` too, so the helper's closing `open -b` could reopen *that* copy right after a successful upgrade, and the user landed on an older version. Two defences: the helper reopens the recorded `.app` path (`open -a "<path>"`, id only as fallback), and `pack:mac` now builds as `com.fixlang.app.dev` / `FixLang Dev` (use `pack:mac:prod` for a production-identity local build; `pack:install` already does). Dev builds still share `userData` — the packaged `package.json` keeps `name: fix-lang`, which is what `app.getName()` reads.
+- **A changed version is not proof of success** — `reconcilePendingInstall` compares against `toVersion` and against the recorded `appPath`, not merely "differs from `fromVersion`"; otherwise reopening a stray *older* copy reports as a completed update. A mismatched path yields `wrong-bundle` → `restart-required` carrying `wrongBundleMessage`, and that restart opens `pending.appPath` instead of re-executing `process.execPath` (which would just relaunch the wrong copy forever).
 - **Traps** — release Test step needs Node 24 on macos runners (`node:sqlite` builtin); tap cask generation + `brew style/audit` have several traps. See the gotcha below before touching release or tap code.
 
 ## References
@@ -219,7 +233,7 @@ new Notification({
 
 Project-specific traps under `.claude/skills/fixlang/`:
 
-- [Hotkeys](.claude/skills/fixlang/fixlang-hotkeys/SKILL.md) — preset hotkey reload on profile switch (silent failures) + pre-save conflict validation.
+- [Hotkeys](.claude/skills/fixlang/fixlang-hotkeys/SKILL.md) — preset hotkey reload on profile switch (silent failures) + pre-save conflict validation + frontmost-app read must precede the overlay spinner.
 - [i18n](.claude/skills/fixlang/fixlang-i18n/SKILL.md) — JSON values widen to `string` (params not type-checked); tests must be `.test.ts` (no RTL); aggregations return descriptors; memoized callbacks over `t` or formatters must list them in deps; `date-fns` needs explicit `{ locale }`; main process uses `mainT()`, not `useI18n()`.
 - [Prompt bundling](.claude/skills/fixlang/fixlang-prompt-bundling/SKILL.md) — prompts bundle at build time from `src/prompts/`, not `~/.agents/`; rebuild + reinstall to apply.
 - [Profile state](.claude/skills/fixlang/fixlang-profile-state/SKILL.md) — profile switch must atomically reload hotkeys + settings UI + history; connecting a provider does NOT wipe presets.

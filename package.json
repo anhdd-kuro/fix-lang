@@ -1,6 +1,6 @@
 {
   "name": "fix-lang",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "description": "Local macOS menu-bar app: AI text correction and writing tools via OpenAI, OpenRouter, or Ollama",
   "author": {
     "name": "Anhdd Kuro",
@@ -18,11 +18,12 @@
     "dev": "electron-vite dev",
     "dev:promptgen": "FIXLANG_FEATURES=promptgen bun run dev",
     "pack": "rm -rf release && electron-vite build && electron-builder --mac",
-    "pack:mac": "rm -rf release && electron-vite build && electron-builder --mac dir",
+    "pack:mac": "rm -rf release && electron-vite build && electron-builder --mac dir -c.appId=com.fixlang.app.dev -c.productName='FixLang Dev'",
+    "pack:mac:prod": "rm -rf release && electron-vite build && electron-builder --mac dir",
     "pack:mac:promptgen": "FIXLANG_FEATURES=promptgen bun run pack:mac",
     "release:mac": "electron-vite build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --publish never",
-    "install:applications": "if [ -d \"release/mac-arm64/FixLang.app\" ]; then rm -rf \"/Applications/FixLang.app\" && cp -R \"release/mac-arm64/FixLang.app\" \"/Applications/FixLang.app\"; elif [ -d \"release/mac/FixLang.app\" ]; then rm -rf \"/Applications/FixLang.app\" && cp -R \"release/mac/FixLang.app\" \"/Applications/FixLang.app\"; else echo \"Build output not found. Run pnpm run pack:mac first.\" && exit 1; fi",
-    "pack:install": "bun run pack:mac && bun run install:applications",
+    "install:applications": "if [ -d \"release/mac-arm64/FixLang.app\" ]; then rm -rf \"/Applications/FixLang.app\" && cp -R \"release/mac-arm64/FixLang.app\" \"/Applications/FixLang.app\"; elif [ -d \"release/mac/FixLang.app\" ]; then rm -rf \"/Applications/FixLang.app\" && cp -R \"release/mac/FixLang.app\" \"/Applications/FixLang.app\"; else echo \"Build output not found. Run bun run pack:mac:prod first.\" && exit 1; fi",
+    "pack:install": "bun run pack:mac:prod && bun run install:applications",
     "prebuild": "bun run themes:generate",
     "build": "electron-vite build",
     "build:promptgen": "FIXLANG_FEATURES=promptgen bun run build",

@@ -17,6 +17,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LogsPanel } from "./LogsPanel";
+import { utcOffsetLabel } from "./logsView";
 import { I18nProvider } from "../i18n/I18nProvider";
 import type { Locale } from "~/shared/i18n/registry";
 
@@ -32,8 +33,12 @@ describe("LogsPanel", () => {
   let localeListener: ((locale: Locale) => void) | undefined;
   let queryLogs: ReturnType<typeof vi.fn>;
 
-  const render = async () => {
-    queryLogs = vi.fn().mockRejectedValue(new Error("disk read failed"));
+  const render = async (
+    queryLogsImpl: ReturnType<typeof vi.fn> = vi
+      .fn()
+      .mockRejectedValue(new Error("disk read failed")),
+  ) => {
+    queryLogs = queryLogsImpl;
     const api = {
       queryLogs,
       onLogAppend: vi.fn().mockReturnValue(vi.fn()),
@@ -54,6 +59,9 @@ describe("LogsPanel", () => {
 
     container = document.createElement("div");
     document.body.append(container);
+    // jsdom implements no `Element#scrollTo`, which the auto-scroll effect
+    // calls as soon as a page of entries lands.
+    Element.prototype.scrollTo = vi.fn();
     root = createRoot(container);
     await act(async () => {
       root.render(createElement(I18nProvider, null, createElement(LogsPanel)));
@@ -73,6 +81,7 @@ describe("LogsPanel", () => {
     }
     container?.remove();
     localeListener = undefined;
+    Reflect.deleteProperty(Element.prototype, "scrollTo");
     vi.restoreAllMocks();
   });
 
@@ -95,5 +104,68 @@ describe("LogsPanel", () => {
     // Switching locale must NOT re-run `loadInitialPage` — that is the whole
     // point of keeping `t` out of its dependency array.
     expect(queryLogs).toHaveBeenCalledTimes(1);
+  });
+
+  it("states the timezone once in the footer instead of on every row", async () => {
+    const timestamp = "2026-07-19T00:00:00.000Z";
+    await render(
+      vi.fn().mockResolvedValue({
+        entries: [
+          {
+            id: "1",
+            timestamp,
+            level: "info",
+            scope: "correction",
+            message: "Correction completed",
+          },
+        ],
+        nextCursor: timestamp,
+        hasMore: false,
+      }),
+    );
+
+    const offset = utcOffsetLabel(new Date(timestamp).getTimezoneOffset());
+    const footer = container.querySelector('[role="status"]')?.parentElement;
+    expect(footer?.textContent).toContain(offset);
+    expect(footer?.textContent).toContain("1 entry");
+    // The rows themselves are virtualized and never mount in jsdom (the scroll
+    // element has no height here), so the "no per-row offset" half of this is
+    // covered by the format string in `LogsPanel.tsx` plus `timeZoneLabel`
+    // tests in `logsView.test.ts`.
+  });
+
+  it("queries only the checked levels and treats an empty selection as all", async () => {
+    await render(
+      vi.fn().mockResolvedValue({
+        entries: [],
+        nextCursor: null,
+        hasMore: false,
+      }),
+    );
+
+    expect(queryLogs).toHaveBeenCalledWith(
+      expect.objectContaining({ levels: [] }),
+    );
+
+    // Open the level dropdown and check "Warn".
+    const trigger = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Log level"]',
+    );
+    expect(trigger?.textContent).toContain("All levels");
+    await act(async () => {
+      trigger?.click();
+    });
+    const warn = [
+      ...container.querySelectorAll<HTMLInputElement>('[role="group"] input'),
+    ][2];
+    await act(async () => {
+      warn?.click();
+    });
+    await waitForUi();
+
+    expect(queryLogs).toHaveBeenLastCalledWith(
+      expect.objectContaining({ levels: ["warn"] }),
+    );
+    expect(trigger?.textContent).toContain("Warn");
   });
 });

@@ -25,7 +25,7 @@ type SettingsModalProps = {
   onClose: () => void;
   /**
    * Initial active tab index (0-based) into the *visible* tab list
-   * (Profiles, General, Appearance, Correction, and PromptGen only when the
+   * (Profiles, General, Appearance, Transform, and PromptGen only when the
    * PromptGen feature tag is built in). Out-of-range values are clamped.
    */
   initialTab?: number;
@@ -169,7 +169,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Tab Navigation */}
         <div className="mb-4 shrink-0">
           <div
-            className="grid w-full grid-cols-2 gap-2 rounded-lg p-1 sm:grid-cols-3 lg:grid-cols-5"
+            className="grid w-full grid-cols-2 gap-2 rounded-lg p-1 sm:grid-cols-3 md:grid-cols-4"
             role="tablist"
             aria-label={t("settings.modal.tabsAriaLabel")}
           >

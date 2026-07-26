@@ -11,6 +11,8 @@ import {
 } from "~/stores/apiStore";
 import { estimateTextTokens } from "~/stores/historyStore";
 import { makeAIRequest } from "./shared";
+import { withActiveAppContext } from "./transform-context";
+import type { TransformContext } from "./transform-context";
 
 type CorrectionResult = {
   correctedText: string;
@@ -101,11 +103,16 @@ const buildCorrectionUserPrompt = (
 /**
  * Fixes grammar and style for the given text using OpenAI API.
  * @param text The text to fix.
+ * @param presetId Preset to apply; defaults to the profile's selected preset.
+ * @param context Best-effort ambient context (source app) appended to the
+ *   preset's system prompt. Omit it — as the manual `fix-grammar` IPC path
+ *   does — when the text did not come from another app.
  * @returns A promise that resolves with the fixed text and token information.
  */
 export const fixGrammar = async (
   text: string,
   presetId?: string,
+  context?: TransformContext,
 ): Promise<CorrectionResult> => {
   if (!text || !text.trim()) {
     // No desktop notification here: both call sites (the correction hotkey
@@ -155,7 +162,11 @@ export const fixGrammar = async (
 
   try {
     const response = await makeAIRequest({
-      systemPrompt: preset.systemPrompt,
+      // Source-app context rides on the system prompt, alongside the preset's
+      // own instructions, rather than on the user prompt — the user prompt
+      // carries the text to transform, and metadata there is easy for a model
+      // to mistake for content.
+      systemPrompt: withActiveAppContext(preset.systemPrompt, context),
       userPrompt: buildCorrectionUserPrompt(text, preset, effectiveModel),
       model: effectiveModel,
       temperature: preset.temperature,

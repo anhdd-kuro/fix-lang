@@ -1,5 +1,5 @@
 import { execFile, spawn } from "node:child_process";
-import { closeSync, mkdirSync, openSync, statSync } from "node:fs";
+import { closeSync, mkdirSync, openSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -35,13 +35,18 @@ const BREW_ENV = Object.freeze({
 });
 
 const BREW_PROBE_TIMEOUT_MS = 90_000;
+/** A ~128 MB DMG on a slow link is minutes, not seconds. */
+const BREW_FETCH_TIMEOUT_MS = 30 * 60_000;
 const BREW_PROBE_MAX_BUFFER = 4 * 1024 * 1024;
 
 export type FileProbe = (candidatePath: string) => boolean;
+export type DirectoryLister = (directoryPath: string) => readonly string[];
+export type FileSize = (filePath: string) => number | null;
 export type DetachedRunner = (script: string, logFilePath: string) => void;
 export type BrewRunner = (
   brewBinary: string,
   args: readonly string[],
+  timeoutMs?: number,
 ) => Promise<string>;
 
 const isExecutableFile: FileProbe = (candidatePath) => {
@@ -60,6 +65,23 @@ const isDirectory: FileProbe = (candidatePath) => {
   }
 };
 
+/** An unreadable cache directory just means "nothing downloaded yet". */
+const readDirectory: DirectoryLister = (directoryPath) => {
+  try {
+    return readdirSync(directoryPath);
+  } catch {
+    return [];
+  }
+};
+
+const readFileSize: FileSize = (filePath) => {
+  try {
+    return statSync(filePath).size;
+  } catch {
+    return null;
+  }
+};
+
 /** First standard Homebrew binary that exists, or null when brew is absent. */
 export const findBrewBinary = (
   fileExists: FileProbe = isExecutableFile,
@@ -69,6 +91,22 @@ export const findBrewBinary = (
 /** Caskroom entry Homebrew creates for an installed cask. */
 export const caskroomPath = (brewBinary: string): string =>
   path.join(path.dirname(path.dirname(brewBinary)), "Caskroom", CASK_TOKEN);
+
+/** Rejects anything that could escape the Caskroom directory. */
+const SAFE_VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+_-]*$/;
+
+/**
+ * Homebrew keeps one directory per installed version, so its presence is the
+ * cheapest proof that the upgrade already replaced the bundle — no subprocess,
+ * and it stays true after the helper has exited.
+ */
+export const caskVersionPath = (
+  brewBinary: string,
+  version: string,
+): string | null =>
+  SAFE_VERSION_PATTERN.test(version) && !version.includes("..")
+    ? path.join(caskroomPath(brewBinary), version)
+    : null;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -94,13 +132,44 @@ export const parseCaskVersion = (stdout: string): string | null => {
   return cask.version;
 };
 
-const runBrewCommand: BrewRunner = async (brewBinary, args) => {
+const runBrewCommand: BrewRunner = async (brewBinary, args, timeoutMs) => {
   const { stdout } = await execFileAsync(brewBinary, [...args], {
     env: { ...process.env, ...BREW_ENV },
-    timeout: BREW_PROBE_TIMEOUT_MS,
+    timeout: timeoutMs ?? BREW_PROBE_TIMEOUT_MS,
     maxBuffer: BREW_PROBE_MAX_BUFFER,
   });
   return stdout;
+};
+
+/**
+ * Where Homebrew parks downloads. `HOMEBREW_CACHE` wins when the user set it;
+ * otherwise this is the documented macOS default.
+ */
+export const downloadsCacheDir = (
+  env: NodeJS.ProcessEnv = process.env,
+): string =>
+  path.join(
+    env.HOMEBREW_CACHE ?? path.join(env.HOME ?? "", "Library", "Caches", "Homebrew"),
+    "downloads",
+  );
+
+/**
+ * Homebrew names cached downloads `<url-digest>--<basename>`, and appends
+ * `.incomplete` until the transfer finishes. The digest is an implementation
+ * detail, so match on the basename instead of trying to recompute it.
+ */
+export const matchCachedDownload = (
+  entries: readonly string[],
+  version: string,
+): string | null => {
+  if (!SAFE_VERSION_PATTERN.test(version)) return null;
+  const basename = `FixLang-${version}-arm64.dmg`;
+
+  return (
+    entries.find((entry) => entry.endsWith(`--${basename}`)) ??
+    entries.find((entry) => entry.endsWith(`--${basename}.incomplete`)) ??
+    null
+  );
 };
 
 /**
@@ -115,11 +184,14 @@ const runBrewCommand: BrewRunner = async (brewBinary, args) => {
 const readInstallableVersion = async (
   brewBinary: string,
   runBrew: BrewRunner,
+  refreshTap: boolean,
 ): Promise<string | null> => {
-  try {
-    await runBrew(brewBinary, ["update", "--quiet"]);
-  } catch {
-    // A failed refresh only means the answer may be stale; still ask for it.
+  if (refreshTap) {
+    try {
+      await runBrew(brewBinary, ["update", "--quiet"]);
+    } catch {
+      // A failed refresh only means the answer may be stale; still ask for it.
+    }
   }
   try {
     return parseCaskVersion(
@@ -139,7 +211,40 @@ const readInstallableVersion = async (
  * NONINTERACTIVE makes Homebrew fail rather than block on a hidden prompt in a
  * process with no terminal.
  */
-export const buildUpgradeScript = (brewBinary: string): string =>
+/**
+ * Only an absolute `.app` path, with nothing that could end the shell string
+ * it is interpolated into. The value comes from `app.getPath("exe")` rather
+ * than from any input, but the script is still text handed to `/bin/sh`, so it
+ * is checked at the boundary instead of trusted by provenance.
+ */
+const isSafeBundlePath = (candidate: string): boolean =>
+  candidate.startsWith("/") &&
+  candidate.endsWith(".app") &&
+  // Quoting handles spaces; these characters would escape the quotes. Control
+  // characters are rejected by the printable test below rather than by a
+  // regex, so nothing rests on how a control escape happens to be spelled.
+  !/["`$\\]/.test(candidate) &&
+  [...candidate].every((character) => character >= " ");
+
+/**
+ * How the helper brings FixLang back.
+ *
+ * `open -b <bundle id>` is wrong here even though it looks tidier: a stray
+ * build of FixLang elsewhere on disk carries the same id, and Homebrew has
+ * just deleted and recreated `/Applications/FixLang.app`, so LaunchServices
+ * can resolve the id to that other copy and reopen an *older* app. The path
+ * Homebrew replaced is unambiguous, so reopen that; the id is only a fallback
+ * for when no usable path was recorded.
+ */
+const buildReopenCommand = (appPath: string | null): string =>
+  appPath !== null && isSafeBundlePath(appPath)
+    ? `/usr/bin/open -a "${appPath}" || /usr/bin/open -b ${BUNDLE_ID}`
+    : `/usr/bin/open -b ${BUNDLE_ID} || /usr/bin/open -a ${PROCESS_NAME}`;
+
+export const buildUpgradeScript = (
+  brewBinary: string,
+  appPath: string | null = null,
+): string =>
   [
     "set -u",
     "export NONINTERACTIVE=1",
@@ -153,9 +258,12 @@ export const buildUpgradeScript = (brewBinary: string): string =>
     "  /bin/sleep 1",
     "  waited=$((waited + 1))",
     "done",
-    `"${brewBinary}" update || exit 1`,
+    // No `brew update` here: the tap probe refreshed it moments ago, and the
+    // DMG is already in the download cache. Everything slow happens while the
+    // app is still running, so this window stays a few seconds instead of a
+    // minute — which is how long the user is staring at a vanished app.
     `"${brewBinary}" upgrade --cask ${CASK_TOKEN} || exit 1`,
-    `/usr/bin/open -b ${BUNDLE_ID} || /usr/bin/open -a ${PROCESS_NAME}`,
+    buildReopenCommand(appPath),
   ].join("\n");
 
 const runDetached: DetachedRunner = (script, logFilePath) => {
@@ -181,6 +289,9 @@ export type HomebrewUpgraderOptions = Readonly<{
   logFilePath: string;
   fileExists?: FileProbe;
   directoryExists?: FileProbe;
+  listDirectory?: DirectoryLister;
+  fileSize?: FileSize;
+  cacheDir?: string;
   startDetached?: DetachedRunner;
   runBrew?: BrewRunner;
 }>;
@@ -188,10 +299,31 @@ export type HomebrewUpgraderOptions = Readonly<{
 export type HomebrewUpgrader = Readonly<{
   /** True when a one-click upgrade is actually possible for this install. */
   canInstall: boolean;
-  /** Version the tap can install now; null when brew could not be asked. */
-  getInstallableVersion: () => Promise<string | null>;
-  /** Launches the detached upgrade helper. Throws when it cannot start. */
-  startUpgrade: () => void;
+  /**
+   * Version the tap can install now; null when brew could not be asked.
+   *
+   * `refreshTap` runs `brew update` first. That is a git fetch across every
+   * tap, so routine checks read the local clone as-is and only pay for a
+   * refresh when something suggests it went stale.
+   */
+  getInstallableVersion: (refreshTap?: boolean) => Promise<string | null>;
+  /** True once Homebrew has staged that version in the Caskroom. */
+  isVersionInstalled: (version: string) => boolean;
+  /**
+   * Downloads the DMG without touching the installed bundle, so the slow part
+   * of an upgrade happens while the app is still running. Rejects on failure.
+   */
+  downloadUpdate: () => Promise<void>;
+  /** Bytes cached for that version so far; null when nothing is cached yet. */
+  getDownloadedBytes: (version: string) => number | null;
+  /**
+   * Launches the detached upgrade helper. Throws when it cannot start.
+   *
+   * `appPath` is the `.app` root to reopen once Homebrew is done — the bundle
+   * it replaced. Omit it only when the path is unknown; the helper then falls
+   * back to the bundle id, which can resolve to a different copy of FixLang.
+   */
+  startUpgrade: (appPath?: string | null) => void;
 }>;
 
 /**
@@ -204,6 +336,9 @@ export const createHomebrewUpgrader = (
 ): HomebrewUpgrader => {
   const fileExists = options.fileExists ?? isExecutableFile;
   const directoryExists = options.directoryExists ?? isDirectory;
+  const listDirectory = options.listDirectory ?? readDirectory;
+  const fileSize = options.fileSize ?? readFileSize;
+  const cacheDir = options.cacheDir ?? downloadsCacheDir();
   const startDetached = options.startDetached ?? runDetached;
   const runBrew = options.runBrew ?? runBrewCommand;
 
@@ -213,15 +348,39 @@ export const createHomebrewUpgrader = (
 
   return Object.freeze({
     canInstall,
-    getInstallableVersion: (): Promise<string | null> =>
+    getInstallableVersion: (refreshTap = true): Promise<string | null> =>
       canInstall && brewBinary !== null
-        ? readInstallableVersion(brewBinary, runBrew)
+        ? readInstallableVersion(brewBinary, runBrew, refreshTap)
         : Promise.resolve(null),
-    startUpgrade: (): void => {
+    isVersionInstalled: (version: string): boolean => {
+      if (brewBinary === null) return false;
+      const versionPath = caskVersionPath(brewBinary, version);
+      return versionPath !== null && directoryExists(versionPath);
+    },
+    downloadUpdate: async (): Promise<void> => {
       if (!canInstall || brewBinary === null) {
         throw new Error("FixLang was not installed with the Homebrew cask");
       }
-      startDetached(buildUpgradeScript(brewBinary), options.logFilePath);
+      // `fetch` only fills the download cache — the installed bundle is
+      // untouched, so this is safe to run with the app still open.
+      await runBrew(
+        brewBinary,
+        ["fetch", "--cask", CASK_TOKEN],
+        BREW_FETCH_TIMEOUT_MS,
+      );
+    },
+    getDownloadedBytes: (version: string): number | null => {
+      const entry = matchCachedDownload(listDirectory(cacheDir), version);
+      return entry === null ? null : fileSize(path.join(cacheDir, entry));
+    },
+    startUpgrade: (appPath: string | null = null): void => {
+      if (!canInstall || brewBinary === null) {
+        throw new Error("FixLang was not installed with the Homebrew cask");
+      }
+      startDetached(
+        buildUpgradeScript(brewBinary, appPath),
+        options.logFilePath,
+      );
     },
   });
 };

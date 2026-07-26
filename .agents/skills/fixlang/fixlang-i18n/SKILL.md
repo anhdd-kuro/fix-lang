@@ -60,8 +60,8 @@ Any `useMemo()` or `useCallback()` that **closes over** `t()` or a formatter (`f
 **Silent failure:**
 ```tsx
 const memoChart = useMemo(() => ({
-  title: t("charts.title"),  // "Corrections over time"
-  axis: t("charts.axis"),    // "Corrections"
+  title: t("charts.title"),  // "Transforms over time"
+  axis: t("charts.axis"),    // "Transforms"
 }), [weights, overTime]);    // ← No t() in deps; memo never rebuilds after locale switch
 ```
 
@@ -126,7 +126,7 @@ English defines both `_one` and `_other` variants for plural keys (e.g., `"histo
 **In JSON catalogs:**
 ```json
 // en/history.json
-{ "history.count_one": "{count} correction", "history.count_other": "{count} corrections" }
+{ "history.count_one": "{count} transform", "history.count_other": "{count} transforms" }
 
 // ja/history.json
 { "history.count_other": "{count} 件の校正" }

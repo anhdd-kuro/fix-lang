@@ -3,6 +3,8 @@ import {
   appendToRing,
   formatLogEntries,
   logDayKey,
+  logEntryMatchesLevels,
+  normalizeLogLevels,
   parseLogJsonLine,
   redactLogContext,
   redactLogMessage,
@@ -82,6 +84,39 @@ describe("logDayKey", () => {
 
   it("zero-pads month and day", () => {
     expect(logDayKey(new Date(2026, 0, 5))).toBe("2026-01-05");
+  });
+});
+
+describe("normalizeLogLevels", () => {
+  it("keeps known severities in severity order", () => {
+    expect(normalizeLogLevels(["error", "debug"])).toEqual(["debug", "error"]);
+  });
+
+  it("drops unknown tokens and duplicates", () => {
+    expect(normalizeLogLevels(["warn", "warn", "trace", 7, null])).toEqual([
+      "warn",
+    ]);
+  });
+
+  it("collapses a full selection to the no-filter shape", () => {
+    expect(normalizeLogLevels(["debug", "info", "warn", "error"])).toEqual([]);
+  });
+
+  it("returns the no-filter shape for non-array input", () => {
+    expect(normalizeLogLevels(undefined)).toEqual([]);
+    expect(normalizeLogLevels("error")).toEqual([]);
+  });
+});
+
+describe("logEntryMatchesLevels", () => {
+  it("matches every entry when no level is selected", () => {
+    expect(logEntryMatchesLevels(makeEntry("1"), [])).toBe(true);
+  });
+
+  it("matches only the selected severities", () => {
+    const entry = makeEntry("1"); // info
+    expect(logEntryMatchesLevels(entry, ["info", "error"])).toBe(true);
+    expect(logEntryMatchesLevels(entry, ["warn", "error"])).toBe(false);
   });
 });
 

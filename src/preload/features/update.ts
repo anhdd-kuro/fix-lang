@@ -2,9 +2,11 @@ import { ipcRenderer } from "electron";
 import {
   isInstallUpdateResult,
   isOpenUpdateReleaseResult,
+  isUpdateActionResult,
   isUpdateState,
   type InstallUpdateResult,
   type OpenUpdateReleaseResult,
+  type UpdateActionResult,
   type UpdateState,
 } from "~/shared/update";
 
@@ -32,6 +34,14 @@ const invokeInstall = async (): Promise<InstallUpdateResult> => {
   return result;
 };
 
+const invokeRestart = async (): Promise<UpdateActionResult> => {
+  const result: unknown = await ipcRenderer.invoke("updates:restart");
+  if (!isUpdateActionResult(result)) {
+    throw new Error("Received an invalid restart result");
+  }
+  return result;
+};
+
 /** Exposes the app-update state and explicit user actions to the renderer. */
 export const updateFeature = {
   getUpdateState: (): Promise<UpdateState> => invokeUpdateAction("updates:get-state"),
@@ -42,6 +52,9 @@ export const updateFeature = {
 
   /** Asks main to run `brew upgrade --cask fixlang` and relaunch FixLang. */
   installUpdate: (): Promise<InstallUpdateResult> => invokeInstall(),
+
+  /** Re-executes the already-upgraded bundle so the new version runs. */
+  restartForUpdate: (): Promise<UpdateActionResult> => invokeRestart(),
 
   onUpdateStateChanged: (
     callback: (state: UpdateState) => void,

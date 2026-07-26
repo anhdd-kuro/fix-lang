@@ -4,12 +4,13 @@ A local macOS menu-bar app that fixes grammar, improves writing, and runs other 
 
 ## Features
 
-### Correction & presets
+### Transform & presets
 
-- Select text in any app, press a preset hotkey, then either paste the correction back automatically or show it in a result-only popup
+- Select text in any app, press a preset hotkey, then either paste the result back automatically or show it in a result-only popup
 - Built-in presets (each with its own hotkey): **Correction** (`Ctrl+Shift+F`), **Summarize** (`Ctrl+Shift+S`), **Translate**, **Prompt optimization** (`Ctrl+Shift+D`)
 - **Profiles** — multiple named configurations; switch with `Ctrl+Shift+P` (profile switch reloads hotkeys, settings, and history)
 - Custom presets with per-preset model, system prompt, and hotkey
+- **App-aware output** — the name of the app you selected the text in (e.g. Slack, Mail, Xcode) is added to the system prompt as context, so the result matches that app's tone and formatting conventions. Applies to transform presets and PromptGen. The app name is never echoed into the output, and nothing is sent when it can't be read
 
 ### Prompt generation
 
@@ -21,15 +22,15 @@ A local macOS menu-bar app that fixes grammar, improves writing, and runs other 
 
 ### Dashboard (MainWindow)
 
-Five tabs, opened from the menu-bar tray or after a correction:
+Five tabs, opened from the menu-bar tray or after a transform:
 
 | Tab | What it shows |
 | --- | --- |
 | **Overview** | Token stats, preset usage charts, Codex-style token activity calendar, benchmark sentence |
-| **History** | Correction + PromptGen history with cost tracking; last-action preview |
+| **History** | Transform + PromptGen history with cost tracking; last-action preview |
 | **Models** | Provider model discovery, compatibility, and monitoring |
 | **OpenRouter** | OpenRouter-specific model and routing controls |
-| **Logs** | Structured, redacted app events — filter by level, search, copy/export as `.txt` |
+| **Logs** | Structured, redacted app events — multi-select level filter, search, copy/export as `.txt` |
 
 Overview and Models share a time-range filter (All / 30d / 7d).
 
@@ -38,6 +39,7 @@ Overview and Models share a time-range filter (All / 30d / 7d).
 - `src/shared/logging.ts` + `src/main/logging/logService.ts` — structured logs with API-key and clipboard redaction
 - Persisted to `userData/logs/{YYYY-MM-DD}/fixlang.jsonl` (one folder per local day)
 - Logs tab reloads from disk with virtual infinite scroll (`@tanstack/react-virtual`)
+- Any subset of levels can be checked at once (no selection = all levels); the row timestamps omit the UTC offset because the footer states the zone once
 - Errors use a native macOS notification when available; if macOS rejects it, FixLang shows a brief in-app popup near the cursor instead.
 
 ### Appearance
@@ -70,15 +72,26 @@ If you disconnect a provider, only the presets and settings that were using it g
 
 ### App updates
 
-- **Settings → About → App updates** compares the installed version with the
-  latest stable GitHub Release.
+- **Settings → About → App updates** compares the installed version with what
+  Homebrew can actually install, since that is what **Update now** runs. Manual
+  DMG installs fall back to comparing against the latest stable GitHub Release.
 - **Homebrew installs (recommended)**: when a newer version is available,
   **Update now** runs `brew update && brew upgrade --cask fixlang` for you.
   FixLang quits so Homebrew can replace the bundle, then reopens on the new
   version. The button appears only when the running app came from the cask.
+- **The download runs with FixLang still open**, showing a progress bar and a
+  byte count in the About panel. The app only quits once the DMG is on disk, and
+  the remaining bundle swap takes a few seconds before it reopens itself.
+- **Don't reopen FixLang during those few seconds.** If you do, you get the old
+  version back and macOS re-verifies the freshly installed bundle, which is what
+  makes that launch slow. The About panel then says the upgrade is still running
+  — that is not a failure, and clicking **Update now** again would only collide
+  with the upgrade in progress. Once Homebrew finishes, the panel offers
+  **Restart now** to switch to the installed version.
 - **Right after a release**, the Homebrew tap can still be a few hours behind
-  GitHub. **Update now** checks the tap first and says so rather than restarting
-  for an upgrade that would do nothing — try again later, or use the DMG.
+  GitHub. FixLang then reports that the version exists but Homebrew has not
+  picked it up yet, instead of offering a button that could not install it —
+  check again later, or use the DMG.
 - **Manual DMG installs**: **Download from GitHub** opens that exact release;
   replace the app in `/Applications` yourself. Source and development builds are
   not updated by this flow.
@@ -226,12 +239,12 @@ the tag if you want it.
 
 1. Select text in any application (or copy to clipboard)
 2. Press a preset hotkey (default: `Ctrl+Shift+F` for Correction)
-3. FixLang delivers the result using the mode selected in **Settings → General → Correction output**: **Direct paste** or **Show popup**
+3. FixLang delivers the result using the mode selected in **Settings → General → Transform output**: **Direct paste** or **Show popup**
 4. Open the tray popover → dashboard icon for Overview, History, Models, OpenRouter, or Logs
 5. `Ctrl+Shift+G` opens PromptGen on the current selection — tag-on builds only, see [Feature tags](#feature-tags-opt-in-features)
 6. `Ctrl+Shift+P` cycles to the next profile
 
-Hotkeys are customizable per preset and for global actions (PromptGen where built in, profile switch) in Settings. Correction output mode is global and defaults to **Direct paste**.
+Hotkeys are customizable per preset and for global actions (PromptGen where built in, profile switch) in Settings. Transform output mode is global and defaults to **Direct paste**.
 
 ## Development
 

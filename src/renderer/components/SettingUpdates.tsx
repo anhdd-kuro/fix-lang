@@ -108,12 +108,34 @@ const releaseNotesComponents: Components = {
   img: () => null,
 };
 
+/**
+ * GitHub release notes. Shown both for an offered update and for a release
+ * Homebrew has not synced yet — in either case the user is deciding whether
+ * they want that version.
+ */
+const ReleaseNotes = ({ notes }: { notes: string }) => (
+  <div className="mt-1 text-sm text-muted-foreground">
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={releaseNotesComponents}>
+      {notes}
+    </ReactMarkdown>
+  </div>
+);
+
 const initialState: UpdateState = {
   phase: "unsupported",
   currentVersion: "",
 };
 
 const updateApi = () => window.electronAPI;
+
+const BYTES_PER_MEGABYTE = 1024 * 1024;
+
+/**
+ * Passed to `t()` as a pre-formatted string: it already carries a unit and one
+ * decimal, and `t()` would otherwise re-format the bare number.
+ */
+const formatMegabytes = (bytes: number): string =>
+  `${(bytes / BYTES_PER_MEGABYTE).toFixed(1)} MB`;
 
 const displayVersion = (version: string | undefined): string =>
   version?.startsWith("v") ? version : `v${version ?? ""}`;
@@ -210,8 +232,22 @@ export const SettingUpdates = () => {
   };
 
   const isBusy =
-    actionPending || state.phase === "checking" || state.phase === "installing";
+    actionPending ||
+    state.phase === "checking" ||
+    state.phase === "downloading" ||
+    state.phase === "installing";
   const latestVersion = displayVersion(state.availableVersion);
+  const downloadedBytes = state.downloadedBytes ?? 0;
+  // Absent when the release metadata carried no usable asset size; the bar
+  // then runs indeterminate rather than inventing a denominator.
+  const downloadTotal =
+    state.totalBytes !== undefined && state.totalBytes > 0
+      ? state.totalBytes
+      : null;
+  const downloadPercent =
+    downloadTotal === null
+      ? null
+      : Math.min(100, Math.round((downloadedBytes / downloadTotal) * 100));
 
   return (
     <section aria-labelledby="app-updates-heading">
@@ -291,22 +327,52 @@ export const SettingUpdates = () => {
           <p className="mt-1 text-sm text-success" role="status" aria-live="polite">
             {t("settings.updates.upToDate")}
           </p>
-          <button
-            type="button"
-            onClick={() =>
-              void run(
-                () => updateApi().checkForUpdates(),
-                msg("settings.updates.checkFailed"),
-              )
-            }
-            disabled={isBusy}
-            className="mt-2 rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isBusy && (
-              <Spinner className="mr-2 inline size-4 align-[-2px]" />
+          {/* A release exists that Homebrew cannot install yet. Reported here
+              rather than as an offer, because the button would have nothing
+              to do. */}
+          {state.message && (
+            <p className="mt-1 text-sm text-muted-foreground">{tm(state.message)}</p>
+          )}
+          {state.message && state.releaseNotes && (
+            <ReleaseNotes notes={state.releaseNotes} />
+          )}
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                void run(
+                  () => updateApi().checkForUpdates(),
+                  msg("settings.updates.checkFailed"),
+                )
+              }
+              disabled={isBusy}
+              className="rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isBusy && (
+                <Spinner className="mr-2 inline size-4 align-[-2px]" />
+              )}
+              {t("settings.updates.checkButton")}
+            </button>
+            {/* Only alongside the tap-pending notice: main has pointed the
+                release URL at that published tag, and the message itself tells
+                the user the DMG is the way to get it now. Without a message
+                there is nothing newer on GitHub to open. */}
+            {state.message && (
+              <button
+                type="button"
+                onClick={() =>
+                  void run(
+                    () => updateApi().openUpdateRelease(),
+                    msg("settings.updates.openReleaseFailed"),
+                  )
+                }
+                disabled={isBusy}
+                className="rounded border border-border px-3 py-1.5 text-base text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t("settings.updates.downloadButton")}
+              </button>
             )}
-            {t("settings.updates.checkButton")}
-          </button>
+          </div>
         </>
       )}
 
@@ -318,16 +384,7 @@ export const SettingUpdates = () => {
               currentVersion: state.currentVersion,
             })}
           </p>
-          {state.releaseNotes && (
-            <div className="mt-1 text-sm text-muted-foreground">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={releaseNotesComponents}
-              >
-                {state.releaseNotes}
-              </ReactMarkdown>
-            </div>
-          )}
+          {state.releaseNotes && <ReleaseNotes notes={state.releaseNotes} />}
           {state.canInstall ? (
             <p className="mt-1 text-sm text-muted-foreground">
               {t("settings.updates.canInstallDescription")}
@@ -389,8 +446,58 @@ export const SettingUpdates = () => {
             >
               {t("settings.updates.viewReleases")}
             </button>
+            {/* Still offered here: a newer release can land while this panel
+                sits on an older "available" result, and re-checking is also
+                the way out of a stale offer after a manual install. */}
+            <button
+              type="button"
+              onClick={() =>
+                void run(
+                  () => updateApi().checkForUpdates(),
+                  msg("settings.updates.checkFailed"),
+                )
+              }
+              disabled={isBusy}
+              className="rounded border border-border px-3 py-1.5 text-base text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t("settings.updates.checkButton")}
+            </button>
           </div>
         </>
+      )}
+
+      {state.phase === "downloading" && (
+        <div className="mt-1">
+          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
+            <Spinner className="mr-2 inline size-4 align-[-2px]" />
+            {downloadTotal === null
+              ? t("settings.updates.downloadingUnknownSize", {
+                  version: latestVersion,
+                })
+              : t("settings.updates.downloadingDescription", {
+                  version: latestVersion,
+                  downloaded: formatMegabytes(downloadedBytes),
+                  total: formatMegabytes(downloadTotal),
+                })}
+          </p>
+          {/* Indeterminate until the release asset size is known, so the bar
+              never implies precision the byte counts do not have. */}
+          <div
+            role="progressbar"
+            aria-label={t("settings.updates.downloadProgressLabel")}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            {...(downloadPercent === null
+              ? {}
+              : { "aria-valuenow": downloadPercent })}
+            className="mt-2 h-1.5 w-full overflow-hidden rounded bg-secondary"
+          >
+            <div
+              className="h-full rounded bg-primary transition-[width] duration-300"
+              style={{ width: `${downloadPercent ?? 100}%` }}
+            />
+          </div>
+        </div>
       )}
 
       {state.phase === "installing" && (
@@ -400,8 +507,43 @@ export const SettingUpdates = () => {
           aria-live="polite"
         >
           <Spinner className="mr-2 inline size-4 align-[-2px]" />
-          {t("settings.updates.installingDescription", { version: latestVersion })}
+          {/* Reopened mid-upgrade: main sends the "still working" text so the
+              default "quits and reopens" copy cannot contradict what is
+              actually happening. */}
+          {state.message
+            ? tm(state.message)
+            : t("settings.updates.installingDescription", { version: latestVersion })}
         </p>
+      )}
+
+      {state.phase === "restart-required" && (
+        <>
+          <p className="mt-1 text-sm text-success" role="status" aria-live="polite">
+            {state.message
+              ? tm(state.message)
+              : t("settings.updates.restartRequiredMessage", {
+                  targetVersion: latestVersion,
+                })}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                void run(
+                  () => updateApi().restartForUpdate(),
+                  msg("settings.updates.restartErrorMessage"),
+                )
+              }
+              disabled={actionPending}
+              className="rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {actionPending && (
+                <Spinner className="mr-2 inline size-4 align-[-2px]" />
+              )}
+              {t("settings.updates.restartButton")}
+            </button>
+          </div>
+        </>
       )}
 
       {state.phase === "error" && (

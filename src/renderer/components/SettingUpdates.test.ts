@@ -174,6 +174,33 @@ describe("SettingUpdates", () => {
     );
     // The check button stays available so the user can re-check on demand.
     expect(buttonNamed(container, tEn("settings.updates.checkButton"))).toBeTruthy();
+    // Nothing newer exists, so there is no release page worth opening.
+    expect(
+      [...container.querySelectorAll("button")].find(
+        (button) => button.textContent === tEn("settings.updates.downloadButton"),
+      ),
+    ).toBeUndefined();
+  });
+
+  it("links to the published release Homebrew has not synced yet", async () => {
+    await render({
+      ...readyState("up-to-date"),
+      message: msg("settings.updates.tapPendingMessage", {
+        publishedVersion: "0.2.0",
+      }),
+      releaseNotes: "* <strong>Frontmost app name</strong> as context",
+    });
+
+    expect(container.textContent).toContain(
+      tEn("settings.updates.tapPendingMessage", { publishedVersion: "0.2.0" }),
+    );
+    // What the release changed, escaped the same way an offer's notes are.
+    expect(container.textContent).toContain("as context");
+    expect(container.innerHTML).toContain("&lt;strong&gt;");
+
+    await click(buttonNamed(container, tEn("settings.updates.downloadButton")));
+    // Main already aimed the release URL at that tag; the renderer just asks.
+    expect(api.openUpdateRelease).toHaveBeenCalledTimes(1);
   });
 
   it("offers a manual GitHub download without rendering its notes as HTML", async () => {

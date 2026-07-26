@@ -52,6 +52,25 @@ Cron is `17 */6 * * *` — **up to 6h between a GitHub release and the cask carr
 gh workflow run sync-fixlang.yml --repo anhdd-kuro/homebrew-tap
 ```
 
+### TRAP 0-A — two apps, one bundle id. `open -b` reopen wrong one.
+
+Symptom: upgrade succeed, app come back **older** (brew put 0.5.0 in `/Applications`, app say 0.4.5). Not a brew failure — brew log show `🍺 successfully upgraded`, `/Applications/FixLang.app` really is new.
+
+Cause: `bun run pack:mac` build in checkout carry same `com.fixlang.app`. Helper end with `open -b <id>`; brew just did `Removing App` + `Moving App`, so LaunchServices registration for `/Applications` can be gone that instant → id resolve to stray build → old app open. Intermittent (race), so it look random.
+
+Find every copy:
+```bash
+mdfind 'kMDItemCFBundleIdentifier == "com.fixlang.app"' | while read -r p; do echo "$(defaults read "$p/Contents/Info.plist" CFBundleShortVersionString)  $p"; done
+```
+
+Fixes now in tree — keep all four:
+- Helper reopen **path**, not id: `open -a "<pending.appPath>"`, id only fallback (`buildReopenCommand`). Path pass `isSafeBundlePath` before it reach `/bin/sh`.
+- `reconcilePendingInstall` compare `toVersion` **and** `appPath`. Old test was `currentVersion !== fromVersion` = "any change is success" → report a DOWNGRADE as installed update. Path mismatch → `wrong-bundle` → `restart-required` + `wrongBundleMessage`.
+- Restart open `pending.appPath` instead of `process.execPath`. Re-exec from stray copy relaunch stray copy forever.
+- `pack:mac` build as `com.fixlang.app.dev` / `FixLang Dev` so it never compete again. `pack:mac:prod` for production identity. Dev build still share `userData` — `app.getName()` read packaged `package.json` `name`, which CLI `-c.productName` do not touch.
+
+Log evidence: `Homebrew update to 0.4.8 started`, then seconds later `App updated to 0.4.5 via Homebrew`. Target version and reported version disagree = this trap, not a failed upgrade.
+
 ### TRAP 0 — app checks GitHub, installs from the tap. Those disagree for hours.
 
 Settings → About reads **GitHub Releases**. **Update now** runs **the tap cask**. Right after a release the app offers vX while the cask still has vX-1.
@@ -62,6 +81,10 @@ Warning: Not upgrading fixlang, the latest version is already installed
 ```
 Exit 0 = the detached helper walks on to `open -b com.fixlang.app`. Observed symptom: **click Update now → app quits → app reopens → same version, no error.** Looks like a dead button. Real log evidence lives in `userData/logs/homebrew-update.log` (brew's own warning) and `userData/logs/<date>/fixlang.jsonl` (`Homebrew update did not change the app version`).
 
+**Real fix (do this first): make the CHECK ask brew too.** `checkForUpdates` now offer `getInstallableVersion()` for cask install — same source as button. GitHub run in parallel but only give release notes + DMG size, and only when it describe the exact version being offered (else notes/size belong to different release = lie). Published-but-unsynced release → phase `up-to-date` + `tapPendingMessage`, never an offer. Same state still carry that release's `releaseNotes` and set `releaseUrl` to its tag → panel show what changed + **Download from GitHub** button. Withhold only DMG size: it feed download bar for an install that cannot run. "Cannot install" ≠ "cannot read" — user still need to see what they wait for. Cost: routine check read local tap clone (`getInstallableVersion(false)`); `brew update` is git fetch across EVERY tap, too heavy per check — pay for it only when GitHub show something newer. Fall back to GitHub for manual DMG install, and for cask when brew probe return null.
+
+Guard below still needed even so: brew can answer null at check time (target then come from GitHub) and answer lower at click time. Defense in depth, not dead code.
+
 Guard, in `updateService.installUpdate` (`src/main/update/updateService.ts`): probe `HomebrewUpgrader.getInstallableVersion()` (= `brew update --quiet` then `brew info --cask fixlang --json=v2` → `casks[].version`) and publish `error` + `tapBehindMessage` instead of quitting when the tap is behind. Rules:
 - Probe **must not reject** — a broken probe returns null and the install proceeds. Blocking on an unknown answer would break the button whenever brew is slow or odd.
 - Only a **parsed strictly-lower** version blocks. null / non-semver → proceed.
@@ -70,7 +93,45 @@ Guard, in `updateService.installUpdate` (`src/main/update/updateService.ts`): pr
 
 WHY THIS WAS MISSED FIRST TIME: every test injects a fake upgrader/`startDetached`, so no test ever runs real brew; `homebrew.test.ts` only asserts the generated script's text. And `canInstall` answers "did brew install this app?" — not "can brew supply the version being offered?" The two read as the same question until the tap lags. It also could not be exercised end-to-end at build time: proving the button needs a release *newer* than the one being cut.
 
-Marker reconciliation (`pending-update.json`) does catch this on relaunch, but a subsequent update check overwrites that `error` state with `available` again — so the user just sees the button re-arm. Don't rely on reconcile alone as the user-facing report.
+Marker reconciliation (`pending-update.json`) does catch this on relaunch, but a subsequent update check overwrites that `error` state with `available` again — so the user just sees the button re-arm. Don't rely on reconcile alone as the user-facing report. See TRAP 0b — reconcile has its own trap.
+
+### TRAP 0b — old version on relaunch ≠ failed upgrade, and `open -b` can't fix it
+
+App quit take <1s. Brew download 128MB take a minute or more. User see app vanish, no window, no progress. User reopen app by hand (Spotlight, Dock). Now old binary run again while helper still downloading.
+
+Naive reconcile say "version unchanged → failed". That wrong, and it do three bad things at once:
+1. lie to user (`Homebrew did not finish the last update`) while upgrade is fine,
+2. **clear the marker**, so real outcome never reported,
+3. leave button live → second click → second `brew upgrade` → dies on first one's download lock:
+```
+Error: anhdd-kuro/tap/fixlang: A `brew upgrade --cask fixlang` process has already
+locked .../FixLang-0.4.2-arm64.dmg.incomplete.
+```
+
+Then the second half of the trap: helper end with `/usr/bin/open -b com.fixlang.app`. LaunchServices resolve that with `preferIdentical` → app already running → **just focus old process**. Bundle on disk new, running process old, forever. Looks like "update never happened".
+
+Real trace (0.4.1 → 0.4.2), proven from `log show`:
+```
+00:00:38  app  Homebrew update to 0.4.2 started      (app quits 00:00:39)
+00:00:44  Dock  Sending .launchAppsBrowsing          (user reopens by hand)
+00:00:45  CoreServicesUIAgent  LAUNCH: Successful launched pid=53228 (quarantined)
+00:00:45  app  Homebrew update did not change the app version   ← the lie
+00:01:03  helper  fixlang was successfully upgraded! 0.4.1 -> 0.4.2
+00:01:03  CoreServicesUIAgent  _LSLaunchRB(com.fixlang.app, opts=…preferIdentical…)  ← focus only
+```
+The 6s gap between the Dock click and the launch is Gatekeeper re-verifying the freshly quarantined cask bundle — every cask upgrade re-quarantines, so every first launch after an upgrade is slow.
+
+Rules now baked into `pendingInstall.ts` + `updateService.ts`:
+- Marker carries `startedAt`. Missing/garbage timestamp parses to `0` = long expired (old markers keep old behavior).
+- `reconcilePendingInstall` order matters: version changed → `installed`; else Caskroom has target → `restart-required`; else inside `UPGRADE_GRACE_MS` (20 min) → `in-progress`; else `failed`.
+- `in-progress` **keeps** the marker and sets `installing = true`, which also makes `checkForUpdates` bail — otherwise a check republishes `available` and re-arms the button mid-upgrade.
+- Completion probe is `<prefix>/Caskroom/fixlang/<version>` (plain `statSync`, no subprocess, still true after the helper exits). Version string is pattern-checked so it cannot escape the directory.
+- Poll it every 15s while waiting, deadline `startedAt + grace` (not `launch + grace`).
+- `restart-required` restarts with `app.relaunch()` + `app.exit(0)`. **Never `open -b`** — that is the trap above. `execPath` is the replaced bundle, so re-exec runs the new version.
+
+**Shrink the window too, not just the message.** `installUpdate` now runs `brew fetch --cask fixlang` BEFORE quitting. `fetch` fill download cache only — installed bundle untouched — so safe with app open. App quit only after DMG on disk; helper then do `brew upgrade` off cache (and no `brew update`, probe already refresh tap), so app away seconds not minute. Progress read with `statSync` on `<HOMEBREW_CACHE>/downloads/*--FixLang-<v>-arm64.dmg[.incomplete]`, denominator = GitHub release asset `size`. **Never parse brew output for progress** — format drift silently, file size never lie. Digest prefix in cache filename is Homebrew internal; match on basename suffix, don't recompute it.
+
+WHY THIS WAS MISSED: the reconcile tests only ever modeled two worlds — same version (failed) or new version (installed). "Same version, upgrade still running" was not a state anyone named, because every test injects a fake upgrader that finishes instantly, and manual verification (`brew upgrade` in a terminal) is synchronous and blocking. The bug only exists in the asynchronous, detached, user-can-interfere world.
 
 ### TRAP 2 — cask write doubles newline
 

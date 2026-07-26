@@ -65,7 +65,7 @@ AI SDK v7 rejects `system`-role entries in the `messages` array (`standardizePro
 AI_InvalidPromptError: Invalid prompt: System messages are not allowed in the prompt or messages fields. Use the instructions option instead.
 ```
 
-Symptom: correction/promptGen **loading spinner flashes then vanishes** — the request throws instantly. App boots fine; only AI calls fail. Not a crash, so check `~/.fixlang/log/runtime-*.log` (grep `ERROR`), not just stdout.
+Symptom: transform/promptGen **loading spinner flashes then vanishes** — the request throws instantly. App boots fine; only AI calls fail. Not a crash, so check `~/.fixlang/log/runtime-*.log` (grep `ERROR`), not just stdout.
 
 Fix in `makeRemoteAIRequest`: split system-role messages out and pass them via `generateText({ system, messages })`. Only non-system messages go in `messages`.
 

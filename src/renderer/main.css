@@ -72,6 +72,58 @@
     display: none !important;
   }
 
+  /*
+   * macOS "Show scroll bars: Always" look, theme-aware, CSS-only.
+   * Metrics mirror the native always-visible bar: 15px track, hairline on the
+   * content-facing edge, ~7px inset thumb with no stepper arrows.
+   * Colors mix against --foreground so one rule reads correctly on light and
+   * dark themes alike (light foreground is dark -> track darkens, and vice versa).
+   * Do not add `scrollbar-width` / `scrollbar-color`: in Chromium the standard
+   * properties win and these pseudo-element rules stop applying.
+   */
+  ::-webkit-scrollbar {
+    width: 15px;
+    height: 15px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background-color: color-mix(in srgb, var(--background) 94%, var(--foreground));
+  }
+
+  ::-webkit-scrollbar-track:vertical {
+    border-left: 1px solid var(--border);
+  }
+
+  ::-webkit-scrollbar-track:horizontal {
+    border-top: 1px solid var(--border);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    min-height: 24px;
+    min-width: 24px;
+    border: 4px solid transparent;
+    border-radius: 8px;
+    background-clip: padding-box;
+    background-color: color-mix(in srgb, var(--foreground) 32%, transparent);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in srgb, var(--foreground) 48%, transparent);
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background-color: color-mix(in srgb, var(--foreground) 62%, transparent);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background-color: color-mix(in srgb, var(--background) 94%, var(--foreground));
+  }
+
+  /* macOS has no stepper arrows. */
+  ::-webkit-scrollbar-button {
+    display: none;
+  }
+
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus,
