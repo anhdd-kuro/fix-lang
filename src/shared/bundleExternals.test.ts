@@ -19,7 +19,7 @@
  *   (c) the CLI's contract — which files get scanned, and the exit code.
  */
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -755,5 +755,80 @@ describe("check-bundle-externals CLI under bun", () => {
     expect(status).toBe(1);
     expect(stdout).toContain("main/broken.cjs");
     expect(stdout).toContain("could not be scanned");
+  });
+});
+
+/**
+ * Runs the CLI from a checkout path that contains spaces.
+ *
+ * The original entry guard was
+ * ``import.meta.url === `file://${process.argv[1] ?? ""}` `` — a
+ * percent-encoded URL compared against a raw path — so on any checkout whose
+ * path contained a space it never matched, `main()` never ran, and the whole
+ * release gate exited 0 without scanning a byte. The guard has since been
+ * deleted, but nothing stopped anyone reinstating it: no test drove the CLI
+ * from such a path, so the bug could come back with the suite fully green.
+ *
+ * The repo itself lives under `.claude/worktrees/…` with no spaces, so the
+ * only way to pin this is to stage the two files the CLI actually consists of
+ * under a spaced directory and run them there. `node_modules` is symlinked
+ * rather than copied so `typescript` still resolves.
+ */
+describe("check-bundle-externals CLI from a path containing spaces", () => {
+  const repoRoot = path.join(__dirname, "..", "..");
+  let root = "";
+
+  beforeEach(() => {
+    root = mkdtempSync(path.join(tmpdir(), "fix lang cli "));
+    expect(root).toContain(" ");
+
+    mkdirSync(path.join(root, "scripts"), { recursive: true });
+    mkdirSync(path.join(root, "src", "shared"), { recursive: true });
+    mkdirSync(path.join(root, "out", "main"), { recursive: true });
+
+    for (const relPath of [
+      path.join("scripts", "check-bundle-externals.ts"),
+      path.join("src", "shared", "bundleExternals.ts"),
+    ]) {
+      copyFileSync(path.join(repoRoot, relPath), path.join(root, relPath));
+    }
+    symlinkSync(path.join(repoRoot, "node_modules"), path.join(root, "node_modules"), "dir");
+  });
+
+  afterEach(() => {
+    // rmSync unlinks symlinks rather than following them, so the repo's real
+    // node_modules is never touched.
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  /** Invoked with no outDir argument, exactly as `bun run check:bundle` does. */
+  const runCli = (): { status: number | null; stdout: string } => {
+    const result = spawnSync(
+      "bun",
+      ["run", path.join(root, "scripts", "check-bundle-externals.ts")],
+      { cwd: root, encoding: "utf8" },
+    );
+    return { status: result.status, stdout: `${result.stdout}${result.stderr}` };
+  };
+
+  it("actually scans, and exits 1 on a violation", () => {
+    writeFileSync(path.join(root, "out", "main", "index.cjs"), 'require("left-pad");', "utf8");
+    const { status, stdout } = runCli();
+    expect(status).toBe(1);
+    expect(stdout).toContain("left-pad");
+  });
+
+  it("exits 0 on a clean tree, having reported the files it scanned", () => {
+    // Pins that the 0 above is a real scan, not the silent no-op the old entry
+    // guard produced — which also exited 0 but printed nothing.
+    writeFileSync(path.join(root, "out", "main", "index.cjs"), 'require("node:fs");', "utf8");
+    const { status, stdout } = runCli();
+    expect(status).toBe(0);
+    expect(stdout).toContain("index.cjs");
+  });
+
+  it("exits 1 when out/ holds no bundles at all", () => {
+    rmSync(path.join(root, "out"), { recursive: true, force: true });
+    expect(runCli().status).toBe(1);
   });
 });
