@@ -130,6 +130,7 @@
     },
     "dmg": {
       "writeUpdateInfo": false,
+      "format": "ULFO",
       "contents": [
         {
           "x": 130,
