@@ -11,18 +11,24 @@ const {
   apiStoreGetMock,
   apiStoreSetMock,
   getProfileSettingMock,
+  getProviderEndpointMock,
+  getActiveProfileSecretMock,
   fetchAvailableModelsMock,
   getCachedModelsMock,
   probeOllamaMock,
+  probeLmStudioMock,
   getAllWindowsMock,
   sendMock,
 } = vi.hoisted(() => ({
   apiStoreGetMock: vi.fn(),
   apiStoreSetMock: vi.fn(),
   getProfileSettingMock: vi.fn(),
+  getProviderEndpointMock: vi.fn(),
+  getActiveProfileSecretMock: vi.fn(),
   fetchAvailableModelsMock: vi.fn(),
   getCachedModelsMock: vi.fn(),
   probeOllamaMock: vi.fn(),
+  probeLmStudioMock: vi.fn(),
   getAllWindowsMock: vi.fn(),
   sendMock: vi.fn(),
 }));
@@ -33,21 +39,26 @@ vi.mock("electron", () => ({
 vi.mock("~/stores/apiStore", () => ({
   apiStore: { get: apiStoreGetMock, set: apiStoreSetMock },
   getProfileSetting: getProfileSettingMock,
+  getProviderEndpoint: getProviderEndpointMock,
+}));
+vi.mock("~/stores/profileSecretStore", () => ({
+  getActiveProfileSecret: getActiveProfileSecretMock,
 }));
 vi.mock("~/main/ai.request/shared", () => ({
   fetchAvailableModels: fetchAvailableModelsMock,
   getCachedModels: getCachedModelsMock,
 }));
 vi.mock("./discover", () => ({ probeOllama: probeOllamaMock }));
+vi.mock("~/main/llm/lmstudio/client", () => ({ probeLmStudio: probeLmStudioMock }));
 import { checkForModelChanges } from "./monitor";
 import type { Model } from "~/stores/apiStore";
 
-const localModel = (id: string): Model => ({
+const localModel = (id: string, provider: "ollama" | "lmstudio" = "ollama"): Model => ({
   id,
   name: id.split(":")[0],
   created: 0,
-  provider: "ollama",
-  local: { path: id, size: 1 },
+  provider,
+  ...(provider === "ollama" ? { local: { path: id, size: 1 } } : {}),
 });
 
 /** Connected providers for the active profile. */
@@ -67,6 +78,9 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   getCachedModelsMock.mockReturnValue([]);
   pulled();
+  probeLmStudioMock.mockResolvedValue({ reachable: true, models: [] });
+  getActiveProfileSecretMock.mockResolvedValue(null);
+  getProviderEndpointMock.mockReturnValue({ host: "127.0.0.1", port: 1234 });
   fetchAvailableModelsMock.mockResolvedValue([]);
   getAllWindowsMock.mockReturnValue([{ webContents: { send: sendMock } }]);
   enable("openai", "openrouter", "ollama");
@@ -213,6 +227,59 @@ describe("checkForModelChanges — an unreachable daemon is not a removal", () =
     expect(sendMock).toHaveBeenCalledWith("models-updated", {
       added: 0,
       removed: 1,
+    });
+  });
+});
+
+describe("checkForModelChanges — LM Studio uses the stored optional API key", () => {
+  const lmModel = (id: string): Model => localModel(id, "lmstudio");
+
+  beforeEach(() => {
+    enable("lmstudio");
+    getCachedModelsMock.mockReturnValue([]);
+  });
+
+  it("passes the active profile secret into probeLmStudio", async () => {
+    getActiveProfileSecretMock.mockResolvedValue("custom-lmstudio-key");
+    probeLmStudioMock.mockResolvedValue({
+      reachable: true,
+      models: [lmModel("local-gguf")],
+    });
+
+    await checkForModelChanges();
+
+    expect(getActiveProfileSecretMock).toHaveBeenCalledWith("lmstudio", "api");
+    expect(probeLmStudioMock).toHaveBeenCalledWith({
+      endpoint: { host: "127.0.0.1", port: 1234 },
+      apiKey: "custom-lmstudio-key",
+    });
+  });
+
+  it("refetches with the same stored key when models change", async () => {
+    getActiveProfileSecretMock.mockResolvedValue("custom-lmstudio-key");
+    probeLmStudioMock.mockResolvedValue({
+      reachable: true,
+      models: [lmModel("local-gguf")],
+    });
+
+    await checkForModelChanges();
+
+    expect(fetchAvailableModelsMock).toHaveBeenCalledWith(
+      "custom-lmstudio-key",
+      "lmstudio",
+      true,
+    );
+  });
+
+  it("still probes when no optional key is stored", async () => {
+    getActiveProfileSecretMock.mockResolvedValue(null);
+    probeLmStudioMock.mockResolvedValue({ reachable: true, models: [] });
+
+    await checkForModelChanges();
+
+    expect(probeLmStudioMock).toHaveBeenCalledWith({
+      endpoint: { host: "127.0.0.1", port: 1234 },
+      apiKey: "",
     });
   });
 });

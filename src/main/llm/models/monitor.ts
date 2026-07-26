@@ -7,6 +7,7 @@ import { fetchAvailableModels, getCachedModels } from "~/main/ai.request/shared"
 import { probeLmStudio } from "~/main/llm/lmstudio/client";
 import { sanitizeEnabledProviders } from "~/shared/providers";
 import { getProfileSetting, getProviderEndpoint } from "~/stores/apiStore";
+import { getActiveProfileSecret } from "~/stores/profileSecretStore";
 import { probeOllama } from "./discover";
 import type { Model, ProviderId } from "~/stores/apiStore";
 
@@ -90,13 +91,31 @@ const connectedLocalProviders = (): ProviderId[] => {
   return enabled.filter((provider) => provider === "ollama" || provider === "lmstudio");
 };
 
+type LocalProbeResult = {
+  reachable: boolean;
+  models: Model[];
+  error?: string;
+  /** Passed to `fetchAvailableModels` on change; LM Studio needs the stored key. */
+  refreshApiKey: string;
+};
+
 const probeLocalProvider = async (
   provider: ProviderId,
-): Promise<{ reachable: boolean; models: Model[]; error?: string }> => {
+): Promise<LocalProbeResult> => {
   if (provider === "ollama") {
-    return probeOllama();
+    const probe = await probeOllama();
+    return { ...probe, refreshApiKey: "" };
   }
-  return probeLmStudio({ endpoint: getProviderEndpoint("lmstudio") });
+
+  // Match connect / makeLmStudioAIRequest: optional key from safeStorage, not the
+  // default dummy. Otherwise a custom LM Studio key makes transforms work while
+  // background model polling silently fails.
+  const apiKey = (await getActiveProfileSecret("lmstudio", "api")) ?? "";
+  const probe = await probeLmStudio({
+    endpoint: getProviderEndpoint("lmstudio"),
+    apiKey,
+  });
+  return { ...probe, refreshApiKey: apiKey };
 };
 
 /**
@@ -137,7 +156,7 @@ export async function checkForModelChanges(): Promise<void> {
         console.log(
           `${provider} model changes detected: ${added.length} added, ${removed.length} removed`,
         );
-        await fetchAvailableModels("", provider, true);
+        await fetchAvailableModels(probe.refreshApiKey, provider, true);
         totalAdded += added.length;
         totalRemoved += removed.length;
       }
