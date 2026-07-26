@@ -135,6 +135,16 @@ const fetchOpenAIModels = async (apiKey: string): Promise<Model[]> => {
   }));
 };
 
+type ProviderFetch = {
+  models: Model[];
+  /**
+   * Writing `[]` is only safe when discovery REACHED the provider: empty then
+   * means the user removed everything. Every other empty result may be a
+   * failure, and must leave the cached slice alone.
+   */
+  emptyMeansRemoved: boolean;
+};
+
 /**
  * Fetch models for exactly one provider. Direct OpenAI models deliberately do
  * not receive OpenRouter price fields, preventing fabricated cost estimates.
@@ -148,12 +158,12 @@ const fetchOpenAIModels = async (apiKey: string): Promise<Model[]> => {
  * failure to request time. Ollama never requires a key, so it always keeps
  * the resilient cache-fallback behavior regardless of `strict`.
  */
-export const fetchAvailableModels = async (
+const fetchProviderModels = async (
   apiKey: string,
   provider: ProviderId,
-  persistCache = true,
-  strict = false,
-): Promise<Model[]> => {
+  persistCache: boolean,
+  strict: boolean,
+): Promise<ProviderFetch> => {
   const cachedModels = getStoredModels();
   const cachedForProvider = cachedModels.filter((model) =>
     isCachedForProvider(model, provider),
@@ -162,9 +172,6 @@ export const fetchAvailableModels = async (
   try {
     let models: Model[];
     let liveFetch = true;
-    // Writing `[]` is only safe when discovery REACHED the provider: empty then
-    // means the user removed everything. Every other empty result may be a
-    // failure, and must leave the cached slice alone.
     let emptyMeansRemoved = false;
     if (provider === "ollama") {
       // `probeOllama`, not `getLocalModels`: the latter answers `[]` for both a
@@ -194,15 +201,24 @@ export const fetchAvailableModels = async (
     if (persistCache && (sortedModels.length > 0 || emptyMeansRemoved)) {
       cacheModelsForProvider(provider, sortedModels);
     }
-    return sortedModels;
+    return { models: sortedModels, emptyMeansRemoved };
   } catch (error) {
     console.error(`Error fetching ${provider} models:`, error);
     if (strict && provider !== "ollama") {
       throw error;
     }
-    return sortModels(cachedForProvider);
+    return { models: sortModels(cachedForProvider), emptyMeansRemoved: false };
   }
 };
+
+/** Model-list-only view of {@link fetchProviderModels}, for callers that persist inline. */
+export const fetchAvailableModels = async (
+  apiKey: string,
+  provider: ProviderId,
+  persistCache = true,
+  strict = false,
+): Promise<Model[]> =>
+  (await fetchProviderModels(apiKey, provider, persistCache, strict)).models;
 
 /**
  * Read the cached `Model[]` (populated by `fetchAvailableModels`). Reused by
@@ -277,12 +293,12 @@ export const fetchModelsForProviders = async (
   const requested = PROVIDER_ORDER.filter((provider) => providers.includes(provider));
 
   const settled = await Promise.allSettled(
-    requested.map(async (provider) => {
+    requested.map(async (provider): Promise<ProviderFetch> => {
       if (!refetch) {
         const cached = readFreshDisplayCache(provider);
-        if (cached) return cached;
+        if (cached) return { models: cached, emptyMeansRemoved: false };
       }
-      return fetchAvailableModels(
+      return fetchProviderModels(
         keys[provider] ?? "",
         provider,
         false,
@@ -301,11 +317,13 @@ export const fetchModelsForProviders = async (
         reason instanceof Error ? reason.message : String(reason);
       return;
     }
-    // An empty result never replaces a slice, so a blip cannot wipe the cache.
-    if (outcome.value.length === 0) return;
+    // Empty replaces a slice only when the provider was REACHED and answered
+    // nothing; otherwise a blip would wipe the cache.
+    const { models: fetched, emptyMeansRemoved } = outcome.value;
+    if (fetched.length === 0 && !emptyMeansRemoved) return;
     fetchedByProvider.set(
       provider,
-      outcome.value.map((model) => ({
+      fetched.map((model) => ({
         ...model,
         // Untagged entries format as `openrouter::…` refs — always tag.
         provider: model.provider ?? provider,

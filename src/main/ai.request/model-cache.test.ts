@@ -470,6 +470,107 @@ describe("fetchModelsForProviders — fan-out across every enabled provider", ()
     expect(currentModels()).toContainEqual(untouchedOllama);
   });
 
+  it("clears the Ollama slice when the daemon is reachable with nothing pulled", async () => {
+    const cachedOllama: Model = {
+      id: "llama3.2:3b",
+      name: "llama3.2",
+      created: 1_700_000_000_000,
+      provider: "ollama",
+      local: { path: "/models/llama3.2" },
+    };
+    seedProfile([cachedOllama]);
+    probeOllamaMock.mockResolvedValue({ reachable: true, models: [] });
+
+    const result = await fetchModelsForProviders(
+      ["openai", "openrouter", "ollama"],
+      { openai: "openai-key", openrouter: "openrouter-key" },
+      true,
+    );
+
+    expect(result.errors).toEqual({});
+    // The user deleted their last local model — the cloud slices are untouched.
+    expect(result.models.map((model) => model.id)).toEqual([
+      "gpt-4o",
+      "anthropic/claude-3.5-sonnet",
+    ]);
+    expect(currentModels().map((model) => model.id)).toEqual([
+      "gpt-4o",
+      "anthropic/claude-3.5-sonnet",
+    ]);
+  });
+
+  it("keeps the cached Ollama slice when the daemon is unreachable", async () => {
+    const cachedOllama: Model = {
+      id: "llama3.2:3b",
+      name: "llama3.2",
+      created: 1_700_000_000_000,
+      provider: "ollama",
+      local: { path: "/models/llama3.2" },
+    };
+    seedProfile([cachedOllama]);
+    probeOllamaMock.mockResolvedValue({
+      reachable: false,
+      models: [],
+      error: "connect ECONNREFUSED 127.0.0.1:11434",
+    });
+
+    const result = await fetchModelsForProviders(
+      ["openai", "openrouter", "ollama"],
+      { openai: "openai-key", openrouter: "openrouter-key" },
+      true,
+    );
+
+    expect(result.errors).toEqual({});
+    expect(result.models).toContainEqual(cachedOllama);
+    expect(currentModels()).toContainEqual(cachedOllama);
+  });
+
+  it("keeps a cloud provider's cached slice when its fetch returns nothing", async () => {
+    const cachedOpenAi: Model = {
+      id: "gpt-4o-mini",
+      name: "gpt-4o-mini",
+      created: 5,
+      provider: "openai",
+    };
+    seedProfile([cachedOpenAi]);
+    openAIModelsListMock.mockResolvedValue({ data: [] });
+
+    const result = await fetchModelsForProviders(
+      ["openai", "openrouter"],
+      { openai: "openai-key", openrouter: "openrouter-key" },
+      true,
+    );
+
+    expect(result.errors).toEqual({});
+    // OpenRouter succeeded, so the merged write happened — OpenAI still survives.
+    expect(result.models.map((model) => model.id)).toContain(
+      "anthropic/claude-3.5-sonnet",
+    );
+    expect(result.models).toContainEqual(cachedOpenAi);
+    expect(currentModels()).toContainEqual(cachedOpenAi);
+  });
+
+  it("keeps a cloud provider's cached slice when its fetch rejects", async () => {
+    const cachedOpenAi: Model = {
+      id: "gpt-4o-mini",
+      name: "gpt-4o-mini",
+      created: 5,
+      provider: "openai",
+    };
+    seedProfile([cachedOpenAi]);
+    openAIModelsListMock.mockRejectedValue(new Error("401 Unauthorized"));
+
+    const result = await fetchModelsForProviders(
+      ["openai", "openrouter"],
+      { openai: "revoked-key", openrouter: "openrouter-key" },
+      true,
+    );
+
+    expect(result.errors.openai).toContain("401 Unauthorized");
+    expect(result.models).toContainEqual(cachedOpenAi);
+    expect(currentModels()).toContainEqual(cachedOpenAi);
+  });
+
   it("writes nothing when no provider returned any model", async () => {
     const existing: Model[] = [
       { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
