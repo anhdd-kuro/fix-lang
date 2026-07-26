@@ -170,17 +170,20 @@ const isCreateRequireReference = (node: ts.Expression): boolean =>
   (ts.isIdentifier(node) && node.text === CREATE_REQUIRE) ||
   (ts.isPropertyAccessExpression(node) && node.name.text === CREATE_REQUIRE);
 
+/** Strips parentheses and returns the identifier name, if that is all there is. */
+const identifierName = (node: ts.Expression): string | undefined => {
+  if (ts.isParenthesizedExpression(node)) return identifierName(node.expression);
+  return ts.isIdentifier(node) ? node.text : undefined;
+};
+
 /**
- * True when `node` evaluates to a `require` function rather than merely being
- * spelled `require`. Covers the literal identifier, any locally-bound alias
- * discovered by {@link collectRequireBindings}, member access ending in
- * `.require` (`module.require`, `process.mainModule.require`,
- * `require.main.require`), and an immediately-invoked
- * `createRequire(import.meta.url)`.
+ * True for an expression that is a `require` function on its own terms, with
+ * no knowledge of local bindings: member access ending in `.require`
+ * (`module.require`, `process.mainModule.require`, `require.main.require`) or
+ * an immediately-invoked `createRequire(import.meta.url)`.
  */
-const isRequireExpression = (node: ts.Expression, bindings: ReadonlySet<string>): boolean => {
-  if (ts.isParenthesizedExpression(node)) return isRequireExpression(node.expression, bindings);
-  if (ts.isIdentifier(node)) return bindings.has(node.text);
+const isIntrinsicRequireExpression = (node: ts.Expression): boolean => {
+  if (ts.isParenthesizedExpression(node)) return isIntrinsicRequireExpression(node.expression);
   if (ts.isPropertyAccessExpression(node)) return node.name.text === "require";
   if (ts.isElementAccessExpression(node)) {
     return (
@@ -193,36 +196,97 @@ const isRequireExpression = (node: ts.Expression, bindings: ReadonlySet<string>)
 };
 
 /**
- * Names bound to a require function in this file. Seeded with `require` and
- * grown to a fixpoint, because bundlers rename the `createRequire` result
- * (`require$1`, `req`, …) and code aliases it (`var r = require`).
+ * True when `node` evaluates to a `require` function rather than merely being
+ * spelled `require` — an intrinsic form, or any locally-bound alias discovered
+ * by {@link collectRequireBindings}.
+ */
+const isRequireExpression = (node: ts.Expression, bindings: ReadonlySet<string>): boolean => {
+  const name = identifierName(node);
+  return name === undefined ? isIntrinsicRequireExpression(node) : bindings.has(name);
+};
+
+/**
+ * Names bound to a require function in this file. Seeded with `require`, since
+ * bundlers rename the `createRequire` result (`require$1`, `req`, …) and code
+ * aliases it (`var r = require`, `const { require: r } = module`).
+ *
+ * Done in one AST pass that records plain `name = otherName` edges, followed by
+ * a worklist walk of those edges — deliberately not a re-walk-the-tree-until-
+ * stable fixpoint, which degrades to O(passes x nodes) when aliases appear
+ * before the binding they derive from and would let a pathological bundle hang
+ * the release job (a CPU-bound scan cannot be interrupted by a CI timeout).
  */
 const collectRequireBindings = (sourceFile: ts.SourceFile): ReadonlySet<string> => {
   const bindings = new Set<string>(["require"]);
+  /** alias source name -> names that copy it. */
+  const dependents = new Map<string, string[]>();
+  const pending: string[] = ["require"];
 
-  const bind = (name: ts.Node, initializer: ts.Expression | undefined): boolean => {
-    if (initializer === undefined || !ts.isIdentifier(name)) return false;
-    if (bindings.has(name.text)) return false;
-    if (!isRequireExpression(initializer, bindings)) return false;
-    bindings.add(name.text);
-    return true;
+  const seed = (name: string): void => {
+    if (bindings.has(name)) return;
+    bindings.add(name);
+    pending.push(name);
   };
 
-  let changed = true;
-  while (changed) {
-    changed = false;
-    const visit = (node: ts.Node): void => {
-      if (ts.isVariableDeclaration(node)) {
-        changed = bind(node.name, node.initializer) || changed;
-      } else if (
-        ts.isBinaryExpression(node) &&
-        node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+  // NOT named `declare`: `bun run` (which is how this ships) parses a
+  // statement-position `declare(...)` call as an ambient TypeScript
+  // declaration and erases it outright, while vitest's esbuild transform keeps
+  // it. That divergence silently disabled alias resolution here with the whole
+  // unit suite green — see the CLI-under-bun test.
+  const recordAlias = (name: string, initializer: ts.Expression): void => {
+    if (isIntrinsicRequireExpression(initializer)) {
+      seed(name);
+      return;
+    }
+    const source = identifierName(initializer);
+    if (source === undefined) return;
+    const edges = dependents.get(source);
+    if (edges === undefined) {
+      dependents.set(source, [name]);
+    } else {
+      edges.push(name);
+    }
+  };
+
+  /** `const { require: r } = module` / `const { require } = process.mainModule`. */
+  const recordDestructuredAlias = (pattern: ts.ObjectBindingPattern): void => {
+    for (const element of pattern.elements) {
+      const property = element.propertyName ?? element.name;
+      if (
+        ts.isIdentifier(property) &&
+        property.text === "require" &&
+        ts.isIdentifier(element.name)
       ) {
-        changed = bind(node.left, node.right) || changed;
+        seed(element.name.text);
       }
-      ts.forEachChild(node, visit);
-    };
-    visit(sourceFile);
+    }
+  };
+
+  const visit = (node: ts.Node): void => {
+    if (ts.isVariableDeclaration(node)) {
+      if (ts.isObjectBindingPattern(node.name)) {
+        recordDestructuredAlias(node.name);
+      } else if (ts.isIdentifier(node.name) && node.initializer !== undefined) {
+        recordAlias(node.name.text, node.initializer);
+      }
+    } else if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      ts.isIdentifier(node.left)
+    ) {
+      recordAlias(node.left.text, node.right);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+
+  // Each name enters `pending` at most once, so this visits every edge once.
+  while (pending.length > 0) {
+    const source = pending.pop();
+    if (source === undefined) break;
+    for (const dependent of dependents.get(source) ?? []) {
+      seed(dependent);
+    }
   }
 
   return bindings;

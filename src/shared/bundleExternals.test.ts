@@ -18,6 +18,7 @@
  *       inert template-literal text;
  *   (c) the CLI's contract — which files get scanned, and the exit code.
  */
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -89,6 +90,43 @@ describe("scanBundleSource", () => {
     expect(details('var r = require;\nvar q = r;\nq("left-pad");')).toEqual([
       "left-pad",
     ]);
+  });
+
+  it("flags a require destructured out of an object", () => {
+    expect(details('const { require: r } = module;\nr("left-pad");')).toEqual([
+      "left-pad",
+    ]);
+  });
+
+  it("flags aliases declared before the binding they derive from", () => {
+    // Alias resolution must not depend on declaration order: hoisting and
+    // bundler output both reorder freely.
+    expect(details('var q = r;\nvar r = require;\nq("left-pad");')).toEqual([
+      "left-pad",
+    ]);
+  });
+
+  it("resolves a long alias chain without quadratic blowup", () => {
+    // Each alias is declared *before* the one it derives from, so a
+    // re-walk-until-stable fixpoint resolves exactly one binding per full AST
+    // pass — O(passes x nodes). Alias edges are propagated with a worklist
+    // instead, so this stays linear. Contrived, but this guard's whole job is
+    // to hold up against bundle content nobody hand-reviewed, and a
+    // CPU-bound scan cannot be interrupted by a test/CI timeout — it just
+    // hangs. Measured at this depth: ~3.7s quadratic, ~30ms with the
+    // worklist, so the bound below has room for a slow machine either way.
+    const depth = 8_000;
+    const lines = [`a0("left-pad");`];
+    for (let i = 0; i < depth; i += 1) lines.push(`var a${String(i)} = a${String(i + 1)};`);
+    lines.push(`var a${String(depth)} = require;`);
+    const source = lines.join("\n");
+
+    const startedAt = Date.now();
+    const found = details(source);
+    const elapsed = Date.now() - startedAt;
+
+    expect(found).toEqual(["left-pad"]);
+    expect(elapsed).toBeLessThan(2_000);
   });
 
   it("flags module.require()", () => {
@@ -421,5 +459,73 @@ describe("runBundleExternalsCheck", () => {
     write("main/index.cjs", 'require("left-pad");');
     run();
     expect(out.join("\n")).toContain("[bare-specifier] line 1: left-pad");
+  });
+});
+
+/**
+ * Drives `scripts/check-bundle-externals.ts` as a real subprocess under `bun`,
+ * the runtime CI actually uses.
+ *
+ * This is not a redundant copy of the unit tests. Vitest transpiles TypeScript
+ * with esbuild; `bun run` uses Bun's own TypeScript parser, and they disagree
+ * on at least one construct that silently changed this scanner's behaviour —
+ * Bun erases a statement-position call to a function named `declare`, reading
+ * it as an ambient declaration. The unit suite was fully green while the
+ * shipped CLI failed to resolve require aliases at all. Only executing the
+ * real entry point under the real runtime catches that class of bug.
+ */
+describe("check-bundle-externals CLI under bun", () => {
+  const cliPath = path.join(__dirname, "..", "..", "scripts", "check-bundle-externals.ts");
+  let outDir = "";
+
+  const write = (relPath: string, contents: string): void => {
+    const target = path.join(outDir, relPath);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, contents, "utf8");
+  };
+
+  const runCli = (): { status: number | null; stdout: string } => {
+    const result = spawnSync("bun", ["run", cliPath, outDir], { encoding: "utf8" });
+    return { status: result.status, stdout: `${result.stdout}${result.stderr}` };
+  };
+
+  beforeEach(() => {
+    outDir = mkdtempSync(path.join(tmpdir(), "fixlang-cli-"));
+  });
+
+  afterEach(() => {
+    rmSync(outDir, { recursive: true, force: true });
+  });
+
+  it("exits 0 on a clean tree", () => {
+    write("main/index.cjs", 'require("node:fs");\nrequire("fs/promises");');
+    expect(runCli().status).toBe(0);
+  });
+
+  it("exits 1 on every require-like shape, including aliased and derived ones", () => {
+    // One shape per file so a single miss cannot hide behind another's hit.
+    const shapes: Record<string, string> = {
+      "main/bare.cjs": 'require("left-pad");',
+      "main/aliased.cjs": 'var r = require;\nr("left-pad");',
+      "main/createRequireIife.cjs": 'createRequire(import.meta.url)("left-pad");',
+      "main/createRequireBound.cjs":
+        'const req = createRequire(import.meta.url);\nreq("left-pad");',
+      "main/moduleRequire.cjs": 'module.require("left-pad");',
+      "main/staticImport.cjs": 'import lp from "left-pad";',
+      "preload/chunks/testChunk.cjs": 'require("left-pad");',
+    };
+
+    for (const [file, source] of Object.entries(shapes)) {
+      rmSync(outDir, { recursive: true, force: true });
+      mkdirSync(outDir, { recursive: true });
+      write(file, source);
+      const { status, stdout } = runCli();
+      expect({ file, status }).toEqual({ file, status: 1 });
+      expect(stdout).toContain("left-pad");
+    }
+  });
+
+  it("exits 1 when out/ holds no bundles at all", () => {
+    expect(runCli().status).toBe(1);
   });
 });

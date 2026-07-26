@@ -12,13 +12,22 @@
  * skipped the whole check and exited 0. Same shape as `scripts/i18n-check.ts`.
  *
  * Usage: bun run check:bundle   (run `bun run build` first)
+ *        bun run scripts/check-bundle-externals.ts <outDir>
+ *
+ * The optional <outDir> argument exists so the integration test can drive this
+ * exact file under `bun`, the runtime that actually runs it in CI. That is not
+ * a redundant belt over the unit tests: vitest transpiles with esbuild and bun
+ * with its own TypeScript parser, and the two do not always agree.
  */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveOutDir, runBundleExternalsCheck } from "../src/shared/bundleExternals";
 
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
-const exitCode = runBundleExternalsCheck(resolveOutDir(scriptsDir));
+const outDirArg = process.argv[2];
+const exitCode = runBundleExternalsCheck(
+  outDirArg === undefined ? resolveOutDir(scriptsDir) : path.resolve(outDirArg),
+);
 
 if (exitCode !== 0) {
   process.exit(exitCode);
