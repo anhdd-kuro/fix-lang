@@ -135,15 +135,15 @@ Each chunk is independently shippable: `bun run lint` + `bun run test` green at 
 
 ### Chunk 1 — i18n kernel (`src/shared/i18n/`)
 
-- [ ] `registry.ts`: `LOCALE_CODES = ["en", "ja"] as const`, `Locale` type, `LOCALE_META` with
+- [x] `registry.ts`: `LOCALE_CODES = ["en", "ja"] as const`, `Locale` type, `LOCALE_META` with
       `label` / `nativeLabel` / `dir` / `intlTag` / `dateFnsLocale` key, `DEFAULT_LOCALE = "en"`
-- [ ] `detect.ts`: `normalizeLocale(raw: unknown): Locale` — case-insensitive, strips region
+- [x] `detect.ts`: `normalizeLocale(raw: unknown): Locale` — case-insensitive, strips region
       (`ja-JP` → `ja`), unknown/undefined → `DEFAULT_LOCALE`; `isLocale()` guard
-- [ ] `locales/en/` + `locales/ja/`: per-namespace JSON files (initially just `common.json`); `locales/index.ts` merges them into `EN_CATALOG` and `JA_CATALOG`
-- [ ] `locales/index.ts`: `export type TranslationKey = keyof typeof EN_CATALOG`
-- [ ] `translate.ts`: `createTranslator(locale)` → `t(key, params?)`; plural via `Intl.PluralRules`
+- [x] `locales/en/` + `locales/ja/`: per-namespace JSON files (initially just `common.json`); `locales/index.ts` merges them into `EN_CATALOG` and `JA_CATALOG`
+- [x] `locales/index.ts`: `export type TranslationKey = keyof typeof EN_CATALOG`
+- [x] `translate.ts`: `createTranslator(locale)` → `t(key, params?)`; plural via `Intl.PluralRules`
       suffix lookup; `{token}` interpolation; full fallback chain; dev warn on miss/unreplaced token
-- [ ] Tests: key hit, plural EN one/other, plural JA collapses to `other`, missing key → EN,
+- [x] Tests: key hit, plural EN one/other, plural JA collapses to `other`, missing key → EN,
       missing in both → key echoed, interpolation, unknown placeholder left + warned, `normalizeLocale`
       table (`"ja"`, `"ja-JP"`, `"JA"`, `"en-US"`, `"fr"`, `""`, `undefined`)
 

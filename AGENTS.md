@@ -10,7 +10,7 @@ Local macOS menu-bar app: fixes grammar and improves writing on selected text vi
 - **Presets** — built-in Correction, Summarize, Translate, Prompt optimization; each preset has its own hotkey, model, and system prompt.
 - **Prompt generation** — build AI prompts from selected text (PromptGen window).
 - **Profiles** — switch correction presets; switch reloads hotkeys + settings + history.
-- **Multi-provider** — OpenAI, OpenRouter, Ollama; model discovery/compat/monitor.
+- **Multi-provider** — connect multiple providers (OpenAI, OpenRouter, Ollama) at once; each connected provider appears in a grouped model picker; a preset can use any connected provider; model ref is composite `<providerId>::<rawModelId>` in config, raw id downstream.
 - **History** — SQLite-backed correction + PromptGen history with cost tracking.
 - **Analytics** — Overview dashboard: stat cards, preset donut/time-series charts (`PresetWeightChart`), token activity calendar, benchmark sentence; shared All/30d/7d range with Models tab.
 - **Logs** — structured, redacted JSONL persistence (`userData/logs/{YYYY-MM-DD}/fixlang.jsonl`); Logs tab with level filter, search, copy/export, virtual infinite scroll.
@@ -41,7 +41,10 @@ fix-lang/
 │   ├── preload/features/   — IPC bridge (validate here)
 │   ├── stores/             — historyDb (sqlite), apiStore, keybindingStore
 │   ├── prompts/            — bundled AI prompt assets (build-time)
-│   └── shared/logging.ts   — log types + redaction (shared)
+│   └── shared/             — Electron-free, shared across main/preload/renderer
+│       ├── providers.ts    — provider identity, card/group ordering, model filtering
+│       ├── modelRef.ts     — parse/format/resolve composite refs (`<providerId>::<rawModelId>`)
+│       └── logging.ts      — log types + redaction
 ├── README.md               — user-facing features and usage
 └── .claude/skills/fixlang/ — project-specific traps (read on demand)
 ```
@@ -219,7 +222,8 @@ Project-specific traps under `.claude/skills/fixlang/`:
 - [Hotkeys](.claude/skills/fixlang/fixlang-hotkeys/SKILL.md) — preset hotkey reload on profile switch (silent failures) + pre-save conflict validation.
 - [i18n](.claude/skills/fixlang/fixlang-i18n/SKILL.md) — JSON values widen to `string` (params not type-checked); tests must be `.test.ts` (no RTL); aggregations return descriptors; memoized callbacks over `t` or formatters must list them in deps; `date-fns` needs explicit `{ locale }`; main process uses `mainT()`, not `useI18n()`.
 - [Prompt bundling](.claude/skills/fixlang/fixlang-prompt-bundling/SKILL.md) — prompts bundle at build time from `src/prompts/`, not `~/.agents/`; rebuild + reinstall to apply.
-- [Profile state](.claude/skills/fixlang/fixlang-profile-state/SKILL.md) — profile switch must atomically reload hotkeys + settings UI + history.
+- [Profile state](.claude/skills/fixlang/fixlang-profile-state/SKILL.md) — profile switch must atomically reload hotkeys + settings UI + history; connecting a provider does NOT wipe presets.
+- [Model refs](.claude/skills/fixlang/fixlang-model-refs/SKILL.md) — composite ref `<providerId>::<rawModelId>` lives in config only; SQLite history and downstream API calls get the raw id only. Leaking the prefix into a `startsWith` check gives a silent wrong answer with no error.
 - [Theme mapping](.claude/skills/fixlang/fixlang-theme-mapping/SKILL.md) — derive-ladder + composite-alpha strategy; run `bun run themes:generate` after theme .ts edits, then `bun run test` to validate all 149 themes.
 - [Package upgrade](.claude/skills/fixlang/fixlang-pkg-upgrade/SKILL.md) — wave-based bun upgrades; pin TypeScript to 6.x; Electron 43+ requires main/preload CommonJS (`.cjs`) or app shows white screen; unset `ELECTRON_RUN_AS_NODE` when launching Electron from Cursor's terminal.
 - [Release + Homebrew](.claude/skills/fixlang/fixlang-release-homebrew/SKILL.md) — release trigger + orphan-tag resume; release Test step needs Node 24 on macos-14 (`node:sqlite` builtin); tap cask write uses `jq -je` (not `-er`); `brew style/audit` need a registered tap + `#{version}` URL + `depends_on :macos`; genuine-release-only `brew upgrade` proof.
