@@ -1,4 +1,5 @@
 import { globalShortcut, screen } from "electron";
+import { getActiveApp } from "~/main/accessibility/activeApp";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { getHighlightedText } from "../../utils";
 import { generatePrompt } from "../ai.request";
@@ -16,6 +17,9 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
   const ret = globalShortcut.register(promptGenShortcut, async () => {
     console.log(`${promptGenShortcut} pressed (PromptGen)`);
     try {
+      // Before the spinner and the PromptGen window: once a FixLang window is
+      // up, the frontmost-app read returns FixLang and yields null.
+      const activeApp = await getActiveApp();
       const selectedText = await getHighlightedText();
       if (!selectedText || !selectedText.trim()) {
         handleError(
@@ -28,6 +32,7 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
 
       const result = await generatePrompt({
         text: selectedText,
+        activeAppName: activeApp?.name,
       });
       hideOverlaySpinner();
 

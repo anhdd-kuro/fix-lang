@@ -3,6 +3,7 @@ import { getProfileSetting } from "~/stores/apiStore";
 import { estimateTextTokens } from "~/stores/historyStore";
 import { StringPrettifier } from "~/utils";
 import { makeAIRequest } from "./shared";
+import { withActiveAppContext } from "./transform-context";
 import type { ProviderId } from "~/stores/apiStore";
 
 /**
@@ -14,9 +15,15 @@ export type PromptGenSettings = {
   maxLength?: number;
   batchCount?: number;
   nsfw?: boolean;
+  /** User-authored system prompt override — unrelated to `activeAppName`. */
   context?: string;
   model?: string;
   temperature?: number;
+  /**
+   * Frontmost macOS app when the PromptGen hotkey fired. Best-effort ambient
+   * context, appended to the system prompt like the transform path does.
+   */
+  activeAppName?: string | null;
 };
 
 /**
@@ -50,9 +57,15 @@ export const generatePrompt = async (
   try {
     // Use shared makeAIRequest function
     const response = await makeAIRequest({
-      systemPrompt: new StringPrettifier(baseSystemPrompt)
-        .removeExtraSpaces()
-        .removeExtraSpaces().value,
+      // Appended after prettifying: the context block's own newlines and
+      // leading "- " bullets must survive `removeExtraSpaces`, which collapses
+      // the indentation of the template literal above.
+      systemPrompt: withActiveAppContext(
+        new StringPrettifier(baseSystemPrompt)
+          .removeExtraSpaces()
+          .removeExtraSpaces().value,
+        { activeAppName: options.activeAppName },
+      ),
       userPrompt: `Input:\n${text}`,
       ...options,
       ...currentSettings,
