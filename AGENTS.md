@@ -67,11 +67,13 @@ bun run dev             # hot reload (predev runs build)
 bun run test            # verify changes — use `bun run test`, not `bun test`
 bun run lint            # ESLint (cached)
 bun run pack:mac        # package macOS app → release/
+bun run check:bundle    # after `bun run build` — no runtime dep may need node_modules
 bun run themes:generate # after theme .ts edits
 bun run i18n:check      # catalog parity/plural/sort audit + JA coverage
 bun run build:promptgen # feature-tag build (also dev:promptgen, pack:mac:promptgen)
 ```
 
+- **The packaged app ships no `node_modules`** (`build.files` excludes it) — every runtime dependency must be inlined by Vite into `out/`. Adding a dependency and importing it passes `dev`, `test`, and `lint` unchanged; only `bun run check:bundle` against a real `bun run build` catches a dependency Vite left external. See [Bundle externals](.claude/skills/fixlang/fixlang-bundle-externals/SKILL.md).
 - **Feature tags are opt-in** — features listed in `src/shared/features.ts` are excluded unless the build carries their tag (`FIXLANG_FEATURES=promptgen` env, or `--promptgen` CLI). Flag-off builds emit no renderer bundle for the feature and skip its hotkey, IPC handlers, and settings tab. Read flags at runtime via `isPromptGenEnabled()`, never `__FEATURE_PROMPT_GEN__` directly (the define is absent under vitest). Plain `bun run build` (what the release workflow runs) ships PromptGen OFF.
 
 ## Internationalization (i18n)
@@ -237,3 +239,4 @@ Project-specific traps under `.claude/skills/fixlang/`:
 - [Theme mapping](.claude/skills/fixlang/fixlang-theme-mapping/SKILL.md) — derive-ladder + composite-alpha strategy; run `bun run themes:generate` after theme .ts edits, then `bun run test` to validate all 149 themes.
 - [Package upgrade](.claude/skills/fixlang/fixlang-pkg-upgrade/SKILL.md) — wave-based bun upgrades; pin TypeScript to 6.x; Electron 43+ requires main/preload CommonJS (`.cjs`) or app shows white screen; unset `ELECTRON_RUN_AS_NODE` when launching Electron from Cursor's terminal.
 - [Release + Homebrew](.claude/skills/fixlang/fixlang-release-homebrew/SKILL.md) — release trigger + orphan-tag resume; release Test step needs Node 24 on macos-14 (`node:sqlite` builtin); tap cask write uses `jq -je` (not `-er`); `brew style/audit` need a registered tap + `#{version}` URL + `depends_on :macos`; genuine-release-only `brew upgrade` proof.
+- [Bundle externals](.claude/skills/fixlang/fixlang-bundle-externals/SKILL.md) — `app.asar` ships no `node_modules`; a new runtime dependency must be Vite-inlined or it dies at launch in a packaged build only, never in `dev`/`test`/`lint`. Run `bun run check:bundle` after `bun run build`.
