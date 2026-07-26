@@ -52,20 +52,25 @@ Overview and Models share a time-range filter (All / 30d / 7d).
 
 FixLang is available in **English** and **Japanese**. On first run, the app automatically uses your system language (English if your system language is not one of the supported ones). You can change the language anytime in **Settings → General → Language** without restarting the app.
 
-### Provider setup (General settings)
+### Provider setup (Settings → General)
 
-The **General** tab is the only place a provider is selected — no other tab or window offers a provider control. Setup is staged, so the previously active provider stays in effect until you explicitly apply the new one:
+You can connect multiple providers at once. Each connected provider's models appear in the model picker, grouped by provider. A preset can use any connected provider, independently of which is the global default.
 
-1. Pick a provider: **OpenAI**, **OpenRouter**, or **Ollama**
-2. Supply credentials for that provider — an API key for OpenAI/OpenRouter (Ollama needs none), plus an optional OpenRouter provisioning key
-3. **Fetch models** — pulls the model list for the provider you just staged, without touching the active provider or profile
-4. Choose a default model from the fetched list
-5. **Apply** — validates the credentials and model together, then atomically switches the profile's active provider, default model, and cached model list. If Apply fails, nothing changes — the old provider, model, and keys remain in effect
-6. Every open window (tray popover, dashboard tabs, PromptGen) picks up the switch immediately
+**Connect a provider:**
 
-Model selectors elsewhere (Tray, Models tab, Transform presets, PromptGen) show a small provider badge next to "AI Model" so it's always clear which provider a selection belongs to.
+1. Open Settings → General → Providers
+2. For each provider you want to use:
+   - Enter its API key (OpenAI and OpenRouter need keys; Ollama needs none)
+   - OpenRouter: optionally add a provisioning key for model discovery and billing
+   - Click **Test & fetch models** — this validates the credentials and fetches that provider's model list
+3. Choose a default model for the profile
+4. A preset's model selector shows all connected providers' models, grouped by provider
 
-**Cost**: Direct OpenAI requests report cost as N/A (no per-token pricing available). OpenRouter cost is estimated from OpenRouter's published pricing. Ollama (local) is always zero cost.
+**Disconnect a provider:**
+
+If you disconnect a provider, only the presets and settings that were using it get reset — their model reference changes to "inherit from global default". Other presets keep their settings intact.
+
+**Cost:** Direct OpenAI requests report cost as N/A (no per-token pricing available). OpenRouter cost is estimated from OpenRouter's published pricing. Ollama (local) is always zero cost.
 
 ### App updates
 
@@ -118,9 +123,9 @@ Model selectors elsewhere (Tray, Models tab, Transform presets, PromptGen) show 
    ```
 3. Open the DMG and drag FixLang to `/Applications`. To update an existing
    installation, quit FixLang first and replace `/Applications/FixLang.app`.
-4. Open the app, go to Settings → General to select a provider and apply your
-   setup (see [Provider setup](#provider-setup-general-settings)), and grant
-   Accessibility permission when prompted.
+4. Open the app, go to Settings → General to connect one or more providers (see
+   [Provider setup](#provider-setup-settings--general)), and grant Accessibility
+   permission when prompted.
 
 FixLang releases are unsigned and not notarized. macOS Gatekeeper may warn or
 block the app. Only if you downloaded a release you trust and Gatekeeper blocks
@@ -335,9 +340,9 @@ GitHub Releases.
 
 - API keys and the OpenRouter provisioning key are handled main-process-only — encrypted at rest via the OS keychain (Electron `safeStorage`) — and are never sent back to the renderer/UI process after being saved.
 - Keys are never included in profile import or export; exporting a profile shares its settings, never its credentials.
-- Each profile has its own provider and its own set of keys — switching profiles switches providers, and secrets from one profile are never visible to another.
-- A freshly created profile starts as an unconfigured OpenRouter provider — no provider is auto-selected or auto-populated from another profile.
-- Requests are sent only to the provider you configure (OpenAI, OpenRouter, or your local Ollama instance). Structured logs redact keys, tokens, and clipboard content before writing to disk.
+- Secrets are scoped to one profile and one provider at a time — switching profiles switches the whole connected set, and neither another profile nor another provider can read a key it did not store.
+- A freshly created profile has no provider connected — nothing is auto-selected or auto-populated from another profile.
+- Requests are sent only to the providers you connect (OpenAI, OpenRouter, or your local Ollama instance), and each request carries only that provider's key. Structured logs redact keys, tokens, and clipboard content before writing to disk.
 
 ## License
 

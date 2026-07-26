@@ -6,6 +6,7 @@
  */
 import { DatabaseSync } from "node:sqlite";
 import { beforeEach, describe, expect, it } from "vitest";
+import { PROVIDER_IDS } from "~/shared/providers";
 import {
   createHistoryRepo,
   entryToParams,
@@ -290,6 +291,42 @@ describe("cost snapshot persistence", () => {
       makeEntry({ timestamp: "2024-04-30T00:00:00Z", provider: "openai" }),
     );
     expect(repo.getByFeature("corrections")[0]?.provider).toBe("openai");
+  });
+
+  // Driven by PROVIDER_IDS, not literals: a hand-written union passes for today's
+  // providers and only starts dropping rows when a fourth one is added.
+  it.each([...PROVIDER_IDS])(
+    "round-trips the %s provider, driven by PROVIDER_IDS",
+    (provider) => {
+      repo.insert(
+        "corrections",
+        makeEntry({ timestamp: "2024-04-30T00:00:00Z", provider }),
+      );
+      const stored = repo.getByFeature("corrections").at(-1);
+      expect(stored?.provider).toBe(provider);
+    },
+  );
+
+  it("keeps an unrecognized provider column out of the entry entirely", () => {
+    // "constructor" specifically: an inherited key, so a lookup-map
+    // implementation of this check would read it as truthy.
+    const entry = rowToEntry({
+      feature_id: "corrections",
+      original: "a",
+      corrected: "b",
+      timestamp: "2024-01-01T00:00:00Z",
+      prompt_tokens: null,
+      completion_tokens: null,
+      model: null,
+      provider: "constructor",
+      resolved_model: null,
+      preset_name: null,
+      estimated_cost_usd: null,
+      price_prompt: null,
+      price_completion: null,
+      cost_status: null,
+    });
+    expect(entry).not.toHaveProperty("provider");
   });
 
   it("round-trips cost fields including the cost_status discriminator", () => {

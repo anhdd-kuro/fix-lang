@@ -21,6 +21,7 @@ import {
   initializeDefaultProfile,
   apiStore,
   withoutProfileSecrets,
+  toExportableProfile,
   sanitizeImportedProfile,
 } from "~/stores/apiStore";
 import {
@@ -392,7 +393,11 @@ export const registerProfileHandlers = () => {
 
         return {
           success: true,
-          profileJson: JSON.stringify(withoutProfileSecrets(profile), null, 2),
+          // `toExportableProfile`, not `withoutProfileSecrets`: cached models,
+          // enabledProviders and composite refs are meaningless on another
+          // machine. `withoutProfileSecrets` must stay secrets-only — it is
+          // written back to disk by the legacy migration above.
+          profileJson: JSON.stringify(toExportableProfile(profile), null, 2),
         };
       } catch (error) {
         console.error("Failed to export profile:", error);

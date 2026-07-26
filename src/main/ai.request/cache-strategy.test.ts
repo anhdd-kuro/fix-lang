@@ -90,6 +90,75 @@ describe("resolveCacheProvider", () => {
   });
 });
 
+// Assertions compare a ref against its own raw-id result, never a
+// CacheProvider literal: a mis-classified ref falls silently to UNSUPPORTED.
+
+describe("resolveCacheProvider — composite model refs", () => {
+  const equivalent = (raw: string, ref: string) => {
+    expect(resolveCacheProvider(ref)).toEqual(resolveCacheProvider(raw));
+  };
+
+  // Gemma, o-series and non-Claude Anthropic ids carry no family word, so only
+  // a `startsWith` arm can classify them — these are the ids that actually
+  // regressed, and the reason a Claude id would pass against broken code.
+
+  it("an openrouter:: ref to a Gemma id matches the raw id", () => {
+    equivalent("google/gemma-2-9b-it", "openrouter::google/gemma-2-9b-it");
+  });
+
+  it("an openrouter:: ref to an OpenAI o-series id matches the raw id", () => {
+    equivalent("openai/o3-mini", "openrouter::openai/o3-mini");
+  });
+
+  it("an openai:: ref to an OpenAI o-series id matches the raw id", () => {
+    equivalent("openai/o3-mini", "openai::openai/o3-mini");
+  });
+
+  it("an openrouter:: ref to a non-Claude Anthropic id matches the raw id", () => {
+    equivalent("anthropic/haiku-next", "openrouter::anthropic/haiku-next");
+  });
+
+  // The pairs below are rescued by an `includes` arm and already passed; they
+  // are pinned because a strip applied at the wrong point would break them.
+
+  it("an openrouter:: ref to a Claude id matches the raw id", () => {
+    equivalent(
+      "anthropic/claude-3.5-sonnet",
+      "openrouter::anthropic/claude-3.5-sonnet",
+    );
+  });
+
+  it("an openrouter:: ref to a Gemini id matches the raw id", () => {
+    equivalent("google/gemini-2.0-flash", "openrouter::google/gemini-2.0-flash");
+  });
+
+  it("an openai:: ref to a GPT id matches the raw id", () => {
+    equivalent("openai/gpt-4o", "openai::openai/gpt-4o");
+  });
+
+  it("a ref to a genuinely unsupported model still matches the raw id", () => {
+    equivalent("meta-llama/llama-3-70b", "openrouter::meta-llama/llama-3-70b");
+  });
+
+  it("an ollama:: ref keeps the tag's own colon intact", () => {
+    equivalent("llama3.2:3b", "ollama::llama3.2:3b");
+    equivalent("deepseek-r1:7b", "ollama::deepseek-r1:7b");
+  });
+
+  // Pinned so a future "just split on any ::" shortcut fails here.
+  it("an unrecognized head is NOT a prefix — it stays part of the id", () => {
+    expect(resolveCacheProvider("bogus::claude-3")).toBe(CacheProvider.ANTHROPIC);
+    expect(resolveCacheProvider("bogus::openai/o3-mini")).toBe(
+      CacheProvider.UNSUPPORTED,
+    );
+  });
+
+  it("the inherit sentinel is still UNSUPPORTED", () => {
+    equivalent("", "");
+    expect(resolveCacheProvider("")).toBe(CacheProvider.UNSUPPORTED);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // buildCachedMessages
 // ---------------------------------------------------------------------------

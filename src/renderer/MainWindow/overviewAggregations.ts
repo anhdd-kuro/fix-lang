@@ -178,13 +178,6 @@ export const favoriteModel = (entries: HistoryEntry[]): string | null => {
   return best;
 };
 
-export type ModelProvider = {
-  /** Provider segment before the first "/" (e.g. "openai"); null when absent. */
-  provider: string | null;
-  /** Model segment after the first "/" (or the whole id when there's no "/"). */
-  model: string | null;
-};
-
 /**
  * Strip a trailing version-date suffix from a model id so snapshots collapse to
  * their family: "gpt-5.4-mini-20260317" → "gpt-5.4-mini" (also handles the
@@ -198,25 +191,8 @@ export const stripModelDate = (id: string | null): string | null => {
   return id.replace(/-\d{4}-\d{2}-\d{2}$/, "").replace(/-\d{8}$/, "");
 };
 
-/**
- * Split a served model id ("provider/model", e.g. "openai/gpt-4o") into its
- * provider and model parts. No "/" → provider null, model = the whole id.
- * null/blank → both null.
- */
-export const splitModelId = (id: string | null): ModelProvider => {
-  const trimmed = id?.trim() ?? "";
-  if (trimmed.length === 0) {
-    return { provider: null, model: null };
-  }
-  const slash = trimmed.indexOf("/");
-  if (slash === -1) {
-    return { provider: null, model: trimmed };
-  }
-  return {
-    provider: trimmed.slice(0, slash),
-    model: trimmed.slice(slash + 1),
-  };
-};
+// Never infer a provider from an id's shape — ids collide across providers.
+// Read it from `Model.provider` or the composite ref in `~/shared/modelRef`.
 
 export type PresetBreakdownRow = {
   /** Identity/grouping key: user preset name, or `UNTITLED_PRESET_ID`. */

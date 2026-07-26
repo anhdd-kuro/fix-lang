@@ -24,7 +24,6 @@ import {
   presetCountsOverTime,
   perPresetWeights,
   sessionCount,
-  splitModelId,
   stripModelDate,
   streaks,
   tokenActivityCalendar,
@@ -665,28 +664,6 @@ describe("benchmarkMessage", () => {
     });
   });
 });
-
-describe("splitModelId", () => {
-  it("splits provider/model on the first slash", () => {
-    expect(splitModelId("openai/gpt-4o")).toEqual({
-      provider: "openai",
-      model: "gpt-4o",
-    });
-    expect(splitModelId("anthropic/claude/opus")).toEqual({
-      provider: "anthropic",
-      model: "claude/opus",
-    });
-  });
-  it("no slash → provider null, model = whole id", () => {
-    expect(splitModelId("gpt-4o")).toEqual({ provider: null, model: "gpt-4o" });
-  });
-  it("null/blank → both null", () => {
-    expect(splitModelId(null)).toEqual({ provider: null, model: null });
-    expect(splitModelId("   ")).toEqual({ provider: null, model: null });
-  });
-});
-
-
 
 describe("sevenDayHourBlockHeatmap", () => {
   it("renders exactly 7 day columns ending today", () => {

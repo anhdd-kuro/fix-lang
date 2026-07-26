@@ -1,7 +1,11 @@
 import React from "react";
 import Select from "react-select";
 import { normalizeForSearch } from "~/const";
-import type { GroupBase, SelectComponentsConfig } from "react-select";
+import type {
+  GroupBase,
+  GroupHeadingProps,
+  SelectComponentsConfig,
+} from "react-select";
 
 /** Minimum shape every searchable option must satisfy. */
 export type SearchableOption = {
@@ -10,7 +14,11 @@ export type SearchableOption = {
 };
 
 export type SearchableSelectProps<Option extends SearchableOption> = {
-  options: readonly Option[];
+  /**
+   * Flat, grouped, or mixed — `filterOption` needs no group handling because
+   * react-select flattens groups before filtering and hides emptied groups.
+   */
+  options: readonly (Option | GroupBase<Option>)[];
   value: Option | null;
   onChange: (option: Option | null) => void;
   /** DOM id of the select container (react-select's `id`). */
@@ -40,6 +48,19 @@ export type SearchableSelectProps<Option extends SearchableOption> = {
 
 const DEFAULT_MENU_MAX_HEIGHT = 200;
 
+/** Replaces react-select's own heading, which ignores the theme CSS vars. */
+export const DefaultGroupHeading = <Option extends SearchableOption>({
+  data,
+}: GroupHeadingProps<Option, false, GroupBase<Option>>): React.ReactElement | null => {
+  const label = typeof data.label === "string" ? data.label : "";
+  if (label === "") return null;
+  return (
+    <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      {label}
+    </div>
+  );
+};
+
 /**
  * Flexible match: normalize both sides (lowercase + strip every non-alphanumeric
  * char) so "gpt 5" matches "openai/gpt-5".
@@ -51,8 +72,19 @@ export const matchesSearch = (
   const query = normalizeForSearch(rawInput);
   if (!query) return true;
   const haystack = normalizeForSearch(`${option.value} ${option.label}`);
+  // Never filter out an option with no searchable text: `<ModelSelect>`'s
+  // inherit row is one, and would vanish the moment a user typed anything.
+  if (!haystack) return true;
   return haystack.includes(query);
 };
+
+/** Caller entries win over the defaults. */
+export const withDefaultComponents = <Option extends SearchableOption>(
+  components?: SelectComponentsConfig<Option, false, GroupBase<Option>>,
+): SelectComponentsConfig<Option, false, GroupBase<Option>> => ({
+  GroupHeading: DefaultGroupHeading,
+  ...components,
+});
 
 /**
  * Presentational wrapper around react-select that owns the theme CSS-var
@@ -126,8 +158,18 @@ export const SearchableSelect = <Option extends SearchableOption>({
           ...base,
           color: "var(--foreground)",
         }),
+        group: (base) => ({
+          ...base,
+          paddingTop: 0,
+          paddingBottom: 4,
+        }),
+        groupHeading: (base) => ({
+          ...base,
+          color: "var(--muted-foreground)",
+          backgroundColor: "var(--popover)",
+        }),
       }}
-      components={components}
+      components={withDefaultComponents(components)}
     />
   );
 };

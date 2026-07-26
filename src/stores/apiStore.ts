@@ -3,11 +3,7 @@
  * @description Electron Store schema, types, and initialization for settings and key bindings.
  */
 import Store from "electron-store";
-import {
-  DEFAULT_LANGUAGE,
-  DEFAULT_OPENAI_MODEL,
-  resolveDefaultOpenAIModel,
-} from "~/const";
+import { DEFAULT_LANGUAGE, resolveDefaultModel } from "~/const";
 import {
   DEFAULT_CORRECTION_PRESET_ID,
   DEFAULT_CUSTOM_PROMPT,
@@ -18,41 +14,21 @@ import {
   DEFAULT_TRANSLATE_PRESET_ID,
   DEFAULT_TRANSLATE_PRESET_PROMPT,
 } from "~/prompts";
+import { modelRefForModel, parseModelRef } from "~/shared/modelRef";
+import {
+  isModelForProvider,
+  isProviderId,
+  PROVIDER_IDS,
+  sanitizeEnabledProviders,
+  type Model,
+  type ProviderId,
+} from "~/shared/providers";
+import { migrateProfileForModelRefs } from "./profileMigration";
 import type { Schema } from "electron-store";
 
-export type Model = {
-  id: string;
-  name: string;
-  created: number;
-  /** Explicit source prevents model ids from being used to infer provider routing. */
-  provider?: ProviderId;
-  pricing?: {
-    prompt: string;
-    completion: string;
-    image: string;
-    request: string;
-    input_cache_read: string;
-    input_cache_write: string;
-    web_search: string;
-    internal_reasoning: string;
-  };
-  local?: {
-    path: string;
-    size?: number;
-    parameters?: {
-      temperature?: number;
-      top_p?: number;
-      repeat_penalty?: number;
-      [key: string]: unknown;
-    };
-  };
-};
-
-export const PROVIDER_IDS = ["openai", "openrouter", "ollama"] as const;
-export type ProviderId = (typeof PROVIDER_IDS)[number];
-
-export const isProviderId = (value: unknown): value is ProviderId =>
-  typeof value === "string" && (PROVIDER_IDS as readonly string[]).includes(value);
+// Re-exported for existing importers; `~/shared/providers` is the source of truth.
+export { isModelForProvider, isProviderId, PROVIDER_IDS };
+export type { Model, ProviderId };
 
 export type KeyBindings = {
   promptGen: string; // generate a new prompt based on current selection
@@ -86,8 +62,6 @@ export type Profile = {
   description?: string;
   createdAt: string; // ISO date string
   updatedAt: string; // ISO date string
-  /** Provider selection belongs to the profile, never to a model-id convention. */
-  provider: ProviderId;
   settings: SettingsStore;
 };
 
@@ -97,6 +71,7 @@ export type SettingsStore = {
   apiKey: string;
   models: Model[];
   selectedModel: string;
+  enabledProviders: ProviderId[];
 
   // Feature-specific settings
   settingsCorrect: CorrectionSettings;
@@ -383,8 +358,37 @@ export const normalizeCorrectionSettings = (
   };
 };
 
-const schema = {
+/**
+ * `Schema<T>` types only the TOP-LEVEL keys of `apiStoreSchema`; nested
+ * `properties` blocks are unchecked, so a typo'd nested key (`enabledProvider`)
+ * compiles clean while silently orphaning the field from ajv validation and
+ * defaulting. `TypedSchemaFor` closes that gap. `Model[]` is carved out because
+ * the `models` schema node mirrors a raw provider listing, not the persisted
+ * `Model` shape. `ValueSchema` is derived structurally because
+ * `json-schema-typed` is only a transitive dependency, never a direct one.
+ */
+type ValueSchema = Schema<{ value: unknown }>["value"];
+type ValueSchemaObject = Extract<ValueSchema, object>;
+
+type TypedSchemaFor<T> = T extends Model[]
+  ? ValueSchema
+  : T extends readonly (infer Item)[]
+    ? Omit<ValueSchemaObject, "items" | "default"> & {
+        items?: TypedSchemaFor<Item>;
+        default?: T;
+      }
+    : T extends Record<string, unknown>
+      ? Omit<ValueSchemaObject, "properties" | "required" | "default"> & {
+          properties?: { [K in keyof T]?: TypedSchemaFor<T[K]> };
+          required?: readonly (keyof T & string)[];
+          default?: T;
+        }
+      : ValueSchema;
+
+export const apiStoreSchema = {
   currentProfileId: { type: "string", default: "" },
+  /** Migration marker only — bumped by `migrateStoredProfilesForModelRefs`, never read by feature code. */
+  configVersion: { type: "number", default: 0 },
   profiles: {
     type: "array",
     items: {
@@ -395,15 +399,28 @@ const schema = {
         description: { type: "string" },
         createdAt: { type: "string" },
         updatedAt: { type: "string" },
-        provider: { type: "string", default: "openrouter" },
         settings: {
           type: "object",
           properties: {
+            // Never give this a valued default: ajv's useDefaults injects it into
+            // every profile on read and it lands in plaintext config.json. Secrets
+            // live in safeStorage via profileSecretStore. The "" is load bearing —
+            // the type is a required string and withoutProfileSecrets deletes the
+            // key, so without it a scrubbed profile reads back undefined.
             apiKey: {
               type: "string",
-              default: process.env.OPENAI_API_KEY,
+              default: "",
             },
-            selectedModel: { type: "string", default: DEFAULT_OPENAI_MODEL },
+            // "" means "inherit the global default" (resolved by getDefaultModelId);
+            // anything else is a composite `<providerId>::<rawModelId>` ref.
+            selectedModel: { type: "string", default: "" },
+            /**
+             * NEVER add an ajv `enum` here. `apiStore` is constructed with
+             * `clearInvalidConfig: true`, so one value failing schema validation
+             * wipes the ENTIRE config — every profile, preset, and key reference.
+             * Validity is enforced in code by `sanitizeEnabledProviders`.
+             */
+            enabledProviders: { type: "array", items: { type: "string" }, default: [] },
             models: {
               type: "array",
               items: {
@@ -454,13 +471,13 @@ const schema = {
               properties: {
                 minLength: { type: "number", default: 0 },
                 maxLength: { type: "number", default: 0 },
-                model: { type: "string", default: DEFAULT_OPENAI_MODEL },
+                model: { type: "string", default: "" },
                 targetLanguage: { type: "string", default: DEFAULT_LANGUAGE },
               },
               default: {
                 minLength: 0,
                 maxLength: 0,
-                model: DEFAULT_OPENAI_MODEL,
+                model: "",
                 targetLanguage: DEFAULT_LANGUAGE,
               },
             },
@@ -482,7 +499,7 @@ const schema = {
                 nsfw: true,
                 context: "",
                 autoCopy: false,
-                model: DEFAULT_OPENAI_MODEL,
+                model: "",
               },
             },
           },
@@ -492,14 +509,33 @@ const schema = {
     },
     default: [],
   },
-} satisfies Schema<{ profiles: Profile[]; currentProfileId: string }>;
+} satisfies Schema<{
+  profiles: Profile[];
+  currentProfileId: string;
+  configVersion: number;
+}> & {
+  profiles: TypedSchemaFor<Profile[]>;
+};
 
 export const apiStore = new Store<{ profiles: Profile[] }>({
-  schema,
+  schema: apiStoreSchema,
   encryptionKey: "fixlang-secure-encryption-key",
   clearInvalidConfig: true,
   watch: true,
 });
+
+/**
+ * A type-only re-view of `apiStore` — no new instance, no schema change.
+ * `conf`'s `.get`/`.set` carry a catch-all `string` overload, so a typo'd key
+ * (`"configVresion"`) type-checks even if `configVersion` is added to the store
+ * generic. This narrower view has no such fallback, so tsc rejects the typo.
+ */
+type ConfigVersionShape = { configVersion: number };
+type ConfigVersionStore = {
+  get(key: keyof ConfigVersionShape, defaultValue: number): number;
+  set(key: keyof ConfigVersionShape, value: number): void;
+};
+const configVersionStore = apiStore as unknown as ConfigVersionStore;
 
 export const getOpenAIKey = () => {
   const apiKey = apiStore.get("apiKey");
@@ -510,103 +546,194 @@ export const getOpenAIKey = () => {
 };
 
 /**
- * Resolves the effective global default model id: the user's explicit global
- * selection if set, otherwise the dynamic latest-GPT-mini from the fetched
- * model list (falling back to the const when the list is empty). This is the
- * single source of truth that presets with an empty model inherit.
+ * Resolves the effective global default model ref — the single source of truth
+ * that presets with an empty model inherit.
  */
 export const getDefaultModelId = (): string => {
-  // Model selection is profile-scoped. Keep the top-level value only as a
-  // migration fallback for stores created before profiles existed.
-  const stored = getCurrentProfileSettings().selectedModel ||
-    (apiStore.get("selectedModel") as string | undefined) || "";
-  if (stored) {
-    return stored;
+  const settings = getCurrentProfileSettings();
+  if (settings.selectedModel) {
+    return settings.selectedModel;
   }
-  const models = getCurrentProfileSettings().models ||
-    (apiStore.get("models") as Model[]) || [];
-  return resolveDefaultOpenAIModel(models);
+  const resolved = resolveDefaultModel(settings.models ?? []);
+  return resolved ? modelRefForModel(resolved) : "";
 };
 
-/** Whether a cached model is available from the named provider. */
-export const isModelForProvider = (
-  model: Model,
-  provider: ProviderId,
-): boolean =>
-  provider === "ollama"
-    ? model.provider === "ollama" || model.local !== undefined
-    : model.provider === provider ||
-      (provider === "openrouter" && model.provider === undefined && !model.local);
+/** Which model refs a disconnect reset to the inherit sentinel, for the UI's warning. */
+export type ClearedModelRefs = {
+  selectedModel: boolean;
+  presetIds: string[];
+  features: ("promptGen" | "summarize")[];
+};
+
+const NO_CLEARED_REFS: ClearedModelRefs = {
+  selectedModel: false,
+  presetIds: [],
+  features: [],
+};
+
+// Builds a NEW profiles array: the one `getProfiles()` returns is the store's own
+// value, so an in-place write would mutate state a caller may still be holding.
+const commitProfileAt = (
+  profiles: Profile[],
+  index: number,
+  settings: SettingsStore,
+): Profile => {
+  const updated = {
+    ...profiles[index],
+    updatedAt: new Date().toISOString(),
+    settings,
+  } satisfies Profile;
+  apiStore.set(
+    "profiles",
+    profiles.map((profile, i) => (i === index ? updated : profile)),
+  );
+  return updated;
+};
 
 /**
- * Commit a fully validated provider setup to the active profile. This is the
- * only provider-selection write path: callers validate credentials and the
- * selected model first, then this atomically changes provider, cache, global
- * model, and feature overrides together.
+ * Connect a provider to `profileId`: mark it enabled and replace its model slice.
+ * Must NOT touch `selectedModel` or any preset/feature model — a composite ref
+ * names its own provider, so connecting one provider never invalidates another's.
  */
-export const commitActiveProfileProviderSetup = (
+export const connectProviderToProfile = (
+  profileId: string,
   provider: ProviderId,
-  selectedModel: string,
   providerModels: Model[],
 ): Profile | null => {
-  const profileId = getCurrentProfileId();
   const profiles = getProfiles();
   const index = profiles.findIndex((profile) => profile.id === profileId);
   if (index === -1) return null;
 
-  const previousModels = profiles[index].settings.models || [];
+  const settings = profiles[index].settings;
+  const previousModels = settings.models || [];
+  // `isModelForProvider`, not `model.provider === provider`: an untagged legacy
+  // cache entry would otherwise survive as a duplicate of a model just refetched.
   const retainedModels = previousModels.filter(
     (model) => !isModelForProvider(model, provider),
   );
-  const nextModels = [
-    ...retainedModels,
-    ...providerModels.map((model) => ({ ...model, provider: model.provider ?? provider })),
-  ];
-  const settings = profiles[index].settings;
-  const normalizedCorrect = normalizeCorrectionSettings(settings.settingsCorrect);
-  const updated = {
-    ...profiles[index],
-    provider,
-    updatedAt: new Date().toISOString(),
-    settings: {
-      ...settings,
-      models: nextModels,
-      selectedModel,
-      settingsCorrect: {
-        ...normalizedCorrect,
-        // Provider-specific feature models must not survive a provider switch.
-        presets: normalizedCorrect.presets.map((preset) => ({
-          ...preset,
-          model: INHERIT_GLOBAL_MODEL,
-        })),
-      },
-      settingsPromptGen: {
-        ...settings.settingsPromptGen,
-        model: INHERIT_GLOBAL_MODEL,
-      },
-    },
-  } satisfies Profile;
 
-  profiles[index] = updated;
-  apiStore.set("profiles", profiles);
-  return updated;
+  return commitProfileAt(profiles, index, {
+    ...settings,
+    enabledProviders: sanitizeEnabledProviders([
+      ...(settings.enabledProviders ?? []),
+      provider,
+    ]),
+    models: [
+      ...retainedModels,
+      ...providerModels.map((model) => ({
+        ...model,
+        provider: model.provider ?? provider,
+      })),
+    ],
+  });
 };
 
-const normalizeProfileProvider = (profile: Profile): Profile => ({
-  ...profile,
-  provider: isProviderId(profile.provider) ? profile.provider : "openrouter",
-});
+export const connectProviderToActiveProfile = (
+  provider: ProviderId,
+  providerModels: Model[],
+): Profile | null =>
+  connectProviderToProfile(getCurrentProfileId(), provider, providerModels);
+
+/** True when `ref` explicitly names `provider`. A bare ref never matches. */
+const refBelongsToProvider = (ref: string, provider: ProviderId): boolean =>
+  parseModelRef(ref).provider === provider;
 
 /**
- * Persist the explicit OpenRouter marker for profiles written before provider
- * selection existed. Keeping model ids untouched makes this migration safe.
+ * Disconnect a provider from `profileId`: drop it from `enabledProviders`, drop
+ * its model slice, and reset every ref that named it to the inherit sentinel.
+ * Bare (provider-less) refs are deliberately left alone — clearing them would mean
+ * guessing ownership from the id shape, which composite refs exist to prevent.
+ * Disconnecting an unconnected provider writes nothing.
  */
-export const migrateLegacyProfileProviders = (): void => {
-  const profiles = apiStore.get("profiles", []) as Profile[];
-  const normalized = profiles.map(normalizeProfileProvider);
-  if (profiles.some((profile) => !isProviderId(profile.provider))) {
-    apiStore.set("profiles", normalized);
+export const disconnectProviderFromProfile = (
+  profileId: string,
+  provider: ProviderId,
+): { profile: Profile; cleared: ClearedModelRefs } | null => {
+  const profiles = getProfiles();
+  const index = profiles.findIndex((profile) => profile.id === profileId);
+  if (index === -1) return null;
+
+  const settings = profiles[index].settings;
+  const enabledProviders = sanitizeEnabledProviders(settings.enabledProviders);
+  if (!enabledProviders.includes(provider)) {
+    return { profile: profiles[index], cleared: NO_CLEARED_REFS };
   }
+
+  // Deliberately NOT `normalizeCorrectionSettings` — it materializes missing
+  // built-in presets, so a disconnect would add presets the user never had.
+  const correct = settings.settingsCorrect;
+  const clearedPresetIds: string[] = [];
+  const presets = (correct?.presets ?? []).map((preset) => {
+    if (!refBelongsToProvider(preset.model, provider)) return preset;
+    clearedPresetIds.push(preset.id);
+    return { ...preset, model: INHERIT_GLOBAL_MODEL };
+  });
+
+  const clearedFeatures: ("promptGen" | "summarize")[] = [];
+  const promptGenModel = settings.settingsPromptGen?.model ?? "";
+  const summarizeModel = settings.settingsSummarize?.model ?? "";
+  if (refBelongsToProvider(promptGenModel, provider)) clearedFeatures.push("promptGen");
+  if (refBelongsToProvider(summarizeModel, provider)) clearedFeatures.push("summarize");
+
+  const clearedSelectedModel = refBelongsToProvider(
+    settings.selectedModel ?? "",
+    provider,
+  );
+
+  const profile = commitProfileAt(profiles, index, {
+    ...settings,
+    enabledProviders: enabledProviders.filter((entry) => entry !== provider),
+    models: (settings.models || []).filter(
+      (model) => !isModelForProvider(model, provider),
+    ),
+    selectedModel: clearedSelectedModel
+      ? INHERIT_GLOBAL_MODEL
+      : (settings.selectedModel ?? ""),
+    settingsCorrect: { ...correct, presets },
+    settingsPromptGen: {
+      ...settings.settingsPromptGen,
+      model: clearedFeatures.includes("promptGen")
+        ? INHERIT_GLOBAL_MODEL
+        : promptGenModel,
+    },
+    settingsSummarize: {
+      ...settings.settingsSummarize,
+      model: clearedFeatures.includes("summarize")
+        ? INHERIT_GLOBAL_MODEL
+        : summarizeModel,
+    },
+  });
+
+  return {
+    profile,
+    cleared: {
+      selectedModel: clearedSelectedModel,
+      presetIds: clearedPresetIds,
+      features: clearedFeatures,
+    },
+  };
+};
+
+export const disconnectProviderFromActiveProfile = (
+  provider: ProviderId,
+): { profile: Profile; cleared: ClearedModelRefs } | null =>
+  disconnectProviderFromProfile(getCurrentProfileId(), provider);
+
+/**
+ * One-shot driver for `migrateProfileForModelRefs`, gated by `configVersion`.
+ * Reads the RAW stored `profiles`, never `getProfiles()` — a migration must see
+ * exactly what is on disk, not whatever shape a later helper layers on top.
+ * Idempotence rests on two independent guards: this gate, and
+ * `migrateProfileForModelRefs` being a fixed point on an already-migrated profile.
+ */
+export const migrateStoredProfilesForModelRefs = (): void => {
+  if (configVersionStore.get("configVersion", 0) >= 1) {
+    return;
+  }
+  const raw = apiStore.get("profiles", []) as unknown[];
+  const next = raw.map(migrateProfileForModelRefs);
+  apiStore.set("profiles", next);
+  configVersionStore.set("configVersion", 1);
 };
 
 /**
@@ -627,7 +754,6 @@ export const createProfile = (
     description,
     createdAt: now,
     updatedAt: now,
-    provider: "openrouter",
     // New profiles never inherit another profile's selected model, cached
     // models, or legacy plaintext key. Provider setup is intentionally staged
     // by the Settings flow that follows this state change.
@@ -650,7 +776,7 @@ export const createProfile = (
  * @returns Array of saved profiles
  */
 export const getProfiles = (): Profile[] => {
-  return (apiStore.get("profiles", []) as Profile[]).map(normalizeProfileProvider);
+  return apiStore.get("profiles", []) as Profile[];
 };
 
 /**
@@ -846,6 +972,7 @@ const buildDefaultProfileSettings = (): SettingsStore =>
     apiKey: "",
     models: [],
     selectedModel: "",
+    enabledProviders: [],
     customSystemPrompt: "",
     customUserPrompt: "",
     tone: "",
@@ -868,10 +995,9 @@ const buildDefaultProfileSettings = (): SettingsStore =>
   }) as SettingsStore;
 
 /**
- * Resets the currently active profile's settings to defaults, preserving the
- * API key and the fetched model list. The legacy top-level selected model is
- * cleared so the General selector reverts to the dynamic default.
- * @returns Success status and error message if applicable
+ * Resets the active profile's settings to defaults. Must preserve `apiKey`,
+ * `models` and `enabledProviders` — dropping `enabledProviders` leaves the
+ * Settings page showing Connected provider cards with zero models.
  */
 export const resetCurrentProfileSettings = (): {
   success: boolean;
@@ -899,6 +1025,7 @@ export const resetCurrentProfileSettings = (): {
         ...defaults,
         apiKey: existing.apiKey ?? "",
         models: existing.models ?? [],
+        enabledProviders: existing.enabledProviders ?? [],
       },
     };
     apiStore.set("profiles", profiles);
@@ -921,19 +1048,62 @@ export const resetCurrentProfileSettings = (): {
   }
 };
 
-/** Remove legacy plaintext secrets before profiles cross a process/device boundary. */
+/**
+ * Remove legacy plaintext secrets before a profile crosses a process/device boundary.
+ *
+ * **Must stay secrets-only — do NOT widen it to strip model state.** The
+ * legacy-secret migration in `src/main/ipc/features/profiles.ts` writes this
+ * result straight back to disk, so anything stripped here is permanently deleted
+ * from every upgrading user's config. Wider stripping belongs in
+ * {@link toExportableProfile}.
+ */
 export const withoutProfileSecrets = (profile: Profile): Profile => {
   const settings = { ...profile.settings } as SettingsStore;
   delete (settings as Partial<SettingsStore>).apiKey;
   return {
-    ...normalizeProfileProvider(profile),
+    ...profile,
     settings,
   } as Profile;
 };
 
-/** Treat any imported plaintext key as untrusted legacy data and discard it. */
-export const sanitizeImportedProfile = (profile: Profile): Profile =>
-  withoutProfileSecrets(profile);
+/**
+ * The shape a profile takes when it leaves this machine: secrets plus all
+ * per-machine model state removed. Cleared to empty values rather than deleted so
+ * the result still validates against `apiStoreSchema`. Never call this where
+ * {@link withoutProfileSecrets} is expected — that one is written back to disk.
+ */
+export const toExportableProfile = (profile: Profile): Profile => {
+  const base = withoutProfileSecrets(profile);
+  const settings = base.settings;
+  return {
+    ...base,
+    settings: {
+      ...settings,
+      models: [],
+      selectedModel: INHERIT_GLOBAL_MODEL,
+      enabledProviders: [],
+      // Not normalized: an export must not invent presets the user never had.
+      settingsCorrect: {
+        ...settings.settingsCorrect,
+        presets: (settings.settingsCorrect?.presets ?? []).map((preset) => ({
+          ...preset,
+          model: INHERIT_GLOBAL_MODEL,
+        })),
+      },
+      settingsPromptGen: {
+        ...settings.settingsPromptGen,
+        model: INHERIT_GLOBAL_MODEL,
+      },
+      settingsSummarize: {
+        ...settings.settingsSummarize,
+        model: INHERIT_GLOBAL_MODEL,
+      },
+    },
+  } as Profile;
+};
+
+/** An imported profile is untrusted: its plaintext key and model state both go. */
+export const sanitizeImportedProfile = toExportableProfile;
 
 /**
  * Updates a profile with current settings
@@ -1026,7 +1196,7 @@ export const switchToNextProfile = (): Profile | null => {
  * This should be called when the application starts
  */
 export const initializeDefaultProfile = (): void => {
-  migrateLegacyProfileProviders();
+  migrateStoredProfilesForModelRefs();
   const profiles = getProfiles();
   if (profiles.length === 0) {
     console.log("Creating default profile");

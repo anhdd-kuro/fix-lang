@@ -1,17 +1,19 @@
 /**
  * @file api.test.ts
- * @description Validation unit tests for the staged provider-setup payload
- * parser (`parseProviderSetup`). Pure input-shape rejection tests — no
- * Electron IPC is exercised (`registerApiHandlers` is never called), so every
- * heavy dependency the module imports is mocked at the module boundary.
+ * @description Validation unit tests for the provider-connect payload parser
+ * (`parseProviderConnect`). Pure input-shape rejection tests — no Electron IPC
+ * is exercised (`registerApiHandlers` is never called), so every heavy
+ * dependency the module imports is mocked at the module boundary, except
+ * `~/shared/providers` — a stand-in for `isProviderId` would test the stand-in.
  */
 import { describe, expect, it, vi } from "vitest";
+import { PROVIDER_IDS } from "~/shared/providers";
 vi.mock("electron", () => ({
   ipcMain: { handle: vi.fn(), on: vi.fn() },
 }));
 vi.mock("~/main/ai.request", () => ({
   fetchAvailableModels: vi.fn(),
-  getActiveProvider: vi.fn(),
+  fetchModelsForProviders: vi.fn(),
 }));
 vi.mock("~/main/keybindings", () => ({
   reloadHotkeys: vi.fn(),
@@ -21,6 +23,9 @@ vi.mock("~/main/llm", () => ({
 }));
 vi.mock("~/main/llm/models/compatibility", () => ({
   checkModelCompatibility: vi.fn(),
+}));
+vi.mock("~/main/llm/models/discover", () => ({
+  probeOllama: vi.fn(),
 }));
 vi.mock("~/main/llm/models/recommended", () => ({
   findRecommendedModel: vi.fn(),
@@ -32,93 +37,90 @@ vi.mock("~/stores/apiKeyStore", () => ({
   hasApiKey: vi.fn(),
   setApiKey: vi.fn(),
 }));
-// Only isProviderId needs real-ish behavior — parseProviderSetup's validation
-// depends on it directly. Everything else the module imports is a plain mock.
 vi.mock("~/stores/apiStore", () => ({
-  isProviderId: (value: unknown): boolean =>
-    value === "openai" || value === "openrouter" || value === "ollama",
-  commitActiveProfileProviderSetup: vi.fn(),
+  connectProviderToActiveProfile: vi.fn(),
+  connectProviderToProfile: vi.fn(),
+  disconnectProviderFromActiveProfile: vi.fn(),
+  disconnectProviderFromProfile: vi.fn(),
   getCurrentProfileId: vi.fn(),
   getDefaultModelId: vi.fn(),
   getProfileSetting: vi.fn(),
-  isModelForProvider: vi.fn(),
   resetCurrentProfileSettings: vi.fn(),
   updateProfileSetting: vi.fn(),
+  withoutProfileSecrets: vi.fn((profile: unknown) => profile),
 }));
 vi.mock("~/stores/keybindingStore", () => ({
   keybindingStore: { resetKeyBindings: vi.fn() },
 }));
 vi.mock("~/stores/profileSecretStore", () => ({
+  clearProfileSecret: vi.fn(),
   getProfileSecret: vi.fn(),
   hasProfileSecret: vi.fn(),
+  secretKindsForProvider: vi.fn().mockReturnValue([]),
   setProfileSecret: vi.fn(),
 }));
 // Import (after mocks) — the real function under test.
-import { parseProviderSetup } from "./api";
+import { parseProviderConnect } from "./api";
 
-describe("parseProviderSetup", () => {
-  it("accepts a minimal valid payload", () => {
-    expect(parseProviderSetup({ provider: "openai", modelId: "gpt-4o" })).toEqual({
-      provider: "openai",
-      modelId: "gpt-4o",
-    });
+describe("parseProviderConnect", () => {
+  it("accepts a bare provider — no modelId is required or carried", () => {
+    expect(parseProviderConnect({ provider: "openai" })).toEqual({ provider: "openai" });
   });
 
   it("accepts a full payload with apiKey and provisioningKey", () => {
     expect(
-      parseProviderSetup({
+      parseProviderConnect({
         provider: "openrouter",
-        modelId: "anthropic/claude-3",
         apiKey: "sk-or-abc",
         provisioningKey: "sk-or-prov",
       }),
     ).toEqual({
       provider: "openrouter",
-      modelId: "anthropic/claude-3",
       apiKey: "sk-or-abc",
       provisioningKey: "sk-or-prov",
     });
   });
 
-  it("trims the modelId", () => {
-    expect(parseProviderSetup({ provider: "ollama", modelId: "  llama3  " })).toEqual({
-      provider: "ollama",
-      modelId: "llama3",
-    });
+  it("DROPS a modelId a stale caller still sends", () => {
+    const parsed = parseProviderConnect({ provider: "ollama", modelId: "llama3" });
+
+    expect(parsed).toEqual({ provider: "ollama" });
+    expect(parsed).not.toHaveProperty("modelId");
   });
 
   it("rejects a non-object payload", () => {
-    expect(parseProviderSetup(null)).toBeNull();
-    expect(parseProviderSetup(undefined)).toBeNull();
-    expect(parseProviderSetup("openai")).toBeNull();
-    expect(parseProviderSetup(42)).toBeNull();
+    expect(parseProviderConnect(null)).toBeNull();
+    expect(parseProviderConnect(undefined)).toBeNull();
+    expect(parseProviderConnect("openai")).toBeNull();
+    expect(parseProviderConnect(42)).toBeNull();
   });
 
   it("rejects a bad/unknown provider", () => {
-    expect(parseProviderSetup({ provider: "anthropic", modelId: "gpt-4o" })).toBeNull();
-    expect(parseProviderSetup({ provider: "", modelId: "gpt-4o" })).toBeNull();
-    expect(parseProviderSetup({ modelId: "gpt-4o" })).toBeNull();
+    expect(parseProviderConnect({ provider: "anthropic" })).toBeNull();
+    expect(parseProviderConnect({ provider: "" })).toBeNull();
+    expect(parseProviderConnect({})).toBeNull();
   });
 
-  it("rejects a non-string modelId", () => {
-    expect(parseProviderSetup({ provider: "openai", modelId: 123 })).toBeNull();
-    expect(parseProviderSetup({ provider: "openai", modelId: null })).toBeNull();
-    expect(parseProviderSetup({ provider: "openai" })).toBeNull();
+  it("rejects a provider carried on the prototype rather than the object", () => {
+    expect(parseProviderConnect({ provider: "constructor" })).toBeNull();
+    expect(parseProviderConnect({ provider: "toString" })).toBeNull();
   });
 
   it("rejects a non-string apiKey", () => {
-    expect(
-      parseProviderSetup({ provider: "openai", modelId: "gpt-4o", apiKey: 123 }),
-    ).toBeNull();
+    expect(parseProviderConnect({ provider: "openai", apiKey: 123 })).toBeNull();
+    expect(parseProviderConnect({ provider: "openai", apiKey: null })).toBeNull();
   });
 
   it("rejects a non-string provisioningKey", () => {
     expect(
-      parseProviderSetup({
-        provider: "openrouter",
-        modelId: "gpt-4o",
-        provisioningKey: {},
-      }),
+      parseProviderConnect({ provider: "openrouter", provisioningKey: {} }),
     ).toBeNull();
+  });
+
+  it("accepts every provider id, derived from the registry rather than listed", () => {
+    expect(PROVIDER_IDS.length).toBeGreaterThan(0);
+    for (const provider of PROVIDER_IDS) {
+      expect(parseProviderConnect({ provider })).toEqual({ provider });
+    }
   });
 });

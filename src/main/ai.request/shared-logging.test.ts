@@ -127,7 +127,11 @@ describe("shared AI request logging", () => {
         userPrompt: "Hello",
         model: "openai/missing-model",
       }),
-    ).rejects.toThrow("Model openai/missing-model not found in model registry.");
+      // A BARE id — `/` is an OpenRouter separator, not the `::` ref prefix —
+      // so the message must name no provider.
+    ).rejects.toThrow(
+      'Model "openai/missing-model" is not available from any connected provider',
+    );
 
     expect(notificationShowMock).toHaveBeenCalledOnce();
   });

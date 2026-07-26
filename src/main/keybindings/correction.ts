@@ -55,10 +55,8 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
       });
 
       try {
-        // Read the frontmost app *first*: `showOverlaySpinner` below and the
-        // result window put a FixLang window on screen, after which the same
-        // read reports FixLang and yields null. Best-effort — a null here just
-        // means the transform runs without app context.
+        // Must precede `showOverlaySpinner` below: once a FixLang window is on
+        // screen this read reports FixLang and yields null.
         const activeApp = await getActiveApp();
         const selectedText = await getHighlightedText();
 
@@ -109,10 +107,9 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           presetId: preset.id,
           textLength: selectedText.length,
           model: result.model,
-          provider: result.provider,
+          // `?? null` throughout: `LogValue` has no `undefined` member.
+          provider: result.provider ?? null,
           resolvedModel: result.resolvedModel ?? null,
-          // Null distinguishes "no app context sent" (read failed, or FixLang
-          // itself was frontmost) from a named source app.
           activeApp: activeApp?.name ?? null,
           delivery,
         });
@@ -129,7 +126,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
               promptTokens: result.promptTokens ?? 0,
               completionTokens: result.completionTokens ?? 0,
               provider: result.provider,
-              isLocal: isLocalModelId(servedId),
+              isLocal: isLocalModelId(servedId, result.provider),
             },
             buildPriceMap(getCachedModels()),
           );

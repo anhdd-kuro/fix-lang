@@ -34,9 +34,12 @@ vi.mock("~/stores/apiStore", async (importOriginal) => {
     apiStore: { get: vi.fn().mockReturnValue(undefined), set: vi.fn() },
   };
 });
+// `getActiveProvider` is deliberately absent: the multi-provider refactor
+// deleted it, and `promptgen.ts` no longer imports it. Mocking a symbol the
+// module under test cannot import would only make this file lie about the
+// shape of `./shared`.
 vi.mock("./shared", () => ({
   makeAIRequest: vi.fn(),
-  getActiveProvider: vi.fn().mockReturnValue("openrouter"),
 }));
 // `promptgen` pulls the real `StringPrettifier` from `~/utils`, whose error
 // types reach `errorPopupWindow` → `overlay.html?asset`, which vite cannot

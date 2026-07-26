@@ -10,14 +10,20 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
 import { OpenAI } from "openai";
-import { getLocalModels } from "~/main/llm/models/discover";
+import { mainT } from "~/main/i18n";
+import { getLocalModels, probeOllama } from "~/main/llm/models/discover";
 import { showErrorNotification } from "~/main/notifications/error";
+import { parseModelRef, resolveModelRef } from "~/shared/modelRef";
+import {
+  modelsForProvider,
+  PROVIDER_ORDER,
+  PROVIDER_REQUIRES_API_KEY,
+} from "~/shared/providers";
 import { getApiKey } from "~/stores/apiKeyStore";
 import {
   apiStore,
   getCurrentProfileId,
   getDefaultModelId,
-  getProfileById,
   getProfileSetting,
   isModelForProvider,
   updateProfileSetting,
@@ -30,6 +36,7 @@ import {
   resolveCacheProvider,
 } from "./cache-strategy";
 import { extractResolvedModel } from "./resolve-model";
+import type { TKey } from "~/shared/i18n/translate";
 import type { Model, ProviderId } from "~/stores/apiStore";
 
 type CoreMessage = {
@@ -37,11 +44,11 @@ type CoreMessage = {
   content: unknown;
 };
 
-/** Resolve routing from the current profile, never from a model-id convention. */
-export const getActiveProvider = (): ProviderId => {
-  const profileId = getCurrentProfileId();
-  return profileId ? (getProfileById(profileId)?.provider ?? "openrouter") : "openrouter";
-};
+const PROVIDER_NAME_KEYS = {
+  openai: "models.select.provider.openai",
+  openrouter: "models.select.provider.openrouter",
+  ollama: "models.select.provider.ollama",
+} as const satisfies Record<ProviderId, TKey>;
 
 const isCachedForProvider = isModelForProvider;
 
@@ -128,6 +135,16 @@ const fetchOpenAIModels = async (apiKey: string): Promise<Model[]> => {
   }));
 };
 
+type ProviderFetch = {
+  models: Model[];
+  /**
+   * Writing `[]` is only safe when discovery REACHED the provider: empty then
+   * means the user removed everything. Every other empty result may be a
+   * failure, and must leave the cached slice alone.
+   */
+  emptyMeansRemoved: boolean;
+};
+
 /**
  * Fetch models for exactly one provider. Direct OpenAI models deliberately do
  * not receive OpenRouter price fields, preventing fabricated cost estimates.
@@ -141,12 +158,12 @@ const fetchOpenAIModels = async (apiKey: string): Promise<Model[]> => {
  * failure to request time. Ollama never requires a key, so it always keeps
  * the resilient cache-fallback behavior regardless of `strict`.
  */
-export const fetchAvailableModels = async (
+const fetchProviderModels = async (
   apiKey: string,
-  provider: ProviderId = getActiveProvider(),
-  persistCache = true,
-  strict = false,
-): Promise<Model[]> => {
+  provider: ProviderId,
+  persistCache: boolean,
+  strict: boolean,
+): Promise<ProviderFetch> => {
   const cachedModels = getStoredModels();
   const cachedForProvider = cachedModels.filter((model) =>
     isCachedForProvider(model, provider),
@@ -155,8 +172,17 @@ export const fetchAvailableModels = async (
   try {
     let models: Model[];
     let liveFetch = true;
+    let emptyMeansRemoved = false;
     if (provider === "ollama") {
-      models = (await getLocalModels()).map((model) => ({ ...model, provider: "ollama" }));
+      // `probeOllama`, not `getLocalModels`: the latter answers `[]` for both a
+      // down daemon and a daemon with nothing pulled.
+      const probe = await probeOllama();
+      models = probe.models;
+      liveFetch = probe.reachable;
+      emptyMeansRemoved = probe.reachable;
+      if (!probe.reachable) {
+        console.error("Error fetching ollama models:", probe.error);
+      }
     } else if (!apiKey) {
       console.log(`No ${provider} API key provided; using cached models`);
       models = cachedForProvider;
@@ -172,18 +198,27 @@ export const fetchAvailableModels = async (
       lastLiveFetchAt.set(provider, Date.now());
     }
     const sortedModels = sortModels(models);
-    if (persistCache && sortedModels.length > 0) {
+    if (persistCache && (sortedModels.length > 0 || emptyMeansRemoved)) {
       cacheModelsForProvider(provider, sortedModels);
     }
-    return sortedModels;
+    return { models: sortedModels, emptyMeansRemoved };
   } catch (error) {
     console.error(`Error fetching ${provider} models:`, error);
     if (strict && provider !== "ollama") {
       throw error;
     }
-    return sortModels(cachedForProvider);
+    return { models: sortModels(cachedForProvider), emptyMeansRemoved: false };
   }
 };
+
+/** Model-list-only view of {@link fetchProviderModels}, for callers that persist inline. */
+export const fetchAvailableModels = async (
+  apiKey: string,
+  provider: ProviderId,
+  persistCache = true,
+  strict = false,
+): Promise<Model[]> =>
+  (await fetchProviderModels(apiKey, provider, persistCache, strict)).models;
 
 /**
  * Read the cached `Model[]` (populated by `fetchAvailableModels`). Reused by
@@ -192,6 +227,19 @@ export const fetchAvailableModels = async (
 export const getCachedModels = (provider?: ProviderId): Model[] => {
   const models = getStoredModels();
   return provider ? models.filter((model) => isCachedForProvider(model, provider)) : models;
+};
+
+const readFreshDisplayCache = (provider: ProviderId): Model[] | null => {
+  const lastFetchedAt = lastLiveFetchAt.get(provider);
+  const cachedForProvider = getCachedModels(provider);
+  if (
+    lastFetchedAt !== undefined &&
+    cachedForProvider.length > 0 &&
+    Date.now() - lastFetchedAt < MODEL_DISPLAY_CACHE_TTL_MS
+  ) {
+    return sortModels(cachedForProvider);
+  }
+  return null;
 };
 
 /**
@@ -212,32 +260,114 @@ export const getCachedModels = (provider?: ProviderId): Model[] => {
  */
 export const fetchModelsForDisplay = async (
   apiKey: string,
-  provider: ProviderId = getActiveProvider(),
+  provider: ProviderId,
   refetch = false,
 ): Promise<Model[]> => {
   if (!refetch) {
-    const lastFetchedAt = lastLiveFetchAt.get(provider);
-    const cachedForProvider = getCachedModels(provider);
-    if (
-      lastFetchedAt !== undefined &&
-      cachedForProvider.length > 0 &&
-      Date.now() - lastFetchedAt < MODEL_DISPLAY_CACHE_TTL_MS
-    ) {
-      return sortModels(cachedForProvider);
-    }
+    const cached = readFreshDisplayCache(provider);
+    if (cached) return cached;
   }
   return fetchAvailableModels(apiKey, provider);
 };
 
 /**
- * Decide whether a served model id ran locally (Ollama). Derived from the
- * cached model list WITHOUT touching the request pipeline (#56 HITL #2): a
- * served id is local if a cached `Model` with that id carries the `local` flag.
- * Returns false when the id is unknown (it will then be priced or fall to N/A).
+ * Fetch every enabled provider's models at once, in **exactly one** profile
+ * write.
+ *
+ * `cacheModelsForProvider` is a read-modify-write of the whole profile, so
+ * parallel per-provider persists would silently clobber each other: every
+ * fetch runs `persistCache: false` and the merge below is the only write.
+ * `Promise.allSettled` keeps a rejected provider's previously cached slice,
+ * and key-requiring providers fetch `strict: true` so a revoked key surfaces
+ * in `errors` instead of being masked by the stale cache.
+ *
+ * Ordering is per provider group, never global: Ollama stamps `created` in
+ * milliseconds and the cloud providers in seconds.
  */
-export const isLocalModelId = (servedId: string | undefined): boolean => {
+export const fetchModelsForProviders = async (
+  providers: readonly ProviderId[],
+  keys: Partial<Record<ProviderId, string>>,
+  refetch: boolean,
+): Promise<{ models: Model[]; errors: Partial<Record<ProviderId, string>> }> => {
+  const previousModels = getStoredModels();
+  const requested = PROVIDER_ORDER.filter((provider) => providers.includes(provider));
+
+  const settled = await Promise.allSettled(
+    requested.map(async (provider): Promise<ProviderFetch> => {
+      if (!refetch) {
+        const cached = readFreshDisplayCache(provider);
+        if (cached) return { models: cached, emptyMeansRemoved: false };
+      }
+      return fetchProviderModels(
+        keys[provider] ?? "",
+        provider,
+        false,
+        PROVIDER_REQUIRES_API_KEY[provider],
+      );
+    }),
+  );
+
+  const errors: Partial<Record<ProviderId, string>> = {};
+  const fetchedByProvider = new Map<ProviderId, Model[]>();
+  requested.forEach((provider, index) => {
+    const outcome = settled[index];
+    if (outcome.status === "rejected") {
+      const reason: unknown = outcome.reason;
+      errors[provider] =
+        reason instanceof Error ? reason.message : String(reason);
+      return;
+    }
+    // Empty replaces a slice only when the provider was REACHED and answered
+    // nothing; otherwise a blip would wipe the cache.
+    const { models: fetched, emptyMeansRemoved } = outcome.value;
+    if (fetched.length === 0 && !emptyMeansRemoved) return;
+    fetchedByProvider.set(
+      provider,
+      fetched.map((model) => ({
+        ...model,
+        // Untagged entries format as `openrouter::…` refs — always tag.
+        provider: model.provider ?? provider,
+      })),
+    );
+  });
+
+  const models: Model[] = [];
+  const emitted = new Set<Model>();
+  for (const provider of PROVIDER_ORDER) {
+    const slice =
+      fetchedByProvider.get(provider) ?? modelsForProvider(previousModels, provider);
+    for (const model of slice) {
+      // A legacy untagged entry matches two provider groups; emit it once.
+      if (emitted.has(model)) continue;
+      emitted.add(model);
+      models.push(model);
+    }
+  }
+
+  if (fetchedByProvider.size > 0) {
+    updateProfileSetting("models", models);
+  }
+
+  return { models, errors };
+};
+
+/**
+ * Decide whether a served model id ran locally (Ollama).
+ *
+ * `provider` is authoritative and short-circuits the cache scan: with three
+ * providers in one cache a raw id is ambiguous, and a cloud id can collide
+ * with a pulled local model of the same name. Unknown ids return false, so
+ * they are priced or fall to N/A.
+ */
+export const isLocalModelId = (
+  servedId: string | undefined,
+  provider?: ProviderId,
+): boolean => {
   if (!servedId) {
     return false;
+  }
+  if (provider !== undefined) {
+    return provider === "ollama";
   }
   const models = getCachedModels();
   return models.some((m) => m.id === servedId && m.local !== undefined);
@@ -276,59 +406,48 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
       { role: "user", content: options.userPrompt },
     ] as CoreMessage[]);
 
-  // Get all models from store
-  const models = getStoredModels();
-  const selectedModel = models.find((m) => m.id === modelId);
+  // Routing comes from the model ref, not a profile-wide provider: one profile
+  // can have all three providers connected at once.
+  const resolution = resolveModelRef(modelId, getStoredModels());
 
-  if (!selectedModel) {
-    const error = new Error(`Model ${modelId} not found in model registry.`);
+  if (!resolution) {
+    const parsed = parseModelRef(modelId);
+    const error = new Error(
+      parsed.provider
+        ? mainT("models.error.unresolvable", {
+            model: parsed.modelId,
+            provider: mainT(PROVIDER_NAME_KEYS[parsed.provider]),
+          })
+        : mainT("models.error.unresolvableUnknownProvider", {
+            model: parsed.modelId,
+          }),
+    );
     showErrorNotification(error);
     throw error;
   }
 
-  const provider = getActiveProvider();
-  if (provider === "ollama") {
-    if (!selectedModel.local && selectedModel.provider !== "ollama") {
-      const error = new Error(`Model ${modelId} is not an Ollama model.`);
-      showErrorNotification(error);
-      throw error;
-    }
-    console.log("Routing to local Ollama inference");
-    return makeLocalAIRequest({
-      ...options,
-      model: modelId,
-      messages,
-      temperature,
-      top_p,
-      maxTokens,
-    });
-  }
-
-  if (selectedModel.provider && selectedModel.provider !== provider) {
-    const error = new Error(`Model ${modelId} is not available from ${provider}.`);
-    showErrorNotification(error);
-    throw error;
-  }
-
-  if (provider === "openai") {
-    return makeOpenAIAIRequest({
-      ...options,
-      model: modelId,
-      messages,
-      temperature,
-      top_p,
-      maxTokens,
-    });
-  }
-
-  return makeOpenRouterAIRequest({
+  // The raw id goes downstream, never the ref — that keeps SQLite history
+  // migration-free.
+  const rawModelId = resolution.model.id;
+  const request = {
     ...options,
-    model: modelId,
+    model: rawModelId,
     messages,
     temperature,
     top_p,
     maxTokens,
-  });
+  };
+
+  if (resolution.provider === "ollama") {
+    console.log("Routing to local Ollama inference");
+    return makeLocalAIRequest(request);
+  }
+
+  if (resolution.provider === "openai") {
+    return makeOpenAIAIRequest(request);
+  }
+
+  return makeOpenRouterAIRequest(request);
 };
 
 /**

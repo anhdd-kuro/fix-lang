@@ -48,7 +48,9 @@ export type IntegrityViolation = {
     | "duplicate-key-in-file"
     | "unsorted-keys"
     | "empty-value"
-    | "value-equals-key";
+    | "value-equals-key"
+    | "verbatim-source-value"
+    | "plural-source-incomplete";
   namespace?: string;
   locale?: Locale;
   key?: string;
@@ -501,6 +503,121 @@ export const checkNoEmptyOrSelfReferentialValues = (
 };
 
 /**
+ * Latin-letter word tokens that may legitimately match the source locale
+ * verbatim. A value is exempt from {@link checkNoVerbatimSourceValues} only if
+ * *every* such token in it is listed here, so "FixLang v{version}" passes but
+ * "Temperature Settings" does not. Widen this only for a genuine proper noun —
+ * a real translation gap belongs in {@link KNOWN_PREEXISTING_VERBATIM_GAPS}.
+ */
+export const VERBATIM_ALLOWED_WORDS: ReadonlySet<string> = new Set([
+  // Brand and product names, untranslated in every locale FixLang ships.
+  "OpenAI",
+  "OpenRouter",
+  "Ollama",
+  "FixLang",
+  "PromptGen",
+  // Kept in Latin script by Japanese UI convention (macOS labels its own OK button "OK").
+  "v",
+  "OK",
+]);
+
+/**
+ * Genuine untranslated values predating this rule, listed rather than folded
+ * into {@link VERBATIM_ALLOWED_WORDS} so "legitimate" and "owed a fix" stay
+ * distinct. Remove an entry once its value is actually translated.
+ */
+export const KNOWN_PREEXISTING_VERBATIM_GAPS: ReadonlySet<string> = new Set([
+  // ja ships the literal English "Temperature" while its temperatureDefault
+  // and temperatureHint siblings are translated.
+  "settings.correction.temperature",
+]);
+
+const WORD_TOKEN_PATTERN = /[A-Za-z]+/g;
+
+const withoutPlaceholders = (value: string): string => value.replace(PLACEHOLDER_PATTERN, "");
+
+/**
+ * A value with no Latin letters at all (pure symbols, digits, or interpolation
+ * — "—", "{hour}:00") is vacuously legitimate: there are no words to check.
+ */
+const isLegitimatelyVerbatim = (key: string, value: string): boolean => {
+  if (KNOWN_PREEXISTING_VERBATIM_GAPS.has(key)) {
+    return true;
+  }
+  const words = withoutPlaceholders(value).match(WORD_TOKEN_PATTERN) ?? [];
+  return words.every((word) => VERBATIM_ALLOWED_WORDS.has(word));
+};
+
+/**
+ * A target value byte-identical to its source counterpart is invisible to
+ * every other check here: the others compare keys, placeholder sets, or a
+ * value to its own key — never a value to the source locale's value.
+ * Byte-exact, like every other equality check in this module.
+ */
+export const checkNoVerbatimSourceValues = (
+  source: Catalog,
+  target: Catalog,
+  targetLocale: Locale,
+  namespace?: string,
+): IntegrityViolation[] => {
+  const violations: IntegrityViolation[] = [];
+
+  for (const [key, targetValue] of Object.entries(target)) {
+    const sourceValue = source[key];
+    if (sourceValue === undefined || sourceValue !== targetValue) {
+      continue; // orphan-key territory, or already translated
+    }
+    if (isLegitimatelyVerbatim(key, targetValue)) {
+      continue;
+    }
+    violations.push({
+      rule: "verbatim-source-value",
+      namespace,
+      locale: targetLocale,
+      key,
+      message: `"${key}" in locale "${targetLocale}" is byte-identical to the source value ("${targetValue}") and is not on the exemption list — looks untranslated.`,
+    });
+  }
+
+  return violations;
+};
+
+/**
+ * `checkPluralFamilyResolution` accepts a family's own `_other` as a fallback
+ * for a missing sibling — right for ja, wrong for the source locale, which
+ * must define every category its `Intl.PluralRules` needs or it ships
+ * "1 models". A family with no `_other` at all is invisible here by
+ * construction and is reported by `checkPluralSiblings` instead.
+ */
+export const checkSourceLocalePluralCompleteness = (
+  sourceCatalog: Catalog,
+  sourceLocale: Locale,
+  namespace?: string,
+): IntegrityViolation[] => {
+  const families = derivePluralFamilyBases(sourceCatalog);
+  const neededCategories = pluralCategoriesForLocale(sourceLocale);
+  const violations: IntegrityViolation[] = [];
+
+  for (const base of families) {
+    for (const category of neededCategories) {
+      const memberKey = `${base}_${category}`;
+      if (memberKey in sourceCatalog) {
+        continue;
+      }
+      violations.push({
+        rule: "plural-source-incomplete",
+        namespace,
+        locale: sourceLocale,
+        key: memberKey,
+        message: `Plural family "${base}" in the source locale "${sourceLocale}" has no "${memberKey}" — the source locale must define every CLDR plural category its own Intl.PluralRules requires directly (same-family "_other" fallback is only valid for non-source locales).`,
+      });
+    }
+  }
+
+  return violations;
+};
+
+/**
  * Runs every invariant above across a full set of namespace files and
  * returns the combined violation list. Shared by `catalogIntegrity.test.ts`
  * (asserted empty against the real repo catalogs) and
@@ -548,6 +665,7 @@ export const checkCatalogIntegrity = (
         violations.push(...checkKeyParity(source, target, locale, namespace));
         violations.push(...checkOrphanKeys(source, target, locale, namespace));
         violations.push(...checkPlaceholderParity(source, target, locale, namespace));
+        violations.push(...checkNoVerbatimSourceValues(source, target, locale, namespace));
       }
       violations.push(
         ...checkPluralFamilyResolution(
@@ -558,6 +676,7 @@ export const checkCatalogIntegrity = (
           namespace,
         ),
       );
+      violations.push(...checkSourceLocalePluralCompleteness(source, sourceLocale, namespace));
     }
   }
 

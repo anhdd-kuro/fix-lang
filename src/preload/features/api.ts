@@ -1,34 +1,45 @@
 // API-related preload functionality
 import { ipcRenderer } from "electron";
 import { messageLabel, type Label } from "~/shared/i18n/message";
+// From the shared registry, never a local copy: a hand-written chain would let
+// this boundary silently reject a newly added provider with no type error.
+import { isProviderId } from "~/shared/providers";
 import { asLabel } from "./ipcLabel";
-import type { Model, Profile, ProviderId } from "~/stores/apiStore";
+import type { ProviderStates } from "~/main/ipc/features/api";
+import type { Model, ProviderId } from "~/shared/providers";
+import type { ClearedModelRefs, Profile } from "~/stores/apiStore";
 
-export type ProviderSetupInput = {
+/** No `modelId`: connecting a provider must not seed a default model over the user's existing choice. */
+export type ProviderConnectInput = {
   provider: ProviderId;
-  modelId: string;
   /** Write-only credential; never returned from main. */
   apiKey?: string;
   /** OpenRouter-only write-only credential. */
   provisioningKey?: string;
 };
 
-const isProviderId = (value: unknown): value is ProviderId =>
-  value === "openai" || value === "openrouter" || value === "ollama";
-
-export const isProviderSetupInput = (value: ProviderSetupInput): boolean =>
-  isProviderId(value.provider) &&
-  typeof value.modelId === "string" &&
-  (value.apiKey === undefined || typeof value.apiKey === "string") &&
-  (value.provisioningKey === undefined || typeof value.provisioningKey === "string");
+export const isProviderConnectInput = (value: unknown): value is ProviderConnectInput => {
+  if (typeof value !== "object" || value === null) return false;
+  const input = value as Record<string, unknown>;
+  return (
+    isProviderId(input.provider) &&
+    (input.apiKey === undefined || typeof input.apiKey === "string") &&
+    (input.provisioningKey === undefined || typeof input.provisioningKey === "string")
+  );
+};
 
 /**
  * Exposes API-related functionality to the renderer process
  */
 export const apiFeature = {
-  /** Reads the currently active provider (for provider-label display). */
-  getActiveProvider: (): Promise<ProviderId> =>
-    ipcRenderer.invoke("get-active-provider"),
+  // No `getActiveProvider`: requests route by the composite ref they name.
+
+  /**
+   * SECURITY: booleans and a count only. No channel returns a decrypted key, a
+   * prefix, a suffix, a length or a masked form, and this must never grow one.
+   */
+  getProviderStates: (): Promise<ProviderStates> =>
+    ipcRenderer.invoke("get-provider-states"),
 
   /** Returns masked credential state for one staged provider. */
   getProviderSecretStatus: async (
@@ -45,36 +56,75 @@ export const apiFeature = {
    * persisting the optional typed key.
    */
   fetchProviderModels: async (
-    setup: ProviderSetupInput,
+    setup: ProviderConnectInput,
   ): Promise<{ success: boolean; models?: Model[]; error?: Label }> => {
-    if (!isProviderSetupInput(setup)) {
+    if (!isProviderConnectInput(setup)) {
       return { success: false, error: messageLabel("models.providerSetup.error.invalidSetup") };
     }
     const result = await ipcRenderer.invoke("fetch-provider-models", setup);
     return { ...result, error: asLabel(result?.error) };
   },
 
-  /** Commit a validated provider, default model, cache, and supplied secrets. */
-  applyProviderSetup: async (
-    setup: ProviderSetupInput,
-  ): Promise<{ success: boolean; profile?: Profile; error?: Label }> => {
-    if (!isProviderSetupInput(setup)) {
+  /**
+   * Does **not** set a default model — that is `setSelectedModel`. `note` is
+   * separate from `error`: it carries advice for a connect that did succeed.
+   */
+  connectProvider: async (
+    input: ProviderConnectInput,
+  ): Promise<{
+    success: boolean;
+    profile?: Profile;
+    note?: Label;
+    error?: Label;
+  }> => {
+    if (!isProviderConnectInput(input)) {
       return { success: false, error: messageLabel("models.providerSetup.error.invalidSetup") };
     }
-    const result = await ipcRenderer.invoke("apply-provider-setup", setup);
-    if (result.success) ipcRenderer.send("settings-updated");
-    return { ...result, error: asLabel(result?.error) };
+    const result = await ipcRenderer.invoke("connect-provider", input);
+    if (result?.success) ipcRenderer.send("settings-updated");
+    // SECURITY: explicit fields, never `{ ...result }` — a spread forwards any
+    // field a later handler edit adds, credential material included.
+    return {
+      success: result?.success === true,
+      profile: result?.profile,
+      note: asLabel(result?.note),
+      error: asLabel(result?.error),
+    };
+  },
+
+  /** `cleared` is main's answer verbatim — the confirmation warning renders it. */
+  disconnectProvider: async (
+    provider: ProviderId,
+  ): Promise<{
+    success: boolean;
+    profile?: Profile;
+    cleared?: ClearedModelRefs;
+    error?: Label;
+  }> => {
+    if (!isProviderId(provider)) {
+      return { success: false, error: messageLabel("models.providerSetup.error.invalidSetup") };
+    }
+    const result = await ipcRenderer.invoke("disconnect-provider", provider);
+    if (result?.success) ipcRenderer.send("settings-updated");
+    // Explicit fields, same reason as `connectProvider` above.
+    return {
+      success: result?.success === true,
+      profile: result?.profile,
+      cleared: result?.cleared,
+      error: asLabel(result?.error),
+    };
   },
 
   /**
-   * Fetches the list of available OpenAI models using the stored API key.
-   * @returns A promise resolving to { success: boolean, models?: Model[], error?: Label }
+   * `errors` is per provider — callers must read it rather than treating
+   * `success: true` as "everything refreshed".
    */
   fetchAIModels: async (
     refetch?: boolean
   ): Promise<{
     success: boolean;
     models?: Model[];
+    errors?: Partial<Record<ProviderId, string>>;
     error?: Label;
   }> => {
     const result = await ipcRenderer.invoke("fetch-ai-models", refetch);
@@ -82,13 +132,19 @@ export const apiFeature = {
   },
 
   /**
-   * Sets the selected OpenAI model for future requests
+   * Pass `""` to inherit the dynamic default. Main stores the canonical
+   * composite ref, not the raw input.
    */
   setSelectedModel: async (
     modelId: string,
   ): Promise<{ success: boolean; error?: Label }> => {
+    if (typeof modelId !== "string") {
+      return { success: false, error: messageLabel("models.select.error.modelNotAvailableForProvider") };
+    }
     const result = await ipcRenderer.invoke("set-selected-model", modelId);
-    ipcRenderer.send("settings-updated");
+    // Gated on success: `settings-updated` triggers a network fan-out across
+    // every connected provider, which a rejected ref must not pay for.
+    if (result?.success) ipcRenderer.send("settings-updated");
     return { ...result, error: asLabel(result?.error) };
   },
 

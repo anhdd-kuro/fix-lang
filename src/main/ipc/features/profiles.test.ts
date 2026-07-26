@@ -9,7 +9,7 @@
  *
  * This captures the real handlers registered by `registerProfileHandlers`
  * (via a stub `ipcMain.handle`) and invokes them directly, mirroring
- * `applyProviderSetup.test.ts`'s approach for `api.ts`. Expected copy is
+ * `connectProvider.test.ts`'s approach for `api.ts`. Expected copy is
  * derived through the real translator kernel (`createTranslator`) — never
  * hand-restated — so a catalog reword can't silently break this file, and an
  * English-fallback regression still fails a test that asserts the JA text.
@@ -82,7 +82,10 @@ const {
   getProfileByIdMock,
   initializeDefaultProfileMock,
   withoutProfileSecretsMock,
+  toExportableProfileMock,
   sanitizeImportedProfileMock,
+  apiStoreSetMock,
+  apiStoreGetMock,
 } = vi.hoisted(() => ({
   getProfilesMock: vi.fn(),
   getCurrentProfileIdMock: vi.fn(),
@@ -94,7 +97,10 @@ const {
   getProfileByIdMock: vi.fn(),
   initializeDefaultProfileMock: vi.fn(),
   withoutProfileSecretsMock: vi.fn((profile: unknown) => profile),
+  toExportableProfileMock: vi.fn((profile: unknown) => profile),
   sanitizeImportedProfileMock: vi.fn((profile: unknown) => profile),
+  apiStoreSetMock: vi.fn(),
+  apiStoreGetMock: vi.fn().mockReturnValue([]),
 }));
 
 vi.mock("~/stores/apiStore", () => ({
@@ -107,8 +113,9 @@ vi.mock("~/stores/apiStore", () => ({
   switchToNextProfile: switchToNextProfileMock,
   getProfileById: getProfileByIdMock,
   initializeDefaultProfile: initializeDefaultProfileMock,
-  apiStore: { get: vi.fn().mockReturnValue([]), set: vi.fn() },
+  apiStore: { get: apiStoreGetMock, set: apiStoreSetMock, delete: vi.fn() },
   withoutProfileSecrets: withoutProfileSecretsMock,
+  toExportableProfile: toExportableProfileMock,
   sanitizeImportedProfile: sanitizeImportedProfileMock,
 }));
 
@@ -119,6 +126,13 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
     onHandlers.clear();
     getProfilesMock.mockReturnValue([]);
     getCurrentProfileIdMock.mockReturnValue("profile_1");
+    // vi.clearAllMocks() clears calls but NOT return values or
+    // implementations, so leaked ones would decide later tests — and a leaked
+    // profile makes the fire-and-forget legacy migration reject unhandled.
+    getProfileByIdMock.mockReturnValue(undefined);
+    withoutProfileSecretsMock.mockImplementation((profile: unknown) => profile);
+    toExportableProfileMock.mockImplementation((profile: unknown) => profile);
+    sanitizeImportedProfileMock.mockImplementation((profile: unknown) => profile);
     registerProfileHandlers();
   });
 
@@ -153,6 +167,78 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
     expect(en).toBe(tEn("common.error.profileNotFound"));
     expect(ja).toBe(tJa("common.error.profileNotFound"));
     expect(ja).not.toBe(en);
+  });
+
+  // The two strippers are not interchangeable: `withoutProfileSecrets` is
+  // written back to disk by the legacy migration, so widening it to also drop
+  // model state would wipe an upgrading user's cache on first launch.
+  it("export-profile serialises toExportableProfile, not the disk-writeback stripper", async () => {
+    // `settings` is required: the fire-and-forget legacy migration
+    // dereferences `profile.settings.apiKey` and would reject unhandled.
+    const storedProfile = { id: "profile_1", name: "Work", settings: { apiKey: "" } };
+    getProfileByIdMock.mockReturnValue(storedProfile);
+    toExportableProfileMock.mockReturnValue({ id: "profile_1", strippedBy: "toExportableProfile" });
+    withoutProfileSecretsMock.mockReturnValue({
+      id: "profile_1",
+      strippedBy: "withoutProfileSecrets",
+    });
+
+    const handler = handlers.get("export-profile");
+    const result = (await handler?.(undefined, { profileId: "profile_1" })) as {
+      success: boolean;
+      profileJson?: string;
+    };
+
+    expect(result.success).toBe(true);
+    expect(JSON.parse(result.profileJson ?? "{}")).toEqual({
+      id: "profile_1",
+      strippedBy: "toExportableProfile",
+    });
+    expect(toExportableProfileMock).toHaveBeenCalledWith(storedProfile);
+    expect(withoutProfileSecretsMock).not.toHaveBeenCalled();
+  });
+
+  it("legacy-secret migration writes back withoutProfileSecrets, preserving the model cache", async () => {
+    const storedProfile = {
+      id: "profile_1",
+      name: "Work",
+      settings: {
+        apiKey: "legacy-plaintext-key",
+        models: [{ id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" }],
+        selectedModel: "openai::gpt-4o",
+        enabledProviders: ["openai", "openrouter"],
+        settingsCorrect: { presets: [{ id: "correct", model: "openai::gpt-4o" }] },
+      },
+    };
+    getProfileByIdMock.mockReturnValue(storedProfile);
+    getProfilesMock.mockReturnValue([storedProfile]);
+    // Mirrors the real narrow helper: secrets out, everything else untouched.
+    withoutProfileSecretsMock.mockImplementation((profile: unknown) => {
+      const { settings, ...rest } = profile as { settings: Record<string, unknown> };
+      const { apiKey: _apiKey, ...restSettings } = settings;
+      return { ...rest, settings: restSettings };
+    });
+
+    // registerProfileHandlers fires `void migrateLegacySecretsToActiveProfile()`.
+    registerProfileHandlers();
+    await vi.waitFor(() => {
+      expect(apiStoreSetMock).toHaveBeenCalled();
+    });
+
+    expect(withoutProfileSecretsMock).toHaveBeenCalledWith(storedProfile);
+    // The wide stripper must never appear on the disk-writeback path.
+    expect(toExportableProfileMock).not.toHaveBeenCalled();
+
+    const [key, written] = apiStoreSetMock.mock.calls.at(-1) as [string, unknown[]];
+    expect(key).toBe("profiles");
+    const writtenProfile = written[0] as { settings: Record<string, unknown> };
+    expect(writtenProfile.settings.apiKey).toBeUndefined();
+    expect(writtenProfile.settings.models).toEqual(storedProfile.settings.models);
+    expect(writtenProfile.settings.selectedModel).toBe("openai::gpt-4o");
+    expect(writtenProfile.settings.enabledProviders).toEqual(["openai", "openrouter"]);
+    expect(writtenProfile.settings.settingsCorrect).toEqual(
+      storedProfile.settings.settingsCorrect,
+    );
   });
 
   it("switch-to-next-profile: 'No profiles available' resolves to different EN/JA text via the catalog", async () => {

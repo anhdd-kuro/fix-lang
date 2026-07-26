@@ -36,6 +36,8 @@ vi.mock("~/stores/apiStore", async (importOriginal) => {
     ...real,
     // Override only getProfileSetting; keep normalizeCorrectionSettings real
     getProfileSetting: vi.fn(),
+    // Mocked too: the real one reads the live profile through electron-store.
+    getDefaultModelId: vi.fn().mockReturnValue(""),
     // apiStore mock (prevent electron-store calls)
     apiStore: {
       get: vi.fn().mockReturnValue(undefined),
@@ -45,15 +47,19 @@ vi.mock("~/stores/apiStore", async (importOriginal) => {
 });
 vi.mock("./shared", () => ({
   makeAIRequest: vi.fn(),
-  getActiveProvider: vi.fn().mockReturnValue("openrouter"),
 }));
 // ---------------------------------------------------------------------------
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
-import { getProfileSetting, normalizeCorrectionSettings } from "~/stores/apiStore";
+import { DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID } from "~/prompts";
+import {
+  getDefaultModelId,
+  getProfileSetting,
+  normalizeCorrectionSettings,
+} from "~/stores/apiStore";
 import { estimateTextTokens } from "~/stores/historyStore";
 import { fixGrammar } from "./correction";
-import { getActiveProvider, makeAIRequest } from "./shared";
+import { makeAIRequest } from "./shared";
 import type { Mock } from "vitest";
 import type { CorrectionPreset, CorrectionSettings } from "~/stores/apiStore";
 
@@ -175,20 +181,65 @@ describe("fixGrammar — per-preset temperature and maxTokens", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Tests: fixGrammar empty-input early return reports the real active
-// provider (L1 fix) instead of a hardcoded "openrouter".
-// ---------------------------------------------------------------------------
+describe("fixGrammar — prompt-optimization target model id", () => {
+  const PROMPT_OPTIMIZATION_REF = "openrouter::google/gemma-2-9b-it";
+  const PROMPT_OPTIMIZATION_RAW_ID = "google/gemma-2-9b-it";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupMockSettings(
+      makePreset({
+        id: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+        model: PROMPT_OPTIMIZATION_REF,
+      }),
+    );
+  });
+
+  it("names the RAW model id in the user prompt, never the composite ref", async () => {
+    await fixGrammar("draft prompt");
+
+    const { userPrompt } = (makeAIRequest as Mock).mock.calls[0][0];
+    expect(userPrompt).toContain(
+      `- The selected target model ID is: ${PROMPT_OPTIMIZATION_RAW_ID}.`,
+    );
+    expect(userPrompt).not.toContain("openrouter::");
+  });
+
+  it("still routes on the composite ref", async () => {
+    await fixGrammar("draft prompt");
+
+    const { model } = (makeAIRequest as Mock).mock.calls[0][0];
+    expect(model).toBe(PROMPT_OPTIMIZATION_REF);
+  });
+
+  it("names the inherited default's raw id when the preset inherits", async () => {
+    setupMockSettings(
+      makePreset({ id: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID, model: "" }),
+    );
+    (getDefaultModelId as Mock).mockReturnValue("ollama::llama3.2:3b");
+
+    await fixGrammar("draft prompt");
+
+    const { userPrompt, model } = (makeAIRequest as Mock).mock.calls[0][0];
+    expect(userPrompt).toContain("- The selected target model ID is: llama3.2:3b.");
+    expect(userPrompt).not.toContain("ollama::");
+    expect(model).toBe("ollama::llama3.2:3b");
+  });
+});
 
 describe("fixGrammar — empty input early return", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    const preset = makePreset();
-    (getProfileSetting as Mock).mockReturnValue(makeSettings(preset));
+    (getProfileSetting as Mock).mockReturnValue(makeSettings(makePreset()));
+    (getDefaultModelId as Mock).mockReturnValue("");
   });
 
-  it("reports the active provider instead of a hardcoded value", async () => {
-    (getActiveProvider as Mock).mockReturnValue("openai");
+  const withPresetModel = (model: string) => {
+    (getProfileSetting as Mock).mockReturnValue(makeSettings(makePreset({ model })));
+  };
+
+  it("reports the provider named by the preset's model ref", async () => {
+    withPresetModel("openai::gpt-4o");
 
     const result = await fixGrammar("   ");
 
@@ -196,12 +247,70 @@ describe("fixGrammar — empty input early return", () => {
     expect(makeAIRequest).not.toHaveBeenCalled();
   });
 
-  it("reflects a different active provider (ollama) too", async () => {
-    (getActiveProvider as Mock).mockReturnValue("ollama");
+  it("reports a different provider when the ref names one — ollama", async () => {
+    withPresetModel("ollama::llama3.2:3b");
 
     const result = await fixGrammar("");
 
     expect(result.provider).toBe("ollama");
+  });
+
+  it("reports the RAW model id, never the composite ref", async () => {
+    // Raw, like `makeAIRequest`, so history rows need no migration — and the
+    // tag's own ":" must survive the split.
+    withPresetModel("ollama::llama3.2:3b");
+
+    const result = await fixGrammar("");
+
+    expect(result.model).toBe("llama3.2:3b");
+    expect(result.resolvedModel).toBe("llama3.2:3b");
+  });
+
+  it("falls back to the inherited global default when the preset inherits", async () => {
+    withPresetModel("");
+    (getDefaultModelId as Mock).mockReturnValue("openrouter::openai/gpt-4o");
+
+    const result = await fixGrammar("");
+
+    expect(result.provider).toBe("openrouter");
+    expect(result.model).toBe("openai/gpt-4o");
+  });
+
+  it("invents nothing when getDefaultModelId() is the inherit sentinel", async () => {
+    withPresetModel("");
+    (getDefaultModelId as Mock).mockReturnValue("");
+
+    const result = await fixGrammar("   ");
+
+    expect(result.provider).toBeUndefined();
+    expect(result.model).toBe("");
+    expect(result.resolvedModel).toBe("");
+    expect(makeAIRequest).not.toHaveBeenCalled();
+  });
+
+  it("reports no provider for a bare (un-migrated) model id", async () => {
+    // This branch has no model cache to resolve a bare id against, and a
+    // guessed provider is silently written into history and priced.
+    withPresetModel("gpt-4o");
+
+    const result = await fixGrammar("");
+
+    expect(result.provider).toBeUndefined();
+    expect(result.model).toBe("gpt-4o");
+  });
+
+  it("still returns the preset identity and zeroed usage", async () => {
+    withPresetModel("openai::gpt-4o");
+
+    const result = await fixGrammar("  \n ");
+
+    expect(result).toMatchObject({
+      correctedText: "  \n ",
+      promptTokens: 0,
+      completionTokens: 0,
+      presetId: "test-preset-1",
+      presetName: "Test Preset",
+    });
   });
 });
 

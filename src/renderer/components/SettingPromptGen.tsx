@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { DEFAULT_OPENAI_MODEL } from "~/const";
 import { messageLabel } from "~/shared/i18n/message";
 import { Checkbox } from "./Checkbox";
 import { HotkeyInput } from "./HotkeyInput";
@@ -18,7 +17,8 @@ const defaultSettings = {
   batchCount: 5,
   nsfw: true,
   context: "",
-  model: DEFAULT_OPENAI_MODEL,
+  // `""` inherits the profile default rather than pinning a hardcoded id.
+  model: "",
   autoCopy: false,
 };
 

@@ -23,11 +23,13 @@ import {
   checkKeysSorted,
   checkNoDuplicateKeysInFile,
   checkNoEmptyOrSelfReferentialValues,
+  checkNoVerbatimSourceValues,
   checkOrphanKeys,
   checkPlaceholderParity,
   checkPluralFamilyResolution,
   checkPluralSiblings,
   checkPluralSuffixHygiene,
+  checkSourceLocalePluralCompleteness,
   derivePluralFamilyBases,
   extractRawKeysInOrder,
   type NamespaceRaw,
@@ -309,6 +311,86 @@ describe("checkNoEmptyOrSelfReferentialValues", () => {
   });
 });
 
+describe("checkNoVerbatimSourceValues", () => {
+  it("flags a ja value byte-identical to its en counterpart (settings.general.providers.title left as the literal English 'Providers')", () => {
+    const source: Catalog = { "settings.general.providers.title": "Providers" };
+    const target: Catalog = { "settings.general.providers.title": "Providers" };
+    const violations = checkNoVerbatimSourceValues(source, target, "ja");
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({
+      rule: "verbatim-source-value",
+      key: "settings.general.providers.title",
+    });
+  });
+
+  it("does not flag when the translated value genuinely differs", () => {
+    const source: Catalog = { "common.save": "Save" };
+    const target: Catalog = { "common.save": "保存" };
+    expect(checkNoVerbatimSourceValues(source, target, "ja")).toEqual([]);
+  });
+
+  it("does not flag a key with no source counterpart (orphan-key territory, reported by checkOrphanKeys instead)", () => {
+    const source: Catalog = {};
+    const target: Catalog = { "ja.only": "同じ" };
+    expect(checkNoVerbatimSourceValues(source, target, "ja")).toEqual([]);
+  });
+
+  it("exempts a brand name identical in both locales (OpenAI is never translated)", () => {
+    const source: Catalog = { "models.select.provider.openai": "OpenAI" };
+    const target: Catalog = { "models.select.provider.openai": "OpenAI" };
+    expect(checkNoVerbatimSourceValues(source, target, "ja")).toEqual([]);
+  });
+
+  it("exempts a value that is pure interpolation/symbols with no Latin letters once placeholders are stripped", () => {
+    const source: Catalog = { "overview.value.hour": "{hour}:00", "overview.value.empty": "—" };
+    const target: Catalog = { "overview.value.hour": "{hour}:00", "overview.value.empty": "—" };
+    expect(checkNoVerbatimSourceValues(source, target, "ja")).toEqual([]);
+  });
+
+  it("does NOT exempt a real English word merely because it is short or single-word (proves the rule is not neutered into uselessness)", () => {
+    const source: Catalog = { "settings.general.providers.card.count": "Count" };
+    const target: Catalog = { "settings.general.providers.card.count": "Count" };
+    const violations = checkNoVerbatimSourceValues(source, target, "ja");
+    expect(violations).toHaveLength(1);
+  });
+});
+
+describe("checkSourceLocalePluralCompleteness", () => {
+  it("flags an EN plural family missing _one while _other survives (modelCount_one deleted from en/settings.json)", () => {
+    const catalog: Catalog = { "modelCount_other": "{count} models" };
+    const violations = checkSourceLocalePluralCompleteness(catalog, "en");
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({
+      rule: "plural-source-incomplete",
+      key: "modelCount_one",
+      locale: "en",
+    });
+  });
+
+  it("passes when the source locale defines every category it needs", () => {
+    const catalog: Catalog = { "modelCount_one": "{count} model", "modelCount_other": "{count} models" };
+    expect(checkSourceLocalePluralCompleteness(catalog, "en")).toEqual([]);
+  });
+
+  it("is a no-op for a locale whose Intl.PluralRules category set is only ['other'] — the ja _other-only convention stays untouched", () => {
+    const catalog: Catalog = { "modelCount_other": "{count} 件のモデル" };
+    expect(checkSourceLocalePluralCompleteness(catalog, "ja")).toEqual([]);
+  });
+
+  it("does not flag a family with no _other member at all — derivePluralFamilyBases never recognizes it as a family, so it is invisible to this function by construction; checkPluralSiblings already reports that case and this function must not regress it", () => {
+    const catalog: Catalog = { "modelCount_one": "{count} model" }; // no modelCount_other
+    expect(checkSourceLocalePluralCompleteness(catalog, "en")).toEqual([]);
+    expect(checkPluralSiblings(catalog, "en")).toHaveLength(1);
+  });
+
+  it("requires categories derived from Intl.PluralRules rather than a hardcoded ['one','other'] literal — proven by requiring a category no literal would guess", () => {
+    // Polish is not a registered locale, but pluralCategoriesForLocale passes
+    // its intlTag straight to Intl, so this exercises the same primitive.
+    const polishCategories = new Intl.PluralRules("pl-PL").resolvedOptions().pluralCategories;
+    expect(polishCategories.length).toBeGreaterThan(2);
+  });
+});
+
 describe("checkCatalogIntegrity (orchestrator, synthetic fixtures)", () => {
   it("reports violations from a deliberately broken two-namespace, two-locale fixture", () => {
     const namespaces: NamespaceRaw[] = [
@@ -335,6 +417,34 @@ describe("checkCatalogIntegrity (orchestrator, synthetic fixtures)", () => {
     expect(rules.has("orphan-key")).toBe(true); // alpha.orphan
     expect(rules.has("duplicate-key-global")).toBe(true); // alpha.dup
     expect(rules.has("unsorted-keys")).toBe(true); // beta.json: b before a
+  });
+
+  it("wires checkNoVerbatimSourceValues into the orchestrator — a ja value verbatim-copied from en is reported end-to-end", () => {
+    const namespaces: NamespaceRaw[] = [
+      {
+        namespace: "alpha",
+        rawByLocale: {
+          en: JSON.stringify({ "alpha.title": "Providers" }),
+          ja: JSON.stringify({ "alpha.title": "Providers" }), // untranslated copy-paste
+        },
+      },
+    ];
+    const violations = checkCatalogIntegrity(namespaces, ["en", "ja"], "en");
+    expect(violations.some((v) => v.rule === "verbatim-source-value")).toBe(true);
+  });
+
+  it("wires checkSourceLocalePluralCompleteness into the orchestrator — en missing _one for a family that still has _other is reported end-to-end", () => {
+    const namespaces: NamespaceRaw[] = [
+      {
+        namespace: "alpha",
+        rawByLocale: {
+          en: JSON.stringify({ "alpha.modelCount_other": "{count} models" }), // _one deleted
+          ja: JSON.stringify({ "alpha.modelCount_other": "{count} 件のモデル" }),
+        },
+      },
+    ];
+    const violations = checkCatalogIntegrity(namespaces, ["en", "ja"], "en");
+    expect(violations.some((v) => v.rule === "plural-source-incomplete")).toBe(true);
   });
 
   it("reports nothing for a clean fixture", () => {

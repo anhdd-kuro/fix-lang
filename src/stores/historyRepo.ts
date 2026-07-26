@@ -10,6 +10,7 @@
  * `DatabaseSync` (node:sqlite) is synchronous; that is acceptable here because
  * the IPC handlers already wrap these calls and the work is local and fast.
  */
+import { isProviderId } from "~/shared/providers";
 import { mergeLegacyHistoryEntries } from "./historyTypes";
 import type {
   HistoryEntry,
@@ -109,7 +110,9 @@ export const rowToEntry = (row: HistoryRow): HistoryEntry => {
   if (row.model !== null) {
     entry.model = row.model;
   }
-  if (row.provider === "openai" || row.provider === "openrouter" || row.provider === "ollama") {
+  // Never inline this as a literal union: it type-checks fine while silently
+  // dropping the provider off every row of a newly added provider.
+  if (isProviderId(row.provider)) {
     entry.provider = row.provider;
   }
   if (row.resolved_model !== null) {

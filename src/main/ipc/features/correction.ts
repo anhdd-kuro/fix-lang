@@ -10,6 +10,7 @@ import {
   updateProfileSetting,
 } from "~/stores/apiStore";
 import { fixGrammar } from "../../ai.request/correction";
+import type { ProviderId } from "~/shared/providers";
 
 /**
  * Registers correction-related IPC handlers
@@ -92,7 +93,9 @@ export const registerCorrectionHandlers = () => {
       promptTokens?: number;
       completionTokens?: number;
       model?: string;
-      provider?: "openai" | "openrouter" | "ollama";
+      // `ProviderId`, not a hand-written union: a fourth provider would be
+      // dropped from every `fix-grammar` result with no type error anywhere.
+      provider?: ProviderId;
       resolvedModel?: string;
       presetId?: string;
       presetName?: string;

@@ -177,6 +177,13 @@ const activeProfileId = async (): Promise<string | null> => {
   return getCurrentProfileId() || null;
 };
 
+/*
+ * The hardcoded "openrouter" below is deliberate: only OpenRouter has a
+ * provisioning key, so `getProfileSecretPath` throws for any other provider
+ * paired with `"provisioning"`. Multi-provider callers want
+ * `getActiveProfileSecret(provider, kind)` in `./profileSecretStore`.
+ */
+
 export const setProvisioningKey = async (
   raw: string,
 ): Promise<SecretWriteResult> => {

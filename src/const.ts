@@ -1,13 +1,21 @@
-import type { Model } from "openai/resources.mjs";
+import type { Model as OpenAIModel } from "openai/resources.mjs";
+import type { Model } from "~/shared/providers";
 import type { KeyBindings } from "~/stores/apiStore";
 
 /**
- * Default OpenAI model to use for text fixing.
+ * Default OpenAI model id. No longer a runtime default resolved from a live
+ * fetch (see `resolveDefaultModel` below) — `profileMigration.ts` never
+ * imports this constant; it prefixes bare legacy model ids with a
+ * **provider id** (e.g. `"openai"`), not with this model id. What actually
+ * still uses it: the empty-list fallback inside the legacy
+ * `resolveDefaultOpenAIModel` delegate, and two UI-facing placeholders —
+ * `correction.ts`'s empty-text early return, and `ModelSelect.tsx`'s
+ * "couldn't resolve a default" fallback.
  *
  * @see https://platform.openai.com/docs/pricing
  * @see https://platform.openai.com/docs/models
  */
-export const DEFAULT_OPENAI_MODEL = "openai/gpt-4.1-mini" satisfies Model["id"];
+export const DEFAULT_OPENAI_MODEL = "openai/gpt-4.1-mini" satisfies OpenAIModel["id"];
 
 /**
  * Normalize a string for flexible matching: lowercase + strip every
@@ -22,27 +30,48 @@ export const normalizeForSearch = (value: string): string =>
 type ModelLike = { id: string; created?: number };
 
 /**
- * Resolve the default OpenAI model dynamically from the fetched model list.
- *
- * Picks the newest model whose id contains both "gpt" and "mini"
- * (e.g. the latest GPT mini), falling back to the first available model,
- * and finally to {@link DEFAULT_OPENAI_MODEL} when the list is empty.
+ * Shared implementation for both exports below: the newest entry whose id
+ * contains both "gpt" and "mini" (e.g. the latest GPT mini), falling back to
+ * the first available entry, and to `null` — not a guessed id — when the
+ * list is empty. Generic over `ModelLike` so `resolveDefaultOpenAIModel` can
+ * call it with a bare `{id, created?}` list without a cast to `Model[]`: a
+ * cast there would silently assert the `name`/non-optional `created` fields
+ * `Model` requires but `ModelLike` doesn't guarantee — nothing here
+ * reads either, so there is nothing to assert.
  */
-export const resolveDefaultOpenAIModel = (models: ModelLike[]): string => {
+const resolveNewestGptMini = <T extends ModelLike>(models: readonly T[]): T | null => {
   const gptMinis = models.filter((model) => {
     const id = normalizeForSearch(model.id);
     return id.includes("gpt") && id.includes("mini");
   });
 
   if (gptMinis.length > 0) {
-    const latest = gptMinis.reduce((newest, model) =>
+    return gptMinis.reduce((newest, model) =>
       (model.created ?? 0) > (newest.created ?? 0) ? model : newest,
     );
-    return latest.id;
   }
 
-  return models[0]?.id ?? DEFAULT_OPENAI_MODEL;
+  return models[0] ?? null;
 };
+
+/**
+ * Resolve the default model dynamically from a fetched (provider-agnostic)
+ * model list. Callers turn the result into a composite ref via
+ * `modelRefForModel` (see `getDefaultModelId` in `apiStore.ts`); this
+ * function has no opinion about provider prefixing.
+ */
+export const resolveDefaultModel = (models: readonly Model[]): Model | null =>
+  resolveNewestGptMini(models);
+
+/**
+ * Legacy string-id delegate kept for callers that still want a bare id
+ * rather than a `Model` (e.g. the General tab's staged fetch). Thin wrapper
+ * over the same resolution logic as `resolveDefaultModel`; falls back to
+ * `DEFAULT_OPENAI_MODEL` only when the list is empty, matching the
+ * pre-refactor behavior byte-for-byte.
+ */
+export const resolveDefaultOpenAIModel = (models: ModelLike[]): string =>
+  resolveNewestGptMini(models)?.id ?? DEFAULT_OPENAI_MODEL;
 
 export const DEFAULT_LANGUAGE = "English" as const;
 

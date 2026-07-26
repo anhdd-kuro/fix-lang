@@ -1,8 +1,8 @@
-import { DEFAULT_OPENAI_MODEL } from "~/const";
 import {
   DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
   DEFAULT_SUMMARIZE_PRESET_ID,
 } from "~/prompts";
+import { parseModelRef, stripModelRefPrefix } from "~/shared/modelRef";
 import {
   getDefaultModelId,
   getProfileSetting,
@@ -10,7 +10,7 @@ import {
   type ProviderId,
 } from "~/stores/apiStore";
 import { estimateTextTokens } from "~/stores/historyStore";
-import { getActiveProvider, makeAIRequest } from "./shared";
+import { makeAIRequest } from "./shared";
 import { withActiveAppContext } from "./transform-context";
 import type { TransformContext } from "./transform-context";
 
@@ -19,12 +19,20 @@ type CorrectionResult = {
   promptTokens: number;
   completionTokens: number;
   model: string;
-  provider: ProviderId;
+  /**
+   * Provider that served the request. Optional because a bare or absent model
+   * ref names no provider, and reporting `undefined` beats inventing one.
+   */
+  provider?: ProviderId;
   /** Concrete model the provider served (resolves alias indirection) */
   resolvedModel: string;
   presetId: string;
   presetName: string;
 };
+
+/** A preset's pinned model, or the profile default when it inherits (""). */
+const effectiveModelRef = (preset: CorrectionPreset): string =>
+  preset.model?.trim() || getDefaultModelId();
 
 const getCorrectionPreset = (presetId?: string): CorrectionPreset => {
   const correctionSettings = getProfileSetting("settingsCorrect");
@@ -40,7 +48,7 @@ const getCorrectionPreset = (presetId?: string): CorrectionPreset => {
 const buildCorrectionUserPrompt = (
   text: string,
   preset: CorrectionPreset,
-  model: string,
+  rawTargetModelId: string,
 ): string => {
   if (preset.id !== DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID) {
     if (preset.id !== DEFAULT_SUMMARIZE_PRESET_ID) {
@@ -66,7 +74,7 @@ const buildCorrectionUserPrompt = (
     "Optimize the draft prompt below immediately.",
     "Requirements:",
     "- Treat the selected text as the rough prompt to improve.",
-    `- The selected target model ID is: ${model}.`,
+    `- The selected target model ID is: ${rawTargetModelId}.`,
     "- If the model ID is provider-specific or not listed exactly, infer the closest supported model or tool family from the ID and optimize for that family.",
     "- If the draft already names a target AI tool, use it.",
     "- Otherwise, default to the selected target model above instead of assuming ChatGPT.",
@@ -84,9 +92,8 @@ const buildCorrectionUserPrompt = (
  * Fixes grammar and style for the given text using OpenAI API.
  * @param text The text to fix.
  * @param presetId Preset to apply; defaults to the profile's selected preset.
- * @param context Best-effort ambient context (source app) appended to the
- *   preset's system prompt. Omit it — as the manual `fix-grammar` IPC path
- *   does — when the text did not come from another app.
+ * @param context Best-effort source-app context; omit when the text did not
+ *   come from another app.
  * @returns A promise that resolves with the fixed text and token information.
  */
 export const fixGrammar = async (
@@ -109,13 +116,18 @@ export const fixGrammar = async (
 
     const preset = getCorrectionPreset(presetId);
 
+    // Reports `provider: undefined` for a bare or empty ref rather than
+    // guessing: a wrong provider is silently written into history and priced.
+    // `modelId` (raw), not `raw` (composite), to match `makeAIRequest`.
+    const ref = parseModelRef(effectiveModelRef(preset));
+
     return {
       correctedText: text,
       promptTokens: 0,
       completionTokens: 0,
-      model: DEFAULT_OPENAI_MODEL,
-      provider: getActiveProvider(),
-      resolvedModel: DEFAULT_OPENAI_MODEL,
+      model: ref.modelId,
+      provider: ref.provider ?? undefined,
+      resolvedModel: ref.modelId,
       presetId: preset.id,
       presetName: preset.name,
     };
@@ -123,16 +135,18 @@ export const fixGrammar = async (
 
   const preset = getCorrectionPreset(presetId);
   // Empty preset model inherits the global default (dynamic latest GPT mini).
-  const effectiveModel = preset.model?.trim() || getDefaultModelId();
+  const effectiveModel = effectiveModelRef(preset);
 
   try {
     const response = await makeAIRequest({
-      // Source-app context rides on the system prompt, alongside the preset's
-      // own instructions, rather than on the user prompt — the user prompt
-      // carries the text to transform, and metadata there is easy for a model
-      // to mistake for content.
+      // Source-app context goes on the system prompt, not the user prompt:
+      // metadata beside the text to transform is easy to mistake for content.
       systemPrompt: withActiveAppContext(preset.systemPrompt, context),
-      userPrompt: buildCorrectionUserPrompt(text, preset, effectiveModel),
+      userPrompt: buildCorrectionUserPrompt(
+        text,
+        preset,
+        stripModelRefPrefix(effectiveModel),
+      ),
       model: effectiveModel,
       temperature: preset.temperature,
       maxTokens: preset.maxTokens,

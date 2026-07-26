@@ -19,10 +19,7 @@ export type PromptGenSettings = {
   context?: string;
   model?: string;
   temperature?: number;
-  /**
-   * Frontmost macOS app when the PromptGen hotkey fired. Best-effort ambient
-   * context, appended to the system prompt like the transform path does.
-   */
+  /** Frontmost macOS app when the hotkey fired; best-effort, may be absent. */
   activeAppName?: string | null;
 };
 
@@ -57,9 +54,8 @@ export const generatePrompt = async (
   try {
     // Use shared makeAIRequest function
     const response = await makeAIRequest({
-      // Appended after prettifying: the context block's own newlines and
-      // leading "- " bullets must survive `removeExtraSpaces`, which collapses
-      // the indentation of the template literal above.
+      // Appended after prettifying: the context block's newlines and "- "
+      // bullets must survive `removeExtraSpaces`.
       systemPrompt: withActiveAppContext(
         new StringPrettifier(baseSystemPrompt)
           .removeExtraSpaces()
@@ -67,8 +63,10 @@ export const generatePrompt = async (
         { activeAppName: options.activeAppName },
       ),
       userPrompt: `Input:\n${text}`,
-      ...options,
+      // Profile settings are the DEFAULTS, so they must spread first — the
+      // reverse lets `settingsPromptGen.model` silently override a caller's.
       ...currentSettings,
+      ...options,
     });
 
     // Extract required values from response

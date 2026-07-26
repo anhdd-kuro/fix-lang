@@ -9,6 +9,7 @@
  *   provider caches automatically when the same prefix is repeated
  * - Everything else: no caching support, pass messages through unchanged
  */
+import { stripModelRefPrefix } from "~/shared/modelRef";
 
 export enum CacheProvider {
   ANTHROPIC = "ANTHROPIC",
@@ -19,9 +20,16 @@ export enum CacheProvider {
 
 /**
  * Determines which caching strategy to use based on the model ID string.
+ *
+ * Must strip the composite-ref prefix before the prefix-sensitive
+ * `startsWith` arms, or a ref falls through to `UNSUPPORTED` and prompt
+ * caching silently stops. Only ids classified solely by `startsWith`
+ * (`google/gemma-*`, `openai/o*`, non-Claude Anthropic) break — ids carrying a
+ * family word are rescued by the `includes` arms, so a Claude-id test passes
+ * against broken code.
  */
 export function resolveCacheProvider(modelId: string): CacheProvider {
-  const id = modelId.toLowerCase();
+  const id = stripModelRefPrefix(modelId).toLowerCase();
 
   if (id.startsWith("anthropic/") || id.includes("claude")) {
     return CacheProvider.ANTHROPIC;

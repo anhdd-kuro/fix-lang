@@ -9,6 +9,12 @@
 import { rm, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { app, safeStorage } from "electron";
+import {
+  PROVIDER_IDS,
+  PROVIDER_LOG_LABELS,
+  PROVIDER_REQUIRES_API_KEY,
+  PROVIDER_SUPPORTS_PROVISIONING_KEY,
+} from "~/shared/providers";
 import type { ProviderId } from "~/stores/apiStore";
 
 export type SecretKind = "api" | "provisioning";
@@ -21,15 +27,30 @@ export type SecretWriteResult = {
 const isValidProfileId = (profileId: string): boolean =>
   /^[A-Za-z0-9_-]+$/.test(profileId);
 
-const isApiProvider = (provider: ProviderId): boolean =>
-  provider === "openai" || provider === "openrouter";
+/**
+ * Derived from the provider tables, never hand-written per provider: a provider
+ * with no listed slots reads as "nothing to clear", so profile deletion would
+ * leave its key on disk.
+ */
+export const secretKindsForProvider = (provider: ProviderId): SecretKind[] => [
+  ...(PROVIDER_REQUIRES_API_KEY[provider] ? (["api"] as const) : []),
+  ...(PROVIDER_SUPPORTS_PROVISIONING_KEY[provider] ? (["provisioning"] as const) : []),
+];
+
+const provisioningProviderNames = (): string =>
+  PROVIDER_IDS.filter((provider) => PROVIDER_SUPPORTS_PROVISIONING_KEY[provider])
+    .map((provider) => PROVIDER_LOG_LABELS[provider])
+    .join(" and ");
 
 const invalidSecretTarget = (): SecretWriteResult => ({
   success: false,
   error: "Invalid profile or provider",
 });
 
-/** Returns a deterministic encrypted-secret path for a profile/provider pair. */
+/**
+ * Deterministic encrypted-secret path for a profile/provider pair. The throws are
+ * unreachable programmer-error diagnostics, hence log labels rather than i18n.
+ */
 export const getProfileSecretPath = (
   profileId: string,
   provider: ProviderId,
@@ -38,11 +59,12 @@ export const getProfileSecretPath = (
   if (!isValidProfileId(profileId)) {
     throw new Error("Invalid profile id");
   }
-  if (kind === "api" && !isApiProvider(provider)) {
-    throw new Error("Ollama does not use an API key");
-  }
-  if (kind === "provisioning" && provider !== "openrouter") {
-    throw new Error("Only OpenRouter has a provisioning key");
+  if (!secretKindsForProvider(provider).includes(kind)) {
+    throw new Error(
+      kind === "api"
+        ? `${PROVIDER_LOG_LABELS[provider]} does not use an API key`
+        : `Only ${provisioningProviderNames()} has a provisioning key`,
+    );
   }
 
   return path.join(
@@ -134,16 +156,38 @@ export const clearProfileSecret = async (
   }
 };
 
-/** Clears every credential that may belong to a deleted profile. */
+/**
+ * Clears every credential that may belong to a deleted profile. A slot missed
+ * here leaves the deleted profile's key on disk indefinitely, so the list stays
+ * derived; and every slot is attempted even if an earlier one fails.
+ */
 export const clearProfileSecrets = async (
   profileId: string,
 ): Promise<SecretWriteResult> => {
   if (!isValidProfileId(profileId)) return invalidSecretTarget();
-  const results = await Promise.all([
-    clearProfileSecret(profileId, "openai", "api"),
-    clearProfileSecret(profileId, "openrouter", "api"),
-    clearProfileSecret(profileId, "openrouter", "provisioning"),
-  ]);
+  const results = await Promise.all(
+    PROVIDER_IDS.flatMap((provider) =>
+      secretKindsForProvider(provider).map((kind) =>
+        clearProfileSecret(profileId, provider, kind),
+      ),
+    ),
+  );
   const failed = results.find((result) => !result.success);
   return failed ?? { success: true };
+};
+
+/**
+ * Read a secret for whichever profile is active. An unsupported (provider, kind)
+ * pair answers `null` rather than throwing. `apiStore` is imported dynamically:
+ * a static import would create a load-time cycle, since the profile store's
+ * migration path reaches back into this module.
+ */
+export const getActiveProfileSecret = async (
+  provider: ProviderId,
+  kind: SecretKind,
+): Promise<string | null> => {
+  if (!secretKindsForProvider(provider).includes(kind)) return null;
+  const { getCurrentProfileId } = await import("~/stores/apiStore");
+  const profileId = getCurrentProfileId();
+  return profileId ? getProfileSecret(profileId, provider, kind) : null;
 };

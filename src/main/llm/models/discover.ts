@@ -92,6 +92,55 @@ function generateModelDescription(model: ModelMetadata): string {
 }
 
 /**
+ * Map one Ollama list entry onto the cached `Model` shape. Deliberately leaves
+ * `provider` unset — `getLocalModels`'s callers already stamp it themselves.
+ */
+const toLocalModel = (model: ModelMetadata): Model => ({
+  // The Ollama name IS the id, tag included ("llama3.2:3b") — that is what the
+  // chat API expects back. `name` drops the tag, for display only.
+  id: model.name,
+  created: Date.now(),
+  name: model.name.split(":")[0],
+  pricing: undefined, // Local models have no pricing
+  local: {
+    size: model.size || 0,
+    path: model.name,
+  },
+});
+
+/**
+ * Ask Ollama whether it is there, and what it has.
+ *
+ * Calls `ollamaClient.list()` directly to keep the rejection that
+ * `getLocalModels` swallows: `[]` alone cannot tell "Ollama not running" from
+ * "running with nothing pulled", and those need opposite advice.
+ */
+export type OllamaProbe = {
+  reachable: boolean;
+  models: Model[];
+  error?: string;
+};
+
+export async function probeOllama(): Promise<OllamaProbe> {
+  try {
+    const response = await ollamaClient.list();
+    const models = (response?.models ?? []).map((model) => ({
+      ...toLocalModel(model),
+      // These go straight into the profile cache, and an untagged entry
+      // formats as an `openrouter::…` ref — a local model billed as OpenRouter.
+      provider: "ollama" as const,
+    }));
+    return { reachable: true, models };
+  } catch (err) {
+    return {
+      reachable: false,
+      models: [],
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+/**
  * Fetch all local models from Ollama
  * @returns Array of local models formatted for display
  */
@@ -150,30 +199,11 @@ export async function getLocalModels(): Promise<Model[]> {
     console.log(`Found ${ollamaModels.models.length} total Ollama models`);
 
     for (const model of ollamaModels.models) {
-      // Model name format: owner/model:tag
-      const modelName = model.name.split(":")[0]; // remove tag if present
-      // Generate a consistent ID (replace all special chars with hyphens)
-      const id = model.name;
-      // Get context length for logging (not stored in model object)
+      // Both calls are logging-only; neither value is stored on the model.
       estimateContextLength(model);
+      console.debug(`Model description: ${generateModelDescription(model)}`);
 
-      // Create a model object that exactly matches the Model type
-      // Generate model description (for logging only, not stored in the model object)
-      const description = generateModelDescription(model);
-      console.debug(`Model description: ${description}`);
-
-      const formattedModel: Model = {
-        id,
-        created: Date.now(),
-        name: modelName,
-        pricing: undefined, // Local models have no pricing
-        local: {
-          size: model.size || 0,
-          path: model.name,
-        },
-      };
-
-      localModels.push(formattedModel);
+      localModels.push(toLocalModel(model));
     }
 
     console.log(

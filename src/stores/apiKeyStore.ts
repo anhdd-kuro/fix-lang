@@ -166,6 +166,13 @@ const activeProfileId = async (): Promise<string | null> => {
   return getCurrentProfileId() || null;
 };
 
+/*
+ * The hardcoded "openrouter" below is deliberate: these are the OpenRouter
+ * credential path only, and parameterising them would hand an OpenAI key to
+ * `makeOpenRouterAIRequest`. Multi-provider callers want
+ * `getActiveProfileSecret(provider, kind)` in `./profileSecretStore`.
+ */
+
 /** Store an OpenRouter key for the active profile; no plaintext fallback. */
 export const setApiKey = async (raw: string): Promise<SecretWriteResult> => {
   const profileId = await activeProfileId();
