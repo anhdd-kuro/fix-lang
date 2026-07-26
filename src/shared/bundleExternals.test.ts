@@ -224,6 +224,224 @@ describe("scanBundleSource", () => {
     expect(elapsed).toBeLessThan(2_000);
   });
 
+  // ---- F9: lexical scope ----
+  //
+  // Every fixture above lives in a single flat scope, which is exactly why this
+  // class of bug shipped: bindings used to be keyed by bare identifier text,
+  // globally, in one pass over the file. Minified bundles reuse 1-3 character
+  // names in unrelated functions constantly, so a name that happens to be a
+  // real require alias in one function used to make every same-named binding
+  // anywhere else in the file a require alias too — a FALSE POSITIVE, which
+  // fails a legitimate release. The two fixtures below are the lead-verified
+  // repro; the rest pin that narrowing to lexical scope did not cost any of the
+  // true positives.
+
+  it("does not leak a createRequire alias into an unrelated same-named binding", () => {
+    // `handler` shares no name with `cr` or `req`. It used to be reported
+    // purely because `cr` is a genuine createRequire alias in the OTHER
+    // function, which promoted `makeClickHandler`'s unrelated `cr` — and thus
+    // `handler` — into the require alias set.
+    expect(
+      scanBundleSource(
+        [
+          "function wrapModuleA() {",
+          '  var cr = require("node:module").createRequire;',
+          "  var req = cr(__filename);",
+          '  req("left-pad");',
+          "}",
+          "function makeClickHandler(id) {",
+          "  var cr = buildHandlerFactory(id);",
+          "  var handler = cr(currentConfig);",
+          "  handler(eventPayload);",
+          "}",
+        ].join("\n"),
+        "fixture.cjs",
+      ),
+    ).toEqual([expect.objectContaining({ kind: "bare-specifier", detail: "left-pad" })]);
+  });
+
+  it("does not leak a wrapper-parameter require alias into a sibling function", () => {
+    // `function (module, exports, require)` is the CommonJS wrapper idiom, so
+    // wrapA's `r` really is require. wrapB's `r` is a rendering callback that
+    // merely spells its name the same way.
+    expect(
+      scanBundleSource(
+        [
+          'function wrapA(module, exports, require) { var r = require; r("left-pad"); }',
+          "function wrapB(props) { var r = renderWidget(props); r(userSuppliedId); }",
+        ].join("\n"),
+        "fixture.cjs",
+      ),
+    ).toEqual([expect.objectContaining({ kind: "bare-specifier", detail: "left-pad" })]);
+  });
+
+  it("is unaffected when the sibling picks a name nothing else uses", () => {
+    // The control for the two fixtures above: renaming wrapB's `r` to `q` was
+    // always correct, which is what made the collision look like a coincidence
+    // rather than a systematic hole.
+    expect(
+      details(
+        [
+          'function wrapA(module, exports, require) { var r = require; r("left-pad"); }',
+          "function wrapB(props) { var q = renderWidget(props); q(userSuppliedId); }",
+        ].join("\n"),
+      ),
+    ).toEqual(["left-pad"]);
+  });
+
+  it("resolves a require alias from an enclosing function scope", () => {
+    expect(
+      details(
+        [
+          "function outer() {",
+          "  var r = require;",
+          '  function inner() { r("left-pad"); }',
+          "  inner();",
+          "}",
+        ].join("\n"),
+      ),
+    ).toEqual(["left-pad"]);
+  });
+
+  it("resolves a wrapper-parameter require used inside a nested arrow", () => {
+    expect(
+      details(
+        [
+          "function wrap(module, exports, require) {",
+          '  const load = () => require("left-pad");',
+          "  return load;",
+          "}",
+        ].join("\n"),
+      ),
+    ).toEqual(["left-pad"]);
+  });
+
+  it("resolves a block-scoped require alias", () => {
+    expect(details('{ const r = require; r("left-pad"); }')).toEqual(["left-pad"]);
+  });
+
+  it("resolves an alias hoisted above its use inside a function", () => {
+    // `var` hoists to the whole function scope, so the call sees the binding
+    // even though the declaration is textually below it.
+    expect(details('function f() { r("left-pad"); var r = require; }')).toEqual([
+      "left-pad",
+    ]);
+  });
+
+  it("resolves a require alias inside a class method and an object method", () => {
+    expect(
+      details(
+        [
+          "class Loader {",
+          '  load() { const r = require; r("left-pad"); }',
+          "}",
+          'const o = { load() { const r = require; r("nan"); } };',
+        ].join("\n"),
+      ),
+    ).toEqual(["left-pad", "nan"]);
+  });
+
+  it("does not flag a binding that shadows an outer require alias", () => {
+    // The inner `let r` shadows the outer alias for the whole block, so
+    // `r(dynamicName)` resolves an ordinary callback, not require.
+    expect(
+      kinds(
+        [
+          "var r = require;",
+          "function render() {",
+          "  let r = makeRenderer();",
+          "  r(dynamicName);",
+          "}",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("does not flag a parameter that shadows an outer require alias", () => {
+    expect(
+      kinds(["var r = require;", "const run = (r) => r(dynamicName);"].join("\n")),
+    ).toEqual([]);
+  });
+
+  it("does not flag a sibling block that reuses a require alias name", () => {
+    expect(
+      kinds(
+        [
+          '{ const r = require; r("node:fs"); }',
+          "{ const r = makeRenderer(); r(dynamicName); }",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("does not flag a same-named factory binding in an unrelated scope", () => {
+    // The factory graph is scoped for the same reason the require graph is:
+    // one real `createRequire` alias must not promote every same-named binding
+    // in the file into a require *source*.
+    expect(
+      kinds(
+        [
+          "function real() {",
+          '  var cr = require("node:module").createRequire;',
+          '  cr(__filename)("node:fs");',
+          "}",
+          "function fake() {",
+          "  var cr = buildHandlerFactory();",
+          "  var made = cr(config);",
+          "  made(dynamicName);",
+          "}",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("still flags an implicit global alias assigned inside a function", () => {
+    // `r = require` with no declaration keyword creates an implicit global, so
+    // the call in the other function really does see the same binding. Scope
+    // awareness must not turn this true positive off.
+    expect(
+      details(
+        [
+          "function bind() { r = require; }",
+          'function use() { r("left-pad"); }',
+        ].join("\n"),
+      ),
+    ).toEqual(["left-pad"]);
+  });
+
+  it("still flags a require alias used inside a `with` block", () => {
+    // `with` is the one construct that makes lexical scope undecidable, and the
+    // compiler's binder answers "no symbol" for every reference inside it.
+    // Reading that as "not declared in this file" made this alias vanish from
+    // the scan entirely — a false negative, which is the direction that ships
+    // MODULE_NOT_FOUND. Such a file falls back to scope-unaware name keying.
+    expect(details('var r = require;\nwith (o) { r("left-pad"); }')).toEqual([
+      "left-pad",
+    ]);
+  });
+
+  it("still flags a require alias declared inside a `with` block", () => {
+    expect(details('with (o) { var r = require; }\nr("left-pad");')).toEqual([
+      "left-pad",
+    ]);
+  });
+
+  it("keeps scope-aware resolution for every file without a `with` statement", () => {
+    // The fallback is per file and must not be triggered by a property or
+    // method merely named `with` — the real bundle contains those, and
+    // downgrading the whole file on one would quietly undo the fix.
+    expect(
+      kinds(
+        [
+          "const merged = base.with(patch);",
+          "const w = { with: 1 };",
+          'function wrapA(module, exports, require) { var r = require; r("node:fs"); }',
+          "function wrapB(props) { var r = renderWidget(props); r(userSuppliedId); }",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
+  });
+
   // ---- F1: comma-operator callees ----
   //
   // `(0, f)(x)` is the standard esbuild/Rollup/tsc idiom for calling `f`
@@ -732,6 +950,26 @@ describe("check-bundle-externals CLI under bun", () => {
         'r("left-pad");',
       "main/bracketResolve.cjs": 'require["resolve"]("left-pad");',
       "main/bareReassign.cjs": 'r = require;\nr("left-pad");',
+      // Scope-aware resolution must still see through nesting, not just past it.
+      "main/nestedScopeAlias.cjs":
+        "function outer() {\n" +
+        "  var r = require;\n" +
+        '  function inner() { r("left-pad"); }\n' +
+        "  inner();\n" +
+        "}",
+      "main/wrapperParamRequire.cjs":
+        "function wrap(module, exports, require) {\n" +
+        '  return () => require("left-pad");\n' +
+        "}",
+      "main/scopedFactoryAlias.cjs":
+        "function wrapModuleA() {\n" +
+        '  var cr = require("node:module").createRequire;\n' +
+        "  var req = cr(__filename);\n" +
+        '  req("left-pad");\n' +
+        "}",
+      // `with` defeats static scope resolution; the file must fall back to
+      // scope-unaware name keying rather than go quiet.
+      "main/withStatement.cjs": 'var r = require;\nwith (o) { r("left-pad"); }',
       "preload/chunks/testChunk.cjs": 'require("left-pad");',
     };
 
@@ -743,6 +981,35 @@ describe("check-bundle-externals CLI under bun", () => {
       expect({ file, status }).toEqual({ file, status: 1 });
       expect(stdout).toContain("left-pad");
     }
+  });
+
+  it("exits 0 when unrelated scopes reuse a require alias name", () => {
+    // The false-positive repro, driven through the real CLI: a genuine
+    // createRequire alias and a genuine wrapper-parameter require, each next to
+    // an unrelated function that happens to reuse the same short name. Every
+    // specifier here is a builtin, so a scope-unaware scan fails a release that
+    // has nothing wrong with it. This must not be pinned by the unit suite
+    // alone — vitest's esbuild transform and Bun's TypeScript parser have
+    // already disagreed once about this file's behaviour.
+    write(
+      "main/scopeReuse.cjs",
+      [
+        "function wrapModuleA() {",
+        '  var cr = require("node:module").createRequire;',
+        "  var req = cr(__filename);",
+        '  req("node:fs");',
+        "}",
+        "function makeClickHandler(id) {",
+        "  var cr = buildHandlerFactory(id);",
+        "  var handler = cr(currentConfig);",
+        "  handler(eventPayload);",
+        "}",
+        'function wrapA(module, exports, require) { var r = require; r("node:path"); }',
+        "function wrapB(props) { var r = renderWidget(props); r(userSuppliedId); }",
+      ].join("\n"),
+    );
+    const { status, stdout } = runCli();
+    expect({ status, stdout }).toEqual({ status: 0, stdout: expect.stringContaining("OK") });
   });
 
   it("exits 1 when out/ holds no bundles at all", () => {

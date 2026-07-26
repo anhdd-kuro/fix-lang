@@ -190,6 +190,17 @@ const isBareSpecifier = (specifier: string): boolean =>
 /** Factory that hands back a CommonJS `require` function. */
 const CREATE_REQUIRE = "createRequire";
 
+/** The canonical spelling of a require function. */
+const REQUIRE = "require";
+
+/**
+ * The single in-memory file name every scan's throwaway program is built
+ * around. `.cjs` so the parser treats the bundle as the CommonJS script it is,
+ * absolute so no current-directory normalisation can rename it out from under
+ * `program.getSourceFile`.
+ */
+const SCAN_FILE_NAME = "/bundle-scan.cjs";
+
 /**
  * Peels the wrappers that change how an expression is *spelled* without
  * changing what it evaluates to: parentheses, and the comma (sequence)
@@ -236,64 +247,220 @@ const memberAccess = (
 /** The property name of a `foo.bar` / `foo["bar"]` access, if it is one. */
 const memberName = (node: ts.Expression): string | undefined => memberAccess(node)?.name;
 
-/** Strips wrappers and returns the identifier name, if that is all there is. */
-const identifierName = (node: ts.Expression): string | undefined => {
+/** Strips wrappers and returns the identifier, if that is all there is. */
+const unwrapIdentifier = (node: ts.Expression): ts.Identifier | undefined => {
   const target = unwrapExpression(node);
-  return ts.isIdentifier(target) ? target.text : undefined;
-};
-
-/** Local names, per file, that stand in for `require` or for `createRequire`. */
-type RequireNames = {
-  /** Names that evaluate to a `require` function. */
-  readonly requires: ReadonlySet<string>;
-  /** Names that evaluate to the `createRequire` factory. */
-  readonly factories: ReadonlySet<string>;
+  return ts.isIdentifier(target) ? target : undefined;
 };
 
 /**
+ * Identity of one lexical binding.
+ *
+ * A `ts.Symbol` when the compiler's binder found a declaration for the name in
+ * this file — a `var`/`let`/`const`, a function or class declaration, a
+ * parameter, a catch clause, a binding-pattern element. Symbols are per
+ * declaration site, so `wrapA`'s `r` and `wrapB`'s `r` are different objects
+ * even though they spell the same name, which is the entire point.
+ *
+ * A `free:<name>` string otherwise: a global, or a name that only ever exists
+ * because something assigned to it without declaring it (`r = require`, an
+ * implicit global). Those genuinely are one binding per name across the whole
+ * file, so keying them by name is correct rather than a fallback.
+ */
+type BindingId = ts.Symbol | string;
+
+/** Resolves an identifier to the binding of its nearest enclosing scope. */
+type ResolveBinding = (identifier: ts.Identifier) => BindingId;
+
+/**
+ * Scope-unaware resolution: every occurrence of a name is one binding, file
+ * wide. Over-approximates — it merges bindings that lexical scope keeps apart —
+ * which costs false positives but can never lose a require the way missing an
+ * edge would. Used as the fail-closed fallback for files where static scope
+ * resolution is not sound.
+ */
+const resolveByName: ResolveBinding = (identifier) => `free:${identifier.text}`;
+
+/**
+ * True if the file contains a `with` statement.
+ *
+ * `with` is the one construct that makes lexical scope undecidable: the names
+ * visible inside the block depend on the runtime object's properties, so the
+ * compiler's binder deliberately declines to resolve references there and
+ * `getSymbolAtLocation` returns `undefined` for every one of them. Treating
+ * that "cannot know" as "not declared in this file" is what broke it — the
+ * unresolved reference collapses onto the `free:<name>` key, which both loses
+ * genuine aliases (`var r = require; with (o) { r("left-pad"); }` stopped being
+ * reported at all) and merges unrelated bindings that happen to share a name.
+ *
+ * So the whole file falls back to {@link resolveByName}, which is exactly the
+ * scope-unaware behaviour this scanner had before: noisier, never blind. No
+ * bundle output observed here contains a `with` statement — it is illegal in
+ * strict mode and in ES modules — so this costs nothing in practice, and the
+ * one thing it must not do is silently pass.
+ */
+const hasWithStatement = (sourceFile: ts.SourceFile): boolean => {
+  let found = false;
+  const visit = (node: ts.Node): void => {
+    if (found) return;
+    if (ts.isWithStatement(node)) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return found;
+};
+
+/**
+ * Scope resolution, delegated to the compiler's own binder rather than
+ * reimplemented.
+ *
+ * Getting this right by hand means reimplementing `var`/function hoisting to
+ * the function scope, `let`/`const`/`class` block scoping, parameter scopes,
+ * catch clauses, function- and class-expression names, per-iteration `let`
+ * bindings and switch-case blocks — a large, subtle surface for a build guard
+ * to own. `ts.createProgram` runs the real binder over the one file and
+ * `getSymbolAtLocation` performs the real scope-chain lookup, so all of that
+ * comes for free and stays correct.
+ *
+ * The program is deliberately hermetic: `noLib` and `noResolve` keep it from
+ * touching the filesystem or resolving the very `import`s the scan is looking
+ * for, and the only file it knows about is the in-memory source.
+ *
+ * One construct defeats it, and is handled by refusing to use it: see
+ * {@link hasWithStatement}.
+ */
+const createScopeResolver = (
+  source: string,
+  fileName: string,
+): { readonly sourceFile: ts.SourceFile; readonly resolve: ResolveBinding } => {
+  const host: ts.CompilerHost = {
+    // Parent pointers are required for scope-chain resolution, so unlike the
+    // rest of this file's parsing they are switched on here.
+    getSourceFile: (requested) =>
+      requested === fileName
+        ? ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS)
+        : undefined,
+    getDefaultLibFileName: () => "lib.d.ts",
+    writeFile: () => undefined,
+    getCurrentDirectory: () => "/",
+    getCanonicalFileName: (name) => name,
+    useCaseSensitiveFileNames: () => true,
+    getNewLine: () => "\n",
+    fileExists: (name) => name === fileName,
+    readFile: (name) => (name === fileName ? source : undefined),
+  };
+
+  const program = ts.createProgram(
+    [fileName],
+    { allowJs: true, noLib: true, noResolve: true, types: [] },
+    host,
+  );
+  const sourceFile = program.getSourceFile(fileName);
+  if (sourceFile === undefined) {
+    throw new Error(`bundle scan could not parse ${fileName}`);
+  }
+  if (hasWithStatement(sourceFile)) return { sourceFile, resolve: resolveByName };
+
+  const checker = program.getTypeChecker();
+
+  // Both alias passes resolve the same declaration and reference nodes, and a
+  // scope-chain lookup is not free at bundle scale. Memoised per node.
+  const cache = new Map<ts.Identifier, BindingId>();
+
+  const resolve: ResolveBinding = (identifier) => {
+    const cached = cache.get(identifier);
+    if (cached !== undefined) return cached;
+    const symbol = checker.getSymbolAtLocation(identifier);
+    // A symbol with no declaration in this file is ambient — the implicit
+    // `require` of a CommonJS script, a global. Collapse it onto the same
+    // `free:` key an entirely unresolved name gets, so the two spellings of
+    // "not declared here" never split one binding in two.
+    const declaredHere =
+      symbol?.declarations?.some((d) => d.getSourceFile() === sourceFile) ?? false;
+    const binding: BindingId =
+      declaredHere && symbol !== undefined ? symbol : `free:${identifier.text}`;
+    cache.set(identifier, binding);
+    return binding;
+  };
+
+  return { sourceFile, resolve };
+};
+
+/** Bindings, per file, that stand in for `require` or for `createRequire`. */
+type RequireBindings = {
+  /** Bindings that evaluate to a `require` function. */
+  readonly requires: ReadonlySet<BindingId>;
+  /** Bindings that evaluate to the `createRequire` factory. */
+  readonly factories: ReadonlySet<BindingId>;
+};
+
+/** Everything the call-site checks need: scope resolution plus both alias sets. */
+type RequireContext = RequireBindings & { readonly resolve: ResolveBinding };
+
+/**
  * `createRequire` itself, `module.createRequire`, `Module["createRequire"]`, or
- * any local name a bundler gave the factory (`createRequire$1`, `cr`, …).
+ * any local binding a bundler gave the factory (`createRequire$1`, `cr`, …).
  *
  * The rename case is the whole point: the scanner already expected the
  * factory's *result* to be renamed, but matching the factory by exact
  * identifier text meant `const cr = require("node:module").createRequire`
  * silently switched the entire alias chain off.
+ *
+ * An identifier literally spelled `createRequire` is accepted without
+ * consulting the alias set, whatever scope it is in. That is the canonical
+ * name; treating it as the factory is what makes a bare
+ * `createRequire(import.meta.url)` resolvable with no declaration in sight.
  */
 const isCreateRequireReference = (
   node: ts.Expression,
-  factories: ReadonlySet<string>,
+  resolve: ResolveBinding,
+  factories: ReadonlySet<BindingId>,
 ): boolean => {
   const target = unwrapExpression(node);
-  const name = identifierName(target);
-  return name === undefined ? memberName(target) === CREATE_REQUIRE : factories.has(name);
+  const identifier = unwrapIdentifier(target);
+  if (identifier === undefined) return memberName(target) === CREATE_REQUIRE;
+  return identifier.text === CREATE_REQUIRE || factories.has(resolve(identifier));
 };
 
 /**
  * True for an expression that is a `require` function on its own terms, with
- * no knowledge of local `require` bindings: member access ending in `.require`
+ * no knowledge of local `require` aliases: member access ending in `.require`
  * (`module.require`, `process.mainModule.require`, `require.main.require`) or
  * an immediately-invoked `createRequire(import.meta.url)`.
  */
 const isIntrinsicRequireExpression = (
   node: ts.Expression,
-  factories: ReadonlySet<string>,
+  resolve: ResolveBinding,
+  factories: ReadonlySet<BindingId>,
 ): boolean => {
   const target = unwrapExpression(node);
-  if (memberName(target) === "require") return true;
-  if (ts.isCallExpression(target)) return isCreateRequireReference(target.expression, factories);
+  if (memberName(target) === REQUIRE) return true;
+  if (ts.isCallExpression(target)) {
+    return isCreateRequireReference(target.expression, resolve, factories);
+  }
   return false;
 };
 
 /**
  * True when `node` evaluates to a `require` function rather than merely being
- * spelled `require` — an intrinsic form, or any locally-bound alias discovered
- * by {@link collectRequireNames}.
+ * spelled `require` — an intrinsic form, or any alias discovered by
+ * {@link collectRequireBindings} whose binding is in scope at `node`.
+ *
+ * As with `createRequire`, an identifier literally spelled `require` counts
+ * whatever binds it. Usually that is the ambient CommonJS `require`; in
+ * bundler output it is just as often the third parameter of a
+ * `function (module, exports, require)` wrapper, which really is require and
+ * has a perfectly ordinary local binding.
  */
-const isRequireExpression = (node: ts.Expression, names: RequireNames): boolean => {
-  const name = identifierName(node);
-  return name === undefined
-    ? isIntrinsicRequireExpression(node, names.factories)
-    : names.requires.has(name);
+const isRequireExpression = (node: ts.Expression, context: RequireContext): boolean => {
+  const identifier = unwrapIdentifier(node);
+  if (identifier === undefined) {
+    return isIntrinsicRequireExpression(node, context.resolve, context.factories);
+  }
+  return identifier.text === REQUIRE || context.requires.has(context.resolve(identifier));
 };
 
 /**
@@ -303,22 +470,20 @@ const isRequireExpression = (node: ts.Expression, names: RequireNames): boolean 
  * the binding they derive from, which would let a pathological bundle hang the
  * release job — a CPU-bound scan cannot be interrupted by a CI timeout.
  */
-const createAliasGraph = (
-  root: string,
-): {
-  seed: (name: string) => void;
-  link: (source: string, dependent: string) => void;
-  resolve: () => ReadonlySet<string>;
+const createAliasGraph = (): {
+  seed: (binding: BindingId) => void;
+  link: (source: BindingId, dependent: BindingId) => void;
+  resolve: () => ReadonlySet<BindingId>;
 } => {
-  const names = new Set<string>([root]);
-  /** alias source name -> names that copy it. */
-  const dependents = new Map<string, string[]>();
-  const pending: string[] = [root];
+  const members = new Set<BindingId>();
+  /** alias source binding -> bindings that copy it. */
+  const dependents = new Map<BindingId, BindingId[]>();
+  const pending: BindingId[] = [];
 
-  const seed = (name: string): void => {
-    if (names.has(name)) return;
-    names.add(name);
-    pending.push(name);
+  const seed = (binding: BindingId): void => {
+    if (members.has(binding)) return;
+    members.add(binding);
+    pending.push(binding);
   };
 
   return {
@@ -332,7 +497,8 @@ const createAliasGraph = (
       }
     },
     resolve: () => {
-      // Each name enters `pending` at most once, so this visits every edge once.
+      // Each binding enters `pending` at most once, so this visits every edge
+      // once.
       while (pending.length > 0) {
         const source = pending.pop();
         if (source === undefined) break;
@@ -340,7 +506,7 @@ const createAliasGraph = (
           seed(dependent);
         }
       }
-      return names;
+      return members;
     },
   };
 };
@@ -348,20 +514,23 @@ const createAliasGraph = (
 /** `name = <expr>` (no declaration keyword), anywhere in the tree. */
 const plainAssignment = (
   node: ts.Node,
-): { readonly name: string; readonly value: ts.Expression } | undefined =>
+): { readonly name: ts.Identifier; readonly value: ts.Expression } | undefined =>
   ts.isBinaryExpression(node) &&
   node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
   ts.isIdentifier(node.left)
-    ? { name: node.left.text, value: node.right }
+    ? { name: node.left, value: node.right }
     : undefined;
 
 /** Local names `property` is destructured into: `const { require: r } = module`. */
-const destructuredAs = (pattern: ts.ObjectBindingPattern, property: string): string[] => {
-  const found: string[] = [];
+const destructuredAs = (
+  pattern: ts.ObjectBindingPattern,
+  property: string,
+): ts.Identifier[] => {
+  const found: ts.Identifier[] = [];
   for (const element of pattern.elements) {
     const key = element.propertyName ?? element.name;
     if (ts.isIdentifier(key) && key.text === property && ts.isIdentifier(element.name)) {
-      found.push(element.name.text);
+      found.push(element.name);
     }
   }
   return found;
@@ -380,7 +549,7 @@ const destructuredAs = (pattern: ts.ObjectBindingPattern, property: string): str
 const forEachBinding = (
   sourceFile: ts.SourceFile,
   record: {
-    readonly initialized: (name: string, initializer: ts.Expression) => void;
+    readonly initialized: (name: ts.Identifier, initializer: ts.Expression) => void;
     readonly destructured: (pattern: ts.ObjectBindingPattern) => void;
   },
 ): void => {
@@ -390,7 +559,7 @@ const forEachBinding = (
       if (ts.isObjectBindingPattern(node.name)) {
         record.destructured(node.name);
       } else if (ts.isIdentifier(node.name) && node.initializer !== undefined) {
-        record.initialized(node.name.text, node.initializer);
+        record.initialized(node.name, node.initializer);
       }
     } else if (assignment !== undefined) {
       record.initialized(assignment.name, assignment.value);
@@ -401,46 +570,62 @@ const forEachBinding = (
 };
 
 /**
- * Names bound to a require function in this file, and names bound to the
- * `createRequire` factory that produces them. Both are seeded with their
- * canonical spelling and grown across copy edges, because bundlers rename both
- * ends: the factory (`createRequire$1`, `cr`) and its result (`require$1`,
- * `req`), and hand-written code aliases `require` directly (`var r = require`,
- * `const { require: r } = module`).
+ * Bindings that hold a require function in this file, and bindings that hold
+ * the `createRequire` factory that produces them. Both grow across copy edges,
+ * because bundlers rename both ends: the factory (`createRequire$1`, `cr`) and
+ * its result (`require$1`, `req`), and hand-written code aliases `require`
+ * directly (`var r = require`, `const { require: r } = module`).
+ *
+ * Edges connect *bindings*, not names. An alias copied from a canonically
+ * spelled `require` / `createRequire` is seeded outright; anything else records
+ * an edge from the source identifier's binding, resolved in the scope it is
+ * written in. That is what stops one function's real alias from promoting an
+ * unrelated function's same-named local: two `var cr` in sibling functions are
+ * two bindings, and only the one actually copied from the factory joins the
+ * set.
  *
  * Two passes, factories first, so neither depends on declaration order —
  * hoisting and bundler output both reorder freely.
  */
-const collectRequireNames = (sourceFile: ts.SourceFile): RequireNames => {
-  const factoryGraph = createAliasGraph(CREATE_REQUIRE);
+const collectRequireBindings = (
+  sourceFile: ts.SourceFile,
+  resolve: ResolveBinding,
+): RequireBindings => {
+  const factoryGraph = createAliasGraph();
   forEachBinding(sourceFile, {
     initialized: (name, initializer) => {
       const target = unwrapExpression(initializer);
       if (memberName(target) === CREATE_REQUIRE) {
-        factoryGraph.seed(name);
+        factoryGraph.seed(resolve(name));
         return;
       }
-      const source = identifierName(target);
-      if (source !== undefined) factoryGraph.link(source, name);
+      const source = unwrapIdentifier(target);
+      if (source === undefined) return;
+      if (source.text === CREATE_REQUIRE) factoryGraph.seed(resolve(name));
+      else factoryGraph.link(resolve(source), resolve(name));
     },
     destructured: (pattern) => {
-      for (const name of destructuredAs(pattern, CREATE_REQUIRE)) factoryGraph.seed(name);
+      for (const name of destructuredAs(pattern, CREATE_REQUIRE)) {
+        factoryGraph.seed(resolve(name));
+      }
     },
   });
   const factories = factoryGraph.resolve();
 
-  const requireGraph = createAliasGraph("require");
+  const requireGraph = createAliasGraph();
   forEachBinding(sourceFile, {
     initialized: (name, initializer) => {
-      if (isIntrinsicRequireExpression(initializer, factories)) {
-        requireGraph.seed(name);
+      if (isIntrinsicRequireExpression(initializer, resolve, factories)) {
+        requireGraph.seed(resolve(name));
         return;
       }
-      const source = identifierName(initializer);
-      if (source !== undefined) requireGraph.link(source, name);
+      const source = unwrapIdentifier(initializer);
+      if (source === undefined) return;
+      if (source.text === REQUIRE) requireGraph.seed(resolve(name));
+      else requireGraph.link(resolve(source), resolve(name));
     },
     destructured: (pattern) => {
-      for (const name of destructuredAs(pattern, "require")) requireGraph.seed(name);
+      for (const name of destructuredAs(pattern, REQUIRE)) requireGraph.seed(resolve(name));
     },
   });
 
@@ -452,12 +637,12 @@ const collectRequireNames = (sourceFile: ts.SourceFile): RequireNames => {
  * `require.resolve(…)`, any aliased/derived form of either, or a dynamic
  * `import(…)`.
  */
-const isModuleResolvingCall = (node: ts.CallExpression, names: RequireNames): boolean => {
+const isModuleResolvingCall = (node: ts.CallExpression, context: RequireContext): boolean => {
   const callee = unwrapExpression(node.expression);
   if (callee.kind === ts.SyntaxKind.ImportKeyword) return true;
-  if (isRequireExpression(callee, names)) return true;
+  if (isRequireExpression(callee, context)) return true;
   const member = memberAccess(callee);
-  return member?.name === "resolve" && isRequireExpression(member.object, names);
+  return member?.name === "resolve" && isRequireExpression(member.object, context);
 };
 
 const lineOf = (sourceFile: ts.SourceFile, pos: number): number =>
@@ -474,14 +659,12 @@ export function scanBundleSource(
   fileLabel: string,
   allowlist: readonly string[] = ALLOWLIST,
 ): BundleViolation[] {
-  const sourceFile = ts.createSourceFile(
-    fileLabel,
-    source,
-    ts.ScriptTarget.Latest,
-    false,
-    ts.ScriptKind.JS,
-  );
-  const names = collectRequireNames(sourceFile);
+  // A fixed, absolute, hermetic name: `fileLabel` is a repo-relative path and
+  // would be normalised against the host's current directory, after which
+  // `program.getSourceFile(fileLabel)` no longer finds it. The label is only
+  // ever used for reporting, so nothing needs the two to agree.
+  const { sourceFile, resolve } = createScopeResolver(source, SCAN_FILE_NAME);
+  const context: RequireContext = { resolve, ...collectRequireBindings(sourceFile, resolve) };
   const violations: BundleViolation[] = [];
 
   const report = (node: ts.Node, kind: BundleViolationKind, detail: string): void => {
@@ -509,7 +692,7 @@ export function scanBundleSource(
       if (specifier !== undefined && ts.isStringLiteralLike(specifier)) {
         checkSpecifier(node, specifier.text);
       }
-    } else if (ts.isCallExpression(node) && isModuleResolvingCall(node, names)) {
+    } else if (ts.isCallExpression(node) && isModuleResolvingCall(node, context)) {
       const [arg] = node.arguments;
       if (arg !== undefined) {
         if (ts.isStringLiteralLike(arg)) {
