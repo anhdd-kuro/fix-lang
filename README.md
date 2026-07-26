@@ -1,13 +1,13 @@
 # FixLang
 
-A local macOS menu-bar app that fixes grammar, improves writing, and runs other text transformations on selected text via AI. Supports **OpenAI**, **OpenRouter**, and **Ollama**. Runs entirely on your machine; API keys stay in local storage.
+A local macOS menu-bar app that fixes grammar, improves writing, and runs other text transformations on selected text via AI. Supports **OpenAI**, **OpenRouter**, and **Ollama**. Runs entirely on your machine; API keys never leave it and are encrypted at rest via the macOS keychain.
 
 ## Features
 
 ### Transform & presets
 
 - Select text in any app, press a preset hotkey, then either paste the result back automatically or show it in a result-only popup
-- Built-in presets (each with its own hotkey): **Correction** (`Ctrl+Shift+F`), **Summarize** (`Ctrl+Shift+S`), **Translate**, **Prompt optimization** (`Ctrl+Shift+D`)
+- Built-in presets (each with its own hotkey): **Correction** (`Ctrl+Shift+F`), **Summarize** (`Ctrl+Shift+S`), **Prompt optimization** (`Ctrl+Shift+D`), **Translate** (`Ctrl+Shift+T`)
 - **Profiles** — multiple named configurations; switch with `Ctrl+Shift+P` (profile switch reloads hotkeys, settings, and history)
 - Custom presets with per-preset model, system prompt, and hotkey
 - **App-aware output** — the name of the app you selected the text in (e.g. Slack, Mail, Xcode) is added to the system prompt as context, so the result matches that app's tone and formatting conventions. Applies to transform presets and PromptGen. The app name is never echoed into the output, and nothing is sent when it can't be read
@@ -22,7 +22,7 @@ A local macOS menu-bar app that fixes grammar, improves writing, and runs other 
 
 ### Dashboard (MainWindow)
 
-Five tabs, opened from the menu-bar tray or after a transform:
+Six tabs, opened from the menu-bar tray or after a transform:
 
 | Tab | What it shows |
 | --- | --- |
@@ -31,6 +31,7 @@ Five tabs, opened from the menu-bar tray or after a transform:
 | **Models** | Provider model discovery, compatibility, and monitoring |
 | **OpenRouter** | OpenRouter-specific model and routing controls |
 | **Logs** | Structured, redacted app events — multi-select level filter, search, copy/export as `.txt` |
+| **About** | Version, app updates, and release notes (see [App updates](#app-updates)) |
 
 Overview and Models share a time-range filter (All / 30d / 7d).
 
@@ -40,11 +41,12 @@ Overview and Models share a time-range filter (All / 30d / 7d).
 - Persisted to `userData/logs/{YYYY-MM-DD}/fixlang.jsonl` (one folder per local day)
 - Logs tab reloads from disk with virtual infinite scroll (`@tanstack/react-virtual`)
 - Any subset of levels can be checked at once (no selection = all levels); the row timestamps omit the UTC offset because the footer states the zone once
-- Errors use a native macOS notification when available; if macOS rejects it, FixLang shows a brief in-app popup near the cursor instead.
+- Errors use a native macOS notification when available; if macOS rejects it, FixLang shows a brief in-app popup near the cursor instead — dismissible with its close button, not only by waiting it out.
 
 ### Appearance
 
 - 149 terminal-inspired themes with derive-ladder color mapping
+- Scrollbars are styled to match native macOS, per theme
 
 ### Language
 
@@ -67,9 +69,12 @@ Model selectors elsewhere (Tray, Models tab, Transform presets, PromptGen) show 
 
 ### App updates
 
-- **Settings → About → App updates** compares the installed version with what
+- The dashboard's **About** tab compares the installed version with what
   Homebrew can actually install, since that is what **Update now** runs. Manual
   DMG installs fall back to comparing against the latest stable GitHub Release.
+- The tray popover also has a quick **check for updates** button; it reports the
+  result in a native dialog and links to the release. Installing still happens
+  from the About tab.
 - **Homebrew installs (recommended)**: when a newer version is available,
   **Update now** runs `brew update && brew upgrade --cask fixlang` for you.
   FixLang quits so Homebrew can replace the bundle, then reopens on the new
@@ -85,8 +90,11 @@ Model selectors elsewhere (Tray, Models tab, Transform presets, PromptGen) show 
   **Restart now** to switch to the installed version.
 - **Right after a release**, the Homebrew tap can still be a few hours behind
   GitHub. FixLang then reports that the version exists but Homebrew has not
-  picked it up yet, instead of offering a button that could not install it —
-  check again later, or use the DMG.
+  picked it up yet, instead of offering a button that could not install it. The
+  panel still shows that release's notes next to a **Download from GitHub**
+  button, so you can read what changed and install the DMG yourself, or wait and
+  check again later. Only the download size and progress bar are missing, since
+  they belong to an install that cannot start yet.
 - **Manual DMG installs**: **Download from GitHub** opens that exact release;
   replace the app in `/Applications` yourself. Source and development builds are
   not updated by this flow.
@@ -183,9 +191,8 @@ brew trust --cask anhdd-kuro/tap/fixlang
 FixLang remains unsigned. Homebrew does not bypass Gatekeeper or grant
 Accessibility permission. If macOS blocks a release you trust, use the manual
 `xattr` command above; grant Accessibility permission when FixLang asks. The
-app's **Settings → About → App updates** panel delegates its **Update now**
-button to `brew upgrade --cask fixlang` — it is not a self-updater, and it never
-touches Gatekeeper.
+app's **About** tab delegates its **Update now** button to `brew upgrade --cask
+fixlang` — it is not a self-updater, and it never touches Gatekeeper.
 
 ### Build from source
 
@@ -195,9 +202,17 @@ Requires [bun](https://bun.sh).
 git clone <repo-url>
 cd fix-lang
 bun install
-bun run pack:mac      # → release/mac-arm64/FixLang.app (or release/mac/)
-bun run pack:install  # build + copy to /Applications/FixLang.app
+bun run pack:mac       # → release/mac-arm64/FixLang Dev.app — dev identity
+bun run pack:mac:prod  # → release/mac-arm64/FixLang.app — production identity
+bun run pack:install   # pack:mac:prod + copy to /Applications/FixLang.app
 ```
+
+`pack:mac` deliberately builds as **FixLang Dev** (`com.fixlang.app.dev`) so a
+local build cannot be mistaken for the installed app — macOS opens apps by
+bundle id, and a checkout sharing `com.fixlang.app` could be reopened in place of
+the real one after a Homebrew upgrade. Use `pack:mac:prod` when you specifically
+want a production-identity build. Both share the same `userData` directory, so a
+dev build reads and writes your real history, logs, and keys.
 
 ### Feature tags (opt-in features)
 
@@ -235,7 +250,7 @@ the tag if you want it.
 1. Select text in any application (or copy to clipboard)
 2. Press a preset hotkey (default: `Ctrl+Shift+F` for Correction)
 3. FixLang delivers the result using the mode selected in **Settings → General → Transform output**: **Direct paste** or **Show popup**
-4. Open the tray popover → dashboard icon for Overview, History, Models, OpenRouter, or Logs
+4. Open the tray popover → dashboard icon for Overview, History, Models, OpenRouter, Logs, or About
 5. `Ctrl+Shift+G` opens PromptGen on the current selection — tag-on builds only, see [Feature tags](#feature-tags-opt-in-features)
 6. `Ctrl+Shift+P` cycles to the next profile
 
@@ -250,6 +265,7 @@ bun run start          # preview production build
 bun run test           # Vitest once — use `bun run test`, NOT `bun test`
 bun run test:w         # Vitest watch
 bun run lint           # ESLint (cached)
+bun run i18n:check     # catalog parity, plurals, sort order, JA coverage
 bun run check:bundle   # after `bun run build` — verify no runtime dep needs node_modules
 bun run themes:generate  # after editing theme .ts files
 ```
@@ -262,7 +278,11 @@ bun run themes:generate  # after editing theme .ts files
 > importing it passes `bun run dev`, `bun run test`, and `bun run lint`
 > unchanged — the only thing that catches a dependency Vite left external is
 > `bun run check:bundle` against a real `bun run build`. Run it locally after
-> adding or upgrading a runtime dependency; CI also runs it before packaging.
+> adding or upgrading a runtime dependency; every script that packages a
+> distributable (`pack`, `pack:mac`, `pack:mac:prod`, `release:mac`) and the
+> release workflow run it too. Because nothing resolves from `node_modules` at
+> runtime, the `dependencies` / `devDependencies` split no longer says which
+> packages ship — what ships is whatever Vite inlined into `out/`.
 
 ## Publishing a macOS release
 
@@ -278,18 +298,26 @@ to `main`. For example:
 ```bash
 bun run lint
 bun run test
+bun run i18n:check
 bun run build
 bun run check:bundle
 git add package.json bun.lock
-git commit -m "chore(release): bump version to 0.3.0"
+git commit -m "chore(release): bump version to 0.7.0"
 git push origin main
 ```
 
 The release workflow creates `v<version>` at the pushed commit when that version
-does not already have a tag. It runs the project checks, publishes the validated
-`FixLang-<version>-arm64.dmg` and `SHA256SUMS.txt` from a draft release, then
-makes the release public. Later pushes with a version that already has a public
-release skip publication.
+does not already have a tag. It runs the same checks (lint, test, i18n catalog,
+build, bundle externals), publishes the validated `FixLang-<version>-arm64.dmg`
+and `SHA256SUMS.txt` from a draft release, then makes the release public. Later
+pushes with a version that already has a public release skip publication.
+
+Before uploading, the workflow mounts the DMG and asserts that its bundle version
+matches `package.json`, that `app.asar` contains no `node_modules` entries, and
+that `out/renderer` is present — a missing renderer would ship an app that only
+shows a white screen. The DMG itself is compressed with LZFSE (`ULFO`), which
+together with pruning the Electron locale packs down to `en` and `ja` and
+dropping `node_modules` from the bundle keeps the download around 102 MiB.
 
 Matching `v<version>` tag pushes remain supported. The workflow rejects a tag
 whose version differs from `package.json` or whose commit is not on `main`.
