@@ -82,6 +82,78 @@ describe("scanBundleSource", () => {
     ).toEqual(["left-pad"]);
   });
 
+  // ---- F2: the createRequire *factory* itself can be renamed ----
+  //
+  // The scanner already expects a bundler to rename the factory's *result*
+  // (`require$1`). Renaming the factory binding is just as routine, and it
+  // used to switch the entire alias chain off: the factory was matched by the
+  // exact identifier text "createRequire".
+
+  it("flags a require bound via a renamed createRequire factory", () => {
+    expect(
+      details(
+        [
+          'const createRequire$1 = require("node:module").createRequire;',
+          "const r = createRequire$1(import.meta.url);",
+          'r("left-pad");',
+        ].join("\n"),
+      ),
+    ).toEqual(["left-pad"]);
+  });
+
+  it("flags a require bound via an arbitrarily named createRequire factory", () => {
+    expect(
+      details(
+        [
+          'const cr = require("node:module").createRequire;',
+          "const r = cr(__filename);",
+          'r("left-pad");',
+        ].join("\n"),
+      ),
+    ).toEqual(["left-pad"]);
+  });
+
+  it("flags a require bound via a destructured createRequire factory", () => {
+    expect(
+      details(
+        [
+          'const { createRequire: mk } = require("node:module");',
+          "const r = mk(__filename);",
+          'r("left-pad");',
+        ].join("\n"),
+      ),
+    ).toEqual(["left-pad"]);
+  });
+
+  it("flags a require bound via a chained factory rename", () => {
+    expect(
+      details(
+        [
+          "const cr2 = cr;",
+          'const cr = require("node:module").createRequire;',
+          "const r = cr2(__filename);",
+          'r("left-pad");',
+        ].join("\n"),
+      ),
+    ).toEqual(["left-pad"]);
+  });
+
+  it("flags an immediately-invoked renamed factory", () => {
+    expect(
+      details(
+        [
+          'const cr = require("node:module").createRequire;',
+          'cr(import.meta.url)("left-pad");',
+        ].join("\n"),
+      ),
+    ).toEqual(["left-pad"]);
+  });
+
+  it("does not treat an unrelated factory-shaped binding as a require source", () => {
+    // Only a binding whose initializer actually names `createRequire` counts.
+    expect(kinds('const mk = require("node:module").createHash;\nmk("left-pad");')).toEqual([]);
+  });
+
   it("flags an aliased require identifier", () => {
     expect(details('var r = require;\nr("left-pad");')).toEqual(["left-pad"]);
   });
@@ -552,6 +624,14 @@ describe("check-bundle-externals CLI under bun", () => {
       "main/commaModuleRequire.cjs": '(0, module.require)("left-pad");',
       "main/commaRequireResolve.cjs": '(0, require.resolve)("left-pad");',
       "main/commaAlias.cjs": 'var r = require;\n(0, r)("left-pad");',
+      "main/renamedFactory.cjs":
+        'const createRequire$1 = require("node:module").createRequire;\n' +
+        "const r = createRequire$1(import.meta.url);\n" +
+        'r("left-pad");',
+      "main/destructuredFactory.cjs":
+        'const { createRequire: mk } = require("node:module");\n' +
+        "const r = mk(__filename);\n" +
+        'r("left-pad");',
       "preload/chunks/testChunk.cjs": 'require("left-pad");',
     };
 

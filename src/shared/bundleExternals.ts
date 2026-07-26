@@ -202,123 +202,209 @@ const identifierName = (node: ts.Expression): string | undefined => {
   return ts.isIdentifier(target) ? target.text : undefined;
 };
 
-/** `createRequire` / `module.createRequire` / `Module["createRequire"]`. */
-const isCreateRequireReference = (node: ts.Expression): boolean => {
+/** Local names, per file, that stand in for `require` or for `createRequire`. */
+type RequireNames = {
+  /** Names that evaluate to a `require` function. */
+  readonly requires: ReadonlySet<string>;
+  /** Names that evaluate to the `createRequire` factory. */
+  readonly factories: ReadonlySet<string>;
+};
+
+/**
+ * `createRequire` itself, `module.createRequire`, `Module["createRequire"]`, or
+ * any local name a bundler gave the factory (`createRequire$1`, `cr`, …).
+ *
+ * The rename case is the whole point: the scanner already expected the
+ * factory's *result* to be renamed, but matching the factory by exact
+ * identifier text meant `const cr = require("node:module").createRequire`
+ * silently switched the entire alias chain off.
+ */
+const isCreateRequireReference = (
+  node: ts.Expression,
+  factories: ReadonlySet<string>,
+): boolean => {
   const target = unwrapExpression(node);
-  return (
-    (ts.isIdentifier(target) && target.text === CREATE_REQUIRE) ||
-    memberName(target) === CREATE_REQUIRE
-  );
+  const name = identifierName(target);
+  return name === undefined ? memberName(target) === CREATE_REQUIRE : factories.has(name);
 };
 
 /**
  * True for an expression that is a `require` function on its own terms, with
- * no knowledge of local bindings: member access ending in `.require`
+ * no knowledge of local `require` bindings: member access ending in `.require`
  * (`module.require`, `process.mainModule.require`, `require.main.require`) or
  * an immediately-invoked `createRequire(import.meta.url)`.
  */
-const isIntrinsicRequireExpression = (node: ts.Expression): boolean => {
+const isIntrinsicRequireExpression = (
+  node: ts.Expression,
+  factories: ReadonlySet<string>,
+): boolean => {
   const target = unwrapExpression(node);
   if (memberName(target) === "require") return true;
-  if (ts.isCallExpression(target)) return isCreateRequireReference(target.expression);
+  if (ts.isCallExpression(target)) return isCreateRequireReference(target.expression, factories);
   return false;
 };
 
 /**
  * True when `node` evaluates to a `require` function rather than merely being
  * spelled `require` — an intrinsic form, or any locally-bound alias discovered
- * by {@link collectRequireBindings}.
+ * by {@link collectRequireNames}.
  */
-const isRequireExpression = (node: ts.Expression, bindings: ReadonlySet<string>): boolean => {
+const isRequireExpression = (node: ts.Expression, names: RequireNames): boolean => {
   const name = identifierName(node);
-  return name === undefined ? isIntrinsicRequireExpression(node) : bindings.has(name);
+  return name === undefined
+    ? isIntrinsicRequireExpression(node, names.factories)
+    : names.requires.has(name);
 };
 
 /**
- * Names bound to a require function in this file. Seeded with `require`, since
- * bundlers rename the `createRequire` result (`require$1`, `req`, …) and code
- * aliases it (`var r = require`, `const { require: r } = module`).
- *
- * Done in one AST pass that records plain `name = otherName` edges, followed by
- * a worklist walk of those edges — deliberately not a re-walk-the-tree-until-
- * stable fixpoint, which degrades to O(passes x nodes) when aliases appear
- * before the binding they derive from and would let a pathological bundle hang
- * the release job (a CPU-bound scan cannot be interrupted by a CI timeout).
+ * Accumulates a set of names from direct seeds plus `name = otherName` copy
+ * edges, resolved with a worklist rather than a re-walk-the-tree-until-stable
+ * fixpoint. A fixpoint degrades to O(passes x nodes) when aliases appear before
+ * the binding they derive from, which would let a pathological bundle hang the
+ * release job — a CPU-bound scan cannot be interrupted by a CI timeout.
  */
-const collectRequireBindings = (sourceFile: ts.SourceFile): ReadonlySet<string> => {
-  const bindings = new Set<string>(["require"]);
+const createAliasGraph = (
+  root: string,
+): {
+  seed: (name: string) => void;
+  link: (source: string, dependent: string) => void;
+  resolve: () => ReadonlySet<string>;
+} => {
+  const names = new Set<string>([root]);
   /** alias source name -> names that copy it. */
   const dependents = new Map<string, string[]>();
-  const pending: string[] = ["require"];
+  const pending: string[] = [root];
 
   const seed = (name: string): void => {
-    if (bindings.has(name)) return;
-    bindings.add(name);
+    if (names.has(name)) return;
+    names.add(name);
     pending.push(name);
   };
 
-  // NOT named `declare`: `bun run` (which is how this ships) parses a
-  // statement-position `declare(...)` call as an ambient TypeScript
-  // declaration and erases it outright, while vitest's esbuild transform keeps
-  // it. That divergence silently disabled alias resolution here with the whole
-  // unit suite green — see the CLI-under-bun test.
-  const recordAlias = (name: string, initializer: ts.Expression): void => {
-    if (isIntrinsicRequireExpression(initializer)) {
-      seed(name);
-      return;
-    }
-    const source = identifierName(initializer);
-    if (source === undefined) return;
-    const edges = dependents.get(source);
-    if (edges === undefined) {
-      dependents.set(source, [name]);
-    } else {
-      edges.push(name);
-    }
-  };
-
-  /** `const { require: r } = module` / `const { require } = process.mainModule`. */
-  const recordDestructuredAlias = (pattern: ts.ObjectBindingPattern): void => {
-    for (const element of pattern.elements) {
-      const property = element.propertyName ?? element.name;
-      if (
-        ts.isIdentifier(property) &&
-        property.text === "require" &&
-        ts.isIdentifier(element.name)
-      ) {
-        seed(element.name.text);
+  return {
+    seed,
+    link: (source, dependent) => {
+      const edges = dependents.get(source);
+      if (edges === undefined) {
+        dependents.set(source, [dependent]);
+      } else {
+        edges.push(dependent);
       }
-    }
+    },
+    resolve: () => {
+      // Each name enters `pending` at most once, so this visits every edge once.
+      while (pending.length > 0) {
+        const source = pending.pop();
+        if (source === undefined) break;
+        for (const dependent of dependents.get(source) ?? []) {
+          seed(dependent);
+        }
+      }
+      return names;
+    },
   };
+};
 
+/** `name = <expr>` (no declaration keyword), anywhere in the tree. */
+const plainAssignment = (
+  node: ts.Node,
+): { readonly name: string; readonly value: ts.Expression } | undefined =>
+  ts.isBinaryExpression(node) &&
+  node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+  ts.isIdentifier(node.left)
+    ? { name: node.left.text, value: node.right }
+    : undefined;
+
+/** Local names `property` is destructured into: `const { require: r } = module`. */
+const destructuredAs = (pattern: ts.ObjectBindingPattern, property: string): string[] => {
+  const found: string[] = [];
+  for (const element of pattern.elements) {
+    const key = element.propertyName ?? element.name;
+    if (ts.isIdentifier(key) && key.text === property && ts.isIdentifier(element.name)) {
+      found.push(element.name.text);
+    }
+  }
+  return found;
+};
+
+/**
+ * Walks every `const x = …` / `x = …` / `const { k: x } = …` binding in the
+ * file and hands each one to `record`.
+ *
+ * NOT named `declare`, and neither is anything it calls: `bun run` (which is
+ * how this ships) parses a statement-position `declare(...)` call as an ambient
+ * TypeScript declaration and erases it outright, while vitest's esbuild
+ * transform keeps it. That divergence silently disabled alias resolution here
+ * with the whole unit suite green — see the CLI-under-bun test.
+ */
+const forEachBinding = (
+  sourceFile: ts.SourceFile,
+  record: {
+    readonly initialized: (name: string, initializer: ts.Expression) => void;
+    readonly destructured: (pattern: ts.ObjectBindingPattern) => void;
+  },
+): void => {
   const visit = (node: ts.Node): void => {
+    const assignment = plainAssignment(node);
     if (ts.isVariableDeclaration(node)) {
       if (ts.isObjectBindingPattern(node.name)) {
-        recordDestructuredAlias(node.name);
+        record.destructured(node.name);
       } else if (ts.isIdentifier(node.name) && node.initializer !== undefined) {
-        recordAlias(node.name.text, node.initializer);
+        record.initialized(node.name.text, node.initializer);
       }
-    } else if (
-      ts.isBinaryExpression(node) &&
-      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
-      ts.isIdentifier(node.left)
-    ) {
-      recordAlias(node.left.text, node.right);
+    } else if (assignment !== undefined) {
+      record.initialized(assignment.name, assignment.value);
     }
     ts.forEachChild(node, visit);
   };
   visit(sourceFile);
+};
 
-  // Each name enters `pending` at most once, so this visits every edge once.
-  while (pending.length > 0) {
-    const source = pending.pop();
-    if (source === undefined) break;
-    for (const dependent of dependents.get(source) ?? []) {
-      seed(dependent);
-    }
-  }
+/**
+ * Names bound to a require function in this file, and names bound to the
+ * `createRequire` factory that produces them. Both are seeded with their
+ * canonical spelling and grown across copy edges, because bundlers rename both
+ * ends: the factory (`createRequire$1`, `cr`) and its result (`require$1`,
+ * `req`), and hand-written code aliases `require` directly (`var r = require`,
+ * `const { require: r } = module`).
+ *
+ * Two passes, factories first, so neither depends on declaration order —
+ * hoisting and bundler output both reorder freely.
+ */
+const collectRequireNames = (sourceFile: ts.SourceFile): RequireNames => {
+  const factoryGraph = createAliasGraph(CREATE_REQUIRE);
+  forEachBinding(sourceFile, {
+    initialized: (name, initializer) => {
+      const target = unwrapExpression(initializer);
+      if (memberName(target) === CREATE_REQUIRE) {
+        factoryGraph.seed(name);
+        return;
+      }
+      const source = identifierName(target);
+      if (source !== undefined) factoryGraph.link(source, name);
+    },
+    destructured: (pattern) => {
+      for (const name of destructuredAs(pattern, CREATE_REQUIRE)) factoryGraph.seed(name);
+    },
+  });
+  const factories = factoryGraph.resolve();
 
-  return bindings;
+  const requireGraph = createAliasGraph("require");
+  forEachBinding(sourceFile, {
+    initialized: (name, initializer) => {
+      if (isIntrinsicRequireExpression(initializer, factories)) {
+        requireGraph.seed(name);
+        return;
+      }
+      const source = identifierName(initializer);
+      if (source !== undefined) requireGraph.link(source, name);
+    },
+    destructured: (pattern) => {
+      for (const name of destructuredAs(pattern, "require")) requireGraph.seed(name);
+    },
+  });
+
+  return { requires: requireGraph.resolve(), factories };
 };
 
 /**
@@ -326,17 +412,14 @@ const collectRequireBindings = (sourceFile: ts.SourceFile): ReadonlySet<string> 
  * `require.resolve(…)`, any aliased/derived form of either, or a dynamic
  * `import(…)`.
  */
-const isModuleResolvingCall = (
-  node: ts.CallExpression,
-  bindings: ReadonlySet<string>,
-): boolean => {
+const isModuleResolvingCall = (node: ts.CallExpression, names: RequireNames): boolean => {
   const callee = unwrapExpression(node.expression);
   if (callee.kind === ts.SyntaxKind.ImportKeyword) return true;
-  if (isRequireExpression(callee, bindings)) return true;
+  if (isRequireExpression(callee, names)) return true;
   return (
     ts.isPropertyAccessExpression(callee) &&
     callee.name.text === "resolve" &&
-    isRequireExpression(callee.expression, bindings)
+    isRequireExpression(callee.expression, names)
   );
 };
 
@@ -361,7 +444,7 @@ export function scanBundleSource(
     false,
     ts.ScriptKind.JS,
   );
-  const bindings = collectRequireBindings(sourceFile);
+  const names = collectRequireNames(sourceFile);
   const violations: BundleViolation[] = [];
 
   const report = (node: ts.Node, kind: BundleViolationKind, detail: string): void => {
@@ -389,7 +472,7 @@ export function scanBundleSource(
       if (specifier !== undefined && ts.isStringLiteralLike(specifier)) {
         checkSpecifier(node, specifier.text);
       }
-    } else if (ts.isCallExpression(node) && isModuleResolvingCall(node, bindings)) {
+    } else if (ts.isCallExpression(node) && isModuleResolvingCall(node, names)) {
       const [arg] = node.arguments;
       if (arg !== undefined) {
         if (ts.isStringLiteralLike(arg)) {
