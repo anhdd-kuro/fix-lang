@@ -14,6 +14,7 @@ export const PROVIDER_LABEL_KEYS: Readonly<Record<ProviderId, TranslationKey>> =
     openai: "models.select.provider.openai",
     openrouter: "models.select.provider.openrouter",
     ollama: "models.select.provider.ollama",
+    lmstudio: "models.select.provider.lmstudio",
   });
 
 export type ModelOptionKind = "model" | "inherit" | "unavailable" | "empty";
@@ -125,7 +126,7 @@ export const buildModelOptionGroups = (
         provider,
         createdAt: showAdditionalInfo ? normalizeModelTimestamp(model.created) : null,
         detail: showAdditionalInfo ? formatModelDetail(model, { t, formatCurrency }) : "",
-        isLocal: model.local !== undefined,
+        isLocal: model.local !== undefined || model.provider === "lmstudio" || model.provider === "ollama",
         isUnavailable: false,
         isDisabled: false,
         kind: "model",

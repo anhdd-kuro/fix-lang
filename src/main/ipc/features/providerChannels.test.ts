@@ -15,6 +15,7 @@ const {
   fetchAvailableModelsMock,
   fetchModelsForProvidersMock,
   probeOllamaMock,
+  probeLmStudioMock,
   getApiKeyMock,
   connectProviderToActiveProfileMock,
   connectProviderToProfileMock,
@@ -32,6 +33,7 @@ const {
   fetchAvailableModelsMock: vi.fn(),
   fetchModelsForProvidersMock: vi.fn(),
   probeOllamaMock: vi.fn(),
+  probeLmStudioMock: vi.fn(),
   getApiKeyMock: vi.fn(),
   connectProviderToActiveProfileMock: vi.fn(),
   connectProviderToProfileMock: vi.fn(),
@@ -65,6 +67,7 @@ vi.mock("~/main/llm", () => ({
 }));
 vi.mock("~/main/llm/models/compatibility", () => ({ checkModelCompatibility: vi.fn() }));
 vi.mock("~/main/llm/models/discover", () => ({ probeOllama: probeOllamaMock }));
+vi.mock("~/main/llm/lmstudio/client", () => ({ probeLmStudio: probeLmStudioMock }));
 vi.mock("~/main/llm/models/recommended", () => ({
   findRecommendedModel: vi.fn(),
   getRecommendedModels: vi.fn(),
@@ -83,6 +86,8 @@ vi.mock("~/stores/apiStore", () => ({
   getCurrentProfileId: getCurrentProfileIdMock,
   getDefaultModelId: vi.fn(),
   getProfileSetting: getProfileSettingMock,
+    getProviderEndpoint: () => undefined,
+    sanitizeProviderEndpoints: (raw: unknown) => (raw && typeof raw === "object" ? raw : {}),
   resetCurrentProfileSettings: vi.fn(),
   updateProfileSetting: updateProfileSettingMock,
   withoutProfileSecrets: withoutProfileSecretsMock,
@@ -92,7 +97,7 @@ vi.mock("~/stores/keybindingStore", () => ({
 }));
 // Slots derived from the real provider tables, never hand-listed.
 vi.mock("~/stores/profileSecretStore", async () => {
-  const { PROVIDER_REQUIRES_API_KEY, PROVIDER_SUPPORTS_PROVISIONING_KEY } =
+  const { PROVIDER_SUPPORTS_API_KEY, PROVIDER_SUPPORTS_PROVISIONING_KEY } =
     await import("~/shared/providers");
   return {
     clearProfileSecret: clearProfileSecretMock,
@@ -100,7 +105,7 @@ vi.mock("~/stores/profileSecretStore", async () => {
     hasProfileSecret: hasProfileSecretMock,
     setProfileSecret: setProfileSecretMock,
     secretKindsForProvider: (provider: ProviderId) => [
-      ...(PROVIDER_REQUIRES_API_KEY[provider] ? ["api"] : []),
+      ...(PROVIDER_SUPPORTS_API_KEY[provider] ? ["api"] : []),
       ...(PROVIDER_SUPPORTS_PROVISIONING_KEY[provider] ? ["provisioning"] : []),
     ],
   };
@@ -149,6 +154,7 @@ beforeEach(() => {
   fetchAvailableModelsMock.mockResolvedValue([]);
   fetchModelsForProvidersMock.mockResolvedValue({ models: [], errors: {} });
   probeOllamaMock.mockResolvedValue({ reachable: true, models: [] });
+  probeLmStudioMock.mockResolvedValue({ reachable: true, models: [] });
   getApiKeyMock.mockResolvedValue(null);
   connectProviderToActiveProfileMock.mockReturnValue({ id: "profile_1" });
   connectProviderToProfileMock.mockReturnValue({ id: "profile_1" });
@@ -178,7 +184,7 @@ describe("get-provider-states answers every provider in one round-trip", () => {
 
     const states = (await invoke("get-provider-states")) as ProviderStates;
 
-    expect(Object.keys(states).sort()).toEqual(["ollama", "openai", "openrouter"]);
+    expect(Object.keys(states).sort()).toEqual(["lmstudio", "ollama", "openai", "openrouter"]);
     expect(states).toEqual({
       openai: {
         connected: true,
@@ -203,6 +209,13 @@ describe("get-provider-states answers every provider in one round-trip", () => {
         apiKeySet: false,
         provisioningKeySet: false,
         modelCount: 1,
+      },
+      lmstudio: {
+        connected: false,
+        configured: false,
+        apiKeySet: false,
+        provisioningKeySet: false,
+        modelCount: 0,
       },
     });
   });
@@ -291,7 +304,7 @@ describe("get-provider-states answers every provider in one round-trip", () => {
     }
     // The key length never leaks either — the only number is a model count.
     const numbers = leaves.filter((leaf) => typeof leaf === "number");
-    expect(numbers).toEqual([1, 1, 0]);
+    expect(numbers).toEqual([1, 1, 0, 0]);
     for (const state of Object.values(states)) {
       expect(Object.keys(state).sort()).toEqual([
         "apiKeySet",

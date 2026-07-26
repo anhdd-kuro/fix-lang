@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   PROVIDER_IDS,
-  PROVIDER_REQUIRES_API_KEY,
+  PROVIDER_SUPPORTS_API_KEY,
   PROVIDER_SUPPORTS_PROVISIONING_KEY,
 } from "~/shared/providers";
 const { rmMock, readFileMock, getCurrentProfileIdMock } = vi.hoisted(() => ({
@@ -66,7 +66,7 @@ describe("profile secret targets", () => {
 describe("secretKindsForProvider — derived from the provider tables", () => {
   it.each([...PROVIDER_IDS])("matches the tables for %s", (provider) => {
     const expected: SecretKind[] = [];
-    if (PROVIDER_REQUIRES_API_KEY[provider]) expected.push("api");
+    if (PROVIDER_SUPPORTS_API_KEY[provider]) expected.push("api");
     if (PROVIDER_SUPPORTS_PROVISIONING_KEY[provider]) expected.push("provisioning");
 
     expect(secretKindsForProvider(provider)).toEqual(expected);
@@ -74,6 +74,10 @@ describe("secretKindsForProvider — derived from the provider tables", () => {
 
   it("gives a keyless provider no slots at all", () => {
     expect(secretKindsForProvider("ollama")).toEqual([]);
+  });
+
+  it("gives lmstudio an optional api slot", () => {
+    expect(secretKindsForProvider("lmstudio")).toEqual(["api"]);
   });
 
   it("accepts exactly the pairs getProfileSecretPath accepts", () => {
@@ -132,7 +136,7 @@ describe("clearProfileSecrets — covers every derived slot", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("EPERM");
-    expect(rmMock).toHaveBeenCalledTimes(3);
+    expect(rmMock).toHaveBeenCalledTimes(4);
   });
 });
 

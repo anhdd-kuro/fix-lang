@@ -73,6 +73,7 @@ const buildSettings = (overrides: Partial<SettingsStore> = {}): SettingsStore =>
     models: [],
     selectedModel: "",
     enabledProviders: [],
+    providerEndpoints: {},
     customSystemPrompt: "",
     customUserPrompt: "",
     tone: "",
@@ -632,7 +633,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "ff6680edb31360573a60568001433bff518f41b5bfa007b31e05fb98794563e1",
+      "34f77ed9437e0816d8d06cd7a76cd64936738f0c16390ea78d1aa4929c0dc126",
     );
   });
 });
@@ -848,6 +849,7 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
         models: [],
         selectedModel: "",
         enabledProviders: [],
+        providerEndpoints: {},
         settingsCorrect: {
           ...secretsOnly.settings.settingsCorrect,
           presets: secretsOnly.settings.settingsCorrect.presets.map((preset) => ({

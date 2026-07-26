@@ -514,6 +514,8 @@ export const VERBATIM_ALLOWED_WORDS: ReadonlySet<string> = new Set([
   "OpenAI",
   "OpenRouter",
   "Ollama",
+  "LM",
+  "Studio",
   "FixLang",
   "PromptGen",
   // Kept in Latin script by Japanese UI convention (macOS labels its own OK button "OK").

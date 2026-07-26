@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { messageLabel, type Label, type Message } from "~/shared/i18n/message";
+import { LMSTUDIO_DEFAULT_ENDPOINT } from "~/shared/lmstudioEndpoint";
 import { LanguageTabs } from "./LanguageTabs";
 import { ModelSelect } from "./ModelSelect";
 import { PROVIDER_LABEL_KEYS } from "./modelSelectOptions";
@@ -43,6 +44,14 @@ export const SettingGeneral: React.FC = () => {
   >({});
   // Write-only, and per provider so one card's key can never be submitted for another.
   const [typedKeys, setTypedKeys] = useState<TypedProviderKeys>({});
+  const [typedEndpoints, setTypedEndpoints] = useState<
+    Partial<Record<ProviderId, { host: string; port: string }>>
+  >({
+    lmstudio: {
+      host: LMSTUDIO_DEFAULT_ENDPOINT.host,
+      port: String(LMSTUDIO_DEFAULT_ENDPOINT.port),
+    },
+  });
   // Per provider, not one slot: concurrent connects would otherwise clear each
   // other's flag and re-enable a button whose request is still running.
   const [busyProviders, setBusyProviders] = useState<
@@ -70,6 +79,18 @@ export const SettingGeneral: React.FC = () => {
     try {
       const states = await window.electronAPI?.getProviderStates?.();
       if (states) setProviderStates(states);
+
+      const profileResult = await window.electronAPI?.getCurrentProfile?.();
+      const stored = profileResult?.currentProfile?.settings?.providerEndpoints?.lmstudio;
+      if (stored?.host && stored?.port) {
+        setTypedEndpoints((current) => ({
+          ...current,
+          lmstudio: {
+            host: stored.host,
+            port: String(stored.port),
+          },
+        }));
+      }
     } catch (error) {
       console.error("SettingGeneral: Error reading provider states:", error);
     }
@@ -190,10 +211,20 @@ export const SettingGeneral: React.FC = () => {
     setProviderStatus((current) => ({ ...current, [provider]: undefined }));
     try {
       const typed = typedKeys[provider];
+      const endpoint = typedEndpoints[provider];
+      const portRaw = endpoint?.port?.trim();
+      const port =
+        portRaw && Number.isInteger(Number(portRaw)) ? Number(portRaw) : undefined;
       const result = await window.electronAPI.connectProvider({
         provider,
         apiKey: typed?.apiKey || undefined,
         provisioningKey: typed?.provisioningKey || undefined,
+        ...(provider === "lmstudio"
+          ? {
+              host: endpoint?.host?.trim() || undefined,
+              ...(port !== undefined ? { port } : {}),
+            }
+          : {}),
       });
       if (result.success) {
         // Never keep a credential around after main has stored it.
@@ -346,13 +377,74 @@ export const SettingGeneral: React.FC = () => {
           </p>
         )}
 
-        {card.requiresApiKey ? (
+        {provider === "lmstudio" && (
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <div>
+              <label
+                htmlFor={`lmstudio-host-${provider}`}
+                className="block text-xs font-medium text-card-foreground mb-1"
+              >
+                {t("settings.general.providers.lmstudio.host")}
+              </label>
+              <input
+                id={`lmstudio-host-${provider}`}
+                type="text"
+                autoComplete="off"
+                className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                value={typedEndpoints.lmstudio?.host ?? LMSTUDIO_DEFAULT_ENDPOINT.host}
+                onChange={(event) =>
+                  setTypedEndpoints((current) => ({
+                    ...current,
+                    lmstudio: {
+                      host: event.target.value,
+                      port:
+                        current.lmstudio?.port ??
+                        String(LMSTUDIO_DEFAULT_ENDPOINT.port),
+                    },
+                  }))
+                }
+                aria-label={t("settings.general.providers.lmstudio.host")}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor={`lmstudio-port-${provider}`}
+                className="block text-xs font-medium text-card-foreground mb-1"
+              >
+                {t("settings.general.providers.lmstudio.port")}
+              </label>
+              <input
+                id={`lmstudio-port-${provider}`}
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                value={typedEndpoints.lmstudio?.port ?? String(LMSTUDIO_DEFAULT_ENDPOINT.port)}
+                onChange={(event) =>
+                  setTypedEndpoints((current) => ({
+                    ...current,
+                    lmstudio: {
+                      host:
+                        current.lmstudio?.host ?? LMSTUDIO_DEFAULT_ENDPOINT.host,
+                      port: event.target.value,
+                    },
+                  }))
+                }
+                aria-label={t("settings.general.providers.lmstudio.port")}
+              />
+            </div>
+          </div>
+        )}
+
+        {card.supportsApiKey ? (
           <div className="mt-2">
             <label
               htmlFor={`api-key-${provider}`}
               className="block text-xs font-medium text-card-foreground mb-1"
             >
-              {t("settings.general.apiKey.label", { provider: name })}
+              {card.requiresApiKey
+                ? t("settings.general.apiKey.label", { provider: name })
+                : t("settings.general.providers.lmstudio.apiKeyOptional")}
             </label>
             <p
               className={`text-xs mb-1 ${card.apiKeySet ? "text-success" : "text-muted-foreground"}`}
@@ -374,12 +466,26 @@ export const SettingGeneral: React.FC = () => {
                   ? t("settings.general.secret.placeholderReplace")
                   : t("settings.general.apiKey.placeholderNew", { provider: name })
               }
-              aria-label={t("settings.general.apiKey.label", { provider: name })}
+              aria-label={
+                card.requiresApiKey
+                  ? t("settings.general.apiKey.label", { provider: name })
+                  : t("settings.general.providers.lmstudio.apiKeyOptional")
+              }
             />
           </div>
         ) : (
           <p className="mt-2 text-xs text-muted-foreground">
-            {t("settings.general.providers.ollama.hint")}
+            {t(
+              provider === "ollama"
+                ? "settings.general.providers.ollama.hint"
+                : "settings.general.providers.lmstudio.hint",
+            )}
+          </p>
+        )}
+
+        {provider === "lmstudio" && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            {t("settings.general.providers.lmstudio.hint")}
           </p>
         )}
 

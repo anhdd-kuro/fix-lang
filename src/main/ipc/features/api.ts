@@ -6,6 +6,7 @@ import { ipcMain } from "electron";
 import { fetchAvailableModels, fetchModelsForProviders } from "~/main/ai.request";
 import { reloadHotkeys } from "~/main/keybindings";
 import { ollamaClient } from "~/main/llm";
+import { probeLmStudio } from "~/main/llm/lmstudio/client";
 import { checkModelCompatibility } from "~/main/llm/models/compatibility";
 import { probeOllama } from "~/main/llm/models/discover";
 import {
@@ -13,6 +14,12 @@ import {
   getRecommendedModels,
 } from "~/main/llm/models/recommended";
 import { messageLabel, textLabel } from "~/shared/i18n/message";
+import {
+  LMSTUDIO_DEFAULT_ENDPOINT,
+  resolveLmStudioEndpoint,
+  sanitizeLmStudioHost,
+  sanitizeLmStudioPort,
+} from "~/shared/lmstudioEndpoint";
 import { redactLogMessage } from "~/shared/logging";
 import { resolveModelRef } from "~/shared/modelRef";
 import {
@@ -35,6 +42,7 @@ import {
   getCurrentProfileId,
   getDefaultModelId,
   getProfileSetting,
+  getProviderEndpoint,
   resetCurrentProfileSettings,
   updateProfileSetting,
   withoutProfileSecrets,
@@ -93,6 +101,8 @@ type ProviderConnectPayload = {
   provider: ProviderId;
   apiKey?: string;
   provisioningKey?: string;
+  host?: string;
+  port?: number;
 };
 
 export const parseProviderConnect = (raw: unknown): ProviderConnectPayload | null => {
@@ -105,12 +115,29 @@ export const parseProviderConnect = (raw: unknown): ProviderConnectPayload | nul
   ) {
     return null;
   }
+  const host =
+    value.host === undefined ? undefined : sanitizeLmStudioHost(value.host) ?? undefined;
+  // Reject explicitly invalid host strings rather than silently dropping them.
+  if (value.host !== undefined && typeof value.host === "string" && host === undefined) {
+    return null;
+  }
+  if (value.host !== undefined && typeof value.host !== "string") {
+    return null;
+  }
+  let port: number | undefined;
+  if (value.port !== undefined) {
+    const sanitized = sanitizeLmStudioPort(value.port);
+    if (sanitized === null) return null;
+    port = sanitized;
+  }
   return {
     provider: value.provider,
     ...(typeof value.apiKey === "string" ? { apiKey: value.apiKey } : {}),
     ...(typeof value.provisioningKey === "string"
       ? { provisioningKey: value.provisioningKey }
       : {}),
+    ...(host !== undefined ? { host } : {}),
+    ...(port !== undefined ? { port } : {}),
   };
 };
 
@@ -121,6 +148,7 @@ const getSetupApiKey = async (
 ): Promise<string> => {
   if (provider === "ollama") return "";
   if (suppliedKey?.trim()) return suppliedKey.trim();
+  if (!secretKindsForProvider(provider).includes("api")) return "";
   return (await getProfileSecret(profileId, provider, "api")) ?? "";
 };
 
@@ -330,6 +358,48 @@ export const registerApiHandlers = (): void => {
           // Reachable but empty connects successfully, with advice.
           note = messageLabel("settings.general.providers.ollama.noModels");
         }
+      } else if (payload.provider === "lmstudio") {
+        const endpoint = resolveLmStudioEndpoint({
+          host: payload.host ?? getProviderEndpoint("lmstudio")?.host ?? LMSTUDIO_DEFAULT_ENDPOINT.host,
+          port: payload.port ?? getProviderEndpoint("lmstudio")?.port ?? LMSTUDIO_DEFAULT_ENDPOINT.port,
+        });
+        const apiKey = await getSetupApiKey(profileId, "lmstudio", payload.apiKey);
+        const probe = await probeLmStudio({ endpoint, apiKey });
+        if (!probe.reachable) {
+          return {
+            success: false,
+            error: messageLabel("settings.general.providers.lmstudio.unreachable"),
+          };
+        }
+        models = probe.models;
+        if (models.length === 0) {
+          note = messageLabel("settings.general.providers.lmstudio.noModels");
+        }
+
+        if (payload.apiKey?.trim()) {
+          const result = await setProfileSecret(
+            profileId,
+            "lmstudio",
+            "api",
+            payload.apiKey,
+          );
+          if (!result.success) return wrapStoreResult(result);
+        }
+
+        const profile = connectProviderToProfile(profileId, "lmstudio", models, {
+          endpoint,
+        });
+        if (!profile) {
+          return {
+            success: false,
+            error: messageLabel("models.providerSetup.error.activeProfileNotFound"),
+          };
+        }
+        return {
+          success: true,
+          profile: withoutProfileSecrets(profile),
+          ...(note ? { note } : {}),
+        };
       } else {
         const apiKey = await getSetupApiKey(profileId, payload.provider, payload.apiKey);
         if (!apiKey) {

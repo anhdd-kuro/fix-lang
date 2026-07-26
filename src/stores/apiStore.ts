@@ -14,6 +14,10 @@ import {
   DEFAULT_TRANSLATE_PRESET_ID,
   DEFAULT_TRANSLATE_PRESET_PROMPT,
 } from "~/prompts";
+import {
+  sanitizeProviderEndpoint,
+  type ProviderEndpoint,
+} from "~/shared/lmstudioEndpoint";
 import { modelRefForModel, parseModelRef } from "~/shared/modelRef";
 import {
   isModelForProvider,
@@ -29,6 +33,32 @@ import type { Schema } from "electron-store";
 // Re-exported for existing importers; `~/shared/providers` is the source of truth.
 export { isModelForProvider, isProviderId, PROVIDER_IDS };
 export type { Model, ProviderId };
+
+export type ProviderEndpointMap = Partial<Record<ProviderId, { host: string; port: number }>>;
+
+
+
+export const sanitizeProviderEndpoints = (raw: unknown): ProviderEndpointMap => {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const result: ProviderEndpointMap = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!isProviderId(key)) continue;
+    // Only LM Studio persists endpoints today.
+    if (key !== "lmstudio") continue;
+    const endpoint = sanitizeProviderEndpoint(value);
+    if (endpoint) result[key] = endpoint;
+  }
+  return result;
+};
+
+export const getProviderEndpoint = (
+  provider: ProviderId,
+  endpoints?: ProviderEndpointMap | null,
+): ProviderEndpoint | undefined => {
+  const map = endpoints ?? sanitizeProviderEndpoints(getProfileSetting("providerEndpoints"));
+  return map[provider];
+};
+
 
 export type KeyBindings = {
   promptGen: string; // generate a new prompt based on current selection
@@ -72,6 +102,8 @@ export type SettingsStore = {
   models: Model[];
   selectedModel: string;
   enabledProviders: ProviderId[];
+  /** Per-provider host/port. Currently used by LM Studio; other providers ignore it. */
+  providerEndpoints: ProviderEndpointMap;
 
   // Feature-specific settings
   settingsCorrect: CorrectionSettings;
@@ -421,6 +453,7 @@ export const apiStoreSchema = {
              * Validity is enforced in code by `sanitizeEnabledProviders`.
              */
             enabledProviders: { type: "array", items: { type: "string" }, default: [] },
+            providerEndpoints: { type: "object", default: {} },
             models: {
               type: "array",
               items: {
@@ -599,6 +632,7 @@ export const connectProviderToProfile = (
   profileId: string,
   provider: ProviderId,
   providerModels: Model[],
+  options?: { endpoint?: ProviderEndpoint },
 ): Profile | null => {
   const profiles = getProfiles();
   const index = profiles.findIndex((profile) => profile.id === profileId);
@@ -611,6 +645,14 @@ export const connectProviderToProfile = (
   const retainedModels = previousModels.filter(
     (model) => !isModelForProvider(model, provider),
   );
+
+  const providerEndpoints =
+    options?.endpoint && provider === "lmstudio"
+      ? {
+          ...sanitizeProviderEndpoints(settings.providerEndpoints),
+          lmstudio: options.endpoint,
+        }
+      : sanitizeProviderEndpoints(settings.providerEndpoints);
 
   return commitProfileAt(profiles, index, {
     ...settings,
@@ -625,6 +667,7 @@ export const connectProviderToProfile = (
         provider: model.provider ?? provider,
       })),
     ],
+    providerEndpoints,
   });
 };
 
@@ -865,6 +908,10 @@ export const getProfileSetting = <K extends keyof SettingsStore>(
     ) as SettingsStore[K];
   }
 
+  if (settingType === "providerEndpoints") {
+    return sanitizeProviderEndpoints(settings.providerEndpoints) as SettingsStore[K];
+  }
+
   return settings[settingType];
 };
 
@@ -911,7 +958,9 @@ export const updateProfileSetting = <K extends keyof SettingsStore>(
     const normalizedValue =
       settingType === "settingsCorrect"
         ? (normalizeCorrectionSettings(value) as SettingsStore[K])
-        : value;
+        : settingType === "providerEndpoints"
+          ? (sanitizeProviderEndpoints(value) as SettingsStore[K])
+          : value;
 
     const currentProfileId = apiStore.get("currentProfileId", "");
 
@@ -973,6 +1022,7 @@ const buildDefaultProfileSettings = (): SettingsStore =>
     models: [],
     selectedModel: "",
     enabledProviders: [],
+    providerEndpoints: {},
     customSystemPrompt: "",
     customUserPrompt: "",
     tone: "",
@@ -1026,6 +1076,7 @@ export const resetCurrentProfileSettings = (): {
         apiKey: existing.apiKey ?? "",
         models: existing.models ?? [],
         enabledProviders: existing.enabledProviders ?? [],
+        providerEndpoints: sanitizeProviderEndpoints(existing.providerEndpoints),
       },
     };
     apiStore.set("profiles", profiles);
@@ -1082,6 +1133,7 @@ export const toExportableProfile = (profile: Profile): Profile => {
       models: [],
       selectedModel: INHERIT_GLOBAL_MODEL,
       enabledProviders: [],
+      providerEndpoints: {},
       // Not normalized: an export must not invent presets the user never had.
       settingsCorrect: {
         ...settings.settingsCorrect,

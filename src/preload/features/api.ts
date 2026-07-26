@@ -16,15 +16,26 @@ export type ProviderConnectInput = {
   apiKey?: string;
   /** OpenRouter-only write-only credential. */
   provisioningKey?: string;
+  /** LM Studio host (no scheme/path). */
+  host?: string;
+  /** LM Studio port. */
+  port?: number;
 };
 
 export const isProviderConnectInput = (value: unknown): value is ProviderConnectInput => {
   if (typeof value !== "object" || value === null) return false;
   const input = value as Record<string, unknown>;
+  const hostOk = input.host === undefined || typeof input.host === "string";
+  const portOk =
+    input.port === undefined ||
+    (typeof input.port === "number" && Number.isInteger(input.port)) ||
+    typeof input.port === "string";
   return (
     isProviderId(input.provider) &&
     (input.apiKey === undefined || typeof input.apiKey === "string") &&
-    (input.provisioningKey === undefined || typeof input.provisioningKey === "string")
+    (input.provisioningKey === undefined || typeof input.provisioningKey === "string") &&
+    hostOk &&
+    portOk
   );
 };
 
