@@ -9,7 +9,7 @@
  *
  * This captures the real handlers registered by `registerProfileHandlers`
  * (via a stub `ipcMain.handle`) and invokes them directly, mirroring
- * `applyProviderSetup.test.ts`'s approach for `api.ts`. Expected copy is
+ * `connectProvider.test.ts`'s approach for `api.ts`. Expected copy is
  * derived through the real translator kernel (`createTranslator`) — never
  * hand-restated — so a catalog reword can't silently break this file, and an
  * English-fallback regression still fails a test that asserts the JA text.
@@ -84,6 +84,8 @@ const {
   withoutProfileSecretsMock,
   toExportableProfileMock,
   sanitizeImportedProfileMock,
+  apiStoreSetMock,
+  apiStoreGetMock,
 } = vi.hoisted(() => ({
   getProfilesMock: vi.fn(),
   getCurrentProfileIdMock: vi.fn(),
@@ -97,6 +99,8 @@ const {
   withoutProfileSecretsMock: vi.fn((profile: unknown) => profile),
   toExportableProfileMock: vi.fn((profile: unknown) => profile),
   sanitizeImportedProfileMock: vi.fn((profile: unknown) => profile),
+  apiStoreSetMock: vi.fn(),
+  apiStoreGetMock: vi.fn().mockReturnValue([]),
 }));
 
 vi.mock("~/stores/apiStore", () => ({
@@ -109,7 +113,7 @@ vi.mock("~/stores/apiStore", () => ({
   switchToNextProfile: switchToNextProfileMock,
   getProfileById: getProfileByIdMock,
   initializeDefaultProfile: initializeDefaultProfileMock,
-  apiStore: { get: vi.fn().mockReturnValue([]), set: vi.fn(), delete: vi.fn() },
+  apiStore: { get: apiStoreGetMock, set: apiStoreSetMock, delete: vi.fn() },
   withoutProfileSecrets: withoutProfileSecretsMock,
   toExportableProfile: toExportableProfileMock,
   sanitizeImportedProfile: sanitizeImportedProfileMock,
@@ -129,6 +133,12 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
     // reject unhandled. Restore the no-active-profile default explicitly;
     // tests that need a profile set their own return value.
     getProfileByIdMock.mockReturnValue(undefined);
+    // Same hazard for implementations, not just return values: the writeback
+    // test below replaces this mock's implementation, and vi.clearAllMocks()
+    // does not restore it. Reset it here so it cannot decide a later test.
+    withoutProfileSecretsMock.mockImplementation((profile: unknown) => profile);
+    toExportableProfileMock.mockImplementation((profile: unknown) => profile);
+    sanitizeImportedProfileMock.mockImplementation((profile: unknown) => profile);
     registerProfileHandlers();
   });
 
@@ -199,6 +209,60 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
     });
     expect(toExportableProfileMock).toHaveBeenCalledWith(storedProfile);
     expect(withoutProfileSecretsMock).not.toHaveBeenCalled();
+  });
+
+  // ---------------------------------------------------------------------
+  // The legacy-secret migration writeback. This is the landmine: line ~99
+  // writes the stripper's result straight BACK TO DISK, so widening it from
+  // `withoutProfileSecrets` to `toExportableProfile` would permanently erase
+  // every upgrading user's model cache, enabledProviders and model refs on
+  // first launch. `apiStore` is mocked here, so this pins the CALL — which
+  // helper the writeback uses, and that what reaches `apiStore.set` still
+  // carries the model state. That the narrow helper genuinely preserves that
+  // state is pinned separately, against the real implementation, by
+  // `apiStore.test.ts` › "withoutProfileSecrets — D13 (first half)".
+  // ---------------------------------------------------------------------
+  it("legacy-secret migration writes back withoutProfileSecrets, preserving the model cache", async () => {
+    const storedProfile = {
+      id: "profile_1",
+      name: "Work",
+      settings: {
+        apiKey: "legacy-plaintext-key",
+        models: [{ id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" }],
+        selectedModel: "openai::gpt-4o",
+        enabledProviders: ["openai", "openrouter"],
+        settingsCorrect: { presets: [{ id: "correct", model: "openai::gpt-4o" }] },
+      },
+    };
+    getProfileByIdMock.mockReturnValue(storedProfile);
+    getProfilesMock.mockReturnValue([storedProfile]);
+    // Mirrors the real narrow helper: secrets out, everything else untouched.
+    withoutProfileSecretsMock.mockImplementation((profile: unknown) => {
+      const { settings, ...rest } = profile as { settings: Record<string, unknown> };
+      const { apiKey: _apiKey, ...restSettings } = settings;
+      return { ...rest, settings: restSettings };
+    });
+
+    // registerProfileHandlers fires `void migrateLegacySecretsToActiveProfile()`.
+    registerProfileHandlers();
+    await vi.waitFor(() => {
+      expect(apiStoreSetMock).toHaveBeenCalled();
+    });
+
+    expect(withoutProfileSecretsMock).toHaveBeenCalledWith(storedProfile);
+    // The wide stripper must never appear on the disk-writeback path.
+    expect(toExportableProfileMock).not.toHaveBeenCalled();
+
+    const [key, written] = apiStoreSetMock.mock.calls.at(-1) as [string, unknown[]];
+    expect(key).toBe("profiles");
+    const writtenProfile = written[0] as { settings: Record<string, unknown> };
+    expect(writtenProfile.settings.apiKey).toBeUndefined();
+    expect(writtenProfile.settings.models).toEqual(storedProfile.settings.models);
+    expect(writtenProfile.settings.selectedModel).toBe("openai::gpt-4o");
+    expect(writtenProfile.settings.enabledProviders).toEqual(["openai", "openrouter"]);
+    expect(writtenProfile.settings.settingsCorrect).toEqual(
+      storedProfile.settings.settingsCorrect,
+    );
   });
 
   it("switch-to-next-profile: 'No profiles available' resolves to different EN/JA text via the catalog", async () => {

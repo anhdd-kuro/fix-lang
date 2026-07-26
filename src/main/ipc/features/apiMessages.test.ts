@@ -9,7 +9,7 @@
  *
  * This captures the real handlers registered by `registerApiHandlers` (via a
  * stub `ipcMain.handle`) and invokes them directly, mirroring
- * `applyProviderSetup.test.ts`'s own M1 regression coverage — this file adds
+ * `connectProvider.test.ts`'s own M1 regression coverage — this file adds
  * the messaging-shape coverage that one doesn't. Expected copy is derived
  * through the real translator kernel (`createTranslator`) — never
  * hand-restated — so a catalog reword can't silently break this file, and an
@@ -52,29 +52,35 @@ vi.mock("electron", () => ({
 
 const {
   fetchAvailableModelsMock,
-  commitActiveProfileProviderSetupMock,
+  fetchModelsForProvidersMock,
+  probeOllamaMock,
+  connectProviderToActiveProfileMock,
+  disconnectProviderFromActiveProfileMock,
   getCurrentProfileIdMock,
   getProfileSettingMock,
-  getActiveProviderMock,
   updateProfileSettingMock,
   resetCurrentProfileSettingsMock,
   hasProfileSecretMock,
   getProfileSecretMock,
   setProfileSecretMock,
+  clearProfileSecretMock,
   findRecommendedModelMock,
   checkModelCompatibilityMock,
   setApiKeyMock,
 } = vi.hoisted(() => ({
   fetchAvailableModelsMock: vi.fn(),
-  commitActiveProfileProviderSetupMock: vi.fn(),
+  fetchModelsForProvidersMock: vi.fn(),
+  probeOllamaMock: vi.fn(),
+  connectProviderToActiveProfileMock: vi.fn(),
+  disconnectProviderFromActiveProfileMock: vi.fn(),
   getCurrentProfileIdMock: vi.fn().mockReturnValue("profile_1"),
   getProfileSettingMock: vi.fn().mockReturnValue([]),
-  getActiveProviderMock: vi.fn().mockReturnValue("openai"),
   updateProfileSettingMock: vi.fn(),
   resetCurrentProfileSettingsMock: vi.fn(),
   hasProfileSecretMock: vi.fn().mockResolvedValue(false),
   getProfileSecretMock: vi.fn().mockResolvedValue(null),
   setProfileSecretMock: vi.fn().mockResolvedValue({ success: true }),
+  clearProfileSecretMock: vi.fn().mockResolvedValue({ success: true }),
   findRecommendedModelMock: vi.fn(),
   checkModelCompatibilityMock: vi.fn(),
   setApiKeyMock: vi.fn(),
@@ -82,9 +88,9 @@ const {
 
 vi.mock("~/main/ai.request", () => ({
   fetchAvailableModels: fetchAvailableModelsMock,
-  fetchModelsForDisplay: vi.fn(),
-  getActiveProvider: getActiveProviderMock,
+  fetchModelsForProviders: fetchModelsForProvidersMock,
 }));
+vi.mock("~/main/llm/models/discover", () => ({ probeOllama: probeOllamaMock }));
 vi.mock("~/main/keybindings", () => ({ reloadHotkeys: vi.fn() }));
 vi.mock("~/main/llm", () => ({
   ollamaClient: { pull: vi.fn(), delete: vi.fn(), chat: vi.fn() },
@@ -102,43 +108,50 @@ vi.mock("~/stores/apiKeyStore", () => ({
   hasApiKey: vi.fn(),
   setApiKey: setApiKeyMock,
 }));
+// No hand-rolled isProviderId/isModelForProvider here: api.ts imports those
+// from the unmocked `~/shared/providers`, so the real predicates run.
 vi.mock("~/stores/apiStore", () => ({
-  isProviderId: (value: unknown): boolean =>
-    value === "openai" || value === "openrouter" || value === "ollama",
-  isModelForProvider: (
-    model: { provider?: string; local?: unknown },
-    provider: string,
-  ): boolean =>
-    provider === "ollama"
-      ? model.provider === "ollama" || model.local !== undefined
-      : model.provider === provider ||
-        (provider === "openrouter" && model.provider === undefined && !model.local),
-  commitActiveProfileProviderSetup: commitActiveProfileProviderSetupMock,
+  connectProviderToActiveProfile: connectProviderToActiveProfileMock,
+  disconnectProviderFromActiveProfile: disconnectProviderFromActiveProfileMock,
   getCurrentProfileId: getCurrentProfileIdMock,
   getDefaultModelId: vi.fn(),
   getProfileSetting: getProfileSettingMock,
   resetCurrentProfileSettings: resetCurrentProfileSettingsMock,
   updateProfileSetting: updateProfileSettingMock,
+  withoutProfileSecrets: vi.fn((profile: unknown) => profile),
 }));
 vi.mock("~/stores/keybindingStore", () => ({
   keybindingStore: { resetKeyBindings: vi.fn() },
 }));
-vi.mock("~/stores/profileSecretStore", () => ({
-  getProfileSecret: getProfileSecretMock,
-  hasProfileSecret: hasProfileSecretMock,
-  setProfileSecret: setProfileSecretMock,
-}));
+vi.mock("~/stores/profileSecretStore", async () => {
+  const { PROVIDER_REQUIRES_API_KEY, PROVIDER_SUPPORTS_PROVISIONING_KEY } =
+    await import("~/shared/providers");
+  return {
+    clearProfileSecret: clearProfileSecretMock,
+    getProfileSecret: getProfileSecretMock,
+    hasProfileSecret: hasProfileSecretMock,
+    setProfileSecret: setProfileSecretMock,
+    secretKindsForProvider: (provider: "openai" | "openrouter" | "ollama") => [
+      ...(PROVIDER_REQUIRES_API_KEY[provider] ? ["api"] : []),
+      ...(PROVIDER_SUPPORTS_PROVISIONING_KEY[provider] ? ["provisioning"] : []),
+    ],
+  };
+});
 
 describe("api.ts IPC handlers — app-authored validation errors are translatable Messages", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     handlers.clear();
     getCurrentProfileIdMock.mockReturnValue("profile_1");
-    getActiveProviderMock.mockReturnValue("openai");
     getProfileSettingMock.mockReturnValue([]);
     hasProfileSecretMock.mockResolvedValue(false);
     getProfileSecretMock.mockResolvedValue(null);
     setProfileSecretMock.mockResolvedValue({ success: true });
+    clearProfileSecretMock.mockResolvedValue({ success: true });
+    probeOllamaMock.mockResolvedValue({ reachable: true, models: [] });
+    fetchModelsForProvidersMock.mockResolvedValue({ models: [], errors: {} });
+    connectProviderToActiveProfileMock.mockReturnValue({ id: "profile_1" });
+    disconnectProviderFromActiveProfileMock.mockReturnValue(null);
     registerApiHandlers();
   });
 
@@ -171,7 +184,6 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
     const handler = handlers.get("fetch-provider-models");
     const result = (await handler?.(undefined, {
       provider: "openai",
-      modelId: "gpt-4o",
       provisioningKey: "sk-or-x",
     })) as { success: boolean; error?: unknown };
 
@@ -185,10 +197,10 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
   it("fetch-provider-models: a missing API key is a translatable, parameterized Message naming the provider", async () => {
     getProfileSecretMock.mockResolvedValue(null);
     const handler = handlers.get("fetch-provider-models");
-    const result = (await handler?.(undefined, {
-      provider: "openai",
-      modelId: "gpt-4o",
-    })) as { success: boolean; error?: unknown };
+    const result = (await handler?.(undefined, { provider: "openai" })) as {
+      success: boolean;
+      error?: unknown;
+    };
 
     expect(result.success).toBe(false);
     const { en, ja } = resolveBoth(result.error);
@@ -201,27 +213,27 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
     expect(ja).not.toBe(en);
   });
 
-  it("apply-provider-setup: a missing profile/modelId is a translatable 'Choose a provider and default model' Message", async () => {
-    const handler = handlers.get("apply-provider-setup");
-    const result = (await handler?.(undefined, { provider: "openai" })) as {
+  it("connect-provider: an unparseable payload is a translatable 'Invalid provider setup' Message", async () => {
+    const handler = handlers.get("connect-provider");
+    const result = (await handler?.(undefined, { provider: "bogus" })) as {
       success: boolean;
       error?: unknown;
     };
 
     expect(result.success).toBe(false);
     const { en, ja } = resolveBoth(result.error);
-    expect(en).toBe(tEn("models.providerSetup.error.chooseProviderAndModel"));
-    expect(ja).toBe(tJa("models.providerSetup.error.chooseProviderAndModel"));
+    expect(en).toBe(tEn("models.providerSetup.error.invalidSetup"));
+    expect(ja).toBe(tJa("models.providerSetup.error.invalidSetup"));
     expect(ja).not.toBe(en);
   });
 
-  it("apply-provider-setup: a missing API key is a translatable, parameterized Message naming the provider", async () => {
+  it("connect-provider: a missing API key is a translatable, parameterized Message naming the provider", async () => {
     getProfileSecretMock.mockResolvedValue(null);
-    const handler = handlers.get("apply-provider-setup");
-    const result = (await handler?.(undefined, {
-      provider: "openrouter",
-      modelId: "anthropic/claude-3",
-    })) as { success: boolean; error?: unknown };
+    const handler = handlers.get("connect-provider");
+    const result = (await handler?.(undefined, { provider: "openrouter" })) as {
+      success: boolean;
+      error?: unknown;
+    };
 
     expect(result.success).toBe(false);
     const { en, ja } = resolveBoth(result.error);
@@ -234,37 +246,19 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
     expect(ja).not.toBe(en);
   });
 
-  it("apply-provider-setup: a model absent from the fetched list is a translatable Message", async () => {
-    getProfileSecretMock.mockResolvedValue("sk-abc");
-    fetchAvailableModelsMock.mockResolvedValue([
-      { id: "openai/other-model", name: "other", created: 1, provider: "openai" },
-    ]);
-    const handler = handlers.get("apply-provider-setup");
-    const result = (await handler?.(undefined, {
-      provider: "openai",
-      modelId: "openai/gpt-4o",
-    })) as { success: boolean; error?: unknown };
-
-    expect(result.success).toBe(false);
-    const { en, ja } = resolveBoth(result.error);
-    expect(en).toBe(tEn("models.providerSetup.error.chooseModelForProvider"));
-    expect(ja).toBe(tJa("models.providerSetup.error.chooseModelForProvider"));
-    expect(ja).not.toBe(en);
-  });
-
-  it("apply-provider-setup: an unverifiable secret write is a translatable 'API key could not be verified' Message", async () => {
+  it("connect-provider: an unverifiable secret write is a translatable 'API key could not be verified' Message", async () => {
     getProfileSecretMock.mockResolvedValue("sk-abc");
     hasProfileSecretMock.mockResolvedValue(false);
     fetchAvailableModelsMock.mockResolvedValue([
-      { id: "openai/gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
+      { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
     ]);
-    const handler = handlers.get("apply-provider-setup");
+    const handler = handlers.get("connect-provider");
     // No `apiKey` supplied and `hasProfileSecret` resolves false — the
     // "already verified" branch fails without writing a new secret.
-    const result = (await handler?.(undefined, {
-      provider: "openai",
-      modelId: "openai/gpt-4o",
-    })) as { success: boolean; error?: unknown };
+    const result = (await handler?.(undefined, { provider: "openai" })) as {
+      success: boolean;
+      error?: unknown;
+    };
 
     expect(result.success).toBe(false);
     const { en, ja } = resolveBoth(result.error);
@@ -273,18 +267,18 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
     expect(ja).not.toBe(en);
   });
 
-  it("apply-provider-setup: a missing active profile after commit is a translatable Message", async () => {
+  it("connect-provider: a missing active profile after the connect is a translatable Message", async () => {
     getProfileSecretMock.mockResolvedValue("sk-abc");
     hasProfileSecretMock.mockResolvedValue(true);
     fetchAvailableModelsMock.mockResolvedValue([
-      { id: "openai/gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
+      { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
     ]);
-    commitActiveProfileProviderSetupMock.mockReturnValue(null);
-    const handler = handlers.get("apply-provider-setup");
-    const result = (await handler?.(undefined, {
-      provider: "openai",
-      modelId: "openai/gpt-4o",
-    })) as { success: boolean; error?: unknown };
+    connectProviderToActiveProfileMock.mockReturnValue(null);
+    const handler = handlers.get("connect-provider");
+    const result = (await handler?.(undefined, { provider: "openai" })) as {
+      success: boolean;
+      error?: unknown;
+    };
 
     expect(result.success).toBe(false);
     const { en, ja } = resolveBoth(result.error);
@@ -293,13 +287,58 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
     expect(ja).not.toBe(en);
   });
 
-  it("set-selected-model: a model unavailable from the active provider is a translatable Message", async () => {
-    getProfileSettingMock.mockReturnValue([
-      { id: "openrouter/x", name: "x", provider: "openrouter" },
-    ]);
-    getActiveProviderMock.mockReturnValue("openai");
+  it("connect-provider: an unreachable Ollama daemon is a translatable Message", async () => {
+    probeOllamaMock.mockResolvedValue({ reachable: false, models: [], error: "ECONNREFUSED" });
+    const handler = handlers.get("connect-provider");
+    const result = (await handler?.(undefined, { provider: "ollama" })) as {
+      success: boolean;
+      error?: unknown;
+    };
+
+    expect(result.success).toBe(false);
+    const { en, ja } = resolveBoth(result.error);
+    expect(en).toBe(tEn("settings.general.providers.ollama.unreachable"));
+    expect(ja).toBe(tJa("settings.general.providers.ollama.unreachable"));
+    expect(ja).not.toBe(en);
+  });
+
+  it("connect-provider: the reachable-but-empty Ollama note is a translatable Message on a SUCCESS", async () => {
+    probeOllamaMock.mockResolvedValue({ reachable: true, models: [] });
+    const handler = handlers.get("connect-provider");
+    const result = (await handler?.(undefined, { provider: "ollama" })) as {
+      success: boolean;
+      note?: unknown;
+    };
+
+    expect(result.success).toBe(true);
+    const { en, ja } = resolveBoth(result.note);
+    expect(en).toBe(tEn("settings.general.providers.ollama.noModels"));
+    expect(ja).toBe(tJa("settings.general.providers.ollama.noModels"));
+    expect(ja).not.toBe(en);
+  });
+
+  it("disconnect-provider: an unknown provider is a translatable 'Invalid provider setup' Message", async () => {
+    const handler = handlers.get("disconnect-provider");
+    const result = (await handler?.(undefined, "bogus")) as {
+      success: boolean;
+      error?: unknown;
+    };
+
+    expect(result.success).toBe(false);
+    const { en, ja } = resolveBoth(result.error);
+    expect(en).toBe(tEn("models.providerSetup.error.invalidSetup"));
+    expect(ja).toBe(tJa("models.providerSetup.error.invalidSetup"));
+    expect(ja).not.toBe(en);
+  });
+
+  it("set-selected-model: a model from a provider that is not connected is a translatable Message", async () => {
+    getProfileSettingMock.mockImplementation((key: string) =>
+      key === "models"
+        ? [{ id: "x", name: "x", created: 1, provider: "openrouter" }]
+        : ["openai"],
+    );
     const handler = handlers.get("set-selected-model");
-    const result = (await handler?.(undefined, "openrouter/x")) as {
+    const result = (await handler?.(undefined, "openrouter::x")) as {
       success: boolean;
       error?: unknown;
     };

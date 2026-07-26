@@ -10,6 +10,7 @@ import {
   updateProfileSetting,
 } from "~/stores/apiStore";
 import { fixGrammar } from "../../ai.request/correction";
+import type { ProviderId } from "~/shared/providers";
 
 /**
  * Registers correction-related IPC handlers
@@ -92,7 +93,12 @@ export const registerCorrectionHandlers = () => {
       promptTokens?: number;
       completionTokens?: number;
       model?: string;
-      provider?: "openai" | "openrouter" | "ollama";
+      // `ProviderId`, not a hand-written union. The union narrowed `string`
+      // perfectly well, so a fourth provider would have been dropped from
+      // every `fix-grammar` result silently, with no type error anywhere.
+      // (The card asked for `isProviderId` here; this is a TYPE position, and
+      // `ProviderId` is the type that guard narrows to — see notes.md.)
+      provider?: ProviderId;
       resolvedModel?: string;
       presetId?: string;
       presetName?: string;
