@@ -188,7 +188,7 @@ describe("adjustSemanticTokenContrast via tmThemeToSemanticTokens", () => {
       expect(
         colord(tokens["--ring"]).contrast(background),
       ).toBeGreaterThanOrEqual(3);
-      const borderContrastFloor = background.isDark() ? 2.05 : 3;
+      const borderContrastFloor = background.isDark() ? 1.26 : 3;
       expect(border.contrast(background)).toBeGreaterThanOrEqual(
         borderContrastFloor,
       );

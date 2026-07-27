@@ -26,9 +26,9 @@ html[data-theme="tc-nightfly-default"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #fe5c56;
   --destructive-active: #ff675e;
-  --border: #4e5967;
-  --control-border: #3a404a;
-  --card-control-border: #3a404a;
+  --border: #2e3b4b;
+  --control-border: #2e3b4b;
+  --card-control-border: #2e3b4b;
   --input: #7c8f8f;
   --ring: #82aaff;
   --success: #a1cd5e;
@@ -41,6 +41,6 @@ html[data-theme="tc-nightfly-default"] {
   --chart-4: #7fdbca;
   --chart-5: #e7d37a;
   --overlay-spinner: #82aaff;
-  --overlay-spinner-track: #66707c;
+  --overlay-spinner-track: #67707d;
   --overlay-backdrop: rgba(1, 22, 39, 0.72);
 }

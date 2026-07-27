@@ -26,9 +26,9 @@ html[data-theme="catppuccin-mocha"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #f595af;
   --destructive-active: #f79fb6;
-  --border: #70707d;
-  --control-border: #7d7d89;
-  --card-control-border: #81818c;
+  --border: #52515f;
+  --control-border: #7e7d88;
+  --card-control-border: #81808b;
   --input: #313244;
   --ring: #cba6f7;
   --success: #a6e3a1;
@@ -41,6 +41,6 @@ html[data-theme="catppuccin-mocha"] {
   --chart-4: #94e2d5;
   --chart-5: #f9e2af;
   --overlay-spinner: #cba6f7;
-  --overlay-spinner-track: #757582;
+  --overlay-spinner-track: #777681;
   --overlay-backdrop: rgba(30, 30, 46, 0.72);
 }

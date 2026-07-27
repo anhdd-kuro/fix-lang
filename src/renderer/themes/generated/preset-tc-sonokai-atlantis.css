@@ -26,9 +26,9 @@ html[data-theme="tc-sonokai-atlantis"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #ff707f;
   --destructive-active: #ff7a87;
-  --border: #6b6f75;
-  --control-border: #3d3e43;
-  --card-control-border: #3d3e43;
+  --border: #4c5159;
+  --control-border: #3c3f45;
+  --card-control-border: #3c3f45;
   --input: #828a9a;
   --ring: #72cce8;
   --success: #9dd274;
@@ -41,6 +41,6 @@ html[data-theme="tc-sonokai-atlantis"] {
   --chart-4: #f69c5e;
   --chart-5: #eacb64;
   --overlay-spinner: #72cce8;
-  --overlay-spinner-track: #81858a;
+  --overlay-spinner-track: #81858b;
   --overlay-backdrop: rgba(42, 47, 56, 0.72);
 }

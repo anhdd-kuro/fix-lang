@@ -26,9 +26,9 @@ html[data-theme="tc-zenbones-neobones-dark"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #e27985;
   --destructive-active: #e5838d;
-  --border: #61696d;
-  --control-border: #7c8386;
-  --card-control-border: #7c8386;
+  --border: #434b50;
+  --control-border: #7d8286;
+  --card-control-border: #7d8286;
   --input: #263945;
   --ring: #8190d4;
   --success: #90ff6b;
@@ -41,6 +41,6 @@ html[data-theme="tc-zenbones-neobones-dark"] {
   --chart-4: #66a5ad;
   --chart-5: #b77e64;
   --overlay-spinner: #8190d4;
-  --overlay-spinner-track: #6b7376;
+  --overlay-spinner-track: #6c7277;
   --overlay-backdrop: rgba(15, 25, 31, 0.72);
 }

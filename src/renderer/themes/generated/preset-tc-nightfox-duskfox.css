@@ -26,9 +26,9 @@ html[data-theme="tc-nightfox-duskfox"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #ee7a99;
   --destructive-active: #f085a0;
-  --border: #7b7988;
-  --control-border: #9694a0;
-  --card-control-border: #9694a0;
+  --border: #5a5869;
+  --control-border: #9795a0;
+  --card-control-border: #9795a0;
   --input: #47407d;
   --ring: #569fba;
   --success: #a3be8c;
@@ -41,6 +41,6 @@ html[data-theme="tc-nightfox-duskfox"] {
   --chart-4: #9ccfd8;
   --chart-5: #f6c177;
   --overlay-spinner: #569fba;
-  --overlay-spinner-track: #7b7988;
+  --overlay-spinner-track: #7a7886;
   --overlay-backdrop: rgba(35, 33, 54, 0.72);
 }

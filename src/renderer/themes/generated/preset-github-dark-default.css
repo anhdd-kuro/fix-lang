@@ -26,9 +26,9 @@ html[data-theme="github-dark-default"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #fa5c51;
   --destructive-active: #fc665a;
-  --border: #5e6065;
-  --control-border: #6c6e73;
-  --card-control-border: #74757a;
+  --border: #404247;
+  --control-border: #6c6e72;
+  --card-control-border: #75767a;
   --input: #181f2b;
   --ring: #1f6feb;
   --success: #3fb950;
@@ -41,6 +41,6 @@ html[data-theme="github-dark-default"] {
   --chart-4: #39c5cf;
   --chart-5: #d29922;
   --overlay-spinner: #1f6feb;
-  --overlay-spinner-track: #6b6d72;
+  --overlay-spinner-track: #6b6d71;
   --overlay-backdrop: rgba(13, 17, 23, 0.72);
 }

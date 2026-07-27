@@ -26,9 +26,9 @@ html[data-theme="night-owl"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #f15d58;
   --destructive-active: #f46760;
-  --border: #636d7a;
-  --control-border: #6a7480;
-  --card-control-border: #727b87;
+  --border: #434e5d;
+  --control-border: #6b7480;
+  --card-control-border: #747c88;
   --input: #0d2a43;
   --ring: #566677;
   --success: #22da6e;
@@ -41,6 +41,6 @@ html[data-theme="night-owl"] {
   --chart-4: #21c7a8;
   --chart-5: #c5e478;
   --overlay-spinner: #395a76;
-  --overlay-spinner-track: #66707c;
+  --overlay-spinner-track: #67707d;
   --overlay-backdrop: rgba(1, 22, 39, 0.72);
 }

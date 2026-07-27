@@ -26,9 +26,9 @@ html[data-theme="tc-moonfly-default"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #ff5f5c;
   --destructive-active: #ff6964;
-  --border: #4d4d4d;
-  --control-border: #474747;
-  --card-control-border: #474747;
+  --border: #2e2e2e;
+  --control-border: #2e2e2e;
+  --card-control-border: #2e2e2e;
   --input: #949494;
   --ring: #80a0ff;
   --success: #8cc85f;

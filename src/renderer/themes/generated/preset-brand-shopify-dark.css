@@ -26,9 +26,9 @@ html[data-theme="brand-shopify-dark"] {
   --destructive-foreground: #fafafa;
   --destructive-hover: #cc2b0e;
   --destructive-active: #be2a0e;
-  --border: #5d5e5e;
-  --control-border: #686969;
-  --card-control-border: #707171;
+  --border: #3f3f40;
+  --control-border: #69696a;
+  --card-control-border: #707071;
   --input: #1c1d1f;
   --ring: #008060;
   --success: #95bf47;
@@ -41,6 +41,6 @@ html[data-theme="brand-shopify-dark"] {
   --chart-4: #47c1bf;
   --chart-5: #b98900;
   --overlay-spinner: #008060;
-  --overlay-spinner-track: #6a6b6b;
+  --overlay-spinner-track: #6a6a6b;
   --overlay-backdrop: rgba(11, 12, 13, 0.72);
 }
