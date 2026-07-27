@@ -24,6 +24,7 @@ type UpdateState = {
   availableVersion?: string;
   releaseNotes?: string;
   message?: Message;
+  canInstall?: boolean;
 };
 
 type TrayApi = {
@@ -33,6 +34,7 @@ type TrayApi = {
   restartApp: ReturnType<typeof vi.fn>;
   quitApp: ReturnType<typeof vi.fn>;
   checkForUpdates: ReturnType<typeof vi.fn>;
+  installUpdate: ReturnType<typeof vi.fn>;
   openUpdateRelease: ReturnType<typeof vi.fn>;
   showMessageBox: ReturnType<typeof vi.fn>;
   // The tray now renders through <I18nProvider>, which resolves its initial
@@ -72,6 +74,7 @@ describe("TrayToolbar", () => {
       restartApp: vi.fn(),
       quitApp: vi.fn(),
       checkForUpdates: vi.fn().mockResolvedValue(state),
+      installUpdate: vi.fn().mockResolvedValue({ success: true }),
       openUpdateRelease: vi.fn().mockResolvedValue({ success: true }),
       showMessageBox: vi.fn().mockResolvedValue(showMessageBoxResult),
       getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
@@ -156,6 +159,54 @@ describe("TrayToolbar", () => {
       tEn("common.close"),
     ]);
     expect(api.openUpdateRelease).toHaveBeenCalledTimes(1);
+  });
+
+
+  it("opens About and starts the Homebrew update when the user picks Update now", async () => {
+    await render(
+      {
+        phase: "available",
+        currentVersion: "1.2.3",
+        availableVersion: "1.3.0",
+        canInstall: true,
+      },
+      { response: 0 },
+    );
+
+    await click(checkForUpdatesButton());
+    await waitForUi();
+
+    expect(api.showMessageBox).toHaveBeenCalledTimes(1);
+    const [options] = api.showMessageBox.mock.calls[0];
+    expect(options.buttons).toEqual([
+      tEn("settings.updates.installNow"),
+      tEn("tray.toolbar.updateCheck.viewRelease"),
+      tEn("common.close"),
+    ]);
+    expect(api.hideTray).toHaveBeenCalledTimes(1);
+    expect(api.showMainWindowTab).toHaveBeenCalledWith("about");
+    expect(api.installUpdate).toHaveBeenCalledTimes(1);
+    expect(api.openUpdateRelease).not.toHaveBeenCalled();
+  });
+
+  it("opens the release page when a Homebrew install picks View release", async () => {
+    await render(
+      {
+        phase: "available",
+        currentVersion: "1.2.3",
+        availableVersion: "1.3.0",
+        canInstall: true,
+      },
+      { response: 1 },
+    );
+
+    await click(checkForUpdatesButton());
+    await waitForUi();
+
+    expect(api.openUpdateRelease).toHaveBeenCalledTimes(1);
+    expect(api.hideTray).not.toHaveBeenCalled();
+    expect(api.showMainWindowTab).not.toHaveBeenCalled();
+    expect(api.installUpdate).not.toHaveBeenCalled();
   });
 
   it("does not open the release page when the user closes the available-update dialog", async () => {
