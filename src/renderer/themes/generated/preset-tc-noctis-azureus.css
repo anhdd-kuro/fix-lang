@@ -26,9 +26,9 @@ html[data-theme="tc-noctis-azureus"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #e96d3d;
   --destructive-active: #ec7547;
-  --border: #889199;
-  --control-border: #a9afb5;
-  --card-control-border: #a9afb5;
+  --border: #31414d;
+  --control-border: #a8afb4;
+  --card-control-border: #a8afb4;
   --input: #475e6c;
   --ring: #49ace9;
   --success: #49e9a6;
@@ -41,6 +41,6 @@ html[data-theme="tc-noctis-azureus"] {
   --chart-4: #49d6e9;
   --chart-5: #e4b781;
   --overlay-spinner: #49ace9;
-  --overlay-spinner-track: #889199;
+  --overlay-spinner-track: #68737d;
   --overlay-backdrop: rgba(5, 27, 41, 0.72);
 }

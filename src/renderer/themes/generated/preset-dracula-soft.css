@@ -26,7 +26,7 @@ html[data-theme="dracula-soft"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #f1706e;
   --destructive-active: #f37a77;
-  --border: #81828a;
+  --border: #60616b;
   --control-border: #87888f;
   --card-control-border: #919299;
   --input: #393c4d;
@@ -41,6 +41,6 @@ html[data-theme="dracula-soft"] {
   --chart-4: #97e1f1;
   --chart-5: #e7ee98;
   --overlay-spinner: #f286c4;
-  --overlay-spinner-track: #81828a;
+  --overlay-spinner-track: #7f8088;
   --overlay-backdrop: rgba(40, 42, 54, 0.72);
 }

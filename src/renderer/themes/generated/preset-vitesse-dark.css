@@ -26,7 +26,7 @@ html[data-theme="vitesse-dark"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #cf7e7e;
   --destructive-active: #d38887;
-  --border: #636363;
+  --border: #454545;
   --control-border: #6d6d6d;
   --card-control-border: #757575;
   --input: #222222;
@@ -41,6 +41,6 @@ html[data-theme="vitesse-dark"] {
   --chart-4: #5eaab5;
   --chart-5: #e6cc77;
   --overlay-spinner: #499776;
-  --overlay-spinner-track: #6d6d6d;
+  --overlay-spinner-track: #6e6e6e;
   --overlay-backdrop: rgba(18, 18, 18, 0.72);
 }

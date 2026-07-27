@@ -26,9 +26,9 @@ html[data-theme="rose-pine-moon"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #ee7a99;
   --destructive-active: #f085a0;
-  --border: #757383;
-  --control-border: #7e7c8b;
-  --card-control-border: #888694;
+  --border: #565465;
+  --control-border: #7e7c89;
+  --card-control-border: #898793;
   --input: #322f4a;
   --ring: #6f6c7d;
   --success: #3e8fb0;
@@ -41,6 +41,6 @@ html[data-theme="rose-pine-moon"] {
   --chart-4: #ea9a97;
   --chart-5: #f6c177;
   --overlay-spinner: #ea9a97;
-  --overlay-spinner-track: #7a7888;
+  --overlay-spinner-track: #7a7886;
   --overlay-backdrop: rgba(35, 33, 54, 0.72);
 }

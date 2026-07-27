@@ -26,9 +26,9 @@ html[data-theme="tc-panda-default"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #ff3871;
   --destructive-active: #ff4676;
-  --border: #68696a;
-  --control-border: #d2d2d2;
-  --card-control-border: #d2d2d2;
+  --border: #4a4b4c;
+  --control-border: #d2d2d3;
+  --card-control-border: #d2d2d3;
   --input: #757575;
   --ring: #45a9f9;
   --success: #19f9d8;
@@ -41,6 +41,6 @@ html[data-theme="tc-panda-default"] {
   --chart-4: #b084eb;
   --chart-5: #ffb86c;
   --overlay-spinner: #45a9f9;
-  --overlay-spinner-track: #808182;
+  --overlay-spinner-track: #808081;
   --overlay-backdrop: rgba(41, 42, 43, 0.72);
 }

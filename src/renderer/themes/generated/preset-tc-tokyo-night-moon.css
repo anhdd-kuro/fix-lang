@@ -26,9 +26,9 @@ html[data-theme="tc-tokyo-night-moon"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #ff8087;
   --destructive-active: #ff898f;
-  --border: #7d7e8c;
-  --control-border: #9a9aa5;
-  --card-control-border: #9a9aa5;
+  --border: #5d5e6d;
+  --control-border: #9a9ba4;
+  --card-control-border: #9a9ba4;
   --input: #444a73;
   --ring: #82aaff;
   --success: #c3e88d;
@@ -41,6 +41,6 @@ html[data-theme="tc-tokyo-night-moon"] {
   --chart-4: #86e1fc;
   --chart-5: #ffc777;
   --overlay-spinner: #82aaff;
-  --overlay-spinner-track: #7d7e8c;
+  --overlay-spinner-track: #7a7a87;
   --overlay-backdrop: rgba(34, 36, 54, 0.72);
 }

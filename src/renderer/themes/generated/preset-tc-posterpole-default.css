@@ -26,9 +26,9 @@ html[data-theme="tc-posterpole-default"] {
   --destructive-foreground: #141416;
   --destructive-hover: #ae7878;
   --destructive-active: #b48080;
-  --border: #636166;
-  --control-border: #545357;
-  --card-control-border: #545357;
+  --border: #47444b;
+  --control-border: #47444b;
+  --card-control-border: #47444b;
   --input: #a5a59c;
   --ring: #6c7f93;
   --success: #778c73;
@@ -41,6 +41,6 @@ html[data-theme="tc-posterpole-default"] {
   --chart-4: #8ea4a2;
   --chart-5: #cc9166;
   --overlay-spinner: #537ead;
-  --overlay-spinner-track: #7c7a7e;
+  --overlay-spinner-track: #7c797f;
   --overlay-backdrop: rgba(37, 34, 42, 0.72);
 }

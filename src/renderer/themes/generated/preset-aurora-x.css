@@ -26,9 +26,9 @@ html[data-theme="aurora-x"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #e05a79;
   --destructive-active: #e36480;
-  --border: #5a5b62;
-  --control-border: #66676d;
-  --card-control-border: #6d6e74;
+  --border: #3b3c40;
+  --control-border: #66676a;
+  --card-control-border: #6d6e71;
   --input: #15182b;
   --ring: #585d72;
   --success: #63eb90;
@@ -41,6 +41,6 @@ html[data-theme="aurora-x"] {
   --chart-4: #eab308;
   --chart-5: #dd5073;
   --overlay-spinner: #86a5ff;
-  --overlay-spinner-track: #68686f;
+  --overlay-spinner-track: #696a6d;
   --overlay-backdrop: rgba(7, 9, 15, 0.72);
 }

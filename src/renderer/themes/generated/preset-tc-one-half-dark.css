@@ -26,9 +26,9 @@ html[data-theme="tc-one-half-dark"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #e3757d;
   --destructive-active: #e67f84;
-  --border: #7e8085;
+  --border: #5e6167;
   --control-border: #84868b;
-  --card-control-border: #8e9095;
+  --card-control-border: #8e9195;
   --input: #353b45;
   --ring: #61afef;
   --success: #98c379;

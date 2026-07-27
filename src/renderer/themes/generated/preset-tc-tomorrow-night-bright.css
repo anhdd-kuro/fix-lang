@@ -26,7 +26,7 @@ html[data-theme="tc-tomorrow-night-bright"] {
   --destructive-foreground: #0f0f11;
   --destructive-hover: #d8585b;
   --destructive-active: #dc6262;
-  --border: #525252;
+  --border: #333333;
   --control-border: #616161;
   --card-control-border: #676767;
   --input: #0f0f0f;

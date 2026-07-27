@@ -213,9 +213,9 @@ export const tmThemeToSemanticTokens = (theme: TmTheme): SemanticTokens => {
     popover,
     accent,
   ].filter((surface) => contrastRatio(surface, background) < 3);
-  const borderContrastFloor = isDark ? 2.05 : 3;
+  const borderContrastFloor = isDark ? 1.26 : 3;
   const border = ensureContrastAgainst(
-    blend(background, foreground, isDark ? 0.1 : 0.14),
+    blend(background, foreground, isDark ? 0.025 : 0.14),
     borderedSurfaces,
     readableOn(background),
     borderContrastFloor,

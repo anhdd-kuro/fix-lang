@@ -26,9 +26,9 @@ html[data-theme="tc-kanagawa-dragon"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #c87c76;
   --destructive-active: #cc847e;
-  --border: #585858;
-  --control-border: #555555;
-  --card-control-border: #555555;
+  --border: #3b3a3a;
+  --control-border: #3b3a3a;
+  --card-control-border: #3b3a3a;
   --input: #a6a69c;
   --ring: #8ba4b0;
   --success: #8a9a7b;

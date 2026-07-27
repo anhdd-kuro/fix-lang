@@ -28,9 +28,9 @@ html[data-theme="brand-codex-dark"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #f14e4b;
   --destructive-active: #f45a53;
-  --border: #5e5e5e;
+  --border: #404040;
   --control-border: #686868;
-  --card-control-border: #727272;
+  --card-control-border: #717171;
   --input: #1c1c1c;
   --ring: #10a37f;
   --success: #10a37f;

@@ -26,9 +26,9 @@ html[data-theme="andromeeda"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #fe6d55;
   --destructive-active: #ff765d;
-  --border: #78797f;
+  --border: #585a61;
   --control-border: #7e7f85;
-  --card-control-border: #88898e;
+  --card-control-border: #898a8f;
   --input: #2f3541;
   --ring: #00b0ff;
   --success: #96e072;
@@ -41,6 +41,6 @@ html[data-theme="andromeeda"] {
   --chart-4: #00e8c6;
   --chart-5: #ffe66d;
   --overlay-spinner: #00b0ff;
-  --overlay-spinner-track: #7b7b81;
+  --overlay-spinner-track: #7a7c81;
   --overlay-backdrop: rgba(35, 38, 46, 0.72);
 }
