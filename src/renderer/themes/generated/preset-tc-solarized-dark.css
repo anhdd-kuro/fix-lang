@@ -27,8 +27,8 @@ html[data-theme="tc-solarized-dark"] {
   --destructive-hover: #d0312d;
   --destructive-active: #c42f2b;
   --border: #4a626b;
-  --control-border: #7a8b92;
-  --card-control-border: #84949b;
+  --control-border: #4a626b;
+  --card-control-border: #516870;
   --input: #003b4a;
   --ring: #268bd2;
   --success: #859900;

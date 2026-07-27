@@ -27,8 +27,8 @@ html[data-theme="tc-nightfly-default"] {
   --destructive-hover: #fe5c56;
   --destructive-active: #ff675e;
   --border: #2e3b4b;
-  --control-border: #2e3b4b;
-  --card-control-border: #2e3b4b;
+  --control-border: #485762;
+  --card-control-border: #485762;
   --input: #7c8f8f;
   --ring: #82aaff;
   --success: #a1cd5e;

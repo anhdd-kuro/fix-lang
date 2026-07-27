@@ -27,8 +27,8 @@ html[data-theme="tc-sonokai-atlantis"] {
   --destructive-hover: #ff707f;
   --destructive-active: #ff7a87;
   --border: #4c5159;
-  --control-border: #3c3f45;
-  --card-control-border: #3c3f45;
+  --control-border: #4f545c;
+  --card-control-border: #4f545c;
   --input: #828a9a;
   --ring: #72cce8;
   --success: #9dd274;

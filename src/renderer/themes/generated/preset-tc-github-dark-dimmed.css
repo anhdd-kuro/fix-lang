@@ -27,8 +27,8 @@ html[data-theme="tc-github-dark-dimmed"] {
   --destructive-hover: #f6796f;
   --destructive-active: #f88378;
   --border: #3f434a;
-  --control-border: #c5c7c9;
-  --card-control-border: #c5c7c9;
+  --control-border: #3f434a;
+  --card-control-border: #3f434a;
   --input: #636e7b;
   --ring: #539bf5;
   --success: #57ab5a;

@@ -26,9 +26,9 @@ html[data-theme="tc-everforest-light"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #fa605a;
   --destructive-active: #fc6962;
-  --border: #85837c;
-  --control-border: #c1c0bd;
-  --card-control-border: #c1c0bd;
+  --border: #d0cbbd;
+  --control-border: #a0a39e;
+  --card-control-border: #a0a39e;
   --input: #5c6a72;
   --ring: #3a94c5;
   --success: #8da101;
@@ -41,6 +41,6 @@ html[data-theme="tc-everforest-light"] {
   --chart-4: #35a77c;
   --chart-5: #dfa000;
   --overlay-spinner: #3a94c5;
-  --overlay-spinner-track: #828079;
+  --overlay-spinner-track: #848178;
   --overlay-backdrop: rgba(253, 246, 227, 0.72);
 }

@@ -27,8 +27,8 @@ html[data-theme="andromeeda"] {
   --destructive-hover: #fe6d55;
   --destructive-active: #ff765d;
   --border: #585a61;
-  --control-border: #7e7f85;
-  --card-control-border: #898a8f;
+  --control-border: #585a61;
+  --card-control-border: #5b5d64;
   --input: #2f3541;
   --ring: #00b0ff;
   --success: #96e072;

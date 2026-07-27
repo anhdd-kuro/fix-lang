@@ -27,8 +27,8 @@ html[data-theme="catppuccin-mocha"] {
   --destructive-hover: #f595af;
   --destructive-active: #f79fb6;
   --border: #52515f;
-  --control-border: #7e7d88;
-  --card-control-border: #81808b;
+  --control-border: #52515f;
+  --card-control-border: #555462;
   --input: #313244;
   --ring: #cba6f7;
   --success: #a6e3a1;

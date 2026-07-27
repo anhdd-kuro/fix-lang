@@ -27,8 +27,8 @@ html[data-theme="rose-pine"] {
   --destructive-hover: #ee7a99;
   --destructive-active: #f085a0;
   --border: #4d4b56;
-  --control-border: #75737c;
-  --card-control-border: #7d7b84;
+  --control-border: #4d4b56;
+  --card-control-border: #52505a;
   --input: #27253c;
   --ring: #ebbcba;
   --success: #31748f;

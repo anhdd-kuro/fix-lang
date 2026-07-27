@@ -26,9 +26,9 @@ html[data-theme="tc-seoul256-light"] {
   --destructive-foreground: #010101;
   --destructive-hover: #b66c6b;
   --destructive-active: #bc7574;
-  --border: #6f6f70;
-  --control-border: #858586;
-  --card-control-border: #858586;
+  --border: #b2b2b2;
+  --control-border: #6d6d6d;
+  --card-control-border: #6d6d6d;
   --input: #3a3a3a;
   --ring: #597da1;
   --success: #5f885f;
@@ -41,6 +41,6 @@ html[data-theme="tc-seoul256-light"] {
   --chart-4: #008787;
   --chart-5: #af8760;
   --overlay-spinner: #5d87b0;
-  --overlay-spinner-track: #6e6e6f;
+  --overlay-spinner-track: #6e6e6e;
   --overlay-backdrop: rgba(218, 218, 218, 0.72);
 }

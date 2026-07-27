@@ -27,8 +27,8 @@ html[data-theme="kanagawa-dragon"] {
   --destructive-hover: #ed3e32;
   --destructive-active: #ef4a3a;
   --border: #4b4a4a;
-  --control-border: #717171;
-  --card-control-border: #7a7979;
+  --control-border: #4b4a4a;
+  --card-control-border: #504f4f;
   --input: #282424;
   --ring: #5c6679;
   --success: #8a9a7b;

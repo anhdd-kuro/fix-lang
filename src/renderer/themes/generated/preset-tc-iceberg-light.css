@@ -26,9 +26,9 @@ html[data-theme="tc-iceberg-light"] {
   --destructive-foreground: #0e0e10;
   --destructive-hover: #d05b80;
   --destructive-active: #d46688;
-  --border: #3d3e42;
-  --control-border: #3d3e42;
-  --card-control-border: #3d3e42;
+  --border: #bcbdc1;
+  --control-border: #bcbdc1;
+  --card-control-border: #bcbdc1;
   --input: #8389a3;
   --ring: #2d539e;
   --success: #668e3d;
@@ -41,6 +41,6 @@ html[data-theme="tc-iceberg-light"] {
   --chart-4: #3f83a6;
   --chart-5: #c57339;
   --overlay-spinner: #2d539e;
-  --overlay-spinner-track: #3d3e42;
+  --overlay-spinner-track: #78787b;
   --overlay-backdrop: rgba(232, 233, 236, 0.72);
 }

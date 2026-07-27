@@ -188,17 +188,30 @@ describe("adjustSemanticTokenContrast via tmThemeToSemanticTokens", () => {
       expect(
         colord(tokens["--ring"]).contrast(background),
       ).toBeGreaterThanOrEqual(3);
-      const borderContrastFloor = background.isDark() ? 1.26 : 3;
+      const borderContrastFloor = 1.26;
+      const controlBorderContrastFloor = 1.55;
+      const controlBorderContrastCeiling = 2.7;
       expect(border.contrast(background)).toBeGreaterThanOrEqual(
         borderContrastFloor,
       );
-      expect(
-        controlBorder.contrast(colord(tokens["--input"])),
-      ).toBeGreaterThanOrEqual(3);
-      expect(
-        controlBorder.contrast(colord(tokens["--secondary"])),
-      ).toBeGreaterThanOrEqual(3);
-      expect(cardControlBorder.contrast(card)).toBeGreaterThanOrEqual(3);
+      expect(border.contrast(background)).toBeLessThanOrEqual(3);
+      for (const controlSurface of [
+        colord(tokens["--input"]),
+        colord(tokens["--secondary"]),
+      ]) {
+        expect(
+          controlBorder.contrast(controlSurface),
+        ).toBeGreaterThanOrEqual(controlBorderContrastFloor);
+        expect(controlBorder.contrast(controlSurface)).toBeLessThanOrEqual(
+          controlBorderContrastCeiling,
+        );
+      }
+      expect(cardControlBorder.contrast(card)).toBeGreaterThanOrEqual(
+        controlBorderContrastFloor,
+      );
+      expect(cardControlBorder.contrast(card)).toBeLessThanOrEqual(
+        controlBorderContrastCeiling,
+      );
       for (const surface of borderedSurfaces) {
         expect(
           Math.max(

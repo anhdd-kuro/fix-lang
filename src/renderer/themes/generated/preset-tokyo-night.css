@@ -27,8 +27,8 @@ html[data-theme="tokyo-night"] {
   --destructive-hover: #de5653;
   --destructive-active: #e2605b;
   --border: #4d4e58;
-  --control-border: #76777f;
-  --card-control-border: #7b7c84;
+  --control-border: #4d4e58;
+  --card-control-border: #4f5059;
   --input: #2a2a38;
   --ring: #666773;
   --success: #73daca;

@@ -27,8 +27,8 @@ html[data-theme="brand-claude-code-dark"] {
   --destructive-hover: #e85855;
   --destructive-active: #eb625d;
   --border: #454544;
-  --control-border: #6e6e6d;
-  --card-control-border: #797978;
+  --control-border: #454544;
+  --card-control-border: #4d4d4c;
   --input: #252322;
   --ring: #d97757;
   --success: #7fd962;

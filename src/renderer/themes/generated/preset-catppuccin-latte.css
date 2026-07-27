@@ -26,9 +26,9 @@ html[data-theme="catppuccin-latte"] {
   --destructive-foreground: #fafafa;
   --destructive-hover: #c71336;
   --destructive-active: #bb1534;
-  --border: #727378;
-  --control-border: #727378;
-  --card-control-border: #727378;
+  --border: #b2b4b8;
+  --control-border: #a2a4a8;
+  --card-control-border: #a9abaf;
   --input: #ccd0da;
   --ring: #8839ef;
   --success: #40a02b;
@@ -41,6 +41,6 @@ html[data-theme="catppuccin-latte"] {
   --chart-4: #179299;
   --chart-5: #df8e1d;
   --overlay-spinner: #8839ef;
-  --overlay-spinner-track: #727378;
+  --overlay-spinner-track: #7b7c7f;
   --overlay-backdrop: rgba(239, 241, 245, 0.72);
 }

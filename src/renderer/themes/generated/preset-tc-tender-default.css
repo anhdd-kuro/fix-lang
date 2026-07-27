@@ -27,8 +27,8 @@ html[data-theme="tc-tender-default"] {
   --destructive-hover: #f64459;
   --destructive-active: #f84f5f;
   --border: #5d5d5d;
-  --control-border: #888888;
-  --card-control-border: #8e8e8e;
+  --control-border: #5d5d5d;
+  --card-control-border: #606060;
   --input: #1d1d1d;
   --ring: #b3deef;
   --success: #c9d05c;

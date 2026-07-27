@@ -27,8 +27,8 @@ html[data-theme="tc-sonokai-andromeda"] {
   --destructive-hover: #fd6c85;
   --destructive-active: #fe778c;
   --border: #4c4d59;
-  --control-border: #373840;
-  --card-control-border: #373840;
+  --control-border: #4c4d59;
+  --card-control-border: #4c4d59;
   --input: #7e8294;
   --ring: #6dcae8;
   --success: #9ed06c;

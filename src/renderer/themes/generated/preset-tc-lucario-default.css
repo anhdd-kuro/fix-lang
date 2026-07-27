@@ -27,8 +27,8 @@ html[data-theme="tc-lucario-default"] {
   --destructive-hover: #ec563e;
   --destructive-active: #ee5f46;
   --border: #687582;
-  --control-border: #9aa3ac;
-  --card-control-border: #a1a9b1;
+  --control-border: #687582;
+  --card-control-border: #6b7784;
   --input: #404d5b;
   --ring: #5c98cd;
   --success: #199c4b;

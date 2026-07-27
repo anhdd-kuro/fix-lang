@@ -27,8 +27,8 @@ html[data-theme="dracula"] {
   --destructive-hover: #ff605d;
   --destructive-active: #ff6a64;
   --border: #60616b;
-  --control-border: #87888f;
-  --card-control-border: #8e8f96;
+  --control-border: #60616b;
+  --card-control-border: #60616b;
   --input: #393c4d;
   --ring: #6473a5;
   --success: #50fa7b;

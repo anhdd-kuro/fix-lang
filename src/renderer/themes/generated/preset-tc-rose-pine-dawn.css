@@ -26,9 +26,9 @@ html[data-theme="tc-rose-pine-dawn"] {
   --destructive-foreground: #0e0e10;
   --destructive-hover: #b96c81;
   --destructive-active: #be7589;
-  --border: #878586;
-  --control-border: #d9d8d8;
-  --card-control-border: #2f2e31;
+  --border: #d2cdca;
+  --control-border: #bbb6bc;
+  --card-control-border: #bbb6bc;
   --input: #797593;
   --ring: #56949f;
   --success: #286983;
@@ -41,6 +41,6 @@ html[data-theme="tc-rose-pine-dawn"] {
   --chart-4: #d7827e;
   --chart-5: #ea9d34;
   --overlay-spinner: #5098a5;
-  --overlay-spinner-track: #848283;
+  --overlay-spinner-track: #858280;
   --overlay-backdrop: rgba(255, 250, 243, 0.72);
 }

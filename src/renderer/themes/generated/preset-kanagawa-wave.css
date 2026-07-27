@@ -27,8 +27,8 @@ html[data-theme="kanagawa-wave"] {
   --destructive-hover: #ed3e32;
   --destructive-active: #ef4a3a;
   --border: #525259;
-  --control-border: #7c7c81;
-  --card-control-border: #818186;
+  --control-border: #525259;
+  --card-control-border: #55555c;
   --input: #303040;
   --ring: #626c7e;
   --success: #76946a;

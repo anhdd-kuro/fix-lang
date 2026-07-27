@@ -27,8 +27,8 @@ html[data-theme="night-owl"] {
   --destructive-hover: #f15d58;
   --destructive-active: #f46760;
   --border: #434e5d;
-  --control-border: #6b7480;
-  --card-control-border: #747c88;
+  --control-border: #434e5d;
+  --card-control-border: #465160;
   --input: #0d2a43;
   --ring: #566677;
   --success: #22da6e;

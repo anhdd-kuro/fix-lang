@@ -16,6 +16,7 @@ import {
   composite,
   contrastRatio,
   deriveInteractionSurfaces,
+  capContrastAgainst,
   ensureContrastAgainst,
   ensureBrightnessDelta,
   isDarkColor,
@@ -213,24 +214,36 @@ export const tmThemeToSemanticTokens = (theme: TmTheme): SemanticTokens => {
     popover,
     accent,
   ].filter((surface) => contrastRatio(surface, background) < 3);
-  const borderContrastFloor = isDark ? 1.26 : 3;
+  const borderContrastFloor = 1.26;
+  const controlBorderContrastFloor = 1.55;
+  const controlBorderContrastCeiling = 2.2;
   const border = ensureContrastAgainst(
-    blend(background, foreground, isDark ? 0.025 : 0.14),
+    blend(background, foreground, 0.025),
     borderedSurfaces,
     readableOn(background),
     borderContrastFloor,
   );
-  const controlBorder = ensureContrastAgainst(
-    border,
+  const controlBorder = capContrastAgainst(
+    ensureContrastAgainst(
+      border,
+      [input, secondary],
+      readableAgainst([input, secondary]),
+      controlBorderContrastFloor,
+    ),
     [input, secondary],
-    readableAgainst([input, secondary]),
-    3,
+    controlBorderContrastCeiling,
+    controlBorderContrastFloor,
   );
-  const cardControlBorder = ensureContrastAgainst(
-    border,
+  const cardControlBorder = capContrastAgainst(
+    ensureContrastAgainst(
+      border,
+      [card],
+      readableOn(card),
+      controlBorderContrastFloor,
+    ),
     [card],
-    readableOn(card),
-    3,
+    controlBorderContrastCeiling,
+    controlBorderContrastFloor,
   );
   const focusRing = ensureContrastAgainst(
     ring,

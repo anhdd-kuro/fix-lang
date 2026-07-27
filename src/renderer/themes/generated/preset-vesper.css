@@ -27,8 +27,8 @@ html[data-theme="vesper"] {
   --destructive-hover: #ff8a88;
   --destructive-active: #ff9391;
   --border: #404040;
-  --control-border: #6a6a6a;
-  --card-control-border: #737373;
+  --control-border: #424242;
+  --card-control-border: #4a4a4a;
   --input: #1c1c1c;
   --ring: #ffc799;
   --success: #99ffe4;

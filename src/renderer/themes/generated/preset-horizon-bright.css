@@ -26,9 +26,9 @@ html[data-theme="horizon-bright"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #f64962;
   --destructive-active: #f85468;
-  --border: #777272;
-  --control-border: #777272;
-  --card-control-border: #777272;
+  --border: #bfb5b5;
+  --control-border: #b0a7a7;
+  --card-control-border: #b4aaab;
   --input: #f9cbbe;
   --ring: #8e8888;
   --success: #29d398;
@@ -41,6 +41,6 @@ html[data-theme="horizon-bright"] {
   --chart-4: #59e1e3;
   --chart-5: #fab795;
   --overlay-spinner: #e84a72;
-  --overlay-spinner-track: #777272;
+  --overlay-spinner-track: #837d7d;
   --overlay-backdrop: rgba(253, 240, 237, 0.72);
 }

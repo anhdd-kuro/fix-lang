@@ -27,8 +27,8 @@ html[data-theme="tc-gotham-default"] {
   --destructive-hover: #b52f25;
   --destructive-active: #a92d23;
   --border: #434648;
-  --control-border: #676a6c;
-  --card-control-border: #727476;
+  --control-border: #434648;
+  --card-control-border: #46494b;
   --input: #171f27;
   --ring: #3a6878;
   --success: #2aa889;

@@ -27,8 +27,8 @@ html[data-theme="slack-dark"] {
   --destructive-hover: #f14e4b;
   --destructive-active: #f45a53;
   --border: #535353;
-  --control-border: #7b7b7b;
-  --card-control-border: #888888;
+  --control-border: #535353;
+  --card-control-border: #5a5a5a;
   --input: #313131;
   --ring: #0077b5;
   --success: #ecb22e;

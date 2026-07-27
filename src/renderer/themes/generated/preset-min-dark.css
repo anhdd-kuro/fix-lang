@@ -27,8 +27,8 @@ html[data-theme="min-dark"] {
   --destructive-hover: #f14e4b;
   --destructive-active: #f45a53;
   --border: #505050;
-  --control-border: #797979;
-  --card-control-border: #848484;
+  --control-border: #505050;
+  --card-control-border: #585858;
   --input: #2f2f2f;
   --ring: #6c6c6c;
   --success: #22c55e;

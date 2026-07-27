@@ -26,9 +26,9 @@ html[data-theme="vitesse-light"] {
   --destructive-foreground: #fafafa;
   --destructive-hover: #a05454;
   --destructive-active: #954e4e;
-  --border: #7c7c7e;
-  --control-border: #7c7c7e;
-  --card-control-border: #7c7c7e;
+  --border: #c2c2c2;
+  --control-border: #bebebe;
+  --card-control-border: #b6b6b7;
   --input: #f2f2f2;
   --ring: #1c6b48;
   --success: #1e754f;
@@ -41,6 +41,6 @@ html[data-theme="vitesse-light"] {
   --chart-4: #2993a3;
   --chart-5: #bda437;
   --overlay-spinner: #1c6b48;
-  --overlay-spinner-track: #7c7c7e;
+  --overlay-spinner-track: #858585;
   --overlay-backdrop: rgba(255, 255, 255, 0.72);
 }

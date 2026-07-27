@@ -27,8 +27,8 @@ html[data-theme="catppuccin-frappe"] {
   --destructive-hover: #ea8b8c;
   --destructive-active: #ec9494;
   --border: #646676;
-  --control-border: #91939e;
-  --card-control-border: #999aa5;
+  --control-border: #646676;
+  --card-control-border: #6a6b7b;
   --input: #414559;
   --ring: #ca9ee6;
   --success: #a6d189;

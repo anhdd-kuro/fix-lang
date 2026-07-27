@@ -27,8 +27,8 @@ html[data-theme="tc-shades-of-purple-super-dark"] {
   --destructive-hover: #e64740;
   --destructive-active: #e95147;
   --border: #37364a;
-  --control-border: #b1b0b8;
-  --card-control-border: #b1b0b8;
+  --control-border: #37364a;
+  --card-control-border: #37364a;
   --input: #5c5c61;
   --ring: #7857fe;
   --success: #3ad900;

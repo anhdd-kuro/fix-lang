@@ -26,9 +26,9 @@ html[data-theme="tc-kanagawa-lotus"] {
   --destructive-foreground: #fafafa;
   --destructive-hover: #bd3d4f;
   --destructive-active: #b03a4a;
-  --border: #3f3d39;
-  --control-border: #3f3d39;
-  --card-control-border: #3f3d39;
+  --border: #c7c29e;
+  --control-border: #c7c29e;
+  --card-control-border: #c7c29e;
   --input: #8a8980;
   --ring: #4d699b;
   --success: #6f894e;
@@ -41,6 +41,6 @@ html[data-theme="tc-kanagawa-lotus"] {
   --chart-4: #597b75;
   --chart-5: #77713f;
   --overlay-spinner: #4c699c;
-  --overlay-spinner-track: #3f3d39;
+  --overlay-spinner-track: #7c7964;
   --overlay-backdrop: rgba(242, 236, 188, 0.72);
 }

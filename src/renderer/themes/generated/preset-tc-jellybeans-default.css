@@ -27,8 +27,8 @@ html[data-theme="tc-jellybeans-default"] {
   --destructive-hover: #e57c7b;
   --destructive-active: #e88684;
   --border: #353535;
-  --control-border: #353535;
-  --card-control-border: #353535;
+  --control-border: #7e7e7e;
+  --card-control-border: #7e7e7e;
   --input: #bdbdbd;
   --ring: #97bedc;
   --success: #94b979;

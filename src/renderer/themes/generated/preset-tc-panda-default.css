@@ -27,8 +27,8 @@ html[data-theme="tc-panda-default"] {
   --destructive-hover: #ff3871;
   --destructive-active: #ff4676;
   --border: #4a4b4c;
-  --control-border: #d2d2d3;
-  --card-control-border: #d2d2d3;
+  --control-border: #4a4b4c;
+  --card-control-border: #4a4b4c;
   --input: #757575;
   --ring: #45a9f9;
   --success: #19f9d8;

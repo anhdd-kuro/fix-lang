@@ -27,8 +27,8 @@ html[data-theme="github-dark-high-contrast"] {
   --destructive-hover: #ff7471;
   --destructive-active: #ff7e7a;
   --border: #414144;
-  --control-border: #6d6d6f;
-  --card-control-border: #767678;
+  --control-border: #444447;
+  --card-control-border: #4b4b4e;
   --input: #161a23;
   --ring: #409eff;
   --success: #26cd4d;
