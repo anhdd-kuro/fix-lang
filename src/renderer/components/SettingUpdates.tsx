@@ -512,15 +512,24 @@ export const SettingUpdates = () => {
             aria-live="polite"
           >
             <Spinner className="mr-2 inline size-4 align-[-2px]" />
-            {downloadTotal === null
-              ? t("settings.updates.downloadingUnknownSize", {
+            {downloadTotal === null ? (
+              t("settings.updates.downloadingUnknownSize", {
+                version: latestVersion,
+              })
+            ) : (
+              <>
+                {t("settings.updates.downloadingDescriptionPrefix", {
                   version: latestVersion,
-                })
-              : t("settings.updates.downloadingDescription", {
-                  version: latestVersion,
-                  downloaded: formatMegabytes(downloadedBytes),
-                  total: formatMegabytes(downloadTotal),
                 })}
+                <span className="text-primary">
+                  {t("settings.updates.downloadingSize", {
+                    downloaded: formatMegabytes(downloadedBytes),
+                    total: formatMegabytes(downloadTotal),
+                  })}
+                </span>
+                {t("settings.updates.downloadingDescriptionSuffix")}
+              </>
+            )}
           </p>
           {/* Indeterminate until the release asset size is known, so the bar
               never implies precision the byte counts do not have. */}

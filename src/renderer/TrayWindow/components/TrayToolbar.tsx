@@ -106,6 +106,12 @@ const openDashboard = (): void => {
   window.electronAPI.showMainWindowTab("overview");
 };
 
+const openAboutAndInstallUpdate = (): void => {
+  window.electronAPI.hideTray();
+  window.electronAPI.showMainWindowTab("about");
+  void window.electronAPI.installUpdate();
+};
+
 export const TrayToolbar: React.FC = () => {
   const { t, tm } = useI18n();
   const [checkingForUpdates, setCheckingForUpdates] = useState(false);
@@ -148,17 +154,29 @@ export const TrayToolbar: React.FC = () => {
 
         case "available": {
           const availableVersion = state.availableVersion ?? t("common.unknown");
+          const buttons = state.canInstall
+            ? [
+                t("settings.updates.installNow"),
+                t("tray.toolbar.updateCheck.viewRelease"),
+                t("common.close"),
+              ]
+            : [t("tray.toolbar.updateCheck.viewRelease"), t("common.close")];
           const { response } = await window.electronAPI.showMessageBox({
             type: "info",
-            buttons: [t("tray.toolbar.updateCheck.viewRelease"), t("common.close")],
+            buttons,
             defaultId: 0,
-            cancelId: 1,
+            cancelId: buttons.length - 1,
             message: t("tray.toolbar.updateCheck.available", {
               availableVersion,
               currentVersion: state.currentVersion,
             }),
           });
-          if (response === 0) {
+          if (state.canInstall && response === 0) {
+            openAboutAndInstallUpdate();
+          } else if (
+            (state.canInstall && response === 1) ||
+            (!state.canInstall && response === 0)
+          ) {
             window.electronAPI.openUpdateRelease();
           }
           break;

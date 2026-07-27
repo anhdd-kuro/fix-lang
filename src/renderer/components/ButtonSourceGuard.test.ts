@@ -1591,9 +1591,9 @@ const consumerContractRows = [
   ["BTN-070", "SITE-7c992efd6d29f812-01", "LIVE-c11f9621b2e3d72c", "src/renderer/components/SettingUpdates.tsx", 461, 15],
   ["BTN-071", "SITE-9ee18af8c12ab3af-03", "LIVE-f4ccea28d324b33f", "src/renderer/components/SettingUpdates.tsx", 474, 13],
   ["BTN-072", "SITE-eeef419824524c4a-01", "LIVE-fbcd67d29270d287", "src/renderer/components/SettingUpdates.tsx", 490, 13],
-  ["BTN-073", "SITE-4d96952767063952-01", "LIVE-bfa98039be039f30", "src/renderer/components/SettingUpdates.tsx", 577, 13],
-  ["BTN-074", "SITE-ca4cd81c50209cf6-01", "LIVE-5815552ee2096fa5", "src/renderer/components/SettingUpdates.tsx", 606, 13],
-  ["BTN-075", "SITE-9ee18af8c12ab3af-04", "LIVE-f4ccea28d324b33f", "src/renderer/components/SettingUpdates.tsx", 618, 13],
+  ["BTN-073", "SITE-4d96952767063952-01", "LIVE-bfa98039be039f30", "src/renderer/components/SettingUpdates.tsx", 586, 13],
+  ["BTN-074", "SITE-ca4cd81c50209cf6-01", "LIVE-5815552ee2096fa5", "src/renderer/components/SettingUpdates.tsx", 615, 13],
+  ["BTN-075", "SITE-9ee18af8c12ab3af-04", "LIVE-f4ccea28d324b33f", "src/renderer/components/SettingUpdates.tsx", 627, 13],
   ["BTN-076", "SITE-5d39d7c44db8e592-01", "LIVE-ac44e02610f78f35", "src/renderer/components/TrashButton.tsx", 23, 5],
   ["BTN-077", "SITE-cb7fadf7f125d0a4-01", "LIVE-22b46580f1bd13d0", "src/renderer/CorrectionResultWindow/index.tsx", 61, 9],
   ["BTN-078", "SITE-88c71677c4253b47-01", "LIVE-0186137c312ed90a", "src/renderer/MainWindow/App.tsx", 307, 15],
@@ -1613,7 +1613,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "3529380800c877c186e6e0c00b02553d5a07e85bb510b5e996218305934ce363";
+  "37f9909ab59e35701841eb90d02eb4a53543d8d63a563610cf59acbaaa8d5576";
 
 const compareConsumers = (left: ButtonConsumer, right: ButtonConsumer): number =>
   left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column;

@@ -646,6 +646,13 @@ describe("SettingUpdates", () => {
     const progress = container.querySelector('[role="progressbar"]');
     expect(progress?.getAttribute("aria-valuenow")).toBe("25");
     expect(progress?.getAttribute("aria-valuemax")).toBe("100");
+    const size = container.querySelector('[role="status"] .text-primary');
+    expect(size?.textContent).toBe(
+      tEn("settings.updates.downloadingSize", {
+        downloaded: "25.0 MB",
+        total: "100.0 MB",
+      }),
+    );
     expectNoUpdateActions(container);
   });
 
