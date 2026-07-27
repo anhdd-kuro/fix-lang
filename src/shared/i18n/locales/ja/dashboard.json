@@ -1,7 +1,7 @@
 {
-  "charts.correctionsOverTime.tooltipTotal": "合計: {count}",
   "charts.correctionsOverTime.empty": "この範囲ではまだ日次の変換がありません。",
   "charts.correctionsOverTime.title": "変換数の推移",
+  "charts.correctionsOverTime.tooltipTotal": "合計: {count}",
   "charts.correctionsOverTime.yAxis": "変換数",
   "charts.month.apr": "4月",
   "charts.month.aug": "8月",

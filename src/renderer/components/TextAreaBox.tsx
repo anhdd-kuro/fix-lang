@@ -37,7 +37,7 @@ export const TextAreaBox = ({
       <textarea
         id={id}
         rows={rows ?? 4}
-        className={`w-full flex-1 mt-2 p-2 bg-card border border-border rounded focus:ring-ring focus:border-primary text-foreground resize-none `}
+        className={`w-full flex-1 mt-2 p-2 bg-card border border-card-control-border rounded focus:ring-ring focus:border-primary text-foreground resize-none `}
         placeholder={placeholder}
         value={value}
         readOnly={readOnly}

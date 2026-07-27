@@ -12,15 +12,23 @@ html[data-theme="laserwave"] {
   --popover-foreground: #ffffff;
   --primary: #eb64b9;
   --primary-foreground: #18181b;
+  --primary-hover: #ee71be;
+  --primary-active: #f07cc3;
   --secondary: #383240;
   --secondary-foreground: #c3c1c6;
+  --secondary-hover: #312c38;
+  --secondary-active: #2a2630;
   --muted: #362e40;
-  --muted-foreground: #a09ea4;
+  --muted-foreground: #9e9ba2;
   --accent: #595262;
   --accent-foreground: #ffffff;
   --destructive: #ff3e7b;
-  --destructive-foreground: #e4e4e7;
-  --border: #453f4b;
+  --destructive-foreground: #18181b;
+  --destructive-hover: #ff4a80;
+  --destructive-active: #ff5585;
+  --border: #6b6770;
+  --control-border: #827e86;
+  --card-control-border: #87848b;
   --input: #3a3242;
   --ring: #eb64b9;
   --success: #74dfc4;
@@ -33,6 +41,6 @@ html[data-theme="laserwave"] {
   --chart-4: #b4dce7;
   --chart-5: #ffe261;
   --overlay-spinner: #eb64b9;
-  --overlay-spinner-track: #82778d;
+  --overlay-spinner-track: #7b7880;
   --overlay-backdrop: rgba(39, 33, 46, 0.72);
 }

@@ -2,7 +2,13 @@
 import { ipcRenderer } from "electron";
 
 /** Dashboard tab ids — mirrors MainWindow/dashboardTabs.ts */
-export type DashboardTabId = "overview" | "history" | "models" | "openrouter";
+export type DashboardTabId =
+  | "overview"
+  | "history"
+  | "models"
+  | "openrouter"
+  | "logs"
+  | "about";
 
 /**
  * Exposes UI-related functionality to the renderer process

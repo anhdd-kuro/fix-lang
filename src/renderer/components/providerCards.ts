@@ -3,6 +3,7 @@ import {
   isProviderConfigured,
   PROVIDER_ORDER,
   PROVIDER_REQUIRES_API_KEY,
+  PROVIDER_SUPPORTS_API_KEY,
   PROVIDER_SUPPORTS_PROVISIONING_KEY,
   type ProviderId,
 } from "~/shared/providers";
@@ -28,6 +29,7 @@ export type ProviderCardState = {
   provisioningKeySet: boolean;
   modelCount: number;
   requiresApiKey: boolean;
+  supportsApiKey: boolean;
   supportsProvisioningKey: boolean;
   canConnect: boolean;
 };
@@ -52,6 +54,7 @@ export const buildProviderCards = (
     const connected = state?.connected ?? false;
     const apiKeySet = state?.apiKeySet ?? false;
     const requiresApiKey = PROVIDER_REQUIRES_API_KEY[provider];
+    const supportsApiKey = PROVIDER_SUPPORTS_API_KEY[provider];
     const typedApiKey = typedKeys[provider]?.apiKey ?? "";
 
     return {
@@ -65,6 +68,7 @@ export const buildProviderCards = (
       provisioningKeySet: state?.provisioningKeySet ?? false,
       modelCount: state?.modelCount ?? 0,
       requiresApiKey,
+      supportsApiKey,
       supportsProvisioningKey: PROVIDER_SUPPORTS_PROVISIONING_KEY[provider],
       canConnect: requiresApiKey ? apiKeySet || typedApiKey.trim() !== "" : true,
     };

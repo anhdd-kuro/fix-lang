@@ -14,9 +14,13 @@ import { adjustSemanticTokenContrast } from "./adjustSemanticTokenContrast";
 import {
   blend,
   composite,
+  contrastRatio,
+  deriveInteractionSurfaces,
+  ensureContrastAgainst,
   ensureBrightnessDelta,
   isDarkColor,
   isFullyTransparent,
+  readableAgainst,
   readableOn,
   saturation,
   vivify,
@@ -25,6 +29,8 @@ import type { SemanticTokens, TmTheme } from "./tmThemeTypes";
 
 /** Minimum saturation for a candidate to qualify as an accent/status color. */
 const MIN_ACCENT_SATURATION = 0.18;
+const MIN_INTERACTION_RGB_DISTANCE = 12;
+const MIN_FILLED_BUTTON_CONTRAST = 4.5;
 
 /** Returns the first present, non-empty raw color string for the given keys. */
 const rawPick = (
@@ -198,14 +204,69 @@ export const tmThemeToSemanticTokens = (theme: TmTheme): SemanticTokens => {
     0.12,
     isDark,
   );
-  // Subtle, neutral hairline derived from foreground — never a raw black/white
-  // overlay. This is the key fix for the harsh borders.
-  const border = blend(background, foreground, isDark ? 0.16 : 0.14);
+  const borderedSurfaces = [
+    background,
+    card,
+    input,
+    secondary,
+    muted,
+    popover,
+    accent,
+  ].filter((surface) => contrastRatio(surface, background) < 3);
+  const borderContrastFloor = isDark ? 1.26 : 3;
+  const border = ensureContrastAgainst(
+    blend(background, foreground, isDark ? 0.025 : 0.14),
+    borderedSurfaces,
+    readableOn(background),
+    borderContrastFloor,
+  );
+  const controlBorder = ensureContrastAgainst(
+    border,
+    [input, secondary],
+    readableAgainst([input, secondary]),
+    3,
+  );
+  const cardControlBorder = ensureContrastAgainst(
+    border,
+    [card],
+    readableOn(card),
+    3,
+  );
+  const focusRing = ensureContrastAgainst(
+    ring,
+    [background],
+    readableOn(background),
+    3,
+  );
+  const primaryForeground = readableOn(primary);
+  const primaryInteraction = deriveInteractionSurfaces(
+    primary,
+    primaryForeground,
+    MIN_INTERACTION_RGB_DISTANCE,
+    MIN_FILLED_BUTTON_CONTRAST,
+  );
+  const secondaryForeground = blend(foreground, background, 0.25);
+  const secondaryInteraction = deriveInteractionSurfaces(
+    secondary,
+    readableOn(secondary),
+    MIN_INTERACTION_RGB_DISTANCE,
+    MIN_FILLED_BUTTON_CONTRAST,
+  );
+  const destructiveForeground = readableOn(destructive);
+  const destructiveInteraction = deriveInteractionSurfaces(
+    destructive,
+    destructiveForeground,
+    MIN_INTERACTION_RGB_DISTANCE,
+    MIN_FILLED_BUTTON_CONTRAST,
+  );
 
   // --- Foreground ramp -----------------------------------------------------
   const cardForeground = composite(
-    rawPick(colors, ["sideBar.foreground", "editor.foreground", "foreground"]) ??
-      foreground,
+    rawPick(colors, [
+      "sideBar.foreground",
+      "editor.foreground",
+      "foreground",
+    ]) ?? foreground,
     card,
   );
   const popoverForeground = composite(
@@ -247,18 +308,26 @@ export const tmThemeToSemanticTokens = (theme: TmTheme): SemanticTokens => {
     "--popover": popover,
     "--popover-foreground": popoverForeground,
     "--primary": primary,
-    "--primary-foreground": readableOn(primary),
+    "--primary-foreground": primaryForeground,
+    "--primary-hover": primaryInteraction.hover,
+    "--primary-active": primaryInteraction.active,
     "--secondary": secondary,
-    "--secondary-foreground": blend(foreground, background, 0.25),
+    "--secondary-foreground": secondaryForeground,
+    "--secondary-hover": secondaryInteraction.hover,
+    "--secondary-active": secondaryInteraction.active,
     "--muted": muted,
     "--muted-foreground": blend(foreground, background, 0.45),
     "--accent": accent,
     "--accent-foreground": foreground,
     "--destructive": destructive,
-    "--destructive-foreground": readableOn(destructive),
+    "--destructive-foreground": destructiveForeground,
+    "--destructive-hover": destructiveInteraction.hover,
+    "--destructive-active": destructiveInteraction.active,
     "--border": border,
+    "--control-border": controlBorder,
+    "--card-control-border": cardControlBorder,
     "--input": input,
-    "--ring": ring,
+    "--ring": focusRing,
     "--success": success,
     "--success-foreground": readableOn(success),
     "--warning": warning,

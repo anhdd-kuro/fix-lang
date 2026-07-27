@@ -2,7 +2,7 @@
 
 ## Overview
 
-Local macOS menu-bar app: fixes grammar and improves writing on selected text via AI (OpenAI, OpenRouter, Ollama). Electron + React + TypeScript, runs on **bun**.
+Local macOS menu-bar app: fixes grammar and improves writing on selected text via AI (OpenAI, OpenRouter, Ollama, LM Studio). Electron + React + TypeScript, runs on **bun**.
 
 ## Main Features
 
@@ -11,7 +11,7 @@ Local macOS menu-bar app: fixes grammar and improves writing on selected text vi
 - **Presets** — built-in Correction, Summarize, Translate, Prompt optimization; each preset has its own hotkey, model, and system prompt.
 - **Prompt generation** — build AI prompts from selected text (PromptGen window).
 - **Profiles** — switch transform presets; switch reloads hotkeys + settings + history.
-- **Multi-provider** — connect multiple providers (OpenAI, OpenRouter, Ollama) at once, each with its own model discovery/compat/monitor; every connected provider appears in a grouped model picker; a preset can use any connected provider; model ref is composite `<providerId>::<rawModelId>` in config, raw id downstream.
+- **Multi-provider** — connect multiple providers (OpenAI, OpenRouter, Ollama, LM Studio) at once, each with its own model discovery/compat/monitor; every connected provider appears in a grouped model picker; a preset can use any connected provider; model ref is composite `<providerId>::<rawModelId>` in config, raw id downstream.
 - **History** — SQLite-backed transform + PromptGen history with cost tracking.
 - **Analytics** — Overview dashboard: stat cards, preset donut/time-series charts (`PresetWeightChart`), token activity calendar, benchmark sentence; shared All/30d/7d range with Models tab (`RANGE_AWARE_TABS` in `MainWindow/App.tsx`). Dashboard tabs: overview, history, models, openrouter, logs, about (`MainWindow/dashboardTabs.ts`).
 - **Logs** — structured, redacted JSONL persistence (`userData/logs/{YYYY-MM-DD}/fixlang.jsonl`); Logs tab with multi-select level filter (`LogQueryRequest.levels`; empty array = every level), search, copy/export, virtual infinite scroll, timezone stated once in the footer instead of per row.
@@ -62,7 +62,7 @@ fix-lang/
 - Frontend
   - React 19.2, TypeScript 6.0 (stay on 6.x until typescript-eslint supports 7), Tailwind 4.3
 - AI
-  - openai 6.49, @ai-sdk/openai 4.0, @openrouter/ai-sdk-provider 3.0, ai 7.0, ollama 0.6 — all wired in `src/main/ai.request/shared.ts`
+  - openai 6.49, @ai-sdk/openai 4.0, @openrouter/ai-sdk-provider 3.0, ai 7.0, ollama 0.6 — all wired in `src/main/ai.request/shared.ts`; LM Studio uses the OpenAI-compatible client with a configurable local `baseURL`
 - Persistence
   - node:sqlite (history) + electron-store 11 + JSONL logs under userData — no zustand
 - Testing

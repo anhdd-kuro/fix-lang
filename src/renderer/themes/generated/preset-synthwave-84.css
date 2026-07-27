@@ -12,15 +12,23 @@ html[data-theme="synthwave-84"] {
   --popover-foreground: #ffffff;
   --primary: #f97e72;
   --primary-foreground: #18181b;
+  --primary-hover: #fb887b;
+  --primary-active: #fd9185;
   --secondary: #38334e;
   --secondary-foreground: #c3c2c8;
+  --secondary-hover: #322d45;
+  --secondary-active: #2b283b;
   --muted: #332f47;
-  --muted-foreground: #a19fa8;
+  --muted-foreground: #a09ea7;
   --accent: #4c3e6a;
   --accent-foreground: #ffffff;
   --destructive: #fe4450;
-  --destructive-foreground: #e4e4e7;
-  --border: #444152;
+  --destructive-foreground: #18181b;
+  --destructive-hover: #ff4f56;
+  --destructive-active: #ff595d;
+  --border: #595565;
+  --control-border: #83808c;
+  --card-control-border: #898692;
   --input: #382c4c;
   --ring: #f97e72;
   --success: #72f1b8;
@@ -33,6 +41,6 @@ html[data-theme="synthwave-84"] {
   --chart-4: #03edf9;
   --chart-5: #f3e70f;
   --overlay-spinner: #f97e72;
-  --overlay-spinner-track: #7e7995;
+  --overlay-spinner-track: #7e7b88;
   --overlay-backdrop: rgba(38, 35, 53, 0.72);
 }

@@ -8,7 +8,12 @@
  * such a dependency breaks `bun run build`, not the tests.
  */
 
-export const PROVIDER_IDS = Object.freeze(["openai", "openrouter", "ollama"] as const);
+export const PROVIDER_IDS = Object.freeze([
+  "openai",
+  "openrouter",
+  "ollama",
+  "lmstudio",
+] as const);
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
 export const isProviderId = (value: unknown): value is ProviderId =>
@@ -27,6 +32,7 @@ export const PROVIDER_ORDER: readonly ProviderId[] = Object.freeze([
   "openai",
   "openrouter",
   "ollama",
+  "lmstudio",
 ] satisfies Permutation<ProviderId>);
 
 /** Diagnostics only — user-facing provider names come from the i18n catalogs via `t()`. */
@@ -34,12 +40,26 @@ export const PROVIDER_LOG_LABELS: Readonly<Record<ProviderId, string>> = Object.
   openai: "OpenAI",
   openrouter: "OpenRouter",
   ollama: "Ollama",
+  lmstudio: "LM Studio",
 });
 
 export const PROVIDER_REQUIRES_API_KEY: Readonly<Record<ProviderId, boolean>> = Object.freeze({
   openai: true,
   openrouter: true,
   ollama: false,
+  lmstudio: false,
+});
+
+/**
+ * Whether the provider can store an API key in safeStorage. Required-key
+ * providers are a subset; LM Studio supports an optional key without requiring
+ * one for connect.
+ */
+export const PROVIDER_SUPPORTS_API_KEY: Readonly<Record<ProviderId, boolean>> = Object.freeze({
+  openai: true,
+  openrouter: true,
+  ollama: false,
+  lmstudio: true,
 });
 
 export const PROVIDER_SUPPORTS_PROVISIONING_KEY: Readonly<Record<ProviderId, boolean>> =
@@ -47,6 +67,7 @@ export const PROVIDER_SUPPORTS_PROVISIONING_KEY: Readonly<Record<ProviderId, boo
     openai: false,
     openrouter: true,
     ollama: false,
+    lmstudio: false,
   });
 
 export type Model = {

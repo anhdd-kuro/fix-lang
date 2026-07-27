@@ -4,7 +4,13 @@
  *
  * Usage: bun run themes:generate
  */
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  readdir,
+  readFile,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import { tmThemeToSemanticTokens } from "../src/themes/tmThemeToSemanticTokens";
 import type { SemanticTokenKey, TmTheme } from "../src/themes/tmThemeTypes";
@@ -215,6 +221,16 @@ const loadThemeEntries = async (): Promise<ThemeEntry[]> => {
     throw new Error("No JSON themes found in theme source directories");
   }
 
+  const sourceIds = sourceFiles.map((source) => source.id);
+  const duplicateIds = sourceIds.filter(
+    (id, index) => sourceIds.indexOf(id) !== index,
+  );
+  if (duplicateIds.length > 0) {
+    throw new Error(
+      `Duplicate theme source IDs: ${[...new Set(duplicateIds)].join(", ")}`,
+    );
+  }
+
   const entries: ThemeEntry[] = [];
 
   for (const source of sourceFiles) {
@@ -242,10 +258,28 @@ const loadThemeEntries = async (): Promise<ThemeEntry[]> => {
   return entries;
 };
 
+const removeStalePresetFiles = async (
+  entries: readonly ThemeEntry[],
+): Promise<void> => {
+  const expectedPresetFiles = new Set(
+    entries.map((entry) => `preset-${entry.id}.css`),
+  );
+  const existingPresetFiles = (await readdir(THEME_CSS_DIR)).filter((file) =>
+    /^preset-.+\.css$/.test(file),
+  );
+
+  await Promise.all(
+    existingPresetFiles
+      .filter((file) => !expectedPresetFiles.has(file))
+      .map((file) => unlink(path.join(THEME_CSS_DIR, file))),
+  );
+};
+
 const main = async (): Promise<void> => {
   await mkdir(THEME_CSS_DIR, { recursive: true });
 
   const entries = await loadThemeEntries();
+  await removeStalePresetFiles(entries);
   const importLines: string[] = [];
 
   for (const entry of entries) {

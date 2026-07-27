@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { messageLabel } from "~/shared/i18n/message";
+import { Button } from "./Button";
 import { Checkbox } from "./Checkbox";
 import { HotkeyInput } from "./HotkeyInput";
 import { ModelSelect } from "./ModelSelect";
@@ -192,7 +193,7 @@ export const SettingPromptGen: React.FC = () => {
                   minLength: Number(e.target.value),
                 })
               }
-              className="w-full p-1 bg-secondary border border-border rounded text-foreground"
+              className="w-full p-1 bg-secondary border border-control-border rounded text-foreground"
               placeholder={t("settings.promptGen.minPlaceholder")}
             />
           </div>
@@ -216,7 +217,7 @@ export const SettingPromptGen: React.FC = () => {
                   maxLength: Number(e.target.value),
                 })
               }
-              className="w-full p-1 bg-secondary border border-border rounded text-foreground"
+              className="w-full p-1 bg-secondary border border-control-border rounded text-foreground"
               placeholder={t("settings.promptGen.maxPlaceholder")}
             />
           </div>
@@ -241,7 +242,7 @@ export const SettingPromptGen: React.FC = () => {
                   batchCount: Number(e.target.value),
                 })
               }
-              className="w-20 p-1 bg-secondary border border-border rounded text-foreground"
+              className="w-20 p-1 bg-secondary border border-control-border rounded text-foreground"
               placeholder={t("settings.promptGen.countPlaceholder")}
               min="1"
             />
@@ -265,8 +266,9 @@ export const SettingPromptGen: React.FC = () => {
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>{t("settings.promptGen.textTemplateLabel")}</span>
               <Tooltip tooltipText={DEFAULT_PROMPT_GEN_PROMPT} />
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 className="text-primary hover:text-primary"
                 onClick={() =>
                   setPromptGenSettings({
@@ -277,15 +279,16 @@ export const SettingPromptGen: React.FC = () => {
                 title={t("settings.promptGen.useDefaultTextTemplateTitle")}
               >
                 {t("settings.promptGen.useAsTemplate")}
-              </button>
+              </Button>
             </div>
 
             {/* Image prompt template row */}
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>{t("settings.promptGen.imageTemplateLabel")}</span>
               <Tooltip tooltipText={DEFAULT_PROMPT_GEN_IMAGE_PROMPT} />
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 className="text-primary hover:text-primary"
                 onClick={() =>
                   setPromptGenSettings({
@@ -296,7 +299,7 @@ export const SettingPromptGen: React.FC = () => {
                 title={t("settings.promptGen.useImageTemplateTitle")}
               >
                 {t("settings.promptGen.useAsTemplate")}
-              </button>
+              </Button>
             </div>
           </div>
           <textarea
@@ -310,7 +313,7 @@ export const SettingPromptGen: React.FC = () => {
                 context: e.target.value,
               })
             }
-            className="w-full p-2 bg-secondary border border-border rounded text-foreground min-h-20 text-sm"
+            className="w-full p-2 bg-secondary border border-control-border rounded text-foreground min-h-20 text-sm"
             placeholder={t("settings.promptGen.customContextPlaceholder")}
             rows={4}
           />
@@ -347,7 +350,7 @@ export const SettingPromptGen: React.FC = () => {
       </fieldset>
 
       {/* Prompt Generator Shortcut — co-located per issue #45 */}
-      <fieldset className="flex flex-col gap-3 mt-6 rounded-lg border border-border bg-card/60 p-4">
+      <fieldset className="flex flex-col gap-3 mt-6 rounded-lg border border-card-control-border bg-card/60 p-4">
         <legend className="text-sm font-semibold text-card-foreground px-1">
           {t("settings.promptGen.shortcutLegend")}
         </legend>
@@ -358,19 +361,20 @@ export const SettingPromptGen: React.FC = () => {
       </fieldset>
 
       <div className="flex flex-col gap-2 mt-8">
-        <button
+        <Button
           type="submit"
-          className="px-3 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
+          className="px-3 py-2 rounded"
         >
           {resolveStatus(status, t, tm, tl) || t("common.save")}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           onClick={handleReset}
-          className="px-3 py-2 bg-secondary text-secondary-foreground rounded hover:bg-secondary"
+          variant="secondary"
+          className="px-3 py-2 rounded"
         >
           {t("settings.promptGen.resetButton")}
-        </button>
+        </Button>
       </div>
     </form>
   );

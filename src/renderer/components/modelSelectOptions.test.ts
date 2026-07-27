@@ -74,11 +74,13 @@ describe("buildModelOptionGroups — grouping, ordering and the value/label cont
       "openai",
       "openrouter",
       "ollama",
+      "lmstudio",
     ]);
     expect(groups.map((group) => group.label)).toEqual([
       t("models.select.provider.openai"),
       t("models.select.provider.openrouter"),
       t("models.select.provider.ollama"),
+      t("models.select.provider.lmstudio"),
     ]);
   });
 
@@ -91,17 +93,18 @@ describe("buildModelOptionGroups — grouping, ordering and the value/label cont
     const groups = build();
     const options = groups.flatMap((group) => group.options);
 
-    expect(options.map((option) => option.value)).toEqual([
+    const modelOptions = options.filter((option) => option.kind === "model");
+    expect(modelOptions.map((option) => option.value)).toEqual([
       "openai::gpt-5-mini",
       "openrouter::anthropic/claude-opus-4.5",
       "ollama::llama3.2:3b",
     ]);
-    expect(options.map((option) => option.label)).toEqual([
+    expect(modelOptions.map((option) => option.label)).toEqual([
       "gpt-5-mini",
       "anthropic/claude-opus-4.5",
       "llama3.2:3b",
     ]);
-    expect(options.every((option) => option.label === option.modelId)).toBe(true);
+    expect(modelOptions.every((option) => option.label === option.modelId)).toBe(true);
   });
 
   it("refers each row to ITS OWN group's provider when a model is served by two", () => {
@@ -388,7 +391,9 @@ describe("selectedModelOptionText — the closed control names the provider", ()
   it("leaves the menu rows bare — modelOptionText must NOT gain the prefix", () => {
     // Kills: "deduplicating" the two functions, which repeats the provider on
     // every row under a heading that already says it.
-    for (const option of build(PICKABLE).flatMap((group) => group.options)) {
+    for (const option of build(PICKABLE)
+      .flatMap((group) => group.options)
+      .filter((option) => option.kind === "model")) {
       expect(modelOptionText(option, t)).toBe(option.modelId);
       for (const provider of PROVIDER_ORDER) {
         expect(modelOptionText(option, t)).not.toContain(t(PROVIDER_LABEL_KEYS[provider]));

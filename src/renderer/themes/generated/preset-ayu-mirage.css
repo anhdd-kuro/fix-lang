@@ -9,18 +9,26 @@ html[data-theme="ayu-mirage"] {
   --card: #374055;
   --card-foreground: #cccac2;
   --popover: #3d4659;
-  --popover-foreground: #b4b9c3;
+  --popover-foreground: #b1b6c1;
   --primary: #ffcc66;
   --primary-foreground: #18181b;
+  --primary-hover: #ffd073;
+  --primary-active: #ffd47f;
   --secondary: #333b4f;
-  --secondary-foreground: #9e9e9c;
+  --secondary-foreground: #a6a6a5;
+  --secondary-hover: #2e3446;
+  --secondary-active: #282e3d;
   --muted: #303748;
-  --muted-foreground: #a4a5a7;
+  --muted-foreground: #a3a4a6;
   --accent: #3d475d;
   --accent-foreground: #cccac2;
   --destructive: #ff6666;
   --destructive-foreground: #18181b;
-  --border: #3c404a;
+  --destructive-hover: #ff716e;
+  --destructive-active: #ff7b77;
+  --border: #575a65;
+  --control-border: #85878f;
+  --card-control-border: #898b93;
   --input: #303748;
   --ring: #ffcc66;
   --success: #87d96c;
@@ -33,6 +41,6 @@ html[data-theme="ayu-mirage"] {
   --chart-4: #93e2c8;
   --chart-5: #fcca60;
   --overlay-spinner: #ffcc66;
-  --overlay-spinner-track: #7e8597;
+  --overlay-spinner-track: #7c7f88;
   --overlay-backdrop: rgba(36, 41, 54, 0.72);
 }

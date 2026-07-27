@@ -299,6 +299,7 @@ describe("isLocalModelId", () => {
   it("is true for any id shape when the provider is known to be ollama", () => {
     expect(isLocalModelId("anything-at-all", "ollama")).toBe(true);
     expect(isLocalModelId("gpt-4o", "ollama")).toBe(true);
+    expect(isLocalModelId("local-model", "lmstudio")).toBe(true);
   });
 
   it("is false when the provider is known and is not ollama, even for a colliding cached local id", () => {

@@ -4,9 +4,12 @@
  */
 import { app, BrowserWindow } from "electron";
 import { fetchAvailableModels, getCachedModels } from "~/main/ai.request/shared";
-import { getProfileSetting } from "~/stores/apiStore";
+import { probeLmStudio } from "~/main/llm/lmstudio/client";
+import { sanitizeEnabledProviders } from "~/shared/providers";
+import { getProfileSetting, getProviderEndpoint } from "~/stores/apiStore";
+import { getActiveProfileSecret } from "~/stores/profileSecretStore";
 import { probeOllama } from "./discover";
-import type { Model } from "~/stores/apiStore";
+import type { Model, ProviderId } from "~/stores/apiStore";
 
 // Configuration
 const CONFIG = {
@@ -83,71 +86,96 @@ function getMainWindow(): BrowserWindow | null {
   return windows.length > 0 ? windows[0] : null;
 }
 
-const isOllamaConnected = (): boolean => {
-  const enabled: unknown = getProfileSetting("enabledProviders");
-  return Array.isArray(enabled) && enabled.includes("ollama");
+const connectedLocalProviders = (): ProviderId[] => {
+  const enabled = sanitizeEnabledProviders(getProfileSetting("enabledProviders"));
+  return enabled.filter((provider) => provider === "ollama" || provider === "lmstudio");
+};
+
+type LocalProbeResult = {
+  reachable: boolean;
+  models: Model[];
+  error?: string;
+  /** Passed to `fetchAvailableModels` on change; LM Studio needs the stored key. */
+  refreshApiKey: string;
+};
+
+const probeLocalProvider = async (
+  provider: ProviderId,
+): Promise<LocalProbeResult> => {
+  if (provider === "ollama") {
+    const probe = await probeOllama();
+    return { ...probe, refreshApiKey: "" };
+  }
+
+  // Match connect / makeLmStudioAIRequest: optional key from safeStorage, not the
+  // default dummy. Otherwise a custom LM Studio key makes transforms work while
+  // background model polling silently fails.
+  const apiKey = (await getActiveProfileSecret("lmstudio", "api")) ?? "";
+  const probe = await probeLmStudio({
+    endpoint: getProviderEndpoint("lmstudio"),
+    apiKey,
+  });
+  return { ...probe, refreshApiKey: apiKey };
 };
 
 /**
- * Check for changes in available local models.
+ * Check for changes in available local models (Ollama and LM Studio).
  */
 export async function checkForModelChanges(): Promise<void> {
   try {
-    // Gate BEFORE polling, not after: otherwise a user who never connected
-    // Ollama still hits the local daemon every five minutes.
-    if (!isOllamaConnected()) {
+    // Gate BEFORE polling, not after: otherwise a user who never connected a
+    // local provider still hits localhost every five minutes.
+    const localProviders = connectedLocalProviders();
+    if (localProviders.length === 0) {
       return;
     }
 
     console.log("Checking for local model changes...");
 
-    // The per-profile Ollama slice, not the legacy global `models` key.
-    const storedLocalModels = getCachedModels("ollama");
+    let anySuccess = false;
+    let totalAdded = 0;
+    let totalRemoved = 0;
 
-    // `probeOllama`, not `getLocalModels`: a down daemon also answers `[]`,
-    // which reads as "every local model was removed" and notifies the renderer
-    // of a removal that never happened, once every five minutes.
-    const probe = await probeOllama();
-    if (!probe.reachable) {
-      console.log(`Ollama unreachable, skipping model check: ${probe.error}`);
-      return;
-    }
+    for (const provider of localProviders) {
+      const storedModels = getCachedModels(provider);
+      const probe = await probeLocalProvider(provider);
+      if (!probe.reachable) {
+        console.log(
+          `${provider} unreachable, skipping model check: ${probe.error}`,
+        );
+        continue;
+      }
 
-    // Check if models have changed
-    const { hasChanges, added, removed } = detectModelChanges(
-      storedLocalModels,
-      probe.models
-    );
-
-    // Handle changes if any detected
-    if (hasChanges) {
-      console.log(
-        `Local model changes detected: ${added.length} added, ${removed.length} removed`
+      anySuccess = true;
+      const { hasChanges, added, removed } = detectModelChanges(
+        storedModels,
+        probe.models,
       );
 
-      // Must persist through `cacheModelsForProvider`, which replaces ONLY the
-      // Ollama slice — a whole-list write wipes the user's cloud models.
-      await fetchAvailableModels("", "ollama", true);
+      if (hasChanges) {
+        console.log(
+          `${provider} model changes detected: ${added.length} added, ${removed.length} removed`,
+        );
+        await fetchAvailableModels(probe.refreshApiKey, provider, true);
+        totalAdded += added.length;
+        totalRemoved += removed.length;
+      }
+    }
 
-      // Send notification to the renderer process if main window exists
+    if (totalAdded > 0 || totalRemoved > 0) {
       const mainWindow = getMainWindow();
       if (mainWindow?.webContents) {
         mainWindow.webContents.send("models-updated", {
-          added: added.length,
-          removed: removed.length,
+          added: totalAdded,
+          removed: totalRemoved,
         });
-      }
-
-      // Display notification if there are obvious changes
-      if (added.length > 0 || removed.length > 0) {
-        // This would be a good place to show a system notification
-        // if we want to notify the user of model changes
       }
     }
 
-    // Reset failure counter on success
-    consecutiveFailures = 0;
-    _lastSuccessfulCheck = Date.now();
+    if (anySuccess) {
+      consecutiveFailures = 0;
+      _lastSuccessfulCheck = Date.now();
+    }
   } catch (error) {
     consecutiveFailures += 1;
     console.error(
@@ -158,10 +186,12 @@ export async function checkForModelChanges(): Promise<void> {
     // If we've had too many failures, adjust the check interval
     if (
       consecutiveFailures >= CONFIG.MAX_FAILURES &&
-      modelCheckInterval !== null
+      modelCheckInterval
     ) {
       console.log(
-        "Too many consecutive failures, reducing model check frequency"
+        `Too many consecutive failures, extending check interval to ${
+          CONFIG.EXTENDED_INTERVAL / 1000 / 60
+        } minutes`
       );
       clearInterval(modelCheckInterval);
       modelCheckInterval = setInterval(

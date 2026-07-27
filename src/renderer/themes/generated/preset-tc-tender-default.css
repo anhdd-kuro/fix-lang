@@ -12,15 +12,23 @@ html[data-theme="tc-tender-default"] {
   --popover-foreground: #eeeeee;
   --primary: #b3deef;
   --primary-foreground: #18181b;
+  --primary-hover: #bee3f1;
+  --primary-active: #cae8f4;
   --secondary: #3c3c3c;
   --secondary-foreground: #b8b8b8;
+  --secondary-hover: #353535;
+  --secondary-active: #2e2e2e;
   --muted: #373737;
-  --muted-foreground: #adadad;
+  --muted-foreground: #a5a5a5;
   --accent: #4b4b4b;
   --accent-foreground: #eeeeee;
   --destructive: #f43753;
-  --destructive-foreground: #e4e4e7;
-  --border: #434343;
+  --destructive-foreground: #18181b;
+  --destructive-hover: #f64459;
+  --destructive-active: #f84f5f;
+  --border: #5d5d5d;
+  --control-border: #888888;
+  --card-control-border: #8e8e8e;
   --input: #1d1d1d;
   --ring: #b3deef;
   --success: #c9d05c;
@@ -33,6 +41,6 @@ html[data-theme="tc-tender-default"] {
   --chart-4: #73cef4;
   --chart-5: #ffc24b;
   --overlay-spinner: #b3deef;
-  --overlay-spinner-track: #808080;
+  --overlay-spinner-track: #7e7e7e;
   --overlay-backdrop: rgba(40, 40, 40, 0.72);
 }

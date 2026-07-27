@@ -5,24 +5,32 @@
 
 html[data-theme="aurora-x"] {
   --background: #07090f;
-  --foreground: #6579b6;
+  --foreground: #6578b5;
   --card: #1a2239;
-  --card-foreground: #8091c3;
+  --card-foreground: #7c8ac0;
   --popover: #1f2340;
-  --popover-foreground: #8b94b5;
+  --popover-foreground: #848cb0;
   --primary: #86a5ff;
   --primary-foreground: #18181b;
+  --primary-hover: #91acff;
+  --primary-active: #9cb3ff;
   --secondary: #141a2b;
-  --secondary-foreground: #6779b1;
+  --secondary-foreground: #7a83a7;
+  --secondary-hover: #111520;
+  --secondary-active: #0c0e17;
   --muted: #111624;
-  --muted-foreground: #7e8cba;
+  --muted-foreground: #7d829a;
   --accent: #292929;
-  --accent-foreground: #7385bc;
+  --accent-foreground: #6c7db9;
   --destructive: #dd5073;
-  --destructive-foreground: #e4e4e7;
-  --border: #171a26;
+  --destructive-foreground: #18181b;
+  --destructive-hover: #e05a79;
+  --destructive-active: #e36480;
+  --border: #3b3c40;
+  --control-border: #66676a;
+  --card-control-border: #6d6e71;
   --input: #15182b;
-  --ring: #262e47;
+  --ring: #585d72;
   --success: #63eb90;
   --success-foreground: #18181b;
   --warning: #eab308;
@@ -33,6 +41,6 @@ html[data-theme="aurora-x"] {
   --chart-4: #eab308;
   --chart-5: #dd5073;
   --overlay-spinner: #86a5ff;
-  --overlay-spinner-track: #5c6898;
+  --overlay-spinner-track: #696a6d;
   --overlay-backdrop: rgba(7, 9, 15, 0.72);
 }

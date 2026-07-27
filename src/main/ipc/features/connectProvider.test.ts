@@ -13,6 +13,7 @@ const {
   fetchAvailableModelsMock,
   fetchModelsForProvidersMock,
   probeOllamaMock,
+  probeLmStudioMock,
   connectProviderToActiveProfileMock,
   connectProviderToProfileMock,
   disconnectProviderFromActiveProfileMock,
@@ -29,6 +30,7 @@ const {
   fetchAvailableModelsMock: vi.fn(),
   fetchModelsForProvidersMock: vi.fn(),
   probeOllamaMock: vi.fn(),
+  probeLmStudioMock: vi.fn(),
   connectProviderToActiveProfileMock: vi.fn(),
   connectProviderToProfileMock: vi.fn(),
   disconnectProviderFromActiveProfileMock: vi.fn(),
@@ -63,6 +65,7 @@ vi.mock("~/main/llm/models/compatibility", () => ({
   checkModelCompatibility: vi.fn(),
 }));
 vi.mock("~/main/llm/models/discover", () => ({ probeOllama: probeOllamaMock }));
+vi.mock("~/main/llm/lmstudio/client", () => ({ probeLmStudio: probeLmStudioMock }));
 vi.mock("~/main/llm/models/recommended", () => ({
   findRecommendedModel: vi.fn(),
   getRecommendedModels: vi.fn(),
@@ -81,6 +84,8 @@ vi.mock("~/stores/apiStore", () => ({
   getCurrentProfileId: getCurrentProfileIdMock,
   getDefaultModelId: vi.fn(),
   getProfileSetting: getProfileSettingMock,
+    getProviderEndpoint: () => undefined,
+    sanitizeProviderEndpoints: (raw: unknown) => (raw && typeof raw === "object" ? raw : {}),
   resetCurrentProfileSettings: vi.fn(),
   updateProfileSetting: updateProfileSettingMock,
   withoutProfileSecrets: withoutProfileSecretsMock,
@@ -92,22 +97,22 @@ vi.mock("~/stores/keybindingStore", () => ({
 // `importActual`'d. `secretKindsForProvider` derives from the real provider
 // tables so a fourth provider inherits the right slots here too.
 vi.mock("~/stores/profileSecretStore", async () => {
-  const { PROVIDER_REQUIRES_API_KEY, PROVIDER_SUPPORTS_PROVISIONING_KEY } =
+  const { PROVIDER_SUPPORTS_API_KEY, PROVIDER_SUPPORTS_PROVISIONING_KEY } =
     await import("~/shared/providers");
   return {
     clearProfileSecret: clearProfileSecretMock,
     getProfileSecret: getProfileSecretMock,
     hasProfileSecret: hasProfileSecretMock,
     setProfileSecret: setProfileSecretMock,
-    secretKindsForProvider: (provider: "openai" | "openrouter" | "ollama") => [
-      ...(PROVIDER_REQUIRES_API_KEY[provider] ? ["api"] : []),
+    secretKindsForProvider: (provider: ProviderId) => [
+      ...(PROVIDER_SUPPORTS_API_KEY[provider] ? ["api"] : []),
       ...(PROVIDER_SUPPORTS_PROVISIONING_KEY[provider] ? ["provisioning"] : []),
     ],
   };
 });
 // Import (after mocks) — registers the real handlers into the `handlers` map.
 import { registerApiHandlers } from "./api";
-import type { Model } from "~/shared/providers";
+import type { Model, ProviderId } from "~/shared/providers";
 
 const OPENAI_MODEL: Model = {
   id: "gpt-4o",
@@ -140,6 +145,7 @@ beforeEach(() => {
   fetchAvailableModelsMock.mockResolvedValue([OPENAI_MODEL]);
   fetchModelsForProvidersMock.mockResolvedValue({ models: [], errors: {} });
   probeOllamaMock.mockResolvedValue({ reachable: true, models: [] });
+  probeLmStudioMock.mockResolvedValue({ reachable: true, models: [] });
   connectProviderToActiveProfileMock.mockReturnValue({ id: "profile_1" });
   connectProviderToProfileMock.mockReturnValue({ id: "profile_1" });
   disconnectProviderFromActiveProfileMock.mockReturnValue(null);
@@ -506,5 +512,55 @@ describe("connecting Ollama distinguishes 'down' from 'empty'", () => {
 
     expect(probeOllamaMock).toHaveBeenCalledTimes(1);
     expect(fetchAvailableModelsMock).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("connect-provider — lmstudio", () => {
+  it("fails when probeLmStudio reports the server unreachable", async () => {
+    probeLmStudioMock.mockResolvedValue({
+      reachable: false,
+      models: [],
+      error: "ECONNREFUSED",
+    });
+    const result = await connect({ provider: "lmstudio" });
+    expect(result.success).toBe(false);
+    expect(isLabel(result.error)).toBe(true);
+    expect(connectProviderToProfileMock).not.toHaveBeenCalled();
+  });
+
+  it("connects with a note when reachable but empty", async () => {
+    probeLmStudioMock.mockResolvedValue({ reachable: true, models: [] });
+    const result = await connect({ provider: "lmstudio", host: "127.0.0.1", port: 1234 });
+    expect(result.success).toBe(true);
+    expect(isLabel(result.note)).toBe(true);
+    expect(connectProviderToProfileMock).toHaveBeenCalledWith(
+      "profile_1",
+      "lmstudio",
+      [],
+      expect.objectContaining({
+        endpoint: { host: "127.0.0.1", port: 1234 },
+      }),
+    );
+  });
+
+  it("stores an optional api key when provided", async () => {
+    probeLmStudioMock.mockResolvedValue({
+      reachable: true,
+      models: [{ id: "local-model", name: "local-model", created: 1, provider: "lmstudio" }],
+    });
+    const result = await connect({
+      provider: "lmstudio",
+      host: "localhost",
+      port: 1234,
+      apiKey: "custom-key",
+    });
+    expect(result.success).toBe(true);
+    expect(setProfileSecretMock).toHaveBeenCalledWith(
+      "profile_1",
+      "lmstudio",
+      "api",
+      "custom-key",
+    );
   });
 });

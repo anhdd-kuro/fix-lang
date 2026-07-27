@@ -24,7 +24,7 @@ export const PlaceholderPanel = ({
   const { t } = useI18n();
   return (
     <div className="flex flex-1 items-center justify-center p-6">
-      <div className="max-w-xs rounded-lg border border-border bg-card px-6 py-8 text-center">
+      <div className="max-w-xs rounded-lg border border-card-control-border bg-card px-6 py-8 text-center">
         <h2 className="mb-2 text-lg font-semibold text-primary">{title}</h2>
         <p className="text-sm text-muted-foreground">{description}</p>
         <p className="mt-3 text-xs text-muted-foreground">

@@ -1,3 +1,4 @@
+import { Button } from "./Button";
 import { useI18n } from "../i18n/useI18n";
 
 export const KeyBinding = ({
@@ -17,20 +18,20 @@ export const KeyBinding = ({
         {keysBinding.map((key, index) => (
           <li
             key={index}
-            className="inline-block px-2 py-1.5 text-xs font-semibold text-foreground bg-muted border border-border rounded-lg"
+            className="inline-block px-2 py-1.5 text-xs font-semibold text-foreground bg-muted border border-control-border rounded-lg"
           >
             {key}
           </li>
         ))}
       </ul>
       {/* TODO: Add functionality to change key bindings */}
-      <button
+      <Button
         type="button"
-        className="ml-auto px-2 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-lg"
+        className="ml-auto px-2 py-1.5 text-xs font-semibold rounded-lg"
         onClick={() => onChange([])}
       >
         {t("common.keyBinding.changeButton")}
-      </button>
+      </Button>
     </div>
   );
 };

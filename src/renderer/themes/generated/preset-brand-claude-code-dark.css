@@ -12,15 +12,23 @@ html[data-theme="brand-claude-code-dark"] {
   --popover-foreground: #faf9f5;
   --primary: #d97757;
   --primary-foreground: #18181b;
+  --primary-hover: #dc7f60;
+  --primary-active: #e0876a;
   --secondary: #252322;
   --secondary-foreground: #b9b9b6;
+  --secondary-hover: #1d1c1b;
+  --secondary-active: #161514;
   --muted: #242422;
-  --muted-foreground: #929290;
+  --muted-foreground: #8e8e8c;
   --accent: #34332f;
   --accent-foreground: #faf9f5;
   --destructive: #e54d4d;
-  --destructive-foreground: #e4e4e7;
-  --border: #333231;
+  --destructive-foreground: #18181b;
+  --destructive-hover: #e85855;
+  --destructive-active: #eb625d;
+  --border: #454544;
+  --control-border: #6e6e6d;
+  --card-control-border: #797978;
   --input: #252322;
   --ring: #d97757;
   --success: #7fd962;
@@ -33,6 +41,6 @@ html[data-theme="brand-claude-code-dark"] {
   --chart-4: #56d4dd;
   --chart-5: #d4a017;
   --overlay-spinner: #d97757;
-  --overlay-spinner-track: #716f6d;
+  --overlay-spinner-track: #6f6f6f;
   --overlay-backdrop: rgba(20, 20, 19, 0.72);
 }

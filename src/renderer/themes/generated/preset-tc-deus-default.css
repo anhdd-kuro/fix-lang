@@ -12,15 +12,23 @@ html[data-theme="tc-deus-default"] {
   --popover-foreground: #eaeaea;
   --primary: #6fb99d;
   --primary-foreground: #18181b;
+  --primary-hover: #7abea4;
+  --primary-active: #84c3aa;
   --secondary: #666666;
-  --secondary-foreground: #d6d7d9;
+  --secondary-foreground: #e6e6e7;
+  --secondary-hover: #5f5f5f;
+  --secondary-active: #585858;
   --muted: #39414d;
-  --muted-foreground: #e3e3e5;
+  --muted-foreground: #dadbdc;
   --accent: #666666;
   --accent-foreground: #eaeaea;
   --destructive: #d54e53;
-  --destructive-foreground: #e4e4e7;
-  --border: #474c54;
+  --destructive-foreground: #0f0f11;
+  --destructive-hover: #d8585b;
+  --destructive-active: #dc6262;
+  --border: #4e535b;
+  --control-border: #bcbec1;
+  --card-control-border: #bcbec1;
   --input: #666666;
   --ring: #83a598;
   --success: #98c379;
@@ -33,6 +41,6 @@ html[data-theme="tc-deus-default"] {
   --chart-4: #70c0ba;
   --chart-5: #e5c07b;
   --overlay-spinner: #6fb99d;
-  --overlay-spinner-track: #818894;
+  --overlay-spinner-track: #84888e;
   --overlay-backdrop: rgba(44, 50, 59, 0.72);
 }

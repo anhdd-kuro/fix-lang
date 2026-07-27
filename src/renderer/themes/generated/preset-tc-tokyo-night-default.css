@@ -12,15 +12,23 @@ html[data-theme="tc-tokyo-night-default"] {
   --popover-foreground: #c0caf5;
   --primary: #7aa2f7;
   --primary-foreground: #18181b;
+  --primary-hover: #85a8f8;
+  --primary-active: #91aff9;
   --secondary: #414868;
-  --secondary-foreground: #9fa6c4;
+  --secondary-foreground: #b4b9d1;
+  --secondary-hover: #3c425e;
+  --secondary-active: #363b55;
   --muted: #262838;
-  --muted-foreground: #b4b7c5;
+  --muted-foreground: #acafc0;
   --accent: #414868;
   --accent-foreground: #c0caf5;
   --destructive: #f7768e;
   --destructive-foreground: #18181b;
-  --border: #313342;
+  --destructive-hover: #f98095;
+  --destructive-active: #fb8b9d;
+  --border: #5a5b64;
+  --control-border: #97979d;
+  --card-control-border: #97979d;
   --input: #414868;
   --ring: #7aa2f7;
   --success: #9ece6a;
@@ -33,6 +41,6 @@ html[data-theme="tc-tokyo-night-default"] {
   --chart-4: #7dcfff;
   --chart-5: #e0af68;
   --overlay-spinner: #7aa2f7;
-  --overlay-spinner-track: #6e7394;
+  --overlay-spinner-track: #72737b;
   --overlay-backdrop: rgba(26, 27, 38, 0.72);
 }

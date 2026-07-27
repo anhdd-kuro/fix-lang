@@ -12,7 +12,7 @@ import { app, safeStorage } from "electron";
 import {
   PROVIDER_IDS,
   PROVIDER_LOG_LABELS,
-  PROVIDER_REQUIRES_API_KEY,
+  PROVIDER_SUPPORTS_API_KEY,
   PROVIDER_SUPPORTS_PROVISIONING_KEY,
 } from "~/shared/providers";
 import type { ProviderId } from "~/stores/apiStore";
@@ -33,7 +33,7 @@ const isValidProfileId = (profileId: string): boolean =>
  * leave its key on disk.
  */
 export const secretKindsForProvider = (provider: ProviderId): SecretKind[] => [
-  ...(PROVIDER_REQUIRES_API_KEY[provider] ? (["api"] as const) : []),
+  ...(PROVIDER_SUPPORTS_API_KEY[provider] ? (["api"] as const) : []),
   ...(PROVIDER_SUPPORTS_PROVISIONING_KEY[provider] ? (["provisioning"] as const) : []),
 ];
 

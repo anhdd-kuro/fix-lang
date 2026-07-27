@@ -11,6 +11,7 @@ import {
   PROVIDER_LOG_LABELS,
   PROVIDER_ORDER,
   PROVIDER_REQUIRES_API_KEY,
+  PROVIDER_SUPPORTS_API_KEY,
   PROVIDER_SUPPORTS_PROVISIONING_KEY,
   providerOfModel,
   sanitizeEnabledProviders,
@@ -21,7 +22,7 @@ import {
 // A source-text assertion on purpose: a dynamic-import probe would only prove
 // the module loads, not that the forbidden dependency is absent.
 describe("Electron-free module boundary", () => {
-  const SOURCE_FILES = ["providers.ts", "modelRef.ts"] as const;
+  const SOURCE_FILES = ["providers.ts", "modelRef.ts", "lmstudioEndpoint.ts"] as const;
   const FORBIDDEN_SPECIFIER = /^(electron($|\/|-)|~\/stores\/|@\/stores\/|node:)/;
   // Quoted specifiers only, so prose mentioning Electron in a doc comment does not trip it.
   const SPECIFIER = /(?:\bfrom|\brequire\s*\(|\bimport\s*\()\s*["']([^"']+)["']/g;
@@ -53,8 +54,8 @@ describe("Electron-free module boundary", () => {
 });
 
 describe("PROVIDER_IDS / isProviderId", () => {
-  it("lists exactly the three known providers", () => {
-    expect(PROVIDER_IDS).toEqual(["openai", "openrouter", "ollama"]);
+  it("lists exactly the four known providers", () => {
+    expect(PROVIDER_IDS).toEqual(["openai", "openrouter", "ollama", "lmstudio"]);
   });
 
   it("accepts only known provider ids", () => {
@@ -80,20 +81,40 @@ describe("PROVIDER_ORDER / PROVIDER_LOG_LABELS / credential requirement maps", (
     }
   });
 
-  it("only ollama does not require an API key", () => {
+  it("only ollama and lmstudio do not require an API key", () => {
     expect(PROVIDER_REQUIRES_API_KEY.openai).toBe(true);
     expect(PROVIDER_REQUIRES_API_KEY.openrouter).toBe(true);
     expect(PROVIDER_REQUIRES_API_KEY.ollama).toBe(false);
+    expect(PROVIDER_REQUIRES_API_KEY.lmstudio).toBe(false);
   });
 
   it("only openrouter supports a provisioning key", () => {
     expect(PROVIDER_SUPPORTS_PROVISIONING_KEY.openrouter).toBe(true);
     expect(PROVIDER_SUPPORTS_PROVISIONING_KEY.openai).toBe(false);
     expect(PROVIDER_SUPPORTS_PROVISIONING_KEY.ollama).toBe(false);
+    expect(PROVIDER_SUPPORTS_PROVISIONING_KEY.lmstudio).toBe(false);
+  });
+
+  it("lmstudio supports an optional API key without requiring one", () => {
+    expect(PROVIDER_SUPPORTS_API_KEY.lmstudio).toBe(true);
+    expect(PROVIDER_REQUIRES_API_KEY.lmstudio).toBe(false);
+    expect(PROVIDER_SUPPORTS_API_KEY.ollama).toBe(false);
   });
 });
 
 describe("isModelForProvider", () => {
+  it("matches an lmstudio-tagged model only to lmstudio", () => {
+    const model: Model = {
+      id: "local-model",
+      name: "local-model",
+      created: 1,
+      provider: "lmstudio",
+    };
+    expect(isModelForProvider(model, "lmstudio")).toBe(true);
+    expect(isModelForProvider(model, "ollama")).toBe(false);
+    expect(isModelForProvider(model, "openai")).toBe(false);
+  });
+
   it("matches an openai-tagged model only to openai", () => {
     const model: Model = { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" };
     expect(isModelForProvider(model, "openai")).toBe(true);
@@ -217,6 +238,7 @@ describe("groupModelsByProvider", () => {
       { provider: "openai", models: [] },
       { provider: "openrouter", models: [untaggedCloud] },
       { provider: "ollama", models: [untaggedLocal] },
+      { provider: "lmstudio", models: [] },
     ]);
   });
 
@@ -304,7 +326,7 @@ describe("sanitizeEnabledProviders", () => {
   });
 
   it("returns every provider in PROVIDER_ORDER when all are present, in any input order", () => {
-    expect(sanitizeEnabledProviders(["ollama", "openrouter", "openai"])).toEqual([
+    expect(sanitizeEnabledProviders(["lmstudio", "ollama", "openrouter", "openai"])).toEqual([
       ...PROVIDER_ORDER,
     ]);
   });

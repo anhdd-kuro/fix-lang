@@ -12,15 +12,23 @@ html[data-theme="tc-nord-default"] {
   --popover-foreground: #d8dee9;
   --primary: #80a1c2;
   --primary-foreground: #18181b;
+  --primary-hover: #8aa8c7;
+  --primary-active: #93afcb;
   --secondary: #4c566a;
-  --secondary-foreground: #b5bbc4;
+  --secondary-foreground: #c9cdd4;
+  --secondary-hover: #464f61;
+  --secondary-active: #404859;
   --muted: #3b4252;
-  --muted-foreground: #c8cbd0;
+  --muted-foreground: #bec2c8;
   --accent: #4c566a;
   --accent-foreground: #d8dee9;
   --destructive: #bf616a;
-  --destructive-foreground: #e4e4e7;
-  --border: #464c58;
+  --destructive-foreground: #111113;
+  --destructive-hover: #c46b72;
+  --destructive-active: #c8747a;
+  --border: #656973;
+  --control-border: #a5a7ad;
+  --card-control-border: #a5a7ad;
   --input: #4c566a;
   --ring: #81a1c1;
   --success: #a3be8c;
@@ -33,6 +41,6 @@ html[data-theme="tc-nord-default"] {
   --chart-4: #88c0d0;
   --chart-5: #ebcb8b;
   --overlay-spinner: #80a1c2;
-  --overlay-spinner-track: #8a92a2;
+  --overlay-spinner-track: #888b93;
   --overlay-backdrop: rgba(46, 52, 64, 0.72);
 }

@@ -1,6 +1,6 @@
 // No `@testing-library/react` is installed, so these render the real component
 // via `react-dom/client` + `act`, as `SettingUpdates.test.ts` does.
-import { act, createElement } from "react";
+import { act, createElement, type FormEvent } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { messageLabel } from "~/shared/i18n/message";
@@ -190,6 +190,7 @@ describe("ModelSelect", () => {
         featureModel?: string;
         selectedModel?: string;
       } = {},
+      onFormSubmit?: ReturnType<typeof vi.fn>,
     ) => {
       const api = {
         fetchAIModels: vi
@@ -218,10 +219,29 @@ describe("ModelSelect", () => {
       document.body.append(container);
       root = createRoot(container);
       await act(async () => {
-        root.render(createElement(I18nProvider, null, createElement(ModelSelect, props)));
+        const modelSelect = createElement(ModelSelect, props);
+        root.render(
+          createElement(
+            I18nProvider,
+            null,
+            onFormSubmit
+              ? createElement(
+                  "form",
+                  {
+                    onSubmit: (event: FormEvent<HTMLFormElement>) => {
+                      event.preventDefault();
+                      onFormSubmit();
+                    },
+                  },
+                  modelSelect,
+                )
+              : modelSelect,
+          ),
+        );
       });
       await waitForUi();
       await waitForUi();
+      return api;
     };
 
     it('shows "use global default" for a preset whose model is the empty inherit sentinel', async () => {
@@ -423,6 +443,48 @@ describe("ModelSelect", () => {
       expect(container.textContent).toContain(
         tEn("models.select.option.unavailable", { model: "llama3.2:3b" }),
       );
+    });
+
+    it("routes refetch and reset actions without submitting a parent settings form", async () => {
+      const onFormSubmit = vi.fn();
+      const api = await mount(
+        { featureId: "settingsPromptGen", useFeatureModel: true },
+        { featureModel: "openai::gpt-5-mini" },
+        onFormSubmit,
+      );
+      const buttonByLabel = (label: string): HTMLButtonElement => {
+        const button = [...container.querySelectorAll("button")].find(
+          (candidate) => candidate.getAttribute("aria-label") === label,
+        );
+        if (button === undefined) {
+          throw new Error(`ModelSelect rendered without ${label}`);
+        }
+        return button;
+      };
+      const refetchButton = buttonByLabel(tEn("models.select.refetch"));
+      const resetButton = buttonByLabel(tEn("models.select.resetToDefault"));
+
+      expect(refetchButton.type).toBe("button");
+      expect(resetButton.type).toBe("button");
+
+      await act(async () => {
+        refetchButton.click();
+      });
+      await waitForUi();
+
+      expect(api.fetchAIModels).toHaveBeenLastCalledWith(true);
+      expect(onFormSubmit).not.toHaveBeenCalled();
+
+      await act(async () => {
+        resetButton.click();
+      });
+      await waitForUi();
+
+      expect(api.setFeatureModel).toHaveBeenCalledWith(
+        "settingsPromptGen",
+        "",
+      );
+      expect(onFormSubmit).not.toHaveBeenCalled();
     });
   });
 });

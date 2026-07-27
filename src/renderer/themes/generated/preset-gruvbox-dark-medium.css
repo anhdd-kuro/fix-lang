@@ -11,16 +11,24 @@ html[data-theme="gruvbox-dark-medium"] {
   --popover: #424242;
   --popover-foreground: #ebdbb2;
   --primary: #43878a;
-  --primary-foreground: #e4e4e7;
+  --primary-foreground: #101012;
+  --primary-hover: #4d8d90;
+  --primary-active: #579395;
   --secondary: #373737;
   --secondary-foreground: #b6aa8d;
+  --secondary-hover: #303030;
+  --secondary-active: #292929;
   --muted: #373737;
-  --muted-foreground: #b1ab9d;
+  --muted-foreground: #ada697;
   --accent: #4c4948;
   --accent-foreground: #ebdbb2;
   --destructive: #fb4934;
-  --destructive-foreground: #e4e4e7;
-  --border: #43413c;
+  --destructive-foreground: #18181b;
+  --destructive-hover: #fd533c;
+  --destructive-active: #ff5e45;
+  --border: #5c5c5b;
+  --control-border: #828281;
+  --card-control-border: #8e8e8e;
   --input: #373737;
   --ring: #458588;
   --success: #98971a;
@@ -33,6 +41,6 @@ html[data-theme="gruvbox-dark-medium"] {
   --chart-4: #689d6a;
   --chart-5: #d79921;
   --overlay-spinner: #43878a;
-  --overlay-spinner-track: #848076;
+  --overlay-spinner-track: #7f7f7e;
   --overlay-backdrop: rgba(40, 40, 40, 0.72);
 }

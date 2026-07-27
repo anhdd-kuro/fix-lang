@@ -12,15 +12,23 @@ html[data-theme="catppuccin-mocha"] {
   --popover-foreground: #cdd6f4;
   --primary: #cba6f7;
   --primary-foreground: #18181b;
+  --primary-hover: #d2b1f8;
+  --primary-active: #d9bcf9;
   --secondary: #2c2c44;
   --secondary-foreground: #9da3be;
+  --secondary-hover: #26263a;
+  --secondary-active: #212030;
   --muted: #2a2a41;
-  --muted-foreground: #9a9daf;
+  --muted-foreground: #9497ab;
   --accent: #3c3d57;
   --accent-foreground: #cdd6f4;
   --destructive: #f38ba8;
   --destructive-foreground: #18181b;
-  --border: #36374a;
+  --destructive-hover: #f595af;
+  --destructive-active: #f79fb6;
+  --border: #52515f;
+  --control-border: #7e7d88;
+  --card-control-border: #81808b;
   --input: #313244;
   --ring: #cba6f7;
   --success: #a6e3a1;
@@ -33,6 +41,6 @@ html[data-theme="catppuccin-mocha"] {
   --chart-4: #94e2d5;
   --chart-5: #f9e2af;
   --overlay-spinner: #cba6f7;
-  --overlay-spinner-track: #75779a;
+  --overlay-spinner-track: #777681;
   --overlay-backdrop: rgba(30, 30, 46, 0.72);
 }

@@ -54,6 +54,7 @@ const {
   fetchAvailableModelsMock,
   fetchModelsForProvidersMock,
   probeOllamaMock,
+  probeLmStudioMock,
   connectProviderToActiveProfileMock,
   disconnectProviderFromActiveProfileMock,
   getCurrentProfileIdMock,
@@ -71,6 +72,7 @@ const {
   fetchAvailableModelsMock: vi.fn(),
   fetchModelsForProvidersMock: vi.fn(),
   probeOllamaMock: vi.fn(),
+  probeLmStudioMock: vi.fn(),
   connectProviderToActiveProfileMock: vi.fn(),
   disconnectProviderFromActiveProfileMock: vi.fn(),
   getCurrentProfileIdMock: vi.fn().mockReturnValue("profile_1"),
@@ -91,6 +93,7 @@ vi.mock("~/main/ai.request", () => ({
   fetchModelsForProviders: fetchModelsForProvidersMock,
 }));
 vi.mock("~/main/llm/models/discover", () => ({ probeOllama: probeOllamaMock }));
+vi.mock("~/main/llm/lmstudio/client", () => ({ probeLmStudio: probeLmStudioMock }));
 vi.mock("~/main/keybindings", () => ({ reloadHotkeys: vi.fn() }));
 vi.mock("~/main/llm", () => ({
   ollamaClient: { pull: vi.fn(), delete: vi.fn(), chat: vi.fn() },
@@ -120,6 +123,8 @@ vi.mock("~/stores/apiStore", () => ({
   getCurrentProfileId: getCurrentProfileIdMock,
   getDefaultModelId: vi.fn(),
   getProfileSetting: getProfileSettingMock,
+    getProviderEndpoint: () => undefined,
+    sanitizeProviderEndpoints: (raw: unknown) => (raw && typeof raw === "object" ? raw : {}),
   resetCurrentProfileSettings: resetCurrentProfileSettingsMock,
   updateProfileSetting: updateProfileSettingMock,
   withoutProfileSecrets: vi.fn((profile: unknown) => profile),
@@ -128,15 +133,15 @@ vi.mock("~/stores/keybindingStore", () => ({
   keybindingStore: { resetKeyBindings: vi.fn() },
 }));
 vi.mock("~/stores/profileSecretStore", async () => {
-  const { PROVIDER_REQUIRES_API_KEY, PROVIDER_SUPPORTS_PROVISIONING_KEY } =
+  const { PROVIDER_SUPPORTS_API_KEY, PROVIDER_SUPPORTS_PROVISIONING_KEY } =
     await import("~/shared/providers");
   return {
     clearProfileSecret: clearProfileSecretMock,
     getProfileSecret: getProfileSecretMock,
     hasProfileSecret: hasProfileSecretMock,
     setProfileSecret: setProfileSecretMock,
-    secretKindsForProvider: (provider: "openai" | "openrouter" | "ollama") => [
-      ...(PROVIDER_REQUIRES_API_KEY[provider] ? ["api"] : []),
+    secretKindsForProvider: (provider: ProviderId) => [
+      ...(PROVIDER_SUPPORTS_API_KEY[provider] ? ["api"] : []),
       ...(PROVIDER_SUPPORTS_PROVISIONING_KEY[provider] ? ["provisioning"] : []),
     ],
   };
@@ -153,6 +158,7 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
     setProfileSecretMock.mockResolvedValue({ success: true });
     clearProfileSecretMock.mockResolvedValue({ success: true });
     probeOllamaMock.mockResolvedValue({ reachable: true, models: [] });
+  probeLmStudioMock.mockResolvedValue({ reachable: true, models: [] });
     fetchModelsForProvidersMock.mockResolvedValue({ models: [], errors: {} });
     connectProviderToActiveProfileMock.mockReturnValue({ id: "profile_1" });
     disconnectProviderFromActiveProfileMock.mockReturnValue(null);

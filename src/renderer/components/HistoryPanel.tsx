@@ -11,6 +11,7 @@
  */
 import { addDays, format } from "date-fns";
 import { useState } from "react";
+import { Button } from "./Button";
 import HistoryEntryItem from "./HistoryEntryItem";
 import SearchInput from "./SearchInput";
 import { TrashButton } from "./TrashButton";
@@ -85,22 +86,22 @@ export const HistoryPanel = ({
       {/* Dynamic filter tabs — built from preset names present in data */}
       {availableFilters.length > 0 && (
         <div className="mb-3 flex flex-wrap gap-1">
-          <button
-            type="button"
+          <Button
+            variant={activeFilter === null ? "primary" : "secondary"}
             onClick={() => setActiveFilter(null)}
-            className={`px-2 py-0.5 text-xs rounded-sm ${activeFilter === null ? "bg-primary text-primary-foreground" : "bg-secondary text-card-foreground hover:bg-secondary"}`}
+            className="px-2 py-0.5 text-xs rounded-sm"
           >
             {t("history.panel.filterAll")}
-          </button>
+          </Button>
           {availableFilters.map((name) => (
-            <button
+            <Button
               key={name}
-              type="button"
+              variant={activeFilter === name ? "primary" : "secondary"}
               onClick={() => setActiveFilter(toggleFilter(activeFilter, name))}
-              className={`px-2 py-0.5 text-xs rounded-sm ${activeFilter === name ? "bg-primary text-primary-foreground" : "bg-secondary text-card-foreground hover:bg-secondary"}`}
+              className="px-2 py-0.5 text-xs rounded-sm"
             >
               {name}
-            </button>
+            </Button>
           ))}
         </div>
       )}

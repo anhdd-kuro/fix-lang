@@ -69,7 +69,7 @@ const PromptGenWindow: React.FC = () => {
         ))}
       </div>
 
-      <div className="flex justify-between items-center sticky bottom-0 bg-card p-3 rounded-md shadow-md border border-border">
+      <div className="flex justify-between items-center sticky bottom-0 bg-card p-3 rounded-md shadow-md border border-card-control-border">
         <div className="text-xs text-muted-foreground">
           {data.promptTokens && (
             <span>{t("common.promptTokens", { count: data.promptTokens })}</span>
