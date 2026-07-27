@@ -15,6 +15,7 @@ import {
   logEntryMatchesLevels,
   logEntryMatchesSearch,
 } from "~/shared/logging";
+import { Button } from "./Button";
 import { Checkbox } from "./Checkbox";
 import { logRowKey, timeZoneLabel } from "./logsView";
 import { MultiSelect } from "./MultiSelect";
@@ -311,7 +312,7 @@ export const LogsPanel = () => {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={t("logs.panel.search")}
-            className="w-full rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
+            className="w-full rounded-md border border-card-control-border bg-card px-3 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
           />
         </label>
 
@@ -331,27 +332,27 @@ export const LogsPanel = () => {
           className="text-muted-foreground"
         />
 
-        <button
-          type="button"
+        <Button
+          variant="destructive"
           onClick={() => void handleClear()}
-          className="rounded-md bg-secondary px-3 py-1.5 text-sm text-secondary-foreground hover:opacity-90"
+          className="rounded-md px-3 py-1.5 text-sm"
         >
           {t("logs.panel.clearButton")}
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="secondary"
           onClick={() => void handleCopy()}
-          className="rounded-md bg-secondary px-3 py-1.5 text-sm text-secondary-foreground hover:opacity-90"
+          className="rounded-md px-3 py-1.5 text-sm"
         >
           {t("logs.panel.copyAllButton")}
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="primary"
           onClick={() => void handleExport()}
-          className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:opacity-90"
+          className="rounded-md px-3 py-1.5 text-sm"
         >
           {t("logs.panel.exportButton")}
-        </button>
+        </Button>
       </div>
 
       <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -367,7 +368,7 @@ export const LogsPanel = () => {
 
       <div
         ref={listRef}
-        className="min-h-0 flex-1 overflow-auto rounded-lg border border-border bg-card font-mono text-xs"
+        className="min-h-0 flex-1 overflow-auto rounded-lg border border-card-control-border bg-card font-mono text-xs"
         aria-label={t("logs.panel.listAriaLabel")}
       >
         {logs.length === 0 && !isLoading ? (
@@ -389,7 +390,7 @@ export const LogsPanel = () => {
                   key={entry.id}
                   data-index={virtualRow.index}
                   ref={virtualizer.measureElement}
-                  className="absolute top-0 left-0 w-full border-b border-border"
+                  className="absolute top-0 left-0 w-full border-b border-card-control-border"
                   style={{
                     transform: `translateY(${String(virtualRow.start)}px)`,
                   }}

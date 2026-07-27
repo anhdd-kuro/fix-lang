@@ -12,15 +12,23 @@ html[data-theme="nord"] {
   --popover-foreground: #d8dee9;
   --primary: #88c0d0;
   --primary-foreground: #18181b;
+  --primary-hover: #93c6d4;
+  --primary-active: #9ecbd8;
   --secondary: #3b4252;
   --secondary-foreground: #aab0bb;
+  --secondary-hover: #353b49;
+  --secondary-active: #2f3440;
   --muted: #3b4252;
-  --muted-foreground: #b2b6be;
+  --muted-foreground: #b0b4bc;
   --accent: #4c556a;
   --accent-foreground: #d8dee9;
   --destructive: #bf616a;
-  --destructive-foreground: #e4e4e7;
-  --border: #464c58;
+  --destructive-foreground: #111113;
+  --destructive-hover: #c46b72;
+  --destructive-active: #c8747a;
+  --border: #a4a7ad;
+  --control-border: #a4a7ad;
+  --card-control-border: #a4a7ad;
   --input: #3b4252;
   --ring: #88c0d0;
   --success: #a3be8c;
@@ -33,6 +41,6 @@ html[data-theme="nord"] {
   --chart-4: #88c0d0;
   --chart-5: #ebcb8b;
   --overlay-spinner: #88c0d0;
-  --overlay-spinner-track: #8a92a2;
+  --overlay-spinner-track: #a4a7ad;
   --overlay-backdrop: rgba(46, 52, 64, 0.72);
 }

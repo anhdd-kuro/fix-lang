@@ -6,6 +6,7 @@ import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
 // Value import: `~/stores/apiStore`'s re-export shim would pull
 // `electron-store` into the renderer bundle.
 import { isProviderId } from "~/shared/providers";
+import { Button } from "./Button";
 import {
   buildModelOptionGroups,
   findOption,
@@ -408,16 +409,16 @@ export const ModelSelect: React.FC<{
             },
           }}
         />
-        <button
-          type="button"
+        <Button
+          variant="ghost"
           aria-label={t("models.select.refetch")}
           title={t("models.select.refetch")}
-          className="px-2 py-1 bg-primary text-primary-foreground rounded hover:bg-primary focus:outline-none focus:ring-2 focus:ring-ring"
+          className="px-2 py-1 rounded"
           onClick={() => fetchModels(true)}
           disabled={modelsLoading}
         >
           &#x21bb;
-        </button>
+        </Button>
 
         {/* Add button to manage local models if any exist */}
         {models.find((model) => model.local !== undefined) && (
@@ -436,11 +437,11 @@ export const ModelSelect: React.FC<{
 
         {/* Add reset button for feature-specific models */}
         {useFeatureModel && featureId && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
             aria-label={t("models.select.resetToDefault")}
             title={t("models.select.resetToDefault")}
-            className="px-2 py-1 bg-secondary text-secondary-foreground rounded hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring"
+            className="px-2 py-1 rounded"
             onClick={async () => {
               if (window.electronAPI?.setFeatureModel) {
                 try {
@@ -457,7 +458,7 @@ export const ModelSelect: React.FC<{
             disabled={!savedFeatureModel} // Only enable if a feature-specific model is set
           >
             {t("models.select.resetButton")}
-          </button>
+          </Button>
         )}
       </div>
       {modelsError && (

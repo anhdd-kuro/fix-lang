@@ -5,22 +5,30 @@
 
 html[data-theme="tc-solarized-light"] {
   --background: #fdf6e3;
-  --foreground: #5c7077;
+  --foreground: #5f737b;
   --card: #002b36;
-  --card-foreground: #8599a1;
+  --card-foreground: #7f9198;
   --popover: #002b36;
-  --popover-foreground: #8599a1;
+  --popover-foreground: #7f9198;
   --primary: #268bd2;
-  --primary-foreground: #e4e4e7;
+  --primary-foreground: #18181b;
+  --primary-hover: #338ed3;
+  --primary-active: #4193d5;
   --secondary: #002b36;
   --secondary-foreground: #8a989a;
+  --secondary-hover: #05242d;
+  --secondary-active: #081d23;
   --muted: #fae7b3;
   --muted-foreground: #a7b0ad;
   --accent: #002b36;
-  --accent-foreground: #6e868f;
+  --accent-foreground: #6b8088;
   --destructive: #dc322f;
-  --destructive-foreground: #ffffff;
-  --border: #e7e4d5;
+  --destructive-foreground: #fefefe;
+  --destructive-hover: #d0312d;
+  --destructive-active: #c42f2b;
+  --border: #86847e;
+  --control-border: #86847e;
+  --card-control-border: #86847e;
   --input: #002b36;
   --ring: #268bd2;
   --success: #859900;
@@ -33,6 +41,6 @@ html[data-theme="tc-solarized-light"] {
   --chart-4: #2aa198;
   --chart-5: #b58900;
   --overlay-spinner: #268bd2;
-  --overlay-spinner-track: #8c8250;
+  --overlay-spinner-track: #83817b;
   --overlay-backdrop: rgba(253, 246, 227, 0.72);
 }

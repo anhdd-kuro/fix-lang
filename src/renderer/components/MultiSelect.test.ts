@@ -94,11 +94,17 @@ describe("MultiSelect", () => {
 
     expect(trigger().textContent).toContain("All levels");
     expect(trigger().getAttribute("aria-expanded")).toBe("false");
+    expect(trigger().getAttribute("aria-haspopup")).toBe("true");
+    expect(trigger().getAttribute("aria-controls")).toBeNull();
     expect(container.querySelector('[role="group"]')).toBeNull();
 
     await openMenu();
 
     expect(trigger().getAttribute("aria-expanded")).toBe("true");
+    const popup = container.querySelector<HTMLElement>('[role="group"]');
+    expect(popup).not.toBeNull();
+    expect(trigger().getAttribute("aria-controls")).toBe(popup?.id);
+    expect(popup?.getAttribute("aria-label")).toBe("Log level");
     expect(optionInputs()).toHaveLength(OPTIONS.length);
   });
 
@@ -165,5 +171,29 @@ describe("MultiSelect", () => {
 
     expect(container.querySelector('[role="group"]')).toBeNull();
     expect(document.activeElement).toBe(trigger());
+  });
+
+  it("keeps the shared outline semantics alongside trigger geometry", async () => {
+    await render();
+
+    const classes = [
+      "border",
+      "border-current",
+      "bg-transparent",
+      "text-inherit",
+      "flex",
+      "w-full",
+      "items-center",
+      "justify-between",
+      "gap-2",
+      "rounded-md",
+      "px-2",
+      "py-1.5",
+      "text-sm",
+      "hover:border-ring",
+    ];
+    for (const className of classes) {
+      expect(trigger().classList).toContain(className);
+    }
   });
 });

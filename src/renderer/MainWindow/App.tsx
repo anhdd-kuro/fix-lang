@@ -6,6 +6,7 @@ import {
   DEFAULT_DASHBOARD_TAB_INDEX,
   bucketsForClear,
 } from "./dashboardTabs";
+import { Button } from "../components/Button";
 import { formatModelLineage } from "../components/historyModel";
 import { HistoryPanel } from "../components/HistoryPanel";
 import HistoryReviewModal from "../components/HistoryReviewModal";
@@ -223,7 +224,7 @@ const App: React.FC = () => {
   // History tab body: the history list beside the Last Action Preview.
   const historyTab = (
     <div className="flex h-full gap-4">
-      <aside className="flex w-96 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-card p-3">
+      <aside className="flex w-96 shrink-0 flex-col overflow-hidden rounded-lg border border-card-control-border bg-card p-3">
         <HistoryPanel
           history={history}
           onSelectEntry={handleSelectEntry}
@@ -282,7 +283,7 @@ const App: React.FC = () => {
     ),
     logs: <LogsPanel />,
     about: (
-      <div className="h-full w-full overflow-y-auto rounded-lg border border-border bg-card p-4">
+      <div className="h-full w-full overflow-y-auto rounded-lg border border-card-control-border bg-card p-4">
         <SettingUpdates />
       </div>
     ),
@@ -294,7 +295,7 @@ const App: React.FC = () => {
   return (
     <div className="flex h-screen flex-col bg-background font-sans text-foreground">
       {/* Shared header: tabs (left) + range pills & settings (right). */}
-      <header className="flex items-center justify-between gap-4 border-b border-border bg-card px-4 py-2">
+      <header className="flex items-center justify-between gap-4 border-b border-card-control-border bg-card px-4 py-2">
         <nav
           className="flex gap-1"
           role="tablist"
@@ -303,8 +304,9 @@ const App: React.FC = () => {
           {DASHBOARD_TABS.map((tab, index) => {
             const isActive = activeDashboardTab === index;
             return (
-              <button
+              <Button
                 key={tab.id}
+                variant={isActive ? "primary" : "ghost"}
                 role="tab"
                 id={`dashboard-tab-${tab.id}`}
                 aria-selected={isActive}
@@ -320,7 +322,7 @@ const App: React.FC = () => {
                 )}
               >
                 {t(tab.labelKey)}
-              </button>
+              </Button>
             );
           })}
         </nav>
@@ -333,8 +335,9 @@ const App: React.FC = () => {
               aria-label={t("dashboard.range.ariaLabel")}
             >
               {RANGES.map((r) => (
-                <button
+                <Button
                   key={r.id}
+                  variant={range === r.id ? "primary" : "ghost"}
                   type="button"
                   onClick={() => setRange(r.id)}
                   aria-pressed={range === r.id}
@@ -346,7 +349,7 @@ const App: React.FC = () => {
                   )}
                 >
                   {t(r.labelKey)}
-                </button>
+                </Button>
               ))}
             </div>
           )}

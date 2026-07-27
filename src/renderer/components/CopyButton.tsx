@@ -1,5 +1,6 @@
 import React from "react";
 import { twJoin } from "tailwind-merge";
+import { Button } from "./Button";
 
 /** Icon footprint for copy/check glyphs. `sm` fits dense panels (About command blocks). */
 type CopyButtonSize = "sm" | "md";
@@ -35,8 +36,9 @@ const CopyButton: React.FC<{
   const { hit, icon } = SIZE_CLASSES[size];
 
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
       onClick={handleCopy}
       aria-label={label}
       title={label}
@@ -65,7 +67,7 @@ const CopyButton: React.FC<{
           strokeDashoffset: copied ? 0 : -50,
         }}
       />
-    </button>
+    </Button>
   );
 };
 

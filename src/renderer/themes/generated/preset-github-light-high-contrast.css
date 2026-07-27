@@ -12,15 +12,23 @@ html[data-theme="github-light-high-contrast"] {
   --popover-foreground: #0e1116;
   --primary: #0349b4;
   --primary-foreground: #fafafa;
+  --primary-hover: #0a45aa;
+  --primary-active: #10419e;
   --secondary: #f0f0f0;
   --secondary-foreground: #424448;
+  --secondary-hover: #f7f7f7;
+  --secondary-active: #fefefe;
   --muted: #f0f0f0;
-  --muted-foreground: #66676a;
+  --muted-foreground: #6c6d70;
   --accent: #dae2e8;
   --accent-foreground: #0e1116;
   --destructive: #a0111f;
   --destructive-foreground: #fafafa;
-  --border: #d9d9da;
+  --destructive-hover: #94131d;
+  --destructive-active: #87151c;
+  --border: #7e7e81;
+  --control-border: #7e7e81;
+  --card-control-border: #7e7e81;
   --input: #f0f0f0;
   --ring: #0349b4;
   --success: #024c1a;
@@ -33,6 +41,6 @@ html[data-theme="github-light-high-contrast"] {
   --chart-4: #1b7c83;
   --chart-5: #3f2200;
   --overlay-spinner: #0349b4;
-  --overlay-spinner-track: #868689;
+  --overlay-spinner-track: #7e7e81;
   --overlay-backdrop: rgba(255, 255, 255, 0.72);
 }

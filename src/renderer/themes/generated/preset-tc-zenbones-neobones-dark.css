@@ -12,15 +12,23 @@ html[data-theme="tc-zenbones-neobones-dark"] {
   --popover-foreground: #c6d5cf;
   --primary: #8190d4;
   --primary-foreground: #18181b;
+  --primary-hover: #8c98d8;
+  --primary-active: #95a0db;
   --secondary: #263945;
-  --secondary-foreground: #93a19e;
+  --secondary-foreground: #96a4a1;
+  --secondary-hover: #22323c;
+  --secondary-active: #1e2b33;
   --muted: #192a34;
-  --muted-foreground: #97a1a2;
+  --muted-foreground: #919a9b;
   --accent: #263945;
   --accent-foreground: #c6d5cf;
   --destructive: #de6e7c;
   --destructive-foreground: #18181b;
-  --border: #283237;
+  --destructive-hover: #e27985;
+  --destructive-active: #e5838d;
+  --border: #7d8387;
+  --control-border: #7d8387;
+  --card-control-border: #7d8387;
   --input: #263945;
   --ring: #8190d4;
   --success: #90ff6b;
@@ -33,6 +41,6 @@ html[data-theme="tc-zenbones-neobones-dark"] {
   --chart-4: #66a5ad;
   --chart-5: #b77e64;
   --overlay-spinner: #8190d4;
-  --overlay-spinner-track: #647d8a;
+  --overlay-spinner-track: #7d8387;
   --overlay-backdrop: rgba(15, 25, 31, 0.72);
 }

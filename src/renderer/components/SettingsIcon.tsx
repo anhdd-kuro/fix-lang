@@ -1,5 +1,6 @@
 import React from "react";
 import { twJoin } from "tailwind-merge";
+import { Button } from "./Button";
 import { useI18n } from "../i18n/useI18n";
 
 // ---------- SettingsButton Component ----------
@@ -24,8 +25,9 @@ export const SettingsButton: React.FC<SettingsButtonProps> = ({
   const resolvedTitle = title ?? t("settings.icon.defaultTitle");
 
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
       onClick={onClick}
       className={twJoin(
         "text-card-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring rounded-md cursor-pointer",
@@ -35,7 +37,7 @@ export const SettingsButton: React.FC<SettingsButtonProps> = ({
       title={resolvedTitle}
     >
       <GearIcon className={iconClassName} />
-    </button>
+    </Button>
   );
 };
 

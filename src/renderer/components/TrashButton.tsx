@@ -1,5 +1,6 @@
 import React from "react";
 import { twJoin } from "tailwind-merge";
+import { Button } from "./Button";
 import { useI18n } from "../i18n/useI18n";
 
 type TrashButtonProps = {
@@ -19,11 +20,12 @@ export const TrashButton: React.FC<TrashButtonProps> = ({
   const iconSize = size === "sm" ? "size-4" : "size-6";
 
   return (
-    <button
+    <Button
       type="button"
+      variant="destructive"
       onClick={onClick}
       className={twJoin(
-        "text-destructive hover:text-destructive p-1 transition-colors flex items-center gap-2",
+        "p-1 transition-colors flex items-center gap-2",
         className
       )}
       aria-label={t("common.trashButton.ariaLabel")}
@@ -42,7 +44,7 @@ export const TrashButton: React.FC<TrashButtonProps> = ({
         />
       </svg>
       {showLabel && <span>{t("common.trashButton.clearLabel")}</span>}
-    </button>
+    </Button>
   );
 };
 

@@ -11,18 +11,26 @@ html[data-theme="kanagawa-dragon"] {
   --popover: #322e2e;
   --popover-foreground: #c5c9c5;
   --primary: #518ca8;
-  --primary-foreground: #e4e4e7;
+  --primary-foreground: #18181b;
+  --primary-hover: #5c93ad;
+  --primary-active: #6799b2;
   --secondary: #282722;
   --secondary-foreground: #959794;
+  --secondary-hover: #20201c;
+  --secondary-active: #191816;
   --muted: #282525;
   --muted-foreground: #90908e;
   --accent: #393836;
   --accent-foreground: #c5c9c5;
   --destructive: #e82424;
-  --destructive-foreground: #e4e4e7;
-  --border: #302e2e;
+  --destructive-foreground: #040404;
+  --destructive-hover: #ed3e32;
+  --destructive-active: #ef4a3a;
+  --border: #848383;
+  --control-border: #848383;
+  --card-control-border: #848383;
   --input: #282424;
-  --ring: #223249;
+  --ring: #5c6679;
   --success: #8a9a7b;
   --success-foreground: #18181b;
   --warning: #c4b28a;
@@ -33,6 +41,6 @@ html[data-theme="kanagawa-dragon"] {
   --chart-4: #7aa89f;
   --chart-5: #c4b28a;
   --overlay-spinner: #518ca8;
-  --overlay-spinner-track: #797474;
+  --overlay-spinner-track: #848383;
   --overlay-backdrop: rgba(24, 22, 22, 0.72);
 }

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { Button } from "./Button";
 import { useI18n } from "../i18n/useI18n";
 
 type DialogProps = {
@@ -58,8 +59,9 @@ export const Dialog: React.FC<DialogProps> = ({
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h3 className="text-lg font-medium text-foreground">{title}</h3>
-          <button
+          <Button
             type="button"
+            variant="ghost"
             className="text-muted-foreground hover:text-foreground"
             onClick={onClose}
             aria-label={t("common.close")}
@@ -78,7 +80,7 @@ export const Dialog: React.FC<DialogProps> = ({
                 d="M6 18L18 6M6 6l12 12"
               />
             </svg>
-          </button>
+          </Button>
         </div>
         <div className="px-6 py-4">{children}</div>
       </div>

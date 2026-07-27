@@ -12,15 +12,23 @@ html[data-theme="vesper"] {
   --popover-foreground: #ffffff;
   --primary: #ffc799;
   --primary-foreground: #18181b;
+  --primary-hover: #ffcda4;
+  --primary-active: #ffd3af;
   --secondary: #1f1f1f;
   --secondary-foreground: #bcbcbc;
+  --secondary-hover: #181818;
+  --secondary-active: #111111;
   --muted: #1f1f1f;
   --muted-foreground: #898989;
   --accent: #2d2d2d;
   --accent-foreground: #ffffff;
   --destructive: #ff8080;
   --destructive-foreground: #18181b;
-  --border: #303030;
+  --destructive-hover: #ff8a88;
+  --destructive-active: #ff9391;
+  --border: #787878;
+  --control-border: #787878;
+  --card-control-border: #787878;
   --input: #1c1c1c;
   --ring: #ffc799;
   --success: #99ffe4;
@@ -33,6 +41,6 @@ html[data-theme="vesper"] {
   --chart-4: #ffc799;
   --chart-5: #ff8080;
   --overlay-spinner: #ffc799;
-  --overlay-spinner-track: #6d6d6d;
+  --overlay-spinner-track: #787878;
   --overlay-backdrop: rgba(16, 16, 16, 0.72);
 }

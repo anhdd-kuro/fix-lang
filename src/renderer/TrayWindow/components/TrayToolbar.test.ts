@@ -264,6 +264,29 @@ describe("TrayToolbar", () => {
     expect(button.hasAttribute("disabled")).toBe(false);
   });
 
+  it("does not start a second update check while the toolbar button is disabled", async () => {
+    let resolveCheck: ((state: UpdateState) => void) | undefined;
+    await render({ phase: "up-to-date", currentVersion: "1.2.3" });
+    api.checkForUpdates.mockReturnValueOnce(
+      new Promise<UpdateState>((resolve) => {
+        resolveCheck = resolve;
+      }),
+    );
+
+    const button = checkForUpdatesButton();
+    await click(button);
+    expect(button.disabled).toBe(true);
+
+    await click(button);
+    expect(api.checkForUpdates).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveCheck?.({ phase: "up-to-date", currentVersion: "1.2.3" });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  });
+
   it("re-enables the button after an error phase resolves", async () => {
     await render({
       phase: "error",

@@ -12,15 +12,23 @@ html[data-theme="catppuccin-frappe"] {
   --popover-foreground: #c6d0f5;
   --primary: #ca9ee6;
   --primary-foreground: #18181b;
+  --primary-hover: #d0a8e9;
+  --primary-active: #d6b2ec;
   --secondary: #3e425a;
-  --secondary-foreground: #9da6c6;
+  --secondary-foreground: #aab1cd;
+  --secondary-hover: #383c51;
+  --secondary-active: #333548;
   --muted: #3c4158;
-  --muted-foreground: #b9bdcd;
+  --muted-foreground: #b0b4c6;
   --accent: #4d536d;
   --accent-foreground: #c6d0f5;
   --destructive: #e78284;
   --destructive-foreground: #18181b;
-  --border: #454a5f;
+  --destructive-hover: #ea8b8c;
+  --destructive-active: #ec9494;
+  --border: #a2a4b0;
+  --control-border: #a2a4b0;
+  --card-control-border: #a2a4b0;
   --input: #414559;
   --ring: #ca9ee6;
   --success: #a6d189;
@@ -33,6 +41,6 @@ html[data-theme="catppuccin-frappe"] {
   --chart-4: #81c8be;
   --chart-5: #e5c890;
   --overlay-spinner: #ca9ee6;
-  --overlay-spinner-track: #898faa;
+  --overlay-spinner-track: #a2a4b0;
   --overlay-backdrop: rgba(48, 52, 70, 0.72);
 }

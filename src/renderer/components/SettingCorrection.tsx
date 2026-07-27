@@ -10,8 +10,14 @@ import {
   DEFAULT_TRANSLATE_PRESET_PROMPT,
 } from "~/prompts/correction";
 import { msg, messageLabel, type Message } from "~/shared/i18n/message";
+import { Button } from "./Button";
 import { ModelSelect } from "./ModelSelect";
-import { plainStatus, wrappedError, resolveStatus, type StatusDescriptor } from "./statusDescriptor";
+import {
+  plainStatus,
+  wrappedError,
+  resolveStatus,
+  type StatusDescriptor,
+} from "./statusDescriptor";
 import { validateHotkeys } from "./validateHotkeys";
 import { useI18n } from "../i18n/useI18n";
 import type { CorrectionPreset, CorrectionSettings } from "~/stores/apiStore";
@@ -106,7 +112,9 @@ const validateFormFields = (settings: CorrectionSettings): Message | null => {
     }
 
     if (!preset.systemPrompt.trim()) {
-      return msg("settings.correction.error.promptRequired", { name: preset.name });
+      return msg("settings.correction.error.promptRequired", {
+        name: preset.name,
+      });
     }
   }
 
@@ -317,12 +325,12 @@ export const SettingCorrection: React.FC = () => {
 
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-6">
-      <div className="rounded-lg border border-border bg-card/60 p-4 text-sm text-card-foreground">
+      <div className="rounded-lg border border-card-control-border bg-card/60 p-4 text-sm text-card-foreground">
         {t("settings.correction.hotkeyInfo")}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="rounded-lg border border-border bg-card/70 p-3">
+        <aside className="rounded-lg border border-card-control-border bg-card/70 p-3">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div>
               <h3 className="text-sm font-semibold text-foreground">
@@ -332,13 +340,12 @@ export const SettingCorrection: React.FC = () => {
                 {t("settings.correction.presetsHint")}
               </p>
             </div>
-            <button
-              type="button"
+            <Button
               onClick={handleAddPreset}
-              className="h-9 rounded-md bg-primary px-3 text-xs font-semibold text-foreground transition-colors hover:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+              className="h-9 rounded-md px-3 py-0 text-xs font-semibold"
             >
               {t("settings.correction.addPreset")}
-            </button>
+            </Button>
           </div>
 
           <ul className="flex flex-col gap-2">
@@ -347,8 +354,9 @@ export const SettingCorrection: React.FC = () => {
 
               return (
                 <li key={preset.id}>
-                  <button
+                  <Button
                     type="button"
+                    variant={isSelected ? "primary" : "outline"}
                     onClick={() =>
                       setCorrectionSettings((current) => ({
                         ...current,
@@ -357,17 +365,28 @@ export const SettingCorrection: React.FC = () => {
                     }
                     className={`w-full rounded-lg border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none ${
                       isSelected
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-background/40 hover:border-border hover:bg-card"
+                        ? "border-primary"
+                        : "border-card-control-border bg-background/40 hover:border-ring hover:bg-card"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-foreground">
+                        <p
+                          className={`truncate text-sm font-medium ${
+                            isSelected ? "text-inherit" : "text-foreground"
+                          }`}
+                        >
                           {preset.name}
                         </p>
-                        <p className="mt-1 truncate text-xs text-muted-foreground">
-                          {preset.hotkey || t("settings.correction.noHotkeyAssigned")}
+                        <p
+                          className={`mt-1 truncate text-xs ${
+                            isSelected
+                              ? "text-inherit"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {preset.hotkey ||
+                            t("settings.correction.noHotkeyAssigned")}
                         </p>
                       </div>
                       <span className="rounded-full bg-secondary px-2 py-1 text-[11px] text-card-foreground">
@@ -376,14 +395,14 @@ export const SettingCorrection: React.FC = () => {
                           : t("settings.correction.badge.custom")}
                       </span>
                     </div>
-                  </button>
+                  </Button>
                 </li>
               );
             })}
           </ul>
         </aside>
 
-        <section className="rounded-lg border border-border bg-card/70 p-4">
+        <section className="rounded-lg border border-card-control-border bg-card/70 p-4">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-base font-semibold text-foreground">
@@ -395,35 +414,41 @@ export const SettingCorrection: React.FC = () => {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={handleDuplicatePreset}
-                className="h-9 rounded-md border border-border px-3 text-xs font-semibold text-card-foreground transition-colors hover:border-border hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                className="h-9 rounded-md border border-card-control-border px-3 text-xs font-semibold text-card-foreground transition-colors hover:border-ring hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
               >
                 {t("settings.correction.duplicate")}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="destructive"
                 onClick={handleResetBuiltIn}
                 disabled={!activePreset.isBuiltIn}
-                className="h-9 rounded-md border border-border px-3 text-xs font-semibold text-card-foreground transition-colors hover:border-border hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                className="h-9 rounded-md border border-card-control-border px-3 text-xs font-semibold transition-colors hover:border-ring disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
               >
                 {t("settings.correction.resetBuiltIn")}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="destructive"
                 onClick={handleDeletePreset}
                 disabled={activePreset.isBuiltIn}
-                className="h-9 rounded-md border border-destructive/50 px-3 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive motion-reduce:transition-none"
+                className="h-9 rounded-md border border-destructive/50 px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive motion-reduce:transition-none"
               >
                 {t("common.delete")}
-              </button>
+              </Button>
             </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="flex flex-col gap-2">
-              <label htmlFor="preset-name" className="text-sm text-card-foreground">
+              <label
+                htmlFor="preset-name"
+                className="text-sm text-card-foreground"
+              >
                 {t("settings.correction.presetName")}
               </label>
               <input
@@ -433,12 +458,15 @@ export const SettingCorrection: React.FC = () => {
                 onChange={(event) =>
                   updatePreset(activePreset.id, { name: event.target.value })
                 }
-                className="h-10 rounded-md border border-border bg-secondary px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-10 rounded-md border border-control-border bg-secondary px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label htmlFor="preset-hotkey" className="text-sm text-card-foreground">
+              <label
+                htmlFor="preset-hotkey"
+                className="text-sm text-card-foreground"
+              >
                 {t("settings.correction.hotkeyLabel")}
               </label>
               <input
@@ -458,15 +486,16 @@ export const SettingCorrection: React.FC = () => {
                 }}
                 placeholder={t("settings.hotkeys.pressShortcut")}
                 readOnly
-                className="h-10 rounded-md border border-border bg-secondary px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-10 rounded-md border border-control-border bg-secondary px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => updatePreset(activePreset.id, { hotkey: "" })}
-                className="self-start rounded-md border border-border px-3 py-2 text-xs font-semibold text-card-foreground transition-colors hover:border-border hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                className="self-start rounded-md border border-card-control-border px-3 py-2 text-xs font-semibold text-card-foreground transition-colors hover:border-ring hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
               >
                 {t("settings.correction.clearHotkey")}
-              </button>
+              </Button>
               <p className="text-xs text-muted-foreground">
                 {t("settings.correction.hotkeyHint")}
               </p>
@@ -485,7 +514,10 @@ export const SettingCorrection: React.FC = () => {
 
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
-              <label htmlFor="preset-temperature" className="text-sm text-card-foreground">
+              <label
+                htmlFor="preset-temperature"
+                className="text-sm text-card-foreground"
+              >
                 {t("settings.correction.temperature")}
               </label>
               <input
@@ -500,10 +532,11 @@ export const SettingCorrection: React.FC = () => {
                   const raw = event.target.value;
                   const parsed = parseFloat(raw);
                   updatePreset(activePreset.id, {
-                    temperature: raw === "" || isNaN(parsed) ? undefined : parsed,
+                    temperature:
+                      raw === "" || isNaN(parsed) ? undefined : parsed,
                   });
                 }}
-                className="h-10 rounded-md border border-border bg-secondary px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-10 rounded-md border border-control-border bg-secondary px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
               <p className="text-xs text-muted-foreground">
                 {t("settings.correction.temperatureHint")}
@@ -511,7 +544,10 @@ export const SettingCorrection: React.FC = () => {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label htmlFor="preset-max-tokens" className="text-sm text-card-foreground">
+              <label
+                htmlFor="preset-max-tokens"
+                className="text-sm text-card-foreground"
+              >
                 {t("settings.correction.maxTokens")}
               </label>
               <input
@@ -529,7 +565,7 @@ export const SettingCorrection: React.FC = () => {
                     maxTokens: raw === "" || isNaN(parsed) ? undefined : parsed,
                   });
                 }}
-                className="h-10 rounded-md border border-border bg-secondary px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-10 rounded-md border border-control-border bg-secondary px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
               <p className="text-xs text-muted-foreground">
                 {t("settings.correction.maxTokensHint")}
@@ -538,7 +574,10 @@ export const SettingCorrection: React.FC = () => {
           </div>
 
           <div className="mt-4 flex flex-col gap-2">
-            <label htmlFor="system-prompt" className="text-sm text-card-foreground">
+            <label
+              htmlFor="system-prompt"
+              className="text-sm text-card-foreground"
+            >
               {t("settings.correction.systemPrompt")}
             </label>
             <textarea
@@ -550,19 +589,19 @@ export const SettingCorrection: React.FC = () => {
                 })
               }
               rows={16}
-              className="min-h-72 rounded-md border border-border bg-secondary p-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="min-h-72 rounded-md border border-control-border bg-secondary p-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
         </section>
       </div>
 
       <div className="flex items-center justify-end gap-3">
-        <button
+        <Button
           type="submit"
-          className="h-10 rounded-md bg-primary px-4 text-sm font-semibold text-foreground transition-colors hover:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+          className="h-10 rounded-md px-4 py-0 text-sm font-semibold"
         >
           {t("settings.correction.savePresets")}
-        </button>
+        </Button>
       </div>
 
       {status && (

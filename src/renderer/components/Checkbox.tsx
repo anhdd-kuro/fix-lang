@@ -54,7 +54,7 @@ export const Checkbox = ({
       aria-hidden="true"
       className={twJoin(
         "flex size-4 shrink-0 items-center justify-center rounded border transition-colors",
-        "border-border bg-input text-primary-foreground",
+        "border-control-border bg-input text-primary-foreground",
         "peer-checked:border-primary peer-checked:bg-primary",
         "peer-focus-visible:ring-2 peer-focus-visible:ring-ring",
       )}

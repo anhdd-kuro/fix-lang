@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { twJoin } from "tailwind-merge";
+import { Button } from "../../components/Button";
 import { SettingsButton } from "../../components/SettingsIcon";
 import { Spinner } from "../../components/Spinner";
 import { useI18n } from "../../i18n/useI18n";
@@ -19,8 +20,9 @@ const TrayIconButton: React.FC<TrayIconButtonProps> = ({
   disabled = false,
   children,
 }) => (
-  <button
+  <Button
     type="button"
+    variant="ghost"
     onClick={onClick}
     disabled={disabled}
     title={title}
@@ -32,7 +34,7 @@ const TrayIconButton: React.FC<TrayIconButtonProps> = ({
     )}
   >
     {children}
-  </button>
+  </Button>
 );
 
 const RestartIcon: React.FC<{ className?: string }> = ({ className }) => (
