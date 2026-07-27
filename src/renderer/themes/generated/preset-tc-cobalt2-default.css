@@ -26,7 +26,7 @@ html[data-theme="tc-cobalt2-default"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #ff6d92;
   --destructive-active: #ff7899;
-  --border: #9099a2;
+  --border: #7c8691;
   --control-border: #9ba3ab;
   --card-control-border: #9ba3ab;
   --input: #0050a4;
@@ -41,6 +41,6 @@ html[data-theme="tc-cobalt2-default"] {
   --chart-4: #80fcff;
   --chart-5: #ffc600;
   --overlay-spinner: #0088ff;
-  --overlay-spinner-track: #9099a2;
+  --overlay-spinner-track: #7c8691;
   --overlay-backdrop: rgba(18, 39, 56, 0.72);
 }

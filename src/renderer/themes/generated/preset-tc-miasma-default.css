@@ -26,9 +26,9 @@ html[data-theme="tc-miasma-default"] {
   --destructive-foreground: #fafafa;
   --destructive-hover: #5f503d;
   --destructive-active: #564837;
-  --border: #b1b1b0;
-  --control-border: #bdbdbc;
-  --card-control-border: #bdbdbc;
+  --border: #9d9d9b;
+  --control-border: #bebebc;
+  --card-control-border: #bebebc;
   --input: #666666;
   --ring: #78824b;
   --success: #5f875f;
@@ -41,6 +41,6 @@ html[data-theme="tc-miasma-default"] {
   --chart-4: #c9a554;
   --chart-5: #b36d43;
   --overlay-spinner: #7d8a43;
-  --overlay-spinner-track: #b1b1b0;
+  --overlay-spinner-track: #9d9d9b;
   --overlay-backdrop: rgba(34, 34, 34, 0.72);
 }

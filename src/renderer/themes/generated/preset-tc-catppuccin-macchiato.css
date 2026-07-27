@@ -26,9 +26,9 @@ html[data-theme="tc-catppuccin-macchiato"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #ef919e;
   --destructive-active: #f29ba6;
-  --border: #a9aab3;
-  --control-border: #b5b6bd;
-  --card-control-border: #b5b6bd;
+  --border: #9698a3;
+  --control-border: #b5b6be;
+  --card-control-border: #b5b6be;
   --input: #5b6078;
   --ring: #8aadf4;
   --success: #a6da95;
@@ -41,6 +41,6 @@ html[data-theme="tc-catppuccin-macchiato"] {
   --chart-4: #8bd5ca;
   --chart-5: #eed49f;
   --overlay-spinner: #8aadf4;
-  --overlay-spinner-track: #a9aab3;
+  --overlay-spinner-track: #9698a3;
   --overlay-backdrop: rgba(36, 39, 58, 0.72);
 }

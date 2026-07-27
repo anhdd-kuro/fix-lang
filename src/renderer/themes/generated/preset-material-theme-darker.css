@@ -26,9 +26,9 @@ html[data-theme="material-theme-darker"] {
   --destructive-foreground: #fafafa;
   --destructive-hover: #6c3f40;
   --destructive-active: #61393a;
-  --border: #818282;
-  --control-border: #818282;
-  --card-control-border: #868787;
+  --border: #707070;
+  --control-border: #7a7a7a;
+  --card-control-border: #868686;
   --input: #303030;
   --ring: #80cbc4;
   --success: #c3e88d;
@@ -41,6 +41,6 @@ html[data-theme="material-theme-darker"] {
   --chart-4: #89ddff;
   --chart-5: #ffcb6b;
   --overlay-spinner: #80cbc4;
-  --overlay-spinner-track: #818282;
+  --overlay-spinner-track: #787878;
   --overlay-backdrop: rgba(33, 33, 33, 0.72);
 }

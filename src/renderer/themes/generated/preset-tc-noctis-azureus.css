@@ -26,7 +26,7 @@ html[data-theme="tc-noctis-azureus"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #e96d3d;
   --destructive-active: #ec7547;
-  --border: #9da4ab;
+  --border: #889199;
   --control-border: #a9afb5;
   --card-control-border: #a9afb5;
   --input: #475e6c;
@@ -41,6 +41,6 @@ html[data-theme="tc-noctis-azureus"] {
   --chart-4: #49d6e9;
   --chart-5: #e4b781;
   --overlay-spinner: #49ace9;
-  --overlay-spinner-track: #9da4ab;
+  --overlay-spinner-track: #889199;
   --overlay-backdrop: rgba(5, 27, 41, 0.72);
 }

@@ -26,8 +26,8 @@ html[data-theme="dark-plus"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #f14e4b;
   --destructive-active: #f45a53;
-  --border: #7d7d7d;
-  --control-border: #7d7d7d;
+  --border: #6e6e6e;
+  --control-border: #777777;
   --card-control-border: #828282;
   --input: #2d2d2d;
   --ring: #007acc;
@@ -41,6 +41,6 @@ html[data-theme="dark-plus"] {
   --chart-4: #eab308;
   --chart-5: #ef4444;
   --overlay-spinner: #007acc;
-  --overlay-spinner-track: #7d7d7d;
+  --overlay-spinner-track: #757575;
   --overlay-backdrop: rgba(30, 30, 30, 0.72);
 }

@@ -26,9 +26,9 @@ html[data-theme="tc-tomorrow-night-eighties"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #f48183;
   --destructive-active: #f68b8b;
-  --border: #7d7d7d;
-  --control-border: #7d7d7d;
-  --card-control-border: #7d7d7d;
+  --border: #6d6d6d;
+  --control-border: #6d6d6d;
+  --card-control-border: #6d6d6d;
   --input: #000000;
   --ring: #6699cc;
   --success: #99cc99;
