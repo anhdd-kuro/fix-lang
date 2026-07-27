@@ -5,24 +5,32 @@
 
 html[data-theme="solarized-light"] {
   --background: #fdf6e3;
-  --foreground: #5c7077;
+  --foreground: #5f737b;
   --card: #e5dcbf;
-  --card-foreground: #4a5b60;
+  --card-foreground: #526369;
   --popover: #e2d8b8;
-  --popover-foreground: #4a5b60;
+  --popover-foreground: #4f5f65;
   --primary: #b58900;
   --primary-foreground: #18181b;
+  --primary-hover: #b78b0d;
+  --primary-active: #ba8f1a;
   --secondary: #d3cbb7;
-  --secondary-foreground: #586466;
+  --secondary-foreground: #4e5657;
+  --secondary-hover: #d9d2c0;
+  --secondary-active: #dfd9ca;
   --muted: #fae7b3;
-  --muted-foreground: #5f6966;
+  --muted-foreground: #636866;
   --accent: #ebd697;
-  --accent-foreground: #5c7077;
+  --accent-foreground: #5c6f76;
   --destructive: #dc322f;
-  --destructive-foreground: #ffffff;
-  --border: #e7e4d5;
+  --destructive-foreground: #fefefe;
+  --destructive-hover: #d0312d;
+  --destructive-active: #c42f2b;
+  --border: #716f6b;
+  --control-border: #716f6b;
+  --card-control-border: #716f6b;
   --input: #ddd6c1;
-  --ring: #b49471;
+  --ring: #a48869;
   --success: #859900;
   --success-foreground: #18181b;
   --warning: #b58900;
@@ -33,6 +41,6 @@ html[data-theme="solarized-light"] {
   --chart-4: #2aa198;
   --chart-5: #b58900;
   --overlay-spinner: #b58900;
-  --overlay-spinner-track: #8c8250;
+  --overlay-spinner-track: #716f6b;
   --overlay-backdrop: rgba(253, 246, 227, 0.72);
 }

@@ -1,5 +1,6 @@
 import React from "react";
 import { twJoin } from "tailwind-merge";
+import { Button } from "../../components/Button";
 import {
   formatOpenRouterUsd,
   openRouterDegradedMessage,
@@ -60,11 +61,12 @@ export const TrayCreditBalance: React.FC = () => {
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
       onClick={openOpenRouterTab}
       className={twJoin(
-        "w-full rounded-lg border border-border bg-card px-3 py-2",
+        "w-full rounded-lg border border-card-control-border bg-card px-3 py-2",
         "text-left hover:bg-accent transition-colors"
       )}
     >
@@ -72,6 +74,6 @@ export const TrayCreditBalance: React.FC = () => {
         {t("tray.credit.title")}
       </div>
       {content}
-    </button>
+    </Button>
   );
 };

@@ -1,4 +1,5 @@
 import React from "react";
+import { Button } from "./Button";
 import CopyButton from "./CopyButton";
 import { formatCostLabel } from "./historyCost";
 import { useI18n } from "../i18n/useI18n";
@@ -77,14 +78,15 @@ const HistoryReviewModal: React.FC<HistoryReviewModalProps> = ({
           </div>
         </div>
         <div className="mt-4 text-right">
-          <button
+          <Button
             type="button"
+            variant="primary"
             onClick={onClose}
             className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary"
             aria-label={t("history.reviewModal.closeAriaLabel")}
           >
             {t("common.close")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

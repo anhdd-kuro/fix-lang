@@ -3,7 +3,7 @@
  * @description Overview dashboard tab. Presentational: receives the
  * already-fetched corrections `history` (owned + live-updated by App) and the
  * active range (lifted to the shared dashboard header), then renders a grid of
- * summary stat cards, Chart.js preset donut + time-series combo charts, a Codex-style token
+ * summary stat cards, Chart.js preset donut + stacked-bar time-series charts, a Codex-style token
  * activity calendar, and a benchmark sentence — all from the PURE aggregators
  * in overviewAggregations.ts.
  */
@@ -16,6 +16,7 @@ import {
   type RefObject,
 } from "react";
 import { twJoin } from "tailwind-merge";
+import { Button } from "./Button";
 import { heatmapCellClass, heatmapLevelClass } from "./heatmapIntensity";
 import { PresetWeightChart } from "./PresetWeightChart";
 import { StatCard } from "./StatCard";
@@ -218,7 +219,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
       {view.presetWeights.length === 0 ? (
         <PresetWeightChart weights={view.presetWeights} overTime={view.presetOverTime} />
       ) : (
-        <section className="rounded-lg border border-border bg-card p-4">
+        <section className="rounded-lg border border-card-control-border bg-card p-4">
           <PresetWeightChart weights={view.presetWeights} overTime={view.presetOverTime} />
         </section>
       )}
@@ -230,20 +231,17 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
           </h2>
           <div className="flex items-center gap-5 text-sm">
             {TOKEN_ACTIVITY_TABS.map((tab) => (
-              <button
+              <Button
                 key={tab.mode}
-                type="button"
+                variant={activityMode === tab.mode ? "primary" : "ghost"}
                 aria-pressed={activityMode === tab.mode}
                 onClick={() => setActivityMode(tab.mode)}
-                className={twJoin(
-                  "transition-colors",
-                  activityMode === tab.mode
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-card-foreground"
-                )}
+                className={
+                  activityMode === tab.mode ? "" : "text-muted-foreground"
+                }
               >
                 {t(tab.labelKey)}
-              </button>
+              </Button>
             ))}
           </div>
         </div>

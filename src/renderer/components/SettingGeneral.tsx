@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { messageLabel, type Label, type Message } from "~/shared/i18n/message";
+import { Button } from "./Button";
 import { LanguageTabs } from "./LanguageTabs";
 import { ModelSelect } from "./ModelSelect";
 import { PROVIDER_LABEL_KEYS } from "./modelSelectOptions";
@@ -10,7 +11,12 @@ import {
   type ProviderConnectionState,
   type TypedProviderKeys,
 } from "./providerCards";
-import { plainStatus, wrappedError, resolveStatus as resolveStatusDescriptor, type StatusDescriptor } from "./statusDescriptor";
+import {
+  plainStatus,
+  wrappedError,
+  resolveStatus as resolveStatusDescriptor,
+  type StatusDescriptor,
+} from "./statusDescriptor";
 import { useI18n } from "../i18n/useI18n";
 import type { CorrectionOutputMode } from "~/shared/outputMode";
 import type { ProviderId } from "~/stores/apiStore";
@@ -34,7 +40,8 @@ export const SettingGeneral: React.FC = () => {
   const [resetIsError, setResetIsError] = useState<boolean>(false);
   const [correctionOutputMode, setCorrectionOutputMode] =
     useState<CorrectionOutputMode>("paste");
-  const [outputModeStatus, setOutputModeStatus] = useState<StatusDescriptor | null>(null);
+  const [outputModeStatus, setOutputModeStatus] =
+    useState<StatusDescriptor | null>(null);
   const [outputModeIsError, setOutputModeIsError] = useState<boolean>(false);
   const [savingOutputMode, setSavingOutputMode] = useState(false);
 
@@ -52,7 +59,9 @@ export const SettingGeneral: React.FC = () => {
     Partial<Record<ProviderId, ProviderStatus>>
   >({});
 
-  const [confirmDisconnect, setConfirmDisconnect] = useState<ProviderId | null>(null);
+  const [confirmDisconnect, setConfirmDisconnect] = useState<ProviderId | null>(
+    null,
+  );
   const [disconnectReport, setDisconnectReport] = useState<{
     provider: ProviderId;
     lines: Message[];
@@ -107,7 +116,9 @@ export const SettingGeneral: React.FC = () => {
       .catch((error: unknown) => {
         console.error("SettingGeneral: Error loading output mode:", error);
         setOutputModeIsError(true);
-        setOutputModeStatus(wrappedError(messageLabel("settings.general.outputMode.unavailable")));
+        setOutputModeStatus(
+          wrappedError(messageLabel("settings.general.outputMode.unavailable")),
+        );
       });
     // Descriptor-only now — no `t()` call in this effect, so no locale
     // dependency to worry about; load-once on mount is correct as written.
@@ -132,7 +143,9 @@ export const SettingGeneral: React.FC = () => {
   const handleOutputModeChange = async (mode: CorrectionOutputMode) => {
     if (!window.electronAPI?.setCorrectionOutputMode) {
       setOutputModeIsError(true);
-      setOutputModeStatus(wrappedError(messageLabel("settings.general.outputMode.unavailable")));
+      setOutputModeStatus(
+        wrappedError(messageLabel("settings.general.outputMode.unavailable")),
+      );
       return;
     }
 
@@ -149,7 +162,8 @@ export const SettingGeneral: React.FC = () => {
         setOutputModeIsError(true);
         setOutputModeStatus(
           wrappedError(
-            result.error ?? messageLabel("settings.general.outputMode.saveFailed"),
+            result.error ??
+              messageLabel("settings.general.outputMode.saveFailed"),
           ),
         );
         return;
@@ -173,7 +187,10 @@ export const SettingGeneral: React.FC = () => {
     status: StatusDescriptor,
     isError: boolean,
   ): void => {
-    setProviderStatus((current) => ({ ...current, [provider]: { status, isError } }));
+    setProviderStatus((current) => ({
+      ...current,
+      [provider]: { status, isError },
+    }));
   };
 
   const handleConnect = async (provider: ProviderId) => {
@@ -214,7 +231,10 @@ export const SettingGeneral: React.FC = () => {
       } else {
         reportProvider(
           provider,
-          wrappedError(result.error ?? messageLabel("models.providerSetup.error.invalidSetup")),
+          wrappedError(
+            result.error ??
+              messageLabel("models.providerSetup.error.invalidSetup"),
+          ),
           true,
         );
       }
@@ -249,7 +269,11 @@ export const SettingGeneral: React.FC = () => {
           provider,
           lines: describeDisconnectImpact(
             provider,
-            result.cleared ?? { selectedModel: false, presetIds: [], features: [] },
+            result.cleared ?? {
+              selectedModel: false,
+              presetIds: [],
+              features: [],
+            },
             // Read BEFORE the refresh below, which zeroes these.
             {
               apiKeySet: providerStates[provider]?.apiKeySet ?? false,
@@ -263,7 +287,10 @@ export const SettingGeneral: React.FC = () => {
       } else {
         reportProvider(
           provider,
-          wrappedError(result.error ?? messageLabel("models.providerSetup.error.invalidSetup")),
+          wrappedError(
+            result.error ??
+              messageLabel("models.providerSetup.error.invalidSetup"),
+          ),
           true,
         );
       }
@@ -288,7 +315,9 @@ export const SettingGeneral: React.FC = () => {
 
     if (!window.electronAPI?.resetProfileSettings) {
       setResetIsError(true);
-      setResetStatus(wrappedError(messageLabel("settings.general.reset.unavailable")));
+      setResetStatus(
+        wrappedError(messageLabel("settings.general.reset.unavailable")),
+      );
       return;
     }
 
@@ -307,7 +336,9 @@ export const SettingGeneral: React.FC = () => {
       } else {
         setResetIsError(true);
         setResetStatus(
-          wrappedError(result.error ?? messageLabel("settings.general.reset.failed")),
+          wrappedError(
+            result.error ?? messageLabel("settings.general.reset.failed"),
+          ),
         );
       }
     } catch (error) {
@@ -325,9 +356,14 @@ export const SettingGeneral: React.FC = () => {
     const status = providerStatus[provider];
 
     return (
-      <div key={provider} className="rounded border border-border p-3">
+      <div
+        key={provider}
+        className="rounded border border-card-control-border p-3"
+      >
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium text-card-foreground">{name}</span>
+          <span className="text-sm font-medium text-card-foreground">
+            {name}
+          </span>
           <span
             className={`text-xs ${card.connected ? "text-success" : "text-muted-foreground"}`}
             role="status"
@@ -366,15 +402,21 @@ export const SettingGeneral: React.FC = () => {
               id={`api-key-${provider}`}
               type="password"
               autoComplete="off"
-              className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full p-2 bg-secondary border border-control-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               value={typed.apiKey ?? ""}
-              onChange={(event) => setTypedKey(provider, "apiKey", event.target.value)}
+              onChange={(event) =>
+                setTypedKey(provider, "apiKey", event.target.value)
+              }
               placeholder={
                 card.apiKeySet
                   ? t("settings.general.secret.placeholderReplace")
-                  : t("settings.general.apiKey.placeholderNew", { provider: name })
+                  : t("settings.general.apiKey.placeholderNew", {
+                      provider: name,
+                    })
               }
-              aria-label={t("settings.general.apiKey.label", { provider: name })}
+              aria-label={t("settings.general.apiKey.label", {
+                provider: name,
+              })}
             />
           </div>
         ) : (
@@ -403,7 +445,7 @@ export const SettingGeneral: React.FC = () => {
               id={`provisioning-key-${provider}`}
               type="password"
               autoComplete="off"
-              className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full p-2 bg-secondary border border-control-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               value={typed.provisioningKey ?? ""}
               onChange={(event) =>
                 setTypedKey(provider, "provisioningKey", event.target.value)
@@ -419,29 +461,30 @@ export const SettingGeneral: React.FC = () => {
         )}
 
         <div className="mt-3 flex flex-wrap gap-2">
-          <button
+          <Button
             type="button"
             onClick={() => void handleConnect(provider)}
             disabled={busy || !card.canConnect}
-            className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="rounded px-3 py-1.5 text-sm disabled:opacity-50"
           >
             {busy
               ? t("settings.general.providers.card.testing")
               : card.connected
                 ? t("settings.general.providers.card.testAndFetch")
                 : t("settings.general.providers.card.connect")}
-          </button>
+          </Button>
           {/* Hidden while its confirmation is open, so Disconnect is never
               one of two identically-named controls. */}
           {card.connected && confirmDisconnect !== provider && (
-            <button
+            <Button
               type="button"
               onClick={() => setConfirmDisconnect(provider)}
               disabled={busy}
-              className="rounded border border-destructive/50 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 disabled:opacity-50"
+              variant="destructive"
+              className="rounded px-3 py-1.5 text-sm disabled:opacity-50"
             >
               {t("settings.general.providers.card.disconnect")}
-            </button>
+            </Button>
           )}
         </div>
 
@@ -467,27 +510,29 @@ export const SettingGeneral: React.FC = () => {
               </p>
             )}
             <div className="mt-2 flex gap-2">
-              <button
+              <Button
                 type="button"
                 onClick={() => void handleDisconnect(provider)}
-                className="rounded bg-destructive px-3 py-1 text-xs font-semibold text-primary-foreground hover:bg-destructive/90"
+                variant="destructive"
+                className="rounded px-3 py-1 text-xs font-semibold"
               >
                 {t("settings.general.providers.card.disconnect")}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => setConfirmDisconnect(null)}
-                className="rounded border border-border px-3 py-1 text-xs text-card-foreground hover:bg-secondary"
+                variant="outline"
+                className="rounded border-card-control-border px-3 py-1 text-xs text-card-foreground"
               >
                 {t("common.cancel")}
-              </button>
+              </Button>
             </div>
           </div>
         )}
 
         {disconnectReport?.provider === provider && (
           <div
-            className="mt-2 rounded border border-border bg-secondary p-2"
+            className="mt-2 rounded border border-control-border bg-secondary p-2"
             role="status"
           >
             <p className="text-xs font-semibold text-card-foreground">
@@ -508,7 +553,9 @@ export const SettingGeneral: React.FC = () => {
             className={`mt-2 text-xs ${status.isError ? "text-destructive" : "text-success"}`}
             role={status.isError ? "alert" : "status"}
           >
-            {status.note ? tl(status.note) : resolveStatus(status.status ?? null)}
+            {status.note
+              ? tl(status.note)
+              : resolveStatus(status.status ?? null)}
           </p>
         )}
       </div>
@@ -542,44 +589,58 @@ export const SettingGeneral: React.FC = () => {
           role="radiogroup"
           aria-label={t("settings.general.correctionOutput.title")}
         >
-          <button
+          <Button
             type="button"
+            variant={correctionOutputMode === "paste" ? "primary" : "outline"}
             role="radio"
             aria-checked={correctionOutputMode === "paste"}
             disabled={savingOutputMode}
             onClick={() => void handleOutputModeChange("paste")}
             className={`rounded border px-3 py-2 text-left transition-colors disabled:opacity-60 ${
               correctionOutputMode === "paste"
-                ? "border-primary bg-primary/10"
-                : "border-border hover:bg-secondary"
+                ? "border-primary"
+                : "border-card-control-border hover:bg-secondary"
             }`}
           >
             <span className="block text-sm font-medium">
               {t("settings.general.correctionOutput.paste.label")}
             </span>
-            <span className="mt-0.5 block text-xs text-muted-foreground">
+            <span
+              className={`mt-0.5 block text-xs ${
+                correctionOutputMode === "paste"
+                  ? "text-inherit"
+                  : "text-muted-foreground"
+              }`}
+            >
               {t("settings.general.correctionOutput.paste.description")}
             </span>
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant={correctionOutputMode === "popup" ? "primary" : "outline"}
             role="radio"
             aria-checked={correctionOutputMode === "popup"}
             disabled={savingOutputMode}
             onClick={() => void handleOutputModeChange("popup")}
             className={`rounded border px-3 py-2 text-left transition-colors disabled:opacity-60 ${
               correctionOutputMode === "popup"
-                ? "border-primary bg-primary/10"
-                : "border-border hover:bg-secondary"
+                ? "border-primary"
+                : "border-card-control-border hover:bg-secondary"
             }`}
           >
             <span className="block text-sm font-medium">
               {t("settings.general.correctionOutput.popup.label")}
             </span>
-            <span className="mt-0.5 block text-xs text-muted-foreground">
+            <span
+              className={`mt-0.5 block text-xs ${
+                correctionOutputMode === "popup"
+                  ? "text-inherit"
+                  : "text-muted-foreground"
+              }`}
+            >
               {t("settings.general.correctionOutput.popup.description")}
             </span>
-          </button>
+          </Button>
         </div>
         {outputModeStatus && (
           <p
@@ -598,7 +659,9 @@ export const SettingGeneral: React.FC = () => {
         <p className="mt-1 text-xs text-muted-foreground">
           {t("settings.general.providers.description")}
         </p>
-        <div className="mt-3 flex flex-col gap-3">{cards.map(renderProviderCard)}</div>
+        <div className="mt-3 flex flex-col gap-3">
+          {cards.map(renderProviderCard)}
+        </div>
       </section>
 
       <section className="mb-4">
@@ -611,14 +674,15 @@ export const SettingGeneral: React.FC = () => {
       </section>
 
       {/* Reset to defaults */}
-      <div className="mt-2 border-t border-border pt-4">
-        <button
+      <div className="mt-2 border-t border-card-control-border pt-4">
+        <Button
           type="button"
           onClick={() => void handleResetDefaults()}
-          className="w-full rounded border border-destructive/50 px-4 py-2 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 focus:outline-none focus:ring-2 focus:ring-destructive"
+          variant="destructive"
+          className="w-full rounded px-4 py-2 text-sm font-semibold"
         >
           {t("settings.general.reset.button")}
-        </button>
+        </Button>
         {resetStatus && (
           <p
             className={`text-xs mt-1 ${resetIsError ? "text-destructive" : "text-success"}`}

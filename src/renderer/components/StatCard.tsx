@@ -14,7 +14,7 @@ type StatCardProps = {
 
 export const StatCard = ({ label, value, hint }: StatCardProps) => {
   return (
-    <div className="rounded-lg border border-border bg-card px-4 py-3">
+    <div className="rounded-lg border border-card-control-border bg-card px-4 py-3">
       <div className="text-xs uppercase tracking-wide text-muted-foreground">
         {label}
       </div>

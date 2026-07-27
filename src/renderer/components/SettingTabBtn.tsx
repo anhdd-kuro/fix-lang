@@ -1,4 +1,5 @@
 import { twJoin } from "tailwind-merge";
+import { Button } from "./Button";
 
 export type SettingTabBtnProps = {
   icon: React.ReactNode;
@@ -27,7 +28,8 @@ export const SettingTabBtn = ({
   );
 
   return (
-    <button
+    <Button
+      variant={active ? "primary" : "ghost"}
       role="tab"
       aria-selected={active ? "true" : "false"}
       aria-controls={ariaControls}
@@ -39,6 +41,6 @@ export const SettingTabBtn = ({
     >
       {icon}
       <span className="whitespace-nowrap">{label}</span>
-    </button>
+    </Button>
   );
 };

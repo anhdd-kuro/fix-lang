@@ -9,18 +9,26 @@ html[data-theme="slack-ochin"] {
   --card: #2d3e4c;
   --card-foreground: #dcdedf;
   --popover: #e0e0e0;
-  --popover-foreground: #555a5d;
+  --popover-foreground: #616262;
   --primary: #8ae773;
   --primary-foreground: #18181b;
+  --primary-hover: #92e97c;
+  --primary-active: #9beb86;
   --secondary: #eeeeee;
   --secondary-foreground: #3b3b3b;
+  --secondary-hover: #f5f5f5;
+  --secondary-active: #fcfcfc;
   --muted: #f0f0f0;
-  --muted-foreground: #a7a7a7;
+  --muted-foreground: #9e9e9e;
   --accent: #d5e1ea;
   --accent-foreground: #000000;
   --destructive: #e53935;
-  --destructive-foreground: #e4e4e7;
-  --border: #d7d7d7;
+  --destructive-foreground: #0d0d0f;
+  --destructive-hover: #e8473e;
+  --destructive-active: #eb5145;
+  --border: #7d7d7f;
+  --control-border: #7d7d7f;
+  --card-control-border: #888889;
   --input: #f0f0f0;
   --ring: #161f26;
   --success: #91b859;
@@ -33,6 +41,6 @@ html[data-theme="slack-ochin"] {
   --chart-4: #39adb5;
   --chart-5: #ffb62c;
   --overlay-spinner: #8ae773;
-  --overlay-spinner-track: #858585;
+  --overlay-spinner-track: #7d7d7f;
   --overlay-backdrop: rgba(255, 255, 255, 0.72);
 }

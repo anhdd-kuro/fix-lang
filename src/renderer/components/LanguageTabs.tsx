@@ -1,6 +1,7 @@
 import React from "react";
 import { twJoin } from "tailwind-merge";
 import { LOCALE_OPTIONS, type Locale } from "~/shared/i18n/registry";
+import { Button } from "./Button";
 import { useI18n } from "../i18n/useI18n";
 
 /**
@@ -58,9 +59,9 @@ export const LanguageTabs: React.FC<LanguageTabsProps> = ({
       {LOCALE_OPTIONS.map((option) => {
         const isActive = option.code === locale;
         return (
-          <button
+          <Button
             key={option.code}
-            type="button"
+            variant={isActive ? "primary" : "ghost"}
             // `lang` so a screen reader pronounces each native name with the
             // right voice — the button label is in the language it selects,
             // not in the currently active one.
@@ -71,15 +72,13 @@ export const LanguageTabs: React.FC<LanguageTabsProps> = ({
               void setLocale(option.code as Locale);
             }}
             className={twJoin(
-              "flex-1 rounded-md font-medium transition-colors whitespace-nowrap",
+              "flex-1 rounded-md font-medium whitespace-nowrap",
               SIZE_CLASSES[size],
-              isActive
-                ? "bg-primary text-primary-foreground shadow"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+              isActive ? "shadow" : "text-muted-foreground",
             )}
           >
             {option.nativeLabel}
-          </button>
+          </Button>
         );
       })}
     </div>

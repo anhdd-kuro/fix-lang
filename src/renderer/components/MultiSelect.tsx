@@ -10,6 +10,7 @@
  */
 import { useEffect, useId, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
+import { Button } from "./Button";
 import { Checkbox } from "./Checkbox";
 
 export type MultiSelectOption = {
@@ -90,15 +91,15 @@ export const MultiSelect = ({
 
   return (
     <div ref={rootRef} className={twMerge("relative", className)}>
-      <button
+      <Button
         ref={triggerRef}
-        type="button"
+        variant="outline"
         aria-label={ariaLabel}
         aria-expanded={isOpen}
         aria-haspopup="true"
         aria-controls={isOpen ? listId : undefined}
         onClick={() => setIsOpen((open) => !open)}
-        className="flex w-full items-center justify-between gap-2 rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground hover:border-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm hover:border-ring"
       >
         <span className="truncate">{triggerLabel}</span>
         <svg
@@ -113,14 +114,14 @@ export const MultiSelect = ({
         >
           <path d="M3 4.5 6 7.5 9 4.5" />
         </svg>
-      </button>
+      </Button>
 
       {isOpen ? (
         <div
           id={listId}
           role="group"
           aria-label={ariaLabel}
-          className="absolute right-0 z-20 mt-1 flex min-w-full flex-col gap-1 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-lg"
+          className="absolute right-0 z-20 mt-1 flex min-w-full flex-col gap-1 rounded-md border border-card-control-border bg-popover p-2 text-popover-foreground shadow-lg"
         >
           {options.map((option) => (
             <Checkbox

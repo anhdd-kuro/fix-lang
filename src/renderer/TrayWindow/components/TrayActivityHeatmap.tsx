@@ -36,7 +36,7 @@ export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
   const hasActivity = entries.length > 0;
 
   return (
-    <div className="rounded-lg border border-border bg-card px-3 py-2">
+    <div className="rounded-lg border border-card-control-border bg-card px-3 py-2">
       <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
         {t("tray.heatmap.title")}
       </div>

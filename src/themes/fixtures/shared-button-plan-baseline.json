@@ -1,0 +1,1209 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-26T23:49:36.767Z",
+  "normalTokenKeys": [
+    "--primary",
+    "--destructive"
+  ],
+  "themeCount": 149,
+  "uniqueThemeIdCount": 149,
+  "categories": {
+    "root": 65,
+    "brand": 4,
+    "terminal": 80
+  },
+  "entries": [
+    {
+      "id": "andromeeda",
+      "category": "root",
+      "sourcePath": "src/themes/json/andromeeda.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-andromeeda.css",
+      "primary": "#00b0ff",
+      "destructive": "#fc644d"
+    },
+    {
+      "id": "aurora-x",
+      "category": "root",
+      "sourcePath": "src/themes/json/aurora-x.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-aurora-x.css",
+      "primary": "#86a5ff",
+      "destructive": "#dd5073"
+    },
+    {
+      "id": "ayu-dark",
+      "category": "root",
+      "sourcePath": "src/themes/json/ayu-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-ayu-dark.css",
+      "primary": "#e6b450",
+      "destructive": "#d95757"
+    },
+    {
+      "id": "ayu-light",
+      "category": "root",
+      "sourcePath": "src/themes/json/ayu-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-ayu-light.css",
+      "primary": "#f29718",
+      "destructive": "#e65050"
+    },
+    {
+      "id": "ayu-mirage",
+      "category": "root",
+      "sourcePath": "src/themes/json/ayu-mirage.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-ayu-mirage.css",
+      "primary": "#ffcc66",
+      "destructive": "#ff6666"
+    },
+    {
+      "id": "brand-claude-code-dark",
+      "category": "brand",
+      "sourcePath": "src/themes/json/brands/brand-claude-code-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-brand-claude-code-dark.css",
+      "primary": "#d97757",
+      "destructive": "#e54d4d"
+    },
+    {
+      "id": "brand-codex-dark",
+      "category": "brand",
+      "sourcePath": "src/themes/json/brands/brand-codex-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-brand-codex-dark.css",
+      "primary": "#10a37f",
+      "destructive": "#ef4444"
+    },
+    {
+      "id": "brand-cursor-dark",
+      "category": "brand",
+      "sourcePath": "src/themes/json/brands/brand-cursor-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-brand-cursor-dark.css",
+      "primary": "#83d6c5",
+      "destructive": "#f85149"
+    },
+    {
+      "id": "brand-shopify-dark",
+      "category": "brand",
+      "sourcePath": "src/themes/json/brands/brand-shopify-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-brand-shopify-dark.css",
+      "primary": "#008060",
+      "destructive": "#d82c0d"
+    },
+    {
+      "id": "catppuccin-frappe",
+      "category": "root",
+      "sourcePath": "src/themes/json/catppuccin-frappe.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-catppuccin-frappe.css",
+      "primary": "#ca9ee6",
+      "destructive": "#e78284"
+    },
+    {
+      "id": "catppuccin-latte",
+      "category": "root",
+      "sourcePath": "src/themes/json/catppuccin-latte.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-catppuccin-latte.css",
+      "primary": "#8839ef",
+      "destructive": "#d20f39"
+    },
+    {
+      "id": "catppuccin-macchiato",
+      "category": "root",
+      "sourcePath": "src/themes/json/catppuccin-macchiato.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-catppuccin-macchiato.css",
+      "primary": "#c6a0f6",
+      "destructive": "#ed8796"
+    },
+    {
+      "id": "catppuccin-mocha",
+      "category": "root",
+      "sourcePath": "src/themes/json/catppuccin-mocha.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-catppuccin-mocha.css",
+      "primary": "#cba6f7",
+      "destructive": "#f38ba8"
+    },
+    {
+      "id": "dark-plus",
+      "category": "root",
+      "sourcePath": "src/themes/json/dark-plus.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-dark-plus.css",
+      "primary": "#007acc",
+      "destructive": "#ef4444"
+    },
+    {
+      "id": "dracula",
+      "category": "root",
+      "sourcePath": "src/themes/json/dracula.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-dracula.css",
+      "primary": "#ff79c6",
+      "destructive": "#ff5555"
+    },
+    {
+      "id": "dracula-soft",
+      "category": "root",
+      "sourcePath": "src/themes/json/dracula-soft.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-dracula-soft.css",
+      "primary": "#f286c4",
+      "destructive": "#ee6666"
+    },
+    {
+      "id": "everforest-dark",
+      "category": "root",
+      "sourcePath": "src/themes/json/everforest-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-everforest-dark.css",
+      "primary": "#a7c17f",
+      "destructive": "#e67e80"
+    },
+    {
+      "id": "everforest-light",
+      "category": "root",
+      "sourcePath": "src/themes/json/everforest-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-everforest-light.css",
+      "primary": "#93b259",
+      "destructive": "#f85552"
+    },
+    {
+      "id": "github-dark",
+      "category": "root",
+      "sourcePath": "src/themes/json/github-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-github-dark.css",
+      "primary": "#0366d6",
+      "destructive": "#f97583"
+    },
+    {
+      "id": "github-dark-default",
+      "category": "root",
+      "sourcePath": "src/themes/json/github-dark-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-github-dark-default.css",
+      "primary": "#1f6feb",
+      "destructive": "#f85149"
+    },
+    {
+      "id": "github-dark-dimmed",
+      "category": "root",
+      "sourcePath": "src/themes/json/github-dark-dimmed.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-github-dark-dimmed.css",
+      "primary": "#316dca",
+      "destructive": "#e5534b"
+    },
+    {
+      "id": "github-dark-high-contrast",
+      "category": "root",
+      "sourcePath": "src/themes/json/github-dark-high-contrast.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-github-dark-high-contrast.css",
+      "primary": "#409eff",
+      "destructive": "#ff6a69"
+    },
+    {
+      "id": "github-light",
+      "category": "root",
+      "sourcePath": "src/themes/json/github-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-github-light.css",
+      "primary": "#2188ff",
+      "destructive": "#cb2431"
+    },
+    {
+      "id": "github-light-default",
+      "category": "root",
+      "sourcePath": "src/themes/json/github-light-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-github-light-default.css",
+      "primary": "#0969da",
+      "destructive": "#cf222e"
+    },
+    {
+      "id": "github-light-high-contrast",
+      "category": "root",
+      "sourcePath": "src/themes/json/github-light-high-contrast.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-github-light-high-contrast.css",
+      "primary": "#0349b4",
+      "destructive": "#a0111f"
+    },
+    {
+      "id": "gruvbox-dark-hard",
+      "category": "root",
+      "sourcePath": "src/themes/json/gruvbox-dark-hard.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-gruvbox-dark-hard.css",
+      "primary": "#43878a",
+      "destructive": "#fb4934"
+    },
+    {
+      "id": "gruvbox-dark-medium",
+      "category": "root",
+      "sourcePath": "src/themes/json/gruvbox-dark-medium.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-gruvbox-dark-medium.css",
+      "primary": "#43878a",
+      "destructive": "#fb4934"
+    },
+    {
+      "id": "gruvbox-dark-soft",
+      "category": "root",
+      "sourcePath": "src/themes/json/gruvbox-dark-soft.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-gruvbox-dark-soft.css",
+      "primary": "#43878a",
+      "destructive": "#fb4934"
+    },
+    {
+      "id": "gruvbox-light-hard",
+      "category": "root",
+      "sourcePath": "src/themes/json/gruvbox-light-hard.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-gruvbox-light-hard.css",
+      "primary": "#43878a",
+      "destructive": "#9d0006"
+    },
+    {
+      "id": "gruvbox-light-medium",
+      "category": "root",
+      "sourcePath": "src/themes/json/gruvbox-light-medium.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-gruvbox-light-medium.css",
+      "primary": "#43878a",
+      "destructive": "#9d0006"
+    },
+    {
+      "id": "gruvbox-light-soft",
+      "category": "root",
+      "sourcePath": "src/themes/json/gruvbox-light-soft.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-gruvbox-light-soft.css",
+      "primary": "#43878a",
+      "destructive": "#9d0006"
+    },
+    {
+      "id": "horizon",
+      "category": "root",
+      "sourcePath": "src/themes/json/horizon.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-horizon.css",
+      "primary": "#e95378",
+      "destructive": "#f43e5c"
+    },
+    {
+      "id": "horizon-bright",
+      "category": "root",
+      "sourcePath": "src/themes/json/horizon-bright.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-horizon-bright.css",
+      "primary": "#e84a72",
+      "destructive": "#f43e5c"
+    },
+    {
+      "id": "houston",
+      "category": "root",
+      "sourcePath": "src/themes/json/houston.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-houston.css",
+      "primary": "#4bf3c8",
+      "destructive": "#f4587e"
+    },
+    {
+      "id": "kanagawa-dragon",
+      "category": "root",
+      "sourcePath": "src/themes/json/kanagawa-dragon.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-kanagawa-dragon.css",
+      "primary": "#518ca8",
+      "destructive": "#e82424"
+    },
+    {
+      "id": "kanagawa-lotus",
+      "category": "root",
+      "sourcePath": "src/themes/json/kanagawa-lotus.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-kanagawa-lotus.css",
+      "primary": "#487d97",
+      "destructive": "#e82424"
+    },
+    {
+      "id": "kanagawa-wave",
+      "category": "root",
+      "sourcePath": "src/themes/json/kanagawa-wave.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-kanagawa-wave.css",
+      "primary": "#518ca8",
+      "destructive": "#e82424"
+    },
+    {
+      "id": "laserwave",
+      "category": "root",
+      "sourcePath": "src/themes/json/laserwave.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-laserwave.css",
+      "primary": "#eb64b9",
+      "destructive": "#ff3e7b"
+    },
+    {
+      "id": "light-plus",
+      "category": "root",
+      "sourcePath": "src/themes/json/light-plus.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-light-plus.css",
+      "primary": "#007acc",
+      "destructive": "#ef4444"
+    },
+    {
+      "id": "material-theme",
+      "category": "root",
+      "sourcePath": "src/themes/json/material-theme.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-material-theme.css",
+      "primary": "#80cbc4",
+      "destructive": "#7d4f53"
+    },
+    {
+      "id": "material-theme-darker",
+      "category": "root",
+      "sourcePath": "src/themes/json/material-theme-darker.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-material-theme-darker.css",
+      "primary": "#80cbc4",
+      "destructive": "#764445"
+    },
+    {
+      "id": "material-theme-lighter",
+      "category": "root",
+      "sourcePath": "src/themes/json/material-theme-lighter.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-material-theme-lighter.css",
+      "primary": "#80cbc4",
+      "destructive": "#fcac9e"
+    },
+    {
+      "id": "material-theme-ocean",
+      "category": "root",
+      "sourcePath": "src/themes/json/material-theme-ocean.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-material-theme-ocean.css",
+      "primary": "#80cbc4",
+      "destructive": "#6b3a41"
+    },
+    {
+      "id": "material-theme-palenight",
+      "category": "root",
+      "sourcePath": "src/themes/json/material-theme-palenight.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-material-theme-palenight.css",
+      "primary": "#80cbc4",
+      "destructive": "#7e4c57"
+    },
+    {
+      "id": "min-dark",
+      "category": "root",
+      "sourcePath": "src/themes/json/min-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-min-dark.css",
+      "primary": "#4c2424",
+      "destructive": "#ef4444"
+    },
+    {
+      "id": "min-light",
+      "category": "root",
+      "sourcePath": "src/themes/json/min-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-min-light.css",
+      "primary": "#833f3f",
+      "destructive": "#d32f2f"
+    },
+    {
+      "id": "monokai",
+      "category": "root",
+      "sourcePath": "src/themes/json/monokai.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-monokai.css",
+      "primary": "#6a7ec8",
+      "destructive": "#c4265e"
+    },
+    {
+      "id": "night-owl",
+      "category": "root",
+      "sourcePath": "src/themes/json/night-owl.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-night-owl.css",
+      "primary": "#395a76",
+      "destructive": "#ef5350"
+    },
+    {
+      "id": "night-owl-light",
+      "category": "root",
+      "sourcePath": "src/themes/json/night-owl-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-night-owl-light.css",
+      "primary": "#2aa298",
+      "destructive": "#e64d49"
+    },
+    {
+      "id": "nord",
+      "category": "root",
+      "sourcePath": "src/themes/json/nord.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-nord.css",
+      "primary": "#88c0d0",
+      "destructive": "#bf616a"
+    },
+    {
+      "id": "one-dark-pro",
+      "category": "root",
+      "sourcePath": "src/themes/json/one-dark-pro.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-one-dark-pro.css",
+      "primary": "#4d78cc",
+      "destructive": "#c24038"
+    },
+    {
+      "id": "one-light",
+      "category": "root",
+      "sourcePath": "src/themes/json/one-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-one-light.css",
+      "primary": "#526fff",
+      "destructive": "#ef4444"
+    },
+    {
+      "id": "plastic",
+      "category": "root",
+      "sourcePath": "src/themes/json/plastic.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-plastic.css",
+      "primary": "#e06c75",
+      "destructive": "#d74e42"
+    },
+    {
+      "id": "poimandres",
+      "category": "root",
+      "sourcePath": "src/themes/json/poimandres.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-poimandres.css",
+      "primary": "#89ddff",
+      "destructive": "#d0679d"
+    },
+    {
+      "id": "red",
+      "category": "root",
+      "sourcePath": "src/themes/json/red.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-red.css",
+      "primary": "#cc3333",
+      "destructive": "#ffeaea"
+    },
+    {
+      "id": "rose-pine",
+      "category": "root",
+      "sourcePath": "src/themes/json/rose-pine.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-rose-pine.css",
+      "primary": "#ebbcba",
+      "destructive": "#eb6f92"
+    },
+    {
+      "id": "rose-pine-dawn",
+      "category": "root",
+      "sourcePath": "src/themes/json/rose-pine-dawn.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-rose-pine-dawn.css",
+      "primary": "#d7827e",
+      "destructive": "#b4637a"
+    },
+    {
+      "id": "rose-pine-moon",
+      "category": "root",
+      "sourcePath": "src/themes/json/rose-pine-moon.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-rose-pine-moon.css",
+      "primary": "#ea9a97",
+      "destructive": "#eb6f92"
+    },
+    {
+      "id": "slack-dark",
+      "category": "root",
+      "sourcePath": "src/themes/json/slack-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-slack-dark.css",
+      "primary": "#1d978d",
+      "destructive": "#ef4444"
+    },
+    {
+      "id": "slack-ochin",
+      "category": "root",
+      "sourcePath": "src/themes/json/slack-ochin.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-slack-ochin.css",
+      "primary": "#8ae773",
+      "destructive": "#e53935"
+    },
+    {
+      "id": "snazzy-light",
+      "category": "root",
+      "sourcePath": "src/themes/json/snazzy-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-snazzy-light.css",
+      "primary": "#09a1ed",
+      "destructive": "#ff5c56"
+    },
+    {
+      "id": "solarized-dark",
+      "category": "root",
+      "sourcePath": "src/themes/json/solarized-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-solarized-dark.css",
+      "primary": "#047aa6",
+      "destructive": "#ffeaea"
+    },
+    {
+      "id": "solarized-light",
+      "category": "root",
+      "sourcePath": "src/themes/json/solarized-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-solarized-light.css",
+      "primary": "#b58900",
+      "destructive": "#dc322f"
+    },
+    {
+      "id": "synthwave-84",
+      "category": "root",
+      "sourcePath": "src/themes/json/synthwave-84.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-synthwave-84.css",
+      "primary": "#f97e72",
+      "destructive": "#fe4450"
+    },
+    {
+      "id": "tc-apprentice-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-apprentice-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-apprentice-default.css",
+      "primary": "#5d87b1",
+      "destructive": "#af5f5f"
+    },
+    {
+      "id": "tc-ayu-dark",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-ayu-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-ayu-dark.css",
+      "primary": "#53bdfa",
+      "destructive": "#ea6c73"
+    },
+    {
+      "id": "tc-ayu-light",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-ayu-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-ayu-light.css",
+      "primary": "#3199e1",
+      "destructive": "#ea6c6d"
+    },
+    {
+      "id": "tc-ayu-mirage",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-ayu-mirage.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-ayu-mirage.css",
+      "primary": "#6dcbfa",
+      "destructive": "#ed8274"
+    },
+    {
+      "id": "tc-catppuccin-frappe",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-catppuccin-frappe.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-catppuccin-frappe.css",
+      "primary": "#8caaee",
+      "destructive": "#e78284"
+    },
+    {
+      "id": "tc-catppuccin-latte",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-catppuccin-latte.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-catppuccin-latte.css",
+      "primary": "#1e66f5",
+      "destructive": "#d20f39"
+    },
+    {
+      "id": "tc-catppuccin-macchiato",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-catppuccin-macchiato.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-catppuccin-macchiato.css",
+      "primary": "#8aadf4",
+      "destructive": "#ed8796"
+    },
+    {
+      "id": "tc-catppuccin-mocha",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-catppuccin-mocha.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-catppuccin-mocha.css",
+      "primary": "#89b4fa",
+      "destructive": "#f38ba8"
+    },
+    {
+      "id": "tc-cobalt2-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-cobalt2-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-cobalt2-default.css",
+      "primary": "#0088ff",
+      "destructive": "#ff628c"
+    },
+    {
+      "id": "tc-deus-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-deus-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-deus-default.css",
+      "primary": "#6fb99d",
+      "destructive": "#d54e53"
+    },
+    {
+      "id": "tc-dracula-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-dracula-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-dracula-default.css",
+      "primary": "#bd93f9",
+      "destructive": "#ff5555"
+    },
+    {
+      "id": "tc-dracula-soft",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-dracula-soft.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-dracula-soft.css",
+      "primary": "#bf9eee",
+      "destructive": "#ee6666"
+    },
+    {
+      "id": "tc-everforest-dark",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-everforest-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-everforest-dark.css",
+      "primary": "#7bbfb6",
+      "destructive": "#e67e80"
+    },
+    {
+      "id": "tc-everforest-light",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-everforest-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-everforest-light.css",
+      "primary": "#3a94c5",
+      "destructive": "#f85552"
+    },
+    {
+      "id": "tc-github-dark",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-github-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-github-dark.css",
+      "primary": "#58a6ff",
+      "destructive": "#ff7b72"
+    },
+    {
+      "id": "tc-github-dark-colorblind",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-github-dark-colorblind.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-github-dark-colorblind.css",
+      "primary": "#58a6ff",
+      "destructive": "#ec8e2c"
+    },
+    {
+      "id": "tc-github-dark-dimmed",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-github-dark-dimmed.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-github-dark-dimmed.css",
+      "primary": "#539bf5",
+      "destructive": "#f47067"
+    },
+    {
+      "id": "tc-github-dark-high-contrast",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-github-dark-high-contrast.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-github-dark-high-contrast.css",
+      "primary": "#71b7ff",
+      "destructive": "#ff9492"
+    },
+    {
+      "id": "tc-gotham-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-gotham-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-gotham-default.css",
+      "primary": "#195466",
+      "destructive": "#c23127"
+    },
+    {
+      "id": "tc-gruvbox-dark",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-gruvbox-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-gruvbox-dark.css",
+      "primary": "#43878a",
+      "destructive": "#cc241d"
+    },
+    {
+      "id": "tc-gruvbox-dark-hard-contrast",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-gruvbox-dark-hard-contrast.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-gruvbox-dark-hard-contrast.css",
+      "primary": "#43878a",
+      "destructive": "#cc241d"
+    },
+    {
+      "id": "tc-gruvbox-dark-soft-contrast",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-gruvbox-dark-soft-contrast.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-gruvbox-dark-soft-contrast.css",
+      "primary": "#43878a",
+      "destructive": "#cc241d"
+    },
+    {
+      "id": "tc-gruvbox-light",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-gruvbox-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-gruvbox-light.css",
+      "primary": "#43878a",
+      "destructive": "#cc241d"
+    },
+    {
+      "id": "tc-iceberg-dark",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-iceberg-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-iceberg-dark.css",
+      "primary": "#84a0c6",
+      "destructive": "#e27878"
+    },
+    {
+      "id": "tc-iceberg-light",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-iceberg-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-iceberg-light.css",
+      "primary": "#2d539e",
+      "destructive": "#cc517a"
+    },
+    {
+      "id": "tc-jellybeans-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-jellybeans-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-jellybeans-default.css",
+      "primary": "#97bedc",
+      "destructive": "#e27373"
+    },
+    {
+      "id": "tc-kanagawa-dragon",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-kanagawa-dragon.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-kanagawa-dragon.css",
+      "primary": "#7ba9c0",
+      "destructive": "#c4746e"
+    },
+    {
+      "id": "tc-kanagawa-lotus",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-kanagawa-lotus.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-kanagawa-lotus.css",
+      "primary": "#4c699c",
+      "destructive": "#c84053"
+    },
+    {
+      "id": "tc-kanagawa-wave",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-kanagawa-wave.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-kanagawa-wave.css",
+      "primary": "#7e9cd8",
+      "destructive": "#c34043"
+    },
+    {
+      "id": "tc-lucario-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-lucario-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-lucario-default.css",
+      "primary": "#5c98cd",
+      "destructive": "#e94b35"
+    },
+    {
+      "id": "tc-miasma-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-miasma-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-miasma-default.css",
+      "primary": "#7d8a43",
+      "destructive": "#685742"
+    },
+    {
+      "id": "tc-moonfly-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-moonfly-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-moonfly-default.css",
+      "primary": "#80a0ff",
+      "destructive": "#ff5454"
+    },
+    {
+      "id": "tc-night-owl-dark",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-night-owl-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-night-owl-dark.css",
+      "primary": "#82aaff",
+      "destructive": "#ef5350"
+    },
+    {
+      "id": "tc-night-owl-light",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-night-owl-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-night-owl-light.css",
+      "primary": "#288ed7",
+      "destructive": "#de3d3b"
+    },
+    {
+      "id": "tc-nightfly-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-nightfly-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-nightfly-default.css",
+      "primary": "#82aaff",
+      "destructive": "#fc514e"
+    },
+    {
+      "id": "tc-nightfox-dawnfox",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-nightfox-dawnfox.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-nightfox-dawnfox.css",
+      "primary": "#286983",
+      "destructive": "#b4637a"
+    },
+    {
+      "id": "tc-nightfox-dayfox",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-nightfox-dayfox.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-nightfox-dayfox.css",
+      "primary": "#2848a9",
+      "destructive": "#a5222f"
+    },
+    {
+      "id": "tc-nightfox-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-nightfox-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-nightfox-default.css",
+      "primary": "#719cd6",
+      "destructive": "#c94f6d"
+    },
+    {
+      "id": "tc-nightfox-duskfox",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-nightfox-duskfox.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-nightfox-duskfox.css",
+      "primary": "#569fba",
+      "destructive": "#eb6f92"
+    },
+    {
+      "id": "tc-noctis-azureus",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-noctis-azureus.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-noctis-azureus.css",
+      "primary": "#49ace9",
+      "destructive": "#e66533"
+    },
+    {
+      "id": "tc-noctis-bordo",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-noctis-bordo.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-noctis-bordo.css",
+      "primary": "#49ace9",
+      "destructive": "#e66533"
+    },
+    {
+      "id": "tc-noctis-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-noctis-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-noctis-default.css",
+      "primary": "#49ace9",
+      "destructive": "#e66533"
+    },
+    {
+      "id": "tc-noctis-minimus",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-noctis-minimus.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-noctis-minimus.css",
+      "primary": "#6196b8",
+      "destructive": "#c08872"
+    },
+    {
+      "id": "tc-nord-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-nord-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-nord-default.css",
+      "primary": "#80a1c2",
+      "destructive": "#bf616a"
+    },
+    {
+      "id": "tc-nordic-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-nordic-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-nordic-default.css",
+      "primary": "#5a81b0",
+      "destructive": "#bf616a"
+    },
+    {
+      "id": "tc-one-dark",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-one-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-one-dark.css",
+      "primary": "#61afef",
+      "destructive": "#e06c75"
+    },
+    {
+      "id": "tc-one-half-dark",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-one-half-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-one-half-dark.css",
+      "primary": "#61afef",
+      "destructive": "#e06c75"
+    },
+    {
+      "id": "tc-one-half-light",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-one-half-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-one-half-light.css",
+      "primary": "#0184bc",
+      "destructive": "#e45649"
+    },
+    {
+      "id": "tc-one-light",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-one-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-one-light.css",
+      "primary": "#2f5af3",
+      "destructive": "#de3d35"
+    },
+    {
+      "id": "tc-panda-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-panda-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-panda-default.css",
+      "primary": "#45a9f9",
+      "destructive": "#ff2c6d"
+    },
+    {
+      "id": "tc-posterpole-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-posterpole-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-posterpole-default.css",
+      "primary": "#537ead",
+      "destructive": "#a97070"
+    },
+    {
+      "id": "tc-posterpole-gray",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-posterpole-gray.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-posterpole-gray.css",
+      "primary": "#537ead",
+      "destructive": "#a97070"
+    },
+    {
+      "id": "tc-rose-pine-dawn",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-rose-pine-dawn.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-rose-pine-dawn.css",
+      "primary": "#5098a5",
+      "destructive": "#b4637a"
+    },
+    {
+      "id": "tc-rose-pine-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-rose-pine-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-rose-pine-default.css",
+      "primary": "#9ccfd8",
+      "destructive": "#eb6f92"
+    },
+    {
+      "id": "tc-rose-pine-moon",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-rose-pine-moon.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-rose-pine-moon.css",
+      "primary": "#9ccfd8",
+      "destructive": "#eb6f92"
+    },
+    {
+      "id": "tc-seoul256-dark",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-seoul256-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-seoul256-dark.css",
+      "primary": "#85add4",
+      "destructive": "#d68787"
+    },
+    {
+      "id": "tc-seoul256-light",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-seoul256-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-seoul256-light.css",
+      "primary": "#5d87b0",
+      "destructive": "#af5f5f"
+    },
+    {
+      "id": "tc-shades-of-purple-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-shades-of-purple-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-shades-of-purple-default.css",
+      "primary": "#7857fe",
+      "destructive": "#e43937"
+    },
+    {
+      "id": "tc-shades-of-purple-super-dark",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-shades-of-purple-super-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-shades-of-purple-super-dark.css",
+      "primary": "#7857fe",
+      "destructive": "#e33937"
+    },
+    {
+      "id": "tc-solarized-dark",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-solarized-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-solarized-dark.css",
+      "primary": "#268bd2",
+      "destructive": "#dc322f"
+    },
+    {
+      "id": "tc-solarized-light",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-solarized-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-solarized-light.css",
+      "primary": "#268bd2",
+      "destructive": "#dc322f"
+    },
+    {
+      "id": "tc-sonokai-andromeda",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-sonokai-andromeda.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-sonokai-andromeda.css",
+      "primary": "#6dcae8",
+      "destructive": "#fb617e"
+    },
+    {
+      "id": "tc-sonokai-atlantis",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-sonokai-atlantis.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-sonokai-atlantis.css",
+      "primary": "#72cce8",
+      "destructive": "#ff6578"
+    },
+    {
+      "id": "tc-sonokai-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-sonokai-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-sonokai-default.css",
+      "primary": "#76cce0",
+      "destructive": "#fc5d7c"
+    },
+    {
+      "id": "tc-sonokai-shusia",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-sonokai-shusia.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-sonokai-shusia.css",
+      "primary": "#7accd7",
+      "destructive": "#f85e84"
+    },
+    {
+      "id": "tc-srcery-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-srcery-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-srcery-default.css",
+      "primary": "#2c78bf",
+      "destructive": "#ef2f27"
+    },
+    {
+      "id": "tc-tender-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-tender-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-tender-default.css",
+      "primary": "#b3deef",
+      "destructive": "#f43753"
+    },
+    {
+      "id": "tc-tokyo-night-day",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-tokyo-night-day.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-tokyo-night-day.css",
+      "primary": "#2e7de9",
+      "destructive": "#f52a65"
+    },
+    {
+      "id": "tc-tokyo-night-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-tokyo-night-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-tokyo-night-default.css",
+      "primary": "#7aa2f7",
+      "destructive": "#f7768e"
+    },
+    {
+      "id": "tc-tokyo-night-moon",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-tokyo-night-moon.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-tokyo-night-moon.css",
+      "primary": "#82aaff",
+      "destructive": "#ff757f"
+    },
+    {
+      "id": "tc-tokyo-night-storm",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-tokyo-night-storm.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-tokyo-night-storm.css",
+      "primary": "#7aa2f7",
+      "destructive": "#f7768e"
+    },
+    {
+      "id": "tc-tomorrow-default",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-tomorrow-default.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-tomorrow-default.css",
+      "primary": "#4271ae",
+      "destructive": "#c82829"
+    },
+    {
+      "id": "tc-tomorrow-night",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-tomorrow-night.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-tomorrow-night.css",
+      "primary": "#7ea2c1",
+      "destructive": "#cc6666"
+    },
+    {
+      "id": "tc-tomorrow-night-blue",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-tomorrow-night-blue.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-tomorrow-night-blue.css",
+      "primary": "#bbdaff",
+      "destructive": "#ff9da4"
+    },
+    {
+      "id": "tc-tomorrow-night-bright",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-tomorrow-night-bright.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-tomorrow-night-bright.css",
+      "primary": "#7aa6da",
+      "destructive": "#d54e53"
+    },
+    {
+      "id": "tc-tomorrow-night-eighties",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-tomorrow-night-eighties.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-tomorrow-night-eighties.css",
+      "primary": "#6699cc",
+      "destructive": "#f2777a"
+    },
+    {
+      "id": "tc-zenbones-neobones-dark",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-zenbones-neobones-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-zenbones-neobones-dark.css",
+      "primary": "#8190d4",
+      "destructive": "#de6e7c"
+    },
+    {
+      "id": "tc-zenbones-neobones-light",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-zenbones-neobones-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-zenbones-neobones-light.css",
+      "primary": "#286486",
+      "destructive": "#a8334c"
+    },
+    {
+      "id": "tc-zenbones-zenwritten-dark",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-zenbones-zenwritten-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-zenbones-zenwritten-dark.css",
+      "primary": "#6099c0",
+      "destructive": "#de6e7c"
+    },
+    {
+      "id": "tc-zenbones-zenwritten-light",
+      "category": "terminal",
+      "sourcePath": "src/themes/json/terminal/tc-zenbones-zenwritten-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tc-zenbones-zenwritten-light.css",
+      "primary": "#286486",
+      "destructive": "#a8334c"
+    },
+    {
+      "id": "tokyo-night",
+      "category": "root",
+      "sourcePath": "src/themes/json/tokyo-night.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-tokyo-night.css",
+      "primary": "#3d59a1",
+      "destructive": "#db4b4b"
+    },
+    {
+      "id": "vesper",
+      "category": "root",
+      "sourcePath": "src/themes/json/vesper.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-vesper.css",
+      "primary": "#ffc799",
+      "destructive": "#ff8080"
+    },
+    {
+      "id": "vitesse-black",
+      "category": "root",
+      "sourcePath": "src/themes/json/vitesse-black.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-vitesse-black.css",
+      "primary": "#499776",
+      "destructive": "#cb7676"
+    },
+    {
+      "id": "vitesse-dark",
+      "category": "root",
+      "sourcePath": "src/themes/json/vitesse-dark.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-vitesse-dark.css",
+      "primary": "#499776",
+      "destructive": "#cb7676"
+    },
+    {
+      "id": "vitesse-light",
+      "category": "root",
+      "sourcePath": "src/themes/json/vitesse-light.json",
+      "generatedCssPath": "src/renderer/themes/generated/preset-vitesse-light.css",
+      "primary": "#1c6b48",
+      "destructive": "#ab5959"
+    }
+  ]
+}

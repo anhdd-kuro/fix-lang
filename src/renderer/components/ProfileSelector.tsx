@@ -92,7 +92,7 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({
         value={currentProfileId}
         onChange={handleChange}
         disabled={isLoading}
-        className={`${sizeStyles[size]} bg-card border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring`}
+        className={`${sizeStyles[size]} bg-card border border-card-control-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring`}
         aria-label={t("profiles.selector.ariaLabel")}
       >
         {profiles.map((profile) => (

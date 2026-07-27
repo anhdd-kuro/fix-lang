@@ -12,15 +12,23 @@ html[data-theme="github-light-default"] {
   --popover-foreground: #1f2328;
   --primary: #0969da;
   --primary-foreground: #fafafa;
+  --primary-hover: #0f65d0;
+  --primary-active: #145fc4;
   --secondary: #e9eef3;
   --secondary-foreground: #505357;
+  --secondary-hover: #f2f5f8;
+  --secondary-active: #fbfcfd;
   --muted: #f0f0f0;
-  --muted-foreground: #67696c;
+  --muted-foreground: #6d6f72;
   --accent: #dbe2e8;
   --accent-foreground: #1f2328;
   --destructive: #cf222e;
   --destructive-foreground: #fafafa;
-  --border: #dcdcdd;
+  --destructive-hover: #c2222c;
+  --destructive-active: #b6222a;
+  --border: #7e7e80;
+  --control-border: #7e7e80;
+  --card-control-border: #7e7e80;
   --input: #f0f0f0;
   --ring: #0969da;
   --success: #116329;
@@ -33,6 +41,6 @@ html[data-theme="github-light-default"] {
   --chart-4: #1b7c83;
   --chart-5: #4d2d00;
   --overlay-spinner: #0969da;
-  --overlay-spinner-track: #7f7f83;
+  --overlay-spinner-track: #7e7e80;
   --overlay-backdrop: rgba(255, 255, 255, 0.72);
 }
