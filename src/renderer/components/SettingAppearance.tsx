@@ -3,6 +3,7 @@ import { twJoin } from "tailwind-merge";
 import { useTheme } from "../hooks/useTheme";
 import { useI18n } from "../i18n/useI18n";
 import { THEME_PRESETS } from "../themes";
+import { Button } from "./Button";
 import type { ThemeId } from "~/stores/themeIds";
 
 const THEME_CARD_MIN = "9.5rem";
@@ -40,9 +41,13 @@ export const SettingAppearance: React.FC = () => {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="shrink-0">
-        <h3 className="text-lg font-medium text-foreground">{t("settings.appearance.title")}</h3>
+        <h3 className="text-lg font-medium text-foreground">
+          {t("settings.appearance.title")}
+        </h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          {t("settings.appearance.description", { count: THEME_PRESETS.length })}
+          {t("settings.appearance.description", {
+            count: THEME_PRESETS.length,
+          })}
         </p>
       </div>
 
@@ -55,7 +60,7 @@ export const SettingAppearance: React.FC = () => {
             setQuery(event.target.value);
           }}
           placeholder={t("settings.appearance.searchPlaceholder")}
-          className="w-full rounded-md border border-input bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="w-full rounded-md border border-control-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         />
       </label>
 
@@ -79,9 +84,10 @@ export const SettingAppearance: React.FC = () => {
               const isSelected = preset.id === themeId;
 
               return (
-                <button
+                <Button
                   key={preset.id}
                   type="button"
+                  variant={isSelected ? "primary" : "outline"}
                   role="radio"
                   aria-checked={isSelected}
                   aria-label={preset.label}
@@ -91,11 +97,10 @@ export const SettingAppearance: React.FC = () => {
                   }}
                   style={{ maxWidth: THEME_CARD_MAX }}
                   className={twJoin(
-                    "group mx-auto flex w-full min-w-0 flex-col rounded-lg border text-left transition-colors",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "group mx-auto flex w-full min-w-0 flex-col rounded-lg border text-left",
                     isSelected
-                      ? "border-primary ring-2 ring-ring"
-                      : "border-border hover:border-primary/50 hover:bg-accent/40",
+                      ? "border-ring ring-2 ring-ring ring-offset-2 ring-offset-background"
+                      : "border-card-control-border hover:border-primary/50 hover:bg-accent/40",
                   )}
                 >
                   <div
@@ -113,14 +118,28 @@ export const SettingAppearance: React.FC = () => {
                     />
                   </div>
                   <div className="px-2.5 py-2">
-                    <div className="truncate text-sm font-medium text-foreground">
+                    <div
+                      className={twJoin(
+                        "truncate text-sm font-medium",
+                        isSelected
+                          ? "text-primary-foreground"
+                          : "text-foreground",
+                      )}
+                    >
                       {preset.label}
                     </div>
-                    <div className="truncate text-xs text-muted-foreground">
+                    <div
+                      className={twJoin(
+                        "truncate text-xs",
+                        isSelected
+                          ? "text-primary-foreground"
+                          : "text-muted-foreground",
+                      )}
+                    >
                       {preset.description}
                     </div>
                   </div>
-                </button>
+                </Button>
               );
             })}
           </div>

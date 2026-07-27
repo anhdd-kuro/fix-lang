@@ -3,6 +3,7 @@
  * @description Modal dialog for managing local LLM models
  */
 import { useCallback, useEffect, useState } from "react";
+import { Button } from "./Button";
 import { useI18n } from "../i18n/useI18n";
 import type { Model } from "~/stores/apiStore";
 
@@ -157,7 +158,11 @@ export default function ModelManagerDialog({
         // Refresh the model list
         refreshModels();
       } else {
-        alert(t("models.manager.deleteFailedAlert", { message: result.error ?? "" }));
+        alert(
+          t("models.manager.deleteFailedAlert", {
+            message: result.error ?? "",
+          }),
+        );
       }
     } catch (error) {
       console.error(`Failed to delete model ${modelName}:`, error);
@@ -183,44 +188,48 @@ export default function ModelManagerDialog({
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
       <div className="bg-card rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b border-border">
+        <div className="flex justify-between items-center p-4 border-b border-card-control-border">
           <h2 className="text-xl font-semibold text-foreground">
             {t("models.manager.title")}
           </h2>
-          <button
+          <Button
             onClick={onClose}
+            variant="ghost"
             className="text-muted-foreground hover:text-foreground"
             aria-label={t("common.close")}
           >
             ✕
-          </button>
+          </Button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-border">
-          <button
+        <div className="flex border-b border-card-control-border">
+          <Button
+            variant={activeTab === "installed" ? "primary" : "ghost"}
             className={`px-4 py-2 ${
               activeTab === "installed"
-                ? "border-b-2 border-primary text-primary"
+                ? "border-b-2 border-primary"
                 : "text-muted-foreground hover:text-foreground"
             }`}
             onClick={() => setActiveTab("installed")}
           >
             {t("models.manager.tabs.installed")}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={activeTab === "recommended" ? "primary" : "ghost"}
             className={`px-4 py-2 ${
               activeTab === "recommended"
-                ? "border-b-2 border-primary text-primary"
+                ? "border-b-2 border-primary"
                 : "text-muted-foreground hover:text-foreground"
             }`}
             onClick={() => setActiveTab("recommended")}
           >
             {t("models.manager.tabs.recommended")}
-          </button>
+          </Button>
           <div className="ml-auto px-4 py-2">
-            <button
+            <Button
               onClick={refreshModels}
+              variant="ghost"
               disabled={isRefreshing}
               className={`text-card-foreground hover:text-foreground ${
                 isRefreshing ? "animate-spin" : ""
@@ -228,7 +237,7 @@ export default function ModelManagerDialog({
               title={t("models.manager.refresh")}
             >
               ↻
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -244,37 +253,38 @@ export default function ModelManagerDialog({
               {localModels.length === 0 ? (
                 <div className="text-center text-muted-foreground py-8">
                   <p>{t("models.manager.installed.empty")}</p>
-                  <button
+                  <Button
                     onClick={() => setActiveTab("recommended")}
+                    variant="ghost"
                     className="mt-2 text-primary hover:underline"
                   >
                     {t("models.manager.installed.browseRecommended")}
-                  </button>
+                  </Button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {localModels.map((model) => (
                     <div
                       key={model.id}
-                      className="border border-border rounded-lg p-4 bg-card hover:bg-accent"
+                      className="border border-card-control-border rounded-lg p-4 bg-card hover:bg-accent"
                     >
                       <div className="flex justify-between">
                         <h3 className="text-lg font-medium text-foreground">
                           {model.name}
                         </h3>
                         <div className="flex space-x-2">
-                          <button
+                          <Button
                             onClick={() =>
                               setDeleteConfirmation({
                                 isOpen: true,
                                 modelName: model.local?.path,
                               })
                             }
-                            className="text-destructive hover:text-destructive"
+                            variant="destructive"
                             title={t("models.manager.deleteTitle")}
                           >
                             🗑️
-                          </button>
+                          </Button>
                         </div>
                       </div>
                       <div className="mt-2 text-sm text-muted-foreground">
@@ -310,23 +320,28 @@ export default function ModelManagerDialog({
                   {recommendedModels.map((model) => (
                     <div
                       key={model.name}
-                      className="border border-border rounded-lg p-4 bg-card hover:bg-accent"
+                      className="border border-card-control-border rounded-lg p-4 bg-card hover:bg-accent"
                     >
                       <div className="flex justify-between">
                         <h3 className="text-lg font-medium text-foreground">
                           {model.name}
                         </h3>
                         <div>
-                          <button
+                          <Button
                             onClick={() => installModel(model.name)}
+                            variant={
+                              model.status === "error"
+                                ? "destructive"
+                                : "primary"
+                            }
                             disabled={model.status === "installing"}
                             className={`px-3 py-1 rounded text-sm ${
                               model.status === "success"
-                                ? "bg-success text-success-foreground cursor-default"
+                                ? "bg-success text-success-foreground cursor-default [&:where(:enabled:hover)]:bg-success [&:where(:enabled:active)]:bg-success"
                                 : model.status === "installing"
                                   ? "bg-primary text-primary-foreground animate-pulse cursor-wait"
                                   : model.status === "error"
-                                    ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    ? "bg-destructive text-destructive-foreground"
                                     : "bg-primary text-primary-foreground hover:bg-primary"
                             }`}
                           >
@@ -337,7 +352,7 @@ export default function ModelManagerDialog({
                                 : model.status === "error"
                                   ? t("common.retry")
                                   : t("models.manager.install.install")}
-                          </button>
+                          </Button>
                         </div>
                       </div>
                       <p className="mt-2 text-card-foreground">
@@ -355,12 +370,15 @@ export default function ModelManagerDialog({
                       </div>
                       <div className="mt-2 text-sm text-muted-foreground">
                         <span>
-                          {t("models.manager.sizeLabel")} {formatSize(model.size)}
+                          {t("models.manager.sizeLabel")}{" "}
+                          {formatSize(model.size)}
                         </span>
                       </div>
                       {model.status === "error" && model.error && (
                         <div className="mt-2 text-sm text-destructive">
-                          {t("models.manager.recommendedError", { message: model.error })}
+                          {t("models.manager.recommendedError", {
+                            message: model.error,
+                          })}
                         </div>
                       )}
                     </div>
@@ -384,20 +402,22 @@ export default function ModelManagerDialog({
                 })}
               </p>
               <div className="flex justify-end space-x-3">
-                <button
+                <Button
                   onClick={() => setDeleteConfirmation({ isOpen: false })}
-                  className="px-4 py-2 bg-secondary text-secondary-foreground rounded hover:bg-secondary"
+                  variant="secondary"
+                  className="px-4 py-2 rounded"
                 >
                   {t("common.cancel")}
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() =>
                     deleteModel(deleteConfirmation.modelName || "")
                   }
-                  className="px-4 py-2 bg-destructive text-destructive-foreground rounded hover:bg-destructive/90"
+                  variant="destructive"
+                  className="px-4 py-2 rounded"
                 >
                   {t("common.delete")}
-                </button>
+                </Button>
               </div>
             </div>
           </div>

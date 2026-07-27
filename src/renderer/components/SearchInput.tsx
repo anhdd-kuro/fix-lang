@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Button } from "./Button";
 import { useI18n } from "../i18n/useI18n";
 
 type SearchInputProps = {
@@ -63,7 +64,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
         value={inputValue}
         onChange={handleChange}
         placeholder={placeholder ?? t("common.searchInput.placeholder")}
-        className="w-full bg-input border border-border text-foreground px-8 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+        className="w-full bg-input border border-control-border text-foreground px-8 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
         aria-label={t("common.searchInput.ariaLabel")}
         list={dataListId}
         autoComplete="on"
@@ -91,8 +92,9 @@ export const SearchInput: React.FC<SearchInputProps> = ({
         />
       </svg>
       {inputValue && (
-        <button
+        <Button
           type="button"
+          variant="ghost"
           onClick={() => {
             setInputValue("");
             onSearch("");
@@ -114,7 +116,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
               d="M6 18L18 6M6 6l12 12"
             />
           </svg>
-        </button>
+        </Button>
       )}
     </div>
   );

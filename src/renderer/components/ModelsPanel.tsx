@@ -8,6 +8,7 @@
  * mount or tab switch (reads from props).
  */
 import { useMemo, useState } from "react";
+import { Button } from "./Button";
 import { ModelSelect } from "./ModelSelect";
 import { barDateLabel, barTooltipMessage, MODEL_TABLE_HEADER_KEYS, showMoreMessage } from "./modelsView";
 import { filterByRange, type AnalyticsRange } from "../analytics/shared";
@@ -69,7 +70,7 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       {/* Global model switch — same persist path as Tray. */}
-      <div className="rounded-lg border border-border bg-card p-4">
+      <div className="rounded-lg border border-card-control-border bg-card p-4">
         <ModelSelect saveOnChange showAdditionalInfo />
       </div>
 
@@ -80,7 +81,7 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
       ) : (
         <>
           {/* Token volume over time — thin blue bars. */}
-          <div className="rounded-lg border border-border bg-card p-4">
+          <div className="rounded-lg border border-card-control-border bg-card p-4">
             <div className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">
               {t("models.usage.chartTitle")}
             </div>
@@ -111,7 +112,7 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
           </div>
 
           {/* Ranked model list. */}
-          <div className="rounded-lg border border-border bg-card p-2">
+          <div className="rounded-lg border border-card-control-border bg-card p-2">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -129,7 +130,10 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
               </thead>
               <tbody>
                 {visibleRows.map((row, rank) => (
-                  <tr key={row.model} className="border-t border-border/60">
+                  <tr
+                    key={row.model}
+                    className="border-t border-card-control-border/60"
+                  >
                     <td className="px-2 py-2 text-foreground">
                       <span className="flex items-center gap-2">
                         <span
@@ -174,13 +178,13 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
             </table>
 
             {rows.length > COLLAPSED_ROWS && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
                 onClick={() => setExpanded((v) => !v)}
-                className="mt-1 w-full rounded-md px-2 py-1.5 text-xs text-primary hover:bg-secondary/60"
+                className="mt-1 w-full rounded-md px-2 py-1.5 text-xs text-primary"
               >
                 {tm(showMoreMessage(expanded, hiddenCount))}
-              </button>
+              </Button>
             )}
           </div>
         </>

@@ -12,15 +12,23 @@ html[data-theme="tc-tokyo-night-moon"] {
   --popover-foreground: #c8d3f5;
   --primary: #82aaff;
   --primary-foreground: #18181b;
+  --primary-hover: #8eb0ff;
+  --primary-active: #99b7ff;
   --secondary: #444a73;
-  --secondary-foreground: #a8afc9;
+  --secondary-foreground: #b9bfd4;
+  --secondary-hover: #3f4469;
+  --secondary-active: #393e5f;
   --muted: #2e3149;
-  --muted-foreground: #b2b6c5;
+  --muted-foreground: #b2b5c5;
   --accent: #444a73;
   --accent-foreground: #c8d3f5;
   --destructive: #ff757f;
   --destructive-foreground: #18181b;
-  --border: #393c51;
+  --destructive-hover: #ff8087;
+  --destructive-active: #ff898f;
+  --border: #90919d;
+  --control-border: #9a9ba6;
+  --card-control-border: #9a9ba6;
   --input: #444a73;
   --ring: #82aaff;
   --success: #c3e88d;
@@ -33,6 +41,6 @@ html[data-theme="tc-tokyo-night-moon"] {
   --chart-4: #86e1fc;
   --chart-5: #ffc777;
   --overlay-spinner: #82aaff;
-  --overlay-spinner-track: #787da0;
+  --overlay-spinner-track: #90919d;
   --overlay-backdrop: rgba(34, 36, 54, 0.72);
 }

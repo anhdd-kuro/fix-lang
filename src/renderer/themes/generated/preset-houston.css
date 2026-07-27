@@ -12,15 +12,23 @@ html[data-theme="houston"] {
   --popover-foreground: #eef0f9;
   --primary: #4bf3c8;
   --primary-foreground: #18181b;
+  --primary-hover: #58f4ca;
+  --primary-active: #65f5cd;
   --secondary: #272b33;
   --secondary-foreground: #b2b4bc;
+  --secondary-hover: #21242b;
+  --secondary-active: #1b1e22;
   --muted: #24272f;
-  --muted-foreground: #8f9098;
+  --muted-foreground: #8d8f97;
   --accent: #343841;
   --accent-foreground: #eef0f9;
   --destructive: #f4587e;
   --destructive-foreground: #18181b;
-  --border: #34363c;
+  --destructive-hover: #f66485;
+  --destructive-active: #f8708c;
+  --border: #77787c;
+  --control-border: #77787c;
+  --card-control-border: #78797d;
   --input: #272b33;
   --ring: #00daef;
   --success: #23d18b;
@@ -33,6 +41,6 @@ html[data-theme="houston"] {
   --chart-4: #24c0cf;
   --chart-5: #ffc368;
   --overlay-spinner: #4bf3c8;
-  --overlay-spinner-track: #6d717e;
+  --overlay-spinner-track: #77787c;
   --overlay-backdrop: rgba(23, 25, 30, 0.72);
 }

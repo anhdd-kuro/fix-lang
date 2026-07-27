@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { twJoin } from "tailwind-merge";
 import { isPromptGenEnabled } from "~/shared/features";
+import { Button } from "./Button";
 import ProfileManager from "./ProfileManager";
 import { SettingAppearance } from "./SettingAppearance";
 import { SettingCorrection } from "./SettingCorrection";
@@ -155,15 +156,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       <div className="flex h-[85vh] min-h-120 max-h-250 w-[80%] max-w-250 flex-col overflow-hidden rounded-lg bg-card p-6 shadow-xl">
         <div className="mb-4 flex shrink-0 items-center justify-between">
           <h2 className="text-xl font-semibold text-primary">{t("settings.modal.title")}</h2>
-          <button
+          <Button
             type="button"
+            variant="ghost"
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground text-2xl font-bold"
             aria-label={t("settings.modal.close")}
             title={t("settings.modal.close")}
           >
             &times;
-          </button>
+          </Button>
         </div>
 
         {/* Tab Navigation */}
@@ -183,8 +185,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               );
 
               return (
-                <button
+                <Button
                   key={tab.id}
+                  variant={isActive ? "primary" : "ghost"}
                   role="tab"
                   id={`tab-${tab.id}`}
                   {...(isActive
@@ -198,7 +201,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 >
                   {tab.icon}
                   <span className="whitespace-nowrap">{t(tab.labelKey)}</span>
-                </button>
+                </Button>
               );
             })}
           </div>

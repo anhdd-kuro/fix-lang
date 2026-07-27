@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { Button } from "../components/Button";
 import CopyButton from "../components/CopyButton";
 import { useTheme } from "../hooks/useTheme";
 import { I18nProvider } from "../i18n/I18nProvider";
@@ -50,20 +51,21 @@ export const CorrectionResultWindow = () => {
         </p>
       </header>
 
-      <section className="min-h-0 flex-1 overflow-auto rounded-md border border-border bg-card p-4">
+      <section className="min-h-0 flex-1 overflow-auto rounded-md border border-card-control-border bg-card p-4">
         <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
           {payload.text}
         </p>
       </section>
 
       <footer className="flex justify-end gap-2">
-        <button
+        <Button
           type="button"
+          variant="outline"
           className="rounded border border-border px-3 py-1.5 text-sm hover:bg-secondary"
           onClick={() => window.electronAPI.closeCorrectionResultWindow()}
         >
           {t("common.close")}
-        </button>
+        </Button>
         <CopyButton value={payload.text} label={t("common.copy")} showLabel />
       </footer>
     </main>

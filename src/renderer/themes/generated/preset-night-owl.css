@@ -12,17 +12,25 @@ html[data-theme="night-owl"] {
   --popover-foreground: #ced3de;
   --primary: #395a76;
   --primary-foreground: #fafafa;
+  --primary-hover: #35536c;
+  --primary-active: #314c62;
   --secondary: #022844;
   --secondary-foreground: #9ca6b5;
+  --secondary-hover: #07233a;
+  --secondary-active: #0a1d30;
   --muted: #022745;
-  --muted-foreground: #929ba8;
+  --muted-foreground: #87919f;
   --accent: #033d6d;
   --accent-foreground: #d6deeb;
   --destructive: #ef5350;
   --destructive-foreground: #18181b;
-  --border: #213142;
+  --destructive-hover: #f15d58;
+  --destructive-active: #f46760;
+  --border: #747d89;
+  --control-border: #747d89;
+  --card-control-border: #747d89;
   --input: #0d2a43;
-  --ring: #122d42;
+  --ring: #566677;
   --success: #22da6e;
   --success-foreground: #18181b;
   --warning: #c5e478;
@@ -33,6 +41,6 @@ html[data-theme="night-owl"] {
   --chart-4: #21c7a8;
   --chart-5: #c5e478;
   --overlay-spinner: #395a76;
-  --overlay-spinner-track: #5178a1;
+  --overlay-spinner-track: #747d89;
   --overlay-backdrop: rgba(1, 22, 39, 0.72);
 }

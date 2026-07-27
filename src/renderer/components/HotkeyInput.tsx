@@ -7,6 +7,7 @@
  */
 import React, { useState, useEffect } from "react";
 import { messageLabel, msg, type Message } from "~/shared/i18n/message";
+import { Button } from "./Button";
 import { plainStatus, wrappedError, resolveStatus, type StatusDescriptor } from "./statusDescriptor";
 import { validateHotkeys } from "./validateHotkeys";
 import { useI18n } from "../i18n/useI18n";
@@ -197,17 +198,19 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
           placeholder={t("settings.hotkeys.pressShortcut")}
           aria-label={t("settings.hotkeys.ariaLabel", { hotkeyKey })}
           className={`flex-1 rounded px-2 py-1 bg-secondary text-secondary-foreground ${
-            fieldError ? "border border-destructive" : "border border-border"
+            fieldError
+              ? "border border-destructive"
+              : "border border-control-border"
           }`}
         />
-        <button
+        <Button
           type="button"
           onClick={handleApply}
           disabled={!pendingCombo || !!fieldError}
-          className="px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-3 py-1.5 text-xs font-semibold rounded"
         >
           {t("settings.hotkeys.applyButton")}
-        </button>
+        </Button>
       </div>
       {fieldError && (
         <p className="text-xs text-destructive" role="alert">

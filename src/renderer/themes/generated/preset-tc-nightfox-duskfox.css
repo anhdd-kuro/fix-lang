@@ -12,15 +12,23 @@ html[data-theme="tc-nightfox-duskfox"] {
   --popover-foreground: #e0def4;
   --primary: #569fba;
   --primary-foreground: #18181b;
+  --primary-hover: #62a5be;
+  --primary-active: #6daac2;
   --secondary: #47407d;
-  --secondary-foreground: #acaac0;
+  --secondary-foreground: #b8b6c9;
+  --secondary-hover: #423b72;
+  --secondary-active: #3c3668;
   --muted: #2f2d49;
-  --muted-foreground: #b1afbe;
+  --muted-foreground: #aeacbc;
   --accent: #47407d;
   --accent-foreground: #e0def4;
   --destructive: #eb6f92;
   --destructive-foreground: #18181b;
-  --border: #3d3b51;
+  --destructive-hover: #ee7a99;
+  --destructive-active: #f085a0;
+  --border: #8c8a98;
+  --control-border: #9695a1;
+  --card-control-border: #9695a1;
   --input: #47407d;
   --ring: #569fba;
   --success: #a3be8c;
@@ -33,6 +41,6 @@ html[data-theme="tc-nightfox-duskfox"] {
   --chart-4: #9ccfd8;
   --chart-5: #f6c177;
   --overlay-spinner: #569fba;
-  --overlay-spinner-track: #7f7c9f;
+  --overlay-spinner-track: #8c8a98;
   --overlay-backdrop: rgba(35, 33, 54, 0.72);
 }

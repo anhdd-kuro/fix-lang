@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
+import { Button } from "./Button";
 import { Dialog } from "./Dialog";
 import { HotkeyInput } from "./HotkeyInput";
 import { useI18n } from "../i18n/useI18n";
@@ -252,22 +253,23 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-medium text-foreground">{t("profiles.manager.title")}</h3>
         <div className="flex gap-2">
-          <button
+          <Button
             type="button"
             onClick={() => setIsCreateDialogOpen(true)}
-            className="px-3 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded hover:bg-primary/90"
+            className="px-3 py-1.5 text-sm font-medium rounded"
             disabled={isLoading}
           >
             {t("profiles.manager.newProfile")}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={() => setIsImportDialogOpen(true)}
-            className="px-3 py-1.5 bg-secondary text-secondary-foreground text-sm font-medium rounded hover:bg-secondary"
+            variant="secondary"
+            className="px-3 py-1.5 text-sm font-medium rounded"
             disabled={isLoading}
           >
             {t("profiles.manager.import")}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -294,7 +296,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
                 className={`border rounded p-3 ${
                   profile.id === currentProfileId
                     ? "border-primary bg-primary/20"
-                    : "border-border bg-card"
+                    : "border-card-control-border bg-card"
                 }`}
               >
                 <div className="flex justify-between items-start">
@@ -313,29 +315,31 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
                   </div>
                   <div className="flex gap-2">
                     {profile.id !== currentProfileId && (
-                      <button
+                      <Button
                         type="button"
                         onClick={() => handleApplyProfile(profile.id)}
-                        className="px-2.5 py-1 bg-primary text-primary-foreground text-xs font-medium rounded hover:bg-primary/90"
+                        className="px-2.5 py-1 text-xs font-medium rounded"
                       >
                         {t("profiles.manager.apply")}
-                      </button>
+                      </Button>
                     )}
-                    <button
+                    <Button
                       type="button"
                       onClick={() => handleExportProfile(profile.id)}
-                      className="px-2.5 py-1 bg-secondary text-secondary-foreground text-xs font-medium rounded hover:bg-secondary"
+                      variant="secondary"
+                      className="px-2.5 py-1 text-xs font-medium rounded"
                     >
                       {t("profiles.manager.export")}
-                    </button>
+                    </Button>
                     {profiles.length > 1 && (
-                      <button
+                      <Button
                         type="button"
                         onClick={() => handleDeleteProfile(profile.id)}
-                        className="px-2.5 py-1 bg-destructive text-destructive-foreground text-xs font-medium rounded hover:bg-destructive/90"
+                        variant="destructive"
+                        className="px-2.5 py-1 text-xs font-medium rounded"
                       >
                         {t("common.delete")}
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -365,7 +369,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
               value={newProfileName}
               onChange={(e) => setNewProfileName(e.target.value)}
               placeholder={t("profiles.manager.namePlaceholder")}
-              className="w-full px-3 py-2 text-foreground bg-card rounded border border-border focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              className="w-full px-3 py-2 text-foreground bg-card rounded border border-card-control-border focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
               required
             />
           </div>
@@ -382,27 +386,28 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
               value={newProfileDescription}
               onChange={(e) => setNewProfileDescription(e.target.value)}
               placeholder={t("profiles.manager.descriptionPlaceholder")}
-              className="w-full px-3 py-2 text-foreground bg-card rounded border border-border focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              className="w-full px-3 py-2 text-foreground bg-card rounded border border-card-control-border focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
               rows={3}
             />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <button
+            <Button
               type="button"
               onClick={() => setIsCreateDialogOpen(false)}
-              className="px-4 py-2 bg-secondary text-secondary-foreground font-medium rounded hover:bg-secondary"
+              variant="secondary"
+              className="px-4 py-2 font-medium rounded"
             >
               {t("common.cancel")}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={handleCreateProfile}
-              className="px-4 py-2 bg-primary text-primary-foreground font-medium rounded hover:bg-primary/90"
+              className="px-4 py-2 font-medium rounded"
               disabled={!newProfileName.trim()}
             >
               {t("profiles.manager.create")}
-            </button>
+            </Button>
           </div>
         </div>
       </Dialog>
@@ -425,26 +430,27 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
               id="exportJson"
               value={exportProfileJson}
               readOnly
-              className="w-full px-3 py-2 text-foreground bg-card rounded border border-border focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              className="w-full px-3 py-2 text-foreground bg-card rounded border border-card-control-border focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
               rows={10}
             />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <button
+            <Button
               type="button"
               onClick={() => setIsExportDialogOpen(false)}
-              className="px-4 py-2 bg-secondary text-secondary-foreground font-medium rounded hover:bg-secondary"
+              variant="secondary"
+              className="px-4 py-2 font-medium rounded"
             >
               {t("common.close")}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => handleCopyToClipboard(exportProfileJson)}
-              className="px-4 py-2 bg-primary text-primary-foreground font-medium rounded hover:bg-primary/90"
+              className="px-4 py-2 font-medium rounded"
             >
               {t("profiles.manager.copyToClipboard")}
-            </button>
+            </Button>
           </div>
         </div>
       </Dialog>
@@ -468,33 +474,34 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
               value={importProfileJson}
               onChange={(e) => setImportProfileJson(e.target.value)}
               placeholder={t("profiles.manager.pasteJsonPlaceholder")}
-              className="w-full px-3 py-2 text-foreground bg-card rounded border border-border focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              className="w-full px-3 py-2 text-foreground bg-card rounded border border-card-control-border focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
               rows={10}
             />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <button
+            <Button
               type="button"
               onClick={() => setIsImportDialogOpen(false)}
-              className="px-4 py-2 bg-secondary text-secondary-foreground font-medium rounded hover:bg-secondary"
+              variant="secondary"
+              className="px-4 py-2 font-medium rounded"
             >
               {t("common.cancel")}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={handleImportProfile}
-              className="px-4 py-2 bg-primary text-primary-foreground font-medium rounded hover:bg-primary/90"
+              className="px-4 py-2 font-medium rounded"
               disabled={!importProfileJson.trim()}
             >
               {t("profiles.manager.import")}
-            </button>
+            </Button>
           </div>
         </div>
       </Dialog>
 
       {/* Profile Switch Shortcut — co-located per issue #45 */}
-      <div className="mt-6 rounded-lg border border-border bg-card/60 p-4">
+      <div className="mt-6 rounded-lg border border-card-control-border bg-card/60 p-4">
         <h4 className="text-sm font-semibold text-card-foreground mb-3">
           {t("profiles.manager.shortcutHeading")}
         </h4>

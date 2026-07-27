@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { msg, type Message } from "~/shared/i18n/message";
+import { Button } from "./Button";
 import CopyButton from "./CopyButton";
 import { Spinner } from "./Spinner";
 import { useI18n } from "../i18n/useI18n";
@@ -32,7 +33,7 @@ const GitHubProfileIcon = ({ className }: { className?: string }) => (
 const CommandBlock = ({ command }: { command: string }) => {
   const { t } = useI18n();
   return (
-    <div className="relative mt-1 rounded border border-border bg-secondary/60">
+    <div className="relative mt-1 rounded border border-control-border bg-secondary/60">
       <pre className="overflow-x-auto whitespace-pre-wrap break-all px-2 py-1.5 pr-6 font-mono text-sm text-card-foreground">
         {command}
       </pre>
@@ -68,7 +69,9 @@ const releaseNotesComponents: Components = {
       {children}
     </h3>
   ),
-  p: ({ children }) => <p className="mt-1 text-sm text-muted-foreground">{children}</p>,
+  p: ({ children }) => (
+    <p className="mt-1 text-sm text-muted-foreground">{children}</p>
+  ),
   ul: ({ children }) => (
     <ul className="mt-1 list-disc space-y-0.5 pl-4 text-sm text-muted-foreground">
       {children}
@@ -79,7 +82,9 @@ const releaseNotesComponents: Components = {
       {children}
     </ol>
   ),
-  li: ({ children }) => <li className="text-sm text-muted-foreground">{children}</li>,
+  li: ({ children }) => (
+    <li className="text-sm text-muted-foreground">{children}</li>
+  ),
   code: ({ children }) => (
     <code className="rounded bg-secondary px-1 py-0.5 font-mono text-sm">
       {children}
@@ -115,7 +120,10 @@ const releaseNotesComponents: Components = {
  */
 const ReleaseNotes = ({ notes }: { notes: string }) => (
   <div className="mt-1 text-sm text-muted-foreground">
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={releaseNotesComponents}>
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={releaseNotesComponents}
+    >
       {notes}
     </ReactMarkdown>
   </div>
@@ -174,7 +182,8 @@ export const SettingUpdates = () => {
       }
     });
 
-    void api.getUpdateState()
+    void api
+      .getUpdateState()
       .then((next) => {
         if (mounted && !receivedLiveState) {
           setMountLoadError(null);
@@ -253,12 +262,17 @@ export const SettingUpdates = () => {
     <section aria-labelledby="app-updates-heading">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 id="app-updates-heading" className="text-base font-medium text-card-foreground">
+          <h2
+            id="app-updates-heading"
+            className="text-base font-medium text-card-foreground"
+          >
             {t("settings.updates.title")}
           </h2>
           {state.currentVersion && (
             <p className="mt-1 text-sm text-muted-foreground">
-              {t("settings.updates.versionLabel", { version: state.currentVersion })}
+              {t("settings.updates.versionLabel", {
+                version: state.currentVersion,
+              })}
             </p>
           )}
         </div>
@@ -277,7 +291,11 @@ export const SettingUpdates = () => {
       </div>
 
       {state.phase === "unsupported" && (
-        <p className="mt-1 text-sm text-muted-foreground" role="status" aria-live="polite">
+        <p
+          className="mt-1 text-sm text-muted-foreground"
+          role="status"
+          aria-live="polite"
+        >
           {t("settings.updates.unsupported")}
         </p>
       )}
@@ -287,8 +305,7 @@ export const SettingUpdates = () => {
           <p className="mt-1 text-sm text-muted-foreground">
             {t("settings.updates.idleDescription")}
           </p>
-          <button
-            type="button"
+          <Button
             onClick={() =>
               void run(
                 () => updateApi().checkForUpdates(),
@@ -296,49 +313,52 @@ export const SettingUpdates = () => {
               )
             }
             disabled={isBusy}
-            className="mt-2 rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-2 rounded px-3 py-1.5 text-base"
           >
-            {isBusy && (
-              <Spinner className="mr-2 inline size-4 align-[-2px]" />
-            )}
+            {isBusy && <Spinner className="mr-2 inline size-4 align-[-2px]" />}
             {t("settings.updates.checkButton")}
-          </button>
+          </Button>
         </>
       )}
 
       {state.phase === "checking" && (
         <>
-          <p className="mt-1 text-sm text-muted-foreground" role="status" aria-live="polite">
+          <p
+            className="mt-1 text-sm text-muted-foreground"
+            role="status"
+            aria-live="polite"
+          >
             {t("settings.updates.checking")}
           </p>
-          <button
-            type="button"
-            disabled
-            className="mt-2 rounded bg-primary px-3 py-1.5 text-base text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-          >
+          <Button disabled className="mt-2 rounded px-3 py-1.5 text-base">
             <Spinner className="mr-2 inline size-4 align-[-2px]" />
             {t("settings.updates.checkButton")}
-          </button>
+          </Button>
         </>
       )}
 
       {state.phase === "up-to-date" && (
         <>
-          <p className="mt-1 text-sm text-success" role="status" aria-live="polite">
+          <p
+            className="mt-1 text-sm text-success"
+            role="status"
+            aria-live="polite"
+          >
             {t("settings.updates.upToDate")}
           </p>
           {/* A release exists that Homebrew cannot install yet. Reported here
               rather than as an offer, because the button would have nothing
               to do. */}
           {state.message && (
-            <p className="mt-1 text-sm text-muted-foreground">{tm(state.message)}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {tm(state.message)}
+            </p>
           )}
           {state.message && state.releaseNotes && (
             <ReleaseNotes notes={state.releaseNotes} />
           )}
           <div className="mt-2 flex flex-wrap gap-2">
-            <button
-              type="button"
+            <Button
               onClick={() =>
                 void run(
                   () => updateApi().checkForUpdates(),
@@ -346,20 +366,20 @@ export const SettingUpdates = () => {
                 )
               }
               disabled={isBusy}
-              className="rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded px-3 py-1.5 text-base"
             >
               {isBusy && (
                 <Spinner className="mr-2 inline size-4 align-[-2px]" />
               )}
               {t("settings.updates.checkButton")}
-            </button>
+            </Button>
             {/* Only alongside the tap-pending notice: main has pointed the
                 release URL at that published tag, and the message itself tells
                 the user the DMG is the way to get it now. Without a message
                 there is nothing newer on GitHub to open. */}
             {state.message && (
-              <button
-                type="button"
+              <Button
+                variant="outline"
                 onClick={() =>
                   void run(
                     () => updateApi().openUpdateRelease(),
@@ -367,10 +387,10 @@ export const SettingUpdates = () => {
                   )
                 }
                 disabled={isBusy}
-                className="rounded border border-border px-3 py-1.5 text-base text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded px-3 py-1.5 text-base text-foreground"
               >
                 {t("settings.updates.downloadButton")}
-              </button>
+              </Button>
             )}
           </div>
         </>
@@ -378,7 +398,11 @@ export const SettingUpdates = () => {
 
       {state.phase === "available" && (
         <>
-          <p className="mt-1 text-sm text-success" role="status" aria-live="polite">
+          <p
+            className="mt-1 text-sm text-success"
+            role="status"
+            aria-live="polite"
+          >
             {t("settings.updates.available", {
               version: latestVersion,
               currentVersion: state.currentVersion,
@@ -395,14 +419,15 @@ export const SettingUpdates = () => {
                 {t("settings.updates.installInstructions")}
               </p>
               <CommandBlock
-                command={'xattr -dr com.apple.quarantine "/Applications/FixLang.app"'}
+                command={
+                  'xattr -dr com.apple.quarantine "/Applications/FixLang.app"'
+                }
               />
             </>
           )}
           <div className="mt-2 flex flex-wrap gap-2">
             {state.canInstall && (
-              <button
-                type="button"
+              <Button
                 onClick={() =>
                   void run(
                     () => updateApi().installUpdate(),
@@ -410,14 +435,44 @@ export const SettingUpdates = () => {
                   )
                 }
                 disabled={isBusy}
-                className="rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded px-3 py-1.5 text-base"
               >
-                {isBusy && <Spinner className="mr-2 inline size-4 align-[-2px]" />}
+                {isBusy && (
+                  <Spinner className="mr-2 inline size-4 align-[-2px]" />
+                )}
                 {t("settings.updates.installNow")}
-              </button>
+              </Button>
             )}
-            <button
-              type="button"
+            {state.canInstall ? (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  void run(
+                    () => updateApi().openUpdateRelease(),
+                    msg("settings.updates.openReleaseFailed"),
+                  )
+                }
+                disabled={isBusy}
+                className="rounded px-3 py-1.5 text-base text-foreground"
+              >
+                {t("settings.updates.downloadButton")}
+              </Button>
+            ) : (
+              <Button
+                onClick={() =>
+                  void run(
+                    () => updateApi().openUpdateRelease(),
+                    msg("settings.updates.openReleaseFailed"),
+                  )
+                }
+                disabled={isBusy}
+                className="rounded px-3 py-1.5 text-base"
+              >
+                {t("settings.updates.downloadButton")}
+              </Button>
+            )}
+            <Button
+              variant="outline"
               onClick={() =>
                 void run(
                   () => updateApi().openUpdateRelease(),
@@ -425,32 +480,15 @@ export const SettingUpdates = () => {
                 )
               }
               disabled={isBusy}
-              className={
-                state.canInstall
-                  ? "rounded border border-border px-3 py-1.5 text-base text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
-                  : "rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
-              }
-            >
-              {t("settings.updates.downloadButton")}
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                void run(
-                  () => updateApi().openUpdateRelease(),
-                  msg("settings.updates.openReleaseFailed"),
-                )
-              }
-              disabled={isBusy}
-              className="rounded border border-border px-3 py-1.5 text-base text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded px-3 py-1.5 text-base text-foreground"
             >
               {t("settings.updates.viewReleases")}
-            </button>
+            </Button>
             {/* Still offered here: a newer release can land while this panel
                 sits on an older "available" result, and re-checking is also
                 the way out of a stale offer after a manual install. */}
-            <button
-              type="button"
+            <Button
+              variant="outline"
               onClick={() =>
                 void run(
                   () => updateApi().checkForUpdates(),
@@ -458,17 +496,21 @@ export const SettingUpdates = () => {
                 )
               }
               disabled={isBusy}
-              className="rounded border border-border px-3 py-1.5 text-base text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded px-3 py-1.5 text-base"
             >
               {t("settings.updates.checkButton")}
-            </button>
+            </Button>
           </div>
         </>
       )}
 
       {state.phase === "downloading" && (
         <div className="mt-1">
-          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
+          <p
+            className="text-sm text-muted-foreground"
+            role="status"
+            aria-live="polite"
+          >
             <Spinner className="mr-2 inline size-4 align-[-2px]" />
             {downloadTotal === null
               ? t("settings.updates.downloadingUnknownSize", {
@@ -512,13 +554,19 @@ export const SettingUpdates = () => {
               actually happening. */}
           {state.message
             ? tm(state.message)
-            : t("settings.updates.installingDescription", { version: latestVersion })}
+            : t("settings.updates.installingDescription", {
+                version: latestVersion,
+              })}
         </p>
       )}
 
       {state.phase === "restart-required" && (
         <>
-          <p className="mt-1 text-sm text-success" role="status" aria-live="polite">
+          <p
+            className="mt-1 text-sm text-success"
+            role="status"
+            aria-live="polite"
+          >
             {state.message
               ? tm(state.message)
               : t("settings.updates.restartRequiredMessage", {
@@ -526,8 +574,7 @@ export const SettingUpdates = () => {
                 })}
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <button
-              type="button"
+            <Button
               onClick={() =>
                 void run(
                   () => updateApi().restartForUpdate(),
@@ -535,13 +582,13 @@ export const SettingUpdates = () => {
                 )
               }
               disabled={actionPending}
-              className="rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded px-3 py-1.5 text-base"
             >
               {actionPending && (
                 <Spinner className="mr-2 inline size-4 align-[-2px]" />
               )}
               {t("settings.updates.restartButton")}
-            </button>
+            </Button>
           </div>
         </>
       )}
@@ -556,8 +603,7 @@ export const SettingUpdates = () => {
                 : t("settings.updates.genericError")}
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <button
-              type="button"
+            <Button
               onClick={() =>
                 void run(
                   () => updateApi().checkForUpdates(),
@@ -565,12 +611,12 @@ export const SettingUpdates = () => {
                 )
               }
               disabled={isBusy}
-              className="rounded bg-primary px-3 py-1.5 text-base text-foreground hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded px-3 py-1.5 text-base"
             >
               {t("settings.updates.tryAgain")}
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="outline"
               onClick={() =>
                 void run(
                   () => updateApi().openUpdateRelease(),
@@ -578,10 +624,10 @@ export const SettingUpdates = () => {
                 )
               }
               disabled={isBusy}
-              className="rounded border border-border px-3 py-1.5 text-base text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded px-3 py-1.5 text-base text-foreground"
             >
               {t("settings.updates.viewReleases")}
-            </button>
+            </Button>
           </div>
         </>
       )}
@@ -638,7 +684,9 @@ export const SettingUpdates = () => {
         <p className="mt-2 text-sm text-muted-foreground">
           {t("settings.updates.manualBlockedNotice")}
         </p>
-        <CommandBlock command={'xattr -dr com.apple.quarantine "/Applications/FixLang.app"'} />
+        <CommandBlock
+          command={'xattr -dr com.apple.quarantine "/Applications/FixLang.app"'}
+        />
 
         <p className="mt-2 text-sm text-muted-foreground">
           {t("settings.updates.unsignedNotice")}

@@ -12,17 +12,25 @@ html[data-theme="dracula"] {
   --popover-foreground: #f8f8f2;
   --primary: #ff79c6;
   --primary-foreground: #18181b;
+  --primary-hover: #ff85cb;
+  --primary-active: #ff91cf;
   --secondary: #373949;
   --secondary-foreground: #bfbfbf;
+  --secondary-hover: #313340;
+  --secondary-active: #2b2c38;
   --muted: #353848;
-  --muted-foreground: #a8a9ac;
+  --muted-foreground: #a7a7ab;
   --accent: #4b4e63;
   --accent-foreground: #f8f8f2;
   --destructive: #ff5555;
   --destructive-foreground: #18181b;
-  --border: #454651;
+  --destructive-hover: #ff605d;
+  --destructive-active: #ff6a64;
+  --border: #929399;
+  --control-border: #929399;
+  --card-control-border: #929399;
   --input: #393c4d;
-  --ring: #6272a4;
+  --ring: #6473a5;
   --success: #50fa7b;
   --success-foreground: #18181b;
   --warning: #f1fa8c;
@@ -33,6 +41,6 @@ html[data-theme="dracula"] {
   --chart-4: #8be9fd;
   --chart-5: #f1fa8c;
   --overlay-spinner: #ff79c6;
-  --overlay-spinner-track: #7f8092;
+  --overlay-spinner-track: #929399;
   --overlay-backdrop: rgba(40, 42, 54, 0.72);
 }

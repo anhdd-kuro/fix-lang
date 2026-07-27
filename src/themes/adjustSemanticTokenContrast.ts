@@ -9,9 +9,10 @@
  */
 import { colord, extend } from "colord";
 import a11yPlugin from "colord/plugins/a11y";
+import mixPlugin from "colord/plugins/mix";
 import type { SemanticTokenKey, SemanticTokens } from "./tmThemeTypes";
 
-extend([a11yPlugin]);
+extend([a11yPlugin, mixPlugin]);
 
 const MIN_BODY_CONTRAST = 4.5;
 const MIN_MUTED_CONTRAST = 3.5;
@@ -52,16 +53,21 @@ const ensureContrast = (
     return fg.toHex();
   }
 
-  const lighten = bg.isDark();
+  const darkAnchor = colord("#000000");
+  const lightAnchor = colord("#ffffff");
+  const anchor =
+    darkAnchor.contrast(bg) >= lightAnchor.contrast(bg)
+      ? darkAnchor
+      : lightAnchor;
 
-  for (let step = 1; step <= 24; step += 1) {
-    const adjusted = lighten ? fg.lighten(step * 0.04) : fg.darken(step * 0.04);
+  for (let step = 1; step <= 100; step += 1) {
+    const adjusted = fg.mix(anchor, step / 100);
     if (adjusted.contrast(bg) >= target) {
       return adjusted.toHex();
     }
   }
 
-  return lighten ? "#e4e4e7" : "#18181b";
+  return anchor.toHex();
 };
 
 /**
@@ -85,10 +91,16 @@ const CONTRAST_PAIRS: readonly (readonly [
   ["--foreground", "--background", MIN_BODY_CONTRAST],
   ["--card-foreground", "--card", MIN_BODY_CONTRAST],
   ["--popover-foreground", "--popover", MIN_BODY_CONTRAST],
-  ["--secondary-foreground", "--secondary", MIN_MUTED_CONTRAST],
+  ["--secondary-foreground", "--secondary", MIN_BODY_CONTRAST],
+  ["--secondary-foreground", "--secondary-hover", MIN_BODY_CONTRAST],
+  ["--secondary-foreground", "--secondary-active", MIN_BODY_CONTRAST],
   ["--accent-foreground", "--accent", MIN_MUTED_CONTRAST],
   ["--primary-foreground", "--primary", MIN_BODY_CONTRAST],
+  ["--primary-foreground", "--primary-hover", MIN_BODY_CONTRAST],
+  ["--primary-foreground", "--primary-active", MIN_BODY_CONTRAST],
   ["--destructive-foreground", "--destructive", MIN_BODY_CONTRAST],
+  ["--destructive-foreground", "--destructive-hover", MIN_BODY_CONTRAST],
+  ["--destructive-foreground", "--destructive-active", MIN_BODY_CONTRAST],
   ["--success-foreground", "--success", MIN_MUTED_CONTRAST],
   ["--warning-foreground", "--warning", MIN_MUTED_CONTRAST],
   ["--overlay-spinner-track", "--background", MIN_MUTED_CONTRAST],

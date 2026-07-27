@@ -12,15 +12,23 @@ html[data-theme="tc-tokyo-night-storm"] {
   --popover-foreground: #c0caf5;
   --primary: #7aa2f7;
   --primary-foreground: #18181b;
+  --primary-hover: #85a8f8;
+  --primary-active: #91aff9;
   --secondary: #414868;
-  --secondary-foreground: #a2aaca;
+  --secondary-foreground: #b3b9d4;
+  --secondary-hover: #3c425e;
+  --secondary-active: #363b55;
   --muted: #30354e;
-  --muted-foreground: #b0b4c7;
+  --muted-foreground: #acb0c4;
   --accent: #414868;
   --accent-foreground: #c0caf5;
   --destructive: #f7768e;
   --destructive-foreground: #18181b;
-  --border: #3a3f55;
+  --destructive-hover: #f98095;
+  --destructive-active: #fb8b9d;
+  --border: #8b8c9a;
+  --control-border: #9696a3;
+  --card-control-border: #9696a3;
   --input: #414868;
   --ring: #7aa2f7;
   --success: #9ece6a;
@@ -33,6 +41,6 @@ html[data-theme="tc-tokyo-night-storm"] {
   --chart-4: #7dcfff;
   --chart-5: #e0af68;
   --overlay-spinner: #7aa2f7;
-  --overlay-spinner-track: #7a82a4;
+  --overlay-spinner-track: #8b8c9a;
   --overlay-backdrop: rgba(36, 40, 59, 0.72);
 }

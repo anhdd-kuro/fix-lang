@@ -12,15 +12,23 @@ html[data-theme="brand-shopify-dark"] {
   --popover-foreground: #e3e5e7;
   --primary: #008060;
   --primary-foreground: #fafafa;
+  --primary-hover: #077759;
+  --primary-active: #0d6d52;
   --secondary: #1c1d1f;
   --secondary-foreground: #a7a8aa;
+  --secondary-hover: #151618;
+  --secondary-active: #0f0f10;
   --muted: #191b1e;
   --muted-foreground: #838586;
   --accent: #282c2e;
   --accent-foreground: #e3e5e7;
   --destructive: #d82c0d;
   --destructive-foreground: #fafafa;
-  --border: #2a2b2b;
+  --destructive-hover: #cc2b0e;
+  --destructive-active: #be2a0e;
+  --border: #6b6c6d;
+  --control-border: #6b6c6d;
+  --card-control-border: #6f7071;
   --input: #1c1d1f;
   --ring: #008060;
   --success: #95bf47;
@@ -33,6 +41,6 @@ html[data-theme="brand-shopify-dark"] {
   --chart-4: #47c1bf;
   --chart-5: #b98900;
   --overlay-spinner: #008060;
-  --overlay-spinner-track: #717373;
+  --overlay-spinner-track: #6b6c6d;
   --overlay-backdrop: rgba(11, 12, 13, 0.72);
 }
