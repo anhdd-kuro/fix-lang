@@ -27,8 +27,8 @@ html[data-theme="tc-posterpole-gray"] {
   --destructive-hover: #ae7878;
   --destructive-active: #b48080;
   --border: #414141;
-  --control-border: #414141;
-  --card-control-border: #414141;
+  --control-border: #6a6a66;
+  --card-control-border: #6a6a66;
   --input: #a5a59c;
   --ring: #6c7f93;
   --success: #778c73;

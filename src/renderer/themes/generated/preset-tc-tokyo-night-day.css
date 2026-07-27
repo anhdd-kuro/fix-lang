@@ -26,9 +26,9 @@ html[data-theme="tc-tokyo-night-day"] {
   --destructive-foreground: #17171a;
   --destructive-hover: #f63669;
   --destructive-active: #f8446f;
-  --border: #54555d;
-  --control-border: #54555d;
-  --card-control-border: #54555d;
+  --border: #8f8f96;
+  --control-border: #808087;
+  --card-control-border: #808087;
   --input: #a1a6c5;
   --ring: #2e7de9;
   --success: #587539;
@@ -41,6 +41,6 @@ html[data-theme="tc-tokyo-night-day"] {
   --chart-4: #007197;
   --chart-5: #8c6c3e;
   --overlay-spinner: #2e7de9;
-  --overlay-spinner-track: #54555d;
+  --overlay-spinner-track: #747479;
   --overlay-backdrop: rgba(225, 226, 231, 0.72);
 }

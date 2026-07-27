@@ -26,9 +26,9 @@ html[data-theme="tc-nightfox-dawnfox"] {
   --destructive-foreground: #0e0e10;
   --destructive-hover: #b96c81;
   --destructive-active: #be7589;
-  --border: #858284;
-  --control-border: #b4b3b4;
-  --card-control-border: #b4b3b4;
+  --border: #cec9c5;
+  --control-border: #9b92af;
+  --card-control-border: #9b92af;
   --input: #5f5695;
   --ring: #286983;
   --success: #618774;
@@ -41,6 +41,6 @@ html[data-theme="tc-nightfox-dawnfox"] {
   --chart-4: #56949f;
   --chart-5: #ea9d34;
   --overlay-spinner: #286983;
-  --overlay-spinner-track: #827f81;
+  --overlay-spinner-track: #83807d;
   --overlay-backdrop: rgba(250, 244, 237, 0.72);
 }

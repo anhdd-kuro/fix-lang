@@ -26,9 +26,9 @@ html[data-theme="github-light"] {
   --destructive-foreground: #fafafa;
   --destructive-hover: #be242e;
   --destructive-active: #b1242c;
-  --border: #7c7d7f;
-  --control-border: #7c7d7f;
-  --card-control-border: #7c7d7f;
+  --border: #c4c4c5;
+  --control-border: #bcbcbd;
+  --card-control-border: #b8b8ba;
   --input: #edf1f4;
   --ring: #2188ff;
   --success: #28a745;
@@ -41,6 +41,6 @@ html[data-theme="github-light"] {
   --chart-4: #1b7c83;
   --chart-5: #dbab09;
   --overlay-spinner: #2188ff;
-  --overlay-spinner-track: #7c7d7f;
+  --overlay-spinner-track: #878787;
   --overlay-backdrop: rgba(255, 255, 255, 0.72);
 }

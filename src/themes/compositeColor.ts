@@ -88,6 +88,45 @@ export const ensureContrastAgainst = (
 };
 
 /**
+ * Mirror of {@link ensureContrastAgainst}: pulls a border back toward the
+ * surface it sits on when the inherited color shouts against it. A light
+ * theme whose card is near-black (and a dark theme whose card is near-white)
+ * would otherwise inherit a page-level border at 10:1 or more, so the same
+ * token reads as a hairline on most surfaces and a glowing outline on those.
+ * The floor still wins: a mix is only accepted while it stays visible.
+ */
+export const capContrastAgainst = (
+  color: string,
+  surfaces: readonly string[],
+  maxRatio: number,
+  minRatio: number,
+): string => {
+  const start = colord(color);
+  const ratios = surfaces.map((surface) => start.contrast(colord(surface)));
+
+  if (Math.max(...ratios) <= maxRatio) {
+    return start.toHex();
+  }
+
+  const loudest = colord(surfaces[ratios.indexOf(Math.max(...ratios))]);
+
+  for (let step = 1; step <= 100; step += 1) {
+    const candidate = start.mix(loudest, step / 100);
+    const candidateRatios = surfaces.map((surface) =>
+      candidate.contrast(colord(surface)),
+    );
+    if (Math.min(...candidateRatios) < minRatio) {
+      break;
+    }
+    if (Math.max(...candidateRatios) <= maxRatio) {
+      return candidate.toHex();
+    }
+  }
+
+  return start.toHex();
+};
+
+/**
  * Pushes a surface away from `base` (lighter on dark themes, darker on light)
  * until its perceptual brightness differs by at least `minDelta` (0–1). A
  * surface already distinct enough is returned unchanged, preserving authentic

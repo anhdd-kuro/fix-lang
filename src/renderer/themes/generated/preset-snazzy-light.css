@@ -26,9 +26,9 @@ html[data-theme="snazzy-light"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #ff665e;
   --destructive-active: #ff7167;
-  --border: #7a7b7e;
-  --control-border: #7a7b7e;
-  --card-control-border: #7a7b7e;
+  --border: #bfc0c2;
+  --control-border: #b6b7b9;
+  --card-control-border: #b0b1b3;
   --input: #e7ecf1;
   --ring: #1698df;
   --success: #2dae58;
@@ -41,6 +41,6 @@ html[data-theme="snazzy-light"] {
   --chart-4: #13bbb7;
   --chart-5: #cf9c00;
   --overlay-spinner: #09a1ed;
-  --overlay-spinner-track: #7a7b7e;
+  --overlay-spinner-track: #838485;
   --overlay-backdrop: rgba(250, 251, 252, 0.72);
 }

@@ -26,9 +26,9 @@ html[data-theme="slack-ochin"] {
   --destructive-foreground: #0d0d0f;
   --destructive-hover: #e8473e;
   --destructive-active: #eb5145;
-  --border: #7d7d7f;
-  --control-border: #7d7d7f;
-  --card-control-border: #888889;
+  --border: #c3c3c4;
+  --control-border: #bdbdbe;
+  --card-control-border: #66707a;
   --input: #f0f0f0;
   --ring: #161f26;
   --success: #91b859;
@@ -41,6 +41,6 @@ html[data-theme="slack-ochin"] {
   --chart-4: #39adb5;
   --chart-5: #ffb62c;
   --overlay-spinner: #8ae773;
-  --overlay-spinner-track: #7d7d7f;
+  --overlay-spinner-track: #868687;
   --overlay-backdrop: rgba(255, 255, 255, 0.72);
 }
