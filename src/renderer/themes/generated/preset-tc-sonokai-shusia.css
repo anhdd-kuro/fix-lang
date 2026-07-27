@@ -27,8 +27,8 @@ html[data-theme="tc-sonokai-shusia"] {
   --destructive-hover: #fa6a8b;
   --destructive-active: #fc7592;
   --border: #4f4c50;
-  --control-border: #38373a;
-  --card-control-border: #38373a;
+  --control-border: #4f4c50;
+  --card-control-border: #4f4c50;
   --input: #848089;
   --ring: #7accd7;
   --success: #9ecd6f;

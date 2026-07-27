@@ -27,8 +27,8 @@ html[data-theme="tc-sonokai-default"] {
   --destructive-hover: #fe6983;
   --destructive-active: #ff748b;
   --border: #4e5055;
-  --control-border: #383a3e;
-  --card-control-border: #383a3e;
+  --control-border: #4e5055;
+  --card-control-border: #4e5055;
   --input: #7f8490;
   --ring: #76cce0;
   --success: #9ed072;

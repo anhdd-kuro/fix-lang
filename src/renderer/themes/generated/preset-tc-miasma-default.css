@@ -27,8 +27,8 @@ html[data-theme="tc-miasma-default"] {
   --destructive-hover: #5f503d;
   --destructive-active: #564837;
   --border: #444444;
-  --control-border: #bdbdbd;
-  --card-control-border: #bdbdbd;
+  --control-border: #444444;
+  --card-control-border: #444444;
   --input: #666666;
   --ring: #78824b;
   --success: #5f875f;

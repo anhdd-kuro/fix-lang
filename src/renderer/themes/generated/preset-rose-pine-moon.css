@@ -27,8 +27,8 @@ html[data-theme="rose-pine-moon"] {
   --destructive-hover: #ee7a99;
   --destructive-active: #f085a0;
   --border: #565465;
-  --control-border: #7e7c89;
-  --card-control-border: #898793;
+  --control-border: #565465;
+  --card-control-border: #5c5a6a;
   --input: #322f4a;
   --ring: #6f6c7d;
   --success: #3e8fb0;

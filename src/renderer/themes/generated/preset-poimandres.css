@@ -27,8 +27,8 @@ html[data-theme="poimandres"] {
   --destructive-hover: #d471a3;
   --destructive-active: #d87ca9;
   --border: #50525c;
-  --control-border: #797a82;
-  --card-control-border: #7e7f87;
+  --control-border: #50525c;
+  --card-control-border: #52535d;
   --input: #272b38;
   --ring: #89ddff;
   --success: #5de4c7;

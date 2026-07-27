@@ -27,8 +27,8 @@ html[data-theme="tc-noctis-default"] {
   --destructive-hover: #e96d3d;
   --destructive-active: #ec7547;
   --border: #2d3c3f;
-  --control-border: #b5babc;
-  --card-control-border: #b5babc;
+  --control-border: #2d3c3f;
+  --card-control-border: #2d3c3f;
   --input: #47686c;
   --ring: #49ace9;
   --success: #49e9a6;

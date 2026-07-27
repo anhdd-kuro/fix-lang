@@ -29,8 +29,8 @@ html[data-theme="brand-codex-dark"] {
   --destructive-hover: #f14e4b;
   --destructive-active: #f45a53;
   --border: #404040;
-  --control-border: #686868;
-  --card-control-border: #717171;
+  --control-border: #404040;
+  --card-control-border: #484848;
   --input: #1c1c1c;
   --ring: #10a37f;
   --success: #10a37f;

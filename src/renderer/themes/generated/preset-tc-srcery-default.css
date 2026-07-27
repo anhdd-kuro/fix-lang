@@ -27,8 +27,8 @@ html[data-theme="tc-srcery-default"] {
   --destructive-hover: #f13a2d;
   --destructive-active: #f34635;
   --border: #403f3c;
-  --control-border: #3a3937;
-  --card-control-border: #3a3937;
+  --control-border: #403f3c;
+  --card-control-border: #403f3c;
   --input: #918175;
   --ring: #2c78bf;
   --success: #519f50;

@@ -27,8 +27,8 @@ html[data-theme="brand-shopify-dark"] {
   --destructive-hover: #cc2b0e;
   --destructive-active: #be2a0e;
   --border: #3f3f40;
-  --control-border: #69696a;
-  --card-control-border: #707071;
+  --control-border: #3f3f40;
+  --card-control-border: #464646;
   --input: #1c1d1f;
   --ring: #008060;
   --success: #95bf47;

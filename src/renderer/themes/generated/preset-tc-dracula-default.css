@@ -27,8 +27,8 @@ html[data-theme="tc-dracula-default"] {
   --destructive-hover: #ff605d;
   --destructive-active: #ff6a64;
   --border: #494a55;
-  --control-border: #d0d0d3;
-  --card-control-border: #d0d0d3;
+  --control-border: #494a55;
+  --card-control-border: #494a55;
   --input: #6272a4;
   --ring: #bd93f9;
   --success: #50fa7b;

@@ -27,8 +27,8 @@ html[data-theme="one-dark-pro"] {
   --destructive-hover: #b53d35;
   --destructive-active: #a93a32;
   --border: #5d6066;
-  --control-border: #86888d;
-  --card-control-border: #8c8e93;
+  --control-border: #5d6066;
+  --card-control-border: #5e6167;
   --input: #1d1f23;
   --ring: #4d78cc;
   --success: #8cc265;

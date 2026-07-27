@@ -27,8 +27,8 @@ html[data-theme="houston"] {
   --destructive-hover: #f66485;
   --destructive-active: #f8708c;
   --border: #494b4f;
-  --control-border: #737578;
-  --card-control-border: #787a7d;
+  --control-border: #494b4f;
+  --card-control-border: #4e5054;
   --input: #272b33;
   --ring: #00daef;
   --success: #23d18b;

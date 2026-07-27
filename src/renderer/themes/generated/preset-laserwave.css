@@ -27,8 +27,8 @@ html[data-theme="laserwave"] {
   --destructive-hover: #ff4a80;
   --destructive-active: #ff5585;
   --border: #6b6770;
-  --control-border: #827e86;
-  --card-control-border: #87848b;
+  --control-border: #6b6770;
+  --card-control-border: #6b6770;
   --input: #3a3242;
   --ring: #eb64b9;
   --success: #74dfc4;

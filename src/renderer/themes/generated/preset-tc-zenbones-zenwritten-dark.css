@@ -27,8 +27,8 @@ html[data-theme="tc-zenbones-zenwritten-dark"] {
   --destructive-hover: #e27985;
   --destructive-active: #e5838d;
   --border: #4c4c4c;
-  --control-border: #858585;
-  --card-control-border: #858585;
+  --control-border: #585858;
+  --card-control-border: #585858;
   --input: #3d3839;
   --ring: #6099c0;
   --success: #819b69;

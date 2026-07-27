@@ -27,8 +27,8 @@ html[data-theme="catppuccin-macchiato"] {
   --destructive-hover: #ef919e;
   --destructive-active: #f29ba6;
   --border: #575969;
-  --control-border: #858692;
-  --card-control-border: #8a8b96;
+  --control-border: #575969;
+  --card-control-border: #5b5d6d;
   --input: #363a4f;
   --ring: #c6a0f6;
   --success: #a6da95;

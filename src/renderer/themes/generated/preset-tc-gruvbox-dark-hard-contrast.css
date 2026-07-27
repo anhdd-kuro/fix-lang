@@ -27,8 +27,8 @@ html[data-theme="tc-gruvbox-dark-hard-contrast"] {
   --destructive-hover: #bf241c;
   --destructive-active: #b2241b;
   --border: #404343;
-  --control-border: #393b3c;
-  --card-control-border: #393b3c;
+  --control-border: #404343;
+  --card-control-border: #404343;
   --input: #928374;
   --ring: #458588;
   --success: #98971a;

@@ -214,6 +214,7 @@ export const tmThemeToSemanticTokens = (theme: TmTheme): SemanticTokens => {
     accent,
   ].filter((surface) => contrastRatio(surface, background) < 3);
   const borderContrastFloor = isDark ? 1.26 : 3;
+  const controlBorderContrastFloor = isDark ? 1.55 : 3;
   const border = ensureContrastAgainst(
     blend(background, foreground, isDark ? 0.025 : 0.14),
     borderedSurfaces,
@@ -224,13 +225,13 @@ export const tmThemeToSemanticTokens = (theme: TmTheme): SemanticTokens => {
     border,
     [input, secondary],
     readableAgainst([input, secondary]),
-    3,
+    controlBorderContrastFloor,
   );
   const cardControlBorder = ensureContrastAgainst(
     border,
     [card],
     readableOn(card),
-    3,
+    controlBorderContrastFloor,
   );
   const focusRing = ensureContrastAgainst(
     ring,

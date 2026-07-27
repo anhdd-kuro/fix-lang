@@ -27,8 +27,8 @@ html[data-theme="nord"] {
   --destructive-hover: #c46b72;
   --destructive-active: #c8747a;
   --border: #636771;
-  --control-border: #8b8e95;
-  --card-control-border: #989ba1;
+  --control-border: #636771;
+  --card-control-border: #676b75;
   --input: #3b4252;
   --ring: #88c0d0;
   --success: #a3be8c;

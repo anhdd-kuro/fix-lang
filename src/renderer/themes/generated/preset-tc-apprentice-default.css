@@ -27,8 +27,8 @@ html[data-theme="tc-apprentice-default"] {
   --destructive-hover: #b66c6b;
   --destructive-active: #bc7574;
   --border: #575757;
-  --control-border: #919191;
-  --card-control-border: #919191;
+  --control-border: #636363;
+  --card-control-border: #636363;
   --input: #444444;
   --ring: #5f87af;
   --success: #5f875f;

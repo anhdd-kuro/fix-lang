@@ -27,8 +27,8 @@ html[data-theme="ayu-mirage"] {
   --destructive-hover: #ff716e;
   --destructive-active: #ff7b77;
   --border: #575a65;
-  --control-border: #85878f;
-  --card-control-border: #898b93;
+  --control-border: #575a65;
+  --card-control-border: #5b5e69;
   --input: #303748;
   --ring: #ffcc66;
   --success: #87d96c;

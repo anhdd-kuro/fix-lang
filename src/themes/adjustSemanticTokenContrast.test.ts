@@ -189,16 +189,19 @@ describe("adjustSemanticTokenContrast via tmThemeToSemanticTokens", () => {
         colord(tokens["--ring"]).contrast(background),
       ).toBeGreaterThanOrEqual(3);
       const borderContrastFloor = background.isDark() ? 1.26 : 3;
+      const controlBorderContrastFloor = background.isDark() ? 1.55 : 3;
       expect(border.contrast(background)).toBeGreaterThanOrEqual(
         borderContrastFloor,
       );
       expect(
         controlBorder.contrast(colord(tokens["--input"])),
-      ).toBeGreaterThanOrEqual(3);
+      ).toBeGreaterThanOrEqual(controlBorderContrastFloor);
       expect(
         controlBorder.contrast(colord(tokens["--secondary"])),
-      ).toBeGreaterThanOrEqual(3);
-      expect(cardControlBorder.contrast(card)).toBeGreaterThanOrEqual(3);
+      ).toBeGreaterThanOrEqual(controlBorderContrastFloor);
+      expect(cardControlBorder.contrast(card)).toBeGreaterThanOrEqual(
+        controlBorderContrastFloor,
+      );
       for (const surface of borderedSurfaces) {
         expect(
           Math.max(
