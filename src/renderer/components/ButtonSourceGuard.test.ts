@@ -1594,7 +1594,7 @@ const consumerContractRows = [
   ["BTN-073", "SITE-4d96952767063952-01", "LIVE-bfa98039be039f30", "src/renderer/components/SettingUpdates.tsx", 586, 13],
   ["BTN-074", "SITE-ca4cd81c50209cf6-01", "LIVE-5815552ee2096fa5", "src/renderer/components/SettingUpdates.tsx", 615, 13],
   ["BTN-075", "SITE-9ee18af8c12ab3af-04", "LIVE-f4ccea28d324b33f", "src/renderer/components/SettingUpdates.tsx", 627, 13],
-  ["BTN-076", "SITE-5d39d7c44db8e592-01", "LIVE-ac44e02610f78f35", "src/renderer/components/TrashButton.tsx", 23, 5],
+  ["BTN-076", "SITE-5d39d7c44db8e592-01", "LIVE-d2dc6b542709b453", "src/renderer/components/TrashButton.tsx", 23, 5],
   ["BTN-077", "SITE-cb7fadf7f125d0a4-01", "LIVE-22b46580f1bd13d0", "src/renderer/CorrectionResultWindow/index.tsx", 61, 9],
   ["BTN-078", "SITE-88c71677c4253b47-01", "LIVE-0186137c312ed90a", "src/renderer/MainWindow/App.tsx", 307, 15],
   ["BTN-079", "SITE-830c6d8f9e89de77-01", "LIVE-611bf10054534bd0", "src/renderer/MainWindow/App.tsx", 338, 17],
@@ -1613,7 +1613,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "37f9909ab59e35701841eb90d02eb4a53543d8d63a563610cf59acbaaa8d5576";
+  "49c9eb7e254da0778b182bd4e41531cc64f7a3204eef49779393d7332d110bed";
 
 const compareConsumers = (left: ButtonConsumer, right: ButtonConsumer): number =>
   left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column;
