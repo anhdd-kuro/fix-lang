@@ -26,9 +26,9 @@ html[data-theme="vitesse-black"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #cf7e7e;
   --destructive-active: #d38887;
-  --border: #646362;
-  --control-border: #646362;
-  --card-control-border: #686766;
+  --border: #555554;
+  --control-border: #626262;
+  --card-control-border: #676766;
   --input: #121212;
   --ring: #4d9375;
   --success: #4d9375;
@@ -41,6 +41,6 @@ html[data-theme="vitesse-black"] {
   --chart-4: #5eaab5;
   --chart-5: #e6cc77;
   --overlay-spinner: #499776;
-  --overlay-spinner-track: #676665;
+  --overlay-spinner-track: #666665;
   --overlay-backdrop: rgba(0, 0, 0, 0.72);
 }

@@ -26,9 +26,9 @@ html[data-theme="tc-gruvbox-dark"] {
   --destructive-foreground: #fafafa;
   --destructive-hover: #bf241c;
   --destructive-active: #b2241b;
-  --border: #797774;
-  --control-border: #3b3a3b;
-  --card-control-border: #3b3a3b;
+  --border: #6a6866;
+  --control-border: #3b3b3c;
+  --card-control-border: #3b3b3c;
   --input: #928374;
   --ring: #458588;
   --success: #98971a;
@@ -41,6 +41,6 @@ html[data-theme="tc-gruvbox-dark"] {
   --chart-4: #689d6a;
   --chart-5: #d79921;
   --overlay-spinner: #43878a;
-  --overlay-spinner-track: #7f7d7a;
+  --overlay-spinner-track: #807e7d;
   --overlay-backdrop: rgba(40, 40, 40, 0.72);
 }

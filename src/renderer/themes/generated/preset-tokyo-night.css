@@ -26,9 +26,9 @@ html[data-theme="tokyo-night"] {
   --destructive-foreground: #111113;
   --destructive-hover: #de5653;
   --destructive-active: #e2605b;
-  --border: #7c7d87;
-  --control-border: #7c7d87;
-  --card-control-border: #7c7d87;
+  --border: #6b6c76;
+  --control-border: #767780;
+  --card-control-border: #7a7a84;
   --input: #2a2a38;
   --ring: #666773;
   --success: #73daca;
@@ -41,6 +41,6 @@ html[data-theme="tokyo-night"] {
   --chart-4: #7dcfff;
   --chart-5: #e0af68;
   --overlay-spinner: #3d59a1;
-  --overlay-spinner-track: #7c7d87;
+  --overlay-spinner-track: #72737c;
   --overlay-backdrop: rgba(26, 27, 38, 0.72);
 }

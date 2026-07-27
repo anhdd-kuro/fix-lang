@@ -26,8 +26,8 @@ html[data-theme="vesper"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #ff8a88;
   --destructive-active: #ff9391;
-  --border: #6e6e6e;
-  --control-border: #6e6e6e;
+  --border: #5f5f5f;
+  --control-border: #6a6a6a;
   --card-control-border: #737373;
   --input: #1c1c1c;
   --ring: #ffc799;
@@ -41,6 +41,6 @@ html[data-theme="vesper"] {
   --chart-4: #ffc799;
   --chart-5: #ff8080;
   --overlay-spinner: #ffc799;
-  --overlay-spinner-track: #6e6e6e;
+  --overlay-spinner-track: #6c6c6c;
   --overlay-backdrop: rgba(16, 16, 16, 0.72);
 }

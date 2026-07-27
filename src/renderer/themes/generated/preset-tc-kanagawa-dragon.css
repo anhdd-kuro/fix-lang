@@ -26,9 +26,9 @@ html[data-theme="tc-kanagawa-dragon"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #c87c76;
   --destructive-active: #cc847e;
-  --border: #686867;
-  --control-border: #545454;
-  --card-control-border: #545454;
+  --border: #585858;
+  --control-border: #555555;
+  --card-control-border: #555555;
   --input: #a6a69c;
   --ring: #8ba4b0;
   --success: #8a9a7b;
@@ -41,6 +41,6 @@ html[data-theme="tc-kanagawa-dragon"] {
   --chart-4: #7aa89f;
   --chart-5: #c4b28a;
   --overlay-spinner: #7ba9c0;
-  --overlay-spinner-track: #70706f;
+  --overlay-spinner-track: #707070;
   --overlay-backdrop: rgba(24, 22, 22, 0.72);
 }

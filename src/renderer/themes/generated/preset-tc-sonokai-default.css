@@ -26,9 +26,9 @@ html[data-theme="tc-sonokai-default"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #fe6983;
   --destructive-active: #ff748b;
-  --border: #7d7d82;
-  --control-border: #39393d;
-  --card-control-border: #39393d;
+  --border: #6c6e72;
+  --control-border: #38393c;
+  --card-control-border: #38393c;
   --input: #7f8490;
   --ring: #76cce0;
   --success: #9ed072;
@@ -41,6 +41,6 @@ html[data-theme="tc-sonokai-default"] {
   --chart-4: #f39660;
   --chart-5: #e7c664;
   --overlay-spinner: #76cce0;
-  --overlay-spinner-track: #838388;
+  --overlay-spinner-track: #828487;
   --overlay-backdrop: rgba(44, 46, 52, 0.72);
 }

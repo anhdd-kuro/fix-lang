@@ -26,9 +26,9 @@ html[data-theme="synthwave-84"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #ff4f56;
   --destructive-active: #ff595d;
-  --border: #8a8792;
-  --control-border: #8a8792;
-  --card-control-border: #8a8792;
+  --border: #797683;
+  --control-border: #83808c;
+  --card-control-border: #8a8793;
   --input: #382c4c;
   --ring: #f97e72;
   --success: #72f1b8;
@@ -41,6 +41,6 @@ html[data-theme="synthwave-84"] {
   --chart-4: #03edf9;
   --chart-5: #f3e70f;
   --overlay-spinner: #f97e72;
-  --overlay-spinner-track: #8a8792;
+  --overlay-spinner-track: #7d7a86;
   --overlay-backdrop: rgba(38, 35, 53, 0.72);
 }

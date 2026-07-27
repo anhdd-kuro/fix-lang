@@ -26,9 +26,9 @@ html[data-theme="tc-tokyo-night-storm"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #f98095;
   --destructive-active: #fb8b9d;
-  --border: #8b8c9a;
-  --control-border: #9696a3;
-  --card-control-border: #9696a3;
+  --border: #787a89;
+  --control-border: #9697a3;
+  --card-control-border: #9697a3;
   --input: #414868;
   --ring: #7aa2f7;
   --success: #9ece6a;
@@ -41,6 +41,6 @@ html[data-theme="tc-tokyo-night-storm"] {
   --chart-4: #7dcfff;
   --chart-5: #e0af68;
   --overlay-spinner: #7aa2f7;
-  --overlay-spinner-track: #8b8c9a;
+  --overlay-spinner-track: #7c7e8c;
   --overlay-backdrop: rgba(36, 40, 59, 0.72);
 }

@@ -26,7 +26,7 @@ html[data-theme="tc-nightfox-default"] {
   --destructive-foreground: #080809;
   --destructive-hover: #cd5b75;
   --destructive-active: #d1647c;
-  --border: #9ca0a6;
+  --border: #888d95;
   --control-border: #a8abb1;
   --card-control-border: #a8abb1;
   --input: #575860;
@@ -41,6 +41,6 @@ html[data-theme="tc-nightfox-default"] {
   --chart-4: #63cdcf;
   --chart-5: #dbc074;
   --overlay-spinner: #719cd6;
-  --overlay-spinner-track: #9ca0a6;
+  --overlay-spinner-track: #888d95;
   --overlay-backdrop: rgba(25, 35, 48, 0.72);
 }

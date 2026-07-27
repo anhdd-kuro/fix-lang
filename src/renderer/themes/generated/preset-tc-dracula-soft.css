@@ -26,9 +26,9 @@ html[data-theme="tc-dracula-soft"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #f1706e;
   --destructive-active: #f37a77;
-  --border: #787981;
-  --control-border: #343439;
-  --card-control-border: #343439;
+  --border: #696a73;
+  --control-border: #35353a;
+  --card-control-border: #35353a;
   --input: #7b7f8b;
   --ring: #bf9eee;
   --success: #62e884;
@@ -41,6 +41,6 @@ html[data-theme="tc-dracula-soft"] {
   --chart-4: #97e1f1;
   --chart-5: #e7ee98;
   --overlay-spinner: #bf9eee;
-  --overlay-spinner-track: #808088;
+  --overlay-spinner-track: #7f8088;
   --overlay-backdrop: rgba(40, 42, 54, 0.72);
 }

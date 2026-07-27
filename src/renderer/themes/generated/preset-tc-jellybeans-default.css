@@ -26,9 +26,9 @@ html[data-theme="tc-jellybeans-default"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #e57c7b;
   --destructive-active: #e88684;
-  --border: #646464;
-  --control-border: #646464;
-  --card-control-border: #646464;
+  --border: #545454;
+  --control-border: #545454;
+  --card-control-border: #545454;
   --input: #bdbdbd;
   --ring: #97bedc;
   --success: #94b979;
@@ -41,6 +41,6 @@ html[data-theme="tc-jellybeans-default"] {
   --chart-4: #00988e;
   --chart-5: #ffba7b;
   --overlay-spinner: #97bedc;
-  --overlay-spinner-track: #6e6e6e;
+  --overlay-spinner-track: #6d6d6d;
   --overlay-backdrop: rgba(18, 18, 18, 0.72);
 }

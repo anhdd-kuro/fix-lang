@@ -26,9 +26,9 @@ html[data-theme="tc-deus-default"] {
   --destructive-foreground: #0f0f11;
   --destructive-hover: #d8585b;
   --destructive-active: #dc6262;
-  --border: #afb1b5;
-  --control-border: #bbbdc0;
-  --card-control-border: #bbbdc0;
+  --border: #9c9ea3;
+  --control-border: #bcbdc1;
+  --card-control-border: #bcbdc1;
   --input: #666666;
   --ring: #83a598;
   --success: #98c379;
@@ -41,6 +41,6 @@ html[data-theme="tc-deus-default"] {
   --chart-4: #70c0ba;
   --chart-5: #e5c07b;
   --overlay-spinner: #6fb99d;
-  --overlay-spinner-track: #afb1b5;
+  --overlay-spinner-track: #9c9ea3;
   --overlay-backdrop: rgba(44, 50, 59, 0.72);
 }

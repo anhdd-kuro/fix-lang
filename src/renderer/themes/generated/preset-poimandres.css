@@ -26,9 +26,9 @@ html[data-theme="poimandres"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #d471a3;
   --destructive-active: #d87ca9;
-  --border: #7f8189;
-  --control-border: #7f8189;
-  --card-control-border: #7f8189;
+  --border: #6e7079;
+  --control-border: #787a83;
+  --card-control-border: #7e7f88;
   --input: #272b38;
   --ring: #89ddff;
   --success: #5de4c7;
@@ -41,6 +41,6 @@ html[data-theme="poimandres"] {
   --chart-4: #89ddff;
   --chart-5: #fffac2;
   --overlay-spinner: #89ddff;
-  --overlay-spinner-track: #7f8189;
+  --overlay-spinner-track: #73757e;
   --overlay-backdrop: rgba(27, 30, 40, 0.72);
 }

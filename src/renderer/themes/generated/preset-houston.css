@@ -26,9 +26,9 @@ html[data-theme="houston"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #f66485;
   --destructive-active: #f8708c;
-  --border: #77787c;
-  --control-border: #77787c;
-  --card-control-border: #78797d;
+  --border: #67686c;
+  --control-border: #757579;
+  --card-control-border: #797a7d;
   --input: #272b33;
   --ring: #00daef;
   --success: #23d18b;
@@ -41,6 +41,6 @@ html[data-theme="houston"] {
   --chart-4: #24c0cf;
   --chart-5: #ffc368;
   --overlay-spinner: #4bf3c8;
-  --overlay-spinner-track: #77787c;
+  --overlay-spinner-track: #717275;
   --overlay-backdrop: rgba(23, 25, 30, 0.72);
 }

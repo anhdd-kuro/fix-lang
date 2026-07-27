@@ -26,9 +26,9 @@ html[data-theme="tc-apprentice-default"] {
   --destructive-foreground: #010101;
   --destructive-hover: #b66c6b;
   --destructive-active: #bc7574;
-  --border: #878787;
-  --control-border: #919191;
-  --card-control-border: #919191;
+  --border: #767676;
+  --control-border: #909090;
+  --card-control-border: #909090;
   --input: #444444;
   --ring: #5f87af;
   --success: #5f875f;
@@ -41,6 +41,6 @@ html[data-theme="tc-apprentice-default"] {
   --chart-4: #5fafaf;
   --chart-5: #ffffaf;
   --overlay-spinner: #5d87b1;
-  --overlay-spinner-track: #878787;
+  --overlay-spinner-track: #7c7c7c;
   --overlay-backdrop: rgba(38, 38, 38, 0.72);
 }

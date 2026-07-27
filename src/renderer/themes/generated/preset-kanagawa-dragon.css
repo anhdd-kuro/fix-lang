@@ -26,9 +26,9 @@ html[data-theme="kanagawa-dragon"] {
   --destructive-foreground: #040404;
   --destructive-hover: #ed3e32;
   --destructive-active: #ef4a3a;
-  --border: #7b7a79;
-  --control-border: #7b7a79;
-  --card-control-border: #7b7a79;
+  --border: #696868;
+  --control-border: #727171;
+  --card-control-border: #7a7a7a;
   --input: #282424;
   --ring: #5c6679;
   --success: #8a9a7b;
@@ -41,6 +41,6 @@ html[data-theme="kanagawa-dragon"] {
   --chart-4: #7aa89f;
   --chart-5: #c4b28a;
   --overlay-spinner: #518ca8;
-  --overlay-spinner-track: #7b7a79;
+  --overlay-spinner-track: #717070;
   --overlay-backdrop: rgba(24, 22, 22, 0.72);
 }

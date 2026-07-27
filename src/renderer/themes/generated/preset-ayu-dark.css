@@ -26,9 +26,9 @@ html[data-theme="ayu-dark"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #dc605f;
   --destructive-active: #e06b68;
-  --border: #74767a;
-  --control-border: #74767a;
-  --card-control-border: #74767a;
+  --border: #63666b;
+  --control-border: #707277;
+  --card-control-border: #72757a;
   --input: #1b222f;
   --ring: #e6b450;
   --success: #70bf56;
@@ -41,6 +41,6 @@ html[data-theme="ayu-dark"] {
   --chart-4: #93e2c8;
   --chart-5: #fdb04c;
   --overlay-spinner: #e6b450;
-  --overlay-spinner-track: #74767a;
+  --overlay-spinner-track: #6c6e73;
   --overlay-backdrop: rgba(16, 20, 28, 0.72);
 }
