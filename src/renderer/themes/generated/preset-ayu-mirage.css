@@ -26,9 +26,9 @@ html[data-theme="ayu-mirage"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #ff716e;
   --destructive-active: #ff7b77;
-  --border: #92949a;
-  --control-border: #92949a;
-  --card-control-border: #92949a;
+  --border: #878990;
+  --control-border: #878990;
+  --card-control-border: #8a8c93;
   --input: #303748;
   --ring: #ffcc66;
   --success: #87d96c;
@@ -41,6 +41,6 @@ html[data-theme="ayu-mirage"] {
   --chart-4: #93e2c8;
   --chart-5: #fcca60;
   --overlay-spinner: #ffcc66;
-  --overlay-spinner-track: #92949a;
+  --overlay-spinner-track: #878990;
   --overlay-backdrop: rgba(36, 41, 54, 0.72);
 }

@@ -26,9 +26,9 @@ html[data-theme="material-theme-ocean"] {
   --destructive-foreground: #fafafa;
   --destructive-hover: #61353b;
   --destructive-active: #563035;
-  --border: #787981;
-  --control-border: #787981;
-  --card-control-border: #787981;
+  --border: #6e6f77;
+  --control-border: #6e6f77;
+  --card-control-border: #74757d;
   --input: #1e212b;
   --ring: #80cbc4;
   --success: #c3e88d;
@@ -41,6 +41,6 @@ html[data-theme="material-theme-ocean"] {
   --chart-4: #89ddff;
   --chart-5: #ffcb6b;
   --overlay-spinner: #80cbc4;
-  --overlay-spinner-track: #787981;
+  --overlay-spinner-track: #6e6f77;
   --overlay-backdrop: rgba(15, 17, 26, 0.72);
 }

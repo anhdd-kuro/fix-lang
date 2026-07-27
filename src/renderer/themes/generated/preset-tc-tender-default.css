@@ -26,9 +26,9 @@ html[data-theme="tc-tender-default"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #f64459;
   --destructive-active: #f84f5f;
-  --border: #999999;
-  --control-border: #999999;
-  --card-control-border: #999999;
+  --border: #8f8f8f;
+  --control-border: #8f8f8f;
+  --card-control-border: #8f8f8f;
   --input: #1d1d1d;
   --ring: #b3deef;
   --success: #c9d05c;
@@ -41,6 +41,6 @@ html[data-theme="tc-tender-default"] {
   --chart-4: #73cef4;
   --chart-5: #ffc24b;
   --overlay-spinner: #b3deef;
-  --overlay-spinner-track: #999999;
+  --overlay-spinner-track: #8f8f8f;
   --overlay-backdrop: rgba(40, 40, 40, 0.72);
 }

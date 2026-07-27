@@ -26,9 +26,9 @@ html[data-theme="tc-tomorrow-night"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #d06f6e;
   --destructive-active: #d47977;
-  --border: #77787a;
-  --control-border: #77787a;
-  --card-control-border: #77787a;
+  --border: #6c6e6f;
+  --control-border: #6c6e6f;
+  --card-control-border: #6c6e6f;
   --input: #000000;
   --ring: #81a2be;
   --success: #b5bd68;
@@ -41,6 +41,6 @@ html[data-theme="tc-tomorrow-night"] {
   --chart-4: #8abeb7;
   --chart-5: #f0c674;
   --overlay-spinner: #7ea2c1;
-  --overlay-spinner-track: #77787a;
+  --overlay-spinner-track: #747677;
   --overlay-backdrop: rgba(29, 31, 33, 0.72);
 }

@@ -26,9 +26,9 @@ html[data-theme="tc-lucario-default"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #ec563e;
   --destructive-active: #ee5f46;
-  --border: #b0b6bd;
-  --control-border: #b0b6bd;
-  --card-control-border: #b0b6bd;
+  --border: #a4abb3;
+  --control-border: #a4abb3;
+  --card-control-border: #a4abb3;
   --input: #404d5b;
   --ring: #5c98cd;
   --success: #199c4b;
@@ -41,6 +41,6 @@ html[data-theme="tc-lucario-default"] {
   --chart-4: #8be0fd;
   --chart-5: #f0cc04;
   --overlay-spinner: #5c98cd;
-  --overlay-spinner-track: #b0b6bd;
+  --overlay-spinner-track: #a4abb3;
   --overlay-backdrop: rgba(43, 62, 80, 0.72);
 }

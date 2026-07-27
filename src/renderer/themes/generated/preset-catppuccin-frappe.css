@@ -26,9 +26,9 @@ html[data-theme="catppuccin-frappe"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #ea8b8c;
   --destructive-active: #ec9494;
-  --border: #a2a4b0;
-  --control-border: #a2a4b0;
-  --card-control-border: #a2a4b0;
+  --border: #9799a5;
+  --control-border: #9799a5;
+  --card-control-border: #989aa6;
   --input: #414559;
   --ring: #ca9ee6;
   --success: #a6d189;
@@ -41,6 +41,6 @@ html[data-theme="catppuccin-frappe"] {
   --chart-4: #81c8be;
   --chart-5: #e5c890;
   --overlay-spinner: #ca9ee6;
-  --overlay-spinner-track: #a2a4b0;
+  --overlay-spinner-track: #9799a5;
   --overlay-backdrop: rgba(48, 52, 70, 0.72);
 }

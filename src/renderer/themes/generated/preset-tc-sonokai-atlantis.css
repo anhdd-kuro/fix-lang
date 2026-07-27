@@ -26,7 +26,7 @@ html[data-theme="tc-sonokai-atlantis"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #ff707f;
   --destructive-active: #ff7a87;
-  --border: #86898f;
+  --border: #7b7e85;
   --control-border: #3d3e42;
   --card-control-border: #3d3e42;
   --input: #828a9a;
@@ -41,6 +41,6 @@ html[data-theme="tc-sonokai-atlantis"] {
   --chart-4: #f69c5e;
   --chart-5: #eacb64;
   --overlay-spinner: #72cce8;
-  --overlay-spinner-track: #86898f;
+  --overlay-spinner-track: #82858c;
   --overlay-backdrop: rgba(42, 47, 56, 0.72);
 }

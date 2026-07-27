@@ -26,9 +26,9 @@ html[data-theme="tc-gotham-default"] {
   --destructive-foreground: #fafafa;
   --destructive-hover: #b52f25;
   --destructive-active: #a92d23;
-  --border: #787f80;
-  --control-border: #787f80;
-  --card-control-border: #787f80;
+  --border: #707576;
+  --control-border: #707576;
+  --card-control-border: #707576;
   --input: #171f27;
   --ring: #3a6878;
   --success: #2aa889;
@@ -41,6 +41,6 @@ html[data-theme="tc-gotham-default"] {
   --chart-4: #33859e;
   --chart-5: #edb443;
   --overlay-spinner: #195466;
-  --overlay-spinner-track: #787f80;
+  --overlay-spinner-track: #707576;
   --overlay-backdrop: rgba(12, 16, 20, 0.72);
 }

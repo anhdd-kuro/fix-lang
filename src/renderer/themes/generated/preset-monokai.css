@@ -26,9 +26,9 @@ html[data-theme="monokai"] {
   --destructive-foreground: #fafafa;
   --destructive-hover: #b92659;
   --destructive-active: #ad2553;
-  --border: #949591;
-  --control-border: #949591;
-  --card-control-border: #949591;
+  --border: #898a86;
+  --control-border: #8d8e8a;
+  --card-control-border: #898a86;
   --input: #414339;
   --ring: #99947c;
   --success: #86b42b;
@@ -41,6 +41,6 @@ html[data-theme="monokai"] {
   --chart-4: #56adbc;
   --chart-5: #b3b42b;
   --overlay-spinner: #6a7ec8;
-  --overlay-spinner-track: #949591;
+  --overlay-spinner-track: #898a86;
   --overlay-backdrop: rgba(39, 40, 34, 0.72);
 }

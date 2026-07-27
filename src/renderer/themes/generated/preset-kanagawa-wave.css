@@ -26,9 +26,9 @@ html[data-theme="kanagawa-wave"] {
   --destructive-foreground: #040404;
   --destructive-hover: #ed3e32;
   --destructive-active: #ef4a3a;
-  --border: #8e8d90;
-  --control-border: #8e8d90;
-  --card-control-border: #8e8d90;
+  --border: #838286;
+  --control-border: #838286;
+  --card-control-border: #838286;
   --input: #303040;
   --ring: #626c7e;
   --success: #76946a;
@@ -41,6 +41,6 @@ html[data-theme="kanagawa-wave"] {
   --chart-4: #7aa89f;
   --chart-5: #c0a36e;
   --overlay-spinner: #518ca8;
-  --overlay-spinner-track: #8e8d90;
+  --overlay-spinner-track: #838286;
   --overlay-backdrop: rgba(31, 31, 40, 0.72);
 }

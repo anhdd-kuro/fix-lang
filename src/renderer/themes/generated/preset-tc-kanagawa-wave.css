@@ -26,9 +26,9 @@ html[data-theme="tc-kanagawa-wave"] {
   --destructive-foreground: #fafafa;
   --destructive-hover: #b63d3f;
   --destructive-active: #aa3a3b;
-  --border: #77767a;
-  --control-border: #cdccce;
-  --card-control-border: #cdccce;
+  --border: #6d6d71;
+  --control-border: #cccccd;
+  --card-control-border: #cccccd;
   --input: #727169;
   --ring: #7e9cd8;
   --success: #76946a;
@@ -41,6 +41,6 @@ html[data-theme="tc-kanagawa-wave"] {
   --chart-4: #7aa89f;
   --chart-5: #c0a36e;
   --overlay-spinner: #7e9cd8;
-  --overlay-spinner-track: #77767a;
+  --overlay-spinner-track: #76767a;
   --overlay-backdrop: rgba(31, 31, 40, 0.72);
 }

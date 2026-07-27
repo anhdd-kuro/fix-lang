@@ -26,7 +26,7 @@ html[data-theme="tc-dracula-default"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #ff605d;
   --destructive-active: #ff6a64;
-  --border: #83848c;
+  --border: #787981;
   --control-border: #d0d0d3;
   --card-control-border: #d0d0d3;
   --input: #6272a4;
@@ -41,6 +41,6 @@ html[data-theme="tc-dracula-default"] {
   --chart-4: #8be9fd;
   --chart-5: #f1fa8c;
   --overlay-spinner: #bd93f9;
-  --overlay-spinner-track: #83848c;
+  --overlay-spinner-track: #808088;
   --overlay-backdrop: rgba(40, 42, 54, 0.72);
 }

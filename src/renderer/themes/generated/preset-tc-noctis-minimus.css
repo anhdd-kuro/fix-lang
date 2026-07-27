@@ -26,9 +26,9 @@ html[data-theme="tc-noctis-minimus"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #c5907b;
   --destructive-active: #ca9885;
-  --border: #a3a7ab;
-  --control-border: #a3a7ab;
-  --card-control-border: #a3a7ab;
+  --border: #969b9f;
+  --control-border: #a2a7aa;
+  --card-control-border: #a2a7aa;
   --input: #425866;
   --ring: #6196b8;
   --success: #72c09f;
@@ -41,6 +41,6 @@ html[data-theme="tc-noctis-minimus"] {
   --chart-4: #72b7c0;
   --chart-5: #c8a984;
   --overlay-spinner: #6196b8;
-  --overlay-spinner-track: #a3a7ab;
+  --overlay-spinner-track: #969b9f;
   --overlay-backdrop: rgba(14, 25, 32, 0.72);
 }

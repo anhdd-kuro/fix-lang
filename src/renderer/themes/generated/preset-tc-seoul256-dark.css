@@ -26,9 +26,9 @@ html[data-theme="tc-seoul256-dark"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #da8f8f;
   --destructive-active: #dd9897;
-  --border: #b9b9b9;
-  --control-border: #b9b9b9;
-  --card-control-border: #b9b9b9;
+  --border: #acacac;
+  --control-border: #b7b7b7;
+  --card-control-border: #b7b7b7;
   --input: #626262;
   --ring: #85add4;
   --success: #5f865f;
@@ -41,6 +41,6 @@ html[data-theme="tc-seoul256-dark"] {
   --chart-4: #87afaf;
   --chart-5: #d8af5f;
   --overlay-spinner: #85add4;
-  --overlay-spinner-track: #b9b9b9;
+  --overlay-spinner-track: #acacac;
   --overlay-backdrop: rgba(58, 58, 58, 0.72);
 }

@@ -26,9 +26,9 @@ html[data-theme="tc-tomorrow-night-eighties"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #f48183;
   --destructive-active: #f68b8b;
-  --border: #888888;
-  --control-border: #888888;
-  --card-control-border: #888888;
+  --border: #7d7d7d;
+  --control-border: #7d7d7d;
+  --card-control-border: #7d7d7d;
   --input: #000000;
   --ring: #6699cc;
   --success: #99cc99;
@@ -41,6 +41,6 @@ html[data-theme="tc-tomorrow-night-eighties"] {
   --chart-4: #66cccc;
   --chart-5: #ffcc66;
   --overlay-spinner: #6699cc;
-  --overlay-spinner-track: #888888;
+  --overlay-spinner-track: #838383;
   --overlay-backdrop: rgba(45, 45, 45, 0.72);
 }

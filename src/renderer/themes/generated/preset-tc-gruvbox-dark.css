@@ -26,7 +26,7 @@ html[data-theme="tc-gruvbox-dark"] {
   --destructive-foreground: #fafafa;
   --destructive-hover: #bf241c;
   --destructive-active: #b2241b;
-  --border: #84827f;
+  --border: #797774;
   --control-border: #3b3a3b;
   --card-control-border: #3b3a3b;
   --input: #928374;
@@ -41,6 +41,6 @@ html[data-theme="tc-gruvbox-dark"] {
   --chart-4: #689d6a;
   --chart-5: #d79921;
   --overlay-spinner: #43878a;
-  --overlay-spinner-track: #84827f;
+  --overlay-spinner-track: #7f7d7a;
   --overlay-backdrop: rgba(40, 40, 40, 0.72);
 }

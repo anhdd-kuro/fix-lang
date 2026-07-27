@@ -26,9 +26,9 @@ html[data-theme="tc-shades-of-purple-default"] {
   --destructive-foreground: #0c0c0e;
   --destructive-hover: #e74740;
   --destructive-active: #ea5147;
-  --border: #b0afbc;
-  --control-border: #b0afbc;
-  --card-control-border: #b0afbc;
+  --border: #a6a4b3;
+  --control-border: #b1afbc;
+  --card-control-border: #b1afbc;
   --input: #5c5c61;
   --ring: #7857fe;
   --success: #3ad900;
@@ -41,6 +41,6 @@ html[data-theme="tc-shades-of-purple-default"] {
   --chart-4: #80fcff;
   --chart-5: #fad000;
   --overlay-spinner: #7857fe;
-  --overlay-spinner-track: #b0afbc;
+  --overlay-spinner-track: #a6a4b3;
   --overlay-backdrop: rgba(30, 30, 63, 0.72);
 }

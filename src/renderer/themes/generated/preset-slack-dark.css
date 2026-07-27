@@ -26,9 +26,9 @@ html[data-theme="slack-dark"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #f14e4b;
   --destructive-active: #f45a53;
-  --border: #8c8c8c;
-  --control-border: #8c8c8c;
-  --card-control-border: #8c8c8c;
+  --border: #838383;
+  --control-border: #838383;
+  --card-control-border: #878787;
   --input: #313131;
   --ring: #0077b5;
   --success: #ecb22e;
@@ -41,6 +41,6 @@ html[data-theme="slack-dark"] {
   --chart-4: #eab308;
   --chart-5: #ef4444;
   --overlay-spinner: #1d978d;
-  --overlay-spinner-track: #8c8c8c;
+  --overlay-spinner-track: #838383;
   --overlay-backdrop: rgba(34, 34, 34, 0.72);
 }

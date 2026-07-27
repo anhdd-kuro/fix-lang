@@ -26,7 +26,7 @@ html[data-theme="tc-miasma-default"] {
   --destructive-foreground: #fafafa;
   --destructive-hover: #5f503d;
   --destructive-active: #564837;
-  --border: #bdbdbc;
+  --border: #b1b1b0;
   --control-border: #bdbdbc;
   --card-control-border: #bdbdbc;
   --input: #666666;
@@ -41,6 +41,6 @@ html[data-theme="tc-miasma-default"] {
   --chart-4: #c9a554;
   --chart-5: #b36d43;
   --overlay-spinner: #7d8a43;
-  --overlay-spinner-track: #bdbdbc;
+  --overlay-spinner-track: #b1b1b0;
   --overlay-backdrop: rgba(34, 34, 34, 0.72);
 }

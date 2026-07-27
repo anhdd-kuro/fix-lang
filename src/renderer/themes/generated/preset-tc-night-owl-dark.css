@@ -26,7 +26,7 @@ html[data-theme="tc-night-owl-dark"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #f15d58;
   --destructive-active: #f46760;
-  --border: #a3a9b0;
+  --border: #989ea6;
   --control-border: #a3a9b0;
   --card-control-border: #a3a9b0;
   --input: #575656;
@@ -41,6 +41,6 @@ html[data-theme="tc-night-owl-dark"] {
   --chart-4: #21c7a8;
   --chart-5: #c5e478;
   --overlay-spinner: #82aaff;
-  --overlay-spinner-track: #a3a9b0;
+  --overlay-spinner-track: #989ea6;
   --overlay-backdrop: rgba(1, 22, 39, 0.72);
 }

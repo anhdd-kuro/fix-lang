@@ -26,7 +26,7 @@ html[data-theme="tc-github-dark-dimmed"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #f6796f;
   --destructive-active: #f88378;
-  --border: #767a80;
+  --border: #6b7076;
   --control-border: #c6c7ca;
   --card-control-border: #c6c7ca;
   --input: #636e7b;
@@ -41,6 +41,6 @@ html[data-theme="tc-github-dark-dimmed"] {
   --chart-4: #39c5cf;
   --chart-5: #c69026;
   --overlay-spinner: #539bf5;
-  --overlay-spinner-track: #767a80;
+  --overlay-spinner-track: #73787e;
   --overlay-backdrop: rgba(28, 33, 40, 0.72);
 }

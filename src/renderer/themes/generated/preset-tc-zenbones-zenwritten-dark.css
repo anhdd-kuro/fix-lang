@@ -26,9 +26,9 @@ html[data-theme="tc-zenbones-zenwritten-dark"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #e27985;
   --destructive-active: #e5838d;
-  --border: #838383;
-  --control-border: #848484;
-  --card-control-border: #848484;
+  --border: #7b7b7b;
+  --control-border: #838383;
+  --card-control-border: #838383;
   --input: #3d3839;
   --ring: #6099c0;
   --success: #819b69;
@@ -41,6 +41,6 @@ html[data-theme="tc-zenbones-zenwritten-dark"] {
   --chart-4: #66a5ad;
   --chart-5: #b77e64;
   --overlay-spinner: #6099c0;
-  --overlay-spinner-track: #838383;
+  --overlay-spinner-track: #7b7b7b;
   --overlay-backdrop: rgba(25, 25, 25, 0.72);
 }

@@ -26,9 +26,9 @@ html[data-theme="tc-nightfox-default"] {
   --destructive-foreground: #080809;
   --destructive-hover: #cd5b75;
   --destructive-active: #d1647c;
-  --border: #a8acb2;
-  --control-border: #a8acb2;
-  --card-control-border: #a8acb2;
+  --border: #9ca0a6;
+  --control-border: #a8abb1;
+  --card-control-border: #a8abb1;
   --input: #575860;
   --ring: #719cd6;
   --success: #81b29a;
@@ -41,6 +41,6 @@ html[data-theme="tc-nightfox-default"] {
   --chart-4: #63cdcf;
   --chart-5: #dbc074;
   --overlay-spinner: #719cd6;
-  --overlay-spinner-track: #a8acb2;
+  --overlay-spinner-track: #9ca0a6;
   --overlay-backdrop: rgba(25, 35, 48, 0.72);
 }

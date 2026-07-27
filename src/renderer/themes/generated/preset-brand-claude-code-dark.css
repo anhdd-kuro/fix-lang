@@ -26,9 +26,9 @@ html[data-theme="brand-claude-code-dark"] {
   --destructive-foreground: #18181b;
   --destructive-hover: #e85855;
   --destructive-active: #eb625d;
-  --border: #7e7d7d;
-  --control-border: #7e7d7d;
-  --card-control-border: #7e7d7d;
+  --border: #747372;
+  --control-border: #747372;
+  --card-control-border: #797877;
   --input: #252322;
   --ring: #d97757;
   --success: #7fd962;
@@ -41,6 +41,6 @@ html[data-theme="brand-claude-code-dark"] {
   --chart-4: #56d4dd;
   --chart-5: #d4a017;
   --overlay-spinner: #d97757;
-  --overlay-spinner-track: #7e7d7d;
+  --overlay-spinner-track: #747372;
   --overlay-backdrop: rgba(20, 20, 19, 0.72);
 }

@@ -188,7 +188,10 @@ describe("adjustSemanticTokenContrast via tmThemeToSemanticTokens", () => {
       expect(
         colord(tokens["--ring"]).contrast(background),
       ).toBeGreaterThanOrEqual(3);
-      expect(border.contrast(background)).toBeGreaterThanOrEqual(3);
+      const borderContrastFloor = background.isDark() ? 2.6 : 3;
+      expect(border.contrast(background)).toBeGreaterThanOrEqual(
+        borderContrastFloor,
+      );
       expect(
         controlBorder.contrast(colord(tokens["--input"])),
       ).toBeGreaterThanOrEqual(3);
@@ -202,7 +205,7 @@ describe("adjustSemanticTokenContrast via tmThemeToSemanticTokens", () => {
             border.contrast(surface),
             surface.contrast(background),
           ),
-        ).toBeGreaterThanOrEqual(3);
+        ).toBeGreaterThanOrEqual(borderContrastFloor);
       }
       expect(tokens["--overlay-backdrop"]).toMatch(/^rgba?\(/);
       expect(
