@@ -174,22 +174,42 @@ describe("streaks", () => {
 });
 
 describe("peakHour", () => {
-  it("returns the busiest hour; empty → null", () => {
+  it("returns the start of the busiest 2-hour window; empty → null", () => {
     expect(peakHour([])).toBeNull();
     const entries = [
       entry({ timestamp: at(2024, 6, 15, 9) }),
       entry({ timestamp: at(2024, 6, 16, 9) }),
+      entry({ timestamp: at(2024, 6, 17, 10) }),
+      entry({ timestamp: at(2024, 6, 18, 14) }),
+    ];
+    expect(peakHour(entries)).toBe(9);
+  });
+
+  it("counts activity across both hours in the window", () => {
+    const entries = [
+      entry({ timestamp: at(2024, 6, 15, 9) }),
+      entry({ timestamp: at(2024, 6, 16, 10) }),
       entry({ timestamp: at(2024, 6, 17, 14) }),
     ];
     expect(peakHour(entries)).toBe(9);
   });
 
-  it("resolves ties to the lowest hour", () => {
+  it("resolves ties to the lowest start hour", () => {
     const entries = [
       entry({ timestamp: at(2024, 6, 15, 8) }),
-      entry({ timestamp: at(2024, 6, 16, 20) }),
+      entry({ timestamp: at(2024, 6, 16, 9) }),
+      entry({ timestamp: at(2024, 6, 17, 20) }),
     ];
     expect(peakHour(entries)).toBe(8);
+  });
+
+  it("wraps midnight for the 23:00–01:00 window", () => {
+    const entries = [
+      entry({ timestamp: at(2024, 6, 15, 23) }),
+      entry({ timestamp: at(2024, 6, 16, 0) }),
+      entry({ timestamp: at(2024, 6, 17, 12) }),
+    ];
+    expect(peakHour(entries)).toBe(23);
   });
 });
 

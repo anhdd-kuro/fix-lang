@@ -160,11 +160,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             type="button"
             variant="ghost"
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground text-2xl font-bold"
+            className="rounded-md p-1.5 text-muted-foreground hover:text-foreground"
             aria-label={t("settings.modal.close")}
             title={t("settings.modal.close")}
           >
-            &times;
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
           </Button>
         </div>
 

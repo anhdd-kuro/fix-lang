@@ -136,7 +136,7 @@ export const streaks = (entries: HistoryEntry[], now: Date): Streaks => {
   return { current, longest };
 };
 
-/** Busiest local hour-of-day (0–23). Ties resolved to the lowest hour. Empty → null. */
+/** Busiest consecutive 2-hour local window. Ties resolved to the lowest start hour. Empty → null. */
 export const peakHour = (entries: HistoryEntry[]): number | null => {
   if (entries.length === 0) {
     return null;
@@ -145,13 +145,19 @@ export const peakHour = (entries: HistoryEntry[]): number | null => {
   for (const e of entries) {
     counts[new Date(e.timestamp).getHours()] += 1;
   }
-  let best = 0;
+  const windowCount = (start: number): number =>
+    counts[start] + counts[(start + 1) % 24];
+
+  let bestStart = 0;
+  let bestCount = windowCount(0);
   for (let h = 1; h < 24; h++) {
-    if (counts[h] > counts[best]) {
-      best = h;
+    const count = windowCount(h);
+    if (count > bestCount) {
+      bestStart = h;
+      bestCount = count;
     }
   }
-  return counts[best] === 0 ? null : best;
+  return bestCount === 0 ? null : bestStart;
 };
 
 /**
