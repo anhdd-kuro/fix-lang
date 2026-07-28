@@ -1,9 +1,10 @@
 /**
  * @file provisioningKeyStore.ts
- * @description Secure store for the OpenRouter PROVISIONING (admin) key.
+ * @description Secure store for provider ADMIN keys — OpenRouter's provisioning
+ * key and OpenAI's Admin API key. Every accessor takes an explicit `ProviderId`.
  *
- * SECURITY (main-process only): this key can create/delete OpenRouter API keys
- * and spend money. It is persisted ONLY as OS-encrypted ciphertext via Electron
+ * SECURITY (main-process only): such a key can read an account's whole billing
+ * history and, for OpenRouter, create/delete API keys and spend money. It is persisted ONLY as OS-encrypted ciphertext via Electron
  * `safeStorage` (Keychain on macOS), written to a dedicated file under
  * `app.getPath("userData")`. It is NEVER stored in the hardcoded-key
  * electron-store files (apiStore/historyStore/keybindingStore use a public
@@ -23,6 +24,7 @@ import {
   hasProfileSecret,
   setProfileSecret,
 } from "~/stores/profileSecretStore";
+import type { ProviderId } from "~/shared/providers";
 
 /** Absolute path to the encrypted provisioning-key file in userData. */
 export const getProvisioningKeyPath = (): string =>
@@ -178,36 +180,57 @@ const activeProfileId = async (): Promise<string | null> => {
 };
 
 /*
- * The hardcoded "openrouter" below is deliberate: only OpenRouter has a
- * provisioning key, so `getProfileSecretPath` throws for any other provider
- * paired with `"provisioning"`. Multi-provider callers want
- * `getActiveProfileSecret(provider, kind)` in `./profileSecretStore`.
+ * `provider` is explicit on every accessor below — never defaulted. A defaulted
+ * provider would write OpenAI's admin key into OpenRouter's slot on any missed
+ * call site: no error, no log, just the wrong account queried with the wrong
+ * key. `getProfileSecretPath` throws for a provider whose
+ * PROVIDER_SUPPORTS_PROVISIONING_KEY is false, so callers must gate on it.
+ *
+ * The legacy global file predates profiles AND predates multi-provider admin
+ * keys, so it only ever held the OpenRouter key — it is consulted for
+ * `openrouter` alone.
  */
 
+const legacyFallbackApplies = (provider: ProviderId): boolean =>
+  provider === "openrouter";
+
 export const setProvisioningKey = async (
+  provider: ProviderId,
   raw: string,
 ): Promise<SecretWriteResult> => {
   const profileId = await activeProfileId();
   if (!profileId) return { success: false, error: "No active profile" };
-  return setProfileSecret(profileId, "openrouter", "provisioning", raw);
+  return setProfileSecret(profileId, provider, "provisioning", raw);
 };
 
-export const getProvisioningKey = async (): Promise<string | null> => {
+export const getProvisioningKey = async (
+  provider: ProviderId,
+): Promise<string | null> => {
   const profileId = await activeProfileId();
-  return profileId
-    ? getProfileSecret(profileId, "openrouter", "provisioning")
-    : getLegacyProvisioningKey();
+  if (profileId) {
+    return getProfileSecret(profileId, provider, "provisioning");
+  }
+  return legacyFallbackApplies(provider) ? getLegacyProvisioningKey() : null;
 };
 
-export const hasProvisioningKey = async (): Promise<boolean> => {
+export const hasProvisioningKey = async (
+  provider: ProviderId,
+): Promise<boolean> => {
   const profileId = await activeProfileId();
-  return profileId
-    ? hasProfileSecret(profileId, "openrouter", "provisioning")
-    : hasLegacyProvisioningKey();
+  if (profileId) {
+    return hasProfileSecret(profileId, provider, "provisioning");
+  }
+  return legacyFallbackApplies(provider) ? hasLegacyProvisioningKey() : false;
 };
 
-export const clearProvisioningKey = async (): Promise<SecretWriteResult> => {
+export const clearProvisioningKey = async (
+  provider: ProviderId,
+): Promise<SecretWriteResult> => {
   const profileId = await activeProfileId();
-  if (!profileId) return clearLegacyProvisioningKey();
-  return clearProfileSecret(profileId, "openrouter", "provisioning");
+  if (profileId) {
+    return clearProfileSecret(profileId, provider, "provisioning");
+  }
+  return legacyFallbackApplies(provider)
+    ? clearLegacyProvisioningKey()
+    : { success: true };
 };

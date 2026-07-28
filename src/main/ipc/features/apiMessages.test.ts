@@ -93,7 +93,7 @@ vi.mock("~/main/ai.request", () => ({
   fetchModelsForProviders: fetchModelsForProvidersMock,
 }));
 vi.mock("~/main/llm/models/discover", () => ({ probeOllama: probeOllamaMock }));
-vi.mock("~/main/llm/lmstudio/client", () => ({ probeLmStudio: probeLmStudioMock }));
+vi.mock("~/main/llm/providers/lmstudio/client", () => ({ probeLmStudio: probeLmStudioMock }));
 vi.mock("~/main/keybindings", () => ({ reloadHotkeys: vi.fn() }));
 vi.mock("~/main/llm", () => ({
   ollamaClient: { pull: vi.fn(), delete: vi.fn(), chat: vi.fn() },
@@ -190,17 +190,17 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
     expect(ja).not.toBe(en);
   });
 
-  it("fetch-provider-models: a provisioning key on a non-OpenRouter provider is a translatable Message", async () => {
+  it("fetch-provider-models: an admin key on a provider without that slot is a translatable Message", async () => {
     const handler = handlers.get("fetch-provider-models");
     const result = (await handler?.(undefined, {
-      provider: "openai",
-      provisioningKey: "sk-or-x",
+      provider: "lmstudio",
+      provisioningKey: "sk-x",
     })) as { success: boolean; error?: unknown };
 
     expect(result.success).toBe(false);
     const { en, ja } = resolveBoth(result.error);
-    expect(en).toBe(tEn("models.providerSetup.error.provisioningKeyOpenRouterOnly"));
-    expect(ja).toBe(tJa("models.providerSetup.error.provisioningKeyOpenRouterOnly"));
+    expect(en).toBe(tEn("models.providerSetup.error.adminKeyUnsupported"));
+    expect(ja).toBe(tJa("models.providerSetup.error.adminKeyUnsupported"));
     expect(ja).not.toBe(en);
   });
 

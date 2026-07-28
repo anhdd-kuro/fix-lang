@@ -7,6 +7,7 @@ import { DEFAULT_KEY_BINDINGS } from "~/const";
 import { reloadHotkeys, unregisterHotkeys } from "~/main/keybindings";
 import { messageLabel } from "~/shared/i18n/message";
 import { normalizeCorrectionOutputMode } from "~/shared/outputMode";
+import { supportsAdminKey } from "~/shared/providers";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { outputModeStore } from "~/stores/outputModeStore";
 import {
@@ -107,17 +108,25 @@ export const registerSettingsHandlers = () => {
   );
 
   // ---------------------------------------------------------------------------
-  // OpenRouter provisioning (admin) key — safeStorage-backed (issue #55).
+  // Provider admin keys — OpenRouter provisioning, OpenAI Admin (issues #55/#59).
   // The decrypted key NEVER crosses to the renderer; only set/clear/has are
-  // exposed. No "get-provisioning-key" IPC by design — in-main callers (#59)
-  // use getProvisioningKey() directly. The key is never logged.
+  // exposed. No "get-provisioning-key" IPC by design — in-main callers use
+  // getProvisioningKey(provider) directly. The key is never logged.
+  //
+  // `provider` is required on every channel and validated here as well as in
+  // preload: an unvalidated or defaulted provider would silently write one
+  // account's admin key into another provider's slot.
   // ---------------------------------------------------------------------------
   ipcMain.handle(
     "set-provisioning-key",
-    async (_event: Electron.IpcMainInvokeEvent, raw: unknown) => {
-      // Defense-in-depth: re-validate the IPC payload type in main (preload
-      // also guards). Reject non-strings without touching the store.
-      if (typeof raw !== "string") {
+    async (
+      _event: Electron.IpcMainInvokeEvent,
+      rawProvider: unknown,
+      raw: unknown,
+    ) => {
+      // Defense-in-depth: re-validate the IPC payload in main (preload also
+      // guards). Reject bad provider/non-strings without touching the store.
+      if (!supportsAdminKey(rawProvider) || typeof raw !== "string") {
         return {
           success: false,
           error: messageLabel("settings.general.provisioningKey.invalid"),
@@ -128,19 +137,27 @@ export const registerSettingsHandlers = () => {
       // via `wrapStoreResult` rather than guessed at as translatable, and it
       // keeps this handler's `error` field uniformly `Label`-shaped so the
       // preload boundary's `asLabel()` never has to drop a legitimate string.
-      return wrapStoreResult(await setProvisioningKey(raw));
+      return wrapStoreResult(await setProvisioningKey(rawProvider, raw));
     },
   );
 
   ipcMain.handle(
     "clear-provisioning-key",
-    async (_event: Electron.IpcMainInvokeEvent) =>
-      wrapStoreResult(await clearProvisioningKey()),
+    async (_event: Electron.IpcMainInvokeEvent, rawProvider: unknown) => {
+      if (!supportsAdminKey(rawProvider)) {
+        return {
+          success: false,
+          error: messageLabel("settings.general.provisioningKey.invalid"),
+        };
+      }
+      return wrapStoreResult(await clearProvisioningKey(rawProvider));
+    },
   );
 
   ipcMain.handle(
     "has-provisioning-key",
-    async (_event: Electron.IpcMainInvokeEvent) => hasProvisioningKey(),
+    async (_event: Electron.IpcMainInvokeEvent, rawProvider: unknown) =>
+      supportsAdminKey(rawProvider) ? hasProvisioningKey(rawProvider) : false,
   );
 
   // Settings notifications — re-broadcast to every window (Main, Tray,

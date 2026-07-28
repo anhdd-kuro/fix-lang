@@ -68,7 +68,7 @@ vi.mock("~/stores/profileSecretStore", () => ({
 vi.mock("~/main/llm/models/discover", () => ({
   getLocalModels: vi.fn().mockResolvedValue([]),
 }));
-vi.mock("../llm", () => ({
+vi.mock("~/main/llm/providers/ollama/client", () => ({
   ollamaClient: { chat: vi.fn() },
 }));
 import type { Model, Profile, SettingsStore } from "~/stores/apiStore";

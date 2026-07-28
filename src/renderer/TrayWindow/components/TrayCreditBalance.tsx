@@ -8,7 +8,7 @@ import {
 } from "../../components/openRouterFormat";
 import { useOpenRouterAnalytics } from "../../hooks/useOpenRouterAnalytics";
 import { useI18n } from "../../i18n/useI18n";
-import type { CardResult, Credits } from "~/main/llm/openrouter/parsers";
+import type { CardResult, Credits } from "~/main/llm/providers/openrouter/parsers";
 
 const openOpenRouterTab = (): void => {
   window.electronAPI.hideTray();

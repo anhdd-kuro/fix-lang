@@ -9,7 +9,7 @@
  * key-free combined IPC and reads `hasProvisioningKey()` for the empty state.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { OpenRouterAnalytics } from "~/main/llm/openrouter/client";
+import type { OpenRouterAnalytics } from "~/main/llm/providers/openrouter/client";
 import type { OpenRouterRange } from "~/preload/features/openrouter";
 
 /** Pure: is a cache entry stamped at `ts` still fresh at `now` within `ttlMs`? */
@@ -59,7 +59,7 @@ export const useOpenRouterAnalytics = (
 
       // Gate on the key (empty state) before the heavier analytics call.
       const keyPresent =
-        (await window.electronAPI.hasProvisioningKey?.()) ?? false;
+        (await window.electronAPI.hasProvisioningKey?.("openrouter")) ?? false;
       setHasKey(keyPresent);
       if (!keyPresent) {
         setData(null);

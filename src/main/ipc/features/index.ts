@@ -3,6 +3,7 @@ export * from "./correction";
 export * from "./history";
 export * from "./locale";
 export * from "./logs";
+export * from "./openaiUsage";
 export * from "./openrouter";
 export * from "./profiles";
 export * from "./promptgen";

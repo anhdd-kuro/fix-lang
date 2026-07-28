@@ -14,12 +14,12 @@ import { LanguageTabs } from "../components/LanguageTabs";
 import { LogsPanel } from "../components/LogsPanel";
 import ModelManagerDialog from "../components/ModelManagerDialog";
 import { ModelsPanel } from "../components/ModelsPanel";
-import { OpenRouterPanel } from "../components/OpenRouterPanel";
 import { OverviewPanel } from "../components/OverviewPanel";
 import { SettingsButton } from "../components/SettingsIcon";
 import { SettingsModal } from "../components/SettingsModal";
 import { SettingUpdates } from "../components/SettingUpdates";
 import { TextAreaBox } from "../components/TextAreaBox";
+import { UsagePanel } from "../components/usage/UsagePanel";
 import { useTheme } from "../hooks/useTheme";
 import { useI18n } from "../i18n/useI18n";
 import type { DashboardTabId } from "./dashboardTabs";
@@ -273,14 +273,12 @@ const App: React.FC = () => {
   );
 
   // Tab panel contents. Analytics tabs read the shared range; History hosts the
-  // list + preview; OpenRouter keeps its own data hook.
+  // list + preview; Usage keeps its own per-provider data hooks.
   const tabPanels: Record<string, React.ReactNode> = {
     overview: <OverviewPanel history={correctionsHistory} range={range} />,
     history: historyTab,
     models: <ModelsPanel history={correctionsHistory} range={range} />,
-    openrouter: (
-      <OpenRouterPanel onOpenSettings={() => setIsSettingsOpen(true)} />
-    ),
+    usage: <UsagePanel onOpenSettings={() => setIsSettingsOpen(true)} />,
     logs: <LogsPanel />,
     about: (
       <div className="h-full w-full overflow-y-auto rounded-lg border border-card-control-border bg-card p-4">

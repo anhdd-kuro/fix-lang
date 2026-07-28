@@ -68,7 +68,7 @@ vi.mock("~/main/llm/models/discover", () => ({
   getLocalModels: getLocalModelsMock,
   probeOllama: probeOllamaMock,
 }));
-vi.mock("../llm", () => ({
+vi.mock("~/main/llm/providers/ollama/client", () => ({
   ollamaClient: { chat: vi.fn() },
 }));
 // Imports (after mocks) — the real implementation under test.

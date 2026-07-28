@@ -11,9 +11,11 @@ Local macOS menu-bar app: fixes grammar and improves writing on selected text vi
 - **Presets** — built-in Correction, Summarize, Translate, Prompt optimization; each preset has its own hotkey, model, and system prompt.
 - **Prompt generation** — build AI prompts from selected text (PromptGen window).
 - **Profiles** — switch transform presets; switch reloads hotkeys + settings + history.
-- **Multi-provider** — connect multiple providers (OpenAI, OpenRouter, Ollama, LM Studio) at once, each with its own model discovery/compat/monitor; every connected provider appears in a grouped model picker; a preset can use any connected provider; model ref is composite `<providerId>::<rawModelId>` in config, raw id downstream.
+- **Multi-provider** — connect multiple providers (OpenAI, OpenRouter, Ollama, LM Studio) at once, each with its own model discovery/compat/monitor; every connected provider appears in a grouped model picker; a preset can use any connected provider; model ref is composite `<providerId>::<rawModelId>` in config, raw id downstream. Each provider owns a folder under `src/main/llm/providers/` and one entry in that folder's `index.ts` capability registry (`supportsAdminKey`, `supportsUsage`, `fetchModels?`, `makeRequest?`); `ai.request/shared.ts` dispatches THROUGH the registry, so a new provider adds no branch there. The registry's behaviour slots load their module via lazy `import()` on purpose — `~/main/llm` is imported for the Ollama client alone, and eager loading drags the provider SDKs and `electron-store` in with it.
+- **Admin keys** — `PROVIDER_SUPPORTS_PROVISIONING_KEY` now covers **OpenAI (Admin API key) and OpenRouter (provisioning key)**. The slot, its settings field, profile-delete cleanup, and the disconnect warning are all derived from that table (`secretKindsForProvider`), so flipping it is what adds a provider. Every accessor in `provisioningKeyStore` and all three IPC channels take an explicit `ProviderId` — never defaulted, because a missed argument would silently read/write another provider's key.
 - **History** — SQLite-backed transform + PromptGen history with cost tracking.
-- **Analytics** — Overview dashboard: stat cards, preset donut/time-series charts (`PresetWeightChart`), token activity calendar, benchmark sentence; shared All/30d/7d range with Models tab (`RANGE_AWARE_TABS` in `MainWindow/App.tsx`). Dashboard tabs: overview, history, models, openrouter, logs, about (`MainWindow/dashboardTabs.ts`).
+- **Analytics** — Overview dashboard: stat cards, preset donut/time-series charts (`PresetWeightChart`), token activity calendar, benchmark sentence; shared All/30d/7d range with Models tab (`RANGE_AWARE_TABS` in `MainWindow/App.tsx`). Dashboard tabs: overview, history, models, usage, logs, about (`MainWindow/dashboardTabs.ts`).
+- **Usage** — account-level spend/usage, one sub-tab per **connected** usage-capable provider (OpenAI, OpenRouter; the local ones bill nothing). Sub-tab visibility/order is pure logic in `renderer/components/usage/usageTabs.ts` — keyed providers first, then `PROVIDER_ORDER`. Each panel owns its 7d/30d pills, combined IPC and 60s TTL cache (`openrouter-analytics`, `openai-usage`); the three charts live in `usage/UsageCharts.tsx` over pure builders in `usage/usageChartView.ts`. **OpenAI's cards are deliberately not symmetric with OpenRouter's**: OpenAI exposes no credit-balance or key-limit endpoint, and `/organization/costs` groups by `line_item`/`project_id` but NEVER by model — so its per-model table carries tokens only, its donut slices line items, and no per-model dollar figure is estimated (see the MONEY RULE in `providers/openai/usage.parsers.ts`).
 - **Logs** — structured, redacted JSONL persistence (`userData/logs/{YYYY-MM-DD}/fixlang.jsonl`); Logs tab with multi-select level filter (`LogQueryRequest.levels`; empty array = every level), search, copy/export, virtual infinite scroll, timezone stated once in the footer instead of per row.
 - **Hotkeys** — customizable global shortcuts (promptGen, profileSwitch) plus per-preset transform hotkeys.
 - **Updates** — the dashboard's **About** tab (`SettingUpdates`, not a Settings-modal tab) checks Homebrew for cask installs and GitHub Releases for manual DMG installs; cask installs get a one-click **Update now** that delegates to `brew upgrade --cask fixlang` (`src/main/update/homebrew.ts`). Tray toolbar has a check-only button that reports via native dialog. No self-updater.
@@ -32,11 +34,14 @@ Electron app with main/preload/renderer split. Highest-risk areas: global hotkey
 fix-lang/
 ├── src/
 │   ├── main/               — Electron main process
-│   │   ├── ai.request/     — AI calls, cost, cache, resolve-model
+│   │   ├── ai.request/     — cross-provider: model cache, request routing, cost, requestTypes
 │   │   ├── ipc/features/   — IPC handlers (api, correction, history, logs, …)
 │   │   ├── keybindings/    — global hotkeys (presets, promptGen, profileSwitch)
 │   │   ├── logging/        — structured JSONL write/query
-│   │   ├── llm/            — provider model discovery/compat/monitor
+│   │   ├── llm/
+│   │   │   ├── models/     — cross-provider discovery/compat/monitor
+│   │   │   └── providers/  — one folder per ProviderId + index.ts capability registry
+│   │   │                     (openai, openrouter: models/request/usage; ollama, lmstudio: client/request)
 │   │   ├── update/         — Homebrew probe/fetch/upgrade + pending-update marker
 │   │   └── webViewWindows/ — main, promptGen, overlay, tray
 │   ├── renderer/           — React UI (MainWindow dashboard, TrayWindow, …)
@@ -62,7 +67,7 @@ fix-lang/
 - Frontend
   - React 19.2, TypeScript 6.0 (stay on 6.x until typescript-eslint supports 7), Tailwind 4.3
 - AI
-  - openai 6.49, @ai-sdk/openai 4.0, @openrouter/ai-sdk-provider 3.0, ai 7.0, ollama 0.6 — all wired in `src/main/ai.request/shared.ts`; LM Studio uses the OpenAI-compatible client with a configurable local `baseURL`
+  - openai 6.49, @ai-sdk/openai 4.0, @openrouter/ai-sdk-provider 3.0, ai 7.0, ollama 0.6 — each wired in its own `src/main/llm/providers/<id>/request.ts` and reached through the capability registry; LM Studio uses the OpenAI-compatible client with a configurable local `baseURL`
 - Persistence
   - node:sqlite (history) + electron-store 11 + JSONL logs under userData — no zustand
 - Testing

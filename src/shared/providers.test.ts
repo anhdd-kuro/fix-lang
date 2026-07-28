@@ -15,6 +15,7 @@ import {
   PROVIDER_SUPPORTS_PROVISIONING_KEY,
   providerOfModel,
   sanitizeEnabledProviders,
+  supportsAdminKey,
   type Model,
   type ProviderId,
 } from "./providers";
@@ -88,11 +89,20 @@ describe("PROVIDER_ORDER / PROVIDER_LOG_LABELS / credential requirement maps", (
     expect(PROVIDER_REQUIRES_API_KEY.lmstudio).toBe(false);
   });
 
-  it("only openrouter supports a provisioning key", () => {
+  it("gives the account-billed providers an admin key and the local ones none", () => {
     expect(PROVIDER_SUPPORTS_PROVISIONING_KEY.openrouter).toBe(true);
-    expect(PROVIDER_SUPPORTS_PROVISIONING_KEY.openai).toBe(false);
+    expect(PROVIDER_SUPPORTS_PROVISIONING_KEY.openai).toBe(true);
     expect(PROVIDER_SUPPORTS_PROVISIONING_KEY.ollama).toBe(false);
     expect(PROVIDER_SUPPORTS_PROVISIONING_KEY.lmstudio).toBe(false);
+  });
+
+  it("narrows admin-key boundaries without reading off the prototype", () => {
+    expect(supportsAdminKey("openai")).toBe(true);
+    expect(supportsAdminKey("openrouter")).toBe(true);
+    expect(supportsAdminKey("ollama")).toBe(false);
+    expect(supportsAdminKey("lmstudio")).toBe(false);
+    expect(supportsAdminKey("constructor")).toBe(false);
+    expect(supportsAdminKey(undefined)).toBe(false);
   });
 
   it("lmstudio supports an optional API key without requiring one", () => {

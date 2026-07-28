@@ -1,37 +1,43 @@
 /**
- * @file OpenRouterPanel.tsx
- * @description OpenRouter account-analytics tab (#59). Account-level: shows
- * available credit (+ low-balance warning), key usage, per-model activity
- * (7d/30d), and the enabled-key count — each card degrades independently from
- * its CardResult. Data is fetched on tab-open, range change, and explicit
- * Refresh (60s TTL cache, no background polling). When no provisioning key is
- * set, an empty state prompts the user to add one in General settings.
+ * @file OpenRouterUsagePanel.tsx
+ * @description OpenRouter panel of the Usage tab (#59). Account-level: available
+ * credit (+ low-balance warning), key usage, token totals, per-model activity
+ * (7d/30d), the enabled-key count, and the three shared charts — each card
+ * degrades independently from its CardResult. Data is fetched on panel-open,
+ * range change, and explicit Refresh (60s TTL cache, no background polling).
+ * When no provisioning key is set, an empty state prompts the user to add one in
+ * General settings.
  *
  * The provisioning key never reaches this component — only key-free parsed
  * view-models arrive via the combined IPC.
  */
 import { useState } from "react";
 import { twJoin } from "tailwind-merge";
-import { Button } from "./Button";
+import { Button } from "../Button";
 import {
   formatOpenRouterUsd,
   openRouterDegradedMessage,
   type OpenRouterDegradedReason,
-} from "./openRouterFormat";
-import { useOpenRouterAnalytics } from "../hooks/useOpenRouterAnalytics";
-import { useI18n } from "../i18n/useI18n";
+} from "../openRouterFormat";
+import {
+  UsageCostShareChart,
+  UsageDailyCostChart,
+  UsageDailyTokenChart,
+} from "./UsageCharts";
+import { useOpenRouterAnalytics } from "../../hooks/useOpenRouterAnalytics";
+import { useI18n } from "../../i18n/useI18n";
 import type {
   Activity,
   CardResult,
   Credits,
   EnabledKeys,
   KeyUsage,
-} from "~/main/llm/openrouter/parsers";
+} from "~/main/llm/providers/openrouter/parsers";
 import type { OpenRouterRange } from "~/preload/features/openrouter";
 import type { TranslationKey } from "~/shared/i18n/keys";
 import type { Translator } from "~/shared/i18n/translate";
 
-type OpenRouterPanelProps = {
+type OpenRouterUsagePanelProps = {
   /** Opens the Settings modal (General tab) for the empty-state affordance. */
   onOpenSettings: () => void;
 };
@@ -71,8 +77,8 @@ const Card = ({
   </div>
 );
 
-export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
-  const { t } = useI18n();
+export const OpenRouterUsagePanel = ({ onOpenSettings }: OpenRouterUsagePanelProps) => {
+  const { t, formatNumber } = useI18n();
   const [range, setRange] = useState<OpenRouterRange>("7d");
   const { data, loading, hasKey, refresh } = useOpenRouterAnalytics(range);
 
@@ -193,6 +199,52 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
         )}
       </Card>
 
+      {/* Token totals — summed from the same activity rows, so it degrades with
+          them rather than pretending to be an independent endpoint. */}
+      <Card
+        title={t("usage.tokens.title", { range: rangeLabel })}
+        result={activity ?? fallback}
+        t={t}
+      >
+        {activity?.ok && (
+          <div className="flex gap-6 text-sm text-card-foreground">
+            <div>
+              <div className="text-xs text-muted-foreground">
+                {t("usage.columns.inputTokens")}
+              </div>
+              <div className="text-xl font-semibold tabular-nums text-foreground">
+                {formatNumber(
+                  activity.data.rows.reduce((sum, row) => sum + row.promptTokens, 0),
+                )}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">
+                {t("usage.columns.outputTokens")}
+              </div>
+              <div className="text-xl font-semibold tabular-nums text-foreground">
+                {formatNumber(
+                  activity.data.rows.reduce(
+                    (sum, row) => sum + row.completionTokens,
+                    0,
+                  ),
+                )}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">
+                {t("models.openrouter.activity.columns.requests")}
+              </div>
+              <div className="text-xl font-semibold tabular-nums text-foreground">
+                {formatNumber(
+                  activity.data.rows.reduce((sum, row) => sum + row.requests, 0),
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
+
       {/* Per-model activity */}
       <Card
         title={t("models.openrouter.activity.title", { range: rangeLabel })}
@@ -214,6 +266,12 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
                   <th className="py-1 px-2 text-right font-medium">
                     {t("models.openrouter.activity.columns.requests")}
                   </th>
+                  <th className="py-1 px-2 text-right font-medium">
+                    {t("usage.columns.inputTokens")}
+                  </th>
+                  <th className="py-1 px-2 text-right font-medium">
+                    {t("usage.columns.outputTokens")}
+                  </th>
                   <th className="py-1 pl-2 text-right font-medium">
                     {t("models.openrouter.activity.columns.cost")}
                   </th>
@@ -232,7 +290,13 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
                       {row.model}
                     </td>
                     <td className="py-1 px-2 text-right tabular-nums text-card-foreground">
-                      {row.requests}
+                      {formatNumber(row.requests)}
+                    </td>
+                    <td className="py-1 px-2 text-right tabular-nums text-card-foreground">
+                      {formatNumber(row.promptTokens)}
+                    </td>
+                    <td className="py-1 px-2 text-right tabular-nums text-card-foreground">
+                      {formatNumber(row.completionTokens)}
                     </td>
                     <td className="py-1 pl-2 text-right tabular-nums text-card-foreground">
                       {formatOpenRouterUsd(row.costUsd)}
@@ -261,6 +325,22 @@ export const OpenRouterPanel = ({ onOpenSettings }: OpenRouterPanelProps) => {
           </div>
         )}
       </Card>
+
+      {/* Charts — only once the activity card itself parsed; a degraded card
+          would otherwise paint three empty frames saying nothing useful. */}
+      {activity?.ok && (
+        <>
+          <UsageDailyCostChart points={activity.data.daily} />
+          <UsageDailyTokenChart points={activity.data.daily} />
+          <UsageCostShareChart
+            slices={activity.data.rows.map((row) => ({
+              label: row.model,
+              costUsd: row.costUsd,
+            }))}
+            titleKey="usage.chart.costShare.byModel"
+          />
+        </>
+      )}
     </div>
   );
 };

@@ -271,7 +271,7 @@ const consumers = [
   },
   {
     id: "BTN-025",
-    file: "src/renderer/components/OpenRouterPanel.tsx",
+    file: "src/renderer/components/usage/OpenRouterUsagePanel.tsx",
     elementIndex: 0,
     resolvedType: "button",
     resolvedVariant: '"primary"',
@@ -282,7 +282,7 @@ const consumers = [
   },
   {
     id: "BTN-026",
-    file: "src/renderer/components/OpenRouterPanel.tsx",
+    file: "src/renderer/components/usage/OpenRouterUsagePanel.tsx",
     elementIndex: 1,
     resolvedType: "button",
     resolvedVariant: '{range === r.id ? "primary" : "secondary"}',
@@ -296,7 +296,7 @@ const consumers = [
   },
   {
     id: "BTN-027",
-    file: "src/renderer/components/OpenRouterPanel.tsx",
+    file: "src/renderer/components/usage/OpenRouterUsagePanel.tsx",
     elementIndex: 2,
     resolvedType: "button",
     resolvedVariant: '"secondary"',

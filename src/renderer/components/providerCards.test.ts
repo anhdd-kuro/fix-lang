@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createTranslator } from "~/shared/i18n/translate";
-import { PROVIDER_ORDER } from "~/shared/providers";
 import {
+  PROVIDER_ORDER,
+  PROVIDER_SUPPORTS_PROVISIONING_KEY,
+} from "~/shared/providers";
+import {
+  ADMIN_KEY_MESSAGE_KEYS,
   buildProviderCards,
   describeDisconnectImpact,
   type ClearedRefsSummary,
@@ -70,9 +74,26 @@ describe("buildProviderCards", () => {
     const byProvider = Object.fromEntries(cards.map((card) => [card.provider, card]));
 
     expect(byProvider.openai?.requiresApiKey).toBe(true);
-    expect(byProvider.openai?.supportsProvisioningKey).toBe(false);
+    expect(byProvider.openai?.supportsProvisioningKey).toBe(true);
     expect(byProvider.openrouter?.supportsProvisioningKey).toBe(true);
+    expect(byProvider.lmstudio?.supportsProvisioningKey).toBe(false);
     expect(byProvider.ollama?.requiresApiKey).toBe(false);
+  });
+
+  it("carries admin-key field strings for exactly the providers that have the slot", () => {
+    for (const provider of PROVIDER_ORDER) {
+      const messages = ADMIN_KEY_MESSAGE_KEYS[provider];
+      if (!PROVIDER_SUPPORTS_PROVISIONING_KEY[provider]) {
+        expect(messages).toBeUndefined();
+        continue;
+      }
+      // A missing entry does not throw — the settings card just renders no
+      // admin-key field at all, so the key becomes unenterable in silence.
+      expect(messages).toBeDefined();
+      if (!messages) continue;
+      expect(t(messages.label)).not.toBe("");
+      expect(t(messages.placeholderNew)).not.toBe("");
+    }
   });
 
   it("allows a connect attempt with a stored key, a typed key, or no key at all for Ollama", () => {

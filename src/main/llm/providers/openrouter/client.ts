@@ -71,7 +71,7 @@ export const createOpenRouterClient = (
   deps: ClientDeps = {}
 ): OpenRouterClient => {
   const doFetch = (deps.fetch ?? (globalThis.fetch as unknown)) as FetchLike;
-  const getKey = deps.getKey ?? getProvisioningKey;
+  const getKey = deps.getKey ?? (() => getProvisioningKey("openrouter"));
 
   /**
    * Fetch `path` with the Bearer key + 5s timeout, then hand the parsed JSON to

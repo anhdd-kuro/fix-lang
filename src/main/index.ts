@@ -19,6 +19,7 @@ import {
   setupHistoryManagerHandlers,
   registerLocaleHandlers,
   registerLogHandlers,
+  registerOpenAIUsageHandlers,
   registerOpenRouterHandlers,
   registerProfileHandlers,
   registerPromptGenHandlers,
@@ -140,6 +141,9 @@ const registerIpcHandlers = (): UpdateService => {
 
   // OpenRouter account-analytics tab (#59) — reads the provisioning key in-main.
   registerOpenRouterHandlers();
+
+  // OpenAI panel of the Usage tab — reads the admin key in-main.
+  registerOpenAIUsageHandlers();
 
   // Keep the service main-process only; renderer access is restricted to the
   // dedicated typed IPC feature above.

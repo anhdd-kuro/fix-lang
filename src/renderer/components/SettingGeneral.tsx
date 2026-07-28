@@ -6,6 +6,7 @@ import { LanguageTabs } from "./LanguageTabs";
 import { ModelSelect } from "./ModelSelect";
 import { PROVIDER_LABEL_KEYS } from "./modelSelectOptions";
 import {
+  ADMIN_KEY_MESSAGE_KEYS,
   buildProviderCards,
   describeDisconnectImpact,
   type ProviderCardState,
@@ -385,6 +386,7 @@ export const SettingGeneral: React.FC = () => {
     const typed = typedKeys[provider] ?? {};
     const busy = busyProviders[provider] === true;
     const status = providerStatus[provider];
+    const adminKeyMessages = ADMIN_KEY_MESSAGE_KEYS[provider];
 
     return (
       <div
@@ -529,13 +531,13 @@ export const SettingGeneral: React.FC = () => {
           </p>
         )}
 
-        {card.supportsProvisioningKey && (
+        {card.supportsProvisioningKey && adminKeyMessages && (
           <div className="mt-2">
             <label
               htmlFor={`provisioning-key-${provider}`}
               className="block text-xs font-medium text-card-foreground mb-1"
             >
-              {t("settings.general.provisioningKey.label")}
+              {t(adminKeyMessages.label)}
             </label>
             <p
               className={`text-xs mb-1 ${card.provisioningKeySet ? "text-success" : "text-muted-foreground"}`}
@@ -557,9 +559,9 @@ export const SettingGeneral: React.FC = () => {
               placeholder={
                 card.provisioningKeySet
                   ? t("settings.general.secret.placeholderReplace")
-                  : t("settings.general.provisioningKey.placeholderNew")
+                  : t(adminKeyMessages.placeholderNew)
               }
-              aria-label={t("settings.general.provisioningKey.label")}
+              aria-label={t(adminKeyMessages.label)}
             />
           </div>
         )}

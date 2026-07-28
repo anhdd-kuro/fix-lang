@@ -65,7 +65,7 @@ vi.mock("~/main/llm/models/compatibility", () => ({
   checkModelCompatibility: vi.fn(),
 }));
 vi.mock("~/main/llm/models/discover", () => ({ probeOllama: probeOllamaMock }));
-vi.mock("~/main/llm/lmstudio/client", () => ({ probeLmStudio: probeLmStudioMock }));
+vi.mock("~/main/llm/providers/lmstudio/client", () => ({ probeLmStudio: probeLmStudioMock }));
 vi.mock("~/main/llm/models/recommended", () => ({
   findRecommendedModel: vi.fn(),
   getRecommendedModels: vi.fn(),
@@ -199,19 +199,34 @@ describe("connect-provider — payload validation", () => {
     expect(connectProviderToProfileMock).not.toHaveBeenCalled();
   });
 
-  it("rejects a provisioning key on a provider that has no provisioning slot", async () => {
+  it("rejects an admin key on a provider that has no admin slot", async () => {
     const result = await connect({
-      provider: "openai",
-      apiKey: "sk-abc",
-      provisioningKey: "sk-or-prov",
+      provider: "lmstudio",
+      provisioningKey: "sk-prov",
     });
 
     expect(result.success).toBe(false);
     expect(result.error).toEqual({
       kind: "message",
-      message: { key: "models.providerSetup.error.provisioningKeyOpenRouterOnly" },
+      message: { key: "models.providerSetup.error.adminKeyUnsupported" },
     });
     expect(connectProviderToProfileMock).not.toHaveBeenCalled();
+  });
+
+  it("stores an admin key against the provider that was connected, never OpenRouter's slot", async () => {
+    const result = await connect({
+      provider: "openai",
+      apiKey: "sk-abc",
+      provisioningKey: "sk-admin-abc",
+    });
+
+    expect(result.success).toBe(true);
+    expect(setProfileSecretMock).toHaveBeenCalledWith(
+      expect.any(String),
+      "openai",
+      "provisioning",
+      "sk-admin-abc",
+    );
   });
 
   it("rejects a missing key for a key-requiring provider", async () => {

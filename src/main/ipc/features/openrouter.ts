@@ -8,7 +8,7 @@
  * crosses to the renderer — the payload contains only parsed analytics data.
  */
 import { ipcMain } from "electron";
-import { createOpenRouterClient } from "~/main/llm/openrouter/client";
+import { createOpenRouterClient } from "~/main/llm/providers/openrouter/client";
 
 /** Coerce an untrusted IPC range arg to the valid union (default 7d). */
 const normalizeRange = (raw: unknown): "7d" | "30d" =>

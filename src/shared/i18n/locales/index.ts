@@ -20,6 +20,7 @@ import enNotifications from "./en/notifications.json";
 import enProfiles from "./en/profiles.json";
 import enSettings from "./en/settings.json";
 import enTray from "./en/tray.json";
+import enUsage from "./en/usage.json";
 import jaCommon from "./ja/common.json";
 import jaDashboard from "./ja/dashboard.json";
 import jaHistory from "./ja/history.json";
@@ -29,6 +30,7 @@ import jaNotifications from "./ja/notifications.json";
 import jaProfiles from "./ja/profiles.json";
 import jaSettings from "./ja/settings.json";
 import jaTray from "./ja/tray.json";
+import jaUsage from "./ja/usage.json";
 import type { Locale } from "../registry";
 
 /** English is the source of truth: every key must exist here. */
@@ -42,6 +44,7 @@ export const EN_CATALOG = {
   ...enProfiles,
   ...enSettings,
   ...enTray,
+  ...enUsage,
 };
 
 /**
@@ -66,6 +69,7 @@ export const JA_CATALOG: Partial<Record<TranslationKey, string>> = {
   ...jaProfiles,
   ...jaSettings,
   ...jaTray,
+  ...jaUsage,
 };
 
 export const CATALOGS: Record<Locale, Partial<Record<TranslationKey, string>>> =
@@ -85,4 +89,5 @@ export const CATALOG_NAMESPACES = [
   "profiles",
   "settings",
   "tray",
+  "usage",
 ] as const;

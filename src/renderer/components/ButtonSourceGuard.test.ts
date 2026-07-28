@@ -1543,9 +1543,9 @@ const consumerContractRows = [
   ["BTN-022", "SITE-8d6dde76b7c3ae63-01", "LIVE-38539922a7e16c77", "src/renderer/components/ModelSelect.tsx", 440, 11],
   ["BTN-023", "SITE-bb8eadbc51c6ba0f-01", "LIVE-edf192add08f8fcb", "src/renderer/components/ModelsPanel.tsx", 181, 15],
   ["BTN-024", "SITE-a68b89cb574e07eb-01", "LIVE-eca35f045362c69d", "src/renderer/components/MultiSelect.tsx", 94, 7],
-  ["BTN-025", "SITE-07c4c1eed32b1e05-01", "LIVE-7fbf6c5ec84d66a6", "src/renderer/components/OpenRouterPanel.tsx", 90, 11],
-  ["BTN-026", "SITE-675f0652493e38fe-01", "LIVE-3978c7ea4205116c", "src/renderer/components/OpenRouterPanel.tsx", 120, 13],
-  ["BTN-027", "SITE-af5b100d129e6dab-01", "LIVE-d9c50f5f5df24844", "src/renderer/components/OpenRouterPanel.tsx", 133, 9],
+  ["BTN-025", "SITE-07c4c1eed32b1e05-01", "LIVE-3c1c72456ff99197", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 96, 11],
+  ["BTN-026", "SITE-675f0652493e38fe-01", "LIVE-eb9419e711683c9d", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 126, 13],
+  ["BTN-027", "SITE-af5b100d129e6dab-01", "LIVE-c0827e45b78b1651", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 139, 9],
   ["BTN-028", "SITE-f3ae5ad69268085c-01", "LIVE-fd3dc7b1cc7af227", "src/renderer/components/OverviewPanel.tsx", 234, 15],
   ["BTN-029", "SITE-dcfd07ba5e05696b-01", "LIVE-73a48ff1f5f9296f", "src/renderer/components/ProfileManager.tsx", 256, 11],
   ["BTN-030", "SITE-569e41898a468891-01", "LIVE-e99c02ce9aba9550", "src/renderer/components/ProfileManager.tsx", 264, 11],
@@ -1567,13 +1567,13 @@ const consumerContractRows = [
   ["BTN-046", "SITE-084abdfaa3d706db-01", "LIVE-6b4e0c40672f1a9f", "src/renderer/components/SettingCorrection.tsx", 434, 15],
   ["BTN-047", "SITE-ec1cb639d0801535-01", "LIVE-d092e1365d74f58e", "src/renderer/components/SettingCorrection.tsx", 491, 15],
   ["BTN-048", "SITE-0331a5e36ffc4b2d-01", "LIVE-7ddd61f39a4603c1", "src/renderer/components/SettingCorrection.tsx", 599, 9],
-  ["BTN-049", "SITE-edf33805b54733ba-01", "LIVE-4c8cc2e418d1d7d7", "src/renderer/components/SettingGeneral.tsx", 568, 11],
-  ["BTN-050", "SITE-bd0c62470cfb4b04-01", "LIVE-c4546c1f1b582275", "src/renderer/components/SettingGeneral.tsx", 583, 13],
-  ["BTN-051", "SITE-3c03205f66bb8f20-01", "LIVE-f528b6225f5af211", "src/renderer/components/SettingGeneral.tsx", 617, 15],
-  ["BTN-052", "SITE-2985cfefb8259f94-01", "LIVE-d3d535844d3ea12d", "src/renderer/components/SettingGeneral.tsx", 625, 15],
-  ["BTN-053", "SITE-aa523e0e3171e4e2-01", "LIVE-6174e716401ff26e", "src/renderer/components/SettingGeneral.tsx", 696, 11],
-  ["BTN-054", "SITE-2a5ece0b4d8d01d5-01", "LIVE-9469c19cdb9b59e6", "src/renderer/components/SettingGeneral.tsx", 722, 11],
-  ["BTN-055", "SITE-6f52173684d9b3f1-01", "LIVE-9366f8ce82dfacc2", "src/renderer/components/SettingGeneral.tsx", 782, 9],
+  ["BTN-049", "SITE-edf33805b54733ba-01", "LIVE-4c8cc2e418d1d7d7", "src/renderer/components/SettingGeneral.tsx", 570, 11],
+  ["BTN-050", "SITE-bd0c62470cfb4b04-01", "LIVE-c4546c1f1b582275", "src/renderer/components/SettingGeneral.tsx", 585, 13],
+  ["BTN-051", "SITE-3c03205f66bb8f20-01", "LIVE-f528b6225f5af211", "src/renderer/components/SettingGeneral.tsx", 619, 15],
+  ["BTN-052", "SITE-2985cfefb8259f94-01", "LIVE-d3d535844d3ea12d", "src/renderer/components/SettingGeneral.tsx", 627, 15],
+  ["BTN-053", "SITE-aa523e0e3171e4e2-01", "LIVE-6174e716401ff26e", "src/renderer/components/SettingGeneral.tsx", 698, 11],
+  ["BTN-054", "SITE-2a5ece0b4d8d01d5-01", "LIVE-9469c19cdb9b59e6", "src/renderer/components/SettingGeneral.tsx", 724, 11],
+  ["BTN-055", "SITE-6f52173684d9b3f1-01", "LIVE-9366f8ce82dfacc2", "src/renderer/components/SettingGeneral.tsx", 784, 9],
   ["BTN-056", "SITE-2afefe8b58da16f2-01", "LIVE-f3c8ca23590954fc", "src/renderer/components/SettingPromptGen.tsx", 269, 15],
   ["BTN-057", "SITE-6cf41feb2844d94d-01", "LIVE-f3f343d2e0482049", "src/renderer/components/SettingPromptGen.tsx", 289, 15],
   ["BTN-058", "SITE-32f1f12f749c0a0f-01", "LIVE-b3f4857089946438", "src/renderer/components/SettingPromptGen.tsx", 364, 9],
@@ -1596,10 +1596,15 @@ const consumerContractRows = [
   ["BTN-075", "SITE-9ee18af8c12ab3af-04", "LIVE-f4ccea28d324b33f", "src/renderer/components/SettingUpdates.tsx", 627, 13],
   ["BTN-076", "SITE-5d39d7c44db8e592-01", "LIVE-d2dc6b542709b453", "src/renderer/components/TrashButton.tsx", 23, 5],
   ["BTN-077", "SITE-cb7fadf7f125d0a4-01", "LIVE-22b46580f1bd13d0", "src/renderer/CorrectionResultWindow/index.tsx", 61, 9],
-  ["BTN-078", "SITE-88c71677c4253b47-01", "LIVE-0186137c312ed90a", "src/renderer/MainWindow/App.tsx", 307, 15],
-  ["BTN-079", "SITE-830c6d8f9e89de77-01", "LIVE-611bf10054534bd0", "src/renderer/MainWindow/App.tsx", 338, 17],
+  ["BTN-078", "SITE-88c71677c4253b47-01", "LIVE-0186137c312ed90a", "src/renderer/MainWindow/App.tsx", 305, 15],
+  ["BTN-079", "SITE-830c6d8f9e89de77-01", "LIVE-611bf10054534bd0", "src/renderer/MainWindow/App.tsx", 336, 17],
   ["BTN-080", "SITE-d33755b6903c0d0d-01", "LIVE-391b0616cadac9b3", "src/renderer/TrayWindow/components/TrayCreditBalance.tsx", 64, 5],
   ["BTN-081", "SITE-1af9bad65d4dd36b-01", "LIVE-022a9db6eed9fbc4", "src/renderer/TrayWindow/components/TrayToolbar.tsx", 23, 3],
+  ["BTN-082", "SITE-bdf91dd57b1a8eab-01", "LIVE-57f775bd4fae66ec", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 94, 11],
+  ["BTN-083", "SITE-189b25e5188dce61-01", "LIVE-e630a70d66e34af0", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 121, 13],
+  ["BTN-084", "SITE-2ac783017cc928f4-01", "LIVE-450bee16aa4af761", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 132, 9],
+  ["BTN-085", "SITE-ef9a2ca35cce009b-01", "LIVE-cda3ee060bf9b96d", "src/renderer/components/usage/UsagePanel.tsx", 71, 11],
+  ["BTN-086", "SITE-88cac4abd73dba55-01", "LIVE-f228c29639aa3434", "src/renderer/components/usage/UsagePanel.tsx", 89, 13],
 ] as const;
 
 const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
@@ -1613,7 +1618,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "49c9eb7e254da0778b182bd4e41531cc64f7a3204eef49779393d7332d110bed";
+  "629c7ab1dc911d4e795a630760edb2031db56b095e296dd5376e5f718e59da57";
 
 const compareConsumers = (left: ButtonConsumer, right: ButtonConsumer): number =>
   left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column;
@@ -2126,7 +2131,7 @@ describe("renderer Button source guard", () => {
     }
   });
 
-  it("changes every one of the 81 live identities under a stable-coordinate mutation", async () => {
+  it("changes every one of the 86 live identities under a stable-coordinate mutation", async () => {
     const sourceByFile = new Map<string, string>();
     let mutatedIdentityCount = 0;
 
@@ -2160,29 +2165,29 @@ describe("renderer Button source guard", () => {
       mutatedIdentityCount += 1;
     }
 
-    expect(mutatedIdentityCount).toBe(81);
+    expect(mutatedIdentityCount).toBe(86);
   });
 
-  it("allows the shared native leaf and the exact 81-consumer migration inventory", async () => {
+  it("allows the shared native leaf and the exact 86-consumer migration inventory", async () => {
     const result = await scanRenderer();
     const locations = expectedButtonConsumers.map(
       ({ file, line, column }) => `${file}:${line}:${column}`,
     );
 
-    expect(expectedButtonConsumers).toHaveLength(81);
+    expect(expectedButtonConsumers).toHaveLength(86);
     expect(sha256(JSON.stringify(expectedButtonConsumers))).toBe(
       consumerContractSha256,
     );
     expect(expectedButtonConsumers.map(({ id }) => id)).toEqual(
       Array.from(
-        { length: 81 },
+        { length: 86 },
         (_, index) => `BTN-${String(index + 1).padStart(3, "0")}`,
       ),
     );
     expect(new Set(expectedButtonConsumers.map(({ stableId }) => stableId)).size).toBe(
-      81,
+      86,
     );
-    expect(new Set(locations).size).toBe(81);
+    expect(new Set(locations).size).toBe(86);
     expect(result.findings).toEqual([]);
     expect(result.sourceFiles.filter(isPrimaryButtonModule)).toEqual([]);
     expect(result.nativeLeaves).toHaveLength(1);

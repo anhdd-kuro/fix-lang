@@ -6,13 +6,13 @@ import { ipcMain } from "electron";
 import { fetchAvailableModels, fetchModelsForProviders } from "~/main/ai.request";
 import { reloadHotkeys } from "~/main/keybindings";
 import { ollamaClient } from "~/main/llm";
-import { probeLmStudio } from "~/main/llm/lmstudio/client";
 import { checkModelCompatibility } from "~/main/llm/models/compatibility";
 import { probeOllama } from "~/main/llm/models/discover";
 import {
   findRecommendedModel,
   getRecommendedModels,
 } from "~/main/llm/models/recommended";
+import { probeLmStudio } from "~/main/llm/providers/lmstudio/client";
 import { messageLabel, textLabel } from "~/shared/i18n/message";
 import {
   LMSTUDIO_DEFAULT_ENDPOINT,
@@ -29,6 +29,7 @@ import {
   modelsForProvider,
   PROVIDER_IDS,
   sanitizeEnabledProviders,
+  supportsAdminKey,
 } from "~/shared/providers";
 import {
   clearApiKey,
@@ -283,8 +284,8 @@ export const registerApiHandlers = (): void => {
       apiKeySet:
         raw === "ollama" ? false : await hasProfileSecret(profileId, raw, "api"),
       provisioningKeySet:
-        raw === "openrouter" &&
-        (await hasProfileSecret(profileId, "openrouter", "provisioning")),
+        supportsAdminKey(raw) &&
+        (await hasProfileSecret(profileId, raw, "provisioning")),
     };
   });
 
@@ -296,10 +297,10 @@ export const registerApiHandlers = (): void => {
     if (!payload || !profileId) {
       return { success: false, error: messageLabel("models.providerSetup.error.invalidSetup") };
     }
-    if (payload.provider !== "openrouter" && payload.provisioningKey?.trim()) {
+    if (!supportsAdminKey(payload.provider) && payload.provisioningKey?.trim()) {
       return {
         success: false,
-        error: messageLabel("models.providerSetup.error.provisioningKeyOpenRouterOnly"),
+        error: messageLabel("models.providerSetup.error.adminKeyUnsupported"),
       };
     }
     try {
@@ -332,10 +333,10 @@ export const registerApiHandlers = (): void => {
         error: messageLabel("models.providerSetup.error.invalidSetup"),
       };
     }
-    if (payload.provider !== "openrouter" && payload.provisioningKey?.trim()) {
+    if (!supportsAdminKey(payload.provider) && payload.provisioningKey?.trim()) {
       return {
         success: false,
-        error: messageLabel("models.providerSetup.error.provisioningKeyOpenRouterOnly"),
+        error: messageLabel("models.providerSetup.error.adminKeyUnsupported"),
       };
     }
 
@@ -429,10 +430,10 @@ export const registerApiHandlers = (): void => {
             error: messageLabel("models.providerSetup.error.apiKeyNotVerified"),
           };
         }
-        if (payload.provider === "openrouter" && payload.provisioningKey?.trim()) {
+        if (supportsAdminKey(payload.provider) && payload.provisioningKey?.trim()) {
           const result = await setProfileSecret(
             profileId,
-            "openrouter",
+            payload.provider,
             "provisioning",
             payload.provisioningKey,
           );

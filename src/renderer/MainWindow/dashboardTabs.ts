@@ -18,7 +18,7 @@ export type DashboardTabId =
   | "overview"
   | "history"
   | "models"
-  | "openrouter"
+  | "usage"
   | "logs"
   | "about";
 
@@ -36,7 +36,7 @@ export const DASHBOARD_TABS: readonly DashboardTabMeta[] = [
   { id: "overview", labelKey: "dashboard.tab.overview" },
   { id: "history", labelKey: "dashboard.tab.history" },
   { id: "models", labelKey: "dashboard.tab.models" },
-  { id: "openrouter", labelKey: "dashboard.tab.openrouter" },
+  { id: "usage", labelKey: "dashboard.tab.usage" },
   { id: "logs", labelKey: "dashboard.tab.logs" },
   { id: "about", labelKey: "dashboard.tab.about" },
 ] as const;
