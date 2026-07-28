@@ -5,6 +5,38 @@ import {
 } from "~/main/notifications/error";
 import { promptAccessibilityPermission } from "~/utils";
 
+/** Ignore a second press of the same accelerator inside this window. */
+export const HOTKEY_THROTTLE_MS = 500;
+
+const lastHotkeyInvokeAt = new Map<string, number>();
+
+/**
+ * Wraps a global-shortcut callback so a fast accidental double-press of the
+ * same accelerator is ignored. Distinct accelerators do not block each other.
+ * The first press inside the window always runs; later presses after the
+ * window elapses run normally.
+ */
+export const withHotkeyThrottle = (
+  accelerator: string,
+  handler: () => void | Promise<void>,
+  now: () => number = Date.now,
+): (() => void | Promise<void>) => {
+  return () => {
+    const at = now();
+    const last = lastHotkeyInvokeAt.get(accelerator) ?? 0;
+    if (at - last < HOTKEY_THROTTLE_MS) {
+      return;
+    }
+    lastHotkeyInvokeAt.set(accelerator, at);
+    return handler();
+  };
+};
+
+/** Clears throttle timestamps between tests. */
+export const resetHotkeyThrottleForTests = (): void => {
+  lastHotkeyInvokeAt.clear();
+};
+
 export const checkShortcut = (shortcut: boolean) => {
   if (!shortcut) {
     console.error(`Shortcut ${shortcut} is not set in settings.`);

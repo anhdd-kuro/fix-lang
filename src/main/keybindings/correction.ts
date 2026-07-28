@@ -9,7 +9,7 @@ import { getHighlightedText, pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
 import { buildCorrectionGoodJobNotification } from "./correctionNotifications";
 import { deliverCorrectionOutput } from "./correctionOutput";
-import { checkShortcut, handleError } from "./utils";
+import { checkShortcut, handleError, withHotkeyThrottle } from "./utils";
 import { buildPriceMap, computeCost } from "../ai.request/cost";
 import { getCachedModels, isLocalModelId } from "../ai.request/shared";
 import { syncHistory } from "../ipc/features/history";
@@ -49,7 +49,9 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
 
     registeredShortcuts.add(shortcut);
 
-    const registered = globalShortcut.register(shortcut, async () => {
+    const registered = globalShortcut.register(
+      shortcut,
+      withHotkeyThrottle(shortcut, async () => {
       logger.info("correction.hotkey", "Hotkey triggered", {
         presetId: preset.id,
       });
@@ -170,7 +172,8 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         });
         handleError(error);
       }
-    });
+    }),
+    );
 
     checkShortcut(registered);
   });

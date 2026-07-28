@@ -8,7 +8,13 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AccessibilityPermissionError, LocalizedError } from "~/main/notifications/error";
-import { checkShortcut, handleError } from "./utils";
+import {
+  checkShortcut,
+  handleError,
+  HOTKEY_THROTTLE_MS,
+  resetHotkeyThrottleForTests,
+  withHotkeyThrottle,
+} from "./utils";
 
 const { showErrorNotificationMock, promptAccessibilityPermissionMock } = vi.hoisted(() => ({
   showErrorNotificationMock: vi.fn(),
@@ -101,5 +107,78 @@ describe("checkShortcut", () => {
 
     expect(result).toBe(true);
     expect(showErrorNotificationMock).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("withHotkeyThrottle", () => {
+  beforeEach(() => {
+    resetHotkeyThrottleForTests();
+  });
+
+  it("invokes the handler on the first press", () => {
+    const clock = 1_000;
+    const handler = vi.fn();
+    const throttled = withHotkeyThrottle("Control+Shift+D", handler, () => clock);
+
+    throttled();
+
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a second press of the same accelerator within 500ms", () => {
+    let clock = 1_000;
+    const handler = vi.fn();
+    const throttled = withHotkeyThrottle("Control+Shift+D", handler, () => clock);
+
+    throttled();
+    clock += HOTKEY_THROTTLE_MS - 1;
+    throttled();
+
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it("invokes again after the 500ms window", () => {
+    let clock = 1_000;
+    const handler = vi.fn();
+    const throttled = withHotkeyThrottle("Control+Shift+D", handler, () => clock);
+
+    throttled();
+    clock += HOTKEY_THROTTLE_MS;
+    throttled();
+
+    expect(handler).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not let one accelerator throttle a different accelerator", () => {
+    let clock = 1_000;
+    const first = vi.fn();
+    const second = vi.fn();
+    const throttledFirst = withHotkeyThrottle("Control+Shift+D", first, () => clock);
+    const throttledSecond = withHotkeyThrottle("Control+Shift+S", second, () => clock);
+
+    throttledFirst();
+    clock += 50;
+    throttledSecond();
+
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves handler success and failure behavior unchanged", async () => {
+    let clock = 1_000;
+    const success = vi.fn().mockResolvedValue(undefined);
+    const failure = vi.fn().mockRejectedValue(new Error("handler failed"));
+
+    await expect(
+      withHotkeyThrottle("Control+Shift+D", success, () => clock)(),
+    ).resolves.toBeUndefined();
+    expect(success).toHaveBeenCalledTimes(1);
+
+    clock += HOTKEY_THROTTLE_MS;
+    await expect(
+      withHotkeyThrottle("Control+Shift+D", failure, () => clock)(),
+    ).rejects.toThrow("handler failed");
+    expect(failure).toHaveBeenCalledTimes(1);
   });
 });
