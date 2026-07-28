@@ -229,6 +229,46 @@ describe("connect-provider — payload validation", () => {
     );
   });
 
+  it("refuses an OpenAI admin key pasted into OpenRouter's admin field", async () => {
+    // The reported bug: this used to store, report "Key set", and then fail
+    // every OpenRouter account read with an unexplained 401.
+    const result = await connect({
+      provider: "openrouter",
+      apiKey: "sk-or-abc",
+      provisioningKey: "sk-admin-abc",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toEqual({
+      kind: "message",
+      message: {
+        key: "models.providerSetup.error.adminKeyShapeMismatch",
+        params: { provider: "OpenRouter", expected: "sk-or-v1-" },
+      },
+    });
+    // Refused BEFORE the write and before the provider round-trip: a key in the
+    // wrong slot must not be spent on a request either.
+    expect(setProfileSecretMock).not.toHaveBeenCalled();
+    expect(fetchAvailableModelsMock).not.toHaveBeenCalled();
+    expect(connectProviderToProfileMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses an OpenRouter key pasted into either OpenAI field", async () => {
+    expect((await connect({ provider: "openai", apiKey: "sk-or-abc" })).success).toBe(
+      false,
+    );
+    expect(
+      (
+        await connect({
+          provider: "openai",
+          apiKey: "sk-proj-abc",
+          provisioningKey: "sk-or-abc",
+        })
+      ).success,
+    ).toBe(false);
+    expect(setProfileSecretMock).not.toHaveBeenCalled();
+  });
+
   it("rejects a missing key for a key-requiring provider", async () => {
     getProfileSecretMock.mockResolvedValue(null);
 

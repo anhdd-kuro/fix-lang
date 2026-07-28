@@ -9,6 +9,7 @@
 import { rm, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { app, safeStorage } from "electron";
+import { findKeyShapeMismatch } from "~/shared/providerKeyShapes";
 import {
   PROVIDER_IDS,
   PROVIDER_LOG_LABELS,
@@ -74,14 +75,29 @@ export const getProfileSecretPath = (
 };
 
 /**
- * A key that doesn't start with the provider's conventional prefix (`sk-` /
- * `sk-or-`) is still accepted — this only rejects empty/whitespace input.
- * There is no consumer for a "wrong prefix" advisory (nothing ever reads it
- * past this store), so this validates without producing one.
+ * Rejects empty input, and a key whose prefix positively identifies ANOTHER
+ * provider's slot. The latter used to be accepted on purpose; it turned out to
+ * have a consumer after all — an `sk-admin-…` OpenAI key written into
+ * OpenRouter's provisioning slot stored fine, showed "Key set" (existence is all
+ * `hasProfileSecret` can see), and surfaced only as a 401 on every later account
+ * read. An unrecognized format is still accepted, so no legacy or future key
+ * shape is refused on a guess.
  */
-const validateSecret = (raw: string): { value: string } | { error: string } => {
+const validateSecret = (
+  provider: ProviderId,
+  kind: SecretKind,
+  raw: string,
+): { value: string } | { error: string } => {
   const value = raw.trim();
   if (!value) return { error: "API key must not be empty" };
+  const mismatch = findKeyShapeMismatch(provider, kind, value);
+  if (mismatch) {
+    return {
+      error: `That key does not belong to ${PROVIDER_LOG_LABELS[provider]}'s ${
+        kind === "provisioning" ? "admin" : "API"
+      } key (expected ${mismatch.expectedPrefix}…)`,
+    };
+  }
   return { value };
 };
 
@@ -92,7 +108,7 @@ export const setProfileSecret = async (
   raw: string,
 ): Promise<SecretWriteResult> => {
   try {
-    const validated = validateSecret(raw);
+    const validated = validateSecret(provider, kind, raw);
     if ("error" in validated) return { success: false, error: validated.error };
     if (!safeStorage.isEncryptionAvailable()) {
       return { success: false, error: "OS secure storage unavailable" };
