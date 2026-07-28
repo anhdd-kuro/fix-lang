@@ -104,9 +104,9 @@ describe("Button behavioral wrappers", () => {
       [
         'variant="ghost"',
         'type="button"',
-        'aria-label={label}',
-        'title={label}',
-        'onClick={handleCopy}',
+        "aria-label={label}",
+        "title={label}",
+        "onClick={handleCopy}",
         "cursor-pointer",
         "min-w-6 min-h-6",
       ],
@@ -117,7 +117,7 @@ describe("Button behavioral wrappers", () => {
       [
         'variant="destructive"',
         'type="button"',
-        'onClick={onClick}',
+        "onClick={onClick}",
         'aria-label={t("common.trashButton.ariaLabel")}',
         "flex items-center gap-2 rounded-md text-sm transition-colors",
         'showLabel ? "px-3 py-1.5" : "p-1"',
@@ -130,9 +130,9 @@ describe("Button behavioral wrappers", () => {
         'variant={active ? "primary" : "ghost"}',
         'role="tab"',
         'aria-selected={active ? "true" : "false"}',
-        'aria-controls={ariaControls}',
+        "aria-controls={ariaControls}",
         'type="button"',
-        'onClick={onClick}',
+        "onClick={onClick}",
         "py-1 min-w-min",
       ],
     ],
@@ -142,9 +142,9 @@ describe("Button behavioral wrappers", () => {
       [
         'variant="ghost"',
         'type="button"',
-        'aria-label={resolvedTitle}',
-        'title={resolvedTitle}',
-        'onClick={onClick}',
+        "aria-label={resolvedTitle}",
+        "title={resolvedTitle}",
+        "onClick={onClick}",
         "rounded-md cursor-pointer",
       ],
     ],
@@ -156,7 +156,7 @@ describe("Button behavioral wrappers", () => {
         'type="button"',
         'aria-label={t("common.close")}',
         'title={t("common.close")}',
-        'onClick={onClose}',
+        "onClick={onClose}",
         "text-muted-foreground hover:text-foreground",
       ],
     ],
@@ -167,7 +167,7 @@ describe("Button behavioral wrappers", () => {
         'variant="primary"',
         'type="button"',
         'aria-label={t("history.reviewModal.closeAriaLabel")}',
-        'onClick={onClose}',
+        "onClick={onClose}",
         "px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary",
       ],
     ],
@@ -179,7 +179,7 @@ describe("Button behavioral wrappers", () => {
         'type="button"',
         'aria-label={t("settings.modal.close")}',
         'title={t("settings.modal.close")}',
-        'onClick={onClose}',
+        "onClick={onClose}",
         "text-2xl font-bold",
       ],
     ],
@@ -190,8 +190,8 @@ describe("Button behavioral wrappers", () => {
         'variant={isActive ? "primary" : "ghost"}',
         'role="tab"',
         'aria-selected": true',
-        'aria-controls={`settings-${tab.id}`}',
-        'onClick={() => setActiveTab(index)}',
+        "aria-controls={`settings-${tab.id}`}",
+        "onClick={() => setActiveTab(index)}",
         "grid-cols-2 gap-2",
       ],
     ],
@@ -202,7 +202,7 @@ describe("Button behavioral wrappers", () => {
         'variant="outline"',
         'type="button"',
         "rounded border border-border px-3 py-1.5 text-sm hover:bg-secondary",
-        'onClick={() => window.electronAPI.closeCorrectionResultWindow()}',
+        "onClick={() => window.electronAPI.closeCorrectionResultWindow()}",
         "closeCorrectionResultWindow()",
       ],
     ],
@@ -212,8 +212,8 @@ describe("Button behavioral wrappers", () => {
       [
         'variant={isActive ? "primary" : "ghost"}',
         'role="tab"',
-        'aria-selected={isActive}',
-        'onClick={() => setActiveDashboardTab(index)}',
+        "aria-selected={isActive}",
+        "onClick={() => setActiveDashboardTab(index)}",
         "rounded-md px-3 py-1.5 text-sm",
       ],
     ],
@@ -221,10 +221,9 @@ describe("Button behavioral wrappers", () => {
       "dashboard ranges",
       "src/renderer/MainWindow/App.tsx",
       [
-        'variant={range === r.id ? "primary" : "ghost"}',
-        'aria-pressed={range === r.id}',
-        'onClick={() => setRange(r.id)}',
-        "rounded-md px-3 py-1 text-xs",
+        "SegmentedControl",
+        "onChange={setRange}",
+        'ariaLabel={t("dashboard.range.ariaLabel")}',
       ],
     ],
     [
@@ -233,7 +232,7 @@ describe("Button behavioral wrappers", () => {
       [
         'variant="outline"',
         'type="button"',
-        'onClick={openOpenRouterTab}',
+        "onClick={openOpenRouterTab}",
         "w-full rounded-lg border border-card-control-border bg-card px-3 py-2",
         "text-left hover:bg-accent transition-colors",
       ],
@@ -244,22 +243,24 @@ describe("Button behavioral wrappers", () => {
       [
         'variant="ghost"',
         'type="button"',
-        'onClick={onClick}',
+        "onClick={onClick}",
         "disabled={disabled}",
         "aria-label={ariaLabel}",
         "rounded-md p-1.5 cursor-pointer",
       ],
     ],
-  ])("keeps the %s Button variant, behavior props, and caller geometry", async (
-    _name,
-    relativePath,
-    expectedFragments,
-  ) => {
-    const source = await readFile(path.join(process.cwd(), relativePath), "utf8");
+  ])(
+    "keeps the %s Button variant, behavior props, and caller geometry",
+    async (_name, relativePath, expectedFragments) => {
+      const source = await readFile(
+        path.join(process.cwd(), relativePath),
+        "utf8",
+      );
 
-    expect(source).toContain("<Button");
-    for (const fragment of expectedFragments) {
-      expect(source).toContain(fragment);
-    }
-  });
+      expect(source).toContain("<Button");
+      for (const fragment of expectedFragments) {
+        expect(source).toContain(fragment);
+      }
+    },
+  );
 });

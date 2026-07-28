@@ -16,9 +16,9 @@ import {
   type RefObject,
 } from "react";
 import { twJoin } from "tailwind-merge";
-import { Button } from "./Button";
 import { heatmapCellClass, heatmapLevelClass } from "./heatmapIntensity";
 import { PresetWeightChart } from "./PresetWeightChart";
+import { SegmentedControl } from "./SegmentedControl";
 import { StatCard } from "./StatCard";
 import {
   dayKeyDateFormatter,
@@ -229,21 +229,15 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
           <h2 className="text-base font-semibold text-foreground">
             {t("overview.tokenActivity.title")}
           </h2>
-          <div className="flex items-center gap-5 text-sm">
-            {TOKEN_ACTIVITY_TABS.map((tab) => (
-              <Button
-                key={tab.mode}
-                variant={activityMode === tab.mode ? "primary" : "ghost"}
-                aria-pressed={activityMode === tab.mode}
-                onClick={() => setActivityMode(tab.mode)}
-                className={
-                  activityMode === tab.mode ? "" : "text-muted-foreground"
-                }
-              >
-                {t(tab.labelKey)}
-              </Button>
-            ))}
-          </div>
+          <SegmentedControl
+            value={activityMode}
+            onChange={setActivityMode}
+            ariaLabel={t("overview.tokenActivity.mode.ariaLabel")}
+            options={TOKEN_ACTIVITY_TABS.map((tab) => ({
+              value: tab.mode,
+              label: t(tab.labelKey),
+            }))}
+          />
         </div>
 
         <div ref={activityWidthRef} className="overflow-x-auto pb-1">
