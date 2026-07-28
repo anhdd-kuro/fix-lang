@@ -27,15 +27,33 @@ export type TypedProviderKeys = Partial<
  * widen to `string` and silently accept a key no catalog defines.
  */
 export const ADMIN_KEY_MESSAGE_KEYS: Partial<
-  Record<ProviderId, { label: TranslationKey; placeholderNew: TranslationKey }>
+  Record<
+    ProviderId,
+    {
+      label: TranslationKey;
+      placeholderNew: TranslationKey;
+      /** Link text for `helpUrl`. */
+      help: TranslationKey;
+      /**
+       * The provider's own page for minting this key. Opened externally — these
+       * consoles are not embeddable, and an admin key must never be typed into
+       * a page FixLang rendered.
+       */
+      helpUrl: string;
+    }
+  >
 > = {
   openai: {
     label: "settings.general.provisioningKey.label.openai",
     placeholderNew: "settings.general.provisioningKey.placeholderNew.openai",
+    help: "settings.general.provisioningKey.help.openai",
+    helpUrl: "https://platform.openai.com/settings/organization/admin-keys",
   },
   openrouter: {
     label: "settings.general.provisioningKey.label.openrouter",
     placeholderNew: "settings.general.provisioningKey.placeholderNew.openrouter",
+    help: "settings.general.provisioningKey.help.openrouter",
+    helpUrl: "https://openrouter.ai/settings/provisioning-keys",
   },
 };
 
