@@ -123,8 +123,7 @@ const consumers = [
     attributes: {
       key: "{name}",
       variant: '{activeFilter === name ? "primary" : "secondary"}',
-      onClick:
-        "{() => setActiveFilter(toggleFilter(activeFilter, name))}",
+      onClick: "{() => setActiveFilter(toggleFilter(activeFilter, name))}",
       className: '"px-2 py-0.5 text-xs rounded-sm"',
     },
   },
@@ -149,26 +148,26 @@ const consumers = [
     resolvedVariant: '"primary"',
     attributes: {
       type: '"button"',
-      className:
-        '"ml-auto px-2 py-1.5 text-xs font-semibold rounded-lg"',
+      className: '"ml-auto px-2 py-1.5 text-xs font-semibold rounded-lg"',
       onClick: "{() => onChange([])}",
     },
   },
   {
     id: "BTN-008",
-    file: "src/renderer/components/LanguageTabs.tsx",
+    file: "src/renderer/components/SegmentedControl.tsx",
     elementIndex: 0,
     resolvedType: "button",
     resolvedVariant: '{isActive ? "primary" : "ghost"}',
     attributes: {
-      key: "{option.code}",
+      key: "{option.value}",
       variant: '{isActive ? "primary" : "ghost"}',
-      lang: "{option.code}",
+      type: '"button"',
+      lang: "{option.lang}",
       "aria-pressed": "{isActive}",
-      onClick:
-        "{() => { if (isActive) return; void setLocale(option.code as Locale); }}",
+      disabled: "{option.disabled}",
+      onClick: "{() => { if (isActive) return; onChange(option.value); }}",
       className:
-        '{twJoin("flex-1 rounded-md font-medium whitespace-nowrap", SIZE_CLASSES[size], isActive ? "shadow" : "text-muted-foreground",)}',
+        '{twJoin("rounded-md font-medium whitespace-nowrap", SIZE_CLASSES[size], equalWidth && "flex-1", isActive ? "shadow" : "text-muted-foreground hover:text-foreground",)}',
     },
   },
   {
@@ -247,8 +246,7 @@ const consumers = [
     attributes: {
       variant: '"ghost"',
       onClick: "{() => setExpanded((v) => !v)}",
-      className:
-        '"mt-1 w-full rounded-md px-2 py-1.5 text-xs text-primary"',
+      className: '"mt-1 w-full rounded-md px-2 py-1.5 text-xs text-primary"',
     },
   },
   {
@@ -308,21 +306,6 @@ const consumers = [
     },
   },
   {
-    id: "BTN-028",
-    file: "src/renderer/components/OverviewPanel.tsx",
-    elementIndex: 0,
-    resolvedType: "button",
-    resolvedVariant: '{activityMode === tab.mode ? "primary" : "ghost"}',
-    attributes: {
-      key: "{tab.mode}",
-      variant: '{activityMode === tab.mode ? "primary" : "ghost"}',
-      "aria-pressed": "{activityMode === tab.mode}",
-      onClick: "{() => setActivityMode(tab.mode)}",
-      className:
-        '{activityMode === tab.mode ? "" : "text-muted-foreground"}',
-    },
-  },
-  {
     id: "BTN-040",
     file: "src/renderer/components/SearchInput.tsx",
     elementIndex: 0,
@@ -367,14 +350,7 @@ extend([a11yPlugin]);
 describe("Card 05 Button consumer contracts", () => {
   it.each(consumers)(
     "preserves the exact native and visual contract for $id",
-    ({
-      id,
-      file,
-      elementIndex,
-      resolvedType,
-      resolvedVariant,
-      attributes,
-    }) => {
+    ({ id, file, elementIndex, resolvedType, resolvedVariant, attributes }) => {
       const source = readFileSync(path.join(process.cwd(), file), "utf8");
       const element = buttonElementsInSource(source, file)[elementIndex];
       const expectedAttributes = Object.fromEntries(
@@ -394,7 +370,9 @@ describe("Card 05 Button consumer contracts", () => {
         element?.attributes.variant ?? normalizeSyntax('"primary"'),
         id,
       ).toBe(normalizeSyntax(resolvedVariant));
-      expect(element?.attributes.type, id).not.toBe(normalizeSyntax('"submit"'));
+      expect(element?.attributes.type, id).not.toBe(
+        normalizeSyntax('"submit"'),
+      );
     },
   );
 
@@ -414,10 +392,9 @@ describe("Card 05 Button consumer contracts", () => {
         <Button variant="ghost" onClick={cancel}>Cancel</Button>
       </div>
     `);
-    const splitContract = [
-      'variant="primary"',
-      "onClick={cancel}",
-    ].map(normalizeSource);
+    const splitContract = ['variant="primary"', "onClick={cancel}"].map(
+      normalizeSource,
+    );
 
     expect(
       elements.some(({ element }) =>

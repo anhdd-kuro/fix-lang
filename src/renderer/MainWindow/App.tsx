@@ -15,6 +15,7 @@ import { LogsPanel } from "../components/LogsPanel";
 import ModelManagerDialog from "../components/ModelManagerDialog";
 import { ModelsPanel } from "../components/ModelsPanel";
 import { OverviewPanel } from "../components/OverviewPanel";
+import { SegmentedControl } from "../components/SegmentedControl";
 import { SettingsButton } from "../components/SettingsIcon";
 import { SettingsModal } from "../components/SettingsModal";
 import { SettingUpdates } from "../components/SettingUpdates";
@@ -344,29 +345,15 @@ const App: React.FC = () => {
 
         <div className="flex items-center gap-3">
           {showRange && (
-            <div
-              className="flex gap-1 rounded-lg bg-background/60 p-0.5"
-              role="group"
-              aria-label={t("dashboard.range.ariaLabel")}
-            >
-              {RANGES.map((r) => (
-                <Button
-                  key={r.id}
-                  variant={range === r.id ? "primary" : "ghost"}
-                  type="button"
-                  onClick={() => setRange(r.id)}
-                  aria-pressed={range === r.id}
-                  className={twJoin(
-                    "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-                    range === r.id
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {t(r.labelKey)}
-                </Button>
-              ))}
-            </div>
+            <SegmentedControl
+              value={range}
+              onChange={setRange}
+              ariaLabel={t("dashboard.range.ariaLabel")}
+              options={RANGES.map((r) => ({
+                value: r.id,
+                label: t(r.labelKey),
+              }))}
+            />
           )}
           <LanguageTabs />
           <SettingsButton onClick={() => setIsSettingsOpen(true)} />

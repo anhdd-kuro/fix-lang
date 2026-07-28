@@ -24,7 +24,7 @@ const en = enDashboard as Catalog;
 const ja = jaDashboard as Catalog;
 
 /**
- * The 59 keys `docs/spec.i18n-dashboard.md` §3.2-§3.4 introduces, transcribed
+ * The 60 keys `docs/spec.i18n-dashboard.md` §3.2-§3.4 introduces, transcribed
  * verbatim from its tables (28 `overview.*` + 21 `charts.*` + 10 `models.*`).
  * Does NOT include the 6 `dashboard.tab.*` keys — those come from
  * `docs/plan.i18n.md`'s Chunk 8 checklist, not this spec, and are covered by
@@ -44,6 +44,7 @@ const SPEC_KEYS = [
   "overview.value.hour",
   "overview.value.empty",
   "overview.tokenActivity.title",
+  "overview.tokenActivity.mode.ariaLabel",
   "overview.tokenActivity.mode.daily",
   "overview.tokenActivity.mode.weekly",
   "overview.tokenActivity.mode.cumulative",
@@ -96,8 +97,8 @@ const SPEC_KEYS = [
 ] as const;
 
 describe("dashboard.json — spec key inventory (docs/spec.i18n-dashboard.md §3)", () => {
-  it("introduces exactly 59 keys", () => {
-    expect(SPEC_KEYS.length).toBe(59);
+  it("introduces exactly 60 keys", () => {
+    expect(SPEC_KEYS.length).toBe(60);
   });
 
   it("has no duplicate keys in the spec inventory itself", () => {
@@ -129,15 +130,18 @@ describe("dashboard.json — plural completeness", () => {
   it("every en `_one` key has a matching `_other` sibling", () => {
     for (const oneKey of enOneKeys) {
       const base = oneKey.slice(0, -"_one".length);
-      expect(en, `en/dashboard.json has "${oneKey}" but no "${base}_other"`).toHaveProperty(
-        `${base}_other`,
-      );
+      expect(
+        en,
+        `en/dashboard.json has "${oneKey}" but no "${base}_other"`,
+      ).toHaveProperty(`${base}_other`);
     }
   });
 
   it("every en plural family (has an `_other` member) resolves in ja to at least `_other`", () => {
     for (const otherKey of enOtherKeys) {
-      expect(ja, `ja/dashboard.json is missing "${otherKey}"`).toHaveProperty(otherKey);
+      expect(ja, `ja/dashboard.json is missing "${otherKey}"`).toHaveProperty(
+        otherKey,
+      );
     }
   });
 
@@ -147,8 +151,17 @@ describe("dashboard.json — plural completeness", () => {
   });
 
   it("no non-plural key accidentally ends in a plural CLDR suffix", () => {
-    const pluralSuffixes = ["_zero", "_one", "_two", "_few", "_many", "_other"] as const;
-    const pluralFamilyBases = new Set(enOtherKeys.map((k) => k.slice(0, -"_other".length)));
+    const pluralSuffixes = [
+      "_zero",
+      "_one",
+      "_two",
+      "_few",
+      "_many",
+      "_other",
+    ] as const;
+    const pluralFamilyBases = new Set(
+      enOtherKeys.map((k) => k.slice(0, -"_other".length)),
+    );
 
     for (const key of enKeys) {
       const suffix = pluralSuffixes.find((s) => key.endsWith(s));
@@ -171,7 +184,10 @@ describe("dashboard.json — placeholder parity (en vs ja)", () => {
   it("every key ja defines has the same {placeholder} set as its en value", () => {
     for (const [key, jaValue] of Object.entries(ja)) {
       const enValue = en[key];
-      expect(enValue, `en/dashboard.json is missing "${key}" that ja defines`).toBeDefined();
+      expect(
+        enValue,
+        `en/dashboard.json is missing "${key}" that ja defines`,
+      ).toBeDefined();
       expect(
         placeholdersOf(jaValue),
         `placeholder mismatch for "${key}"`,
