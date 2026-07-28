@@ -67,7 +67,7 @@ vi.mock("~/main/llm", () => ({
 }));
 vi.mock("~/main/llm/models/compatibility", () => ({ checkModelCompatibility: vi.fn() }));
 vi.mock("~/main/llm/models/discover", () => ({ probeOllama: probeOllamaMock }));
-vi.mock("~/main/llm/lmstudio/client", () => ({ probeLmStudio: probeLmStudioMock }));
+vi.mock("~/main/llm/providers/lmstudio/client", () => ({ probeLmStudio: probeLmStudioMock }));
 vi.mock("~/main/llm/models/recommended", () => ({
   findRecommendedModel: vi.fn(),
   getRecommendedModels: vi.fn(),
@@ -332,32 +332,38 @@ describe("disconnect-provider", () => {
       cleared: CLEARED,
     });
 
-    const result = (await invoke("disconnect-provider", "openai")) as {
+    const result = (await invoke("disconnect-provider", "lmstudio")) as {
       success: boolean;
       cleared?: unknown;
     };
 
     expect(result.success).toBe(true);
     expect(clearProfileSecretMock).toHaveBeenCalledTimes(1);
-    expect(clearProfileSecretMock).toHaveBeenCalledWith("profile_1", "openai", "api");
-    expect(disconnectProviderFromProfileMock).toHaveBeenCalledWith("profile_1", "openai");
+    expect(clearProfileSecretMock).toHaveBeenCalledWith("profile_1", "lmstudio", "api");
+    expect(disconnectProviderFromProfileMock).toHaveBeenCalledWith(
+      "profile_1",
+      "lmstudio",
+    );
     // Identity, not deep equality: the warning renders exactly this object.
     expect(result.cleared).toBe(CLEARED);
   });
 
-  it("clears the provisioning key too, for openrouter only", async () => {
-    disconnectProviderFromProfileMock.mockReturnValue({
-      profile: { id: "profile_1" },
-      cleared: CLEARED,
-    });
+  it.each(["openrouter", "openai"] as const)(
+    "clears the admin key too, for %s",
+    async (provider) => {
+      disconnectProviderFromProfileMock.mockReturnValue({
+        profile: { id: "profile_1" },
+        cleared: CLEARED,
+      });
 
-    await invoke("disconnect-provider", "openrouter");
+      await invoke("disconnect-provider", provider);
 
-    expect(clearProfileSecretMock.mock.calls).toEqual([
-      ["profile_1", "openrouter", "api"],
-      ["profile_1", "openrouter", "provisioning"],
-    ]);
-  });
+      expect(clearProfileSecretMock.mock.calls).toEqual([
+        ["profile_1", provider, "api"],
+        ["profile_1", provider, "provisioning"],
+      ]);
+    },
+  );
 
   it("clears nothing for ollama, which has no credential slots", async () => {
     disconnectProviderFromProfileMock.mockReturnValue({

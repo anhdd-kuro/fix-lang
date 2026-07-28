@@ -31,9 +31,21 @@ Call `stripModelRefPrefix` first. No-op on a bare id, single-pass by design — 
 
 A **bare** id scans `PROVIDER_ORDER` and takes the first hit — that is a migration tolerance, not a feature. `PROVIDER_ORDER` is therefore resolution precedence as well as display order; reordering it reroutes un-migrated refs.
 
+## Provider dispatch goes through the registry, not a branch
+
+`makeAIRequest` resolves the ref, then calls `providerCapabilities(provider).makeRequest` — the per-provider implementations live in `src/main/llm/providers/<id>/request.ts`. Adding a provider means a folder plus a registry entry; adding another `if (provider === …)` in `ai.request/shared.ts` is the thing this replaced.
+
+Two edges hold that shape up, and both are load-bearing:
+
+- **Nothing under `providers/` may import `ai.request/shared.ts`.** `shared.ts` imports the registry, so the reverse edge is a runtime import cycle in the CommonJS main bundle. Request/response types therefore come from `ai.request/requestTypes.ts`.
+- **The registry's `fetchModels`/`makeRequest` slots resolve their module through a lazy `import()`.** `~/main/llm` re-exports the registry and is imported for the Ollama client alone; making those slots eager drags the OpenAI/OpenRouter SDKs, notifications, and `electron-store` in with it — which breaks unit tests that only wanted the registry. A test mocking the Ollama client must mock `~/main/llm/providers/ollama/client`, not the `~/main/llm` barrel.
+
+`ollama`/`lmstudio` have **no** `fetchModels` slot on purpose: they are discovered by reachability probe, and that probe's "empty vs unreachable" distinction (which decides whether `[]` may overwrite the cached slice) cannot survive an `(apiKey) => Model[]` signature. It stays in `fetchProviderModels`.
+
 ## Checklist
 
 - [ ] Pattern-matching a model id? `stripModelRefPrefix` first
 - [ ] Writing SQLite or calling a provider API? Raw id, never the ref
+- [ ] New provider behaviour? Registry entry under `providers/<id>/`, not a branch in `shared.ts`
 - [ ] Storing to config? Canonical ref from `resolveModelRef`, never the caller's input
 - [ ] Test uses an id with no rescuing family word (`gemma`, `o3-mini`), not a Claude id

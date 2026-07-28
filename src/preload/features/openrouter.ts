@@ -1,6 +1,6 @@
 // OpenRouter analytics preload functionality (#59)
 import { ipcRenderer } from "electron";
-import type { OpenRouterAnalytics } from "~/main/llm/openrouter/client";
+import type { OpenRouterAnalytics } from "~/main/llm/providers/openrouter/client";
 
 export type OpenRouterRange = "7d" | "30d";
 

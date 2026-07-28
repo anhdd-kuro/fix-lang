@@ -1,6 +1,7 @@
 // Settings-related preload functionality
 import { ipcRenderer } from "electron";
 import { messageLabel, type Label } from "~/shared/i18n/message";
+import { supportsAdminKey, type ProviderId } from "~/shared/providers";
 import { asLabel } from "./ipcLabel";
 import type { CorrectionOutputMode } from "~/shared/outputMode";
 import type { KeyBindings } from "~/stores/apiStore";
@@ -69,38 +70,57 @@ export const settingsFeature = {
   resumeHotkeys: (): Promise<void> => ipcRenderer.invoke("resume-hotkeys"),
 
   /**
-   * Store the OpenRouter provisioning (admin) key securely (safeStorage in
-   * main). Validates the argument is a string here (preload boundary) before
-   * invoking; rejects non-strings without crossing IPC. The plaintext key is
-   * sent to main only to be encrypted — it is never returned to the renderer.
+   * Store a provider's admin key securely (safeStorage in main) — OpenRouter's
+   * provisioning key or OpenAI's Admin API key. Validates the provider AND the
+   * string here (preload boundary) before invoking; a bad payload never crosses
+   * IPC. The plaintext key is sent to main only to be encrypted — it is never
+   * returned to the renderer.
+   *
+   * `provider` is required, never defaulted: a missed argument must fail loudly
+   * rather than write one provider's key into another's slot.
    */
   setProvisioningKey: async (
+    provider: ProviderId,
     key: string
   ): Promise<{ success: boolean; error?: Label }> => {
-    if (typeof key !== "string") {
+    if (!supportsAdminKey(provider) || typeof key !== "string") {
       return {
         success: false,
         error: messageLabel("settings.general.provisioningKey.invalid"),
       };
     }
-    const result = await ipcRenderer.invoke("set-provisioning-key", key);
+    const result = await ipcRenderer.invoke(
+      "set-provisioning-key",
+      provider,
+      key
+    );
     return { ...result, error: asLabel(result?.error) };
   },
 
   /**
-   * Remove the stored OpenRouter provisioning key.
+   * Remove a provider's stored admin key.
    */
-  clearProvisioningKey: async (): Promise<{ success: boolean; error?: Label }> => {
-    const result = await ipcRenderer.invoke("clear-provisioning-key");
+  clearProvisioningKey: async (
+    provider: ProviderId
+  ): Promise<{ success: boolean; error?: Label }> => {
+    if (!supportsAdminKey(provider)) {
+      return {
+        success: false,
+        error: messageLabel("settings.general.provisioningKey.invalid"),
+      };
+    }
+    const result = await ipcRenderer.invoke("clear-provisioning-key", provider);
     return { ...result, error: asLabel(result?.error) };
   },
 
   /**
-   * Whether a provisioning key is currently stored. Drives the masked UI state;
-   * the actual key value is never exposed to the renderer.
+   * Whether that provider's admin key is currently stored. Drives the masked UI
+   * state; the actual key value is never exposed to the renderer.
    */
-  hasProvisioningKey: (): Promise<boolean> =>
-    ipcRenderer.invoke("has-provisioning-key"),
+  hasProvisioningKey: async (provider: ProviderId): Promise<boolean> =>
+    supportsAdminKey(provider)
+      ? ipcRenderer.invoke("has-provisioning-key", provider)
+      : false,
 
   /**
    * Registers a callback for the 'settings-updated' event from main process.

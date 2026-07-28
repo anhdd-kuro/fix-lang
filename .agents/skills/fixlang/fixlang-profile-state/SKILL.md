@@ -23,9 +23,18 @@ When a user connects a provider in Settings → General, the app adds it to the 
 
 Same with disconnecting: only refs that point to the disconnected provider are reset to inherit. A preset using a different provider stays intact.
 
+## Admin-key slots are per-provider AND per-profile — never defaulted
+
+`PROVIDER_SUPPORTS_PROVISIONING_KEY` covers **two** providers now (OpenAI Admin key, OpenRouter provisioning key), and `secretKindsForProvider` derives each profile's secret files from it — so the settings field, profile-delete cleanup, and the disconnect warning all follow the table with no per-provider branch.
+
+Consequence: every accessor in `provisioningKeyStore` and every one of the three IPC channels (`set/clear/has-provisioning-key`) takes an **explicit** `ProviderId`. Do not add a default. A defaulted or omitted provider writes OpenAI's admin key into OpenRouter's slot, or reads OpenRouter's when asked about OpenAI — no error, no log, just one account's key querying another's billing. The preload and main handlers both gate on `supportsAdminKey()`, which narrows through `isProviderId` so an inherited key like `"constructor"` cannot read truthy off the lookup map.
+
+The legacy global file (`openrouter-provisioning.enc`) predates both profiles and multi-provider admin keys, so it is consulted for `openrouter` only.
+
 ## Checklist
 
 - [ ] Profile switch reloads hotkeys
 - [ ] Profile switch refreshes settings UI
 - [ ] Profile switch clears/reloads history per the per-profile setting
 - [ ] All three complete together, no partial state
+- [ ] Every admin-key read/write names its provider explicitly (no default, no `"openrouter"` literal)

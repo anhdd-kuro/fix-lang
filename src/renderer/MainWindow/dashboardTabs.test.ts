@@ -29,7 +29,7 @@ describe("DASHBOARD_TABS", () => {
       "overview",
       "history",
       "models",
-      "openrouter",
+      "usage",
       "logs",
       "about",
     ]);
@@ -40,7 +40,7 @@ describe("DASHBOARD_TABS", () => {
       "dashboard.tab.overview",
       "dashboard.tab.history",
       "dashboard.tab.models",
-      "dashboard.tab.openrouter",
+      "dashboard.tab.usage",
       "dashboard.tab.logs",
       "dashboard.tab.about",
     ]);

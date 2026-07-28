@@ -7,6 +7,7 @@ import {
   PROVIDER_SUPPORTS_PROVISIONING_KEY,
   type ProviderId,
 } from "~/shared/providers";
+import type { TranslationKey } from "~/shared/i18n/keys";
 
 export type ProviderConnectionState = {
   connected: boolean;
@@ -19,6 +20,24 @@ export type ProviderConnectionState = {
 export type TypedProviderKeys = Partial<
   Record<ProviderId, { apiKey?: string; provisioningKey?: string }>
 >;
+
+/**
+ * Admin-key field strings per provider. A static record, not a template-built
+ * key: `t()` keys are compile-time checked, and `` `…label.${provider}` `` would
+ * widen to `string` and silently accept a key no catalog defines.
+ */
+export const ADMIN_KEY_MESSAGE_KEYS: Partial<
+  Record<ProviderId, { label: TranslationKey; placeholderNew: TranslationKey }>
+> = {
+  openai: {
+    label: "settings.general.provisioningKey.label.openai",
+    placeholderNew: "settings.general.provisioningKey.placeholderNew.openai",
+  },
+  openrouter: {
+    label: "settings.general.provisioningKey.label.openrouter",
+    placeholderNew: "settings.general.provisioningKey.placeholderNew.openrouter",
+  },
+};
 
 export type ProviderCardState = {
   provider: ProviderId;

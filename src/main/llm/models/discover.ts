@@ -4,7 +4,7 @@
  */
 import fs from "fs";
 import path from "path";
-import { ollamaClient } from "../ollama/client";
+import { ollamaClient } from "../providers/ollama/client";
 import type { Model } from "~/stores/apiStore";
 
 /**

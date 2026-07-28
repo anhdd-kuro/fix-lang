@@ -1,14 +1,9 @@
 // UI-related preload functionality
 import { ipcRenderer } from "electron";
+import type { DashboardTabId } from "~/shared/dashboardTabIds";
+import type { ProviderId } from "~/shared/providers";
 
-/** Dashboard tab ids — mirrors MainWindow/dashboardTabs.ts */
-export type DashboardTabId =
-  | "overview"
-  | "history"
-  | "models"
-  | "openrouter"
-  | "logs"
-  | "about";
+export type { DashboardTabId };
 
 /**
  * Exposes UI-related functionality to the renderer process
@@ -131,11 +126,14 @@ export const uiFeature = {
   /**
    * Registers a callback for opening a dashboard tab in the main window.
    */
-  onOpenDashboardTab: (callback: (tabId: DashboardTabId) => void) => {
+  onOpenDashboardTab: (
+    callback: (tabId: DashboardTabId, subTabId?: ProviderId) => void
+  ) => {
     const listener = (
       _event: Electron.IpcRendererEvent,
-      tabId: DashboardTabId
-    ) => callback(tabId);
+      tabId: DashboardTabId,
+      subTabId?: ProviderId
+    ) => callback(tabId, subTabId);
     ipcRenderer.on("open-dashboard-tab", listener);
     return () => {
       ipcRenderer.removeListener("open-dashboard-tab", listener);
@@ -187,10 +185,15 @@ export const uiFeature = {
   },
 
   /**
-   * Shows the main window focused on a dashboard tab
+   * Shows the main window focused on a dashboard tab.
+   *
+   * `subTabId` names the provider panel to open inside a tab that has per-
+   * provider sub-tabs (Usage). Without it, the Usage tab opens on whichever
+   * provider sorts first — which is not necessarily the one the caller's card
+   * was showing.
    */
-  showMainWindowTab: (tabId: DashboardTabId): void => {
-    ipcRenderer.send("show-main-window-tab", tabId);
+  showMainWindowTab: (tabId: DashboardTabId, subTabId?: ProviderId): void => {
+    ipcRenderer.send("show-main-window-tab", tabId, subTabId);
   },
 
   /**

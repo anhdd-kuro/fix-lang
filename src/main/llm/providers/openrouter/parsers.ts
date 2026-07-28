@@ -11,6 +11,7 @@
  * documented field names; real per-endpoint JSON should be captured against a
  * live account to lock the fixtures (see #59 plan HITL #1 — flagged for QA).
  */
+import { utcDayKey, type UsageDailyPoint } from "~/shared/usage";
 
 /** Independent per-card result so one failing endpoint doesn't sink the tab. */
 export type CardResult<T> =
@@ -148,10 +149,14 @@ export type ActivityModelRow = {
 export type Activity = {
   range: "7d" | "30d";
   rows: ActivityModelRow[];
+  /**
+   * The same rows aggregated by UTC day instead of by model, ascending by date.
+   * `/api/v1/activity` is already per-day per-model, so this costs one extra
+   * accumulator rather than another request — the day dimension used to be
+   * discarded here.
+   */
+  daily: UsageDailyPoint[];
 };
-
-/** UTC day string "YYYY-MM-DD" for a Date. */
-const utcDayKey = (d: Date): string => d.toISOString().slice(0, 10);
 
 /**
  * Parse `/api/v1/activity` (array of per-day per-model rows). Aggregates per
@@ -176,20 +181,40 @@ export const parseActivity = (
       : null;
 
   const byModel = new Map<string, ActivityModelRow>();
+  const byDay = new Map<string, UsageDailyPoint>();
   for (const raw of data) {
     if (!isRecord(raw)) {
       continue; // skip garbage rows, never throw
     }
+    const rawDate = asString(raw.date);
     if (cutoffKey !== null) {
-      const date = asString(raw.date);
       // String compare works for "YYYY-MM-DD" lexicographic ordering.
-      if (date === null || date < cutoffKey) {
+      if (rawDate === null || rawDate < cutoffKey) {
         continue;
       }
     }
     const model = asString(raw.model) ?? asString(raw.model_permaslug);
     if (model === null) {
       continue;
+    }
+
+    // A row kept for the model table but missing a date can't join the daily
+    // series; it is counted once, in the aggregate it can actually belong to.
+    if (rawDate !== null) {
+      const day =
+        byDay.get(rawDate) ??
+        {
+          date: rawDate,
+          requests: 0,
+          inputTokens: 0,
+          outputTokens: 0,
+          costUsd: 0,
+        };
+      day.requests += asNumber(raw.requests) ?? 0;
+      day.inputTokens += asNumber(raw.prompt_tokens) ?? 0;
+      day.outputTokens += asNumber(raw.completion_tokens) ?? 0;
+      day.costUsd = (day.costUsd ?? 0) + (asNumber(raw.usage) ?? asNumber(raw.cost) ?? 0);
+      byDay.set(rawDate, day);
     }
     const acc =
       byModel.get(model) ??
@@ -208,7 +233,8 @@ export const parseActivity = (
   }
 
   const rows = [...byModel.values()].sort((a, b) => b.requests - a.requests);
-  return { ok: true, data: { range, rows } };
+  const daily = [...byDay.values()].sort((a, b) => a.date.localeCompare(b.date));
+  return { ok: true, data: { range, rows, daily } };
 };
 
 // ---------------------------------------------------------------------------

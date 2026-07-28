@@ -4,7 +4,7 @@
  */
 import { app, BrowserWindow } from "electron";
 import { fetchAvailableModels, getCachedModels } from "~/main/ai.request/shared";
-import { probeLmStudio } from "~/main/llm/lmstudio/client";
+import { probeLmStudio } from "~/main/llm/providers/lmstudio/client";
 import { sanitizeEnabledProviders } from "~/shared/providers";
 import { getProfileSetting, getProviderEndpoint } from "~/stores/apiStore";
 import { getActiveProfileSecret } from "~/stores/profileSecretStore";

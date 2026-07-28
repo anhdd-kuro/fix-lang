@@ -10,5 +10,6 @@ export * from "./settings";
 export * from "./theme";
 export * from "./ui";
 export * from "./history";
+export * from "./openaiUsage";
 export * from "./openrouter";
 export * from "./update";

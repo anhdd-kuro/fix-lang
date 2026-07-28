@@ -14,17 +14,18 @@ import { LanguageTabs } from "../components/LanguageTabs";
 import { LogsPanel } from "../components/LogsPanel";
 import ModelManagerDialog from "../components/ModelManagerDialog";
 import { ModelsPanel } from "../components/ModelsPanel";
-import { OpenRouterPanel } from "../components/OpenRouterPanel";
 import { OverviewPanel } from "../components/OverviewPanel";
 import { SettingsButton } from "../components/SettingsIcon";
 import { SettingsModal } from "../components/SettingsModal";
 import { SettingUpdates } from "../components/SettingUpdates";
 import { TextAreaBox } from "../components/TextAreaBox";
+import { UsagePanel } from "../components/usage/UsagePanel";
 import { useTheme } from "../hooks/useTheme";
 import { useI18n } from "../i18n/useI18n";
 import type { DashboardTabId } from "./dashboardTabs";
 import type { AnalyticsRange } from "../analytics/shared";
 import type { MessageKey } from "~/shared/i18n/message";
+import type { ProviderId } from "~/shared/providers";
 import type { HistoryEntry, HistoryFeatureId } from "~/stores/historyStore";
 
 /**
@@ -76,6 +77,12 @@ const App: React.FC = () => {
     DEFAULT_DASHBOARD_TAB_INDEX
   );
   const [range, setRange] = useState<AnalyticsRange>("all");
+  // A tray card asking the Usage tab to open on ITS provider. Stamped rather
+  // than stored bare so a repeat request is still a state change.
+  const [requestedUsageProvider, setRequestedUsageProvider] = useState<{
+    provider: ProviderId;
+    at: number;
+  } | null>(null);
 
   // Single stable reference shared by both useEffects and the clear handler.
   // Fetches both store buckets, merges, and sorts into the history state.
@@ -147,10 +154,15 @@ const App: React.FC = () => {
       setIsSettingsOpen(true);
     });
     const offDashboardTab = window.electronAPI.onOpenDashboardTab?.(
-      (tabId: DashboardTabId) => {
+      (tabId: DashboardTabId, subTabId?: ProviderId) => {
         const index = DASHBOARD_TABS.findIndex((tab) => tab.id === tabId);
         if (index >= 0) {
           setActiveDashboardTab(clampTabIndex(index));
+          // Bumped even when the provider repeats, so clicking the same tray
+          // card twice re-targets a panel the user has since navigated away from.
+          if (subTabId !== undefined) {
+            setRequestedUsageProvider({ provider: subTabId, at: Date.now() });
+          }
         }
       }
     );
@@ -273,13 +285,16 @@ const App: React.FC = () => {
   );
 
   // Tab panel contents. Analytics tabs read the shared range; History hosts the
-  // list + preview; OpenRouter keeps its own data hook.
+  // list + preview; Usage keeps its own per-provider data hooks.
   const tabPanels: Record<string, React.ReactNode> = {
     overview: <OverviewPanel history={correctionsHistory} range={range} />,
     history: historyTab,
     models: <ModelsPanel history={correctionsHistory} range={range} />,
-    openrouter: (
-      <OpenRouterPanel onOpenSettings={() => setIsSettingsOpen(true)} />
+    usage: (
+      <UsagePanel
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        requestedProvider={requestedUsageProvider}
+      />
     ),
     logs: <LogsPanel />,
     about: (

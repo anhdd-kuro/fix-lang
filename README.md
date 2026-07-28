@@ -29,7 +29,7 @@ Six tabs, opened from the menu-bar tray or after a transform:
 | **Overview** | Token stats, preset usage charts, Codex-style token activity calendar, benchmark sentence |
 | **History** | Transform + PromptGen history with cost tracking; last-action preview |
 | **Models** | Provider model discovery, compatibility, and monitoring |
-| **OpenRouter** | OpenRouter-specific model and routing controls |
+| **Usage** | Account-level spend and token usage, one sub-tab per connected provider (OpenAI, OpenRouter) — daily spend and token charts, spend-share donut, per-model activity |
 | **Logs** | Structured, redacted app events — multi-select level filter, search, copy/export as `.txt` |
 | **About** | Version, app updates, and release notes (see [App updates](#app-updates)) |
 
@@ -61,7 +61,7 @@ You can connect multiple providers at once. Each connected provider's models app
 1. Open Settings → General → Providers
 2. For each provider you want to use:
    - Enter its API key when required (OpenAI and OpenRouter need keys; Ollama needs none; LM Studio accepts an optional key plus host/port for its local server)
-   - OpenRouter: optionally add a provisioning key for model discovery and billing
+   - Optionally add an admin key to unlock that provider's **Usage** sub-tab: an OpenRouter provisioning key, or an OpenAI Admin API key (`sk-admin-…`, organization owner). Admin keys are read only in the main process and never returned to the UI.
    - Click **Test & fetch models** — this validates the credentials and fetches that provider's model list
 3. Choose a default model for the profile
 4. A preset's model selector shows all connected providers' models, grouped by provider
@@ -255,7 +255,7 @@ the tag if you want it.
 1. Select text in any application (or copy to clipboard)
 2. Press a preset hotkey (default: `Ctrl+Shift+F` for Correction)
 3. FixLang delivers the result using the mode selected in **Settings → General → Transform output**: **Direct paste** or **Show popup**
-4. Open the tray popover → dashboard icon for Overview, History, Models, OpenRouter, Logs, or About
+4. Open the tray popover → dashboard icon for Overview, History, Models, Usage, Logs, or About
 5. `Ctrl+Shift+G` opens PromptGen on the current selection — tag-on builds only, see [Feature tags](#feature-tags-opt-in-features)
 6. `Ctrl+Shift+P` cycles to the next profile
 
@@ -338,7 +338,7 @@ GitHub Releases.
 
 ## Security
 
-- API keys and the OpenRouter provisioning key are handled main-process-only — encrypted at rest via the OS keychain (Electron `safeStorage`) — and are never sent back to the renderer/UI process after being saved.
+- API keys and provider admin keys (OpenRouter provisioning, OpenAI Admin) are handled main-process-only — encrypted at rest via the OS keychain (Electron `safeStorage`) — and are never sent back to the renderer/UI process after being saved.
 - Keys are never included in profile import or export; exporting a profile shares its settings, never its credentials.
 - Secrets are scoped to one profile and one provider at a time — switching profiles switches the whole connected set, and neither another profile nor another provider can read a key it did not store.
 - A freshly created profile has no provider connected — nothing is auto-selected or auto-populated from another profile.

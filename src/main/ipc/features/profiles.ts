@@ -4,7 +4,9 @@
  */
 import { ipcMain, Notification } from "electron";
 import { reloadHotkeys } from "~/main/keybindings";
+import { broadcastToAllWindows } from "~/main/webViewWindows/broadcast";
 import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
+import { ACTIVE_PROFILE_CHANGED } from "~/shared/ipcChannels";
 import {
   clearLegacyApiKey,
   getLegacyApiKey,
@@ -195,6 +197,7 @@ export const registerProfileHandlers = () => {
 
         if (result.success) {
           reloadHotkeys();
+          broadcastToAllWindows(ACTIVE_PROFILE_CHANGED);
           const profile = getProfileById(profileId);
 
           new Notification(
@@ -291,6 +294,7 @@ export const registerProfileHandlers = () => {
 
       if (nextProfile) {
         reloadHotkeys();
+        broadcastToAllWindows(ACTIVE_PROFILE_CHANGED);
         new Notification(
           buildProfileNotification("switched", nextProfile.name),
         ).show();

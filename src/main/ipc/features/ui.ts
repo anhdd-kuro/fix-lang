@@ -194,9 +194,9 @@ export const registerUiHandlers = () => {
 
   ipcMain.on(
     "show-main-window-tab",
-    (_event: Electron.IpcMainEvent, tabId: string) => {
+    (_event: Electron.IpcMainEvent, tabId: string, subTabId?: string) => {
       withMainWindow((win) => {
-        win.webContents.send("open-dashboard-tab", tabId);
+        win.webContents.send("open-dashboard-tab", tabId, subTabId);
       });
     }
   );

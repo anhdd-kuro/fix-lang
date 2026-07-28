@@ -1,5 +1,6 @@
 // Profiles-related preload functionality
 import { ipcRenderer } from "electron";
+import { ACTIVE_PROFILE_CHANGED } from "~/shared/ipcChannels";
 import { asLabel } from "./ipcLabel";
 import type { Label } from "~/shared/i18n/message";
 import type { Profile } from "~/stores/apiStore";
@@ -145,6 +146,20 @@ export const profilesFeature = {
     ipcRenderer.on("profile-updated", listener);
     return () => {
       ipcRenderer.removeListener("profile-updated", listener);
+    };
+  },
+
+  /**
+   * Registers a callback for an ACTIVE-profile switch, raised by main from the
+   * apply/switch handlers and from the global hotkey. Any view holding
+   * profile-scoped data (keys, presets, cached models, account usage) must drop
+   * it here — the switch does not emit `settings-updated`.
+   */
+  onActiveProfileChanged: (callback: () => void): (() => void) => {
+    const listener = () => callback();
+    ipcRenderer.on(ACTIVE_PROFILE_CHANGED, listener);
+    return () => {
+      ipcRenderer.removeListener(ACTIVE_PROFILE_CHANGED, listener);
     };
   },
 };

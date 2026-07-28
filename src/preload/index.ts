@@ -8,6 +8,7 @@ import {
   correctionResultFeature,
   localeFeature,
   logsFeature,
+  openaiUsageFeature,
   promptGenFeature,
   profilesFeature,
   settingsFeature,
@@ -24,6 +25,7 @@ import type {
   HistoryFeature,
   LocaleFeature,
   LogsFeature,
+  OpenAIUsageFeature,
   OpenRouterFeature,
   ProfilesFeature,
   PromptGenFeature,
@@ -49,6 +51,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...settingsFeature,
   ...themeFeature,
   ...uiFeature,
+  ...openaiUsageFeature,
   ...openrouterFeature,
   ...updateFeature,
 } satisfies ElectronAPI);
@@ -68,5 +71,6 @@ export type ElectronAPI = HistoryFeature &
   SettingsFeature &
   ThemeFeature &
   UIFeature &
+  OpenAIUsageFeature &
   OpenRouterFeature &
   UpdateFeature;

@@ -173,7 +173,7 @@ describe("settings.ts IPC handlers — app-authored validation errors are transl
 
   it("set-provisioning-key: a non-string key is a translatable 'Invalid key' Message", async () => {
     const handler = handlers.get("set-provisioning-key");
-    const result = (await handler?.(undefined, 42)) as {
+    const result = (await handler?.(undefined, "openrouter", 42)) as {
       success: boolean;
       error?: unknown;
     };
@@ -185,10 +185,38 @@ describe("settings.ts IPC handlers — app-authored validation errors are transl
     expect(ja).not.toBe(en);
   });
 
+  it.each<string | undefined>([
+    "ollama", // a provider with no admin-key slot
+    undefined, // a missing provider argument
+    "constructor", // a prototype key that must not read truthy off the lookup map
+  ])(
+    "set-provisioning-key: rejects %s as a provider without touching the store",
+    async (provider) => {
+      const handler = handlers.get("set-provisioning-key");
+      const result = (await handler?.(undefined, provider, "sk-abc")) as {
+        success: boolean;
+      };
+
+      expect(result.success).toBe(false);
+      expect(setProvisioningKeyMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("has-provisioning-key: an unsupported provider reads as 'no key', never as the OpenRouter slot", async () => {
+    hasProvisioningKeyMock.mockResolvedValue(true);
+    const handler = handlers.get("has-provisioning-key");
+
+    await expect(handler?.(undefined, "ollama")).resolves.toBe(false);
+    expect(hasProvisioningKeyMock).not.toHaveBeenCalled();
+
+    await expect(handler?.(undefined, "openai")).resolves.toBe(true);
+    expect(hasProvisioningKeyMock).toHaveBeenCalledWith("openai");
+  });
+
   it("set-provisioning-key: a store-authored error (provisioningKeyStore.ts, outside this migration's scope) is boundary-wrapped as opaque and stays identical across locales", async () => {
     setProvisioningKeyMock.mockResolvedValue({ success: false, error: "No active profile" });
     const handler = handlers.get("set-provisioning-key");
-    const result = (await handler?.(undefined, "sk-or-abc")) as {
+    const result = (await handler?.(undefined, "openrouter", "sk-or-abc")) as {
       success: boolean;
       error?: unknown;
     };
@@ -203,7 +231,10 @@ describe("settings.ts IPC handlers — app-authored validation errors are transl
   it("clear-provisioning-key: a store-authored error is boundary-wrapped as opaque", async () => {
     clearProvisioningKeyMock.mockResolvedValue({ success: false, error: "Failed to clear key" });
     const handler = handlers.get("clear-provisioning-key");
-    const result = (await handler?.(undefined)) as { success: boolean; error?: unknown };
+    const result = (await handler?.(undefined, "openrouter")) as {
+      success: boolean;
+      error?: unknown;
+    };
 
     expect(result.success).toBe(false);
     expect(result.error).toEqual({ kind: "text", text: "Failed to clear key" });

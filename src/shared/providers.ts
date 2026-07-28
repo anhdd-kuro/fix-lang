@@ -62,13 +62,26 @@ export const PROVIDER_SUPPORTS_API_KEY: Readonly<Record<ProviderId, boolean>> = 
   lmstudio: true,
 });
 
+/**
+ * Whether the provider has an admin-scoped key distinct from its request key —
+ * OpenRouter's provisioning key, OpenAI's Admin API key. Both are read only in
+ * the main process, and only for account usage/billing reads.
+ */
 export const PROVIDER_SUPPORTS_PROVISIONING_KEY: Readonly<Record<ProviderId, boolean>> =
   Object.freeze({
-    openai: false,
+    openai: true,
     openrouter: true,
     ollama: false,
     lmstudio: false,
   });
+
+/**
+ * Narrowing guard for every admin-key boundary (IPC payloads, settings cards).
+ * Goes through `isProviderId` first so an inherited key like `"constructor"`
+ * cannot read truthy off the lookup map's prototype.
+ */
+export const supportsAdminKey = (value: unknown): value is ProviderId =>
+  isProviderId(value) && PROVIDER_SUPPORTS_PROVISIONING_KEY[value];
 
 export type Model = {
   id: string;

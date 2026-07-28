@@ -56,8 +56,8 @@ describe("profile secret targets", () => {
       "Ollama does not use an API key",
     );
     expect(() =>
-      getProfileSecretPath("profile_1", "openai", "provisioning"),
-    ).toThrow("Only OpenRouter has a provisioning key");
+      getProfileSecretPath("profile_1", "lmstudio", "provisioning"),
+    ).toThrow("Only OpenAI and OpenRouter use an admin key");
   });
 });
 
@@ -117,8 +117,13 @@ describe("clearProfileSecrets — covers every derived slot", () => {
 
     const clearedPaths = rmMock.mock.calls.map((call) => String(call[0]));
     expect(clearedPaths.some((path) => path.includes("ollama"))).toBe(false);
+    expect(
+      clearedPaths.some((path) => path.includes("lmstudio-provisioning")),
+    ).toBe(false);
+    // OpenAI now HAS an admin slot, so its file must be among the deletions —
+    // a profile deletion that skipped it would leave a billing-scoped key behind.
     expect(clearedPaths.some((path) => path.includes("openai-provisioning"))).toBe(
-      false,
+      true,
     );
   });
 
@@ -136,7 +141,11 @@ describe("clearProfileSecrets — covers every derived slot", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("EPERM");
-    expect(rmMock).toHaveBeenCalledTimes(4);
+    // Derived, not a literal: a new provider slot must widen this automatically
+    // rather than pass while the failing slot's siblings went unattempted.
+    expect(rmMock).toHaveBeenCalledTimes(
+      PROVIDER_IDS.flatMap((provider) => secretKindsForProvider(provider)).length,
+    );
   });
 });
 

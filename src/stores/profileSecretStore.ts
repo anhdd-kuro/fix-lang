@@ -63,7 +63,7 @@ export const getProfileSecretPath = (
     throw new Error(
       kind === "api"
         ? `${PROVIDER_LOG_LABELS[provider]} does not use an API key`
-        : `Only ${provisioningProviderNames()} has a provisioning key`,
+        : `Only ${provisioningProviderNames()} use an admin key`,
     );
   }
 

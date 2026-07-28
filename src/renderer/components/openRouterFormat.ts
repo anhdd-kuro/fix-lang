@@ -1,17 +1,12 @@
+import { formatUsageUsd } from "./usage/usageFormat";
 import type { Translator } from "~/shared/i18n/translate";
 
 /**
- * Format USD amounts for OpenRouter credit display. OpenRouter always bills
- * in USD regardless of interface locale, so this intentionally does not use
- * `formatCurrency` (which would localize digit grouping but not the currency
- * itself) — the fixed `$` prefix matches OpenRouter's own dashboard.
+ * Format USD amounts for OpenRouter credit display. One implementation, shared
+ * with the other providers' Usage panels — see `usage/usageFormat.ts`. This name
+ * is kept because the tray credit balance and its tests import it.
  */
-export const formatOpenRouterUsd = (n: number): string =>
-  n === 0
-    ? "$0.00"
-    : n > 0 && n < 0.01
-      ? `$${n.toFixed(6).replace(/0+$/, "").replace(/\.$/, "")}`
-      : `$${n.toFixed(2)}`;
+export const formatOpenRouterUsd = formatUsageUsd;
 
 export type OpenRouterDegradedReason =
   | "unauthorized"
