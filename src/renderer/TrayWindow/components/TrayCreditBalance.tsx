@@ -10,9 +10,11 @@ import { useOpenRouterAnalytics } from "../../hooks/useOpenRouterAnalytics";
 import { useI18n } from "../../i18n/useI18n";
 import type { CardResult, Credits } from "~/main/llm/providers/openrouter/parsers";
 
+// The Usage tab hosts one sub-tab per connected provider and does not
+// necessarily open on OpenRouter's, so this card names the panel it is showing.
 const openOpenRouterTab = (): void => {
   window.electronAPI.hideTray();
-  window.electronAPI.showMainWindowTab("openrouter");
+  window.electronAPI.showMainWindowTab("usage", "openrouter");
 };
 
 export const TrayCreditBalance: React.FC = () => {

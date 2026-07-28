@@ -10,17 +10,16 @@
  * time, so `dashboardTabs.test.ts` never has to assert rendered English.
  */
 import { isPromptGenEnabled } from "~/shared/features";
+import type { DashboardTabId } from "~/shared/dashboardTabIds";
 import type { MessageKey } from "~/shared/i18n/message";
 import type { HistoryEntry } from "~/stores/historyStore";
 
-/** Stable identifiers for the six dashboard tabs, in display order. */
-export type DashboardTabId =
-  | "overview"
-  | "history"
-  | "models"
-  | "usage"
-  | "logs"
-  | "about";
+/**
+ * Stable identifiers for the six dashboard tabs. Re-exported from `~/shared` so
+ * existing importers keep their path while preload shares the same union — a
+ * second copy of it let a tab rename break tray navigation silently.
+ */
+export type { DashboardTabId } from "~/shared/dashboardTabIds";
 
 export type DashboardTabMeta = {
   id: DashboardTabId;
