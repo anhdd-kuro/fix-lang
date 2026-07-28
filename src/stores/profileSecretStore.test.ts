@@ -4,16 +4,19 @@ import {
   PROVIDER_SUPPORTS_API_KEY,
   PROVIDER_SUPPORTS_PROVISIONING_KEY,
 } from "~/shared/providers";
-const { rmMock, readFileMock, getCurrentProfileIdMock } = vi.hoisted(() => ({
-  rmMock: vi.fn(),
-  readFileMock: vi.fn(),
-  getCurrentProfileIdMock: vi.fn(),
-}));
+const { rmMock, readFileMock, writeFileMock, getCurrentProfileIdMock } = vi.hoisted(
+  () => ({
+    rmMock: vi.fn(),
+    readFileMock: vi.fn(),
+    writeFileMock: vi.fn(),
+    getCurrentProfileIdMock: vi.fn(),
+  }),
+);
 vi.mock("node:fs/promises", () => {
   const api = {
     rm: rmMock,
     readFile: readFileMock,
-    writeFile: vi.fn().mockResolvedValue(undefined),
+    writeFile: writeFileMock,
   };
   // `default` too: a transitive importer needs it, or the whole file fails to load.
   return { ...api, default: api };
@@ -34,12 +37,14 @@ import {
   getActiveProfileSecret,
   getProfileSecretPath,
   secretKindsForProvider,
+  setProfileSecret,
   type SecretKind,
 } from "./profileSecretStore";
 
 beforeEach(() => {
   vi.clearAllMocks();
   rmMock.mockResolvedValue(undefined);
+  writeFileMock.mockResolvedValue(undefined);
   readFileMock.mockResolvedValue(Buffer.from("a-secret").toString("base64"));
   getCurrentProfileIdMock.mockReturnValue("profile_1");
 });
@@ -146,6 +151,48 @@ describe("clearProfileSecrets — covers every derived slot", () => {
     expect(rmMock).toHaveBeenCalledTimes(
       PROVIDER_IDS.flatMap((provider) => secretKindsForProvider(provider)).length,
     );
+  });
+});
+
+describe("setProfileSecret refuses a key that belongs to another slot", () => {
+  it("does not write an OpenAI admin key into OpenRouter's admin slot", async () => {
+    // The store is the chokepoint: the IPC handler checks this too, but a future
+    // writer that skips the handler must not be able to recreate the bug —
+    // stored fine, badge said "Key set", every account read came back 401.
+    const result = await setProfileSecret(
+      "profile_1",
+      "openrouter",
+      "provisioning",
+      "sk-admin-abc",
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("sk-or-v1-");
+    expect(writeFileMock).not.toHaveBeenCalled();
+  });
+
+  it("does not write an OpenRouter key into either OpenAI slot", async () => {
+    for (const kind of ["api", "provisioning"] as const) {
+      expect(
+        (await setProfileSecret("profile_1", "openai", kind, "sk-or-v1-abc")).success,
+      ).toBe(false);
+    }
+    expect(writeFileMock).not.toHaveBeenCalled();
+  });
+
+  it("writes a correctly-shaped key, and an unrecognized format, unchanged", async () => {
+    for (const [provider, kind, key] of [
+      ["openrouter", "provisioning", "sk-or-v1-abc"],
+      ["openai", "provisioning", "sk-admin-abc"],
+      ["openai", "api", "sk-proj-abc"],
+      // A legacy `sk-…` key must never be refused on a guess.
+      ["openai", "api", "sk-legacy-key"],
+      ["lmstudio", "api", "anything-local"],
+    ] as const) {
+      const result = await setProfileSecret("profile_1", provider, kind, key);
+      expect(result).toEqual({ success: true });
+    }
+    expect(writeFileMock).toHaveBeenCalledTimes(5);
   });
 });
 
