@@ -119,7 +119,8 @@ describe("Button behavioral wrappers", () => {
         'type="button"',
         'onClick={onClick}',
         'aria-label={t("common.trashButton.ariaLabel")}',
-        "p-1 transition-colors flex items-center gap-2",
+        "flex items-center gap-2 rounded-md text-sm transition-colors",
+        'showLabel ? "px-3 py-1.5" : "p-1"',
       ],
     ],
     [

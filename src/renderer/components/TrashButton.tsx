@@ -17,7 +17,7 @@ export const TrashButton: React.FC<TrashButtonProps> = ({
   size = "sm",
 }) => {
   const { t } = useI18n();
-  const iconSize = size === "sm" ? "size-4" : "size-6";
+  const iconSize = size === "sm" ? "size-4" : "size-5";
 
   return (
     <Button
@@ -25,7 +25,8 @@ export const TrashButton: React.FC<TrashButtonProps> = ({
       variant="destructive"
       onClick={onClick}
       className={twJoin(
-        "p-1 transition-colors flex items-center gap-2",
+        "flex items-center gap-2 rounded-md text-sm transition-colors",
+        showLabel ? "px-3 py-1.5" : "p-1",
         className
       )}
       aria-label={t("common.trashButton.ariaLabel")}
