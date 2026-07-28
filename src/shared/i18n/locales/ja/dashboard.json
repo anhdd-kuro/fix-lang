@@ -52,7 +52,7 @@
   "overview.stat.favoriteModel": "よく使うモデル",
   "overview.stat.longestStreak": "最長の連続日数",
   "overview.stat.messages": "メッセージ",
-  "overview.stat.peakHour": "ピーク時間",
+  "overview.stat.peakHour": "ピーク時間帯",
   "overview.stat.sessions": "セッション",
   "overview.stat.totalTokens": "合計トークン",
   "overview.tokenActivity.mode.ariaLabel": "トークン利用状況の表示",
@@ -68,5 +68,5 @@
   "overview.tokenActivity.tooltip.weekly.withCorrections_other": "{start}〜{end} に {tokens} トークン、{count} 件の変換",
   "overview.value.days": "{count}日",
   "overview.value.empty": "—",
-  "overview.value.hour": "{hour}:00"
+  "overview.value.hour": "{start}:00–{end}:00"
 }

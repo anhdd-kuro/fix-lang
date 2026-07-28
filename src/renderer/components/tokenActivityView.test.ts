@@ -107,17 +107,17 @@ describe("peakHourMessage", () => {
     expect(peakHourMessage(null)).toEqual({ key: "overview.value.empty" });
   });
 
-  it("zero-pads a single-digit hour", () => {
+  it("formats a 2-hour range with zero-padded hours", () => {
     expect(peakHourMessage(9)).toEqual({
       key: "overview.value.hour",
-      params: { hour: "09" },
+      params: { start: "09", end: "11" },
     });
   });
 
-  it("keeps a two-digit hour unchanged", () => {
+  it("wraps midnight for a late-night window", () => {
     expect(peakHourMessage(23)).toEqual({
       key: "overview.value.hour",
-      params: { hour: "23" },
+      params: { start: "23", end: "01" },
     });
   });
 });

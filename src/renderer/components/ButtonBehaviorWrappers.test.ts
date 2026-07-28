@@ -180,7 +180,7 @@ describe("Button behavioral wrappers", () => {
         'aria-label={t("settings.modal.close")}',
         'title={t("settings.modal.close")}',
         "onClick={onClose}",
-        "text-2xl font-bold",
+        "rounded-md p-1.5 text-muted-foreground hover:text-foreground",
       ],
     ],
     [

@@ -1578,8 +1578,8 @@ const consumerContractRows = [
   ["BTN-057", "SITE-32f1f12f749c0a0f-01", "LIVE-b3f4857089946438", "src/renderer/components/SettingPromptGen.tsx", 364, 9],
   ["BTN-058", "SITE-d09064cc6567340e-01", "LIVE-69e4e918b6516bfe", "src/renderer/components/SettingPromptGen.tsx", 370, 9],
   ["BTN-059", "SITE-b033f456b9edb0d8-01", "LIVE-ccaa63ee68a2a8a1", "src/renderer/components/SettingsIcon.tsx", 28, 5],
-  ["BTN-060", "SITE-187c46dab673fb0a-01", "LIVE-0e0cad4490f7cc02", "src/renderer/components/SettingsModal.tsx", 159, 11],
-  ["BTN-061", "SITE-af6696a6812f0065-01", "LIVE-131332cadfcd6d7c", "src/renderer/components/SettingsModal.tsx", 188, 17],
+  ["BTN-060", "SITE-187c46dab673fb0a-01", "LIVE-426eacdcf8f96389", "src/renderer/components/SettingsModal.tsx", 159, 11],
+  ["BTN-061", "SITE-af6696a6812f0065-01", "LIVE-131332cadfcd6d7c", "src/renderer/components/SettingsModal.tsx", 201, 17],
   ["BTN-062", "SITE-544d0e735bcdc224-01", "LIVE-c0f45b98e17a7b20", "src/renderer/components/SettingTabBtn.tsx", 31, 5],
   ["BTN-063", "SITE-fe87dc426bd171bd-01", "LIVE-f63727c376cb5050", "src/renderer/components/SettingUpdates.tsx", 308, 11],
   ["BTN-064", "SITE-9c72f61ee91e0d49-01", "LIVE-31d2760b23787e23", "src/renderer/components/SettingUpdates.tsx", 333, 11],
@@ -1616,7 +1616,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "8f8ac432d276c339dd70e95c2cfa944f23f9dfe05c4e1913cd621137bd5fecf4";
+  "a33ef01d1869487a66d856194b795615ada270dfbaf02a077fa809cbbefcaad6";
 
 const compareConsumers = (left: ButtonConsumer, right: ButtonConsumer): number =>
   left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column;

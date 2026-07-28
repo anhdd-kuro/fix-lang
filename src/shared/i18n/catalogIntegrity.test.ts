@@ -342,8 +342,8 @@ describe("checkNoVerbatimSourceValues", () => {
   });
 
   it("exempts a value that is pure interpolation/symbols with no Latin letters once placeholders are stripped", () => {
-    const source: Catalog = { "overview.value.hour": "{hour}:00", "overview.value.empty": "—" };
-    const target: Catalog = { "overview.value.hour": "{hour}:00", "overview.value.empty": "—" };
+    const source: Catalog = { "overview.value.hour": "{start}:00–{end}:00", "overview.value.empty": "—" };
+    const target: Catalog = { "overview.value.hour": "{start}:00–{end}:00", "overview.value.empty": "—" };
     expect(checkNoVerbatimSourceValues(source, target, "ja")).toEqual([]);
   });
 
