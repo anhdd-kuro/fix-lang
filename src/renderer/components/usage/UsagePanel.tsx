@@ -29,18 +29,27 @@ export const UsagePanel = ({ onOpenSettings }: UsagePanelProps) => {
   const { t } = useI18n();
   const [subTabs, setSubTabs] = useState<ReturnType<typeof buildUsageSubTabs>>([]);
   const [activeProvider, setActiveProvider] = useState<ProviderId | null>(null);
+  const [profileId, setProfileId] = useState<string>("");
 
   useEffect(() => {
     let mounted = true;
 
     const load = (): void => {
+      // Read as a pair, but let the profile read fail on its own: losing it
+      // must not blank a sub-tab bar the provider states could still describe.
+      const currentProfile = Promise.resolve(
+        window.electronAPI.getCurrentProfile?.(),
+      ).catch(() => undefined);
+
       void Promise.resolve(window.electronAPI.getProviderStates?.())
-        .then((states) => {
+        .then(async (states) => {
+          const profile = await currentProfile;
           if (!mounted) return;
           const next = buildUsageSubTabs(states ?? {});
           setSubTabs(next);
           // Keep the user on their provider when a refresh reorders the bar.
           setActiveProvider((current) => resolveActiveUsageProvider(next, current));
+          setProfileId(profile?.currentProfileId ?? "");
         })
         .catch(() => {
           // No provider states means no sub-tabs: the empty state below already
@@ -50,11 +59,15 @@ export const UsagePanel = ({ onOpenSettings }: UsagePanelProps) => {
     };
 
     load();
-    const unsubscribe = window.electronAPI.onSettingsUpdated(load);
+    const offSettingsUpdated = window.electronAPI.onSettingsUpdated(load);
+    // A profile switch does NOT emit `settings-updated`, and it changes which
+    // account every panel below is reporting on. Both subscriptions are needed.
+    const offProfileChanged = window.electronAPI.onActiveProfileChanged?.(load);
 
     return () => {
       mounted = false;
-      unsubscribe();
+      offSettingsUpdated();
+      offProfileChanged?.();
     };
   }, []);
 
@@ -75,6 +88,14 @@ export const UsagePanel = ({ onOpenSettings }: UsagePanelProps) => {
       </div>
     );
   }
+
+  // Remount the panel whenever the ACCOUNT behind it changes: each panel caches
+  // account data for 60s and latches `hasKey`, so a preserved instance would
+  // keep showing the previous profile's spend, or stay stuck on its no-key
+  // empty state after a key is added. Rebuilding an identical tab list is not
+  // enough — React keeps the child, and its cache, without a changed key.
+  const activeTab = subTabs.find((tab) => tab.provider === activeProvider);
+  const accountKey = `${profileId}:${activeTab?.hasAdminKey === true}`;
 
   return (
     <div className="flex h-full flex-col gap-3">
@@ -116,10 +137,10 @@ export const UsagePanel = ({ onOpenSettings }: UsagePanelProps) => {
         aria-labelledby={`usage-tab-${activeProvider ?? "none"}`}
       >
         {activeProvider === "openai" && (
-          <OpenAIUsagePanel onOpenSettings={onOpenSettings} />
+          <OpenAIUsagePanel key={accountKey} onOpenSettings={onOpenSettings} />
         )}
         {activeProvider === "openrouter" && (
-          <OpenRouterUsagePanel onOpenSettings={onOpenSettings} />
+          <OpenRouterUsagePanel key={accountKey} onOpenSettings={onOpenSettings} />
         )}
       </div>
     </div>

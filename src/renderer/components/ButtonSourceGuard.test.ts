@@ -1603,8 +1603,8 @@ const consumerContractRows = [
   ["BTN-082", "SITE-bdf91dd57b1a8eab-01", "LIVE-57f775bd4fae66ec", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 94, 11],
   ["BTN-083", "SITE-189b25e5188dce61-01", "LIVE-e630a70d66e34af0", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 121, 13],
   ["BTN-084", "SITE-2ac783017cc928f4-01", "LIVE-450bee16aa4af761", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 132, 9],
-  ["BTN-085", "SITE-ef9a2ca35cce009b-01", "LIVE-cda3ee060bf9b96d", "src/renderer/components/usage/UsagePanel.tsx", 71, 11],
-  ["BTN-086", "SITE-88cac4abd73dba55-01", "LIVE-f228c29639aa3434", "src/renderer/components/usage/UsagePanel.tsx", 89, 13],
+  ["BTN-085", "SITE-ef9a2ca35cce009b-01", "LIVE-cda3ee060bf9b96d", "src/renderer/components/usage/UsagePanel.tsx", 84, 11],
+  ["BTN-086", "SITE-88cac4abd73dba55-01", "LIVE-f228c29639aa3434", "src/renderer/components/usage/UsagePanel.tsx", 110, 13],
 ] as const;
 
 const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
@@ -1618,7 +1618,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "629c7ab1dc911d4e795a630760edb2031db56b095e296dd5376e5f718e59da57";
+  "7833824afa7b4832e5110b3fd7b59cb47421e8541f1150a3bbc08f91a5e967c9";
 
 const compareConsumers = (left: ButtonConsumer, right: ButtonConsumer): number =>
   left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column;
