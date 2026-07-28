@@ -87,6 +87,8 @@
   "settings.general.providers.ollama.noModels": "Ollama is running but has no models pulled. Run `ollama pull <model>` and fetch again.",
   "settings.general.providers.ollama.unreachable": "Ollama is not reachable. Start the daemon and try again.",
   "settings.general.providers.title": "Providers",
+  "settings.general.provisioningKey.help.openai": "Where to get an OpenAI admin key",
+  "settings.general.provisioningKey.help.openrouter": "Where to get an OpenRouter provisioning key",
   "settings.general.provisioningKey.invalid": "Invalid key",
   "settings.general.provisioningKey.label.openai": "OpenAI Admin Key",
   "settings.general.provisioningKey.label.openrouter": "OpenRouter Provisioning Key",

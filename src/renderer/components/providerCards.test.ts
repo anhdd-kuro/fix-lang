@@ -93,6 +93,11 @@ describe("buildProviderCards", () => {
       if (!messages) continue;
       expect(t(messages.label)).not.toBe("");
       expect(t(messages.placeholderNew)).not.toBe("");
+      // The "where to get this key" link. A blank label would render an
+      // invisible anchor, and main rejects anything but http/https, so a
+      // mistyped scheme would make the link a silent no-op.
+      expect(t(messages.help)).not.toBe("");
+      expect(new URL(messages.helpUrl).protocol).toBe("https:");
     }
   });
 

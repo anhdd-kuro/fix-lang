@@ -563,6 +563,23 @@ export const SettingGeneral: React.FC = () => {
               }
               aria-label={t(adminKeyMessages.label)}
             />
+            {/*
+              Opened in the real browser, never in-app: these consoles carry the
+              user's provider session, and the key is minted on their side.
+              Main validates the scheme before shell.openExternal.
+            */}
+            <a
+              href={adminKeyMessages.helpUrl}
+              onClick={(event) => {
+                event.preventDefault();
+                void window.electronAPI.openExternalLink(
+                  adminKeyMessages.helpUrl,
+                );
+              }}
+              className="mt-1 inline-block text-xs text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {t(adminKeyMessages.help)}
+            </a>
           </div>
         )}
 
