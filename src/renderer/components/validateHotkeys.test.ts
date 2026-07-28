@@ -1,10 +1,28 @@
 /**
  * @file validateHotkeys.test.ts
  * @description Unit tests for the centralised hotkey conflict validator.
- * Pure Vitest — no Electron, no IPC, no React, no mocks needed.
+ * Pure Vitest — no Electron, no IPC, no React. The `getDefaultCorrectionSettings`
+ * import below pulls in `~/stores/apiStore`, which touches electron-store /
+ * electron at module scope, hence the two mocks below (hoisted by Vitest).
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock("electron-store", () => {
+  class MockStore {
+    get = vi.fn().mockReturnValue(undefined);
+    set = vi.fn();
+    store = {};
+    onDidChange = vi.fn();
+    watch = vi.fn();
+  }
+  return { default: MockStore };
+});
+vi.mock("electron", () => ({
+  Notification: vi.fn().mockImplementation(() => ({ show: vi.fn() })),
+  ipcMain: { handle: vi.fn(), on: vi.fn() },
+  app: { getPath: vi.fn().mockReturnValue("/tmp") },
+}));
 import { DEFAULT_KEY_BINDINGS } from "~/const";
+import { getDefaultCorrectionSettings } from "~/stores/apiStore";
 import { validateHotkeys } from "./validateHotkeys";
 import type { CorrectionPreset, KeyBindings } from "~/stores/apiStore";
 
@@ -147,6 +165,23 @@ describe("validateHotkeys", () => {
 
     // Both app keybindings are empty — nothing to conflict with
     const result = validateHotkeys(presets, { promptGen: "", profileSwitch: "" });
+
+    expect(result).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Card 03 — the two new built-in defaults (Business Writing / Structured
+// Text) must not collide with each other, the other four built-ins, or the
+// static app hotkeys (promptGen/profileSwitch).
+// ---------------------------------------------------------------------------
+
+describe("validateHotkeys — the six real built-in defaults never conflict with each other or the app", () => {
+  it("returns null for getDefaultCorrectionSettings().presets against DEFAULT_KEY_BINDINGS", () => {
+    const result = validateHotkeys(
+      getDefaultCorrectionSettings().presets,
+      DEFAULT_KEY_BINDINGS,
+    );
 
     expect(result).toBeNull();
   });

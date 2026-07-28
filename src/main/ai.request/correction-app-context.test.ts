@@ -40,18 +40,32 @@ vi.mock("~/stores/apiStore", async (importOriginal) => {
 vi.mock("./shared", () => ({
   makeAIRequest: vi.fn(),
 }));
+// `./promptgen` pulls the real `StringPrettifier` from `~/utils`, whose error
+// types reach `errorPopupWindow` → `overlay.html?asset`, which vite cannot
+// parse as JS under vitest. Stub that leaf so the prettifier stays real (see
+// `promptgen-app-context.test.ts`, which does the same).
+vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
+  showErrorPopup: vi.fn(),
+}));
 // ---------------------------------------------------------------------------
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
 import {
+  DEFAULT_BUSINESS_WRITING_PRESET_ID,
+  DEFAULT_CORRECTION_PRESET_ID,
   DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+  DEFAULT_STRUCTURED_TEXT_PRESET_ID,
   DEFAULT_SUMMARIZE_PRESET_ID,
 } from "~/prompts";
 import { getProfileSetting } from "~/stores/apiStore";
 import { fixGrammar } from "./correction";
+import { generatePrompt } from "./promptgen";
 import { makeAIRequest } from "./shared";
 import type { Mock } from "vitest";
 import type { CorrectionPreset, CorrectionSettings } from "~/stores/apiStore";
+
+const PRESERVE_MARKUP_BULLET =
+  "do not add app-specific markup the input does not already use";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -172,5 +186,90 @@ describe("fixGrammar — active app context", () => {
     expect(lastCall().userPrompt).toContain(
       "Return only the final optimized prompt text, ready to paste.",
     );
+  });
+
+  it("uses the adapt-to-app block for the structured-text preset only", async () => {
+    setup(
+      makePreset({
+        id: DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+        systemPrompt: "Restructure the text.",
+      }),
+    );
+
+    await fixGrammar("hello world", DEFAULT_STRUCTURED_TEXT_PRESET_ID, {
+      activeAppName: "Slack",
+    });
+
+    const { systemPrompt } = lastCall();
+    expect(systemPrompt.startsWith("Restructure the text.")).toBe(true);
+    expect(systemPrompt).toContain('"Slack"');
+    expect(systemPrompt).toMatch(/do not mention the app/i);
+    expect(systemPrompt).not.toContain(PRESERVE_MARKUP_BULLET);
+  });
+
+  it("does not alter the user prompt for the structured-text preset", async () => {
+    setup(makePreset({ id: DEFAULT_STRUCTURED_TEXT_PRESET_ID }));
+
+    await fixGrammar("hello world", DEFAULT_STRUCTURED_TEXT_PRESET_ID, {
+      activeAppName: "Slack",
+    });
+
+    expect(lastCall().userPrompt).toBe("Input:\nhello world");
+  });
+
+  it("does not alter the user prompt for the business-writing preset", async () => {
+    setup(makePreset({ id: DEFAULT_BUSINESS_WRITING_PRESET_ID }));
+
+    await fixGrammar("hello world", DEFAULT_BUSINESS_WRITING_PRESET_ID, {
+      activeAppName: "Slack",
+    });
+
+    expect(lastCall().userPrompt).toBe("Input:\nhello world");
+  });
+
+  it.each([
+    ["business-writing", DEFAULT_BUSINESS_WRITING_PRESET_ID],
+    ["correction", DEFAULT_CORRECTION_PRESET_ID],
+    ["summarize", DEFAULT_SUMMARIZE_PRESET_ID],
+    ["prompt-optimization", DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID],
+    ["a custom preset id", "my-custom-preset"],
+  ])("keeps the preserve-input-markup block for %s", async (_label, id) => {
+    setup(makePreset({ id, systemPrompt: "Do the thing." }));
+
+    await fixGrammar("hello world", id, { activeAppName: "Slack" });
+
+    expect(lastCall().systemPrompt).toContain(PRESERVE_MARKUP_BULLET);
+  });
+});
+
+describe("generatePrompt — active app context", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("still carries the preserve-input-markup block, unaffected by the structured-text policy", async () => {
+    (getProfileSetting as Mock).mockReturnValue({
+      minLength: 0,
+      maxLength: 0,
+      batchCount: 1,
+      nsfw: false,
+      context: "Generate a prompt.",
+      autoCopy: false,
+      model: "openai/gpt-4o",
+    });
+    (makeAIRequest as Mock).mockResolvedValue({
+      content: ["result"],
+      promptTokens: 10,
+      completionTokens: 20,
+      model: "gpt-4o",
+      provider: "openai",
+      resolvedModel: "gpt-4o",
+    });
+
+    await generatePrompt({ text: "hello world", activeAppName: "Slack" });
+
+    const { systemPrompt } = (makeAIRequest as Mock).mock.calls[0][0];
+    expect(systemPrompt).toContain('"Slack"');
+    expect(systemPrompt).toContain(PRESERVE_MARKUP_BULLET);
   });
 });

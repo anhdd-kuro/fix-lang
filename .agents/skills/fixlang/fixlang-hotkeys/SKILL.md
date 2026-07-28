@@ -20,6 +20,14 @@ Transform preset hotkeys must not collide with:
 
 Validation MUST run **before saving** in the Transform settings UI — never register a conflicting binding and resolve it later.
 
+## New built-in preset hotkey-steal trap
+
+Defaults array order is registration order — `registerCorrectionShortcut` register first-wins. Built-in defaults sit BEFORE custom presets in that array. So: add a new built-in preset with the same hotkey as a hotkey a user's stored custom preset already holds, and the new built-in wins the registration silently — user's preset just stop firing, nothing but a `logger.warn` nobody read.
+
+Fix already in `normalizeCorrectionSettings` (`src/stores/apiStore.ts`): when a built-in's hotkey came from the const default rather than from the user, and a STORED preset already claims that accelerator, the built-in's hotkey gets blanked to `""` instead. TWO shapes count as came-from-the-default, not one — (a) the whole preset absent from stored config, and (b) the preset present in stored config but its `hotkey` missing or not a string, so the value was injected by the `?? fallback?.hotkey` at read time. `hotkeyWasStored` (`src/stores/apiStore.ts:391`) is what tells them apart. A STORED string hotkey is NEVER rewritten — not `""`, not `"   "`, not stored-vs-stored collisions; that stays `validateHotkeys`'s pre-save job, not this guard's.
+
+Blind spot on purpose: the claim-set only collects STORED presets. Two DEFAULTS sharing one hotkey is invisible to this guard — earlier one in the array just wins, silently, same as before the fix. So every new built-in default hotkey must stay pairwise-distinct from: every other built-in default, `DEFAULT_KEY_BINDINGS` in `src/const.ts` (`promptGen` = `Control+Shift+G`, `profileSwitch` = `Control+Shift+P`), and the hardcoded devtools `F12` in `src/main/keybindings/index.ts`. Check this BEFORE picking a hotkey for preset #7.
+
 ## Active-app context read order (silent-degradation trap)
 
 Transform **and PromptGen** system prompts carry the frontmost app name (`getActiveApp()` in `src/main/accessibility/activeApp.ts`, block built by `src/main/ai.request/transform-context.ts`) so the model knows Slack from Mail. `getActiveApp` asks System Events for the frontmost **process**, so it must run at the very top of every hotkey handler — before `showOverlaySpinner()`, the PromptGen window, or any result window. Put a FixLang window on screen first and the read returns FixLang, `parseActiveApp` drops it as own-app, and every request silently loses its context with no error anywhere.
@@ -36,3 +44,4 @@ Debugging a missing context: filter the Logs tab on scope `accessibility.activeA
 - [ ] Profile switch path re-registers hotkeys
 - [ ] Conflict check runs pre-save against presets + static hotkeys
 - [ ] `getActiveApp()` still runs before any FixLang window is shown
+- [ ] A new built-in preset's default hotkey is distinct from every other built-in default, `DEFAULT_KEY_BINDINGS`, and `F12`

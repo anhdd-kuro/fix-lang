@@ -1,9 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  DEFAULT_BUSINESS_WRITING_PRESET_ID,
+  DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
   DEFAULT_CORRECTION_PRESET_ID,
   DEFAULT_CUSTOM_PROMPT,
   DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
   DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
+  DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+  DEFAULT_STRUCTURED_TEXT_PRESET_PROMPT,
   DEFAULT_SUMMARIZE_PRESET_ID,
   DEFAULT_SUMMARIZE_PRESET_PROMPT,
   DEFAULT_TRANSLATE_PRESET_ID,
@@ -28,7 +32,7 @@ import type { CorrectionPreset, CorrectionSettings } from "~/stores/apiStore";
 // never translated. Only the surrounding labels/buttons/messages below go
 // through `t()`.
 
-const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> => ({
+export const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> => ({
   [DEFAULT_CORRECTION_PRESET_ID]: {
     id: DEFAULT_CORRECTION_PRESET_ID,
     name: "Correction",
@@ -58,6 +62,22 @@ const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> => ({
     name: "Translate",
     hotkey: "Control+Shift+T",
     systemPrompt: DEFAULT_TRANSLATE_PRESET_PROMPT.trim(),
+    model: "", // empty = inherit the global default model
+    isBuiltIn: true,
+  },
+  [DEFAULT_BUSINESS_WRITING_PRESET_ID]: {
+    id: DEFAULT_BUSINESS_WRITING_PRESET_ID,
+    name: "Business Writing",
+    hotkey: "Control+Shift+B",
+    systemPrompt: DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
+    model: "", // empty = inherit the global default model
+    isBuiltIn: true,
+  },
+  [DEFAULT_STRUCTURED_TEXT_PRESET_ID]: {
+    id: DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+    name: "Context-Aware Structured Text",
+    hotkey: "Control+Shift+R",
+    systemPrompt: DEFAULT_STRUCTURED_TEXT_PRESET_PROMPT,
     model: "", // empty = inherit the global default model
     isBuiltIn: true,
   },

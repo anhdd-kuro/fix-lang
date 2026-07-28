@@ -5,10 +5,14 @@
 import Store from "electron-store";
 import { DEFAULT_LANGUAGE, resolveDefaultModel } from "~/const";
 import {
+  DEFAULT_BUSINESS_WRITING_PRESET_ID,
+  DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
   DEFAULT_CORRECTION_PRESET_ID,
   DEFAULT_CUSTOM_PROMPT,
   DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
   DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
+  DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+  DEFAULT_STRUCTURED_TEXT_PRESET_PROMPT,
   DEFAULT_SUMMARIZE_PRESET_ID,
   DEFAULT_SUMMARIZE_PRESET_PROMPT,
   DEFAULT_TRANSLATE_PRESET_ID,
@@ -150,8 +154,11 @@ export type LegacyTranslateSettings = {
   destinationLang?: string;
   includeExplanation?: boolean;
   model?: string;
-  /** Old keyBindings.translate accelerator, if still present in the store. */
-  hotkey?: string;
+  // Deliberately carries NO `hotkey`. The migration below runs after the
+  // anti-theft guard in `normalizeCorrectionSettings`, so an accelerator
+  // plumbed in here would rewrite the Translate preset's hotkey onto a key a
+  // stored preset already claims — the exact steal that guard prevents. The old
+  // `keyBindings.translate` value was never read into this shape anyway.
 };
 
 /**
@@ -187,19 +194,19 @@ const applyLegacyTranslateMigration = (
     !!legacy &&
     (!!legacy.destinationLang?.trim() ||
       !!legacy.model?.trim() ||
-      !!legacy.hotkey?.trim() ||
       legacy.includeExplanation === true);
 
   if (storedHadTranslatePreset || !hasLegacyData || !legacy) {
     return presets;
   }
 
+  // Model and prompt only — the hotkey stays whatever the merge decided, so this
+  // pass cannot undo the anti-theft guard that already ran on it.
   return presets.map((preset) =>
     preset.id === DEFAULT_TRANSLATE_PRESET_ID
       ? {
           ...preset,
           model: legacy.model?.trim() || preset.model,
-          hotkey: legacy.hotkey?.trim() || preset.hotkey,
           systemPrompt: buildMigratedTranslatePrompt(legacy),
         }
       : preset,
@@ -240,6 +247,22 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     name: "Translate",
     hotkey: "Control+Shift+T",
     systemPrompt: DEFAULT_TRANSLATE_PRESET_PROMPT.trim(),
+    model: INHERIT_GLOBAL_MODEL,
+    isBuiltIn: true,
+  },
+  {
+    id: DEFAULT_BUSINESS_WRITING_PRESET_ID,
+    name: "Business Writing",
+    hotkey: "Control+Shift+B",
+    systemPrompt: DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
+    model: INHERIT_GLOBAL_MODEL,
+    isBuiltIn: true,
+  },
+  {
+    id: DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+    name: "Context-Aware Structured Text",
+    hotkey: "Control+Shift+R",
+    systemPrompt: DEFAULT_STRUCTURED_TEXT_PRESET_PROMPT,
     model: INHERIT_GLOBAL_MODEL,
     isBuiltIn: true,
   },
@@ -317,7 +340,7 @@ export const normalizeCorrectionSettings = (
   }
 
   const seenIds = new Set<string>();
-  const normalizedPresets = raw.presets.flatMap((preset, index) => {
+  const normalizedEntries = raw.presets.flatMap((preset, index) => {
     if (!preset || typeof preset !== "object") {
       return [];
     }
@@ -345,29 +368,72 @@ export const normalizeCorrectionSettings = (
 
     return [
       {
-        id,
-        name: candidate.name?.trim() || fallback?.name || `Preset ${index + 1}`,
-        hotkey: getTrimmedString(candidate.hotkey) ?? fallback?.hotkey ?? "",
-        systemPrompt:
-          candidate.systemPrompt?.trim() ||
-          fallback?.systemPrompt ||
-          DEFAULT_CUSTOM_PROMPT.trim(),
-        // Empty stays empty (inherit global). A stored explicit model is kept
-        // as-is; only the built-in fallback is consulted, never the const.
-        model:
-          candidate.model?.trim() || fallback?.model || INHERIT_GLOBAL_MODEL,
-        isBuiltIn: fallback ? true : Boolean(candidate.isBuiltIn),
-        ...(temperature !== undefined ? { temperature } : {}),
-        ...(maxTokens !== undefined ? { maxTokens } : {}),
-      } satisfies CorrectionPreset,
+        preset: {
+          id,
+          name:
+            candidate.name?.trim() || fallback?.name || `Preset ${index + 1}`,
+          hotkey: getTrimmedString(candidate.hotkey) ?? fallback?.hotkey ?? "",
+          systemPrompt:
+            candidate.systemPrompt?.trim() ||
+            fallback?.systemPrompt ||
+            DEFAULT_CUSTOM_PROMPT.trim(),
+          // Empty stays empty (inherit global). A stored explicit model is kept
+          // as-is; only the built-in fallback is consulted, never the const.
+          model:
+            candidate.model?.trim() || fallback?.model || INHERIT_GLOBAL_MODEL,
+          isBuiltIn: fallback ? true : Boolean(candidate.isBuiltIn),
+          ...(temperature !== undefined ? { temperature } : {}),
+          ...(maxTokens !== undefined ? { maxTokens } : {}),
+        } satisfies CorrectionPreset,
+        // A missing or non-string `hotkey` above inherits the built-in default.
+        // That injected value is not the user's choice, so it neither counts as
+        // a claim nor survives colliding with one.
+        hotkeyWasStored: typeof candidate.hotkey === "string",
+      },
     ];
   });
+
+  // Trimmed-exact comparison is deliberate and app-wide: the two consumers of
+  // these strings — `registerCorrectionShortcut` in src/main/keybindings and the
+  // pre-save `validateHotkeys` gate — match the same way, so case- or
+  // alias-folding here alone would desynchronise the three. The capture UI only
+  // ever emits canonical `Control+Shift+X`. Pinned by the "does NOT case-fold"
+  // test in normalizeCorrectionSettings.test.ts.
+  //
+  // Claims come from STORED presets only, so this defends stored-vs-materialized
+  // and nothing else. Two DEFAULTS sharing one accelerator is invisible here and
+  // would just let the earlier one win in `registerCorrectionShortcut`: the
+  // built-in default hotkeys must stay pairwise-unique, which is pinned by the
+  // "hotkeys distinct from every other default" test, not by this function.
+  const hotkeysClaimedByStoredPresets = new Set(
+    normalizedEntries
+      .filter((entry) => entry.hotkeyWasStored)
+      .map((entry) => entry.preset.hotkey.trim())
+      .filter((hotkey) => hotkey.length > 0),
+  );
+
+  // Built-in defaults are emitted ahead of custom presets, and
+  // `registerCorrectionShortcut` registers in array order (first wins). So a
+  // default hotkey materialized here — because the built-in was absent from the
+  // stored config, or because its stored entry carried no `hotkey` field — would
+  // silently outrank a stored preset already sitting on that accelerator. Give
+  // up the default instead; a STORED hotkey is the user's explicit choice and is
+  // never rewritten, not even when two stored presets collide with each other
+  // (that stays the pre-save `validateHotkeys` gate's job).
+  const withoutStolenHotkey = (preset: CorrectionPreset): CorrectionPreset =>
+    hotkeysClaimedByStoredPresets.has(preset.hotkey.trim())
+      ? { ...preset, hotkey: "" }
+      : preset;
+
+  const normalizedPresets = normalizedEntries.map((entry) =>
+    entry.hotkeyWasStored ? entry.preset : withoutStolenHotkey(entry.preset),
+  );
 
   const presets = [
     ...defaults.presets.map(
       (defaultPreset) =>
         normalizedPresets.find((preset) => preset.id === defaultPreset.id) ||
-        defaultPreset,
+        withoutStolenHotkey(defaultPreset),
     ),
     ...normalizedPresets.filter((preset) => !defaultById.has(preset.id)),
   ];

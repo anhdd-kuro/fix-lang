@@ -113,6 +113,70 @@ describe("migrateProfileForModelRefs — prefixes bare model ids with the legacy
   });
 });
 
+describe("migrateProfileForModelRefs — Business Writing and Structured Text presets", () => {
+  it("neither drops nor duplicates the two new built-in presets, and prefixes a bare model id on them", () => {
+    const raw = buildRawProfile({
+      provider: "openai",
+      settings: buildSettings({
+        settingsCorrect: {
+          selectedPresetId: "correction",
+          presets: [
+            buildPreset({ id: "correction", model: "gpt-4o-mini" }),
+            buildPreset({
+              id: "business-writing",
+              name: "Business Writing",
+              hotkey: "Control+Shift+B",
+              model: "gpt-4o",
+            }),
+            buildPreset({
+              id: "structured-text",
+              name: "Context-Aware Structured Text",
+              hotkey: "Control+Shift+R",
+              model: "",
+            }),
+          ],
+        },
+      }),
+    });
+
+    const migrated = migrateProfileForModelRefs(raw);
+    const ids = migrated.settings.settingsCorrect.presets.map((p) => p.id);
+
+    expect(ids).toEqual(["correction", "business-writing", "structured-text"]);
+    expect(
+      migrated.settings.settingsCorrect.presets.find((p) => p.id === "business-writing")
+        ?.model,
+    ).toBe("openai::gpt-4o");
+    // An empty preset model stays untouched — it means "inherit global".
+    expect(
+      migrated.settings.settingsCorrect.presets.find((p) => p.id === "structured-text")
+        ?.model,
+    ).toBe("");
+  });
+
+  it("leaves an already-prefixed ref on either new preset untouched (idempotence)", () => {
+    const raw = buildRawProfile({
+      provider: "ollama",
+      settings: buildSettings({
+        settingsCorrect: {
+          selectedPresetId: "correction",
+          presets: [
+            buildPreset({ id: "correction" }),
+            buildPreset({ id: "business-writing", model: "openai::gpt-4o" }),
+          ],
+        },
+      }),
+    });
+
+    const migrated = migrateProfileForModelRefs(raw);
+
+    expect(
+      migrated.settings.settingsCorrect.presets.find((p) => p.id === "business-writing")
+        ?.model,
+    ).toBe("openai::gpt-4o");
+  });
+});
+
 describe("migrateProfileForModelRefs — a profile with no provider key migrates as openrouter", () => {
   it("migrates a profile with no provider key as openrouter (the historical default)", () => {
     const raw = buildRawProfile({

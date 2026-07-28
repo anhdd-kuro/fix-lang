@@ -7,10 +7,10 @@ A local macOS menu-bar app that fixes grammar, improves writing, and runs other 
 ### Transform & presets
 
 - Select text in any app, press a preset hotkey, then either paste the result back automatically or show it in a result-only popup
-- Built-in presets (each with its own hotkey): **Correction** (`Ctrl+Shift+F`), **Summarize** (`Ctrl+Shift+S`), **Prompt optimization** (`Ctrl+Shift+D`), **Translate** (`Ctrl+Shift+T`)
+- Built-in presets (each with its own hotkey): **Correction** (`Ctrl+Shift+F`), **Summarize** (`Ctrl+Shift+S`), **Prompt optimization** (`Ctrl+Shift+D`), **Translate** (`Ctrl+Shift+T`), **Business Writing** (`Ctrl+Shift+B`), **Context-Aware Structured Text** (`Ctrl+Shift+R`)
 - **Profiles** — multiple named configurations; switch with `Ctrl+Shift+P` (profile switch reloads hotkeys, settings, and history)
 - Custom presets with per-preset model, system prompt, and hotkey
-- **App-aware output** — the name of the app you selected the text in (e.g. Slack, Mail, Xcode) is added to the system prompt as context, so the result matches that app's tone and formatting conventions. Applies to transform presets and PromptGen. The app name is never echoed into the output, and nothing is sent when it can't be read
+- **App-aware output** — the name of the app you selected the text in (e.g. Slack, Mail, Xcode) is added to the system prompt as context, so the result matches that app's tone and formatting conventions. Applies to transform presets and PromptGen. Most presets only use it to infer tone and formality, not markup; **Context-Aware Structured Text** is the exception and actively adapts formatting to the app. The app name is never echoed into the output, and nothing is sent when it can't be read
 
 ### Prompt generation
 

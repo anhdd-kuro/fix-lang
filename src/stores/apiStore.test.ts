@@ -35,6 +35,10 @@ vi.mock("electron", () => ({
 }));
 // Imports (after mocks) — the real implementation under test.
 import { resolveDefaultModel, resolveDefaultOpenAIModel } from "~/const";
+import {
+  DEFAULT_BUSINESS_WRITING_PRESET_ID,
+  DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+} from "~/prompts/correction";
 import { modelRefForModel } from "~/shared/modelRef";
 import {
   isModelForProvider as sharedIsModelForProvider,
@@ -46,8 +50,10 @@ import {
   apiStoreSchema,
   connectProviderToActiveProfile,
   connectProviderToProfile,
+  createProfile,
   disconnectProviderFromActiveProfile,
   disconnectProviderFromProfile,
+  getDefaultCorrectionSettings,
   getDefaultModelId,
   getProfiles,
   initializeDefaultProfile,
@@ -418,6 +424,20 @@ describe("disconnectProviderFromActiveProfile — clears only that provider's re
 
     expect(profile).toEqual(snapshot);
   });
+
+  // Card 03 concern: disconnect deliberately bypasses normalizeCorrectionSettings
+  // (see its doc comment), so adding two new built-in defaults must not make it
+  // start materializing them for a profile that never had them stored.
+  it("materializes neither new built-in preset — a stored profile lacking them keeps exactly its own presets", () => {
+    seedConnected();
+
+    const result = disconnectProviderFromActiveProfile("openai");
+    const ids = result?.profile.settings.settingsCorrect.presets.map((p) => p.id);
+
+    expect(ids).toEqual(["correction", "summarize", "legacy"]);
+    expect(ids).not.toContain(DEFAULT_BUSINESS_WRITING_PRESET_ID);
+    expect(ids).not.toContain(DEFAULT_STRUCTURED_TEXT_PRESET_ID);
+  });
 });
 
 describe("the profile-bound variants write to the id they are handed, not the active one", () => {
@@ -622,9 +642,65 @@ describe("apiStoreSchema — model defaults are the inherit sentinel", () => {
   });
 });
 
+describe("apiStoreSchema — settingsCorrect default carries all six built-in presets", () => {
+  const settingsCorrectSchema = (
+    apiStoreSchema.profiles.items.properties.settings as {
+      properties: {
+        settingsCorrect: {
+          properties: { presets: { default?: unknown[] } };
+          default: { presets?: unknown[] };
+        };
+      };
+    }
+  ).properties.settingsCorrect;
+
+  it("the presets array-item schema default carries 6 presets", () => {
+    expect(settingsCorrectSchema.properties.presets.default).toHaveLength(6);
+  });
+
+  it("the settingsCorrect object default also carries 6 presets", () => {
+    expect(settingsCorrectSchema.default.presets).toHaveLength(6);
+  });
+
+  it("both schema default nodes equal getDefaultCorrectionSettings().presets field-for-field", () => {
+    const expected = getDefaultCorrectionSettings().presets;
+    expect(settingsCorrectSchema.properties.presets.default).toEqual(expected);
+    expect(settingsCorrectSchema.default.presets).toEqual(expected);
+  });
+
+  it("both new presets are present in the schema default with isBuiltIn true", () => {
+    const presets = settingsCorrectSchema.default.presets ?? [];
+    expect(
+      presets.find((p) => (p as { id: string }).id === DEFAULT_BUSINESS_WRITING_PRESET_ID),
+    ).toMatchObject({ isBuiltIn: true, hotkey: "Control+Shift+B" });
+    expect(
+      presets.find((p) => (p as { id: string }).id === DEFAULT_STRUCTURED_TEXT_PRESET_ID),
+    ).toMatchObject({ isBuiltIn: true, hotkey: "Control+Shift+R" });
+  });
+});
+
 // Do not update this hash to make the test pass. `clearInvalidConfig: true`
 // means any change to the schema object can wipe a user's whole config, so a
 // changed hash needs the same scrutiny as any other schema edit.
+//
+// This hash WAS updated for card 03 (adding business-writing/structured-text
+// to `makeDefaultCorrectionPresets()`), after verifying the safety claim below
+// rather than taking it on faith:
+//
+// `apiStore` is built with `clearInvalidConfig: true`, which wipes the ENTIRE
+// config only when a STORED value fails schema VALIDATION (type/required/enum
+// mismatches) — a `default` is not a validation constraint, it is what ajv's
+// `useDefaults` injects when a key is ABSENT. Confirmed by reading the schema:
+// neither `settingsCorrect` nor its `presets` array carries `required`,
+// `minItems`, or any other constraint that a 4-preset stored array could now
+// fail — only the two `default` values (the array-schema default and the
+// object-schema default) changed, both only consulted when a profile has no
+// stored `settingsCorrect`/`presets` at all. Every existing profile already
+// stores `settingsCorrect.presets`, so this edit injects nothing into, and
+// invalidates nothing in, an existing user's config. The real-Conf round-trip
+// test below (`apiStoreSchema — real schema round trip`) exercises the actual
+// validation engine and stayed green, which is the empirical half of this
+// check.
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
@@ -633,7 +709,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "34f77ed9437e0816d8d06cd7a76cd64936738f0c16390ea78d1aa4929c0dc126",
+      "0f05008483ed6f7345c2d30f2383949d319ec30e5356b4dfc56c14e8f4cbc1a8",
     );
   });
 });
@@ -726,6 +802,63 @@ describe("resetCurrentProfileSettings — preserves apiKey, models and enabledPr
     expect(resetProfile.settings.apiKey).toBe("secret-key");
     expect(resetProfile.settings.models).toEqual(models);
     expect(resetProfile.settings.enabledProviders).toEqual(["openai"]);
+  });
+
+  it("preserves providerEndpoints across a reset", () => {
+    const profile = buildProfile({
+      settings: buildSettings({
+        providerEndpoints: { lmstudio: { host: "127.0.0.1", port: 1234 } },
+      }),
+    });
+    seedProfiles([profile], profile.id);
+
+    resetCurrentProfileSettings();
+
+    const [resetProfile] = getProfiles();
+    expect(resetProfile.settings.providerEndpoints).toEqual({
+      lmstudio: { host: "127.0.0.1", port: 1234 },
+    });
+  });
+
+  it("resets settingsCorrect to all 6 built-in defaults, including the two new presets", () => {
+    const profile = buildProfile();
+    seedProfiles([profile], profile.id);
+
+    resetCurrentProfileSettings();
+
+    const [resetProfile] = getProfiles();
+    expect(resetProfile.settings.settingsCorrect.presets).toEqual(
+      getDefaultCorrectionSettings().presets,
+    );
+    expect(
+      resetProfile.settings.settingsCorrect.presets.find(
+        (p) => p.id === DEFAULT_BUSINESS_WRITING_PRESET_ID,
+      ),
+    ).toBeDefined();
+    expect(
+      resetProfile.settings.settingsCorrect.presets.find(
+        (p) => p.id === DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+      ),
+    ).toBeDefined();
+  });
+});
+
+describe("createProfile — yields all 6 built-in presets", () => {
+  beforeEach(() => {
+    apiStore.set("profiles", []);
+    apiStore.set("currentProfileId", "");
+  });
+
+  it("creates a profile whose settingsCorrect.presets equals the default 6 built-ins", () => {
+    const profile = createProfile("New Profile");
+
+    expect(profile.settings.settingsCorrect.presets).toEqual(
+      getDefaultCorrectionSettings().presets,
+    );
+    expect(profile.settings.settingsCorrect.presets).toHaveLength(6);
+    const ids = profile.settings.settingsCorrect.presets.map((p) => p.id);
+    expect(ids).toContain(DEFAULT_BUSINESS_WRITING_PRESET_ID);
+    expect(ids).toContain(DEFAULT_STRUCTURED_TEXT_PRESET_ID);
   });
 });
 
@@ -875,6 +1008,57 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
 
   it("sanitizeImportedProfile is toExportableProfile — an imported cache describes another machine", () => {
     expect(sanitizeImportedProfile).toBe(toExportableProfile);
+  });
+
+  it("invents neither new built-in preset — a profile stored without them exports with the same preset ids", () => {
+    // exportableFixture()'s settingsCorrect carries only "correction" and
+    // "summarize" (the buildSettings() default). toExportableProfile must
+    // never run normalizeCorrectionSettings-style materialization.
+    const result = toExportableProfile(exportableFixture());
+    const ids = result.settings.settingsCorrect.presets.map((p) => p.id);
+
+    expect(ids).toEqual(["correction", "summarize"]);
+    expect(ids).not.toContain(DEFAULT_BUSINESS_WRITING_PRESET_ID);
+    expect(ids).not.toContain(DEFAULT_STRUCTURED_TEXT_PRESET_ID);
+  });
+
+  it("blanks the model on a stored copy of each new built-in without adding or dropping presets", () => {
+    const profile = buildProfile({
+      settings: buildSettings({
+        settingsCorrect: {
+          selectedPresetId: DEFAULT_BUSINESS_WRITING_PRESET_ID,
+          presets: [
+            {
+              id: DEFAULT_BUSINESS_WRITING_PRESET_ID,
+              name: "Business Writing",
+              hotkey: "Control+Shift+B",
+              systemPrompt: "Business writing prompt.",
+              model: "openai::gpt-4o",
+              isBuiltIn: true,
+            },
+            {
+              id: DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+              name: "Context-Aware Structured Text",
+              hotkey: "Control+Shift+R",
+              systemPrompt: "Structured text prompt.",
+              model: "openai::gpt-4o",
+              isBuiltIn: true,
+            },
+          ],
+        },
+      }),
+    });
+
+    const result = toExportableProfile(profile);
+    const ids = result.settings.settingsCorrect.presets.map((p) => p.id);
+
+    expect(ids).toEqual([
+      DEFAULT_BUSINESS_WRITING_PRESET_ID,
+      DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+    ]);
+    expect(
+      result.settings.settingsCorrect.presets.every((p) => p.model === ""),
+    ).toBe(true);
   });
 });
 
