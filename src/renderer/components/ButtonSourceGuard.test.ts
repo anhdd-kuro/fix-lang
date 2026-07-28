@@ -1595,7 +1595,7 @@ const consumerContractRows = [
   ["BTN-074", "SITE-9ee18af8c12ab3af-04", "LIVE-f4ccea28d324b33f", "src/renderer/components/SettingUpdates.tsx", 627, 13],
   ["BTN-075", "SITE-5d39d7c44db8e592-01", "LIVE-d2dc6b542709b453", "src/renderer/components/TrashButton.tsx", 23, 5],
   ["BTN-076", "SITE-cb7fadf7f125d0a4-01", "LIVE-22b46580f1bd13d0", "src/renderer/CorrectionResultWindow/index.tsx", 61, 9],
-  ["BTN-077", "SITE-88c71677c4253b47-01", "LIVE-0186137c312ed90a", "src/renderer/MainWindow/App.tsx", 323, 15],
+  ["BTN-077", "SITE-88c71677c4253b47-01", "LIVE-0186137c312ed90a", "src/renderer/MainWindow/App.tsx", 321, 15],
   ["BTN-078", "SITE-d33755b6903c0d0d-01", "LIVE-391b0616cadac9b3", "src/renderer/TrayWindow/components/TrayCreditBalance.tsx", 66, 5],
   ["BTN-079", "SITE-1af9bad65d4dd36b-01", "LIVE-022a9db6eed9fbc4", "src/renderer/TrayWindow/components/TrayToolbar.tsx", 23, 3],
   ["BTN-080", "SITE-bdf91dd57b1a8eab-01", "LIVE-57f775bd4fae66ec", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 94, 11],
@@ -1603,6 +1603,8 @@ const consumerContractRows = [
   ["BTN-082", "SITE-2ac783017cc928f4-01", "LIVE-450bee16aa4af761", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 132, 9],
   ["BTN-083", "SITE-ef9a2ca35cce009b-01", "LIVE-cda3ee060bf9b96d", "src/renderer/components/usage/UsagePanel.tsx", 102, 11],
   ["BTN-084", "SITE-88cac4abd73dba55-01", "LIVE-e27f5c86266c2ef9", "src/renderer/components/usage/UsagePanel.tsx", 128, 13],
+  ["BTN-085", "SITE-71a619fb8e003614-01", "LIVE-08e5c95965d6039a", "src/renderer/components/about/AboutPanel.tsx", 39, 13],
+  ["BTN-086", "SITE-44c4ac2bac54dc75-01", "LIVE-8b8d0ec1cfca32d6", "src/renderer/components/about/UserGuidePanel.tsx", 214, 9],
 ] as const;
 
 const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
@@ -1616,7 +1618,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "a33ef01d1869487a66d856194b795615ada270dfbaf02a077fa809cbbefcaad6";
+  "6ef7c9dfa8c499f8c147e06a96b074c2c1055ab7178870765e0c6139ee3e0564";
 
 const compareConsumers = (left: ButtonConsumer, right: ButtonConsumer): number =>
   left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column;
@@ -2129,7 +2131,7 @@ describe("renderer Button source guard", () => {
     }
   });
 
-  it("changes every one of the 84 live identities under a stable-coordinate mutation", async () => {
+  it("changes every one of the 86 live identities under a stable-coordinate mutation", async () => {
     const sourceByFile = new Map<string, string>();
     let mutatedIdentityCount = 0;
 
@@ -2163,29 +2165,29 @@ describe("renderer Button source guard", () => {
       mutatedIdentityCount += 1;
     }
 
-    expect(mutatedIdentityCount).toBe(84);
+    expect(mutatedIdentityCount).toBe(86);
   });
 
-  it("allows the shared native leaf and the exact 84-consumer migration inventory", async () => {
+  it("allows the shared native leaf and the exact 86-consumer migration inventory", async () => {
     const result = await scanRenderer();
     const locations = expectedButtonConsumers.map(
       ({ file, line, column }) => `${file}:${line}:${column}`,
     );
 
-    expect(expectedButtonConsumers).toHaveLength(84);
+    expect(expectedButtonConsumers).toHaveLength(86);
     expect(sha256(JSON.stringify(expectedButtonConsumers))).toBe(
       consumerContractSha256,
     );
     expect(expectedButtonConsumers.map(({ id }) => id)).toEqual(
       Array.from(
-        { length: 84 },
+        { length: 86 },
         (_, index) => `BTN-${String(index + 1).padStart(3, "0")}`,
       ),
     );
     expect(new Set(expectedButtonConsumers.map(({ stableId }) => stableId)).size).toBe(
-      84,
+      86,
     );
-    expect(new Set(locations).size).toBe(84);
+    expect(new Set(locations).size).toBe(86);
     expect(result.findings).toEqual([]);
     expect(result.sourceFiles.filter(isPrimaryButtonModule)).toEqual([]);
     expect(result.nativeLeaves).toHaveLength(1);
