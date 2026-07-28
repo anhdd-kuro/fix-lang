@@ -105,6 +105,19 @@ type ProviderFetch = {
  * the resilient cache-fallback behavior regardless of `strict`.
  */
 /**
+ * Removes the exact key from provider error text before it is logged. The
+ * shared redaction already strips `sk-…` forms and masked echoes, but a key with
+ * no recognizable prefix (LM Studio's local key) would match none of them — and
+ * a 401 body is written by the provider, not by us. Short values are left alone:
+ * splitting on two characters would shred the message without protecting a
+ * credential worth protecting.
+ */
+const withoutKeyEcho = (text: string, apiKey: string): string => {
+  const key = apiKey.trim();
+  return key.length >= 6 ? text.split(key).join("[REDACTED]") : text;
+};
+
+/**
  * One line per model-list fetch, carrying the key's SHAPE label and never the
  * key. A provider that rejects the stored request key looks identical to a
  * provider that is down until this says which key shape was presented.
@@ -123,8 +136,11 @@ const logModelFetch = (
       : {}),
     ...(outcome.liveFetch !== undefined ? { liveFetch: outcome.liveFetch } : {}),
     ...(outcome.modelCount !== undefined ? { modelCount: outcome.modelCount } : {}),
-    // `redactLogMessage` strips key echoes from provider 401 bodies.
-    ...(outcome.error !== undefined ? { failure: outcome.error } : {}),
+    // Two passes before this text is persisted: the exact key is removed here,
+    // and `redactLogMessage` strips masked echoes and any other `sk-…` form.
+    ...(outcome.error !== undefined
+      ? { failure: withoutKeyEcho(outcome.error, apiKey) }
+      : {}),
   };
 
   if (outcome.ok) {
