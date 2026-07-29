@@ -3,7 +3,7 @@
  * @description Compact native select for the profile-wide default reasoning
  * effort. Same control pattern as other tray selectors — not a slider.
  */
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   DEFAULT_REASONING_EFFORT,
   REASONING_EFFORT_SLIDER_STEPS,
@@ -39,22 +39,34 @@ export const ReasoningEffortSelect: React.FC<ReasoningEffortSelectProps> = ({
   const { t } = useI18n();
   const [effort, setEffort] = useState<ReasoningEffort>(DEFAULT_REASONING_EFFORT);
 
-  useEffect(() => {
-    let mounted = true;
-    window.electronAPI
+  const reloadEffort = useCallback((): void => {
+    void window.electronAPI
       ?.getDefaultReasoningEffort?.()
       .then((value) => {
-        if (mounted && value) {
+        if (value) {
           setEffort(value);
         }
       })
       .catch((error: unknown) => {
         console.error("ReasoningEffortSelect: failed to load default", error);
       });
-    return () => {
-      mounted = false;
-    };
   }, []);
+
+  useEffect(() => {
+    reloadEffort();
+  }, [reloadEffort]);
+
+  useEffect(() => {
+    // Tray stays mounted across profile switches and settings edits in other
+    // windows — without these subscriptions the select would keep showing the
+    // previous profile's effort while writes go to the active one.
+    const offProfile = window.electronAPI?.onActiveProfileChanged?.(reloadEffort);
+    const offSettings = window.electronAPI?.onSettingsUpdated?.(reloadEffort);
+    return () => {
+      offProfile?.();
+      offSettings?.();
+    };
+  }, [reloadEffort]);
 
   return (
     <div className={className}>

@@ -76,7 +76,7 @@ const TrayWindowMain: React.FC = () => {
       <LanguageTabs />
       <OutputModeTabs />
       <TrayActivityHeatmapLoader />
-      <TrayGlobalSelectors />
+      <TrayGlobalSelectors key={profileId} />
     </div>
   </div>
   );
