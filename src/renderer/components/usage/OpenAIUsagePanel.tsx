@@ -14,7 +14,7 @@
  *
  * The admin key never reaches this component — only key-free parsed view-models.
  */
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { twJoin } from "tailwind-merge";
 import {
   UsageCostShareChart,
@@ -87,6 +87,15 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
     refreshTimerRef.current = setTimeout(refresh, 1000);
   }, [refresh]);
 
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current !== null) {
+        clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+    };
+  }, [range]);
+
   // Empty state: connected, but no admin key — the request key cannot read the
   // organization endpoints, so there is nothing to show until one is stored.
   if (hasKey === false) {
@@ -111,7 +120,7 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
     | undefined;
 
   if (loading && data === null) {
-    return <UsagePanelSkeleton />;
+    return <UsagePanelSkeleton ariaLabel={t("usage.loading")} />;
   }
 
   const fallback = { ok: false as const, reason: "unavailable" as const };

@@ -20,6 +20,7 @@
   "usage.degraded.unavailable": "現在利用できません。",
   "usage.emptyState.description": "OpenAIまたはOpenRouterを接続すると、アカウントの使用量と支出がここに表示されます。",
   "usage.emptyState.openSettings": "設定を開く",
+  "usage.loading": "使用状況を読み込み中…",
   "usage.openai.emptyState.description": "一般設定でOpenAIの管理者キーを追加すると、この組織の使用量と支出を読み取れます。",
   "usage.openai.perModel.title": "モデル別のアクティビティ（{range}）",
   "usage.openai.spend.note": "OpenAIの請求額です。モデル別の支出はAPIから取得できません。",

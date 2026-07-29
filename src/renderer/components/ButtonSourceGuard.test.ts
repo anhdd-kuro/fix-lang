@@ -1545,8 +1545,8 @@ const consumerContractRows = [
   ["BTN-024", "SITE-e25d0c965e5599f3-01", "LIVE-e25d0c965e5599f3", "src/renderer/components/ModelManagerDialog.tsx", 330, 27],
   ["BTN-025", "SITE-5526ee17ec81f974-01", "LIVE-5526ee17ec81f974", "src/renderer/components/ModelManagerDialog.tsx", 405, 17],
   ["BTN-026", "SITE-73361c5a5c8f4108-01", "LIVE-73361c5a5c8f4108", "src/renderer/components/ModelManagerDialog.tsx", 412, 17],
-  ["BTN-027", "SITE-9bea8fb78af9d78f-01", "LIVE-9bea8fb78af9d78f", "src/renderer/components/ModelSelect.tsx", 417, 9],
-  ["BTN-028", "SITE-38539922a7e16c77-01", "LIVE-38539922a7e16c77", "src/renderer/components/ModelSelect.tsx", 445, 11],
+  ["BTN-027", "SITE-9bea8fb78af9d78f-01", "LIVE-9bea8fb78af9d78f", "src/renderer/components/ModelSelect.tsx", 412, 9],
+  ["BTN-028", "SITE-38539922a7e16c77-01", "LIVE-38539922a7e16c77", "src/renderer/components/ModelSelect.tsx", 440, 11],
   ["BTN-029", "SITE-edf192add08f8fcb-01", "LIVE-edf192add08f8fcb", "src/renderer/components/ModelsPanel.tsx", 161, 15],
   ["BTN-030", "SITE-eca35f045362c69d-01", "LIVE-eca35f045362c69d", "src/renderer/components/MultiSelect.tsx", 94, 7],
   ["BTN-031", "SITE-73a48ff1f5f9296f-01", "LIVE-73a48ff1f5f9296f", "src/renderer/components/ProfileManager.tsx", 256, 11],
@@ -1599,12 +1599,12 @@ const consumerContractRows = [
   ["BTN-078", "SITE-5815552ee2096fa5-01", "LIVE-5815552ee2096fa5", "src/renderer/components/SettingUpdates.tsx", 615, 13],
   ["BTN-079", "SITE-f4ccea28d324b33f-77", "LIVE-f4ccea28d324b33f", "src/renderer/components/SettingUpdates.tsx", 627, 13],
   ["BTN-080", "SITE-d2dc6b542709b453-01", "LIVE-d2dc6b542709b453", "src/renderer/components/TrashButton.tsx", 23, 5],
-  ["BTN-081", "SITE-57f775bd4fae66ec-01", "LIVE-57f775bd4fae66ec", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 100, 11],
-  ["BTN-082", "SITE-e630a70d66e34af0-01", "LIVE-e630a70d66e34af0", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 131, 13],
-  ["BTN-083", "SITE-faf927e806407b15-01", "LIVE-faf927e806407b15", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 142, 9],
-  ["BTN-084", "SITE-3c1c72456ff99197-01", "LIVE-3c1c72456ff99197", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 102, 11],
-  ["BTN-085", "SITE-eb9419e711683c9d-01", "LIVE-eb9419e711683c9d", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 136, 13],
-  ["BTN-086", "SITE-aff47f3a90bf9c5b-01", "LIVE-aff47f3a90bf9c5b", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 149, 9],
+  ["BTN-081", "SITE-57f775bd4fae66ec-01", "LIVE-57f775bd4fae66ec", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 109, 11],
+  ["BTN-082", "SITE-e630a70d66e34af0-01", "LIVE-e630a70d66e34af0", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 140, 13],
+  ["BTN-083", "SITE-faf927e806407b15-01", "LIVE-faf927e806407b15", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 151, 9],
+  ["BTN-084", "SITE-3c1c72456ff99197-01", "LIVE-3c1c72456ff99197", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 111, 11],
+  ["BTN-085", "SITE-eb9419e711683c9d-01", "LIVE-eb9419e711683c9d", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 145, 13],
+  ["BTN-086", "SITE-aff47f3a90bf9c5b-01", "LIVE-aff47f3a90bf9c5b", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 158, 9],
   ["BTN-087", "SITE-cda3ee060bf9b96d-01", "LIVE-cda3ee060bf9b96d", "src/renderer/components/usage/UsagePanel.tsx", 102, 11],
   ["BTN-088", "SITE-e27f5c86266c2ef9-01", "LIVE-e27f5c86266c2ef9", "src/renderer/components/usage/UsagePanel.tsx", 128, 13],
   ["BTN-089", "SITE-22b46580f1bd13d0-01", "LIVE-22b46580f1bd13d0", "src/renderer/CorrectionResultWindow/index.tsx", 61, 9],
@@ -1624,7 +1624,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "32ea3a859fde8675d506b05369e401a5479e275e237dfeaacf20317e5dc1c4bd";
+  "20c9ec74de6b7dd29e4203ec481612f4c6742ccec98a07587c1c54ac6d9dac51";
 
 const compareConsumers = (left: ButtonConsumer, right: ButtonConsumer): number =>
   left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column;

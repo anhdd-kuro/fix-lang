@@ -20,7 +20,6 @@ import {
 } from "./modelSelectOptions";
 import { SearchableSelect } from "./SearchableSelect";
 import SettingsButton from "./SettingsIcon";
-import { Skeleton } from "./Skeleton";
 import { useI18n } from "../i18n/useI18n";
 import type { GroupBase, GroupHeadingProps } from "react-select";
 import type { TranslationKey } from "~/shared/i18n/keys";
@@ -259,11 +258,7 @@ export const ModelSelect: React.FC<{
   const hasNoConnectedProviders =
     connectedProviders !== undefined && connectedProviders.length === 0;
 
-  if (compact && modelsLoading && models.length === 0) {
-    return <Skeleton className="h-8 w-full rounded" />;
-  }
-
-  return (
+return (
     <div className={compact ? "mb-0" : "mb-4"}>
       {!compact && (
       <label

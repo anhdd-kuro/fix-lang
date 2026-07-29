@@ -20,6 +20,7 @@
   "usage.degraded.unavailable": "Unavailable right now.",
   "usage.emptyState.description": "Connect OpenAI or OpenRouter to see account usage and spend here.",
   "usage.emptyState.openSettings": "Open Settings",
+  "usage.loading": "Loading usage data…",
   "usage.openai.emptyState.description": "Add an OpenAI admin key in General settings to read this organization's usage and spend.",
   "usage.openai.perModel.title": "Activity by model ({range})",
   "usage.openai.spend.note": "Billed by OpenAI. Per-model spend is not reported by the API.",
