@@ -32,14 +32,13 @@ const ja = jaDashboard as Catalog;
  */
 const SPEC_KEYS = [
   // overview.* (28)
-  "overview.stat.sessions",
   "overview.stat.messages",
   "overview.stat.totalTokens",
   "overview.stat.activeDays",
-  "overview.stat.currentStreak",
-  "overview.stat.longestStreak",
   "overview.stat.peakHour",
   "overview.stat.favoriteModel",
+  "overview.stat.streaks",
+  "overview.value.streakPair",
   "overview.value.days",
   "overview.value.hour",
   "overview.value.empty",
@@ -112,8 +111,8 @@ const SPEC_KEYS = [
 ] as const;
 
 describe("dashboard.json — spec key inventory (docs/spec.i18n-dashboard.md §3)", () => {
-  it("introduces exactly 73 keys (57 prior + 7 models chart/breakdown + 3 guide.records)", () => {
-    expect(SPEC_KEYS.length).toBe(73);
+  it("introduces exactly 72 keys (57 prior + 7 models chart/breakdown + 3 guide.records)", () => {
+    expect(SPEC_KEYS.length).toBe(72);
   });
 
   it("has no duplicate keys in the spec inventory itself", () => {

@@ -27,12 +27,10 @@ export const TOKEN_ACTIVITY_TABS: readonly {
 
 /** Translation keys for the 8 Overview summary stat cards, in display order. */
 export const STAT_CARD_KEYS = {
-  sessions: "overview.stat.sessions",
   messages: "overview.stat.messages",
   totalTokens: "overview.stat.totalTokens",
   activeDays: "overview.stat.activeDays",
-  currentStreak: "overview.stat.currentStreak",
-  longestStreak: "overview.stat.longestStreak",
+  streaks: "overview.stat.streaks",
   peakHour: "overview.stat.peakHour",
   favoriteModel: "overview.stat.favoriteModel",
 } as const satisfies Record<string, MessageKey>;

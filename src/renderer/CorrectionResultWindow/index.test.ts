@@ -136,9 +136,9 @@ describe("CorrectionResultWindow", () => {
       (button) => button.textContent === tEn("common.close"),
     );
     expect(closeButton).toBeTruthy();
-    expect(
-      container.querySelector(`[aria-label="${tEn("common.copy")}"]`),
-    ).toBeTruthy();
+    const copyButton = container.querySelector(`[aria-label="${tEn("common.copy")}"]`);
+    expect(copyButton).toBeTruthy();
+    expect(copyButton?.querySelector("svg")).toBeNull();
 
     await act(async () => {
       closeButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));

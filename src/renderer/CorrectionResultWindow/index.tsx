@@ -74,6 +74,7 @@ export const CorrectionResultWindow = () => {
           variant="primary"
           className="rounded px-3 py-1.5 text-sm"
           showLabel
+          hideIcon
         />
       </footer>
     </main>

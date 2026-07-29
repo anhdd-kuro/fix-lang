@@ -7,6 +7,7 @@
   "profiles.manager.createDialogTitle": "Create New Profile",
   "profiles.manager.descriptionLabel": "Description (Optional)",
   "profiles.manager.descriptionPlaceholder": "Profile description...",
+  "profiles.manager.dropHint": "Drop a profile JSON file here to import",
   "profiles.manager.empty": "No profiles found. Create a new profile to get started.",
   "profiles.manager.error.applyFailed": "Failed to apply profile",
   "profiles.manager.error.cannotDeleteLast": "Cannot delete the last profile",

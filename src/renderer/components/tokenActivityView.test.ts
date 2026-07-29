@@ -75,12 +75,10 @@ describe("TOKEN_ACTIVITY_TABS", () => {
 describe("STAT_CARD_KEYS", () => {
   it("maps every stat card to its overview.stat.* key", () => {
     expect(STAT_CARD_KEYS).toEqual({
-      sessions: "overview.stat.sessions",
       messages: "overview.stat.messages",
       totalTokens: "overview.stat.totalTokens",
       activeDays: "overview.stat.activeDays",
-      currentStreak: "overview.stat.currentStreak",
-      longestStreak: "overview.stat.longestStreak",
+      streaks: "overview.stat.streaks",
       peakHour: "overview.stat.peakHour",
       favoriteModel: "overview.stat.favoriteModel",
     });
