@@ -91,7 +91,15 @@ const getHistoryStore = (): Store<HistoryStore> => {
     historyStoreInstance = new Store<HistoryStore>({
       name: "history",
       schema: historySchema,
-      encryptionKey: "your-encryption-key", // Replace with actual encryption key
+      // Obfuscation only, NOT confidentiality: electron-store derives its cipher
+      // from this literal, which ships inside the app bundle and is readable by
+      // anyone. It only deters casual hand-editing of the JSON. Never store a
+      // secret here — API keys go through `safeStorage` (see `apiKeyStore.ts`),
+      // and SECURITY.md documents history as unencrypted at rest.
+      // Do NOT change this value: electron-store cannot decrypt an existing
+      // file written under a different key and silently resets it, wiping
+      // every user's history on upgrade.
+      encryptionKey: "your-encryption-key",
       fileExtension: "json",
     });
   }
