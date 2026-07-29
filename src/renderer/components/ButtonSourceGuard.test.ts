@@ -1605,7 +1605,7 @@ const consumerContractRows = [
   ["BTN-084", "SITE-af5b100d129e6dab-01", "LIVE-c0827e45b78b1651", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 139, 9],
   ["BTN-085", "SITE-ef9a2ca35cce009b-01", "LIVE-cda3ee060bf9b96d", "src/renderer/components/usage/UsagePanel.tsx", 102, 11],
   ["BTN-086", "SITE-88cac4abd73dba55-01", "LIVE-e27f5c86266c2ef9", "src/renderer/components/usage/UsagePanel.tsx", 128, 13],
-  ["BTN-087", "SITE-cb7fadf7f125d0a4-01", "LIVE-22b46580f1bd13d0", "src/renderer/CorrectionResultWindow/index.tsx", 61, 9],
+  ["BTN-087", "SITE-cb7fadf7f125d0a4-01", "LIVE-22b46580f1bd13d0", "src/renderer/CorrectionResultWindow/index.tsx", 80, 9],
   ["BTN-088", "SITE-88c71677c4253b47-01", "LIVE-0186137c312ed90a", "src/renderer/MainWindow/App.tsx", 343, 15],
   ["BTN-089", "SITE-d33755b6903c0d0d-01", "LIVE-391b0616cadac9b3", "src/renderer/TrayWindow/components/TrayCreditBalance.tsx", 66, 5],
   ["BTN-090", "SITE-1af9bad65d4dd36b-01", "LIVE-022a9db6eed9fbc4", "src/renderer/TrayWindow/components/TrayToolbar.tsx", 23, 3],
@@ -1622,7 +1622,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "d9da33f18b50da00e1cc64488c40c2c8dd04c1e90d5c1ea5608fcf8342f148b8";
+  "723690904cb4e791ebe0e02cb60460433b27972b8018de7cfff3bffd36a91cc4";
 
 const compareConsumers = (left: ButtonConsumer, right: ButtonConsumer): number =>
   left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column;

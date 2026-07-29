@@ -344,6 +344,14 @@ GitHub Releases.
 - A freshly created profile has no provider connected — nothing is auto-selected or auto-populated from another profile.
 - Requests are sent only to the providers you connect (OpenAI, OpenRouter, Ollama, or LM Studio), and each request carries only that provider's key. Structured logs redact keys, tokens, and clipboard content before writing to disk.
 
+Builds are unsigned and un-notarized, transform history is not encrypted at rest, and FixLang needs macOS Accessibility permission to read your selection. [SECURITY.md](SECURITY.md) covers those trade-offs, the threat model, and how to report a vulnerability privately.
+
 ## License
 
-MIT
+FixLang is licensed under **GPL-3.0-or-later** — see [LICENSE.md](LICENSE.md). You may use, study, modify, and redistribute it; a fork you distribute must also ship its source under the GPL.
+
+Bundled third-party material (149 themes, plus every npm package Vite compiles into the app) keeps its own licence. Those are inventoried in [resources/THIRD-PARTY-NOTICES.md](resources/THIRD-PARTY-NOTICES.md), which ships inside the application bundle. Theme names that reference a product describe visual style only and imply no affiliation.
+
+Contributions require a DCO sign-off — see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+> Releases up to and including **0.9.11** were published with this README declaring MIT. That grant stands for those versions; it is not retroactively withdrawn. GPL-3.0-or-later applies from the next release onward.
