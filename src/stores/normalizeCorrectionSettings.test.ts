@@ -1069,3 +1069,132 @@ describe("normalizeCorrectionSettings — an inherited default hotkey is not a s
     );
   });
 });
+
+/**
+ * `registerCorrectionShortcut` treats `promptGen` and `profileSwitch` as
+ * reserved and skips any preset hotkey equal to one, logging a warn and nothing
+ * else. Both app bindings are user-remappable, so a built-in default can land on
+ * one — and until the guard below existed, the preset then showed an assigned
+ * hotkey in Settings that could never fire. Business Writing and Structured Text
+ * make this reachable for every upgrading user at once (both are materialized on
+ * the first read after upgrade), which is why it is pinned here.
+ *
+ * Reserved accelerators are injected through the third parameter so these cases
+ * never depend on `keybindingStore`'s persisted state. Production reads the real
+ * bindings through that same parameter's default.
+ */
+describe("normalizeCorrectionSettings — a materialized default gives up a reserved app accelerator", () => {
+  const storedOnly = (...presets: Record<string, unknown>[]) => ({
+    presets,
+    selectedPresetId: "correction",
+  });
+
+  it("blanks Business Writing when promptGen was remapped onto Control+Shift+B", () => {
+    const result = normalizeCorrectionSettings(
+      storedOnly(storedCorrection),
+      undefined,
+      ["Control+Shift+B", "Control+Shift+P"],
+    );
+
+    expect(hotkeyOf(result, DEFAULT_BUSINESS_WRITING_PRESET_ID)).toBe("");
+    // Only the contested one loses its key.
+    expect(hotkeyOf(result, DEFAULT_STRUCTURED_TEXT_PRESET_ID)).toBe(
+      "Control+Shift+R",
+    );
+  });
+
+  it("blanks Structured Text when profileSwitch was remapped onto Control+Shift+R", () => {
+    const result = normalizeCorrectionSettings(
+      storedOnly(storedCorrection),
+      undefined,
+      ["Control+Shift+G", "Control+Shift+R"],
+    );
+
+    expect(hotkeyOf(result, DEFAULT_STRUCTURED_TEXT_PRESET_ID)).toBe("");
+    expect(hotkeyOf(result, DEFAULT_BUSINESS_WRITING_PRESET_ID)).toBe(
+      "Control+Shift+B",
+    );
+  });
+
+  it("blanks a materialized built-in on a reserved accelerator in the no-presets-array legacy path", () => {
+    const result = normalizeCorrectionSettings(
+      { userInput: "Legacy prompt." },
+      undefined,
+      ["Control+Shift+B", "Control+Shift+P"],
+    );
+
+    expect(hotkeyOf(result, DEFAULT_BUSINESS_WRITING_PRESET_ID)).toBe("");
+    expect(hotkeyOf(result, "correction")).toBe("Control+Shift+F");
+  });
+
+  it("blanks a materialized built-in on a reserved accelerator when the stored value is not an object", () => {
+    const result = normalizeCorrectionSettings(undefined, undefined, [
+      "Control+Shift+R",
+      "Control+Shift+P",
+    ]);
+
+    expect(hotkeyOf(result, DEFAULT_STRUCTURED_TEXT_PRESET_ID)).toBe("");
+    expect(hotkeyOf(result, DEFAULT_BUSINESS_WRITING_PRESET_ID)).toBe(
+      "Control+Shift+B",
+    );
+  });
+
+  it("does NOT rewrite a stored hotkey that sits on a reserved accelerator", () => {
+    // Same boundary as the stolen-hotkey guard: a stored hotkey is the user's
+    // explicit choice. Blocking that collision stays `validateHotkeys`' pre-save
+    // job, so this preset keeps a key that will not register.
+    const result = normalizeCorrectionSettings(
+      storedOnly(storedCorrection, storedCustom("mine", "Control+Shift+B")),
+      undefined,
+      ["Control+Shift+B", "Control+Shift+P"],
+    );
+
+    expect(hotkeyOf(result, "mine")).toBe("Control+Shift+B");
+    // The default still gives its own copy up — the stored preset claimed it.
+    expect(hotkeyOf(result, DEFAULT_BUSINESS_WRITING_PRESET_ID)).toBe("");
+  });
+
+  it("leaves all six defaults intact under the DEFAULT app bindings", () => {
+    // Ctrl+Shift+G / Ctrl+Shift+P collide with nothing, so an over-broad guard
+    // that blanked hotkeys unconditionally would fail here.
+    const result = normalizeCorrectionSettings(
+      storedOnly(storedCorrection),
+      undefined,
+      ["Control+Shift+G", "Control+Shift+P"],
+    );
+
+    expect(result.presets.map((p) => p.hotkey)).toEqual([
+      "Control+Shift+F",
+      "Control+Shift+S",
+      "Control+Shift+D",
+      "Control+Shift+T",
+      "Control+Shift+B",
+      "Control+Shift+R",
+    ]);
+  });
+
+  it("ignores blank and whitespace-only reserved entries", () => {
+    const result = normalizeCorrectionSettings(
+      storedOnly(storedCorrection),
+      undefined,
+      ["", "   "],
+    );
+
+    expect(hotkeyOf(result, DEFAULT_BUSINESS_WRITING_PRESET_ID)).toBe(
+      "Control+Shift+B",
+    );
+    expect(hotkeyOf(result, DEFAULT_STRUCTURED_TEXT_PRESET_ID)).toBe(
+      "Control+Shift+R",
+    );
+  });
+
+  it("matches a reserved accelerator through surrounding whitespace", () => {
+    const result = normalizeCorrectionSettings(
+      storedOnly(storedCorrection),
+      undefined,
+      ["  Control+Shift+B  ", "Control+Shift+P"],
+    );
+
+    expect(hotkeyOf(result, DEFAULT_BUSINESS_WRITING_PRESET_ID)).toBe("");
+  });
+});

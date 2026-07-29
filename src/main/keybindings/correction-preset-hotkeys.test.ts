@@ -339,4 +339,33 @@ describe("correction preset hotkeys — reserved app shortcuts still win", () =>
       { presetId: "translate" },
     );
   });
+
+  // The end state of the reserved-accelerator guard in `normalizeCorrectionSettings`,
+  // asserted here rather than on the store: a MATERIALIZED default that would
+  // land on a remapped app binding must arrive with no hotkey at all, so there
+  // is nothing for this registrar to skip. The two tests above cover the other
+  // side — a STORED hotkey keeps its value and IS skipped here.
+  it("has nothing to skip for a materialized built-in whose default equals a REMAPPED promptGen", () => {
+    mocks.keyBindings = {
+      // User remapped promptGen onto Business Writing's brand-new default.
+      promptGen: "Control+Shift+B",
+      profileSwitch: "Control+Alt+O",
+    };
+
+    const calls = registerFrom({
+      presets: [storedBuiltIn("correction", "Correction", "Control+Shift+F")],
+      selectedPresetId: "correction",
+    });
+
+    expect(calls.map(([shortcut]) => shortcut)).not.toContain(
+      "Control+Shift+B",
+    );
+    expect(logger.warn).not.toHaveBeenCalledWith(
+      "correction.register",
+      "Skipping conflicting correction shortcut",
+      { presetId: DEFAULT_BUSINESS_WRITING_PRESET_ID },
+    );
+    // The uncontested new built-in still registers normally.
+    expect(calls.map(([shortcut]) => shortcut)).toContain("Control+Shift+R");
+  });
 });

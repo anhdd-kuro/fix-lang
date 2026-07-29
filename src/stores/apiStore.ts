@@ -31,6 +31,9 @@ import {
   type Model,
   type ProviderId,
 } from "~/shared/providers";
+// Runtime import, but no cycle: `keybindingStore` takes only a TYPE from this
+// module, which is erased.
+import { keybindingStore } from "./keybindingStore";
 import { migrateProfileForModelRefs } from "./profileMigration";
 import type { Schema } from "electron-store";
 
@@ -285,20 +288,49 @@ const buildLegacyCorrectionPrompt = (
   return sections.join("\n\n");
 };
 
+/**
+ * The app-level accelerators `registerCorrectionShortcut` treats as reserved.
+ * Read through a defaulted parameter rather than inline so tests can drive a
+ * remapped binding without reaching into `keybindingStore`, while no call site
+ * can forget to supply it and silently lose the guard below.
+ */
+const readReservedAppAccelerators = (): readonly string[] => {
+  const { promptGen, profileSwitch } = keybindingStore.getKeyBindings();
+
+  return [promptGen, profileSwitch];
+};
+
 export const normalizeCorrectionSettings = (
   value: unknown,
   legacyTranslate?: LegacyTranslateSettings,
+  reservedAppAccelerators: readonly string[] = readReservedAppAccelerators(),
 ): CorrectionSettings => {
   const defaults = getDefaultCorrectionSettings();
   const defaultById = new Map(
     defaults.presets.map((preset) => [preset.id, preset]),
   );
 
+  // `registerCorrectionShortcut` skips a preset hotkey equal to `promptGen` or
+  // `profileSwitch` with nothing but a warn. A default materialized onto a
+  // REMAPPED app binding would therefore show in Settings as an assigned hotkey
+  // that can never fire, so a default gives its hotkey up here instead. Only
+  // default-sourced hotkeys: a STORED one is the user's explicit choice and
+  // stays put, same rule as the stolen-hotkey guard further down.
+  const reservedAccelerators = new Set(
+    reservedAppAccelerators
+      .map((accelerator) => accelerator.trim())
+      .filter((accelerator) => accelerator.length > 0),
+  );
+  const withoutReservedHotkey = (preset: CorrectionPreset): CorrectionPreset =>
+    reservedAccelerators.has(preset.hotkey.trim())
+      ? { ...preset, hotkey: "" }
+      : preset;
+
   if (!value || typeof value !== "object") {
     return {
       ...defaults,
       presets: applyLegacyTranslateMigration(
-        defaults.presets,
+        defaults.presets.map(withoutReservedHotkey),
         legacyTranslate,
         false,
       ),
@@ -331,7 +363,9 @@ export const normalizeCorrectionSettings = (
     // Using slice(1) ensures summarize, prompt-optimization, and translate are all included.
     return {
       presets: applyLegacyTranslateMigration(
-        [migratedCorrectionPreset, ...defaults.presets.slice(1)],
+        [migratedCorrectionPreset, ...defaults.presets.slice(1)].map(
+          withoutReservedHotkey,
+        ),
         legacyTranslate,
         false,
       ),
@@ -423,7 +457,7 @@ export const normalizeCorrectionSettings = (
   const withoutStolenHotkey = (preset: CorrectionPreset): CorrectionPreset =>
     hotkeysClaimedByStoredPresets.has(preset.hotkey.trim())
       ? { ...preset, hotkey: "" }
-      : preset;
+      : withoutReservedHotkey(preset);
 
   const normalizedPresets = normalizedEntries.map((entry) =>
     entry.hotkeyWasStored ? entry.preset : withoutStolenHotkey(entry.preset),
