@@ -15,12 +15,20 @@ import { UserGuidePanel } from "./UserGuidePanel";
 import { useI18n } from "../../i18n/useI18n";
 import { Button } from "../Button";
 import { SettingUpdates } from "../SettingUpdates";
+import type { DashboardTabId } from "../../MainWindow/dashboardTabs";
+import type { SettingsTabId } from "../SettingsModal";
 
 export const AboutPanel = ({
   onOpenSettings,
+  onNavigateToTab,
 }: {
-  /** Opens the Settings modal — used by the guide's setup affordances. */
-  onOpenSettings: () => void;
+  /**
+   * Opens the Settings modal — used by the guide's setup affordances. Pass a
+   * tab id to land on that tab directly.
+   */
+  onOpenSettings: (tabId?: SettingsTabId) => void;
+  /** Switches the dashboard to `tabId` — used by the guide's dashboard links. */
+  onNavigateToTab: (tabId: DashboardTabId) => void;
 }) => {
   const { t } = useI18n();
   const [requestedTab, setRequestedTab] = useState<AboutTabId | null>(null);
@@ -68,7 +76,10 @@ export const AboutPanel = ({
       >
         {activeTab === "updates" && <SettingUpdates />}
         {activeTab === "guide" && (
-          <UserGuidePanel onOpenSettings={onOpenSettings} />
+          <UserGuidePanel
+            onOpenSettings={onOpenSettings}
+            onNavigateToTab={onNavigateToTab}
+          />
         )}
       </div>
     </div>

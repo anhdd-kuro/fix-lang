@@ -132,6 +132,13 @@ describe("GUIDE_TOPICS", () => {
     }
   });
 
+  it("points every title at a real settings tab", () => {
+    const validTabs = ["profiles", "general", "appearance", "correction", "promptGen"];
+    for (const topic of GUIDE_TOPICS) {
+      expect(validTabs).toContain(topic.settingsTab);
+    }
+  });
+
   it("marks exactly the bodies that interpolate a hotkey", () => {
     for (const topic of GUIDE_TOPICS) {
       const usesHotkey = EN_CATALOG[topic.bodyKey as keyof typeof EN_CATALOG]

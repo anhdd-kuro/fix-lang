@@ -11,6 +11,7 @@
 import { PROVIDER_ORDER, type ProviderId } from "~/shared/providers";
 import { DASHBOARD_TABS, type DashboardTabId } from "../../MainWindow/dashboardTabs";
 import { PROVIDER_LABEL_KEYS } from "../modelSelectOptions";
+import type { SettingsTabId } from "../SettingsModal";
 import type { MessageKey } from "~/shared/i18n/message";
 import type { CorrectionOutputMode } from "~/shared/outputMode";
 
@@ -134,49 +135,59 @@ export type GuideTopic = {
   id: string;
   titleKey: MessageKey;
   bodyKey: MessageKey;
+  /** Settings tab the topic's title opens when clicked. */
+  settingsTab: SettingsTabId;
   /** Set when the body interpolates the user's live profile-switch shortcut. */
   interpolatesHotkey?: true;
 };
 
 /**
  * "Settings worth knowing" — ordered by how likely a first-time user is to need
- * it, not by where it sits in the Settings modal.
+ * it, not by where it sits in the Settings modal. Each title is a link to the
+ * `settingsTab` that actually holds the control it describes.
  */
 export const GUIDE_TOPICS: readonly GuideTopic[] = Object.freeze([
   {
     id: "output",
     titleKey: "guide.topic.output.title",
     bodyKey: "guide.topic.output.body",
+    settingsTab: "general",
   },
   {
     id: "presets",
     titleKey: "guide.topic.presets.title",
     bodyKey: "guide.topic.presets.body",
+    settingsTab: "correction",
   },
   {
     id: "models",
     titleKey: "guide.topic.models.title",
     bodyKey: "guide.topic.models.body",
+    settingsTab: "correction",
   },
   {
     id: "profiles",
     titleKey: "guide.topic.profiles.title",
     bodyKey: "guide.topic.profiles.body",
+    settingsTab: "profiles",
     interpolatesHotkey: true,
   },
   {
     id: "language",
     titleKey: "guide.topic.language.title",
     bodyKey: "guide.topic.language.body",
+    settingsTab: "general",
   },
   {
     id: "theme",
     titleKey: "guide.topic.theme.title",
     bodyKey: "guide.topic.theme.body",
+    settingsTab: "appearance",
   },
   {
     id: "adminKey",
     titleKey: "guide.topic.adminKey.title",
     bodyKey: "guide.topic.adminKey.body",
+    settingsTab: "general",
   },
 ] satisfies GuideTopic[]);

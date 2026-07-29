@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { twJoin } from "tailwind-merge";
 import { isPromptGenEnabled } from "~/shared/features";
 import { Button } from "./Button";
@@ -19,6 +19,33 @@ type SettingsTab = {
   labelKey: TranslationKey;
   icon: React.ReactNode;
   component: React.ReactNode;
+};
+
+/** Stable ids for the settings tabs, in display order — mirrors the `id`s below. */
+export type SettingsTabId =
+  | "profiles"
+  | "general"
+  | "appearance"
+  | "correction"
+  | "promptGen";
+
+/**
+ * Visible tab ids for the current build (promptGen only when the feature tag
+ * is on). Lets callers outside this file (e.g. the user guide) resolve a tab
+ * id to an index without importing the tabs' JSX.
+ */
+export const visibleSettingsTabIds = (): SettingsTabId[] => {
+  const ids: SettingsTabId[] = ["profiles", "general", "appearance", "correction"];
+  if (isPromptGenEnabled()) {
+    ids.push("promptGen");
+  }
+  return ids;
+};
+
+/** Index of `id` in the visible tab list, or 0 (Profiles) when not found. */
+export const settingsTabIndex = (id: SettingsTabId): number => {
+  const index = visibleSettingsTabIds().indexOf(id);
+  return index >= 0 ? index : 0;
 };
 
 type SettingsModalProps = {
@@ -136,6 +163,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<number>(() =>
     Math.min(Math.max(initialTab, 0), tabs.length - 1),
   );
+
+  // The modal stays mounted between opens (`isOpen` only gates the render
+  // below), so the lazy initializer above only ever captures the FIRST
+  // `initialTab`. Re-sync every time the modal opens so a caller that asks
+  // for a specific tab (e.g. the user guide) actually lands on it, without
+  // clobbering a tab the user picks manually while it stays open.
+  useEffect(() => {
+    if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveTab(Math.min(Math.max(initialTab, 0), tabs.length - 1));
+    }
+  }, [isOpen, initialTab, tabs.length]);
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     if (e.target === e.currentTarget) {

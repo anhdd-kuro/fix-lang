@@ -9,7 +9,6 @@ import { describe, expect, it } from "vitest";
 import { estimateTextTokens, type HistoryEntry } from "~/stores/historyTypes";
 import {
   activeDays,
-  benchmarkMessage,
   costTotal,
   favoriteModel,
   filterByRange,
@@ -630,58 +629,6 @@ describe("hourBlockHeatmap", () => {
     expect(hm.cells[lastDay][0]).toBe(2);
     expect(hm.cells[lastDay][5]).toBe(1);
     expect(hm.max).toBe(2);
-  });
-});
-
-describe("benchmarkMessage", () => {
-  it("reports an empty descriptor when there is no usage", () => {
-    expect(benchmarkMessage(0)).toEqual({ key: "overview.benchmark.empty" });
-  });
-
-  it("reports an empty descriptor for negative tokens (tokens <= 0 guard)", () => {
-    expect(benchmarkMessage(-5)).toEqual({ key: "overview.benchmark.empty" });
-  });
-
-  it("reports headroom below the reference budget", () => {
-    expect(benchmarkMessage(50_000, 100_000)).toEqual({
-      key: "overview.benchmark.withHeadroom",
-      params: { tokens: 50_000, pct: 50, budgetK: 100, headroom: 50 },
-    });
-  });
-
-  it("reports over-budget above the reference budget", () => {
-    expect(benchmarkMessage(150_000, 100_000)).toEqual({
-      key: "overview.benchmark.overBudget",
-      params: { tokens: 150_000, pct: 150, budgetK: 100 },
-    });
-  });
-
-  it("treats exactly 100% as over-budget (the >= boundary)", () => {
-    expect(benchmarkMessage(100_000, 100_000)).toEqual({
-      key: "overview.benchmark.overBudget",
-      params: { tokens: 100_000, pct: 100, budgetK: 100 },
-    });
-  });
-
-  it("rounds the percentage (Math.round)", () => {
-    expect(benchmarkMessage(1_234, 100_000)).toEqual({
-      key: "overview.benchmark.withHeadroom",
-      params: { tokens: 1_234, pct: 1, budgetK: 100, headroom: 99 },
-    });
-  });
-
-  it("rounds half-up", () => {
-    expect(benchmarkMessage(1_500, 100_000)).toEqual({
-      key: "overview.benchmark.withHeadroom",
-      params: { tokens: 1_500, pct: 2, budgetK: 100, headroom: 98 },
-    });
-  });
-
-  it("computes budgetK as benchmark/1000, unrounded", () => {
-    expect(benchmarkMessage(50_000, 500)).toEqual({
-      key: "overview.benchmark.overBudget",
-      params: { tokens: 50_000, pct: 10_000, budgetK: 0.5 },
-    });
   });
 });
 

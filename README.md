@@ -26,7 +26,7 @@ Six tabs, opened from the menu-bar tray or after a transform:
 
 | Tab | What it shows |
 | --- | --- |
-| **Overview** | Token stats, preset usage charts, Codex-style token activity calendar, benchmark sentence |
+| **Overview** | Token stats, preset usage charts, Codex-style token activity calendar |
 | **History** | Transform + PromptGen history with cost tracking; last-action preview |
 | **Models** | Provider model discovery, compatibility, and monitoring |
 | **Usage** | Account-level spend and token usage, one sub-tab per connected provider (OpenAI, OpenRouter) — daily spend and token charts, spend-share donut, per-model activity |
@@ -50,7 +50,7 @@ Overview and Models share a time-range filter (All / 30d / 7d).
 
 ### Language
 
-FixLang is available in **English** and **Japanese**. On first run, the app automatically uses your system language (English if your system language is not one of the supported ones). You can change the language anytime in **Settings → General → Language** without restarting the app.
+FixLang is available in **English** and **Japanese**. On first run, the app automatically uses your system language (English if your system language is not one of the supported ones). You can change the language anytime in **Settings → General → Language**, or from the tray popover, without restarting the app. The tray popover also has a quick switch for transform output mode (**Direct paste** / **Show popup**), right below the language switch.
 
 ### Provider setup (Settings → General)
 
