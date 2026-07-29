@@ -15,6 +15,8 @@ const CopyButton: React.FC<{
   label: string;
   className?: string;
   showLabel?: boolean;
+  /** When `showLabel` is set, omit the clipboard/check icons. */
+  hideIcon?: boolean;
   /** Visual size of the clipboard/check icons. Defaults to `md`. */
   size?: CopyButtonSize;
   variant?: ButtonVariant;
@@ -23,6 +25,7 @@ const CopyButton: React.FC<{
   label,
   className = "",
   showLabel = false,
+  hideIcon = false,
   size = "md",
   variant = "ghost",
 }) => {
@@ -52,6 +55,7 @@ const CopyButton: React.FC<{
       }`}
     >
       {showLabel && <span className="whitespace-nowrap text-xs">{label}</span>}
+      {hideIcon ? null : (
       <span className={twJoin("relative block shrink-0", icon)}>
         <ClipboardIcon
           className={twJoin(
@@ -73,6 +77,7 @@ const CopyButton: React.FC<{
           }}
         />
       </span>
+      )}
     </Button>
   );
 };

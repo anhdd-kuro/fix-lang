@@ -35,7 +35,6 @@ import {
   peakHour,
   perPresetWeights,
   presetCountsOverTime,
-  sessionCount,
   stripModelDate,
   streaks,
   tokenActivityCalendar,
@@ -153,7 +152,6 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
     const now = new Date();
     const filtered = filterByRange(history, range, now);
     return {
-      sessions: sessionCount(filtered),
       messages: messageCount(filtered),
       tokens: totalTokens(filtered),
       days: activeDays(filtered),
@@ -194,17 +192,15 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
     <div className="mx-auto flex w-full flex-col gap-6">
       {/* Summary stat cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        <StatCard label={t(STAT_CARD_KEYS.sessions)} value={formatNumber(view.sessions)} />
         <StatCard label={t(STAT_CARD_KEYS.messages)} value={formatNumber(view.messages)} />
         <StatCard label={t(STAT_CARD_KEYS.totalTokens)} value={formatNumber(view.tokens)} />
         <StatCard label={t(STAT_CARD_KEYS.activeDays)} value={formatNumber(view.days)} />
         <StatCard
-          label={t(STAT_CARD_KEYS.currentStreak)}
-          value={t("overview.value.days", { count: view.streak.current })}
-        />
-        <StatCard
-          label={t(STAT_CARD_KEYS.longestStreak)}
-          value={t("overview.value.days", { count: view.streak.longest })}
+          label={t(STAT_CARD_KEYS.streaks)}
+          value={t("overview.value.streakPair", {
+            current: view.streak.current,
+            longest: view.streak.longest,
+          })}
         />
         <StatCard label={t(STAT_CARD_KEYS.peakHour)} value={peakValue} />
         <StatCard

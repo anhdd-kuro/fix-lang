@@ -21,6 +21,7 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importProfileJson, setImportProfileJson] = useState("");
+  const [isDragOver, setIsDragOver] = useState(false);
   const [exportProfileJson, setExportProfileJson] = useState("");
   const [exportProfileName, setExportProfileName] = useState("");
   // Error state is a locale-free `Label` (a translation key + params, or
@@ -194,27 +195,26 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
     }
   };
 
-  const handleImportProfile = async () => {
+  const importProfileFromJson = async (profileJson: string): Promise<void> => {
     try {
       setIsLoading(true);
       setError(null);
 
-      if (!importProfileJson) {
+      const trimmed = profileJson.trim();
+      if (!trimmed) {
         setError(messageLabel("profiles.manager.error.noData"));
         return;
       }
 
-      // Validate JSON format
       try {
-        JSON.parse(importProfileJson);
+        JSON.parse(trimmed);
       } catch {
         setError(messageLabel("profiles.manager.error.invalidJson"));
-        setIsLoading(false);
         return;
       }
 
       const result = await window.electronAPI.importProfile({
-        profileJson: importProfileJson,
+        profileJson: trimmed,
       });
 
       if (!result.success) {
@@ -234,6 +234,28 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleImportProfile = async (): Promise<void> => {
+    await importProfileFromJson(importProfileJson);
+  };
+
+  const handleProfileDrop = async (
+    event: React.DragEvent<HTMLDivElement>,
+  ): Promise<void> => {
+    event.preventDefault();
+    setIsDragOver(false);
+    const file = event.dataTransfer.files[0];
+    if (!file) {
+      return;
+    }
+    if (!file.name.toLowerCase().endsWith(".json") && file.type !== "application/json") {
+      setError(messageLabel("profiles.manager.error.invalidJson"));
+      return;
+    }
+    const profileJson = await file.text();
+    setImportProfileJson(profileJson);
+    await importProfileFromJson(profileJson);
   };
 
   const handleCopyToClipboard = (text: string) => {
@@ -284,7 +306,26 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
         </div>
       ) : (
-        <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+        <div
+          className={`space-y-2 max-h-72 overflow-y-auto pr-1 rounded border border-dashed p-2 transition-colors ${
+            isDragOver
+              ? "border-primary bg-primary/10"
+              : "border-transparent"
+          }`}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setIsDragOver(true);
+          }}
+          onDragLeave={() => setIsDragOver(false)}
+          onDrop={(event) => {
+            void handleProfileDrop(event);
+          }}
+        >
+          {isDragOver ? (
+            <p className="text-center text-sm text-primary py-2">
+              {t("profiles.manager.dropHint")}
+            </p>
+          ) : null}
           {profiles.length === 0 ? (
             <div className="text-muted-foreground text-center py-8">
               {t("profiles.manager.empty")}
