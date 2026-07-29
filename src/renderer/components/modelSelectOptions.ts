@@ -13,6 +13,7 @@ export const PROVIDER_LABEL_KEYS: Readonly<Record<ProviderId, TranslationKey>> =
   Object.freeze({
     openai: "models.select.provider.openai",
     openrouter: "models.select.provider.openrouter",
+    bedrock: "models.select.provider.bedrock",
     ollama: "models.select.provider.ollama",
     lmstudio: "models.select.provider.lmstudio",
   });

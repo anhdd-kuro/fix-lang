@@ -163,6 +163,7 @@ const App: React.FC = () => {
         const index = DASHBOARD_TABS.findIndex((tab) => tab.id === tabId);
         if (index >= 0) {
           setActiveDashboardTab(clampTabIndex(index));
+          setIsSettingsOpen(false);
           // Bumped even when the provider repeats, so clicking the same tray
           // card twice re-targets a panel the user has since navigated away from.
           if (subTabId !== undefined) {

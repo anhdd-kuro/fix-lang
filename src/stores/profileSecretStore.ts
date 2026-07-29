@@ -18,7 +18,7 @@ import {
 } from "~/shared/providers";
 import type { ProviderId } from "~/stores/apiStore";
 
-export type SecretKind = "api" | "provisioning";
+export type SecretKind = "api" | "provisioning" | "secret";
 
 export type SecretWriteResult = {
   success: boolean;
@@ -35,6 +35,7 @@ const isValidProfileId = (profileId: string): boolean =>
  */
 export const secretKindsForProvider = (provider: ProviderId): SecretKind[] => [
   ...(PROVIDER_SUPPORTS_API_KEY[provider] ? (["api"] as const) : []),
+  ...(provider === "bedrock" ? (["secret"] as const) : []),
   ...(PROVIDER_SUPPORTS_PROVISIONING_KEY[provider] ? (["provisioning"] as const) : []),
 ];
 
@@ -94,7 +95,7 @@ const validateSecret = (
   if (mismatch) {
     return {
       error: `That key does not belong to ${PROVIDER_LOG_LABELS[provider]}'s ${
-        kind === "provisioning" ? "admin" : "API"
+        kind === "provisioning" ? "admin" : kind === "secret" ? "secret" : "API"
       } key (expected ${mismatch.expectedPrefix}…)`,
     };
   }

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { BEDROCK_DEFAULT_REGION } from "~/shared/bedrockEndpoint";
 import { messageLabel, type Label, type Message } from "~/shared/i18n/message";
 import { LMSTUDIO_DEFAULT_ENDPOINT } from "~/shared/lmstudioEndpoint";
 import { OLLAMA_DEFAULT_ENDPOINT } from "~/shared/ollamaEndpoint";
@@ -14,6 +15,7 @@ import {
   type ProviderConnectionState,
   type TypedProviderKeys,
 } from "./providerCards";
+import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
 import {
   plainStatus,
   wrappedError,
@@ -22,6 +24,7 @@ import {
 } from "./statusDescriptor";
 import { useI18n } from "../i18n/useI18n";
 import type { CorrectionOutputMode } from "~/shared/outputMode";
+import type { ReasoningEffort } from "~/shared/reasoningEffort";
 import type { ProviderId } from "~/stores/apiStore";
 
 type ProviderStatus = {
@@ -47,6 +50,9 @@ export const SettingGeneral: React.FC = () => {
     useState<StatusDescriptor | null>(null);
   const [outputModeIsError, setOutputModeIsError] = useState<boolean>(false);
   const [savingOutputMode, setSavingOutputMode] = useState(false);
+  const [defaultReasoningEffort, setDefaultReasoningEffort] =
+    useState<ReasoningEffort>("none");
+  const [savingReasoning, setSavingReasoning] = useState(false);
 
   const [providerStates, setProviderStates] = useState<
     Partial<Record<ProviderId, ProviderConnectionState>>
@@ -63,6 +69,10 @@ export const SettingGeneral: React.FC = () => {
     lmstudio: {
       host: LMSTUDIO_DEFAULT_ENDPOINT.host,
       port: String(LMSTUDIO_DEFAULT_ENDPOINT.port),
+    },
+    bedrock: {
+      host: BEDROCK_DEFAULT_REGION,
+      port: "0",
     },
   });
   // Per provider, not one slot: concurrent connects would otherwise clear each
@@ -147,6 +157,14 @@ export const SettingGeneral: React.FC = () => {
   // Correction output mode is global — load once on mount.
   useEffect(() => {
     window.electronAPI
+      ?.getDefaultReasoningEffort?.()
+      .then((effort) => {
+        if (effort) setDefaultReasoningEffort(effort);
+      })
+      .catch((error: unknown) => {
+        console.error("SettingGeneral: Error loading default reasoning:", error);
+      });
+    window.electronAPI
       ?.getCorrectionOutputMode?.()
       .then(setCorrectionOutputMode)
       .catch((error: unknown) => {
@@ -160,6 +178,22 @@ export const SettingGeneral: React.FC = () => {
     // dependency to worry about; load-once on mount is correct as written.
   }, []);
 
+  const handleDefaultReasoningChange = async (effort: ReasoningEffort) => {
+    if (!window.electronAPI?.setDefaultReasoningEffort) return;
+    const previous = defaultReasoningEffort;
+    setDefaultReasoningEffort(effort);
+    setSavingReasoning(true);
+    try {
+      const result = await window.electronAPI.setDefaultReasoningEffort(effort);
+      if (!result.success) setDefaultReasoningEffort(previous);
+    } catch (error) {
+      console.error("SettingGeneral: Error saving default reasoning:", error);
+      setDefaultReasoningEffort(previous);
+    } finally {
+      setSavingReasoning(false);
+    }
+  };
+
   const cards = useMemo<ProviderCardState[]>(
     () => buildProviderCards(providerStates, typedKeys),
     [providerStates, typedKeys],
@@ -167,7 +201,7 @@ export const SettingGeneral: React.FC = () => {
 
   const setTypedKey = (
     provider: ProviderId,
-    field: "apiKey" | "provisioningKey",
+    field: "apiKey" | "secretKey" | "provisioningKey",
     value: string,
   ): void => {
     setTypedKeys((current) => ({
@@ -250,13 +284,18 @@ export const SettingGeneral: React.FC = () => {
       const result = await window.electronAPI.connectProvider({
         provider,
         apiKey: typed?.apiKey || undefined,
+        secretKey: typed?.secretKey || undefined,
         provisioningKey: typed?.provisioningKey || undefined,
         ...(provider === "lmstudio" || provider === "ollama"
           ? {
               host: endpoint?.host?.trim() || undefined,
               ...(port !== undefined ? { port } : {}),
             }
-          : {}),
+          : provider === "bedrock"
+            ? {
+                region: endpoint?.host?.trim() || undefined,
+              }
+            : {}),
       });
       if (result.success) {
         // Never keep a credential around after main has stored it.
@@ -501,15 +540,45 @@ export const SettingGeneral: React.FC = () => {
           );
         })()}
 
+        {provider === "bedrock" && (
+          <div className="mt-2">
+            <label
+              htmlFor="bedrock-region"
+              className="block text-xs font-medium text-card-foreground mb-1"
+            >
+              {t("settings.general.providers.bedrock.region")}
+            </label>
+            <input
+              id="bedrock-region"
+              type="text"
+              autoComplete="off"
+              className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              value={typedEndpoints.bedrock?.host ?? BEDROCK_DEFAULT_REGION}
+              onChange={(event) =>
+                setTypedEndpoints((current) => ({
+                  ...current,
+                  bedrock: {
+                    host: event.target.value,
+                    port: "0",
+                  },
+                }))
+              }
+              aria-label={t("settings.general.providers.bedrock.region")}
+            />
+          </div>
+        )}
+
         {card.supportsApiKey ? (
           <div className="mt-2">
             <label
               htmlFor={`api-key-${provider}`}
               className="block text-xs font-medium text-card-foreground mb-1"
             >
-              {card.requiresApiKey
-                ? t("settings.general.apiKey.label", { provider: name })
-                : t("settings.general.providers.lmstudio.apiKeyOptional")}
+              {provider === "bedrock"
+                ? t("settings.general.providers.bedrock.accessKeyId")
+                : card.requiresApiKey
+                  ? t("settings.general.apiKey.label", { provider: name })
+                  : t("settings.general.providers.lmstudio.apiKeyOptional")}
             </label>
             <p
               className={`text-xs mb-1 ${card.apiKeySet ? "text-success" : "text-muted-foreground"}`}
@@ -546,6 +615,37 @@ export const SettingGeneral: React.FC = () => {
           <p className="mt-2 text-xs text-muted-foreground">
             {t("settings.general.providers.lmstudio.hint")}
           </p>
+        )}
+
+        {provider === "bedrock" && (
+          <div className="mt-2">
+            <label
+              htmlFor="bedrock-secret-key"
+              className="block text-xs font-medium text-card-foreground mb-1"
+            >
+              {t("settings.general.providers.bedrock.secretAccessKey")}
+            </label>
+            <p
+              className={`text-xs mb-1 ${card.apiKeySet ? "text-success" : "text-muted-foreground"}`}
+              role="status"
+            >
+              {card.apiKeySet
+                ? t("settings.general.secret.set")
+                : t("settings.general.secret.unset")}
+            </p>
+            <input
+              id="bedrock-secret-key"
+              type="password"
+              autoComplete="off"
+              className="w-full p-2 bg-secondary border border-control-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              value={typed.secretKey ?? ""}
+              onChange={(event) =>
+                setTypedKey(provider, "secretKey", event.target.value)
+              }
+              placeholder={t("settings.general.providers.bedrock.secretAccessKeyPlaceholder")}
+              aria-label={t("settings.general.providers.bedrock.secretAccessKey")}
+            />
+          </div>
         )}
 
         {(provider === "lmstudio" || provider === "ollama") && (
@@ -798,6 +898,22 @@ export const SettingGeneral: React.FC = () => {
             {resolveStatus(outputModeStatus)}
           </p>
         )}
+      </section>
+
+      <section className="mb-4">
+        <h2 className="text-sm font-medium text-card-foreground">
+          {t("settings.general.reasoning.title")}
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t("settings.general.reasoning.description")}
+        </p>
+        <div className="mt-3">
+          <ReasoningEffortSlider
+            value={defaultReasoningEffort}
+            onChange={(effort) => void handleDefaultReasoningChange(effort)}
+            disabled={savingReasoning}
+          />
+        </div>
       </section>
 
       <section className="mb-4">

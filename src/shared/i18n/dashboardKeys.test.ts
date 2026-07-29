@@ -98,15 +98,22 @@ const SPEC_KEYS = [
   "models.table.usage",
   "models.table.showLess",
   "models.table.showMore",
-  // guide.records.* (3)
+  // guide.result.* (6)
+  "guide.result.title",
+  "guide.result.body",
+  "guide.result.openSettings",
+  "guide.result.viewExample",
+  "guide.result.example.presetName",
+  "guide.result.example.text",
+  // guide.records.* (3, legacy)
   "guide.records.title",
   "guide.records.body",
   "guide.records.openSettings",
 ] as const;
 
 describe("dashboard.json — spec key inventory (docs/spec.i18n-dashboard.md §3)", () => {
-  it("introduces exactly 67 keys (57 prior + 7 models chart/breakdown + 3 guide.records)", () => {
-    expect(SPEC_KEYS.length).toBe(67);
+  it("introduces exactly 73 keys (57 prior + 7 models chart/breakdown + 3 guide.records)", () => {
+    expect(SPEC_KEYS.length).toBe(73);
   });
 
   it("has no duplicate keys in the spec inventory itself", () => {

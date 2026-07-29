@@ -110,14 +110,14 @@ describe("fixGrammar — per-preset reasoning", () => {
     expect(call.reasoning).toBe("high");
   });
 
-  it("passes undefined reasoning when preset has none", async () => {
+  it("passes the global default reasoning when preset has none", async () => {
     const preset = makePreset();
     setupMockSettings(preset);
 
     await fixGrammar("hello world");
 
     const call = (makeAIRequest as Mock).mock.calls[0][0];
-    expect(call.reasoning).toBeUndefined();
+    expect(call.reasoning).toBe("none");
   });
 });
 

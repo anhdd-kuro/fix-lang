@@ -18,7 +18,7 @@ export type ProviderConnectionState = {
 
 /** Typed into a card but not yet submitted. */
 export type TypedProviderKeys = Partial<
-  Record<ProviderId, { apiKey?: string; provisioningKey?: string }>
+  Record<ProviderId, { apiKey?: string; secretKey?: string; provisioningKey?: string }>
 >;
 
 /**

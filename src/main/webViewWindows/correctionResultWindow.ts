@@ -134,6 +134,15 @@ ipcMain.on("correction-result-ready", () => {
   revealWindow();
 });
 
+ipcMain.handle("preview-correction-result", async () => {
+  const { mainT } = await import("~/main/i18n");
+  showCorrectionResultWindow({
+    presetName: mainT("guide.result.example.presetName"),
+    text: mainT("guide.result.example.text"),
+  });
+  return { success: true };
+});
+
 ipcMain.on("close-correction-result-window", () => resultWindow?.hide());
 
 app.on("before-quit", () => {

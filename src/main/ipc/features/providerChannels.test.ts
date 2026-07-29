@@ -184,7 +184,7 @@ describe("get-provider-states answers every provider in one round-trip", () => {
 
     const states = (await invoke("get-provider-states")) as ProviderStates;
 
-    expect(Object.keys(states).sort()).toEqual(["lmstudio", "ollama", "openai", "openrouter"]);
+    expect(Object.keys(states).sort()).toEqual(["bedrock", "lmstudio", "ollama", "openai", "openrouter"]);
     expect(states).toEqual({
       openai: {
         connected: true,
@@ -211,6 +211,13 @@ describe("get-provider-states answers every provider in one round-trip", () => {
         modelCount: 1,
       },
       lmstudio: {
+        connected: false,
+        configured: false,
+        apiKeySet: false,
+        provisioningKeySet: false,
+        modelCount: 0,
+      },
+      bedrock: {
         connected: false,
         configured: false,
         apiKeySet: false,
@@ -304,7 +311,7 @@ describe("get-provider-states answers every provider in one round-trip", () => {
     }
     // The key length never leaks either — the only number is a model count.
     const numbers = leaves.filter((leaf) => typeof leaf === "number");
-    expect(numbers).toEqual([1, 1, 0, 0]);
+    expect(numbers).toEqual([1, 1, 0, 0, 0]);
     for (const state of Object.values(states)) {
       expect(Object.keys(state).sort()).toEqual([
         "apiKeySet",

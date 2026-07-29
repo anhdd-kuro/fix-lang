@@ -23,7 +23,7 @@ const TrayWindowMain: React.FC = () => {
   return (
   <div className="bg-background/95 backdrop-blur-sm text-foreground p-3 rounded-lg w-full h-full overflow-hidden">
     <TrayToolbar />
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 pb-4">
       <TrayCreditBalance key={profileId} />
       <LanguageTabs />
       <OutputModeTabs />
