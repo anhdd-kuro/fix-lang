@@ -529,9 +529,6 @@ export const VERBATIM_ALLOWED_WORDS: ReadonlySet<string> = new Set([
  * distinct. Remove an entry once its value is actually translated.
  */
 export const KNOWN_PREEXISTING_VERBATIM_GAPS: ReadonlySet<string> = new Set([
-  // ja ships the literal English "Temperature" while its temperatureDefault
-  // and temperatureHint siblings are translated.
-  "settings.correction.temperature",
 ]);
 
 const WORD_TOKEN_PATTERN = /[A-Za-z]+/g;

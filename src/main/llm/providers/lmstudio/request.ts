@@ -17,6 +17,7 @@ import {
   buildLmStudioBaseUrl,
   resolveLmStudioEndpoint,
 } from "~/shared/lmstudioEndpoint";
+import { reasoningForAiSdk } from "~/shared/reasoningEffort";
 import { getCurrentProfileId, getProviderEndpoint } from "~/stores/apiStore";
 import { getProfileSecret } from "~/stores/profileSecretStore";
 import { resolveLmStudioApiKey } from "./client";
@@ -44,9 +45,11 @@ export const makeLmStudioAIRequest = async (options: AIRequestOptions) => {
         model: openai.chat(modelId),
         ...(conversation.system ? { system: conversation.system } : {}),
         messages: conversation.messages,
-        temperature: options.temperature,
         topP: options.top_p,
-        maxOutputTokens: options.maxTokens,
+        ...(() => {
+          const reasoning = reasoningForAiSdk(options.reasoning);
+          return reasoning !== undefined ? { reasoning } : {};
+        })(),
         ...(options.stop ? { stopSequences: options.stop } : {}),
       });
     const responses = await Promise.all(

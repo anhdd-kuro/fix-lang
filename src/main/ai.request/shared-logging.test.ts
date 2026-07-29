@@ -75,6 +75,7 @@ vi.mock("~/main/llm/models/discover", () => ({
 }));
 
 vi.mock("~/main/llm/providers/ollama/client", () => ({
+  createOllamaClient: () => ({ chat: vi.fn() }),
   ollamaClient: {
     chat: vi.fn(),
   },
@@ -105,8 +106,6 @@ describe("shared AI request logging", () => {
       systemPrompt: "PRIVATE_SYSTEM_PROMPT",
       userPrompt: "PRIVATE_USER_PROMPT",
       model: "openai/gpt-4.1-mini",
-      temperature: 0.2,
-      maxTokens: 1024,
       messages: [
         { role: "system", content: "PRIVATE_SYSTEM_PROMPT" },
         { role: "user", content: "PRIVATE_USER_PROMPT" },

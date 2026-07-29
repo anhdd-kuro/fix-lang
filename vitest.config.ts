@@ -15,7 +15,11 @@ export default defineConfig({
       "out",
       "resources",
       ".opencode",
+      ".claude",
+      "tmp",
+      "**/node_modules/**",
     ],
+    include: ["./src/**/*.test.{ts,tsx,js}"],
     coverage: {
       provider: "v8",
       enabled: true,

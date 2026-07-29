@@ -711,7 +711,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "2e24bcaca82ccafd3f8075fd99686c3d8a4e9373e9315d933e53df3f316aadeb",
+      "70d5d3349b40cb1fa16d460ee4209a7d3d3544b681731343d7f393ac895c3c03",
     );
   });
 });

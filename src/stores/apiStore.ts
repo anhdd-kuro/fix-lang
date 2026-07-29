@@ -31,6 +31,10 @@ import {
   type Model,
   type ProviderId,
 } from "~/shared/providers";
+import {
+  sanitizeReasoningEffort,
+  type ReasoningEffort,
+} from "~/shared/reasoningEffort";
 // Runtime import, but no cycle: `keybindingStore` takes only a TYPE from this
 // module, which is erased.
 import { keybindingStore } from "./keybindingStore";
@@ -50,8 +54,8 @@ export const sanitizeProviderEndpoints = (raw: unknown): ProviderEndpointMap => 
   const result: ProviderEndpointMap = {};
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
     if (!isProviderId(key)) continue;
-    // Only LM Studio persists endpoints today.
-    if (key !== "lmstudio") continue;
+    // Local OpenAI-compatible / Ollama daemons persist host:port.
+    if (key !== "lmstudio" && key !== "ollama") continue;
     const endpoint = sanitizeProviderEndpoint(value);
     if (endpoint) result[key] = endpoint;
   }
@@ -79,10 +83,11 @@ export type CorrectionPreset = {
   systemPrompt: string;
   model: string;
   isBuiltIn: boolean;
-  /** Optional per-preset temperature override; undefined means use the request default (1). */
-  temperature?: number;
-  /** Optional per-preset maxTokens override; undefined means use the request default (10000). */
-  maxTokens?: number;
+  /**
+   * Optional per-preset AI SDK `reasoning` effort. Undefined omits the parameter
+   * (provider-default). Slider steps: minimal → low → medium → high → xhigh.
+   */
+  reasoning?: ReasoningEffort;
 };
 
 export type CorrectionSettings = {
@@ -109,7 +114,7 @@ export type SettingsStore = {
   models: Model[];
   selectedModel: string;
   enabledProviders: ProviderId[];
-  /** Per-provider host/port. Currently used by LM Studio; other providers ignore it. */
+  /** Per-provider host/port. Used by LM Studio and Ollama local daemons. */
   providerEndpoints: ProviderEndpointMap;
 
   // Feature-specific settings
@@ -389,16 +394,9 @@ export const normalizeCorrectionSettings = (
 
     seenIds.add(id);
 
-    // Extract optional numeric fields — non-numeric values are silently dropped
+    // Optional reasoning — unknown values are silently dropped.
     const rawCandidate = candidate as Record<string, unknown>;
-    const temperature =
-      typeof rawCandidate.temperature === "number"
-        ? rawCandidate.temperature
-        : undefined;
-    const maxTokens =
-      typeof rawCandidate.maxTokens === "number"
-        ? rawCandidate.maxTokens
-        : undefined;
+    const reasoning = sanitizeReasoningEffort(rawCandidate.reasoning);
 
     return [
       {
@@ -416,8 +414,7 @@ export const normalizeCorrectionSettings = (
           model:
             candidate.model?.trim() || fallback?.model || INHERIT_GLOBAL_MODEL,
           isBuiltIn: fallback ? true : Boolean(candidate.isBuiltIn),
-          ...(temperature !== undefined ? { temperature } : {}),
-          ...(maxTokens !== undefined ? { maxTokens } : {}),
+          ...(reasoning !== undefined ? { reasoning } : {}),
         } satisfies CorrectionPreset,
         // A missing or non-string `hotkey` above inherits the built-in default.
         // That injected value is not the user's choice, so it neither counts as
@@ -589,8 +586,7 @@ export const apiStoreSchema = {
                       systemPrompt: { type: "string" },
                       model: { type: "string" },
                       isBuiltIn: { type: "boolean" },
-                      temperature: { type: "number" },
-                      maxTokens: { type: "number" },
+                      reasoning: { type: "string" },
                     },
                     required: ["id", "name", "hotkey", "systemPrompt", "model"],
                   },
@@ -747,10 +743,10 @@ export const connectProviderToProfile = (
   );
 
   const providerEndpoints =
-    options?.endpoint && provider === "lmstudio"
+    options?.endpoint && (provider === "lmstudio" || provider === "ollama")
       ? {
           ...sanitizeProviderEndpoints(settings.providerEndpoints),
-          lmstudio: options.endpoint,
+          [provider]: options.endpoint,
         }
       : sanitizeProviderEndpoints(settings.providerEndpoints);
 

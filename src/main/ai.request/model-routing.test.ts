@@ -81,7 +81,7 @@ vi.mock("~/stores/profileSecretStore", () => ({
 vi.mock("~/main/llm/models/discover", () => ({
   getLocalModels: getLocalModelsMock,
 }));
-vi.mock("~/main/llm/providers/ollama/client", () => ({ ollamaClient: { chat: ollamaChatMock } }));
+vi.mock("~/main/llm/providers/ollama/client", () => ({ createOllamaClient: () => ({ chat: ollamaChatMock }), ollamaClient: { chat: ollamaChatMock } }));
 import { apiStore } from "~/stores/apiStore";
 import * as sharedModule from "./shared";
 import { isLocalModelId, makeAIRequest } from "./shared";

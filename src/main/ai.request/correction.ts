@@ -155,8 +155,7 @@ export const fixGrammar = async (
         stripModelRefPrefix(effectiveModel),
       ),
       model: effectiveModel,
-      temperature: preset.temperature,
-      maxTokens: preset.maxTokens,
+      reasoning: preset.reasoning,
     });
 
     console.log(`Correction used preset: ${preset.name}`);

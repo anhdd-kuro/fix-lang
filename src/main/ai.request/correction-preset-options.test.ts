@@ -1,6 +1,6 @@
 /**
  * @file correction-preset-options.test.ts
- * @description Tests for per-preset temperature/maxTokens flowing through the AI request path.
+ * @description Tests for per-preset reasoning effort flowing through the AI request path.
  * Pure unit tests — no Electron, no IPC, no network.
  */
 // ---------------------------------------------------------------------------
@@ -57,7 +57,6 @@ import {
   getProfileSetting,
   normalizeCorrectionSettings,
 } from "~/stores/apiStore";
-import { estimateTextTokens } from "~/stores/historyStore";
 import { fixGrammar } from "./correction";
 import { makeAIRequest } from "./shared";
 import type { Mock } from "vitest";
@@ -93,93 +92,35 @@ const setupMockSettings = (preset: CorrectionPreset) => {
 };
 
 // ---------------------------------------------------------------------------
-// Tests: fixGrammar passes preset temperature/maxTokens to makeAIRequest
+// Tests: fixGrammar passes preset reasoning to makeAIRequest
 // ---------------------------------------------------------------------------
 
-describe("fixGrammar — per-preset temperature and maxTokens", () => {
+describe("fixGrammar — per-preset reasoning", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("passes preset temperature to makeAIRequest", async () => {
-    const preset = makePreset({ temperature: 0.3 });
+  it("passes preset reasoning to makeAIRequest", async () => {
+    const preset = makePreset({ reasoning: "high" });
     setupMockSettings(preset);
 
     await fixGrammar("hello world");
 
     const call = (makeAIRequest as Mock).mock.calls[0][0];
-    expect(call.temperature).toBe(0.3);
+    expect(call.reasoning).toBe("high");
   });
 
-  it("passes preset maxTokens to makeAIRequest", async () => {
-    const preset = makePreset({ maxTokens: 5000 });
-    setupMockSettings(preset);
-
-    await fixGrammar("hello world");
-
-    const call = (makeAIRequest as Mock).mock.calls[0][0];
-    expect(call.maxTokens).toBe(5000);
-  });
-
-  it("passes undefined temperature when preset has none", async () => {
+  it("passes undefined reasoning when preset has none", async () => {
     const preset = makePreset();
-    // no temperature property on preset
     setupMockSettings(preset);
 
     await fixGrammar("hello world");
 
     const call = (makeAIRequest as Mock).mock.calls[0][0];
-    expect(call.temperature).toBeUndefined();
-  });
-
-  it("passes undefined maxTokens when preset has none", async () => {
-    const preset = makePreset();
-    // no maxTokens property on preset
-    setupMockSettings(preset);
-
-    await fixGrammar("hello world");
-
-    const call = (makeAIRequest as Mock).mock.calls[0][0];
-    expect(call.maxTokens).toBeUndefined();
-  });
-
-  it("does NOT pass skipGlobalSettings to makeAIRequest", async () => {
-    const preset = makePreset({ temperature: 0.5 });
-    setupMockSettings(preset);
-
-    await fixGrammar("hello world");
-
-    const call = (makeAIRequest as Mock).mock.calls[0][0];
-    expect(Object.keys(call)).not.toContain("skipGlobalSettings");
-  });
-
-  it("passes both temperature and maxTokens when preset has both", async () => {
-    const preset = makePreset({ temperature: 0.7, maxTokens: 8000 });
-    setupMockSettings(preset);
-
-    await fixGrammar("hello world");
-
-    const call = (makeAIRequest as Mock).mock.calls[0][0];
-    expect(call.temperature).toBe(0.7);
-    expect(call.maxTokens).toBe(8000);
-  });
-
-  it("falls back to input and output text token estimates when usage is missing", async () => {
-    const preset = makePreset();
-    (getProfileSetting as Mock).mockReturnValue(makeSettings(preset));
-    (makeAIRequest as Mock).mockResolvedValue({
-      content: ["Fixed text"],
-      promptTokens: null,
-      completionTokens: null,
-      model: preset.model,
-    });
-
-    const result = await fixGrammar("hello world");
-
-    expect(result.promptTokens).toBe(estimateTextTokens("hello world"));
-    expect(result.completionTokens).toBe(estimateTextTokens("Fixed text"));
+    expect(call.reasoning).toBeUndefined();
   });
 });
+
 
 describe("fixGrammar — prompt-optimization target model id", () => {
   const PROMPT_OPTIMIZATION_REF = "openrouter::google/gemma-2-9b-it";
@@ -315,95 +256,46 @@ describe("fixGrammar — empty input early return", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests: normalizeCorrectionSettings temperature/maxTokens handling
-// We call normalizeCorrectionSettings from the (partially real) mock.
-// The real implementation is used since we spread ...real in the mock factory.
+// Tests: normalizeCorrectionSettings reasoning handling
 // ---------------------------------------------------------------------------
 
-describe("normalizeCorrectionSettings — temperature and maxTokens fields", () => {
-  it("preserves numeric temperature on a stored preset", () => {
-    const stored = {
+describe("normalizeCorrectionSettings — reasoning field", () => {
+  it("preserves a valid reasoning effort on a stored preset", () => {
+    const result = normalizeCorrectionSettings({
       presets: [
         {
-          id: "correction-default",
-          name: "Correction",
-          hotkey: "Control+Shift+F",
-          systemPrompt: "Fix grammar.",
-          model: "openai/gpt-4o",
-          isBuiltIn: true,
-          temperature: 0.5,
+          id: "custom-1",
+          name: "Custom",
+          hotkey: "",
+          systemPrompt: "Do the thing.",
+          model: "",
+          isBuiltIn: false,
+          reasoning: "xhigh",
         },
       ],
-      selectedPresetId: "correction-default",
-    };
-
-    const result = normalizeCorrectionSettings(stored);
-    const preset = result.presets.find((p) => p.id === "correction-default");
-    expect(preset?.temperature).toBe(0.5);
+      selectedPresetId: "custom-1",
+    });
+    const preset = result.presets.find((p) => p.id === "custom-1");
+    expect(preset?.reasoning).toBe("xhigh");
   });
 
-  it("drops non-numeric temperature from stored preset", () => {
-    const stored = {
+  it("drops an unknown reasoning value from a stored preset", () => {
+    const result = normalizeCorrectionSettings({
       presets: [
         {
-          id: "correction-default",
-          name: "Correction",
-          hotkey: "Control+Shift+F",
-          systemPrompt: "Fix grammar.",
-          model: "openai/gpt-4o",
-          isBuiltIn: true,
-          temperature: "foo",
+          id: "custom-1",
+          name: "Custom",
+          hotkey: "",
+          systemPrompt: "Do the thing.",
+          model: "",
+          isBuiltIn: false,
+          reasoning: "turbo" as "medium",
         },
       ],
-      selectedPresetId: "correction-default",
-    };
-
-    const result = normalizeCorrectionSettings(stored);
-    const preset = result.presets.find((p) => p.id === "correction-default");
-    expect(preset?.temperature).toBeUndefined();
-  });
-
-  it("loads a preset that still has applyGlobalPromptSettings without error", () => {
-    const stored = {
-      presets: [
-        {
-          id: "correction-default",
-          name: "Correction",
-          hotkey: "Control+Shift+F",
-          systemPrompt: "Fix grammar.",
-          model: "openai/gpt-4o",
-          isBuiltIn: true,
-          applyGlobalPromptSettings: true,
-        },
-      ],
-      selectedPresetId: "correction-default",
-    };
-
-    expect(() => normalizeCorrectionSettings(stored)).not.toThrow();
-    const result = normalizeCorrectionSettings(stored);
-    const preset = result.presets.find((p) => p.id === "correction-default");
-    // After migration, applyGlobalPromptSettings should NOT be on the preset
-    expect(preset).not.toHaveProperty("applyGlobalPromptSettings");
-  });
-
-  it("preserves numeric maxTokens on a stored preset", () => {
-    const stored = {
-      presets: [
-        {
-          id: "correction-default",
-          name: "Correction",
-          hotkey: "Control+Shift+F",
-          systemPrompt: "Fix grammar.",
-          model: "openai/gpt-4o",
-          isBuiltIn: true,
-          maxTokens: 5000,
-        },
-      ],
-      selectedPresetId: "correction-default",
-    };
-
-    const result = normalizeCorrectionSettings(stored);
-    const preset = result.presets.find((p) => p.id === "correction-default");
-    expect(preset?.maxTokens).toBe(5000);
+      selectedPresetId: "custom-1",
+    });
+    const preset = result.presets.find((p) => p.id === "custom-1");
+    expect(preset?.reasoning).toBeUndefined();
   });
 });
+

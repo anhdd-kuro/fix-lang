@@ -9,7 +9,7 @@ A local macOS menu-bar app that fixes grammar, improves writing, and runs other 
 - Select text in any app, press a preset hotkey, then either paste the result back automatically or show it in a result-only popup
 - Built-in presets (each with its own hotkey): **Correction** (`Ctrl+Shift+F`), **Summarize** (`Ctrl+Shift+S`), **Prompt optimization** (`Ctrl+Shift+D`), **Translate** (`Ctrl+Shift+T`), **Business Writing** (`Ctrl+Shift+B`), **Context-Aware Structured Text** (`Ctrl+Shift+R`)
 - **Profiles** — multiple named configurations; switch with `Ctrl+Shift+P` (profile switch reloads hotkeys, settings, and history)
-- Custom presets with per-preset model, system prompt, and hotkey
+- Custom presets with per-preset model, system prompt, hotkey, and reasoning effort (Faster↔Smarter)
 - **App-aware output** — the name of the app you selected the text in (e.g. Slack, Mail, Xcode) is added to the system prompt as context, so the result matches that app's tone and formatting conventions. Applies to transform presets and PromptGen. Most presets only use it to infer tone and formality, not markup; **Context-Aware Structured Text** is the exception and actively adapts formatting to the app. The app name is never echoed into the output, and nothing is sent when it can't be read
 
 ### Prompt generation
@@ -60,7 +60,7 @@ You can connect multiple providers at once. Each connected provider's models app
 
 1. Open Settings → General → Providers
 2. For each provider you want to use:
-   - Enter its API key when required (OpenAI and OpenRouter need keys; Ollama needs none; LM Studio accepts an optional key plus host/port for its local server)
+   - Enter its API key when required (OpenAI and OpenRouter need keys; Ollama needs none but accepts host/port like LM Studio; LM Studio accepts an optional key plus host/port for its local server)
    - Optionally add an admin key to unlock that provider's **Usage** sub-tab: an OpenRouter provisioning key, or an OpenAI Admin API key (`sk-admin-…`, organization owner). Admin keys are read only in the main process and never returned to the UI.
    - Click **Test & fetch models** — this validates the credentials and fetches that provider's model list
 3. Choose a default model for the profile

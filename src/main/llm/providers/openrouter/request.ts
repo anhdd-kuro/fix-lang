@@ -16,6 +16,7 @@ import {
 } from "~/main/ai.request/cache-strategy";
 import { extractResolvedModel } from "~/main/ai.request/resolve-model";
 import { showErrorNotification } from "~/main/notifications/error";
+import { reasoningForAiSdk } from "~/shared/reasoningEffort";
 import { getApiKey } from "~/stores/apiKeyStore";
 import { apiStore, getProfileSetting } from "~/stores/apiStore";
 import type { AIRequestOptions } from "~/main/ai.request/requestTypes";
@@ -35,16 +36,14 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
 
   try {
     console.log(
-      `Sending request to OpenRouter with model: ${options.model}, temperature: ${options.temperature}, top_p: ${options.top_p}, max_completion_tokens: ${options.maxTokens}`,
+      `Sending request to OpenRouter with model: ${options.model}, top_p: ${options.top_p}, reasoning: ${options.reasoning ?? "provider-default"}`,
     );
 
     const openRouter = createOpenRouter({ apiKey: apiKey.trim() });
     const modelId = options.model as string;
     const modelOpenRouter = openRouter(modelId, {
       extraBody: {
-        temperature: options.temperature,
         top_p: options.top_p,
-        max_completion_tokens: options.maxTokens,
         n: options.n || 1,
         stop: options.stop,
       },
@@ -73,10 +72,12 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
       cacheProvider,
     );
 
+    const reasoning = reasoningForAiSdk(options.reasoning);
     const genResponse = await generateText({
       model: modelOpenRouter,
       ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: conversationMessages as never,
+      ...(reasoning !== undefined ? { reasoning } : {}),
     });
     const { usage, text } = genResponse;
     const normalizedUsage = usage as {

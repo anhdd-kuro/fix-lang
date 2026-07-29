@@ -95,14 +95,6 @@ describe("generatePrompt — explicit options beat the stored profile setting", 
     expect(requestOptions().model).toBe("ollama::llama3.2:3b");
   });
 
-  it("uses an explicit options.temperature over the stored settings", async () => {
-    setup();
-
-    await generatePrompt({ text: "hello", temperature: 0.9 });
-
-    expect(requestOptions().temperature).toBe(0.9);
-  });
-
   it("still falls back to the stored model when the caller passes none", async () => {
     setup({ model: "openrouter::openai/gpt-4o" });
 
