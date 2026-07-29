@@ -123,6 +123,13 @@ export const SettingGeneral: React.FC = () => {
             port: String(ollama.port),
           };
         }
+        const bedrock = endpoints?.bedrock;
+        if (bedrock?.host) {
+          next.bedrock = {
+            host: bedrock.host,
+            port: "0",
+          };
+        }
         return next;
       });
     } catch (error) {
@@ -136,12 +143,26 @@ export const SettingGeneral: React.FC = () => {
     // Reading main's state is the external-system sync the rule carves out.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshProviderStates();
+    const reloadReasoningEffort = (): void => {
+      window.electronAPI
+        ?.getDefaultReasoningEffort?.()
+        .then((effort) => {
+          if (effort) setDefaultReasoningEffort(effort);
+        })
+        .catch((error: unknown) => {
+          console.error("SettingGeneral: Error reloading default reasoning on profile switch:", error);
+        });
+    };
     const offProfile = window.electronAPI?.onProfileUpdated?.(() => {
       setTypedKeys({});
       setProviderStatus({});
       setConfirmDisconnect(null);
       setDisconnectReport(null);
       refreshProviderStates();
+      reloadReasoningEffort();
+    });
+    const offActiveProfile = window.electronAPI?.onActiveProfileChanged?.(() => {
+      reloadReasoningEffort();
     });
     // Another window's connect/disconnect broadcasts `settings-updated`;
     // without this the cards keep showing stale connection state.
@@ -150,6 +171,7 @@ export const SettingGeneral: React.FC = () => {
     });
     return () => {
       offProfile?.();
+      offActiveProfile?.();
       offSettings?.();
     };
   }, [refreshProviderStates]);
