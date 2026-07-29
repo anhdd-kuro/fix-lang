@@ -354,4 +354,4 @@ Bundled third-party material (149 themes, plus every npm package Vite compiles i
 
 Contributions require a DCO sign-off — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-> Releases up to and including **0.9.11** were published with this README declaring MIT. That grant stands for those versions; it is not retroactively withdrawn. GPL-3.0-or-later applies from the next release onward.
+> Releases up to and including **0.10.0** were published with this README declaring MIT. That grant stands for those versions; it is not retroactively withdrawn. GPL-3.0-or-later applies from the next release onward.

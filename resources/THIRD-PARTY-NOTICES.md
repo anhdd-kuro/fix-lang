@@ -230,11 +230,13 @@ companies, and no such affiliation is implied.
 FixLang ships no `node_modules` directory; these packages are compiled into the
 application by Vite, so their notices are included here.
 
-Licence spread: 15 × MIT, 5 × Apache-2.0.
+Licence spread: 15 × MIT, 7 × Apache-2.0.
 
 | Package | Version | Licence | Project |
 | ------- | ------- | ------- | ------- |
+| `@ai-sdk/amazon-bedrock` | 5.0.35 | Apache-2.0 | [source](https://github.com/vercel/ai) |
 | `@ai-sdk/openai` | 4.0.20 | Apache-2.0 | [source](https://github.com/vercel/ai) |
+| `@aws-sdk/client-bedrock` | 3.1097.0 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
 | `@openrouter/ai-sdk-provider` | 3.0.0 | Apache-2.0 | [source](https://github.com/OpenRouterTeam/ai-sdk-provider) |
 | `@tanstack/react-virtual` | 3.14.8 | MIT | [source](https://github.com/TanStack/virtual) |
 | `ai` | 7.0.37 | Apache-2.0 | [source](https://github.com/vercel/ai) |

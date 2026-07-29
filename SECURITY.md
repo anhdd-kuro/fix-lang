@@ -93,9 +93,9 @@ so you can decide whether to install FixLang.
   running as your user. If you transform sensitive text, that text is on disk in
   plaintext until you clear the history.
 - **Your text is sent to the providers you connect.** Cloud providers (OpenAI,
-  OpenRouter) receive the selected text plus the frontmost application's name.
-  Local providers (Ollama, LM Studio) keep it on your machine. Choose per preset
-  accordingly.
+  OpenRouter, Amazon Bedrock) receive the selected text plus the frontmost
+  application's name. Local providers (Ollama, LM Studio) keep it on your
+  machine. Choose per preset accordingly.
 - **API keys are stored with the macOS Keychain** via Electron `safeStorage`. If
   Keychain encryption is unavailable, key storage fails rather than falling back
   to plaintext.
