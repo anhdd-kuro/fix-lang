@@ -57,9 +57,6 @@ const SPEC_KEYS = [
   "overview.tokenActivity.tooltip.cumulative",
   "overview.tokenActivity.tooltip.cumulative.withCorrections_one",
   "overview.tokenActivity.tooltip.cumulative.withCorrections_other",
-  "overview.benchmark.empty",
-  "overview.benchmark.overBudget",
-  "overview.benchmark.withHeadroom",
   "overview.preset.untitled",
   // charts.* (21)
   "charts.month.jan",
@@ -97,8 +94,8 @@ const SPEC_KEYS = [
 ] as const;
 
 describe("dashboard.json — spec key inventory (docs/spec.i18n-dashboard.md §3)", () => {
-  it("introduces exactly 60 keys", () => {
-    expect(SPEC_KEYS.length).toBe(60);
+  it("introduces exactly 57 keys (60 minus the 3 removed benchmark-sentence keys)", () => {
+    expect(SPEC_KEYS.length).toBe(57);
   });
 
   it("has no duplicate keys in the spec inventory itself", () => {

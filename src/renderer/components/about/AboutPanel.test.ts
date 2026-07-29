@@ -75,6 +75,7 @@ describe("AboutPanel", () => {
   let container: HTMLDivElement;
   let root: Root;
   let onOpenSettings: ReturnType<typeof vi.fn>;
+  let onNavigateToTab: ReturnType<typeof vi.fn>;
   let api: ReturnType<typeof buildApi>;
 
   const render = async (overrides: ApiOverrides = {}) => {
@@ -84,6 +85,7 @@ describe("AboutPanel", () => {
       value: api,
     });
     onOpenSettings = vi.fn();
+    onNavigateToTab = vi.fn();
 
     container = document.createElement("div");
     document.body.append(container);
@@ -93,7 +95,7 @@ describe("AboutPanel", () => {
         createElement(
           I18nProvider,
           null,
-          createElement(AboutPanel, { onOpenSettings }),
+          createElement(AboutPanel, { onOpenSettings, onNavigateToTab }),
         ),
       );
     });
@@ -259,6 +261,39 @@ describe("AboutPanel", () => {
     expect(api.openExternalLink).toHaveBeenCalledWith(
       expect.stringMatching(/^https:\/\//),
     );
+  });
+
+  it("opens Settings on the right tab when a 'Settings worth knowing' title is clicked", async () => {
+    await render();
+    await click(tabNamed(t("about.tab.guide")));
+    await waitForUi();
+
+    const outputLink = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === t("guide.topic.output.title"),
+    );
+    expect(outputLink).toBeDefined();
+    await click(outputLink as Element);
+    expect(onOpenSettings).toHaveBeenCalledExactlyOnceWith("general");
+
+    const themeLink = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === t("guide.topic.theme.title"),
+    );
+    expect(themeLink).toBeDefined();
+    await click(themeLink as Element);
+    expect(onOpenSettings).toHaveBeenLastCalledWith("appearance");
+  });
+
+  it("switches the dashboard tab when a 'Where to look afterwards' title is clicked", async () => {
+    await render();
+    await click(tabNamed(t("about.tab.guide")));
+    await waitForUi();
+
+    const historyLink = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === t("dashboard.tab.history"),
+    );
+    expect(historyLink).toBeDefined();
+    await click(historyLink as Element);
+    expect(onNavigateToTab).toHaveBeenCalledExactlyOnceWith("history");
   });
 
   it("re-reads the guide when settings change or the profile switches", async () => {

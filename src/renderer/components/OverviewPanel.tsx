@@ -3,9 +3,8 @@
  * @description Overview dashboard tab. Presentational: receives the
  * already-fetched corrections `history` (owned + live-updated by App) and the
  * active range (lifted to the shared dashboard header), then renders a grid of
- * summary stat cards, Chart.js preset donut + stacked-bar time-series charts, a Codex-style token
- * activity calendar, and a benchmark sentence — all from the PURE aggregators
- * in overviewAggregations.ts.
+ * summary stat cards, Chart.js preset donut + stacked-bar time-series charts, and a Codex-style
+ * token activity calendar — all from the PURE aggregators in overviewAggregations.ts.
  */
 import {
   useEffect,
@@ -31,7 +30,6 @@ import { filterByRange, type AnalyticsRange } from "../analytics/shared";
 import { useI18n } from "../i18n/useI18n";
 import {
   activeDays,
-  benchmarkMessage,
   favoriteModel,
   messageCount,
   peakHour,
@@ -307,9 +305,6 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
           </div>
         </div>
       </section>
-
-      {/* Benchmark comparison sentence. */}
-      <p className="text-sm text-muted-foreground">{tm(benchmarkMessage(view.tokens))}</p>
     </div>
   );
 };

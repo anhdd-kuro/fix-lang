@@ -13,10 +13,8 @@
  */
 import {
   messageLabel,
-  msg,
   textLabel,
   type Label,
-  type Message,
   type MessageKey,
 } from "~/shared/i18n/message";
 import {
@@ -514,34 +512,6 @@ export const sevenDayHourBlockHeatmap = (
     }
   }
   return { days, cells, max };
-};
-
-/** Reference token budget the benchmark sentence compares against. */
-export const BENCHMARK_TOKENS = 100_000;
-
-/**
- * Short, honest comparison of the range's token usage against a fixed reference
- * budget. Never fabricates precision — rounds to whole percent. Returns a
- * locale-free descriptor; the renderer resolves it via `tm()`.
- */
-export const benchmarkMessage = (
-  tokens: number,
-  benchmark: number = BENCHMARK_TOKENS
-): Message => {
-  if (tokens <= 0) {
-    return msg("overview.benchmark.empty");
-  }
-  const pct = Math.round((tokens / benchmark) * 100);
-  const budgetK = benchmark / 1000;
-  if (pct >= 100) {
-    return msg("overview.benchmark.overBudget", { tokens, pct, budgetK });
-  }
-  return msg("overview.benchmark.withHeadroom", {
-    tokens,
-    pct,
-    budgetK,
-    headroom: 100 - pct,
-  });
 };
 
 /**

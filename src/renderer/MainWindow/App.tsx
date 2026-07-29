@@ -18,7 +18,11 @@ import { ModelsPanel } from "../components/ModelsPanel";
 import { OverviewPanel } from "../components/OverviewPanel";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { SettingsButton } from "../components/SettingsIcon";
-import { SettingsModal } from "../components/SettingsModal";
+import {
+  SettingsModal,
+  settingsTabIndex,
+  type SettingsTabId,
+} from "../components/SettingsModal";
 import { TextAreaBox } from "../components/TextAreaBox";
 import { UsagePanel } from "../components/usage/UsagePanel";
 import { useTheme } from "../hooks/useTheme";
@@ -300,7 +304,25 @@ const App: React.FC = () => {
     logs: <LogsPanel />,
     // Two sub-tabs: the update controls (default) and the user guide. The
     // wrapping card lives inside AboutPanel, below its sub-tab bar.
-    about: <AboutPanel onOpenSettings={() => setIsSettingsOpen(true)} />,
+    about: (
+      <AboutPanel
+        onOpenSettings={(tabId?: SettingsTabId) => {
+          // Only steer to a specific tab when one is requested — the guide's
+          // plain "Open Settings" button (no tab) keeps the prior behaviour
+          // of leaving whatever tab was last active.
+          if (tabId) {
+            setInitialSettingsTab(settingsTabIndex(tabId));
+          }
+          setIsSettingsOpen(true);
+        }}
+        onNavigateToTab={(tabId: DashboardTabId) => {
+          const index = DASHBOARD_TABS.findIndex((tab) => tab.id === tabId);
+          if (index >= 0) {
+            setActiveDashboardTab(clampTabIndex(index));
+          }
+        }}
+      />
+    ),
   };
 
   const activeTabId = DASHBOARD_TABS[activeDashboardTab]?.id ?? "overview";

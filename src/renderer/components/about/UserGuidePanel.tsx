@@ -29,10 +29,20 @@ import {
 import { useI18n } from "../../i18n/useI18n";
 import { Button } from "../Button";
 import { Spinner } from "../Spinner";
+import type { DashboardTabId } from "../../MainWindow/dashboardTabs";
+import type { SettingsTabId } from "../SettingsModal";
 import type { CorrectionOutputMode } from "~/shared/outputMode";
 
 /** Repository README — the long-form reference this guide deliberately is not. */
 const DOCS_URL = "https://github.com/anhdd-kuro/fix-lang";
+
+/**
+ * Primary-link styling for a guide title that navigates elsewhere (a Settings
+ * tab or a dashboard tab), matching the docs link at the bottom of this panel.
+ * Rendered on a `variant="ghost"` `Button` — this overrides its hover fill so
+ * the result reads as a plain link, not a ghost button.
+ */
+const GUIDE_LINK_CLASS = "text-primary underline hover:bg-transparent hover:no-underline";
 
 type LoadPhase = "loading" | "ready" | "error";
 
@@ -95,9 +105,16 @@ const GuideSection = ({
 
 export const UserGuidePanel = ({
   onOpenSettings,
+  onNavigateToTab,
 }: {
-  /** Opens the Settings modal — every "change this in Settings" affordance. */
-  onOpenSettings: () => void;
+  /**
+   * Opens the Settings modal — every "change this in Settings" affordance.
+   * Pass a tab id to land on that tab directly (used by the "Settings worth
+   * knowing" topic links); omit it to open on whatever tab was last active.
+   */
+  onOpenSettings: (tabId?: SettingsTabId) => void;
+  /** Switches the dashboard to `tabId` — used by the "Where to look afterwards" links. */
+  onNavigateToTab: (tabId: DashboardTabId) => void;
 }) => {
   const { t } = useI18n();
   const [phase, setPhase] = useState<LoadPhase>("loading");
@@ -212,7 +229,7 @@ export const UserGuidePanel = ({
           </li>
         </ol>
         <Button
-          onClick={onOpenSettings}
+          onClick={() => onOpenSettings()}
           className="mt-3 rounded px-3 py-1.5 text-sm"
         >
           {t("guide.openSettings")}
@@ -284,8 +301,14 @@ export const UserGuidePanel = ({
         <dl className="mt-2 grid gap-3 sm:grid-cols-2">
           {GUIDE_TOPICS.map((topic) => (
             <div key={topic.id}>
-              <dt className="text-sm font-semibold text-card-foreground">
-                {t(topic.titleKey)}
+              <dt className="text-sm font-semibold">
+                <Button
+                  variant="ghost"
+                  onClick={() => onOpenSettings(topic.settingsTab)}
+                  className={GUIDE_LINK_CLASS}
+                >
+                  {t(topic.titleKey)}
+                </Button>
               </dt>
               <dd className="mt-0.5 text-sm text-muted-foreground">
                 {topic.interpolatesHotkey
@@ -296,8 +319,14 @@ export const UserGuidePanel = ({
           ))}
           {isPromptGenEnabled() && (
             <div>
-              <dt className="text-sm font-semibold text-card-foreground">
-                {t("guide.topic.promptGen.title")}
+              <dt className="text-sm font-semibold">
+                <Button
+                  variant="ghost"
+                  onClick={() => onOpenSettings("promptGen")}
+                  className={GUIDE_LINK_CLASS}
+                >
+                  {t("guide.topic.promptGen.title")}
+                </Button>
               </dt>
               <dd className="mt-0.5 text-sm text-muted-foreground">
                 {t("guide.topic.promptGen.body", {
@@ -316,8 +345,14 @@ export const UserGuidePanel = ({
         <dl className="mt-2 space-y-1">
           {dashboardRows.map((row) => (
             <div key={row.id} className="flex flex-wrap gap-x-2 text-sm">
-              <dt className="font-semibold text-card-foreground">
-                {t(row.labelKey)}
+              <dt className="font-semibold">
+                <Button
+                  variant="ghost"
+                  onClick={() => onNavigateToTab(row.id)}
+                  className={GUIDE_LINK_CLASS}
+                >
+                  {t(row.labelKey)}
+                </Button>
               </dt>
               <dd className="min-w-0 flex-1 text-muted-foreground">
                 {t(row.bodyKey)}
