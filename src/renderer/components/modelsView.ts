@@ -5,7 +5,7 @@
  * unit-testable without a DOM testing library (none is installed).
  */
 import { msg, type Message, type MessageKey } from "~/shared/i18n/message";
-import type { TokenDayBar } from "../MainWindow/modelsAggregations";
+import type { ModelRow, TokenDayBar } from "../MainWindow/modelsAggregations";
 
 /** Parses a dense local-day key ("YYYY-MM-DD") into a local `Date` — never round-trip through the ISO string (a UTC-midnight parse can render as the previous day in a negative-offset timezone). Mirrors `tokenActivityView.ts`'s helper of the same name. */
 const dateFromDayKey = (dayKey: string): Date => {
@@ -33,6 +33,17 @@ export const MODEL_TABLE_HEADER_KEYS = {
   usage: "models.table.usage",
 } as const satisfies Record<string, MessageKey>;
 
+/** Section title above the donut + ranked table. */
+export const MODEL_BREAKDOWN_TITLE_KEY = "models.breakdown.title" as const satisfies MessageKey;
+
+/** Token-usage-over-time chart copy keys. */
+export const MODEL_USAGE_CHART_KEYS = {
+  title: "models.usage.chartTitle",
+  description: "models.usage.chartDescription",
+  yAxis: "models.usage.yAxis",
+  datasetLabel: "models.usage.datasetLabel",
+} as const satisfies Record<string, MessageKey>;
+
 /**
  * Token-volume bar tooltip descriptor: `"{date} — {tokens} tokens"`.
  * `dateLabel` is a pre-formatted string built by the renderer (the bar's
@@ -43,6 +54,16 @@ export const barTooltipMessage = (
   bar: Pick<TokenDayBar, "tokens">,
   dateLabel: string,
 ): Message => msg("models.usage.barTooltip", { date: dateLabel, tokens: bar.tokens });
+
+/**
+ * Model-share donut tooltip: `"{pct}% · {count} transform(s)"`. `pctLabel` is
+ * pre-formatted (fixed decimals) so it must not be re-grouped.
+ */
+export const donutTooltipMessage = (
+  row: Pick<ModelRow, "usageCount">,
+  pctLabel: string,
+): Message =>
+  msg("models.breakdown.tooltip", { pct: pctLabel, count: row.usageCount });
 
 /**
  * "Show less" / "Show {count} more" toggle descriptor. Not a plural family —

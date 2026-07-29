@@ -14,7 +14,10 @@ import { createTranslator } from "~/shared/i18n/translate";
 import {
   barDateLabel,
   barTooltipMessage,
+  donutTooltipMessage,
+  MODEL_BREAKDOWN_TITLE_KEY,
   MODEL_TABLE_HEADER_KEYS,
+  MODEL_USAGE_CHART_KEYS,
   showMoreMessage,
 } from "./modelsView";
 
@@ -29,6 +32,32 @@ describe("MODEL_TABLE_HEADER_KEYS", () => {
   });
 });
 
+
+describe("MODEL_BREAKDOWN_TITLE_KEY", () => {
+  it("points at the Model Breakdown section title", () => {
+    expect(MODEL_BREAKDOWN_TITLE_KEY).toBe("models.breakdown.title");
+  });
+});
+
+describe("MODEL_USAGE_CHART_KEYS", () => {
+  it("covers title, description, axis, and dataset label", () => {
+    expect(MODEL_USAGE_CHART_KEYS).toEqual({
+      title: "models.usage.chartTitle",
+      description: "models.usage.chartDescription",
+      yAxis: "models.usage.yAxis",
+      datasetLabel: "models.usage.datasetLabel",
+    });
+  });
+});
+
+describe("donutTooltipMessage", () => {
+  it("builds a pluralizable descriptor with a pre-formatted pct string", () => {
+    expect(donutTooltipMessage({ usageCount: 3 }, "42.5")).toEqual({
+      key: "models.breakdown.tooltip",
+      params: { pct: "42.5", count: 3 },
+    });
+  });
+});
 describe("barTooltipMessage", () => {
   it("builds a descriptor with a pre-formatted date string and a numeric token total", () => {
     expect(barTooltipMessage({ tokens: 4200 }, "2024-06-18")).toEqual({

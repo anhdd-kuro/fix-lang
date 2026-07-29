@@ -297,6 +297,19 @@ export const UserGuidePanel = ({
         </p>
       </GuideSection>
 
+
+      <GuideSection id="guide-records-heading" title={t("guide.records.title")}>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {t("guide.records.body")}
+        </p>
+        <Button
+          onClick={() => onOpenSettings("general")}
+          className="mt-3 rounded px-3 py-1.5 text-sm"
+        >
+          {t("guide.records.openSettings")}
+        </Button>
+      </GuideSection>
+
       <GuideSection id="guide-topics-heading" title={t("guide.topics.title")}>
         <dl className="mt-2 grid gap-3 sm:grid-cols-2">
           {GUIDE_TOPICS.map((topic) => (

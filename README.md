@@ -28,10 +28,10 @@ Six tabs, opened from the menu-bar tray or after a transform:
 | --- | --- |
 | **Overview** | Token stats, preset usage charts, Codex-style token activity calendar |
 | **History** | Transform + PromptGen history with cost tracking; last-action preview |
-| **Models** | Provider model discovery, compatibility, and monitoring |
+| **Models** | Token usage over time, Model Breakdown donut + table for the selected range |
 | **Usage** | Account-level spend and token usage, one sub-tab per connected provider (OpenAI, OpenRouter) — daily spend and token charts, spend-share donut, per-model activity |
 | **Logs** | Structured, redacted app events — multi-select level filter, search, copy/export as `.txt` |
-| **About** | Two sub-tabs — **App updates** (version, release notes, install; see [App updates](#app-updates)) and **User guide** (a short onboarding read that shows your own preset shortcuts, output mode, and connected providers) |
+| **About** | Two sub-tabs — **App updates** (version, release notes, install; see [App updates](#app-updates)) and **User guide** (onboarding that shows your own preset shortcuts, output mode, connected providers, and why History/Usage may look empty) |
 
 Overview and Models share a time-range filter (All / 30d / 7d).
 
@@ -62,7 +62,7 @@ You can connect multiple providers at once. Each connected provider's models app
 2. For each provider you want to use:
    - Enter its API key when required (OpenAI and OpenRouter need keys; Ollama needs none but accepts host/port like LM Studio; LM Studio accepts an optional key plus host/port for its local server)
    - Optionally add an admin key to unlock that provider's **Usage** sub-tab: an OpenRouter provisioning key, or an OpenAI Admin API key (`sk-admin-…`, organization owner). Admin keys are read only in the main process and never returned to the UI.
-   - Click **Test & fetch models** — this validates the credentials and fetches that provider's model list
+   - Click **Connect** — this validates the credentials and fetches that provider's model list
 3. Choose a default model for the profile
 4. A preset's model selector shows all connected providers' models, grouped by provider
 
