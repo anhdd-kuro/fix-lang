@@ -1559,13 +1559,13 @@ const consumerContractRows = [
   ["BTN-038", "SITE-22b0fa1a3c9b5d7c-01", "LIVE-d89fe00914eba1d2", "src/renderer/components/ProfileManager.tsx", 491, 13],
   ["BTN-039", "SITE-c0e683be1ecf8790-01", "LIVE-d971b19360ec4666", "src/renderer/components/SearchInput.tsx", 95, 9],
   ["BTN-040", "SITE-b8755f02a8f21fbd-01", "LIVE-9568e1f27af6a345", "src/renderer/components/SettingAppearance.tsx", 87, 17],
-  ["BTN-041", "SITE-02fb80de7b4d66ea-01", "LIVE-bc36161d674c7650", "src/renderer/components/SettingCorrection.tsx", 363, 13],
-  ["BTN-042", "SITE-94ef38da6d54dea8-01", "LIVE-4ba5b85cc9bdec0e", "src/renderer/components/SettingCorrection.tsx", 377, 19],
-  ["BTN-043", "SITE-0694ac46e40edf07-01", "LIVE-31930ebb84cc797f", "src/renderer/components/SettingCorrection.tsx", 437, 15],
-  ["BTN-044", "SITE-19327cec6dd7ab56-01", "LIVE-be46cc9ab1065d84", "src/renderer/components/SettingCorrection.tsx", 445, 15],
-  ["BTN-045", "SITE-084abdfaa3d706db-01", "LIVE-6b4e0c40672f1a9f", "src/renderer/components/SettingCorrection.tsx", 454, 15],
-  ["BTN-046", "SITE-ec1cb639d0801535-01", "LIVE-d092e1365d74f58e", "src/renderer/components/SettingCorrection.tsx", 511, 15],
-  ["BTN-047", "SITE-0331a5e36ffc4b2d-01", "LIVE-7ddd61f39a4603c1", "src/renderer/components/SettingCorrection.tsx", 619, 9],
+  ["BTN-041", "SITE-02fb80de7b4d66ea-01", "LIVE-bc36161d674c7650", "src/renderer/components/SettingCorrection.tsx", 410, 13],
+  ["BTN-042", "SITE-94ef38da6d54dea8-01", "LIVE-6dd70efb010592d0", "src/renderer/components/SettingCorrection.tsx", 424, 19],
+  ["BTN-043", "SITE-0694ac46e40edf07-01", "LIVE-31930ebb84cc797f", "src/renderer/components/SettingCorrection.tsx", 482, 15],
+  ["BTN-044", "SITE-19327cec6dd7ab56-01", "LIVE-be46cc9ab1065d84", "src/renderer/components/SettingCorrection.tsx", 490, 15],
+  ["BTN-045", "SITE-084abdfaa3d706db-01", "LIVE-6b4e0c40672f1a9f", "src/renderer/components/SettingCorrection.tsx", 499, 15],
+  ["BTN-046", "SITE-ec1cb639d0801535-01", "LIVE-d092e1365d74f58e", "src/renderer/components/SettingCorrection.tsx", 556, 15],
+  ["BTN-047", "SITE-0331a5e36ffc4b2d-01", "LIVE-7ddd61f39a4603c1", "src/renderer/components/SettingCorrection.tsx", 664, 9],
   ["BTN-048", "SITE-edf33805b54733ba-01", "LIVE-4c8cc2e418d1d7d7", "src/renderer/components/SettingGeneral.tsx", 587, 11],
   ["BTN-049", "SITE-bd0c62470cfb4b04-01", "LIVE-c4546c1f1b582275", "src/renderer/components/SettingGeneral.tsx", 602, 13],
   ["BTN-050", "SITE-3c03205f66bb8f20-01", "LIVE-f528b6225f5af211", "src/renderer/components/SettingGeneral.tsx", 636, 15],
@@ -1618,7 +1618,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "1fef7365e7bb65f7f77232acab8402a28e0a931d4dfa43cd95e3ba9a3d597de3";
+  "97caccefee4cd0e79415191e7c20a498482fdd78a0415ade47e6c12690f55bd2";
 
 const compareConsumers = (left: ButtonConsumer, right: ButtonConsumer): number =>
   left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column;

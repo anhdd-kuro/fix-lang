@@ -684,7 +684,9 @@ describe("apiStoreSchema — settingsCorrect default carries all six built-in pr
 // changed hash needs the same scrutiny as any other schema edit.
 //
 // This hash WAS updated for card 03 (adding business-writing/structured-text
-// to `makeDefaultCorrectionPresets()`), after verifying the safety claim below
+// to `makeDefaultCorrectionPresets()`), and again when those two built-in
+// prompt markdown assets changed (defaults embed prompt text), after verifying
+// the safety claim below
 // rather than taking it on faith:
 //
 // `apiStore` is built with `clearInvalidConfig: true`, which wipes the ENTIRE
@@ -709,7 +711,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "0f05008483ed6f7345c2d30f2383949d319ec30e5356b4dfc56c14e8f4cbc1a8",
+      "2e24bcaca82ccafd3f8075fd99686c3d8a4e9373e9315d933e53df3f316aadeb",
     );
   });
 });
