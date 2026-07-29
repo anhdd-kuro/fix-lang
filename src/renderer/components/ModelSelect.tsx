@@ -258,7 +258,7 @@ export const ModelSelect: React.FC<{
   const hasNoConnectedProviders =
     connectedProviders !== undefined && connectedProviders.length === 0;
 
-  return (
+return (
     <div className={compact ? "mb-0" : "mb-4"}>
       {!compact && (
       <label

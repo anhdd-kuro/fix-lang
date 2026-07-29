@@ -14,7 +14,7 @@
  *
  * The admin key never reaches this component — only key-free parsed view-models.
  */
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { twJoin } from "tailwind-merge";
 import {
   UsageCostShareChart,
@@ -29,6 +29,7 @@ import {
 import { useOpenAIUsage } from "../../hooks/useOpenAIUsage";
 import { useI18n } from "../../i18n/useI18n";
 import { Button } from "../Button";
+import { UsagePanelSkeleton } from "../Skeleton";
 import type {
   CardResult,
   OpenAICompletionsUsage,
@@ -80,6 +81,20 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
   const { t, formatNumber } = useI18n();
   const [range, setRange] = useState<UsageRange>("7d");
   const { data, loading, hasKey, refresh } = useOpenAIUsage(range);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedRefresh = useCallback((): void => {
+    if (refreshTimerRef.current !== null) clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(refresh, 1000);
+  }, [refresh]);
+
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current !== null) {
+        clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+    };
+  }, [range]);
 
   // Empty state: connected, but no admin key — the request key cannot read the
   // organization endpoints, so there is nothing to show until one is stored.
@@ -103,6 +118,10 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
   const completions = data?.completions as
     | CardResult<OpenAICompletionsUsage>
     | undefined;
+
+  if (loading && data === null) {
+    return <UsagePanelSkeleton ariaLabel={t("usage.loading")} />;
+  }
 
   const fallback = { ok: false as const, reason: "unavailable" as const };
   const rangeLabel = t(
@@ -131,7 +150,7 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
         </div>
         <Button
           variant="secondary"
-          onClick={refresh}
+          onClick={debouncedRefresh}
           disabled={loading}
           className="ml-auto rounded-sm px-2 py-0.5 text-xs"
         >
