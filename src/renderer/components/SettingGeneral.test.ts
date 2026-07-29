@@ -918,7 +918,7 @@ describe("SettingGeneral", () => {
       );
     });
 
-    it("labels a stored admin key as Admin / Provisioning connected", async () => {
+    it("labels a stored admin key as Connected", async () => {
       await render(
         { success: true },
         {
@@ -933,7 +933,7 @@ describe("SettingGeneral", () => {
 
       const field = container.querySelector("#provisioning-key-openrouter");
       const near = field?.parentElement?.textContent ?? "";
-      expect(near).toContain(tEn("settings.general.secret.adminConnected"));
+      expect(near).toContain(tEn("settings.general.secret.connected"));
       expect(near).not.toContain(tEn("settings.general.secret.set"));
     });
 

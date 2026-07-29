@@ -53,7 +53,7 @@ vi.mock("electron", () => ({
       workArea: { x: 0, y: 0, width: 1920, height: 1080 },
     })),
   },
-  ipcMain: { on: vi.fn() },
+  ipcMain: { on: vi.fn(), handle: vi.fn() },
   app: { getAppPath: vi.fn(() => "/app"), on: vi.fn() },
 }));
 

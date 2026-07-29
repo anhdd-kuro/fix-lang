@@ -12,13 +12,17 @@ import type { TranslationKey } from "~/shared/i18n/keys";
 export type ProviderConnectionState = {
   connected: boolean;
   apiKeySet: boolean;
+  /** Bedrock-only */
+  accessKeySet?: boolean;
+  /** Bedrock-only */
+  secretKeySet?: boolean;
   provisioningKeySet: boolean;
   modelCount: number;
 };
 
 /** Typed into a card but not yet submitted. */
 export type TypedProviderKeys = Partial<
-  Record<ProviderId, { apiKey?: string; provisioningKey?: string }>
+  Record<ProviderId, { apiKey?: string; secretKey?: string; provisioningKey?: string }>
 >;
 
 /**
@@ -107,7 +111,12 @@ export const buildProviderCards = (
       requiresApiKey,
       supportsApiKey,
       supportsProvisioningKey: PROVIDER_SUPPORTS_PROVISIONING_KEY[provider],
-      canConnect: requiresApiKey ? apiKeySet || typedApiKey.trim() !== "" : true,
+      canConnect: requiresApiKey
+        ? provider === "bedrock"
+          ? ((state?.accessKeySet ?? false) || typedApiKey.trim() !== "") &&
+            ((state?.secretKeySet ?? false) || (typedKeys[provider]?.secretKey ?? "").trim() !== "")
+          : apiKeySet || typedApiKey.trim() !== ""
+        : true,
     };
   });
 

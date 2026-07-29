@@ -55,8 +55,8 @@ describe("Electron-free module boundary", () => {
 });
 
 describe("PROVIDER_IDS / isProviderId", () => {
-  it("lists exactly the four known providers", () => {
-    expect(PROVIDER_IDS).toEqual(["openai", "openrouter", "ollama", "lmstudio"]);
+  it("lists exactly the five known providers", () => {
+    expect(PROVIDER_IDS).toEqual(["openai", "openrouter", "bedrock", "ollama", "lmstudio"]);
   });
 
   it("accepts only known provider ids", () => {
@@ -247,6 +247,7 @@ describe("groupModelsByProvider", () => {
     expect(groupModelsByProvider(models)).toEqual([
       { provider: "openai", models: [] },
       { provider: "openrouter", models: [untaggedCloud] },
+      { provider: "bedrock", models: [] },
       { provider: "ollama", models: [untaggedLocal] },
       { provider: "lmstudio", models: [] },
     ]);
@@ -336,7 +337,7 @@ describe("sanitizeEnabledProviders", () => {
   });
 
   it("returns every provider in PROVIDER_ORDER when all are present, in any input order", () => {
-    expect(sanitizeEnabledProviders(["lmstudio", "ollama", "openrouter", "openai"])).toEqual([
+    expect(sanitizeEnabledProviders(["lmstudio", "ollama", "openrouter", "openai", "bedrock"])).toEqual([
       ...PROVIDER_ORDER,
     ]);
   });

@@ -11,6 +11,7 @@
 export const PROVIDER_IDS = Object.freeze([
   "openai",
   "openrouter",
+  "bedrock",
   "ollama",
   "lmstudio",
 ] as const);
@@ -31,6 +32,7 @@ type Permutation<T extends string, Rest extends string = T> = [T] extends [never
 export const PROVIDER_ORDER: readonly ProviderId[] = Object.freeze([
   "openai",
   "openrouter",
+  "bedrock",
   "ollama",
   "lmstudio",
 ] satisfies Permutation<ProviderId>);
@@ -39,6 +41,7 @@ export const PROVIDER_ORDER: readonly ProviderId[] = Object.freeze([
 export const PROVIDER_LOG_LABELS: Readonly<Record<ProviderId, string>> = Object.freeze({
   openai: "OpenAI",
   openrouter: "OpenRouter",
+  bedrock: "AWS Bedrock",
   ollama: "Ollama",
   lmstudio: "LM Studio",
 });
@@ -46,6 +49,7 @@ export const PROVIDER_LOG_LABELS: Readonly<Record<ProviderId, string>> = Object.
 export const PROVIDER_REQUIRES_API_KEY: Readonly<Record<ProviderId, boolean>> = Object.freeze({
   openai: true,
   openrouter: true,
+  bedrock: true,
   ollama: false,
   lmstudio: false,
 });
@@ -58,6 +62,7 @@ export const PROVIDER_REQUIRES_API_KEY: Readonly<Record<ProviderId, boolean>> = 
 export const PROVIDER_SUPPORTS_API_KEY: Readonly<Record<ProviderId, boolean>> = Object.freeze({
   openai: true,
   openrouter: true,
+  bedrock: true,
   ollama: false,
   lmstudio: true,
 });
@@ -71,6 +76,7 @@ export const PROVIDER_SUPPORTS_PROVISIONING_KEY: Readonly<Record<ProviderId, boo
   Object.freeze({
     openai: true,
     openrouter: true,
+    bedrock: false,
     ollama: false,
     lmstudio: false,
   });

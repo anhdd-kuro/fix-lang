@@ -298,16 +298,25 @@ export const UserGuidePanel = ({
       </GuideSection>
 
 
-      <GuideSection id="guide-records-heading" title={t("guide.records.title")}>
+      <GuideSection id="guide-result-heading" title={t("guide.result.title")}>
         <p className="mt-1 text-sm text-muted-foreground">
-          {t("guide.records.body")}
+          {t("guide.result.body")}
         </p>
-        <Button
-          onClick={() => onOpenSettings("general")}
-          className="mt-3 rounded px-3 py-1.5 text-sm"
-        >
-          {t("guide.records.openSettings")}
-        </Button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button
+            onClick={() => onOpenSettings("general")}
+            className="rounded px-3 py-1.5 text-sm"
+          >
+            {t("guide.result.openSettings")}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => void window.electronAPI.previewCorrectionResult?.()}
+            className="rounded px-3 py-1.5 text-sm"
+          >
+            {t("guide.result.viewExample")}
+          </Button>
+        </div>
       </GuideSection>
 
       <GuideSection id="guide-topics-heading" title={t("guide.topics.title")}>

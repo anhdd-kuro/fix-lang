@@ -43,6 +43,7 @@ import type {
 const PROVIDER_SUPPORTS_USAGE: Readonly<Record<ProviderId, boolean>> = Object.freeze({
   openai: true,
   openrouter: true,
+  bedrock: false,
   ollama: false,
   lmstudio: false,
 });
@@ -84,6 +85,27 @@ export const PROVIDER_CAPABILITIES: Readonly<Record<ProviderId, ProviderCapabili
         import("./openrouter/request").then((m) =>
           m.makeOpenRouterAIRequest(options),
         ),
+    }),
+    bedrock: capabilities("bedrock", {
+      fetchModels: (_apiKey) =>
+        import("./bedrock/models").then(async (m) => {
+          const { getCurrentProfileId } = await import("~/stores/apiStore");
+          const { getProfileSecret } = await import("~/stores/profileSecretStore");
+          const { resolveBedrockRegion } = await import("~/shared/bedrockEndpoint");
+          const { getProviderEndpoint } = await import("~/stores/apiStore");
+          const profileId = getCurrentProfileId();
+          if (!profileId) return [];
+          const accessKeyId = await getProfileSecret(profileId, "bedrock", "api");
+          const secretAccessKey = await getProfileSecret(profileId, "bedrock", "secret");
+          if (!accessKeyId || !secretAccessKey) return [];
+          return m.fetchBedrockModels({
+            accessKeyId,
+            secretAccessKey,
+            region: resolveBedrockRegion(getProviderEndpoint("bedrock")),
+          });
+        }),
+      makeRequest: (options) =>
+        import("./bedrock/request").then((m) => m.makeBedrockAIRequest(options)),
     }),
     ollama: capabilities("ollama", {
       makeRequest: (options) =>

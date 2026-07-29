@@ -71,7 +71,7 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
   const hiddenCount = rows.length - visibleRows.length;
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 pb-8">
       {/* Global model switch — same persist path as Tray. */}
       <div className="rounded-lg border border-card-control-border bg-card p-4">
         <ModelSelect saveOnChange showAdditionalInfo />

@@ -73,12 +73,14 @@ describe("buildModelOptionGroups — grouping, ordering and the value/label cont
     expect(groups.map((group) => group.provider)).toEqual([
       "openai",
       "openrouter",
+      "bedrock",
       "ollama",
       "lmstudio",
     ]);
     expect(groups.map((group) => group.label)).toEqual([
       t("models.select.provider.openai"),
       t("models.select.provider.openrouter"),
+      t("models.select.provider.bedrock"),
       t("models.select.provider.ollama"),
       t("models.select.provider.lmstudio"),
     ]);

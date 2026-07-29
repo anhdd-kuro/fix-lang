@@ -2,6 +2,10 @@
 import { ipcRenderer } from "electron";
 import { messageLabel, type Label } from "~/shared/i18n/message";
 import { supportsAdminKey, type ProviderId } from "~/shared/providers";
+import {
+  sanitizeReasoningEffort,
+  type ReasoningEffort,
+} from "~/shared/reasoningEffort";
 import { asLabel } from "./ipcLabel";
 import type { CorrectionOutputMode } from "~/shared/outputMode";
 import type { KeyBindings } from "~/stores/apiStore";
@@ -12,6 +16,23 @@ import type { KeyBindings } from "~/stores/apiStore";
 export const settingsFeature = {
   getCorrectionOutputMode: (): Promise<CorrectionOutputMode> =>
     ipcRenderer.invoke("get-correction-output-mode"),
+
+  getDefaultReasoningEffort: (): Promise<ReasoningEffort> =>
+    ipcRenderer.invoke("get-default-reasoning-effort"),
+
+  setDefaultReasoningEffort: async (
+    effort: ReasoningEffort,
+  ): Promise<{ success: boolean; effort?: ReasoningEffort; error?: Label }> => {
+    if (sanitizeReasoningEffort(effort) === undefined) {
+      return {
+        success: false,
+        error: messageLabel("settings.general.reasoning.invalid"),
+      };
+    }
+    const result = await ipcRenderer.invoke("set-default-reasoning-effort", effort);
+    if (result?.success) ipcRenderer.send("settings-updated");
+    return { ...result, error: asLabel(result?.error) };
+  },
 
   setCorrectionOutputMode: async (
     mode: CorrectionOutputMode,
