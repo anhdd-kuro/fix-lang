@@ -2,8 +2,9 @@
  * @file OpenRouterUsagePanel.tsx
  * @description OpenRouter panel of the Usage tab (#59). Account-level: available
  * credit (+ low-balance warning), key usage, token totals, per-model activity
- * (7d/30d), the enabled-key count, and the three shared charts — each card
- * degrades independently from its CardResult. Data is fetched on panel-open,
+ * (7d/30d), enabled keys by name with current usage, and the three shared
+ * charts — each card degrades independently from its CardResult. Data is
+ * fetched on panel-open,
  * range change, and explicit Refresh (60s TTL cache, no background polling).
  * When no provisioning key is set, an empty state prompts the user to add one in
  * General settings.
@@ -327,20 +328,74 @@ export const OpenRouterUsagePanel = ({ onOpenSettings }: OpenRouterUsagePanelPro
           ))}
       </Card>
 
-      {/* Enabled keys */}
+      {/* Enabled keys — name + current usage for every non-disabled key */}
       <Card
         title={t("models.openrouter.enabledKeys.title")}
         result={enabledKeys ?? fallback}
         t={t}
       >
         {enabledKeys?.ok && (
-          <div className="text-xl font-semibold tabular-nums text-foreground">
-            {enabledKeys.data.enabledCount}
-            <span className="ml-1 text-xs text-muted-foreground">
-              {t("models.openrouter.enabledKeys.of", {
-                total: enabledKeys.data.totalCount,
-              })}
-            </span>
+          <div className="flex flex-col gap-2">
+            <div className="text-xl font-semibold tabular-nums text-foreground">
+              {enabledKeys.data.enabledCount}
+              <span className="ml-1 text-xs text-muted-foreground">
+                {t("models.openrouter.enabledKeys.of", {
+                  total: enabledKeys.data.totalCount,
+                })}
+              </span>
+            </div>
+            {enabledKeys.data.keys.length === 0 ? (
+              <div className="text-sm text-muted-foreground">
+                {t("models.openrouter.enabledKeys.empty")}
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="py-1 pr-2 font-medium">
+                      {t("models.openrouter.enabledKeys.columns.name")}
+                    </th>
+                    <th className="py-1 px-2 text-right font-medium">
+                      {t("models.openrouter.enabledKeys.columns.usage")}
+                    </th>
+                    <th className="py-1 pl-2 text-right font-medium">
+                      {t("models.openrouter.enabledKeys.columns.limit")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {enabledKeys.data.keys.map((key, index) => (
+                    <tr
+                      key={`${key.name}-${index}`}
+                      className="border-t border-card-control-border"
+                    >
+                      <td
+                        className="py-1 pr-2 text-foreground max-w-[12rem] truncate"
+                        title={
+                          key.name.trim() === ""
+                            ? t("models.openrouter.enabledKeys.unnamed")
+                            : key.name
+                        }
+                      >
+                        {key.name.trim() === ""
+                          ? t("models.openrouter.enabledKeys.unnamed")
+                          : key.name}
+                      </td>
+                      <td className="py-1 px-2 text-right tabular-nums text-card-foreground">
+                        {formatOpenRouterUsd(key.usageUsd)}
+                      </td>
+                      <td className="py-1 pl-2 text-right tabular-nums text-muted-foreground">
+                        {key.limitUsd === null
+                          ? t("models.openrouter.keyUsage.unlimited")
+                          : formatOpenRouterUsd(key.limitUsd)}
+                        {key.limitReached &&
+                          ` ${t("models.openrouter.keyUsage.limitReached")}`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
       </Card>

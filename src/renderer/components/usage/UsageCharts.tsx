@@ -2,6 +2,7 @@
  * @file UsageCharts.tsx
  * @description Chart.js views shared by every Usage provider panel: a daily
  * billed-cost bar, a daily input/output token line, and a cost-share donut.
+ * Daily charts show date tick labels plus x/y axis titles (mirrors ModelsCharts).
  * Presentational — every series arrives pre-aggregated from `usageChartView.ts`.
  *
  * A chart whose data carries no signal renders an explicit empty note instead of
@@ -73,7 +74,7 @@ const FALLBACK_COLORS = [
   "#8b5cf6",
 ] as const;
 
-const CHART_HEIGHT_PX = 240;
+const CHART_HEIGHT_PX = 260;
 
 /** Resolve a CSS custom property to a color Chart.js can paint. */
 const readCssColor = (varName: string, fallback: string): string => {
@@ -173,12 +174,30 @@ export const UsageDailyCostChart = ({ points }: { points: UsageDailyPoint[] }) =
       },
       scales: {
         x: {
-          ticks: { color: muted, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+          title: {
+            display: true,
+            text: t("usage.chart.dailyCost.xAxis"),
+            color: muted,
+            font: { size: 11 },
+          },
+          ticks: {
+            display: true,
+            color: muted,
+            maxRotation: 0,
+            autoSkip: true,
+            maxTicksLimit: 8,
+          },
           grid: { display: false },
           border: { color: border },
         },
         y: {
           beginAtZero: true,
+          title: {
+            display: true,
+            text: t("usage.chart.dailyCost.yAxis"),
+            color: muted,
+            font: { size: 11 },
+          },
           ticks: { color: muted },
           grid: { color: border },
           border: { color: border },
@@ -263,12 +282,30 @@ export const UsageDailyTokenChart = ({ points }: { points: UsageDailyPoint[] }) 
       },
       scales: {
         x: {
-          ticks: { color: muted, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+          title: {
+            display: true,
+            text: t("usage.chart.dailyTokens.xAxis"),
+            color: muted,
+            font: { size: 11 },
+          },
+          ticks: {
+            display: true,
+            color: muted,
+            maxRotation: 0,
+            autoSkip: true,
+            maxTicksLimit: 8,
+          },
           grid: { display: false },
           border: { color: border },
         },
         y: {
           beginAtZero: true,
+          title: {
+            display: true,
+            text: t("usage.chart.dailyTokens.yAxis"),
+            color: muted,
+            font: { size: 11 },
+          },
           ticks: { color: muted, precision: 0 },
           grid: { color: border },
           border: { color: border },

@@ -2193,7 +2193,7 @@ const consumerContractRows = [
     "SITE-3c1c72456ff99197-01",
     "LIVE-3c1c72456ff99197",
     "src/renderer/components/usage/OpenRouterUsagePanel.tsx",
-    111,
+    112,
     11,
   ],
   [
@@ -2201,7 +2201,7 @@ const consumerContractRows = [
     "SITE-eb9419e711683c9d-01",
     "LIVE-eb9419e711683c9d",
     "src/renderer/components/usage/OpenRouterUsagePanel.tsx",
-    145,
+    146,
     13,
   ],
   [
@@ -2209,7 +2209,7 @@ const consumerContractRows = [
     "SITE-aff47f3a90bf9c5b-01",
     "LIVE-aff47f3a90bf9c5b",
     "src/renderer/components/usage/OpenRouterUsagePanel.tsx",
-    158,
+    159,
     9,
   ],
   [
@@ -2273,7 +2273,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "d2134e5166a48c03e9068d6a5dfcfcee5944be02073bd8c11a55fa6ce6ba0806";
+  "8ff2c0f8df162064cdbfccfd944aefc0a2d0b0d0565a68e8e16672f9fb68c93a";
 
 const compareConsumers = (
   left: ButtonConsumer,
