@@ -300,7 +300,7 @@ const consumers = [
     resolvedVariant: '"secondary"',
     attributes: {
       variant: '"secondary"',
-      onClick: "{refresh}",
+      onClick: "{debouncedRefresh}",
       disabled: "{loading}",
       className: '"ml-auto rounded-sm px-2 py-0.5 text-xs"',
     },
