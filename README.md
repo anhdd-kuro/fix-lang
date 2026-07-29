@@ -50,7 +50,7 @@ Overview and Models share a time-range filter (All / 30d / 7d).
 
 ### Language
 
-FixLang is available in **English** and **Japanese**. On first run, the app automatically uses your system language (English if your system language is not one of the supported ones). You can change the language anytime in **Settings → General → Language**, or from the tray popover, without restarting the app. The tray popover also has a quick switch for transform output mode (**Direct paste** / **Show popup**), right below the language switch.
+FixLang is available in **English** and **Japanese**. On first run, the app automatically uses your system language (English if your system language is not one of the supported ones). You can change the language anytime in **Settings → General → Language**, or from the tray popover, without restarting the app. The tray popover also has a quick switch for transform output mode (**Direct paste** / **Show popup**), right below the language switch, plus **global** model and reasoning-effort selectors (presets can override both in Settings → Transform). History rows with a saved session expose a Show details (eye) control with the raw completion JSON.
 
 ### Provider setup (Settings → General)
 

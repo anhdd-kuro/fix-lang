@@ -1,6 +1,11 @@
 {
   "history.cost.na": "該当なし",
   "history.cost.tooltip": "変換時点の推定コスト",
+  "history.details.ariaLabel": "生の完了セッションJSON",
+  "history.details.closeAriaLabel": "セッション詳細を閉じる",
+  "history.details.copy": "JSONをコピー",
+  "history.details.show": "詳細を表示",
+  "history.details.title": "セッション詳細",
   "history.panel.filterAll": "すべて",
   "history.panel.searchPlaceholder": "履歴を検索…",
   "history.reviewModal.closeAriaLabel": "レビューモーダルを閉じる",

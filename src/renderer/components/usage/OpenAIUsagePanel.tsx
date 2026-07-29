@@ -15,7 +15,6 @@
  * The admin key never reaches this component — only key-free parsed view-models.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { twJoin } from "tailwind-merge";
 import {
   UsageCostShareChart,
   UsageDailyCostChart,
@@ -29,6 +28,7 @@ import {
 import { useOpenAIUsage } from "../../hooks/useOpenAIUsage";
 import { useI18n } from "../../i18n/useI18n";
 import { Button } from "../Button";
+import { SegmentedControl } from "../SegmentedControl";
 import { UsagePanelSkeleton } from "../Skeleton";
 import type {
   CardResult,
@@ -131,23 +131,15 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
   return (
     <div className="flex h-full flex-col gap-3 overflow-y-auto p-1">
       <div className="flex items-center gap-2">
-        <div
-          className="flex gap-1"
-          role="group"
-          aria-label={t("usage.rangeGroupLabel")}
-        >
-          {RANGES.map((r) => (
-            <Button
-              key={r.id}
-              variant={range === r.id ? "primary" : "secondary"}
-              onClick={() => setRange(r.id)}
-              aria-pressed={range === r.id}
-              className={twJoin("px-2 py-0.5 text-xs rounded-sm")}
-            >
-              {t(r.labelKey)}
-            </Button>
-          ))}
-        </div>
+        <SegmentedControl
+          value={range}
+          onChange={setRange}
+          ariaLabel={t("usage.rangeGroupLabel")}
+          options={RANGES.map((r) => ({
+            value: r.id,
+            label: t(r.labelKey),
+          }))}
+        />
         <Button
           variant="secondary"
           onClick={debouncedRefresh}

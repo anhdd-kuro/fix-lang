@@ -149,6 +149,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
               pricePrompt: cost.pricePrompt ?? undefined,
               priceCompletion: cost.priceCompletion ?? undefined,
               costStatus: cost.status,
+              sessionJson: result.sessionJson,
             },
             type: "add",
             // All preset outputs share the "corrections" bucket and are
