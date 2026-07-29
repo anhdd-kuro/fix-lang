@@ -97,6 +97,10 @@ export type ProviderState = {
   connected: boolean;
   configured: boolean;
   apiKeySet: boolean;
+  /** Bedrock-only: access key ID stored (independent of secretKeySet). */
+  accessKeySet?: boolean;
+  /** Bedrock-only: secret access key stored (independent of accessKeySet). */
+  secretKeySet?: boolean;
   /** OpenRouter-only. */
   provisioningKeySet: boolean;
   modelCount: number;
@@ -108,9 +112,11 @@ export type ProviderStates = Record<ProviderId, ProviderState>;
 type ProviderConnectPayload = {
   provider: ProviderId;
   apiKey?: string;
+  secretKey?: string;
   provisioningKey?: string;
   host?: string;
   port?: number;
+  region?: string;
 };
 
 export const parseProviderConnect = (raw: unknown): ProviderConnectPayload | null => {
@@ -119,7 +125,9 @@ export const parseProviderConnect = (raw: unknown): ProviderConnectPayload | nul
   if (!isProviderId(value.provider)) return null;
   if (
     (value.apiKey !== undefined && typeof value.apiKey !== "string") ||
-    (value.provisioningKey !== undefined && typeof value.provisioningKey !== "string")
+    (value.provisioningKey !== undefined && typeof value.provisioningKey !== "string") ||
+    (value.secretKey !== undefined && typeof value.secretKey !== "string") ||
+    (value.region !== undefined && typeof value.region !== "string")
   ) {
     return null;
   }
@@ -144,6 +152,8 @@ export const parseProviderConnect = (raw: unknown): ProviderConnectPayload | nul
     ...(typeof value.provisioningKey === "string"
       ? { provisioningKey: value.provisioningKey }
       : {}),
+    ...(typeof value.secretKey === "string" ? { secretKey: value.secretKey } : {}),
+    ...(typeof value.region === "string" ? { region: value.region } : {}),
     ...(host !== undefined ? { host } : {}),
     ...(port !== undefined ? { port } : {}),
   };
@@ -226,10 +236,16 @@ const readProviderStates = async (): Promise<ProviderStates> => {
   const entries = await Promise.all(
     PROVIDER_IDS.map(async (provider): Promise<[ProviderId, ProviderState]> => {
       const kinds = secretKindsForProvider(provider);
-      const apiKeySet =
+      const accessKeyStored =
         profileId !== "" &&
         kinds.includes("api") &&
         (await hasProfileSecret(profileId, provider, "api"));
+      const secretKeyStored =
+        provider === "bedrock" &&
+        profileId !== "" &&
+        (await hasProfileSecret(profileId, provider, "secret"));
+      const apiKeySet =
+        accessKeyStored && (provider !== "bedrock" || secretKeyStored);
       const provisioningKeySet =
         profileId !== "" &&
         kinds.includes("provisioning") &&
@@ -244,6 +260,10 @@ const readProviderStates = async (): Promise<ProviderStates> => {
             explicitlyEnabled: connected,
           }),
           apiKeySet,
+          ...(provider === "bedrock" && {
+            accessKeySet: accessKeyStored,
+            secretKeySet: secretKeyStored,
+          }),
           provisioningKeySet,
           modelCount: modelsForProvider(cachedModels, provider).length,
         },
@@ -323,9 +343,14 @@ export const registerApiHandlers = (): void => {
     if (!isProviderId(raw)) return { apiKeySet: false, provisioningKeySet: false };
     const profileId = getCurrentProfileId();
     if (!profileId) return { apiKeySet: false, provisioningKeySet: false };
+    const accessKeySet =
+      raw !== "ollama" && (await hasProfileSecret(profileId, raw, "api"));
+    const secretKeySet =
+      raw === "bedrock" && (await hasProfileSecret(profileId, raw, "secret"));
     return {
-      apiKeySet:
-        raw === "ollama" ? false : await hasProfileSecret(profileId, raw, "api"),
+      apiKeySet: raw === "bedrock" ? accessKeySet && secretKeySet : accessKeySet,
+      accessKeySet: raw === "bedrock" ? accessKeySet : undefined,
+      secretKeySet: raw === "bedrock" ? secretKeySet : undefined,
       provisioningKeySet:
         supportsAdminKey(raw) &&
         (await hasProfileSecret(profileId, raw, "provisioning")),
@@ -347,6 +372,34 @@ export const registerApiHandlers = (): void => {
       };
     }
     try {
+      if (payload.provider === "bedrock") {
+        const accessKeyId = await getSetupApiKey(profileId, "bedrock", payload.apiKey);
+        const secretAccessKey =
+          payload.secretKey?.trim() ||
+          (await getProfileSecret(profileId, "bedrock", "secret")) ||
+          "";
+        if (!accessKeyId || !secretAccessKey) {
+          return {
+            success: false,
+            error: messageLabel("models.providerSetup.error.bedrockCredentialsRequired"),
+          };
+        }
+        const { resolveBedrockRegion } = await import("~/shared/bedrockEndpoint");
+        const { fetchBedrockModels } = await import(
+          "~/main/llm/providers/bedrock/models"
+        );
+        const region =
+          payload.region
+            ? resolveBedrockRegion(payload.region)
+            : resolveBedrockRegion(getProviderEndpoint("bedrock")?.host);
+        const models = await fetchBedrockModels({
+          accessKeyId,
+          secretAccessKey,
+          region,
+        });
+        return { success: true, models };
+      }
+
       const apiKey = await getSetupApiKey(profileId, payload.provider, payload.apiKey);
       if (payload.provider !== "ollama" && !apiKey) {
         return {
@@ -476,6 +529,65 @@ export const registerApiHandlers = (): void => {
           success: true,
           profile: withoutProfileSecrets(profile),
           ...(note ? { note } : {}),
+        };
+      } else if (payload.provider === "bedrock") {
+        const accessKeyId = await getSetupApiKey(profileId, "bedrock", payload.apiKey);
+        const secretAccessKey =
+          payload.secretKey?.trim() ||
+          (await getProfileSecret(profileId, "bedrock", "secret")) ||
+          "";
+        if (!accessKeyId || !secretAccessKey) {
+          return {
+            success: false,
+            error: messageLabel("models.providerSetup.error.bedrockCredentialsRequired"),
+          };
+        }
+        const { resolveBedrockRegion } = await import("~/shared/bedrockEndpoint");
+        const region =
+          resolveBedrockRegion(payload.region) !== "us-east-1" || payload.region
+            ? resolveBedrockRegion(payload.region)
+            : resolveBedrockRegion(getProviderEndpoint("bedrock")?.host);
+
+        if (payload.apiKey?.trim()) {
+          const result = await setProfileSecret(
+            profileId,
+            "bedrock",
+            "api",
+            payload.apiKey,
+          );
+          if (!result.success) return wrapStoreResult(result);
+        }
+        if (payload.secretKey?.trim()) {
+          const result = await setProfileSecret(
+            profileId,
+            "bedrock",
+            "secret",
+            payload.secretKey,
+          );
+          if (!result.success) return wrapStoreResult(result);
+        }
+
+        const { fetchBedrockModels } = await import(
+          "~/main/llm/providers/bedrock/models"
+        );
+        models = await fetchBedrockModels({
+          accessKeyId,
+          secretAccessKey,
+          region,
+        });
+
+        const profile = connectProviderToProfile(profileId, "bedrock", models, {
+          endpoint: { host: region, port: 0 },
+        });
+        if (!profile) {
+          return {
+            success: false,
+            error: messageLabel("models.providerSetup.error.activeProfileNotFound"),
+          };
+        }
+        return {
+          success: true,
+          profile: withoutProfileSecrets(profile),
         };
       } else {
         const apiKey = await getSetupApiKey(profileId, payload.provider, payload.apiKey);

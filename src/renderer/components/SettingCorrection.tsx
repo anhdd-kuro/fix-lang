@@ -26,6 +26,7 @@ import {
   type StatusDescriptor,
 } from "./statusDescriptor";
 import { validateHotkeys } from "./validateHotkeys";
+import type { ReasoningEffort } from "~/shared/reasoningEffort";
 import type { CorrectionPreset, CorrectionSettings } from "~/stores/apiStore";
 
 /**
@@ -201,6 +202,8 @@ export const SettingCorrection: React.FC = () => {
   // English "Error" prefix.
   const [statusIsError, setStatusIsError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [globalReasoningEffort, setGlobalReasoningEffort] =
+    useState<ReasoningEffort>("none");
 
   const builtInDefaults = useMemo(() => makeBuiltInPresetDefaults(), []);
 
@@ -212,10 +215,11 @@ export const SettingCorrection: React.FC = () => {
   const loadSettings = async () => {
     try {
       setIsLoading(true);
-      const [settings] = await Promise.all([
+      const [settings, globalReasoning] = await Promise.all([
         window.electronAPI.getCorrectSettings(),
-        window.electronAPI.getKeyBindings(),
+        window.electronAPI.getDefaultReasoningEffort?.() ?? Promise.resolve(undefined),
       ]);
+      if (globalReasoning) setGlobalReasoningEffort(globalReasoning);
       setCorrectionSettings(settings);
     } catch (error) {
       console.error("Failed to load correction presets:", error);
@@ -578,15 +582,25 @@ export const SettingCorrection: React.FC = () => {
           </div>
 
           <div className="mt-4 flex flex-col gap-2">
-            <span className="text-sm text-card-foreground">
-              {t("settings.correction.reasoning.label")}
-            </span>
             <ReasoningEffortSlider
               value={activePreset.reasoning}
+              inheritFrom={globalReasoningEffort}
               onChange={(reasoning) =>
                 updatePreset(activePreset.id, { reasoning })
               }
             />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                className="rounded-md px-2 py-1 text-xs text-primary"
+                onClick={() =>
+                  updatePreset(activePreset.id, { reasoning: "provider-default" })
+                }
+              >
+                {t("settings.correction.reasoning.useGlobal")}
+              </Button>
+            </div>
             <p className="text-xs text-muted-foreground">
               {t("settings.correction.reasoning.hint")}
             </p>

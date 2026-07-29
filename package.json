@@ -1,6 +1,6 @@
 {
   "name": "fix-lang",
-  "version": "0.9.11",
+  "version": "0.10.0",
   "description": "Local macOS menu-bar app: AI text correction and writing tools via OpenAI, OpenRouter, Ollama, or LM Studio",
   "author": {
     "name": "Anhdd Kuro",
@@ -79,7 +79,9 @@
     "vitest": "4.1.10"
   },
   "dependencies": {
+    "@ai-sdk/amazon-bedrock": "^5.0.35",
     "@ai-sdk/openai": "4.0.20",
+    "@aws-sdk/client-bedrock": "^3.1097.0",
     "@tanstack/react-virtual": "3.14.8",
     "chart.js": "^4.5.1",
     "date-fns": "4.4.0",

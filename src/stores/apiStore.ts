@@ -18,6 +18,7 @@ import {
   DEFAULT_TRANSLATE_PRESET_ID,
   DEFAULT_TRANSLATE_PRESET_PROMPT,
 } from "~/prompts";
+import { sanitizeBedrockRegion } from "~/shared/bedrockEndpoint";
 import {
   sanitizeProviderEndpoint,
   type ProviderEndpoint,
@@ -32,6 +33,7 @@ import {
   type ProviderId,
 } from "~/shared/providers";
 import {
+  DEFAULT_REASONING_EFFORT,
   sanitizeReasoningEffort,
   type ReasoningEffort,
 } from "~/shared/reasoningEffort";
@@ -55,6 +57,15 @@ export const sanitizeProviderEndpoints = (raw: unknown): ProviderEndpointMap => 
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
     if (!isProviderId(key)) continue;
     // Local OpenAI-compatible / Ollama daemons persist host:port.
+    if (key === "bedrock") {
+      const region = sanitizeBedrockRegion(
+        typeof value === "object" && value !== null && "host" in value
+          ? (value as { host: unknown }).host
+          : value,
+      );
+      if (region) result[key] = { host: region, port: 0 };
+      continue;
+    }
     if (key !== "lmstudio" && key !== "ollama") continue;
     const endpoint = sanitizeProviderEndpoint(value);
     if (endpoint) result[key] = endpoint;
@@ -116,6 +127,8 @@ export type SettingsStore = {
   enabledProviders: ProviderId[];
   /** Per-provider host/port. Used by LM Studio and Ollama local daemons. */
   providerEndpoints: ProviderEndpointMap;
+  /** Profile-wide default reasoning effort; presets inherit when unset. */
+  defaultReasoningEffort?: ReasoningEffort;
 
   // Feature-specific settings
   settingsCorrect: CorrectionSettings;
@@ -678,6 +691,10 @@ export const getOpenAIKey = () => {
  * Resolves the effective global default model ref — the single source of truth
  * that presets with an empty model inherit.
  */
+export const getDefaultReasoningEffort = (): ReasoningEffort =>
+  sanitizeReasoningEffort(getProfileSetting("defaultReasoningEffort")) ??
+  DEFAULT_REASONING_EFFORT;
+
 export const getDefaultModelId = (): string => {
   const settings = getCurrentProfileSettings();
   if (settings.selectedModel) {
@@ -743,7 +760,7 @@ export const connectProviderToProfile = (
   );
 
   const providerEndpoints =
-    options?.endpoint && (provider === "lmstudio" || provider === "ollama")
+    options?.endpoint && (provider === "lmstudio" || provider === "ollama" || provider === "bedrock")
       ? {
           ...sanitizeProviderEndpoints(settings.providerEndpoints),
           [provider]: options.endpoint,

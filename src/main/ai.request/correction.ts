@@ -3,8 +3,10 @@ import {
   DEFAULT_SUMMARIZE_PRESET_ID,
 } from "~/prompts";
 import { parseModelRef, stripModelRefPrefix } from "~/shared/modelRef";
+import { resolveReasoningEffort } from "~/shared/reasoningEffort";
 import {
   getDefaultModelId,
+  getDefaultReasoningEffort,
   getProfileSetting,
   type CorrectionPreset,
   type ProviderId,
@@ -155,7 +157,7 @@ export const fixGrammar = async (
         stripModelRefPrefix(effectiveModel),
       ),
       model: effectiveModel,
-      reasoning: preset.reasoning,
+      reasoning: resolveReasoningEffort(preset.reasoning, getDefaultReasoningEffort()),
     });
 
     console.log(`Correction used preset: ${preset.name}`);

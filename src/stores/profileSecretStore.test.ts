@@ -72,6 +72,7 @@ describe("secretKindsForProvider — derived from the provider tables", () => {
   it.each([...PROVIDER_IDS])("matches the tables for %s", (provider) => {
     const expected: SecretKind[] = [];
     if (PROVIDER_SUPPORTS_API_KEY[provider]) expected.push("api");
+    if (provider === "bedrock") expected.push("secret");
     if (PROVIDER_SUPPORTS_PROVISIONING_KEY[provider]) expected.push("provisioning");
 
     expect(secretKindsForProvider(provider)).toEqual(expected);
@@ -88,7 +89,7 @@ describe("secretKindsForProvider — derived from the provider tables", () => {
   it("accepts exactly the pairs getProfileSecretPath accepts", () => {
     for (const provider of PROVIDER_IDS) {
       const kinds = secretKindsForProvider(provider);
-      for (const kind of ["api", "provisioning"] as const) {
+      for (const kind of ["api", "secret", "provisioning"] as const) {
         if (kinds.includes(kind)) {
           expect(() => getProfileSecretPath("profile_1", provider, kind)).not.toThrow();
         } else {

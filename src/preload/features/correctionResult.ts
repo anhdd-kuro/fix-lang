@@ -47,6 +47,10 @@ export const correctionResultFeature = {
   closeCorrectionResultWindow: (): void => {
     ipcRenderer.send("close-correction-result-window");
   },
+
+  /** Opens the result popup with bundled example copy for the user guide. */
+  previewCorrectionResult: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke("preview-correction-result"),
 };
 
 export type CorrectionResultFeature = typeof correctionResultFeature;

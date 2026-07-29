@@ -35,7 +35,7 @@ export type SettingsTabId =
  * id to an index without importing the tabs' JSX.
  */
 export const visibleSettingsTabIds = (): SettingsTabId[] => {
-  const ids: SettingsTabId[] = ["profiles", "general", "appearance", "correction"];
+  const ids: SettingsTabId[] = ["profiles", "general", "correction", "appearance"];
   if (isPromptGenEnabled()) {
     ids.push("promptGen");
   }
@@ -53,7 +53,7 @@ type SettingsModalProps = {
   onClose: () => void;
   /**
    * Initial active tab index (0-based) into the *visible* tab list
-   * (Profiles, General, Appearance, Transform, and PromptGen only when the
+   * (Profiles, General, Transform, Appearance, and PromptGen only when the
    * PromptGen feature tag is built in). Out-of-range values are clamped.
    */
   initialTab?: number;
@@ -118,6 +118,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       component: <SettingGeneral />,
     },
     {
+      id: "correction",
+      labelKey: "settings.modal.tabs.correction",
+      icon: <></>,
+      component: <SettingCorrection />,
+    },
+    {
       id: "appearance",
       labelKey: "settings.modal.tabs.appearance",
       icon: (
@@ -136,13 +142,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </svg>
       ),
       component: <SettingAppearance />,
-    },
-
-    {
-      id: "correction",
-      labelKey: "settings.modal.tabs.correction",
-      icon: <></>,
-      component: <SettingCorrection />,
     },
     // Build-time feature tag: no `--promptgen` => no PromptGen tab at all.
     ...(isPromptGenEnabled()

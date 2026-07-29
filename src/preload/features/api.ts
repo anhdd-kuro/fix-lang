@@ -16,6 +16,10 @@ export type ProviderConnectInput = {
   apiKey?: string;
   /** OpenRouter-only write-only credential. */
   provisioningKey?: string;
+  /** AWS Bedrock secret access key (write-only). */
+  secretKey?: string;
+  /** AWS Bedrock region (stored as host for bedrock endpoint). */
+  region?: string;
   /** Local provider host (Ollama / LM Studio; no scheme/path). */
   host?: string;
   /** Local provider port (Ollama / LM Studio). */
@@ -34,6 +38,8 @@ export const isProviderConnectInput = (value: unknown): value is ProviderConnect
     isProviderId(input.provider) &&
     (input.apiKey === undefined || typeof input.apiKey === "string") &&
     (input.provisioningKey === undefined || typeof input.provisioningKey === "string") &&
+    (input.secretKey === undefined || typeof input.secretKey === "string") &&
+    (input.region === undefined || typeof input.region === "string") &&
     hostOk &&
     portOk
   );
@@ -55,7 +61,7 @@ export const apiFeature = {
   /** Returns masked credential state for one staged provider. */
   getProviderSecretStatus: async (
     provider: ProviderId,
-  ): Promise<{ apiKeySet: boolean; provisioningKeySet: boolean }> => {
+  ): Promise<{ apiKeySet: boolean; provisioningKeySet: boolean; accessKeySet?: boolean; secretKeySet?: boolean }> => {
     if (!isProviderId(provider)) {
       return { apiKeySet: false, provisioningKeySet: false };
     }

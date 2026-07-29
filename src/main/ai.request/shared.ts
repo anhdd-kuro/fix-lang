@@ -40,6 +40,7 @@ const PROVIDER_NAME_KEYS = {
   openrouter: "models.select.provider.openrouter",
   ollama: "models.select.provider.ollama",
   lmstudio: "models.select.provider.lmstudio",
+  bedrock: "models.select.provider.bedrock",
 } as const satisfies Record<ProviderId, TKey>;
 
 const isCachedForProvider = isModelForProvider;

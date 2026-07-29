@@ -8,6 +8,9 @@ import { reloadHotkeys, unregisterHotkeys } from "~/main/keybindings";
 import { messageLabel } from "~/shared/i18n/message";
 import { normalizeCorrectionOutputMode } from "~/shared/outputMode";
 import { supportsAdminKey } from "~/shared/providers";
+import {
+  sanitizeReasoningEffort,
+} from "~/shared/reasoningEffort";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { outputModeStore } from "~/stores/outputModeStore";
 import {
@@ -25,6 +28,28 @@ import type { KeyBindings } from "~/stores/apiStore";
 export const registerSettingsHandlers = () => {
   ipcMain.handle("get-correction-output-mode", async () =>
     outputModeStore.getCorrectionOutputMode(),
+  );
+
+  ipcMain.handle("get-default-reasoning-effort", async () => {
+    const { getDefaultReasoningEffort } = await import("~/stores/apiStore");
+    return getDefaultReasoningEffort();
+  });
+
+  ipcMain.handle(
+    "set-default-reasoning-effort",
+    async (_event: Electron.IpcMainInvokeEvent, raw: unknown) => {
+      const effort = sanitizeReasoningEffort(raw);
+      if (effort === undefined) {
+        return {
+          success: false,
+          error: messageLabel("settings.general.reasoning.invalid"),
+        };
+      }
+      const { updateProfileSetting } = await import("~/stores/apiStore");
+      const result = updateProfileSetting("defaultReasoningEffort", effort);
+      if (!result.success) return wrapStoreResult(result);
+      return { success: true, effort };
+    },
   );
 
   ipcMain.handle(

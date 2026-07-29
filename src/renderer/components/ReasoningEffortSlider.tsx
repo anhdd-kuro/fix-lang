@@ -1,34 +1,61 @@
 /**
  * @file ReasoningEffortSlider.tsx
- * @description Discrete 5-step Faster↔Smarter slider for per-preset AI SDK reasoning.
+ * @description Discrete 6-step None→Faster↔Smarter slider for AI SDK reasoning.
  */
 import React, { useId } from "react";
 import {
-  REASONING_EFFORT_STEPS,
+  REASONING_EFFORT_SLIDER_STEPS,
   reasoningEffortToStepIndex,
   stepIndexToReasoningEffort,
   type ReasoningEffort,
-  type ReasoningEffortStep,
+  type ReasoningEffortSliderStep,
 } from "~/shared/reasoningEffort";
 import { useI18n } from "../i18n/useI18n";
 
 type ReasoningEffortSliderProps = {
   value: ReasoningEffort | undefined;
-  onChange: (effort: ReasoningEffortStep) => void;
+  onChange: (effort: ReasoningEffortSliderStep) => void;
   disabled?: boolean;
+  /** When set, unset/`provider-default` values map to this step instead of None. */
+  inheritFrom?: ReasoningEffort;
+};
+
+const stepLabelKey = (
+  step: ReasoningEffortSliderStep,
+): "settings.correction.reasoning.none" | `settings.correction.reasoning.step.${ReasoningEffortSliderStep}` => {
+  if (step === "none") return "settings.correction.reasoning.none";
+  return `settings.correction.reasoning.step.${step}`;
 };
 
 export const ReasoningEffortSlider: React.FC<ReasoningEffortSliderProps> = ({
   value,
   onChange,
   disabled = false,
+  inheritFrom,
 }) => {
   const { t } = useI18n();
   const labelId = useId();
-  const stepIndex = reasoningEffortToStepIndex(value);
+  const fallback = inheritFrom ?? "none";
+  const stepIndex = reasoningEffortToStepIndex(value, fallback);
+  const currentStep = stepIndexToReasoningEffort(stepIndex);
+  const inheritsGlobal =
+    inheritFrom !== undefined &&
+    (value === undefined || value === "provider-default");
 
   return (
     <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span id={`${labelId}-label`} className="font-medium text-card-foreground">
+          {t("settings.correction.reasoning.label")}
+        </span>
+        <span className="tabular-nums">
+          {inheritsGlobal
+            ? t("settings.correction.reasoning.inheritGlobal", {
+                value: t(stepLabelKey(currentStep)),
+              })
+            : t(stepLabelKey(currentStep))}
+        </span>
+      </div>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span id={`${labelId}-faster`}>{t("settings.correction.reasoning.faster")}</span>
         <span id={`${labelId}-smarter`}>{t("settings.correction.reasoning.smarter")}</span>
@@ -42,7 +69,7 @@ export const ReasoningEffortSlider: React.FC<ReasoningEffortSliderProps> = ({
           className="pointer-events-none absolute left-0 right-0 top-1/2 flex -translate-y-1/2 justify-between px-0.5"
           aria-hidden="true"
         >
-          {REASONING_EFFORT_STEPS.map((step, index) => (
+          {REASONING_EFFORT_SLIDER_STEPS.map((step, index) => (
             <span
               key={step}
               className={`h-1.5 w-1.5 rounded-full ${
@@ -54,15 +81,15 @@ export const ReasoningEffortSlider: React.FC<ReasoningEffortSliderProps> = ({
         <input
           type="range"
           min={0}
-          max={REASONING_EFFORT_STEPS.length - 1}
+          max={REASONING_EFFORT_SLIDER_STEPS.length - 1}
           step={1}
           value={stepIndex}
           disabled={disabled}
           aria-valuemin={0}
-          aria-valuemax={REASONING_EFFORT_STEPS.length - 1}
+          aria-valuemax={REASONING_EFFORT_SLIDER_STEPS.length - 1}
           aria-valuenow={stepIndex}
-          aria-valuetext={stepIndexToReasoningEffort(stepIndex)}
-          aria-labelledby={`${labelId}-faster ${labelId}-smarter`}
+          aria-valuetext={t(stepLabelKey(currentStep))}
+          aria-labelledby={`${labelId}-label ${labelId}-faster ${labelId}-smarter`}
           onChange={(event) => {
             onChange(stepIndexToReasoningEffort(Number(event.target.value)));
           }}
