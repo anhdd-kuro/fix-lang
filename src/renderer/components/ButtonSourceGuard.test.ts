@@ -1589,15 +1589,15 @@ const consumerContractRows = [
   ["BTN-068", "SITE-f63727c376cb5050-01", "LIVE-f63727c376cb5050", "src/renderer/components/SettingUpdates.tsx", 308, 11],
   ["BTN-069", "SITE-31d2760b23787e23-01", "LIVE-31d2760b23787e23", "src/renderer/components/SettingUpdates.tsx", 333, 11],
   ["BTN-070", "SITE-91ba4b4f640490e2-01", "LIVE-91ba4b4f640490e2", "src/renderer/components/SettingUpdates.tsx", 361, 13],
-  ["BTN-071", "SITE-9ee18af8c12ab3af-02", "LIVE-663c55705a5cc3f0", "src/renderer/components/SettingUpdates.tsx", 381, 15],
+  ["BTN-071", "SITE-663c55705a5cc3f0-01", "LIVE-663c55705a5cc3f0", "src/renderer/components/SettingUpdates.tsx", 381, 15],
   ["BTN-072", "SITE-43414753ace2ab81-01", "LIVE-43414753ace2ab81", "src/renderer/components/SettingUpdates.tsx", 430, 15],
-  ["BTN-073", "SITE-663c55705a5cc3f0-71", "LIVE-663c55705a5cc3f0", "src/renderer/components/SettingUpdates.tsx", 447, 15],
-  ["BTN-074", "SITE-c11f9621b2e3d72c-01", "LIVE-c11f9621b2e3d72c", "src/renderer/components/SettingUpdates.tsx", 461, 15],
-  ["BTN-075", "SITE-9ee18af8c12ab3af-04", "LIVE-f4ccea28d324b33f", "src/renderer/components/SettingUpdates.tsx", 474, 13],
-  ["BTN-076", "SITE-fbcd67d29270d287-01", "LIVE-fbcd67d29270d287", "src/renderer/components/SettingUpdates.tsx", 490, 13],
-  ["BTN-077", "SITE-bfa98039be039f30-01", "LIVE-bfa98039be039f30", "src/renderer/components/SettingUpdates.tsx", 586, 13],
-  ["BTN-078", "SITE-5815552ee2096fa5-01", "LIVE-5815552ee2096fa5", "src/renderer/components/SettingUpdates.tsx", 615, 13],
-  ["BTN-079", "SITE-f4ccea28d324b33f-77", "LIVE-f4ccea28d324b33f", "src/renderer/components/SettingUpdates.tsx", 627, 13],
+  ["BTN-073", "SITE-ad68949b3a58f46b-01", "LIVE-ad68949b3a58f46b", "src/renderer/components/SettingUpdates.tsx", 447, 15],
+  ["BTN-074", "SITE-c11f9621b2e3d72c-01", "LIVE-c11f9621b2e3d72c", "src/renderer/components/SettingUpdates.tsx", 462, 15],
+  ["BTN-075", "SITE-f4ccea28d324b33f-01", "LIVE-f4ccea28d324b33f", "src/renderer/components/SettingUpdates.tsx", 475, 13],
+  ["BTN-076", "SITE-fbcd67d29270d287-01", "LIVE-fbcd67d29270d287", "src/renderer/components/SettingUpdates.tsx", 491, 13],
+  ["BTN-077", "SITE-bfa98039be039f30-01", "LIVE-bfa98039be039f30", "src/renderer/components/SettingUpdates.tsx", 587, 13],
+  ["BTN-078", "SITE-5815552ee2096fa5-01", "LIVE-5815552ee2096fa5", "src/renderer/components/SettingUpdates.tsx", 616, 13],
+  ["BTN-079", "SITE-8d81c1044d88aa9b-01", "LIVE-8d81c1044d88aa9b", "src/renderer/components/SettingUpdates.tsx", 628, 13],
   ["BTN-080", "SITE-d2dc6b542709b453-01", "LIVE-d2dc6b542709b453", "src/renderer/components/TrashButton.tsx", 23, 5],
   ["BTN-081", "SITE-57f775bd4fae66ec-01", "LIVE-57f775bd4fae66ec", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 94, 11],
   ["BTN-082", "SITE-e630a70d66e34af0-01", "LIVE-e630a70d66e34af0", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 121, 13],
@@ -1624,7 +1624,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "df326133bba671b275a69621e810b5aef4927d1fb19805d05844e24ddd580c8d";
+  "5504630509c0c2694e2743e802511d9a5734316f8d7d8ee5ab853d5330d6b1c4";
 
 const compareConsumers = (left: ButtonConsumer, right: ButtonConsumer): number =>
   left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column;
