@@ -19,6 +19,7 @@ import {
   type ModelOptionGroup,
 } from "./modelSelectOptions";
 import { SearchableSelect } from "./SearchableSelect";
+import { Skeleton } from "./Skeleton";
 import SettingsButton from "./SettingsIcon";
 import { useI18n } from "../i18n/useI18n";
 import type { GroupBase, GroupHeadingProps } from "react-select";
@@ -257,6 +258,10 @@ export const ModelSelect: React.FC<{
   const selectedOption = findOption(optionGroups, selectedModel);
   const hasNoConnectedProviders =
     connectedProviders !== undefined && connectedProviders.length === 0;
+
+  if (compact && modelsLoading && models.length === 0) {
+    return <Skeleton className="h-8 w-full rounded" />;
+  }
 
   return (
     <div className={compact ? "mb-0" : "mb-4"}>
