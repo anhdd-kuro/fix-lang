@@ -140,18 +140,40 @@ describe("parseActivity", () => {
 });
 
 describe("parseProvisioningKeys", () => {
-  it("counts enabled keys, ignoring disabled ones", () => {
+  it("lists enabled keys with name + usage, ignoring disabled ones", () => {
     const r = parseProvisioningKeys({
       data: [
-        { name: "a", disabled: false },
-        { name: "b" }, // enabled (no disabled flag)
-        { name: "c", disabled: true },
+        { name: "prod", usage: 12.5, limit: 100, limit_remaining: 87.5, disabled: false },
+        { label: "fallback-label", usage: 3 }, // enabled; name falls back to label
+        { name: "off", usage: 99, disabled: true },
+        { name: "mid", usage: 8, limit: 8, limit_remaining: 0 },
       ],
     });
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.data.enabledCount).toBe(2);
-      expect(r.data.totalCount).toBe(3);
+      expect(r.data.enabledCount).toBe(3);
+      expect(r.data.totalCount).toBe(4);
+      expect(r.data.keys.map((key) => key.name)).toEqual([
+        "prod",
+        "mid",
+        "fallback-label",
+      ]);
+      expect(r.data.keys[0]).toMatchObject({
+        usageUsd: 12.5,
+        limitUsd: 100,
+        limitReached: false,
+      });
+      expect(r.data.keys[1].limitReached).toBe(true);
+    }
+  });
+
+  it("treats missing usage as 0 and omits a limit when unlimited", () => {
+    const r = parseProvisioningKeys({ data: [{ name: "bare" }] });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.data.keys).toEqual([
+        { name: "bare", usageUsd: 0, limitUsd: null, limitReached: false },
+      ]);
     }
   });
 
