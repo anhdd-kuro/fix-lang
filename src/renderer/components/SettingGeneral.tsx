@@ -165,9 +165,12 @@ export const SettingGeneral: React.FC = () => {
       reloadReasoningEffort();
     });
     // Another window's connect/disconnect broadcasts `settings-updated`;
-    // without this the cards keep showing stale connection state.
+    // without this the cards keep showing stale connection state. The tray's
+    // global reasoning select also broadcasts on save — reload the slider so
+    // an open Settings window does not keep a stale effort.
     const offSettings = window.electronAPI?.onSettingsUpdated?.(() => {
       refreshProviderStates();
+      reloadReasoningEffort();
     });
     return () => {
       offProfile?.();
