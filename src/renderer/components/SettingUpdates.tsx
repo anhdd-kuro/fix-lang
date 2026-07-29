@@ -454,6 +454,7 @@ export const SettingUpdates = () => {
                 }
                 disabled={isBusy}
                 className="rounded px-3 py-1.5 text-base text-foreground"
+                aria-label={t("settings.updates.downloadButton")}
               >
                 {t("settings.updates.downloadButton")}
               </Button>
@@ -634,6 +635,7 @@ export const SettingUpdates = () => {
               }
               disabled={isBusy}
               className="rounded px-3 py-1.5 text-base text-foreground"
+              aria-label={t("settings.updates.viewReleases")}
             >
               {t("settings.updates.viewReleases")}
             </Button>
