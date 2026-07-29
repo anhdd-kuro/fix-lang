@@ -14,6 +14,8 @@ import {
   DEFAULT_TRANSLATE_PRESET_PROMPT,
 } from "~/prompts/correction";
 import { msg, messageLabel, type Message } from "~/shared/i18n/message";
+import { useI18n } from "../i18n/useI18n";
+import { splitHotkey } from "./about/userGuideView";
 import { Button } from "./Button";
 import { ModelSelect } from "./ModelSelect";
 import {
@@ -23,8 +25,53 @@ import {
   type StatusDescriptor,
 } from "./statusDescriptor";
 import { validateHotkeys } from "./validateHotkeys";
-import { useI18n } from "../i18n/useI18n";
 import type { CorrectionPreset, CorrectionSettings } from "~/stores/apiStore";
+
+/**
+ * Read-only hotkey chips for the preset list. Matches `HotkeyChips` in
+ * `UserGuidePanel` / `KeyBinding` so Settings and the guide share one look.
+ * On a selected (primary) card, chips inherit the button foreground so they
+ * stay readable and do not fight the primary text color.
+ */
+const PresetHotkeyChips = ({
+  hotkey,
+  emptyLabel,
+  selected,
+}: {
+  hotkey: string;
+  emptyLabel: string;
+  selected: boolean;
+}) => {
+  const keys = splitHotkey(hotkey);
+  if (keys.length === 0) {
+    return (
+      <span
+        className={`mt-1 block truncate text-xs ${
+          selected ? "text-inherit opacity-80" : "text-muted-foreground"
+        }`}
+      >
+        {emptyLabel}
+      </span>
+    );
+  }
+  return (
+    <ul className="mt-1 inline-flex flex-wrap items-center gap-1">
+      {/* Index-keyed: a combo can repeat a token; a duplicate React key would drop a chip. */}
+      {keys.map((key, index) => (
+        <li
+          key={`${String(index)}-${key}`}
+          className={`inline-block rounded-lg border px-1.5 py-0.5 text-[10px] font-semibold ${
+            selected
+              ? "border-primary-foreground/35 bg-primary-foreground/15 text-inherit"
+              : "border-control-border bg-muted text-foreground"
+          }`}
+        >
+          {key}
+        </li>
+      ))}
+    </ul>
+  );
+};
 
 // why: preset display names ("Correction", "Summarize", …) are user-editable
 // data (renamed freely in the UI, just like a custom preset's name), not UI
@@ -392,24 +439,22 @@ export const SettingCorrection: React.FC = () => {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p
+                          title={preset.name}
                           className={`truncate text-sm font-medium ${
                             isSelected ? "text-inherit" : "text-foreground"
                           }`}
                         >
                           {preset.name}
                         </p>
-                        <p
-                          className={`mt-1 truncate text-xs ${
-                            isSelected
-                              ? "text-inherit"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          {preset.hotkey ||
-                            t("settings.correction.noHotkeyAssigned")}
-                        </p>
+                        <PresetHotkeyChips
+                          hotkey={preset.hotkey}
+                          selected={isSelected}
+                          emptyLabel={t(
+                            "settings.correction.noHotkeyAssigned",
+                          )}
+                        />
                       </div>
-                      <span className="rounded-full bg-secondary px-2 py-1 text-[11px] text-card-foreground">
+                      <span className="shrink-0 whitespace-nowrap rounded-full bg-secondary px-2 py-1 text-[11px] text-card-foreground">
                         {preset.isBuiltIn
                           ? t("settings.correction.badge.builtIn")
                           : t("settings.correction.badge.custom")}
