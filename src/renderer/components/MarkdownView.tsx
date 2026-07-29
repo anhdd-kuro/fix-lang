@@ -15,16 +15,38 @@
  * override below destructures `node` out (as the unused `_node`) before
  * spreading the rest onto the DOM element — otherwise `node="[object
  * Object]"` leaks onto the real tag.
+ *
+ * The markdown here is MODEL-CONTROLLED (an Ask AI answer, steerable by a
+ * prompt injection sitting in the text the user selected), which is what the
+ * `img` and `a` overrides are about:
+ *
+ * - `img` renders NOTHING. An `<img>` fetches its URL the instant it mounts,
+ *   with no click and no confirmation, so an injected answer could turn the
+ *   result window into a read receipt — or exfiltrate the selection by
+ *   encoding it into the URL, reaching a host the user never connected a
+ *   provider to. `SettingUpdates.tsx` suppresses `img` in release notes for
+ *   the same reason.
+ * - `a` routes through the `openExternalLink` bridge instead of carrying
+ *   `target="_blank"`. Neither Ask window installs a `setWindowOpenHandler`,
+ *   so `_blank` would get Electron's default window-open behaviour: an
+ *   unmanaged app-owned BrowserWindow, outside the result-window cap and
+ *   lifecycle, rendering a remote page with a preload attached. The bridge
+ *   opens the system browser and validates http/https in main.
  */
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 const components: Components = {
-  a: ({ node: _node, children, ...props }) => (
+  a: ({ node: _node, children, href, ...props }) => (
     <a
       {...props}
-      target="_blank"
-      rel="noreferrer"
+      href={href}
+      onClick={(event) => {
+        event.preventDefault();
+        if (href) {
+          void window.electronAPI.openExternalLink(href);
+        }
+      }}
       className="text-primary underline underline-offset-2 hover:text-primary-hover"
     >
       {children}
@@ -72,6 +94,9 @@ const components: Components = {
   hr: ({ node: _node, ...props }) => (
     <hr {...props} className="border-border" />
   ),
+  // Renders nothing at all — see the file header. Not styled-and-kept: an
+  // `<img>` that reaches the DOM has already made the request.
+  img: () => null,
   li: ({ node: _node, children, ...props }) => (
     <li {...props} className="text-foreground">
       {children}

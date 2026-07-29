@@ -17,6 +17,7 @@
  * own assertions below, since it shares this exact helper.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { dismissAskInputWindow } from "~/main/webViewWindows/askInputWindow";
 import { ACTIVE_PROFILE_CHANGED } from "~/shared/ipcChannels";
 import { registerProfileHandlers } from "./profiles";
 
@@ -40,6 +41,13 @@ vi.mock("electron", () => ({
   Notification: vi.fn().mockImplementation(() => ({ show: vi.fn() })),
 }));
 vi.mock("~/main/keybindings", () => ({ reloadHotkeys: vi.fn() }));
+// The leaf only — `~/main/profileChange` and `broadcastToAllWindows` stay real
+// so the assertions below still exercise the actual broadcast path. Mocking
+// this window module is what keeps its `attachThemeSync` -> theme-store ->
+// electron-store import chain (which needs a `projectName`) out of the suite.
+vi.mock("~/main/webViewWindows/askInputWindow", () => ({
+  dismissAskInputWindow: vi.fn(),
+}));
 vi.mock("~/stores/apiKeyStore", () => ({
   clearLegacyApiKey: vi.fn().mockResolvedValue({ success: true }),
   getLegacyApiKey: vi.fn().mockResolvedValue(null),
@@ -126,6 +134,18 @@ describe("an active-profile switch is broadcast to every window", () => {
     expect(alsoLive.webContents.send).toHaveBeenCalledWith(
       ACTIVE_PROFILE_CHANGED,
     );
+  });
+
+  it("apply-profile also dismisses a pending Ask input, so its question cannot be sent through the new profile's key", async () => {
+    await handlers.get("apply-profile")?.({}, { profileId: "profile_2" });
+
+    expect(dismissAskInputWindow).toHaveBeenCalledTimes(1);
+  });
+
+  it("switch-to-next-profile also dismisses a pending Ask input", async () => {
+    await handlers.get("switch-to-next-profile")?.({});
+
+    expect(dismissAskInputWindow).toHaveBeenCalledTimes(1);
   });
 
   it("stays silent when the switch did not happen", async () => {

@@ -124,8 +124,12 @@ const hideAskInputWindow = (): void => {
  * Reading-then-nulling `currentHandlers` up front makes a second dismissal
  * (e.g. a chrome close arriving after an already-processed cancel) a no-op
  * instead of a double `onCancel` call.
+ *
+ * Exported for `notifyActiveProfileChanged`: a pending ask must not survive a
+ * profile switch, because `runAskFlow` re-resolves the preset id against
+ * whatever profile is active at SUBMIT time.
  */
-const dismissAskInputWindow = (): void => {
+export const dismissAskInputWindow = (): void => {
   const handlers = currentHandlers;
   currentHandlers = null;
   hideAskInputWindow();

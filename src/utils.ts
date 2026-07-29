@@ -113,6 +113,14 @@ export const getHighlightedText = async (): Promise<string> => {
  * handing back the user's unrelated previous clipboard content as if it were
  * their selection.
  *
+ * Both sides are trimmed before comparing, and that is load-bearing:
+ * `copyHighlightedText` returns `stdout.trim()` while the snapshot is the raw
+ * clipboard, so comparing them directly never matches whenever the clipboard
+ * content has leading/trailing whitespace — and a line copied out of a
+ * password manager, a terminal or an editor almost always ends in "\n". That
+ * asymmetry defeated the guard entirely for exactly the values it exists to
+ * protect.
+ *
  * Trade-off (intentionally the safe direction): if the user's actual
  * selection happens to be byte-identical to what was already on their
  * clipboard, this also reports "" — a false negative, context silently
@@ -123,7 +131,7 @@ export const getHighlightedText = async (): Promise<string> => {
  */
 export const getHighlightedTextForOptionalContext = async (): Promise<string> => {
   const { text, previousClipboardContent } = await readSelection();
-  return text === previousClipboardContent ? "" : text;
+  return text === previousClipboardContent.trim() ? "" : text;
 };
 
 const copyHighlightedText = () => {

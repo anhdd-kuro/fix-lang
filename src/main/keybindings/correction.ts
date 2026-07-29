@@ -1,6 +1,7 @@
 import { globalShortcut, Notification } from "electron";
 import { getActiveApp } from "~/main/accessibility/activeApp";
 import { DEFAULT_CORRECTION_PRESET_ID } from "~/prompts";
+import { resolvePresetOutputMode } from "~/shared/presetOutputMode";
 // No apiStore import needed as api key is handled in shared.ts
 import { getProfileSetting } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
@@ -123,8 +124,15 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           new Notification(buildCorrectionGoodJobNotification()).show();
         }
 
+        // Settings offers the per-preset output mode on EVERY preset, not just
+        // the `requiresInput` one, so resolve it here too — reading the global
+        // store directly would leave that control visible, writable, persisted
+        // and inert for all six polish presets.
         const delivery = await deliverCorrectionOutput(
-          outputModeStore.getCorrectionOutputMode(),
+          resolvePresetOutputMode(
+            preset.outputMode,
+            outputModeStore.getCorrectionOutputMode(),
+          ),
           {
             presetName: preset.name,
             text: result.correctedText,

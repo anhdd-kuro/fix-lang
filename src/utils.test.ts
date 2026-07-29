@@ -172,6 +172,42 @@ describe("getHighlightedTextForOptionalContext", () => {
     await expect(getHighlightedTextForOptionalContext()).resolves.toBe("");
   });
 
+  it("returns \"\" for an unchanged clipboard whose content has surrounding whitespace", async () => {
+    // `copyHighlightedText` returns `stdout.trim()`, so comparing it against a
+    // RAW clipboard snapshot never matches when the clipboard content carries
+    // leading/trailing whitespace — and a line yanked out of a password
+    // manager or a terminal almost always ends in "\n". Both sides must be
+    // normalized identically or the leak guard above silently does nothing.
+    clipboardState.text = "hunter2-super-secret-password\n";
+    execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
+      callback(null, "hunter2-super-secret-password\n");
+    });
+
+    await expect(getHighlightedTextForOptionalContext()).resolves.toBe("");
+  });
+
+  it("returns \"\" for a multiline unchanged clipboard ending in a newline", async () => {
+    clipboardState.text = "line one\nline two\n";
+    execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
+      callback(null, "line one\nline two\n");
+    });
+
+    await expect(getHighlightedTextForOptionalContext()).resolves.toBe("");
+  });
+
+  it("still reports a real selection when the clipboard differs only after trimming", async () => {
+    // The normalization must not over-reach into a false negative: these two
+    // are genuinely different strings, so the selection is real.
+    clipboardState.text = "  previous clipboard  ";
+    execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
+      callback(null, "a genuinely different selection\n");
+    });
+
+    await expect(getHighlightedTextForOptionalContext()).resolves.toBe(
+      "a genuinely different selection",
+    );
+  });
+
   it("maps a keystroke-permission denial to AccessibilityPermissionError, same as getHighlightedText", async () => {
     execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
       callback(new Error(REAL_DENIAL_MESSAGE), "");
