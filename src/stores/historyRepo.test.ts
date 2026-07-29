@@ -242,6 +242,7 @@ describe("pure mappers", () => {
       estimated_cost_usd: null,
       price_prompt: null,
       price_completion: null,
+      session_json: null,
       cost_status: null,
     });
     expect(entry).toEqual({
@@ -276,8 +277,36 @@ describe("pure mappers", () => {
       price_prompt: p.price_prompt,
       price_completion: p.price_completion,
       cost_status: p.cost_status,
+      session_json: p.session_json,
     });
     expect(back).toEqual(entry);
+  });
+
+  it("round-trips sessionJson when present", () => {
+    const entry = makeEntry({
+      timestamp: "2024-01-01T00:00:00Z",
+      sessionJson: '{"systemPrompt":"x","userPrompt":"y","messages":[],"model":"m","provider":"openai","responses":["z"],"promptTokens":1,"completionTokens":1}',
+    });
+    const p = entryToParams("corrections", entry);
+    expect(p.session_json).toBe(entry.sessionJson);
+    const back = rowToEntry({
+      feature_id: p.feature_id,
+      original: p.original,
+      corrected: p.corrected,
+      timestamp: p.timestamp,
+      prompt_tokens: p.prompt_tokens,
+      completion_tokens: p.completion_tokens,
+      model: p.model,
+      provider: p.provider,
+      resolved_model: p.resolved_model,
+      preset_name: p.preset_name,
+      estimated_cost_usd: p.estimated_cost_usd,
+      price_prompt: p.price_prompt,
+      price_completion: p.price_completion,
+      cost_status: p.cost_status,
+      session_json: p.session_json,
+    });
+    expect(back.sessionJson).toBe(entry.sessionJson);
   });
 });
 
@@ -324,6 +353,7 @@ describe("cost snapshot persistence", () => {
       estimated_cost_usd: null,
       price_prompt: null,
       price_completion: null,
+      session_json: null,
       cost_status: null,
     });
     expect(entry).not.toHaveProperty("provider");
@@ -408,6 +438,7 @@ describe("cost column migration (v1 table → v2)", () => {
     expect(cols).toContain("price_prompt");
     expect(cols).toContain("price_completion");
     expect(cols).toContain("cost_status");
+    expect(cols).toContain("session_json");
 
     const [old] = migratedRepo.getByFeature("corrections");
     expect(old.original).toBe("old");

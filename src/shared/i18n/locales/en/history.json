@@ -1,6 +1,11 @@
 {
   "history.cost.na": "N/A",
   "history.cost.tooltip": "Estimated cost at time of transform",
+  "history.details.ariaLabel": "Raw completion session JSON",
+  "history.details.closeAriaLabel": "Close session details",
+  "history.details.copy": "Copy JSON",
+  "history.details.show": "Show details",
+  "history.details.title": "Session details",
   "history.panel.filterAll": "All",
   "history.panel.searchPlaceholder": "Search history...",
   "history.reviewModal.closeAriaLabel": "Close review modal",

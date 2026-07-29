@@ -60,6 +60,7 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
           provider: result.provider,
           resolvedModel: result.resolvedModel,
           presetName: "PromptGen",
+          sessionJson: result.sessionJson,
         },
         type: "add",
         featureId: "promptGen",

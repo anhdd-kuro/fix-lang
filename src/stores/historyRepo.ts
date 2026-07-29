@@ -39,6 +39,7 @@ type HistoryRow = {
   price_prompt: string | null;
   price_completion: string | null;
   cost_status: string | null;
+  session_json: string | null;
 };
 
 /** Bound parameters for an INSERT, mirroring `HistoryRow` column order. */
@@ -57,6 +58,7 @@ type HistoryInsertParams = {
   price_prompt: string | null;
   price_completion: string | null;
   cost_status: string | null;
+  session_json: string | null;
 };
 
 /** Inclusive timestamp window (+ optional feature filter) for analytics. */
@@ -134,6 +136,9 @@ export const rowToEntry = (row: HistoryRow): HistoryEntry => {
     // Stored as TEXT; the writer only ever persists the union values.
     entry.costStatus = row.cost_status as HistoryEntry["costStatus"];
   }
+  if (row.session_json !== null) {
+    entry.sessionJson = row.session_json;
+  }
   return entry;
 };
 
@@ -159,6 +164,7 @@ export const entryToParams = (
   price_prompt: entry.pricePrompt ?? null,
   price_completion: entry.priceCompletion ?? null,
   cost_status: entry.costStatus ?? null,
+  session_json: entry.sessionJson ?? null,
 });
 
 /**
@@ -176,6 +182,7 @@ const COST_COLUMNS: readonly { name: string; ddl: string }[] = [
   { name: "price_prompt", ddl: "price_prompt TEXT" },
   { name: "price_completion", ddl: "price_completion TEXT" },
   { name: "cost_status", ddl: "cost_status TEXT" },
+  { name: "session_json", ddl: "session_json TEXT" },
 ];
 
 /**
@@ -220,7 +227,8 @@ const ensureSchema = (db: DatabaseSync): void => {
       estimated_cost_usd REAL,
       price_prompt TEXT,
       price_completion TEXT,
-      cost_status TEXT
+      cost_status TEXT,
+      session_json TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_history_ts ON history(timestamp);
     CREATE INDEX IF NOT EXISTS idx_history_feature ON history(feature_id, timestamp);
@@ -243,9 +251,9 @@ export const createHistoryRepo = (db: DatabaseSync): HistoryRepo => {
 
   const insertStmt = db.prepare(
     `INSERT INTO history
-       (feature_id, original, corrected, timestamp, prompt_tokens, completion_tokens, model, provider, resolved_model, preset_name, estimated_cost_usd, price_prompt, price_completion, cost_status)
+       (feature_id, original, corrected, timestamp, prompt_tokens, completion_tokens, model, provider, resolved_model, preset_name, estimated_cost_usd, price_prompt, price_completion, cost_status, session_json)
      VALUES
-       (:feature_id, :original, :corrected, :timestamp, :prompt_tokens, :completion_tokens, :model, :provider, :resolved_model, :preset_name, :estimated_cost_usd, :price_prompt, :price_completion, :cost_status)`
+       (:feature_id, :original, :corrected, :timestamp, :prompt_tokens, :completion_tokens, :model, :provider, :resolved_model, :preset_name, :estimated_cost_usd, :price_prompt, :price_completion, :cost_status, :session_json)`
   );
 
   const insertEntry = (featureId: HistoryFeatureId, entry: HistoryEntry): void => {

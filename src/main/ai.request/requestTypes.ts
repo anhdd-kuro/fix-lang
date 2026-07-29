@@ -10,6 +10,7 @@
  *
  * `shared.ts` re-exports everything here, so existing call sites are unaffected.
  */
+import type { HistorySessionData } from "~/shared/historySession";
 import type { ProviderId } from "~/shared/providers";
 import type { ReasoningEffort } from "~/shared/reasoningEffort";
 
@@ -60,6 +61,10 @@ export type AIRequestResponse = {
   cachedTokens?: number;
   /** Tokens written to prompt cache (Anthropic/Gemini) */
   cacheWriteTokens?: number;
+  /** Model-generated reasoning text when the provider returns it. */
+  reasoningTexts?: string[];
+  /** Full session snapshot attached by `makeAIRequest` for history transparency. */
+  session?: HistorySessionData;
 };
 
 /**

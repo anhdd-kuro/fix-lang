@@ -14,19 +14,20 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { twJoin } from "tailwind-merge";
+import { useOpenRouterAnalytics } from "../../hooks/useOpenRouterAnalytics";
+import { useI18n } from "../../i18n/useI18n";
 import { Button } from "../Button";
 import {
   formatOpenRouterUsd,
   openRouterDegradedMessage,
   type OpenRouterDegradedReason,
 } from "../openRouterFormat";
+import { SegmentedControl } from "../SegmentedControl";
 import {
   UsageCostShareChart,
   UsageDailyCostChart,
   UsageDailyTokenChart,
 } from "./UsageCharts";
-import { useOpenRouterAnalytics } from "../../hooks/useOpenRouterAnalytics";
-import { useI18n } from "../../i18n/useI18n";
 import { UsagePanelSkeleton } from "../Skeleton";
 import type {
   Activity,
@@ -137,25 +138,15 @@ export const OpenRouterUsagePanel = ({ onOpenSettings }: OpenRouterUsagePanelPro
   return (
     <div className="flex h-full flex-col gap-3 overflow-y-auto p-1">
       <div className="flex items-center gap-2">
-        <div
-          className="flex gap-1"
-          role="group"
-          aria-label={t("models.openrouter.rangeGroupLabel")}
-        >
-          {RANGES.map((r) => (
-            <Button
-              key={r.id}
-              variant={range === r.id ? "primary" : "secondary"}
-              onClick={() => setRange(r.id)}
-              aria-pressed={range === r.id}
-              className={twJoin(
-                "px-2 py-0.5 text-xs rounded-sm",
-              )}
-            >
-              {t(r.labelKey)}
-            </Button>
-          ))}
-        </div>
+        <SegmentedControl
+          value={range}
+          onChange={setRange}
+          ariaLabel={t("models.openrouter.rangeGroupLabel")}
+          options={RANGES.map((r) => ({
+            value: r.id,
+            label: t(r.labelKey),
+          }))}
+        />
         <Button
           variant="secondary"
           onClick={debouncedRefresh}
