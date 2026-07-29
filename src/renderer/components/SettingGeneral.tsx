@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { messageLabel, type Label, type Message } from "~/shared/i18n/message";
 import { LMSTUDIO_DEFAULT_ENDPOINT } from "~/shared/lmstudioEndpoint";
+import { OLLAMA_DEFAULT_ENDPOINT } from "~/shared/ollamaEndpoint";
 import { Button } from "./Button";
 import { LanguageTabs } from "./LanguageTabs";
 import { ModelSelect } from "./ModelSelect";
@@ -55,6 +56,10 @@ export const SettingGeneral: React.FC = () => {
   const [typedEndpoints, setTypedEndpoints] = useState<
     Partial<Record<ProviderId, { host: string; port: string }>>
   >({
+    ollama: {
+      host: OLLAMA_DEFAULT_ENDPOINT.host,
+      port: String(OLLAMA_DEFAULT_ENDPOINT.port),
+    },
     lmstudio: {
       host: LMSTUDIO_DEFAULT_ENDPOINT.host,
       port: String(LMSTUDIO_DEFAULT_ENDPOINT.port),
@@ -91,16 +96,25 @@ export const SettingGeneral: React.FC = () => {
       if (states) setProviderStates(states);
 
       const profileResult = await window.electronAPI?.getCurrentProfile?.();
-      const stored = profileResult?.currentProfile?.settings?.providerEndpoints?.lmstudio;
-      if (stored?.host && stored?.port) {
-        setTypedEndpoints((current) => ({
-          ...current,
-          lmstudio: {
-            host: stored.host,
-            port: String(stored.port),
-          },
-        }));
-      }
+      const endpoints = profileResult?.currentProfile?.settings?.providerEndpoints;
+      setTypedEndpoints((current) => {
+        const next = { ...current };
+        const lmstudio = endpoints?.lmstudio;
+        if (lmstudio?.host && lmstudio?.port) {
+          next.lmstudio = {
+            host: lmstudio.host,
+            port: String(lmstudio.port),
+          };
+        }
+        const ollama = endpoints?.ollama;
+        if (ollama?.host && ollama?.port) {
+          next.ollama = {
+            host: ollama.host,
+            port: String(ollama.port),
+          };
+        }
+        return next;
+      });
     } catch (error) {
       console.error("SettingGeneral: Error reading provider states:", error);
     }
@@ -237,7 +251,7 @@ export const SettingGeneral: React.FC = () => {
         provider,
         apiKey: typed?.apiKey || undefined,
         provisioningKey: typed?.provisioningKey || undefined,
-        ...(provider === "lmstudio"
+        ...(provider === "lmstudio" || provider === "ollama"
           ? {
               host: endpoint?.host?.trim() || undefined,
               ...(port !== undefined ? { port } : {}),
@@ -415,64 +429,77 @@ export const SettingGeneral: React.FC = () => {
           </p>
         )}
 
-        {provider === "lmstudio" && (
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <div>
-              <label
-                htmlFor={`lmstudio-host-${provider}`}
-                className="block text-xs font-medium text-card-foreground mb-1"
-              >
-                {t("settings.general.providers.lmstudio.host")}
-              </label>
-              <input
-                id={`lmstudio-host-${provider}`}
-                type="text"
-                autoComplete="off"
-                className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                value={typedEndpoints.lmstudio?.host ?? LMSTUDIO_DEFAULT_ENDPOINT.host}
-                onChange={(event) =>
-                  setTypedEndpoints((current) => ({
-                    ...current,
-                    lmstudio: {
-                      host: event.target.value,
-                      port:
-                        current.lmstudio?.port ??
-                        String(LMSTUDIO_DEFAULT_ENDPOINT.port),
-                    },
-                  }))
-                }
-                aria-label={t("settings.general.providers.lmstudio.host")}
-              />
+        {(provider === "lmstudio" || provider === "ollama") && (() => {
+          const defaults =
+            provider === "ollama"
+              ? OLLAMA_DEFAULT_ENDPOINT
+              : LMSTUDIO_DEFAULT_ENDPOINT;
+          const hostKey =
+            provider === "ollama"
+              ? "settings.general.providers.ollama.host"
+              : "settings.general.providers.lmstudio.host";
+          const portKey =
+            provider === "ollama"
+              ? "settings.general.providers.ollama.port"
+              : "settings.general.providers.lmstudio.port";
+          const endpoint = typedEndpoints[provider];
+          return (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <div>
+                <label
+                  htmlFor={`${provider}-host`}
+                  className="block text-xs font-medium text-card-foreground mb-1"
+                >
+                  {t(hostKey)}
+                </label>
+                <input
+                  id={`${provider}-host`}
+                  type="text"
+                  autoComplete="off"
+                  className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={endpoint?.host ?? defaults.host}
+                  onChange={(event) =>
+                    setTypedEndpoints((current) => ({
+                      ...current,
+                      [provider]: {
+                        host: event.target.value,
+                        port:
+                          current[provider]?.port ?? String(defaults.port),
+                      },
+                    }))
+                  }
+                  aria-label={t(hostKey)}
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor={`${provider}-port`}
+                  className="block text-xs font-medium text-card-foreground mb-1"
+                >
+                  {t(portKey)}
+                </label>
+                <input
+                  id={`${provider}-port`}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={endpoint?.port ?? String(defaults.port)}
+                  onChange={(event) =>
+                    setTypedEndpoints((current) => ({
+                      ...current,
+                      [provider]: {
+                        host: current[provider]?.host ?? defaults.host,
+                        port: event.target.value,
+                      },
+                    }))
+                  }
+                  aria-label={t(portKey)}
+                />
+              </div>
             </div>
-            <div>
-              <label
-                htmlFor={`lmstudio-port-${provider}`}
-                className="block text-xs font-medium text-card-foreground mb-1"
-              >
-                {t("settings.general.providers.lmstudio.port")}
-              </label>
-              <input
-                id={`lmstudio-port-${provider}`}
-                type="text"
-                inputMode="numeric"
-                autoComplete="off"
-                className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                value={typedEndpoints.lmstudio?.port ?? String(LMSTUDIO_DEFAULT_ENDPOINT.port)}
-                onChange={(event) =>
-                  setTypedEndpoints((current) => ({
-                    ...current,
-                    lmstudio: {
-                      host:
-                        current.lmstudio?.host ?? LMSTUDIO_DEFAULT_ENDPOINT.host,
-                      port: event.target.value,
-                    },
-                  }))
-                }
-                aria-label={t("settings.general.providers.lmstudio.port")}
-              />
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {card.supportsApiKey ? (
           <div className="mt-2">
@@ -515,19 +542,19 @@ export const SettingGeneral: React.FC = () => {
               }
             />
           </div>
-        ) : (
+        ) : provider === "ollama" ? null : (
+          <p className="mt-2 text-xs text-muted-foreground">
+            {t("settings.general.providers.lmstudio.hint")}
+          </p>
+        )}
+
+        {(provider === "lmstudio" || provider === "ollama") && (
           <p className="mt-2 text-xs text-muted-foreground">
             {t(
               provider === "ollama"
                 ? "settings.general.providers.ollama.hint"
                 : "settings.general.providers.lmstudio.hint",
             )}
-          </p>
-        )}
-
-        {provider === "lmstudio" && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            {t("settings.general.providers.lmstudio.hint")}
           </p>
         )}
 
@@ -776,6 +803,15 @@ export const SettingGeneral: React.FC = () => {
       </section>
 
       <section className="mb-4">
+        <ModelSelect
+          saveOnChange
+          showAdditionalInfo
+          labelKey="settings.general.defaultModel.label"
+          descriptionKey="settings.general.defaultModel.description"
+        />
+      </section>
+
+      <section className="mb-4">
         <h2 className="text-sm font-medium text-card-foreground">
           {t("settings.general.providers.title")}
         </h2>
@@ -785,15 +821,6 @@ export const SettingGeneral: React.FC = () => {
         <div className="mt-3 flex flex-col gap-3">
           {cards.map(renderProviderCard)}
         </div>
-      </section>
-
-      <section className="mb-4">
-        <ModelSelect
-          saveOnChange
-          showAdditionalInfo
-          labelKey="settings.general.defaultModel.label"
-          descriptionKey="settings.general.defaultModel.description"
-        />
       </section>
 
       {/* Reset to defaults */}

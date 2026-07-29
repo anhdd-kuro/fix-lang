@@ -87,25 +87,23 @@ describe("makeBuiltInPresetDefaults — the Settings sidebar's built-in reset ma
     }
   });
 
-  it("Business Writing matches the exact field values (name/hotkey/model/isBuiltIn, no temperature/maxTokens)", () => {
+  it("Business Writing matches the exact field values (name/hotkey/model/isBuiltIn, no reasoning)", () => {
     const preset = makeBuiltInPresetDefaults()[DEFAULT_BUSINESS_WRITING_PRESET_ID];
 
     expect(preset.name).toBe("Business Writing");
     expect(preset.hotkey).toBe("Control+Shift+B");
     expect(preset.model).toBe("");
     expect(preset.isBuiltIn).toBe(true);
-    expect(preset).not.toHaveProperty("temperature");
-    expect(preset).not.toHaveProperty("maxTokens");
+    expect(preset).not.toHaveProperty("reasoning");
   });
 
-  it("Context-Aware Structured Text matches the exact field values (name/hotkey/model/isBuiltIn, no temperature/maxTokens)", () => {
+  it("Context-Aware Structured Text matches the exact field values (name/hotkey/model/isBuiltIn, no reasoning)", () => {
     const preset = makeBuiltInPresetDefaults()[DEFAULT_STRUCTURED_TEXT_PRESET_ID];
 
     expect(preset.name).toBe("Context-Aware Structured Text");
     expect(preset.hotkey).toBe("Control+Shift+R");
     expect(preset.model).toBe("");
     expect(preset.isBuiltIn).toBe(true);
-    expect(preset).not.toHaveProperty("temperature");
-    expect(preset).not.toHaveProperty("maxTokens");
+    expect(preset).not.toHaveProperty("reasoning");
   });
 });

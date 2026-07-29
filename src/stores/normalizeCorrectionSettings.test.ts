@@ -275,8 +275,7 @@ describe("getDefaultCorrectionSettings — returns 6 built-in presets including 
     );
     expect(businessWriting?.model).toBe("");
     expect(businessWriting?.isBuiltIn).toBe(true);
-    expect(businessWriting).not.toHaveProperty("temperature");
-    expect(businessWriting).not.toHaveProperty("maxTokens");
+    expect(businessWriting).not.toHaveProperty("reasoning");
   });
 
   it("includes Context-Aware Structured Text with the exact field values", () => {
@@ -293,8 +292,7 @@ describe("getDefaultCorrectionSettings — returns 6 built-in presets including 
     );
     expect(structuredText?.model).toBe("");
     expect(structuredText?.isBuiltIn).toBe(true);
-    expect(structuredText).not.toHaveProperty("temperature");
-    expect(structuredText).not.toHaveProperty("maxTokens");
+    expect(structuredText).not.toHaveProperty("reasoning");
   });
 
   it("keeps Business Writing and Structured Text hotkeys distinct from every other default and app hotkey", () => {
@@ -487,8 +485,7 @@ describe("normalizeCorrectionSettings — Business Writing / Structured Text bui
           systemPrompt: "My custom business writing prompt.",
           model: "openai/gpt-4o",
           isBuiltIn: true,
-          temperature: 0.4,
-          maxTokens: 2048,
+          reasoning: "high",
         },
       ],
       selectedPresetId: "correction",
@@ -504,8 +501,7 @@ describe("normalizeCorrectionSettings — Business Writing / Structured Text bui
       systemPrompt: "My custom business writing prompt.",
       model: "openai/gpt-4o",
       isBuiltIn: true,
-      temperature: 0.4,
-      maxTokens: 2048,
+      reasoning: "high",
     });
   });
 
@@ -520,8 +516,7 @@ describe("normalizeCorrectionSettings — Business Writing / Structured Text bui
           systemPrompt: "My custom structured text prompt.",
           model: "openai/gpt-4o",
           isBuiltIn: true,
-          temperature: 0.2,
-          maxTokens: 4096,
+          reasoning: "low",
         },
       ],
       selectedPresetId: "correction",
@@ -537,8 +532,7 @@ describe("normalizeCorrectionSettings — Business Writing / Structured Text bui
       systemPrompt: "My custom structured text prompt.",
       model: "openai/gpt-4o",
       isBuiltIn: true,
-      temperature: 0.2,
-      maxTokens: 4096,
+      reasoning: "low",
     });
   });
 });

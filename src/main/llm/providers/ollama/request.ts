@@ -6,15 +6,15 @@
  */
 import { getLocalModels } from "~/main/llm/models/discover";
 import { showErrorNotification } from "~/main/notifications/error";
-import { ollamaClient } from "./client";
+import { resolveOllamaEndpoint } from "~/shared/ollamaEndpoint";
+import { getProviderEndpoint } from "~/stores/apiStore";
+import { createOllamaClient } from "./client";
 import type { AIRequestOptions } from "~/main/ai.request/requestTypes";
 
 export const makeLocalAIRequest = async (options: AIRequestOptions) => {
   const modelId = options.model as string;
 
-  console.log(
-    `Sending request to local LLM with model: ${modelId}, temperature: ${options.temperature}`,
-  );
+  console.log(`Sending request to local LLM with model: ${modelId}`);
 
   try {
     // Log the request details
@@ -64,13 +64,13 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
           : JSON.stringify(msg.content),
     }));
     // Make the request to the local LLM
-    const response = await ollamaClient.chat({
+    const response = await createOllamaClient(
+      resolveOllamaEndpoint(getProviderEndpoint("ollama")),
+    ).chat({
       messages: serializedMessages,
       model: modelId,
       options: {
-        temperature: options.temperature || 0.7,
         top_p: options.top_p || 0.9,
-        num_predict: options.maxTokens,
       },
     });
 

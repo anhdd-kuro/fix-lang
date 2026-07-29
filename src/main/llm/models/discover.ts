@@ -4,8 +4,10 @@
  */
 import fs from "fs";
 import path from "path";
-import { ollamaClient } from "../providers/ollama/client";
-import type { Model } from "~/stores/apiStore";
+import { resolveOllamaEndpoint } from "~/shared/ollamaEndpoint";
+import { getProviderEndpoint, type Model } from "~/stores/apiStore";
+import { createOllamaClient } from "../providers/ollama/client";
+import type { ProviderEndpoint } from "~/shared/lmstudioEndpoint";
 
 /**
  * Format model size into a human-readable string (e.g., 7B, 13B)
@@ -111,7 +113,7 @@ const toLocalModel = (model: ModelMetadata): Model => ({
 /**
  * Ask Ollama whether it is there, and what it has.
  *
- * Calls `ollamaClient.list()` directly to keep the rejection that
+ * Calls `createOllamaClient(resolveOllamaEndpoint(getProviderEndpoint("ollama"))).list()` directly to keep the rejection that
  * `getLocalModels` swallows: `[]` alone cannot tell "Ollama not running" from
  * "running with nothing pulled", and those need opposite advice.
  */
@@ -121,9 +123,14 @@ export type OllamaProbe = {
   error?: string;
 };
 
-export async function probeOllama(): Promise<OllamaProbe> {
+export async function probeOllama(
+  endpoint?: ProviderEndpoint | null,
+): Promise<OllamaProbe> {
   try {
-    const response = await ollamaClient.list();
+    const client = createOllamaClient(
+      endpoint ?? resolveOllamaEndpoint(getProviderEndpoint("ollama")),
+    );
+    const response = await client.list();
     const models = (response?.models ?? []).map((model) => ({
       ...toLocalModel(model),
       // These go straight into the profile cache, and an untagged entry
@@ -150,12 +157,12 @@ export async function getLocalModels(): Promise<Model[]> {
     console.log("[DEBUG] Creating Ollama client instance...");
 
     console.log(
-      "[DEBUG] Attempting to connect to Ollama at http://localhost:11434"
+      "[DEBUG] Attempting to connect to Ollama"
     );
 
     // Let's test the Ollama server separately first
     try {
-      const listResponse = await ollamaClient.list();
+      const listResponse = await createOllamaClient(resolveOllamaEndpoint(getProviderEndpoint("ollama"))).list();
 
       if (listResponse.models.length > 0) {
         console.log(
@@ -181,7 +188,7 @@ export async function getLocalModels(): Promise<Model[]> {
     }
 
     console.log("[DEBUG] Now trying through the OllamaClient class...");
-    const ollamaModels = await ollamaClient.list();
+    const ollamaModels = await createOllamaClient(resolveOllamaEndpoint(getProviderEndpoint("ollama"))).list();
     console.log(
       "[DEBUG] OllamaClient.listModels() returned:",
       JSON.stringify(ollamaModels, null, 2)
@@ -223,7 +230,7 @@ export async function getLocalModels(): Promise<Model[]> {
  */
 export async function checkModelStatus(modelId: string): Promise<ModelStatus> {
   try {
-    const models = await ollamaClient.list();
+    const models = await createOllamaClient(resolveOllamaEndpoint(getProviderEndpoint("ollama"))).list();
 
     // Check if model exists in Ollama
     const exists = models.models.some(

@@ -23,6 +23,10 @@ import {
 } from "~/shared/lmstudioEndpoint";
 import { redactLogMessage } from "~/shared/logging";
 import { resolveModelRef } from "~/shared/modelRef";
+import {
+  OLLAMA_DEFAULT_ENDPOINT,
+  resolveOllamaEndpoint,
+} from "~/shared/ollamaEndpoint";
 import { findKeyShapeMismatch, type KeySlotKind } from "~/shared/providerKeyShapes";
 import {
   isModelForProvider,
@@ -394,7 +398,17 @@ export const registerApiHandlers = (): void => {
       if (payload.provider === "ollama") {
         // `probeOllama`, not `fetchAvailableModels`: the latter returns `[]`
         // for both "daemon down" and "daemon up with nothing pulled".
-        const probe = await probeOllama();
+        const endpoint = resolveOllamaEndpoint({
+          host:
+            payload.host ??
+            getProviderEndpoint("ollama")?.host ??
+            OLLAMA_DEFAULT_ENDPOINT.host,
+          port:
+            payload.port ??
+            getProviderEndpoint("ollama")?.port ??
+            OLLAMA_DEFAULT_ENDPOINT.port,
+        });
+        const probe = await probeOllama(endpoint);
         if (!probe.reachable) {
           return {
             success: false,
@@ -406,6 +420,21 @@ export const registerApiHandlers = (): void => {
           // Reachable but empty connects successfully, with advice.
           note = messageLabel("settings.general.providers.ollama.noModels");
         }
+
+        const profile = connectProviderToProfile(profileId, "ollama", models, {
+          endpoint,
+        });
+        if (!profile) {
+          return {
+            success: false,
+            error: messageLabel("models.providerSetup.error.activeProfileNotFound"),
+          };
+        }
+        return {
+          success: true,
+          profile: withoutProfileSecrets(profile),
+          ...(note ? { note } : {}),
+        };
       } else if (payload.provider === "lmstudio") {
         const endpoint = resolveLmStudioEndpoint({
           host: payload.host ?? getProviderEndpoint("lmstudio")?.host ?? LMSTUDIO_DEFAULT_ENDPOINT.host,

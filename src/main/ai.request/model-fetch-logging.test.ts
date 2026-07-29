@@ -82,7 +82,7 @@ vi.mock("~/main/llm/models/discover", () => ({
   probeOllama: probeOllamaMock,
 }));
 vi.mock("~/main/llm/providers/ollama/client", () => ({
-  ollamaClient: { chat: vi.fn() },
+  createOllamaClient: () => ({ chat: vi.fn() }), ollamaClient: { chat: vi.fn() },
 }));
 import { redactLogContext } from "~/shared/logging";
 import { fetchAvailableModels } from "./shared";

@@ -103,7 +103,7 @@ const probeLocalProvider = async (
   provider: ProviderId,
 ): Promise<LocalProbeResult> => {
   if (provider === "ollama") {
-    const probe = await probeOllama();
+    const probe = await probeOllama(getProviderEndpoint("ollama"));
     return { ...probe, refreshApiKey: "" };
   }
 

@@ -59,7 +59,7 @@ vi.mock("~/main/ai.request", () => ({
 }));
 vi.mock("~/main/keybindings", () => ({ reloadHotkeys: vi.fn() }));
 vi.mock("~/main/llm", () => ({
-  ollamaClient: { pull: vi.fn(), delete: vi.fn(), chat: vi.fn() },
+  createOllamaClient: () => ({ pull: vi.fn(), delete: vi.fn(), chat: vi.fn() }), ollamaClient: { pull: vi.fn(), delete: vi.fn(), chat: vi.fn() },
 }));
 vi.mock("~/main/llm/models/compatibility", () => ({
   checkModelCompatibility: vi.fn(),
@@ -298,9 +298,12 @@ describe("connect-provider — payload validation", () => {
     expect(getProfileSecretMock).not.toHaveBeenCalled();
     expect(setProfileSecretMock).not.toHaveBeenCalled();
     expect(fetchAvailableModelsMock).not.toHaveBeenCalled();
-    expect(connectProviderToProfileMock).toHaveBeenCalledWith("profile_1", "ollama", [
-      { id: "llama3.2:3b", name: "llama3.2", created: 1, provider: "ollama" },
-    ]);
+    expect(connectProviderToProfileMock).toHaveBeenCalledWith(
+      "profile_1",
+      "ollama",
+      [{ id: "llama3.2:3b", name: "llama3.2", created: 1, provider: "ollama" }],
+      { endpoint: { host: "127.0.0.1", port: 11434 } },
+    );
   });
 });
 
@@ -546,7 +549,9 @@ describe("connecting Ollama distinguishes 'down' from 'empty'", () => {
       kind: "message",
       message: { key: "settings.general.providers.ollama.noModels" },
     });
-    expect(connectProviderToProfileMock).toHaveBeenCalledWith("profile_1", "ollama", []);
+    expect(connectProviderToProfileMock).toHaveBeenCalledWith("profile_1", "ollama", [], {
+      endpoint: { host: "127.0.0.1", port: 11434 },
+    });
   });
 
   it("carries no note when the daemon is reachable with models", async () => {
