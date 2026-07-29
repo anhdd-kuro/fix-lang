@@ -1624,7 +1624,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "20c9ec74de6b7dd29e4203ec481612f4c6742ccec98a07587c1c54ac6d9dac51";
+  "782232df9a4999df5d261a6fd54b981f277ed2db1ba3aec6c4f8280dbccf6d66";
 
 const compareConsumers = (left: ButtonConsumer, right: ButtonConsumer): number =>
   left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column;
