@@ -119,12 +119,23 @@ const urlOf = (meta: Record<string, unknown>): string => {
   const repo = meta.repository;
   const raw =
     typeof repo === "string" ? repo : ((repo as { url?: string } | undefined)?.url ?? String(meta.homepage ?? ""));
-  return raw
+  const normalized = raw
+    .trim()
     .replace(/^git\+/, "")
     .replace(/^git:\/\//, "https://")
     .replace(/^github:/, "https://github.com/")
     .replace(/^git@github\.com:/, "https://github.com/")
     .replace(/\.git$/, "");
+  if (normalized === "" || /^https?:\/\//.test(normalized)) return normalized;
+  // npm allows shorthand in `repository` (`owner/repo`, `gitlab:owner/repo`).
+  // Emitting it raw produced links like `[source](omgovich/colord)`, which
+  // resolve as relative paths and 404 wherever the notices are rendered.
+  const shorthand = /^(?:(github|gitlab|bitbucket):)?([\w.-]+\/[\w.-]+)$/.exec(normalized);
+  if (shorthand) {
+    const hosts = { github: "github.com", gitlab: "gitlab.com", bitbucket: "bitbucket.org" };
+    return `https://${hosts[(shorthand[1] ?? "github") as keyof typeof hosts]}/${shorthand[2]}`;
+  }
+  return "";
 };
 
 const licenseTextsIn = (dir: string): { filename: string; body: string }[] => {
@@ -156,15 +167,20 @@ const seeds = [
   "colord",
 ];
 
+type QueueEntry = { name: string; from: string; required: boolean };
+
 const found = new Map<string, Pkg>();
-const unresolved = new Set<string>();
-const queue = seeds.map((n) => ({ name: n, from: modulesRoot }));
+const unresolvedRequired = new Set<string>();
+const queue: QueueEntry[] = seeds.map((n) => ({ name: n, from: modulesRoot, required: true }));
 
 while (queue.length > 0) {
-  const { name, from } = queue.shift() as { name: string; from: string };
+  const { name, from, required } = queue.shift() as QueueEntry;
   const pj = resolvePkg(name, from);
   if (pj === null) {
-    unresolved.add(name);
+    // A missing `dependencies` entry means the tree is broken and the inventory
+    // would be wrong. A missing peer/optional entry is normal — nothing installed
+    // it, so nothing can bundle it.
+    if (required) unresolvedRequired.add(name);
     continue;
   }
   const dir = path.dirname(pj);
@@ -174,11 +190,22 @@ while (queue.length > 0) {
   if (found.has(key)) continue;
   found.set(key, { name, version, spdx: spdxOf(meta), url: urlOf(meta), texts: licenseTextsIn(dir) });
   for (const dep of Object.keys((meta.dependencies ?? {}) as Record<string, string>)) {
-    queue.push({ name: dep, from: dir });
+    queue.push({ name: dep, from: dir, required: true });
+  }
+  // Peer and optional dependencies that are actually installed get bundled just
+  // like anything else: `zod` reaches the app purely as a peer of every AI SDK
+  // package, and a dependencies-only walk silently omitted it.
+  for (const dep of [
+    ...Object.keys((meta.peerDependencies ?? {}) as Record<string, string>),
+    ...Object.keys((meta.optionalDependencies ?? {}) as Record<string, string>),
+  ]) {
+    queue.push({ name: dep, from: dir, required: false });
   }
 }
 
-if (unresolved.size > 0) throw new Error(`unresolved packages: ${[...unresolved].join(", ")}`);
+if (unresolvedRequired.size > 0) {
+  throw new Error(`unresolved dependencies: ${[...unresolvedRequired].join(", ")}`);
+}
 
 const packages = [...found.values()].sort(
   (a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version),

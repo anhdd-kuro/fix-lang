@@ -96,9 +96,13 @@ const getHistoryStore = (): Store<HistoryStore> => {
       // anyone. It only deters casual hand-editing of the JSON. Never store a
       // secret here — API keys go through `safeStorage` (see `apiKeyStore.ts`),
       // and SECURITY.md documents history as unencrypted at rest.
-      // Do NOT change this value: electron-store cannot decrypt an existing
-      // file written under a different key and silently resets it, wiping
-      // every user's history on upgrade.
+      // Do NOT change this value: electron-store cannot decrypt an existing file
+      // written under a different key. This store leaves `clearInvalidConfig` at
+      // its default of false, so the failure surfaces as a THROW out of the first
+      // read (conf rethrows once the decrypted bytes fail JSON.parse) rather than
+      // as a silent reset — every history read would fail on upgrade until the
+      // file is deleted by hand. `apiStore` sets `clearInvalidConfig: true` and so
+      // fails the other way, discarding the file.
       encryptionKey: "your-encryption-key",
       fileExtension: "json",
     });
