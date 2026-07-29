@@ -1,20 +1,21 @@
 import React, { useEffect, useState } from "react";
+import { Select } from "./Select";
 import { useI18n } from "../i18n/useI18n";
 import type { Profile } from "~/stores/apiStore";
 
 type ProfileSelectorProps = {
   className?: string;
-  size?: "sm" | "md" | "lg"; 
+  size?: "sm" | "md" | "lg";
   onChange?: (profileId: string) => void;
-}
+};
 
 /**
  * A dropdown component for selecting and switching between profiles
  */
-const ProfileSelector: React.FC<ProfileSelectorProps> = ({ 
+const ProfileSelector: React.FC<ProfileSelectorProps> = ({
   className = "",
   size = "md",
-  onChange
+  onChange,
 }) => {
   const { t } = useI18n();
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -25,7 +26,7 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({
   const sizeStyles = {
     sm: "text-xs py-1 px-2",
     md: "text-sm py-1.5 px-3",
-    lg: "text-base py-2 px-4"
+    lg: "text-base py-2 px-4",
   };
 
   const fetchProfiles = async () => {
@@ -62,8 +63,10 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({
   const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newProfileId = e.target.value;
     try {
-      const result = await window.electronAPI.applyProfile({ profileId: newProfileId });
-      
+      const result = await window.electronAPI.applyProfile({
+        profileId: newProfileId,
+      });
+
       if (result.success) {
         setCurrentProfileId(newProfileId);
         onChange?.(newProfileId);
@@ -81,18 +84,21 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({
 
   return (
     <div className={`${className} flex items-center gap-2`}>
-      <label htmlFor="profile-selector" className="text-card-foreground flex items-center gap-1.5">
+      <label
+        htmlFor="profile-selector"
+        className="text-card-foreground flex items-center gap-1.5"
+      >
         <span className="hidden sm:inline">{t("profiles.selector.label")}</span>
         {isLoading && (
           <span className="size-3.5 border-t-2 border-r-2 border-primary rounded-full animate-spin"></span>
         )}
       </label>
-      <select
+      <Select
         id="profile-selector"
         value={currentProfileId}
         onChange={handleChange}
         disabled={isLoading}
-        className={`${sizeStyles[size]} bg-card border border-card-control-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring`}
+        className={sizeStyles[size]}
         aria-label={t("profiles.selector.ariaLabel")}
       >
         {profiles.map((profile) => (
@@ -100,7 +106,7 @@ const ProfileSelector: React.FC<ProfileSelectorProps> = ({
             {profile.name}
           </option>
         ))}
-      </select>
+      </Select>
     </div>
   );
 };

@@ -29,7 +29,12 @@ const errResponse = (status: number): StubResponse => ({
   json: async () => ({}),
 });
 
-const emptyPage = { object: "page", data: [], has_more: false, next_page: null };
+const emptyPage = {
+  object: "page",
+  data: [],
+  has_more: false,
+  next_page: null,
+};
 
 const clientWith = (
   fetchImpl: (url: string, init: unknown) => Promise<StubResponse>,
@@ -46,7 +51,10 @@ describe("createOpenAIUsageClient", () => {
     const fetchStub = vi.fn();
     const client = clientWith(fetchStub as never, null);
 
-    expect(await client.getCosts("7d")).toEqual({ ok: false, reason: "no_key" });
+    expect(await client.getCosts("7d")).toEqual({
+      ok: false,
+      reason: "no_key",
+    });
     expect(await client.getCompletionsUsage("7d")).toEqual({
       ok: false,
       reason: "no_key",
@@ -60,14 +68,18 @@ describe("createOpenAIUsageClient", () => {
   });
 
   it("maps 401/403 → unauthorized and anything else → unavailable", async () => {
-    expect(await clientWith(async () => errResponse(401)).getCosts("7d")).toEqual({
+    expect(
+      await clientWith(async () => errResponse(401)).getCosts("7d"),
+    ).toEqual({
       ok: false,
       reason: "unauthorized",
     });
     expect(
       await clientWith(async () => errResponse(403)).getCompletionsUsage("7d"),
     ).toEqual({ ok: false, reason: "unauthorized" });
-    expect(await clientWith(async () => errResponse(500)).getCosts("30d")).toEqual({
+    expect(
+      await clientWith(async () => errResponse(500)).getCosts("30d"),
+    ).toEqual({
       ok: false,
       reason: "unavailable",
     });
@@ -142,7 +154,9 @@ describe("createOpenAIUsageClient", () => {
     const bucket = (startTime: number, amount: number) => ({
       object: "bucket",
       start_time: startTime,
-      results: [{ amount: { value: amount, currency: "usd" }, line_item: "gpt-5" }],
+      results: [
+        { amount: { value: amount, currency: "usd" }, line_item: "gpt-5" },
+      ],
     });
     const pages: Record<string, unknown> = {
       "": {
@@ -207,6 +221,17 @@ describe("createOpenAIUsageClient", () => {
 
     expect(usage.hasKey).toBe(true);
     expect(usage.costs.ok).toBe(true);
+    expect(usage.completions.ok).toBe(true);
+  });
+
+  it("preserves successful completions when costs are temporarily unavailable", async () => {
+    const client = clientWith(async (url) =>
+      url.includes("/costs") ? errResponse(500) : okResponse(emptyPage),
+    );
+
+    const usage = await client.getUsage("7d");
+
+    expect(usage.costs).toEqual({ ok: false, reason: "unavailable" });
     expect(usage.completions.ok).toBe(true);
   });
 });

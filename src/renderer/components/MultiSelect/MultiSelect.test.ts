@@ -1,5 +1,5 @@
 /**
- * @file MultiSelect.test.ts
+ * @file MultiSelect/MultiSelect.test.ts
  * @description Guards the checkbox-dropdown contract: toggling adds/removes a
  * value without closing the popover (multi-select would be unusable otherwise),
  * the next selection keeps `options` order, and outside pointerdown / Escape
@@ -11,7 +11,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MultiSelect, toggleSelection } from "./MultiSelect";
+import { MultiSelect, toggleSelection } from ".";
 
 const OPTIONS = [
   { value: "debug", label: "Debug" },
@@ -173,14 +173,14 @@ describe("MultiSelect", () => {
     expect(document.activeElement).toBe(trigger());
   });
 
-  it("keeps the shared outline semantics alongside trigger geometry", async () => {
+  it("keeps the shared select semantics alongside trigger geometry", async () => {
     await render();
 
     const classes = [
       "border",
-      "border-current",
-      "bg-transparent",
-      "text-inherit",
+      "border-card-control-border",
+      "bg-input",
+      "text-foreground",
       "flex",
       "w-full",
       "items-center",
@@ -195,5 +195,6 @@ describe("MultiSelect", () => {
     for (const className of classes) {
       expect(trigger().classList).toContain(className);
     }
+    expect(trigger().classList).not.toContain("border-current");
   });
 });

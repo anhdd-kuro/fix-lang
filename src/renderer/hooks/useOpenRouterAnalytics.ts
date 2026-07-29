@@ -9,19 +9,19 @@
  * key-free combined IPC and reads `hasProvisioningKey()` for the empty state.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  cacheIsFresh,
+  readUsageCache,
+  requestUsageData,
+  USAGE_CACHE_TTL_MS,
+} from "./usageRequestCache";
+import { useActiveProfileId } from "./useActiveProfileId";
 import type { OpenRouterAnalytics } from "~/main/llm/providers/openrouter/client";
 import type { OpenRouterRange } from "~/preload/features/openrouter";
 
-/** Pure: is a cache entry stamped at `ts` still fresh at `now` within `ttlMs`? */
-export const cacheIsFresh = (
-  ts: number,
-  now: number,
-  ttlMs: number
-): boolean => now - ts < ttlMs;
+export { cacheIsFresh };
 
-export const OPENROUTER_CACHE_TTL_MS = 60_000;
-
-type CacheEntry = { stampedAt: number; data: OpenRouterAnalytics };
+export const OPENROUTER_CACHE_TTL_MS = USAGE_CACHE_TTL_MS;
 
 export type UseOpenRouterAnalytics = {
   data: OpenRouterAnalytics | null;
@@ -36,13 +36,18 @@ export type UseOpenRouterAnalytics = {
  */
 export const useOpenRouterAnalytics = (
   range: OpenRouterRange,
-  now: () => number = Date.now
+  now: () => number = Date.now,
 ): UseOpenRouterAnalytics => {
-  const [data, setData] = useState<OpenRouterAnalytics | null>(null);
+  const [dataState, setDataState] = useState<{
+    profileId: string;
+    value: OpenRouterAnalytics | null;
+  }>({ profileId: "", value: null });
   const [loading, setLoading] = useState<boolean>(false);
-  const [hasKey, setHasKey] = useState<boolean | null>(null);
-  // Per-range cache; survives re-renders but not unmount.
-  const cacheRef = useRef<Map<OpenRouterRange, CacheEntry>>(new Map());
+  const [keyState, setKeyState] = useState<{
+    profileId: string;
+    value: boolean | null;
+  }>({ profileId: "", value: null });
+  const profileId = useActiveProfileId();
   // Only the newest request may commit. Switching range leaves the previous
   // fetch in flight, and a slower one landing last would render the OLD range's
   // dollars under the NEW range's heading — a silently wrong billing figure.
@@ -52,46 +57,48 @@ export const useOpenRouterAnalytics = (
     async (force: boolean): Promise<void> => {
       const requestId = (requestIdRef.current += 1);
       const isLatestRequest = (): boolean => requestIdRef.current === requestId;
+      if (!profileId) return;
+      const commitData = (value: OpenRouterAnalytics | null): void => {
+        setDataState({ profileId, value });
+      };
+      const commitHasKey = (value: boolean): void => {
+        setKeyState({ profileId, value });
+      };
 
-      const cached = cacheRef.current.get(range);
-      if (
-        !force &&
-        cached &&
-        cacheIsFresh(cached.stampedAt, now(), OPENROUTER_CACHE_TTL_MS)
-      ) {
-        setData(cached.data);
-        setHasKey(cached.data.hasKey);
-        // A superseded fetch can no longer clear this, so the request that wins
-        // owns the flag on every exit path — otherwise the spinner never stops.
+      const cacheKey = { profileId, provider: "openrouter", range } as const;
+      const cached = readUsageCache<OpenRouterAnalytics>(cacheKey, now());
+
+      // Gate on the key before serving cache or fetching analytics.
+      const keyPresent =
+        (await window.electronAPI.hasProvisioningKey?.("openrouter")) ?? false;
+      if (!isLatestRequest()) return;
+      commitHasKey(keyPresent);
+      if (!keyPresent) {
+        commitData(null);
         setLoading(false);
         return;
       }
 
       if (!force && cached) {
-        setData(cached.data);
-        setHasKey(cached.data.hasKey);
+        commitData(cached.data);
       }
 
-      // Gate on the key (empty state) before the heavier analytics call.
-      const keyPresent =
-        (await window.electronAPI.hasProvisioningKey?.("openrouter")) ?? false;
-      if (!isLatestRequest()) return;
-      setHasKey(keyPresent);
-      if (!keyPresent) {
-        setData(null);
+      if (!force && cached?.fresh) {
         setLoading(false);
         return;
       }
 
       setLoading(true);
       try {
-        const result = await window.electronAPI.getOpenRouterAnalytics(range);
-        // Cached before the guard on purpose: a superseded payload is still
-        // correct for ITS range, so returning to it serves from cache.
-        cacheRef.current.set(range, { stampedAt: now(), data: result });
+        const result = await requestUsageData({
+          key: cacheKey,
+          load: () => window.electronAPI.getOpenRouterAnalytics(range),
+          now,
+          force,
+        });
         if (!isLatestRequest()) return;
-        setData(result);
-        setHasKey(result.hasKey);
+        commitData(result);
+        commitHasKey(result.hasKey);
       } catch (error) {
         // Degrade quietly; the panel renders per-card unavailable states.
         console.error("OpenRouter analytics fetch failed", error);
@@ -99,11 +106,12 @@ export const useOpenRouterAnalytics = (
         if (isLatestRequest()) setLoading(false);
       }
     },
-    [range, now]
+    [profileId, range, now],
   );
 
   // Fetch on mount + whenever the range changes (cache may serve it instantly).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- IPC synchronization owns the hook's loading/data state.
     void load(false);
     // Discard whatever is in flight when the range changes or the tab closes.
     return () => {
@@ -115,5 +123,10 @@ export const useOpenRouterAnalytics = (
     void load(true);
   }, [load]);
 
-  return { data, loading, hasKey, refresh };
+  return {
+    data: dataState.profileId === profileId ? dataState.value : null,
+    loading,
+    hasKey: keyState.profileId === profileId ? keyState.value : null,
+    refresh,
+  };
 };

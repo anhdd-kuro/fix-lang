@@ -1,14 +1,11 @@
 import React from "react";
 import { twJoin } from "tailwind-merge";
-import { Button } from "./Button";
+import { Button, type ButtonVariant } from "../Button";
 
 /** Icon footprint for copy/check glyphs. `sm` fits dense panels (About command blocks). */
 type CopyButtonSize = "sm" | "md";
 
-const SIZE_CLASSES: Record<
-  CopyButtonSize,
-  { hit: string; icon: string }
-> = {
+const SIZE_CLASSES: Record<CopyButtonSize, { hit: string; icon: string }> = {
   sm: { hit: "min-w-3.5 min-h-3.5", icon: "size-3.5" },
   md: { hit: "min-w-6 min-h-6", icon: "size-6" },
 };
@@ -20,7 +17,15 @@ const CopyButton: React.FC<{
   showLabel?: boolean;
   /** Visual size of the clipboard/check icons. Defaults to `md`. */
   size?: CopyButtonSize;
-}> = ({ value, label, className = "", showLabel = false, size = "md" }) => {
+  variant?: ButtonVariant;
+}> = ({
+  value,
+  label,
+  className = "",
+  showLabel = false,
+  size = "md",
+  variant = "ghost",
+}) => {
   const [copied, setCopied] = React.useState(false);
   const handleCopy = async () => {
     try {
@@ -38,35 +43,36 @@ const CopyButton: React.FC<{
   return (
     <Button
       type="button"
-      variant="ghost"
+      variant={variant}
       onClick={handleCopy}
       aria-label={label}
       title={label}
-      className={`${className} cursor-pointer ${positionClass} ${hit}`}
+      className={`${className} cursor-pointer ${positionClass} ${hit} ${
+        showLabel ? "inline-flex items-center gap-2" : ""
+      }`}
     >
-      {showLabel && (
-        <span className="whitespace-nowrap mr-8 text-xs">{label}</span>
-      )}
-      <ClipboardIcon
-        className={twJoin(
-          "stroke-muted-foreground transition-all duration-300 ease-in-out absolute top-0 right-0",
-          icon,
-        )}
-        style={{
-          strokeDasharray: 50,
-          strokeDashoffset: copied ? -50 : 0,
-        }}
-      />
-      <CheckIcon
-        className={twJoin(
-          "stroke-success transition-all duration-300 ease-in-out absolute top-0 right-0",
-          icon,
-        )}
-        style={{
-          strokeDasharray: 50,
-          strokeDashoffset: copied ? 0 : -50,
-        }}
-      />
+      {showLabel && <span className="whitespace-nowrap text-xs">{label}</span>}
+      <span className={twJoin("relative block shrink-0", icon)}>
+        <ClipboardIcon
+          className={twJoin(
+            "absolute inset-0 size-full transition-all duration-300 ease-in-out",
+            variant === "primary"
+              ? "stroke-current"
+              : "stroke-muted-foreground",
+          )}
+          style={{
+            strokeDasharray: 50,
+            strokeDashoffset: copied ? -50 : 0,
+          }}
+        />
+        <CheckIcon
+          className="absolute inset-0 size-full stroke-success transition-all duration-300 ease-in-out"
+          style={{
+            strokeDasharray: 50,
+            strokeDashoffset: copied ? 0 : -50,
+          }}
+        />
+      </span>
     </Button>
   );
 };

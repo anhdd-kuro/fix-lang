@@ -10,7 +10,7 @@ import {
   type ReasoningEffort,
   type ReasoningEffortSliderStep,
 } from "~/shared/reasoningEffort";
-import { useI18n } from "../i18n/useI18n";
+import { useI18n } from "../../i18n/useI18n";
 
 type ReasoningEffortSliderProps = {
   value: ReasoningEffort | undefined;
@@ -22,7 +22,9 @@ type ReasoningEffortSliderProps = {
 
 const stepLabelKey = (
   step: ReasoningEffortSliderStep,
-): "settings.correction.reasoning.none" | `settings.correction.reasoning.step.${ReasoningEffortSliderStep}` => {
+):
+  | "settings.correction.reasoning.none"
+  | `settings.correction.reasoning.step.${ReasoningEffortSliderStep}` => {
   if (step === "none") return "settings.correction.reasoning.none";
   return `settings.correction.reasoning.step.${step}`;
 };
@@ -45,20 +47,19 @@ export const ReasoningEffortSlider: React.FC<ReasoningEffortSliderProps> = ({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span id={`${labelId}-label`} className="font-medium text-card-foreground">
+        <span
+          id={`${labelId}-label`}
+          className="font-medium text-card-foreground"
+        >
           {t("settings.correction.reasoning.label")}
         </span>
-        <span className="tabular-nums">
-          {inheritsGlobal
-            ? t("settings.correction.reasoning.inheritGlobal", {
-                value: t(stepLabelKey(currentStep)),
-              })
-            : t(stepLabelKey(currentStep))}
-        </span>
-      </div>
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span id={`${labelId}-faster`}>{t("settings.correction.reasoning.faster")}</span>
-        <span id={`${labelId}-smarter`}>{t("settings.correction.reasoning.smarter")}</span>
+        {inheritsGlobal ? (
+          <span className="tabular-nums">
+            {t("settings.correction.reasoning.inheritGlobal", {
+              value: t(stepLabelKey(currentStep)),
+            })}
+          </span>
+        ) : null}
       </div>
       <div className="relative h-8">
         <div
@@ -89,12 +90,36 @@ export const ReasoningEffortSlider: React.FC<ReasoningEffortSliderProps> = ({
           aria-valuemax={REASONING_EFFORT_SLIDER_STEPS.length - 1}
           aria-valuenow={stepIndex}
           aria-valuetext={t(stepLabelKey(currentStep))}
-          aria-labelledby={`${labelId}-label ${labelId}-faster ${labelId}-smarter`}
+          aria-labelledby={`${labelId}-label`}
           onChange={(event) => {
             onChange(stepIndexToReasoningEffort(Number(event.target.value)));
           }}
           className="reasoning-effort-slider absolute inset-0 z-10 h-8 w-full cursor-pointer appearance-none bg-transparent disabled:cursor-not-allowed disabled:opacity-50"
         />
+      </div>
+      <div className="relative h-4 text-[10px] leading-none" aria-hidden="true">
+        {REASONING_EFFORT_SLIDER_STEPS.map((step, index) => (
+          <span
+            key={step}
+            data-reasoning-step={step}
+            className={`absolute whitespace-nowrap ${
+              index === stepIndex
+                ? "font-medium text-card-foreground"
+                : "text-muted-foreground"
+            }`}
+            style={{
+              left: `${(index / (REASONING_EFFORT_SLIDER_STEPS.length - 1)) * 100}%`,
+              transform:
+                index === 0
+                  ? undefined
+                  : index === REASONING_EFFORT_SLIDER_STEPS.length - 1
+                    ? "translateX(-100%)"
+                    : "translateX(-50%)",
+            }}
+          >
+            {t(stepLabelKey(step))}
+          </span>
+        ))}
       </div>
       <style>{`
         .reasoning-effort-slider::-webkit-slider-runnable-track {
