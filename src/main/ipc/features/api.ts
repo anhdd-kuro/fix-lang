@@ -97,6 +97,10 @@ export type ProviderState = {
   connected: boolean;
   configured: boolean;
   apiKeySet: boolean;
+  /** Bedrock-only: access key ID stored (independent of secretKeySet). */
+  accessKeySet?: boolean;
+  /** Bedrock-only: secret access key stored (independent of accessKeySet). */
+  secretKeySet?: boolean;
   /** OpenRouter-only. */
   provisioningKeySet: boolean;
   modelCount: number;
@@ -232,12 +236,16 @@ const readProviderStates = async (): Promise<ProviderStates> => {
   const entries = await Promise.all(
     PROVIDER_IDS.map(async (provider): Promise<[ProviderId, ProviderState]> => {
       const kinds = secretKindsForProvider(provider);
-      const apiKeySet =
+      const accessKeyStored =
         profileId !== "" &&
         kinds.includes("api") &&
-        (await hasProfileSecret(profileId, provider, "api")) &&
-        (provider !== "bedrock" ||
-          (await hasProfileSecret(profileId, provider, "secret")));
+        (await hasProfileSecret(profileId, provider, "api"));
+      const secretKeyStored =
+        provider === "bedrock" &&
+        profileId !== "" &&
+        (await hasProfileSecret(profileId, provider, "secret"));
+      const apiKeySet =
+        accessKeyStored && (provider !== "bedrock" || secretKeyStored);
       const provisioningKeySet =
         profileId !== "" &&
         kinds.includes("provisioning") &&
@@ -252,6 +260,10 @@ const readProviderStates = async (): Promise<ProviderStates> => {
             explicitlyEnabled: connected,
           }),
           apiKeySet,
+          ...(provider === "bedrock" && {
+            accessKeySet: accessKeyStored,
+            secretKeySet: secretKeyStored,
+          }),
           provisioningKeySet,
           modelCount: modelsForProvider(cachedModels, provider).length,
         },
@@ -331,9 +343,14 @@ export const registerApiHandlers = (): void => {
     if (!isProviderId(raw)) return { apiKeySet: false, provisioningKeySet: false };
     const profileId = getCurrentProfileId();
     if (!profileId) return { apiKeySet: false, provisioningKeySet: false };
+    const accessKeySet =
+      raw !== "ollama" && (await hasProfileSecret(profileId, raw, "api"));
+    const secretKeySet =
+      raw === "bedrock" && (await hasProfileSecret(profileId, raw, "secret"));
     return {
-      apiKeySet:
-        raw === "ollama" ? false : await hasProfileSecret(profileId, raw, "api"),
+      apiKeySet: raw === "bedrock" ? accessKeySet && secretKeySet : accessKeySet,
+      accessKeySet: raw === "bedrock" ? accessKeySet : undefined,
+      secretKeySet: raw === "bedrock" ? secretKeySet : undefined,
       provisioningKeySet:
         supportsAdminKey(raw) &&
         (await hasProfileSecret(profileId, raw, "provisioning")),
@@ -367,14 +384,14 @@ export const registerApiHandlers = (): void => {
             error: messageLabel("models.providerSetup.error.bedrockCredentialsRequired"),
           };
         }
-        const { sanitizeBedrockRegion } = await import("~/shared/bedrockEndpoint");
+        const { resolveBedrockRegion } = await import("~/shared/bedrockEndpoint");
         const { fetchBedrockModels } = await import(
           "~/main/llm/providers/bedrock/models"
         );
         const region =
-          sanitizeBedrockRegion(payload.region) ??
-          sanitizeBedrockRegion(getProviderEndpoint("bedrock")?.host) ??
-          sanitizeBedrockRegion(undefined);
+          payload.region
+            ? resolveBedrockRegion(payload.region)
+            : resolveBedrockRegion(getProviderEndpoint("bedrock")?.host);
         const models = await fetchBedrockModels({
           accessKeyId,
           secretAccessKey,
@@ -525,11 +542,11 @@ export const registerApiHandlers = (): void => {
             error: messageLabel("models.providerSetup.error.bedrockCredentialsRequired"),
           };
         }
-        const { sanitizeBedrockRegion } = await import("~/shared/bedrockEndpoint");
+        const { resolveBedrockRegion } = await import("~/shared/bedrockEndpoint");
         const region =
-          sanitizeBedrockRegion(payload.region) ??
-          sanitizeBedrockRegion(getProviderEndpoint("bedrock")?.host) ??
-          sanitizeBedrockRegion(undefined);
+          resolveBedrockRegion(payload.region) !== "us-east-1" || payload.region
+            ? resolveBedrockRegion(payload.region)
+            : resolveBedrockRegion(getProviderEndpoint("bedrock")?.host);
 
         if (payload.apiKey?.trim()) {
           const result = await setProfileSecret(

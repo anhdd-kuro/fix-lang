@@ -61,7 +61,7 @@ export const apiFeature = {
   /** Returns masked credential state for one staged provider. */
   getProviderSecretStatus: async (
     provider: ProviderId,
-  ): Promise<{ apiKeySet: boolean; provisioningKeySet: boolean }> => {
+  ): Promise<{ apiKeySet: boolean; provisioningKeySet: boolean; accessKeySet?: boolean; secretKeySet?: boolean }> => {
     if (!isProviderId(provider)) {
       return { apiKeySet: false, provisioningKeySet: false };
     }

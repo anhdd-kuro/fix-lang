@@ -75,7 +75,7 @@
   "guide.setup.title": "最初に一度だけ行う設定",
   "guide.title": "はじめに",
   "guide.topic.adminKey.body": "任意です。OpenAI の管理者キーまたは OpenRouter のプロビジョニングキーを登録すると、使用状況タブにアカウント単位の利用額が表示されます。",
-  "guide.topic.adminKey.title": "接続済み",
+  "guide.topic.adminKey.title": "管理・プロビジョニングキー",
   "guide.topic.language.body": "初回起動時はシステムの言語に従います。設定 → 一般で変更でき、再起動なしにすべてのウィンドウへ反映されます。",
   "guide.topic.language.title": "言語",
   "guide.topic.models.body": "既定より高い性能が必要なプリセットにだけ専用のモデルを指定し、残りは既定のモデルを継承させます。",

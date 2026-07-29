@@ -76,7 +76,7 @@
   "guide.setup.title": "Set up once",
   "guide.title": "Getting started",
   "guide.topic.adminKey.body": "Optional. Add an OpenAI admin key or an OpenRouter provisioning key to fill the Usage tab with account-level spend.",
-  "guide.topic.adminKey.title": "Connected",
+  "guide.topic.adminKey.title": "Admin / Provisioning keys",
   "guide.topic.language.body": "The interface follows your system language on first run. Change it in Settings → General; every window updates without a restart.",
   "guide.topic.language.title": "Language",
   "guide.topic.models.body": "Give a preset its own model when it needs more capability than your default, and leave the others inheriting that default.",

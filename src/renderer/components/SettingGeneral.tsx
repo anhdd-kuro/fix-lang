@@ -581,10 +581,10 @@ export const SettingGeneral: React.FC = () => {
                   : t("settings.general.providers.lmstudio.apiKeyOptional")}
             </label>
             <p
-              className={`text-xs mb-1 ${card.apiKeySet ? "text-success" : "text-muted-foreground"}`}
+              className={`text-xs mb-1 ${(provider === "bedrock" ? card.apiKeySet || (providerStates[provider]?.accessKeySet ?? false) : card.apiKeySet) ? "text-success" : "text-muted-foreground"}`}
               role="status"
             >
-              {card.apiKeySet
+              {(provider === "bedrock" ? providerStates[provider]?.accessKeySet ?? false : card.apiKeySet)
                 ? t("settings.general.secret.set")
                 : t("settings.general.secret.unset")}
             </p>
@@ -626,10 +626,10 @@ export const SettingGeneral: React.FC = () => {
               {t("settings.general.providers.bedrock.secretAccessKey")}
             </label>
             <p
-              className={`text-xs mb-1 ${card.apiKeySet ? "text-success" : "text-muted-foreground"}`}
+              className={`text-xs mb-1 ${providerStates[provider]?.secretKeySet ? "text-success" : "text-muted-foreground"}`}
               role="status"
             >
-              {card.apiKeySet
+              {providerStates[provider]?.secretKeySet
                 ? t("settings.general.secret.set")
                 : t("settings.general.secret.unset")}
             </p>
