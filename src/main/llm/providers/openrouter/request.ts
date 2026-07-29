@@ -14,12 +14,15 @@ import {
   extractCacheUsage,
   resolveCacheProvider,
 } from "~/main/ai.request/cache-strategy";
+import {
+  usageCounts,
+  type AIRequestOptions,
+} from "~/main/ai.request/requestTypes";
 import { extractResolvedModel } from "~/main/ai.request/resolve-model";
 import { showErrorNotification } from "~/main/notifications/error";
 import { reasoningForAiSdk } from "~/shared/reasoningEffort";
 import { getApiKey } from "~/stores/apiKeyStore";
 import { apiStore, getProfileSetting } from "~/stores/apiStore";
-import type { AIRequestOptions } from "~/main/ai.request/requestTypes";
 
 export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
   const apiKey =
@@ -80,17 +83,14 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
       ...(reasoning !== undefined ? { reasoning } : {}),
     });
     const { usage, text } = genResponse;
-    const normalizedUsage = usage as {
-      promptTokens?: number;
-      completionTokens?: number;
-    };
+    const normalizedUsage = usageCounts(usage);
     console.log(
       `makeOpenRouterAIRequest: model=${options.model as string} promptTokens=${normalizedUsage.promptTokens ?? null} completionTokens=${normalizedUsage.completionTokens ?? null}`,
     );
 
     const resBody = genResponse.response.body;
-    const promptTokens = normalizedUsage?.promptTokens ?? null;
-    const completionTokens = normalizedUsage?.completionTokens ?? null;
+    const promptTokens = normalizedUsage.promptTokens;
+    const completionTokens = normalizedUsage.completionTokens;
 
     // Extract cache-usage metadata from raw OpenRouter response body
     const rawUsage =

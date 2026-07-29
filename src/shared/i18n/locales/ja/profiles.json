@@ -7,6 +7,7 @@
   "profiles.manager.createDialogTitle": "新規プロファイルの作成",
   "profiles.manager.descriptionLabel": "説明（任意）",
   "profiles.manager.descriptionPlaceholder": "プロファイルの説明…",
+  "profiles.manager.dropHint": "プロファイルJSONファイルをここにドロップしてインポート",
   "profiles.manager.empty": "プロファイルが見つかりません。新しいプロファイルを作成してください。",
   "profiles.manager.error.applyFailed": "プロファイルの適用に失敗しました",
   "profiles.manager.error.cannotDeleteLast": "最後のプロファイルは削除できません",

@@ -113,12 +113,10 @@
   "models.usage.yAxis": "トークン",
   "overview.preset.untitled": "その他",
   "overview.stat.activeDays": "稼働日数",
-  "overview.stat.currentStreak": "現在の連続日数",
   "overview.stat.favoriteModel": "よく使うモデル",
-  "overview.stat.longestStreak": "最長の連続日数",
   "overview.stat.messages": "メッセージ",
   "overview.stat.peakHour": "ピーク時間帯",
-  "overview.stat.sessions": "セッション",
+  "overview.stat.streaks": "連続日数（現在 / 最長）",
   "overview.stat.totalTokens": "合計トークン",
   "overview.tokenActivity.mode.ariaLabel": "トークン利用状況の表示",
   "overview.tokenActivity.mode.cumulative": "累計",
@@ -133,5 +131,6 @@
   "overview.tokenActivity.tooltip.weekly.withCorrections_other": "{start}〜{end} に {tokens} トークン、{count} 件の変換",
   "overview.value.days": "{count}日",
   "overview.value.empty": "—",
-  "overview.value.hour": "{start}:00–{end}:00"
+  "overview.value.hour": "{start}:00–{end}:00",
+  "overview.value.streakPair": "{current}日 / {longest}日"
 }

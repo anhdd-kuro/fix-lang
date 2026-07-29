@@ -1550,7 +1550,7 @@ const consumerContractRows = [
   ],
   [
     "BTN-004",
-    "SITE-7e87df07aa36837d-01",
+    "SITE-3bc4fcee3f1b9bd6-01",
     "LIVE-3bc4fcee3f1b9bd6",
     "src/renderer/components/about/UserGuidePanel.tsx",
     324,
@@ -1582,10 +1582,10 @@ const consumerContractRows = [
   ],
   [
     "BTN-008",
-    "SITE-8e1c5ad13fa650d3-01",
-    "LIVE-dfa106df35019ef0",
+    "SITE-a8490affbbc66fbf-01",
+    "LIVE-a8490affbbc66fbf",
     "src/renderer/components/CopyButton/index.tsx",
-    44,
+    47,
     5,
   ],
   [
@@ -1758,7 +1758,7 @@ const consumerContractRows = [
   ],
   [
     "BTN-030",
-    "SITE-eca35f045362c69d-01",
+    "SITE-f817bc24bfff4be1-01",
     "LIVE-f817bc24bfff4be1",
     "src/renderer/components/MultiSelect/MultiSelect.tsx",
     95,
@@ -1769,7 +1769,7 @@ const consumerContractRows = [
     "SITE-73a48ff1f5f9296f-01",
     "LIVE-73a48ff1f5f9296f",
     "src/renderer/components/ProfileManager.tsx",
-    256,
+    278,
     11,
   ],
   [
@@ -1777,7 +1777,7 @@ const consumerContractRows = [
     "SITE-e99c02ce9aba9550-01",
     "LIVE-e99c02ce9aba9550",
     "src/renderer/components/ProfileManager.tsx",
-    264,
+    286,
     11,
   ],
   [
@@ -1785,7 +1785,7 @@ const consumerContractRows = [
     "SITE-7c9f643148cf3085-01",
     "LIVE-7c9f643148cf3085",
     "src/renderer/components/ProfileManager.tsx",
-    318,
+    359,
     23,
   ],
   [
@@ -1793,7 +1793,7 @@ const consumerContractRows = [
     "SITE-0a1b7ac2d9c1f374-01",
     "LIVE-0a1b7ac2d9c1f374",
     "src/renderer/components/ProfileManager.tsx",
-    326,
+    367,
     21,
   ],
   [
@@ -1801,7 +1801,7 @@ const consumerContractRows = [
     "SITE-6da333e1baf89565-01",
     "LIVE-6da333e1baf89565",
     "src/renderer/components/ProfileManager.tsx",
-    335,
+    376,
     23,
   ],
   [
@@ -1809,7 +1809,7 @@ const consumerContractRows = [
     "SITE-34a9863fc49e6b83-01",
     "LIVE-34a9863fc49e6b83",
     "src/renderer/components/ProfileManager.tsx",
-    395,
+    436,
     13,
   ],
   [
@@ -1817,7 +1817,7 @@ const consumerContractRows = [
     "SITE-826dace3c3bc2a71-01",
     "LIVE-826dace3c3bc2a71",
     "src/renderer/components/ProfileManager.tsx",
-    403,
+    444,
     13,
   ],
   [
@@ -1825,7 +1825,7 @@ const consumerContractRows = [
     "SITE-ea57f4d3fc631133-01",
     "LIVE-ea57f4d3fc631133",
     "src/renderer/components/ProfileManager.tsx",
-    439,
+    480,
     13,
   ],
   [
@@ -1833,7 +1833,7 @@ const consumerContractRows = [
     "SITE-0a4e93dbd86acef1-01",
     "LIVE-0a4e93dbd86acef1",
     "src/renderer/components/ProfileManager.tsx",
-    447,
+    488,
     13,
   ],
   [
@@ -1841,7 +1841,7 @@ const consumerContractRows = [
     "SITE-7e4c2589c888f87d-01",
     "LIVE-7e4c2589c888f87d",
     "src/renderer/components/ProfileManager.tsx",
-    483,
+    524,
     13,
   ],
   [
@@ -1849,7 +1849,7 @@ const consumerContractRows = [
     "SITE-d89fe00914eba1d2-01",
     "LIVE-d89fe00914eba1d2",
     "src/renderer/components/ProfileManager.tsx",
-    491,
+    532,
     13,
   ],
   [
@@ -1886,7 +1886,7 @@ const consumerContractRows = [
   ],
   [
     "BTN-046",
-    "SITE-6dd70efb010592d0-01",
+    "SITE-936ce96d1be3b413-01",
     "LIVE-936ce96d1be3b413",
     "src/renderer/components/SettingCorrection.tsx",
     433,
@@ -1926,7 +1926,7 @@ const consumerContractRows = [
   ],
   [
     "BTN-051",
-    "SITE-11dc9ddf64f0d8e1-01",
+    "SITE-526689e2a7d58f90-01",
     "LIVE-526689e2a7d58f90",
     "src/renderer/components/SettingCorrection.tsx",
     596,
@@ -2238,7 +2238,7 @@ const consumerContractRows = [
   ],
   [
     "BTN-090",
-    "SITE-0186137c312ed90a-01",
+    "SITE-212540f76558cdfa-01",
     "LIVE-212540f76558cdfa",
     "src/renderer/MainWindow/App.tsx",
     346,
@@ -2273,7 +2273,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "f68efd50cf38c0e5cfa007ea98047bc939feb4dc8b7818bb855dc426fab50461";
+  "a92cfbf5f7bba2f2ba02db1845c6c1faba8aa91cda2283c71a00f5966bdd52f8";
 
 const compareConsumers = (
   left: ButtonConsumer,
