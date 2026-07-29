@@ -63,11 +63,6 @@ export const useOpenAIUsage = (
         return;
       }
 
-      if (!force && cached) {
-        setData(cached.data);
-        setHasKey(cached.data.hasKey);
-      }
-
       // Gate on the admin key (empty state) before the heavier usage call.
       const keyPresent =
         (await window.electronAPI.hasProvisioningKey?.("openai")) ?? false;
@@ -77,6 +72,11 @@ export const useOpenAIUsage = (
         setData(null);
         setLoading(false);
         return;
+      }
+
+      // Serve stale data only after the key check succeeds (stale-while-revalidate).
+      if (!force && cached) {
+        setData(cached.data);
       }
 
       setLoading(true);

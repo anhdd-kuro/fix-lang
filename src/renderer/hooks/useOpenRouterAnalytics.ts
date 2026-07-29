@@ -67,11 +67,6 @@ export const useOpenRouterAnalytics = (
         return;
       }
 
-      if (!force && cached) {
-        setData(cached.data);
-        setHasKey(cached.data.hasKey);
-      }
-
       // Gate on the key (empty state) before the heavier analytics call.
       const keyPresent =
         (await window.electronAPI.hasProvisioningKey?.("openrouter")) ?? false;
@@ -81,6 +76,11 @@ export const useOpenRouterAnalytics = (
         setData(null);
         setLoading(false);
         return;
+      }
+
+      // Serve stale data only after the key check succeeds (stale-while-revalidate).
+      if (!force && cached) {
+        setData(cached.data);
       }
 
       setLoading(true);
