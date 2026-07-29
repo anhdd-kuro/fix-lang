@@ -238,16 +238,31 @@ export const parseActivity = (
 };
 
 // ---------------------------------------------------------------------------
-// Provisioning keys (count enabled keys; read-only — no create/delete)
+// Provisioning keys (list enabled keys + usage; read-only — no create/delete)
 // ---------------------------------------------------------------------------
+/** One managed API key from `/api/v1/keys` (never includes the secret itself). */
+export type ProvisioningKeyRow = {
+  /** Display name (`name`, else `label`). Empty when the API omitted both. */
+  name: string;
+  /** Lifetime OpenRouter credit usage in USD for this key. */
+  usageUsd: number;
+  /** Spend limit in USD, or null when unlimited. */
+  limitUsd: number | null;
+  /** True when the key has a hard limit and it has been reached. */
+  limitReached: boolean;
+};
+
 export type EnabledKeys = {
   enabledCount: number;
   totalCount: number;
+  /** Enabled keys only, highest usage first. */
+  keys: ProvisioningKeyRow[];
 };
 
 /**
- * Parse the provisioning-keys list endpoint. Counts keys that are NOT disabled
- * (`disabled` falsy). Tolerant of `{ data: [...] }` or a bare array.
+ * Parse the provisioning-keys list endpoint. Keeps keys that are NOT disabled
+ * (`disabled` falsy), with name + current usage for the Usage panel. Tolerant of
+ * `{ data: [...] }` or a bare array.
  */
 export const parseProvisioningKeys = (
   json: unknown
@@ -256,15 +271,36 @@ export const parseProvisioningKeys = (
   if (!Array.isArray(data)) {
     return { ok: false, reason: "parse_error" };
   }
-  let enabled = 0;
+  const keys: ProvisioningKeyRow[] = [];
   for (const raw of data) {
     if (!isRecord(raw)) {
       continue;
     }
     // A key is enabled unless explicitly disabled.
-    if (raw.disabled !== true) {
-      enabled += 1;
+    if (raw.disabled === true) {
+      continue;
     }
+    const usage = asNumber(raw.usage) ?? 0;
+    const limit = asNumber(raw.limit);
+    const limitRemaining = asNumber(raw.limit_remaining);
+    const name =
+      (asString(raw.name)?.trim() || asString(raw.label)?.trim()) ?? "";
+    keys.push({
+      name,
+      usageUsd: usage,
+      limitUsd: limit,
+      limitReached:
+        limit !== null &&
+        (limitRemaining !== null ? limitRemaining <= 0 : usage >= limit),
+    });
   }
-  return { ok: true, data: { enabledCount: enabled, totalCount: data.length } };
+  keys.sort((a, b) => b.usageUsd - a.usageUsd);
+  return {
+    ok: true,
+    data: {
+      enabledCount: keys.length,
+      totalCount: data.length,
+      keys,
+    },
+  };
 };
