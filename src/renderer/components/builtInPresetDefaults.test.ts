@@ -87,18 +87,27 @@ describe("makeBuiltInPresetDefaults — the Settings sidebar's built-in reset ma
     }
   });
 
-  it("Business Writing matches the exact field values (name/hotkey/model/isBuiltIn, no reasoning)", () => {
-    const preset = makeBuiltInPresetDefaults()[DEFAULT_BUSINESS_WRITING_PRESET_ID];
+  it("Prompt optimization defaults to Minimal reasoning", () => {
+    const preset =
+      makeBuiltInPresetDefaults()[DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID];
+
+    expect(preset.reasoning).toBe("minimal");
+  });
+
+  it("Business Writing matches the exact field values (name/hotkey/model/isBuiltIn, Minimal reasoning)", () => {
+    const preset =
+      makeBuiltInPresetDefaults()[DEFAULT_BUSINESS_WRITING_PRESET_ID];
 
     expect(preset.name).toBe("Business Writing");
     expect(preset.hotkey).toBe("Control+Shift+B");
     expect(preset.model).toBe("");
     expect(preset.isBuiltIn).toBe(true);
-    expect(preset).not.toHaveProperty("reasoning");
+    expect(preset.reasoning).toBe("minimal");
   });
 
   it("Context-Aware Structured Text matches the exact field values (name/hotkey/model/isBuiltIn, no reasoning)", () => {
-    const preset = makeBuiltInPresetDefaults()[DEFAULT_STRUCTURED_TEXT_PRESET_ID];
+    const preset =
+      makeBuiltInPresetDefaults()[DEFAULT_STRUCTURED_TEXT_PRESET_ID];
 
     expect(preset.name).toBe("Context-Aware Structured Text");
     expect(preset.hotkey).toBe("Control+Shift+R");

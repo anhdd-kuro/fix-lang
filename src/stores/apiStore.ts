@@ -262,6 +262,7 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     systemPrompt: DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
     model: INHERIT_GLOBAL_MODEL,
     isBuiltIn: true,
+    reasoning: "minimal",
   },
   {
     id: DEFAULT_TRANSLATE_PRESET_ID,
@@ -278,6 +279,7 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     systemPrompt: DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
     model: INHERIT_GLOBAL_MODEL,
     isBuiltIn: true,
+    reasoning: "minimal",
   },
   {
     id: DEFAULT_STRUCTURED_TEXT_PRESET_ID,
@@ -407,9 +409,17 @@ export const normalizeCorrectionSettings = (
 
     seenIds.add(id);
 
-    // Optional reasoning — unknown values are silently dropped.
+    // Existing profiles predate the two built-in Minimal defaults. Migrate
+    // only those recognized built-ins when the field is absent; explicit
+    // stored values still win, and unknown values are still dropped.
     const rawCandidate = candidate as Record<string, unknown>;
-    const reasoning = sanitizeReasoningEffort(rawCandidate.reasoning);
+    const reasoning =
+      rawCandidate.reasoning === undefined &&
+      fallback !== undefined &&
+      (id === DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID ||
+        id === DEFAULT_BUSINESS_WRITING_PRESET_ID)
+        ? "minimal"
+        : sanitizeReasoningEffort(rawCandidate.reasoning);
 
     return [
       {

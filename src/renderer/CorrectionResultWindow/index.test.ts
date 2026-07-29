@@ -86,7 +86,11 @@ describe("CorrectionResultWindow", () => {
     root = createRoot(container);
     await act(async () => {
       root.render(
-        createElement(I18nProvider, null, createElement(CorrectionResultWindow)),
+        createElement(
+          I18nProvider,
+          null,
+          createElement(CorrectionResultWindow),
+        ),
       );
     });
     // `<I18nProvider>` resolves its initial locale via an async `getLocale()`
@@ -176,6 +180,12 @@ describe("CorrectionResultWindow", () => {
       ),
     ).toBeTruthy();
     expect(container.querySelector(`[aria-label="${jaCopy}"]`)).toBeTruthy();
+    expect(
+      container
+        .querySelector(`[aria-label="${jaCopy}"]`)
+        ?.className.includes("bg-primary"),
+    ).toBe(true);
+    expect(container.querySelector("footer")?.className).toContain("gap-4");
 
     // Prove the locale actually changed the wording, not just an English
     // fallback silently passing the assertions above.

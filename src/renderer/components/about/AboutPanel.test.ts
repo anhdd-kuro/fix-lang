@@ -48,7 +48,10 @@ const buildApi = (overrides: ApiOverrides = {}) => ({
   }),
   getKeyBindings: vi
     .fn()
-    .mockResolvedValue({ promptGen: "Control+Shift+G", profileSwitch: "Alt+P" }),
+    .mockResolvedValue({
+      promptGen: "Control+Shift+G",
+      profileSwitch: "Alt+P",
+    }),
   getCorrectionOutputMode: vi.fn().mockResolvedValue("popup"),
   getProviderStates: vi.fn().mockResolvedValue({
     openai: { connected: true },
@@ -57,8 +60,11 @@ const buildApi = (overrides: ApiOverrides = {}) => ({
   onSettingsUpdated: vi.fn().mockReturnValue(vi.fn()),
   onActiveProfileChanged: vi.fn().mockReturnValue(vi.fn()),
   openExternalLink: vi.fn().mockResolvedValue({ success: true }),
+  previewCorrectionResult: vi.fn().mockResolvedValue(undefined),
   // SettingUpdates reads
-  getUpdateState: vi.fn().mockResolvedValue({ phase: "idle", currentVersion: "0.8.5" }),
+  getUpdateState: vi
+    .fn()
+    .mockResolvedValue({ phase: "idle", currentVersion: "0.8.5" }),
   onUpdateStateChanged: vi.fn().mockReturnValue(vi.fn()),
   checkForUpdates: vi.fn().mockResolvedValue(undefined),
   openUpdateRelease: vi.fn().mockResolvedValue(undefined),
@@ -156,7 +162,9 @@ describe("AboutPanel", () => {
     );
     expect(container.textContent).toContain(t("guide.title"));
     expect(container.textContent).toContain(t("guide.setup.title"));
-    expect(container.textContent).not.toContain(t("settings.updates.howToTitle"));
+    expect(container.textContent).not.toContain(
+      t("settings.updates.howToTitle"),
+    );
 
     const panel = container.querySelector('[role="tabpanel"]');
     expect(panel?.id).toBe("about-panel-guide");
@@ -199,9 +207,9 @@ describe("AboutPanel", () => {
     );
     expect(text).not.toContain(t("guide.setup.provider.none"));
 
-    const chips = [
-      ...container.querySelectorAll("li > ul > li"),
-    ].map((chip) => chip.textContent);
+    const chips = [...container.querySelectorAll("li > ul > li")].map(
+      (chip) => chip.textContent,
+    );
     expect(chips).toContain("Control");
     expect(chips).toContain("Shift");
     expect(chips).toContain("F");
@@ -261,6 +269,23 @@ describe("AboutPanel", () => {
     expect(api.openExternalLink).toHaveBeenCalledWith(
       expect.stringMatching(/^https:\/\//),
     );
+  });
+
+  it("uses the Import button style for the result example action", async () => {
+    await render();
+    await click(tabNamed(t("about.tab.guide")));
+    await waitForUi();
+
+    const exampleButton = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === t("guide.result.viewExample"),
+    );
+    expect(exampleButton).toBeDefined();
+    expect(exampleButton?.classList).toContain("bg-secondary");
+    expect(exampleButton?.classList).toContain("text-secondary-foreground");
+    expect(exampleButton?.classList).toContain("font-medium");
+
+    await click(exampleButton as Element);
+    expect(api.previewCorrectionResult).toHaveBeenCalledTimes(1);
   });
 
   it("opens Settings on the right tab when a 'Settings worth knowing' title is clicked", async () => {

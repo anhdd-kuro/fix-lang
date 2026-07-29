@@ -100,9 +100,9 @@ describe("Button behavioral wrappers", () => {
   it.each([
     [
       "CopyButton",
-      "src/renderer/components/CopyButton.tsx",
+      "src/renderer/components/CopyButton/index.tsx",
       [
-        'variant="ghost"',
+        "variant={variant}",
         'type="button"',
         "aria-label={label}",
         "title={label}",

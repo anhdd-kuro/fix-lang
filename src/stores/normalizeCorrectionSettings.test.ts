@@ -275,7 +275,16 @@ describe("getDefaultCorrectionSettings — returns 6 built-in presets including 
     );
     expect(businessWriting?.model).toBe("");
     expect(businessWriting?.isBuiltIn).toBe(true);
-    expect(businessWriting).not.toHaveProperty("reasoning");
+    expect(businessWriting?.reasoning).toBe("minimal");
+  });
+
+  it("includes Prompt optimization with Minimal reasoning", () => {
+    const defaults = getDefaultCorrectionSettings();
+    const promptOptimization = defaults.presets.find(
+      (p) => p.id === "prompt-optimization",
+    );
+
+    expect(promptOptimization?.reasoning).toBe("minimal");
   });
 
   it("includes Context-Aware Structured Text with the exact field values", () => {
@@ -327,7 +336,9 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
   it("returns all 6 built-in presets when input is null", () => {
     const result = normalizeCorrectionSettings(null);
     expect(result.presets).toHaveLength(6);
-    expect(result.presets.find((p) => p.id === DEFAULT_TRANSLATE_PRESET_ID)).toBeDefined();
+    expect(
+      result.presets.find((p) => p.id === DEFAULT_TRANSLATE_PRESET_ID),
+    ).toBeDefined();
     expect(
       result.presets.find((p) => p.id === DEFAULT_BUSINESS_WRITING_PRESET_ID),
     ).toBeDefined();
@@ -339,7 +350,9 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
   it("returns all 6 built-in presets when input is undefined", () => {
     const result = normalizeCorrectionSettings(undefined);
     expect(result.presets).toHaveLength(6);
-    expect(result.presets.find((p) => p.id === DEFAULT_TRANSLATE_PRESET_ID)).toBeDefined();
+    expect(
+      result.presets.find((p) => p.id === DEFAULT_TRANSLATE_PRESET_ID),
+    ).toBeDefined();
     expect(
       result.presets.find((p) => p.id === DEFAULT_BUSINESS_WRITING_PRESET_ID),
     ).toBeDefined();
@@ -362,7 +375,9 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
 
   it("migrates legacy userInput into correction preset systemPrompt", () => {
     // Old-style stored object with userInput but no presets
-    const result = normalizeCorrectionSettings({ userInput: "Custom prompt text" });
+    const result = normalizeCorrectionSettings({
+      userInput: "Custom prompt text",
+    });
     const correctionPreset = result.presets.find((p) => p.id === "correction");
     expect(correctionPreset?.systemPrompt).toContain("Custom prompt text");
   });
@@ -445,6 +460,44 @@ describe("normalizeCorrectionSettings — Business Writing / Structured Text bui
     expect(result.presets).toHaveLength(6);
   });
 
+  it("migrates missing reasoning only on the two Minimal-default built-ins", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [
+        ...storedFourWithoutNewBuiltIns.presets,
+        {
+          id: DEFAULT_BUSINESS_WRITING_PRESET_ID,
+          name: "Business Writing",
+          hotkey: "Control+Shift+B",
+          systemPrompt: DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
+          model: "",
+          isBuiltIn: true,
+        },
+        {
+          id: "custom-without-reasoning",
+          name: "Custom without reasoning",
+          hotkey: "Control+Shift+M",
+          systemPrompt: "Custom.",
+          model: "",
+          isBuiltIn: false,
+        },
+      ],
+      selectedPresetId: "prompt-optimization",
+    });
+
+    expect(
+      result.presets.find((preset) => preset.id === "prompt-optimization")
+        ?.reasoning,
+    ).toBe("minimal");
+    expect(
+      result.presets.find(
+        (preset) => preset.id === DEFAULT_BUSINESS_WRITING_PRESET_ID,
+      )?.reasoning,
+    ).toBe("minimal");
+    expect(
+      result.presets.find((preset) => preset.id === "custom-without-reasoning"),
+    ).not.toHaveProperty("reasoning");
+  });
+
   it("preserves custom presets, does not duplicate the new built-ins, and sorts customs after all six built-ins", () => {
     const result = normalizeCorrectionSettings({
       presets: [
@@ -503,6 +556,27 @@ describe("normalizeCorrectionSettings — Business Writing / Structured Text bui
       isBuiltIn: true,
       reasoning: "high",
     });
+  });
+
+  it("keeps a stored Prompt optimization reasoning override", () => {
+    const storedPromptOptimization = storedFourWithoutNewBuiltIns.presets.find(
+      (preset) => preset.id === "prompt-optimization",
+    );
+    expect(storedPromptOptimization).toBeDefined();
+
+    const result = normalizeCorrectionSettings({
+      presets: storedFourWithoutNewBuiltIns.presets.map((preset) =>
+        preset.id === "prompt-optimization"
+          ? { ...preset, reasoning: "high" as const }
+          : preset,
+      ),
+      selectedPresetId: "prompt-optimization",
+    });
+
+    expect(
+      result.presets.find((preset) => preset.id === "prompt-optimization")
+        ?.reasoning,
+    ).toBe("high");
   });
 
   it("round-trips a stored user-edited copy of Structured Text verbatim", () => {
@@ -572,7 +646,9 @@ describe("normalizeCorrectionSettings — legacy standalone-Translate migration"
     const translate = result.presets.find(
       (p) => p.id === DEFAULT_TRANSLATE_PRESET_ID,
     );
-    expect(translate?.systemPrompt).toContain(DEFAULT_TRANSLATE_PRESET_PROMPT.trim());
+    expect(translate?.systemPrompt).toContain(
+      DEFAULT_TRANSLATE_PRESET_PROMPT.trim(),
+    );
     expect(translate?.systemPrompt).toContain("French");
     expect(translate?.systemPrompt).toContain("explanation");
   });
@@ -622,7 +698,9 @@ describe("normalizeCorrectionSettings — legacy standalone-Translate migration"
     const translate = result.presets.find(
       (p) => p.id === DEFAULT_TRANSLATE_PRESET_ID,
     );
-    expect(translate?.systemPrompt).toBe(DEFAULT_TRANSLATE_PRESET_PROMPT.trim());
+    expect(translate?.systemPrompt).toBe(
+      DEFAULT_TRANSLATE_PRESET_PROMPT.trim(),
+    );
   });
 
   it("never rewrites the Translate hotkey, so it cannot steal a stored accelerator", () => {
@@ -700,10 +778,7 @@ const storedPromptOptimization = {
   isBuiltIn: true,
 };
 
-const storedCustom = (
-  id: string,
-  hotkey: string,
-): Record<string, unknown> => ({
+const storedCustom = (id: string, hotkey: string): Record<string, unknown> => ({
   id,
   name: `Custom ${id}`,
   hotkey,
@@ -787,7 +862,9 @@ describe("normalizeCorrectionSettings — materialized built-in never steals a s
     expect(translate).toBeDefined();
     expect(translate?.isBuiltIn).toBe(true);
     expect(translate?.hotkey).toBe("");
-    expect(translate?.systemPrompt).toBe(DEFAULT_TRANSLATE_PRESET_PROMPT.trim());
+    expect(translate?.systemPrompt).toBe(
+      DEFAULT_TRANSLATE_PRESET_PROMPT.trim(),
+    );
     // 6 built-ins + the one stored custom preset — blanking drops no preset.
     expect(result.presets).toHaveLength(7);
   });

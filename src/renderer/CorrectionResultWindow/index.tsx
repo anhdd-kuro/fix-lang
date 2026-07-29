@@ -59,7 +59,7 @@ export const CorrectionResultWindow = () => {
         </p>
       </section>
 
-      <footer className="flex justify-end gap-2">
+      <footer className="flex justify-end gap-4">
         <Button
           type="button"
           variant="outline"
@@ -68,7 +68,13 @@ export const CorrectionResultWindow = () => {
         >
           {t("common.close")}
         </Button>
-        <CopyButton value={payload.text} label={t("common.copy")} showLabel />
+        <CopyButton
+          value={payload.text}
+          label={t("common.copy")}
+          variant="primary"
+          className="rounded px-3 py-1.5 text-sm"
+          showLabel
+        />
       </footer>
     </main>
   );
@@ -79,6 +85,6 @@ if (container) {
   createRoot(container).render(
     <I18nProvider>
       <CorrectionResultWindow />
-    </I18nProvider>
+    </I18nProvider>,
   );
 }

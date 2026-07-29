@@ -81,7 +81,10 @@ const PresetHotkeyChips = ({
 // never translated. Only the surrounding labels/buttons/messages below go
 // through `t()`.
 
-export const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> => ({
+export const makeBuiltInPresetDefaults = (): Record<
+  string,
+  CorrectionPreset
+> => ({
   [DEFAULT_CORRECTION_PRESET_ID]: {
     id: DEFAULT_CORRECTION_PRESET_ID,
     name: "Correction",
@@ -97,6 +100,7 @@ export const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> =>
     systemPrompt: DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
     model: "", // empty = inherit the global default model
     isBuiltIn: true,
+    reasoning: "minimal",
   },
   [DEFAULT_SUMMARIZE_PRESET_ID]: {
     id: DEFAULT_SUMMARIZE_PRESET_ID,
@@ -121,6 +125,7 @@ export const makeBuiltInPresetDefaults = (): Record<string, CorrectionPreset> =>
     systemPrompt: DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
     model: "", // empty = inherit the global default model
     isBuiltIn: true,
+    reasoning: "minimal",
   },
   [DEFAULT_STRUCTURED_TEXT_PRESET_ID]: {
     id: DEFAULT_STRUCTURED_TEXT_PRESET_ID,
@@ -217,7 +222,8 @@ export const SettingCorrection: React.FC = () => {
       setIsLoading(true);
       const [settings, globalReasoning] = await Promise.all([
         window.electronAPI.getCorrectSettings(),
-        window.electronAPI.getDefaultReasoningEffort?.() ?? Promise.resolve(undefined),
+        window.electronAPI.getDefaultReasoningEffort?.() ??
+          Promise.resolve(undefined),
       ]);
       if (globalReasoning) setGlobalReasoningEffort(globalReasoning);
       setCorrectionSettings(settings);
@@ -318,9 +324,8 @@ export const SettingCorrection: React.FC = () => {
       return;
     }
 
-    // Built-in defaults omit reasoning; spreading them alone would retain any
-    // user override (merge keeps omitted keys). Explicitly clear so Reset
-    // restores provider-default behavior.
+    // Explicitly include reasoning so Reset restores the built-in effort even
+    // when the current preset carries a user override.
     updatePreset(activePreset.id, {
       ...defaultPreset,
       reasoning: defaultPreset.reasoning,
@@ -453,9 +458,7 @@ export const SettingCorrection: React.FC = () => {
                         <PresetHotkeyChips
                           hotkey={preset.hotkey}
                           selected={isSelected}
-                          emptyLabel={t(
-                            "settings.correction.noHotkeyAssigned",
-                          )}
+                          emptyLabel={t("settings.correction.noHotkeyAssigned")}
                         />
                       </div>
                       <span className="shrink-0 whitespace-nowrap rounded-full bg-secondary px-2 py-1 text-[11px] text-card-foreground">
@@ -595,7 +598,9 @@ export const SettingCorrection: React.FC = () => {
                 variant="ghost"
                 className="rounded-md px-2 py-1 text-xs text-primary"
                 onClick={() =>
-                  updatePreset(activePreset.id, { reasoning: "provider-default" })
+                  updatePreset(activePreset.id, {
+                    reasoning: "provider-default",
+                  })
                 }
               >
                 {t("settings.correction.reasoning.useGlobal")}

@@ -13,7 +13,7 @@ type FindingKind =
   | "native JSX"
   | "native JSX alias"
   | "namespaced native JSX"
-  | "createElement(\"button\")"
+  | 'createElement("button")'
   | "PrimaryButton";
 
 type Finding = {
@@ -145,9 +145,8 @@ type AliasScope = {
   parent: AliasScope | null;
 };
 
-const isFunctionScopeNode = (
-  node: ts.Node,
-): node is ts.SignatureDeclaration => ts.isFunctionLike(node);
+const isFunctionScopeNode = (node: ts.Node): node is ts.SignatureDeclaration =>
+  ts.isFunctionLike(node);
 
 const isLoopScopeNode = (
   node: ts.Node,
@@ -173,7 +172,10 @@ const unwrapExpression = (expression: ts.Expression): ts.Expression => {
 const buildLexicalAliasResolver = (
   sourceFile: ts.SourceFile,
 ): {
-  resolvesToButton: (expression: ts.JsxTagNameExpression, atNode: ts.Node) => boolean;
+  resolvesToButton: (
+    expression: ts.JsxTagNameExpression,
+    atNode: ts.Node,
+  ) => boolean;
   resolvesToCreateElement: (
     expression: ts.LeftHandSideExpression,
     atNode: ts.Node,
@@ -262,14 +264,15 @@ const buildLexicalAliasResolver = (
         const propertyNameNode =
           element.propertyName ??
           (ts.isIdentifier(element.name) ? element.name : null);
-        const propertyName =
-          ts.isArrayBindingPattern(name)
-            ? String(index)
-            : propertyNameNode
-              ? staticPropertyName(propertyNameNode)
-              : null;
+        const propertyName = ts.isArrayBindingPattern(name)
+          ? String(index)
+          : propertyNameNode
+            ? staticPropertyName(propertyNameNode)
+            : null;
         const propertySource =
-          bindingSource && element.dotDotDotToken && ts.isObjectBindingPattern(name)
+          bindingSource &&
+          element.dotDotDotToken &&
+          ts.isObjectBindingPattern(name)
             ? {
                 excludedPropertyNames: [...excludedPropertyNames],
                 kind: "object-rest" as const,
@@ -281,7 +284,7 @@ const buildLexicalAliasResolver = (
                   propertyName,
                   source: bindingSource,
                 }
-            : null;
+              : null;
         if (!element.dotDotDotToken && propertyName !== null) {
           excludedPropertyNames.push(propertyName);
         }
@@ -523,12 +526,12 @@ const buildLexicalAliasResolver = (
     visited.add(binding.declaration);
     return Boolean(
       bindingState.bindingSource &&
-        resolvesBindingSourceToKind(
-          bindingState.bindingSource,
-          bindingState.evaluationNode,
-          importedKind,
-          visited,
-        ),
+      resolvesBindingSourceToKind(
+        bindingState.bindingSource,
+        bindingState.evaluationNode,
+        importedKind,
+        visited,
+      ),
     );
   }
 
@@ -620,12 +623,12 @@ const buildLexicalAliasResolver = (
     );
     return Boolean(
       propertyValue &&
-        resolvesExpressionToKind(
-          propertyValue,
-          propertyValue,
-          importedKind,
-          visited,
-        ),
+      resolvesExpressionToKind(
+        propertyValue,
+        propertyValue,
+        importedKind,
+        visited,
+      ),
     );
   }
 
@@ -651,12 +654,12 @@ const buildLexicalAliasResolver = (
       );
       return Boolean(
         sourceExpression &&
-          resolvesExpressionToKind(
-            sourceExpression,
-            sourceExpression,
-            importedKind,
-            visited,
-          ),
+        resolvesExpressionToKind(
+          sourceExpression,
+          sourceExpression,
+          importedKind,
+          visited,
+        ),
       );
     }
     if (bindingSource.kind === "object-rest") {
@@ -684,12 +687,12 @@ const buildLexicalAliasResolver = (
     );
     return Boolean(
       sourceExpression &&
-        resolvesExpressionToKind(
-          sourceExpression,
-          sourceExpression,
-          importedKind,
-          visited,
-        ),
+      resolvesExpressionToKind(
+        sourceExpression,
+        sourceExpression,
+        importedKind,
+        visited,
+      ),
     );
   }
 
@@ -765,10 +768,7 @@ const buildLexicalAliasResolver = (
       return unwrappedExpression;
     }
     const bindingState = bindingStateAt(binding, atNode);
-    if (
-      bindingState.importedKind ||
-      visited.has(binding.declaration)
-    ) {
+    if (bindingState.importedKind || visited.has(binding.declaration)) {
       return bindingState.importedKind ? unwrappedExpression : null;
     }
     if (!bindingState.bindingSource) {
@@ -899,10 +899,10 @@ const buildLexicalAliasResolver = (
       return !sourceExpression ||
         isExplicitUndefinedExpression(sourceExpression, sourceExpression)
         ? resolveExpressionToBindingValue(
-          bindingSource.initializer,
-          bindingSource.initializer,
-          visited,
-        )
+            bindingSource.initializer,
+            bindingSource.initializer,
+            visited,
+          )
         : sourceExpression;
     }
     if (bindingSource.kind === "object-rest") {
@@ -932,7 +932,7 @@ const buildLexicalAliasResolver = (
     );
     return Boolean(
       sourceExpression &&
-        resolvesToNativeExpression(sourceExpression, sourceExpression, visited),
+      resolvesToNativeExpression(sourceExpression, sourceExpression, visited),
     );
   }
 
@@ -949,11 +949,11 @@ const buildLexicalAliasResolver = (
     visited.add(binding.declaration);
     return Boolean(
       bindingState.bindingSource &&
-        resolvesBindingSourceToNativeTag(
-          bindingState.bindingSource,
-          bindingState.evaluationNode,
-          visited,
-        ),
+      resolvesBindingSourceToNativeTag(
+        bindingState.bindingSource,
+        bindingState.evaluationNode,
+        visited,
+      ),
     );
   }
 
@@ -1000,12 +1000,12 @@ const buildLexicalAliasResolver = (
       : null;
     return Boolean(
       sourceExpression &&
-        ts.isIdentifier(sourceExpression) &&
-        resolvesToReactNamespace(
-          sourceExpression.text,
-          sourceExpression,
-          visited,
-        ),
+      ts.isIdentifier(sourceExpression) &&
+      resolvesToReactNamespace(
+        sourceExpression.text,
+        sourceExpression,
+        visited,
+      ),
     );
   };
 
@@ -1025,11 +1025,11 @@ const buildLexicalAliasResolver = (
       return (
         Boolean(
           bindingSource.source &&
-            resolvesBindingSourceToCreateElement(
-              bindingSource.source,
-              atNode,
-              new Set(visited),
-            ),
+          resolvesBindingSourceToCreateElement(
+            bindingSource.source,
+            atNode,
+            new Set(visited),
+          ),
         ) ||
         resolvesToCreateElement(
           bindingSource.initializer,
@@ -1041,9 +1041,7 @@ const buildLexicalAliasResolver = (
     if (bindingSource.kind === "object-rest") {
       return false;
     }
-    if (
-      bindingSource.propertyName === "createElement"
-    ) {
+    if (bindingSource.propertyName === "createElement") {
       const namespaceExpression = resolveBindingSourceToExpression(
         bindingSource.source,
         atNode,
@@ -1068,11 +1066,7 @@ const buildLexicalAliasResolver = (
     );
     return Boolean(
       sourceExpression &&
-        resolvesToCreateElement(
-          sourceExpression,
-          sourceExpression,
-          visited,
-        ),
+      resolvesToCreateElement(sourceExpression, sourceExpression, visited),
     );
   }
 
@@ -1097,11 +1091,11 @@ const buildLexicalAliasResolver = (
       visited.add(binding.declaration);
       return Boolean(
         bindingState.bindingSource &&
-          resolvesBindingSourceToCreateElement(
-            bindingState.bindingSource,
-            bindingState.evaluationNode,
-            visited,
-          ),
+        resolvesBindingSourceToCreateElement(
+          bindingState.bindingSource,
+          bindingState.evaluationNode,
+          visited,
+        ),
       );
     }
     if (
@@ -1123,10 +1117,10 @@ const buildLexicalAliasResolver = (
         : null;
       if (
         ts.isIdentifier(namespace) &&
-          property &&
-          ts.isStringLiteral(property) &&
-          property.text === "createElement" &&
-          resolvesToReactNamespace(namespace.text, atNode, visited)
+        property &&
+        ts.isStringLiteral(property) &&
+        property.text === "createElement" &&
+        resolvesToReactNamespace(namespace.text, atNode, visited)
       ) {
         return true;
       }
@@ -1141,11 +1135,7 @@ const buildLexicalAliasResolver = (
       );
       return Boolean(
         propertyValue &&
-          resolvesToCreateElement(
-            propertyValue,
-            propertyValue,
-            visited,
-          ),
+        resolvesToCreateElement(propertyValue, propertyValue, visited),
       );
     }
     return false;
@@ -1180,13 +1170,13 @@ const buildLexicalAliasResolver = (
         : null;
       return Boolean(
         argument &&
-          (ts.isStringLiteral(argument) || ts.isNumericLiteral(argument)) &&
-          resolvesObjectPropertyToNativeTag(
-            unwrappedExpression.expression,
-            argument.text,
-            atNode,
-            visited,
-          ),
+        (ts.isStringLiteral(argument) || ts.isNumericLiteral(argument)) &&
+        resolvesObjectPropertyToNativeTag(
+          unwrappedExpression.expression,
+          argument.text,
+          atNode,
+          visited,
+        ),
       );
     }
     return false;
@@ -1213,11 +1203,7 @@ const buildLexicalAliasResolver = (
 
   return {
     resolvesToButton: (expression, atNode) =>
-      resolvesComponent(
-        expression,
-        atNode,
-        "button-component",
-      ),
+      resolvesComponent(expression, atNode, "button-component"),
     resolvesToCreateElement,
     resolvesToNativeProperty: (expression, atNode) =>
       ts.isPropertyAccessExpression(expression) &&
@@ -1229,16 +1215,14 @@ const buildLexicalAliasResolver = (
     resolvesToNativeExpression,
     resolvesToNativeTag,
     resolvesToPrimaryButton: (expression, atNode) =>
-      resolvesComponent(
-        expression,
-        atNode,
-        "primary-button-component",
-      ),
+      resolvesComponent(expression, atNode, "primary-button-component"),
   };
 };
 
-const normalizedSourceText = (sourceFile: ts.SourceFile, node: ts.Node): string =>
-  node.getText(sourceFile).replace(/\s+/g, " ").trim();
+const normalizedSourceText = (
+  sourceFile: ts.SourceFile,
+  node: ts.Node,
+): string => node.getText(sourceFile).replace(/\s+/g, " ").trim();
 
 const componentIdentity = (node: ts.Node): string => {
   let current: ts.Node | undefined = node;
@@ -1288,16 +1272,23 @@ const semanticIdentityFor = (
 ): string => {
   const attributes = opening.attributes.properties.map((property) =>
     ts.isJsxSpreadAttribute(property)
-      ? { kind: "spread", value: normalizedSourceText(sourceFile, property.expression) }
+      ? {
+          kind: "spread",
+          value: normalizedSourceText(sourceFile, property.expression),
+        }
       : {
           kind: "attribute",
           name: property.name.getText(sourceFile),
           value: attributeValue(sourceFile, property),
         },
   );
-  const namedAttributes = opening.attributes.properties.filter(ts.isJsxAttribute);
+  const namedAttributes = opening.attributes.properties.filter(
+    ts.isJsxAttribute,
+  );
   const findAttribute = (name: string): ts.JsxAttribute | undefined =>
-    namedAttributes.find((attribute) => attribute.name.getText(sourceFile) === name);
+    namedAttributes.find(
+      (attribute) => attribute.name.getText(sourceFile) === name,
+    );
   const readAttribute = (name: string): string | null => {
     const attribute = findAttribute(name);
     return attribute ? attributeValue(sourceFile, attribute) : null;
@@ -1309,7 +1300,9 @@ const semanticIdentityFor = (
       value: attributeValue(sourceFile, attribute),
     }));
   const aria = namedAttributes
-    .filter((attribute) => attribute.name.getText(sourceFile).startsWith("aria-"))
+    .filter((attribute) =>
+      attribute.name.getText(sourceFile).startsWith("aria-"),
+    )
     .map(
       (attribute) =>
         `${attribute.name.getText(sourceFile)}=${attributeValue(sourceFile, attribute)}`,
@@ -1336,7 +1329,9 @@ const semanticIdentityFor = (
       ref: readAttribute("ref"),
       spreadProps: opening.attributes.properties
         .filter(ts.isJsxSpreadAttribute)
-        .map((property) => normalizedSourceText(sourceFile, property.expression)),
+        .map((property) =>
+          normalizedSourceText(sourceFile, property.expression),
+        ),
     },
     geometryClasses: readAttribute("className"),
     sourcePreview: JSON.stringify(semanticContract),
@@ -1350,7 +1345,11 @@ const scanSource = (file: string, source: string): SourceScanResult => {
   const buttonConsumers: ButtonConsumer[] = [];
   const aliasResolver = buildLexicalAliasResolver(sourceFile);
 
-  const addFinding = (node: ts.Node, kind: FindingKind, detail: string): void => {
+  const addFinding = (
+    node: ts.Node,
+    kind: FindingKind,
+    detail: string,
+  ): void => {
     findings.push({ file, line: lineOf(sourceFile, node), kind, detail });
   };
 
@@ -1399,7 +1398,9 @@ const scanSource = (file: string, source: string): SourceScanResult => {
     const bindings = statement.importClause.namedBindings;
     if (bindings && ts.isNamedImports(bindings)) {
       for (const element of bindings.elements) {
-        if ((element.propertyName?.text ?? element.name.text) === "PrimaryButton") {
+        if (
+          (element.propertyName?.text ?? element.name.text) === "PrimaryButton"
+        ) {
           addFinding(element, "PrimaryButton", "PrimaryButton import");
         }
       }
@@ -1431,7 +1432,11 @@ const scanSource = (file: string, source: string): SourceScanResult => {
           addFinding(opening, "native JSX alias", `<${tagName.text}>`);
         }
       } else if (aliasResolver.resolvesToNativeProperty(tagName, opening)) {
-        addFinding(opening, "namespaced native JSX", `<${tagName.getText(sourceFile)}>`);
+        addFinding(
+          opening,
+          "namespaced native JSX",
+          `<${tagName.getText(sourceFile)}>`,
+        );
       }
       if (aliasResolver.resolvesToButton(tagName, opening)) {
         addButtonConsumer(node, opening);
@@ -1466,11 +1471,8 @@ const scanSource = (file: string, source: string): SourceScanResult => {
         node.arguments[0],
         node.arguments[0],
       );
-      if (
-        isCreateElement &&
-        nativeArgument
-      ) {
-        addFinding(node, "createElement(\"button\")", node.getText(sourceFile));
+      if (isCreateElement && nativeArgument) {
+        addFinding(node, 'createElement("button")', node.getText(sourceFile));
       }
     }
 
@@ -1505,7 +1507,10 @@ const scanRenderer = async (): Promise<ScanResult> => {
   );
   const aggregate = results.reduce<SourceScanResult>(
     (aggregate, result) => ({
-      buttonConsumers: [...aggregate.buttonConsumers, ...result.buttonConsumers],
+      buttonConsumers: [
+        ...aggregate.buttonConsumers,
+        ...result.buttonConsumers,
+      ],
       findings: [...aggregate.findings, ...result.findings],
       nativeLeaves: [...aggregate.nativeLeaves, ...result.nativeLeaves],
     }),
@@ -1519,98 +1524,742 @@ const scanRenderer = async (): Promise<ScanResult> => {
 };
 
 const consumerContractRows = [
-  ["BTN-001", "SITE-08e5c95965d6039a-01", "LIVE-08e5c95965d6039a", "src/renderer/components/about/AboutPanel.tsx", 47, 13],
-  ["BTN-002", "SITE-ef98536bd53f7615-01", "LIVE-ef98536bd53f7615", "src/renderer/components/about/UserGuidePanel.tsx", 231, 9],
-  ["BTN-003", "SITE-52877eaef757f7ef-01", "LIVE-52877eaef757f7ef", "src/renderer/components/about/UserGuidePanel.tsx", 306, 11],
-  ["BTN-004", "SITE-7e87df07aa36837d-01", "LIVE-7e87df07aa36837d", "src/renderer/components/about/UserGuidePanel.tsx", 312, 11],
-  ["BTN-005", "SITE-d625f04039490f68-01", "LIVE-d625f04039490f68", "src/renderer/components/about/UserGuidePanel.tsx", 327, 17],
-  ["BTN-006", "SITE-b3521eab8d34cca7-01", "LIVE-b3521eab8d34cca7", "src/renderer/components/about/UserGuidePanel.tsx", 345, 17],
-  ["BTN-007", "SITE-d29b2d638d60e13e-01", "LIVE-d29b2d638d60e13e", "src/renderer/components/about/UserGuidePanel.tsx", 371, 17],
-  ["BTN-008", "SITE-8e1c5ad13fa650d3-01", "LIVE-8e1c5ad13fa650d3", "src/renderer/components/CopyButton.tsx", 39, 5],
-  ["BTN-009", "SITE-ffaaad62c6e612d8-01", "LIVE-ffaaad62c6e612d8", "src/renderer/components/Dialog.tsx", 62, 11],
-  ["BTN-010", "SITE-8264f7f6bcd8085d-01", "LIVE-8264f7f6bcd8085d", "src/renderer/components/HistoryPanel.tsx", 89, 11],
-  ["BTN-011", "SITE-8975613823778fc5-01", "LIVE-8975613823778fc5", "src/renderer/components/HistoryPanel.tsx", 97, 13],
-  ["BTN-012", "SITE-5cbddd24a7826d4b-01", "LIVE-5cbddd24a7826d4b", "src/renderer/components/HistoryReviewModal.tsx", 81, 11],
-  ["BTN-013", "SITE-5961fe9e2b8ba32a-01", "LIVE-5961fe9e2b8ba32a", "src/renderer/components/HotkeyInput.tsx", 206, 9],
-  ["BTN-014", "SITE-97e7bb1c3ab4305f-01", "LIVE-97e7bb1c3ab4305f", "src/renderer/components/KeyBinding.tsx", 28, 7],
-  ["BTN-015", "SITE-700a4122e599ffe1-01", "LIVE-700a4122e599ffe1", "src/renderer/components/LogsPanel.tsx", 335, 9],
-  ["BTN-016", "SITE-501f82e78a2b09c9-01", "LIVE-501f82e78a2b09c9", "src/renderer/components/LogsPanel.tsx", 342, 9],
-  ["BTN-017", "SITE-29f318d8be62f1d9-01", "LIVE-29f318d8be62f1d9", "src/renderer/components/LogsPanel.tsx", 349, 9],
-  ["BTN-018", "SITE-7197db62a76969f7-01", "LIVE-7197db62a76969f7", "src/renderer/components/ModelManagerDialog.tsx", 195, 11],
-  ["BTN-019", "SITE-67f4724e126c10d4-01", "LIVE-67f4724e126c10d4", "src/renderer/components/ModelManagerDialog.tsx", 207, 11],
-  ["BTN-020", "SITE-04748a61b30e3ef8-01", "LIVE-04748a61b30e3ef8", "src/renderer/components/ModelManagerDialog.tsx", 218, 11],
-  ["BTN-021", "SITE-7c4301fb38c9808d-01", "LIVE-7c4301fb38c9808d", "src/renderer/components/ModelManagerDialog.tsx", 230, 13],
-  ["BTN-022", "SITE-fc298046a960042d-01", "LIVE-fc298046a960042d", "src/renderer/components/ModelManagerDialog.tsx", 256, 19],
-  ["BTN-023", "SITE-c09e1d790b99f3f9-01", "LIVE-c09e1d790b99f3f9", "src/renderer/components/ModelManagerDialog.tsx", 276, 27],
-  ["BTN-024", "SITE-e25d0c965e5599f3-01", "LIVE-e25d0c965e5599f3", "src/renderer/components/ModelManagerDialog.tsx", 330, 27],
-  ["BTN-025", "SITE-5526ee17ec81f974-01", "LIVE-5526ee17ec81f974", "src/renderer/components/ModelManagerDialog.tsx", 405, 17],
-  ["BTN-026", "SITE-73361c5a5c8f4108-01", "LIVE-73361c5a5c8f4108", "src/renderer/components/ModelManagerDialog.tsx", 412, 17],
-  ["BTN-027", "SITE-9bea8fb78af9d78f-01", "LIVE-9bea8fb78af9d78f", "src/renderer/components/ModelSelect.tsx", 412, 9],
-  ["BTN-028", "SITE-38539922a7e16c77-01", "LIVE-38539922a7e16c77", "src/renderer/components/ModelSelect.tsx", 440, 11],
-  ["BTN-029", "SITE-edf192add08f8fcb-01", "LIVE-edf192add08f8fcb", "src/renderer/components/ModelsPanel.tsx", 161, 15],
-  ["BTN-030", "SITE-eca35f045362c69d-01", "LIVE-eca35f045362c69d", "src/renderer/components/MultiSelect.tsx", 94, 7],
-  ["BTN-031", "SITE-73a48ff1f5f9296f-01", "LIVE-73a48ff1f5f9296f", "src/renderer/components/ProfileManager.tsx", 256, 11],
-  ["BTN-032", "SITE-e99c02ce9aba9550-01", "LIVE-e99c02ce9aba9550", "src/renderer/components/ProfileManager.tsx", 264, 11],
-  ["BTN-033", "SITE-7c9f643148cf3085-01", "LIVE-7c9f643148cf3085", "src/renderer/components/ProfileManager.tsx", 318, 23],
-  ["BTN-034", "SITE-0a1b7ac2d9c1f374-01", "LIVE-0a1b7ac2d9c1f374", "src/renderer/components/ProfileManager.tsx", 326, 21],
-  ["BTN-035", "SITE-6da333e1baf89565-01", "LIVE-6da333e1baf89565", "src/renderer/components/ProfileManager.tsx", 335, 23],
-  ["BTN-036", "SITE-34a9863fc49e6b83-01", "LIVE-34a9863fc49e6b83", "src/renderer/components/ProfileManager.tsx", 395, 13],
-  ["BTN-037", "SITE-826dace3c3bc2a71-01", "LIVE-826dace3c3bc2a71", "src/renderer/components/ProfileManager.tsx", 403, 13],
-  ["BTN-038", "SITE-ea57f4d3fc631133-01", "LIVE-ea57f4d3fc631133", "src/renderer/components/ProfileManager.tsx", 439, 13],
-  ["BTN-039", "SITE-0a4e93dbd86acef1-01", "LIVE-0a4e93dbd86acef1", "src/renderer/components/ProfileManager.tsx", 447, 13],
-  ["BTN-040", "SITE-7e4c2589c888f87d-01", "LIVE-7e4c2589c888f87d", "src/renderer/components/ProfileManager.tsx", 483, 13],
-  ["BTN-041", "SITE-d89fe00914eba1d2-01", "LIVE-d89fe00914eba1d2", "src/renderer/components/ProfileManager.tsx", 491, 13],
-  ["BTN-042", "SITE-d971b19360ec4666-01", "LIVE-d971b19360ec4666", "src/renderer/components/SearchInput.tsx", 95, 9],
-  ["BTN-043", "SITE-19310a96f693ae27-01", "LIVE-19310a96f693ae27", "src/renderer/components/SegmentedControl.tsx", 62, 11],
-  ["BTN-044", "SITE-9568e1f27af6a345-01", "LIVE-9568e1f27af6a345", "src/renderer/components/SettingAppearance.tsx", 87, 17],
-  ["BTN-045", "SITE-bc36161d674c7650-01", "LIVE-bc36161d674c7650", "src/renderer/components/SettingCorrection.tsx", 414, 13],
-  ["BTN-046", "SITE-6dd70efb010592d0-01", "LIVE-6dd70efb010592d0", "src/renderer/components/SettingCorrection.tsx", 428, 19],
-  ["BTN-047", "SITE-31930ebb84cc797f-01", "LIVE-31930ebb84cc797f", "src/renderer/components/SettingCorrection.tsx", 486, 15],
-  ["BTN-048", "SITE-be46cc9ab1065d84-01", "LIVE-be46cc9ab1065d84", "src/renderer/components/SettingCorrection.tsx", 494, 15],
-  ["BTN-049", "SITE-6b4e0c40672f1a9f-01", "LIVE-6b4e0c40672f1a9f", "src/renderer/components/SettingCorrection.tsx", 503, 15],
-  ["BTN-050", "SITE-d092e1365d74f58e-01", "LIVE-d092e1365d74f58e", "src/renderer/components/SettingCorrection.tsx", 560, 15],
-  ["BTN-051", "SITE-11dc9ddf64f0d8e1-01", "LIVE-11dc9ddf64f0d8e1", "src/renderer/components/SettingCorrection.tsx", 593, 15],
-  ["BTN-052", "SITE-7ddd61f39a4603c1-01", "LIVE-7ddd61f39a4603c1", "src/renderer/components/SettingCorrection.tsx", 632, 9],
-  ["BTN-053", "SITE-07f2a8ba23e043f1-01", "LIVE-07f2a8ba23e043f1", "src/renderer/components/SettingGeneral.tsx", 736, 11],
-  ["BTN-054", "SITE-c4546c1f1b582275-01", "LIVE-c4546c1f1b582275", "src/renderer/components/SettingGeneral.tsx", 749, 13],
-  ["BTN-055", "SITE-f528b6225f5af211-01", "LIVE-f528b6225f5af211", "src/renderer/components/SettingGeneral.tsx", 783, 15],
-  ["BTN-056", "SITE-d3d535844d3ea12d-01", "LIVE-d3d535844d3ea12d", "src/renderer/components/SettingGeneral.tsx", 791, 15],
-  ["BTN-057", "SITE-6174e716401ff26e-01", "LIVE-6174e716401ff26e", "src/renderer/components/SettingGeneral.tsx", 862, 11],
-  ["BTN-058", "SITE-9469c19cdb9b59e6-01", "LIVE-9469c19cdb9b59e6", "src/renderer/components/SettingGeneral.tsx", 888, 11],
-  ["BTN-059", "SITE-9366f8ce82dfacc2-01", "LIVE-9366f8ce82dfacc2", "src/renderer/components/SettingGeneral.tsx", 964, 9],
-  ["BTN-060", "SITE-f3c8ca23590954fc-01", "LIVE-f3c8ca23590954fc", "src/renderer/components/SettingPromptGen.tsx", 269, 15],
-  ["BTN-061", "SITE-f3f343d2e0482049-01", "LIVE-f3f343d2e0482049", "src/renderer/components/SettingPromptGen.tsx", 289, 15],
-  ["BTN-062", "SITE-b3f4857089946438-01", "LIVE-b3f4857089946438", "src/renderer/components/SettingPromptGen.tsx", 364, 9],
-  ["BTN-063", "SITE-69e4e918b6516bfe-01", "LIVE-69e4e918b6516bfe", "src/renderer/components/SettingPromptGen.tsx", 370, 9],
-  ["BTN-064", "SITE-ccaa63ee68a2a8a1-01", "LIVE-ccaa63ee68a2a8a1", "src/renderer/components/SettingsIcon.tsx", 28, 5],
-  ["BTN-065", "SITE-426eacdcf8f96389-01", "LIVE-426eacdcf8f96389", "src/renderer/components/SettingsModal.tsx", 197, 11],
-  ["BTN-066", "SITE-131332cadfcd6d7c-01", "LIVE-131332cadfcd6d7c", "src/renderer/components/SettingsModal.tsx", 239, 17],
-  ["BTN-067", "SITE-c0f45b98e17a7b20-01", "LIVE-c0f45b98e17a7b20", "src/renderer/components/SettingTabBtn.tsx", 31, 5],
-  ["BTN-068", "SITE-f63727c376cb5050-01", "LIVE-f63727c376cb5050", "src/renderer/components/SettingUpdates.tsx", 308, 11],
-  ["BTN-069", "SITE-31d2760b23787e23-01", "LIVE-31d2760b23787e23", "src/renderer/components/SettingUpdates.tsx", 333, 11],
-  ["BTN-070", "SITE-91ba4b4f640490e2-01", "LIVE-91ba4b4f640490e2", "src/renderer/components/SettingUpdates.tsx", 361, 13],
-  ["BTN-071", "SITE-663c55705a5cc3f0-01", "LIVE-663c55705a5cc3f0", "src/renderer/components/SettingUpdates.tsx", 381, 15],
-  ["BTN-072", "SITE-43414753ace2ab81-01", "LIVE-43414753ace2ab81", "src/renderer/components/SettingUpdates.tsx", 430, 15],
-  ["BTN-073", "SITE-ad68949b3a58f46b-01", "LIVE-ad68949b3a58f46b", "src/renderer/components/SettingUpdates.tsx", 447, 15],
-  ["BTN-074", "SITE-c11f9621b2e3d72c-01", "LIVE-c11f9621b2e3d72c", "src/renderer/components/SettingUpdates.tsx", 462, 15],
-  ["BTN-075", "SITE-f4ccea28d324b33f-01", "LIVE-f4ccea28d324b33f", "src/renderer/components/SettingUpdates.tsx", 475, 13],
-  ["BTN-076", "SITE-fbcd67d29270d287-01", "LIVE-fbcd67d29270d287", "src/renderer/components/SettingUpdates.tsx", 491, 13],
-  ["BTN-077", "SITE-bfa98039be039f30-01", "LIVE-bfa98039be039f30", "src/renderer/components/SettingUpdates.tsx", 587, 13],
-  ["BTN-078", "SITE-5815552ee2096fa5-01", "LIVE-5815552ee2096fa5", "src/renderer/components/SettingUpdates.tsx", 616, 13],
-  ["BTN-079", "SITE-8d81c1044d88aa9b-01", "LIVE-8d81c1044d88aa9b", "src/renderer/components/SettingUpdates.tsx", 628, 13],
-  ["BTN-080", "SITE-d2dc6b542709b453-01", "LIVE-d2dc6b542709b453", "src/renderer/components/TrashButton.tsx", 23, 5],
-  ["BTN-081", "SITE-57f775bd4fae66ec-01", "LIVE-57f775bd4fae66ec", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 109, 11],
-  ["BTN-082", "SITE-e630a70d66e34af0-01", "LIVE-e630a70d66e34af0", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 140, 13],
-  ["BTN-083", "SITE-faf927e806407b15-01", "LIVE-faf927e806407b15", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 151, 9],
-  ["BTN-084", "SITE-3c1c72456ff99197-01", "LIVE-3c1c72456ff99197", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 111, 11],
-  ["BTN-085", "SITE-eb9419e711683c9d-01", "LIVE-eb9419e711683c9d", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 145, 13],
-  ["BTN-086", "SITE-aff47f3a90bf9c5b-01", "LIVE-aff47f3a90bf9c5b", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 158, 9],
-  ["BTN-087", "SITE-cda3ee060bf9b96d-01", "LIVE-cda3ee060bf9b96d", "src/renderer/components/usage/UsagePanel.tsx", 102, 11],
-  ["BTN-088", "SITE-e27f5c86266c2ef9-01", "LIVE-e27f5c86266c2ef9", "src/renderer/components/usage/UsagePanel.tsx", 128, 13],
-  ["BTN-089", "SITE-22b46580f1bd13d0-01", "LIVE-22b46580f1bd13d0", "src/renderer/CorrectionResultWindow/index.tsx", 63, 9],
-  ["BTN-090", "SITE-0186137c312ed90a-01", "LIVE-0186137c312ed90a", "src/renderer/MainWindow/App.tsx", 344, 15],
-  ["BTN-091", "SITE-391b0616cadac9b3-01", "LIVE-391b0616cadac9b3", "src/renderer/TrayWindow/components/TrayCreditBalance.tsx", 66, 5],
-  ["BTN-092", "SITE-022a9db6eed9fbc4-01", "LIVE-022a9db6eed9fbc4", "src/renderer/TrayWindow/components/TrayToolbar.tsx", 23, 3],
+  [
+    "BTN-001",
+    "SITE-08e5c95965d6039a-01",
+    "LIVE-08e5c95965d6039a",
+    "src/renderer/components/about/AboutPanel.tsx",
+    47,
+    13,
+  ],
+  [
+    "BTN-002",
+    "SITE-ef98536bd53f7615-01",
+    "LIVE-ef98536bd53f7615",
+    "src/renderer/components/about/UserGuidePanel.tsx",
+    242,
+    9,
+  ],
+  [
+    "BTN-003",
+    "SITE-52877eaef757f7ef-01",
+    "LIVE-52877eaef757f7ef",
+    "src/renderer/components/about/UserGuidePanel.tsx",
+    318,
+    11,
+  ],
+  [
+    "BTN-004",
+    "SITE-7e87df07aa36837d-01",
+    "LIVE-3bc4fcee3f1b9bd6",
+    "src/renderer/components/about/UserGuidePanel.tsx",
+    324,
+    11,
+  ],
+  [
+    "BTN-005",
+    "SITE-d625f04039490f68-01",
+    "LIVE-d625f04039490f68",
+    "src/renderer/components/about/UserGuidePanel.tsx",
+    339,
+    17,
+  ],
+  [
+    "BTN-006",
+    "SITE-b3521eab8d34cca7-01",
+    "LIVE-b3521eab8d34cca7",
+    "src/renderer/components/about/UserGuidePanel.tsx",
+    357,
+    17,
+  ],
+  [
+    "BTN-007",
+    "SITE-d29b2d638d60e13e-01",
+    "LIVE-d29b2d638d60e13e",
+    "src/renderer/components/about/UserGuidePanel.tsx",
+    386,
+    17,
+  ],
+  [
+    "BTN-008",
+    "SITE-8e1c5ad13fa650d3-01",
+    "LIVE-dfa106df35019ef0",
+    "src/renderer/components/CopyButton/index.tsx",
+    44,
+    5,
+  ],
+  [
+    "BTN-009",
+    "SITE-ffaaad62c6e612d8-01",
+    "LIVE-ffaaad62c6e612d8",
+    "src/renderer/components/Dialog.tsx",
+    62,
+    11,
+  ],
+  [
+    "BTN-010",
+    "SITE-8264f7f6bcd8085d-01",
+    "LIVE-8264f7f6bcd8085d",
+    "src/renderer/components/HistoryPanel.tsx",
+    89,
+    11,
+  ],
+  [
+    "BTN-011",
+    "SITE-8975613823778fc5-01",
+    "LIVE-8975613823778fc5",
+    "src/renderer/components/HistoryPanel.tsx",
+    97,
+    13,
+  ],
+  [
+    "BTN-012",
+    "SITE-5cbddd24a7826d4b-01",
+    "LIVE-5cbddd24a7826d4b",
+    "src/renderer/components/HistoryReviewModal.tsx",
+    81,
+    11,
+  ],
+  [
+    "BTN-013",
+    "SITE-5961fe9e2b8ba32a-01",
+    "LIVE-5961fe9e2b8ba32a",
+    "src/renderer/components/HotkeyInput.tsx",
+    206,
+    9,
+  ],
+  [
+    "BTN-014",
+    "SITE-97e7bb1c3ab4305f-01",
+    "LIVE-97e7bb1c3ab4305f",
+    "src/renderer/components/KeyBinding.tsx",
+    28,
+    7,
+  ],
+  [
+    "BTN-015",
+    "SITE-700a4122e599ffe1-01",
+    "LIVE-700a4122e599ffe1",
+    "src/renderer/components/LogsPanel.tsx",
+    335,
+    9,
+  ],
+  [
+    "BTN-016",
+    "SITE-501f82e78a2b09c9-01",
+    "LIVE-501f82e78a2b09c9",
+    "src/renderer/components/LogsPanel.tsx",
+    342,
+    9,
+  ],
+  [
+    "BTN-017",
+    "SITE-29f318d8be62f1d9-01",
+    "LIVE-29f318d8be62f1d9",
+    "src/renderer/components/LogsPanel.tsx",
+    349,
+    9,
+  ],
+  [
+    "BTN-018",
+    "SITE-7197db62a76969f7-01",
+    "LIVE-7197db62a76969f7",
+    "src/renderer/components/ModelManagerDialog.tsx",
+    195,
+    11,
+  ],
+  [
+    "BTN-019",
+    "SITE-67f4724e126c10d4-01",
+    "LIVE-67f4724e126c10d4",
+    "src/renderer/components/ModelManagerDialog.tsx",
+    207,
+    11,
+  ],
+  [
+    "BTN-020",
+    "SITE-04748a61b30e3ef8-01",
+    "LIVE-04748a61b30e3ef8",
+    "src/renderer/components/ModelManagerDialog.tsx",
+    218,
+    11,
+  ],
+  [
+    "BTN-021",
+    "SITE-7c4301fb38c9808d-01",
+    "LIVE-7c4301fb38c9808d",
+    "src/renderer/components/ModelManagerDialog.tsx",
+    230,
+    13,
+  ],
+  [
+    "BTN-022",
+    "SITE-fc298046a960042d-01",
+    "LIVE-fc298046a960042d",
+    "src/renderer/components/ModelManagerDialog.tsx",
+    256,
+    19,
+  ],
+  [
+    "BTN-023",
+    "SITE-c09e1d790b99f3f9-01",
+    "LIVE-c09e1d790b99f3f9",
+    "src/renderer/components/ModelManagerDialog.tsx",
+    276,
+    27,
+  ],
+  [
+    "BTN-024",
+    "SITE-e25d0c965e5599f3-01",
+    "LIVE-e25d0c965e5599f3",
+    "src/renderer/components/ModelManagerDialog.tsx",
+    330,
+    27,
+  ],
+  [
+    "BTN-025",
+    "SITE-5526ee17ec81f974-01",
+    "LIVE-5526ee17ec81f974",
+    "src/renderer/components/ModelManagerDialog.tsx",
+    405,
+    17,
+  ],
+  [
+    "BTN-026",
+    "SITE-73361c5a5c8f4108-01",
+    "LIVE-73361c5a5c8f4108",
+    "src/renderer/components/ModelManagerDialog.tsx",
+    412,
+    17,
+  ],
+  [
+    "BTN-027",
+    "SITE-9bea8fb78af9d78f-01",
+    "LIVE-9bea8fb78af9d78f",
+    "src/renderer/components/ModelSelect.tsx",
+    412,
+    9,
+  ],
+  [
+    "BTN-028",
+    "SITE-38539922a7e16c77-01",
+    "LIVE-38539922a7e16c77",
+    "src/renderer/components/ModelSelect.tsx",
+    440,
+    11,
+  ],
+  [
+    "BTN-029",
+    "SITE-edf192add08f8fcb-01",
+    "LIVE-edf192add08f8fcb",
+    "src/renderer/components/ModelsPanel.tsx",
+    161,
+    15,
+  ],
+  [
+    "BTN-030",
+    "SITE-eca35f045362c69d-01",
+    "LIVE-f817bc24bfff4be1",
+    "src/renderer/components/MultiSelect/MultiSelect.tsx",
+    95,
+    7,
+  ],
+  [
+    "BTN-031",
+    "SITE-73a48ff1f5f9296f-01",
+    "LIVE-73a48ff1f5f9296f",
+    "src/renderer/components/ProfileManager.tsx",
+    256,
+    11,
+  ],
+  [
+    "BTN-032",
+    "SITE-e99c02ce9aba9550-01",
+    "LIVE-e99c02ce9aba9550",
+    "src/renderer/components/ProfileManager.tsx",
+    264,
+    11,
+  ],
+  [
+    "BTN-033",
+    "SITE-7c9f643148cf3085-01",
+    "LIVE-7c9f643148cf3085",
+    "src/renderer/components/ProfileManager.tsx",
+    318,
+    23,
+  ],
+  [
+    "BTN-034",
+    "SITE-0a1b7ac2d9c1f374-01",
+    "LIVE-0a1b7ac2d9c1f374",
+    "src/renderer/components/ProfileManager.tsx",
+    326,
+    21,
+  ],
+  [
+    "BTN-035",
+    "SITE-6da333e1baf89565-01",
+    "LIVE-6da333e1baf89565",
+    "src/renderer/components/ProfileManager.tsx",
+    335,
+    23,
+  ],
+  [
+    "BTN-036",
+    "SITE-34a9863fc49e6b83-01",
+    "LIVE-34a9863fc49e6b83",
+    "src/renderer/components/ProfileManager.tsx",
+    395,
+    13,
+  ],
+  [
+    "BTN-037",
+    "SITE-826dace3c3bc2a71-01",
+    "LIVE-826dace3c3bc2a71",
+    "src/renderer/components/ProfileManager.tsx",
+    403,
+    13,
+  ],
+  [
+    "BTN-038",
+    "SITE-ea57f4d3fc631133-01",
+    "LIVE-ea57f4d3fc631133",
+    "src/renderer/components/ProfileManager.tsx",
+    439,
+    13,
+  ],
+  [
+    "BTN-039",
+    "SITE-0a4e93dbd86acef1-01",
+    "LIVE-0a4e93dbd86acef1",
+    "src/renderer/components/ProfileManager.tsx",
+    447,
+    13,
+  ],
+  [
+    "BTN-040",
+    "SITE-7e4c2589c888f87d-01",
+    "LIVE-7e4c2589c888f87d",
+    "src/renderer/components/ProfileManager.tsx",
+    483,
+    13,
+  ],
+  [
+    "BTN-041",
+    "SITE-d89fe00914eba1d2-01",
+    "LIVE-d89fe00914eba1d2",
+    "src/renderer/components/ProfileManager.tsx",
+    491,
+    13,
+  ],
+  [
+    "BTN-042",
+    "SITE-d971b19360ec4666-01",
+    "LIVE-d971b19360ec4666",
+    "src/renderer/components/SearchInput.tsx",
+    95,
+    9,
+  ],
+  [
+    "BTN-043",
+    "SITE-19310a96f693ae27-01",
+    "LIVE-19310a96f693ae27",
+    "src/renderer/components/SegmentedControl.tsx",
+    62,
+    11,
+  ],
+  [
+    "BTN-044",
+    "SITE-9568e1f27af6a345-01",
+    "LIVE-9568e1f27af6a345",
+    "src/renderer/components/SettingAppearance.tsx",
+    87,
+    17,
+  ],
+  [
+    "BTN-045",
+    "SITE-bc36161d674c7650-01",
+    "LIVE-bc36161d674c7650",
+    "src/renderer/components/SettingCorrection.tsx",
+    419,
+    13,
+  ],
+  [
+    "BTN-046",
+    "SITE-6dd70efb010592d0-01",
+    "LIVE-936ce96d1be3b413",
+    "src/renderer/components/SettingCorrection.tsx",
+    433,
+    19,
+  ],
+  [
+    "BTN-047",
+    "SITE-31930ebb84cc797f-01",
+    "LIVE-31930ebb84cc797f",
+    "src/renderer/components/SettingCorrection.tsx",
+    489,
+    15,
+  ],
+  [
+    "BTN-048",
+    "SITE-be46cc9ab1065d84-01",
+    "LIVE-be46cc9ab1065d84",
+    "src/renderer/components/SettingCorrection.tsx",
+    497,
+    15,
+  ],
+  [
+    "BTN-049",
+    "SITE-6b4e0c40672f1a9f-01",
+    "LIVE-6b4e0c40672f1a9f",
+    "src/renderer/components/SettingCorrection.tsx",
+    506,
+    15,
+  ],
+  [
+    "BTN-050",
+    "SITE-d092e1365d74f58e-01",
+    "LIVE-d092e1365d74f58e",
+    "src/renderer/components/SettingCorrection.tsx",
+    563,
+    15,
+  ],
+  [
+    "BTN-051",
+    "SITE-11dc9ddf64f0d8e1-01",
+    "LIVE-526689e2a7d58f90",
+    "src/renderer/components/SettingCorrection.tsx",
+    596,
+    15,
+  ],
+  [
+    "BTN-052",
+    "SITE-7ddd61f39a4603c1-01",
+    "LIVE-7ddd61f39a4603c1",
+    "src/renderer/components/SettingCorrection.tsx",
+    637,
+    9,
+  ],
+  [
+    "BTN-053",
+    "SITE-07f2a8ba23e043f1-01",
+    "LIVE-07f2a8ba23e043f1",
+    "src/renderer/components/SettingGeneral.tsx",
+    736,
+    11,
+  ],
+  [
+    "BTN-054",
+    "SITE-c4546c1f1b582275-01",
+    "LIVE-c4546c1f1b582275",
+    "src/renderer/components/SettingGeneral.tsx",
+    749,
+    13,
+  ],
+  [
+    "BTN-055",
+    "SITE-f528b6225f5af211-01",
+    "LIVE-f528b6225f5af211",
+    "src/renderer/components/SettingGeneral.tsx",
+    783,
+    15,
+  ],
+  [
+    "BTN-056",
+    "SITE-d3d535844d3ea12d-01",
+    "LIVE-d3d535844d3ea12d",
+    "src/renderer/components/SettingGeneral.tsx",
+    791,
+    15,
+  ],
+  [
+    "BTN-057",
+    "SITE-6174e716401ff26e-01",
+    "LIVE-6174e716401ff26e",
+    "src/renderer/components/SettingGeneral.tsx",
+    862,
+    11,
+  ],
+  [
+    "BTN-058",
+    "SITE-9469c19cdb9b59e6-01",
+    "LIVE-9469c19cdb9b59e6",
+    "src/renderer/components/SettingGeneral.tsx",
+    888,
+    11,
+  ],
+  [
+    "BTN-059",
+    "SITE-9366f8ce82dfacc2-01",
+    "LIVE-9366f8ce82dfacc2",
+    "src/renderer/components/SettingGeneral.tsx",
+    964,
+    9,
+  ],
+  [
+    "BTN-060",
+    "SITE-f3c8ca23590954fc-01",
+    "LIVE-f3c8ca23590954fc",
+    "src/renderer/components/SettingPromptGen.tsx",
+    269,
+    15,
+  ],
+  [
+    "BTN-061",
+    "SITE-f3f343d2e0482049-01",
+    "LIVE-f3f343d2e0482049",
+    "src/renderer/components/SettingPromptGen.tsx",
+    289,
+    15,
+  ],
+  [
+    "BTN-062",
+    "SITE-b3f4857089946438-01",
+    "LIVE-b3f4857089946438",
+    "src/renderer/components/SettingPromptGen.tsx",
+    364,
+    9,
+  ],
+  [
+    "BTN-063",
+    "SITE-69e4e918b6516bfe-01",
+    "LIVE-69e4e918b6516bfe",
+    "src/renderer/components/SettingPromptGen.tsx",
+    370,
+    9,
+  ],
+  [
+    "BTN-064",
+    "SITE-ccaa63ee68a2a8a1-01",
+    "LIVE-ccaa63ee68a2a8a1",
+    "src/renderer/components/SettingsIcon.tsx",
+    28,
+    5,
+  ],
+  [
+    "BTN-065",
+    "SITE-426eacdcf8f96389-01",
+    "LIVE-426eacdcf8f96389",
+    "src/renderer/components/SettingsModal.tsx",
+    197,
+    11,
+  ],
+  [
+    "BTN-066",
+    "SITE-131332cadfcd6d7c-01",
+    "LIVE-131332cadfcd6d7c",
+    "src/renderer/components/SettingsModal.tsx",
+    239,
+    17,
+  ],
+  [
+    "BTN-067",
+    "SITE-c0f45b98e17a7b20-01",
+    "LIVE-c0f45b98e17a7b20",
+    "src/renderer/components/SettingTabBtn.tsx",
+    31,
+    5,
+  ],
+  [
+    "BTN-068",
+    "SITE-f63727c376cb5050-01",
+    "LIVE-f63727c376cb5050",
+    "src/renderer/components/SettingUpdates.tsx",
+    308,
+    11,
+  ],
+  [
+    "BTN-069",
+    "SITE-31d2760b23787e23-01",
+    "LIVE-31d2760b23787e23",
+    "src/renderer/components/SettingUpdates.tsx",
+    333,
+    11,
+  ],
+  [
+    "BTN-070",
+    "SITE-91ba4b4f640490e2-01",
+    "LIVE-91ba4b4f640490e2",
+    "src/renderer/components/SettingUpdates.tsx",
+    361,
+    13,
+  ],
+  [
+    "BTN-071",
+    "SITE-663c55705a5cc3f0-01",
+    "LIVE-663c55705a5cc3f0",
+    "src/renderer/components/SettingUpdates.tsx",
+    381,
+    15,
+  ],
+  [
+    "BTN-072",
+    "SITE-43414753ace2ab81-01",
+    "LIVE-43414753ace2ab81",
+    "src/renderer/components/SettingUpdates.tsx",
+    430,
+    15,
+  ],
+  [
+    "BTN-073",
+    "SITE-ad68949b3a58f46b-01",
+    "LIVE-ad68949b3a58f46b",
+    "src/renderer/components/SettingUpdates.tsx",
+    447,
+    15,
+  ],
+  [
+    "BTN-074",
+    "SITE-c11f9621b2e3d72c-01",
+    "LIVE-c11f9621b2e3d72c",
+    "src/renderer/components/SettingUpdates.tsx",
+    462,
+    15,
+  ],
+  [
+    "BTN-075",
+    "SITE-f4ccea28d324b33f-01",
+    "LIVE-f4ccea28d324b33f",
+    "src/renderer/components/SettingUpdates.tsx",
+    475,
+    13,
+  ],
+  [
+    "BTN-076",
+    "SITE-fbcd67d29270d287-01",
+    "LIVE-fbcd67d29270d287",
+    "src/renderer/components/SettingUpdates.tsx",
+    491,
+    13,
+  ],
+  [
+    "BTN-077",
+    "SITE-bfa98039be039f30-01",
+    "LIVE-bfa98039be039f30",
+    "src/renderer/components/SettingUpdates.tsx",
+    587,
+    13,
+  ],
+  [
+    "BTN-078",
+    "SITE-5815552ee2096fa5-01",
+    "LIVE-5815552ee2096fa5",
+    "src/renderer/components/SettingUpdates.tsx",
+    616,
+    13,
+  ],
+  [
+    "BTN-079",
+    "SITE-8d81c1044d88aa9b-01",
+    "LIVE-8d81c1044d88aa9b",
+    "src/renderer/components/SettingUpdates.tsx",
+    628,
+    13,
+  ],
+  [
+    "BTN-080",
+    "SITE-d2dc6b542709b453-01",
+    "LIVE-d2dc6b542709b453",
+    "src/renderer/components/TrashButton.tsx",
+    23,
+    5,
+  ],
+  [
+    "BTN-081",
+    "SITE-57f775bd4fae66ec-01",
+    "LIVE-57f775bd4fae66ec",
+    "src/renderer/components/usage/OpenAIUsagePanel.tsx",
+    109,
+    11,
+  ],
+  [
+    "BTN-082",
+    "SITE-e630a70d66e34af0-01",
+    "LIVE-e630a70d66e34af0",
+    "src/renderer/components/usage/OpenAIUsagePanel.tsx",
+    140,
+    13,
+  ],
+  [
+    "BTN-083",
+    "SITE-faf927e806407b15-01",
+    "LIVE-faf927e806407b15",
+    "src/renderer/components/usage/OpenAIUsagePanel.tsx",
+    151,
+    9,
+  ],
+  [
+    "BTN-084",
+    "SITE-3c1c72456ff99197-01",
+    "LIVE-3c1c72456ff99197",
+    "src/renderer/components/usage/OpenRouterUsagePanel.tsx",
+    111,
+    11,
+  ],
+  [
+    "BTN-085",
+    "SITE-eb9419e711683c9d-01",
+    "LIVE-eb9419e711683c9d",
+    "src/renderer/components/usage/OpenRouterUsagePanel.tsx",
+    145,
+    13,
+  ],
+  [
+    "BTN-086",
+    "SITE-aff47f3a90bf9c5b-01",
+    "LIVE-aff47f3a90bf9c5b",
+    "src/renderer/components/usage/OpenRouterUsagePanel.tsx",
+    158,
+    9,
+  ],
+  [
+    "BTN-087",
+    "SITE-cda3ee060bf9b96d-01",
+    "LIVE-cda3ee060bf9b96d",
+    "src/renderer/components/usage/UsagePanel.tsx",
+    102,
+    11,
+  ],
+  [
+    "BTN-088",
+    "SITE-e27f5c86266c2ef9-01",
+    "LIVE-e27f5c86266c2ef9",
+    "src/renderer/components/usage/UsagePanel.tsx",
+    128,
+    13,
+  ],
+  [
+    "BTN-089",
+    "SITE-22b46580f1bd13d0-01",
+    "LIVE-22b46580f1bd13d0",
+    "src/renderer/CorrectionResultWindow/index.tsx",
+    63,
+    9,
+  ],
+  [
+    "BTN-090",
+    "SITE-0186137c312ed90a-01",
+    "LIVE-212540f76558cdfa",
+    "src/renderer/MainWindow/App.tsx",
+    346,
+    15,
+  ],
+  [
+    "BTN-091",
+    "SITE-391b0616cadac9b3-01",
+    "LIVE-391b0616cadac9b3",
+    "src/renderer/TrayWindow/components/TrayCreditBalance.tsx",
+    66,
+    5,
+  ],
+  [
+    "BTN-092",
+    "SITE-022a9db6eed9fbc4-01",
+    "LIVE-022a9db6eed9fbc4",
+    "src/renderer/TrayWindow/components/TrayToolbar.tsx",
+    23,
+    3,
+  ],
 ] as const;
 
 const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
@@ -1624,10 +2273,15 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "85796f10606e0d05ad3723f768f7f6e010a6a668eb0b0139da3172e69e458229";
+  "5686b436b189954ca7da2379dcfff49e27801934157ff9eb598d637219b1d49e";
 
-const compareConsumers = (left: ButtonConsumer, right: ButtonConsumer): number =>
-  left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column;
+const compareConsumers = (
+  left: ButtonConsumer,
+  right: ButtonConsumer,
+): number =>
+  left.file.localeCompare(right.file) ||
+  left.line - right.line ||
+  left.column - right.column;
 
 export { scanRenderer, sha256 };
 
@@ -1639,10 +2293,10 @@ describe("renderer Button source guard", () => {
         'import { createElement as h } from "react";',
         'import { PrimaryButton as Legacy } from "./PrimaryButton";',
         'const Native = "button";',
-        'const Alias = Native;',
-        'const render = h;',
+        "const Alias = Native;",
+        "const render = h;",
         'const Elements = { button: "button" };',
-        'const Example = () => <><Alias /><Elements.button /><Legacy /></>;',
+        "const Example = () => <><Alias /><Elements.button /><Legacy /></>;",
         'render("button", null);',
       ].join("\n"),
     );
@@ -1665,7 +2319,7 @@ describe("renderer Button source guard", () => {
       "fixture.tsx",
       [
         'const Elements = { button: "button" };',
-        'const Example = () => <Elements.button />;',
+        "const Example = () => <Elements.button />;",
       ].join("\n"),
     );
 
@@ -1681,13 +2335,13 @@ describe("renderer Button source guard", () => {
       [
         'import { createElement as h } from "react";',
         'const Native = "button";',
-        'const NativeFactory = h;',
-        'const Outer = () => <Native />;',
-        'const Inner = () => {',
-        '  const Native = () => <span />;',
-        '  const NativeFactory = () => null;',
+        "const NativeFactory = h;",
+        "const Outer = () => <Native />;",
+        "const Inner = () => {",
+        "  const Native = () => <span />;",
+        "  const NativeFactory = () => null;",
         '  return <>{<Native />}{NativeFactory("button", null)}</>;',
-        '};',
+        "};",
       ].join("\n"),
     );
 
@@ -1706,7 +2360,7 @@ describe("renderer Button source guard", () => {
       [
         'import { createElement } from "react";',
         'const Native = "button";',
-        'createElement(Native, null);',
+        "createElement(Native, null);",
       ].join("\n"),
     );
 
@@ -1723,8 +2377,8 @@ describe("renderer Button source guard", () => {
         'const Elements = { button: "button" } as const;',
         'const Native = "button" as const;',
         'const h = React["createElement"] as typeof React.createElement;',
-        'const Example = () => <><Elements.button /><Native /></>;',
-        'h(Native, null);',
+        "const Example = () => <><Elements.button /><Native /></>;",
+        "h(Native, null);",
       ].join("\n"),
     );
 
@@ -1744,11 +2398,11 @@ describe("renderer Button source guard", () => {
       "fixture.tsx",
       [
         'const Native = "button";',
-        'const Before = () => <Native />;',
-        'for (const Native of components) {',
-        '  const InsideLoop = () => <Native />;',
-        '}',
-        'const After = () => <Native />;',
+        "const Before = () => <Native />;",
+        "for (const Native of components) {",
+        "  const InsideLoop = () => <Native />;",
+        "}",
+        "const After = () => <Native />;",
       ].join("\n"),
     );
 
@@ -1766,9 +2420,9 @@ describe("renderer Button source guard", () => {
       "fixture.tsx",
       [
         'const Native = "button";',
-        'const WithObjectParameter = ({ Native }) => <Native />;',
-        'const WithArrayParameter = ([Native]) => <Native />;',
-        'const Outer = () => <Native />;',
+        "const WithObjectParameter = ({ Native }) => <Native />;",
+        "const WithArrayParameter = ([Native]) => <Native />;",
+        "const Outer = () => <Native />;",
       ].join("\n"),
     );
 
@@ -2006,20 +2660,17 @@ describe("renderer Button source guard", () => {
   });
 
   it("recognizes dotted PrimaryButton paths and imports", () => {
-    expect(isPrimaryButtonModule("src/renderer/components/PrimaryButton.test.ts")).toBe(
-      true,
-    );
-    expect(isPrimaryButtonModule(String.raw`src\renderer\PrimaryButton.test.tsx`)).toBe(
-      true,
-    );
-    expect(isPrimaryButtonModule("src/renderer/components/NotPrimaryButton.test.ts")).toBe(
-      false,
-    );
+    expect(
+      isPrimaryButtonModule("src/renderer/components/PrimaryButton.test.ts"),
+    ).toBe(true);
+    expect(
+      isPrimaryButtonModule(String.raw`src\renderer\PrimaryButton.test.tsx`),
+    ).toBe(true);
+    expect(
+      isPrimaryButtonModule("src/renderer/components/NotPrimaryButton.test.ts"),
+    ).toBe(false);
 
-    const result = scanSource(
-      "fixture.tsx",
-      'import "./PrimaryButton.test";',
-    );
+    const result = scanSource("fixture.tsx", 'import "./PrimaryButton.test";');
     expect(
       result.findings.filter(({ kind }) => kind === "PrimaryButton"),
     ).toHaveLength(1);
@@ -2139,8 +2790,6 @@ describe("renderer Button source guard", () => {
     }
   });
 
-
-
   it("changes every one of the 92 live identities under a stable-coordinate mutation", async () => {
     const sourceByFile = new Map<string, string>();
     let mutatedIdentityCount = 0;
@@ -2148,7 +2797,10 @@ describe("renderer Button source guard", () => {
     for (const expected of expectedButtonConsumers) {
       let source = sourceByFile.get(expected.file);
       if (!source) {
-        source = await readFile(path.join(repositoryRoot, expected.file), "utf8");
+        source = await readFile(
+          path.join(repositoryRoot, expected.file),
+          "utf8",
+        );
         sourceByFile.set(expected.file, source);
       }
       const lines = source.split("\n");
@@ -2163,7 +2815,10 @@ describe("renderer Button source guard", () => {
         source.slice(0, offset + "<Button".length) +
         ` data-card08-mutation="${expected.id}"` +
         source.slice(offset + "<Button".length);
-      const mutatedConsumer = scanSource(expected.file, mutatedSource).buttonConsumers.find(
+      const mutatedConsumer = scanSource(
+        expected.file,
+        mutatedSource,
+      ).buttonConsumers.find(
         ({ column, file, line }) =>
           file === expected.file &&
           line === expected.line &&
@@ -2194,9 +2849,9 @@ describe("renderer Button source guard", () => {
         (_, index) => `BTN-${String(index + 1).padStart(3, "0")}`,
       ),
     );
-    expect(new Set(expectedButtonConsumers.map(({ stableId }) => stableId)).size).toBe(
-      92,
-    );
+    expect(
+      new Set(expectedButtonConsumers.map(({ stableId }) => stableId)).size,
+    ).toBe(92);
     expect(new Set(locations).size).toBe(92);
     expect(result.findings).toEqual([]);
     expect(result.sourceFiles.filter(isPrimaryButtonModule)).toEqual([]);
@@ -2234,18 +2889,24 @@ describe("renderer Button source guard", () => {
           consumer.column,
         ];
       });
-      const consumers = rows.map(([id, stableId, semanticId, file, line, column]) => ({
-        id,
-        stableId,
-        semanticId,
-        file,
-        line,
-        column,
-      }));
+      const consumers = rows.map(
+        ([id, stableId, semanticId, file, line, column]) => ({
+          id,
+          stableId,
+          semanticId,
+          file,
+          line,
+          column,
+        }),
+      );
       await mkdir(".scratch", { recursive: true });
       await writeFile(
         ".scratch/button-contract.json",
-        JSON.stringify({ rows, sha256: sha256(JSON.stringify(consumers)) }, null, 2),
+        JSON.stringify(
+          { rows, sha256: sha256(JSON.stringify(consumers)) },
+          null,
+          2,
+        ),
       );
       expect(rows.length).toBeGreaterThan(0);
     });

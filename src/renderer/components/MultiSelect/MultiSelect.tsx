@@ -1,5 +1,5 @@
 /**
- * @file MultiSelect.tsx
+ * @file MultiSelect/MultiSelect.tsx
  * @description Checkbox dropdown for "pick any subset" filters. A native
  * `<select multiple>` needs modifier-clicks and cannot be themed, so this is a
  * button + popover of `Checkbox` rows instead.
@@ -10,8 +10,9 @@
  */
 import { useEffect, useId, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
-import { Button } from "./Button";
-import { Checkbox } from "./Checkbox";
+import { Button } from "../Button";
+import { Checkbox } from "../Checkbox";
+import { selectControlClassName } from "../Select";
 
 export type MultiSelectOption = {
   value: string;
@@ -99,7 +100,10 @@ export const MultiSelect = ({
         aria-haspopup="true"
         aria-controls={isOpen ? listId : undefined}
         onClick={() => setIsOpen((open) => !open)}
-        className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm hover:border-ring"
+        className={twMerge(
+          selectControlClassName,
+          "flex w-full items-center justify-between gap-2 px-2 py-1.5 text-sm",
+        )}
       >
         <span className="truncate">{triggerLabel}</span>
         <svg
