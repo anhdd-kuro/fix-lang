@@ -1,6 +1,6 @@
 {
   "name": "fix-lang",
-  "version": "0.10.7",
+  "version": "0.10.8",
   "description": "Local macOS menu-bar app: AI text correction and writing tools via OpenAI, OpenRouter, Ollama, or LM Studio",
   "author": {
     "name": "Anhdd Kuro",
