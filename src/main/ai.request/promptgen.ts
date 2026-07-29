@@ -18,7 +18,6 @@ export type PromptGenSettings = {
   /** User-authored system prompt override — unrelated to `activeAppName`. */
   context?: string;
   model?: string;
-  temperature?: number;
   /** Frontmost macOS app when the hotkey fired; best-effort, may be absent. */
   activeAppName?: string | null;
 };

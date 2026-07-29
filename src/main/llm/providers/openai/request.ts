@@ -17,6 +17,7 @@ import {
 } from "~/main/ai.request/requestTypes";
 import { extractResolvedModel } from "~/main/ai.request/resolve-model";
 import { showErrorNotification } from "~/main/notifications/error";
+import { reasoningForAiSdk } from "~/shared/reasoningEffort";
 import { getCurrentProfileId } from "~/stores/apiStore";
 import { getProfileSecret } from "~/stores/profileSecretStore";
 
@@ -45,9 +46,11 @@ export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
         model: openai.chat(modelId),
         ...(conversation.system ? { system: conversation.system } : {}),
         messages: conversation.messages,
-        temperature: options.temperature,
         topP: options.top_p,
-        maxOutputTokens: options.maxTokens,
+        ...(() => {
+          const reasoning = reasoningForAiSdk(options.reasoning);
+          return reasoning !== undefined ? { reasoning } : {};
+        })(),
         ...(options.stop ? { stopSequences: options.stop } : {}),
       });
     const responses = await Promise.all(

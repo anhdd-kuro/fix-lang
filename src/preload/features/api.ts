@@ -16,9 +16,9 @@ export type ProviderConnectInput = {
   apiKey?: string;
   /** OpenRouter-only write-only credential. */
   provisioningKey?: string;
-  /** LM Studio host (no scheme/path). */
+  /** Local provider host (Ollama / LM Studio; no scheme/path). */
   host?: string;
-  /** LM Studio port. */
+  /** Local provider port (Ollama / LM Studio). */
   port?: number;
 };
 

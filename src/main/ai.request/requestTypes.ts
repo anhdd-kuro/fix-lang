@@ -11,6 +11,7 @@
  * `shared.ts` re-exports everything here, so existing call sites are unaffected.
  */
 import type { ProviderId } from "~/shared/providers";
+import type { ReasoningEffort } from "~/shared/reasoningEffort";
 
 export type CoreMessage = {
   role: "system" | "user" | "assistant" | "tool";
@@ -27,12 +28,13 @@ export type AIRequestOptions = {
   userPrompt: string;
   /** OpenAI model to use (if not specified, pulls from store) */
   model?: string;
-  /** Temperature for sampling (if not specified, pulls from store) */
-  temperature?: number;
-  /** Top_p for nucleus sampling (if not specified, pulls from store) */
+  /** Top_p for nucleus sampling (if not specified, uses request default) */
   top_p?: number;
-  /** Maximum tokens to generate (if not specified, pulls from store) */
-  maxTokens?: number;
+  /**
+   * AI SDK top-level `reasoning` effort. Omit / provider-default leaves the
+   * provider's default behavior.
+   */
+  reasoning?: ReasoningEffort;
   /** Number of responses to generate */
   n?: number;
   /** Custom messages if needed (overrides system/user prompt params) */

@@ -413,9 +413,7 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
   console.log(`Using model for request: ${modelId}`);
 
   // Hardcoded defaults — per-preset values come through options (undefined = use default)
-  const temperature = options.temperature ?? 1;
   const top_p = options.top_p ?? 1.0;
-  const maxTokens = options.maxTokens ?? 10000;
 
   // Create messages array if not provided
   const messages =
@@ -452,9 +450,7 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
     ...options,
     model: rawModelId,
     messages,
-    temperature,
     top_p,
-    maxTokens,
   };
 
   if (resolution.provider === "ollama") {

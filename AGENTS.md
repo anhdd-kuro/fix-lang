@@ -8,7 +8,7 @@ Local macOS menu-bar app: fixes grammar and improves writing on selected text vi
 
 - **Transform** — fix grammar/style or otherwise rewrite selected text via per-preset global hotkeys.
 - **Source-app context** — Transform and PromptGen append the frontmost app name ("Slack", "Mail") to the **system prompt** (`src/main/ai.request/transform-context.ts`), so the model can match that app's register. Best-effort: dropped entirely when the read fails or FixLang itself is frontmost, leaving the system prompt byte-identical. Every read is logged under scope `accessibility.activeApp` (debug on read/drop, warn on failure). The block carries an `AppContextFormattingPolicy` (`"preserve-input-markup" | "adapt-to-app"`), resolved per preset by the pure `appContextPolicyForPreset(presetId)`; only the `structured-text` built-in gets `adapt-to-app`, and every other preset plus PromptGen keep the default `preserve-input-markup` variant — whose wording is byte-identical to the pre-policy block, which is load-bearing (it is what keeps every other preset's and PromptGen's prompt unchanged) and is pinned by a literal-string test.
-- **Presets** — built-in Correction, Summarize, Translate, Prompt optimization, Business Writing, Context-Aware Structured Text; each preset has its own hotkey, model, and system prompt.
+- **Presets** — built-in Correction, Summarize, Translate, Prompt optimization, Business Writing, Context-Aware Structured Text; each preset has its own hotkey, model, system prompt, and Faster↔Smarter reasoning effort (AI SDK `reasoning`: minimal/low/medium/high/xhigh).
 - **Prompt generation** — build AI prompts from selected text (PromptGen window).
 - **Profiles** — switch transform presets; switch reloads hotkeys + settings + history.
 - **Multi-provider** — connect multiple providers (OpenAI, OpenRouter, Ollama, LM Studio) at once, each with its own model discovery/compat/monitor; every connected provider appears in a grouped model picker; a preset can use any connected provider; model ref is composite `<providerId>::<rawModelId>` in config, raw id downstream. Each provider owns a folder under `src/main/llm/providers/` and one entry in that folder's `index.ts` capability registry (`supportsAdminKey`, `supportsUsage`, `fetchModels?`, `makeRequest?`); `ai.request/shared.ts` dispatches THROUGH the registry, so a new provider adds no branch there. The registry's behaviour slots load their module via lazy `import()` on purpose — `~/main/llm` is imported for the Ollama client alone, and eager loading drags the provider SDKs and `electron-store` in with it.
@@ -69,7 +69,7 @@ fix-lang/
 - Frontend
   - React 19.2, TypeScript 6.0 (stay on 6.x until typescript-eslint supports 7), Tailwind 4.3
 - AI
-  - openai 6.49, @ai-sdk/openai 4.0, @openrouter/ai-sdk-provider 3.0, ai 7.0, ollama 0.6 — each wired in its own `src/main/llm/providers/<id>/request.ts` and reached through the capability registry; LM Studio uses the OpenAI-compatible client with a configurable local `baseURL`
+  - openai 6.49, @ai-sdk/openai 4.0, @openrouter/ai-sdk-provider 3.0, ai 7.0, ollama 0.6 — each wired in its own `src/main/llm/providers/<id>/request.ts` and reached through the capability registry; LM Studio and Ollama both use a configurable local host/port (LM Studio via OpenAI-compatible `baseURL`; Ollama via its daemon URL)
 - Persistence
   - node:sqlite (history) + electron-store 11 + JSONL logs under userData — no zustand
 - Testing

@@ -69,7 +69,7 @@ vi.mock("~/main/llm/models/discover", () => ({
   probeOllama: probeOllamaMock,
 }));
 vi.mock("~/main/llm/providers/ollama/client", () => ({
-  ollamaClient: { chat: vi.fn() },
+  createOllamaClient: () => ({ chat: vi.fn() }), ollamaClient: { chat: vi.fn() },
 }));
 // Imports (after mocks) — the real implementation under test.
 import { apiStore, getProfiles } from "~/stores/apiStore";

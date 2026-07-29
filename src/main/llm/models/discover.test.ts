@@ -8,7 +8,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Mocks must be hoisted above the module under test.
 const { listMock } = vi.hoisted(() => ({ listMock: vi.fn() }));
 vi.mock("../providers/ollama/client", () => ({
+  createOllamaClient: () => ({ list: listMock }),
   ollamaClient: { list: listMock },
+}));
+vi.mock("~/stores/apiStore", () => ({
+  getProviderEndpoint: vi.fn(() => undefined),
 }));
 import { getLocalModels, probeOllama } from "./discover";
 

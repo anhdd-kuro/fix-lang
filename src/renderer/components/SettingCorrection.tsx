@@ -18,6 +18,7 @@ import { useI18n } from "../i18n/useI18n";
 import { splitHotkey } from "./about/userGuideView";
 import { Button } from "./Button";
 import { ModelSelect } from "./ModelSelect";
+import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
 import {
   plainStatus,
   wrappedError,
@@ -313,13 +314,12 @@ export const SettingCorrection: React.FC = () => {
       return;
     }
 
-    // Built-in defaults omit temperature/maxTokens; spreading them alone would
-    // retain any user override (merge keeps omitted keys). Explicitly clear the
-    // optional AI params so Reset truly restores the built-in state.
+    // Built-in defaults omit reasoning; spreading them alone would retain any
+    // user override (merge keeps omitted keys). Explicitly clear so Reset
+    // restores provider-default behavior.
     updatePreset(activePreset.id, {
       ...defaultPreset,
-      temperature: defaultPreset.temperature,
-      maxTokens: defaultPreset.maxTokens,
+      reasoning: defaultPreset.reasoning,
     });
     setStatus(null);
     setStatusIsError(false);
@@ -577,65 +577,19 @@ export const SettingCorrection: React.FC = () => {
             />
           </div>
 
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <label
-                htmlFor="preset-temperature"
-                className="text-sm text-card-foreground"
-              >
-                {t("settings.correction.temperature")}
-              </label>
-              <input
-                id="preset-temperature"
-                type="number"
-                min={0}
-                max={2}
-                step={0.05}
-                placeholder={t("settings.correction.temperatureDefault")}
-                value={activePreset.temperature ?? ""}
-                onChange={(event) => {
-                  const raw = event.target.value;
-                  const parsed = parseFloat(raw);
-                  updatePreset(activePreset.id, {
-                    temperature:
-                      raw === "" || isNaN(parsed) ? undefined : parsed,
-                  });
-                }}
-                className="h-10 rounded-md border border-control-border bg-secondary px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-              <p className="text-xs text-muted-foreground">
-                {t("settings.correction.temperatureHint")}
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label
-                htmlFor="preset-max-tokens"
-                className="text-sm text-card-foreground"
-              >
-                {t("settings.correction.maxTokens")}
-              </label>
-              <input
-                id="preset-max-tokens"
-                type="number"
-                min={100}
-                max={32000}
-                step={500}
-                placeholder={t("settings.correction.maxTokensDefault")}
-                value={activePreset.maxTokens ?? ""}
-                onChange={(event) => {
-                  const raw = event.target.value;
-                  const parsed = parseInt(raw, 10);
-                  updatePreset(activePreset.id, {
-                    maxTokens: raw === "" || isNaN(parsed) ? undefined : parsed,
-                  });
-                }}
-                className="h-10 rounded-md border border-control-border bg-secondary px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-              <p className="text-xs text-muted-foreground">
-                {t("settings.correction.maxTokensHint")}
-              </p>
-            </div>
+          <div className="mt-4 flex flex-col gap-2">
+            <span className="text-sm text-card-foreground">
+              {t("settings.correction.reasoning.label")}
+            </span>
+            <ReasoningEffortSlider
+              value={activePreset.reasoning}
+              onChange={(reasoning) =>
+                updatePreset(activePreset.id, { reasoning })
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("settings.correction.reasoning.hint")}
+            </p>
           </div>
 
           <div className="mt-4 flex flex-col gap-2">
