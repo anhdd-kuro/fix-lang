@@ -11,7 +11,7 @@
  * The provisioning key never reaches this component — only key-free parsed
  * view-models arrive via the combined IPC.
  */
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { twJoin } from "tailwind-merge";
 import { Button } from "../Button";
 import {
@@ -26,6 +26,7 @@ import {
 } from "./UsageCharts";
 import { useOpenRouterAnalytics } from "../../hooks/useOpenRouterAnalytics";
 import { useI18n } from "../../i18n/useI18n";
+import { UsagePanelSkeleton } from "../Skeleton";
 import type {
   Activity,
   CardResult,
@@ -81,6 +82,11 @@ export const OpenRouterUsagePanel = ({ onOpenSettings }: OpenRouterUsagePanelPro
   const { t, formatNumber } = useI18n();
   const [range, setRange] = useState<OpenRouterRange>("7d");
   const { data, loading, hasKey, refresh } = useOpenRouterAnalytics(range);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedRefresh = useCallback((): void => {
+    if (refreshTimerRef.current !== null) clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(refresh, 1000);
+  }, [refresh]);
 
   // Empty state: no key configured.
   if (hasKey === false) {
@@ -108,6 +114,10 @@ export const OpenRouterUsagePanel = ({ onOpenSettings }: OpenRouterUsagePanelPro
   const keyUsage = data?.keyUsage as CardResult<KeyUsage> | undefined;
   const activity = data?.activity as CardResult<Activity> | undefined;
   const enabledKeys = data?.enabledKeys as CardResult<EnabledKeys> | undefined;
+
+  if (loading && data === null) {
+    return <UsagePanelSkeleton />;
+  }
 
   const fallback = { ok: false as const, reason: "unavailable" as const };
   const rangeLabel = t(
@@ -138,7 +148,7 @@ export const OpenRouterUsagePanel = ({ onOpenSettings }: OpenRouterUsagePanelPro
         </div>
         <Button
           variant="secondary"
-          onClick={refresh}
+          onClick={debouncedRefresh}
           disabled={loading}
           className="ml-auto rounded-sm px-2 py-0.5 text-xs"
         >

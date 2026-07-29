@@ -63,6 +63,11 @@ export const useOpenAIUsage = (
         return;
       }
 
+      if (!force && cached) {
+        setData(cached.data);
+        setHasKey(cached.data.hasKey);
+      }
+
       // Gate on the admin key (empty state) before the heavier usage call.
       const keyPresent =
         (await window.electronAPI.hasProvisioningKey?.("openai")) ?? false;
