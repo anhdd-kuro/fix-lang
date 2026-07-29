@@ -80,22 +80,33 @@ const SPEC_KEYS = [
   "charts.correctionsOverTime.tooltipTotal",
   "charts.correctionsOverTime.yAxis",
   "charts.correctionsOverTime.empty",
-  // models.* (10)
+  // models.* (17) — breakdown donut + token-chart caption/axis
   "models.unknown",
   "models.usage.empty",
   "models.usage.chartTitle",
+  "models.usage.chartDescription",
+  "models.usage.datasetLabel",
+  "models.usage.yAxis",
   "models.usage.barTooltip",
+  "models.breakdown.title",
+  "models.breakdown.datasetLabel",
+  "models.breakdown.tooltip_one",
+  "models.breakdown.tooltip_other",
   "models.table.model",
   "models.table.input",
   "models.table.output",
   "models.table.usage",
   "models.table.showLess",
   "models.table.showMore",
+  // guide.records.* (3)
+  "guide.records.title",
+  "guide.records.body",
+  "guide.records.openSettings",
 ] as const;
 
 describe("dashboard.json — spec key inventory (docs/spec.i18n-dashboard.md §3)", () => {
-  it("introduces exactly 57 keys (60 minus the 3 removed benchmark-sentence keys)", () => {
-    expect(SPEC_KEYS.length).toBe(57);
+  it("introduces exactly 67 keys (57 prior + 7 models chart/breakdown + 3 guide.records)", () => {
+    expect(SPEC_KEYS.length).toBe(67);
   });
 
   it("has no duplicate keys in the spec inventory itself", () => {

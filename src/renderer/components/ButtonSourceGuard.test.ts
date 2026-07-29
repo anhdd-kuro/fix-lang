@@ -1521,93 +1521,94 @@ const scanRenderer = async (): Promise<ScanResult> => {
 const consumerContractRows = [
   ["BTN-001", "SITE-71a619fb8e003614-01", "LIVE-08e5c95965d6039a", "src/renderer/components/about/AboutPanel.tsx", 47, 13],
   ["BTN-002", "SITE-417a8eccd8888fbb-01", "LIVE-ef98536bd53f7615", "src/renderer/components/about/UserGuidePanel.tsx", 231, 9],
-  ["BTN-003", "SITE-7e1e56cf7fda34ba-01", "LIVE-d625f04039490f68", "src/renderer/components/about/UserGuidePanel.tsx", 305, 17],
-  ["BTN-004", "SITE-1065769a4b88dda5-01", "LIVE-b3521eab8d34cca7", "src/renderer/components/about/UserGuidePanel.tsx", 323, 17],
-  ["BTN-005", "SITE-05c810b08ba1c358-01", "LIVE-d29b2d638d60e13e", "src/renderer/components/about/UserGuidePanel.tsx", 349, 17],
-  ["BTN-006", "SITE-39ed459ad85dbb78-01", "LIVE-8e1c5ad13fa650d3", "src/renderer/components/CopyButton.tsx", 39, 5],
-  ["BTN-007", "SITE-ce68b5faf1fd3005-01", "LIVE-ffaaad62c6e612d8", "src/renderer/components/Dialog.tsx", 62, 11],
-  ["BTN-008", "SITE-e35751537426a2bd-01", "LIVE-8264f7f6bcd8085d", "src/renderer/components/HistoryPanel.tsx", 89, 11],
-  ["BTN-009", "SITE-e25a3433178b56b8-01", "LIVE-8975613823778fc5", "src/renderer/components/HistoryPanel.tsx", 97, 13],
-  ["BTN-010", "SITE-8fdea92d910bdd00-01", "LIVE-5cbddd24a7826d4b", "src/renderer/components/HistoryReviewModal.tsx", 81, 11],
-  ["BTN-011", "SITE-c877a1e0899402b2-01", "LIVE-5961fe9e2b8ba32a", "src/renderer/components/HotkeyInput.tsx", 206, 9],
-  ["BTN-012", "SITE-b80fe11c3231d41f-01", "LIVE-97e7bb1c3ab4305f", "src/renderer/components/KeyBinding.tsx", 28, 7],
-  ["BTN-013", "SITE-cf2a96097d8391ca-01", "LIVE-700a4122e599ffe1", "src/renderer/components/LogsPanel.tsx", 335, 9],
-  ["BTN-014", "SITE-c06b8413945e78ff-01", "LIVE-501f82e78a2b09c9", "src/renderer/components/LogsPanel.tsx", 342, 9],
-  ["BTN-015", "SITE-1a700da9051cb2fb-01", "LIVE-29f318d8be62f1d9", "src/renderer/components/LogsPanel.tsx", 349, 9],
-  ["BTN-016", "SITE-88b7be651634ab62-01", "LIVE-7197db62a76969f7", "src/renderer/components/ModelManagerDialog.tsx", 195, 11],
-  ["BTN-017", "SITE-d4a4643a9169ba2d-01", "LIVE-67f4724e126c10d4", "src/renderer/components/ModelManagerDialog.tsx", 207, 11],
-  ["BTN-018", "SITE-2b1785462ba47bbc-01", "LIVE-04748a61b30e3ef8", "src/renderer/components/ModelManagerDialog.tsx", 218, 11],
-  ["BTN-019", "SITE-653a97eac5289779-01", "LIVE-7c4301fb38c9808d", "src/renderer/components/ModelManagerDialog.tsx", 230, 13],
-  ["BTN-020", "SITE-95841fb6da0f157b-01", "LIVE-fc298046a960042d", "src/renderer/components/ModelManagerDialog.tsx", 256, 19],
-  ["BTN-021", "SITE-10a208454fdfae02-01", "LIVE-c09e1d790b99f3f9", "src/renderer/components/ModelManagerDialog.tsx", 276, 27],
-  ["BTN-022", "SITE-df3d083a82cfb916-01", "LIVE-e25d0c965e5599f3", "src/renderer/components/ModelManagerDialog.tsx", 330, 27],
-  ["BTN-023", "SITE-5e076e191fc2107a-01", "LIVE-5526ee17ec81f974", "src/renderer/components/ModelManagerDialog.tsx", 405, 17],
-  ["BTN-024", "SITE-9712230411bd3a9b-01", "LIVE-73361c5a5c8f4108", "src/renderer/components/ModelManagerDialog.tsx", 412, 17],
-  ["BTN-025", "SITE-b69cd75f874dca9c-01", "LIVE-9bea8fb78af9d78f", "src/renderer/components/ModelSelect.tsx", 412, 9],
-  ["BTN-026", "SITE-8d6dde76b7c3ae63-01", "LIVE-38539922a7e16c77", "src/renderer/components/ModelSelect.tsx", 440, 11],
-  ["BTN-027", "SITE-bb8eadbc51c6ba0f-01", "LIVE-edf192add08f8fcb", "src/renderer/components/ModelsPanel.tsx", 181, 15],
-  ["BTN-028", "SITE-a68b89cb574e07eb-01", "LIVE-eca35f045362c69d", "src/renderer/components/MultiSelect.tsx", 94, 7],
-  ["BTN-029", "SITE-dcfd07ba5e05696b-01", "LIVE-73a48ff1f5f9296f", "src/renderer/components/ProfileManager.tsx", 256, 11],
-  ["BTN-030", "SITE-569e41898a468891-01", "LIVE-e99c02ce9aba9550", "src/renderer/components/ProfileManager.tsx", 264, 11],
-  ["BTN-031", "SITE-5aa5015607225404-01", "LIVE-7c9f643148cf3085", "src/renderer/components/ProfileManager.tsx", 318, 23],
-  ["BTN-032", "SITE-054023d19dd23352-01", "LIVE-0a1b7ac2d9c1f374", "src/renderer/components/ProfileManager.tsx", 326, 21],
-  ["BTN-033", "SITE-4483808c41453b50-01", "LIVE-6da333e1baf89565", "src/renderer/components/ProfileManager.tsx", 335, 23],
-  ["BTN-034", "SITE-37fc32119ce9e6ac-01", "LIVE-34a9863fc49e6b83", "src/renderer/components/ProfileManager.tsx", 395, 13],
-  ["BTN-035", "SITE-dd3ac99966606746-01", "LIVE-826dace3c3bc2a71", "src/renderer/components/ProfileManager.tsx", 403, 13],
-  ["BTN-036", "SITE-e1d74ac35a4d23e0-01", "LIVE-ea57f4d3fc631133", "src/renderer/components/ProfileManager.tsx", 439, 13],
-  ["BTN-037", "SITE-c7c4cc0cbc6d8944-01", "LIVE-0a4e93dbd86acef1", "src/renderer/components/ProfileManager.tsx", 447, 13],
-  ["BTN-038", "SITE-042c8112c0a9c8f9-01", "LIVE-7e4c2589c888f87d", "src/renderer/components/ProfileManager.tsx", 483, 13],
-  ["BTN-039", "SITE-22b0fa1a3c9b5d7c-01", "LIVE-d89fe00914eba1d2", "src/renderer/components/ProfileManager.tsx", 491, 13],
-  ["BTN-040", "SITE-c0e683be1ecf8790-01", "LIVE-d971b19360ec4666", "src/renderer/components/SearchInput.tsx", 95, 9],
-  ["BTN-041", "SITE-7af05d8a3cba878c-01", "LIVE-19310a96f693ae27", "src/renderer/components/SegmentedControl.tsx", 62, 11],
-  ["BTN-042", "SITE-b8755f02a8f21fbd-01", "LIVE-9568e1f27af6a345", "src/renderer/components/SettingAppearance.tsx", 87, 17],
-  ["BTN-043", "SITE-02fb80de7b4d66ea-01", "LIVE-bc36161d674c7650", "src/renderer/components/SettingCorrection.tsx", 410, 13],
-  ["BTN-044", "SITE-94ef38da6d54dea8-01", "LIVE-6dd70efb010592d0", "src/renderer/components/SettingCorrection.tsx", 424, 19],
-  ["BTN-045", "SITE-0694ac46e40edf07-01", "LIVE-31930ebb84cc797f", "src/renderer/components/SettingCorrection.tsx", 482, 15],
-  ["BTN-046", "SITE-19327cec6dd7ab56-01", "LIVE-be46cc9ab1065d84", "src/renderer/components/SettingCorrection.tsx", 490, 15],
-  ["BTN-047", "SITE-084abdfaa3d706db-01", "LIVE-6b4e0c40672f1a9f", "src/renderer/components/SettingCorrection.tsx", 499, 15],
-  ["BTN-048", "SITE-ec1cb639d0801535-01", "LIVE-d092e1365d74f58e", "src/renderer/components/SettingCorrection.tsx", 556, 15],
-  ["BTN-049", "SITE-0331a5e36ffc4b2d-01", "LIVE-7ddd61f39a4603c1", "src/renderer/components/SettingCorrection.tsx", 618, 9],
-  ["BTN-050", "SITE-edf33805b54733ba-01", "LIVE-4c8cc2e418d1d7d7", "src/renderer/components/SettingGeneral.tsx", 614, 11],
-  ["BTN-051", "SITE-bd0c62470cfb4b04-01", "LIVE-c4546c1f1b582275", "src/renderer/components/SettingGeneral.tsx", 629, 13],
-  ["BTN-052", "SITE-3c03205f66bb8f20-01", "LIVE-f528b6225f5af211", "src/renderer/components/SettingGeneral.tsx", 663, 15],
-  ["BTN-053", "SITE-2985cfefb8259f94-01", "LIVE-d3d535844d3ea12d", "src/renderer/components/SettingGeneral.tsx", 671, 15],
-  ["BTN-054", "SITE-aa523e0e3171e4e2-01", "LIVE-6174e716401ff26e", "src/renderer/components/SettingGeneral.tsx", 742, 11],
-  ["BTN-055", "SITE-2a5ece0b4d8d01d5-01", "LIVE-9469c19cdb9b59e6", "src/renderer/components/SettingGeneral.tsx", 768, 11],
-  ["BTN-056", "SITE-6f52173684d9b3f1-01", "LIVE-9366f8ce82dfacc2", "src/renderer/components/SettingGeneral.tsx", 828, 9],
-  ["BTN-057", "SITE-2afefe8b58da16f2-01", "LIVE-f3c8ca23590954fc", "src/renderer/components/SettingPromptGen.tsx", 269, 15],
-  ["BTN-058", "SITE-6cf41feb2844d94d-01", "LIVE-f3f343d2e0482049", "src/renderer/components/SettingPromptGen.tsx", 289, 15],
-  ["BTN-059", "SITE-32f1f12f749c0a0f-01", "LIVE-b3f4857089946438", "src/renderer/components/SettingPromptGen.tsx", 364, 9],
-  ["BTN-060", "SITE-d09064cc6567340e-01", "LIVE-69e4e918b6516bfe", "src/renderer/components/SettingPromptGen.tsx", 370, 9],
-  ["BTN-061", "SITE-b033f456b9edb0d8-01", "LIVE-ccaa63ee68a2a8a1", "src/renderer/components/SettingsIcon.tsx", 28, 5],
-  ["BTN-062", "SITE-187c46dab673fb0a-01", "LIVE-426eacdcf8f96389", "src/renderer/components/SettingsModal.tsx", 198, 11],
-  ["BTN-063", "SITE-af6696a6812f0065-01", "LIVE-131332cadfcd6d7c", "src/renderer/components/SettingsModal.tsx", 240, 17],
-  ["BTN-064", "SITE-544d0e735bcdc224-01", "LIVE-c0f45b98e17a7b20", "src/renderer/components/SettingTabBtn.tsx", 31, 5],
-  ["BTN-065", "SITE-fe87dc426bd171bd-01", "LIVE-f63727c376cb5050", "src/renderer/components/SettingUpdates.tsx", 308, 11],
-  ["BTN-066", "SITE-9c72f61ee91e0d49-01", "LIVE-31d2760b23787e23", "src/renderer/components/SettingUpdates.tsx", 333, 11],
-  ["BTN-067", "SITE-1972ffe3da0bcde1-01", "LIVE-91ba4b4f640490e2", "src/renderer/components/SettingUpdates.tsx", 361, 13],
-  ["BTN-068", "SITE-9ee18af8c12ab3af-01", "LIVE-663c55705a5cc3f0", "src/renderer/components/SettingUpdates.tsx", 381, 15],
-  ["BTN-069", "SITE-cfd016770fe61f89-01", "LIVE-43414753ace2ab81", "src/renderer/components/SettingUpdates.tsx", 430, 15],
-  ["BTN-070", "SITE-9ee18af8c12ab3af-02", "LIVE-663c55705a5cc3f0", "src/renderer/components/SettingUpdates.tsx", 447, 15],
-  ["BTN-071", "SITE-7c992efd6d29f812-01", "LIVE-c11f9621b2e3d72c", "src/renderer/components/SettingUpdates.tsx", 461, 15],
-  ["BTN-072", "SITE-9ee18af8c12ab3af-03", "LIVE-f4ccea28d324b33f", "src/renderer/components/SettingUpdates.tsx", 474, 13],
-  ["BTN-073", "SITE-eeef419824524c4a-01", "LIVE-fbcd67d29270d287", "src/renderer/components/SettingUpdates.tsx", 490, 13],
-  ["BTN-074", "SITE-4d96952767063952-01", "LIVE-bfa98039be039f30", "src/renderer/components/SettingUpdates.tsx", 586, 13],
-  ["BTN-075", "SITE-ca4cd81c50209cf6-01", "LIVE-5815552ee2096fa5", "src/renderer/components/SettingUpdates.tsx", 615, 13],
-  ["BTN-076", "SITE-9ee18af8c12ab3af-04", "LIVE-f4ccea28d324b33f", "src/renderer/components/SettingUpdates.tsx", 627, 13],
-  ["BTN-077", "SITE-5d39d7c44db8e592-01", "LIVE-d2dc6b542709b453", "src/renderer/components/TrashButton.tsx", 23, 5],
-  ["BTN-078", "SITE-bdf91dd57b1a8eab-01", "LIVE-57f775bd4fae66ec", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 94, 11],
-  ["BTN-079", "SITE-189b25e5188dce61-01", "LIVE-e630a70d66e34af0", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 121, 13],
-  ["BTN-080", "SITE-2ac783017cc928f4-01", "LIVE-450bee16aa4af761", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 132, 9],
-  ["BTN-081", "SITE-07c4c1eed32b1e05-01", "LIVE-3c1c72456ff99197", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 96, 11],
-  ["BTN-082", "SITE-675f0652493e38fe-01", "LIVE-eb9419e711683c9d", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 126, 13],
-  ["BTN-083", "SITE-af5b100d129e6dab-01", "LIVE-c0827e45b78b1651", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 139, 9],
-  ["BTN-084", "SITE-ef9a2ca35cce009b-01", "LIVE-cda3ee060bf9b96d", "src/renderer/components/usage/UsagePanel.tsx", 102, 11],
-  ["BTN-085", "SITE-88cac4abd73dba55-01", "LIVE-e27f5c86266c2ef9", "src/renderer/components/usage/UsagePanel.tsx", 128, 13],
-  ["BTN-086", "SITE-cb7fadf7f125d0a4-01", "LIVE-22b46580f1bd13d0", "src/renderer/CorrectionResultWindow/index.tsx", 61, 9],
-  ["BTN-087", "SITE-88c71677c4253b47-01", "LIVE-0186137c312ed90a", "src/renderer/MainWindow/App.tsx", 343, 15],
-  ["BTN-088", "SITE-d33755b6903c0d0d-01", "LIVE-391b0616cadac9b3", "src/renderer/TrayWindow/components/TrayCreditBalance.tsx", 66, 5],
-  ["BTN-089", "SITE-1af9bad65d4dd36b-01", "LIVE-022a9db6eed9fbc4", "src/renderer/TrayWindow/components/TrayToolbar.tsx", 23, 3],
+  ["BTN-003", "SITE-53c5206a200385ea-01", "LIVE-53c5206a200385ea", "src/renderer/components/about/UserGuidePanel.tsx", 305, 9],
+  ["BTN-004", "SITE-7e1e56cf7fda34ba-01", "LIVE-d625f04039490f68", "src/renderer/components/about/UserGuidePanel.tsx", 318, 17],
+  ["BTN-005", "SITE-1065769a4b88dda5-01", "LIVE-b3521eab8d34cca7", "src/renderer/components/about/UserGuidePanel.tsx", 336, 17],
+  ["BTN-006", "SITE-05c810b08ba1c358-01", "LIVE-d29b2d638d60e13e", "src/renderer/components/about/UserGuidePanel.tsx", 362, 17],
+  ["BTN-007", "SITE-39ed459ad85dbb78-01", "LIVE-8e1c5ad13fa650d3", "src/renderer/components/CopyButton.tsx", 39, 5],
+  ["BTN-008", "SITE-ce68b5faf1fd3005-01", "LIVE-ffaaad62c6e612d8", "src/renderer/components/Dialog.tsx", 62, 11],
+  ["BTN-009", "SITE-e35751537426a2bd-01", "LIVE-8264f7f6bcd8085d", "src/renderer/components/HistoryPanel.tsx", 89, 11],
+  ["BTN-010", "SITE-e25a3433178b56b8-01", "LIVE-8975613823778fc5", "src/renderer/components/HistoryPanel.tsx", 97, 13],
+  ["BTN-011", "SITE-8fdea92d910bdd00-01", "LIVE-5cbddd24a7826d4b", "src/renderer/components/HistoryReviewModal.tsx", 81, 11],
+  ["BTN-012", "SITE-c877a1e0899402b2-01", "LIVE-5961fe9e2b8ba32a", "src/renderer/components/HotkeyInput.tsx", 206, 9],
+  ["BTN-013", "SITE-b80fe11c3231d41f-01", "LIVE-97e7bb1c3ab4305f", "src/renderer/components/KeyBinding.tsx", 28, 7],
+  ["BTN-014", "SITE-cf2a96097d8391ca-01", "LIVE-700a4122e599ffe1", "src/renderer/components/LogsPanel.tsx", 335, 9],
+  ["BTN-015", "SITE-c06b8413945e78ff-01", "LIVE-501f82e78a2b09c9", "src/renderer/components/LogsPanel.tsx", 342, 9],
+  ["BTN-016", "SITE-1a700da9051cb2fb-01", "LIVE-29f318d8be62f1d9", "src/renderer/components/LogsPanel.tsx", 349, 9],
+  ["BTN-017", "SITE-88b7be651634ab62-01", "LIVE-7197db62a76969f7", "src/renderer/components/ModelManagerDialog.tsx", 195, 11],
+  ["BTN-018", "SITE-d4a4643a9169ba2d-01", "LIVE-67f4724e126c10d4", "src/renderer/components/ModelManagerDialog.tsx", 207, 11],
+  ["BTN-019", "SITE-2b1785462ba47bbc-01", "LIVE-04748a61b30e3ef8", "src/renderer/components/ModelManagerDialog.tsx", 218, 11],
+  ["BTN-020", "SITE-653a97eac5289779-01", "LIVE-7c4301fb38c9808d", "src/renderer/components/ModelManagerDialog.tsx", 230, 13],
+  ["BTN-021", "SITE-95841fb6da0f157b-01", "LIVE-fc298046a960042d", "src/renderer/components/ModelManagerDialog.tsx", 256, 19],
+  ["BTN-022", "SITE-10a208454fdfae02-01", "LIVE-c09e1d790b99f3f9", "src/renderer/components/ModelManagerDialog.tsx", 276, 27],
+  ["BTN-023", "SITE-df3d083a82cfb916-01", "LIVE-e25d0c965e5599f3", "src/renderer/components/ModelManagerDialog.tsx", 330, 27],
+  ["BTN-024", "SITE-5e076e191fc2107a-01", "LIVE-5526ee17ec81f974", "src/renderer/components/ModelManagerDialog.tsx", 405, 17],
+  ["BTN-025", "SITE-9712230411bd3a9b-01", "LIVE-73361c5a5c8f4108", "src/renderer/components/ModelManagerDialog.tsx", 412, 17],
+  ["BTN-026", "SITE-b69cd75f874dca9c-01", "LIVE-9bea8fb78af9d78f", "src/renderer/components/ModelSelect.tsx", 412, 9],
+  ["BTN-027", "SITE-8d6dde76b7c3ae63-01", "LIVE-38539922a7e16c77", "src/renderer/components/ModelSelect.tsx", 440, 11],
+  ["BTN-028", "SITE-bb8eadbc51c6ba0f-01", "LIVE-edf192add08f8fcb", "src/renderer/components/ModelsPanel.tsx", 161, 15],
+  ["BTN-029", "SITE-a68b89cb574e07eb-01", "LIVE-eca35f045362c69d", "src/renderer/components/MultiSelect.tsx", 94, 7],
+  ["BTN-030", "SITE-dcfd07ba5e05696b-01", "LIVE-73a48ff1f5f9296f", "src/renderer/components/ProfileManager.tsx", 256, 11],
+  ["BTN-031", "SITE-569e41898a468891-01", "LIVE-e99c02ce9aba9550", "src/renderer/components/ProfileManager.tsx", 264, 11],
+  ["BTN-032", "SITE-5aa5015607225404-01", "LIVE-7c9f643148cf3085", "src/renderer/components/ProfileManager.tsx", 318, 23],
+  ["BTN-033", "SITE-054023d19dd23352-01", "LIVE-0a1b7ac2d9c1f374", "src/renderer/components/ProfileManager.tsx", 326, 21],
+  ["BTN-034", "SITE-4483808c41453b50-01", "LIVE-6da333e1baf89565", "src/renderer/components/ProfileManager.tsx", 335, 23],
+  ["BTN-035", "SITE-37fc32119ce9e6ac-01", "LIVE-34a9863fc49e6b83", "src/renderer/components/ProfileManager.tsx", 395, 13],
+  ["BTN-036", "SITE-dd3ac99966606746-01", "LIVE-826dace3c3bc2a71", "src/renderer/components/ProfileManager.tsx", 403, 13],
+  ["BTN-037", "SITE-e1d74ac35a4d23e0-01", "LIVE-ea57f4d3fc631133", "src/renderer/components/ProfileManager.tsx", 439, 13],
+  ["BTN-038", "SITE-c7c4cc0cbc6d8944-01", "LIVE-0a4e93dbd86acef1", "src/renderer/components/ProfileManager.tsx", 447, 13],
+  ["BTN-039", "SITE-042c8112c0a9c8f9-01", "LIVE-7e4c2589c888f87d", "src/renderer/components/ProfileManager.tsx", 483, 13],
+  ["BTN-040", "SITE-22b0fa1a3c9b5d7c-01", "LIVE-d89fe00914eba1d2", "src/renderer/components/ProfileManager.tsx", 491, 13],
+  ["BTN-041", "SITE-c0e683be1ecf8790-01", "LIVE-d971b19360ec4666", "src/renderer/components/SearchInput.tsx", 95, 9],
+  ["BTN-042", "SITE-7af05d8a3cba878c-01", "LIVE-19310a96f693ae27", "src/renderer/components/SegmentedControl.tsx", 62, 11],
+  ["BTN-043", "SITE-b8755f02a8f21fbd-01", "LIVE-9568e1f27af6a345", "src/renderer/components/SettingAppearance.tsx", 87, 17],
+  ["BTN-044", "SITE-02fb80de7b4d66ea-01", "LIVE-bc36161d674c7650", "src/renderer/components/SettingCorrection.tsx", 410, 13],
+  ["BTN-045", "SITE-94ef38da6d54dea8-01", "LIVE-6dd70efb010592d0", "src/renderer/components/SettingCorrection.tsx", 424, 19],
+  ["BTN-046", "SITE-0694ac46e40edf07-01", "LIVE-31930ebb84cc797f", "src/renderer/components/SettingCorrection.tsx", 482, 15],
+  ["BTN-047", "SITE-19327cec6dd7ab56-01", "LIVE-be46cc9ab1065d84", "src/renderer/components/SettingCorrection.tsx", 490, 15],
+  ["BTN-048", "SITE-084abdfaa3d706db-01", "LIVE-6b4e0c40672f1a9f", "src/renderer/components/SettingCorrection.tsx", 499, 15],
+  ["BTN-049", "SITE-ec1cb639d0801535-01", "LIVE-d092e1365d74f58e", "src/renderer/components/SettingCorrection.tsx", 556, 15],
+  ["BTN-050", "SITE-0331a5e36ffc4b2d-01", "LIVE-7ddd61f39a4603c1", "src/renderer/components/SettingCorrection.tsx", 618, 9],
+  ["BTN-051", "SITE-edf33805b54733ba-01", "LIVE-07f2a8ba23e043f1", "src/renderer/components/SettingGeneral.tsx", 614, 11],
+  ["BTN-052", "SITE-bd0c62470cfb4b04-01", "LIVE-c4546c1f1b582275", "src/renderer/components/SettingGeneral.tsx", 627, 13],
+  ["BTN-053", "SITE-3c03205f66bb8f20-01", "LIVE-f528b6225f5af211", "src/renderer/components/SettingGeneral.tsx", 661, 15],
+  ["BTN-054", "SITE-2985cfefb8259f94-01", "LIVE-d3d535844d3ea12d", "src/renderer/components/SettingGeneral.tsx", 669, 15],
+  ["BTN-055", "SITE-aa523e0e3171e4e2-01", "LIVE-6174e716401ff26e", "src/renderer/components/SettingGeneral.tsx", 740, 11],
+  ["BTN-056", "SITE-2a5ece0b4d8d01d5-01", "LIVE-9469c19cdb9b59e6", "src/renderer/components/SettingGeneral.tsx", 766, 11],
+  ["BTN-057", "SITE-6f52173684d9b3f1-01", "LIVE-9366f8ce82dfacc2", "src/renderer/components/SettingGeneral.tsx", 826, 9],
+  ["BTN-058", "SITE-2afefe8b58da16f2-01", "LIVE-f3c8ca23590954fc", "src/renderer/components/SettingPromptGen.tsx", 269, 15],
+  ["BTN-059", "SITE-6cf41feb2844d94d-01", "LIVE-f3f343d2e0482049", "src/renderer/components/SettingPromptGen.tsx", 289, 15],
+  ["BTN-060", "SITE-32f1f12f749c0a0f-01", "LIVE-b3f4857089946438", "src/renderer/components/SettingPromptGen.tsx", 364, 9],
+  ["BTN-061", "SITE-d09064cc6567340e-01", "LIVE-69e4e918b6516bfe", "src/renderer/components/SettingPromptGen.tsx", 370, 9],
+  ["BTN-062", "SITE-b033f456b9edb0d8-01", "LIVE-ccaa63ee68a2a8a1", "src/renderer/components/SettingsIcon.tsx", 28, 5],
+  ["BTN-063", "SITE-187c46dab673fb0a-01", "LIVE-426eacdcf8f96389", "src/renderer/components/SettingsModal.tsx", 198, 11],
+  ["BTN-064", "SITE-af6696a6812f0065-01", "LIVE-131332cadfcd6d7c", "src/renderer/components/SettingsModal.tsx", 240, 17],
+  ["BTN-065", "SITE-544d0e735bcdc224-01", "LIVE-c0f45b98e17a7b20", "src/renderer/components/SettingTabBtn.tsx", 31, 5],
+  ["BTN-066", "SITE-fe87dc426bd171bd-01", "LIVE-f63727c376cb5050", "src/renderer/components/SettingUpdates.tsx", 308, 11],
+  ["BTN-067", "SITE-9c72f61ee91e0d49-01", "LIVE-31d2760b23787e23", "src/renderer/components/SettingUpdates.tsx", 333, 11],
+  ["BTN-068", "SITE-1972ffe3da0bcde1-01", "LIVE-91ba4b4f640490e2", "src/renderer/components/SettingUpdates.tsx", 361, 13],
+  ["BTN-069", "SITE-9ee18af8c12ab3af-02", "LIVE-663c55705a5cc3f0", "src/renderer/components/SettingUpdates.tsx", 381, 15],
+  ["BTN-070", "SITE-cfd016770fe61f89-01", "LIVE-43414753ace2ab81", "src/renderer/components/SettingUpdates.tsx", 430, 15],
+  ["BTN-071", "SITE-663c55705a5cc3f0-71", "LIVE-663c55705a5cc3f0", "src/renderer/components/SettingUpdates.tsx", 447, 15],
+  ["BTN-072", "SITE-7c992efd6d29f812-01", "LIVE-c11f9621b2e3d72c", "src/renderer/components/SettingUpdates.tsx", 461, 15],
+  ["BTN-073", "SITE-9ee18af8c12ab3af-04", "LIVE-f4ccea28d324b33f", "src/renderer/components/SettingUpdates.tsx", 474, 13],
+  ["BTN-074", "SITE-eeef419824524c4a-01", "LIVE-fbcd67d29270d287", "src/renderer/components/SettingUpdates.tsx", 490, 13],
+  ["BTN-075", "SITE-4d96952767063952-01", "LIVE-bfa98039be039f30", "src/renderer/components/SettingUpdates.tsx", 586, 13],
+  ["BTN-076", "SITE-ca4cd81c50209cf6-01", "LIVE-5815552ee2096fa5", "src/renderer/components/SettingUpdates.tsx", 615, 13],
+  ["BTN-077", "SITE-f4ccea28d324b33f-77", "LIVE-f4ccea28d324b33f", "src/renderer/components/SettingUpdates.tsx", 627, 13],
+  ["BTN-078", "SITE-5d39d7c44db8e592-01", "LIVE-d2dc6b542709b453", "src/renderer/components/TrashButton.tsx", 23, 5],
+  ["BTN-079", "SITE-bdf91dd57b1a8eab-01", "LIVE-57f775bd4fae66ec", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 94, 11],
+  ["BTN-080", "SITE-189b25e5188dce61-01", "LIVE-e630a70d66e34af0", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 121, 13],
+  ["BTN-081", "SITE-2ac783017cc928f4-01", "LIVE-450bee16aa4af761", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 132, 9],
+  ["BTN-082", "SITE-07c4c1eed32b1e05-01", "LIVE-3c1c72456ff99197", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 96, 11],
+  ["BTN-083", "SITE-675f0652493e38fe-01", "LIVE-eb9419e711683c9d", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 126, 13],
+  ["BTN-084", "SITE-af5b100d129e6dab-01", "LIVE-c0827e45b78b1651", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 139, 9],
+  ["BTN-085", "SITE-ef9a2ca35cce009b-01", "LIVE-cda3ee060bf9b96d", "src/renderer/components/usage/UsagePanel.tsx", 102, 11],
+  ["BTN-086", "SITE-88cac4abd73dba55-01", "LIVE-e27f5c86266c2ef9", "src/renderer/components/usage/UsagePanel.tsx", 128, 13],
+  ["BTN-087", "SITE-cb7fadf7f125d0a4-01", "LIVE-22b46580f1bd13d0", "src/renderer/CorrectionResultWindow/index.tsx", 61, 9],
+  ["BTN-088", "SITE-88c71677c4253b47-01", "LIVE-0186137c312ed90a", "src/renderer/MainWindow/App.tsx", 343, 15],
+  ["BTN-089", "SITE-d33755b6903c0d0d-01", "LIVE-391b0616cadac9b3", "src/renderer/TrayWindow/components/TrayCreditBalance.tsx", 66, 5],
+  ["BTN-090", "SITE-1af9bad65d4dd36b-01", "LIVE-022a9db6eed9fbc4", "src/renderer/TrayWindow/components/TrayToolbar.tsx", 23, 3],
 ] as const;
 
 const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
@@ -1621,7 +1622,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "aa3ece7c38188d1366a17d3b73f4c30bfdec87bb42535b32b055e7654098a550";
+  "d9da33f18b50da00e1cc64488c40c2c8dd04c1e90d5c1ea5608fcf8342f148b8";
 
 const compareConsumers = (left: ButtonConsumer, right: ButtonConsumer): number =>
   left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column;
@@ -2134,7 +2135,9 @@ describe("renderer Button source guard", () => {
     }
   });
 
-  it("changes every one of the 89 live identities under a stable-coordinate mutation", async () => {
+
+
+  it("changes every one of the 90 live identities under a stable-coordinate mutation", async () => {
     const sourceByFile = new Map<string, string>();
     let mutatedIdentityCount = 0;
 
@@ -2168,29 +2171,29 @@ describe("renderer Button source guard", () => {
       mutatedIdentityCount += 1;
     }
 
-    expect(mutatedIdentityCount).toBe(89);
+    expect(mutatedIdentityCount).toBe(90);
   });
 
-  it("allows the shared native leaf and the exact 89-consumer migration inventory", async () => {
+  it("allows the shared native leaf and the exact 90-consumer migration inventory", async () => {
     const result = await scanRenderer();
     const locations = expectedButtonConsumers.map(
       ({ file, line, column }) => `${file}:${line}:${column}`,
     );
 
-    expect(expectedButtonConsumers).toHaveLength(89);
+    expect(expectedButtonConsumers).toHaveLength(90);
     expect(sha256(JSON.stringify(expectedButtonConsumers))).toBe(
       consumerContractSha256,
     );
     expect(expectedButtonConsumers.map(({ id }) => id)).toEqual(
       Array.from(
-        { length: 89 },
+        { length: 90 },
         (_, index) => `BTN-${String(index + 1).padStart(3, "0")}`,
       ),
     );
     expect(new Set(expectedButtonConsumers.map(({ stableId }) => stableId)).size).toBe(
-      89,
+      90,
     );
-    expect(new Set(locations).size).toBe(89);
+    expect(new Set(locations).size).toBe(90);
     expect(result.findings).toEqual([]);
     expect(result.sourceFiles.filter(isPrimaryButtonModule)).toEqual([]);
     expect(result.nativeLeaves).toHaveLength(1);

@@ -3,14 +3,19 @@
  * @description Models dashboard tab. Presentational: receives the
  * already-fetched corrections `history` (owned + live-updated by App) and the
  * active range (lifted to the shared header). Renders a token-volume-over-time
- * bar chart plus a ranked per-model list (marker, name, input/output tokens,
- * usage %) from the PURE aggregators in modelsAggregations.ts. No fetch/IPC on
- * mount or tab switch (reads from props).
+ * bar chart plus a Model Breakdown section (share donut above a ranked
+ * per-model table) from the PURE aggregators in modelsAggregations.ts. No
+ * fetch/IPC on mount or tab switch (reads from props).
  */
 import { useMemo, useState } from "react";
 import { Button } from "./Button";
+import { ModelsBreakdownDonut, ModelsTokenUsageChart } from "./ModelsCharts";
 import { ModelSelect } from "./ModelSelect";
-import { barDateLabel, barTooltipMessage, MODEL_TABLE_HEADER_KEYS, showMoreMessage } from "./modelsView";
+import {
+  MODEL_BREAKDOWN_TITLE_KEY,
+  MODEL_TABLE_HEADER_KEYS,
+  showMoreMessage,
+} from "./modelsView";
 import { filterByRange, type AnalyticsRange } from "../analytics/shared";
 import { useI18n } from "../i18n/useI18n";
 import {
@@ -46,21 +51,19 @@ const markerColor = (rank: number): string =>
   MARKER_VARS[rank % MARKER_VARS.length];
 
 export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
-  const { t, tl, tm, formatNumber, formatDate } = useI18n();
+  const { t, tl, tm, formatNumber } = useI18n();
   const [expanded, setExpanded] = useState<boolean>(false);
 
   // Descriptor-free data only — no locale-sensitive string is built inside
   // this memo, so it needs no `t`/`locale` dependency (unlike
   // `PresetWeightChart`'s chart-options memo — see spec.i18n-dashboard.md §5.3
   // trap 2, which calls out reviewing this memo for the same risk).
-  const { rows, bars, maxTokens } = useMemo(() => {
+  const { rows, bars } = useMemo(() => {
     const now = new Date();
     const filtered = filterByRange(history, range, now);
-    const bars = tokensPerDay(filtered, range, now);
     return {
       rows: perModelBreakdown(filtered),
-      bars,
-      maxTokens: bars.reduce((m, b) => Math.max(m, b.tokens), 0),
+      bars: tokensPerDay(filtered, range, now),
     };
   }, [history, range]);
 
@@ -80,43 +83,20 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
         </p>
       ) : (
         <>
-          {/* Token volume over time — thin blue bars. */}
+          <ModelsTokenUsageChart bars={bars} />
+
           <div className="rounded-lg border border-card-control-border bg-card p-4">
             <div className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">
-              {t("models.usage.chartTitle")}
+              {t(MODEL_BREAKDOWN_TITLE_KEY)}
             </div>
-            <div className="overflow-x-auto">
-              <div className="flex h-28 items-end gap-[2px]">
-                {bars.map((b) => {
-                  const pct = maxTokens > 0 ? (b.tokens / maxTokens) * 100 : 0;
-                  return (
-                    <div
-                      key={b.date}
-                      // `b.date` is a raw "YYYY-MM-DD" day key, not a display
-                      // label — `barDateLabel` formats it via the
-                      // locale-aware `formatDate` at render time (this map
-                      // runs directly in JSX, outside any memo, so there is
-                      // no stale-locale dependency-array risk to guard here).
-                      title={tm(barTooltipMessage(b, barDateLabel(formatDate, b.date)))}
-                      className="w-[5px] shrink-0 rounded-t-[1px] bg-primary/80 hover:bg-primary/90"
-                      // Inline height: a data-driven per-bar value, not a static
-                      // style — keep at least a 1px sliver for non-zero days.
-                      style={{
-                        height: `${b.tokens > 0 ? Math.max(pct, 2) : 0}%`,
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+            <ModelsBreakdownDonut rows={rows} />
 
-          {/* Ranked model list. */}
-          <div className="rounded-lg border border-card-control-border bg-card p-2">
-            <table className="w-full text-sm">
+            <table className="mt-4 w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="px-2 py-2 font-medium">{t(MODEL_TABLE_HEADER_KEYS.model)}</th>
+                  <th className="px-2 py-2 font-medium">
+                    {t(MODEL_TABLE_HEADER_KEYS.model)}
+                  </th>
                   <th className="px-2 py-2 text-right font-medium">
                     {t(MODEL_TABLE_HEADER_KEYS.input)}
                   </th>

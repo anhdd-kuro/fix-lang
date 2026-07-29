@@ -571,7 +571,7 @@ export const SettingGeneral: React.FC = () => {
               role="status"
             >
               {card.provisioningKeySet
-                ? t("settings.general.secret.set")
+                ? t("settings.general.secret.adminConnected")
                 : t("settings.general.secret.unset")}
             </p>
             <input
@@ -619,9 +619,7 @@ export const SettingGeneral: React.FC = () => {
           >
             {busy
               ? t("settings.general.providers.card.testing")
-              : card.connected
-                ? t("settings.general.providers.card.testAndFetch")
-                : t("settings.general.providers.card.connect")}
+              : t("settings.general.providers.card.connect")}
           </Button>
           {/* Hidden while its confirmation is open, so Disconnect is never
               one of two identically-named controls. */}

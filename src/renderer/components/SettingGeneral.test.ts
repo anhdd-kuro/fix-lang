@@ -64,6 +64,26 @@ const buttonNamed = (
   return button;
 };
 
+
+const connectButtonNear = (
+  root: HTMLElement,
+  fieldId: string,
+): HTMLButtonElement => {
+  const field = root.querySelector(fieldId);
+  const card = field?.closest("div.rounded.border");
+  if (!card) {
+    throw new Error(`Expected a provider card containing ${fieldId}`);
+  }
+  const button = [...card.querySelectorAll("button")].find(
+    (candidate) =>
+      candidate.textContent === tEn("settings.general.providers.card.connect"),
+  );
+  if (!button) {
+    throw new Error(`Expected Connect in the card for ${fieldId}`);
+  }
+  return button;
+};
+
 type ResetResult = { success: boolean; error?: Label };
 
 type SettingGeneralApi = {
@@ -587,9 +607,7 @@ describe("SettingGeneral", () => {
       if (!input) throw new Error("expected an OpenRouter API key field");
       await type(input, "sk-or-typed");
 
-      await click(
-        buttonNamed(container, tEn("settings.general.providers.card.connect")),
-      );
+      await click(connectButtonNear(container, "#api-key-openrouter"));
       await waitForUi();
 
       expect(api.connectProvider).toHaveBeenCalledTimes(1);
@@ -698,9 +716,7 @@ describe("SettingGeneral", () => {
       await type(field, "sk-or-typed");
       expect(input()?.value).toBe("sk-or-typed");
 
-      await click(
-        buttonNamed(container, tEn("settings.general.providers.card.connect")),
-      );
+      await click(connectButtonNear(container, "#api-key-openrouter"));
       await waitForUi();
 
       // The secret is written once and then must not linger in the renderer.
@@ -753,7 +769,7 @@ describe("SettingGeneral", () => {
             button.textContent ===
               tEn("settings.general.providers.card.testing"),
         );
-      await click(connectButtons()[0] ?? never());
+      await click(connectButtonNear(container, "#api-key-openrouter"));
 
       const testing = connectButtons().filter(
         (button) =>
@@ -778,12 +794,8 @@ describe("SettingGeneral", () => {
     it("refuses to attempt a connect with no stored and no typed key", async () => {
       await render({ success: true });
 
-      const connect = [...container.querySelectorAll("button")].find(
-        (button) =>
-          button.textContent === tEn("settings.general.providers.card.connect"),
-      );
       // OpenRouter: no stored key, nothing typed.
-      expect(connect?.disabled).toBe(true);
+      expect(connectButtonNear(container, "#api-key-openrouter").disabled).toBe(true);
 
       const field = container.querySelector<HTMLInputElement>(
         "#api-key-openrouter",
@@ -791,13 +803,7 @@ describe("SettingGeneral", () => {
       if (!field) throw new Error("expected an OpenRouter API key field");
       await type(field, "sk-or-typed");
 
-      expect(
-        [...container.querySelectorAll("button")].find(
-          (button) =>
-            button.textContent ===
-            tEn("settings.general.providers.card.connect"),
-        )?.disabled,
-      ).toBe(false);
+      expect(connectButtonNear(container, "#api-key-openrouter").disabled).toBe(false);
     });
 
     it("renders a SUCCESS-path note verbatim, never through the Error wrapper", async () => {
@@ -910,6 +916,25 @@ describe("SettingGeneral", () => {
       expect(near("#provisioning-key-openrouter")).toContain(
         tEn("settings.general.secret.unset"),
       );
+    });
+
+    it("labels a stored admin key as Admin / Provisioning connected", async () => {
+      await render(
+        { success: true },
+        {
+          openai: providerState(),
+          openrouter: providerState({
+            apiKeySet: true,
+            provisioningKeySet: true,
+          }),
+          ollama: providerState(),
+        },
+      );
+
+      const field = container.querySelector("#provisioning-key-openrouter");
+      const near = field?.parentElement?.textContent ?? "";
+      expect(near).toContain(tEn("settings.general.secret.adminConnected"));
+      expect(near).not.toContain(tEn("settings.general.secret.set"));
     });
 
     it("says nothing will be lost when the disconnect cleared nothing", async () => {
