@@ -49,11 +49,19 @@ If you added or changed a runtime dependency, also run:
 
 ```bash
 bun run build && bun run check:bundle
+bun run notices:generate
 ```
 
 The packaged app ships no `node_modules` — every runtime dependency must be
 inlined into `out/` by Vite. `check:bundle` is the only check that catches a
 dependency Vite left external; `dev`, `test`, and `lint` all pass regardless.
+
+`notices:generate` rewrites `resources/THIRD-PARTY-NOTICES.md` and
+`resources/THIRD-PARTY-LICENSES.txt` from the full runtime dependency closure —
+currently 250 packages, so do not edit either file by hand. Both ship inside the
+application bundle, and the release workflow fails if either is missing from
+`app.asar`, because they are the only copy of those licence texts a recipient of
+the DMG ever receives.
 
 For UI changes, verify in `bun run dev` before packaging.
 
@@ -81,10 +89,12 @@ in the renderer and `mainT()` in the main process.
 Themes are generated from JSON under `src/themes/json/` — run
 `bun run themes:generate` after changes, then `bun run test`.
 
-If you add a theme sourced from someone else's work, you must also add its
-copyright holder and licence to
-[resources/THIRD-PARTY-NOTICES.md](resources/THIRD-PARTY-NOTICES.md). A theme with
-no identifiable licence will not be merged.
+If you add a theme sourced from someone else's work, run `bun run notices:generate`
+so its copyright holder and licence land in
+[resources/THIRD-PARTY-NOTICES.md](resources/THIRD-PARTY-NOTICES.md). Themes taken
+from `shikijs/tm-themes` resolve automatically from that project's upstream
+NOTICE; a theme from anywhere else needs its licence added to the generator. A
+theme with no identifiable licence will not be merged.
 
 ## Security
 

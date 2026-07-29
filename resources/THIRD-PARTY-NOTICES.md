@@ -1,14 +1,16 @@
 # Third-party notices
 
-FixLang itself is licensed under GPL-3.0-or-later (see `LICENSE.md` in the
-source repository). It bundles the third-party material listed below, each of
-which remains under its own licence. Those licences are reproduced at the URLs
-given; nothing here modifies or replaces them.
+FixLang is licensed under GPL-3.0-or-later. Its licence text is in `LICENSE.md`,
+which ships alongside this file inside the application bundle.
 
-This file ships inside the application bundle so the notices travel with the
-binaries FixLang distributes, as MIT and Apache-2.0 both require.
+FixLang bundles the third-party material listed below, each of which remains
+under its own licence. **Verbatim licence texts for every bundled npm package
+are in `THIRD-PARTY-LICENSES.txt`, in this same directory.**
 
-Regenerate this file when themes or runtime dependencies change.
+Both files ship inside the application bundle so notices travel with the
+binaries, as MIT and Apache-2.0 both require.
+
+Regenerate both when themes or runtime dependencies change.
 
 ---
 
@@ -216,8 +218,9 @@ plus upstream-named themes such as `slack-dark`, `slack-ochin`, `github-*`,
 Claude Code and Claude are trademarks of Anthropic. Codex and ChatGPT are
 trademarks of OpenAI. Cursor is a trademark of Anysphere. Shopify is a trademark
 of Shopify Inc. Slack is a trademark of Slack Technologies. GitHub is a trademark
-of GitHub, Inc. Visual Studio Code is a trademark of Microsoft. All other product
-names, logos, and brands are the property of their respective owners.
+of GitHub, Inc. Visual Studio Code is a trademark of Microsoft. Amazon Bedrock
+and AWS are trademarks of Amazon.com, Inc. All other product names, logos, and
+brands are the property of their respective owners.
 
 These names are used only to describe the visual appearance of a colour scheme.
 FixLang is not affiliated with, endorsed by, or sponsored by any of these
@@ -227,40 +230,270 @@ companies, and no such affiliation is implied.
 
 ## Bundled npm packages
 
-FixLang ships no `node_modules` directory; these packages are compiled into the
-application by Vite, so their notices are included here.
+FixLang ships no `node_modules` directory — Vite compiles these packages into the
+application, so their notices are included here and their full licence texts in
+`THIRD-PARTY-LICENSES.txt`.
 
-Licence spread: 15 × MIT, 7 × Apache-2.0.
+This is the complete runtime dependency closure: **250 packages**, resolved
+transitively from `dependencies` the way Node would resolve them, not just the
+top-level entries. Vite tree-shakes some of these out of the final bundle, so the
+list over-includes rather than under-includes — crediting a package that was
+dropped is harmless, omitting one that shipped is not.
+
+Licence spread: 199 × MIT, 39 × Apache-2.0, 4 × BSD-3-Clause, 4 × ISC, 1 × (AFL-2.1 OR BSD-3-Clause), 1 × (MIT OR CC0-1.0), 1 × 0BSD, 1 × BSD-2-Clause.
 
 | Package | Version | Licence | Project |
 | ------- | ------- | ------- | ------- |
 | `@ai-sdk/amazon-bedrock` | 5.0.35 | Apache-2.0 | [source](https://github.com/vercel/ai) |
+| `@ai-sdk/anthropic` | 4.0.23 | Apache-2.0 | [source](https://github.com/vercel/ai) |
+| `@ai-sdk/gateway` | 4.0.28 | Apache-2.0 | [source](https://github.com/vercel/ai) |
 | `@ai-sdk/openai` | 4.0.20 | Apache-2.0 | [source](https://github.com/vercel/ai) |
+| `@ai-sdk/openai` | 4.0.23 | Apache-2.0 | [source](https://github.com/vercel/ai) |
+| `@ai-sdk/provider` | 4.0.3 | Apache-2.0 | [source](https://github.com/vercel/ai) |
+| `@ai-sdk/provider` | 4.0.4 | Apache-2.0 | [source](https://github.com/vercel/ai) |
+| `@ai-sdk/provider-utils` | 5.0.12 | Apache-2.0 | [source](https://github.com/vercel/ai) |
+| `@ai-sdk/provider-utils` | 5.0.14 | Apache-2.0 | [source](https://github.com/vercel/ai) |
 | `@aws-sdk/client-bedrock` | 3.1097.0 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/core` | 3.977.2 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/credential-provider-env` | 3.972.63 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/credential-provider-http` | 3.972.65 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/credential-provider-ini` | 3.973.8 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/credential-provider-login` | 3.972.70 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/credential-provider-node` | 3.972.74 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/credential-provider-process` | 3.972.63 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/credential-provider-sso` | 3.973.7 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/credential-provider-web-identity` | 3.972.69 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/nested-clients` | 3.997.37 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/signature-v4-multi-region` | 3.996.42 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/token-providers` | 3.1097.0 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/types` | 3.974.2 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws-sdk/xml-builder` | 3.972.37 | Apache-2.0 | [source](https://github.com/aws/aws-sdk-js-v3) |
+| `@aws/lambda-invoke-store` | 0.3.0 | Apache-2.0 | [source](https://github.com/awslabs/aws-lambda-invoke-store) |
+| `@babel/code-frame` | 7.29.7 | MIT | [source](https://github.com/babel/babel) |
+| `@babel/generator` | 7.29.7 | MIT | [source](https://github.com/babel/babel) |
+| `@babel/helper-globals` | 7.29.7 | MIT | [source](https://github.com/babel/babel) |
+| `@babel/helper-module-imports` | 7.29.7 | MIT | [source](https://github.com/babel/babel) |
+| `@babel/helper-string-parser` | 7.29.7 | MIT | [source](https://github.com/babel/babel) |
+| `@babel/helper-validator-identifier` | 7.29.7 | MIT | [source](https://github.com/babel/babel) |
+| `@babel/parser` | 7.29.7 | MIT | [source](https://github.com/babel/babel) |
+| `@babel/runtime` | 7.29.7 | MIT | [source](https://github.com/babel/babel) |
+| `@babel/template` | 7.29.7 | MIT | [source](https://github.com/babel/babel) |
+| `@babel/traverse` | 7.29.7 | MIT | [source](https://github.com/babel/babel) |
+| `@babel/types` | 7.29.7 | MIT | [source](https://github.com/babel/babel) |
+| `@emotion/babel-plugin` | 11.13.5 | MIT | [source](https://github.com/emotion-js/emotion/tree/main/packages/babel-plugin) |
+| `@emotion/cache` | 11.14.0 | MIT | [source](https://github.com/emotion-js/emotion/tree/main/packages/cache) |
+| `@emotion/hash` | 0.9.2 | MIT | [source](https://github.com/emotion-js/emotion/tree/main/packages/hash) |
+| `@emotion/memoize` | 0.9.0 | MIT | [source](https://github.com/emotion-js/emotion/tree/main/packages/memoize) |
+| `@emotion/react` | 11.14.0 | MIT | [source](https://github.com/emotion-js/emotion/tree/main/packages/react) |
+| `@emotion/serialize` | 1.3.3 | MIT | [source](https://github.com/emotion-js/emotion/tree/main/packages/serialize) |
+| `@emotion/sheet` | 1.4.0 | MIT | [source](https://github.com/emotion-js/emotion/tree/main/packages/sheet) |
+| `@emotion/unitless` | 0.10.0 | MIT | [source](https://github.com/emotion-js/emotion/tree/main/packages/unitless) |
+| `@emotion/use-insertion-effect-with-fallbacks` | 1.2.0 | MIT | [source](https://github.com/emotion-js/emotion/tree/main/packages/use-insertion-effect-with-fallbacks) |
+| `@emotion/utils` | 1.4.2 | MIT | [source](https://github.com/emotion-js/emotion/tree/main/packages/utils) |
+| `@emotion/weak-memoize` | 0.4.0 | MIT | [source](https://github.com/emotion-js/emotion/tree/main/packages/weak-memoize) |
+| `@floating-ui/core` | 1.7.5 | MIT | [source](https://github.com/floating-ui/floating-ui) |
+| `@floating-ui/dom` | 1.7.6 | MIT | [source](https://github.com/floating-ui/floating-ui) |
+| `@floating-ui/utils` | 0.2.11 | MIT | [source](https://github.com/floating-ui/floating-ui) |
+| `@jridgewell/gen-mapping` | 0.3.13 | MIT | [source](https://github.com/jridgewell/sourcemaps) |
+| `@jridgewell/resolve-uri` | 3.1.2 | MIT | [source](https://github.com/jridgewell/resolve-uri) |
+| `@jridgewell/sourcemap-codec` | 1.5.5 | MIT | [source](https://github.com/jridgewell/sourcemaps) |
+| `@jridgewell/trace-mapping` | 0.3.31 | MIT | [source](https://github.com/jridgewell/sourcemaps) |
+| `@kurkle/color` | 0.3.4 | MIT | [source](https://github.com/kurkle/color) |
 | `@openrouter/ai-sdk-provider` | 3.0.0 | Apache-2.0 | [source](https://github.com/OpenRouterTeam/ai-sdk-provider) |
+| `@smithy/core` | 3.31.0 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
+| `@smithy/credential-provider-imds` | 4.4.15 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
+| `@smithy/eventstream-codec` | 4.4.15 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
+| `@smithy/fetch-http-handler` | 5.6.12 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
+| `@smithy/node-http-handler` | 4.9.12 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
+| `@smithy/signature-v4` | 5.6.11 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
+| `@smithy/types` | 4.16.1 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
+| `@smithy/util-utf8` | 4.4.15 | Apache-2.0 | [source](https://github.com/smithy-lang/smithy-typescript) |
+| `@standard-schema/spec` | 1.1.0 | MIT | [source](https://github.com/standard-schema/standard-schema) |
 | `@tanstack/react-virtual` | 3.14.8 | MIT | [source](https://github.com/TanStack/virtual) |
+| `@tanstack/virtual-core` | 3.17.6 | MIT | [source](https://github.com/TanStack/virtual) |
+| `@types/debug` | 4.1.13 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
+| `@types/estree` | 1.0.9 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
+| `@types/estree-jsx` | 1.0.5 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
+| `@types/hast` | 3.0.5 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
+| `@types/mdast` | 4.0.4 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
+| `@types/ms` | 2.1.0 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
+| `@types/parse-json` | 4.0.2 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
+| `@types/react-transition-group` | 4.4.12 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
+| `@types/unist` | 2.0.11 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
+| `@types/unist` | 3.0.3 | MIT | [source](https://github.com/DefinitelyTyped/DefinitelyTyped) |
+| `@ungap/structured-clone` | 1.3.3 | ISC | [source](https://github.com/ungap/structured-clone) |
+| `@vercel/oidc` | 3.2.0 | Apache-2.0 | [source](https://github.com/vercel/vercel) |
+| `@workflow/serde` | 4.1.0 | Apache-2.0 | [source](https://github.com/vercel/workflow) |
 | `ai` | 7.0.37 | Apache-2.0 | [source](https://github.com/vercel/ai) |
+| `ajv` | 8.20.0 | MIT | [source](ajv-validator/ajv) |
+| `ajv-formats` | 3.0.1 | MIT | [source](https://github.com/ajv-validator/ajv-formats) |
+| `atomically` | 2.1.1 | MIT | [source](https://github.com/fabiospampinato/atomically) |
+| `aws4fetch` | 1.0.20 | MIT | [source](https://github.com/mhart/aws4fetch) |
+| `babel-plugin-macros` | 3.1.0 | MIT | [source](https://github.com/kentcdodds/babel-plugin-macros) |
+| `bail` | 2.0.2 | MIT | [source](wooorm/bail) |
+| `bowser` | 2.14.1 | MIT | [source](https://github.com/bowser-js/bowser) |
+| `callsites` | 3.1.0 | MIT | [source](sindresorhus/callsites) |
+| `ccount` | 2.0.1 | MIT | [source](wooorm/ccount) |
+| `character-entities` | 2.0.2 | MIT | [source](wooorm/character-entities) |
+| `character-entities-html4` | 2.1.0 | MIT | [source](wooorm/character-entities-html4) |
+| `character-entities-legacy` | 3.0.0 | MIT | [source](wooorm/character-entities-legacy) |
+| `character-reference-invalid` | 2.0.1 | MIT | [source](wooorm/character-reference-invalid) |
 | `chart.js` | 4.5.1 | MIT | [source](https://github.com/chartjs/Chart.js) |
 | `colord` | 2.9.3 | MIT | [source](omgovich/colord) |
+| `comma-separated-tokens` | 2.0.3 | MIT | [source](wooorm/comma-separated-tokens) |
+| `conf` | 15.1.0 | MIT | [source](sindresorhus/conf) |
+| `convert-source-map` | 1.9.0 | MIT | [source](https://github.com/thlorenz/convert-source-map) |
+| `cosmiconfig` | 7.1.0 | MIT | [source](https://github.com/davidtheclark/cosmiconfig) |
+| `csstype` | 3.2.3 | MIT | [source](https://github.com/frenic/csstype) |
 | `date-fns` | 4.4.0 | MIT | [source](https://github.com/date-fns/date-fns) |
-| `electron` | 43.2.0 | MIT | [source](https://github.com/electron/electron) |
+| `debounce-fn` | 6.0.0 | MIT | [source](sindresorhus/debounce-fn) |
+| `debug` | 4.4.3 | MIT | [source](https://github.com/debug-js/debug) |
+| `decode-named-character-reference` | 1.3.0 | MIT | [source](wooorm/decode-named-character-reference) |
+| `dequal` | 2.0.3 | MIT | [source](lukeed/dequal) |
+| `devlop` | 1.1.0 | MIT | [source](wooorm/devlop) |
+| `dom-helpers` | 5.2.1 | MIT | [source](https://github.com/react-bootstrap/dom-helpers) |
+| `dot-prop` | 10.1.0 | MIT | [source](sindresorhus/dot-prop) |
 | `electron-store` | 11.0.2 | MIT | [source](sindresorhus/electron-store) |
+| `env-paths` | 3.0.0 | MIT | [source](sindresorhus/env-paths) |
+| `error-ex` | 1.3.4 | MIT | [source](qix-/node-error-ex) |
+| `es-errors` | 1.3.0 | MIT | [source](https://github.com/ljharb/es-errors) |
+| `escape-string-regexp` | 4.0.0 | MIT | [source](sindresorhus/escape-string-regexp) |
+| `escape-string-regexp` | 5.0.0 | MIT | [source](sindresorhus/escape-string-regexp) |
+| `estree-util-is-identifier-name` | 3.0.0 | MIT | [source](syntax-tree/estree-util-is-identifier-name) |
+| `eventsource-parser` | 3.1.0 | MIT | [source](ssh://git@github.com/rexxars/eventsource-parser) |
+| `extend` | 3.0.2 | MIT | [source](https://github.com/justmoon/node-extend) |
+| `fast-deep-equal` | 3.1.3 | MIT | [source](https://github.com/epoberezkin/fast-deep-equal) |
+| `fast-uri` | 3.1.2 | BSD-3-Clause | [source](https://github.com/fastify/fast-uri) |
+| `find-root` | 1.1.0 | MIT | [source](https://github.com/js-n/find-root) |
+| `function-bind` | 1.1.2 | MIT | [source](https://github.com/Raynos/function-bind) |
 | `fuse.js` | 7.5.0 | Apache-2.0 | [source](https://github.com/krisk/Fuse) |
+| `hasown` | 2.0.4 | MIT | [source](https://github.com/inspect-js/hasOwn) |
+| `hast-util-to-jsx-runtime` | 2.3.6 | MIT | [source](syntax-tree/hast-util-to-jsx-runtime) |
+| `hast-util-whitespace` | 3.0.0 | MIT | [source](syntax-tree/hast-util-whitespace) |
+| `hoist-non-react-statics` | 3.3.2 | BSD-3-Clause | [source](https://github.com/mridgway/hoist-non-react-statics) |
+| `html-url-attributes` | 3.0.1 | MIT | [source](https://github.com/rehypejs/rehype-minify/tree/main/packages/html-url-attributes) |
+| `import-fresh` | 3.3.1 | MIT | [source](sindresorhus/import-fresh) |
+| `inline-style-parser` | 0.2.7 | MIT | [source](https://github.com/remarkablemark/inline-style-parser) |
+| `is-alphabetical` | 2.0.1 | MIT | [source](wooorm/is-alphabetical) |
+| `is-alphanumerical` | 2.0.1 | MIT | [source](wooorm/is-alphanumerical) |
+| `is-arrayish` | 0.2.1 | MIT | [source](https://github.com/qix-/node-is-arrayish) |
+| `is-core-module` | 2.16.2 | MIT | [source](https://github.com/inspect-js/is-core-module) |
+| `is-decimal` | 2.0.1 | MIT | [source](wooorm/is-decimal) |
+| `is-hexadecimal` | 2.0.1 | MIT | [source](wooorm/is-hexadecimal) |
+| `is-plain-obj` | 4.1.0 | MIT | [source](sindresorhus/is-plain-obj) |
+| `js-tokens` | 4.0.0 | MIT | [source](lydell/js-tokens) |
+| `jsesc` | 3.1.0 | MIT | [source](https://github.com/mathiasbynens/jsesc) |
+| `json-parse-even-better-errors` | 2.3.1 | MIT | [source](https://github.com/npm/json-parse-even-better-errors) |
+| `json-schema` | 0.4.0 | (AFL-2.1 OR BSD-3-Clause) | [source](http://github.com/kriszyp/json-schema) |
+| `json-schema-traverse` | 1.0.0 | MIT | [source](https://github.com/epoberezkin/json-schema-traverse) |
+| `json-schema-typed` | 8.0.2 | BSD-2-Clause | [source](https://github.com/RemyRylan/json-schema-typed) |
+| `lines-and-columns` | 1.2.4 | MIT | [source](https://github.com/eventualbuddha/lines-and-columns) |
+| `longest-streak` | 3.1.0 | MIT | [source](wooorm/longest-streak) |
+| `loose-envify` | 1.4.0 | MIT | [source](https://github.com/zertosh/loose-envify) |
+| `markdown-table` | 3.0.4 | MIT | [source](wooorm/markdown-table) |
+| `mdast-util-find-and-replace` | 3.0.2 | MIT | [source](syntax-tree/mdast-util-find-and-replace) |
+| `mdast-util-from-markdown` | 2.0.3 | MIT | [source](syntax-tree/mdast-util-from-markdown) |
+| `mdast-util-gfm` | 3.1.0 | MIT | [source](syntax-tree/mdast-util-gfm) |
+| `mdast-util-gfm-autolink-literal` | 2.0.1 | MIT | [source](syntax-tree/mdast-util-gfm-autolink-literal) |
+| `mdast-util-gfm-footnote` | 2.1.0 | MIT | [source](syntax-tree/mdast-util-gfm-footnote) |
+| `mdast-util-gfm-strikethrough` | 2.0.0 | MIT | [source](syntax-tree/mdast-util-gfm-strikethrough) |
+| `mdast-util-gfm-table` | 2.0.0 | MIT | [source](syntax-tree/mdast-util-gfm-table) |
+| `mdast-util-gfm-task-list-item` | 2.0.0 | MIT | [source](syntax-tree/mdast-util-gfm-task-list-item) |
+| `mdast-util-mdx-expression` | 2.0.1 | MIT | [source](syntax-tree/mdast-util-mdx-expression) |
+| `mdast-util-mdx-jsx` | 3.2.0 | MIT | [source](syntax-tree/mdast-util-mdx-jsx) |
+| `mdast-util-mdxjs-esm` | 2.0.1 | MIT | [source](syntax-tree/mdast-util-mdxjs-esm) |
+| `mdast-util-phrasing` | 4.1.0 | MIT | [source](syntax-tree/mdast-util-phrasing) |
+| `mdast-util-to-hast` | 13.2.1 | MIT | [source](syntax-tree/mdast-util-to-hast) |
+| `mdast-util-to-markdown` | 2.1.2 | MIT | [source](syntax-tree/mdast-util-to-markdown) |
+| `mdast-util-to-string` | 4.0.0 | MIT | [source](syntax-tree/mdast-util-to-string) |
+| `memoize-one` | 6.0.0 | MIT | [source](https://github.com/alexreardon/memoize-one) |
+| `micromark` | 4.0.2 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark) |
+| `micromark-core-commonmark` | 2.0.3 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-core-commonmark) |
+| `micromark-extension-gfm` | 3.0.0 | MIT | [source](micromark/micromark-extension-gfm) |
+| `micromark-extension-gfm-autolink-literal` | 2.1.0 | MIT | [source](micromark/micromark-extension-gfm-autolink-literal) |
+| `micromark-extension-gfm-footnote` | 2.1.0 | MIT | [source](micromark/micromark-extension-gfm-footnote) |
+| `micromark-extension-gfm-strikethrough` | 2.1.0 | MIT | [source](micromark/micromark-extension-gfm-strikethrough) |
+| `micromark-extension-gfm-table` | 2.1.1 | MIT | [source](micromark/micromark-extension-gfm-table) |
+| `micromark-extension-gfm-tagfilter` | 2.0.0 | MIT | [source](micromark/micromark-extension-gfm-tagfilter) |
+| `micromark-extension-gfm-task-list-item` | 2.1.0 | MIT | [source](micromark/micromark-extension-gfm-task-list-item) |
+| `micromark-factory-destination` | 2.0.1 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-factory-destination) |
+| `micromark-factory-label` | 2.0.1 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-factory-label) |
+| `micromark-factory-space` | 2.0.1 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-factory-space) |
+| `micromark-factory-title` | 2.0.1 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-factory-title) |
+| `micromark-factory-whitespace` | 2.0.1 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-factory-whitespace) |
+| `micromark-util-character` | 2.1.1 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-util-character) |
+| `micromark-util-chunked` | 2.0.1 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-util-chunked) |
+| `micromark-util-classify-character` | 2.0.1 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-util-classify-character) |
+| `micromark-util-combine-extensions` | 2.0.1 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-util-combine-extensions) |
+| `micromark-util-decode-numeric-character-reference` | 2.0.2 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-util-decode-numeric-character-reference) |
+| `micromark-util-decode-string` | 2.0.1 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-util-decode-string) |
+| `micromark-util-encode` | 2.0.1 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-util-encode) |
+| `micromark-util-html-tag-name` | 2.0.1 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-util-html-tag-name) |
+| `micromark-util-normalize-identifier` | 2.0.1 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-util-normalize-identifier) |
+| `micromark-util-resolve-all` | 2.0.1 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-util-resolve-all) |
+| `micromark-util-sanitize-uri` | 2.0.1 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-util-sanitize-uri) |
+| `micromark-util-subtokenize` | 2.1.0 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-util-subtokenize) |
+| `micromark-util-symbol` | 2.0.1 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-util-symbol) |
+| `micromark-util-types` | 2.0.2 | MIT | [source](https://github.com/micromark/micromark/tree/main/packages/micromark-util-types) |
+| `mimic-function` | 5.0.1 | MIT | [source](sindresorhus/mimic-function) |
+| `ms` | 2.1.3 | MIT | [source](vercel/ms) |
+| `object-assign` | 4.1.1 | MIT | [source](sindresorhus/object-assign) |
 | `ollama` | 0.6.3 | MIT | [source](https://github.com/ollama/ollama-js) |
 | `openai` | 6.49.0 | Apache-2.0 | [source](https://github.com/openai/openai-node) |
+| `parent-module` | 1.0.1 | MIT | [source](sindresorhus/parent-module) |
+| `parse-entities` | 4.0.2 | MIT | [source](wooorm/parse-entities) |
+| `parse-json` | 5.2.0 | MIT | [source](sindresorhus/parse-json) |
+| `path-parse` | 1.0.7 | MIT | [source](https://github.com/jbgutierrez/path-parse) |
+| `path-type` | 4.0.0 | MIT | [source](sindresorhus/path-type) |
+| `picocolors` | 1.1.1 | ISC | [source](alexeyraspopov/picocolors) |
+| `prop-types` | 15.8.1 | MIT | [source](facebook/prop-types) |
+| `property-information` | 7.2.0 | MIT | [source](wooorm/property-information) |
 | `react` | 19.2.8 | MIT | [source](https://github.com/react/react) |
 | `react-chartjs-2` | 5.3.1 | MIT | [source](https://github.com/reactchartjs/react-chartjs-2) |
 | `react-dom` | 19.2.8 | MIT | [source](https://github.com/react/react) |
+| `react-is` | 16.13.1 | MIT | [source](https://github.com/facebook/react) |
 | `react-markdown` | 10.1.0 | MIT | [source](remarkjs/react-markdown) |
 | `react-select` | 5.10.2 | MIT | [source](https://github.com/JedWatson/react-select/tree/master/packages/react-select) |
+| `react-transition-group` | 4.4.5 | BSD-3-Clause | [source](https://github.com/reactjs/react-transition-group) |
 | `remark-gfm` | 4.0.1 | MIT | [source](remarkjs/remark-gfm) |
+| `remark-parse` | 11.0.0 | MIT | [source](https://github.com/remarkjs/remark/tree/main/packages/remark-parse) |
+| `remark-rehype` | 11.1.2 | MIT | [source](remarkjs/remark-rehype) |
+| `remark-stringify` | 11.0.0 | MIT | [source](https://github.com/remarkjs/remark/tree/main/packages/remark-stringify) |
+| `require-from-string` | 2.0.2 | MIT | [source](floatdrop/require-from-string) |
+| `resolve` | 1.22.12 | MIT | [source](ssh://github.com/browserify/resolve) |
+| `resolve-from` | 4.0.0 | MIT | [source](sindresorhus/resolve-from) |
+| `scheduler` | 0.27.0 | MIT | [source](https://github.com/facebook/react) |
+| `semver` | 7.8.5 | ISC | [source](https://github.com/npm/node-semver) |
+| `source-map` | 0.5.7 | BSD-3-Clause | [source](http://github.com/mozilla/source-map) |
+| `space-separated-tokens` | 2.0.2 | MIT | [source](wooorm/space-separated-tokens) |
+| `stringify-entities` | 4.0.4 | MIT | [source](wooorm/stringify-entities) |
+| `stubborn-fs` | 2.0.0 | MIT | [source](https://github.com/fabiospampinato/stubborn-fs) |
+| `stubborn-utils` | 1.0.2 | MIT | [source](https://github.com/fabiospampinato/stubborn-utils) |
+| `style-to-js` | 1.1.21 | MIT | [source](https://github.com/remarkablemark/style-to-js) |
+| `style-to-object` | 1.0.14 | MIT | [source](https://github.com/remarkablemark/style-to-object) |
+| `stylis` | 4.2.0 | MIT | [source](https://github.com/thysultan/stylis.js) |
+| `supports-preserve-symlinks-flag` | 1.0.0 | MIT | [source](https://github.com/inspect-js/node-supports-preserve-symlinks-flag) |
+| `tagged-tag` | 1.0.0 | MIT | [source](sindresorhus/tagged-tag) |
 | `tailwind-merge` | 3.6.0 | MIT | [source](https://github.com/dcastil/tailwind-merge) |
+| `trim-lines` | 3.0.1 | MIT | [source](wooorm/trim-lines) |
+| `trough` | 2.2.0 | MIT | [source](wooorm/trough) |
+| `tslib` | 2.8.1 | 0BSD | [source](https://github.com/Microsoft/tslib) |
+| `type-fest` | 5.7.0 | (MIT OR CC0-1.0) | [source](sindresorhus/type-fest) |
+| `uint8array-extras` | 1.5.0 | MIT | [source](sindresorhus/uint8array-extras) |
+| `unified` | 11.0.5 | MIT | [source](unifiedjs/unified) |
+| `unist-util-is` | 6.0.1 | MIT | [source](syntax-tree/unist-util-is) |
+| `unist-util-position` | 5.0.0 | MIT | [source](syntax-tree/unist-util-position) |
+| `unist-util-stringify-position` | 4.0.0 | MIT | [source](syntax-tree/unist-util-stringify-position) |
+| `unist-util-visit` | 5.1.0 | MIT | [source](syntax-tree/unist-util-visit) |
+| `unist-util-visit-parents` | 6.0.2 | MIT | [source](syntax-tree/unist-util-visit-parents) |
+| `use-isomorphic-layout-effect` | 1.2.1 | MIT | [source](https://github.com/Andarist/use-isomorphic-layout-effect) |
 | `uuid` | 14.0.1 | MIT | [source](https://github.com/uuidjs/uuid) |
-
-Full licence texts are available in each project's repository. MIT and
-Apache-2.0 texts are reproduced at
-<https://opensource.org/license/mit> and
-<https://www.apache.org/licenses/LICENSE-2.0> respectively.
+| `vfile` | 6.0.3 | MIT | [source](vfile/vfile) |
+| `vfile-message` | 4.0.3 | MIT | [source](vfile/vfile-message) |
+| `whatwg-fetch` | 3.6.20 | MIT | [source](github/fetch) |
+| `when-exit` | 2.1.5 | MIT | [source](https://github.com/fabiospampinato/when-exit) |
+| `yaml` | 1.10.3 | ISC | [source](https://github.com/eemeli/yaml) |
+| `zwitch` | 2.0.4 | MIT | [source](wooorm/zwitch) |
 
 Electron itself bundles Chromium and Node.js; see
 <https://github.com/electron/electron/blob/main/LICENSE> and the

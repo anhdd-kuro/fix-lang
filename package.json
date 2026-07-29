@@ -30,6 +30,7 @@
     "build:promptgen": "FIXLANG_FEATURES=promptgen bun run build",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint ./src",
     "i18n:check": "bun run scripts/i18n-check.ts",
+    "notices:generate": "bun run scripts/generate-third-party-notices.ts",
     "check:bundle": "bun run scripts/check-bundle-externals.ts",
     "vitest": "vitest",
     "test": "vitest --watch=false",
@@ -109,6 +110,7 @@
       "out/**/*",
       "resources/**/*",
       "package.json",
+      "LICENSE.md",
       "!node_modules/**/*"
     ],
     "mac": {

@@ -94,8 +94,15 @@ so you can decide whether to install FixLang.
   plaintext until you clear the history.
 - **Your text is sent to the providers you connect.** Cloud providers (OpenAI,
   OpenRouter, Amazon Bedrock) receive the selected text plus the frontmost
-  application's name. Local providers (Ollama, LM Studio) keep it on your
-  machine. Choose per preset accordingly.
+  application's name. Choose per preset accordingly.
+- **"Local" providers go wherever you point them, over plaintext HTTP.** Ollama
+  and LM Studio requests go to the host and port configured for that provider.
+  With the default loopback host the text never leaves the machine — but the host
+  field accepts any name or address (`192.168.1.10`, `my-host.local`), and the
+  request URL is always `http://<host>:<port>`, never HTTPS. Point either provider
+  at a non-loopback host and your selected text crosses the network unencrypted.
+  FixLang does not restrict these providers to loopback, because a remote Ollama
+  server is a legitimate setup; the trade-off is yours to make knowingly.
 - **API keys are stored with the macOS Keychain** via Electron `safeStorage`. If
   Keychain encryption is unavailable, key storage fails rather than falling back
   to plaintext.
