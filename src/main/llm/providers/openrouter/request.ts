@@ -82,7 +82,7 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
       messages: conversationMessages as never,
       ...(reasoning !== undefined ? { reasoning } : {}),
     });
-    const { usage, text } = genResponse;
+    const { usage, text, reasoningText } = genResponse;
     const normalizedUsage = usageCounts(usage);
     console.log(
       `makeOpenRouterAIRequest: model=${options.model as string} promptTokens=${normalizedUsage.promptTokens ?? null} completionTokens=${normalizedUsage.completionTokens ?? null}`,
@@ -144,6 +144,9 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
       resolvedModel,
       cachedTokens,
       cacheWriteTokens,
+      ...(typeof reasoningText === "string" && reasoningText.length > 0
+        ? { reasoningTexts: [reasoningText] }
+        : {}),
     };
   } catch (error) {
     console.error("makeOpenRouterAIRequest error:", error);

@@ -6,14 +6,62 @@ import "../main.css";
 import { LanguageTabs } from "../components/LanguageTabs";
 import { ModelSelect } from "../components/ModelSelect";
 import { OutputModeTabs } from "../components/OutputModeTabs";
+import { ReasoningEffortSelect } from "../components/ReasoningEffortSelect";
+import Tooltip from "../components/Tooltip";
 import { useActiveProfileId } from "../hooks/useActiveProfileId";
 import { useTheme } from "../hooks/useTheme";
 import { I18nProvider } from "../i18n/I18nProvider";
+import { useI18n } from "../i18n/useI18n";
 import { TrayActivityHeatmapLoader } from "./components/TrayActivityHeatmap";
 import { TrayCreditBalance } from "./components/TrayCreditBalance";
 import { TrayToolbar } from "./components/TrayToolbar";
 
 const rootElement = document.getElementById("root");
+
+const TrayGlobalSelectors: React.FC = () => {
+  const { t } = useI18n();
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs font-medium text-card-foreground">
+          {t("tray.global.heading")}
+        </span>
+        <Tooltip
+          tooltipText={t("tray.global.overrideTooltip")}
+          width="w-64"
+          className="shrink-0"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label
+          htmlFor="model-select"
+          className="text-xs font-medium text-muted-foreground"
+        >
+          {t("tray.global.model.label")}
+        </label>
+        <ModelSelect
+          saveOnChange
+          showAdditionalInfo
+          menuPortal
+          menuMaxHeight={200}
+          compact
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label
+          htmlFor="tray-reasoning-select"
+          className="text-xs font-medium text-muted-foreground"
+        >
+          {t("tray.global.reasoning.label")}
+        </label>
+        <ReasoningEffortSelect selectClassName="w-full px-2 py-1.5 text-xs" />
+      </div>
+    </div>
+  );
+};
 
 const TrayWindowMain: React.FC = () => {
   useTheme();
@@ -30,13 +78,7 @@ const TrayWindowMain: React.FC = () => {
       <LanguageTabs />
       <OutputModeTabs />
       <TrayActivityHeatmapLoader />
-      <ModelSelect
-        saveOnChange
-        showAdditionalInfo
-        menuPortal
-        menuMaxHeight={200}
-        compact
-      />
+      <TrayGlobalSelectors key={profileId} />
     </div>
   </div>
   );

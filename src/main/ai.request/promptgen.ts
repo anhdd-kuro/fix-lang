@@ -1,4 +1,5 @@
 import { DEFAULT_PROMPT_GEN_PROMPT } from "~/prompts";
+import { serializeHistorySession } from "~/shared/historySession";
 import { getProfileSetting } from "~/stores/apiStore";
 import { estimateTextTokens } from "~/stores/historyStore";
 import { StringPrettifier } from "~/utils";
@@ -34,6 +35,7 @@ export const generatePrompt = async (
   model: string;
   provider: ProviderId;
   resolvedModel: string;
+  sessionJson?: string;
 }> => {
   const currentSettings = getProfileSetting("settingsPromptGen");
   const minLength = options.minLength || currentSettings.minLength || 0;
@@ -69,7 +71,7 @@ export const generatePrompt = async (
     });
 
     // Extract required values from response
-    const { content, promptTokens, completionTokens, model, provider, resolvedModel } =
+    const { content, promptTokens, completionTokens, model, provider, resolvedModel, session } =
       response;
 
     const completionText = content.join("\n\n");
@@ -85,6 +87,7 @@ export const generatePrompt = async (
       model,
       provider,
       resolvedModel: resolvedModel ?? model,
+      sessionJson: session ? serializeHistorySession(session) : undefined,
     };
   } catch (error) {
     console.error("Error in generatePrompt:", error);

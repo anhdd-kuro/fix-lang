@@ -32,6 +32,7 @@ import {
   updateProfileSetting,
 } from "~/stores/apiStore";
 import type { AIRequestOptions, CoreMessage } from "./requestTypes";
+import type { HistorySessionData } from "~/shared/historySession";
 import type { TKey } from "~/shared/i18n/translate";
 import type { Model, ProviderId } from "~/stores/apiStore";
 
@@ -465,7 +466,39 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
   if (!makeRequest) {
     throw new Error(`Unsupported provider: ${resolution.provider}`);
   }
-  return makeRequest(request);
+  const response = await makeRequest(request);
+  const session: HistorySessionData = {
+    systemPrompt: finalSystemPrompt,
+    userPrompt: options.userPrompt ?? "",
+    messages: messages.map((message) => ({
+      role: message.role,
+      content: message.content,
+    })),
+    model: rawModelId,
+    provider: resolution.provider,
+    responses: response.content,
+    promptTokens: response.promptTokens,
+    completionTokens: response.completionTokens,
+  };
+  if (options.reasoning !== undefined) {
+    session.reasoningEffort = options.reasoning;
+  }
+  if (top_p !== undefined) {
+    session.topP = top_p;
+  }
+  if (response.resolvedModel !== undefined) {
+    session.resolvedModel = response.resolvedModel;
+  }
+  if (response.reasoningTexts !== undefined) {
+    session.reasoningTexts = response.reasoningTexts;
+  }
+  if (response.cachedTokens !== undefined) {
+    session.cachedTokens = response.cachedTokens;
+  }
+  if (response.cacheWriteTokens !== undefined) {
+    session.cacheWriteTokens = response.cacheWriteTokens;
+  }
+  return { ...response, session };
 };
 
 /**

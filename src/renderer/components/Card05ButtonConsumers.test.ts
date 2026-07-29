@@ -279,23 +279,9 @@ const consumers = [
     },
   },
   {
-    id: "BTN-026",
-    file: "src/renderer/components/usage/OpenRouterUsagePanel.tsx",
-    elementIndex: 1,
-    resolvedType: "button",
-    resolvedVariant: '{range === r.id ? "primary" : "secondary"}',
-    attributes: {
-      key: "{r.id}",
-      variant: '{range === r.id ? "primary" : "secondary"}',
-      onClick: "{() => setRange(r.id)}",
-      "aria-pressed": "{range === r.id}",
-      className: '{twJoin("px-2 py-0.5 text-xs rounded-sm",)}',
-    },
-  },
-  {
     id: "BTN-027",
     file: "src/renderer/components/usage/OpenRouterUsagePanel.tsx",
-    elementIndex: 2,
+    elementIndex: 1,
     resolvedType: "button",
     resolvedVariant: '"secondary"',
     attributes: {

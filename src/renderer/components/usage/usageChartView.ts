@@ -10,6 +10,26 @@ import type { UsageCostSlice, UsageDailyPoint } from "~/shared/usage";
 /** Largest slices first, with a "+N more" bucket so the donut stays readable. */
 export const MAX_DONUT_SLICES = 6;
 
+/**
+ * Parses a dense local-day key ("YYYY-MM-DD") into a local `Date` — never
+ * round-trip through an ISO string (UTC-midnight parse can render as the
+ * previous day in a negative-offset timezone).
+ */
+const dateFromDayKey = (dayKey: string): Date => {
+  const [year, month, day] = dayKey.split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
+
+/**
+ * Compact locale-aware x-tick label for a daily chart day key. The series
+ * builders keep raw `"YYYY-MM-DD"` keys; the renderer supplies `formatDate`
+ * from `useI18n()` so ticks read as "Jul 29" / "7月29日", not a bare "Day".
+ */
+export const dailyTickLabel = (
+  formatDate: (date: Date, options?: Intl.DateTimeFormatOptions) => string,
+  dayKey: string,
+): string => formatDate(dateFromDayKey(dayKey), { month: "short", day: "numeric" });
+
 /** Bars: one real billed figure per day. Days the provider never priced are 0. */
 export const dailyCostSeries = (
   points: readonly UsageDailyPoint[],
