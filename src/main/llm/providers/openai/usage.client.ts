@@ -12,6 +12,8 @@
  * network or need electron. All I/O is async with a 5s AbortController timeout,
  * mirroring the OpenRouter client.
  */
+import { logger } from "~/main/logging/logService";
+import { describeKeyShape, findKeyShapeMismatch } from "~/shared/providerKeyShapes";
 import { usageRangeDays, usageRangeStartUnix, type UsageRange } from "~/shared/usage";
 import { getProvisioningKey } from "~/stores/provisioningKeyStore";
 import {
@@ -48,6 +50,34 @@ type ClientDeps = {
 const BASE = "https://api.openai.com/v1/organization";
 const TIMEOUT_MS = 5000;
 const NO_KEY = { ok: false, reason: "no_key" } as const;
+const LOG_SCOPE = "provider.openai.admin";
+
+/**
+ * Logs one line per admin request with the key's SHAPE label, never the key. A
+ * 401 carrying `keyShape: "openai-project"` says outright that a project key is
+ * sitting in the admin slot — the panel's "check your admin key" cannot.
+ */
+const logAdminRequest = (
+  path: string,
+  key: string,
+  outcome: { ok: boolean; status?: number; reason?: string },
+): void => {
+  const foreign = findKeyShapeMismatch("openai", "provisioning", key) !== null;
+  const context = {
+    endpoint: path,
+    keyShape: describeKeyShape(key),
+    ...(outcome.status !== undefined ? { status: outcome.status } : {}),
+    ...(outcome.reason !== undefined ? { reason: outcome.reason } : {}),
+    // Only ever true for a key stored before the write-time shape guard existed.
+    ...(foreign ? { storedKeyBelongsToAnotherSlot: true } : {}),
+  };
+
+  if (outcome.ok) {
+    logger.debug(LOG_SCOPE, "OpenAI admin request succeeded", context);
+    return;
+  }
+  logger.warn(LOG_SCOPE, "OpenAI admin request failed", context);
+};
 
 /**
  * Page cap. 31 daily buckets cover the widest range, so one page normally
@@ -88,7 +118,12 @@ export const createOpenAIUsageClient = (
     groupBy?: string,
   ): Promise<ClientCardResult<T>> => {
     const key = await getKey();
-    if (!key) return NO_KEY;
+    if (!key) {
+      logger.debug(LOG_SCOPE, "OpenAI admin request skipped — no key stored", {
+        endpoint: path,
+      });
+      return NO_KEY;
+    }
 
     const params = new URLSearchParams({
       start_time: String(usageRangeStartUnix(range, now())),
@@ -117,25 +152,36 @@ export const createOpenAIUsageClient = (
           signal: controller.signal,
         });
         if (!response.ok) {
-          return { ok: false, reason: reasonForStatus(response.status) };
+          const reason = reasonForStatus(response.status);
+          logAdminRequest(path, key, { ok: false, status: response.status, reason });
+          return { ok: false, reason };
         }
         json = await response.json();
       } catch {
         // Network error / abort / bad JSON — degrade without leaking anything.
+        logAdminRequest(path, key, { ok: false, reason: "unavailable" });
         return { ok: false, reason: "unavailable" };
       } finally {
         clearTimeout(timeout);
       }
 
       const parsedPage = parse(json);
-      if (!parsedPage.ok) return parsedPage;
+      if (!parsedPage.ok) {
+        logAdminRequest(path, key, { ok: false, reason: parsedPage.reason });
+        return parsedPage;
+      }
 
       const data = (json as { data?: unknown }).data;
       if (Array.isArray(data)) buckets.push(...data);
 
       page = nextPageCursor(json);
       if (page === null) {
-        return parse({ object: "page", data: buckets });
+        const result = parse({ object: "page", data: buckets });
+        logAdminRequest(path, key, {
+          ok: result.ok,
+          ...(result.ok ? {} : { reason: result.reason }),
+        });
+        return result;
       }
     }
 

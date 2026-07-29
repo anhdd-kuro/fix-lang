@@ -10,7 +10,7 @@ import { ACTIVE_PROFILE_CHANGED } from "~/shared/ipcChannels";
 import { switchToNextProfile } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { buildProfileSwitchHotkeyNotification } from "./profileSwitchNotification";
-import { checkShortcut, handleError } from "./utils";
+import { checkShortcut, handleError, withHotkeyThrottle } from "./utils";
 import { LocalizedError } from "../notifications/error";
 
 /**
@@ -25,7 +25,9 @@ export const registerProfileSwitchShortcut = (): void => {
     return;
   }
 
-  const ret = globalShortcut.register(accelerator, async () => {
+  const ret = globalShortcut.register(
+    accelerator,
+    withHotkeyThrottle(accelerator, async () => {
     console.log("Profile switch shortcut triggered");
 
     try {
@@ -56,7 +58,8 @@ export const registerProfileSwitchShortcut = (): void => {
       console.error("Error switching profile:", error);
       handleError(error);
     }
-  });
+  }),
+  );
 
   checkShortcut(ret);
 };

@@ -74,7 +74,13 @@ vi.mock("../webViewWindows", () => ({
 vi.mock("../webViewWindows/correctionResultWindow", () => ({
   showCorrectionResultWindow: vi.fn(),
 }));
-vi.mock("./utils", () => ({ checkShortcut: vi.fn(), handleError: vi.fn() }));
+// `withHotkeyThrottle` stays REAL: it wraps every registered handler, so a stub
+// pass-through would hide a throttle that swallowed the invocations these tests
+// await. Its timestamp map is module state — hence the per-test reset below.
+vi.mock("./utils", async (importOriginal) => {
+  const real = await importOriginal<typeof KeybindingUtils>();
+  return { ...real, checkShortcut: vi.fn(), handleError: vi.fn() };
+});
 // `notifications/error` reaches `overlay.html?asset`, which vite cannot parse
 // as JS under vitest. Stub that leaf so `LocalizedError` stays real.
 vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
@@ -90,8 +96,10 @@ import {
   normalizeCorrectionSettings,
 } from "~/stores/apiStore";
 import { registerCorrectionShortcut } from "./correction";
+import { resetHotkeyThrottleForTests } from "./utils";
 import { fixGrammar } from "../ai.request";
 import { logger } from "../logging/logService";
+import type * as KeybindingUtils from "./utils";
 import type { BrowserWindow } from "electron";
 import type { Mock } from "vitest";
 
@@ -175,6 +183,7 @@ const presetIdBehindHandler = async (
 describe("correction preset hotkeys — a materialized built-in never outranks a stored preset", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetHotkeyThrottleForTests();
     (globalShortcut.register as Mock).mockReturnValue(true);
     mocks.keyBindings = {
       promptGen: "Control+Alt+P",
@@ -266,6 +275,7 @@ describe("correction preset hotkeys — a materialized built-in never outranks a
 describe("correction preset hotkeys — reserved app shortcuts still win", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetHotkeyThrottleForTests();
     (globalShortcut.register as Mock).mockReturnValue(true);
   });
 

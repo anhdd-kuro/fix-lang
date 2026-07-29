@@ -31,7 +31,7 @@ Six tabs, opened from the menu-bar tray or after a transform:
 | **Models** | Provider model discovery, compatibility, and monitoring |
 | **Usage** | Account-level spend and token usage, one sub-tab per connected provider (OpenAI, OpenRouter) — daily spend and token charts, spend-share donut, per-model activity |
 | **Logs** | Structured, redacted app events — multi-select level filter, search, copy/export as `.txt` |
-| **About** | Version, app updates, and release notes (see [App updates](#app-updates)) |
+| **About** | Two sub-tabs — **App updates** (version, release notes, install; see [App updates](#app-updates)) and **User guide** (a short onboarding read that shows your own preset shortcuts, output mode, and connected providers) |
 
 Overview and Models share a time-range filter (All / 30d / 7d).
 

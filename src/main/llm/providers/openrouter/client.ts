@@ -12,6 +12,8 @@
  * network / never need electron. All I/O is async with a 5s AbortController
  * timeout (mirrors the existing model-list fetch in ai.request/shared.ts).
  */
+import { logger } from "~/main/logging/logService";
+import { describeKeyShape, findKeyShapeMismatch } from "~/shared/providerKeyShapes";
 import { getProvisioningKey } from "~/stores/provisioningKeyStore";
 import {
   parseActivity,
@@ -51,6 +53,36 @@ type ClientDeps = {
 const BASE = "https://openrouter.ai/api/v1";
 const TIMEOUT_MS = 5000;
 const NO_KEY = { ok: false, reason: "no_key" } as const;
+const LOG_SCOPE = "provider.openrouter.admin";
+
+/**
+ * Logs one line per account request. The key is never logged — only its SHAPE
+ * label, which is what a 401 investigation actually needs: an OpenRouter 401
+ * with `keyShape: "openai-admin"` names the cause outright, where the bare
+ * "Unauthorized — check your provisioning key" in the panel could not.
+ */
+const logAdminRequest = (
+  path: string,
+  key: string,
+  outcome: { ok: boolean; status?: number; reason?: string },
+): void => {
+  const shape = describeKeyShape(key);
+  const foreign = findKeyShapeMismatch("openrouter", "provisioning", key) !== null;
+  const context = {
+    endpoint: path,
+    keyShape: shape,
+    ...(outcome.status !== undefined ? { status: outcome.status } : {}),
+    ...(outcome.reason !== undefined ? { reason: outcome.reason } : {}),
+    // Only ever true for a key stored before the write-time shape guard existed.
+    ...(foreign ? { storedKeyBelongsToAnotherProvider: true } : {}),
+  };
+
+  if (outcome.ok) {
+    logger.debug(LOG_SCOPE, "OpenRouter account request succeeded", context);
+    return;
+  }
+  logger.warn(LOG_SCOPE, "OpenRouter account request failed", context);
+};
 
 /**
  * Map a transport failure to a degraded reason. 401/403 → unauthorized;
@@ -84,6 +116,9 @@ export const createOpenRouterClient = (
   ): Promise<ClientCardResult<T>> => {
     const key = await getKey();
     if (!key) {
+      logger.debug(LOG_SCOPE, "OpenRouter account request skipped — no key stored", {
+        endpoint: path,
+      });
       return NO_KEY;
     }
 
@@ -95,12 +130,21 @@ export const createOpenRouterClient = (
         signal: controller.signal,
       });
       if (!response.ok) {
-        return { ok: false, reason: reasonForStatus(response.status) };
+        const reason = reasonForStatus(response.status);
+        logAdminRequest(path, key, { ok: false, status: response.status, reason });
+        return { ok: false, reason };
       }
       const json = await response.json();
-      return parse(json);
+      const parsed = parse(json);
+      logAdminRequest(path, key, {
+        ok: parsed.ok,
+        status: response.status,
+        ...(parsed.ok ? {} : { reason: parsed.reason }),
+      });
+      return parsed;
     } catch {
       // Network error / abort / bad JSON — degrade without leaking anything.
+      logAdminRequest(path, key, { ok: false, reason: "unavailable" });
       return { ok: false, reason: "unavailable" };
     } finally {
       clearTimeout(timeout);

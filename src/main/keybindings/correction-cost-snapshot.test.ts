@@ -63,7 +63,12 @@ vi.mock("../webViewWindows", () => ({
 vi.mock("../webViewWindows/correctionResultWindow", () => ({
   showCorrectionResultWindow: vi.fn(),
 }));
-vi.mock("./utils", () => ({ checkShortcut: vi.fn(), handleError: vi.fn() }));
+vi.mock("./utils", () => ({
+  checkShortcut: vi.fn(),
+  handleError: vi.fn(),
+  // Passthrough: this suite exercises cost snapshot wiring, not throttle.
+  withHotkeyThrottle: (_accelerator: string, handler: () => unknown) => handler,
+}));
 // `notifications/error` reaches `overlay.html?asset`, which vite cannot parse
 // as JS under vitest. Stub that leaf so `LocalizedError` stays real.
 vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({ showErrorPopup: vi.fn() }));

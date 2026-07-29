@@ -35,6 +35,29 @@ describe("redactLogMessage", () => {
     expect(redacted).not.toContain("or-secret-value");
     expect(redacted).toContain("[REDACTED]");
   });
+
+  it("redacts a provider's masked echo of the submitted key", () => {
+    // Provider 401 bodies quote the key back partially starred. The prefix
+    // pattern alone misses a short visible prefix — the star run interrupts it
+    // before its 6-character minimum — so `sk-abc12` reached the persisted log.
+    for (const visible of ["abc12", "1234", "proj-abcd"]) {
+      const redacted = redactLogMessage(
+        `Incorrect API key provided: sk-${visible}*********wxyz. You can find your API key at https://platform.openai.com/account/api-keys.`,
+      );
+
+      expect(redacted).not.toContain(`sk-${visible}`);
+      expect(redacted).toContain("[REDACTED]");
+      // Still a usable diagnostic — only the credential goes.
+      expect(redacted).toContain("Incorrect API key provided");
+    }
+  });
+
+  it("leaves ordinary text with a single ellipsis alone", () => {
+    // Kills: a masked-run pattern greedy enough to eat normal log copy.
+    expect(redactLogMessage("Refreshing… 12 models cached")).toBe(
+      "Refreshing… 12 models cached",
+    );
+  });
 });
 
 describe("redactLogContext", () => {
@@ -52,6 +75,19 @@ describe("redactLogContext", () => {
       presetId: "correction",
       nested: { authorization: "[REDACTED]", count: 2 },
     });
+  });
+
+  it("scrubs a masked key echo out of an innocently-named field", () => {
+    // `provider.models` logs a provider failure under `failure`, which the
+    // sensitive-KEY list does not match — so the VALUE pass is the only thing
+    // standing between an OpenAI 401 body and the persisted log file.
+    const scrubbed = redactLogContext({
+      provider: "openai",
+      failure: "Incorrect API key provided: sk-abc12*********wxyz.",
+    });
+
+    expect(scrubbed.failure).not.toContain("sk-abc12");
+    expect(scrubbed.provider).toBe("openai");
   });
 });
 

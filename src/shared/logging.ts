@@ -43,11 +43,22 @@ const SENSITIVE_KEY =
   /(?:api[-_]?key|authorization|bearer|token|secret|password|clipboard|selected[-_]?text|original[-_]?text)/i;
 
 /**
+ * A provider 401 body quotes the submitted key back partially starred
+ * (`Incorrect API key provided: sk-abc12*********wxyz`). The prefix pattern
+ * below CANNOT catch those: the star run interrupts it before its 6-character
+ * minimum, so `sk-abc12` — real key material — survived into persisted logs.
+ * Stripping the whole masked token first closes that, whatever the visible
+ * prefix length. Must stay ahead of the other passes for the same reason.
+ */
+const MASKED_SECRET_RUN = /\S*[*•·…]{2,}\S*/g;
+
+/**
  * Removes common credential forms from free-form messages.
  * Clipboard content is protected structurally by sensitive context-key redaction.
  */
 export const redactLogMessage = (message: string): string =>
   message
+    .replace(MASKED_SECRET_RUN, REDACTED)
     .replace(/\b(?:sk|or)-[a-z0-9][a-z0-9._-]{5,}\b/gi, REDACTED)
     .replace(/\b(authorization\s*:\s*bearer\s+)[^\s,;]+/gi, `$1${REDACTED}`)
     .replace(

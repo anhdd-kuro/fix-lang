@@ -3,7 +3,7 @@ import { getActiveApp } from "~/main/accessibility/activeApp";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { getHighlightedText } from "../../utils";
 import { generatePrompt } from "../ai.request";
-import { checkShortcut, handleError } from "./utils";
+import { checkShortcut, handleError, withHotkeyThrottle } from "./utils";
 import { syncHistory } from "../ipc/features/history";
 import { LocalizedError } from "../notifications/error";
 import { showOverlaySpinner, hideOverlaySpinner } from "../webViewWindows";
@@ -14,7 +14,9 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
   const promptGenShortcut = keybindingStore.getKeyBindings().promptGen;
   if (!promptGenShortcut) return;
 
-  const ret = globalShortcut.register(promptGenShortcut, async () => {
+  const ret = globalShortcut.register(
+    promptGenShortcut,
+    withHotkeyThrottle(promptGenShortcut, async () => {
     console.log(`${promptGenShortcut} pressed (PromptGen)`);
     try {
       // Before the spinner and the PromptGen window: once a FixLang window is
@@ -66,6 +68,7 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
       hideOverlaySpinner();
       handleError(error);
     }
-  });
+  }),
+  );
   checkShortcut(ret);
 };

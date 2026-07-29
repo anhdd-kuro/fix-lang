@@ -13,6 +13,7 @@ import {
   getRecommendedModels,
 } from "~/main/llm/models/recommended";
 import { probeLmStudio } from "~/main/llm/providers/lmstudio/client";
+import { logger } from "~/main/logging/logService";
 import { messageLabel, textLabel } from "~/shared/i18n/message";
 import {
   LMSTUDIO_DEFAULT_ENDPOINT,
@@ -22,12 +23,14 @@ import {
 } from "~/shared/lmstudioEndpoint";
 import { redactLogMessage } from "~/shared/logging";
 import { resolveModelRef } from "~/shared/modelRef";
+import { findKeyShapeMismatch, type KeySlotKind } from "~/shared/providerKeyShapes";
 import {
   isModelForProvider,
   isProviderConfigured,
   isProviderId,
   modelsForProvider,
   PROVIDER_IDS,
+  PROVIDER_LOG_LABELS,
   sanitizeEnabledProviders,
   supportsAdminKey,
 } from "~/shared/providers";
@@ -140,6 +143,42 @@ export const parseProviderConnect = (raw: unknown): ProviderConnectPayload | nul
     ...(host !== undefined ? { host } : {}),
     ...(port !== undefined ? { port } : {}),
   };
+};
+
+/**
+ * Refuses a typed key whose prefix belongs to a different slot, BEFORE anything
+ * is written or validated against a provider.
+ *
+ * Without this, pasting an `sk-admin-…` OpenAI key into OpenRouter's
+ * provisioning field stored successfully, the card reported "Key set", and the
+ * only symptom was `Unauthorized` on every later OpenRouter account read — with
+ * nothing in the logs to explain it. The refusal is logged with the shape label
+ * only; the key itself never reaches a log.
+ */
+const keyShapeMismatchLabel = (
+  provider: ProviderId,
+  kind: KeySlotKind,
+  raw: string | undefined,
+): Label | null => {
+  if (!raw?.trim()) return null;
+  const mismatch = findKeyShapeMismatch(provider, kind, raw);
+  if (!mismatch) return null;
+
+  logger.warn("provider.key", "Refused a key that belongs to another slot", {
+    provider,
+    slot: kind,
+    keyShape: mismatch.shape,
+  });
+
+  return messageLabel(
+    kind === "provisioning"
+      ? "models.providerSetup.error.adminKeyShapeMismatch"
+      : "models.providerSetup.error.apiKeyShapeMismatch",
+    {
+      provider: PROVIDER_LOG_LABELS[provider],
+      expected: mismatch.expectedPrefix,
+    },
+  );
 };
 
 const getSetupApiKey = async (
@@ -338,6 +377,14 @@ export const registerApiHandlers = (): void => {
         success: false,
         error: messageLabel("models.providerSetup.error.adminKeyUnsupported"),
       };
+    }
+    // Checked before the provider round-trip below: a key pasted into the wrong
+    // slot must not be spent on a request, and must never reach the store.
+    const shapeError =
+      keyShapeMismatchLabel(payload.provider, "api", payload.apiKey) ??
+      keyShapeMismatchLabel(payload.provider, "provisioning", payload.provisioningKey);
+    if (shapeError) {
+      return { success: false, error: shapeError };
     }
 
     try {

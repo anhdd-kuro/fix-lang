@@ -6,6 +6,7 @@ import {
   DEFAULT_DASHBOARD_TAB_INDEX,
   bucketsForClear,
 } from "./dashboardTabs";
+import { AboutPanel } from "../components/about/AboutPanel";
 import { Button } from "../components/Button";
 import { formatModelLineage } from "../components/historyModel";
 import { HistoryPanel } from "../components/HistoryPanel";
@@ -18,7 +19,6 @@ import { OverviewPanel } from "../components/OverviewPanel";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { SettingsButton } from "../components/SettingsIcon";
 import { SettingsModal } from "../components/SettingsModal";
-import { SettingUpdates } from "../components/SettingUpdates";
 import { TextAreaBox } from "../components/TextAreaBox";
 import { UsagePanel } from "../components/usage/UsagePanel";
 import { useTheme } from "../hooks/useTheme";
@@ -298,11 +298,9 @@ const App: React.FC = () => {
       />
     ),
     logs: <LogsPanel />,
-    about: (
-      <div className="h-full w-full overflow-y-auto rounded-lg border border-card-control-border bg-card p-4">
-        <SettingUpdates />
-      </div>
-    ),
+    // Two sub-tabs: the update controls (default) and the user guide. The
+    // wrapping card lives inside AboutPanel, below its sub-tab bar.
+    about: <AboutPanel onOpenSettings={() => setIsSettingsOpen(true)} />,
   };
 
   const activeTabId = DASHBOARD_TABS[activeDashboardTab]?.id ?? "overview";

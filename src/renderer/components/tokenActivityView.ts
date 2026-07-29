@@ -139,11 +139,15 @@ export const tooltipMessageForCell = (
 };
 
 /**
- * Descriptor for the "Peak hour" stat card value: `null` → the empty-value
- * chrome; otherwise a zero-padded `"HH:00"` string param (must not be
- * grouped, so it is built here as a `string`, not a `number`).
+ * Descriptor for the peak-hours stat card value: `null` → the empty-value
+ * chrome; otherwise a 2-hour range `"HH:00–HH:00"` (start inclusive, end
+ * exclusive — pre-formatted strings, must not be grouped).
  */
-export const peakHourMessage = (hour: number | null): Message =>
-  hour === null
-    ? msg("overview.value.empty")
-    : msg("overview.value.hour", { hour: `${hour}`.padStart(2, "0") });
+export const peakHourMessage = (startHour: number | null): Message => {
+  if (startHour === null) {
+    return msg("overview.value.empty");
+  }
+  const start = `${startHour}`.padStart(2, "0");
+  const end = `${(startHour + 2) % 24}`.padStart(2, "0");
+  return msg("overview.value.hour", { start, end });
+};

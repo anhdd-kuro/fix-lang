@@ -13,9 +13,11 @@ import { mainT } from "~/main/i18n";
 import { probeOllama } from "~/main/llm/models/discover";
 import { providerCapabilities } from "~/main/llm/providers";
 import { probeLmStudio } from "~/main/llm/providers/lmstudio/client";
+import { logger } from "~/main/logging/logService";
 import { showErrorNotification } from "~/main/notifications/error";
 import { resolveLmStudioEndpoint } from "~/shared/lmstudioEndpoint";
 import { parseModelRef, resolveModelRef } from "~/shared/modelRef";
+import { describeKeyShape, findKeyShapeMismatch } from "~/shared/providerKeyShapes";
 import {
   modelsForProvider,
   PROVIDER_ORDER,
@@ -102,6 +104,52 @@ type ProviderFetch = {
  * failure to request time. Ollama never requires a key, so it always keeps
  * the resilient cache-fallback behavior regardless of `strict`.
  */
+/**
+ * Removes the exact key from provider error text before it is logged. The
+ * shared redaction already strips `sk-…` forms and masked echoes, but a key with
+ * no recognizable prefix (LM Studio's local key) would match none of them — and
+ * a 401 body is written by the provider, not by us. Short values are left alone:
+ * splitting on two characters would shred the message without protecting a
+ * credential worth protecting.
+ */
+const withoutKeyEcho = (text: string, apiKey: string): string => {
+  const key = apiKey.trim();
+  return key.length >= 6 ? text.split(key).join("[REDACTED]") : text;
+};
+
+/**
+ * One line per model-list fetch, carrying the key's SHAPE label and never the
+ * key. A provider that rejects the stored request key looks identical to a
+ * provider that is down until this says which key shape was presented.
+ */
+const logModelFetch = (
+  provider: ProviderId,
+  apiKey: string,
+  outcome: { ok: boolean; liveFetch?: boolean; modelCount?: number; error?: string },
+): void => {
+  const context = {
+    provider,
+    keyPresent: apiKey.trim().length > 0,
+    ...(apiKey.trim() ? { keyShape: describeKeyShape(apiKey) } : {}),
+    ...(apiKey.trim() && findKeyShapeMismatch(provider, "api", apiKey)
+      ? { keyBelongsToAnotherProvider: true }
+      : {}),
+    ...(outcome.liveFetch !== undefined ? { liveFetch: outcome.liveFetch } : {}),
+    ...(outcome.modelCount !== undefined ? { modelCount: outcome.modelCount } : {}),
+    // Two passes before this text is persisted: the exact key is removed here,
+    // and `redactLogMessage` strips masked echoes and any other `sk-…` form.
+    ...(outcome.error !== undefined
+      ? { failure: withoutKeyEcho(outcome.error, apiKey) }
+      : {}),
+  };
+
+  if (outcome.ok) {
+    logger.debug("provider.models", "Model list fetched", context);
+    return;
+  }
+  logger.warn("provider.models", "Model list fetch failed", context);
+};
+
 const fetchProviderModels = async (
   apiKey: string,
   provider: ProviderId,
@@ -159,9 +207,18 @@ const fetchProviderModels = async (
     if (persistCache && (sortedModels.length > 0 || emptyMeansRemoved)) {
       cacheModelsForProvider(provider, sortedModels);
     }
+    logModelFetch(provider, apiKey, {
+      ok: true,
+      liveFetch,
+      modelCount: sortedModels.length,
+    });
     return { models: sortedModels, emptyMeansRemoved };
   } catch (error) {
     console.error(`Error fetching ${provider} models:`, error);
+    logModelFetch(provider, apiKey, {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
     if (strict && provider !== "ollama" && provider !== "lmstudio") {
       throw error;
     }
