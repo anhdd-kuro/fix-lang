@@ -38,8 +38,8 @@ export const SkeletonCard = ({ rows = 2, className }: SkeletonCardProps) => (
   </div>
 );
 
-export const UsagePanelSkeleton = () => (
-  <div className="flex h-full flex-col gap-3 overflow-y-auto p-1" aria-busy="true" aria-label="Loading usage data">
+export const UsagePanelSkeleton = ({ ariaLabel }: { ariaLabel: string }) => (
+  <div className="flex h-full flex-col gap-3 overflow-y-auto p-1" aria-busy="true" aria-label={ariaLabel}>
     <div className="flex items-center gap-2">
       <div className="flex gap-1">
         <Skeleton className="h-6 w-10 rounded-sm" />

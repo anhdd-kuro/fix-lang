@@ -11,7 +11,7 @@
  * The provisioning key never reaches this component — only key-free parsed
  * view-models arrive via the combined IPC.
  */
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { twJoin } from "tailwind-merge";
 import { Button } from "../Button";
 import {
@@ -88,6 +88,15 @@ export const OpenRouterUsagePanel = ({ onOpenSettings }: OpenRouterUsagePanelPro
     refreshTimerRef.current = setTimeout(refresh, 1000);
   }, [refresh]);
 
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current !== null) {
+        clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+    };
+  }, [range]);
+
   // Empty state: no key configured.
   if (hasKey === false) {
     return (
@@ -116,7 +125,7 @@ export const OpenRouterUsagePanel = ({ onOpenSettings }: OpenRouterUsagePanelPro
   const enabledKeys = data?.enabledKeys as CardResult<EnabledKeys> | undefined;
 
   if (loading && data === null) {
-    return <UsagePanelSkeleton />;
+    return <UsagePanelSkeleton ariaLabel={t("usage.loading")} />;
   }
 
   const fallback = { ok: false as const, reason: "unavailable" as const };
