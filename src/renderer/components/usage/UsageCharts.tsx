@@ -2,7 +2,8 @@
  * @file UsageCharts.tsx
  * @description Chart.js views shared by every Usage provider panel: a daily
  * billed-cost bar, a daily input/output token line, and a cost-share donut.
- * Daily charts show date tick labels plus x/y axis titles (mirrors ModelsCharts).
+ * Daily charts show concrete calendar day ticks (not a bare "Day" axis title)
+ * plus a y-axis unit title — mirrors ModelsCharts.
  * Presentational — every series arrives pre-aggregated from `usageChartView.ts`.
  *
  * A chart whose data carries no signal renders an explicit empty note instead of
@@ -34,6 +35,7 @@ import { Bar, Doughnut, Line } from "react-chartjs-2";
 import {
   costDonutSlices,
   dailyCostSeries,
+  dailyTickLabel,
   dailyTokenSeries,
   hasCostData,
   hasTokenData,
@@ -107,12 +109,6 @@ const useThemePaletteTick = (): number => {
   return tick;
 };
 
-/** A UTC day key ("YYYY-MM-DD") as a local Date, without an ISO round-trip. */
-const dateFromDayKey = (dayKey: string): Date => {
-  const [year, month, day] = dayKey.split("-").map(Number);
-  return new Date(year, month - 1, day);
-};
-
 const ChartFrame = ({
   title,
   children,
@@ -142,9 +138,7 @@ export const UsageDailyCostChart = ({ points }: { points: UsageDailyPoint[] }) =
     const series = dailyCostSeries(points);
 
     const chartData: ChartData<"bar"> = {
-      labels: series.dates.map((date) =>
-        formatDate(dateFromDayKey(date), { month: "short", day: "numeric" }),
-      ),
+      labels: series.dates.map((date) => dailyTickLabel(formatDate, date)),
       datasets: [
         {
           label: t("usage.chart.dailyCost.datasetLabel"),
@@ -174,12 +168,6 @@ export const UsageDailyCostChart = ({ points }: { points: UsageDailyPoint[] }) =
       },
       scales: {
         x: {
-          title: {
-            display: true,
-            text: t("usage.chart.dailyCost.xAxis"),
-            color: muted,
-            font: { size: 11 },
-          },
           ticks: {
             display: true,
             color: muted,
@@ -236,9 +224,7 @@ export const UsageDailyTokenChart = ({ points }: { points: UsageDailyPoint[] }) 
     const series = dailyTokenSeries(points);
 
     const chartData: ChartData<"line"> = {
-      labels: series.dates.map((date) =>
-        formatDate(dateFromDayKey(date), { month: "short", day: "numeric" }),
-      ),
+      labels: series.dates.map((date) => dailyTickLabel(formatDate, date)),
       datasets: [
         {
           label: t("usage.chart.dailyTokens.input"),
@@ -282,12 +268,6 @@ export const UsageDailyTokenChart = ({ points }: { points: UsageDailyPoint[] }) 
       },
       scales: {
         x: {
-          title: {
-            display: true,
-            text: t("usage.chart.dailyTokens.xAxis"),
-            color: muted,
-            font: { size: 11 },
-          },
           ticks: {
             display: true,
             color: muted,

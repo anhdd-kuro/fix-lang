@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { createFormatters, __resetFormatCachesForTests } from "~/shared/i18n/format";
 import {
   costDonutSlices,
   dailyCostSeries,
+  dailyTickLabel,
   dailyTokenSeries,
   hasCostData,
   hasTokenData,
@@ -17,6 +19,40 @@ const point = (overrides: Partial<UsageDailyPoint> = {}): UsageDailyPoint => ({
   outputTokens: 0,
   costUsd: 0,
   ...overrides,
+});
+
+describe("dailyTickLabel", () => {
+  const originalTz = process.env.TZ;
+
+  afterEach(() => {
+    process.env.TZ = originalTz;
+    __resetFormatCachesForTests();
+  });
+
+  it("formats a day key through locale-aware formatDate, never the raw key", () => {
+    const dayKey = "2026-07-29";
+    const enLabel = dailyTickLabel(createFormatters("en").formatDate, dayKey);
+    const jaLabel = dailyTickLabel(createFormatters("ja").formatDate, dayKey);
+
+    expect(enLabel).not.toBe(dayKey);
+    expect(jaLabel).not.toBe(dayKey);
+    expect(enLabel).not.toBe(jaLabel);
+    expect(enLabel).not.toContain(dayKey);
+    expect(jaLabel).not.toContain(dayKey);
+  });
+
+  it("keeps the calendar day correct in a negative-offset timezone", () => {
+    process.env.TZ = "Pacific/Midway";
+    __resetFormatCachesForTests();
+
+    const { formatDate } = createFormatters("en");
+    const correct = dailyTickLabel(formatDate, "2026-01-01");
+    const buggy = formatDate(new Date("2026-01-01"), { month: "short", day: "numeric" });
+
+    expect(correct).toBe("Jan 1");
+    expect(buggy).toBe("Dec 31");
+    expect(correct).not.toBe(buggy);
+  });
 });
 
 describe("daily series", () => {
