@@ -115,12 +115,10 @@
   "models.usage.yAxis": "Tokens",
   "overview.preset.untitled": "Other",
   "overview.stat.activeDays": "Active days",
-  "overview.stat.currentStreak": "Current streak",
   "overview.stat.favoriteModel": "Favorite model",
-  "overview.stat.longestStreak": "Longest streak",
   "overview.stat.messages": "Messages",
   "overview.stat.peakHour": "Peak hours",
-  "overview.stat.sessions": "Sessions",
+  "overview.stat.streaks": "Streaks (current / longest)",
   "overview.stat.totalTokens": "Total tokens",
   "overview.tokenActivity.mode.ariaLabel": "Token activity view",
   "overview.tokenActivity.mode.cumulative": "Cumulative",
@@ -138,5 +136,6 @@
   "overview.tokenActivity.tooltip.weekly.withCorrections_other": "{tokens} tokens during {start} to {end}, {count} transforms",
   "overview.value.days": "{count}d",
   "overview.value.empty": "—",
-  "overview.value.hour": "{start}:00–{end}:00"
+  "overview.value.hour": "{start}:00–{end}:00",
+  "overview.value.streakPair": "{current}d / {longest}d"
 }
