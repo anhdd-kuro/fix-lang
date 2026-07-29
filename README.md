@@ -7,7 +7,8 @@ A local macOS menu-bar app that fixes grammar, improves writing, and runs other 
 ### Transform & presets
 
 - Select text in any app, press a preset hotkey, then either paste the result back automatically or show it in a result-only popup
-- Built-in presets (each with its own hotkey): **Correction** (`Ctrl+Shift+F`), **Summarize** (`Ctrl+Shift+S`), **Prompt optimization** (`Ctrl+Shift+D`), **Translate** (`Ctrl+Shift+T`), **Business Writing** (`Ctrl+Shift+B`), **Context-Aware Structured Text** (`Ctrl+Shift+R`)
+- Built-in presets (each with its own hotkey): **Correction** (`Ctrl+Shift+F`), **Summarize** (`Ctrl+Shift+S`), **Prompt optimization** (`Ctrl+Shift+D`), **Translate** (`Ctrl+Shift+T`), **Business Writing** (`Ctrl+Shift+B`), **Context-Aware Structured Text** (`Ctrl+Shift+R`), **Ask AI** (`Ctrl+Shift+A`)
+- **Ask AI** opens a small input window instead of requiring a selection: type a question, optionally with selected text carried along as context, and get a GFM-rendered answer in a popup (up to 5 stacked at once)
 - **Profiles** — multiple named configurations; switch with `Ctrl+Shift+P` (profile switch reloads hotkeys, settings, and history)
 - Custom presets with per-preset model, system prompt, hotkey, and reasoning effort (Faster↔Smarter)
 - **App-aware output** — the name of the app you selected the text in (e.g. Slack, Mail, Xcode) is added to the system prompt as context, so the result matches that app's tone and formatting conventions. Applies to transform presets and PromptGen. Most presets only use it to infer tone and formality, not markup; **Context-Aware Structured Text** is the exception and actively adapts formatting to the app. The app name is never echoed into the output, and nothing is sent when it can't be read
@@ -258,8 +259,9 @@ the tag if you want it.
 4. Open the tray popover → dashboard icon for Overview, History, Models, Usage, Logs, or About
 5. `Ctrl+Shift+G` opens PromptGen on the current selection — tag-on builds only, see [Feature tags](#feature-tags-opt-in-features)
 6. `Ctrl+Shift+P` cycles to the next profile
+7. `Ctrl+Shift+A` opens **Ask AI**'s input window — no selection required; any selected text is carried along as optional context
 
-Hotkeys are customizable per preset and for global actions (PromptGen where built in, profile switch) in Settings. Transform output mode is global and defaults to **Direct paste**.
+Hotkeys are customizable per preset and for global actions (PromptGen where built in, profile switch) in Settings. Transform output mode is global and defaults to **Direct paste**, but each preset can override it to Paste or Popup in Settings → Correction.
 
 ## Development
 

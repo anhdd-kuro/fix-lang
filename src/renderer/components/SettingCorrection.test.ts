@@ -1,7 +1,10 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_CORRECTION_PRESET_ID } from "~/prompts/correction";
+import {
+  DEFAULT_ASK_PRESET_ID,
+  DEFAULT_CORRECTION_PRESET_ID,
+} from "~/prompts/correction";
 import { createTranslator } from "~/shared/i18n/translate";
 import { SettingCorrection } from "./SettingCorrection";
 import { I18nProvider } from "../i18n/I18nProvider";
@@ -169,5 +172,204 @@ describe("SettingCorrection primary actions", () => {
     expect(deleteButton?.className).not.toMatch(
       /(?:^|\s)(?:enabled:)?(?:hover|active):bg-/,
     );
+  });
+});
+
+/** React ignores a direct `.value` assignment; the native setter bypasses it. */
+const setSelectValue = async (element: HTMLSelectElement, value: string) => {
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLSelectElement.prototype,
+      "value",
+    )?.set;
+    setter?.call(element, value);
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+};
+
+const baseElectronAPI = (
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> => ({
+  getKeyBindings: vi.fn().mockResolvedValue({}),
+  onSettingsUpdated: vi.fn().mockReturnValue(vi.fn()),
+  fetchAIModels: vi.fn().mockResolvedValue({ success: true, models: [] }),
+  getProviderStates: vi.fn().mockResolvedValue([]),
+  getSelectedModel: vi.fn().mockResolvedValue(""),
+  getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+  setLocale: vi.fn().mockResolvedValue({ success: true }),
+  onLocaleChanged: vi.fn().mockReturnValue(vi.fn()),
+  ...overrides,
+});
+
+describe("SettingCorrection output-mode and markdown controls", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  afterEach(async () => {
+    if (root) {
+      await act(async () => {
+        root.unmount();
+      });
+    }
+    container?.remove();
+    vi.restoreAllMocks();
+  });
+
+  const correctionPreset = {
+    id: DEFAULT_CORRECTION_PRESET_ID,
+    name: "Correction",
+    hotkey: "Control+Shift+F",
+    systemPrompt: "Fix the text.",
+    model: "",
+    isBuiltIn: true,
+  };
+
+  const askPreset = {
+    id: DEFAULT_ASK_PRESET_ID,
+    name: "Ask AI",
+    hotkey: "Control+Shift+A",
+    systemPrompt: "Answer the question.",
+    model: "",
+    isBuiltIn: true,
+    reasoning: "minimal" as const,
+    requiresInput: true,
+    outputMode: "popup" as const,
+    markdownOutput: true,
+  };
+
+  const mount = async () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(I18nProvider, null, createElement(SettingCorrection)),
+      );
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  };
+
+  it("round-trips a preset's output-mode Select through save", async () => {
+    const setCorrectSettings = vi.fn().mockResolvedValue({ success: true });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: baseElectronAPI({
+        getCorrectSettings: vi.fn().mockResolvedValue({
+          presets: [correctionPreset],
+          selectedPresetId: DEFAULT_CORRECTION_PRESET_ID,
+        }),
+        setCorrectSettings,
+      }),
+    });
+
+    await mount();
+
+    const select =
+      container.querySelector<HTMLSelectElement>("#preset-output-mode");
+    if (!select) {
+      throw new Error("Expected the output-mode Select to be rendered.");
+    }
+    expect(select.value).toBe("inherit");
+
+    await setSelectValue(select, "paste");
+    expect(select.value).toBe("paste");
+
+    const form = container.querySelector("form");
+    await act(async () => {
+      form?.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(setCorrectSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        presets: [expect.objectContaining({ outputMode: "paste" })],
+      }),
+    );
+  });
+
+  it("shows the markdown-output control only for the requiresInput preset", async () => {
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: baseElectronAPI({
+        getCorrectSettings: vi.fn().mockResolvedValue({
+          presets: [correctionPreset, askPreset],
+          selectedPresetId: DEFAULT_CORRECTION_PRESET_ID,
+        }),
+        setCorrectSettings: vi.fn().mockResolvedValue({ success: true }),
+      }),
+    });
+
+    await mount();
+
+    expect(
+      container.querySelector("#preset-markdown-output"),
+    ).toBeNull();
+
+    const askButton = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent?.includes("Ask AI"),
+    );
+    await act(async () => {
+      askButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const markdownCheckbox = container.querySelector<HTMLInputElement>(
+      "#preset-markdown-output",
+    );
+    expect(markdownCheckbox).not.toBeNull();
+    expect(markdownCheckbox?.checked).toBe(true);
+  });
+
+  it("Reset to default on Ask restores requiresInput, outputMode, and markdownOutput", async () => {
+    const overriddenAsk = {
+      ...askPreset,
+      requiresInput: false,
+      outputMode: "paste" as const,
+      markdownOutput: false,
+    };
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: baseElectronAPI({
+        getCorrectSettings: vi.fn().mockResolvedValue({
+          presets: [overriddenAsk],
+          selectedPresetId: DEFAULT_ASK_PRESET_ID,
+        }),
+        setCorrectSettings: vi.fn().mockResolvedValue({ success: true }),
+      }),
+    });
+
+    await mount();
+
+    // Before reset: requiresInput is false, so no markdown control; outputMode
+    // reads the overridden "paste".
+    expect(
+      container.querySelector("#preset-markdown-output"),
+    ).toBeNull();
+    expect(
+      container.querySelector<HTMLSelectElement>("#preset-output-mode")
+        ?.value,
+    ).toBe("paste");
+
+    const resetButton = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === tEn("settings.correction.resetBuiltIn"),
+    );
+    await act(async () => {
+      resetButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(
+      container.querySelector<HTMLSelectElement>("#preset-output-mode")
+        ?.value,
+    ).toBe("popup");
+    const markdownCheckbox = container.querySelector<HTMLInputElement>(
+      "#preset-markdown-output",
+    );
+    expect(markdownCheckbox).not.toBeNull();
+    expect(markdownCheckbox?.checked).toBe(true);
   });
 });

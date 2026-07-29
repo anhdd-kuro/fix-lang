@@ -63,6 +63,8 @@ vi.mock("../webViewWindows", () => ({
 vi.mock("../webViewWindows/correctionResultWindow", () => ({
   showCorrectionResultWindow: vi.fn(),
 }));
+vi.mock("../webViewWindows/askInputWindow", () => ({ showAskInputWindow: vi.fn() }));
+vi.mock("./askFlow", () => ({ runAskFlow: vi.fn() }));
 vi.mock("./utils", () => ({
   checkShortcut: vi.fn(),
   handleError: vi.fn(),

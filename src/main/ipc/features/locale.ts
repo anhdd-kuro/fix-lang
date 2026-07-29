@@ -4,6 +4,8 @@
  */
 import { BrowserWindow, ipcMain } from "electron";
 import {
+  syncAskInputWindowLocale,
+  syncAskResultWindowLocale,
   syncCorrectionResultWindowLocale,
   syncErrorPopupLocale,
   syncPromptGenWindowLocale,
@@ -15,10 +17,12 @@ import type { Locale } from "~/shared/i18n/registry";
 /**
  * Broadcasts the active locale to every open BrowserWindow, then re-syncs the
  * standalone-titled/HTML-only windows that don't pick up the change on their
- * own: PromptGen and correction-result windows only read their `title` once
- * at construction (creation-cached singletons), and the error popup renders
- * plain HTML with no renderer script listening for `locale-changed`. Mirrors
- * how `broadcastTheme` calls `syncOverlayTheme` / `syncErrorPopupTheme`.
+ * own: PromptGen, correction-result, and both Ask windows only read their
+ * `title` once at construction (creation-cached singletons, or — for the
+ * multi-instance Ask result window — retitled one by one), and the error
+ * popup renders plain HTML with no renderer script listening for
+ * `locale-changed`. Mirrors how `broadcastTheme` calls `syncOverlayTheme` /
+ * `syncErrorPopupTheme`.
  */
 export const broadcastLocale = (locale: Locale): void => {
   BrowserWindow.getAllWindows().forEach((window) => {
@@ -29,6 +33,8 @@ export const broadcastLocale = (locale: Locale): void => {
   syncPromptGenWindowLocale();
   syncCorrectionResultWindowLocale();
   syncErrorPopupLocale();
+  syncAskInputWindowLocale();
+  syncAskResultWindowLocale();
 };
 
 /**

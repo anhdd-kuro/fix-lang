@@ -1,5 +1,6 @@
 // Export all features
 export * from "./api";
+export * from "./ask";
 export * from "./correction";
 export * from "./correctionResult";
 export * from "./locale";

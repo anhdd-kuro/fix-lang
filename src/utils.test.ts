@@ -18,7 +18,11 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AccessibilityPermissionError } from "~/main/notifications/error";
-import { getHighlightedText, promptAccessibilityPermission } from "./utils";
+import {
+  getHighlightedText,
+  getHighlightedTextForOptionalContext,
+  promptAccessibilityPermission,
+} from "./utils";
 
 const { execMock, showMessageBoxMock, openExternalMock, clipboardState } = vi.hoisted(() => ({
   execMock: vi.fn(),
@@ -109,6 +113,82 @@ describe("getHighlightedText", () => {
     });
 
     await expect(getHighlightedText()).rejects.toBeInstanceOf(AccessibilityPermissionError);
+    expect(clipboardState.text).toBe("previous clipboard content");
+  });
+
+  it("returns the raw clipboard content even when it is unchanged (unaffected by the optional-context comparison)", async () => {
+    // Locks in that getHighlightedText's own behaviour was NOT touched by
+    // factoring out the shared readSelection() body: it still returns
+    // whatever `copyHighlightedText` reports, with no "did the clipboard
+    // change" filtering — that filtering lives only in
+    // getHighlightedTextForOptionalContext.
+    execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
+      callback(null, "previous clipboard content");
+    });
+
+    await expect(getHighlightedText()).resolves.toBe("previous clipboard content");
+  });
+});
+
+describe("getHighlightedTextForOptionalContext", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    clipboardState.text = "previous clipboard content";
+  });
+
+  it("returns \"\" when the copy did not change the clipboard (nothing selected: Cmd-C was a no-op)", async () => {
+    // Reproduces finding 07/f1: with nothing selected, the AppleScript
+    // Cmd-C is a no-op and `the clipboard` still reads back whatever was
+    // there before — here, a password-manager-style secret that must never
+    // be reported as "the selection".
+    clipboardState.text = "hunter2-super-secret-password";
+    execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
+      callback(null, "hunter2-super-secret-password");
+    });
+
+    await expect(getHighlightedTextForOptionalContext()).resolves.toBe("");
+  });
+
+  it("returns the new selection when the copy changed the clipboard", async () => {
+    execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
+      callback(null, "the user's real selection");
+    });
+
+    await expect(getHighlightedTextForOptionalContext()).resolves.toBe(
+      "the user's real selection",
+    );
+  });
+
+  it("documents the accepted false negative: a real selection byte-identical to the clipboard also reads as \"\"", async () => {
+    // Intentional trade-off, not a bug: context is optional for this
+    // caller, so reporting "no selection" here only costs a missing context
+    // block, versus the alternative of leaking an unrelated clipboard as if
+    // it were the selection.
+    clipboardState.text = "same text on both sides";
+    execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
+      callback(null, "same text on both sides");
+    });
+
+    await expect(getHighlightedTextForOptionalContext()).resolves.toBe("");
+  });
+
+  it("maps a keystroke-permission denial to AccessibilityPermissionError, same as getHighlightedText", async () => {
+    execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
+      callback(new Error(REAL_DENIAL_MESSAGE), "");
+    });
+
+    await expect(getHighlightedTextForOptionalContext()).rejects.toBeInstanceOf(
+      AccessibilityPermissionError,
+    );
+  });
+
+  it("restores the clipboard after a successful read", async () => {
+    execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
+      callback(null, "the user's real selection");
+    });
+
+    await getHighlightedTextForOptionalContext();
+
     expect(clipboardState.text).toBe("previous clipboard content");
   });
 });

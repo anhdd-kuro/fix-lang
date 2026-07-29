@@ -25,6 +25,8 @@ const webViewWindowsMocks = vi.hoisted(() => ({
   syncPromptGenWindowLocale: vi.fn(),
   syncCorrectionResultWindowLocale: vi.fn(),
   syncErrorPopupLocale: vi.fn(),
+  syncAskInputWindowLocale: vi.fn(),
+  syncAskResultWindowLocale: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
@@ -41,6 +43,8 @@ vi.mock("~/main/webViewWindows", () => ({
   syncPromptGenWindowLocale: webViewWindowsMocks.syncPromptGenWindowLocale,
   syncCorrectionResultWindowLocale: webViewWindowsMocks.syncCorrectionResultWindowLocale,
   syncErrorPopupLocale: webViewWindowsMocks.syncErrorPopupLocale,
+  syncAskInputWindowLocale: webViewWindowsMocks.syncAskInputWindowLocale,
+  syncAskResultWindowLocale: webViewWindowsMocks.syncAskResultWindowLocale,
 }));
 
 type Handler = (event: unknown, raw: unknown) => unknown;
@@ -114,7 +118,7 @@ describe("broadcastLocale", () => {
     expect(alive.webContents.send).toHaveBeenCalledWith("locale-changed", "ja");
   });
 
-  it("re-syncs the PromptGen, correction-result, and error-popup windows so an already-open window retitles", () => {
+  it("re-syncs the PromptGen, correction-result, error-popup, and Ask windows so an already-open window retitles", () => {
     electronMocks.getAllWindows.mockReturnValue([]);
 
     broadcastLocale("ja");
@@ -122,6 +126,8 @@ describe("broadcastLocale", () => {
     expect(webViewWindowsMocks.syncPromptGenWindowLocale).toHaveBeenCalledTimes(1);
     expect(webViewWindowsMocks.syncCorrectionResultWindowLocale).toHaveBeenCalledTimes(1);
     expect(webViewWindowsMocks.syncErrorPopupLocale).toHaveBeenCalledTimes(1);
+    expect(webViewWindowsMocks.syncAskInputWindowLocale).toHaveBeenCalledTimes(1);
+    expect(webViewWindowsMocks.syncAskResultWindowLocale).toHaveBeenCalledTimes(1);
   });
 });
 

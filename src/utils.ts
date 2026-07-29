@@ -61,11 +61,24 @@ export const promptAccessibilityPermission = async (): Promise<void> => {
 export const wait = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-export const getHighlightedText = async (): Promise<string> => {
+type SelectionRead = {
+  text: string;
+  previousClipboardContent: string;
+};
+
+/**
+ * Shared body behind `getHighlightedText` and
+ * `getHighlightedTextForOptionalContext`: snapshots the clipboard, sends the
+ * Cmd-C via `copyHighlightedText`, restores the clipboard in `finally`
+ * (running on every path for both callers), and maps a revoked Accessibility
+ * permission to `AccessibilityPermissionError` — everything the two exported
+ * functions need to stay byte-identical on their own error handling.
+ */
+const readSelection = async (): Promise<SelectionRead> => {
   const previousClipboardContent = clipboard.readText();
   try {
-    const selectedText = await copyHighlightedText();
-    return selectedText;
+    const text = await copyHighlightedText();
+    return { text, previousClipboardContent };
   } catch (error) {
     console.error(error);
     // A revoked Accessibility permission is a distinct, actionable condition
@@ -79,6 +92,38 @@ export const getHighlightedText = async (): Promise<string> => {
   } finally {
     clipboard.writeText(previousClipboardContent);
   }
+};
+
+export const getHighlightedText = async (): Promise<string> => {
+  const { text } = await readSelection();
+  return text;
+};
+
+/**
+ * Optional-context variant for presets where an empty selection is the
+ * NORMAL case (currently only Ask AI) — unlike the six polish presets, which
+ * abort outright when `getHighlightedText` comes back empty, so a stale
+ * clipboard reaching them was harmless.
+ *
+ * `copyHighlightedText` sends Cmd-C via AppleScript and then reads back
+ * `the clipboard`. With nothing selected, that keystroke is a no-op, so the
+ * read returns whatever was ALREADY on the clipboard — indistinguishable
+ * from a real selection unless we compare against the pre-copy snapshot.
+ * This reports "" whenever the read did not change the clipboard, instead of
+ * handing back the user's unrelated previous clipboard content as if it were
+ * their selection.
+ *
+ * Trade-off (intentionally the safe direction): if the user's actual
+ * selection happens to be byte-identical to what was already on their
+ * clipboard, this also reports "" — a false negative, context silently
+ * omitted. That is the right way round here because context is OPTIONAL for
+ * this caller: the cost of the false negative is a missing context block in
+ * a rare case, versus silently leaking an unrelated clipboard (e.g. a
+ * password) into an AI request in the common case.
+ */
+export const getHighlightedTextForOptionalContext = async (): Promise<string> => {
+  const { text, previousClipboardContent } = await readSelection();
+  return text === previousClipboardContent ? "" : text;
 };
 
 const copyHighlightedText = () => {
