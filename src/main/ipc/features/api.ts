@@ -548,6 +548,15 @@ export const registerApiHandlers = (): void => {
             ? resolveBedrockRegion(payload.region)
             : resolveBedrockRegion(getProviderEndpoint("bedrock")?.host);
 
+        const { fetchBedrockModels } = await import(
+          "~/main/llm/providers/bedrock/models"
+        );
+        models = await fetchBedrockModels({
+          accessKeyId,
+          secretAccessKey,
+          region,
+        });
+
         if (payload.apiKey?.trim()) {
           const result = await setProfileSecret(
             profileId,
@@ -566,15 +575,6 @@ export const registerApiHandlers = (): void => {
           );
           if (!result.success) return wrapStoreResult(result);
         }
-
-        const { fetchBedrockModels } = await import(
-          "~/main/llm/providers/bedrock/models"
-        );
-        models = await fetchBedrockModels({
-          accessKeyId,
-          secretAccessKey,
-          region,
-        });
 
         const profile = connectProviderToProfile(profileId, "bedrock", models, {
           endpoint: { host: region, port: 0 },

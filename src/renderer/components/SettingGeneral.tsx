@@ -123,6 +123,13 @@ export const SettingGeneral: React.FC = () => {
             port: String(ollama.port),
           };
         }
+        const bedrock = endpoints?.bedrock;
+        if (bedrock?.host) {
+          next.bedrock = {
+            host: bedrock.host,
+            port: "0",
+          };
+        }
         return next;
       });
     } catch (error) {
@@ -142,6 +149,14 @@ export const SettingGeneral: React.FC = () => {
       setConfirmDisconnect(null);
       setDisconnectReport(null);
       refreshProviderStates();
+      window.electronAPI
+        ?.getDefaultReasoningEffort?.()
+        .then((effort) => {
+          if (effort) setDefaultReasoningEffort(effort);
+        })
+        .catch((error: unknown) => {
+          console.error("SettingGeneral: Error reloading default reasoning on profile switch:", error);
+        });
     });
     // Another window's connect/disconnect broadcasts `settings-updated`;
     // without this the cards keep showing stale connection state.
