@@ -23,9 +23,9 @@ const TrayWindowMain: React.FC = () => {
   const profileId = useActiveProfileId();
 
   return (
-  <div className="bg-background/95 backdrop-blur-sm text-foreground p-3 rounded-lg w-full h-full overflow-hidden">
+  <div className="bg-background/95 backdrop-blur-sm text-foreground p-3 pb-5 rounded-lg w-full h-full overflow-y-auto">
     <TrayToolbar />
-    <div className="flex flex-col gap-4 pb-4">
+    <div className="flex flex-col gap-4 pb-2">
       <TrayCreditBalance key={profileId} />
       <LanguageTabs />
       <OutputModeTabs />

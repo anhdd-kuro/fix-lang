@@ -67,6 +67,11 @@ export const useOpenRouterAnalytics = (
         return;
       }
 
+      if (!force && cached) {
+        setData(cached.data);
+        setHasKey(cached.data.hasKey);
+      }
+
       // Gate on the key (empty state) before the heavier analytics call.
       const keyPresent =
         (await window.electronAPI.hasProvisioningKey?.("openrouter")) ?? false;

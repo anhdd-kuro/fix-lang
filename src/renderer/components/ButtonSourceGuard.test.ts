@@ -1599,12 +1599,12 @@ const consumerContractRows = [
   ["BTN-078", "SITE-5815552ee2096fa5-01", "LIVE-5815552ee2096fa5", "src/renderer/components/SettingUpdates.tsx", 616, 13],
   ["BTN-079", "SITE-8d81c1044d88aa9b-01", "LIVE-8d81c1044d88aa9b", "src/renderer/components/SettingUpdates.tsx", 628, 13],
   ["BTN-080", "SITE-d2dc6b542709b453-01", "LIVE-d2dc6b542709b453", "src/renderer/components/TrashButton.tsx", 23, 5],
-  ["BTN-081", "SITE-57f775bd4fae66ec-01", "LIVE-57f775bd4fae66ec", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 94, 11],
-  ["BTN-082", "SITE-e630a70d66e34af0-01", "LIVE-e630a70d66e34af0", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 121, 13],
-  ["BTN-083", "SITE-450bee16aa4af761-01", "LIVE-450bee16aa4af761", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 132, 9],
-  ["BTN-084", "SITE-3c1c72456ff99197-01", "LIVE-3c1c72456ff99197", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 96, 11],
-  ["BTN-085", "SITE-eb9419e711683c9d-01", "LIVE-eb9419e711683c9d", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 126, 13],
-  ["BTN-086", "SITE-c0827e45b78b1651-01", "LIVE-c0827e45b78b1651", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 139, 9],
+  ["BTN-081", "SITE-57f775bd4fae66ec-01", "LIVE-57f775bd4fae66ec", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 109, 11],
+  ["BTN-082", "SITE-e630a70d66e34af0-01", "LIVE-e630a70d66e34af0", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 140, 13],
+  ["BTN-083", "SITE-faf927e806407b15-01", "LIVE-faf927e806407b15", "src/renderer/components/usage/OpenAIUsagePanel.tsx", 151, 9],
+  ["BTN-084", "SITE-3c1c72456ff99197-01", "LIVE-3c1c72456ff99197", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 111, 11],
+  ["BTN-085", "SITE-eb9419e711683c9d-01", "LIVE-eb9419e711683c9d", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 145, 13],
+  ["BTN-086", "SITE-aff47f3a90bf9c5b-01", "LIVE-aff47f3a90bf9c5b", "src/renderer/components/usage/OpenRouterUsagePanel.tsx", 158, 9],
   ["BTN-087", "SITE-cda3ee060bf9b96d-01", "LIVE-cda3ee060bf9b96d", "src/renderer/components/usage/UsagePanel.tsx", 102, 11],
   ["BTN-088", "SITE-e27f5c86266c2ef9-01", "LIVE-e27f5c86266c2ef9", "src/renderer/components/usage/UsagePanel.tsx", 128, 13],
   ["BTN-089", "SITE-22b46580f1bd13d0-01", "LIVE-22b46580f1bd13d0", "src/renderer/CorrectionResultWindow/index.tsx", 63, 9],
@@ -1624,7 +1624,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "91217a38648fdd011e9601906c3d06230a872369c194117e4df405a880ae2b2c";
+  "85796f10606e0d05ad3723f768f7f6e010a6a668eb0b0139da3172e69e458229";
 
 const compareConsumers = (left: ButtonConsumer, right: ButtonConsumer): number =>
   left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column;
