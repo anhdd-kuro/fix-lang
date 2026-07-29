@@ -26,6 +26,11 @@ export type HistoryEntry = {
   pricePrompt?: string; // Per-token prompt price used (OpenRouter string); absent when N/A
   priceCompletion?: string; // Per-token completion price used (OpenRouter string); absent when N/A
   costStatus?: "ok" | "zero" | "na"; // Discriminates priced / genuine-$0 (local) / unpriced (N/A)
+  /**
+   * Raw completion session JSON (prompts, reasoning, responses, usage).
+   * Absent on legacy rows; shown via History "Show details".
+   */
+  sessionJson?: string;
 };
 
 // Narrowed to only the two valid feature buckets. lastActionHistory is not a feature bucket.

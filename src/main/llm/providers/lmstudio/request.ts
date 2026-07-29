@@ -58,6 +58,9 @@ export const makeLmStudioAIRequest = async (options: AIRequestOptions) => {
     const counts = responses.map((response) => usageCounts(response.usage));
     const firstBody = responses[0]?.response.body;
 
+    const reasoningTexts = responses
+      .map((response) => response.reasoningText)
+      .filter((text): text is string => typeof text === "string" && text.length > 0);
     return {
       content: responses.map((response) => response.text),
       prompts: responses.map((response) => response.text),
@@ -66,6 +69,7 @@ export const makeLmStudioAIRequest = async (options: AIRequestOptions) => {
       model: modelId,
       provider: "lmstudio" as const,
       resolvedModel: extractResolvedModel(firstBody, modelId),
+      ...(reasoningTexts.length > 0 ? { reasoningTexts } : {}),
     };
   } catch (error) {
     console.error("makeLmStudioAIRequest error:", error);

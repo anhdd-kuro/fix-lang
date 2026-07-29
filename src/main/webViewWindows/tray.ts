@@ -18,7 +18,7 @@ export function createTrayWindow(): BrowserWindow {
   if (trayWindow) return trayWindow;
   trayWindow = new BrowserWindow({
     width: 300,
-    height: 640,
+    height: 720,
     show: false,
     frame: false,
     resizable: false,

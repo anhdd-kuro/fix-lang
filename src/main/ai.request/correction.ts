@@ -2,6 +2,7 @@ import {
   DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
   DEFAULT_SUMMARIZE_PRESET_ID,
 } from "~/prompts";
+import { serializeHistorySession } from "~/shared/historySession";
 import { parseModelRef, stripModelRefPrefix } from "~/shared/modelRef";
 import { resolveReasoningEffort } from "~/shared/reasoningEffort";
 import {
@@ -33,6 +34,8 @@ type CorrectionResult = {
   resolvedModel: string;
   presetId: string;
   presetName: string;
+  /** Raw completion session JSON for history transparency. */
+  sessionJson?: string;
 };
 
 /** A preset's pinned model, or the profile default when it inherits (""). */
@@ -179,6 +182,9 @@ export const fixGrammar = async (
       resolvedModel: response.resolvedModel ?? response.model,
       presetId: preset.id,
       presetName: preset.name,
+      sessionJson: response.session
+        ? serializeHistorySession(response.session)
+        : undefined,
     };
   } catch (error) {
     console.error("Error in fixGrammar:", error);
