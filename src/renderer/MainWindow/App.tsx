@@ -26,6 +26,7 @@ import {
 import { TextAreaBox } from "../components/TextAreaBox";
 import { UsagePanel } from "../components/usage/UsagePanel";
 import { useTheme } from "../hooks/useTheme";
+import { useUsageCacheInvalidation } from "../hooks/useUsageCacheInvalidation";
 import { useI18n } from "../i18n/useI18n";
 import type { DashboardTabId } from "./dashboardTabs";
 import type { AnalyticsRange } from "../analytics/shared";
@@ -58,6 +59,7 @@ const RANGE_AWARE_TABS = new Set(["overview", "models"]);
  */
 const App: React.FC = () => {
   useTheme();
+  useUsageCacheInvalidation();
   // Resolves DASHBOARD_TABS[]/RANGES[] labelKeys plus every other
   // user-facing string in this file (headings, TextAreaBox labels,
   // aria-labels) at render time.
@@ -79,7 +81,7 @@ const App: React.FC = () => {
   });
   // Active dashboard tab + shared analytics time range.
   const [activeDashboardTab, setActiveDashboardTab] = useState<number>(
-    DEFAULT_DASHBOARD_TAB_INDEX
+    DEFAULT_DASHBOARD_TAB_INDEX,
   );
   const [range, setRange] = useState<AnalyticsRange>("all");
   // A tray card asking the Usage tab to open on ITS provider. Stamped rather
@@ -102,7 +104,7 @@ const App: React.FC = () => {
     // Sort by timestamp (newest first)
     combined.sort(
       (a, b) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
     );
 
     setHistory(combined);
@@ -120,7 +122,7 @@ const App: React.FC = () => {
         console.log("onHistoryUpdate", payload);
         // Refresh all histories when any history is updated
         void fetchAllHistories();
-      }
+      },
     );
 
     // Listen for model manager open requests triggered via IPC
@@ -136,7 +138,7 @@ const App: React.FC = () => {
       removeHistoryListener?.();
       window.removeEventListener(
         modelManagerEventName,
-        openModelManagerHandler
+        openModelManagerHandler,
       );
     };
   }, [fetchAllHistories]);
@@ -170,7 +172,7 @@ const App: React.FC = () => {
             setRequestedUsageProvider({ provider: subTabId, at: Date.now() });
           }
         }
-      }
+      },
     );
 
     const offHistory = window.electronAPI.onOpenHistoryDialog?.(async () => {
@@ -201,7 +203,7 @@ const App: React.FC = () => {
   const handleDeleteEntry = (
     entry: HistoryEntry,
     featureId: HistoryFeatureId,
-    nextEntry: HistoryEntry | null
+    nextEntry: HistoryEntry | null,
   ): void => {
     if (nextEntry) {
       setLastHistoryData({
@@ -227,7 +229,7 @@ const App: React.FC = () => {
   const handleClear = (activeFilter: string | null): void => {
     const buckets: HistoryFeatureId[] = bucketsForClear(activeFilter);
     Promise.all(
-      buckets.map((featureId) => window.electronAPI.clearHistory(featureId))
+      buckets.map((featureId) => window.electronAPI.clearHistory(featureId)),
     )
       .then(() => fetchAllHistories())
       .catch((err: Error) => console.error(`Failed to clear history`, err));
@@ -236,7 +238,7 @@ const App: React.FC = () => {
   // Corrections-bucket subset for the analytics tabs (aggregate corrections
   // only; PromptGen lives in its own bucket and is excluded).
   const correctionsHistory = history.filter(
-    (e) => e.presetName !== "PromptGen"
+    (e) => e.presetName !== "PromptGen",
   );
 
   // History tab body: the history list beside the Last Action Preview.
@@ -268,7 +270,7 @@ const App: React.FC = () => {
             textCount={lastHistoryData.promptTokens}
             model={formatModelLineage(
               lastHistoryData.model,
-              lastHistoryData.resolvedModel
+              lastHistoryData.resolvedModel,
             )}
             className="flex-1"
           />
@@ -355,7 +357,7 @@ const App: React.FC = () => {
                   "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                   isActive
                     ? "bg-primary text-primary-foreground shadow"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground",
                 )}
               >
                 {t(tab.labelKey)}

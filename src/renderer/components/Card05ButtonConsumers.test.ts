@@ -251,7 +251,7 @@ const consumers = [
   },
   {
     id: "BTN-024",
-    file: "src/renderer/components/MultiSelect.tsx",
+    file: "src/renderer/components/MultiSelect/MultiSelect.tsx",
     elementIndex: 0,
     resolvedType: "button",
     resolvedVariant: '"outline"',
@@ -264,7 +264,7 @@ const consumers = [
       "aria-controls": "{isOpen ? listId : undefined}",
       onClick: "{() => setIsOpen((open) => !open)}",
       className:
-        '"flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm hover:border-ring"',
+        '{twMerge(selectControlClassName, "flex w-full items-center justify-between gap-2 px-2 py-1.5 text-sm",)}',
     },
   },
   {

@@ -42,7 +42,8 @@ const DOCS_URL = "https://github.com/anhdd-kuro/fix-lang";
  * Rendered on a `variant="ghost"` `Button` — this overrides its hover fill so
  * the result reads as a plain link, not a ghost button.
  */
-const GUIDE_LINK_CLASS = "text-primary underline hover:bg-transparent hover:no-underline";
+const GUIDE_LINK_CLASS =
+  "text-primary underline hover:bg-transparent hover:no-underline";
 
 type LoadPhase = "loading" | "ready" | "error";
 
@@ -66,7 +67,13 @@ const EMPTY_SNAPSHOT: GuideSnapshot = {
  * Read-only shortcut chips. Styled like the chips in `KeyBinding.tsx`, which is
  * not reused here because it carries an editing button this panel must not show.
  */
-const HotkeyChips = ({ keys, fallback }: { keys: string[]; fallback: string }) => {
+const HotkeyChips = ({
+  keys,
+  fallback,
+}: {
+  keys: string[];
+  fallback: string;
+}) => {
   if (keys.length === 0) {
     return <span className="text-xs text-muted-foreground">{fallback}</span>;
   }
@@ -188,7 +195,11 @@ export const UserGuidePanel = ({
         </p>
       )}
       {phase === "error" && (
-        <p className="mt-2 text-sm text-warning" role="status" aria-live="polite">
+        <p
+          className="mt-2 text-sm text-warning"
+          role="status"
+          aria-live="polite"
+        >
           {t("guide.loadError")}
         </p>
       )}
@@ -236,7 +247,10 @@ export const UserGuidePanel = ({
         </Button>
       </GuideSection>
 
-      <GuideSection id="guide-transform-heading" title={t("guide.transform.title")}>
+      <GuideSection
+        id="guide-transform-heading"
+        title={t("guide.transform.title")}
+      >
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
           <li>{t("guide.transform.select")}</li>
           <li>{t("guide.transform.press")}</li>
@@ -296,8 +310,6 @@ export const UserGuidePanel = ({
               })}
         </p>
       </GuideSection>
-
-
       <GuideSection id="guide-result-heading" title={t("guide.result.title")}>
         <p className="mt-1 text-sm text-muted-foreground">
           {t("guide.result.body")}
@@ -310,9 +322,9 @@ export const UserGuidePanel = ({
             {t("guide.result.openSettings")}
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={() => void window.electronAPI.previewCorrectionResult?.()}
-            className="rounded px-3 py-1.5 text-sm"
+            className="rounded px-3 py-1.5 text-sm font-medium"
           >
             {t("guide.result.viewExample")}
           </Button>
@@ -363,7 +375,10 @@ export const UserGuidePanel = ({
         </dl>
       </GuideSection>
 
-      <GuideSection id="guide-dashboard-heading" title={t("guide.dashboard.title")}>
+      <GuideSection
+        id="guide-dashboard-heading"
+        title={t("guide.dashboard.title")}
+      >
         <dl className="mt-2 space-y-1">
           {dashboardRows.map((row) => (
             <div key={row.id} className="flex flex-wrap gap-x-2 text-sm">
