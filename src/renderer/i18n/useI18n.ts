@@ -11,7 +11,7 @@ import {
   resolveMessage,
   type Label,
   type Message,
-} from "~/shared/i18n/message";
+} from "~/features/i18n/shared/message";
 import { I18nContext, type I18nContextValue } from "./I18nProvider";
 
 /**

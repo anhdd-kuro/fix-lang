@@ -6,10 +6,10 @@
  * concatenation.
  */
 import { describe, expect, it } from "vitest";
-import { createFormatters } from "~/shared/i18n/format";
-import { CATALOGS } from "~/shared/i18n/locales";
-import { LOCALE_CODES } from "~/shared/i18n/registry";
-import { createTranslator } from "~/shared/i18n/translate";
+import { createFormatters } from "~/features/i18n/shared/format";
+import { CATALOGS } from "~/features/i18n/shared/locales";
+import { LOCALE_CODES } from "~/features/i18n/shared/registry";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import { buildModelOptionLabel, type ModelForLabel } from "./modelOptionLabel";
 
 const depsFor = (locale: "en" | "ja") => {

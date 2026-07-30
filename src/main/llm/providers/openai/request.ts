@@ -9,6 +9,9 @@
  */
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
+import { reasoningForAiSdk } from "~/features/correction/shared/reasoningEffort";
+import { getCurrentProfileId } from "~/features/providers/store/apiStore";
+import { getProfileSecret } from "~/features/providers/store/profileSecretStore";
 import {
   sumTokenField,
   toConversation,
@@ -17,9 +20,6 @@ import {
 } from "~/main/ai.request/requestTypes";
 import { extractResolvedModel } from "~/main/ai.request/resolve-model";
 import { showErrorNotification } from "~/main/notifications/error";
-import { reasoningForAiSdk } from "~/shared/reasoningEffort";
-import { getCurrentProfileId } from "~/stores/apiStore";
-import { getProfileSecret } from "~/stores/profileSecretStore";
 
 export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
   const profileId = getCurrentProfileId();

@@ -5,7 +5,7 @@ description: "Use when touching stored model ids, provider routing, cost lookup,
 
 # FixLang — Composite Model Ref Gotcha
 
-Code: `src/shared/modelRef.ts` (parse/format/resolve), `src/shared/providers.ts` (provider identity).
+Code: `src/features/providers/shared/modelRef.ts` (parse/format/resolve), `src/features/providers/shared/providers.ts` (provider identity).
 
 ## Two id shapes. Know which one you hold
 

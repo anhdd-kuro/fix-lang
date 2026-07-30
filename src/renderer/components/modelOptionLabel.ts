@@ -21,8 +21,8 @@
  */
 import { format as formatDateFns } from "date-fns";
 import type { Locale as DateFnsLocale } from "date-fns/locale";
-import type { Translator } from "~/shared/i18n/translate";
-import type { Model } from "~/stores/apiStore";
+import type { Translator } from "~/features/i18n/shared/translate";
+import type { Model } from "~/features/providers/store/apiStore";
 
 export type ModelOptionLabelDeps = {
   t: Translator;

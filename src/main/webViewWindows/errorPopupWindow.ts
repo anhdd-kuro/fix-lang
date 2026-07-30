@@ -1,11 +1,11 @@
 import { app, BrowserWindow, screen } from "electron";
-import { themeStore } from "~/stores/themeStore";
+import { themeStore } from "~/features/theme/store/themeStore";
 import errorPopupHtml from "./overlay.html?asset";
 import {
   buildErrorPopupCloseLabel,
   buildErrorPopupTitle,
 } from "./windowTitles";
-import type { ThemeId } from "~/stores/themeIds";
+import type { ThemeId } from "~/features/theme/store/themeIds";
 
 const ERROR_POPUP_WIDTH = 360;
 const ERROR_POPUP_HEIGHT = 112;

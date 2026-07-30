@@ -1,10 +1,10 @@
 import { globalShortcut, screen } from "electron";
+import { keybindingStore } from "~/features/correction/store/keybindingStore";
+import { syncHistory } from "~/features/history/main/history";
 import { getActiveApp } from "~/main/accessibility/activeApp";
-import { keybindingStore } from "~/stores/keybindingStore";
 import { getHighlightedText } from "../../utils";
 import { generatePrompt } from "../ai.request";
 import { checkShortcut, handleError, withHotkeyThrottle } from "./utils";
-import { syncHistory } from "../ipc/features/history";
 import { logger } from "../logging/logService";
 import { LocalizedError } from "../notifications/error";
 import { showOverlaySpinner, hideOverlaySpinner } from "../webViewWindows";

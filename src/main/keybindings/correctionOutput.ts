@@ -1,5 +1,5 @@
-import type { CorrectionResultPayload } from "~/shared/correctionResult";
-import type { CorrectionOutputMode } from "~/shared/outputMode";
+import type { CorrectionResultPayload } from "~/features/correction/shared/correctionResult";
+import type { CorrectionOutputMode } from "~/features/correction/shared/outputMode";
 
 type CorrectionOutputDependencies = {
   paste: (text: string) => Promise<void>;

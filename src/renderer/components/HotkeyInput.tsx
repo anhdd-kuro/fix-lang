@@ -6,12 +6,12 @@
  * hotkeys and the sibling app keybinding before saving.
  */
 import React, { useState, useEffect } from "react";
-import { messageLabel, msg, type Message } from "~/shared/i18n/message";
+import { messageLabel, msg, type Message } from "~/features/i18n/shared/message";
 import { Button } from "./Button";
 import { plainStatus, wrappedError, resolveStatus, type StatusDescriptor } from "./statusDescriptor";
 import { validateHotkeys } from "./validateHotkeys";
 import { useI18n } from "../i18n/useI18n";
-import type { KeyBindings } from "~/stores/apiStore";
+import type { KeyBindings } from "~/features/providers/store/apiStore";
 
 type HotkeyKey = keyof KeyBindings; // "promptGen" | "profileSwitch"
 

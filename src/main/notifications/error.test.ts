@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createTranslator } from "~/shared/i18n/translate";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import { AccessibilityPermissionError, LocalizedError, showErrorNotification } from "./error";
 
 const {
@@ -26,11 +26,11 @@ vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
 }));
 
 // The desktop-notification title/fallback body are built via `mainT()`,
-// which reads `~/stores/localeStore` (backed by `electron-store`, itself
+// which reads `~/features/i18n/store/localeStore` (backed by `electron-store`, itself
 // backed by real `app.getPath`). Mocking the store directly — the same
 // pattern `correctionNotifications.test.ts` and `windowTitles.test.ts` use —
 // keeps this test from touching the filesystem or the real Electron `app`.
-vi.mock("~/stores/localeStore", () => ({
+vi.mock("~/features/i18n/store/localeStore", () => ({
   getLocale: localeStoreMocks.getLocale,
 }));
 

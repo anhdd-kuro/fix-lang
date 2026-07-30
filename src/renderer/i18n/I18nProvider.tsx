@@ -13,9 +13,9 @@
  */
 
 import React, { createContext, useCallback, useEffect, useMemo, useReducer } from "react";
-import { createFormatters, type Formatters } from "~/shared/i18n/format";
-import { LOCALE_META, type Locale, type TextDirection } from "~/shared/i18n/registry";
-import { createTranslator, type Translator } from "~/shared/i18n/translate";
+import { createFormatters, type Formatters } from "~/features/i18n/shared/format";
+import { LOCALE_META, type Locale, type TextDirection } from "~/features/i18n/shared/registry";
+import { createTranslator, type Translator } from "~/features/i18n/shared/translate";
 import {
   documentAttrsForLocale,
   INITIAL_LOCALE_STATE,

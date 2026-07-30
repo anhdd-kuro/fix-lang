@@ -7,8 +7,8 @@ import { Ollama } from "ollama";
 import {
   buildOllamaBaseUrl,
   resolveOllamaEndpoint,
-} from "~/shared/ollamaEndpoint";
-import type { ProviderEndpoint } from "~/shared/lmstudioEndpoint";
+} from "~/features/providers/shared/ollamaEndpoint";
+import type { ProviderEndpoint } from "~/features/providers/shared/lmstudioEndpoint";
 
 export type OllamaClientOptions = {
   endpoint?: ProviderEndpoint | null;

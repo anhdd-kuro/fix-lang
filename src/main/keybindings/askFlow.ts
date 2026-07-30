@@ -13,9 +13,10 @@
  * Leaving it out keeps that system prompt byte-identical to the preset's own
  * text, exactly like the fourth (non-context) call site.
  */
-import { resolvePresetOutputMode } from "~/shared/presetOutputMode";
-import { getLocale } from "~/stores/localeStore";
-import { outputModeStore } from "~/stores/outputModeStore";
+import { resolvePresetOutputMode } from "~/features/correction/shared/presetOutputMode";
+import { outputModeStore } from "~/features/correction/store/outputModeStore";
+import { syncHistory } from "~/features/history/main/history";
+import { getLocale } from "~/features/i18n/store/localeStore";
 import { pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
 import { composeAskMessage } from "./askMessage";
@@ -23,12 +24,11 @@ import { deliverCorrectionOutput } from "./correctionOutput";
 import { handleError } from "./utils";
 import { buildPriceMap, computeCost } from "../ai.request/cost";
 import { getCachedModels, isLocalModelId } from "../ai.request/shared";
-import { syncHistory } from "../ipc/features/history";
 import { logger } from "../logging/logService";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
 import { showAskResultWindow } from "../webViewWindows/askResultWindow";
 import type { BrowserWindow } from "electron";
-import type { CorrectionPreset } from "~/stores/apiStore";
+import type { CorrectionPreset } from "~/features/providers/store/apiStore";
 
 export type RunAskFlowParams = {
   preset: CorrectionPreset;

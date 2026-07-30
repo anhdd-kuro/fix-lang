@@ -27,7 +27,7 @@ vi.mock("electron", () => ({
   ipcMain: { handle: vi.fn(), on: vi.fn() },
   app: { getPath: vi.fn().mockReturnValue("/tmp") },
 }));
-vi.mock("~/stores/apiStore", async (importOriginal) => {
+vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
   // We want the real normalizeCorrectionSettings for the normalize tests,
   // but mock getProfileSetting so fixGrammar tests work independently.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
@@ -51,16 +51,16 @@ vi.mock("./shared", () => ({
 // ---------------------------------------------------------------------------
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
-import { DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID } from "~/prompts";
 import {
   getDefaultModelId,
   getProfileSetting,
   normalizeCorrectionSettings,
-} from "~/stores/apiStore";
+} from "~/features/providers/store/apiStore";
+import { DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID } from "~/prompts";
 import { fixGrammar } from "./correction";
 import { makeAIRequest } from "./shared";
 import type { Mock } from "vitest";
-import type { CorrectionPreset, CorrectionSettings } from "~/stores/apiStore";
+import type { CorrectionPreset, CorrectionSettings } from "~/features/providers/store/apiStore";
 
 // ---------------------------------------------------------------------------
 // Helpers

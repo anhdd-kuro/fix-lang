@@ -18,7 +18,7 @@
  * (translated, a `Label` "message" case) share one wrapper without either
  * half freezing into a string before render.
  */
-import { msg, type Label, type Message, type MessageKey, type MessageParams, type Translate } from "~/shared/i18n/message";
+import { msg, type Label, type Message, type MessageKey, type MessageParams, type Translate } from "~/features/i18n/shared/message";
 
 export type StatusDescriptor =
   | { kind: "plain"; message: Message }

@@ -5,7 +5,7 @@
  * profile-wide default persistence calls instead of a single preset.
  */
 import React, { useCallback, useEffect, useState } from "react";
-import { DEFAULT_REASONING_EFFORT, type ReasoningEffort } from "~/shared/reasoningEffort";
+import { DEFAULT_REASONING_EFFORT, type ReasoningEffort } from "~/features/correction/shared/reasoningEffort";
 import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
 
 type DefaultReasoningEffortSliderProps = {

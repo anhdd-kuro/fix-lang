@@ -34,19 +34,19 @@ vi.mock("electron", () => ({
 }));
 
 // `~/main/notifications/error`'s notification title/body now go through
-// `mainT()`, which reads `~/stores/localeStore` (a real `electron-store`
+// `mainT()`, which reads `~/features/i18n/store/localeStore` (a real `electron-store`
 // instance requiring a `projectName`/`cwd` outside a real Electron `app`).
 // Mocking the store directly — same pattern as
 // `keybindings/correctionNotifications.test.ts` — avoids that entirely.
-vi.mock("~/stores/localeStore", () => ({
+vi.mock("~/features/i18n/store/localeStore", () => ({
   getLocale: vi.fn(() => "en"),
 }));
 
-vi.mock("~/stores/apiKeyStore", () => ({
+vi.mock("~/features/providers/store/apiKeyStore", () => ({
   getApiKey: vi.fn().mockResolvedValue("test-api-key"),
 }));
 
-vi.mock("~/stores/apiStore", () => ({
+vi.mock("~/features/providers/store/apiStore", () => ({
   apiStore: {
     get: vi.fn().mockReturnValue(undefined),
     set: vi.fn(),
@@ -66,7 +66,7 @@ vi.mock("~/stores/apiStore", () => ({
         (provider === "openrouter" && model.provider === undefined && !model.local),
 }));
 
-vi.mock("~/stores/profileSecretStore", () => ({
+vi.mock("~/features/providers/store/profileSecretStore", () => ({
   getProfileSecret: getProfileSecretMock,
 }));
 

@@ -1,5 +1,5 @@
 import { globalShortcut, BrowserWindow } from "electron";
-import { isPromptGenEnabled } from "~/shared/features";
+import { isPromptGenEnabled } from "~/features/core/shared/features";
 import { registerCorrectionShortcut } from "./correction";
 import { registerProfileSwitchShortcut } from "./profileSwitch";
 import { registerPromptGenShortcut } from "./promptGen";

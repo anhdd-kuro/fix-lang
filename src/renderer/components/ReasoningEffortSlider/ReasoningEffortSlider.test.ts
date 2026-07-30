@@ -5,14 +5,14 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { createFormatters } from "~/shared/i18n/format";
-import { createTranslator } from "~/shared/i18n/translate";
 import {
   DEFAULT_REASONING_EFFORT,
   REASONING_EFFORT_SLIDER_STEPS,
   reasoningEffortToStepIndex,
   stepIndexToReasoningEffort,
-} from "~/shared/reasoningEffort";
+} from "~/features/correction/shared/reasoningEffort";
+import { createFormatters } from "~/features/i18n/shared/format";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
 import { I18nContext } from "../../i18n/I18nProvider";
 

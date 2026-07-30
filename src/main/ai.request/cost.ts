@@ -16,8 +16,8 @@
  * Electron-free and side-effect-free so it can be unit-tested directly.
  */
 import Fuse from "fuse.js";
-import { stripModelRefPrefix } from "~/shared/modelRef";
-import type { Model, ProviderId } from "~/stores/apiStore";
+import { stripModelRefPrefix } from "~/features/providers/shared/modelRef";
+import type { Model, ProviderId } from "~/features/providers/store/apiStore";
 
 /** Per-token USD prices (OpenRouter strings) keyed by lowercased model id. */
 export type PriceMap = Map<string, { prompt: string; completion: string }>;

@@ -1,8 +1,8 @@
 /**
  * @file i18n-check.ts
  * @description Bun-runnable guardrail CLI for the i18n catalogs. Runs every
- * invariant in `src/shared/i18n/catalogIntegrity.ts` against the real
- * `src/shared/i18n/locales/{en,ja}/*.json` files, prints a per-namespace
+ * invariant in `src/features/i18n/shared/catalogIntegrity.ts` against the real
+ * `src/features/i18n/shared/locales/{en,ja}/*.json` files, prints a per-namespace
  * summary plus the JA translation-coverage percentage, and exits non-zero if
  * any violation is found.
  *
@@ -16,12 +16,12 @@ import {
   type NamespaceRaw,
   checkCatalogIntegrity,
   parseCatalog,
-} from "../src/shared/i18n/catalogIntegrity";
-import { CATALOG_NAMESPACES } from "../src/shared/i18n/locales";
-import { LOCALE_CODES } from "../src/shared/i18n/registry";
+} from "../src/features/i18n/shared/catalogIntegrity";
+import { CATALOG_NAMESPACES } from "../src/features/i18n/shared/locales";
+import { LOCALE_CODES } from "../src/features/i18n/shared/registry";
 
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
-const localesDir = path.join(scriptsDir, "..", "src/shared/i18n/locales");
+const localesDir = path.join(scriptsDir, "..", "src/features/i18n/shared/locales");
 
 const [sourceLocale, ...otherLocales] = LOCALE_CODES;
 

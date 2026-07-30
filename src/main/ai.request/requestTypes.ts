@@ -10,9 +10,9 @@
  *
  * `shared.ts` re-exports everything here, so existing call sites are unaffected.
  */
-import type { HistorySessionData } from "~/shared/historySession";
-import type { ProviderId } from "~/shared/providers";
-import type { ReasoningEffort } from "~/shared/reasoningEffort";
+import type { ReasoningEffort } from "~/features/correction/shared/reasoningEffort";
+import type { HistorySessionData } from "~/features/history/shared/historySession";
+import type { ProviderId } from "~/features/providers/shared/providers";
 
 export type CoreMessage = {
   role: "system" | "user" | "assistant" | "tool";

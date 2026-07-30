@@ -5,7 +5,7 @@
  * (Chunk 8) so the descriptor logic is unit-testable without a DOM testing
  * library (none is installed).
  */
-import { msg, type Message, type MessageKey } from "~/shared/i18n/message";
+import { msg, type Message, type MessageKey } from "~/features/i18n/shared/message";
 import type { PresetWeightRow } from "../MainWindow/overviewAggregations";
 
 /** Chart title keys — resolved via `t()` at render time. */

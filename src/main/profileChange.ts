@@ -17,7 +17,7 @@
  * `profileChange.test.ts` guard forbids: three sites already had to remember
  * this, and a fourth would have skipped it silently.
  */
-import { ACTIVE_PROFILE_CHANGED } from "~/shared/ipcChannels";
+import { ACTIVE_PROFILE_CHANGED } from "~/features/core/shared/ipcChannels";
 import { dismissAskInputWindow } from "./webViewWindows/askInputWindow";
 import { broadcastToAllWindows } from "./webViewWindows/broadcast";
 

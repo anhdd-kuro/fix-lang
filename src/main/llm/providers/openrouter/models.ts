@@ -4,7 +4,7 @@
  * `ai.request/shared.ts` — the cache, freshness stamping and strict/fallback
  * policy stay there; this module only performs the fetch and normalization.
  */
-import type { Model } from "~/shared/providers";
+import type { Model } from "~/features/providers/shared/providers";
 
 const MODELS_URL = "https://openrouter.ai/api/v1/models";
 const TIMEOUT_MS = 5000;

@@ -14,9 +14,9 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createTranslator } from "~/shared/i18n/translate";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import { I18nProvider } from "../i18n/I18nProvider";
-import type { AskInputPayload } from "~/shared/ask";
+import type { AskInputPayload } from "~/features/ask/shared/ask";
 import { AskInputWindow } from "./index";
 
 const tEn = createTranslator("en");

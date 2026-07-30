@@ -40,34 +40,41 @@ Electron app with main/preload/renderer split. Highest-risk areas: global hotkey
 ```
 fix-lang/
 ├── src/
+│   ├── features/           — domain modules (shared / store / main / preload per feature)
+│   │   ├── core/shared/    — ipcChannels, features (build tags), bundleExternals, dashboardTabIds
+│   │   ├── providers/      — API keys, model refs, provider registry, apiStore
+│   │   ├── correction/     — presets output mode, reasoning effort, keybindings store
+│   │   ├── history/        — SQLite history, session snapshots
+│   │   ├── i18n/           — catalogs, locale store, locale IPC
+│   │   ├── logs/           — structured logging types + Logs IPC
+│   │   ├── profiles/       — profile import/export, migration
+│   │   ├── settings/       — settings IPC, ipc result labels
+│   │   ├── theme/          — theme store + theme IPC
+│   │   ├── update/         — in-app update types + IPC
+│   │   ├── usage/          — OpenAI/OpenRouter usage IPC
+│   │   ├── ask/            — Ask AI preload bridge
+│   │   ├── ui/             — window/focus IPC
+│   │   ├── promptgen/      — PromptGen IPC (feature-tagged)
+│   │   ├── main/index.ts   — barrel: all main-process IPC handlers
+│   │   └── preload/index.ts — barrel: all preload bridges
 │   ├── main/               — Electron main process
 │   │   ├── ai.request/     — cross-provider: model cache, request routing, cost, requestTypes
-│   │   ├── ipc/features/   — IPC handlers (api, correction, history, logs, …)
+│   │   ├── ipc/            — re-exports ~/features/main
 │   │   ├── keybindings/    — global hotkeys (presets, promptGen, profileSwitch)
 │   │   ├── logging/        — structured JSONL write/query
 │   │   ├── llm/
 │   │   │   ├── models/     — cross-provider discovery/compat/monitor
 │   │   │   └── providers/  — one folder per ProviderId + index.ts capability registry
-│   │   │                     (openai, openrouter: models/request/usage; bedrock: models/request;
-│   │   │                      ollama, lmstudio: client/request)
 │   │   ├── update/         — Homebrew probe/fetch/upgrade + pending-update marker
-│   │   ├── profileChange.ts — single funnel for profile activation (dismiss, then broadcast)
+│   │   ├── profileChange.ts — single funnel for profile activation
 │   │   └── webViewWindows/ — main, promptGen, overlay, tray, askInput/askResult, error popup
 │   ├── renderer/           — React UI (MainWindow dashboard, TrayWindow, …)
-│   ├── preload/features/   — IPC bridge (validate here)
-│   ├── stores/             — historyDb (sqlite), apiStore, keybindingStore
-│   ├── prompts/            — bundled AI prompt assets (build-time)
-│   └── shared/             — Electron-free, shared across main/preload/renderer
-│       ├── providers.ts    — provider identity, card/group ordering, model filtering
-│       ├── providerKeyShapes.ts — prefix classifier: refuse a foreign key before storing
-│       ├── modelRef.ts     — parse/format/resolve composite refs (`<providerId>::<rawModelId>`)
-│       ├── logging.ts      — log types + redaction
-│       ├── features.ts     — build-time feature tags
-│       └── bundleExternals.ts — bundle-externals scanner core (unit-tested)
+│   ├── preload/            — re-exports ~/features/preload; exposeInMainWorld entry
+│   └── prompts/            — bundled AI prompt assets (build-time)
 ├── scripts/                — bun CLIs: check-bundle-externals, i18n-check, theme gen
-├── .github/workflows/release.yml — tag → checks → DMG → validate → publish
-├── README.md               — user-facing features and usage
-└── .claude/skills/fixlang/ — project-specific traps (read on demand)
+├── .github/workflows/release.yml
+├── README.md
+└── .claude/skills/fixlang/
 ```
 
 ## Tech Stack
@@ -77,7 +84,7 @@ fix-lang/
 - Frontend
   - React 19.2, TypeScript 6.0 (stay on 6.x until typescript-eslint supports 7), Tailwind 4.3
 - AI
-  - openai 6.49, @ai-sdk/openai 4.0, @openrouter/ai-sdk-provider 3.0, @ai-sdk/amazon-bedrock 5.0 + @aws-sdk/client-bedrock 3.x, ai 7.0, ollama 0.6 — each wired in its own `src/main/llm/providers/<id>/request.ts` and reached through the capability registry; LM Studio and Ollama both use a configurable local host/port (LM Studio via OpenAI-compatible `baseURL`; Ollama via its daemon URL), and Bedrock stores its AWS region in `providerEndpoints.bedrock.host` (`src/shared/bedrockEndpoint.ts`, default `us-east-1`)
+  - openai 6.49, @ai-sdk/openai 4.0, @openrouter/ai-sdk-provider 3.0, @ai-sdk/amazon-bedrock 5.0 + @aws-sdk/client-bedrock 3.x, ai 7.0, ollama 0.6 — each wired in its own `src/main/llm/providers/<id>/request.ts` and reached through the capability registry; LM Studio and Ollama both use a configurable local host/port (LM Studio via OpenAI-compatible `baseURL`; Ollama via its daemon URL), and Bedrock stores its AWS region in `providerEndpoints.bedrock.host` (`src/features/providers/shared/bedrockEndpoint.ts`, default `us-east-1`)
 - Persistence
   - node:sqlite (history) + electron-store 11 + JSONL logs under userData — no zustand
 - Testing
@@ -97,9 +104,9 @@ bun run i18n:check      # catalog parity/plural/sort audit + JA coverage
 bun run build:promptgen # feature-tag build (also dev:promptgen, pack:mac:promptgen)
 ```
 
-- **The packaged app ships no `node_modules`** (`build.files` excludes it) — every runtime dependency must be inlined by Vite into `out/`. Adding a dependency and importing it passes `dev`, `test`, and `lint` unchanged; only `bun run check:bundle` against a real `bun run build` catches a dependency Vite left external. The scanner lives in `src/shared/bundleExternals.ts` (AST walk via the TypeScript compiler API, not a regex); `scripts/check-bundle-externals.ts` is a CLI-only wrapper that runs under **bun**, whose TS parser differs from vitest's esbuild — which is why an integration test drives that exact file under bun. `ALLOWLIST` is empty on purpose: an entry hides a `MODULE_NOT_FOUND` for users instead of fixing it. Every packaging script (`pack`, `pack:mac`, `pack:mac:prod`, `release:mac`) runs the check. See [Bundle externals](.claude/skills/fixlang/fixlang-bundle-externals/SKILL.md).
+- **The packaged app ships no `node_modules`** (`build.files` excludes it) — every runtime dependency must be inlined by Vite into `out/`. Adding a dependency and importing it passes `dev`, `test`, and `lint` unchanged; only `bun run check:bundle` against a real `bun run build` catches a dependency Vite left external. The scanner lives in `src/features/core/shared/bundleExternals.ts` (AST walk via the TypeScript compiler API, not a regex); `scripts/check-bundle-externals.ts` is a CLI-only wrapper that runs under **bun**, whose TS parser differs from vitest's esbuild — which is why an integration test drives that exact file under bun. `ALLOWLIST` is empty on purpose: an entry hides a `MODULE_NOT_FOUND` for users instead of fixing it. Every packaging script (`pack`, `pack:mac`, `pack:mac:prod`, `release:mac`) runs the check. See [Bundle externals](.claude/skills/fixlang/fixlang-bundle-externals/SKILL.md).
 - **`dependencies` vs `devDependencies` no longer signals what ships** — nothing resolves from `node_modules` at runtime, so the split is bookkeeping only; what ships is whatever Vite inlined into `out/`. Do not "fix" a runtime import by moving its package between the two sections.
-- **Feature tags are opt-in** — features listed in `src/shared/features.ts` are excluded unless the build carries their tag (`FIXLANG_FEATURES=promptgen` env, or `--promptgen` CLI). Flag-off builds emit no renderer bundle for the feature and skip its hotkey, IPC handlers, and settings tab. Read flags at runtime via `isPromptGenEnabled()`, never `__FEATURE_PROMPT_GEN__` directly (the define is absent under vitest). Plain `bun run build` (what the release workflow runs) ships PromptGen OFF.
+- **Feature tags are opt-in** — features listed in `src/features/core/shared/features.ts` are excluded unless the build carries their tag (`FIXLANG_FEATURES=promptgen` env, or `--promptgen` CLI). Flag-off builds emit no renderer bundle for the feature and skip its hotkey, IPC handlers, and settings tab. Read flags at runtime via `isPromptGenEnabled()`, never `__FEATURE_PROMPT_GEN__` directly (the define is absent under vitest). Plain `bun run build` (what the release workflow runs) ships PromptGen OFF.
 
 ## Internationalization (i18n)
 
@@ -107,22 +114,22 @@ The app supports **English** and **Japanese** (easily extensible to a third lang
 
 ### Catalog structure
 
-Translation strings live in `src/shared/i18n/locales/{en,ja}/` as per-namespace JSON files (`common.json`, `dashboard.json`, `tray.json`, `notifications.json`, etc.). This split prevents merge conflicts when separate features add keys to the same catalog.
+Translation strings live in `src/features/i18n/shared/locales/{en,ja}/` as per-namespace JSON files (`common.json`, `dashboard.json`, `tray.json`, `notifications.json`, etc.). This split prevents merge conflicts when separate features add keys to the same catalog.
 
 - Keys are globally unique and dotted (`"settings.general.language.label"`).
 - English (`en/`) is the source of truth — every key must exist there; Japanese (`ja/`) may be partial (missing keys fall back to English).
-- Both catalogs are merged at build time into `EN_CATALOG` and `JA_CATALOG` in `src/shared/i18n/locales/index.ts`.
+- Both catalogs are merged at build time into `EN_CATALOG` and `JA_CATALOG` in `src/features/i18n/shared/locales/index.ts`.
 - Key names are type-checked at compile time: `t("key")` is a compile error if `"key"` is absent.
 
 ### Add a translatable string (recipe)
 
-1. **English**: Add the key-value pair to `src/shared/i18n/locales/en/{namespace}.json`:
+1. **English**: Add the key-value pair to `src/features/i18n/shared/locales/en/{namespace}.json`:
 
    ```json
    { "overview.stat.sessions": "Sessions" }
    ```
 
-2. **Japanese**: Add the translation to `src/shared/i18n/locales/ja/{namespace}.json`:
+2. **Japanese**: Add the translation to `src/features/i18n/shared/locales/ja/{namespace}.json`:
 
    ```json
    { "overview.stat.sessions": "セッション" }
@@ -176,7 +183,7 @@ t("model.lastUsed", {
 
 ### Adding a third language
 
-Add the language to `LOCALE_CODES` and `LOCALE_META` in `src/shared/i18n/registry.ts`; then create one JSON file per namespace under `src/shared/i18n/locales/{code}/` (e.g., `src/shared/i18n/locales/fr/common.json`). The language picker grows automatically; IPC, formatters, and storage need no changes.
+Add the language to `LOCALE_CODES` and `LOCALE_META` in `src/features/i18n/shared/registry.ts`; then create one JSON file per namespace under `src/features/i18n/shared/locales/{code}/` (e.g., `src/features/i18n/shared/locales/fr/common.json`). The language picker grows automatically; IPC, formatters, and storage need no changes.
 
 ### Main process strings
 
@@ -193,10 +200,10 @@ new Notification({
 
 ### Locale persistence and broadcast
 
-- The user's locale choice is persisted via `electron-store` in `src/stores/localeStore.ts`.
+- The user's locale choice is persisted via `electron-store` in `src/features/i18n/store/localeStore.ts`.
 - On first run, the system locale (from `app.getLocale()`) is auto-detected and stored.
 - Changing the language via Settings broadcasts the new locale to every open window (tray, dashboard, PromptGen) via IPC, so they update immediately without an app restart.
-- See `src/main/ipc/features/locale.ts` for the IPC handlers; `src/preload/features/locale.ts` for the bridge; `src/renderer/i18n/I18nProvider.tsx` for the context subscription.
+- See `src/features/i18n/main/locale.ts` for the IPC handlers; `src/features/i18n/preload/locale.ts` for the bridge; `src/renderer/i18n/I18nProvider.tsx` for the context subscription.
 
 ## How to Work
 

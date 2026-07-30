@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { twJoin } from "tailwind-merge";
-import { isPromptGenEnabled } from "~/shared/features";
+import { isPromptGenEnabled } from "~/features/core/shared/features";
 import { Button } from "./Button";
 import ProfileManager from "./ProfileManager";
 import { SettingAppearance } from "./SettingAppearance";
@@ -8,7 +8,7 @@ import { SettingCorrection } from "./SettingCorrection";
 import { SettingGeneral } from "./SettingGeneral";
 import { SettingPromptGen } from "./SettingPromptGen";
 import { useI18n } from "../i18n/useI18n";
-import type { TranslationKey } from "~/shared/i18n/keys";
+import type { TranslationKey } from "~/features/i18n/shared/keys";
 
 // Define the tab configuration type
 // `labelKey` (not a translated string) is resolved via `t()` at render time,

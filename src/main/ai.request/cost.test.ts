@@ -11,7 +11,7 @@ import {
   normalizeModelId,
   type PriceMap,
 } from "./cost";
-import type { Model } from "~/stores/apiStore";
+import type { Model } from "~/features/providers/store/apiStore";
 
 // Fixture: prompt $0.000002/token, completion $0.000008/token for gpt-4o.
 const priceMap: PriceMap = new Map([

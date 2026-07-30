@@ -12,10 +12,10 @@
  * network or need electron. All I/O is async with a 5s AbortController timeout,
  * mirroring the OpenRouter client.
  */
+import { describeKeyShape, findKeyShapeMismatch } from "~/features/providers/shared/providerKeyShapes";
+import { getProvisioningKey } from "~/features/providers/store/provisioningKeyStore";
+import { usageRangeDays, usageRangeStartUnix, type UsageRange } from "~/features/usage/shared/usage";
 import { logger } from "~/main/logging/logService";
-import { describeKeyShape, findKeyShapeMismatch } from "~/shared/providerKeyShapes";
-import { usageRangeDays, usageRangeStartUnix, type UsageRange } from "~/shared/usage";
-import { getProvisioningKey } from "~/stores/provisioningKeyStore";
 import {
   nextAfterCursor,
   nextPageCursor,

@@ -15,7 +15,7 @@ import { app, BrowserWindow, ipcMain, screen } from "electron";
 import { attachThemeSync } from "./attachThemeSync";
 import { clampToWorkArea } from "./cursorPlacement";
 import { buildAskResultWindowTitle } from "./windowTitles";
-import type { AskResultPayload } from "~/shared/ask";
+import type { AskResultPayload } from "~/features/ask/shared/ask";
 
 const WINDOW_WIDTH = 560;
 const WINDOW_HEIGHT = 420;

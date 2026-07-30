@@ -2,10 +2,10 @@ import { format as formatDateFns } from "date-fns";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { components as reactSelectComponents } from "react-select";
 import { twJoin } from "tailwind-merge";
-import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
-// Value import: `~/stores/apiStore`'s re-export shim would pull
+import { messageLabel, textLabel, type Label } from "~/features/i18n/shared/message";
+// Value import: `~/features/providers/store/apiStore`'s re-export shim would pull
 // `electron-store` into the renderer bundle.
-import { isProviderId } from "~/shared/providers";
+import { isProviderId } from "~/features/providers/shared/providers";
 import { Button } from "./Button";
 import {
   buildModelOptionGroups,
@@ -22,8 +22,8 @@ import { SearchableSelect } from "./SearchableSelect";
 import SettingsButton from "./SettingsIcon";
 import { useI18n } from "../i18n/useI18n";
 import type { GroupBase, GroupHeadingProps } from "react-select";
-import type { TranslationKey } from "~/shared/i18n/keys";
-import type { Model, ProviderId } from "~/stores/apiStore";
+import type { TranslationKey } from "~/features/i18n/shared/keys";
+import type { Model, ProviderId } from "~/features/providers/store/apiStore";
 
 /** Stable identity so an errorless fetch does not invalidate the option memo. */
 const NO_PROVIDER_ERRORS: Partial<Record<ProviderId, string>> = Object.freeze({});

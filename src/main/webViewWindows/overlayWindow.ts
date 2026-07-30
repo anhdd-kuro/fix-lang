@@ -1,7 +1,7 @@
 import { BrowserWindow, app, screen } from "electron";
-import { themeStore } from "~/stores/themeStore";
+import { themeStore } from "~/features/theme/store/themeStore";
 import spinnerOverlayHtml from "./overlay.html?asset";
-import type { ThemeId } from "~/stores/themeIds";
+import type { ThemeId } from "~/features/theme/store/themeIds";
 
 /**
  * === Global Mouse Loading Spinner Overlay ===

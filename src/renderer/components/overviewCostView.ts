@@ -9,8 +9,8 @@
  * - Full coverage → "Est. {cost}" only.
  */
 import type { CostSum } from "../analytics/shared";
-import type { Formatters } from "~/shared/i18n/format";
-import type { Translator } from "~/shared/i18n/translate";
+import type { Formatters } from "~/features/i18n/shared/format";
+import type { Translator } from "~/features/i18n/shared/translate";
 
 export type OverviewCostHintDisplay =
   | { kind: "none" }

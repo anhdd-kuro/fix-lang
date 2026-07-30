@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Select } from "./Select";
 import { useI18n } from "../i18n/useI18n";
-import type { Profile } from "~/stores/apiStore";
+import type { Profile } from "~/features/providers/store/apiStore";
 
 type ProfileSelectorProps = {
   className?: string;

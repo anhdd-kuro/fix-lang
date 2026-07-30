@@ -20,7 +20,7 @@ vi.mock("./webViewWindows/broadcast", () => ({
 vi.mock("./webViewWindows/askInputWindow", () => ({
   dismissAskInputWindow: vi.fn(),
 }));
-import { ACTIVE_PROFILE_CHANGED } from "~/shared/ipcChannels";
+import { ACTIVE_PROFILE_CHANGED } from "~/features/core/shared/ipcChannels";
 import { notifyActiveProfileChanged } from "./profileChange";
 import { dismissAskInputWindow } from "./webViewWindows/askInputWindow";
 import { broadcastToAllWindows } from "./webViewWindows/broadcast";

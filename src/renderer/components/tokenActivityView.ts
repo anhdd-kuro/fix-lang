@@ -9,7 +9,7 @@
  * formatted string — `tooltipMessageForCell` takes a `fmt.date` callback
  * (not a locale) so it stays as pure as the aggregation layer it sits next to.
  */
-import { msg, type Message, type MessageKey } from "~/shared/i18n/message";
+import { msg, type Message, type MessageKey } from "~/features/i18n/shared/message";
 import type {
   TokenActivityCalendarCell,
   TokenActivityMode,

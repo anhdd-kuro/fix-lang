@@ -12,9 +12,9 @@
  * network / never need electron. All I/O is async with a 5s AbortController
  * timeout (mirrors the existing model-list fetch in ai.request/shared.ts).
  */
+import { describeKeyShape, findKeyShapeMismatch } from "~/features/providers/shared/providerKeyShapes";
+import { getProvisioningKey } from "~/features/providers/store/provisioningKeyStore";
 import { logger } from "~/main/logging/logService";
-import { describeKeyShape, findKeyShapeMismatch } from "~/shared/providerKeyShapes";
-import { getProvisioningKey } from "~/stores/provisioningKeyStore";
 import {
   parseActivity,
   parseCredits,

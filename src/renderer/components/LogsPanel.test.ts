@@ -19,7 +19,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { LogsPanel } from "./LogsPanel";
 import { utcOffsetLabel } from "./logsView";
 import { I18nProvider } from "../i18n/I18nProvider";
-import type { Locale } from "~/shared/i18n/registry";
+import type { Locale } from "~/features/i18n/shared/registry";
 
 const waitForUi = async () => {
   await act(async () => {

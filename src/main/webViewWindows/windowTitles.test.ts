@@ -2,7 +2,7 @@
  * @file windowTitles.test.ts
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createTranslator } from "~/shared/i18n/translate";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import {
   buildAskInputWindowTitle,
   buildAskResultWindowTitle,
@@ -16,7 +16,7 @@ const localeStoreMocks = vi.hoisted(() => ({
   getLocale: vi.fn(),
 }));
 
-vi.mock("~/stores/localeStore", () => ({
+vi.mock("~/features/i18n/store/localeStore", () => ({
   getLocale: localeStoreMocks.getLocale,
 }));
 

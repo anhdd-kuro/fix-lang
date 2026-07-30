@@ -2,8 +2,8 @@
  * @file attachThemeSync.ts
  * @description Attaches theme + locale sync to a BrowserWindow on load.
  */
-import { syncLocaleToWindow } from "~/main/ipc/features/locale";
-import { syncThemeToWindow } from "~/main/ipc/features/theme";
+import { syncLocaleToWindow } from "~/features/i18n/main/locale";
+import { syncThemeToWindow } from "~/features/theme/main/theme";
 import type { BrowserWindow } from "electron";
 
 /**

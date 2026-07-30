@@ -3,7 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "electron-vite";
 import commonjs from "vite-plugin-commonjs";
 import tsconfigPaths from "vite-tsconfig-paths";
-import { parseFeatureFlags } from "./src/shared/features";
+import { parseFeatureFlags } from "./src/features/core/shared/features";
 
 export const rendererPort = 5175;
 

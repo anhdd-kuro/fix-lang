@@ -8,7 +8,7 @@ import {
   redactLogContext,
   redactLogMessage,
   serializeLogJsonLine,
-} from "~/shared/logging";
+} from "~/features/logs/shared/logging";
 import {
   LOG_JSONL_FILENAME,
   queryPersistedLogs,
@@ -20,7 +20,7 @@ import type {
   LogLevel,
   LogQueryRequest,
   LogQueryResult,
-} from "~/shared/logging";
+} from "~/features/logs/shared/logging";
 
 const DEFAULT_CAPACITY = 500;
 

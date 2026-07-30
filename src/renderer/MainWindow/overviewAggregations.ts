@@ -12,15 +12,15 @@
  * "na"/absent are excluded and surfaced, never counted as a false 0.
  */
 import {
+  withFallbackTokenCounts,
+  type HistoryEntry,
+} from "~/features/history/store/historyTypes";
+import {
   messageLabel,
   textLabel,
   type Label,
   type MessageKey,
-} from "~/shared/i18n/message";
-import {
-  withFallbackTokenCounts,
-  type HistoryEntry,
-} from "~/stores/historyTypes";
+} from "~/features/i18n/shared/message";
 import {
   denseDayKeys,
   filterByRange,
@@ -196,7 +196,7 @@ export const stripModelDate = (id: string | null): string | null => {
 };
 
 // Never infer a provider from an id's shape — ids collide across providers.
-// Read it from `Model.provider` or the composite ref in `~/shared/modelRef`.
+// Read it from `Model.provider` or the composite ref in `~/features/providers/shared/modelRef`.
 
 export type PresetBreakdownRow = {
   /** Identity/grouping key: user preset name, or `UNTITLED_PRESET_ID`. */

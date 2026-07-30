@@ -2,7 +2,7 @@
  * @file validateHotkeys.test.ts
  * @description Unit tests for the centralised hotkey conflict validator.
  * Pure Vitest — no Electron, no IPC, no React. The `getDefaultCorrectionSettings`
- * import below pulls in `~/stores/apiStore`, which touches electron-store /
+ * import below pulls in `~/features/providers/store/apiStore`, which touches electron-store /
  * electron at module scope, hence the two mocks below (hoisted by Vitest).
  */
 import { describe, expect, it, vi } from "vitest";
@@ -22,9 +22,9 @@ vi.mock("electron", () => ({
   app: { getPath: vi.fn().mockReturnValue("/tmp") },
 }));
 import { DEFAULT_KEY_BINDINGS } from "~/const";
-import { getDefaultCorrectionSettings } from "~/stores/apiStore";
+import { getDefaultCorrectionSettings } from "~/features/providers/store/apiStore";
 import { validateHotkeys } from "./validateHotkeys";
-import type { CorrectionPreset, KeyBindings } from "~/stores/apiStore";
+import type { CorrectionPreset, KeyBindings } from "~/features/providers/store/apiStore";
 
 // ---------------------------------------------------------------------------
 // Helpers

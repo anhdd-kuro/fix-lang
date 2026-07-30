@@ -4,10 +4,10 @@
  * `ai.request/shared.ts` (where it was named `makeLocalAIRequest`; the export
  * name is preserved because callers and tests use it).
  */
+import { resolveOllamaEndpoint } from "~/features/providers/shared/ollamaEndpoint";
+import { getProviderEndpoint } from "~/features/providers/store/apiStore";
 import { getLocalModels } from "~/main/llm/models/discover";
 import { showErrorNotification } from "~/main/notifications/error";
-import { resolveOllamaEndpoint } from "~/shared/ollamaEndpoint";
-import { getProviderEndpoint } from "~/stores/apiStore";
 import { createOllamaClient } from "./client";
 import type { AIRequestOptions } from "~/main/ai.request/requestTypes";
 

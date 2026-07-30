@@ -72,20 +72,20 @@ vi.mock("openai", () => ({
     models = { list: vi.fn().mockResolvedValue({ data: [] }) };
   },
 }));
-vi.mock("~/stores/apiKeyStore", () => ({
+vi.mock("~/features/providers/store/apiKeyStore", () => ({
   getApiKey: vi.fn().mockResolvedValue("openrouter-key"),
 }));
-vi.mock("~/stores/profileSecretStore", () => ({
+vi.mock("~/features/providers/store/profileSecretStore", () => ({
   getProfileSecret: getProfileSecretMock,
 }));
 vi.mock("~/main/llm/models/discover", () => ({
   getLocalModels: getLocalModelsMock,
 }));
 vi.mock("~/main/llm/providers/ollama/client", () => ({ createOllamaClient: () => ({ chat: ollamaChatMock }), ollamaClient: { chat: ollamaChatMock } }));
-import { apiStore } from "~/stores/apiStore";
+import { apiStore } from "~/features/providers/store/apiStore";
 import * as sharedModule from "./shared";
 import { isLocalModelId, makeAIRequest } from "./shared";
-import type { Model, Profile, SettingsStore } from "~/stores/apiStore";
+import type { Model, Profile, SettingsStore } from "~/features/providers/store/apiStore";
 
 const buildSettings = (models: Model[], selectedModel = ""): SettingsStore =>
   ({

@@ -22,7 +22,7 @@ import {
   deriveAvailableFilters,
   toggleFilter,
 } from "../MainWindow/dashboardTabs";
-import type { HistoryEntry, HistoryFeatureId } from "~/stores/historyStore";
+import type { HistoryEntry, HistoryFeatureId } from "~/features/history/store/historyStore";
 
 type HistoryPanelProps = {
   /** Full, already-sorted history list (corrections + promptGen). */

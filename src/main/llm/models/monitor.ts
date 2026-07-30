@@ -3,13 +3,13 @@
  * @description Background process to monitor and detect local LLM models
  */
 import { app, BrowserWindow } from "electron";
+import { sanitizeEnabledProviders } from "~/features/providers/shared/providers";
+import { getProfileSetting, getProviderEndpoint } from "~/features/providers/store/apiStore";
+import { getActiveProfileSecret } from "~/features/providers/store/profileSecretStore";
 import { fetchAvailableModels, getCachedModels } from "~/main/ai.request/shared";
 import { probeLmStudio } from "~/main/llm/providers/lmstudio/client";
-import { sanitizeEnabledProviders } from "~/shared/providers";
-import { getProfileSetting, getProviderEndpoint } from "~/stores/apiStore";
-import { getActiveProfileSecret } from "~/stores/profileSecretStore";
 import { probeOllama } from "./discover";
-import type { Model, ProviderId } from "~/stores/apiStore";
+import type { Model, ProviderId } from "~/features/providers/store/apiStore";
 
 // Configuration
 const CONFIG = {

@@ -34,7 +34,7 @@ vi.mock("electron", () => ({
     getLocale: vi.fn().mockReturnValue("en-US"),
   },
 }));
-vi.mock("~/stores/apiStore", async (importOriginal) => {
+vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
   const real = await importOriginal<any>();
   return {
@@ -48,7 +48,7 @@ vi.mock("~/stores/apiStore", async (importOriginal) => {
 vi.mock("~/main/accessibility/activeApp", () => ({
   getActiveApp: vi.fn().mockResolvedValue(null),
 }));
-vi.mock("~/stores/keybindingStore", () => ({
+vi.mock("~/features/correction/store/keybindingStore", () => ({
   keybindingStore: {
     getKeyBindings: vi.fn().mockReturnValue({
       promptGen: "Control+Shift+P",
@@ -56,7 +56,7 @@ vi.mock("~/stores/keybindingStore", () => ({
     }),
   },
 }));
-vi.mock("~/stores/outputModeStore", () => ({
+vi.mock("~/features/correction/store/outputModeStore", () => ({
   outputModeStore: { getCorrectionOutputMode: vi.fn().mockReturnValue("paste") },
 }));
 vi.mock("../../utils", () => ({
@@ -64,7 +64,7 @@ vi.mock("../../utils", () => ({
   pasteText: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../ai.request", () => ({ fixGrammar: vi.fn() }));
-vi.mock("../ipc/features/history", () => ({ syncHistory: vi.fn() }));
+vi.mock("~/features/history/main/history", () => ({ syncHistory: vi.fn() }));
 vi.mock("../logging/logService", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
@@ -87,16 +87,16 @@ vi.mock("./utils", () => ({
 vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
   showErrorPopup: vi.fn(),
 }));
-import { getProfileSetting } from "~/stores/apiStore";
-import { outputModeStore } from "~/stores/outputModeStore";
+import { outputModeStore } from "~/features/correction/store/outputModeStore";
+import { getProfileSetting } from "~/features/providers/store/apiStore";
 import { registerCorrectionShortcut } from "./correction";
 import { pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
 import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWindow";
 import type { BrowserWindow } from "electron";
 import type { Mock } from "vitest";
-import type { CorrectionOutputMode } from "~/shared/outputMode";
-import type { PresetOutputMode } from "~/shared/presetOutputMode";
+import type { CorrectionOutputMode } from "~/features/correction/shared/outputMode";
+import type { PresetOutputMode } from "~/features/correction/shared/presetOutputMode";
 
 const HOTKEY = "Control+Shift+F";
 

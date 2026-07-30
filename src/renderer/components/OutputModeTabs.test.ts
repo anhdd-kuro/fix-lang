@@ -12,10 +12,10 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTranslator } from "~/shared/i18n/translate";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import { OutputModeTabs } from "./OutputModeTabs";
 import { I18nProvider } from "../i18n/I18nProvider";
-import type { CorrectionOutputMode } from "~/shared/outputMode";
+import type { CorrectionOutputMode } from "~/features/correction/shared/outputMode";
 
 const t = createTranslator("en");
 

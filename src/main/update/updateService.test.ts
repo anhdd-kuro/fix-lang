@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { msg } from "~/shared/i18n/message";
+import { msg } from "~/features/i18n/shared/message";
 import { UPGRADE_GRACE_MS } from "./pendingInstall";
 import { createUpdateService } from "./updateService";
 

@@ -3,7 +3,7 @@ import { Button } from "./Button";
 import CopyButton from "./CopyButton";
 import { formatCostLabel } from "./historyCost";
 import { useI18n } from "../i18n/useI18n";
-import type { HistoryEntry } from "~/stores/historyStore";
+import type { HistoryEntry } from "~/features/history/store/historyStore";
 
 type HistoryReviewModalProps = {
   isOpen: boolean;

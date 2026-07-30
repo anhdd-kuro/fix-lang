@@ -1,0 +1,202 @@
+/**
+ * @file apiKeyStore.ts
+ * @description Secure store for the main OpenAI / OpenRouter API key.
+ *
+ * SECURITY (main-process only): mirrors provisioningKeyStore.ts but for the
+ * primary API key. Stored as OS-encrypted ciphertext via Electron `safeStorage`
+ * (Keychain on macOS) in `openai-api-key.enc` under userData. The decrypted
+ * value never leaves the main process; the renderer tracks only a boolean
+ * set/not-set state. The key is never logged.
+ *
+ * All disk I/O is async (`fs/promises`) per the main-process async-only rule.
+ */
+import { rm, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { app, safeStorage } from "electron";
+import {
+  clearProfileSecret,
+  getProfileSecret,
+  hasProfileSecret,
+  setProfileSecret,
+} from "~/features/providers/store/profileSecretStore";
+
+/** Absolute path to the encrypted API key file in userData. */
+export const getApiKeyPath = (): string =>
+  path.join(app.getPath("userData"), "openai-api-key.enc");
+
+/** Legacy global-file path, retained only for one-time migration. */
+export const getLegacyApiKeyPath = getApiKeyPath;
+
+// ---------------------------------------------------------------------------
+// Pure helpers (unit-test seam — no electron, no fs).
+// ---------------------------------------------------------------------------
+
+export type ValidateResult =
+  | { ok: true; value: string }
+  | { ok: false; error: string };
+
+/**
+ * Validate + normalize an API key input. Trims surrounding whitespace, rejects
+ * empty/whitespace-only input. A non-"sk-" prefixed key is still accepted (no
+ * hard block) — nothing downstream ever surfaced that as a warning, so this
+ * doesn't manufacture one.
+ */
+export const validateApiKeyInput = (raw: string): ValidateResult => {
+  const value = raw.trim();
+  if (value.length === 0) {
+    return { ok: false, error: "API key must not be empty" };
+  }
+  return { ok: true, value };
+};
+
+/** Encode an encrypted cipher Buffer to the base64 string stored on disk. */
+export const encodeCipherToDisk = (cipher: Buffer): string =>
+  cipher.toString("base64");
+
+/** Decode the base64 disk blob back into the cipher Buffer for decryption. */
+export const decodeCipherFromDisk = (b64: string): Buffer =>
+  Buffer.from(b64, "base64");
+
+/** Treat empty/whitespace-only file content as "unset" (no key). */
+export const isBlankStoredBlob = (content: string): boolean =>
+  content.trim().length === 0;
+
+// ---------------------------------------------------------------------------
+// Electron-touching composition (safeStorage + fs/promises).
+// ---------------------------------------------------------------------------
+
+export type SecretWriteResult = {
+  success: boolean;
+  error?: string;
+};
+
+const ENCRYPTION_UNAVAILABLE = "OS secure storage unavailable";
+
+/**
+ * Encrypt + persist the API key. Returns a clear error (and writes nothing)
+ * when OS encryption is unavailable — there is NO plaintext fallback.
+ * Never logs the key.
+ */
+export const setLegacyApiKey = async (
+  raw: string,
+): Promise<SecretWriteResult> => {
+  const validated = validateApiKeyInput(raw);
+  if (!validated.ok) {
+    return { success: false, error: validated.error };
+  }
+
+  if (!safeStorage.isEncryptionAvailable()) {
+    return { success: false, error: ENCRYPTION_UNAVAILABLE };
+  }
+
+  try {
+    const cipher = safeStorage.encryptString(validated.value);
+    await writeFile(getApiKeyPath(), encodeCipherToDisk(cipher), {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to store key",
+    };
+  }
+};
+
+/** Remove the stored key. `force` makes deleting a missing file a no-op. */
+export const clearLegacyApiKey = async (): Promise<SecretWriteResult> => {
+  try {
+    await rm(getApiKeyPath(), { force: true });
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to clear key",
+    };
+  }
+};
+
+/**
+ * Decrypt + return the API key for in-main callers (e.g. AI request handlers).
+ * Resolves to `null` — never throws — when the file is missing/blank, when OS
+ * encryption is unavailable, or on any read/decrypt failure.
+ */
+export const getLegacyApiKey = async (): Promise<string | null> => {
+  let b64: string;
+  try {
+    b64 = await readFile(getApiKeyPath(), { encoding: "utf8" });
+  } catch {
+    return null;
+  }
+
+  if (isBlankStoredBlob(b64)) {
+    return null;
+  }
+
+  if (!safeStorage.isEncryptionAvailable()) {
+    console.warn(
+      "apiKeyStore: stored key present but OS encryption unavailable; cannot decrypt",
+    );
+    return null;
+  }
+
+  try {
+    return safeStorage.decryptString(decodeCipherFromDisk(b64));
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Cheap existence check for the masked UI state. Does NOT decrypt — only
+ * reports whether a non-blank stored blob exists.
+ */
+export const hasLegacyApiKey = async (): Promise<boolean> => {
+  try {
+    const b64 = await readFile(getApiKeyPath(), { encoding: "utf8" });
+    return !isBlankStoredBlob(b64);
+  } catch {
+    return false;
+  }
+};
+
+const activeProfileId = async (): Promise<string | null> => {
+  const { getCurrentProfileId } = await import("~/features/providers/store/apiStore");
+  return getCurrentProfileId() || null;
+};
+
+/*
+ * The hardcoded "openrouter" below is deliberate: these are the OpenRouter
+ * credential path only, and parameterising them would hand an OpenAI key to
+ * `makeOpenRouterAIRequest`. Multi-provider callers want
+ * `getActiveProfileSecret(provider, kind)` in `./profileSecretStore`.
+ */
+
+/** Store an OpenRouter key for the active profile; no plaintext fallback. */
+export const setApiKey = async (raw: string): Promise<SecretWriteResult> => {
+  const profileId = await activeProfileId();
+  if (!profileId) return { success: false, error: "No active profile" };
+  return setProfileSecret(profileId, "openrouter", "api", raw);
+};
+
+/** Read the active profile's OpenRouter key for existing request callers. */
+export const getApiKey = async (): Promise<string | null> => {
+  const profileId = await activeProfileId();
+  return profileId
+    ? getProfileSecret(profileId, "openrouter", "api")
+    : getLegacyApiKey();
+};
+
+export const hasApiKey = async (): Promise<boolean> => {
+  const profileId = await activeProfileId();
+  return profileId
+    ? hasProfileSecret(profileId, "openrouter", "api")
+    : hasLegacyApiKey();
+};
+
+export const clearApiKey = async (): Promise<SecretWriteResult> => {
+  const profileId = await activeProfileId();
+  if (!profileId) return clearLegacyApiKey();
+  return clearProfileSecret(profileId, "openrouter", "api");
+};

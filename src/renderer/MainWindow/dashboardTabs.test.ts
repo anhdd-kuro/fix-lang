@@ -14,7 +14,7 @@ import {
   deriveAvailableFilters,
   toggleFilter,
 } from "./dashboardTabs";
-import type { HistoryEntry } from "~/stores/historyStore";
+import type { HistoryEntry } from "~/features/history/store/historyStore";
 
 const makeEntry = (overrides: Partial<HistoryEntry> = {}): HistoryEntry => ({
   original: "hello",

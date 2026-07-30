@@ -9,6 +9,6 @@ declare module "*.md?raw" {
 /**
  * Build-time feature tag injected by `electron.vite.config.ts` (`define`).
  * Absent under vitest — always read it through `isPromptGenEnabled()` in
- * `src/shared/features.ts`, which guards with `typeof`.
+ * `src/features/core/shared/features.ts`, which guards with `typeof`.
  */
 declare const __FEATURE_PROMPT_GEN__: boolean;

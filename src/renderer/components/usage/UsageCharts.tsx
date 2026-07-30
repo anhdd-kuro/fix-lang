@@ -42,7 +42,7 @@ import {
   sharePercent,
 } from "./usageChartView";
 import { useI18n } from "../../i18n/useI18n";
-import type { UsageCostSlice, UsageDailyPoint } from "~/shared/usage";
+import type { UsageCostSlice, UsageDailyPoint } from "~/features/usage/shared/usage";
 
 ChartJS.register(
   BarController,

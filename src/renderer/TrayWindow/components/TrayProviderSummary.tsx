@@ -11,7 +11,7 @@
  * The figures are deliberately asymmetric, because the providers are: OpenRouter
  * exposes a prepaid credit balance, while OpenAI exposes no balance at all — only
  * billed spend, and per project only when the user has said which project
- * (an admin key is organization-scoped; see `~/shared/openaiProject`).
+ * (an admin key is organization-scoped; see `~/features/providers/shared/openaiProject`).
  */
 import React, { useEffect, useState } from "react";
 import { twJoin } from "tailwind-merge";
@@ -35,8 +35,8 @@ import { useOpenAIProjectId } from "../../hooks/useOpenAIProjectId";
 import { useOpenAIUsage } from "../../hooks/useOpenAIUsage";
 import { useOpenRouterAnalytics } from "../../hooks/useOpenRouterAnalytics";
 import { useI18n } from "../../i18n/useI18n";
+import type { ProviderId } from "~/features/providers/shared/providers";
 import type { CardResult, Credits } from "~/main/llm/providers/openrouter/parsers";
-import type { ProviderId } from "~/shared/providers";
 
 /** The tray's own window is not the dashboard, so opening a tab closes it. */
 const openUsageTab = (provider: ProviderId): void => {

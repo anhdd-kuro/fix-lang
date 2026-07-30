@@ -11,13 +11,13 @@ import {
   LOG_QUERY_PAGE_SIZE,
   normalizeLogLevels,
   parseLogJsonLine,
-} from "~/shared/logging";
+} from "~/features/logs/shared/logging";
 import type {
   LogEntry,
   LogLevel,
   LogQueryRequest,
   LogQueryResult,
-} from "~/shared/logging";
+} from "~/features/logs/shared/logging";
 
 export const LOG_JSONL_FILENAME = "fixlang.jsonl";
 

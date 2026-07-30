@@ -19,7 +19,7 @@ import { buildUsageSubTabs, resolveActiveUsageProvider } from "./usageTabs";
 import { useActiveProfileId } from "../../hooks/useActiveProfileId";
 import { useI18n } from "../../i18n/useI18n";
 import { Button } from "../Button";
-import type { ProviderId } from "~/shared/providers";
+import type { ProviderId } from "~/features/providers/shared/providers";
 
 type UsagePanelProps = {
   /** Opens the Settings modal (General tab) for every empty-state affordance. */

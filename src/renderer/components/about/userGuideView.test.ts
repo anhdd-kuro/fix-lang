@@ -6,7 +6,7 @@
  * description would otherwise silently vanish from the guide.
  */
 import { describe, expect, it } from "vitest";
-import { EN_CATALOG } from "~/shared/i18n/locales";
+import { EN_CATALOG } from "~/features/i18n/shared/locales";
 import {
   buildDashboardRows,
   buildPresetRows,

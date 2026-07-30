@@ -1,5 +1,5 @@
-import type { ProviderId } from "~/shared/providers";
-import type { UsageRange } from "~/shared/usage";
+import type { ProviderId } from "~/features/providers/shared/providers";
+import type { UsageRange } from "~/features/usage/shared/usage";
 
 export const USAGE_CACHE_TTL_MS = 60_000;
 

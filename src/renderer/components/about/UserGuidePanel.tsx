@@ -15,7 +15,7 @@
  * `settings-updated`.
  */
 import { useEffect, useState, type ReactNode } from "react";
-import { isPromptGenEnabled } from "~/shared/features";
+import { isPromptGenEnabled } from "~/features/core/shared/features";
 import {
   buildDashboardRows,
   buildPresetRows,
@@ -31,7 +31,7 @@ import { Button } from "../Button";
 import { Spinner } from "../Spinner";
 import type { DashboardTabId } from "../../MainWindow/dashboardTabs";
 import type { SettingsTabId } from "../SettingsModal";
-import type { CorrectionOutputMode } from "~/shared/outputMode";
+import type { CorrectionOutputMode } from "~/features/correction/shared/outputMode";
 
 /** Repository README — the long-form reference this guide deliberately is not. */
 const DOCS_URL = "https://github.com/anhdd-kuro/fix-lang";

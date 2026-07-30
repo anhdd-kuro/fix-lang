@@ -23,7 +23,7 @@ Docs-only push to main re-fires workflow but NO-OPS: `prepare` sees `release_is_
 
 Symptom (release job Test step only, passes locally):
 ```
-Error: Cannot bundle Node.js built-in "node:sqlite" imported from "src/stores/historyDb.ts"
+Error: Cannot bundle Node.js built-in "node:sqlite" imported from "src/features/history/store/historyDb.ts"
 ```
 Cause: `macos-14` runner default Node (~20) omits `node:sqlite` from `module.builtinModules`. vite/rolldown then refuse to externalize it for the jsdom (client) test env → 2 suites fail to load (`historyRepo.test.ts`, `correction-preset-options.test.ts`). Local Node 24 lists it → 405/405 pass. Same bun/vite/vitest both sides — Node version is the only diff. `bun run test` runs vitest under `node` (shebang), not bun, so runner Node matters.
 

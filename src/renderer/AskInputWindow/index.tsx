@@ -4,7 +4,7 @@ import { useTheme } from "../hooks/useTheme";
 import { I18nProvider } from "../i18n/I18nProvider";
 import { useI18n } from "../i18n/useI18n";
 import "../main.css";
-import type { AskInputPayload } from "~/shared/ask";
+import type { AskInputPayload } from "~/features/ask/shared/ask";
 
 /**
  * Exported (not just used below for the entry-point auto-render) so

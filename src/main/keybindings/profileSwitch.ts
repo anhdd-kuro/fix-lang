@@ -4,10 +4,10 @@
  */
 
 import { globalShortcut, Notification } from "electron";
+import { keybindingStore } from "~/features/correction/store/keybindingStore";
+import { switchToNextProfile } from "~/features/providers/store/apiStore";
 import { notifyActiveProfileChanged } from "~/main/profileChange";
 import { getMainWindow } from "~/main/webViewWindows/mainWindow";
-import { switchToNextProfile } from "~/stores/apiStore";
-import { keybindingStore } from "~/stores/keybindingStore";
 import { buildProfileSwitchHotkeyNotification } from "./profileSwitchNotification";
 import { checkShortcut, handleError, withHotkeyThrottle } from "./utils";
 import { LocalizedError } from "../notifications/error";

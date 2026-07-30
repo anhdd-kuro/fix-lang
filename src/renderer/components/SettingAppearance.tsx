@@ -4,7 +4,7 @@ import { useTheme } from "../hooks/useTheme";
 import { useI18n } from "../i18n/useI18n";
 import { THEME_PRESETS } from "../themes";
 import { Button } from "./Button";
-import type { ThemeId } from "~/stores/themeIds";
+import type { ThemeId } from "~/features/theme/store/themeIds";
 
 const THEME_CARD_MIN = "9.5rem";
 const THEME_CARD_MAX = "13rem";

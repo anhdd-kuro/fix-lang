@@ -11,7 +11,7 @@ import {
   HOURS_PER_BLOCK,
   sevenDayHourBlockHeatmap,
 } from "../../MainWindow/overviewAggregations";
-import type { HistoryEntry } from "~/stores/historyTypes";
+import type { HistoryEntry } from "~/features/history/store/historyTypes";
 
 const blockHourLabel = (blockIndex: number): string => {
   const start = blockIndex * HOURS_PER_BLOCK;

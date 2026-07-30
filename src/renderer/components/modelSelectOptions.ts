@@ -1,12 +1,12 @@
-import { formatModelRef, parseModelRef } from "~/shared/modelRef";
+import { formatModelRef, parseModelRef } from "~/features/providers/shared/modelRef";
 import {
   modelsForProvider,
   PROVIDER_ORDER,
   type Model,
   type ProviderId,
-} from "~/shared/providers";
-import type { TranslationKey } from "~/shared/i18n/keys";
-import type { Translator } from "~/shared/i18n/translate";
+} from "~/features/providers/shared/providers";
+import type { TranslationKey } from "~/features/i18n/shared/keys";
+import type { Translator } from "~/features/i18n/shared/translate";
 
 /** The one source of provider display names — group headings and provider cards share it. */
 export const PROVIDER_LABEL_KEYS: Readonly<Record<ProviderId, TranslationKey>> =

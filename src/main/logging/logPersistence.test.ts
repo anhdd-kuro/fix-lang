@@ -2,9 +2,9 @@ import { mkdir, writeFile, mkdtemp  } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { serializeLogJsonLine } from "~/shared/logging";
+import { serializeLogJsonLine } from "~/features/logs/shared/logging";
 import { queryPersistedLogs, readAllPersistedLogs } from "./logPersistence";
-import type { LogEntry } from "~/shared/logging";
+import type { LogEntry } from "~/features/logs/shared/logging";
 
 const makeEntry = (
   id: string,

@@ -18,9 +18,9 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createTranslator } from "~/shared/i18n/translate";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import { I18nProvider } from "../i18n/I18nProvider";
-import type { CorrectionResultPayload } from "~/shared/correctionResult";
+import type { CorrectionResultPayload } from "~/features/correction/shared/correctionResult";
 import { CorrectionResultWindow } from "./index";
 
 // Expected copy is derived through the real translator kernel — never

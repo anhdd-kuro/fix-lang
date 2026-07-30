@@ -6,7 +6,7 @@
  * defines would still compile and only surface as a raw key in the tab bar.
  */
 import { describe, expect, it } from "vitest";
-import { EN_CATALOG } from "~/shared/i18n/locales";
+import { EN_CATALOG } from "~/features/i18n/shared/locales";
 import {
   ABOUT_TABS,
   DEFAULT_ABOUT_TAB_ID,

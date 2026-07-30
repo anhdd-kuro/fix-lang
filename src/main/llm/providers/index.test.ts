@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   PROVIDER_IDS,
   PROVIDER_SUPPORTS_PROVISIONING_KEY,
-} from "~/shared/providers";
+} from "~/features/providers/shared/providers";
 import {
   PROVIDER_CAPABILITIES,
   providerCapabilities,

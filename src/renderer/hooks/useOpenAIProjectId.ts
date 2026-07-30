@@ -11,7 +11,7 @@
  * profile that has one.
  */
 import { useEffect, useState } from "react";
-import { sanitizeOpenAIProjectId } from "~/shared/openaiProject";
+import { sanitizeOpenAIProjectId } from "~/features/providers/shared/openaiProject";
 
 export const useOpenAIProjectId = (): string | null | undefined => {
   const [projectId, setProjectId] = useState<string | null | undefined>(undefined);

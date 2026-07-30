@@ -7,7 +7,7 @@
  * SettingCorrection.tsx (issue #44).
  */
 
-import type { CorrectionPreset, KeyBindings } from "~/stores/apiStore";
+import type { CorrectionPreset, KeyBindings } from "~/features/providers/store/apiStore";
 
 /** Describes a single hotkey collision between two named parties. */
 export type HotkeyConflict = {

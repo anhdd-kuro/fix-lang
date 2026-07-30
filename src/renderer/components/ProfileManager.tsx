@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
+import { messageLabel, textLabel, type Label } from "~/features/i18n/shared/message";
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
 import { HotkeyInput } from "./HotkeyInput";
 import { useI18n } from "../i18n/useI18n";
-import type { Profile } from "~/stores/apiStore";
+import type { Profile } from "~/features/providers/store/apiStore";
 
 type ProfileManagerProps = {
   className?: string;

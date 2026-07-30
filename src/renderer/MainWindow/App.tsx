@@ -30,9 +30,9 @@ import { useUsageCacheInvalidation } from "../hooks/useUsageCacheInvalidation";
 import { useI18n } from "../i18n/useI18n";
 import type { DashboardTabId } from "./dashboardTabs";
 import type { AnalyticsRange } from "../analytics/shared";
-import type { MessageKey } from "~/shared/i18n/message";
-import type { ProviderId } from "~/shared/providers";
-import type { HistoryEntry, HistoryFeatureId } from "~/stores/historyStore";
+import type { HistoryEntry, HistoryFeatureId } from "~/features/history/store/historyStore";
+import type { MessageKey } from "~/features/i18n/shared/message";
+import type { ProviderId } from "~/features/providers/shared/providers";
 
 /**
  * Range options for the analytics tabs (shared header pill group). Kept as a

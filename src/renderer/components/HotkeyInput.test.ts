@@ -16,11 +16,11 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { messageLabel } from "~/shared/i18n/message";
-import { createTranslator } from "~/shared/i18n/translate";
+import { messageLabel } from "~/features/i18n/shared/message";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import { HotkeyInput } from "./HotkeyInput";
 import { I18nProvider } from "../i18n/I18nProvider";
-import type { Locale } from "~/shared/i18n/registry";
+import type { Locale } from "~/features/i18n/shared/registry";
 
 // Expected copy is derived through the real translator kernel so a catalog
 // reword can't silently break this file, and an English-fallback regression

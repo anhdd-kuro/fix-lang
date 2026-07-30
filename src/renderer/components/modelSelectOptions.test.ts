@@ -1,8 +1,8 @@
 // Copy is derived through the real translator kernel, not a stub, so a catalog
 // reword cannot silently pass.
 import { describe, expect, it } from "vitest";
-import { createTranslator } from "~/shared/i18n/translate";
-import { PROVIDER_ORDER, type Model } from "~/shared/providers";
+import { createTranslator } from "~/features/i18n/shared/translate";
+import { PROVIDER_ORDER, type Model } from "~/features/providers/shared/providers";
 import {
   buildModelOptionGroups,
   EMPTY_GROUP_OPTION_PREFIX,

@@ -14,7 +14,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createTranslator } from "~/shared/i18n/translate";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import { AboutPanel } from "./AboutPanel";
 import { I18nProvider } from "../../i18n/I18nProvider";
 

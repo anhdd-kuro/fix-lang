@@ -11,7 +11,7 @@
  * documented field names; real per-endpoint JSON should be captured against a
  * live account to lock the fixtures (see #59 plan HITL #1 — flagged for QA).
  */
-import { utcDayKey, type UsageDailyPoint } from "~/shared/usage";
+import { utcDayKey, type UsageDailyPoint } from "~/features/usage/shared/usage";
 
 /** Independent per-card result so one failing endpoint doesn't sink the tab. */
 export type CardResult<T> =

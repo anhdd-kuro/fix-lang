@@ -9,6 +9,9 @@
  */
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
+import { reasoningForAiSdk } from "~/features/correction/shared/reasoningEffort";
+import { getApiKey } from "~/features/providers/store/apiKeyStore";
+import { apiStore, getProfileSetting } from "~/features/providers/store/apiStore";
 import {
   buildCachedMessages,
   extractCacheUsage,
@@ -20,9 +23,6 @@ import {
 } from "~/main/ai.request/requestTypes";
 import { extractResolvedModel } from "~/main/ai.request/resolve-model";
 import { showErrorNotification } from "~/main/notifications/error";
-import { reasoningForAiSdk } from "~/shared/reasoningEffort";
-import { getApiKey } from "~/stores/apiKeyStore";
-import { apiStore, getProfileSetting } from "~/stores/apiStore";
 
 export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
   const apiKey =

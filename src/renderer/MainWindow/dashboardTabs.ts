@@ -9,17 +9,17 @@
  * locale-free by design; `App.tsx` resolves `labelKey` via `t()` at render
  * time, so `dashboardTabs.test.ts` never has to assert rendered English.
  */
-import { isPromptGenEnabled } from "~/shared/features";
-import type { DashboardTabId } from "~/shared/dashboardTabIds";
-import type { MessageKey } from "~/shared/i18n/message";
-import type { HistoryEntry } from "~/stores/historyStore";
+import { isPromptGenEnabled } from "~/features/core/shared/features";
+import type { DashboardTabId } from "~/features/core/shared/dashboardTabIds";
+import type { HistoryEntry } from "~/features/history/store/historyStore";
+import type { MessageKey } from "~/features/i18n/shared/message";
 
 /**
- * Stable identifiers for the six dashboard tabs. Re-exported from `~/shared` so
+ * Stable identifiers for the six dashboard tabs. Re-exported from `~/features/core/shared/dashboardTabIds` so
  * existing importers keep their path while preload shares the same union — a
  * second copy of it let a tab rename break tray navigation silently.
  */
-export type { DashboardTabId } from "~/shared/dashboardTabIds";
+export type { DashboardTabId } from "~/features/core/shared/dashboardTabIds";
 
 export type DashboardTabMeta = {
   id: DashboardTabId;

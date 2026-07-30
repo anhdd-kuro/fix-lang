@@ -10,8 +10,8 @@
  * the panel itself prompts for the key — but it does decide the ORDER, so the
  * tab that opens first is one that can actually render numbers.
  */
-import { PROVIDER_ORDER, type ProviderId } from "~/shared/providers";
-import type { MessageKey } from "~/shared/i18n/message";
+import { PROVIDER_ORDER, type ProviderId } from "~/features/providers/shared/providers";
+import type { MessageKey } from "~/features/i18n/shared/message";
 
 /** Providers with an account-level usage API. Mirrors the main-process registry. */
 export const USAGE_PROVIDERS: readonly ProviderId[] = Object.freeze([

@@ -4,7 +4,7 @@
  * pattern in `HistoryEntryItem.tsx`: passing `{ locale: dateFnsLocale }` only
  * localized month/day *names* — the literal `"MM/dd HH:mm"` field order and
  * separators stayed fixed regardless of locale. The fix routes the timestamp
- * through the shared `formatDateTime` formatter (`~/shared/i18n/format.ts`),
+ * through the shared `formatDateTime` formatter (`~/features/i18n/shared/format.ts`),
  * which resolves field order/separators/12h-vs-24h convention per locale via
  * `Intl.DateTimeFormat`.
  *
@@ -23,11 +23,11 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createFormatters } from "~/shared/i18n/format";
+import { createFormatters } from "~/features/i18n/shared/format";
 import HistoryEntryItem from "./HistoryEntryItem";
 import { I18nProvider } from "../i18n/I18nProvider";
-import type { Locale } from "~/shared/i18n/registry";
-import type { HistoryEntry } from "~/stores/historyStore";
+import type { HistoryEntry } from "~/features/history/store/historyStore";
+import type { Locale } from "~/features/i18n/shared/registry";
 
 const fEn = createFormatters("en");
 const fJa = createFormatters("ja");

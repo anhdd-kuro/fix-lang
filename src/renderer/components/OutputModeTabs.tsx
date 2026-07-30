@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { DEFAULT_CORRECTION_OUTPUT_MODE } from "~/shared/outputMode";
+import { DEFAULT_CORRECTION_OUTPUT_MODE } from "~/features/correction/shared/outputMode";
 import { SegmentedControl } from "./SegmentedControl";
 import { useI18n } from "../i18n/useI18n";
-import type { CorrectionOutputMode } from "~/shared/outputMode";
+import type { CorrectionOutputMode } from "~/features/correction/shared/outputMode";
 
 /**
  * Transform output-mode switcher (Show popup vs Direct paste) rendered as a

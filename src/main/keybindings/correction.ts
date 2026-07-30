@@ -1,11 +1,12 @@
 import { globalShortcut, Notification } from "electron";
+import { resolvePresetOutputMode } from "~/features/correction/shared/presetOutputMode";
+import { keybindingStore } from "~/features/correction/store/keybindingStore";
+import { outputModeStore } from "~/features/correction/store/outputModeStore";
+import { syncHistory } from "~/features/history/main/history";
+import { getProfileSetting } from "~/features/providers/store/apiStore";
 import { getActiveApp } from "~/main/accessibility/activeApp";
 import { DEFAULT_CORRECTION_PRESET_ID } from "~/prompts";
-import { resolvePresetOutputMode } from "~/shared/presetOutputMode";
 // No apiStore import needed as api key is handled in shared.ts
-import { getProfileSetting } from "~/stores/apiStore";
-import { keybindingStore } from "~/stores/keybindingStore";
-import { outputModeStore } from "~/stores/outputModeStore";
 import { getHighlightedText, getHighlightedTextForOptionalContext, pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
 import { runAskFlow } from "./askFlow";
@@ -14,7 +15,6 @@ import { deliverCorrectionOutput } from "./correctionOutput";
 import { checkShortcut, handleError, withHotkeyThrottle } from "./utils";
 import { buildPriceMap, computeCost } from "../ai.request/cost";
 import { getCachedModels, isLocalModelId } from "../ai.request/shared";
-import { syncHistory } from "../ipc/features/history";
 import { logger } from "../logging/logService";
 import { LocalizedError } from "../notifications/error";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";

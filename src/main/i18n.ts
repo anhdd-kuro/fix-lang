@@ -21,15 +21,15 @@
  * Kept import-cycle-free and renderer-free: the main bundle is CJS (`.cjs`)
  * on Electron 43, and a cycle or a renderer import here breaks the build.
  */
-import { createFormatters, type Formatters } from "~/shared/i18n/format";
+import { createFormatters, type Formatters } from "~/features/i18n/shared/format";
 import {
   createTranslator,
   type TKey,
   type TranslateParams,
   type Translator,
-} from "~/shared/i18n/translate";
-import { getLocale } from "~/stores/localeStore";
-import type { Locale } from "~/shared/i18n/registry";
+} from "~/features/i18n/shared/translate";
+import { getLocale } from "~/features/i18n/store/localeStore";
+import type { Locale } from "~/features/i18n/shared/registry";
 
 type MainI18nCache = {
   locale: Locale;

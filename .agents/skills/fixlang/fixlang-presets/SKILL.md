@@ -1,15 +1,15 @@
 ---
 name: fixlang-presets
-description: "Use when editing transform presets, reasoning effort, per-preset output mode, the Ask AI flow, or the source-app context block. Examples: \"add a preset field\", \"why does this preset ignore the popup setting\", \"retire a reasoning effort value\", \"change the Metadata context prompt\". Covers src/stores/apiStore.ts, src/shared/reasoningEffort.ts, src/main/ai.request/transform-context.ts, src/main/keybindings/askFlow.ts, src/renderer/components/MarkdownView.tsx."
+description: "Use when editing transform presets, reasoning effort, per-preset output mode, the Ask AI flow, or the source-app context block. Examples: \"add a preset field\", \"why does this preset ignore the popup setting\", \"retire a reasoning effort value\", \"change the Metadata context prompt\". Covers src/features/providers/store/apiStore.ts, src/features/correction/shared/reasoningEffort.ts, src/main/ai.request/transform-context.ts, src/main/keybindings/askFlow.ts, src/renderer/components/MarkdownView.tsx."
 ---
 
 # FixLang — Preset, Reasoning, Ask AI Gotchas
 
-Code: `src/stores/apiStore.ts` (`CorrectionPreset`), `src/shared/reasoningEffort.ts`, `src/main/ai.request/transform-context.ts`, `src/main/keybindings/{correction,askFlow}.ts`, `src/main/webViewWindows/{askInputWindow,askResultWindow}.ts`, `src/main/profileChange.ts`, `src/renderer/components/MarkdownView.tsx`.
+Code: `src/features/providers/store/apiStore.ts` (`CorrectionPreset`), `src/features/correction/shared/reasoningEffort.ts`, `src/main/ai.request/transform-context.ts`, `src/main/keybindings/{correction,askFlow}.ts`, `src/main/webViewWindows/{askInputWindow,askResultWindow}.ts`, `src/main/profileChange.ts`, `src/renderer/components/MarkdownView.tsx`.
 
 ## Retired reasoning efforts must MAP, never disappear
 
-Preset reasoning effort is generic: `none` / `low` / `medium` / `high`. Retiring a value is NOT deleting it from `REASONING_EFFORT_STEPS`. `RETIRED_EFFORTS` (`src/shared/reasoningEffort.ts`) maps stored `minimal` → `low` and stored `xhigh` ("Maximum") → `high`, and `sanitizeReasoningEffort`, `reasoningEffortToStepIndex`, `reasoningForAiSdk` all route through it.
+Preset reasoning effort is generic: `none` / `low` / `medium` / `high`. Retiring a value is NOT deleting it from `REASONING_EFFORT_STEPS`. `RETIRED_EFFORTS` (`src/features/correction/shared/reasoningEffort.ts`) maps stored `minimal` → `low` and stored `xhigh` ("Maximum") → `high`, and `sanitizeReasoningEffort`, `reasoningEffortToStepIndex`, `reasoningForAiSdk` all route through it.
 
 Drop a retired value instead and two silent breakages follow: downstream reads it as `provider-default`, which CHANGES a stored preset's behaviour with no error, and `reasoningEffortToStepIndex` lands on -1 → slider snaps to None.
 

@@ -1,11 +1,11 @@
 ---
 name: fixlang-provider-credentials
-description: "Use when adding a provider, touching API/admin key storage, the provider capability registry, or credential logging. Examples: \"add a provider\", \"why is this admin key 401ing\", \"store an extra secret for a provider\", \"is this log line leaking a key\". Covers src/main/llm/providers/, src/shared/providers.ts, src/shared/providerKeyShapes.ts, src/stores/profileSecretStore.ts, src/shared/logging.ts."
+description: "Use when adding a provider, touching API/admin key storage, the provider capability registry, or credential logging. Examples: \"add a provider\", \"why is this admin key 401ing\", \"store an extra secret for a provider\", \"is this log line leaking a key\". Covers src/main/llm/providers/, src/features/providers/shared/providers.ts, src/features/providers/shared/providerKeyShapes.ts, src/features/providers/store/profileSecretStore.ts, src/features/logs/shared/logging.ts."
 ---
 
 # FixLang — Provider & Credential Gotchas
 
-Code: `src/main/llm/providers/` (one folder per `ProviderId` + `index.ts` registry), `src/shared/providers.ts`, `src/shared/providerKeyShapes.ts`, `src/shared/bedrockEndpoint.ts`, `src/stores/profileSecretStore.ts`, `src/main/ai.request/shared.ts`, `src/shared/logging.ts`.
+Code: `src/main/llm/providers/` (one folder per `ProviderId` + `index.ts` registry), `src/features/providers/shared/providers.ts`, `src/features/providers/shared/providerKeyShapes.ts`, `src/features/providers/shared/bedrockEndpoint.ts`, `src/features/providers/store/profileSecretStore.ts`, `src/main/ai.request/shared.ts`, `src/features/logs/shared/logging.ts`.
 
 Providers: `openai`, `openrouter`, `bedrock`, `ollama`, `lmstudio`. Model ref plumbing: see [Model refs](../fixlang-model-refs/SKILL.md).
 
@@ -16,7 +16,7 @@ Each provider owns a folder plus ONE entry in `providers/index.ts` (`supportsAdm
 Two load-bearing details:
 
 - Behaviour slots resolve their module via **lazy `import()`**. `~/main/llm` is imported for the Ollama client alone; eager loading drags the provider SDKs, notifications, and `electron-store` in with it.
-- Credential facts are DERIVED from the tables in `~/shared/providers`, never restated. A second source of truth for "does this provider take an admin key" drifts from `secretKindsForProvider`.
+- Credential facts are DERIVED from the tables in `~/features/providers/shared/providers`, never restated. A second source of truth for "does this provider take an admin key" drifts from `secretKindsForProvider`.
 - A provider with no `fetchModels` is not unsupported: Ollama and LM Studio are discovered by reachability probe, whose "empty vs unreachable" distinction lives in `fetchProviderModels`.
 
 ## Secret slots are per profile, per provider, per KIND

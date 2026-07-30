@@ -8,9 +8,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   __resetFormatCachesForTests,
   createFormatters,
-} from "~/shared/i18n/format";
-import { resolveMessage } from "~/shared/i18n/message";
-import { createTranslator } from "~/shared/i18n/translate";
+} from "~/features/i18n/shared/format";
+import { resolveMessage } from "~/features/i18n/shared/message";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import {
   barDateLabel,
   barTooltipMessage,

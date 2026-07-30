@@ -1,7 +1,7 @@
 import { app, Notification } from "electron";
 import { mainT } from "~/main/i18n";
 import { showErrorPopup } from "~/main/webViewWindows/errorPopupWindow";
-import type { TKey, TranslateParams } from "~/shared/i18n/translate";
+import type { TKey, TranslateParams } from "~/features/i18n/shared/translate";
 
 const notifiedErrors = new WeakSet<object>();
 const pendingErrors = new WeakSet<object>();

@@ -18,7 +18,7 @@ import {
   historyFeature,
   openrouterFeature,
   updateFeature,
-} from "./features";
+} from "~/features/preload";
 import type {
   ApiFeature,
   AskFeature,
@@ -35,7 +35,7 @@ import type {
   ThemeFeature,
   UIFeature,
   UpdateFeature,
-} from "./features";
+} from "~/features/preload";
 
 // Log that preload script is being executed
 console.log("Preload script is being executed");

@@ -198,5 +198,5 @@ Generated at build time. Each file contains a `:root` CSS var declaration:
 ## Related Code Locations
 
 - **Renderer theme consumer**: `src/renderer/MainWindow/MainWindow.tsx` (applies `preset-*.css` to the DOM)
-- **Theme discovery/switching**: `src/main/ipc/features/ui.ts` (handles Settings → Appearance → Theme)
+- **Theme discovery/switching**: `src/features/ui/main/ui.ts` (handles Settings → Appearance → Theme)
 - **Test setup**: `src/themes/adjustSemanticTokenContrast.test.ts` (where contrast invariants are defined and validated)

@@ -1,5 +1,5 @@
 import { formatUsageUsd } from "./usage/usageFormat";
-import type { Translator } from "~/shared/i18n/translate";
+import type { Translator } from "~/features/i18n/shared/translate";
 
 /**
  * Format USD amounts for OpenRouter credit display. One implementation, shared

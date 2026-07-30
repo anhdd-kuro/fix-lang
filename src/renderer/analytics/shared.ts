@@ -6,7 +6,7 @@
  * overviewAggregations once a second consumer (#58) needed ≥2 of these helpers
  * (#57 HITL #1 extraction trigger).
  */
-import type { HistoryEntry } from "~/stores/historyStore";
+import type { HistoryEntry } from "~/features/history/store/historyStore";
 
 export type AnalyticsRange = "all" | "30d" | "7d";
 

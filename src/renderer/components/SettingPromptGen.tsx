@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { messageLabel } from "~/shared/i18n/message";
+import { messageLabel } from "~/features/i18n/shared/message";
 import { Button } from "./Button";
 import { Checkbox } from "./Checkbox";
 import { HotkeyInput } from "./HotkeyInput";

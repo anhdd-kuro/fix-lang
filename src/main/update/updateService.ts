@@ -1,4 +1,4 @@
-import { msg, type Message } from "~/shared/i18n/message";
+import { msg, type Message } from "~/features/i18n/shared/message";
 import {
   reconcilePendingInstall,
   UPGRADE_GRACE_MS,
@@ -10,7 +10,7 @@ import type {
   InstallUpdateResult,
   UpdateActionResult,
   UpdateState,
-} from "~/shared/update";
+} from "~/features/update/shared/update";
 
 export type UpdateService = {
   getState: () => UpdateState;
@@ -70,7 +70,7 @@ const RELEASE_NOTES_MAX_LENGTH = 12_000;
 // live in `settings.updates.*` (en/ja), and the renderer resolves them via
 // `tm()` so an already-open Settings panel updates on a locale switch
 // instead of freezing in whatever locale was active when this state was
-// published (see `~/shared/update.ts`'s `UpdateState.message`).
+// published (see `~/features/update/shared/update.ts`'s `UpdateState.message`).
 const UPDATE_ERROR_MESSAGE: Message = msg("settings.updates.checkErrorMessage");
 const INSTALL_ERROR_MESSAGE: Message = msg("settings.updates.installErrorMessage");
 const INSTALL_INCOMPLETE_MESSAGE: Message = msg(

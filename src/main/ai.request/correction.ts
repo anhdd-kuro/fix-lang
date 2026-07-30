@@ -1,18 +1,18 @@
-import {
-  DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
-  DEFAULT_SUMMARIZE_PRESET_ID,
-} from "~/prompts";
-import { serializeHistorySession } from "~/shared/historySession";
-import { parseModelRef } from "~/shared/modelRef";
-import { resolveReasoningEffort } from "~/shared/reasoningEffort";
+import { resolveReasoningEffort } from "~/features/correction/shared/reasoningEffort";
+import { serializeHistorySession } from "~/features/history/shared/historySession";
+import { estimateTextTokens } from "~/features/history/store/historyStore";
+import { parseModelRef } from "~/features/providers/shared/modelRef";
 import {
   getDefaultModelId,
   getDefaultReasoningEffort,
   getProfileSetting,
   type CorrectionPreset,
   type ProviderId,
-} from "~/stores/apiStore";
-import { estimateTextTokens } from "~/stores/historyStore";
+} from "~/features/providers/store/apiStore";
+import {
+  DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+  DEFAULT_SUMMARIZE_PRESET_ID,
+} from "~/prompts";
 import { makeAIRequest } from "./shared";
 import {
   appContextPolicyForPreset,

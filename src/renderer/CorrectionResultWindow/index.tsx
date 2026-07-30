@@ -6,7 +6,7 @@ import { useTheme } from "../hooks/useTheme";
 import { I18nProvider } from "../i18n/I18nProvider";
 import { useI18n } from "../i18n/useI18n";
 import "../main.css";
-import type { CorrectionResultPayload } from "~/shared/correctionResult";
+import type { CorrectionResultPayload } from "~/features/correction/shared/correctionResult";
 
 /**
  * Exported (not just used below for the entry-point auto-render) so

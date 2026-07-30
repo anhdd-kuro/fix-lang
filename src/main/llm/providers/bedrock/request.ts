@@ -4,6 +4,10 @@
  */
 import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
 import { generateText } from "ai";
+import { reasoningForAiSdk } from "~/features/correction/shared/reasoningEffort";
+import { resolveBedrockRegion } from "~/features/providers/shared/bedrockEndpoint";
+import { getCurrentProfileId, getProviderEndpoint } from "~/features/providers/store/apiStore";
+import { getProfileSecret } from "~/features/providers/store/profileSecretStore";
 import {
   sumTokenField,
   toConversation,
@@ -12,10 +16,6 @@ import {
 } from "~/main/ai.request/requestTypes";
 import { extractResolvedModel } from "~/main/ai.request/resolve-model";
 import { showErrorNotification } from "~/main/notifications/error";
-import { resolveBedrockRegion } from "~/shared/bedrockEndpoint";
-import { reasoningForAiSdk } from "~/shared/reasoningEffort";
-import { getCurrentProfileId, getProviderEndpoint } from "~/stores/apiStore";
-import { getProfileSecret } from "~/stores/profileSecretStore";
 
 export const makeBedrockAIRequest = async (options: AIRequestOptions) => {
   const profileId = getCurrentProfileId();

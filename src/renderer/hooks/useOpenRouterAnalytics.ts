@@ -16,8 +16,8 @@ import {
   USAGE_CACHE_TTL_MS,
 } from "./usageRequestCache";
 import { useActiveProfileId } from "./useActiveProfileId";
+import type { OpenRouterRange } from "~/features/usage/preload/openrouter";
 import type { OpenRouterAnalytics } from "~/main/llm/providers/openrouter/client";
-import type { OpenRouterRange } from "~/preload/features/openrouter";
 
 export { cacheIsFresh };
 

@@ -4,7 +4,7 @@ import { colord, extend } from "colord";
 import a11yPlugin from "colord/plugins/a11y";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
-import { THEME_IDS } from "~/stores/themeIds";
+import { THEME_IDS } from "~/features/theme/store/themeIds";
 
 type ButtonElement = {
   opening: string;

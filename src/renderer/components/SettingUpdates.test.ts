@@ -1,8 +1,8 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { msg, type Message } from "~/shared/i18n/message";
-import { createTranslator } from "~/shared/i18n/translate";
+import { msg, type Message } from "~/features/i18n/shared/message";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import { SettingUpdates } from "./SettingUpdates";
 import { I18nProvider } from "../i18n/I18nProvider";
 

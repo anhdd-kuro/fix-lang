@@ -38,7 +38,7 @@ vi.mock("electron", () => ({
     getLocale: vi.fn().mockReturnValue("en-US"),
   },
 }));
-vi.mock("~/stores/apiStore", async (importOriginal) => {
+vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
   const real = await importOriginal<any>();
   return {
@@ -52,10 +52,10 @@ vi.mock("~/stores/apiStore", async (importOriginal) => {
 vi.mock("~/main/accessibility/activeApp", () => ({
   getActiveApp: vi.fn().mockResolvedValue(null),
 }));
-vi.mock("~/stores/keybindingStore", () => ({
+vi.mock("~/features/correction/store/keybindingStore", () => ({
   keybindingStore: { getKeyBindings: vi.fn(() => mocks.keyBindings) },
 }));
-vi.mock("~/stores/outputModeStore", () => ({
+vi.mock("~/features/correction/store/outputModeStore", () => ({
   outputModeStore: { getCorrectionOutputMode: vi.fn().mockReturnValue("popup") },
 }));
 vi.mock("../../utils", () => ({
@@ -64,7 +64,7 @@ vi.mock("../../utils", () => ({
   pasteText: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../ai.request", () => ({ fixGrammar: vi.fn() }));
-vi.mock("../ipc/features/history", () => ({ syncHistory: vi.fn() }));
+vi.mock("~/features/history/main/history", () => ({ syncHistory: vi.fn() }));
 vi.mock("../logging/logService", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
@@ -92,15 +92,15 @@ vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
   showErrorPopup: vi.fn(),
 }));
 import {
+  getDefaultCorrectionSettings,
+  getProfileSetting,
+  normalizeCorrectionSettings,
+} from "~/features/providers/store/apiStore";
+import {
   DEFAULT_ASK_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
   DEFAULT_STRUCTURED_TEXT_PRESET_ID,
 } from "~/prompts/correction";
-import {
-  getDefaultCorrectionSettings,
-  getProfileSetting,
-  normalizeCorrectionSettings,
-} from "~/stores/apiStore";
 import { runAskFlow } from "./askFlow";
 import { registerCorrectionShortcut } from "./correction";
 import { resetHotkeyThrottleForTests, handleError  } from "./utils";

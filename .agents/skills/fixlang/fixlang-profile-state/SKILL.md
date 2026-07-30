@@ -5,7 +5,7 @@ description: "Use when editing profile switching, multi-profile state, history, 
 
 # FixLang — Profile Switch State Sync Gotcha
 
-Code: profile switch in `src/main/keybindings/profileSwitch.ts` + `src/main/ipc/features/profiles.ts`; state in `src/stores/` (`apiStore.ts`, `historyStore.ts`, `keybindingStore.ts`).
+Code: profile switch in `src/main/keybindings/profileSwitch.ts` + `src/features/profiles/main/profiles.ts`; state in `src/features/providers/store/apiStore.ts`, `src/features/history/store/historyStore.ts`, `src/features/correction/store/keybindingStore.ts`.
 
 ## Switching a profile triggers three updates — keep them atomic
 

@@ -36,12 +36,12 @@ vi.mock("electron", () => ({
   app: { on: vi.fn() },
   BrowserWindow: { getAllWindows: getAllWindowsMock },
 }));
-vi.mock("~/stores/apiStore", () => ({
+vi.mock("~/features/providers/store/apiStore", () => ({
   apiStore: { get: apiStoreGetMock, set: apiStoreSetMock },
   getProfileSetting: getProfileSettingMock,
   getProviderEndpoint: getProviderEndpointMock,
 }));
-vi.mock("~/stores/profileSecretStore", () => ({
+vi.mock("~/features/providers/store/profileSecretStore", () => ({
   getActiveProfileSecret: getActiveProfileSecretMock,
 }));
 vi.mock("~/main/ai.request/shared", () => ({
@@ -51,7 +51,7 @@ vi.mock("~/main/ai.request/shared", () => ({
 vi.mock("./discover", () => ({ probeOllama: probeOllamaMock }));
 vi.mock("~/main/llm/providers/lmstudio/client", () => ({ probeLmStudio: probeLmStudioMock }));
 import { checkForModelChanges } from "./monitor";
-import type { Model } from "~/stores/apiStore";
+import type { Model } from "~/features/providers/store/apiStore";
 
 const localModel = (id: string, provider: "ollama" | "lmstudio" = "ollama"): Model => ({
   id,

@@ -1,4 +1,4 @@
-import { msg, type Message } from "~/shared/i18n/message";
+import { msg, type Message } from "~/features/i18n/shared/message";
 import {
   isProviderConfigured,
   PROVIDER_ORDER,
@@ -6,8 +6,8 @@ import {
   PROVIDER_SUPPORTS_API_KEY,
   PROVIDER_SUPPORTS_PROVISIONING_KEY,
   type ProviderId,
-} from "~/shared/providers";
-import type { TranslationKey } from "~/shared/i18n/keys";
+} from "~/features/providers/shared/providers";
+import type { TranslationKey } from "~/features/i18n/shared/keys";
 
 export type ProviderConnectionState = {
   connected: boolean;

@@ -12,7 +12,7 @@ import { app, BrowserWindow, ipcMain, screen } from "electron";
 import { attachThemeSync } from "./attachThemeSync";
 import { clampToWorkArea } from "./cursorPlacement";
 import { buildAskInputWindowTitle } from "./windowTitles";
-import type { AskInputPayload } from "~/shared/ask";
+import type { AskInputPayload } from "~/features/ask/shared/ask";
 
 const WINDOW_WIDTH = 520;
 const WINDOW_HEIGHT = 200;

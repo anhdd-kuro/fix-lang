@@ -9,7 +9,7 @@ import {
   stepIndexToReasoningEffort,
   type ReasoningEffort,
   type ReasoningEffortSliderStep,
-} from "~/shared/reasoningEffort";
+} from "~/features/correction/shared/reasoningEffort";
 import { useI18n } from "../../i18n/useI18n";
 
 type ReasoningEffortSliderProps = {

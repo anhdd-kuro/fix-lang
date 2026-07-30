@@ -6,9 +6,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { app, BrowserWindow } from "electron";
+import { isPromptGenEnabled } from "~/features/core/shared/features";
+import { initializeLocaleFromSystem } from "~/features/i18n/store/localeStore";
 import { showErrorNotification } from "~/main/notifications/error";
-import { isPromptGenEnabled } from "~/shared/features";
-import { initializeLocaleFromSystem } from "~/stores/localeStore";
 import {
   isMacOSAccessibilityGranted,
   promptAccessibilityPermission,
@@ -27,7 +27,7 @@ import {
   registerThemeHandlers,
   registerUiHandlers,
   registerUpdateHandlers,
-} from "./ipc/features";
+} from "./ipc";
 import { registerHotkeys, reloadHotkeys, unregisterHotkeys } from "./keybindings";
 import { startModelMonitoring } from "./llm/models/monitor";
 import { initializeUpdateService, type UpdateService } from "./update";

@@ -23,7 +23,7 @@ vi.mock("electron", () => ({
   ipcMain: { handle: vi.fn(), on: vi.fn() },
   app: { getPath: vi.fn().mockReturnValue("/tmp"), getLocale: vi.fn().mockReturnValue("en-US") },
 }));
-vi.mock("~/stores/apiStore", async (importOriginal) => {
+vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
   const real = await importOriginal<any>();
   return {
@@ -37,14 +37,14 @@ vi.mock("~/stores/apiStore", async (importOriginal) => {
 vi.mock("~/main/accessibility/activeApp", () => ({
   getActiveApp: vi.fn().mockResolvedValue(null),
 }));
-vi.mock("~/stores/keybindingStore", () => ({
+vi.mock("~/features/correction/store/keybindingStore", () => ({
   keybindingStore: {
     getKeyBindings: vi
       .fn()
       .mockReturnValue({ promptGen: "Control+Shift+P", profileSwitch: "Control+Shift+S" }),
   },
 }));
-vi.mock("~/stores/outputModeStore", () => ({
+vi.mock("~/features/correction/store/outputModeStore", () => ({
   outputModeStore: { getCorrectionOutputMode: vi.fn().mockReturnValue("popup") },
 }));
 vi.mock("../../utils", () => ({
@@ -52,7 +52,7 @@ vi.mock("../../utils", () => ({
   pasteText: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../ai.request", () => ({ fixGrammar: vi.fn() }));
-vi.mock("../ipc/features/history", () => ({ syncHistory: vi.fn() }));
+vi.mock("~/features/history/main/history", () => ({ syncHistory: vi.fn() }));
 vi.mock("../logging/logService", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
@@ -74,13 +74,13 @@ vi.mock("./utils", () => ({
 // `notifications/error` reaches `overlay.html?asset`, which vite cannot parse
 // as JS under vitest. Stub that leaf so `LocalizedError` stays real.
 vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({ showErrorPopup: vi.fn() }));
-import { getProfileSetting } from "~/stores/apiStore";
+import { syncHistory } from "~/features/history/main/history";
+import { getProfileSetting } from "~/features/providers/store/apiStore";
 import { fixGrammar } from "../ai.request";
 import { registerCorrectionShortcut } from "./correction";
-import { syncHistory } from "../ipc/features/history";
 import type { BrowserWindow } from "electron";
 import type { Mock } from "vitest";
-import type { Model, ProviderId } from "~/stores/apiStore";
+import type { Model, ProviderId } from "~/features/providers/store/apiStore";
 
 const HOTKEY = "Control+Shift+F";
 

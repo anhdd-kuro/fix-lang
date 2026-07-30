@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PROVIDER_ORDER } from "~/shared/providers";
+import { PROVIDER_ORDER } from "~/features/providers/shared/providers";
 import {
   buildUsageSubTabs,
   isUsageProvider,

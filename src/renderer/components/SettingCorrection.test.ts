@@ -1,11 +1,11 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import {
   DEFAULT_ASK_PRESET_ID,
   DEFAULT_CORRECTION_PRESET_ID,
 } from "~/prompts/correction";
-import { createTranslator } from "~/shared/i18n/translate";
 import { SettingCorrection } from "./SettingCorrection";
 import { I18nProvider } from "../i18n/I18nProvider";
 

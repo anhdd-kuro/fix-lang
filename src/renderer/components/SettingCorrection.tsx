@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { msg, messageLabel, type Message } from "~/features/i18n/shared/message";
 import {
   DEFAULT_ASK_PRESET_ID,
   DEFAULT_ASK_PRESET_PROMPT,
@@ -15,7 +16,6 @@ import {
   DEFAULT_TRANSLATE_PRESET_ID,
   DEFAULT_TRANSLATE_PRESET_PROMPT,
 } from "~/prompts/correction";
-import { msg, messageLabel, type Message } from "~/shared/i18n/message";
 import { useI18n } from "../i18n/useI18n";
 import { splitHotkey } from "./about/userGuideView";
 import { Button } from "./Button";
@@ -30,8 +30,8 @@ import {
   type StatusDescriptor,
 } from "./statusDescriptor";
 import { validateHotkeys } from "./validateHotkeys";
-import type { ReasoningEffort } from "~/shared/reasoningEffort";
-import type { CorrectionPreset, CorrectionSettings } from "~/stores/apiStore";
+import type { ReasoningEffort } from "~/features/correction/shared/reasoningEffort";
+import type { CorrectionPreset, CorrectionSettings } from "~/features/providers/store/apiStore";
 
 /**
  * Read-only hotkey chips for the preset list. Matches `HotkeyChips` in

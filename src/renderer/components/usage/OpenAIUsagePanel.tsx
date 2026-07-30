@@ -34,6 +34,9 @@ import { useI18n } from "../../i18n/useI18n";
 import { Button } from "../Button";
 import { SegmentedControl } from "../SegmentedControl";
 import { UsagePanelSkeleton } from "../Skeleton";
+import type { TranslationKey } from "~/features/i18n/shared/keys";
+import type { Translator } from "~/features/i18n/shared/translate";
+import type { UsageRange } from "~/features/usage/shared/usage";
 import type {
   CardResult,
   OpenAICompletionsUsage,
@@ -41,9 +44,6 @@ import type {
   OpenAIProjectCosts,
   OpenAIProjectSpendRow,
 } from "~/main/llm/providers/openai/usage.parsers";
-import type { TranslationKey } from "~/shared/i18n/keys";
-import type { Translator } from "~/shared/i18n/translate";
-import type { UsageRange } from "~/shared/usage";
 
 type OpenAIUsagePanelProps = {
   /** Opens the Settings modal (General tab) for the empty-state affordance. */

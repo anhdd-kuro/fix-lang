@@ -26,7 +26,7 @@ vi.mock("electron", () => ({
     getLocale: vi.fn().mockReturnValue("en-US"),
   },
 }));
-vi.mock("~/stores/apiStore", async (importOriginal) => {
+vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
   const real = await importOriginal<any>();
   return {
@@ -41,7 +41,7 @@ vi.mock("../../utils", () => ({
   pasteText: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../ai.request", () => ({ fixGrammar: vi.fn() }));
-vi.mock("../ipc/features/history", () => ({ syncHistory: vi.fn() }));
+vi.mock("~/features/history/main/history", () => ({ syncHistory: vi.fn() }));
 vi.mock("../logging/logService", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
@@ -53,10 +53,10 @@ vi.mock("../webViewWindows/askResultWindow", () => ({
   showAskResultWindow: vi.fn(),
 }));
 vi.mock("./utils", () => ({ handleError: vi.fn() }));
-vi.mock("~/stores/outputModeStore", () => ({
+vi.mock("~/features/correction/store/outputModeStore", () => ({
   outputModeStore: { getCorrectionOutputMode: vi.fn().mockReturnValue("paste") },
 }));
-vi.mock("~/stores/localeStore", () => ({ getLocale: vi.fn().mockReturnValue("en") }));
+vi.mock("~/features/i18n/store/localeStore", () => ({ getLocale: vi.fn().mockReturnValue("en") }));
 // `ai.request/shared.ts` (imported for `getCachedModels`/`isLocalModelId`)
 // pulls in `notifications/error.ts` -> `webViewWindows/errorPopupWindow.ts`,
 // which imports `overlay.html?asset` — unparseable as JS under vitest. Stub
@@ -64,19 +64,19 @@ vi.mock("~/stores/localeStore", () => ({ getLocale: vi.fn().mockReturnValue("en"
 vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
   showErrorPopup: vi.fn(),
 }));
-import { getLocale } from "~/stores/localeStore";
-import { outputModeStore } from "~/stores/outputModeStore";
+import { outputModeStore } from "~/features/correction/store/outputModeStore";
+import { syncHistory } from "~/features/history/main/history";
+import { getLocale } from "~/features/i18n/store/localeStore";
 import { runAskFlow } from "./askFlow";
 import { handleError } from "./utils";
 import { pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
-import { syncHistory } from "../ipc/features/history";
 import { logger } from "../logging/logService";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
 import { showAskResultWindow } from "../webViewWindows/askResultWindow";
 import type { BrowserWindow } from "electron";
 import type { Mock } from "vitest";
-import type { CorrectionPreset } from "~/stores/apiStore";
+import type { CorrectionPreset } from "~/features/providers/store/apiStore";
 
 const basePreset: CorrectionPreset = {
   id: "ask",

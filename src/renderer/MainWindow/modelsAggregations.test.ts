@@ -12,7 +12,7 @@ import {
   tokensPerDay,
 } from "./modelsAggregations";
 import { filterByRange } from "../analytics/shared";
-import type { HistoryEntry } from "~/stores/historyStore";
+import type { HistoryEntry } from "~/features/history/store/historyStore";
 
 const at = (year: number, month: number, day: number, hour = 12): string =>
   new Date(year, month - 1, day, hour, 0, 0).toISOString();

@@ -6,7 +6,7 @@
  * plus one entry below — not scattered edits across `ai.request/shared.ts`,
  * `ipc/features/api.ts`, and the IPC layer.
  *
- * Credential facts are DERIVED from the tables in `~/shared/providers`, never
+ * Credential facts are DERIVED from the tables in `~/features/providers/shared/providers`, never
  * restated: a second source of truth for "does this provider take an admin key"
  * would drift from the secret-slot derivation in `profileSecretStore`.
  *
@@ -29,7 +29,7 @@ import {
   PROVIDER_SUPPORTS_PROVISIONING_KEY,
   type ProviderId,
   type Model,
-} from "~/shared/providers";
+} from "~/features/providers/shared/providers";
 import type {
   AIRequestOptions,
   AIRequestResponse,
@@ -89,10 +89,10 @@ export const PROVIDER_CAPABILITIES: Readonly<Record<ProviderId, ProviderCapabili
     bedrock: capabilities("bedrock", {
       fetchModels: (_apiKey) =>
         import("./bedrock/models").then(async (m) => {
-          const { getCurrentProfileId } = await import("~/stores/apiStore");
-          const { getProfileSecret } = await import("~/stores/profileSecretStore");
-          const { resolveBedrockRegion } = await import("~/shared/bedrockEndpoint");
-          const { getProviderEndpoint } = await import("~/stores/apiStore");
+          const { getCurrentProfileId } = await import("~/features/providers/store/apiStore");
+          const { getProfileSecret } = await import("~/features/providers/store/profileSecretStore");
+          const { resolveBedrockRegion } = await import("~/features/providers/shared/bedrockEndpoint");
+          const { getProviderEndpoint } = await import("~/features/providers/store/apiStore");
           const profileId = getCurrentProfileId();
           if (!profileId) return [];
           const accessKeyId = await getProfileSecret(profileId, "bedrock", "api");

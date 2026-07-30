@@ -24,15 +24,15 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
-import { createTranslator } from "~/shared/i18n/translate";
+import { messageLabel, textLabel, type Label } from "~/features/i18n/shared/message";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import ModelManagerDialog from "./ModelManagerDialog";
 import ProfileManager from "./ProfileManager";
 import { selectControlClassName } from "./Select/Select";
 import { SettingGeneral } from "./SettingGeneral";
 import { SettingPromptGen } from "./SettingPromptGen";
 import { I18nProvider } from "../i18n/I18nProvider";
-import type { Locale } from "~/shared/i18n/registry";
+import type { Locale } from "~/features/i18n/shared/registry";
 
 // Expected copy is derived through the real translator kernel — never
 // hand-written — so a catalog reword can't silently break this file, and an
@@ -510,7 +510,7 @@ describe("SettingGeneral", () => {
   it("re-resolves a wrapped provider-reported reset error in Japanese, keeping the raw error text untranslated", async () => {
     // Main now boundary-wraps `resetCurrentProfileSettings()`'s pass-through
     // error text as an opaque `textLabel` (see `wrapStoreResult` in
-    // `~/main/ipc/features/ipcResultLabel.ts`) rather than a bare string —
+    // `~/features/settings/main/ipcResultLabel.ts`) rather than a bare string —
     // mock the real preload/IPC shape, not the pre-migration one.
     await render({ success: false, error: textLabel("disk full") });
 

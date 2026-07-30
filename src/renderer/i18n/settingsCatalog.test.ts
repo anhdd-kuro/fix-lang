@@ -3,18 +3,18 @@
  * @description Parity guard for the `settings.*` keys added by the renderer
  * i18n wave (SettingGeneral migration + LanguageTabs). Reads the raw JSON
  * catalogs directly rather than the merged `CATALOGS` export from
- * `~/shared/i18n/locales` — this test owns only `settings.json`, so it
+ * `~/features/i18n/shared/locales` — this test owns only `settings.json`, so it
  * should not need to change if other namespace files gain/lose keys.
  *
  * Plural note: EN may define both `_one` and `_other` for a plural key; JA
  * (whose `Intl.PluralRules` category set is just "other") only needs
- * `_other` — see `src/shared/i18n/translate.ts`. Every non-plural key must
+ * `_other` — see `src/features/i18n/shared/translate.ts`. Every non-plural key must
  * exist verbatim in both catalogs.
  */
 
 import { describe, expect, it } from "vitest";
-import enSettings from "~/shared/i18n/locales/en/settings.json";
-import jaSettings from "~/shared/i18n/locales/ja/settings.json";
+import enSettings from "~/features/i18n/shared/locales/en/settings.json";
+import jaSettings from "~/features/i18n/shared/locales/ja/settings.json";
 
 type Catalog = Record<string, string>;
 

@@ -1,11 +1,11 @@
 ---
 name: fixlang-hotkeys
-description: "Use when editing transform presets, hotkey bindings, or the keybinding system. Examples: \"add a transform preset\", \"why did transforms stop firing after switching profiles\", \"validate hotkey conflicts\". Covers src/main/keybindings/ and src/stores/keybindingStore.ts."
+description: "Use when editing transform presets, hotkey bindings, or the keybinding system. Examples: \"add a transform preset\", \"why did transforms stop firing after switching profiles\", \"validate hotkey conflicts\". Covers src/main/keybindings/ and src/features/correction/store/keybindingStore.ts."
 ---
 
 # FixLang — Hotkey & Preset Gotchas
 
-Code: `src/main/keybindings/` (`correction.ts`, `profileSwitch.ts`, `promptGen.ts`, `askFlow.ts`, `index.ts`, `utils.ts`), `src/stores/keybindingStore.ts`.
+Code: `src/main/keybindings/` (`correction.ts`, `profileSwitch.ts`, `promptGen.ts`, `askFlow.ts`, `index.ts`, `utils.ts`), `src/features/correction/store/keybindingStore.ts`.
 
 ## Preset hotkey reload (silent-failure trap)
 
@@ -24,7 +24,7 @@ Validation MUST run **before saving** in the Transform settings UI — never reg
 
 Defaults array order is registration order — `registerCorrectionShortcut` register first-wins. Built-in defaults sit BEFORE custom presets in that array. So: add a new built-in preset with the same hotkey as a hotkey a user's stored custom preset already holds, and the new built-in wins the registration silently — user's preset just stop firing, nothing but a `logger.warn` nobody read.
 
-Fix already in `normalizeCorrectionSettings` (`src/stores/apiStore.ts`): when a built-in's hotkey came from the const default rather than from the user, and a STORED preset already claims that accelerator, the built-in's hotkey gets blanked to `""` instead. TWO shapes count as came-from-the-default, not one — (a) the whole preset absent from stored config, and (b) the preset present in stored config but its `hotkey` missing or not a string, so the value was injected by the `?? fallback?.hotkey` at read time. `hotkeyWasStored` (`src/stores/apiStore.ts:391`) is what tells them apart. A STORED string hotkey is NEVER rewritten — not `""`, not `"   "`, not stored-vs-stored collisions; that stays `validateHotkeys`'s pre-save job, not this guard's.
+Fix already in `normalizeCorrectionSettings` (`src/features/providers/store/apiStore.ts`): when a built-in's hotkey came from the const default rather than from the user, and a STORED preset already claims that accelerator, the built-in's hotkey gets blanked to `""` instead. TWO shapes count as came-from-the-default, not one — (a) the whole preset absent from stored config, and (b) the preset present in stored config but its `hotkey` missing or not a string, so the value was injected by the `?? fallback?.hotkey` at read time. `hotkeyWasStored` (`src/features/providers/store/apiStore.ts`) is what tells them apart. A STORED string hotkey is NEVER rewritten — not `""`, not `"   "`, not stored-vs-stored collisions; that stays `validateHotkeys`'s pre-save job, not this guard's.
 
 Second trap, same guard, opposite direction: `promptGen` and `profileSwitch` are user-REMAPPABLE, and `registerCorrectionShortcut` treats both as reserved — a preset sitting on one gets skipped with a warn nobody read. So a default materialized onto a remapped app binding shows in Settings as assigned but can never fire. Guard covers this too: `normalizeCorrectionSettings` takes `reservedAppAccelerators` as a third param, defaulted to `keybindingStore.getKeyBindings()`, and a DEFAULT-sourced hotkey equal to one is blanked. Defaulted param, not a required one, so no call site can forget it and lose the guard silently. All three materialization paths apply it (non-object stored value, no-`presets`-array legacy, main path). A STORED hotkey on a reserved accelerator is still never rewritten — `validateHotkeys` pre-save owns that.
 

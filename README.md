@@ -38,7 +38,7 @@ Overview and Models share a time-range filter (All / 30d / 7d).
 
 ### Logging
 
-- `src/shared/logging.ts` + `src/main/logging/logService.ts` — structured logs with API-key and clipboard redaction
+- `src/features/logs/shared/logging.ts` + `src/main/logging/logService.ts` — structured logs with API-key and clipboard redaction
 - Persisted to `userData/logs/{YYYY-MM-DD}/fixlang.jsonl` (one folder per local day)
 - Logs tab reloads from disk with virtual infinite scroll (`@tanstack/react-virtual`)
 - Any subset of levels can be checked at once (no selection = all levels); the row timestamps omit the UTC offset because the footer states the zone once

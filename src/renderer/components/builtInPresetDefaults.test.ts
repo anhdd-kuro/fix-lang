@@ -3,7 +3,7 @@
  * @description Unit tests for `SettingCorrection.tsx`'s `makeBuiltInPresetDefaults`
  * — the Settings sidebar's per-id "reset built-in" map. Pure function import
  * only; no rendering (no React Testing Library, no react-dom). Importing
- * `getDefaultCorrectionSettings` pulls in `~/stores/apiStore`, which touches
+ * `getDefaultCorrectionSettings` pulls in `~/features/providers/store/apiStore`, which touches
  * electron-store / electron at module scope, hence the two mocks below
  * (hoisted by Vitest).
  */
@@ -23,6 +23,7 @@ vi.mock("electron", () => ({
   ipcMain: { handle: vi.fn(), on: vi.fn() },
   app: { getPath: vi.fn().mockReturnValue("/tmp") },
 }));
+import { getDefaultCorrectionSettings } from "~/features/providers/store/apiStore";
 import {
   DEFAULT_ASK_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
@@ -32,7 +33,6 @@ import {
   DEFAULT_SUMMARIZE_PRESET_ID,
   DEFAULT_TRANSLATE_PRESET_ID,
 } from "~/prompts/correction";
-import { getDefaultCorrectionSettings } from "~/stores/apiStore";
 import { makeBuiltInPresetDefaults } from "./SettingCorrection";
 
 describe("makeBuiltInPresetDefaults — the Settings sidebar's built-in reset map", () => {

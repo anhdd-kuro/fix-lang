@@ -8,12 +8,12 @@
  * connected providers) rather than describing defaults, so it cannot drift from
  * what the app actually does after the user edits a preset or a shortcut.
  */
-import { PROVIDER_ORDER, type ProviderId } from "~/shared/providers";
+import { PROVIDER_ORDER, type ProviderId } from "~/features/providers/shared/providers";
 import { DASHBOARD_TABS, type DashboardTabId } from "../../MainWindow/dashboardTabs";
 import { PROVIDER_LABEL_KEYS } from "../modelSelectOptions";
 import type { SettingsTabId } from "../SettingsModal";
-import type { MessageKey } from "~/shared/i18n/message";
-import type { CorrectionOutputMode } from "~/shared/outputMode";
+import type { CorrectionOutputMode } from "~/features/correction/shared/outputMode";
+import type { MessageKey } from "~/features/i18n/shared/message";
 
 /** Minimal preset shape the guide reads — deliberately narrower than `CorrectionPreset`. */
 export type GuidePresetInput = {

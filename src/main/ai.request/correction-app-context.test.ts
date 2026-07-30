@@ -24,7 +24,7 @@ vi.mock("electron", () => ({
   ipcMain: { handle: vi.fn(), on: vi.fn() },
   app: { getPath: vi.fn().mockReturnValue("/tmp") },
 }));
-vi.mock("~/stores/apiStore", async (importOriginal) => {
+vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- importOriginal returns unknown module shape
   const real = await importOriginal<any>();
   return {
@@ -50,6 +50,7 @@ vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
 // ---------------------------------------------------------------------------
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
+import { getProfileSetting } from "~/features/providers/store/apiStore";
 import {
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
   DEFAULT_CORRECTION_PRESET_ID,
@@ -57,12 +58,11 @@ import {
   DEFAULT_STRUCTURED_TEXT_PRESET_ID,
   DEFAULT_SUMMARIZE_PRESET_ID,
 } from "~/prompts";
-import { getProfileSetting } from "~/stores/apiStore";
 import { fixGrammar } from "./correction";
 import { generatePrompt } from "./promptgen";
 import { makeAIRequest } from "./shared";
 import type { Mock } from "vitest";
-import type { CorrectionPreset, CorrectionSettings } from "~/stores/apiStore";
+import type { CorrectionPreset, CorrectionSettings } from "~/features/providers/store/apiStore";
 
 const PRESERVE_MARKUP_BULLET =
   "do not add app-specific markup the input does not already use";

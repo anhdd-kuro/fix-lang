@@ -7,8 +7,8 @@
  * interval.
  *
  * `~/utils` now imports `~/main/notifications/error`, which transitively
- * imports `~/main/i18n` (→ `~/stores/localeStore`) and
- * `~/main/webViewWindows/errorPopupWindow` (→ `~/stores/themeStore` + a Vite
+ * imports `~/main/i18n` (→ `~/features/i18n/store/localeStore`) and
+ * `~/main/webViewWindows/errorPopupWindow` (→ `~/features/theme/store/themeStore` + a Vite
  * `?asset` import). Both `localeStore` and `themeStore` instantiate a real
  * `electron-store` `Store` at module scope, which throws ("Please specify
  * the projectName option") without a real Electron `app` — mocking both
@@ -55,7 +55,7 @@ vi.mock("electron", () => {
   return { ...mockedExports, default: mockedExports };
 });
 
-vi.mock("~/stores/localeStore", () => ({
+vi.mock("~/features/i18n/store/localeStore", () => ({
   getLocale: vi.fn().mockReturnValue("en"),
 }));
 

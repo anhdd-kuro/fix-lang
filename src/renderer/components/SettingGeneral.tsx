@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { BEDROCK_DEFAULT_REGION } from "~/shared/bedrockEndpoint";
-import { messageLabel, type Label, type Message } from "~/shared/i18n/message";
-import { LMSTUDIO_DEFAULT_ENDPOINT } from "~/shared/lmstudioEndpoint";
-import { OLLAMA_DEFAULT_ENDPOINT } from "~/shared/ollamaEndpoint";
-import { isMalformedOpenAIProjectId } from "~/shared/openaiProject";
+import { messageLabel, type Label, type Message } from "~/features/i18n/shared/message";
+import { BEDROCK_DEFAULT_REGION } from "~/features/providers/shared/bedrockEndpoint";
+import { LMSTUDIO_DEFAULT_ENDPOINT } from "~/features/providers/shared/lmstudioEndpoint";
+import { OLLAMA_DEFAULT_ENDPOINT } from "~/features/providers/shared/ollamaEndpoint";
+import { isMalformedOpenAIProjectId } from "~/features/providers/shared/openaiProject";
 import { Button } from "./Button";
 import { LanguageTabs } from "./LanguageTabs";
 import { ModelSelect } from "./ModelSelect";
@@ -26,9 +26,9 @@ import {
   type StatusDescriptor,
 } from "./statusDescriptor";
 import { useI18n } from "../i18n/useI18n";
-import type { CorrectionOutputMode } from "~/shared/outputMode";
-import type { ReasoningEffort } from "~/shared/reasoningEffort";
-import type { ProviderId } from "~/stores/apiStore";
+import type { CorrectionOutputMode } from "~/features/correction/shared/outputMode";
+import type { ReasoningEffort } from "~/features/correction/shared/reasoningEffort";
+import type { ProviderId } from "~/features/providers/store/apiStore";
 
 type ProviderStatus = {
   status?: StatusDescriptor;

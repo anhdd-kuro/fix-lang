@@ -5,6 +5,13 @@
  */
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
+import { reasoningForAiSdk } from "~/features/correction/shared/reasoningEffort";
+import {
+  buildLmStudioBaseUrl,
+  resolveLmStudioEndpoint,
+} from "~/features/providers/shared/lmstudioEndpoint";
+import { getCurrentProfileId, getProviderEndpoint } from "~/features/providers/store/apiStore";
+import { getProfileSecret } from "~/features/providers/store/profileSecretStore";
 import {
   sumTokenField,
   toConversation,
@@ -13,13 +20,6 @@ import {
 } from "~/main/ai.request/requestTypes";
 import { extractResolvedModel } from "~/main/ai.request/resolve-model";
 import { showErrorNotification } from "~/main/notifications/error";
-import {
-  buildLmStudioBaseUrl,
-  resolveLmStudioEndpoint,
-} from "~/shared/lmstudioEndpoint";
-import { reasoningForAiSdk } from "~/shared/reasoningEffort";
-import { getCurrentProfileId, getProviderEndpoint } from "~/stores/apiStore";
-import { getProfileSecret } from "~/stores/profileSecretStore";
 import { resolveLmStudioApiKey } from "./client";
 
 export const makeLmStudioAIRequest = async (options: AIRequestOptions) => {

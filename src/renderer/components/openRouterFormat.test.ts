@@ -4,7 +4,7 @@
  * including the localized degraded-card message, asserted in both locales.
  */
 import { describe, expect, it } from "vitest";
-import { createTranslator } from "~/shared/i18n/translate";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import { formatOpenRouterUsd, openRouterDegradedMessage } from "./openRouterFormat";
 
 describe("formatOpenRouterUsd", () => {

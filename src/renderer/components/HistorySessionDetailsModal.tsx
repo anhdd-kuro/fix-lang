@@ -11,7 +11,7 @@ import {
   type HistorySessionDetailsTab,
 } from "./historySessionDetailsView";
 import { useI18n } from "../i18n/useI18n";
-import type { TKey } from "~/shared/i18n/translate";
+import type { TKey } from "~/features/i18n/shared/translate";
 
 type HistorySessionDetailsModalProps = {
   isOpen: boolean;

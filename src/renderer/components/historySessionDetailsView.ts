@@ -1,13 +1,13 @@
 import {
+  type ReasoningEffort,
+  type ReasoningEffortStep,
+} from "~/features/correction/shared/reasoningEffort";
+import {
   parseHistorySession,
   serializeHistorySession,
   type HistorySessionMessage,
-} from "~/shared/historySession";
-import {
-  type ReasoningEffort,
-  type ReasoningEffortStep,
-} from "~/shared/reasoningEffort";
-import type { TKey } from "~/shared/i18n/translate";
+} from "~/features/history/shared/historySession";
+import type { TKey } from "~/features/i18n/shared/translate";
 
 export type HistorySessionDetailsTab = "json" | "chat";
 

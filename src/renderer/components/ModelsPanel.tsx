@@ -23,7 +23,7 @@ import {
   tokensPerDay,
   UNKNOWN_MODEL_ID,
 } from "../MainWindow/modelsAggregations";
-import type { HistoryEntry } from "~/stores/historyStore";
+import type { HistoryEntry } from "~/features/history/store/historyStore";
 
 type ModelsPanelProps = {
   /** Corrections-bucket history (App passes the corrections subset). */

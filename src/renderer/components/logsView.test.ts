@@ -5,7 +5,7 @@ import {
   timeZoneLabel,
   utcOffsetLabel,
 } from "./logsView";
-import type { LogEntry } from "~/shared/logging";
+import type { LogEntry } from "~/features/logs/shared/logging";
 
 const entries: LogEntry[] = [
   {

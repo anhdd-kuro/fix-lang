@@ -17,7 +17,7 @@ import { join } from "node:path";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createTranslator } from "~/shared/i18n/translate";
+import { createTranslator } from "~/features/i18n/shared/translate";
 
 vi.mock("../components/ModelSelect", () => ({
   ModelSelect: () => createElement("div", { "data-stub": "model-select" }),
