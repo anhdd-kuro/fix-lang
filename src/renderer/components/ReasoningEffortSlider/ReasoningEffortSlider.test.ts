@@ -19,10 +19,10 @@ import { I18nContext } from "../../i18n/I18nProvider";
 describe("ReasoningEffortSlider contract", () => {
   const t = createTranslator("en");
 
-  it("exposes six None→Smarter steps ending at xhigh", () => {
-    expect(REASONING_EFFORT_SLIDER_STEPS).toHaveLength(6);
+  it("exposes five None→Smarter steps ending at high", () => {
+    expect(REASONING_EFFORT_SLIDER_STEPS).toHaveLength(5);
     expect(REASONING_EFFORT_SLIDER_STEPS[0]).toBe("none");
-    expect(REASONING_EFFORT_SLIDER_STEPS[5]).toBe("xhigh");
+    expect(REASONING_EFFORT_SLIDER_STEPS[4]).toBe("high");
   });
 
   it("starts unset presets on None", () => {

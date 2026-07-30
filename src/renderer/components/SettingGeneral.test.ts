@@ -395,6 +395,7 @@ describe("SettingGeneral", () => {
       openrouter: providerState(),
       ollama: providerState(),
     },
+    apiOverrides: Record<string, unknown> = {},
   ) => {
     api = {
       // Set on every render, not in a `beforeEach`: `vi.clearAllMocks()`
@@ -421,6 +422,7 @@ describe("SettingGeneral", () => {
         localeListener = callback;
         return vi.fn();
       }),
+      ...apiOverrides,
     };
     Object.defineProperty(window, "electronAPI", {
       configurable: true,
@@ -618,6 +620,115 @@ describe("SettingGeneral", () => {
       });
       // Connecting never seeds a default model — that is the picker's job.
       expect(api.setSelectedModel).not.toHaveBeenCalled();
+    });
+
+    it("omits the OpenAI project id until the stored value has been read", async () => {
+      // Main treats a submitted "" as a deliberate clear, so connecting while the
+      // read is still in flight would WIPE a stored project id — silently, since
+      // nothing else in the Connect flow mentions it.
+      await render(
+        { success: true },
+        {
+          openai: providerState({
+            connected: true,
+            configured: true,
+            apiKeySet: true,
+          }),
+          openrouter: providerState(),
+          ollama: providerState(),
+        },
+        // Never resolves: the field stays in its not-yet-read state.
+        { getCurrentProfile: vi.fn(() => new Promise(vi.fn())) },
+      );
+
+      const field = container.querySelector<HTMLInputElement>(
+        "#openai-project-id",
+      );
+      expect(field?.disabled).toBe(true);
+
+      await click(connectButtonNear(container, "#api-key-openai"));
+      await waitForUi();
+
+      expect(api.connectProvider).toHaveBeenCalledTimes(1);
+      expect(api.connectProvider.mock.calls[0][0]).not.toHaveProperty("projectId");
+    });
+
+    it("submits the stored OpenAI project id, and an empty field as a clear", async () => {
+      await render(
+        { success: true },
+        {
+          openai: providerState({
+            connected: true,
+            configured: true,
+            apiKeySet: true,
+          }),
+          openrouter: providerState(),
+          ollama: providerState(),
+        },
+        {
+          getCurrentProfile: vi.fn().mockResolvedValue({
+            currentProfile: { settings: { openaiProjectId: "proj_stored" } },
+          }),
+        },
+      );
+
+      const field = container.querySelector<HTMLInputElement>(
+        "#openai-project-id",
+      );
+      if (!field) throw new Error("expected the OpenAI project id field");
+      expect(field.disabled).toBe(false);
+      expect(field.value).toBe("proj_stored");
+
+      await click(connectButtonNear(container, "#api-key-openai"));
+      await waitForUi();
+      expect(api.connectProvider.mock.calls[0][0]).toMatchObject({
+        provider: "openai",
+        projectId: "proj_stored",
+      });
+
+      await type(field, "");
+      await click(connectButtonNear(container, "#api-key-openai"));
+      await waitForUi();
+      expect(api.connectProvider.mock.calls[1][0]).toMatchObject({
+        provider: "openai",
+        projectId: "",
+      });
+    });
+
+    it("flags a malformed project id as it is typed, not only after Connect", async () => {
+      await render(
+        { success: true },
+        {
+          openai: providerState({
+            connected: true,
+            configured: true,
+            apiKeySet: true,
+          }),
+          openrouter: providerState(),
+          ollama: providerState(),
+        },
+        {
+          getCurrentProfile: vi
+            .fn()
+            .mockResolvedValue({ currentProfile: { settings: {} } }),
+        },
+      );
+
+      const field = container.querySelector<HTMLInputElement>(
+        "#openai-project-id",
+      );
+      if (!field) throw new Error("expected the OpenAI project id field");
+      // Empty is "unset", never an error.
+      expect(field.getAttribute("aria-invalid")).toBe("false");
+      expect(container.textContent).toContain(
+        tEn("settings.general.providers.openai.projectId.hint"),
+      );
+
+      await type(field, "org-not-a-project");
+      expect(field.getAttribute("aria-invalid")).toBe("true");
+      expect(container.textContent).toContain(
+        tEn("settings.general.providers.openai.projectId.invalid"),
+      );
     });
 
     it("requires an explicit confirm before disconnecting, and can be cancelled", async () => {
