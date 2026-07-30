@@ -24,6 +24,7 @@ import { deliverCorrectionOutput } from "./correctionOutput";
 import { handleError } from "./utils";
 import { buildPriceMap, computeCost } from "../ai.request/cost";
 import { getCachedModels, isLocalModelId } from "../ai.request/shared";
+import { startLatencyTimer } from "../logging/latencyTimer";
 import { logger } from "../logging/logService";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
 import { showAskResultWindow } from "../webViewWindows/askResultWindow";
@@ -68,10 +69,23 @@ export const runAskFlow = async ({
 
   const message = `${composed}\n\n${buildAppLocaleDirective()}`;
 
-  showOverlaySpinner();
+  // The Ask clock starts at submit, not at the hotkey: the gap between them is
+  // the user typing their question. `correction.ts` measures press → input
+  // window separately, under the `input-shown` outcome.
+  const latency = startLatencyTimer({
+    scope: "correction.latency",
+    message: "Ask latency",
+    context: { presetId: preset.id },
+  });
 
   try {
+    // Inside the try for the same reason as `correction.ts`'s prewarm: no
+    // statement between starting the timer and delivering may escape without
+    // finishing it.
+    showOverlaySpinner();
+
     const result = await fixGrammar(message, preset.id);
+    latency.mark("aiRequest");
 
     const delivery = await deliverAskResult({
       preset,
@@ -79,6 +93,8 @@ export const runAskFlow = async ({
       input: context,
       result,
     });
+    latency.mark("delivery");
+    latency.finish({ outcome: "delivered", delivery });
 
     logger.info("correction.hotkey", "Ask completed", {
       presetId: preset.id,
@@ -95,6 +111,7 @@ export const runAskFlow = async ({
     hideOverlaySpinner();
   } catch (error) {
     hideOverlaySpinner();
+    latency.finish({ outcome: "failed" });
     logger.error("correction.hotkey", "Ask failed", {
       presetId: preset.id,
       error: error instanceof Error ? error.message : String(error),

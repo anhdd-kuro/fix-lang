@@ -2,7 +2,10 @@
  * @file localeStore.test.ts
  * @description Tests for locale persistence. Pure unit tests — no Electron —
  * electron-store is replaced with a stateful in-memory mock so get/set
- * round-trip within a test, mirroring src/features/*/store/apiStore.test.ts.
+ * round-trip within a test, mirroring the per-feature store tests such as
+ * features/providers/store/apiStore.test.ts. (Do not write that path with a
+ * wildcard segment here: the resulting `*` + `/` closes this block comment
+ * early and the file stops parsing.)
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getLocale, initializeLocaleFromSystem, setLocale } from "~/features/i18n/store/localeStore";

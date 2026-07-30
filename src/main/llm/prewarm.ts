@@ -17,13 +17,13 @@
  * same cached model list (`getCachedModels`). Nothing here re-derives which
  * provider a ref belongs to.
  */
-import { getCachedModels } from "~/main/ai.request/shared";
-import { keepAliveFetch } from "~/main/llm/httpKeepAlive";
-import { logger } from "~/main/logging/logService";
 import { parseModelRef, resolveModelRef } from "~/features/providers/shared/modelRef";
 import { getApiKey } from "~/features/providers/store/apiKeyStore";
 import { getCurrentProfileId } from "~/features/providers/store/apiStore";
 import { getProfileSecret } from "~/features/providers/store/profileSecretStore";
+import { getCachedModels } from "~/main/ai.request/shared";
+import { keepAliveFetch } from "~/main/llm/httpKeepAlive";
+import { logger } from "~/main/logging/logService";
 import type { Model, ProviderId } from "~/features/providers/shared/providers";
 
 const LOG_SCOPE = "prewarm.connection";

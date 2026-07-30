@@ -20,6 +20,7 @@ import { effectiveModelRef } from "../ai.request/correction";
 import { buildPriceMap, computeCost } from "../ai.request/cost";
 import { getCachedModels, isLocalModelId } from "../ai.request/shared";
 import { prewarmProviderConnection } from "../llm/prewarm";
+import { startLatencyTimer } from "../logging/latencyTimer";
 import { logger } from "../logging/logService";
 import { LocalizedError } from "../notifications/error";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
@@ -60,19 +61,30 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
     const registered = globalShortcut.register(
       shortcut,
       withHotkeyThrottle(shortcut, async () => {
+      // Started before anything else in the handler, including the prewarm, so
+      // `totalMs` is the number the user actually feels: press → result in
+      // front of them. Everything after this line is inside the measurement.
+      const latency = startLatencyTimer({
+        scope: "correction.latency",
+        message: "Transform latency",
+        context: { presetId: preset.id },
+      });
+
       logger.info("correction.hotkey", "Hotkey triggered", {
         presetId: preset.id,
       });
 
-      // Fire-and-forget: starts the provider's TCP+TLS handshake now so it
-      // overlaps the AppleScript selection read below (and, for the
-      // `requiresInput` branch, the time the user spends typing into the Ask
-      // input window) instead of happening serially right before the real
-      // request. Never throws, never blocks, never surfaces an error — see
-      // `~/main/llm/prewarm.ts`'s own contract.
-      prewarmProviderConnection(effectiveModelRef(preset));
-
       try {
+        // Fire-and-forget: starts the provider's TCP+TLS handshake now so it
+        // overlaps the AppleScript selection read below (and, for the
+        // `requiresInput` branch, the time the user spends typing into the Ask
+        // input window) instead of happening serially right before the real
+        // request. Never throws, never blocks, never surfaces an error — see
+        // `~/main/llm/prewarm.ts`'s own contract. Kept INSIDE the try so that
+        // nothing between starting the timer and delivering can return without
+        // finishing it, even if that contract is ever broken.
+        prewarmProviderConnection(effectiveModelRef(preset));
+
         // Ask AI inverts the outbound-polish presets below: an empty
         // selection is the normal case (the question can stand alone), so it
         // must never hit the "no text selected" abort. The window itself
@@ -93,6 +105,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         // osascript round-trip for this preset.
         if (preset.requiresInput) {
           const context = await getHighlightedTextForOptionalContext();
+          latency.mark("selectionRead");
           showAskInputWindow(
             { presetId: preset.id, context },
             {
@@ -106,6 +119,10 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
               },
             },
           );
+          // Ask AI's clock stops here on purpose: past this point the elapsed
+          // time is the user typing a question, which is not latency. The
+          // request half is measured separately from submit, in `askFlow.ts`.
+          latency.finish({ outcome: "input-shown" });
           return;
         }
 
@@ -118,15 +135,22 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         // visible, since afterwards it would report FixLang and yield null.
         const { text: selectedText, activeApp } = await getHighlightedTextWithActiveApp(
           () => {
+            // Splits the osascript spawn from the clipboard-change poll that
+            // follows it — the two fail slow for completely different reasons
+            // (System Events contention vs. a sluggish source app), so a
+            // single combined number would not say which one regressed.
+            latency.mark("keystrokeSent");
             showOverlaySpinner();
           },
         );
+        latency.mark("selectionPoll");
 
         if (!selectedText || !selectedText.trim()) {
           // Safe even though the spinner may not have been shown yet
           // (e.g. the combined read threw before the callback fired):
           // hiding an overlay that was never shown is a no-op.
           hideOverlaySpinner();
+          latency.finish({ outcome: "no-selection" });
           logger.warn(
             "correction.hotkey",
             "No text selected or clipboard is empty",
@@ -148,6 +172,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         const result = await fixGrammar(selectedText, preset.id, {
           activeAppName: activeApp?.name,
         });
+        latency.mark("aiRequest");
 
         if (
           result.correctedText === selectedText &&
@@ -174,6 +199,11 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
             showPopup: showCorrectionResultWindow,
           },
         );
+        latency.mark("delivery");
+        // Finished here, NOT at the end of the handler: everything below is
+        // bookkeeping the user never waits for (cost snapshot, history write,
+        // IPC). Including it would inflate the number the user feels.
+        latency.finish({ outcome: "delivered", delivery });
 
         logger.info("correction.hotkey", "Correction completed", {
           presetId: preset.id,
@@ -237,6 +267,9 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         hideOverlaySpinner();
       } catch (error) {
         hideOverlaySpinner();
+        // No-op when delivery already finished the timer (first finish wins) —
+        // a post-delivery throw must not relabel a real measurement as failed.
+        latency.finish({ outcome: "failed" });
         logger.error("correction.hotkey", "Correction failed", {
           presetId: preset.id,
           error: error instanceof Error ? error.message : String(error),
