@@ -77,26 +77,51 @@ export const resolveProviderForModelRef = (
  * Missing key just returns early: with no key the real request would fail
  * anyway, so there is nothing useful to warm.
  */
+/**
+ * Drains the response so undici can return the socket to the pool.
+ *
+ * `fetch` resolves as soon as the response HEADERS arrive; the body is still
+ * streaming. A `Response` that is dropped without its body being read or
+ * cancelled leaves that connection outstanding, so the real completion moments
+ * later opens a SECOND connection — the prewarm would hold a socket instead of
+ * handing one over, defeating its own purpose. Reading to completion (rather
+ * than cancelling) is what actually frees the socket for reuse; cancelling can
+ * tear the connection down instead, which is the opposite of the goal.
+ */
+const drain = async (response: { arrayBuffer: () => Promise<unknown> }): Promise<void> => {
+  await response.arrayBuffer();
+};
+
 const warmOpenAI = async (): Promise<void> => {
   const profileId = getCurrentProfileId();
   const apiKey = profileId ? await getProfileSecret(profileId, "openai", "api") : null;
   if (!apiKey) return;
-  await keepAliveFetch("https://api.openai.com/v1/models", {
+  const response = await keepAliveFetch("https://api.openai.com/v1/models", {
     method: "GET",
     headers: { Authorization: `Bearer ${apiKey.trim()}` },
     signal: AbortSignal.timeout(5000),
   });
+  await drain(response);
 };
 
-/** Mirrors `makeOpenRouterAIRequest`'s own key fallback chain. */
+/**
+ * Mirrors `makeOpenRouterAIRequest`'s own key fallback chain.
+ *
+ * Hits `/credits` rather than `/models`: the body has to be drained to free
+ * the socket (see `drain`), and OpenRouter's model list is megabytes, which
+ * would make every warm-up download far more than the handshake it saves.
+ * `/credits` is the same origin, equally read-only, and a few bytes. The
+ * response is discarded either way — only the connection matters here.
+ */
 const warmOpenRouter = async (): Promise<void> => {
   const apiKey = await getApiKey();
   if (!apiKey) return;
-  await keepAliveFetch("https://openrouter.ai/api/v1/models", {
+  const response = await keepAliveFetch("https://openrouter.ai/api/v1/credits", {
     method: "GET",
     headers: { Authorization: `Bearer ${apiKey.trim()}` },
     signal: AbortSignal.timeout(5000),
   });
+  await drain(response);
 };
 
 /**

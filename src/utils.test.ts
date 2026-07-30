@@ -97,12 +97,24 @@ const mockCopyExec = ({
   stdout?: string;
   newClipboardValue?: string;
 }): void => {
-  execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
-    if (!error && newClipboardValue !== undefined) {
-      clipboardState.text = newClipboardValue;
-    }
-    callback(error, stdout);
-  });
+  execMock.mockImplementation(
+    // `exec` is called both ways in `src/utils.ts`: plain
+    // `exec(cmd, callback)` for the bare keystrokes, and
+    // `exec(cmd, { timeout }, callback)` for the combined frontmost-app read,
+    // which must be bounded so a hung System Events cannot block the copy.
+    // Resolving the callback positionally keeps this mock honest for both
+    // instead of silently receiving the options object as its callback.
+    (_cmd: string, optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+      const callback =
+        typeof optionsOrCallback === "function"
+          ? (optionsOrCallback as ExecCallback)
+          : (maybeCallback as ExecCallback);
+      if (!error && newClipboardValue !== undefined) {
+        clipboardState.text = newClipboardValue;
+      }
+      callback(error, stdout);
+    },
+  );
 };
 
 describe("getHighlightedText", () => {
@@ -215,6 +227,22 @@ describe("getHighlightedTextForOptionalContext", () => {
     await expect(pending).resolves.toBe("");
   });
 
+  it("settles the no-change case fast — Ask AI's empty selection is the NORMAL path, not a 3s stall", async () => {
+    // `waitForClipboardChange`'s own default is 3s. Inheriting it here meant
+    // the Ask AI hotkey sat unresponsive for three seconds before its input
+    // window opened, every single time nothing was selected — worse than the
+    // ~200ms of fixed `delay` the poll replaced. Advancing only 600ms proves
+    // the timeout is explicitly bounded: at the 3s default this promise would
+    // still be pending here.
+    vi.useFakeTimers();
+    mockCopyExec({});
+
+    const pending = getHighlightedTextForOptionalContext();
+    await vi.advanceTimersByTimeAsync(600);
+
+    await expect(pending).resolves.toBe("");
+  });
+
   it("returns the new selection when the copy changed the clipboard", async () => {
     mockCopyExec({ newClipboardValue: "the user's real selection" });
 
@@ -296,6 +324,47 @@ describe("getHighlightedTextWithActiveApp — combined frontmost-app + copy read
       text: "some selection",
       activeApp: null,
     });
+  });
+
+  it("still copies when the combined frontmost-app read fails, reporting a null activeApp", async () => {
+    // A hung or failing System Events lookup must cost only the app-context
+    // block. The lookup runs BEFORE the keystroke inside the combined script,
+    // so without a plain-keystroke retry a beachballed frontmost app would
+    // take the whole transform down with it.
+    let call = 0;
+    execMock.mockImplementation(
+      (_cmd: string, optionsOrCallback: unknown, maybeCallback?: ExecCallback) => {
+        const callback =
+          typeof optionsOrCallback === "function"
+            ? (optionsOrCallback as ExecCallback)
+            : (maybeCallback as ExecCallback);
+        call += 1;
+        if (call === 1) {
+          // The combined script, as `exec` reports a timeout kill.
+          callback(new Error("Command failed: osascript ... ETIMEDOUT"), "");
+          return;
+        }
+        // The plain-keystroke retry succeeds and lands the selection.
+        clipboardState.text = "the user's real selection";
+        callback(null, "");
+      },
+    );
+
+    await expect(getHighlightedTextWithActiveApp()).resolves.toEqual({
+      text: "the user's real selection",
+      activeApp: null,
+    });
+    expect(execMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("bounds the combined script with a timeout so a hung lookup cannot hang the copy", async () => {
+    mockCopyExec({ stdout: "Slack\tcom.tinyspeck.slackmacgap", newClipboardValue: "sel" });
+
+    await getHighlightedTextWithActiveApp();
+
+    const [, options] = execMock.mock.calls[0];
+    expect(options).toMatchObject({ timeout: expect.any(Number) });
+    expect((options as { timeout: number }).timeout).toBeGreaterThan(0);
   });
 
   it("fires the callback right after the script returns, before the clipboard-change poll resolves", async () => {

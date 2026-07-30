@@ -45,6 +45,18 @@ vi.mock("~/stores/apiKeyStore", () => ({
   getApiKey: getApiKeyMock,
 }));
 
+/**
+ * A warm-up response stub. `arrayBuffer` is not decoration: `prewarm.ts`
+ * drains the body so undici can hand the socket back to the pool, so a stub
+ * without it would throw inside the warm and turn every "successful" prewarm
+ * in these tests into a silently-failed one.
+ */
+const okWarmResponse = () => ({
+  ok: true,
+  status: 200,
+  arrayBuffer: vi.fn<() => Promise<ArrayBuffer>>().mockResolvedValue(new ArrayBuffer(0)),
+});
+
 // ---------------------------------------------------------------------------
 // resolveProviderForModelRef — pure, no mocking needed
 // ---------------------------------------------------------------------------
@@ -104,7 +116,7 @@ describe("prewarmProviderConnection", () => {
     getCurrentProfileIdMock.mockReturnValue("profile-1");
     getProfileSecretMock.mockResolvedValue("sk-test-openai-key");
     getApiKeyMock.mockResolvedValue("sk-or-test-key");
-    keepAliveFetchMock.mockResolvedValue({ ok: true, status: 200 });
+    keepAliveFetchMock.mockResolvedValue(okWarmResponse());
 
     vi.resetModules();
     prewarmProviderConnection = (await import("./prewarm")).prewarmProviderConnection;
@@ -131,12 +143,25 @@ describe("prewarmProviderConnection", () => {
     expect(init.headers.Authorization).toBe("Bearer sk-test-openai-key");
   });
 
-  it("warms OpenRouter the same way", async () => {
+  it("warms OpenRouter via the tiny /credits endpoint, not the multi-MB model list", async () => {
     prewarmProviderConnection("openrouter::openai/gpt-4o");
     await vi.waitFor(() => expect(keepAliveFetchMock).toHaveBeenCalledTimes(1));
 
     const [url] = keepAliveFetchMock.mock.calls[0];
-    expect(url).toBe("https://openrouter.ai/api/v1/models");
+    // The body has to be drained to free the socket, so the endpoint must be
+    // cheap — /models would download megabytes per hotkey press.
+    expect(url).toBe("https://openrouter.ai/api/v1/credits");
+  });
+
+  it("drains the response body so undici can pool the socket", async () => {
+    const response = okWarmResponse();
+    keepAliveFetchMock.mockResolvedValue(response);
+
+    prewarmProviderConnection("openai::gpt-4o");
+
+    // Without this the connection stays outstanding and the real completion
+    // opens a second one — the prewarm would hold a socket, not hand one over.
+    await vi.waitFor(() => expect(response.arrayBuffer).toHaveBeenCalledTimes(1));
   });
 
   it("skips local providers (Ollama) entirely — no fetch, loopback buys nothing", async () => {
@@ -219,7 +244,7 @@ describe("prewarmProviderConnection", () => {
 
     expect(keepAliveFetchMock.mock.calls.map(([url]) => url)).toEqual([
       "https://api.openai.com/v1/models",
-      "https://openrouter.ai/api/v1/models",
+      "https://openrouter.ai/api/v1/credits",
     ]);
   });
 
@@ -228,7 +253,7 @@ describe("prewarmProviderConnection", () => {
     prewarmProviderConnection("openai::gpt-4o");
     await vi.waitFor(() => expect(keepAliveFetchMock).toHaveBeenCalledTimes(1));
 
-    keepAliveFetchMock.mockResolvedValue({ ok: true, status: 200 });
+    keepAliveFetchMock.mockResolvedValue(okWarmResponse());
     prewarmProviderConnection("openai::gpt-4o");
 
     await vi.waitFor(() => expect(keepAliveFetchMock).toHaveBeenCalledTimes(2));

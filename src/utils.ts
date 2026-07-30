@@ -75,6 +75,30 @@ let clipboardOperationsInFlight = 0;
 const CLIPBOARD_POLL_INTERVAL_MS = 10;
 
 /**
+ * How long `finishClipboardRead` waits for the pasteboard to change before
+ * giving up.
+ *
+ * This MUST be set explicitly — `waitForClipboardChange`'s own default is 3s,
+ * which is a sane budget for its original caller but catastrophic here. When
+ * nothing is selected the synthesized Cmd-C is a no-op, so the clipboard never
+ * changes and the poll always runs to its full timeout. That is the NORMAL
+ * case for Ask AI, so inheriting 3s made its hotkey sit unresponsive for three
+ * seconds before the input window opened — far worse than the ~200ms of fixed
+ * `delay` the poll replaced.
+ *
+ * Chosen against the opposite risk rather than for pure speed: the copy
+ * keystroke's `osascript` has already exited by the time the poll starts, but
+ * the target app writes the pasteboard on its own schedule, so a slow app can
+ * still land it a little later. Timing out too early reports "unchanged",
+ * which on the strict path returns the PREVIOUS clipboard — silently
+ * transforming the wrong text, a much worse failure than a short wait. 500ms
+ * is ~5x the old fixed 100ms post-keystroke delay, so an app that was fast
+ * enough before is comfortably inside it, while the no-selection case now
+ * costs 0.5s instead of 3s.
+ */
+const CLIPBOARD_CHANGE_TIMEOUT_MS = 500;
+
+/**
  * Maps a copy-keystroke failure to the right thrown error: a revoked
  * Accessibility permission (see `~/main/accessibility/keystrokePermission`)
  * becomes `AccessibilityPermissionError` so callers can trigger the
@@ -123,6 +147,7 @@ const finishClipboardRead = async (
   const value = await waitForClipboardChange({
     oldValue: previousClipboardContent,
     interval: CLIPBOARD_POLL_INTERVAL_MS,
+    timeout: CLIPBOARD_CHANGE_TIMEOUT_MS,
   });
   return { value, changed: value !== previousClipboardContent };
 };
@@ -284,9 +309,32 @@ export const getHighlightedTextWithActiveApp = async (
   });
 
   try {
-    const stdout = await sendCopyKeystrokeWithActiveAppRead();
-    const activeApp = parseActiveApp(stdout);
-    logActiveAppRead(activeApp, stdout);
+    // App context is best-effort; the COPY is not. When the combined script
+    // fails or hits `ACTIVE_APP_READ_TIMEOUT_MS` (a beachballed frontmost
+    // process still answers System Events, just slowly), retry with a plain
+    // keystroke rather than failing the transform — a hung lookup must cost
+    // only the metadata block, exactly as it did when the lookup was a
+    // separate, separately-capped `osascript` call. Re-sending Cmd-C is safe:
+    // if the timed-out script had already delivered its keystroke, the second
+    // one copies the same selection again.
+    let activeApp: ActiveApp | null = null;
+    try {
+      const stdout = await sendCopyKeystrokeWithActiveAppRead();
+      activeApp = parseActiveApp(stdout);
+      logActiveAppRead(activeApp, stdout);
+    } catch (activeAppError) {
+      logger.warn(
+        "accessibility.activeApp",
+        "Combined frontmost-app read failed; retrying copy without app context",
+        {
+          error:
+            activeAppError instanceof Error
+              ? activeAppError.message
+              : String(activeAppError),
+        },
+      );
+      await sendCopyKeystroke();
+    }
 
     onFrontmostReadAndKeystrokeSent?.();
 
@@ -342,7 +390,19 @@ const sendCopyKeystroke = (): Promise<void> => {
  * currently reports itself frontmost) cannot prevent the keystroke from
  * firing — best-effort in, best-effort out: `parseActiveApp` already treats
  * an empty/malformed line as "no usable context" on the JS side.
+ *
+ * The AppleScript `try` covers lookup ERRORS but cannot cover a HANG: a
+ * beachballed frontmost process still answers System Events, just very slowly,
+ * and `first application process whose frontmost is true` enumerates every
+ * process. Because that enumeration now runs BEFORE the keystroke in the same
+ * script, an unbounded hang here would block the copy itself — where the old
+ * standalone lookup was capped at `ACTIVE_APP_TIMEOUT_MS` and simply degraded
+ * to null while the copy went ahead separately. The timeout restores that
+ * bound; the caller falls back to a plain `sendCopyKeystroke` so a hung lookup
+ * still costs only the app-context block, never the whole transform.
  */
+const ACTIVE_APP_READ_TIMEOUT_MS = 1_500;
+
 const sendCopyKeystrokeWithActiveAppRead = (): Promise<string> => {
   return new Promise((resolve, reject) => {
     const script = `
@@ -359,13 +419,17 @@ const sendCopyKeystrokeWithActiveAppRead = (): Promise<string> => {
       return frontName & tab & frontBundleId
     `;
 
-    exec(`osascript -e '${script}'`, (error, stdout) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve(stdout);
-    });
+    exec(
+      `osascript -e '${script}'`,
+      { timeout: ACTIVE_APP_READ_TIMEOUT_MS },
+      (error, stdout) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(stdout);
+      },
+    );
   });
 };
 
