@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { BEDROCK_DEFAULT_REGION } from "~/shared/bedrockEndpoint";
+import { DEFAULT_CLIPBOARD_FALLBACK_ENABLED } from "~/shared/clipboardFallback";
 import { messageLabel, type Label, type Message } from "~/shared/i18n/message";
 import { LMSTUDIO_DEFAULT_ENDPOINT } from "~/shared/lmstudioEndpoint";
 import { OLLAMA_DEFAULT_ENDPOINT } from "~/shared/ollamaEndpoint";
 import { isMalformedOpenAIProjectId } from "~/shared/openaiProject";
 import { Button } from "./Button";
+import { Checkbox } from "./Checkbox";
 import { LanguageTabs } from "./LanguageTabs";
 import { ModelSelect } from "./ModelSelect";
 import { PROVIDER_LABEL_KEYS } from "./modelSelectOptions";
@@ -52,6 +54,13 @@ export const SettingGeneral: React.FC = () => {
     useState<StatusDescriptor | null>(null);
   const [outputModeIsError, setOutputModeIsError] = useState<boolean>(false);
   const [savingOutputMode, setSavingOutputMode] = useState(false);
+  const [clipboardFallbackEnabled, setClipboardFallbackEnabled] =
+    useState<boolean>(DEFAULT_CLIPBOARD_FALLBACK_ENABLED);
+  const [clipboardFallbackStatus, setClipboardFallbackStatus] =
+    useState<StatusDescriptor | null>(null);
+  const [clipboardFallbackIsError, setClipboardFallbackIsError] =
+    useState<boolean>(false);
+  const [savingClipboardFallback, setSavingClipboardFallback] = useState(false);
   const [defaultReasoningEffort, setDefaultReasoningEffort] =
     useState<ReasoningEffort>("none");
   const [savingReasoning, setSavingReasoning] = useState(false);
@@ -220,6 +229,21 @@ export const SettingGeneral: React.FC = () => {
           wrappedError(messageLabel("settings.general.outputMode.unavailable")),
         );
       });
+    window.electronAPI
+      ?.getClipboardFallbackEnabled?.()
+      .then(setClipboardFallbackEnabled)
+      .catch((error: unknown) => {
+        console.error(
+          "SettingGeneral: Error loading clipboard fallback setting:",
+          error,
+        );
+        setClipboardFallbackIsError(true);
+        setClipboardFallbackStatus(
+          wrappedError(
+            messageLabel("settings.general.clipboardFallback.unavailable"),
+          ),
+        );
+      });
     // Descriptor-only now — no `t()` call in this effect, so no locale
     // dependency to worry about; load-once on mount is correct as written.
   }, []);
@@ -295,6 +319,59 @@ export const SettingGeneral: React.FC = () => {
       setOutputModeStatus(plainStatus("settings.general.outputMode.saveError"));
     } finally {
       setSavingOutputMode(false);
+    }
+  };
+
+  const handleClipboardFallbackChange = async (enabled: boolean) => {
+    if (!window.electronAPI?.setClipboardFallbackEnabled) {
+      setClipboardFallbackIsError(true);
+      setClipboardFallbackStatus(
+        wrappedError(
+          messageLabel("settings.general.clipboardFallback.unavailable"),
+        ),
+      );
+      return;
+    }
+
+    const previousEnabled = clipboardFallbackEnabled;
+    setClipboardFallbackEnabled(enabled);
+    setSavingClipboardFallback(true);
+    setClipboardFallbackIsError(false);
+    setClipboardFallbackStatus(
+      plainStatus("settings.general.clipboardFallback.saving"),
+    );
+
+    try {
+      const result = await window.electronAPI.setClipboardFallbackEnabled(enabled);
+      if (!result.success) {
+        setClipboardFallbackEnabled(previousEnabled);
+        setClipboardFallbackIsError(true);
+        setClipboardFallbackStatus(
+          wrappedError(
+            result.error ??
+              messageLabel("settings.general.clipboardFallback.saveFailed"),
+          ),
+        );
+        return;
+      }
+      setClipboardFallbackEnabled(result.enabled ?? enabled);
+      setClipboardFallbackIsError(false);
+      setClipboardFallbackStatus(
+        plainStatus("settings.general.clipboardFallback.saved"),
+      );
+      setTimeout(() => setClipboardFallbackStatus(null), 2000);
+    } catch (error) {
+      console.error(
+        "SettingGeneral: Error saving clipboard fallback setting:",
+        error,
+      );
+      setClipboardFallbackEnabled(previousEnabled);
+      setClipboardFallbackIsError(true);
+      setClipboardFallbackStatus(
+        plainStatus("settings.general.clipboardFallback.saveError"),
+      );
+    } finally {
+      setSavingClipboardFallback(false);
     }
   };
 
@@ -998,6 +1075,32 @@ export const SettingGeneral: React.FC = () => {
             role="status"
           >
             {resolveStatus(outputModeStatus)}
+          </p>
+        )}
+      </section>
+
+      <section className="mb-4">
+        <Checkbox
+          name="clipboardFallbackEnabled"
+          checked={clipboardFallbackEnabled}
+          onChange={(enabled) => void handleClipboardFallbackChange(enabled)}
+          disabled={savingClipboardFallback}
+          label={
+            <>
+              {t("settings.general.clipboardFallback.label")}
+              <span className="ml-2 text-xs text-muted-foreground">
+                {t("settings.general.clipboardFallback.hint")}
+              </span>
+            </>
+          }
+          className="text-card-foreground"
+        />
+        {clipboardFallbackStatus && (
+          <p
+            className={`mt-1 text-xs ${clipboardFallbackIsError ? "text-destructive" : "text-success"}`}
+            role="status"
+          >
+            {resolveStatus(clipboardFallbackStatus)}
           </p>
         )}
       </section>

@@ -20,6 +20,7 @@ import {
   buildDashboardRows,
   buildPresetRows,
   buildProviderRows,
+  clipboardFallbackDescriptor,
   GUIDE_TOPICS,
   outputModeDescriptor,
   splitHotkey,
@@ -51,6 +52,7 @@ type GuideSnapshot = {
   presets: GuidePresetRow[];
   providers: GuideProviderRow[];
   outputMode: CorrectionOutputMode | null;
+  clipboardFallbackEnabled: boolean | null;
   profileSwitchKeys: string[];
   promptGenKeys: string[];
 };
@@ -59,6 +61,7 @@ const EMPTY_SNAPSHOT: GuideSnapshot = {
   presets: [],
   providers: [],
   outputMode: null,
+  clipboardFallbackEnabled: null,
   profileSwitchKeys: [],
   promptGenKeys: [],
 };
@@ -136,18 +139,28 @@ export const UserGuidePanel = ({
         Promise.resolve(window.electronAPI.getKeyBindings()),
         Promise.resolve(window.electronAPI.getCorrectionOutputMode()),
         Promise.resolve(window.electronAPI.getProviderStates?.()),
+        Promise.resolve(window.electronAPI.getClipboardFallbackEnabled?.()),
       ])
-        .then(([correction, keyBindings, outputMode, providerStates]) => {
-          if (!mounted) return;
-          setSnapshot({
-            presets: buildPresetRows(correction?.presets ?? []),
-            providers: buildProviderRows(providerStates ?? {}),
-            outputMode: outputMode ?? null,
-            profileSwitchKeys: splitHotkey(keyBindings?.profileSwitch),
-            promptGenKeys: splitHotkey(keyBindings?.promptGen),
-          });
-          setPhase("ready");
-        })
+        .then(
+          ([
+            correction,
+            keyBindings,
+            outputMode,
+            providerStates,
+            clipboardFallbackEnabled,
+          ]) => {
+            if (!mounted) return;
+            setSnapshot({
+              presets: buildPresetRows(correction?.presets ?? []),
+              providers: buildProviderRows(providerStates ?? {}),
+              outputMode: outputMode ?? null,
+              clipboardFallbackEnabled: clipboardFallbackEnabled ?? null,
+              profileSwitchKeys: splitHotkey(keyBindings?.profileSwitch),
+              promptGenKeys: splitHotkey(keyBindings?.promptGen),
+            });
+            setPhase("ready");
+          },
+        )
         .catch(() => {
           // The written guidance below does not depend on any of this, so a
           // failed read degrades to "we could not read your setup" rather than
@@ -171,6 +184,9 @@ export const UserGuidePanel = ({
 
   const noHotkeyText = t("guide.presets.noHotkey");
   const output = outputModeDescriptor(snapshot.outputMode);
+  const clipboardFallback = clipboardFallbackDescriptor(
+    snapshot.clipboardFallbackEnabled,
+  );
   const dashboardRows = buildDashboardRows();
   const profileSwitchText =
     snapshot.profileSwitchKeys.length === 0
@@ -309,6 +325,23 @@ export const UserGuidePanel = ({
                 description: t(output.descriptionKey),
               })}
         </p>
+
+        {/* Reads the stored value, so a user who turned the fallback off is
+            never told it is on. Rendered only once read — an unread value has
+            no honest state to show, and the load banner above covers it. */}
+        {clipboardFallback !== null && (
+          <>
+            <h4 className="mt-3 text-sm font-semibold text-card-foreground">
+              {t(clipboardFallback.labelKey)}
+            </h4>
+            <p className="mt-1 text-sm text-muted-foreground">
+              <span className="font-semibold text-card-foreground">
+                {t(clipboardFallback.statusKey)}
+              </span>{" "}
+              {t(clipboardFallback.hintKey)}
+            </p>
+          </>
+        )}
       </GuideSection>
       <GuideSection id="guide-result-heading" title={t("guide.result.title")}>
         <p className="mt-1 text-sm text-muted-foreground">

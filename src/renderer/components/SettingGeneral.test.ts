@@ -93,6 +93,8 @@ type SettingGeneralApi = {
   onProfileUpdated: ReturnType<typeof vi.fn>;
   getCorrectionOutputMode: ReturnType<typeof vi.fn>;
   setCorrectionOutputMode: ReturnType<typeof vi.fn>;
+  getClipboardFallbackEnabled: ReturnType<typeof vi.fn>;
+  setClipboardFallbackEnabled: ReturnType<typeof vi.fn>;
   resetProfileSettings: ReturnType<typeof vi.fn>;
   // Read by the embedded `<ModelSelect>`.
   fetchAIModels: ReturnType<typeof vi.fn>;
@@ -411,6 +413,12 @@ describe("SettingGeneral", () => {
       setCorrectionOutputMode: vi
         .fn()
         .mockResolvedValue({ success: true, mode: "paste" }),
+      getClipboardFallbackEnabled: vi.fn().mockResolvedValue(true),
+      setClipboardFallbackEnabled: vi
+        .fn()
+        .mockImplementation((enabled: boolean) =>
+          Promise.resolve({ success: true, enabled }),
+        ),
       resetProfileSettings: vi.fn().mockResolvedValue(resetResult),
       fetchAIModels: vi.fn().mockResolvedValue({ success: true, models: [] }),
       getSelectedModel: vi.fn().mockResolvedValue(""),
@@ -576,6 +584,68 @@ describe("SettingGeneral", () => {
     });
     expect(statuses()).toContain(jaWrapped);
     expect(jaWrapped).not.toBe(enWrapped);
+  });
+
+  describe("clipboard fallback", () => {
+    const clipboardFallbackCheckbox = (): HTMLInputElement => {
+      const checkbox = [
+        ...container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'),
+      ].find((candidate) => candidate.name === "clipboardFallbackEnabled");
+      if (!checkbox) {
+        throw new Error("Expected the clipboard-fallback checkbox");
+      }
+      return checkbox;
+    };
+
+    it("renders checked by default and states why the clipboard may be used", async () => {
+      await render({ success: true });
+
+      expect(clipboardFallbackCheckbox().checked).toBe(true);
+      expect(container.textContent).toContain(
+        tEn("settings.general.clipboardFallback.label"),
+      );
+      expect(container.textContent).toContain(
+        tEn("settings.general.clipboardFallback.hint"),
+      );
+    });
+
+    it("saves optimistically and calls the setter with the new value", async () => {
+      await render({ success: true });
+
+      await click(clipboardFallbackCheckbox());
+      expect(clipboardFallbackCheckbox().checked).toBe(false);
+      await waitForUi();
+
+      expect(api.setClipboardFallbackEnabled).toHaveBeenCalledWith(false);
+      expect(
+        [...container.querySelectorAll('[role="status"]')].map(
+          (el) => el.textContent,
+        ),
+      ).toContain(tEn("settings.general.clipboardFallback.saved"));
+    });
+
+    it("reverts to the previous value when the save fails", async () => {
+      await render({ success: true });
+      api.setClipboardFallbackEnabled.mockResolvedValueOnce({
+        success: false,
+        error: messageLabel("settings.general.clipboardFallback.unavailable"),
+      });
+
+      await click(clipboardFallbackCheckbox());
+      await waitForUi();
+      await waitForUi();
+
+      expect(clipboardFallbackCheckbox().checked).toBe(true);
+      expect(
+        [...container.querySelectorAll('[role="status"]')].map(
+          (el) => el.textContent,
+        ),
+      ).toContain(
+        tEn("settings.general.error", {
+          message: tEn("settings.general.clipboardFallback.unavailable"),
+        }),
+      );
+    });
   });
 
   describe("provider cards", () => {

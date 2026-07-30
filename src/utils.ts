@@ -69,27 +69,82 @@ export const getHighlightedText = async (): Promise<string> => {
   const startedAt = Date.now();
   clipboardOperationsInFlight += 1;
 
+  /**
+   * Whether the synthesized ⌘C actually changed the pasteboard, and therefore
+   * whether restoring the snapshot in the `finally` is a restore at all.
+   *
+   * `clipboard.readText()` yields `""` for an image-only or RTF-only clipboard,
+   * so `writeText(snapshot)` over one that the copy never touched does not
+   * restore it — it BLANKS content this function never captured and cannot
+   * reproduce. The condition is deliberately "did the pasteboard change",
+   * not "did the snapshot look like text": `writeText("")` itself declares an
+   * empty text flavour, so classifying by `availableFormats()` counted a
+   * pasteboard that a previous FixLang run had already restored as non-text and
+   * skipped the next run's restore, leaving the user's selection sitting there
+   * for every clipboard manager to read.
+   */
+  let clipboardWasReplaced = false;
+
   logger.debug("clipboard.copy", "Sending copy keystroke", {
     previousLength: previousClipboardContent.length,
     concurrentOps: clipboardOperationsInFlight,
   });
 
   try {
-    const selectedText = await copyHighlightedText();
+    const copiedText = await copyHighlightedText();
+
+    // The AppleScript ends in `return the clipboard`, which cannot tell a
+    // successful copy from an app that ignored the synthesized ⌘C — in the
+    // latter case it hands back whatever was on the clipboard beforehand.
+    // Returning that would send the user's *previous* clipboard to an AI
+    // provider as if it were their selection, silently and with no error, so an
+    // unchanged value is reported as a miss instead (`resolveSelectedText`
+    // already routes that to its `clipboardEmpty` refusal).
+    //
+    // The cost is that a selection identical to what the user just copied now
+    // refuses instead of transforming. Accepted deliberately: a visible "no
+    // text selected" is recoverable by pressing the hotkey again, whereas
+    // transforming the wrong text is not. Distinguishing the two would mean
+    // writing a sentinel to the clipboard before the ⌘C, which would destroy
+    // exactly the non-text clipboard the restore guard above exists to protect.
+    const matchedPreviousValue = copiedText === previousClipboardContent.trim();
+
+    // That comparison is blind on a NON-TEXT pasteboard, which is where it
+    // matters most: the snapshot is already `""` there, so it can never equal a
+    // non-empty osascript output. A swallowed ⌘C over a copied screenshot
+    // leaves the image in place and `return the clipboard` prints AppleScript's
+    // raw-data literal (`«data PNGf89504E47…»`) — megabytes of hex that would
+    // sail past the comparison, be accepted as `source: "clipboard"`, and get
+    // billed to the user's provider, with the model's reply pasted over their
+    // selection in paste output mode. So read the pasteboard itself: a ⌘C the
+    // app honoured leaves the selection on it as text, and when nothing textual
+    // landed there is no selection to transform whatever `copiedText` holds.
+    const clipboardTextAfterCopy = clipboard.readText();
+    clipboardWasReplaced = clipboardTextAfterCopy !== previousClipboardContent;
 
     logger.debug("clipboard.copy", "Copy keystroke returned", {
-      copiedLength: selectedText.length,
+      copiedLength: copiedText.length,
       previousLength: previousClipboardContent.length,
-      matchedPreviousValue: selectedText === previousClipboardContent,
+      matchedPreviousValue,
+      clipboardWasReplaced,
       elapsedMs: Date.now() - startedAt,
     });
 
-    return selectedText;
+    if (matchedPreviousValue || clipboardTextAfterCopy.trim().length === 0) {
+      return "";
+    }
+
+    return copiedText;
   } catch (error) {
     logger.warn("clipboard.copy", "Copy keystroke failed", {
       elapsedMs: Date.now() - startedAt,
       permissionDenied: isKeystrokePermissionDenied(error),
     });
+    // `error` here is the osascript failure (`Command failed: <script>` plus
+    // stderr), never the copied text — the selection reaches stdout only, and
+    // is deliberately never printed: `src/main/index.ts` patches `console.*`
+    // to append to an unrotated `~/.fixlang/log/runtime-*.log` that no
+    // redactor reads.
     console.error(error);
     // A revoked Accessibility permission is a distinct, actionable condition
     // (see `~/main/accessibility/keystrokePermission`) — pass it through as
@@ -100,11 +155,14 @@ export const getHighlightedText = async (): Promise<string> => {
     }
     throw new Error("Failed to get highlighted text", { cause: error });
   } finally {
-    clipboard.writeText(previousClipboardContent);
+    if (clipboardWasReplaced) {
+      clipboard.writeText(previousClipboardContent);
+    }
     clipboardOperationsInFlight -= 1;
     logger.debug("clipboard.copy", "Previous clipboard restored", {
       elapsedMs: Date.now() - startedAt,
       concurrentOps: clipboardOperationsInFlight,
+      restored: clipboardWasReplaced,
     });
   }
 };
@@ -120,7 +178,18 @@ const copyHighlightedText = () => {
       return the clipboard
     `;
 
-    exec(`osascript -e '${script}'`, (error, stdout) => {
+    // Never log `stdout` itself: it IS the user's selection. Its *length* below
+    // goes through `logger`, which writes the redacted JSONL under `userData`;
+    // `console.*` does not — `src/main/index.ts` patches it to append to
+    // `~/.fixlang/log/runtime-*.log`, outside `userData`, unrotated, and
+    // reached by neither `redactLogMessage` nor `redactLogContext`.
+    //
+    // `timeout` matches the AX read's (`SELECTED_TEXT_TIMEOUT_MS`) and is not
+    // optional: this `osascript` can block indefinitely behind an unanswered
+    // Automation consent dialog, and the hotkey's in-flight guard only releases
+    // once this promise settles. Without it a single wedged copy silences that
+    // accelerator until the app restarts.
+    exec(`osascript -e '${script}'`, { timeout: 1_500 }, (error, stdout) => {
       logger.debug("clipboard.copy", "osascript copy stdout received", {
         stdoutLength: stdout.length,
       });
@@ -217,28 +286,3 @@ export class StringPrettifier extends String {
     return new StringPrettifier(emptyLinesRemoved.join("\n"));
   }
 }
-
-export const waitForClipboardChange = async ({
-  timeout = 3 * 1000,
-  oldValue = clipboard.readText(),
-}: {
-  timeout?: number;
-  oldValue?: string;
-} = {}): Promise<string> => {
-  const start = Date.now();
-  console.log("Waiting for clipboard change!");
-  console.log("Old value:", oldValue);
-  while (Date.now() - start < timeout) {
-    const newValue = clipboard.readText();
-    if (newValue !== oldValue) {
-      console.log(`Total time taken: ${Date.now() - start}ms`);
-      return newValue;
-    }
-    await wait(50);
-  }
-
-  console.log(
-    `No clipboard changes detected. Total time taken: ${Date.now() - start}ms`
-  );
-  return oldValue;
-};

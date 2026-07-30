@@ -53,6 +53,7 @@ const buildApi = (overrides: ApiOverrides = {}) => ({
       profileSwitch: "Alt+P",
     }),
   getCorrectionOutputMode: vi.fn().mockResolvedValue("popup"),
+  getClipboardFallbackEnabled: vi.fn().mockResolvedValue(true),
   getProviderStates: vi.fn().mockResolvedValue({
     openai: { connected: true },
     openrouter: { connected: false },
@@ -213,6 +214,45 @@ describe("AboutPanel", () => {
     expect(chips).toContain("Control");
     expect(chips).toContain("Shift");
     expect(chips).toContain("F");
+  });
+
+  it.each([
+    ["On", true, "statusOn"],
+    ["Off", false, "statusOff"],
+  ] as const)(
+    "renders the clipboard fallback as %s from the stored value, not a default",
+    async (_label, stored, statusKey) => {
+      await render({
+        getClipboardFallbackEnabled: vi.fn().mockResolvedValue(stored),
+      });
+      await click(tabNamed(t("about.tab.guide")));
+      await waitForUi();
+
+      const text = container.textContent ?? "";
+      expect(text).toContain(t("settings.general.clipboardFallback.label"));
+      expect(text).toContain(t("settings.general.clipboardFallback.hint"));
+      expect(text).toContain(
+        t(`settings.general.clipboardFallback.${statusKey}`),
+      );
+      expect(api.getClipboardFallbackEnabled).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("says nothing about the clipboard fallback when its value could not be read", async () => {
+    await render({
+      getClipboardFallbackEnabled: vi
+        .fn()
+        .mockRejectedValue(new Error("ipc down")),
+    });
+    await click(tabNamed(t("about.tab.guide")));
+    await waitForUi();
+
+    // An unread value has no honest state to show — claiming either On or Off
+    // would be the exact drift this guide exists to prevent.
+    expect(container.textContent).toContain(t("guide.loadError"));
+    expect(container.textContent).not.toContain(
+      t("settings.general.clipboardFallback.label"),
+    );
   });
 
   it("warns when no provider is connected", async () => {
