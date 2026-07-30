@@ -138,6 +138,40 @@ describe("ask preload boundary", () => {
       });
     });
 
+    it("passes through the optional input when it is a string", () => {
+      const callback = vi.fn();
+      askFeature.onAskResultData(callback);
+      const listener = electronMocks.on.mock.calls[0][1] as (
+        event: unknown,
+        payload: unknown,
+      ) => void;
+
+      listener(undefined, {
+        question: "q",
+        answer: "a",
+        markdown: false,
+        input: "the selected passage",
+      });
+      expect(callback).toHaveBeenCalledWith({
+        question: "q",
+        answer: "a",
+        markdown: false,
+        input: "the selected passage",
+      });
+    });
+
+    it("accepts a payload that omits input entirely", () => {
+      const callback = vi.fn();
+      askFeature.onAskResultData(callback);
+      const listener = electronMocks.on.mock.calls[0][1] as (
+        event: unknown,
+        payload: unknown,
+      ) => void;
+
+      listener(undefined, { question: "q", answer: "a", markdown: false });
+      expect(callback).toHaveBeenCalledTimes(1);
+    });
+
     it.each([
       undefined,
       null,
@@ -146,6 +180,8 @@ describe("ask preload boundary", () => {
       { question: "q", answer: 42, markdown: true }, // non-string answer
       { question: "q", answer: "a", markdown: "yes" }, // non-boolean markdown
       { question: "q", answer: "a", markdown: true, presetName: 42 }, // non-string presetName
+      { question: "q", answer: "a", markdown: true, input: 42 }, // non-string input
+      { question: "q", answer: "a", markdown: true, input: { text: "a" } }, // object input
     ])("drops a malformed ask-result-data payload: %j", (payload) => {
       const callback = vi.fn();
       askFeature.onAskResultData(callback);

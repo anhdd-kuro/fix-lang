@@ -252,6 +252,24 @@ describe("SettingCorrection output-mode and markdown controls", () => {
     });
   };
 
+  /**
+   * The shared `Checkbox` owns its wrapping `<label>` and takes no `id`, so the
+   * markdown toggle is addressed by its `name` instead.
+   */
+  const markdownInput = () =>
+    container.querySelector<HTMLInputElement>(
+      'input[name="preset-markdown-output"]',
+    );
+
+  const selectAskPreset = async () => {
+    const askButton = [...container.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("Ask AI"),
+    );
+    await act(async () => {
+      askButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+  };
+
   it("round-trips a preset's output-mode Select through save", async () => {
     const setCorrectSettings = vi.fn().mockResolvedValue({ success: true });
     Object.defineProperty(window, "electronAPI", {
@@ -307,22 +325,88 @@ describe("SettingCorrection output-mode and markdown controls", () => {
 
     await mount();
 
-    expect(
-      container.querySelector("#preset-markdown-output"),
-    ).toBeNull();
+    expect(markdownInput()).toBeNull();
 
-    const askButton = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent?.includes("Ask AI"),
-    );
-    await act(async () => {
-      askButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await selectAskPreset();
+
+    expect(markdownInput()).not.toBeNull();
+    expect(markdownInput()?.checked).toBe(true);
+  });
+
+  it("renders the markdown toggle through the shared primary-colored Checkbox", async () => {
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: baseElectronAPI({
+        getCorrectSettings: vi.fn().mockResolvedValue({
+          presets: [askPreset],
+          selectedPresetId: DEFAULT_ASK_PRESET_ID,
+        }),
+        setCorrectSettings: vi.fn().mockResolvedValue({ success: true }),
+      }),
     });
 
-    const markdownCheckbox = container.querySelector<HTMLInputElement>(
-      "#preset-markdown-output",
+    await mount();
+
+    const input = markdownInput();
+    if (!input) {
+      throw new Error("Expected the markdown toggle to be rendered.");
+    }
+    expect(input.className).toContain("peer");
+    expect(input.className).toContain("sr-only");
+    expect(input.className).not.toContain("border-control-border");
+
+    const box = input.nextElementSibling;
+    expect(box?.getAttribute("aria-hidden")).toBe("true");
+    expect(box?.className).toContain("peer-checked:bg-primary");
+    expect(box?.className).toContain("peer-checked:border-primary");
+    expect(box?.className).toContain("peer-focus-visible:ring-ring");
+  });
+
+  it("toggles markdownOutput from a label click and keeps its accessible name", async () => {
+    const setCorrectSettings = vi.fn().mockResolvedValue({ success: true });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: baseElectronAPI({
+        getCorrectSettings: vi.fn().mockResolvedValue({
+          presets: [askPreset],
+          selectedPresetId: DEFAULT_ASK_PRESET_ID,
+        }),
+        setCorrectSettings,
+      }),
+    });
+
+    await mount();
+
+    const input = markdownInput();
+    if (!input) {
+      throw new Error("Expected the markdown toggle to be rendered.");
+    }
+    const label = input.closest("label");
+    expect(label?.textContent).toContain(
+      tEn("settings.correction.markdownOutput.label"),
     );
-    expect(markdownCheckbox).not.toBeNull();
-    expect(markdownCheckbox?.checked).toBe(true);
+    expect(input.disabled).toBe(false);
+
+    await act(async () => {
+      label?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(markdownInput()?.checked).toBe(false);
+
+    const form = container.querySelector("form");
+    await act(async () => {
+      form?.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(setCorrectSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        presets: [expect.objectContaining({ markdownOutput: false })],
+      }),
+    );
   });
 
   it("Reset to default on Ask restores requiresInput, outputMode, and markdownOutput", async () => {
@@ -347,9 +431,7 @@ describe("SettingCorrection output-mode and markdown controls", () => {
 
     // Before reset: requiresInput is false, so no markdown control; outputMode
     // reads the overridden "paste".
-    expect(
-      container.querySelector("#preset-markdown-output"),
-    ).toBeNull();
+    expect(markdownInput()).toBeNull();
     expect(
       container.querySelector<HTMLSelectElement>("#preset-output-mode")
         ?.value,
@@ -366,10 +448,7 @@ describe("SettingCorrection output-mode and markdown controls", () => {
       container.querySelector<HTMLSelectElement>("#preset-output-mode")
         ?.value,
     ).toBe("popup");
-    const markdownCheckbox = container.querySelector<HTMLInputElement>(
-      "#preset-markdown-output",
-    );
-    expect(markdownCheckbox).not.toBeNull();
-    expect(markdownCheckbox?.checked).toBe(true);
+    expect(markdownInput()).not.toBeNull();
+    expect(markdownInput()?.checked).toBe(true);
   });
 });

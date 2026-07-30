@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { twJoin } from "tailwind-merge";
 import { Button } from "../components/Button";
 import CopyButton from "../components/CopyButton";
 import { MarkdownView } from "../components/MarkdownView";
@@ -52,16 +53,21 @@ export const AskResultWindow = () => {
       </header>
 
       <section className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto rounded-md border border-card-control-border bg-card p-4">
-        <div className="flex flex-col gap-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {t("notifications.window.askResult.questionLabel")}
-          </p>
-          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-            {payload.question}
-          </p>
-        </div>
+        {payload.input?.trim() ? (
+          <FoldableTextBlock
+            sectionId="input"
+            label={t("notifications.window.askResult.inputLabel")}
+            text={payload.input}
+          />
+        ) : null}
 
-        <div className="border-t border-border pt-3">
+        <FoldableTextBlock
+          sectionId="question"
+          label={t("notifications.window.askResult.questionLabel")}
+          text={payload.question}
+        />
+
+        <div className="border-t border-border pt-3" data-ask-section="answer">
           {payload.markdown ? (
             <MarkdownView markdown={payload.answer} />
           ) : (
@@ -87,9 +93,59 @@ export const AskResultWindow = () => {
           variant="primary"
           className="rounded px-3 py-1.5 text-sm"
           showLabel
+          hideIcon
         />
       </footer>
     </main>
+  );
+};
+
+type FoldableTextBlockProps = {
+  sectionId: "input" | "question";
+  label: string;
+  text: string;
+};
+
+/**
+ * Collapsed by default: the input can be a whole selected document, and the
+ * answer — not its inputs — is what the popup exists to show.
+ */
+const FoldableTextBlock = ({
+  sectionId,
+  label,
+  text,
+}: FoldableTextBlockProps) => {
+  const { t } = useI18n();
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-1" data-ask-section={sectionId}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {label}
+        </p>
+        <Button
+          type="button"
+          variant="ghost"
+          className="rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-secondary"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((previous) => !previous)}
+        >
+          {expanded
+            ? t("notifications.window.askResult.collapse")
+            : t("notifications.window.askResult.expand")}
+        </Button>
+      </div>
+      <p
+        data-ask-text
+        className={twJoin(
+          "whitespace-pre-wrap break-words text-sm leading-relaxed",
+          !expanded && "line-clamp-3",
+        )}
+      >
+        {text}
+      </p>
+    </div>
   );
 };
 

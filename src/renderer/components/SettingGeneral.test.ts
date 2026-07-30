@@ -28,6 +28,7 @@ import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
 import { createTranslator } from "~/shared/i18n/translate";
 import ModelManagerDialog from "./ModelManagerDialog";
 import ProfileManager from "./ProfileManager";
+import { selectControlClassName } from "./Select/Select";
 import { SettingGeneral } from "./SettingGeneral";
 import { SettingPromptGen } from "./SettingPromptGen";
 import { I18nProvider } from "../i18n/I18nProvider";
@@ -115,6 +116,18 @@ const type = async (input: HTMLInputElement, value: string) => {
     )?.set;
     setter?.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+};
+
+/** Same native-setter trick for `<select>`, which React drives via "change". */
+const setSelectValue = async (element: HTMLSelectElement, value: string) => {
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLSelectElement.prototype,
+      "value",
+    )?.set;
+    setter?.call(element, value);
+    element.dispatchEvent(new Event("change", { bubbles: true }));
   });
 };
 
@@ -540,17 +553,13 @@ describe("SettingGeneral", () => {
       error: messageLabel("settings.general.outputMode.invalid"),
     });
 
-    const popupRadio = [
-      ...container.querySelectorAll('button[role="radio"]'),
-    ].find(
-      (candidate) =>
-        candidate.querySelector("span")?.textContent ===
-        tEn("settings.general.correctionOutput.popup.label"),
+    const modeSelect = container.querySelector<HTMLSelectElement>(
+      "select#correction-output-mode",
     );
-    if (!popupRadio) {
-      throw new Error("Expected the 'popup' output-mode radio button");
+    if (!modeSelect) {
+      throw new Error("Expected the output-mode <select>");
     }
-    await click(popupRadio);
+    await setSelectValue(modeSelect, "popup");
     await waitForUi();
     await waitForUi();
 
@@ -576,6 +585,131 @@ describe("SettingGeneral", () => {
     });
     expect(statuses()).toContain(jaWrapped);
     expect(jaWrapped).not.toBe(enWrapped);
+  });
+
+  describe("the global Transform output mode is the shared Select", () => {
+    const outputModeSelect = (): HTMLSelectElement => {
+      const select = container.querySelector<HTMLSelectElement>(
+        "select#correction-output-mode",
+      );
+      if (!select) {
+        throw new Error("Expected the output-mode <select>");
+      }
+      return select;
+    };
+
+    it("renders a labelled select carrying paste and popup, with no Button radiogroup left", async () => {
+      await render({ success: true });
+
+      const select = outputModeSelect();
+      expect([...select.options].map((option) => option.value)).toEqual([
+        "paste",
+        "popup",
+      ]);
+      expect([...select.options].map((option) => option.textContent)).toEqual([
+        tEn("settings.general.correctionOutput.paste.label"),
+        tEn("settings.general.correctionOutput.popup.label"),
+      ]);
+      expect(select.value).toBe("paste");
+      // Compared against the shared component's own exported class string, so
+      // a hand-rolled `<select>` copying a couple of those tokens cannot pass.
+      expect(select.className).toContain(selectControlClassName);
+
+      // The accessible name survives the Button → Select swap.
+      const label = container.querySelector<HTMLLabelElement>(
+        'label[for="correction-output-mode"]',
+      );
+      expect(label?.textContent).toBe(
+        tEn("settings.general.correctionOutput.title"),
+      );
+
+      expect(container.querySelector('[role="radiogroup"]')).toBeNull();
+      expect(container.querySelector('button[role="radio"]')).toBeNull();
+    });
+
+    it("keeps both mode descriptions visible beside the control", async () => {
+      await render({ success: true });
+
+      const section = outputModeSelect().closest("section");
+      expect(section?.textContent).toContain(
+        tEn("settings.general.correctionOutput.paste.description"),
+      );
+      expect(section?.textContent).toContain(
+        tEn("settings.general.correctionOutput.popup.description"),
+      );
+    });
+
+    it("moves the emphasised description onto the newly active mode", async () => {
+      await render({ success: true });
+      api.setCorrectionOutputMode.mockResolvedValueOnce({
+        success: true,
+        mode: "popup",
+      });
+
+      const emphasisByLabel = (): Record<string, boolean> =>
+        Object.fromEntries(
+          [
+            ...(outputModeSelect()
+              .closest("section")
+              ?.querySelectorAll("dt") ?? []),
+          ].map((term) => [
+            term.textContent ?? "",
+            term.className.includes("text-card-foreground"),
+          ]),
+        );
+
+      const pasteLabel = tEn("settings.general.correctionOutput.paste.label");
+      const popupLabel = tEn("settings.general.correctionOutput.popup.label");
+
+      expect(emphasisByLabel()).toEqual({
+        [pasteLabel]: true,
+        [popupLabel]: false,
+      });
+
+      await setSelectValue(outputModeSelect(), "popup");
+      await waitForUi();
+      await waitForUi();
+
+      expect(emphasisByLabel()).toEqual({
+        [pasteLabel]: false,
+        [popupLabel]: true,
+      });
+    });
+
+    it("persists the chosen mode through setCorrectionOutputMode", async () => {
+      await render({ success: true });
+      api.setCorrectionOutputMode.mockResolvedValueOnce({
+        success: true,
+        mode: "popup",
+      });
+
+      await setSelectValue(outputModeSelect(), "popup");
+      await waitForUi();
+      await waitForUi();
+
+      expect(api.setCorrectionOutputMode).toHaveBeenCalledWith("popup");
+      expect(outputModeSelect().value).toBe("popup");
+      expect(
+        [...container.querySelectorAll('[role="status"]')].map(
+          (el) => el.textContent,
+        ),
+      ).toContain(tEn("settings.general.outputMode.saved"));
+    });
+
+    it("reverts the local value when the save reports failure", async () => {
+      await render({ success: true });
+      api.setCorrectionOutputMode.mockResolvedValueOnce({
+        success: false,
+        error: messageLabel("settings.general.outputMode.invalid"),
+      });
+
+      await setSelectValue(outputModeSelect(), "popup");
+      await waitForUi();
+      await waitForUi();
+
+      expect(api.setCorrectionOutputMode).toHaveBeenCalledWith("popup");
+      expect(outputModeSelect().value).toBe("paste");
+    });
   });
 
   describe("provider cards", () => {
@@ -1090,8 +1224,14 @@ describe("SettingGeneral", () => {
   it("uses shared selected, disabled, and destructive button variants", async () => {
     await render({ success: true });
 
-    const selectedOutput = container.querySelector<HTMLButtonElement>(
-      'button[role="radio"][aria-checked="true"]',
+    // The output-mode radio pair is gone (it is the shared `Select` now), so
+    // Connect — which takes the default `primary` variant — is what pins the
+    // shared selected/primary tokens here.
+    const primaryConnect = [
+      ...container.querySelectorAll<HTMLButtonElement>("button"),
+    ].find(
+      (button) =>
+        button.textContent === tEn("settings.general.providers.card.connect"),
     );
     const disabledConnect = [
       ...container.querySelectorAll<HTMLButtonElement>("button"),
@@ -1106,19 +1246,9 @@ describe("SettingGeneral", () => {
     );
     const destructiveConfirm = confirmDisconnectButton();
 
-    expect(selectedOutput?.className).toContain(
+    expect(primaryConnect?.className).toContain(
       "[&:where(:enabled:hover)]:bg-primary-hover",
     );
-    expect(
-      selectedOutput
-        ?.querySelector("span.mt-0\\.5")
-        ?.classList.contains("text-muted-foreground"),
-    ).toBe(false);
-    expect(
-      selectedOutput
-        ?.querySelector("span.mt-0\\.5")
-        ?.classList.contains("text-inherit"),
-    ).toBe(true);
     expect(disabledConnect?.className).toContain("disabled:cursor-not-allowed");
     expect(destructiveConfirm.type).toBe("button");
     expect(destructiveConfirm.className).toContain("bg-destructive");
