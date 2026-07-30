@@ -837,6 +837,19 @@ describe("apiStoreSchema — settingsCorrect default carries all seven built-in 
 // empirically by the two real-Conf round-trip tests, and the enum absence is
 // pinned recursively by "declares NO enum anywhere under the presets item
 // schema" above.
+// Updated again for the Ask AI prompt rewrite (the `<priority>` block plus the
+// locale block becoming a default that an explicitly requested output language
+// overrides). NOTHING structural changed: the ask preset's bundled
+// `systemPrompt` text is embedded verbatim in the two `default` nodes, so
+// editing `src/prompts/ask.md` necessarily moves this hash. Verified
+// empirically rather than assumed — substituting the previous `ask.md` text
+// back into the serialised schema reproduces the previous snapshot
+// `46654d1a1fcf2be99156283e0b604ea2f1d0d8aa6ebbf88c4c326c9d0bd96119` exactly,
+// and the prompt string occurs exactly twice (once per `default` node), which
+// together prove the prompt text is the ONLY delta: no constraint, no `enum`,
+// no `required` entry and no new property changed. `default` nodes are
+// consulted only when a profile stores no presets at all, so no existing
+// user's config is touched or invalidated.
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
@@ -845,7 +858,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "46654d1a1fcf2be99156283e0b604ea2f1d0d8aa6ebbf88c4c326c9d0bd96119",
+      "5fc69f499f3d9241d13443a02129fd5ecc93b724ae8462234b35276c6d784092",
     );
   });
 });

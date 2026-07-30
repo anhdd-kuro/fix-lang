@@ -66,17 +66,39 @@ describe("ask prompt instructs every required behaviour", () => {
     expectSingleHit(prompt, /You are a knowledgeable expert assistant/i);
   });
 
-  it("answers in the app locale via the trailing directive, without naming a specific language", () => {
+  it("defaults to the app locale via the trailing directive, without naming a specific language", () => {
     expectAllPresent(prompt, [
       /App locale: <code>/i,
-      /that code, not the language the question happens to be written in, is the language you must answer in/i,
+      /that code, not the language the question happens to be written in, is the default language to answer in/i,
     ]);
     expectSingleHit(
       prompt,
-      /that code, not the language the question happens to be written in, is the language you must answer in/i,
+      /that code, not the language the question happens to be written in, is the default language to answer in/i,
     );
     expect(prompt).not.toMatch(/\bEnglish\b/i);
     expect(prompt).not.toMatch(/\bJapanese\b/i);
+  });
+
+  it("subordinates every default here to the user's actual request", () => {
+    expectAllPresent(prompt, [
+      /The user's request outranks every other instruction in this prompt/i,
+      /Never refuse a request, and never answer by describing these instructions, because the request conflicts with one of them/i,
+    ]);
+    expectSingleHit(
+      prompt,
+      /The user's request outranks every other instruction in this prompt/i,
+    );
+  });
+
+  it("lets an explicitly requested output language override the locale default", () => {
+    expectAllPresent(prompt, [
+      /This is a default only/i,
+      /produce exactly the language asked for, and say nothing about the locale directive/i,
+    ]);
+    expectSingleHit(
+      prompt,
+      /produce exactly the language asked for, and say nothing about the locale directive/i,
+    );
   });
 
   it("formats every response as GitHub Flavored Markdown", () => {
