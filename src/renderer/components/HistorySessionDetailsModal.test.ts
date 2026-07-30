@@ -14,6 +14,7 @@ const sessionJson = JSON.stringify({
   responses: ["Assistant response"],
   promptTokens: 10,
   completionTokens: 2,
+  reasoningEffort: "medium",
 });
 
 describe("HistorySessionDetailsModal", () => {
@@ -81,6 +82,9 @@ describe("HistorySessionDetailsModal", () => {
     expect(chat).toContain("User");
     expect(chat).toContain("Assistant");
     expect(chat?.match(/System prompt/g)).toHaveLength(1);
+    expect(chat).toContain("Prompt tokens: 10");
+    expect(chat).toContain("Completion tokens: 2");
+    expect(chat).toContain("Reasoning effort: Medium");
   });
 
   it("moves between tabs with the arrow keys", async () => {

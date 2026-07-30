@@ -5,7 +5,9 @@ import {
   displayHistoryMessageContent,
   formatHistorySessionJson,
   historyChatMessages,
+  historyChatSessionMeta,
   HISTORY_SESSION_DETAILS_TABS,
+  reasoningEffortDisplayKey,
   type HistorySessionDetailsTab,
 } from "./historySessionDetailsView";
 import { useI18n } from "../i18n/useI18n";
@@ -35,6 +37,7 @@ export const HistorySessionDetailsModal: React.FC<
   );
   const pretty = formatHistorySessionJson(sessionJson);
   const chatMessages = historyChatMessages(sessionJson);
+  const chatMeta = historyChatSessionMeta(sessionJson);
 
   const selectTab = (tab: HistorySessionDetailsTab) => {
     setActiveTab(tab);
@@ -120,54 +123,88 @@ export const HistorySessionDetailsModal: React.FC<
               {pretty}
             </pre>
           ) : chatMessages.length > 0 ? (
-            <ol
-              className="flex flex-col gap-3"
-              aria-label={t("history.details.chatAriaLabel")}
-            >
-              {chatMessages.map((message, index) => {
-                const labelKey = ROLE_LABEL_KEYS[message.role];
-                const roleLabel = labelKey ? t(labelKey) : message.role;
-                const content = displayHistoryMessageContent(message.content);
+            <div className="flex flex-col gap-3">
+              {chatMeta ? (
+                <dl className="flex flex-wrap gap-x-4 gap-y-1 rounded-md border border-card-control-border bg-card px-3 py-2 text-xs text-muted-foreground">
+                  <div>
+                    <dt className="sr-only">{t("common.promptTokens", { count: 0 })}</dt>
+                    <dd>
+                      {chatMeta.promptTokens === null
+                        ? t("history.details.promptTokens.na")
+                        : t("common.promptTokens", { count: chatMeta.promptTokens })}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="sr-only">{t("common.completionTokens", { count: 0 })}</dt>
+                    <dd>
+                      {chatMeta.completionTokens === null
+                        ? t("history.details.completionTokens.na")
+                        : t("common.completionTokens", {
+                            count: chatMeta.completionTokens,
+                          })}
+                    </dd>
+                  </div>
+                  {chatMeta.reasoningEffort ? (
+                    <div>
+                      <dt className="sr-only">{t("settings.correction.reasoning.label")}</dt>
+                      <dd>
+                        {t("history.details.reasoningLabel", {
+                          effort: t(reasoningEffortDisplayKey(chatMeta.reasoningEffort)),
+                        })}
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+              ) : null}
+              <ol
+                className="flex flex-col gap-3"
+                aria-label={t("history.details.chatAriaLabel")}
+              >
+                {chatMessages.map((message, index) => {
+                  const labelKey = ROLE_LABEL_KEYS[message.role];
+                  const roleLabel = labelKey ? t(labelKey) : message.role;
+                  const content = displayHistoryMessageContent(message.content);
 
-                if (message.role === "system") {
+                  if (message.role === "system") {
+                    return (
+                      <li key={`${message.role}-${index}`}>
+                        <details className="rounded-md border border-card-control-border bg-card p-3">
+                          <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            {roleLabel} …
+                          </summary>
+                          <pre className="mt-2 text-sm text-foreground whitespace-pre-wrap break-words">
+                            {content}
+                          </pre>
+                        </details>
+                      </li>
+                    );
+                  }
+
+                  const isUser = message.role === "user";
                   return (
-                    <li key={`${message.role}-${index}`}>
-                      <details className="rounded-md border border-card-control-border bg-card p-3">
-                        <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          {roleLabel} …
-                        </summary>
-                        <pre className="mt-2 text-sm text-foreground whitespace-pre-wrap break-words">
+                    <li
+                      key={`${message.role}-${index}`}
+                      className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[80%] rounded-lg p-3 ${
+                          isUser
+                            ? "bg-primary text-primary-foreground"
+                            : "border border-card-control-border bg-card text-card-foreground"
+                        }`}
+                      >
+                        <h3 className="mb-1 text-xs font-medium uppercase tracking-wide opacity-70">
+                          {roleLabel}
+                        </h3>
+                        <pre className="text-sm whitespace-pre-wrap break-words">
                           {content}
                         </pre>
-                      </details>
+                      </div>
                     </li>
                   );
-                }
-
-                const isUser = message.role === "user";
-                return (
-                  <li
-                    key={`${message.role}-${index}`}
-                    className={`flex ${isUser ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-[80%] rounded-lg p-3 ${
-                        isUser
-                          ? "bg-primary text-primary-foreground"
-                          : "border border-card-control-border bg-card text-card-foreground"
-                      }`}
-                    >
-                      <h3 className="mb-1 text-xs font-medium uppercase tracking-wide opacity-70">
-                        {roleLabel}
-                      </h3>
-                      <pre className="text-sm whitespace-pre-wrap break-words">
-                        {content}
-                      </pre>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
+                })}
+              </ol>
+            </div>
           ) : (
             <p className="text-sm text-muted-foreground">
               {t("history.details.chatUnavailable")}

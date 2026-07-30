@@ -3,6 +3,8 @@ import {
   displayHistoryMessageContent,
   formatHistorySessionJson,
   historyChatMessages,
+  historyChatSessionMeta,
+  reasoningEffortDisplayKey,
 } from "./historySessionDetailsView";
 
 const legacySession = JSON.stringify({
@@ -30,6 +32,31 @@ describe("historySessionDetailsView", () => {
       { role: "user", content: "User prompt" },
       { role: "assistant", content: "Assistant response" },
     ]);
+  });
+
+
+  it("extracts chat session metadata", () => {
+    const withEffort = JSON.stringify({
+      messages: [{ role: "user", content: "Hi" }],
+      model: "gpt-4.1-mini",
+      provider: "openai",
+      responses: ["Hello"],
+      promptTokens: 10,
+      completionTokens: 2,
+      reasoningEffort: "low",
+    });
+
+    expect(historyChatSessionMeta(withEffort)).toEqual({
+      promptTokens: 10,
+      completionTokens: 2,
+      reasoningEffort: "low",
+    });
+    expect(reasoningEffortDisplayKey("low")).toBe(
+      "settings.correction.reasoning.step.low",
+    );
+    expect(reasoningEffortDisplayKey("provider-default")).toBe(
+      "history.details.reasoning.providerDefault",
+    );
   });
 
   it("formats structured message content for chat", () => {
