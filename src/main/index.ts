@@ -28,7 +28,7 @@ import {
   registerUiHandlers,
   registerUpdateHandlers,
 } from "./ipc/features";
-import { registerHotkeys, unregisterHotkeys } from "./keybindings";
+import { registerHotkeys, reloadHotkeys, unregisterHotkeys } from "./keybindings";
 import { startModelMonitoring } from "./llm/models/monitor";
 import { initializeUpdateService, type UpdateService } from "./update";
 import { shouldCheckForUpdatesOnLaunch } from "./update/installationPath";
@@ -264,6 +264,10 @@ if (!gotSingleInstanceLock) {
       mainWindow.focus();
     } else {
       createMainWindow();
+      // Hotkeys were registered once at startup against the original main
+      // window, so a freshly created one here never gets rebound -- rebind
+      // now, same as after a profile switch or settings change.
+      reloadHotkeys();
     }
   });
 
