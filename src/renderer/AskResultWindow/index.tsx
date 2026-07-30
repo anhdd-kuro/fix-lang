@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { twJoin } from "tailwind-merge";
 import { Button } from "../components/Button";
@@ -109,6 +109,11 @@ type FoldableTextBlockProps = {
 /**
  * Collapsed by default: the input can be a whole selected document, and the
  * answer — not its inputs — is what the popup exists to show.
+ *
+ * The fold control appears only when the clamp actually truncates the text.
+ * That is measured from the laid-out element rather than guessed from the
+ * string, because how many lines a passage occupies depends on the popup's
+ * current width, not on its character count.
  */
 const FoldableTextBlock = ({
   sectionId,
@@ -117,26 +122,30 @@ const FoldableTextBlock = ({
 }: FoldableTextBlockProps) => {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
+  const [truncated, setTruncated] = useState(false);
+  const bodyRef = useRef<HTMLParagraphElement | null>(null);
+
+  // Measured only while collapsed. Expanding drops the clamp, so the element
+  // then reports no overflow — re-measuring there would clear `truncated` and
+  // take away the control the user needs to collapse again.
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!body || expanded) return;
+
+    const measure = () => setTruncated(body.scrollHeight > body.clientHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(body);
+    return () => observer.disconnect();
+  }, [expanded, text]);
 
   return (
     <div className="flex flex-col gap-1" data-ask-section={sectionId}>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {label}
-        </p>
-        <Button
-          type="button"
-          variant="ghost"
-          className="rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-secondary"
-          aria-expanded={expanded}
-          onClick={() => setExpanded((previous) => !previous)}
-        >
-          {expanded
-            ? t("notifications.window.askResult.collapse")
-            : t("notifications.window.askResult.expand")}
-        </Button>
-      </div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
       <p
+        ref={bodyRef}
         data-ask-text
         className={twJoin(
           "whitespace-pre-wrap break-words text-sm leading-relaxed",
@@ -145,6 +154,19 @@ const FoldableTextBlock = ({
       >
         {text}
       </p>
+      {truncated ? (
+        <Button
+          type="button"
+          variant="ghost"
+          className="self-start rounded px-0 py-0.5 text-xs font-medium text-primary hover:underline"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((previous) => !previous)}
+        >
+          {expanded
+            ? t("notifications.window.askResult.collapse")
+            : t("notifications.window.askResult.expand")}
+        </Button>
+      ) : null}
     </div>
   );
 };
