@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  nextAfterCursor,
   nextPageCursor,
   parseCompletionsUsage,
   parseCosts,
+  parseProjectCosts,
+  parseProjectNames,
+  withProjectNames,
 } from "./usage.parsers";
 
 /** 2026-07-01T00:00:00Z and the two following days, as unix seconds. */
@@ -188,6 +192,150 @@ describe("parseCompletionsUsage", () => {
 
   it("reports parse_error for a non-page payload", () => {
     expect(parseCompletionsUsage([])).toEqual({ ok: false, reason: "parse_error" });
+  });
+});
+
+const projectBucket = (
+  startTime: number,
+  results: { amount: number; project_id?: string | null }[],
+) => ({
+  object: "bucket",
+  start_time: startTime,
+  results: results.map(({ amount, project_id }) => ({
+    object: "organization.costs.result",
+    amount: { value: amount, currency: "usd" },
+    ...(project_id === undefined ? {} : { project_id }),
+  })),
+});
+
+describe("parseProjectCosts", () => {
+  it("sums each project across days and ranks by spend", () => {
+    const result = parseProjectCosts(
+      page([
+        projectBucket(DAY_1, [
+          { amount: 1, project_id: "proj_a" },
+          { amount: 5, project_id: "proj_b" },
+        ]),
+        projectBucket(DAY_2, [{ amount: 2, project_id: "proj_a" }]),
+      ]),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.totalUsd).toBe(8);
+    expect(result.data.projects).toEqual([
+      { projectId: "proj_b", name: null, costUsd: 5 },
+      { projectId: "proj_a", name: null, costUsd: 3 },
+    ]);
+  });
+
+  it("rows sum to the same total the line-item card reports", () => {
+    const buckets = [
+      projectBucket(DAY_1, [
+        { amount: 1.25, project_id: "proj_a" },
+        { amount: 0.75, project_id: "proj_b" },
+      ]),
+    ];
+    const projects = parseProjectCosts(page(buckets));
+    const costs = parseCosts(page(buckets));
+
+    expect(projects.ok && costs.ok).toBe(true);
+    if (!projects.ok || !costs.ok) return;
+    const summed = projects.data.projects.reduce((sum, r) => sum + r.costUsd, 0);
+    expect(summed).toBeCloseTo(costs.data.totalUsd);
+  });
+
+  it("keeps spend with no project_id under the empty key instead of dropping it", () => {
+    const result = parseProjectCosts(page([projectBucket(DAY_1, [{ amount: 4 }])]));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.totalUsd).toBe(4);
+    expect(result.data.projects).toEqual([
+      { projectId: "", name: null, costUsd: 4 },
+    ]);
+  });
+
+  it("drops zero-cost projects but still counts them in the total", () => {
+    const result = parseProjectCosts(
+      page([
+        projectBucket(DAY_1, [
+          { amount: 0, project_id: "proj_idle" },
+          { amount: 3, project_id: "proj_a" },
+        ]),
+      ]),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.projects.map((r) => r.projectId)).toEqual(["proj_a"]);
+    expect(result.data.totalUsd).toBe(3);
+  });
+
+  it("reports parse_error for a non-page payload", () => {
+    expect(parseProjectCosts(null)).toEqual({ ok: false, reason: "parse_error" });
+  });
+});
+
+describe("parseProjectNames", () => {
+  const list = (data: unknown[], extra: Record<string, unknown> = {}) => ({
+    object: "list",
+    data,
+    has_more: false,
+    last_id: null,
+    ...extra,
+  });
+
+  it("maps id to name and skips entries with neither", () => {
+    const result = parseProjectNames(
+      list([
+        { id: "proj_a", name: "FixLang" },
+        { id: "proj_b", name: "" },
+        { name: "orphan" },
+        "garbage",
+      ]),
+    );
+
+    expect(result).toEqual({ ok: true, data: { proj_a: "FixLang" } });
+  });
+
+  it("reports parse_error for a non-list payload", () => {
+    expect(parseProjectNames({ object: "list" })).toEqual({
+      ok: false,
+      reason: "parse_error",
+    });
+  });
+});
+
+describe("withProjectNames", () => {
+  const costs = {
+    totalUsd: 3,
+    projects: [
+      { projectId: "proj_a", name: null, costUsd: 2 },
+      { projectId: "proj_gone", name: null, costUsd: 1 },
+    ],
+  };
+
+  it("attaches known names, leaves unknown ids null, and does not mutate", () => {
+    const merged = withProjectNames(costs, { proj_a: "FixLang" });
+
+    expect(merged.projects).toEqual([
+      { projectId: "proj_a", name: "FixLang", costUsd: 2 },
+      { projectId: "proj_gone", name: null, costUsd: 1 },
+    ]);
+    expect(costs.projects[0].name).toBeNull();
+    expect(merged.totalUsd).toBe(3);
+  });
+});
+
+describe("nextAfterCursor", () => {
+  it("reads last_id, not next_page — the list endpoints paginate differently", () => {
+    expect(
+      nextAfterCursor({ has_more: true, last_id: "proj_z", next_page: "wrong" }),
+    ).toBe("proj_z");
+    expect(nextAfterCursor({ has_more: false, last_id: "proj_z" })).toBeNull();
+    expect(nextAfterCursor({ has_more: true, last_id: null })).toBeNull();
+    expect(nextAfterCursor("nope")).toBeNull();
   });
 });
 

@@ -314,8 +314,11 @@ export const UsageCostShareChart = ({
   titleKey,
 }: {
   slices: UsageCostSlice[];
-  /** Providers slice spend differently — by model, or by billed line item. */
-  titleKey: "usage.chart.costShare.byModel" | "usage.chart.costShare.byLineItem";
+  /** Providers slice spend differently — by model, billed line item, or project. */
+  titleKey:
+    | "usage.chart.costShare.byModel"
+    | "usage.chart.costShare.byLineItem"
+    | "usage.chart.costShare.byProject";
 }) => {
   const paletteTick = useThemePaletteTick();
   const { t, formatCurrency, formatNumber } = useI18n();

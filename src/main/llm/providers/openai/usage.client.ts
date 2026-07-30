@@ -17,12 +17,17 @@ import { describeKeyShape, findKeyShapeMismatch } from "~/shared/providerKeyShap
 import { usageRangeDays, usageRangeStartUnix, type UsageRange } from "~/shared/usage";
 import { getProvisioningKey } from "~/stores/provisioningKeyStore";
 import {
+  nextAfterCursor,
   nextPageCursor,
   parseCompletionsUsage,
   parseCosts,
+  parseProjectCosts,
+  parseProjectNames,
+  withProjectNames,
   type CardResult,
   type OpenAICompletionsUsage,
   type OpenAICosts,
+  type OpenAIProjectCosts,
 } from "./usage.parsers";
 
 /** Adds the `no_key` reason (admin key not configured) to the per-card result. */
@@ -34,6 +39,7 @@ export type OpenAIUsage = {
   hasKey: boolean;
   costs: ClientCardResult<OpenAICosts>;
   completions: ClientCardResult<OpenAICompletionsUsage>;
+  projectCosts: ClientCardResult<OpenAIProjectCosts>;
 };
 
 type FetchLike = (
@@ -95,8 +101,16 @@ export type OpenAIUsageClient = {
   getCompletionsUsage: (
     range: UsageRange,
   ) => Promise<ClientCardResult<OpenAICompletionsUsage>>;
+  getProjectCosts: (
+    range: UsageRange,
+  ) => Promise<ClientCardResult<OpenAIProjectCosts>>;
   getUsage: (range: UsageRange) => Promise<OpenAIUsage>;
 };
+
+/** One request's outcome, before any endpoint-specific parsing. */
+type FetchOutcome =
+  | { ok: true; json: unknown }
+  | { ok: false; reason: "unauthorized" | "unavailable" };
 
 export const createOpenAIUsageClient = (
   deps: ClientDeps = {},
@@ -104,6 +118,38 @@ export const createOpenAIUsageClient = (
   const doFetch = (deps.fetch ?? (globalThis.fetch as unknown)) as FetchLike;
   const getKey = deps.getKey ?? (() => getProvisioningKey("openai"));
   const now = deps.now ?? (() => new Date());
+
+  /**
+   * One request with the Bearer key + 5s timeout, mapping every failure to a
+   * reason. The ONLY place the key touches a header; it never enters the return
+   * value, so a caller cannot leak it even by accident.
+   */
+  const fetchJson = async (
+    path: string,
+    query: URLSearchParams,
+    key: string,
+  ): Promise<FetchOutcome> => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      const response = await doFetch(`${BASE}${path}?${query.toString()}`, {
+        headers: { Authorization: `Bearer ${key}` },
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const reason = reasonForStatus(response.status);
+        logAdminRequest(path, key, { ok: false, status: response.status, reason });
+        return { ok: false, reason };
+      }
+      return { ok: true, json: await response.json() };
+    } catch {
+      // Network error / abort / bad JSON — degrade without leaking anything.
+      logAdminRequest(path, key, { ok: false, reason: "unavailable" });
+      return { ok: false, reason: "unavailable" };
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
 
   /**
    * Fetch every page of `path` with the Bearer key + 5s timeout per request, then
@@ -143,27 +189,9 @@ export const createOpenAIUsageClient = (
       const query = new URLSearchParams(params);
       if (page !== null) query.set("page", page);
 
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
-      let json: unknown;
-      try {
-        const response = await doFetch(`${BASE}${path}?${query.toString()}`, {
-          headers: { Authorization: `Bearer ${key}` },
-          signal: controller.signal,
-        });
-        if (!response.ok) {
-          const reason = reasonForStatus(response.status);
-          logAdminRequest(path, key, { ok: false, status: response.status, reason });
-          return { ok: false, reason };
-        }
-        json = await response.json();
-      } catch {
-        // Network error / abort / bad JSON — degrade without leaking anything.
-        logAdminRequest(path, key, { ok: false, reason: "unavailable" });
-        return { ok: false, reason: "unavailable" };
-      } finally {
-        clearTimeout(timeout);
-      }
+      const outcome = await fetchJson(path, query, key);
+      if (!outcome.ok) return outcome;
+      const json = outcome.json;
 
       const parsedPage = parse(json);
       if (!parsedPage.ok) {
@@ -199,14 +227,71 @@ export const createOpenAIUsageClient = (
   const getCompletionsUsage = (range: UsageRange) =>
     call("/usage/completions", range, parseCompletionsUsage, "model");
 
-  const getUsage = async (range: UsageRange): Promise<OpenAIUsage> => {
-    const hasKey = (await getKey()) !== null;
-    const [costs, completions] = await Promise.all([
-      getCosts(range),
-      getCompletionsUsage(range),
-    ]);
-    return { hasKey, costs, completions };
+  /**
+   * id → display name for every project, archived included: a project can be
+   * archived and still carry spend inside the range. Any failure yields the names
+   * gathered so far rather than a reason — an unresolved name only degrades a row
+   * to its raw `proj_…` id, and must never sink the spend card itself.
+   */
+  const getProjectNames = async (): Promise<Record<string, string>> => {
+    const key = await getKey();
+    if (!key) return {};
+
+    let names: Record<string, string> = {};
+    let after: string | null = null;
+
+    for (let fetched = 0; fetched < MAX_PAGES; fetched += 1) {
+      const query = new URLSearchParams({
+        limit: "100",
+        include_archived: "true",
+      });
+      if (after !== null) query.set("after", after);
+
+      const outcome = await fetchJson("/projects", query, key);
+      if (!outcome.ok) return names;
+
+      const parsed = parseProjectNames(outcome.json);
+      if (!parsed.ok) return names;
+      names = { ...names, ...parsed.data };
+
+      after = nextAfterCursor(outcome.json);
+      if (after === null) {
+        logAdminRequest("/projects", key, { ok: true });
+        return names;
+      }
+    }
+    return names;
   };
 
-  return { getCosts, getCompletionsUsage, getUsage };
+  /**
+   * Billed spend per project. `project_id` is the only non-line-item grouping
+   * `/costs` accepts, so these ARE real dollars — unlike the per-model table.
+   * Requested separately from the line-item card on purpose: one shared request
+   * with two `group_by` values would make either card's failure sink both.
+   */
+  const getProjectCosts = async (
+    range: UsageRange,
+  ): Promise<ClientCardResult<OpenAIProjectCosts>> => {
+    const costs = await call("/costs", range, parseProjectCosts, "project_id");
+    if (!costs.ok) return costs;
+    // Nothing billed — skip the name lookup instead of paying for a request
+    // whose result no row would use.
+    if (costs.data.projects.length === 0) return costs;
+    return {
+      ok: true,
+      data: withProjectNames(costs.data, await getProjectNames()),
+    };
+  };
+
+  const getUsage = async (range: UsageRange): Promise<OpenAIUsage> => {
+    const hasKey = (await getKey()) !== null;
+    const [costs, completions, projectCosts] = await Promise.all([
+      getCosts(range),
+      getCompletionsUsage(range),
+      getProjectCosts(range),
+    ]);
+    return { hasKey, costs, completions, projectCosts };
+  };
+
+  return { getCosts, getCompletionsUsage, getProjectCosts, getUsage };
 };
