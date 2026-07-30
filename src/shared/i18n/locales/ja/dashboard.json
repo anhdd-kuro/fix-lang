@@ -131,6 +131,9 @@
   "overview.tokenActivity.tooltip.weekly.withCorrections_other": "{start}〜{end} に {tokens} トークン、{count} 件の変換",
   "overview.value.days": "{count}日",
   "overview.value.empty": "—",
+  "overview.value.estimatedCost": "推定 {cost}",
+  "overview.value.estimatedCostNa": "推定コスト N/A",
+  "overview.value.estimatedCostPartial": "推定 {cost} · {total} 件中 {priced} 件",
   "overview.value.hour": "{start}:00–{end}:00",
   "overview.value.streakPair": "{current}日 / {longest}日"
 }

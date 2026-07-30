@@ -136,6 +136,9 @@
   "overview.tokenActivity.tooltip.weekly.withCorrections_other": "{tokens} tokens during {start} to {end}, {count} transforms",
   "overview.value.days": "{count}d",
   "overview.value.empty": "—",
+  "overview.value.estimatedCost": "Est. {cost}",
+  "overview.value.estimatedCostNa": "Est. cost N/A",
+  "overview.value.estimatedCostPartial": "Est. {cost} · {priced} of {total} priced",
   "overview.value.hour": "{start}:00–{end}:00",
   "overview.value.streakPair": "{current}d / {longest}d"
 }

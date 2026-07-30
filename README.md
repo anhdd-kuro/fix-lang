@@ -1,6 +1,6 @@
 # FixLang
 
-A local macOS menu-bar app that fixes grammar, improves writing, and runs other text transformations on selected text via AI. Supports **OpenAI**, **OpenRouter**, **Ollama**, and **LM Studio**. Runs entirely on your machine; API keys never leave it and are encrypted at rest via the macOS keychain.
+A local macOS menu-bar app that fixes grammar, improves writing, and runs other text transformations on selected text via AI. Supports **OpenAI**, **OpenRouter**, **AWS Bedrock**, **Ollama**, and **LM Studio**. Runs entirely on your machine; API keys never leave it and are encrypted at rest via the macOS keychain.
 
 ## Features
 
@@ -8,9 +8,9 @@ A local macOS menu-bar app that fixes grammar, improves writing, and runs other 
 
 - Select text in any app, press a preset hotkey, then either paste the result back automatically or show it in a result-only popup
 - Built-in presets (each with its own hotkey): **Correction** (`Ctrl+Shift+F`), **Summarize** (`Ctrl+Shift+S`), **Prompt optimization** (`Ctrl+Shift+D`), **Translate** (`Ctrl+Shift+T`), **Business Writing** (`Ctrl+Shift+B`), **Context-Aware Structured Text** (`Ctrl+Shift+R`), **Ask AI** (`Ctrl+Shift+A`)
-- **Ask AI** opens a small input window instead of requiring a selection: type a question, optionally with selected text carried along as context, and get a GFM-rendered answer in a popup (up to 5 stacked at once)
+- **Ask AI** opens a small input window instead of requiring a selection: type a question, optionally with selected text carried along as context, and get a GFM-rendered answer in a popup (up to 5 stacked at once). The popup shows what you selected, then your question, then the answer — the first two are folded to 3 lines each and expand on click, the answer never is. Selected nothing? The selection block is simply absent
 - **Profiles** — multiple named configurations; switch with `Ctrl+Shift+P` (profile switch reloads hotkeys, settings, and history)
-- Custom presets with per-preset model, system prompt, hotkey, and reasoning effort (Faster↔Smarter)
+- Custom presets with per-preset model, system prompt, hotkey, output mode (Inherit / Paste / Popup), and reasoning effort (Faster↔Smarter: None, Low, Medium, High, or the global default)
 - **App-aware output** — the name of the app you selected the text in (e.g. Slack, Mail, Xcode) is added to the system prompt as context, so the result matches that app's tone and formatting conventions. Applies to transform presets and PromptGen. Most presets only use it to infer tone and formality, not markup; **Context-Aware Structured Text** is the exception and actively adapts formatting to the app. The app name is never echoed into the output, and nothing is sent when it can't be read
 
 ### Prompt generation
@@ -27,10 +27,10 @@ Six tabs, opened from the menu-bar tray or after a transform:
 
 | Tab | What it shows |
 | --- | --- |
-| **Overview** | Token stats, preset usage charts, Codex-style token activity calendar |
-| **History** | Transform + PromptGen history with cost tracking; last-action preview |
+| **Overview** | Token stats with an estimated-spend hint (and how many transforms could be priced), preset usage charts, Codex-style token activity calendar |
+| **History** | Transform, Ask AI, and PromptGen history with cost tracking; last-action preview. The eye control opens the saved completion — raw JSON, or a **View as chat** tab that also states prompt/completion tokens and the reasoning effort used |
 | **Models** | Token usage over time, Model Breakdown donut + table for the selected range |
-| **Usage** | Account-level spend and token usage, one sub-tab per connected provider (OpenAI, OpenRouter) — daily spend and token charts, spend-share donut, per-model activity, and (OpenAI) billed spend per project |
+| **Usage** | Account-level spend and token usage, one sub-tab per connected provider that has a billing API (OpenAI, OpenRouter) — daily spend and token charts, spend-share donut, per-model activity, and (OpenAI) billed spend per project |
 | **Logs** | Structured, redacted app events — multi-select level filter, search, copy/export as `.txt` |
 | **About** | Two sub-tabs — **App updates** (version, release notes, install; see [App updates](#app-updates)) and **User guide** (onboarding that shows your own preset shortcuts, output mode, connected providers, and why History/Usage may look empty) |
 
@@ -51,7 +51,7 @@ Overview and Models share a time-range filter (All / 30d / 7d).
 
 ### Language
 
-FixLang is available in **English** and **Japanese**. On first run, the app automatically uses your system language (English if your system language is not one of the supported ones). You can change the language anytime in **Settings → General → Language**, or from the tray popover, without restarting the app. The tray popover also has a quick switch for transform output mode (**Direct paste** / **Show popup**), right below the language switch, plus **global** model and reasoning-effort selectors (presets can override both in Settings → Transform). At the top it shows a **Providers** card with one tab per connected, usage-capable provider — OpenRouter shows remaining credit, OpenAI shows the last 7 days of billed spend for the project set in **Settings → General → OpenAI → Project ID**. Clicking the figure opens that provider's Usage sub-tab. History rows with a saved session expose a Show details (eye) control with the raw completion JSON.
+FixLang is available in **English** and **Japanese**. On first run, the app automatically uses your system language (English if your system language is not one of the supported ones). You can change the language anytime in **Settings → General → Language**, or from the tray popover, without restarting the app. The tray popover also has a quick switch for transform output mode (**Direct paste** / **Show popup**), right below the language switch, plus **global** model and reasoning-effort selectors (presets can override both in Settings → Transform). At the top it shows a **Providers** card with one tab per connected, usage-capable provider — OpenRouter shows remaining credit, OpenAI shows the last 7 days of billed spend for the project set in **Settings → General → OpenAI → Project ID**. Clicking the figure opens that provider's Usage sub-tab. History rows with a saved session expose a Show details (eye) control with the raw completion JSON, plus a **View as chat** tab that states the prompt/completion token counts and reasoning effort above the conversation bubbles.
 
 ### Provider setup (Settings → General)
 
@@ -62,6 +62,8 @@ You can connect multiple providers at once. Each connected provider's models app
 1. Open Settings → General → Providers
 2. For each provider you want to use:
    - Enter its API key when required (OpenAI and OpenRouter need keys; Ollama needs none but accepts host/port like LM Studio; LM Studio accepts an optional key plus host/port for its local server)
+   - **AWS Bedrock** takes three fields instead of one key: an **access key ID**, a **secret access key**, and an **AWS region** (defaults to `us-east-1`). Connect fetches the text-capable foundation models your account can see in that region. Bedrock has no admin key and no Usage sub-tab — AWS billing lives in the AWS console.
+   - A key that provably belongs to a different provider or slot (for example an `sk-admin-…` key pasted into OpenRouter, or an OpenAI project key in the Admin field) is refused when you connect, instead of being stored and failing later with an opaque `Unauthorized`
    - Optionally add an admin key to unlock that provider's **Usage** sub-tab: an OpenRouter provisioning key, or an OpenAI Admin API key (`sk-admin-…`, organization owner). Admin keys are read only in the main process and never returned to the UI.
    - OpenAI only: optionally set a **Project ID** (`proj_…`) so the tray's Providers card can report that project's billed spend. An admin key covers the whole organization, so OpenAI cannot tell FixLang which project you meant.
    - Click **Connect** — this validates the credentials and fetches that provider's model list
@@ -72,7 +74,7 @@ You can connect multiple providers at once. Each connected provider's models app
 
 If you disconnect a provider, only the presets and settings that were using it get reset — their model reference changes to "inherit from global default". Other presets keep their settings intact.
 
-**Cost:** Direct OpenAI requests report cost as N/A (no per-token pricing available). OpenRouter cost is estimated from OpenRouter's published pricing. Ollama and LM Studio (local) are always zero cost.
+**Cost:** Direct OpenAI requests report cost as N/A (no per-token pricing available). OpenRouter cost is estimated from OpenRouter's published pricing. AWS Bedrock is estimated the same way when the model matches a published price and reports N/A otherwise — never a made-up `$0`. Ollama and LM Studio (local) are always zero cost.
 
 ### App updates
 
@@ -262,7 +264,7 @@ the tag if you want it.
 6. `Ctrl+Shift+P` cycles to the next profile
 7. `Ctrl+Shift+A` opens **Ask AI**'s input window — no selection required; any selected text is carried along as optional context
 
-Hotkeys are customizable per preset and for global actions (PromptGen where built in, profile switch) in Settings. Transform output mode is global and defaults to **Direct paste**, but each preset can override it to Paste or Popup in Settings → Correction.
+Hotkeys are customizable per preset and for global actions (PromptGen where built in, profile switch) in Settings. Transform output mode is global and defaults to **Direct paste**, but each preset can override it to Paste or Popup in Settings → Transform.
 
 ## Development
 
@@ -341,11 +343,12 @@ GitHub Releases.
 
 ## Security
 
-- API keys and provider admin keys (OpenRouter provisioning, OpenAI Admin) are handled main-process-only — encrypted at rest via the OS keychain (Electron `safeStorage`) — and are never sent back to the renderer/UI process after being saved.
+- API keys, AWS Bedrock secret access keys, and provider admin keys (OpenRouter provisioning, OpenAI Admin) are handled main-process-only — encrypted at rest via the OS keychain (Electron `safeStorage`) — and are never sent back to the renderer/UI process after being saved.
+- A credential that provably belongs to another provider or another slot is refused before it is stored, so a mispasted key fails loudly at connect time instead of turning into a permanent 401. Logs record which *kind* of key was used, never the key itself.
 - Keys are never included in profile import or export; exporting a profile shares its settings, never its credentials.
 - Secrets are scoped to one profile and one provider at a time — switching profiles switches the whole connected set, and neither another profile nor another provider can read a key it did not store.
 - A freshly created profile has no provider connected — nothing is auto-selected or auto-populated from another profile.
-- Requests are sent only to the providers you connect (OpenAI, OpenRouter, Ollama, or LM Studio), and each request carries only that provider's key. Structured logs redact keys, tokens, and clipboard content before writing to disk.
+- Requests are sent only to the providers you connect (OpenAI, OpenRouter, AWS Bedrock, Ollama, or LM Studio), and each request carries only that provider's credentials. Structured logs redact keys, tokens, and clipboard content before writing to disk.
 
 ## License
 

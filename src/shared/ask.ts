@@ -20,6 +20,11 @@ export type AskResultPayload = {
   question: string;
   answer: string;
   /**
+   * The selection carried into Ask as optional context. Empty (or absent) when
+   * nothing was selected — the common case — and then no input block is shown.
+   */
+  input?: string;
+  /**
    * Snapshotted at request time from the markdown-output setting, so toggling
    * that setting later cannot retroactively change how an already-open result
    * window renders its answer.

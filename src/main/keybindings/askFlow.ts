@@ -73,7 +73,12 @@ export const runAskFlow = async ({
   try {
     const result = await fixGrammar(message, preset.id);
 
-    const delivery = await deliverAskResult(preset, question, result);
+    const delivery = await deliverAskResult({
+      preset,
+      question,
+      input: context,
+      result,
+    });
 
     logger.info("correction.hotkey", "Ask completed", {
       presetId: preset.id,
@@ -100,11 +105,20 @@ export const runAskFlow = async ({
 
 type FixGrammarResult = Awaited<ReturnType<typeof fixGrammar>>;
 
-const deliverAskResult = async (
-  preset: CorrectionPreset,
-  question: string,
-  result: FixGrammarResult,
-) => {
+type DeliverAskResultParams = {
+  preset: CorrectionPreset;
+  question: string;
+  /** The selection carried in as optional context; shown in the result popup. */
+  input: string;
+  result: FixGrammarResult;
+};
+
+const deliverAskResult = async ({
+  preset,
+  question,
+  input,
+  result,
+}: DeliverAskResultParams) => {
   return deliverCorrectionOutput(
     resolvePresetOutputMode(
       preset.outputMode,
@@ -122,6 +136,7 @@ const deliverAskResult = async (
           question,
           answer: payload.text,
           markdown: preset.markdownOutput ?? false,
+          input,
         }),
     },
   );
@@ -156,6 +171,8 @@ const recordAskHistory = (message: string, result: FixGrammarResult): void => {
       pricePrompt: cost.pricePrompt ?? undefined,
       priceCompletion: cost.priceCompletion ?? undefined,
       costStatus: cost.status,
+      // Undefined when the request produced no snapshot; round-trips to NULL.
+      sessionJson: result.sessionJson,
     },
     type: "add",
     featureId: "corrections",

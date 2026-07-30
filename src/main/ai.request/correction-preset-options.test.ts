@@ -122,9 +122,8 @@ describe("fixGrammar — per-preset reasoning", () => {
 });
 
 
-describe("fixGrammar — prompt-optimization target model id", () => {
+describe("fixGrammar — prompt-optimization user prompt", () => {
   const PROMPT_OPTIMIZATION_REF = "openrouter::google/gemma-2-9b-it";
-  const PROMPT_OPTIMIZATION_RAW_ID = "google/gemma-2-9b-it";
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -136,14 +135,13 @@ describe("fixGrammar — prompt-optimization target model id", () => {
     );
   });
 
-  it("names the RAW model id in the user prompt, never the composite ref", async () => {
+  it("does not inject the preset model into the user prompt", async () => {
     await fixGrammar("draft prompt");
 
     const { userPrompt } = (makeAIRequest as Mock).mock.calls[0][0];
-    expect(userPrompt).toContain(
-      `- The selected target model ID is: ${PROMPT_OPTIMIZATION_RAW_ID}.`,
-    );
+    expect(userPrompt).not.toContain("target model");
     expect(userPrompt).not.toContain("openrouter::");
+    expect(userPrompt).not.toContain("google/gemma-2-9b-it");
   });
 
   it("still routes on the composite ref", async () => {
@@ -151,20 +149,6 @@ describe("fixGrammar — prompt-optimization target model id", () => {
 
     const { model } = (makeAIRequest as Mock).mock.calls[0][0];
     expect(model).toBe(PROMPT_OPTIMIZATION_REF);
-  });
-
-  it("names the inherited default's raw id when the preset inherits", async () => {
-    setupMockSettings(
-      makePreset({ id: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID, model: "" }),
-    );
-    (getDefaultModelId as Mock).mockReturnValue("ollama::llama3.2:3b");
-
-    await fixGrammar("draft prompt");
-
-    const { userPrompt, model } = (makeAIRequest as Mock).mock.calls[0][0];
-    expect(userPrompt).toContain("- The selected target model ID is: llama3.2:3b.");
-    expect(userPrompt).not.toContain("ollama::");
-    expect(model).toBe("ollama::llama3.2:3b");
   });
 });
 

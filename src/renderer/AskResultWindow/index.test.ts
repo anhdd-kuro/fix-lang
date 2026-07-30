@@ -6,7 +6,11 @@
  * elements; Copy carrying the raw markdown string (never the rendered text);
  * Close invoking the close bridge; and the snapshotted `markdown` flag being
  * honoured (plain text renders literally, without going through
- * `react-markdown`, when `markdown` is `false`).
+ * `react-markdown`, when `markdown` is `false`). Also covers the layout
+ * contract: the footer copy control carries no icon, the sections render in
+ * input > question > answer order with the input block absent entirely on an
+ * empty selection, and input/question clamp to 3 lines until folded open while
+ * the answer never clamps.
  */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -221,6 +225,162 @@ describe("AskResultWindow", () => {
     const inlineCode = container.querySelector("code");
     expect(inlineCode).toBeTruthy();
     expect(inlineCode?.hasAttribute("node")).toBe(false);
+  });
+
+  it("the footer copy control renders no icon while keeping its label", async () => {
+    await render();
+    await act(async () => {
+      payloadListener?.({
+        question: "q",
+        answer: "a",
+        markdown: false,
+      });
+    });
+
+    const copyButton = container.querySelector(
+      `[aria-label="${tEn("common.copy")}"]`,
+    ) as HTMLButtonElement;
+    expect(copyButton).toBeTruthy();
+    expect(copyButton.querySelector("svg")).toBeNull();
+    expect(copyButton.textContent).toContain(tEn("common.copy"));
+  });
+
+  it("renders the sections in order input, question, answer", async () => {
+    await render();
+    await act(async () => {
+      payloadListener?.({
+        question: "What does this mean?",
+        answer: "It means...",
+        markdown: false,
+        input: "the selected passage",
+      });
+    });
+
+    expect(
+      [...container.querySelectorAll("[data-ask-section]")].map((element) =>
+        element.getAttribute("data-ask-section"),
+      ),
+    ).toEqual(["input", "question", "answer"]);
+    expect(container.textContent).toContain(
+      tEn("notifications.window.askResult.inputLabel"),
+    );
+    expect(container.textContent).toContain("the selected passage");
+  });
+
+  it("omits the input section entirely when the selection was empty", async () => {
+    await render();
+    await act(async () => {
+      payloadListener?.({
+        question: "Just a question",
+        answer: "The answer",
+        markdown: false,
+        input: "",
+      });
+    });
+
+    expect(container.querySelector('[data-ask-section="input"]')).toBeNull();
+    expect(container.textContent).not.toContain(
+      tEn("notifications.window.askResult.inputLabel"),
+    );
+    expect(
+      [...container.querySelectorAll("[data-ask-section]")].map((element) =>
+        element.getAttribute("data-ask-section"),
+      ),
+    ).toEqual(["question", "answer"]);
+  });
+
+  it.each(["   ", "\n\n"])(
+    "omits the input section when the selection is whitespace only: %j",
+    async (input) => {
+      await render();
+      await act(async () => {
+        payloadListener?.({
+          question: "Just a question",
+          answer: "The answer",
+          markdown: false,
+          input,
+        });
+      });
+
+      expect(container.querySelector('[data-ask-section="input"]')).toBeNull();
+      expect(container.textContent).not.toContain(
+        tEn("notifications.window.askResult.inputLabel"),
+      );
+      expect(
+        [...container.querySelectorAll("[data-ask-section]")].map((element) =>
+          element.getAttribute("data-ask-section"),
+        ),
+      ).toEqual(["question", "answer"]);
+    },
+  );
+
+  it("omits the input section when the payload carries no input at all", async () => {
+    await render();
+    await act(async () => {
+      payloadListener?.({
+        question: "Just a question",
+        answer: "The answer",
+        markdown: false,
+      });
+    });
+
+    expect(container.querySelector('[data-ask-section="input"]')).toBeNull();
+  });
+
+  it("clamps the input and question to 3 lines and unclamps them on the fold control", async () => {
+    await render();
+    await act(async () => {
+      payloadListener?.({
+        question: "What does this mean?",
+        answer: "It means...",
+        markdown: false,
+        input: "the selected passage",
+      });
+    });
+
+    for (const sectionId of ["input", "question"]) {
+      const section = container.querySelector(
+        `[data-ask-section="${sectionId}"]`,
+      ) as HTMLElement;
+      const body = section.querySelector("[data-ask-text]") as HTMLElement;
+      expect(body.className).toContain("line-clamp-3");
+
+      const toggle = [...section.querySelectorAll("button")].find(
+        (button) =>
+          button.textContent ===
+          tEn("notifications.window.askResult.expand"),
+      );
+      expect(toggle).toBeTruthy();
+
+      await act(async () => {
+        toggle?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      });
+
+      expect(body.className).not.toContain("line-clamp-3");
+      expect(
+        [...section.querySelectorAll("button")].map(
+          (button) => button.textContent,
+        ),
+      ).toContain(tEn("notifications.window.askResult.collapse"));
+    }
+  });
+
+  it("never clamps the answer", async () => {
+    await render();
+    await act(async () => {
+      payloadListener?.({
+        question: "q",
+        answer: "a",
+        markdown: false,
+        input: "selection",
+      });
+    });
+
+    const answerSection = container.querySelector(
+      '[data-ask-section="answer"]',
+    ) as HTMLElement;
+    expect(answerSection.className).not.toContain("line-clamp");
+    expect(answerSection.querySelector(".line-clamp-3")).toBeNull();
   });
 
   it("Close invokes the close bridge", async () => {

@@ -19,8 +19,10 @@ const isAskInputPayload = (value: unknown): value is AskInputPayload => {
 
 /**
  * Validates the ask-result payload crossing the preload boundary.
- * `presetName` is optional (mirroring `CorrectionResultPayload`) but must be
- * a string when present.
+ * `presetName` (mirroring `CorrectionResultPayload`) and `input` (the carried-in
+ * selection) are optional but must be strings when present — the result window
+ * renders both as `string`-typed text, so a non-string reaching it would crash
+ * the render instead of being rejected here.
  */
 const isAskResultPayload = (value: unknown): value is AskResultPayload => {
   if (typeof value !== "object" || value === null) return false;
@@ -34,6 +36,9 @@ const isAskResultPayload = (value: unknown): value is AskResultPayload => {
     return false;
   }
   if ("presetName" in value && typeof value.presetName !== "string") {
+    return false;
+  }
+  if ("input" in value && typeof value.input !== "string") {
     return false;
   }
   return true;
