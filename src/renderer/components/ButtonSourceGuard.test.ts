@@ -2193,7 +2193,7 @@ const consumerContractRows = [
     "SITE-57f775bd4fae66ec-01",
     "LIVE-57f775bd4fae66ec",
     "src/renderer/components/usage/OpenAIUsagePanel.tsx",
-    123,
+    154,
     11,
   ],
   [
@@ -2201,7 +2201,7 @@ const consumerContractRows = [
     "SITE-faf927e806407b15-01",
     "LIVE-faf927e806407b15",
     "src/renderer/components/usage/OpenAIUsagePanel.tsx",
-    160,
+    191,
     9,
   ],
   [
@@ -2281,7 +2281,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "891f3c7e6b14ec333a9adacf1ebf4ee8add3be85ac642816cf261239eeb7148b";
+  "013b6930ab8987bef0ebbf7402502fdc91a8fb55733ec6d18f1b4ef4a255ce1e";
 
 const compareConsumers = (
   left: ButtonConsumer,

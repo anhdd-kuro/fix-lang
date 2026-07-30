@@ -28,7 +28,7 @@ import {
   registerUiHandlers,
   registerUpdateHandlers,
 } from "./ipc/features";
-import { registerHotkeys, unregisterHotkeys } from "./keybindings";
+import { registerHotkeys, reloadHotkeys, unregisterHotkeys } from "./keybindings";
 import { startModelMonitoring } from "./llm/models/monitor";
 import { initializeUpdateService, type UpdateService } from "./update";
 import { shouldCheckForUpdatesOnLaunch } from "./update/installationPath";
@@ -247,4 +247,29 @@ function initializeApp() {
   });
 }
 
-initializeApp();
+// Without this lock, launching FixLang a second time (e.g. a stray login-item
+// launch racing a manual one) spins up a second tray icon and tray
+// BrowserWindow with its own independent OpenRouter-analytics cache -- the two
+// windows land at nearly the same screen position and their credit cards
+// visually stack on top of each other.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    const mainWindow = getMainWindow();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    } else {
+      createMainWindow();
+      // Hotkeys were registered once at startup against the original main
+      // window, so a freshly created one here never gets rebound -- rebind
+      // now, same as after a profile switch or settings change.
+      reloadHotkeys();
+    }
+  });
+
+  initializeApp();
+}
