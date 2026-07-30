@@ -99,7 +99,7 @@ export type CorrectionPreset = {
   isBuiltIn: boolean;
   /**
    * Optional per-preset AI SDK `reasoning` effort. Undefined omits the parameter
-   * (provider-default). Slider steps: minimal → low → medium → high.
+   * (provider-default). Slider steps: low → medium → high.
    */
   reasoning?: ReasoningEffort;
   /**
@@ -294,7 +294,7 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     systemPrompt: DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
     model: INHERIT_GLOBAL_MODEL,
     isBuiltIn: true,
-    reasoning: "minimal",
+    reasoning: "low",
   },
   {
     id: DEFAULT_TRANSLATE_PRESET_ID,
@@ -311,7 +311,7 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     systemPrompt: DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
     model: INHERIT_GLOBAL_MODEL,
     isBuiltIn: true,
-    reasoning: "minimal",
+    reasoning: "low",
   },
   {
     id: DEFAULT_STRUCTURED_TEXT_PRESET_ID,
@@ -328,7 +328,10 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     systemPrompt: DEFAULT_ASK_PRESET_PROMPT,
     model: INHERIT_GLOBAL_MODEL,
     isBuiltIn: true,
-    reasoning: "minimal",
+    // `minimal` was retired; RETIRED_EFFORTS remaps a STORED one to `low`, but
+    // a fresh default must not ship a retired value — it is not in the
+    // `ReasoningEffort` union, so it no longer type-checks either.
+    reasoning: "low",
     requiresInput: true,
     outputMode: "popup",
     markdownOutput: true,
@@ -453,7 +456,7 @@ export const normalizeCorrectionSettings = (
 
     seenIds.add(id);
 
-    // Existing profiles predate the two built-in Minimal defaults. Migrate
+    // Existing profiles predate the two built-in Low defaults. Migrate
     // only those recognized built-ins when the field is absent; explicit
     // stored values still win, and unknown values are still dropped.
     const rawCandidate = candidate as Record<string, unknown>;
@@ -462,7 +465,7 @@ export const normalizeCorrectionSettings = (
       fallback !== undefined &&
       (id === DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID ||
         id === DEFAULT_BUSINESS_WRITING_PRESET_ID)
-        ? "minimal"
+        ? "low"
         : sanitizeReasoningEffort(rawCandidate.reasoning);
 
     // `requiresInput` is structural, not a preference: it decides whether the

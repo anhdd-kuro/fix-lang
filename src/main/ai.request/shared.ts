@@ -468,8 +468,6 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
   }
   const response = await makeRequest(request);
   const session: HistorySessionData = {
-    systemPrompt: finalSystemPrompt,
-    userPrompt: options.userPrompt ?? "",
     messages: messages.map((message) => ({
       role: message.role,
       content: message.content,

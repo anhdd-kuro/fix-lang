@@ -3,13 +3,12 @@
  * @description Per-preset and global reasoning effort for the AI SDK top-level
  * `reasoning` parameter. Electron-free — shared by main, preload, and renderer.
  *
- * Slider (None → Faster → Smarter) maps to five discrete values: `none` plus
- * four SDK effort steps. `provider-default` is a stored/API value for presets
+ * Slider (None → Faster → Smarter) maps to four discrete values: `none` plus
+ * three generic effort steps. `provider-default` is a stored/API value for presets
  * that inherit the profile-wide default; it is not a slider step.
  */
 
 export const REASONING_EFFORT_STEPS = [
-  "minimal",
   "low",
   "medium",
   "high",
@@ -22,6 +21,7 @@ export const REASONING_EFFORT_STEPS = [
  * behaviour instead of stepping it down one notch.
  */
 const RETIRED_EFFORTS: Record<string, ReasoningEffortStep> = {
+  minimal: "low",
   xhigh: "high",
 };
 

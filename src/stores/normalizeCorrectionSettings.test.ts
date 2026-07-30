@@ -276,7 +276,7 @@ describe("getDefaultCorrectionSettings — returns 7 built-in presets including 
       systemPrompt: DEFAULT_ASK_PRESET_PROMPT,
       model: "",
       isBuiltIn: true,
-      reasoning: "minimal",
+      reasoning: "low",
       requiresInput: true,
       outputMode: "popup",
       markdownOutput: true,
@@ -308,16 +308,16 @@ describe("getDefaultCorrectionSettings — returns 7 built-in presets including 
     );
     expect(businessWriting?.model).toBe("");
     expect(businessWriting?.isBuiltIn).toBe(true);
-    expect(businessWriting?.reasoning).toBe("minimal");
+    expect(businessWriting?.reasoning).toBe("low");
   });
 
-  it("includes Prompt optimization with Minimal reasoning", () => {
+  it("includes Prompt optimization with Low reasoning", () => {
     const defaults = getDefaultCorrectionSettings();
     const promptOptimization = defaults.presets.find(
       (p) => p.id === "prompt-optimization",
     );
 
-    expect(promptOptimization?.reasoning).toBe("minimal");
+    expect(promptOptimization?.reasoning).toBe("low");
   });
 
   it("includes Context-Aware Structured Text with the exact field values", () => {
@@ -502,7 +502,7 @@ describe("normalizeCorrectionSettings — Business Writing / Structured Text bui
     expect(result.presets).toHaveLength(7);
   });
 
-  it("migrates missing reasoning only on the two Minimal-default built-ins", () => {
+  it("migrates missing reasoning only on the two Low-default built-ins", () => {
     const result = normalizeCorrectionSettings({
       presets: [
         ...storedFourWithoutNewBuiltIns.presets,
@@ -529,12 +529,12 @@ describe("normalizeCorrectionSettings — Business Writing / Structured Text bui
     expect(
       result.presets.find((preset) => preset.id === "prompt-optimization")
         ?.reasoning,
-    ).toBe("minimal");
+    ).toBe("low");
     expect(
       result.presets.find(
         (preset) => preset.id === DEFAULT_BUSINESS_WRITING_PRESET_ID,
       )?.reasoning,
-    ).toBe("minimal");
+    ).toBe("low");
     expect(
       result.presets.find((preset) => preset.id === "custom-without-reasoning"),
     ).not.toHaveProperty("reasoning");
@@ -1378,7 +1378,7 @@ describe("normalizeCorrectionSettings — Ask's requiresInput / outputMode / mar
       systemPrompt: DEFAULT_ASK_PRESET_PROMPT,
       model: "",
       isBuiltIn: true,
-      reasoning: "minimal",
+      reasoning: "low",
       requiresInput: true,
       outputMode: "popup",
       markdownOutput: true,

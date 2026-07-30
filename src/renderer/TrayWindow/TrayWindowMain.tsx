@@ -25,6 +25,7 @@ const TrayGlobalSelectors: React.FC = () => {
       tooltipText={t("tray.global.overrideTooltip")}
       width="w-64"
       className="shrink-0"
+      portal
     />
   );
 

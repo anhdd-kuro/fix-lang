@@ -7,6 +7,7 @@ import { Button } from "./Button";
 import { formatCostLabel } from "./historyCost";
 import { formatModelLineage } from "./historyModel";
 import { HistorySessionDetailsModal } from "./HistorySessionDetailsModal";
+import Tooltip from "./Tooltip";
 import { TrashButton } from "./TrashButton";
 import { useI18n } from "../i18n/useI18n";
 import type { HistoryEntry, HistoryFeatureId } from "~/stores/historyStore";
@@ -66,21 +67,6 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
             <span className="px-1.5 py-0.5 bg-primary text-primary-foreground rounded-sm">
               {entry.presetName ?? t("common.unknown")}
             </span>
-            {hasSession ? (
-              <Button
-                type="button"
-                variant="ghost"
-                className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-                title={t("history.details.show")}
-                aria-label={t("history.details.show")}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setShowDetails(true);
-                }}
-              >
-                <EyeIcon className="size-3.5" />
-              </Button>
-            ) : null}
             <TrashButton
               onClick={(e) => {
                 e.stopPropagation();
@@ -90,12 +76,36 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
             />
           </div>
         </div>
-        <p
-          className="text-sm text-foreground line-clamp-1"
-          title={entry.original}
-        >
-          {entry.original.slice(0, 50)}...
-        </p>
+        <div className="flex items-center gap-1">
+          {hasSession ? (
+            <Tooltip
+              tooltipText={t("history.details.tooltip")}
+              width="w-44"
+              portal
+              className="shrink-0"
+              activator={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  aria-label={t("history.details.tooltip")}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setShowDetails(true);
+                  }}
+                >
+                  <EyeIcon className="size-3.5" />
+                </Button>
+              }
+            />
+          ) : null}
+          <p
+            className="min-w-0 text-sm text-foreground line-clamp-1"
+            title={entry.original}
+          >
+            {entry.original.slice(0, 50)}...
+          </p>
+        </div>
         <div className="flex items-center justify-between gap-2">
           <p
             className="text-sm text-foreground line-clamp-1"

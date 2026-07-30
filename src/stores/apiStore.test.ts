@@ -806,8 +806,9 @@ describe("apiStoreSchema — settingsCorrect default carries all seven built-in 
 //
 // This hash WAS updated for card 03 (adding business-writing/structured-text
 // to `makeDefaultCorrectionPresets()`), and again when those two built-in
-// prompt markdown assets changed (defaults embed prompt text), and when Prompt
-// optimization plus Business Writing gained `minimal` reasoning defaults,
+// prompt markdown assets changed (defaults embed prompt text), when Prompt
+// optimization plus Business Writing gained reasoning defaults, and when
+// those defaults changed from retired `minimal` to generic `low`,
 // after verifying the safety claim below
 // rather than taking it on faith:
 //
@@ -844,7 +845,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "8dcc460039fc3aa7b797b9d0081b1ed4fb2b3b0c973afa9d817fb0b698d90413",
+      "46654d1a1fcf2be99156283e0b604ea2f1d0d8aa6ebbf88c4c326c9d0bd96119",
     );
   });
 });
