@@ -42,6 +42,9 @@ const SPEC_KEYS = [
   "overview.value.days",
   "overview.value.hour",
   "overview.value.empty",
+  "overview.value.estimatedCost",
+  "overview.value.estimatedCostNa",
+  "overview.value.estimatedCostPartial",
   "overview.tokenActivity.title",
   "overview.tokenActivity.mode.ariaLabel",
   "overview.tokenActivity.mode.daily",
@@ -111,8 +114,8 @@ const SPEC_KEYS = [
 ] as const;
 
 describe("dashboard.json — spec key inventory (docs/spec.i18n-dashboard.md §3)", () => {
-  it("introduces exactly 72 keys (57 prior + 7 models chart/breakdown + 3 guide.records)", () => {
-    expect(SPEC_KEYS.length).toBe(72);
+  it("introduces exactly 75 keys (57 prior + 7 models chart/breakdown + 3 guide.records + 3 estimated-cost hints)", () => {
+    expect(SPEC_KEYS.length).toBe(75);
   });
 
   it("has no duplicate keys in the spec inventory itself", () => {

@@ -16,6 +16,7 @@ import {
 } from "react";
 import { twJoin } from "tailwind-merge";
 import { heatmapCellClass, heatmapLevelClass } from "./heatmapIntensity";
+import { formatOverviewCostHint } from "./overviewCostView";
 import { PresetWeightChart } from "./PresetWeightChart";
 import { SegmentedControl } from "./SegmentedControl";
 import { StatCard } from "./StatCard";
@@ -30,6 +31,7 @@ import { filterByRange, type AnalyticsRange } from "../analytics/shared";
 import { useI18n } from "../i18n/useI18n";
 import {
   activeDays,
+  costTotal,
   favoriteModel,
   messageCount,
   peakHour,
@@ -154,6 +156,7 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
     return {
       messages: messageCount(filtered),
       tokens: totalTokens(filtered),
+      cost: costTotal(filtered),
       days: activeDays(filtered),
       streak: streaks(filtered, now),
       peak: peakHour(filtered),
@@ -193,7 +196,11 @@ export const OverviewPanel = ({ history, range }: OverviewPanelProps) => {
       {/* Summary stat cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <StatCard label={t(STAT_CARD_KEYS.messages)} value={formatNumber(view.messages)} />
-        <StatCard label={t(STAT_CARD_KEYS.totalTokens)} value={formatNumber(view.tokens)} />
+        <StatCard
+          label={t(STAT_CARD_KEYS.totalTokens)}
+          value={formatNumber(view.tokens)}
+          hint={formatOverviewCostHint(view.cost, t, formatNumber)}
+        />
         <StatCard label={t(STAT_CARD_KEYS.activeDays)} value={formatNumber(view.days)} />
         <StatCard
           label={t(STAT_CARD_KEYS.streaks)}
