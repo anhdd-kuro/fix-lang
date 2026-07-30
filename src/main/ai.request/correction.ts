@@ -38,8 +38,13 @@ type CorrectionResult = {
   sessionJson?: string;
 };
 
-/** A preset's pinned model, or the profile default when it inherits (""). */
-const effectiveModelRef = (preset: CorrectionPreset): string =>
+/**
+ * A preset's pinned model, or the profile default when it inherits ("").
+ * Exported so callers outside the request path (the connection prewarmer in
+ * `~/main/llm/prewarm`) can resolve the same target a real `fixGrammar` call
+ * would route to, without duplicating the inherit rule.
+ */
+export const effectiveModelRef = (preset: CorrectionPreset): string =>
   preset.model?.trim() || getDefaultModelId();
 
 const getCorrectionPreset = (presetId?: string): CorrectionPreset => {

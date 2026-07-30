@@ -40,6 +40,88 @@ const waitForUi = async () => {
   });
 };
 
+class StubResizeObserver {
+  // `FoldableTextBlock` observes its body to re-measure the clamp on resize;
+  // jsdom provides no `ResizeObserver`, and these tests drive the measurement
+  // through the stubbed heights below rather than through resize events.
+  observe(): void {
+    // no-op stub
+  }
+  unobserve(): void {
+    // no-op stub
+  }
+  disconnect(): void {
+    // no-op stub
+  }
+}
+
+/**
+ * jsdom lays nothing out, so every element reports `scrollHeight === 0` and
+ * `clientHeight === 0` — overflow would never be detected and the fold control
+ * would never render. These getters model the one thing the component reads:
+ * a `[data-ask-text]` body whose full height is `stubbedTextLines`, cropped to
+ * `CLAMPED_LINES` while the clamp class is on it. Because `clientHeight`
+ * tracks the clamp class, expanding really does report "no overflow" here,
+ * exactly as in a browser.
+ */
+const LINE_HEIGHT_PX = 20;
+const CLAMPED_LINES = 3;
+let stubbedTextLines = 6;
+
+const isAskText = (element: HTMLElement) =>
+  typeof element.hasAttribute === "function" &&
+  element.hasAttribute("data-ask-text");
+
+const originalHeightDescriptors = {
+  scrollHeight: Object.getOwnPropertyDescriptor(
+    HTMLElement.prototype,
+    "scrollHeight",
+  ),
+  clientHeight: Object.getOwnPropertyDescriptor(
+    HTMLElement.prototype,
+    "clientHeight",
+  ),
+} as const;
+
+const installTextMetrics = () => {
+  Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+    configurable: true,
+    get(this: HTMLElement) {
+      return isAskText(this) ? stubbedTextLines * LINE_HEIGHT_PX : 0;
+    },
+  });
+  Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+    configurable: true,
+    get(this: HTMLElement) {
+      if (!isAskText(this)) return 0;
+      const visibleLines = this.className.includes("line-clamp-3")
+        ? Math.min(CLAMPED_LINES, stubbedTextLines)
+        : stubbedTextLines;
+      return visibleLines * LINE_HEIGHT_PX;
+    },
+  });
+};
+
+const restoreTextMetrics = () => {
+  for (const property of ["scrollHeight", "clientHeight"] as const) {
+    const original = originalHeightDescriptors[property];
+    if (original) {
+      Object.defineProperty(HTMLElement.prototype, property, original);
+    } else {
+      // jsdom defines these on `Element.prototype`, so there is normally no own
+      // descriptor here to restore — the stub has to be removed outright.
+      Reflect.deleteProperty(HTMLElement.prototype, property);
+    }
+  }
+};
+
+const foldControl = (section: HTMLElement) =>
+  [...section.querySelectorAll("button")].find(
+    (button) =>
+      button.textContent === tEn("notifications.window.askResult.expand") ||
+      button.textContent === tEn("notifications.window.askResult.collapse"),
+  );
+
 const GFM_MARKDOWN = [
   "| Col A | Col B |",
   "| --- | --- |",
@@ -55,8 +137,13 @@ describe("AskResultWindow", () => {
   let root: Root;
   let payloadListener: ((payload: AskResultPayload) => void) | undefined;
   let api: ElectronApiMock;
+  const originalResizeObserver = globalThis.ResizeObserver;
 
   const render = async () => {
+    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
+      StubResizeObserver;
+    installTextMetrics();
+
     api = {
       onAskResultData: vi.fn(
         (callback: (payload: AskResultPayload) => void) => {
@@ -101,6 +188,10 @@ describe("AskResultWindow", () => {
     }
     container?.remove();
     payloadListener = undefined;
+    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
+      originalResizeObserver;
+    restoreTextMetrics();
+    stubbedTextLines = 6;
     vi.restoreAllMocks();
   });
 
@@ -345,12 +436,10 @@ describe("AskResultWindow", () => {
       const body = section.querySelector("[data-ask-text]") as HTMLElement;
       expect(body.className).toContain("line-clamp-3");
 
-      const toggle = [...section.querySelectorAll("button")].find(
-        (button) =>
-          button.textContent ===
-          tEn("notifications.window.askResult.expand"),
+      const toggle = foldControl(section);
+      expect(toggle?.textContent).toBe(
+        tEn("notifications.window.askResult.expand"),
       );
-      expect(toggle).toBeTruthy();
 
       await act(async () => {
         toggle?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -363,6 +452,102 @@ describe("AskResultWindow", () => {
         ),
       ).toContain(tEn("notifications.window.askResult.collapse"));
     }
+  });
+
+  it("omits the fold control entirely when the text fits inside the clamp", async () => {
+    stubbedTextLines = 2;
+    await render();
+    await act(async () => {
+      payloadListener?.({
+        question: "Short?",
+        answer: "Yes",
+        markdown: false,
+        input: "one short line",
+      });
+    });
+
+    for (const sectionId of ["input", "question"]) {
+      const section = container.querySelector(
+        `[data-ask-section="${sectionId}"]`,
+      ) as HTMLElement;
+      expect(section.querySelector("[data-ask-text]")).toBeTruthy();
+      expect(foldControl(section)).toBeUndefined();
+    }
+    expect(container.textContent).not.toContain(
+      tEn("notifications.window.askResult.expand"),
+    );
+  });
+
+  it("renders the fold control after the text block, not beside the label", async () => {
+    await render();
+    await act(async () => {
+      payloadListener?.({
+        question: "What does this mean?",
+        answer: "It means...",
+        markdown: false,
+        input: "the selected passage",
+      });
+    });
+
+    for (const sectionId of ["input", "question"]) {
+      const section = container.querySelector(
+        `[data-ask-section="${sectionId}"]`,
+      ) as HTMLElement;
+      const body = section.querySelector("[data-ask-text]") as HTMLElement;
+      const toggle = foldControl(section) as HTMLButtonElement;
+
+      expect(section.lastElementChild).toBe(toggle);
+      expect(
+        body.compareDocumentPosition(toggle) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      // The label/body/control are three siblings in source order, so the
+      // control can no longer sit in a header row shared with the label.
+      expect([...section.children].indexOf(body)).toBe(1);
+      expect(toggle.parentElement).toBe(section);
+    }
+  });
+
+  it("keeps the fold control mounted once expanded, though the unclamped text reports no overflow", async () => {
+    await render();
+    await act(async () => {
+      payloadListener?.({
+        question: "What does this mean?",
+        answer: "It means...",
+        markdown: false,
+        input: "the selected passage",
+      });
+    });
+
+    const section = container.querySelector(
+      '[data-ask-section="question"]',
+    ) as HTMLElement;
+
+    await act(async () => {
+      foldControl(section)?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+
+    const body = section.querySelector("[data-ask-text]") as HTMLElement;
+    expect(body.className).not.toContain("line-clamp-3");
+    // Unclamped, the body's scrollHeight equals its clientHeight: measuring
+    // here would report "fits" and unmount the only way back to collapsed.
+    expect(body.scrollHeight).toBe(body.clientHeight);
+    expect(foldControl(section)?.textContent).toBe(
+      tEn("notifications.window.askResult.collapse"),
+    );
+
+    await act(async () => {
+      foldControl(section)?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+
+    expect(body.className).toContain("line-clamp-3");
+    expect(foldControl(section)?.textContent).toBe(
+      tEn("notifications.window.askResult.expand"),
+    );
   });
 
   it("never clamps the answer", async () => {

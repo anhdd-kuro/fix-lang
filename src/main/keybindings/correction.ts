@@ -4,17 +4,22 @@ import { keybindingStore } from "~/features/correction/store/keybindingStore";
 import { outputModeStore } from "~/features/correction/store/outputModeStore";
 import { syncHistory } from "~/features/history/main/history";
 import { getProfileSetting } from "~/features/providers/store/apiStore";
-import { getActiveApp } from "~/main/accessibility/activeApp";
 import { DEFAULT_CORRECTION_PRESET_ID } from "~/prompts";
 // No apiStore import needed as api key is handled in shared.ts
-import { getHighlightedText, getHighlightedTextForOptionalContext, pasteText } from "../../utils";
+import {
+  getHighlightedTextForOptionalContext,
+  getHighlightedTextWithActiveApp,
+  pasteText,
+} from "../../utils";
 import { fixGrammar } from "../ai.request";
 import { runAskFlow } from "./askFlow";
 import { buildCorrectionGoodJobNotification } from "./correctionNotifications";
 import { deliverCorrectionOutput } from "./correctionOutput";
 import { checkShortcut, handleError, withHotkeyThrottle } from "./utils";
+import { effectiveModelRef } from "../ai.request/correction";
 import { buildPriceMap, computeCost } from "../ai.request/cost";
 import { getCachedModels, isLocalModelId } from "../ai.request/shared";
+import { prewarmProviderConnection } from "../llm/prewarm";
 import { logger } from "../logging/logService";
 import { LocalizedError } from "../notifications/error";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
@@ -59,20 +64,33 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         presetId: preset.id,
       });
 
-      try {
-        // Must precede `showOverlaySpinner` below: once a FixLang window is on
-        // screen this read reports FixLang and yields null.
-        const activeApp = await getActiveApp();
+      // Fire-and-forget: starts the provider's TCP+TLS handshake now so it
+      // overlaps the AppleScript selection read below (and, for the
+      // `requiresInput` branch, the time the user spends typing into the Ask
+      // input window) instead of happening serially right before the real
+      // request. Never throws, never blocks, never surfaces an error — see
+      // `~/main/llm/prewarm.ts`'s own contract.
+      prewarmProviderConnection(effectiveModelRef(preset));
 
+      try {
         // Ask AI inverts the outbound-polish presets below: an empty
         // selection is the normal case (the question can stand alone), so it
         // must never hit the "no text selected" abort. The window itself
         // owns the request from here — asking the user for a question, then
         // handing the answer off to `runAskFlow`. It reads via
-        // `getHighlightedTextForOptionalContext`, NOT `getHighlightedText`:
-        // the latter cannot tell "nothing selected" apart from "clipboard
-        // still holds whatever was there before", so a stale clipboard would
-        // otherwise be silently attached as the question's context.
+        // `getHighlightedTextForOptionalContext`, NOT the combined
+        // `getHighlightedTextWithActiveApp` below — the two disagree on
+        // purpose about what an unchanged clipboard means: the optional
+        // variant reports "" (no context) so a stale, unrelated clipboard is
+        // never attached as the question's context; the combined variant
+        // below instead falls back to the clipboard's own content, same as
+        // it always did, because it also has to support a real re-selection
+        // of text byte-identical to the clipboard (see `~/utils.ts`).
+        //
+        // Ask AI also never uses source-app context (see askFlow.ts's own
+        // doc comment) — unlike the branch below, it does not read the
+        // frontmost app at all, since that read would just be a wasted
+        // osascript round-trip for this preset.
         if (preset.requiresInput) {
           const context = await getHighlightedTextForOptionalContext();
           showAskInputWindow(
@@ -91,9 +109,24 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           return;
         }
 
-        const selectedText = await getHighlightedText();
+        // One osascript invocation reads the frontmost app and THEN sends
+        // the Cmd-C keystroke (see getHighlightedTextWithActiveApp) instead
+        // of two separate spawns. The callback fires right after that script
+        // returns — before the clipboard-change poll — which is the
+        // earliest point it is still safe to show the overlay spinner: the
+        // frontmost-app read must precede any FixLang window becoming
+        // visible, since afterwards it would report FixLang and yield null.
+        const { text: selectedText, activeApp } = await getHighlightedTextWithActiveApp(
+          () => {
+            showOverlaySpinner();
+          },
+        );
 
         if (!selectedText || !selectedText.trim()) {
+          // Safe even though the spinner may not have been shown yet
+          // (e.g. the combined read threw before the callback fired):
+          // hiding an overlay that was never shown is a no-op.
+          hideOverlaySpinner();
           logger.warn(
             "correction.hotkey",
             "No text selected or clipboard is empty",
@@ -112,7 +145,6 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           mainWindow.webContents.send("start-loading");
         }
 
-        showOverlaySpinner();
         const result = await fixGrammar(selectedText, preset.id, {
           activeAppName: activeApp?.name,
         });

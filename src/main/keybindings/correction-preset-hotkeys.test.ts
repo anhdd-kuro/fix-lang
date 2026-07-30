@@ -49,9 +49,6 @@ vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
     apiStore: { get: vi.fn().mockReturnValue(undefined), set: vi.fn() },
   };
 });
-vi.mock("~/main/accessibility/activeApp", () => ({
-  getActiveApp: vi.fn().mockResolvedValue(null),
-}));
 vi.mock("~/features/correction/store/keybindingStore", () => ({
   keybindingStore: { getKeyBindings: vi.fn(() => mocks.keyBindings) },
 }));
@@ -59,7 +56,9 @@ vi.mock("~/features/correction/store/outputModeStore", () => ({
   outputModeStore: { getCorrectionOutputMode: vi.fn().mockReturnValue("popup") },
 }));
 vi.mock("../../utils", () => ({
-  getHighlightedText: vi.fn().mockResolvedValue("some selected text"),
+  getHighlightedTextWithActiveApp: vi
+    .fn()
+    .mockResolvedValue({ text: "some selected text", activeApp: null }),
   getHighlightedTextForOptionalContext: vi.fn().mockResolvedValue("some selected text"),
   pasteText: vi.fn().mockResolvedValue(undefined),
 }));
@@ -104,9 +103,10 @@ import {
 import { runAskFlow } from "./askFlow";
 import { registerCorrectionShortcut } from "./correction";
 import { resetHotkeyThrottleForTests, handleError  } from "./utils";
-import { getHighlightedText, getHighlightedTextForOptionalContext } from "../../utils";
+import { getHighlightedTextForOptionalContext, getHighlightedTextWithActiveApp } from "../../utils";
 import { fixGrammar } from "../ai.request";
 import { logger } from "../logging/logService";
+import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
 import { showAskInputWindow } from "../webViewWindows/askInputWindow";
 import type * as KeybindingUtils from "./utils";
 import type { BrowserWindow } from "electron";
@@ -390,7 +390,10 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
       promptGen: "Control+Alt+P",
       profileSwitch: "Control+Alt+O",
     };
-    (getHighlightedText as Mock).mockResolvedValue("some selected text");
+    (getHighlightedTextWithActiveApp as Mock).mockResolvedValue({
+      text: "some selected text",
+      activeApp: null,
+    });
     (getHighlightedTextForOptionalContext as Mock).mockResolvedValue("some selected text");
   });
 
@@ -433,13 +436,17 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
     );
   });
 
-  it("reads the selection via getHighlightedTextForOptionalContext, not getHighlightedText, so a stale clipboard on an empty selection never becomes the Ask context", async () => {
-    // Regression guard for finding 07/f1: getHighlightedText's Cmd-C is a
-    // no-op with nothing selected, so it silently returns whatever was
-    // already on the clipboard (e.g. a password copied earlier). Ask must
-    // read through the optional-context variant instead, which reports ""
-    // for exactly that case (see src/utils.ts).
-    (getHighlightedText as Mock).mockResolvedValue("stale clipboard: hunter2");
+  it("reads the selection via getHighlightedTextForOptionalContext, not the combined active-app read, so a stale clipboard on an empty selection never becomes the Ask context", async () => {
+    // Regression guard for finding 07/f1: a Cmd-C with nothing selected is a
+    // no-op, so a strict/combined read silently returns whatever was already
+    // on the clipboard (e.g. a password copied earlier). Ask must read
+    // through the optional-context variant instead, which reports "" for
+    // exactly that case (see src/utils.ts) — and, since Ask AI never uses
+    // source-app context, it must not even trigger the combined read.
+    (getHighlightedTextWithActiveApp as Mock).mockResolvedValue({
+      text: "stale clipboard: hunter2",
+      activeApp: null,
+    });
     (getHighlightedTextForOptionalContext as Mock).mockResolvedValue("");
 
     const calls = registerFrom(singleBuiltInProfile);
@@ -447,6 +454,7 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
     await askCall?.[1]();
 
     expect(getHighlightedTextForOptionalContext).toHaveBeenCalled();
+    expect(getHighlightedTextWithActiveApp).not.toHaveBeenCalled();
     expect(showAskInputWindow).toHaveBeenCalledWith(
       { presetId: DEFAULT_ASK_PRESET_ID, context: "" },
       expect.objectContaining({
@@ -457,7 +465,7 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
   });
 
   it("still aborts a non-requiresInput preset with the noTextSelected notification when nothing is selected", async () => {
-    (getHighlightedText as Mock).mockResolvedValue("");
+    (getHighlightedTextWithActiveApp as Mock).mockResolvedValue({ text: "", activeApp: null });
 
     const calls = registerFrom(singleBuiltInProfile);
     const correctionCall = calls.find(
@@ -499,5 +507,61 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
     handlers.onCancel();
 
     expect(runAskFlow).not.toHaveBeenCalled();
+  });
+});
+
+describe("correction preset hotkeys — overlay spinner timing", () => {
+  const singleBuiltInProfile = {
+    presets: [storedBuiltIn("correction", "Correction", "Control+Shift+F")],
+    selectedPresetId: "correction",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetHotkeyThrottleForTests();
+    (globalShortcut.register as Mock).mockReturnValue(true);
+    mocks.keyBindings = {
+      promptGen: "Control+Alt+P",
+      profileSwitch: "Control+Alt+O",
+    };
+  });
+
+  it("shows the overlay spinner via the combined read's callback, as soon as the frontmost-app-read-then-copy script returns", async () => {
+    (getHighlightedTextWithActiveApp as Mock).mockImplementation(
+      async (onFrontmostReadAndKeystrokeSent?: () => void) => {
+        // Nothing has resolved the selection yet at this point — mirrors the
+        // real implementation calling this callback before its own
+        // clipboard-change poll.
+        expect(showOverlaySpinner).not.toHaveBeenCalled();
+        onFrontmostReadAndKeystrokeSent?.();
+        return { text: "some selected text", activeApp: null };
+      },
+    );
+
+    const calls = registerFrom(singleBuiltInProfile);
+    const correctionCall = calls.find(([shortcut]) => shortcut === "Control+Shift+F");
+    await correctionCall?.[1]();
+
+    expect(showOverlaySpinner).toHaveBeenCalledTimes(1);
+    expect(hideOverlaySpinner).toHaveBeenCalledTimes(1);
+  });
+
+  it("still hides the overlay spinner on the noTextSelected abort, even though it was already shown earlier", async () => {
+    (getHighlightedTextWithActiveApp as Mock).mockImplementation(
+      async (onFrontmostReadAndKeystrokeSent?: () => void) => {
+        onFrontmostReadAndKeystrokeSent?.();
+        return { text: "", activeApp: null };
+      },
+    );
+
+    const calls = registerFrom(singleBuiltInProfile);
+    const correctionCall = calls.find(([shortcut]) => shortcut === "Control+Shift+F");
+    await correctionCall?.[1]();
+
+    expect(showOverlaySpinner).toHaveBeenCalledTimes(1);
+    expect(hideOverlaySpinner).toHaveBeenCalledTimes(1);
+    expect(handleError).toHaveBeenCalledWith(
+      expect.objectContaining({ messageKey: "notifications.error.noTextSelected.body" }),
+    );
   });
 });

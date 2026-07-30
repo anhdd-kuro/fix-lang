@@ -109,14 +109,15 @@ describe("fixGrammar — active app context", () => {
     vi.clearAllMocks();
   });
 
-  it("prepends the source app to the preset's system prompt", async () => {
+  it("appends the source app to the preset's system prompt", async () => {
     setup(makePreset({ systemPrompt: "Fix grammar." }));
 
     await fixGrammar("hello world", undefined, { activeAppName: "Slack" });
 
     const { systemPrompt } = lastCall();
-    // The context block leads so it carries more weight than the preset's own instructions.
-    expect(systemPrompt.endsWith("Fix grammar.")).toBe(true);
+    // The context block trails so the preset's own instructions stay the
+    // stable, cacheable prefix of the request (see ./cache-strategy).
+    expect(systemPrompt.startsWith("Fix grammar.")).toBe(true);
     expect(systemPrompt).toContain('"Slack"');
     expect(systemPrompt).toMatch(/do not mention/i);
   });
@@ -201,7 +202,7 @@ describe("fixGrammar — active app context", () => {
     });
 
     const { systemPrompt } = lastCall();
-    expect(systemPrompt.endsWith("Restructure the text.")).toBe(true);
+    expect(systemPrompt.startsWith("Restructure the text.")).toBe(true);
     expect(systemPrompt).toContain('"Slack"');
     expect(systemPrompt).toMatch(/do not mention the app/i);
     expect(systemPrompt).not.toContain(PRESERVE_MARKUP_BULLET);

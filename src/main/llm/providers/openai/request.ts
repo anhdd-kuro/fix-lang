@@ -19,6 +19,7 @@ import {
   type AIRequestOptions,
 } from "~/main/ai.request/requestTypes";
 import { extractResolvedModel } from "~/main/ai.request/resolve-model";
+import { keepAliveFetch } from "~/main/llm/httpKeepAlive";
 import { showErrorNotification } from "~/main/notifications/error";
 
 export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
@@ -39,7 +40,7 @@ export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
 
   try {
     const modelId = options.model as string;
-    const openai = createOpenAI({ apiKey: apiKey.trim() });
+    const openai = createOpenAI({ apiKey: apiKey.trim(), fetch: keepAliveFetch });
     const conversation = toConversation(rawMessages);
     const request = () =>
       generateText({
