@@ -1,12 +1,13 @@
 /**
  * @file OpenAIUsagePanel.tsx
  * @description OpenAI panel of the Usage tab. Shows billed spend for the range
- * (from `/organization/costs`), token + request totals and a per-model table
- * (from `/organization/usage/completions`), plus the three shared charts. Each
- * card degrades independently from its CardResult.
+ * and per-project spend (both from `/organization/costs`), token + request totals
+ * and a per-model table (from `/organization/usage/completions`), plus the shared
+ * charts. Each card degrades independently from its CardResult.
  *
  * DELIBERATE ASYMMETRY with the OpenRouter panel:
- * - No credit-balance or key-limit card — OpenAI's API exposes neither.
+ * - No credit-balance or key-limit card — OpenAI's API exposes neither. The
+ *   per-project card reports what a project SPENT, never what it has left.
  * - The per-model table has NO cost column, and the donut slices billed LINE
  *   ITEMS rather than models: cost cannot be grouped by model, and this app holds
  *   no OpenAI price table, so a per-model dollar figure could only be an estimate
@@ -34,6 +35,8 @@ import type {
   CardResult,
   OpenAICompletionsUsage,
   OpenAICosts,
+  OpenAIProjectCosts,
+  OpenAIProjectSpendRow,
 } from "~/main/llm/providers/openai/usage.parsers";
 import type { TranslationKey } from "~/shared/i18n/keys";
 import type { Translator } from "~/shared/i18n/translate";
@@ -77,6 +80,17 @@ const Card = ({
   </div>
 );
 
+/**
+ * The project's own name, falling back to the raw `proj_…` id when the name
+ * lookup came back empty, and to a labelled bucket for spend OpenAI reported
+ * with no project at all. Never renders a blank cell.
+ */
+const projectLabel = (row: OpenAIProjectSpendRow, t: Translator): string => {
+  if (row.name !== null) return row.name;
+  if (row.projectId === "") return t("usage.openai.projectSpend.unattributed");
+  return row.projectId;
+};
+
 export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
   const { t, formatNumber } = useI18n();
   const [range, setRange] = useState<UsageRange>("7d");
@@ -117,6 +131,9 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
   const costs = data?.costs as CardResult<OpenAICosts> | undefined;
   const completions = data?.completions as
     | CardResult<OpenAICompletionsUsage>
+    | undefined;
+  const projectCosts = data?.projectCosts as
+    | CardResult<OpenAIProjectCosts>
     | undefined;
 
   if (loading && data === null) {
@@ -166,6 +183,60 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
             </div>
           </div>
         )}
+      </Card>
+
+      {/* Billed spend per project — real dollars, from the one non-line-item
+          grouping /costs supports. Degrades on its own request. */}
+      <Card
+        title={t("usage.openai.projectSpend.title", { range: rangeLabel })}
+        result={projectCosts ?? fallback}
+        t={t}
+      >
+        {projectCosts?.ok &&
+          (projectCosts.data.projects.length === 0 ? (
+            <div className="text-sm text-muted-foreground">
+              {t("usage.openai.projectSpend.empty")}
+            </div>
+          ) : (
+            <>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="py-1 pr-2 font-medium">
+                      {t("usage.columns.project")}
+                    </th>
+                    <th className="py-1 pl-2 text-right font-medium">
+                      {t("usage.columns.spend")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projectCosts.data.projects.map((row) => {
+                    const label = projectLabel(row, t);
+                    return (
+                      <tr
+                        key={row.projectId}
+                        className="border-t border-card-control-border"
+                      >
+                        <td
+                          className="py-1 pr-2 text-foreground max-w-[14rem] truncate"
+                          title={label}
+                        >
+                          {label}
+                        </td>
+                        <td className="py-1 pl-2 text-right tabular-nums text-card-foreground">
+                          {formatUsageUsd(row.costUsd)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="mt-1.5 text-xs text-muted-foreground">
+                {t("usage.openai.projectSpend.note")}
+              </div>
+            </>
+          ))}
       </Card>
 
       {/* Token + request totals */}
@@ -266,6 +337,15 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
         <UsageCostShareChart
           slices={costs.data.lineItems}
           titleKey="usage.chart.costShare.byLineItem"
+        />
+      )}
+      {projectCosts?.ok && (
+        <UsageCostShareChart
+          slices={projectCosts.data.projects.map((row) => ({
+            label: projectLabel(row, t),
+            costUsd: row.costUsd,
+          }))}
+          titleKey="usage.chart.costShare.byProject"
         />
       )}
     </div>

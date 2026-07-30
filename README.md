@@ -30,7 +30,7 @@ Six tabs, opened from the menu-bar tray or after a transform:
 | **Overview** | Token stats, preset usage charts, Codex-style token activity calendar |
 | **History** | Transform + PromptGen history with cost tracking; last-action preview |
 | **Models** | Token usage over time, Model Breakdown donut + table for the selected range |
-| **Usage** | Account-level spend and token usage, one sub-tab per connected provider (OpenAI, OpenRouter) — daily spend and token charts, spend-share donut, per-model activity |
+| **Usage** | Account-level spend and token usage, one sub-tab per connected provider (OpenAI, OpenRouter) — daily spend and token charts, spend-share donut, per-model activity, and (OpenAI) billed spend per project |
 | **Logs** | Structured, redacted app events — multi-select level filter, search, copy/export as `.txt` |
 | **About** | Two sub-tabs — **App updates** (version, release notes, install; see [App updates](#app-updates)) and **User guide** (onboarding that shows your own preset shortcuts, output mode, connected providers, and why History/Usage may look empty) |
 
