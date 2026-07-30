@@ -64,7 +64,20 @@ export const wait = (ms: number) =>
 
 let clipboardOperationsInFlight = 0;
 
-export const getHighlightedText = async (): Promise<string> => {
+type SelectionRead = {
+  text: string;
+  previousClipboardContent: string;
+};
+
+/**
+ * Shared body behind `getHighlightedText` and
+ * `getHighlightedTextForOptionalContext`: snapshots the clipboard, sends the
+ * Cmd-C via `copyHighlightedText`, restores the clipboard in `finally`
+ * (running on every path for both callers), and maps a revoked Accessibility
+ * permission to `AccessibilityPermissionError` — everything the two exported
+ * functions need to stay byte-identical on their own error handling.
+ */
+const readSelection = async (): Promise<SelectionRead> => {
   const previousClipboardContent = clipboard.readText();
   const startedAt = Date.now();
   clipboardOperationsInFlight += 1;
@@ -75,16 +88,24 @@ export const getHighlightedText = async (): Promise<string> => {
   });
 
   try {
-    const selectedText = await copyHighlightedText();
+    const text = await copyHighlightedText();
 
     logger.debug("clipboard.copy", "Copy keystroke returned", {
-      copiedLength: selectedText.length,
+      copiedLength: text.length,
       previousLength: previousClipboardContent.length,
-      matchedPreviousValue: selectedText === previousClipboardContent,
+      matchedPreviousValue: text === previousClipboardContent,
+      // The raw comparison above answers "did the pasteboard value change".
+      // This one answers "will getHighlightedTextForOptionalContext report
+      // nothing-selected", which is the trimmed comparison it actually acts
+      // on. The two disagree exactly when the previous clipboard carried
+      // surrounding whitespace — the case that made the stale-clipboard guard
+      // silently ineffective — so logging only the raw one would mislead a
+      // reader at the moment the diagnosis matters most.
+      matchedPreviousValueTrimmed: text === previousClipboardContent.trim(),
       elapsedMs: Date.now() - startedAt,
     });
 
-    return selectedText;
+    return { text, previousClipboardContent };
   } catch (error) {
     logger.warn("clipboard.copy", "Copy keystroke failed", {
       elapsedMs: Date.now() - startedAt,
@@ -107,6 +128,46 @@ export const getHighlightedText = async (): Promise<string> => {
       concurrentOps: clipboardOperationsInFlight,
     });
   }
+};
+
+export const getHighlightedText = async (): Promise<string> => {
+  const { text } = await readSelection();
+  return text;
+};
+
+/**
+ * Optional-context variant for presets where an empty selection is the
+ * NORMAL case (currently only Ask AI) — unlike the six polish presets, which
+ * abort outright when `getHighlightedText` comes back empty, so a stale
+ * clipboard reaching them was harmless.
+ *
+ * `copyHighlightedText` sends Cmd-C via AppleScript and then reads back
+ * `the clipboard`. With nothing selected, that keystroke is a no-op, so the
+ * read returns whatever was ALREADY on the clipboard — indistinguishable
+ * from a real selection unless we compare against the pre-copy snapshot.
+ * This reports "" whenever the read did not change the clipboard, instead of
+ * handing back the user's unrelated previous clipboard content as if it were
+ * their selection.
+ *
+ * Both sides are trimmed before comparing, and that is load-bearing:
+ * `copyHighlightedText` returns `stdout.trim()` while the snapshot is the raw
+ * clipboard, so comparing them directly never matches whenever the clipboard
+ * content has leading/trailing whitespace — and a line copied out of a
+ * password manager, a terminal or an editor almost always ends in "\n". That
+ * asymmetry defeated the guard entirely for exactly the values it exists to
+ * protect.
+ *
+ * Trade-off (intentionally the safe direction): if the user's actual
+ * selection happens to be byte-identical to what was already on their
+ * clipboard, this also reports "" — a false negative, context silently
+ * omitted. That is the right way round here because context is OPTIONAL for
+ * this caller: the cost of the false negative is a missing context block in
+ * a rare case, versus silently leaking an unrelated clipboard (e.g. a
+ * password) into an AI request in the common case.
+ */
+export const getHighlightedTextForOptionalContext = async (): Promise<string> => {
+  const { text, previousClipboardContent } = await readSelection();
+  return text === previousClipboardContent.trim() ? "" : text;
 };
 
 const copyHighlightedText = () => {

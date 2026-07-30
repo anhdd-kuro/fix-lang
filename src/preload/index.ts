@@ -4,6 +4,7 @@
 import { contextBridge } from "electron";
 import {
   apiFeature,
+  askFeature,
   correctionFeature,
   correctionResultFeature,
   localeFeature,
@@ -20,6 +21,7 @@ import {
 } from "./features";
 import type {
   ApiFeature,
+  AskFeature,
   CorrectionFeature,
   CorrectionResultFeature,
   HistoryFeature,
@@ -42,6 +44,7 @@ console.log("Preload script is being executed");
 contextBridge.exposeInMainWorld("electronAPI", {
   ...historyFeature,
   ...apiFeature,
+  ...askFeature,
   ...correctionFeature,
   ...correctionResultFeature,
   ...localeFeature,
@@ -62,6 +65,7 @@ console.log(
 
 export type ElectronAPI = HistoryFeature &
   PromptGenFeature &
+  AskFeature &
   CorrectionFeature &
   CorrectionResultFeature &
   ApiFeature &

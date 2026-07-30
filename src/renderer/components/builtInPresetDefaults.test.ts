@@ -24,6 +24,7 @@ vi.mock("electron", () => ({
   app: { getPath: vi.fn().mockReturnValue("/tmp") },
 }));
 import {
+  DEFAULT_ASK_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
   DEFAULT_CORRECTION_PRESET_ID,
   DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
@@ -42,11 +43,11 @@ describe("makeBuiltInPresetDefaults — the Settings sidebar's built-in reset ma
     expect(defaults[DEFAULT_STRUCTURED_TEXT_PRESET_ID]).toBeDefined();
   });
 
-  it("resolves all six built-in ids", () => {
+  it("resolves all seven built-in ids", () => {
     const defaults = makeBuiltInPresetDefaults();
     const ids = Object.keys(defaults);
 
-    expect(ids).toHaveLength(6);
+    expect(ids).toHaveLength(7);
     expect(ids).toEqual(
       expect.arrayContaining([
         DEFAULT_CORRECTION_PRESET_ID,
@@ -55,6 +56,7 @@ describe("makeBuiltInPresetDefaults — the Settings sidebar's built-in reset ma
         DEFAULT_TRANSLATE_PRESET_ID,
         DEFAULT_BUSINESS_WRITING_PRESET_ID,
         DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+        DEFAULT_ASK_PRESET_ID,
       ]),
     );
   });

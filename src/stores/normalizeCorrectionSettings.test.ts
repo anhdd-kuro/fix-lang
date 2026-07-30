@@ -24,6 +24,8 @@ vi.mock("electron", () => ({
 }));
 // Imports (after mocks)
 import {
+  DEFAULT_ASK_PRESET_ID,
+  DEFAULT_ASK_PRESET_PROMPT,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
   DEFAULT_STRUCTURED_TEXT_PRESET_ID,
@@ -230,10 +232,10 @@ describe("normalizeCorrectionSettings — Translate built-in preset injection", 
   });
 });
 
-describe("getDefaultCorrectionSettings — returns 6 built-in presets including Business Writing and Structured Text", () => {
-  it("returns exactly 6 presets", () => {
+describe("getDefaultCorrectionSettings — returns 7 built-in presets including Business Writing, Structured Text and Ask AI", () => {
+  it("returns exactly 7 presets", () => {
     const defaults = getDefaultCorrectionSettings();
-    expect(defaults.presets).toHaveLength(6);
+    expect(defaults.presets).toHaveLength(7);
   });
 
   it("includes the Translate preset with isBuiltIn: true", () => {
@@ -247,7 +249,7 @@ describe("getDefaultCorrectionSettings — returns 6 built-in presets including 
     expect(translatePreset?.hotkey).toBe("Control+Shift+T");
   });
 
-  it("includes correction, summarize, prompt-optimization, translate, business-writing, structured-text in order", () => {
+  it("includes correction, summarize, prompt-optimization, translate, business-writing, structured-text, ask in order", () => {
     const defaults = getDefaultCorrectionSettings();
     const ids = defaults.presets.map((p) => p.id);
 
@@ -258,7 +260,38 @@ describe("getDefaultCorrectionSettings — returns 6 built-in presets including 
       "translate",
       DEFAULT_BUSINESS_WRITING_PRESET_ID,
       DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+      DEFAULT_ASK_PRESET_ID,
     ]);
+  });
+
+  it("includes Ask AI last, with the exact field values", () => {
+    const defaults = getDefaultCorrectionSettings();
+    const ask = defaults.presets.find((p) => p.id === DEFAULT_ASK_PRESET_ID);
+
+    expect(defaults.presets.at(-1)?.id).toBe(DEFAULT_ASK_PRESET_ID);
+    expect(ask).toEqual({
+      id: DEFAULT_ASK_PRESET_ID,
+      name: "Ask AI",
+      hotkey: "Control+Shift+A",
+      systemPrompt: DEFAULT_ASK_PRESET_PROMPT,
+      model: "",
+      isBuiltIn: true,
+      reasoning: "low",
+      requiresInput: true,
+      outputMode: "popup",
+      markdownOutput: true,
+    });
+  });
+
+  it("gives no built-in but Ask the three Ask-only fields", () => {
+    const defaults = getDefaultCorrectionSettings();
+
+    for (const preset of defaults.presets) {
+      if (preset.id === DEFAULT_ASK_PRESET_ID) continue;
+      expect(preset).not.toHaveProperty("requiresInput");
+      expect(preset).not.toHaveProperty("outputMode");
+      expect(preset).not.toHaveProperty("markdownOutput");
+    }
   });
 
   it("includes Business Writing with the exact field values", () => {
@@ -312,6 +345,7 @@ describe("getDefaultCorrectionSettings — returns 6 built-in presets including 
     expect(new Set(hotkeys).size).toBe(hotkeys.length);
     expect(hotkeys).toContain("Control+Shift+B");
     expect(hotkeys).toContain("Control+Shift+R");
+    expect(hotkeys).toContain("Control+Shift+A");
     // Distinct from the static app hotkeys (promptGen/profileSwitch) and devtools.
     expect(hotkeys).not.toContain("Control+Shift+G");
     expect(hotkeys).not.toContain("Control+Shift+P");
@@ -320,10 +354,10 @@ describe("getDefaultCorrectionSettings — returns 6 built-in presets including 
 });
 
 describe("normalizeCorrectionSettings — legacy path (no presets array)", () => {
-  it("returns all 6 built-in presets when input has no presets array", () => {
+  it("returns all 7 built-in presets when input has no presets array", () => {
     // Simulates a very old profile that predates the preset system (no presets key at all)
     const result = normalizeCorrectionSettings({});
-    expect(result.presets).toHaveLength(6);
+    expect(result.presets).toHaveLength(7);
     const ids = result.presets.map((p) => p.id);
     expect(ids).toContain("correction");
     expect(ids).toContain("summarize");
@@ -331,11 +365,12 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
     expect(ids).toContain(DEFAULT_TRANSLATE_PRESET_ID);
     expect(ids).toContain(DEFAULT_BUSINESS_WRITING_PRESET_ID);
     expect(ids).toContain(DEFAULT_STRUCTURED_TEXT_PRESET_ID);
+    expect(ids).toContain(DEFAULT_ASK_PRESET_ID);
   });
 
-  it("returns all 6 built-in presets when input is null", () => {
+  it("returns all 7 built-in presets when input is null", () => {
     const result = normalizeCorrectionSettings(null);
-    expect(result.presets).toHaveLength(6);
+    expect(result.presets).toHaveLength(7);
     expect(
       result.presets.find((p) => p.id === DEFAULT_TRANSLATE_PRESET_ID),
     ).toBeDefined();
@@ -345,11 +380,14 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
     expect(
       result.presets.find((p) => p.id === DEFAULT_STRUCTURED_TEXT_PRESET_ID),
     ).toBeDefined();
+    expect(
+      result.presets.find((p) => p.id === DEFAULT_ASK_PRESET_ID),
+    ).toBeDefined();
   });
 
-  it("returns all 6 built-in presets when input is undefined", () => {
+  it("returns all 7 built-in presets when input is undefined", () => {
     const result = normalizeCorrectionSettings(undefined);
-    expect(result.presets).toHaveLength(6);
+    expect(result.presets).toHaveLength(7);
     expect(
       result.presets.find((p) => p.id === DEFAULT_TRANSLATE_PRESET_ID),
     ).toBeDefined();
@@ -359,9 +397,12 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
     expect(
       result.presets.find((p) => p.id === DEFAULT_STRUCTURED_TEXT_PRESET_ID),
     ).toBeDefined();
+    expect(
+      result.presets.find((p) => p.id === DEFAULT_ASK_PRESET_ID),
+    ).toBeDefined();
   });
 
-  it("returns all 6 built-in presets when input is an empty object ({})", () => {
+  it("returns all 7 built-in presets when input is an empty object ({})", () => {
     const result = normalizeCorrectionSettings({});
     expect(
       result.presets.find((p) => p.id === DEFAULT_BUSINESS_WRITING_PRESET_ID)
@@ -382,7 +423,7 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
     expect(correctionPreset?.systemPrompt).toContain("Custom prompt text");
   });
 
-  it("includes all 6 built-in presets in order including business-writing and structured-text at positions 4 and 5", () => {
+  it("includes all 7 built-in presets in order including business-writing, structured-text and ask at positions 4, 5 and 6", () => {
     const result = normalizeCorrectionSettings({});
     const ids = result.presets.map((p) => p.id);
     expect(ids[0]).toBe("correction");
@@ -391,6 +432,7 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
     expect(ids[3]).toBe(DEFAULT_TRANSLATE_PRESET_ID);
     expect(ids[4]).toBe(DEFAULT_BUSINESS_WRITING_PRESET_ID);
     expect(ids[5]).toBe(DEFAULT_STRUCTURED_TEXT_PRESET_ID);
+    expect(ids[6]).toBe(DEFAULT_ASK_PRESET_ID);
   });
 });
 
@@ -457,7 +499,7 @@ describe("normalizeCorrectionSettings — Business Writing / Structured Text bui
       DEFAULT_STRUCTURED_TEXT_PRESET_PROMPT,
     );
 
-    expect(result.presets).toHaveLength(6);
+    expect(result.presets).toHaveLength(7);
   });
 
   it("migrates missing reasoning only on the two Low-default built-ins", () => {
@@ -498,7 +540,7 @@ describe("normalizeCorrectionSettings — Business Writing / Structured Text bui
     ).not.toHaveProperty("reasoning");
   });
 
-  it("preserves custom presets, does not duplicate the new built-ins, and sorts customs after all six built-ins", () => {
+  it("preserves custom presets, does not duplicate the new built-ins, and sorts customs after all seven built-ins", () => {
     const result = normalizeCorrectionSettings({
       presets: [
         ...storedFourWithoutNewBuiltIns.presets,
@@ -522,6 +564,7 @@ describe("normalizeCorrectionSettings — Business Writing / Structured Text bui
       DEFAULT_TRANSLATE_PRESET_ID,
       DEFAULT_BUSINESS_WRITING_PRESET_ID,
       DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+      DEFAULT_ASK_PRESET_ID,
       "custom-999",
     ]);
     expect(result.presets.filter((p) => p.id === "custom-999")).toHaveLength(1);
@@ -865,8 +908,8 @@ describe("normalizeCorrectionSettings — materialized built-in never steals a s
     expect(translate?.systemPrompt).toBe(
       DEFAULT_TRANSLATE_PRESET_PROMPT.trim(),
     );
-    // 6 built-ins + the one stored custom preset — blanking drops no preset.
-    expect(result.presets).toHaveLength(7);
+    // 7 built-ins + the one stored custom preset — blanking drops no preset.
+    expect(result.presets).toHaveLength(8);
   });
 
   it("matches claims trimmed-exact — surrounding whitespace still collides", () => {
@@ -1225,7 +1268,7 @@ describe("normalizeCorrectionSettings — a materialized default gives up a rese
     expect(hotkeyOf(result, DEFAULT_BUSINESS_WRITING_PRESET_ID)).toBe("");
   });
 
-  it("leaves all six defaults intact under the DEFAULT app bindings", () => {
+  it("leaves all seven defaults intact under the DEFAULT app bindings", () => {
     // Ctrl+Shift+G / Ctrl+Shift+P collide with nothing, so an over-broad guard
     // that blanked hotkeys unconditionally would fail here.
     const result = normalizeCorrectionSettings(
@@ -1241,6 +1284,7 @@ describe("normalizeCorrectionSettings — a materialized default gives up a rese
       "Control+Shift+T",
       "Control+Shift+B",
       "Control+Shift+R",
+      "Control+Shift+A",
     ]);
   });
 
@@ -1267,5 +1311,297 @@ describe("normalizeCorrectionSettings — a materialized default gives up a rese
     );
 
     expect(hotkeyOf(result, DEFAULT_BUSINESS_WRITING_PRESET_ID)).toBe("");
+  });
+});
+
+/**
+ * `normalizeCorrectionSettings` does NOT spread the stored preset — it rebuilds
+ * one from an explicit field list. A field missing from that list is discarded
+ * on EVERY read of `settingsCorrect`, which is what both
+ * `registerCorrectionShortcut` and `fixGrammar` call. Ask would then look
+ * correct in Settings and behave exactly like Correction: no error, no log.
+ * These cases are what pin the three new fields into that list.
+ */
+describe("normalizeCorrectionSettings — Ask's requiresInput / outputMode / markdownOutput survive the rebuild", () => {
+  const askOf = (settings: ReturnType<typeof normalizeCorrectionSettings>) =>
+    settings.presets.find((preset) => preset.id === DEFAULT_ASK_PRESET_ID);
+
+  it("round-trips a stored user-edited copy of Ask verbatim, all three fields intact", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [
+        storedCorrection,
+        {
+          id: DEFAULT_ASK_PRESET_ID,
+          name: "My Ask",
+          hotkey: "Control+Alt+A",
+          systemPrompt: "Answer the question.",
+          model: "openai/gpt-4o",
+          isBuiltIn: true,
+          reasoning: "high",
+          requiresInput: true,
+          outputMode: "paste",
+          markdownOutput: false,
+        },
+      ],
+      selectedPresetId: "correction",
+    });
+
+    expect(askOf(result)).toEqual({
+      id: DEFAULT_ASK_PRESET_ID,
+      name: "My Ask",
+      hotkey: "Control+Alt+A",
+      systemPrompt: "Answer the question.",
+      model: "openai/gpt-4o",
+      isBuiltIn: true,
+      reasoning: "high",
+      requiresInput: true,
+      outputMode: "paste",
+      markdownOutput: false,
+    });
+  });
+
+  it("materializes Ask with all three fields on a store that predates it, last among built-ins and before any custom", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [
+        storedCorrection,
+        storedSummarize,
+        storedPromptOptimization,
+        storedCustom("custom-999", "Control+Shift+M"),
+      ],
+      selectedPresetId: "correction",
+    });
+
+    expect(askOf(result)).toEqual({
+      id: DEFAULT_ASK_PRESET_ID,
+      name: "Ask AI",
+      hotkey: "Control+Shift+A",
+      systemPrompt: DEFAULT_ASK_PRESET_PROMPT,
+      model: "",
+      isBuiltIn: true,
+      reasoning: "low",
+      requiresInput: true,
+      outputMode: "popup",
+      markdownOutput: true,
+    });
+
+    const ids = result.presets.map((preset) => preset.id);
+    expect(ids.indexOf(DEFAULT_ASK_PRESET_ID)).toBe(
+      ids.indexOf(DEFAULT_STRUCTURED_TEXT_PRESET_ID) + 1,
+    );
+    expect(ids.indexOf(DEFAULT_ASK_PRESET_ID)).toBeLessThan(
+      ids.indexOf("custom-999"),
+    );
+  });
+
+  it("drops an unrecognized stored outputMode rather than persisting it", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [
+        storedCorrection,
+        {
+          ...storedCustom("custom-mode", "Control+Shift+M"),
+          outputMode: "banana",
+          markdownOutput: "yes",
+          requiresInput: "sure",
+        },
+        {
+          id: DEFAULT_ASK_PRESET_ID,
+          name: "Ask AI",
+          hotkey: "Control+Shift+A",
+          systemPrompt: "Answer.",
+          model: "",
+          isBuiltIn: true,
+          outputMode: "banana",
+          markdownOutput: "yes",
+        },
+      ],
+      selectedPresetId: "correction",
+    });
+
+    // A non-built-in has no default to fall back on, so the garbage is gone.
+    const custom = result.presets.find((p) => p.id === "custom-mode");
+    expect(custom).not.toHaveProperty("outputMode");
+    expect(custom).not.toHaveProperty("markdownOutput");
+    expect(custom).not.toHaveProperty("requiresInput");
+
+    // Ask falls back to its built-in default, the same rule name/hotkey/model
+    // follow — a corrupted value must not silently turn the markdown popup off.
+    expect(askOf(result)?.outputMode).toBe("popup");
+    expect(askOf(result)?.markdownOutput).toBe(true);
+  });
+
+  it("keeps a recognized stored inherit override on Ask", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [
+        storedCorrection,
+        {
+          id: DEFAULT_ASK_PRESET_ID,
+          name: "Ask AI",
+          hotkey: "Control+Shift+A",
+          systemPrompt: "Answer.",
+          model: "",
+          isBuiltIn: true,
+          outputMode: "inherit",
+        },
+      ],
+      selectedPresetId: "correction",
+    });
+
+    expect(askOf(result)?.outputMode).toBe("inherit");
+  });
+
+  it("restores requiresInput from the built-in default when a stored Ask row lost it", () => {
+    // Without this, that user's Ask hotkey aborts on an empty selection forever
+    // — no error, no log. A recognized built-in therefore takes the default's
+    // value; only the two preference fields honour a stored override.
+    const result = normalizeCorrectionSettings({
+      presets: [
+        storedCorrection,
+        {
+          id: DEFAULT_ASK_PRESET_ID,
+          name: "Ask AI",
+          hotkey: "Control+Shift+A",
+          systemPrompt: "Answer.",
+          model: "",
+          isBuiltIn: true,
+        },
+      ],
+      selectedPresetId: "correction",
+    });
+
+    expect(askOf(result)?.requiresInput).toBe(true);
+  });
+
+  it("ignores a stored requiresInput: false on Ask — the default wins for a built-in", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [
+        storedCorrection,
+        {
+          id: DEFAULT_ASK_PRESET_ID,
+          name: "Ask AI",
+          hotkey: "Control+Shift+A",
+          systemPrompt: "Answer.",
+          model: "",
+          isBuiltIn: true,
+          requiresInput: false,
+        },
+      ],
+      selectedPresetId: "correction",
+    });
+
+    expect(askOf(result)?.requiresInput).toBe(true);
+  });
+
+  it("never gives another built-in the three Ask-only fields, stored or materialized", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [
+        // A hand-edited Correction row cannot opt itself into the Ask flow:
+        // built-ins take `requiresInput` from their own default (undefined).
+        {
+          ...storedCorrection,
+          requiresInput: true,
+          outputMode: "popup",
+          markdownOutput: true,
+        },
+      ],
+      selectedPresetId: "correction",
+    });
+
+    const correction = result.presets.find((p) => p.id === "correction");
+    expect(correction).not.toHaveProperty("requiresInput");
+    // outputMode/markdownOutput ARE per-preset preferences, so a stored value
+    // on any preset stands — only `requiresInput` is default-governed.
+    expect(correction?.outputMode).toBe("popup");
+    expect(correction?.markdownOutput).toBe(true);
+  });
+
+  it("keeps a non-built-in's own requiresInput, which has no default to inherit", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [
+        storedCorrection,
+        { ...storedCustom("custom-ask", "Control+Alt+K"), requiresInput: true },
+      ],
+      selectedPresetId: "correction",
+    });
+
+    expect(
+      result.presets.find((p) => p.id === "custom-ask")?.requiresInput,
+    ).toBe(true);
+  });
+});
+
+describe("normalizeCorrectionSettings — Ask relinquishes its default hotkey on collision", () => {
+  it("blanks Ask when a stored preset already claims Control+Shift+A", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection, storedCustom("custom-a", "Control+Shift+A")],
+      selectedPresetId: "correction",
+    });
+
+    expect(hotkeyOf(result, DEFAULT_ASK_PRESET_ID)).toBe("");
+    expect(hotkeyOf(result, "custom-a")).toBe("Control+Shift+A");
+    // Blanking the hotkey must not cost Ask the fields that define its flow.
+    expect(
+      result.presets.find((p) => p.id === DEFAULT_ASK_PRESET_ID),
+    ).toMatchObject({
+      isBuiltIn: true,
+      requiresInput: true,
+      outputMode: "popup",
+      markdownOutput: true,
+    });
+  });
+
+  it("blanks Ask when promptGen was remapped onto Control+Shift+A", () => {
+    const result = normalizeCorrectionSettings(
+      { presets: [storedCorrection], selectedPresetId: "correction" },
+      undefined,
+      ["Control+Shift+A", "Control+Shift+P"],
+    );
+
+    expect(hotkeyOf(result, DEFAULT_ASK_PRESET_ID)).toBe("");
+    expect(hotkeyOf(result, DEFAULT_STRUCTURED_TEXT_PRESET_ID)).toBe(
+      "Control+Shift+R",
+    );
+  });
+
+  it("blanks Ask when profileSwitch was remapped onto Control+Shift+A", () => {
+    const result = normalizeCorrectionSettings(
+      { presets: [storedCorrection], selectedPresetId: "correction" },
+      undefined,
+      ["Control+Shift+G", "Control+Shift+A"],
+    );
+
+    expect(hotkeyOf(result, DEFAULT_ASK_PRESET_ID)).toBe("");
+  });
+
+  it("blanks Ask on a reserved accelerator through the no-presets-array legacy path", () => {
+    const result = normalizeCorrectionSettings({ userInput: "Legacy." }, undefined, [
+      "Control+Shift+A",
+      "Control+Shift+P",
+    ]);
+
+    expect(hotkeyOf(result, DEFAULT_ASK_PRESET_ID)).toBe("");
+    expect(hotkeyOf(result, "correction")).toBe("Control+Shift+F");
+  });
+
+  it("does NOT rewrite a stored Ask hotkey that sits on a reserved accelerator", () => {
+    const result = normalizeCorrectionSettings(
+      {
+        presets: [
+          storedCorrection,
+          {
+            id: DEFAULT_ASK_PRESET_ID,
+            name: "Ask AI",
+            hotkey: "Control+Shift+A",
+            systemPrompt: "Answer.",
+            model: "",
+            isBuiltIn: true,
+          },
+        ],
+        selectedPresetId: "correction",
+      },
+      undefined,
+      ["Control+Shift+A", "Control+Shift+P"],
+    );
+
+    expect(hotkeyOf(result, DEFAULT_ASK_PRESET_ID)).toBe("Control+Shift+A");
   });
 });

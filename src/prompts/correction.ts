@@ -1,3 +1,4 @@
+import askMarkdown from "./ask.md?raw";
 import businessWritingMarkdown from "./business-writing.md?raw";
 import enhancePromptMarkdown from "./enhance-prompt.md?raw";
 import structuredTextMarkdown from "./structured-text.md?raw";
@@ -100,6 +101,7 @@ export const DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID = "prompt-optimization";
 export const DEFAULT_TRANSLATE_PRESET_ID = "translate";
 export const DEFAULT_BUSINESS_WRITING_PRESET_ID = "business-writing";
 export const DEFAULT_STRUCTURED_TEXT_PRESET_ID = "structured-text";
+export const DEFAULT_ASK_PRESET_ID = "ask";
 
 export const DEFAULT_TRANSLATE_PRESET_PROMPT = `\
 You are a bilingual translation engine specialized in Japanese and English.
@@ -126,3 +128,5 @@ export const DEFAULT_BUSINESS_WRITING_PRESET_PROMPT =
 
 export const DEFAULT_STRUCTURED_TEXT_PRESET_PROMPT =
   structuredTextMarkdown.trim();
+
+export const DEFAULT_ASK_PRESET_PROMPT = askMarkdown.trim();

@@ -50,6 +50,12 @@ vi.mock("electron", () => ({
 vi.mock("~/main/keybindings", () => ({
   reloadHotkeys: vi.fn(),
 }));
+// Reached through `~/main/profileChange` (the profile-activation chokepoint).
+// Stubbed for its import chain only — `attachThemeSync` -> theme store ->
+// electron-store, which needs a `projectName` this suite never provides.
+vi.mock("~/main/webViewWindows/askInputWindow", () => ({
+  dismissAskInputWindow: vi.fn(),
+}));
 vi.mock("~/stores/apiKeyStore", () => ({
   clearLegacyApiKey: vi.fn().mockResolvedValue({ success: true }),
   getLegacyApiKey: vi.fn().mockResolvedValue(null),

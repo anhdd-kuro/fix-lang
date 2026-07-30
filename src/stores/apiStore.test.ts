@@ -36,6 +36,7 @@ vi.mock("electron", () => ({
 // Imports (after mocks) — the real implementation under test.
 import { resolveDefaultModel, resolveDefaultOpenAIModel } from "~/const";
 import {
+  DEFAULT_ASK_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
   DEFAULT_STRUCTURED_TEXT_PRESET_ID,
 } from "~/prompts/correction";
@@ -692,24 +693,34 @@ describe("apiStoreSchema — model defaults are the inherit sentinel", () => {
   });
 });
 
-describe("apiStoreSchema — settingsCorrect default carries all six built-in presets", () => {
+describe("apiStoreSchema — settingsCorrect default carries all seven built-in presets", () => {
   const settingsCorrectSchema = (
     apiStoreSchema.profiles.items.properties.settings as {
       properties: {
         settingsCorrect: {
-          properties: { presets: { default?: unknown[] } };
+          properties: {
+            presets: {
+              default?: unknown[];
+              items: {
+                properties: Record<string, unknown>;
+                required: string[];
+              };
+            };
+          };
           default: { presets?: unknown[] };
         };
       };
     }
   ).properties.settingsCorrect;
 
-  it("the presets array-item schema default carries 6 presets", () => {
-    expect(settingsCorrectSchema.properties.presets.default).toHaveLength(6);
+  const presetItemSchema = settingsCorrectSchema.properties.presets.items;
+
+  it("the presets array-item schema default carries 7 presets", () => {
+    expect(settingsCorrectSchema.properties.presets.default).toHaveLength(7);
   });
 
-  it("the settingsCorrect object default also carries 6 presets", () => {
-    expect(settingsCorrectSchema.default.presets).toHaveLength(6);
+  it("the settingsCorrect object default also carries 7 presets", () => {
+    expect(settingsCorrectSchema.default.presets).toHaveLength(7);
   });
 
   it("both schema default nodes equal getDefaultCorrectionSettings().presets field-for-field", () => {
@@ -726,6 +737,66 @@ describe("apiStoreSchema — settingsCorrect default carries all six built-in pr
     expect(
       presets.find((p) => (p as { id: string }).id === DEFAULT_STRUCTURED_TEXT_PRESET_ID),
     ).toMatchObject({ isBuiltIn: true, hotkey: "Control+Shift+R" });
+  });
+
+  it("Ask AI is present in both schema defaults with its three Ask-only fields", () => {
+    const askIn = (presets: unknown[] = []) =>
+      presets.find((p) => (p as { id: string }).id === DEFAULT_ASK_PRESET_ID);
+    const expected = {
+      isBuiltIn: true,
+      hotkey: "Control+Shift+A",
+      requiresInput: true,
+      outputMode: "popup",
+      markdownOutput: true,
+    };
+
+    expect(askIn(settingsCorrectSchema.default.presets)).toMatchObject(expected);
+    expect(
+      askIn(settingsCorrectSchema.properties.presets.default),
+    ).toMatchObject(expected);
+  });
+
+  it("the presets item schema declares requiresInput, outputMode and markdownOutput as bare types", () => {
+    // A field absent here is not validated and not typed by `TypedSchemaFor`,
+    // so a rename upstream would silently orphan it.
+    expect(presetItemSchema.properties.requiresInput).toEqual({
+      type: "boolean",
+    });
+    expect(presetItemSchema.properties.outputMode).toEqual({ type: "string" });
+    expect(presetItemSchema.properties.markdownOutput).toEqual({
+      type: "boolean",
+    });
+    // The three are optional: a pre-Ask stored preset must still validate.
+    expect(presetItemSchema.required).toEqual([
+      "id",
+      "name",
+      "hotkey",
+      "systemPrompt",
+      "model",
+    ]);
+  });
+
+  it("declares NO enum anywhere under the presets item schema", () => {
+    // `apiStore` is built with `clearInvalidConfig: true`: one stored value
+    // failing enum validation wipes every profile, preset and key reference.
+    // Recursive on purpose — this must also catch an enum added to a nested
+    // node, or to a property that does not exist yet.
+    const enumPaths: string[] = [];
+    const walk = (node: unknown, path: string): void => {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) {
+        node.forEach((item, index) => walk(item, `${path}[${index}]`));
+        return;
+      }
+      for (const [key, value] of Object.entries(node)) {
+        if (key === "enum") enumPaths.push(`${path}.enum`);
+        walk(value, `${path}.${key}`);
+      }
+    };
+
+    walk(presetItemSchema, "presets.items");
+
+    expect(enumPaths).toEqual([]);
   });
 });
 
@@ -755,6 +826,17 @@ describe("apiStoreSchema — settingsCorrect default carries all six built-in pr
 // test below (`apiStoreSchema — real schema round trip`) exercises the actual
 // validation engine and stayed green, which is the empirical half of this
 // check.
+//
+// Updated again for the Ask AI built-in, after the same verification: the edit
+// adds the `ask` entry to both `default` nodes (not a constraint) plus three
+// OPTIONAL preset properties — `requiresInput`/`markdownOutput` as
+// `{ type: "boolean" }` and `outputMode` as `{ type: "string" }`, none of them
+// added to `required` and NONE of them carrying an `enum`. A pre-Ask stored
+// preset array therefore still validates unchanged, and even a hand-edited
+// `outputMode: "banana"` validates rather than wiping the config — both proven
+// empirically by the two real-Conf round-trip tests, and the enum absence is
+// pinned recursively by "declares NO enum anywhere under the presets item
+// schema" above.
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
@@ -763,7 +845,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "162007bbc9340783ecb7a395240fad54ce2fa49a252d11032199e8602e1d128b",
+      "46654d1a1fcf2be99156283e0b604ea2f1d0d8aa6ebbf88c4c326c9d0bd96119",
     );
   });
 });
@@ -874,7 +956,7 @@ describe("resetCurrentProfileSettings — preserves apiKey, models and enabledPr
     });
   });
 
-  it("resets settingsCorrect to all 6 built-in defaults, including the two new presets", () => {
+  it("resets settingsCorrect to all 7 built-in defaults, including Ask AI", () => {
     const profile = buildProfile();
     seedProfiles([profile], profile.id);
 
@@ -894,25 +976,35 @@ describe("resetCurrentProfileSettings — preserves apiKey, models and enabledPr
         (p) => p.id === DEFAULT_STRUCTURED_TEXT_PRESET_ID,
       ),
     ).toBeDefined();
+    expect(
+      resetProfile.settings.settingsCorrect.presets.find(
+        (p) => p.id === DEFAULT_ASK_PRESET_ID,
+      ),
+    ).toMatchObject({
+      requiresInput: true,
+      outputMode: "popup",
+      markdownOutput: true,
+    });
   });
 });
 
-describe("createProfile — yields all 6 built-in presets", () => {
+describe("createProfile — yields all 7 built-in presets", () => {
   beforeEach(() => {
     apiStore.set("profiles", []);
     apiStore.set("currentProfileId", "");
   });
 
-  it("creates a profile whose settingsCorrect.presets equals the default 6 built-ins", () => {
+  it("creates a profile whose settingsCorrect.presets equals the default 7 built-ins", () => {
     const profile = createProfile("New Profile");
 
     expect(profile.settings.settingsCorrect.presets).toEqual(
       getDefaultCorrectionSettings().presets,
     );
-    expect(profile.settings.settingsCorrect.presets).toHaveLength(6);
+    expect(profile.settings.settingsCorrect.presets).toHaveLength(7);
     const ids = profile.settings.settingsCorrect.presets.map((p) => p.id);
     expect(ids).toContain(DEFAULT_BUSINESS_WRITING_PRESET_ID);
     expect(ids).toContain(DEFAULT_STRUCTURED_TEXT_PRESET_ID);
+    expect(ids).toContain(DEFAULT_ASK_PRESET_ID);
   });
 });
 
@@ -1249,6 +1341,61 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
       expect(readBack).toHaveLength(1);
       expect(readBack[0].settings.selectedModel).toBe("openai::gpt-4o");
       expect(readBack[0].settings.enabledProviders).toEqual(["openai"]);
+    } finally {
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps a profile whose stored outputMode is garbage instead of wiping every profile", async () => {
+    // The enum trap, exercised against the real engine: with an `enum` on
+    // `outputMode`, this hand-edited value would fail VALIDATION and
+    // `clearInvalidConfig: true` would drop the whole config — every profile,
+    // preset and key reference. It must survive here and be sanitized in code
+    // by `normalizeCorrectionSettings` instead.
+    const { default: Conf } = await import("conf");
+    const fs = await import("node:fs");
+    const os = await import("node:os");
+    const path = await import("node:path");
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "fixlang-apistore-enum-"));
+
+    try {
+      const realStore = new Conf<{ profiles: Profile[] }>({
+        cwd,
+        configName: "config",
+        clearInvalidConfig: true,
+        schema: apiStoreSchema,
+      });
+
+      const profile = buildProfile({
+        settings: buildSettings({
+          settingsCorrect: {
+            selectedPresetId: DEFAULT_ASK_PRESET_ID,
+            presets: [
+              {
+                id: DEFAULT_ASK_PRESET_ID,
+                name: "Ask AI",
+                hotkey: "Control+Shift+A",
+                systemPrompt: "Answer.",
+                model: "",
+                isBuiltIn: true,
+                requiresInput: true,
+                outputMode: "banana" as unknown as "popup",
+                markdownOutput: true,
+              },
+            ],
+          },
+        }),
+      });
+
+      realStore.set("profiles", [profile]);
+      const readBack = realStore.get("profiles", []);
+
+      expect(readBack).toHaveLength(1);
+      expect(readBack[0].settings.settingsCorrect.presets[0]).toMatchObject({
+        requiresInput: true,
+        outputMode: "banana",
+        markdownOutput: true,
+      });
     } finally {
       fs.rmSync(cwd, { recursive: true, force: true });
     }

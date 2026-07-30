@@ -1,12 +1,14 @@
 import { globalShortcut, Notification } from "electron";
 import { getActiveApp } from "~/main/accessibility/activeApp";
 import { DEFAULT_CORRECTION_PRESET_ID } from "~/prompts";
+import { resolvePresetOutputMode } from "~/shared/presetOutputMode";
 // No apiStore import needed as api key is handled in shared.ts
 import { getProfileSetting } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { outputModeStore } from "~/stores/outputModeStore";
-import { getHighlightedText, pasteText } from "../../utils";
+import { getHighlightedText, getHighlightedTextForOptionalContext, pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
+import { runAskFlow } from "./askFlow";
 import { buildCorrectionGoodJobNotification } from "./correctionNotifications";
 import { deliverCorrectionOutput } from "./correctionOutput";
 import { checkShortcut, handleError, withHotkeyThrottle } from "./utils";
@@ -16,6 +18,7 @@ import { syncHistory } from "../ipc/features/history";
 import { logger } from "../logging/logService";
 import { LocalizedError } from "../notifications/error";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
+import { showAskInputWindow } from "../webViewWindows/askInputWindow";
 import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWindow";
 import type { BrowserWindow } from "electron";
 
@@ -60,6 +63,34 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         // Must precede `showOverlaySpinner` below: once a FixLang window is on
         // screen this read reports FixLang and yields null.
         const activeApp = await getActiveApp();
+
+        // Ask AI inverts the outbound-polish presets below: an empty
+        // selection is the normal case (the question can stand alone), so it
+        // must never hit the "no text selected" abort. The window itself
+        // owns the request from here — asking the user for a question, then
+        // handing the answer off to `runAskFlow`. It reads via
+        // `getHighlightedTextForOptionalContext`, NOT `getHighlightedText`:
+        // the latter cannot tell "nothing selected" apart from "clipboard
+        // still holds whatever was there before", so a stale clipboard would
+        // otherwise be silently attached as the question's context.
+        if (preset.requiresInput) {
+          const context = await getHighlightedTextForOptionalContext();
+          showAskInputWindow(
+            { presetId: preset.id, context },
+            {
+              onSubmit: (question) => {
+                void runAskFlow({ preset, context, question, mainWindow });
+              },
+              onCancel: () => {
+                logger.debug("correction.hotkey", "Ask input cancelled", {
+                  presetId: preset.id,
+                });
+              },
+            },
+          );
+          return;
+        }
+
         const selectedText = await getHighlightedText();
 
         if (!selectedText || !selectedText.trim()) {
@@ -93,8 +124,15 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           new Notification(buildCorrectionGoodJobNotification()).show();
         }
 
+        // Settings offers the per-preset output mode on EVERY preset, not just
+        // the `requiresInput` one, so resolve it here too — reading the global
+        // store directly would leave that control visible, writable, persisted
+        // and inert for all six polish presets.
         const delivery = await deliverCorrectionOutput(
-          outputModeStore.getCorrectionOutputMode(),
+          resolvePresetOutputMode(
+            preset.outputMode,
+            outputModeStore.getCorrectionOutputMode(),
+          ),
           {
             presetName: preset.name,
             text: result.correctedText,

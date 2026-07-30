@@ -5,6 +5,8 @@
 import Store from "electron-store";
 import { DEFAULT_LANGUAGE, resolveDefaultModel } from "~/const";
 import {
+  DEFAULT_ASK_PRESET_ID,
+  DEFAULT_ASK_PRESET_PROMPT,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
   DEFAULT_CORRECTION_PRESET_ID,
@@ -100,7 +102,30 @@ export type CorrectionPreset = {
    * (provider-default). Slider steps: low → medium → high.
    */
   reasoning?: ReasoningEffort;
+  /**
+   * The hotkey opens an input window and carries the selection as optional
+   * context, instead of aborting when nothing is selected. Undefined behaves as
+   * false (the outbound-polish flow every other built-in uses).
+   */
+  requiresInput?: boolean;
+  /**
+   * Per-preset override of the global correction output mode. "inherit" (and
+   * undefined) defers to the global setting at request time. The union is
+   * written out here rather than imported so `apiStore` — which nearly every
+   * module reaches — keeps no dependency on the renderer-side helper module.
+   */
+  outputMode?: "inherit" | "paste" | "popup";
+  /** Render the result as GFM markdown rather than plain text. */
+  markdownOutput?: boolean;
 };
+
+const sanitizePresetOutputMode = (
+  raw: unknown,
+): CorrectionPreset["outputMode"] =>
+  raw === "inherit" || raw === "paste" || raw === "popup" ? raw : undefined;
+
+const sanitizeBoolean = (raw: unknown): boolean | undefined =>
+  typeof raw === "boolean" ? raw : undefined;
 
 export type CorrectionSettings = {
   presets: CorrectionPreset[];
@@ -296,6 +321,21 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     model: INHERIT_GLOBAL_MODEL,
     isBuiltIn: true,
   },
+  {
+    id: DEFAULT_ASK_PRESET_ID,
+    name: "Ask AI",
+    hotkey: "Control+Shift+A",
+    systemPrompt: DEFAULT_ASK_PRESET_PROMPT,
+    model: INHERIT_GLOBAL_MODEL,
+    isBuiltIn: true,
+    // `minimal` was retired; RETIRED_EFFORTS remaps a STORED one to `low`, but
+    // a fresh default must not ship a retired value — it is not in the
+    // `ReasoningEffort` union, so it no longer type-checks either.
+    reasoning: "low",
+    requiresInput: true,
+    outputMode: "popup",
+    markdownOutput: true,
+  },
 ];
 
 export const getDefaultCorrectionSettings = (): CorrectionSettings => ({
@@ -428,6 +468,26 @@ export const normalizeCorrectionSettings = (
         ? "low"
         : sanitizeReasoningEffort(rawCandidate.reasoning);
 
+    // `requiresInput` is structural, not a preference: it decides whether the
+    // hotkey opens an input window or aborts on an empty selection, and no UI
+    // exposes it. A recognized built-in therefore takes the default's value
+    // even when the stored row carries its own, so a row that predates (or
+    // lost) the flag cannot leave Ask permanently behaving like Correction.
+    // Only a non-built-in falls back to whatever boolean was stored.
+    const requiresInput = fallback
+      ? fallback.requiresInput
+      : sanitizeBoolean(rawCandidate.requiresInput);
+
+    // These two ARE user preferences, so a recognized stored value wins. An
+    // unrecognized or absent one falls back to the built-in default — the same
+    // rule `name`/`hotkey`/`systemPrompt`/`model` follow above — which is what
+    // keeps a legacy or corrupted value from silently turning Ask's markdown
+    // popup into a plain-text paste.
+    const outputMode =
+      sanitizePresetOutputMode(rawCandidate.outputMode) ?? fallback?.outputMode;
+    const markdownOutput =
+      sanitizeBoolean(rawCandidate.markdownOutput) ?? fallback?.markdownOutput;
+
     return [
       {
         preset: {
@@ -445,6 +505,9 @@ export const normalizeCorrectionSettings = (
             candidate.model?.trim() || fallback?.model || INHERIT_GLOBAL_MODEL,
           isBuiltIn: fallback ? true : Boolean(candidate.isBuiltIn),
           ...(reasoning !== undefined ? { reasoning } : {}),
+          ...(requiresInput !== undefined ? { requiresInput } : {}),
+          ...(outputMode !== undefined ? { outputMode } : {}),
+          ...(markdownOutput !== undefined ? { markdownOutput } : {}),
         } satisfies CorrectionPreset,
         // A missing or non-string `hotkey` above inherits the built-in default.
         // That injected value is not the user's choice, so it neither counts as
@@ -618,6 +681,17 @@ export const apiStoreSchema = {
                       model: { type: "string" },
                       isBuiltIn: { type: "boolean" },
                       reasoning: { type: "string" },
+                      requiresInput: { type: "boolean" },
+                      /**
+                       * NEVER an `enum`, for the reason spelled out on
+                       * `enabledProviders` above: `clearInvalidConfig: true`
+                       * means one stored value failing validation wipes every
+                       * profile, preset and key reference. A legacy or hand-
+                       * edited `outputMode` must degrade to the built-in
+                       * default, which `sanitizePresetOutputMode` does in code.
+                       */
+                      outputMode: { type: "string" },
+                      markdownOutput: { type: "boolean" },
                     },
                     required: ["id", "name", "hotkey", "systemPrompt", "model"],
                   },

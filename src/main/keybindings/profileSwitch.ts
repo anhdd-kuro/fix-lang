@@ -4,9 +4,8 @@
  */
 
 import { globalShortcut, Notification } from "electron";
-import { broadcastToAllWindows } from "~/main/webViewWindows/broadcast";
+import { notifyActiveProfileChanged } from "~/main/profileChange";
 import { getMainWindow } from "~/main/webViewWindows/mainWindow";
-import { ACTIVE_PROFILE_CHANGED } from "~/shared/ipcChannels";
 import { switchToNextProfile } from "~/stores/apiStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { buildProfileSwitchHotkeyNotification } from "./profileSwitchNotification";
@@ -42,7 +41,7 @@ export const registerProfileSwitchShortcut = (): void => {
         }
         // This path never crosses preload, so no renderer would otherwise learn
         // that every profile-scoped credential just changed underneath it.
-        broadcastToAllWindows(ACTIVE_PROFILE_CHANGED);
+        notifyActiveProfileChanged();
         new Notification(
           buildProfileSwitchHotkeyNotification(nextProfile.name),
         ).show();

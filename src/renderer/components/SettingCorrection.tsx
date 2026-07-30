@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  DEFAULT_ASK_PRESET_ID,
+  DEFAULT_ASK_PRESET_PROMPT,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
   DEFAULT_CORRECTION_PRESET_ID,
@@ -19,6 +21,7 @@ import { splitHotkey } from "./about/userGuideView";
 import { Button } from "./Button";
 import { ModelSelect } from "./ModelSelect";
 import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
+import { Select } from "./Select/Select";
 import {
   plainStatus,
   wrappedError,
@@ -134,6 +137,20 @@ export const makeBuiltInPresetDefaults = (): Record<
     systemPrompt: DEFAULT_STRUCTURED_TEXT_PRESET_PROMPT,
     model: "", // empty = inherit the global default model
     isBuiltIn: true,
+  },
+  [DEFAULT_ASK_PRESET_ID]: {
+    id: DEFAULT_ASK_PRESET_ID,
+    name: "Ask AI",
+    hotkey: "Control+Shift+A",
+    systemPrompt: DEFAULT_ASK_PRESET_PROMPT,
+    model: "", // empty = inherit the global default model
+    isBuiltIn: true,
+    // Kept in field-for-field parity with `makeDefaultCorrectionPresets()`;
+    // `minimal` was retired upstream and is no longer a `ReasoningEffort`.
+    reasoning: "low",
+    requiresInput: true,
+    outputMode: "popup",
+    markdownOutput: true,
   },
 });
 
@@ -324,11 +341,16 @@ export const SettingCorrection: React.FC = () => {
       return;
     }
 
-    // Explicitly include reasoning so Reset restores the built-in effort even
-    // when the current preset carries a user override.
+    // Explicitly include these so Reset restores the built-in value even when
+    // the current preset carries an override — a spread alone only overwrites
+    // keys `defaultPreset` actually has, so an override sitting on a key the
+    // built-in default omits (undefined) would otherwise survive the reset.
     updatePreset(activePreset.id, {
       ...defaultPreset,
       reasoning: defaultPreset.reasoning,
+      requiresInput: defaultPreset.requiresInput,
+      outputMode: defaultPreset.outputMode,
+      markdownOutput: defaultPreset.markdownOutput,
     });
     setStatus(null);
     setStatusIsError(false);
@@ -609,6 +631,66 @@ export const SettingCorrection: React.FC = () => {
             <p className="text-xs text-muted-foreground">
               {t("settings.correction.reasoning.hint")}
             </p>
+          </div>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <label
+                htmlFor="preset-output-mode"
+                className="text-sm text-card-foreground"
+              >
+                {t("settings.correction.outputMode.label")}
+              </label>
+              <Select
+                id="preset-output-mode"
+                value={activePreset.outputMode ?? "inherit"}
+                onChange={(event) =>
+                  updatePreset(activePreset.id, {
+                    outputMode: event.target
+                      .value as CorrectionPreset["outputMode"],
+                  })
+                }
+                className="h-10 px-3"
+              >
+                <option value="inherit">
+                  {t("settings.correction.outputMode.inherit")}
+                </option>
+                <option value="paste">
+                  {t("settings.correction.outputMode.paste")}
+                </option>
+                <option value="popup">
+                  {t("settings.correction.outputMode.popup")}
+                </option>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {t("settings.correction.outputMode.hint")}
+              </p>
+            </div>
+
+            {activePreset.requiresInput && (
+              <div className="flex flex-col gap-2">
+                <label
+                  htmlFor="preset-markdown-output"
+                  className="flex items-center gap-2 text-sm text-card-foreground"
+                >
+                  <input
+                    id="preset-markdown-output"
+                    type="checkbox"
+                    checked={activePreset.markdownOutput ?? false}
+                    onChange={(event) =>
+                      updatePreset(activePreset.id, {
+                        markdownOutput: event.target.checked,
+                      })
+                    }
+                    className="h-4 w-4 rounded border-control-border"
+                  />
+                  {t("settings.correction.markdownOutput.label")}
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  {t("settings.correction.markdownOutput.hint")}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="mt-4 flex flex-col gap-2">

@@ -13,6 +13,14 @@ export const buildPromptGenWindowTitle = (): string =>
 export const buildCorrectionResultWindowTitle = (): string =>
   mainT("notifications.window.correctionResult.title");
 
+/** Title for the Ask AI input popup window. */
+export const buildAskInputWindowTitle = (): string =>
+  mainT("notifications.window.askInput.title");
+
+/** Title for the Ask AI result popup window. */
+export const buildAskResultWindowTitle = (): string =>
+  mainT("notifications.window.askResult.title");
+
 /**
  * Heading text rendered inside the error popup overlay (`overlay.html`'s
  * `.error-title`), injected via `executeJavaScript` the same way the theme is

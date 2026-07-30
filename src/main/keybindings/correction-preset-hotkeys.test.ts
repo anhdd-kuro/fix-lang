@@ -60,6 +60,7 @@ vi.mock("~/stores/outputModeStore", () => ({
 }));
 vi.mock("../../utils", () => ({
   getHighlightedText: vi.fn().mockResolvedValue("some selected text"),
+  getHighlightedTextForOptionalContext: vi.fn().mockResolvedValue("some selected text"),
   pasteText: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../ai.request", () => ({ fixGrammar: vi.fn() }));
@@ -74,6 +75,10 @@ vi.mock("../webViewWindows", () => ({
 vi.mock("../webViewWindows/correctionResultWindow", () => ({
   showCorrectionResultWindow: vi.fn(),
 }));
+vi.mock("../webViewWindows/askInputWindow", () => ({
+  showAskInputWindow: vi.fn(),
+}));
+vi.mock("./askFlow", () => ({ runAskFlow: vi.fn() }));
 // `withHotkeyThrottle` stays REAL: it wraps every registered handler, so a stub
 // pass-through would hide a throttle that swallowed the invocations these tests
 // await. Its timestamp map is module state — hence the per-test reset below.
@@ -87,6 +92,7 @@ vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
   showErrorPopup: vi.fn(),
 }));
 import {
+  DEFAULT_ASK_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
   DEFAULT_STRUCTURED_TEXT_PRESET_ID,
 } from "~/prompts/correction";
@@ -95,10 +101,13 @@ import {
   getProfileSetting,
   normalizeCorrectionSettings,
 } from "~/stores/apiStore";
+import { runAskFlow } from "./askFlow";
 import { registerCorrectionShortcut } from "./correction";
-import { resetHotkeyThrottleForTests } from "./utils";
+import { resetHotkeyThrottleForTests, handleError  } from "./utils";
+import { getHighlightedText, getHighlightedTextForOptionalContext } from "../../utils";
 import { fixGrammar } from "../ai.request";
 import { logger } from "../logging/logService";
+import { showAskInputWindow } from "../webViewWindows/askInputWindow";
 import type * as KeybindingUtils from "./utils";
 import type { BrowserWindow } from "electron";
 import type { Mock } from "vitest";
@@ -367,5 +376,128 @@ describe("correction preset hotkeys — reserved app shortcuts still win", () =>
     );
     // The uncontested new built-in still registers normally.
     expect(calls.map(([shortcut]) => shortcut)).toContain("Control+Shift+R");
+  });
+});
+
+describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
+  const ASK_HOTKEY = "Control+Shift+A";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetHotkeyThrottleForTests();
+    (globalShortcut.register as Mock).mockReturnValue(true);
+    mocks.keyBindings = {
+      promptGen: "Control+Alt+P",
+      profileSwitch: "Control+Alt+O",
+    };
+    (getHighlightedText as Mock).mockResolvedValue("some selected text");
+    (getHighlightedTextForOptionalContext as Mock).mockResolvedValue("some selected text");
+  });
+
+  const singleBuiltInProfile = {
+    presets: [storedBuiltIn("correction", "Correction", "Control+Shift+F")],
+    selectedPresetId: "correction",
+  };
+
+  it("registers Control+Shift+A for the Ask AI preset", async () => {
+    const calls = registerFrom(singleBuiltInProfile);
+    const shortcuts = calls.map(([shortcut]) => shortcut);
+
+    expect(shortcuts).toContain(ASK_HOTKEY);
+
+    const askCall = calls.find(([shortcut]) => shortcut === ASK_HOTKEY);
+    expect(askCall).toBeDefined();
+    await expect(
+      presetIdBehindHandler(askCall?.[1] as () => Promise<void>),
+    ).resolves.toBe(DEFAULT_ASK_PRESET_ID);
+  });
+
+  it("opens the Ask input window instead of aborting when nothing is selected, and never fires the noTextSelected notification", async () => {
+    (getHighlightedTextForOptionalContext as Mock).mockResolvedValue("");
+
+    const calls = registerFrom(singleBuiltInProfile);
+    const askCall = calls.find(([shortcut]) => shortcut === ASK_HOTKEY);
+    await askCall?.[1]();
+
+    expect(showAskInputWindow).toHaveBeenCalledWith(
+      { presetId: DEFAULT_ASK_PRESET_ID, context: "" },
+      expect.objectContaining({
+        onSubmit: expect.any(Function),
+        onCancel: expect.any(Function),
+      }),
+    );
+    expect(handleError).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageKey: "notifications.error.noTextSelected.body",
+      }),
+    );
+  });
+
+  it("reads the selection via getHighlightedTextForOptionalContext, not getHighlightedText, so a stale clipboard on an empty selection never becomes the Ask context", async () => {
+    // Regression guard for finding 07/f1: getHighlightedText's Cmd-C is a
+    // no-op with nothing selected, so it silently returns whatever was
+    // already on the clipboard (e.g. a password copied earlier). Ask must
+    // read through the optional-context variant instead, which reports ""
+    // for exactly that case (see src/utils.ts).
+    (getHighlightedText as Mock).mockResolvedValue("stale clipboard: hunter2");
+    (getHighlightedTextForOptionalContext as Mock).mockResolvedValue("");
+
+    const calls = registerFrom(singleBuiltInProfile);
+    const askCall = calls.find(([shortcut]) => shortcut === ASK_HOTKEY);
+    await askCall?.[1]();
+
+    expect(getHighlightedTextForOptionalContext).toHaveBeenCalled();
+    expect(showAskInputWindow).toHaveBeenCalledWith(
+      { presetId: DEFAULT_ASK_PRESET_ID, context: "" },
+      expect.objectContaining({
+        onSubmit: expect.any(Function),
+        onCancel: expect.any(Function),
+      }),
+    );
+  });
+
+  it("still aborts a non-requiresInput preset with the noTextSelected notification when nothing is selected", async () => {
+    (getHighlightedText as Mock).mockResolvedValue("");
+
+    const calls = registerFrom(singleBuiltInProfile);
+    const correctionCall = calls.find(
+      ([shortcut]) => shortcut === "Control+Shift+F",
+    );
+    await correctionCall?.[1]();
+
+    expect(showAskInputWindow).not.toHaveBeenCalled();
+    expect(handleError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageKey: "notifications.error.noTextSelected.body",
+      }),
+    );
+  });
+
+  it("wires the input window's onSubmit handler to runAskFlow with the current selection as context", async () => {
+    const calls = registerFrom(singleBuiltInProfile);
+    const askCall = calls.find(([shortcut]) => shortcut === ASK_HOTKEY);
+    await askCall?.[1]();
+
+    const [, handlers] = (showAskInputWindow as Mock).mock.calls[0];
+    handlers.onSubmit("What does this mean?");
+
+    expect(runAskFlow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        preset: expect.objectContaining({ id: DEFAULT_ASK_PRESET_ID }),
+        context: "some selected text",
+        question: "What does this mean?",
+      }),
+    );
+  });
+
+  it("wires the input window's onCancel handler to a no-op that never calls runAskFlow", async () => {
+    const calls = registerFrom(singleBuiltInProfile);
+    const askCall = calls.find(([shortcut]) => shortcut === ASK_HOTKEY);
+    await askCall?.[1]();
+
+    const [, handlers] = (showAskInputWindow as Mock).mock.calls[0];
+    handlers.onCancel();
+
+    expect(runAskFlow).not.toHaveBeenCalled();
   });
 });
