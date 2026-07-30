@@ -43,11 +43,26 @@ const bucketsOf = (json: unknown): Record<string, unknown>[] | null => {
   return json.data.filter(isRecord);
 };
 
+/** Items of a `{ object: "list", data: [...] }` envelope — same guard as a page. */
+const itemsOf = bucketsOf;
+
 /** Cursor for the next page, or null when the page is the last one. */
 export const nextPageCursor = (json: unknown): string | null => {
   if (!isRecord(json)) return null;
   if (json.has_more !== true) return null;
   return asString(json.next_page);
+};
+
+/**
+ * Cursor for the next page of a LIST envelope. Deliberately distinct from
+ * `nextPageCursor`: the usage/costs endpoints paginate with `next_page`, the
+ * admin list endpoints with `after=<last_id>`. Swapping the two silently
+ * re-requests page one forever instead of erroring.
+ */
+export const nextAfterCursor = (json: unknown): string | null => {
+  if (!isRecord(json)) return null;
+  if (json.has_more !== true) return null;
+  return asString(json.last_id);
 };
 
 /** UTC day key of a bucket's `start_time` (unix seconds). */
@@ -123,6 +138,86 @@ export const parseCosts = (json: unknown): CardResult<OpenAICosts> => {
 
   return { ok: true, data: { totalUsd, daily, lineItems } };
 };
+
+// ---------------------------------------------------------------------------
+// Project spend — /v1/organization/costs?group_by=project_id
+// ---------------------------------------------------------------------------
+
+/**
+ * One project's billed spend for the range. Real dollars from the same endpoint
+ * as the total, so the rows sum to it — `project_id` is the ONE non-line-item
+ * grouping `/costs` supports, which is why per-project money exists here while
+ * per-model money does not (see the MONEY RULE above).
+ */
+export type OpenAIProjectSpendRow = {
+  /** `""` when the bucket carried no `project_id` (ungrouped or unattributed). */
+  projectId: string;
+  /** Resolved from `/organization/projects`; null when that lookup found nothing. */
+  name: string | null;
+  costUsd: number;
+};
+
+export type OpenAIProjectCosts = {
+  totalUsd: number;
+  /** Descending by spend. Zero-cost projects are dropped — a $0 row is noise. */
+  projects: OpenAIProjectSpendRow[];
+};
+
+export const parseProjectCosts = (
+  json: unknown,
+): CardResult<OpenAIProjectCosts> => {
+  const buckets = bucketsOf(json);
+  if (buckets === null) return { ok: false, reason: "parse_error" };
+
+  const byProject = new Map<string, number>();
+  let totalUsd = 0;
+
+  for (const bucket of buckets) {
+    for (const result of resultsOf(bucket)) {
+      const value = amountOf(result);
+      totalUsd += value;
+      // An ungrouped page reports one unlabelled result per bucket; the empty
+      // key keeps that spend visible instead of vanishing from the rows.
+      const projectId = asString(result.project_id) ?? "";
+      byProject.set(projectId, (byProject.get(projectId) ?? 0) + value);
+    }
+  }
+
+  const projects: OpenAIProjectSpendRow[] = [...byProject.entries()]
+    .filter(([, costUsd]) => costUsd > 0)
+    .map(([projectId, costUsd]) => ({ projectId, name: null, costUsd }))
+    .sort((a, b) => b.costUsd - a.costUsd);
+
+  return { ok: true, data: { totalUsd, projects } };
+};
+
+/** id → display name from `/organization/projects`. Unnamed entries are skipped. */
+export const parseProjectNames = (
+  json: unknown,
+): CardResult<Record<string, string>> => {
+  const items = itemsOf(json);
+  if (items === null) return { ok: false, reason: "parse_error" };
+
+  const names: Record<string, string> = {};
+  for (const item of items) {
+    const id = asString(item.id);
+    const name = asString(item.name);
+    if (id !== null && name !== null && name !== "") names[id] = name;
+  }
+  return { ok: true, data: names };
+};
+
+/** Attaches resolved names without mutating the parsed rows. */
+export const withProjectNames = (
+  costs: OpenAIProjectCosts,
+  names: Readonly<Record<string, string>>,
+): OpenAIProjectCosts => ({
+  ...costs,
+  projects: costs.projects.map((row) => ({
+    ...row,
+    name: names[row.projectId] ?? null,
+  })),
+});
 
 // ---------------------------------------------------------------------------
 // Completions usage — /v1/organization/usage/completions?group_by=model
