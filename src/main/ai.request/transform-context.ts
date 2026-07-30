@@ -69,12 +69,16 @@ export const buildActiveAppContextBlock = (
 };
 
 /**
- * Prepend the context block to a system prompt. Prepended rather than
- * appended so it carries more weight against the preset's own instructions —
- * the trade-off is that the varying part now sits at the head of the prompt
- * instead of the tail of the cacheable prefix (`./cache-strategy`), so a
- * different active app busts the provider's prompt cache for the whole
- * request instead of only adding an uncached suffix.
+ * Append the context block to a system prompt. Appended rather than
+ * prepended so the preset's own instructions stay the stable, cacheable
+ * prefix of the request — a different active app now only adds a varying
+ * suffix after the last cache breakpoint (`./cache-strategy`) instead of
+ * busting the provider's prompt cache for the whole request. The trade-off
+ * is the reverse of before: trailing metadata carries less weight against
+ * the preset's own instructions than a leading block would.
+ *
+ * Returns the system prompt byte-identical (not merely prefixed) when there
+ * is nothing to say, so a failed frontmost-app read costs nothing either way.
  */
 export const withActiveAppContext = (
   systemPrompt: string,
@@ -82,7 +86,7 @@ export const withActiveAppContext = (
   policy: AppContextFormattingPolicy = "preserve-input-markup",
 ): string => {
   const block = buildActiveAppContextBlock(context, policy);
-  return block ? `${block}\n\n${systemPrompt}` : systemPrompt;
+  return block ? `${systemPrompt}\n\n${block}` : systemPrompt;
 };
 
 /**

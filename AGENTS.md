@@ -4,7 +4,7 @@
 
 Local macOS menu-bar app: fixes grammar and improves writing on selected text via AI (OpenAI, OpenRouter, AWS Bedrock, Ollama, LM Studio). Electron + React + TypeScript, runs on **bun**.
 
-Current release: **v0.13.1**.
+Current release: **v0.14.0**.
 
 ## Main Features
 
@@ -13,7 +13,7 @@ What the user gets. Implementation traps for each area live under [Known Gotchas
 - **Transform** — select text in any app, press a preset hotkey, get the rewrite back. Delivery is either **Direct paste** (replaces the selection) or **Show popup** (leaves the source alone): global in Settings → General → Transform output, overridable per preset.
 - **Presets** — seven built-ins, each with its own hotkey: Correction (`Control+Shift+F`), Summarize (`Control+Shift+S`), Prompt optimization (`Control+Shift+D`), Translate (`Control+Shift+T`), Business Writing (`Control+Shift+B`), Context-Aware Structured Text (`Control+Shift+R`), Ask AI (`Control+Shift+A`). Custom presets too. Every preset carries its own model (from any connected provider), system prompt, reasoning effort (`none`/`low`/`medium`/`high`) and output mode (`inherit`/`paste`/`popup`).
 - **Ask AI** — the one preset that needs no selection: its hotkey opens a small input window, treats any current selection as optional context, and answers in a cascading popup (up to 5 at once) that reads selection → question → answer. Selection and question are plain text clamped to 3 lines; only the answer is GFM markdown, and it is never clamped. Nothing selected means no selection block at all. The Show more/less control sits *after* the text and renders only when the clamp actually truncates it — measured from the laid-out element (`scrollHeight > clientHeight`), never guessed from string length, since line count depends on popup width. That measurement runs **only while collapsed**: expanding drops the clamp, so re-measuring there would report "fits" and unmount the control the user needs to collapse again. jsdom lays nothing out and has no `ResizeObserver`, so the test stubs both.
-- **Source-app context** — the frontmost app name ("Slack", "Mail", "Xcode") is prepended to the system prompt so the result matches that app's register. Best-effort: silently dropped when unreadable or when FixLang itself is frontmost. Only Context-Aware Structured Text adapts markup to the app; every other preset uses the hint for tone alone.
+- **Source-app context** — the frontmost app name ("Slack", "Mail", "Xcode") is appended to the system prompt so the result matches that app's register, trailing the preset's own instructions so the preset text stays a stable, cacheable prefix. Best-effort: silently dropped when unreadable or when FixLang itself is frontmost. Only Context-Aware Structured Text adapts markup to the app; every other preset uses the hint for tone alone.
 - **Prompt generation** — PromptGen window builds AI prompts from selected text (`Control+Shift+G`). Feature-tagged, so released builds ship it OFF.
 - **Profiles** — named configurations, cycled with `Control+Shift+P`; a switch reloads hotkeys, settings, and history together.
 - **Multi-provider** — OpenAI, OpenRouter, AWS Bedrock, Ollama and LM Studio can all be connected at once. Every connected provider's models appear in one grouped picker, and any preset can use any of them regardless of the profile default. Bedrock takes an access key ID + secret access key + AWS region; the two local providers take a host/port.
