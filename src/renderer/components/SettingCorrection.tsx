@@ -19,6 +19,7 @@ import { msg, messageLabel, type Message } from "~/shared/i18n/message";
 import { useI18n } from "../i18n/useI18n";
 import { splitHotkey } from "./about/userGuideView";
 import { Button } from "./Button";
+import { Checkbox } from "./Checkbox";
 import { ModelSelect } from "./ModelSelect";
 import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
 import { Select } from "./Select/Select";
@@ -669,23 +670,15 @@ export const SettingCorrection: React.FC = () => {
 
             {activePreset.requiresInput && (
               <div className="flex flex-col gap-2">
-                <label
-                  htmlFor="preset-markdown-output"
-                  className="flex items-center gap-2 text-sm text-card-foreground"
-                >
-                  <input
-                    id="preset-markdown-output"
-                    type="checkbox"
-                    checked={activePreset.markdownOutput ?? false}
-                    onChange={(event) =>
-                      updatePreset(activePreset.id, {
-                        markdownOutput: event.target.checked,
-                      })
-                    }
-                    className="h-4 w-4 rounded border-control-border"
-                  />
-                  {t("settings.correction.markdownOutput.label")}
-                </label>
+                <Checkbox
+                  name="preset-markdown-output"
+                  checked={activePreset.markdownOutput ?? false}
+                  onChange={(markdownOutput) =>
+                    updatePreset(activePreset.id, { markdownOutput })
+                  }
+                  label={t("settings.correction.markdownOutput.label")}
+                  className="text-card-foreground"
+                />
                 <p className="text-xs text-muted-foreground">
                   {t("settings.correction.markdownOutput.hint")}
                 </p>

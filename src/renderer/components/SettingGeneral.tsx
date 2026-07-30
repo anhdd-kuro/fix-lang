@@ -18,6 +18,7 @@ import {
   type TypedProviderKeys,
 } from "./providerCards";
 import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
+import { Select } from "./Select";
 import {
   plainStatus,
   wrappedError,
@@ -39,6 +40,25 @@ type ProviderStatus = {
   note?: Label;
   isError: boolean;
 };
+
+const CORRECTION_OUTPUT_MODES = [
+  {
+    mode: "paste",
+    labelKey: "settings.general.correctionOutput.paste.label",
+    descriptionKey: "settings.general.correctionOutput.paste.description",
+  },
+  {
+    mode: "popup",
+    labelKey: "settings.general.correctionOutput.popup.label",
+    descriptionKey: "settings.general.correctionOutput.popup.description",
+  },
+] as const satisfies readonly {
+  readonly mode: CorrectionOutputMode;
+  readonly labelKey: string;
+  readonly descriptionKey: string;
+}[];
+
+const CORRECTION_OUTPUT_MODE_FIELD_ID = "correction-output-mode";
 
 export const SettingGeneral: React.FC = () => {
   const { t, tm, tl } = useI18n();
@@ -934,63 +954,47 @@ export const SettingGeneral: React.FC = () => {
         <p className="mt-1 text-xs text-muted-foreground">
           {t("settings.general.correctionOutput.description")}
         </p>
-        <div
-          className="mt-3 grid grid-cols-2 gap-2"
-          role="radiogroup"
-          aria-label={t("settings.general.correctionOutput.title")}
-        >
-          <Button
-            type="button"
-            variant={correctionOutputMode === "paste" ? "primary" : "outline"}
-            role="radio"
-            aria-checked={correctionOutputMode === "paste"}
+        <div className="mt-3 flex flex-col gap-2">
+          <label htmlFor={CORRECTION_OUTPUT_MODE_FIELD_ID} className="sr-only">
+            {t("settings.general.correctionOutput.title")}
+          </label>
+          <Select
+            id={CORRECTION_OUTPUT_MODE_FIELD_ID}
+            value={correctionOutputMode}
             disabled={savingOutputMode}
-            onClick={() => void handleOutputModeChange("paste")}
-            className={`rounded border px-3 py-2 text-left transition-colors disabled:opacity-60 ${
-              correctionOutputMode === "paste"
-                ? "border-primary"
-                : "border-card-control-border hover:bg-secondary"
-            }`}
+            onChange={(event) =>
+              void handleOutputModeChange(
+                event.target.value as CorrectionOutputMode,
+              )
+            }
+            className="h-10 w-full px-3 text-sm"
           >
-            <span className="block text-sm font-medium">
-              {t("settings.general.correctionOutput.paste.label")}
-            </span>
-            <span
-              className={`mt-0.5 block text-xs ${
-                correctionOutputMode === "paste"
-                  ? "text-inherit"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {t("settings.general.correctionOutput.paste.description")}
-            </span>
-          </Button>
-          <Button
-            type="button"
-            variant={correctionOutputMode === "popup" ? "primary" : "outline"}
-            role="radio"
-            aria-checked={correctionOutputMode === "popup"}
-            disabled={savingOutputMode}
-            onClick={() => void handleOutputModeChange("popup")}
-            className={`rounded border px-3 py-2 text-left transition-colors disabled:opacity-60 ${
-              correctionOutputMode === "popup"
-                ? "border-primary"
-                : "border-card-control-border hover:bg-secondary"
-            }`}
-          >
-            <span className="block text-sm font-medium">
-              {t("settings.general.correctionOutput.popup.label")}
-            </span>
-            <span
-              className={`mt-0.5 block text-xs ${
-                correctionOutputMode === "popup"
-                  ? "text-inherit"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {t("settings.general.correctionOutput.popup.description")}
-            </span>
-          </Button>
+            {CORRECTION_OUTPUT_MODES.map(({ mode, labelKey }) => (
+              <option key={mode} value={mode}>
+                {t(labelKey)}
+              </option>
+            ))}
+          </Select>
+          {/* A native <option> carries no description, so every mode's copy
+              stays here, with the active one emphasised. */}
+          <dl className="flex flex-col gap-0.5 text-xs">
+            {CORRECTION_OUTPUT_MODES.map(
+              ({ mode, labelKey, descriptionKey }) => (
+                <div key={mode} className="flex flex-wrap gap-x-1">
+                  <dt
+                    className={`font-medium ${
+                      mode === correctionOutputMode
+                        ? "text-card-foreground"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {t(labelKey)}
+                  </dt>
+                  <dd className="text-muted-foreground">{t(descriptionKey)}</dd>
+                </div>
+              ),
+            )}
+          </dl>
         </div>
         {outputModeStatus && (
           <p

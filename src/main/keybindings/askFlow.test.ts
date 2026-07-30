@@ -96,6 +96,14 @@ const fakeMainWindow = () =>
     webContents: { send: vi.fn() },
   }) as unknown as BrowserWindow;
 
+const askSessionJson = JSON.stringify({
+  systemPrompt: "Ask AI system prompt.",
+  userPrompt: "Question",
+  reasoningEffort: "medium",
+  responses: ["The answer."],
+  usage: { promptTokens: 12, completionTokens: 6 },
+});
+
 const fixGrammarResult = {
   correctedText: "The answer.",
   promptTokens: 12,
@@ -105,7 +113,17 @@ const fixGrammarResult = {
   resolvedModel: "openai/gpt-4.1-mini",
   presetId: "ask",
   presetName: "Ask AI",
+  sessionJson: askSessionJson,
 };
+
+const syncedEntry = () => {
+  const call = (syncHistory as Mock).mock.calls.at(0);
+  return call?.[0]?.entry as { sessionJson?: string } | undefined;
+};
+
+/** Mirrors the History row's own gate — `HistoryEntryItem.tsx:54`. */
+const showsDetailsControl = (sessionJson: unknown): boolean =>
+  typeof sessionJson === "string" && sessionJson.length > 0;
 
 describe("runAskFlow", () => {
   beforeEach(() => {
@@ -193,7 +211,21 @@ describe("runAskFlow", () => {
       question: "Question",
       answer: "The answer.",
       markdown: true,
+      input: "",
     });
+  });
+
+  it("forwards the carried selection to the result window as `input`", async () => {
+    await runAskFlow({
+      preset: basePreset,
+      context: "the selected passage",
+      question: "Question",
+      mainWindow: fakeMainWindow(),
+    });
+
+    expect(showAskResultWindow).toHaveBeenCalledWith(
+      expect.objectContaining({ input: "the selected passage" }),
+    );
   });
 
   it("falls back to the global output mode ('paste') when the preset's outputMode is 'inherit'", async () => {
@@ -228,6 +260,38 @@ describe("runAskFlow", () => {
         featureId: "corrections",
       }),
     );
+  });
+
+  it("stores the raw completion snapshot as sessionJson, like the Transform hotkey path", async () => {
+    await runAskFlow({
+      preset: basePreset,
+      context: "",
+      question: "Question",
+      mainWindow: fakeMainWindow(),
+    });
+
+    expect(syncHistory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entry: expect.objectContaining({ sessionJson: askSessionJson }),
+      }),
+    );
+    expect(showsDetailsControl(syncedEntry()?.sessionJson)).toBe(true);
+  });
+
+  it("leaves sessionJson undefined (SQL NULL) when the result carries no session, hiding the details control", async () => {
+    const { sessionJson: _omitted, ...withoutSession } = fixGrammarResult;
+    (fixGrammar as Mock).mockResolvedValue(withoutSession);
+
+    await runAskFlow({
+      preset: basePreset,
+      context: "",
+      question: "Question",
+      mainWindow: fakeMainWindow(),
+    });
+
+    expect(syncedEntry()).toBeDefined();
+    expect(syncedEntry()?.sessionJson).toBeUndefined();
+    expect(showsDetailsControl(syncedEntry()?.sessionJson)).toBe(false);
   });
 
   it("skips history sync when mainWindow is null", async () => {
