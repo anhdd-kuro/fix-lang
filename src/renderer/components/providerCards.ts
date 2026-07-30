@@ -61,6 +61,14 @@ export const ADMIN_KEY_MESSAGE_KEYS: Partial<
   },
 };
 
+/**
+ * Where the OpenAI project id is found. Kept beside `ADMIN_KEY_MESSAGE_KEYS`
+ * because it shares their constraint: main only permits http/https, so a mistyped
+ * scheme makes the link a silent no-op rather than an error.
+ */
+export const OPENAI_PROJECT_SETTINGS_URL =
+  "https://platform.openai.com/settings/organization/projects";
+
 export type ProviderCardState = {
   provider: ProviderId;
   /** In `enabledProviders` — this, not `configured`, gates Disconnect. */

@@ -270,13 +270,32 @@ describe("normalizeCorrectionSettings — reasoning field", () => {
           systemPrompt: "Do the thing.",
           model: "",
           isBuiltIn: false,
+          reasoning: "high",
+        },
+      ],
+      selectedPresetId: "custom-1",
+    });
+    const preset = result.presets.find((p) => p.id === "custom-1");
+    expect(preset?.reasoning).toBe("high");
+  });
+
+  it("steps a retired reasoning effort down instead of dropping it", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [
+        {
+          id: "custom-1",
+          name: "Custom",
+          hotkey: "",
+          systemPrompt: "Do the thing.",
+          model: "",
+          isBuiltIn: false,
           reasoning: "xhigh",
         },
       ],
       selectedPresetId: "custom-1",
     });
     const preset = result.presets.find((p) => p.id === "custom-1");
-    expect(preset?.reasoning).toBe("xhigh");
+    expect(preset?.reasoning).toBe("high");
   });
 
   it("drops an unknown reasoning value from a stored preset", () => {

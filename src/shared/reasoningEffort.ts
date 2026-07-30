@@ -3,8 +3,8 @@
  * @description Per-preset and global reasoning effort for the AI SDK top-level
  * `reasoning` parameter. Electron-free — shared by main, preload, and renderer.
  *
- * Slider (None → Faster → Smarter) maps to six discrete values: `none` plus
- * five SDK effort steps. `provider-default` is a stored/API value for presets
+ * Slider (None → Faster → Smarter) maps to five discrete values: `none` plus
+ * four SDK effort steps. `provider-default` is a stored/API value for presets
  * that inherit the profile-wide default; it is not a slider step.
  */
 
@@ -13,8 +13,17 @@ export const REASONING_EFFORT_STEPS = [
   "low",
   "medium",
   "high",
-  "xhigh",
 ] as const;
+
+/**
+ * Efforts that were slider steps in an earlier release, mapped to the step that
+ * replaces them. A stored value must be REMAPPED, never dropped: falling back to
+ * `undefined` reads as `provider-default`, which silently changes a preset's
+ * behaviour instead of stepping it down one notch.
+ */
+const RETIRED_EFFORTS: Record<string, ReasoningEffortStep> = {
+  xhigh: "high",
+};
 
 export type ReasoningEffortStep = (typeof REASONING_EFFORT_STEPS)[number];
 
@@ -59,10 +68,12 @@ export const isReasoningEffort = (value: unknown): value is ReasoningEffort =>
   typeof value === "string" && ALL_EFFORTS.has(value);
 
 /**
- * Normalize a stored/raw value. Unknown strings become undefined (caller treats
- * as provider-default / omit from the request).
+ * Normalize a stored/raw value. A retired effort steps down to its replacement;
+ * anything else unknown becomes undefined (caller treats as provider-default /
+ * omit from the request).
  */
 export const sanitizeReasoningEffort = (raw: unknown): ReasoningEffort | undefined => {
+  if (typeof raw === "string" && raw in RETIRED_EFFORTS) return RETIRED_EFFORTS[raw];
   if (!isReasoningEffort(raw)) return undefined;
   return raw;
 };
@@ -72,8 +83,11 @@ export const reasoningEffortToStepIndex = (
   effort: ReasoningEffort | undefined,
   fallback: ReasoningEffort = DEFAULT_REASONING_EFFORT,
 ): number => {
-  const resolved =
+  const raw =
     effort === undefined || effort === "provider-default" ? fallback : effort;
+  // A retired effort reaching here unsanitized would land on index -1 → None,
+  // showing the slider at its weakest step for a preset stored at its strongest.
+  const resolved = sanitizeReasoningEffort(raw) ?? raw;
   const index = REASONING_EFFORT_SLIDER_STEPS.indexOf(
     resolved as ReasoningEffortSliderStep,
   );
@@ -115,5 +129,9 @@ export const reasoningForAiSdk = (
   effort: ReasoningEffort | undefined,
 ): ReasoningEffortStep | "none" | undefined => {
   if (effort === undefined || effort === "provider-default") return undefined;
-  return effort;
+  // Sanitized here too, so a retired effort still on disk can never be sent to
+  // a provider that no longer accepts it.
+  const resolved = sanitizeReasoningEffort(effort);
+  if (resolved === undefined || resolved === "provider-default") return undefined;
+  return resolved;
 };

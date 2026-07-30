@@ -3,6 +3,7 @@ import { BEDROCK_DEFAULT_REGION } from "~/shared/bedrockEndpoint";
 import { messageLabel, type Label, type Message } from "~/shared/i18n/message";
 import { LMSTUDIO_DEFAULT_ENDPOINT } from "~/shared/lmstudioEndpoint";
 import { OLLAMA_DEFAULT_ENDPOINT } from "~/shared/ollamaEndpoint";
+import { isMalformedOpenAIProjectId } from "~/shared/openaiProject";
 import { Button } from "./Button";
 import { LanguageTabs } from "./LanguageTabs";
 import { ModelSelect } from "./ModelSelect";
@@ -11,6 +12,7 @@ import {
   ADMIN_KEY_MESSAGE_KEYS,
   buildProviderCards,
   describeDisconnectImpact,
+  OPENAI_PROJECT_SETTINGS_URL,
   type ProviderCardState,
   type ProviderConnectionState,
   type TypedProviderKeys,
@@ -75,6 +77,17 @@ export const SettingGeneral: React.FC = () => {
       port: "0",
     },
   });
+  // Non-secret, so unlike a key it is read back and shown. `undefined` means the
+  // stored value has not been read yet, and is NOT the same as "".
+  //
+  // Load-bearing: main treats a submitted `""` as a deliberate clear. Connecting
+  // while the read was still in flight would therefore WIPE a stored project id,
+  // and after a profile switch a retained value would be written into the profile
+  // just switched to. Both are silent. The connect omits the field entirely until
+  // this resolves, and a profile change resets it to `undefined` synchronously.
+  const [typedOpenAIProjectId, setTypedOpenAIProjectId] = useState<
+    string | undefined
+  >(undefined);
   // Per provider, not one slot: concurrent connects would otherwise clear each
   // other's flag and re-enable a button whose request is still running.
   const [busyProviders, setBusyProviders] = useState<
@@ -106,6 +119,9 @@ export const SettingGeneral: React.FC = () => {
       if (states) setProviderStates(states);
 
       const profileResult = await window.electronAPI?.getCurrentProfile?.();
+      setTypedOpenAIProjectId(
+        profileResult?.currentProfile?.settings?.openaiProjectId ?? "",
+      );
       const endpoints = profileResult?.currentProfile?.settings?.providerEndpoints;
       setTypedEndpoints((current) => {
         const next = { ...current };
@@ -155,6 +171,9 @@ export const SettingGeneral: React.FC = () => {
     };
     const offProfile = window.electronAPI?.onProfileUpdated?.(() => {
       setTypedKeys({});
+      // Before the async re-read below: holding the previous profile's id across
+      // the gap would let a Connect write it into the profile just switched to.
+      setTypedOpenAIProjectId(undefined);
       setProviderStatus({});
       setConfirmDisconnect(null);
       setDisconnectReport(null);
@@ -162,6 +181,8 @@ export const SettingGeneral: React.FC = () => {
       reloadReasoningEffort();
     });
     const offActiveProfile = window.electronAPI?.onActiveProfileChanged?.(() => {
+      setTypedOpenAIProjectId(undefined);
+      refreshProviderStates();
       reloadReasoningEffort();
     });
     // Another window's connect/disconnect broadcasts `settings-updated`;
@@ -311,6 +332,11 @@ export const SettingGeneral: React.FC = () => {
         apiKey: typed?.apiKey || undefined,
         secretKey: typed?.secretKey || undefined,
         provisioningKey: typed?.provisioningKey || undefined,
+        // Sent even when empty — clearing the field must clear the stored id —
+        // but only once the stored value has been read; see the state comment.
+        ...(provider === "openai" && typedOpenAIProjectId !== undefined
+          ? { projectId: typedOpenAIProjectId }
+          : {}),
         ...(provider === "lmstudio" || provider === "ollama"
           ? {
               host: endpoint?.host?.trim() || undefined,
@@ -731,6 +757,57 @@ export const SettingGeneral: React.FC = () => {
               className="mt-1 inline-block text-xs text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {t(adminKeyMessages.help)}
+            </a>
+          </div>
+        )}
+
+        {/* OpenAI only, and directly under the admin key it depends on: the key
+            is organization-scoped, so nothing in it names a project. */}
+        {provider === "openai" && (
+          <div className="mt-2">
+            <label
+              htmlFor="openai-project-id"
+              className="block text-xs font-medium text-card-foreground mb-1"
+            >
+              {t("settings.general.providers.openai.projectId.label")}
+            </label>
+            <input
+              id="openai-project-id"
+              type="text"
+              autoComplete="off"
+              spellCheck={false}
+              className="w-full p-2 bg-secondary border border-control-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              value={typedOpenAIProjectId ?? ""}
+              disabled={typedOpenAIProjectId === undefined}
+              onChange={(event) => setTypedOpenAIProjectId(event.target.value)}
+              placeholder={t(
+                "settings.general.providers.openai.projectId.placeholder",
+              )}
+              aria-label={t("settings.general.providers.openai.projectId.label")}
+              aria-invalid={isMalformedOpenAIProjectId(typedOpenAIProjectId ?? "")}
+            />
+            {/* Shown while typing, not only after a rejected Connect: the id is
+                pasted, and a wrong paste is silent until spend reads as $0. */}
+            {isMalformedOpenAIProjectId(typedOpenAIProjectId ?? "") ? (
+              <p className="mt-1 text-xs text-destructive" role="status">
+                {t("settings.general.providers.openai.projectId.invalid")}
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t("settings.general.providers.openai.projectId.hint")}
+              </p>
+            )}
+            <a
+              href={OPENAI_PROJECT_SETTINGS_URL}
+              onClick={(event) => {
+                event.preventDefault();
+                void window.electronAPI.openExternalLink(
+                  OPENAI_PROJECT_SETTINGS_URL,
+                );
+              }}
+              className="mt-1 inline-block text-xs text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {t("settings.general.providers.openai.projectId.help")}
             </a>
           </div>
         )}

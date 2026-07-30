@@ -27,6 +27,7 @@ import {
   OLLAMA_DEFAULT_ENDPOINT,
   resolveOllamaEndpoint,
 } from "~/shared/ollamaEndpoint";
+import { isMalformedOpenAIProjectId } from "~/shared/openaiProject";
 import { findKeyShapeMismatch, type KeySlotKind } from "~/shared/providerKeyShapes";
 import {
   isModelForProvider,
@@ -117,6 +118,11 @@ type ProviderConnectPayload = {
   host?: string;
   port?: number;
   region?: string;
+  /**
+   * OpenAI project id, raw as typed. `""` is meaningful — it clears a stored id
+   * — so absent and empty must stay distinguishable all the way to the store.
+   */
+  projectId?: string;
 };
 
 export const parseProviderConnect = (raw: unknown): ProviderConnectPayload | null => {
@@ -127,7 +133,8 @@ export const parseProviderConnect = (raw: unknown): ProviderConnectPayload | nul
     (value.apiKey !== undefined && typeof value.apiKey !== "string") ||
     (value.provisioningKey !== undefined && typeof value.provisioningKey !== "string") ||
     (value.secretKey !== undefined && typeof value.secretKey !== "string") ||
-    (value.region !== undefined && typeof value.region !== "string")
+    (value.region !== undefined && typeof value.region !== "string") ||
+    (value.projectId !== undefined && typeof value.projectId !== "string")
   ) {
     return null;
   }
@@ -154,6 +161,7 @@ export const parseProviderConnect = (raw: unknown): ProviderConnectPayload | nul
       : {}),
     ...(typeof value.secretKey === "string" ? { secretKey: value.secretKey } : {}),
     ...(typeof value.region === "string" ? { region: value.region } : {}),
+    ...(typeof value.projectId === "string" ? { projectId: value.projectId } : {}),
     ...(host !== undefined ? { host } : {}),
     ...(port !== undefined ? { port } : {}),
   };
@@ -443,6 +451,17 @@ export const registerApiHandlers = (): void => {
     if (shapeError) {
       return { success: false, error: shapeError };
     }
+    // Refused rather than sanitized away: storing "" for a malformed entry would
+    // report "connected" while the tray's project card stays permanently empty.
+    if (
+      payload.projectId !== undefined &&
+      isMalformedOpenAIProjectId(payload.projectId)
+    ) {
+      return {
+        success: false,
+        error: messageLabel("settings.general.providers.openai.projectId.invalid"),
+      };
+    }
 
     try {
       let models: Model[];
@@ -631,7 +650,15 @@ export const registerApiHandlers = (): void => {
 
       // Bound to the captured `profileId`: the profile-switch hotkey can land
       // during the fetch above, and the key was written to THAT profile.
-      const profile = connectProviderToProfile(profileId, payload.provider, models);
+      // Two calls rather than an always-present options object: the project id is
+      // OpenAI-only, and `{}` for every other provider would say "the caller had
+      // something to set" where it had nothing.
+      const profile =
+        payload.provider === "openai" && payload.projectId !== undefined
+          ? connectProviderToProfile(profileId, payload.provider, models, {
+              openaiProjectId: payload.projectId,
+            })
+          : connectProviderToProfile(profileId, payload.provider, models);
       if (!profile) {
         return {
           success: false,

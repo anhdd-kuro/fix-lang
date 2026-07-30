@@ -1969,7 +1969,7 @@ const consumerContractRows = [
     "SITE-07f2a8ba23e043f1-01",
     "LIVE-07f2a8ba23e043f1",
     "src/renderer/components/SettingGeneral.tsx",
-    739,
+    816,
     11,
   ],
   [
@@ -1977,7 +1977,7 @@ const consumerContractRows = [
     "SITE-c4546c1f1b582275-01",
     "LIVE-c4546c1f1b582275",
     "src/renderer/components/SettingGeneral.tsx",
-    752,
+    829,
     13,
   ],
   [
@@ -1985,7 +1985,7 @@ const consumerContractRows = [
     "SITE-f528b6225f5af211-01",
     "LIVE-f528b6225f5af211",
     "src/renderer/components/SettingGeneral.tsx",
-    786,
+    863,
     15,
   ],
   [
@@ -1993,7 +1993,7 @@ const consumerContractRows = [
     "SITE-d3d535844d3ea12d-01",
     "LIVE-d3d535844d3ea12d",
     "src/renderer/components/SettingGeneral.tsx",
-    794,
+    871,
     15,
   ],
   [
@@ -2001,7 +2001,7 @@ const consumerContractRows = [
     "SITE-6174e716401ff26e-01",
     "LIVE-6174e716401ff26e",
     "src/renderer/components/SettingGeneral.tsx",
-    865,
+    942,
     11,
   ],
   [
@@ -2009,7 +2009,7 @@ const consumerContractRows = [
     "SITE-9469c19cdb9b59e6-01",
     "LIVE-9469c19cdb9b59e6",
     "src/renderer/components/SettingGeneral.tsx",
-    891,
+    968,
     11,
   ],
   [
@@ -2017,7 +2017,7 @@ const consumerContractRows = [
     "SITE-9366f8ce82dfacc2-01",
     "LIVE-9366f8ce82dfacc2",
     "src/renderer/components/SettingGeneral.tsx",
-    967,
+    1044,
     9,
   ],
   [
@@ -2254,14 +2254,22 @@ const consumerContractRows = [
   ],
   [
     "BTN-092",
-    "SITE-391b0616cadac9b3-01",
-    "LIVE-391b0616cadac9b3",
-    "src/renderer/TrayWindow/components/TrayCreditBalance.tsx",
-    66,
-    5,
+    "SITE-3fc2016e431469db-01",
+    "LIVE-3fc2016e431469db",
+    "src/renderer/TrayWindow/components/TrayProviderSummary.tsx",
+    203,
+    17,
   ],
   [
     "BTN-093",
+    "SITE-5889a078aeafb4c2-01",
+    "LIVE-5889a078aeafb4c2",
+    "src/renderer/TrayWindow/components/TrayProviderSummary.tsx",
+    233,
+    13,
+  ],
+  [
+    "BTN-094",
     "SITE-022a9db6eed9fbc4-01",
     "LIVE-022a9db6eed9fbc4",
     "src/renderer/TrayWindow/components/TrayToolbar.tsx",
@@ -2281,7 +2289,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "013b6930ab8987bef0ebbf7402502fdc91a8fb55733ec6d18f1b4ef4a255ce1e";
+  "e32e2917caaa03e5f16f01456232434f37708f39107142e5dc90e60982208b6c";
 
 const compareConsumers = (
   left: ButtonConsumer,
@@ -2798,7 +2806,7 @@ describe("renderer Button source guard", () => {
     }
   });
 
-  it("changes every one of the 93 live identities under a stable-coordinate mutation", async () => {
+  it("changes every one of the 94 live identities under a stable-coordinate mutation", async () => {
     const sourceByFile = new Map<string, string>();
     let mutatedIdentityCount = 0;
 
@@ -2838,29 +2846,29 @@ describe("renderer Button source guard", () => {
       mutatedIdentityCount += 1;
     }
 
-    expect(mutatedIdentityCount).toBe(93);
+    expect(mutatedIdentityCount).toBe(94);
   });
 
-  it("allows the shared native leaf and the exact 93-consumer migration inventory", async () => {
+  it("allows the shared native leaf and the exact 94-consumer migration inventory", async () => {
     const result = await scanRenderer();
     const locations = expectedButtonConsumers.map(
       ({ file, line, column }) => `${file}:${line}:${column}`,
     );
 
-    expect(expectedButtonConsumers).toHaveLength(93);
+    expect(expectedButtonConsumers).toHaveLength(94);
     expect(sha256(JSON.stringify(expectedButtonConsumers))).toBe(
       consumerContractSha256,
     );
     expect(expectedButtonConsumers.map(({ id }) => id)).toEqual(
       Array.from(
-        { length: 93 },
+        { length: 94 },
         (_, index) => `BTN-${String(index + 1).padStart(3, "0")}`,
       ),
     );
     expect(
       new Set(expectedButtonConsumers.map(({ stableId }) => stableId)).size,
-    ).toBe(93);
-    expect(new Set(locations).size).toBe(93);
+    ).toBe(94);
+    expect(new Set(locations).size).toBe(94);
     expect(result.findings).toEqual([]);
     expect(result.sourceFiles.filter(isPrimaryButtonModule)).toEqual([]);
     expect(result.nativeLeaves).toHaveLength(1);
