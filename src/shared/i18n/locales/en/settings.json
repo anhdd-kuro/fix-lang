@@ -42,7 +42,7 @@
   "settings.general.apiKey.label": "{provider} API Key",
   "settings.general.apiKey.notRequired": "No API key required",
   "settings.general.apiKey.placeholderNew": "Enter your {provider} API key",
-  "settings.general.clipboardFallback.hint": "Some apps — terminals, Zed, Sublime Text, Google Docs — don't expose their text to other apps. When that happens FixLang can press ⌘C to read your selection, then put your previous clipboard contents back — text only, so an image or rich-text clipboard is cleared rather than restored. Turning this off stops that read, and transforms simply do nothing in those apps; it does not stop Direct paste, which writes the result to your clipboard to deliver it whatever this setting says.",
+  "settings.general.clipboardFallback.hint": "Some apps — terminals, Zed, Sublime Text, Google Docs — don't expose their text to other apps. When that happens FixLang can press ⌘C to read your selection, then put your previous clipboard contents back. Only text can be put back: if your clipboard held an image or rich text, the ⌘C replaces it and FixLang cannot restore it. Turning this off stops that read, and transforms simply do nothing in those apps; it does not stop Direct paste, which writes the result to your clipboard to deliver it whatever this setting says.",
   "settings.general.clipboardFallback.invalid": "Invalid clipboard fallback setting",
   "settings.general.clipboardFallback.label": "Use the clipboard when direct access fails",
   "settings.general.clipboardFallback.saveError": "Error saving clipboard fallback setting",
