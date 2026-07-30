@@ -42,6 +42,28 @@ export type AIRequestOptions = {
   messages?: CoreMessage[];
   /** Stop sequences */
   stop?: string[] | null;
+  /**
+   * Cancels the in-flight provider call. Autocomplete supersedes its request on
+   * every keystroke, so this is the difference between one billed completion per
+   * pause and one per character.
+   */
+  abortSignal?: AbortSignal;
+  /**
+   * Caps generated tokens. Latency scales with what the model actually emits, so
+   * a continuation that must arrive inside a typing pause needs a ceiling rather
+   * than a stop sequence alone.
+   */
+  maxOutputTokens?: number;
+  /**
+   * Suppresses the user-facing notification on failure, leaving the throw and
+   * the structured log intact.
+   *
+   * Cancellation is already silent (`isAbortError` in `~/main/notifications/error`).
+   * This covers the rest: a request issued by typing rather than by an explicit
+   * user action has no moment where an error dialog is expected, so a persistent
+   * 401 would otherwise notify again on every pause the user takes.
+   */
+  quiet?: boolean;
 };
 
 /**

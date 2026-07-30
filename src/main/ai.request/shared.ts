@@ -30,7 +30,7 @@ import { probeOllama } from "~/main/llm/models/discover";
 import { providerCapabilities } from "~/main/llm/providers";
 import { probeLmStudio } from "~/main/llm/providers/lmstudio/client";
 import { logger } from "~/main/logging/logService";
-import { showErrorNotification } from "~/main/notifications/error";
+import { notifyRequestError } from "~/main/notifications/error";
 import type { AIRequestOptions, CoreMessage } from "./requestTypes";
 import type { HistorySessionData } from "~/features/history/shared/historySession";
 import type { TKey } from "~/features/i18n/shared/translate";
@@ -408,7 +408,7 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
   const modelId = options.model || getDefaultModelId();
   if (!modelId) {
     const error = new Error("You have to select a model first.");
-    showErrorNotification(error);
+    notifyRequestError(options, error);
     throw error;
   }
 
@@ -441,7 +441,7 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
             model: parsed.modelId,
           }),
     );
-    showErrorNotification(error);
+    notifyRequestError(options, error);
     throw error;
   }
 

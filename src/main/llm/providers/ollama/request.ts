@@ -7,7 +7,7 @@
 import { resolveOllamaEndpoint } from "~/features/providers/shared/ollamaEndpoint";
 import { getProviderEndpoint } from "~/features/providers/store/apiStore";
 import { getLocalModels } from "~/main/llm/models/discover";
-import { showErrorNotification } from "~/main/notifications/error";
+import { notifyRequestError } from "~/main/notifications/error";
 import { createOllamaClient } from "./client";
 import type { AIRequestOptions } from "~/main/ai.request/requestTypes";
 
@@ -63,16 +63,32 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
           ? msg.content
           : JSON.stringify(msg.content),
     }));
-    // Make the request to the local LLM
-    const response = await createOllamaClient(
+    // Make the request to the local LLM.
+    //
+    // Ollama's client takes neither an `abortSignal` nor `maxOutputTokens`: the
+    // token cap is `options.num_predict`, and cancellation is a client-level
+    // `abort()` rather than a per-request signal. Aborting is safe only because
+    // this client is constructed per request, so it owns exactly one call.
+    const client = createOllamaClient(
       resolveOllamaEndpoint(getProviderEndpoint("ollama")),
-    ).chat({
-      messages: serializedMessages,
-      model: modelId,
-      options: {
-        top_p: options.top_p || 0.9,
-      },
-    });
+    );
+    const abortClient = () => client.abort();
+    options.abortSignal?.addEventListener("abort", abortClient, { once: true });
+    const response = await client
+      .chat({
+        messages: serializedMessages,
+        model: modelId,
+        options: {
+          top_p: options.top_p || 0.9,
+          ...(options.maxOutputTokens !== undefined
+            ? { num_predict: options.maxOutputTokens }
+            : {}),
+          ...(options.stop ? { stop: options.stop } : {}),
+        },
+      })
+      .finally(() => {
+        options.abortSignal?.removeEventListener("abort", abortClient);
+      });
 
     console.log(
       "[DEBUG CRITICAL] Ollama response total duration:",
@@ -94,7 +110,7 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
     };
   } catch (error) {
     console.error("Local LLM request failed:", error);
-    showErrorNotification(error, "The local AI request failed. Please try again.");
+    notifyRequestError(options, error, "The local AI request failed. Please try again.");
     throw error;
   }
 };
