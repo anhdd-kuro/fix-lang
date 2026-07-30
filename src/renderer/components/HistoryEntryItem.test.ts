@@ -120,4 +120,26 @@ describe("HistoryEntryItem", () => {
     expect(container.textContent).toContain(jaExpected);
     expect(jaExpected).toBe(enExpected);
   });
+
+  it("places the session-details control before the history title", async () => {
+    const entry = makeEntry({
+      sessionJson: JSON.stringify({
+        messages: [],
+        model: "gpt-4.1-mini",
+        provider: "openai",
+        responses: [],
+        promptTokens: 1,
+        completionTokens: 1,
+      }),
+    });
+    await render(entry);
+
+    const control = container.querySelector(
+      'button[aria-label="View session details"]',
+    );
+    const title = container.querySelector(`p[title="${entry.original}"]`);
+
+    expect(control).not.toBeNull();
+    expect(title?.parentElement?.firstElementChild).toBe(control?.parentElement);
+  });
 });

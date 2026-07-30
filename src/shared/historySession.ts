@@ -21,8 +21,6 @@ export type HistorySessionMessage = {
  * optional model reasoning text / usage. Serialized as JSON on `HistoryEntry`.
  */
 export type HistorySessionData = {
-  systemPrompt: string;
-  userPrompt: string;
   messages: HistorySessionMessage[];
   reasoningEffort?: ReasoningEffort;
   topP?: number;
@@ -78,8 +76,6 @@ export const parseHistorySession = (
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!isRecord(parsed)) return undefined;
-    if (typeof parsed.systemPrompt !== "string") return undefined;
-    if (typeof parsed.userPrompt !== "string") return undefined;
     if (typeof parsed.model !== "string") return undefined;
     if (!isProviderId(parsed.provider)) return undefined;
     if (!Array.isArray(parsed.messages)) return undefined;
@@ -101,8 +97,6 @@ export const parseHistorySession = (
     }
 
     const session: HistorySessionData = {
-      systemPrompt: parsed.systemPrompt,
-      userPrompt: parsed.userPrompt,
       messages,
       model: parsed.model,
       provider: parsed.provider,
