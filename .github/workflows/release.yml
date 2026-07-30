@@ -280,6 +280,17 @@ jobs:
             exit 1
           fi
 
+          # GPL-3.0 sections 4 and 6 require the licence to accompany the object
+          # code we distribute, and MIT/Apache-2.0 require the bundled packages'
+          # notices to travel with it. Since app.asar ships no node_modules, these
+          # three files are the only copies a recipient of the DMG ever gets.
+          for required in /LICENSE.md /resources/THIRD-PARTY-NOTICES.md /resources/THIRD-PARTY-LICENSES.txt; do
+            if ! grep -qx "${required}" <<< "${asar_entries}"; then
+              echo "app.asar is missing ${required}; the DMG would ship without required licence texts." >&2
+              exit 1
+            fi
+          done
+
           (
             cd release
             shasum -a 256 "${artifact_name}" > SHA256SUMS.txt

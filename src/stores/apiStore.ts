@@ -671,6 +671,13 @@ export const apiStoreSchema = {
 
 export const apiStore = new Store<{ profiles: Profile[] }>({
   schema: apiStoreSchema,
+  // Obfuscation only, NOT confidentiality, despite the name: the literal ships
+  // inside the app bundle, so anyone can derive the same cipher. It deters
+  // casual hand-editing of the config; it protects nothing. No secret belongs
+  // in this store — API keys, admin keys and provisioning keys all go through
+  // `safeStorage` (see `apiKeyStore.ts`, `provisioningKeyStore.ts`).
+  // Do NOT change this value: with `clearInvalidConfig: true` an existing file
+  // written under a different key is discarded, wiping every user's profiles.
   encryptionKey: "fixlang-secure-encryption-key",
   clearInvalidConfig: true,
   watch: true,
