@@ -3,7 +3,7 @@ import {
   DEFAULT_SUMMARIZE_PRESET_ID,
 } from "~/prompts";
 import { serializeHistorySession } from "~/shared/historySession";
-import { parseModelRef, stripModelRefPrefix } from "~/shared/modelRef";
+import { parseModelRef } from "~/shared/modelRef";
 import { resolveReasoningEffort } from "~/shared/reasoningEffort";
 import {
   getDefaultModelId,
@@ -56,7 +56,6 @@ const getCorrectionPreset = (presetId?: string): CorrectionPreset => {
 const buildCorrectionUserPrompt = (
   text: string,
   preset: CorrectionPreset,
-  rawTargetModelId: string,
 ): string => {
   if (preset.id !== DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID) {
     if (preset.id !== DEFAULT_SUMMARIZE_PRESET_ID) {
@@ -82,10 +81,7 @@ const buildCorrectionUserPrompt = (
     "Optimize the draft prompt below immediately.",
     "Requirements:",
     "- Treat the selected text as the rough prompt to improve.",
-    `- The selected target model ID is: ${rawTargetModelId}.`,
-    "- If the model ID is provider-specific or not listed exactly, infer the closest supported model or tool family from the ID and optimize for that family.",
     "- If the draft already names a target AI tool, use it.",
-    "- Otherwise, default to the selected target model above instead of assuming ChatGPT.",
     "- Preserve the draft's structural shape (sections, bullets, XML tags) unless restructuring is clearly needed for clarity.",
     "- When the draft targets an AI coding agent harness, preserve agent-native terms (skill, sub-agent, MCP, tool calls, etc.) — do not rewrite into a generic chat task.",
     "- Do not ask clarifying questions.",
@@ -154,11 +150,7 @@ export const fixGrammar = async (
         context,
         appContextPolicyForPreset(preset.id),
       ),
-      userPrompt: buildCorrectionUserPrompt(
-        text,
-        preset,
-        stripModelRefPrefix(effectiveModel),
-      ),
+      userPrompt: buildCorrectionUserPrompt(text, preset),
       model: effectiveModel,
       reasoning: resolveReasoningEffort(preset.reasoning, getDefaultReasoningEffort()),
     });
