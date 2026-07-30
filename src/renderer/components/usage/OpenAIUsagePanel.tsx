@@ -1,9 +1,12 @@
 /**
  * @file OpenAIUsagePanel.tsx
  * @description OpenAI panel of the Usage tab. Shows billed spend for the range
- * and per-project spend (both from `/organization/costs`), token + request totals
+ * with its per-project breakdown in the SAME card (both from
+ * `/organization/costs` — one total and the projects it splits into, so they read
+ * as one figure rather than two competing spend headings), token + request totals
  * and a per-model table (from `/organization/usage/completions`), plus the shared
- * charts. Each card degrades independently from its CardResult.
+ * charts. Every card — and each half of the spend card — degrades independently
+ * from its own CardResult.
  *
  * DELIBERATE ASYMMETRY with the OpenRouter panel:
  * - No credit-balance or key-limit card — OpenAI's API exposes neither. The
@@ -54,6 +57,42 @@ const RANGES: { id: UsageRange; labelKey: TranslationKey }[] = [
 
 type CardShape = { ok: false; reason: string } | { ok: true };
 
+const CardShell = ({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => (
+  <div className="rounded-lg border border-card-control-border bg-card p-3">
+    <div className="mb-1 text-xs uppercase tracking-wide text-primary">{title}</div>
+    {children}
+  </div>
+);
+
+/**
+ * Content gated on ONE `CardResult`. Split out from `Card` so the spend card can
+ * hold two of them: its total and its per-project breakdown arrive from separate
+ * requests, and either must be able to degrade while the other still shows real
+ * billed dollars.
+ */
+const CardBody = ({
+  result,
+  t,
+  children,
+}: {
+  result: CardShape;
+  t: Translator;
+  children: React.ReactNode;
+}) =>
+  result.ok ? (
+    <>{children}</>
+  ) : (
+    <div className="text-sm text-muted-foreground">
+      {usageDegradedMessage((result as { reason: UsageDegradedReason }).reason, t)}
+    </div>
+  );
+
 const Card = ({
   title,
   result,
@@ -65,19 +104,11 @@ const Card = ({
   t: Translator;
   children: React.ReactNode;
 }) => (
-  <div className="rounded-lg border border-card-control-border bg-card p-3">
-    <div className="mb-1 text-xs uppercase tracking-wide text-primary">{title}</div>
-    {result.ok ? (
-      children
-    ) : (
-      <div className="text-sm text-muted-foreground">
-        {usageDegradedMessage(
-          (result as { reason: UsageDegradedReason }).reason,
-          t,
-        )}
-      </div>
-    )}
-  </div>
+  <CardShell title={title}>
+    <CardBody result={result} t={t}>
+      {children}
+    </CardBody>
+  </CardShell>
 );
 
 /**
@@ -167,77 +198,70 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
         </Button>
       </div>
 
-      {/* Billed spend for the range */}
-      <Card
-        title={t("usage.openai.spend.title", { range: rangeLabel })}
-        result={costs ?? fallback}
-        t={t}
-      >
-        {costs?.ok && (
-          <div>
+      {/* Billed spend for the range, with its per-project breakdown in the same
+          card — one figure and the projects it splits into. The two arrive from
+          separate /costs requests, so each half degrades on its own. */}
+      <CardShell title={t("usage.openai.spend.title", { range: rangeLabel })}>
+        <CardBody result={costs ?? fallback} t={t}>
+          {costs?.ok && (
             <div className="text-xl font-semibold tabular-nums text-foreground">
               {formatUsageUsd(costs.data.totalUsd)}
             </div>
-            <div className="mt-0.5 text-xs text-muted-foreground">
-              {t("usage.openai.spend.note")}
-            </div>
-          </div>
-        )}
-      </Card>
+          )}
+        </CardBody>
 
-      {/* Billed spend per project — real dollars, from the one non-line-item
-          grouping /costs supports. Degrades on its own request. */}
-      <Card
-        title={t("usage.openai.projectSpend.title", { range: rangeLabel })}
-        result={projectCosts ?? fallback}
-        t={t}
-      >
-        {projectCosts?.ok &&
-          (projectCosts.data.projects.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
-              {t("usage.openai.projectSpend.empty")}
-            </div>
-          ) : (
-            <>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="py-1 pr-2 font-medium">
-                      {t("usage.columns.project")}
-                    </th>
-                    <th className="py-1 pl-2 text-right font-medium">
-                      {t("usage.columns.spend")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {projectCosts.data.projects.map((row) => {
-                    const label = projectLabel(row, t);
-                    return (
-                      <tr
-                        key={row.projectId}
-                        className="border-t border-card-control-border"
-                      >
-                        <td
-                          className="py-1 pr-2 text-foreground max-w-[14rem] truncate"
-                          title={label}
+        <div className="mt-3 border-t border-card-control-border pt-2">
+          <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
+            {t("usage.openai.projectSpend.subtitle")}
+          </div>
+          <CardBody result={projectCosts ?? fallback} t={t}>
+            {projectCosts?.ok &&
+              (projectCosts.data.projects.length === 0 ? (
+                <div className="text-sm text-muted-foreground">
+                  {t("usage.openai.projectSpend.empty")}
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+                      <th className="py-1 pr-2 font-medium">
+                        {t("usage.columns.project")}
+                      </th>
+                      <th className="py-1 pl-2 text-right font-medium">
+                        {t("usage.columns.spend")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projectCosts.data.projects.map((row) => {
+                      const label = projectLabel(row, t);
+                      return (
+                        <tr
+                          key={row.projectId}
+                          className="border-t border-card-control-border"
                         >
-                          {label}
-                        </td>
-                        <td className="py-1 pl-2 text-right tabular-nums text-card-foreground">
-                          {formatUsageUsd(row.costUsd)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              <div className="mt-1.5 text-xs text-muted-foreground">
-                {t("usage.openai.projectSpend.note")}
-              </div>
-            </>
-          ))}
-      </Card>
+                          <td
+                            className="py-1 pr-2 text-foreground max-w-[14rem] truncate"
+                            title={label}
+                          >
+                            {label}
+                          </td>
+                          <td className="py-1 pl-2 text-right tabular-nums text-card-foreground">
+                            {formatUsageUsd(row.costUsd)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              ))}
+          </CardBody>
+        </div>
+
+        <div className="mt-2 text-xs text-muted-foreground">
+          {t("usage.openai.spend.note")}
+        </div>
+      </CardShell>
 
       {/* Token + request totals */}
       <Card
