@@ -120,20 +120,50 @@ export const HistorySessionDetailsModal: React.FC<
               {pretty}
             </pre>
           ) : chatMessages.length > 0 ? (
-            <ol className="space-y-3" aria-label={t("history.details.chatAriaLabel")}>
+            <ol
+              className="flex flex-col gap-3"
+              aria-label={t("history.details.chatAriaLabel")}
+            >
               {chatMessages.map((message, index) => {
                 const labelKey = ROLE_LABEL_KEYS[message.role];
+                const roleLabel = labelKey ? t(labelKey) : message.role;
+                const content = displayHistoryMessageContent(message.content);
+
+                if (message.role === "system") {
+                  return (
+                    <li key={`${message.role}-${index}`}>
+                      <details className="rounded-md border border-card-control-border bg-card p-3">
+                        <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          {roleLabel} …
+                        </summary>
+                        <pre className="mt-2 text-sm text-foreground whitespace-pre-wrap break-words">
+                          {content}
+                        </pre>
+                      </details>
+                    </li>
+                  );
+                }
+
+                const isUser = message.role === "user";
                 return (
                   <li
                     key={`${message.role}-${index}`}
-                    className="rounded-md border border-card-control-border bg-card p-3"
+                    className={`flex ${isUser ? "justify-end" : "justify-start"}`}
                   >
-                    <h3 className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      {labelKey ? t(labelKey) : message.role}
-                    </h3>
-                    <pre className="text-sm text-foreground whitespace-pre-wrap break-words">
-                      {displayHistoryMessageContent(message.content)}
-                    </pre>
+                    <div
+                      className={`max-w-[80%] rounded-lg p-3 ${
+                        isUser
+                          ? "bg-primary text-primary-foreground"
+                          : "border border-card-control-border bg-card text-card-foreground"
+                      }`}
+                    >
+                      <h3 className="mb-1 text-xs font-medium uppercase tracking-wide opacity-70">
+                        {roleLabel}
+                      </h3>
+                      <pre className="text-sm whitespace-pre-wrap break-words">
+                        {content}
+                      </pre>
+                    </div>
                   </li>
                 );
               })}

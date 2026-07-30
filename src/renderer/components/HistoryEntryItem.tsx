@@ -76,13 +76,13 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
             />
           </div>
         </div>
-        <div className="flex items-start gap-1">
+        <div className="flex items-center gap-1">
           {hasSession ? (
             <Tooltip
               tooltipText={t("history.details.tooltip")}
               width="w-44"
               portal
-              className="mt-0.5 shrink-0"
+              className="shrink-0"
               activator={
                 <Button
                   type="button"
