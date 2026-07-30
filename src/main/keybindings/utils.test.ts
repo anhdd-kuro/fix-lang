@@ -11,6 +11,7 @@ import { AccessibilityPermissionError, LocalizedError } from "~/main/notificatio
 import {
   checkShortcut,
   handleError,
+  HOTKEY_IN_FLIGHT_STALE_MS,
   HOTKEY_THROTTLE_MS,
   resetHotkeyThrottleForTests,
   withHotkeyThrottle,
@@ -197,6 +198,64 @@ describe("withHotkeyThrottle", () => {
 
     finishHandler();
     await secondRun;
+  });
+
+  // Nothing the guard fences is guaranteed to settle: no provider request sets
+  // a timeout or AbortSignal, so a local endpoint that accepts the connection
+  // and never answers leaves the handler pending forever. Without a ceiling that
+  // one press silences the preset for the rest of the process — no notification,
+  // no log line, recovery only by restarting the app.
+  it("lets a press through once an unfinished run passes the stale ceiling", async () => {
+    let clock = 1_000;
+    const neverSettles = vi.fn(() => new Promise<void>(() => undefined));
+    const throttled = withHotkeyThrottle("Control+Shift+F", neverSettles, () => clock);
+
+    void throttled();
+
+    clock += HOTKEY_IN_FLIGHT_STALE_MS - 1;
+    void throttled();
+    expect(neverSettles).toHaveBeenCalledTimes(1);
+
+    clock += 1;
+    void throttled();
+    expect(neverSettles).toHaveBeenCalledTimes(2);
+  });
+
+  // The ceiling must stay far outside a legitimate slow transform: a reasoning
+  // model on a long input can run for minutes, and cutting a real run loose to
+  // start a second one would double-bill the user. Recursion is the opposite
+  // shape — a synthesized ⌘C re-enters within milliseconds.
+  it("keeps refusing recursion-speed re-entry, which is what the ceiling must not let through", () => {
+    expect(HOTKEY_IN_FLIGHT_STALE_MS).toBeGreaterThanOrEqual(60_000);
+  });
+
+  // Once the ceiling has handed the accelerator to a later press, the earlier
+  // run finishing must not release the newer one's claim.
+  it("does not let a stale run's completion release the press that superseded it", async () => {
+    let clock = 1_000;
+    // One resolver per invocation: a single `finishStale` variable would be
+    // overwritten by the second call and resolve the wrong run.
+    const resolvers: (() => void)[] = [];
+    const handler = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvers.push(resolve);
+        }),
+    );
+    const throttled = withHotkeyThrottle("Control+Shift+F", handler, () => clock);
+
+    const staleRun = throttled();
+    clock += HOTKEY_IN_FLIGHT_STALE_MS;
+    void throttled();
+    expect(handler).toHaveBeenCalledTimes(2);
+
+    // The FIRST run settles now. It must not clear the second run's entry.
+    resolvers[0]();
+    await staleRun;
+
+    clock += HOTKEY_THROTTLE_MS;
+    void throttled();
+    expect(handler).toHaveBeenCalledTimes(2);
   });
 
   it("releases the in-flight guard when the handler rejects", async () => {

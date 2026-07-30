@@ -35,12 +35,17 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
           clipboardFallbackStore.getClipboardFallbackEnabled(),
       });
       if (selection.selectedText === null) {
+        // `reason` only — never the outcome itself: spreading it would put the
+        // user's selection in the on-disk JSONL.
+        logger.warn("promptGen.hotkey", "No text selected or clipboard is empty", {
+          reason: selection.reason,
+        });
         handleError(
           new LocalizedError("No text selected.", "notifications.error.noTextSelected.body"),
         );
         return;
       }
-      const { selectedText } = selection;
+      const { selectedText, source: selectionSource } = selection;
       const { x, y } = screen.getCursorScreenPoint();
       showOverlaySpinner();
 
@@ -49,6 +54,18 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
         activeAppName: activeApp?.name,
       });
       hideOverlaySpinner();
+
+      // Which read supplied the text is the whole diagnosis when a user reports
+      // that PromptGen worked on the wrong text — `correction.hotkey` records it
+      // on its completion line, and without this PromptGen had no equivalent.
+      logger.info("promptGen.hotkey", "Prompt generation completed", {
+        selectionSource,
+        textLength: selectedText.length,
+        // `?? null` throughout: `LogValue` has no `undefined` member.
+        model: result.model,
+        resolvedModel: result.resolvedModel ?? null,
+        activeApp: activeApp?.name ?? null,
+      });
 
       showPromptGenWindow({
         prompts: result.prompts,

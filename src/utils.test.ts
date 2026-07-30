@@ -71,16 +71,53 @@ const REAL_DENIAL_MESSAGE =
 
 type ExecCallback = (error: Error | null, stdout: string) => void;
 
+/**
+ * `getHighlightedText` passes an options object, so the callback is `exec`'s
+ * THIRD argument. Driving it positionally broke every test in this file the
+ * moment a `timeout` was added, so pick the callback out by type instead.
+ */
+const execCallbackOf = (args: unknown[]): ExecCallback =>
+  args.find((arg): arg is ExecCallback => typeof arg === "function") as ExecCallback;
+
+/** Drives the mocked `osascript` to fail with `error`, leaving the clipboard as-is. */
+const copyFailingWith = (error: Error, stdout = ""): void => {
+  execMock.mockImplementation((...args: unknown[]) => {
+    execCallbackOf(args)(error, stdout);
+  });
+};
+
 const originalPlatform = process.platform;
 
 const setPlatform = (platform: NodeJS.Platform): void => {
   Object.defineProperty(process, "platform", { value: platform, configurable: true });
 };
 
-/** Drives the mocked `osascript` to succeed with `stdout` as the copied text. */
+/**
+ * The app HONOURS the synthesized ⌘C: it writes the selection onto the
+ * pasteboard, and only then does the script's `return the clipboard` read it
+ * back. Simulating the pasteboard write is what makes this harness able to tell
+ * an honoured copy from a swallowed one — `getHighlightedText` decides whether
+ * its `finally` is a restore or a blanking by reading the pasteboard, so a mock
+ * whose `exec` left `clipboardState` untouched would report every copy as
+ * swallowed.
+ */
 const copyResolvingWith = (stdout: string): void => {
-  execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
-    callback(null, stdout);
+  execMock.mockImplementation((...args: unknown[]) => {
+    clipboardState.text = stdout;
+    clipboardState.formats = ["text/plain"];
+    execCallbackOf(args)(null, stdout);
+  });
+};
+
+/**
+ * The app IGNORES the ⌘C (terminals under some configurations, apps mid-modal).
+ * The pasteboard keeps whatever it held, and `return the clipboard` hands that
+ * back — a text clipboard verbatim, a non-text one as an AppleScript raw-data
+ * literal.
+ */
+const copySwallowedReturning = (stdout: string): void => {
+  execMock.mockImplementation((...args: unknown[]) => {
+    execCallbackOf(args)(null, stdout);
   });
 };
 
@@ -92,9 +129,7 @@ describe("getHighlightedText", () => {
   });
 
   it("maps a keystroke-permission denial to AccessibilityPermissionError", async () => {
-    execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
-      callback(new Error(REAL_DENIAL_MESSAGE), "");
-    });
+    copyFailingWith(new Error(REAL_DENIAL_MESSAGE));
 
     await expect(getHighlightedText()).rejects.toBeInstanceOf(AccessibilityPermissionError);
   });
@@ -103,9 +138,7 @@ describe("getHighlightedText", () => {
     const unrelated = new Error(
       "31:45: execution error: System Events got an error: Some application isn't running. (-600)",
     );
-    execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
-      callback(unrelated, "");
-    });
+    copyFailingWith(unrelated);
 
     expect.assertions(4);
     try {
@@ -118,13 +151,14 @@ describe("getHighlightedText", () => {
     }
   });
 
-  it("restores the clipboard even when the failure is a permission denial", async () => {
-    execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
-      callback(new Error(REAL_DENIAL_MESSAGE), "");
-    });
+  it("leaves the clipboard untouched when the failure is a permission denial", async () => {
+    copyFailingWith(new Error(REAL_DENIAL_MESSAGE));
 
     await expect(getHighlightedText()).rejects.toBeInstanceOf(AccessibilityPermissionError);
+    // A copy that never happened has nothing to undo, so the snapshot is not
+    // written back — the clipboard simply still holds what it held.
     expect(clipboardState.text).toBe("previous clipboard content");
+    expect(writeTextMock).not.toHaveBeenCalled();
   });
 
   // `src/main/index.ts` patches `console.log`/`warn`/`error` to append to
@@ -154,9 +188,10 @@ describe("getHighlightedText", () => {
   it("never prints the copied selection to the console on the failure path either", async () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
-      callback(new Error("31:45: execution error: something went wrong. (-600)"), "leaked selection");
-    });
+    copyFailingWith(
+      new Error("31:45: execution error: something went wrong. (-600)"),
+      "leaked selection",
+    );
 
     await expect(getHighlightedText()).rejects.toThrow("Failed to get highlighted text");
 
@@ -171,14 +206,14 @@ describe("getHighlightedText", () => {
   });
 
   it("reports a swallowed ⌘C as a miss instead of returning the previous clipboard", async () => {
-    copyResolvingWith("previous clipboard content\n");
+    copySwallowedReturning("previous clipboard content\n");
 
     await expect(getHighlightedText()).resolves.toBe("");
   });
 
   it("treats an unchanged clipboard as a miss even when the snapshot had surrounding whitespace", async () => {
     clipboardState.text = "  previous clipboard content \n";
-    copyResolvingWith("previous clipboard content");
+    copySwallowedReturning("previous clipboard content");
 
     await expect(getHighlightedText()).resolves.toBe("");
   });
@@ -187,23 +222,35 @@ describe("getHighlightedText", () => {
     copyResolvingWith("freshly selected text\n");
 
     await expect(getHighlightedText()).resolves.toBe("freshly selected text");
+    expect(writeTextMock).toHaveBeenCalledWith("previous clipboard content");
   });
 
-  it("does not blank an image-only clipboard whose text snapshot is empty", async () => {
+  // The snapshot comparison alone cannot see this: over an image-only clipboard
+  // the snapshot is `""`, so it never equals the osascript output, and
+  // `return the clipboard` on a non-text pasteboard prints a raw-data literal.
+  // Left unguarded, megabytes of PNG hex reach the provider as "the selection".
+  it("reports a swallowed ⌘C over an image-only clipboard as a miss, not raw pasteboard data", async () => {
     clipboardState.text = "";
     clipboardState.formats = ["image/png"];
-    copyResolvingWith("freshly selected text");
+    copySwallowedReturning("«data PNGf89504E470D0A1A0A0000000D49484452»");
 
-    await expect(getHighlightedText()).resolves.toBe("freshly selected text");
+    await expect(getHighlightedText()).resolves.toBe("");
+  });
+
+  it("does not blank an image-only clipboard when the ⌘C was swallowed", async () => {
+    clipboardState.text = "";
+    clipboardState.formats = ["image/png"];
+    copySwallowedReturning("«data PNGf89504E470D0A1A0A»");
+
+    await getHighlightedText();
     expect(writeTextMock).not.toHaveBeenCalled();
+    expect(clipboardState.formats).toEqual(["image/png"]);
   });
 
   it("does not blank a non-text clipboard when the copy fails either", async () => {
     clipboardState.text = "";
     clipboardState.formats = ["public.rtf"];
-    execMock.mockImplementation((_cmd: string, callback: ExecCallback) => {
-      callback(new Error(REAL_DENIAL_MESSAGE), "");
-    });
+    copyFailingWith(new Error(REAL_DENIAL_MESSAGE));
 
     await expect(getHighlightedText()).rejects.toBeInstanceOf(AccessibilityPermissionError);
     expect(writeTextMock).not.toHaveBeenCalled();
@@ -216,6 +263,28 @@ describe("getHighlightedText", () => {
 
     await expect(getHighlightedText()).resolves.toBe("freshly selected text");
     expect(writeTextMock).toHaveBeenCalledWith("");
+  });
+
+  // `writeText("")` declares an EMPTY TEXT FLAVOUR, so the restore above leaves
+  // the pasteboard reporting a format while its text stays `""` — a state
+  // FixLang creates for itself on every transform over an empty clipboard. A
+  // guard that classified "empty text + any format" as non-text skipped the
+  // NEXT run's restore and left the user's selection on the pasteboard for good.
+  it("still restores on a second transform, after its own restore left an empty text flavour", async () => {
+    clipboardState.text = "";
+    clipboardState.formats = [];
+    copyResolvingWith("first selection");
+    await getHighlightedText();
+
+    // What the real pasteboard looks like now: no text, but a text flavour.
+    expect(clipboardState.text).toBe("");
+    clipboardState.formats = ["text/plain"];
+    writeTextMock.mockClear();
+
+    copyResolvingWith("second selection");
+    await expect(getHighlightedText()).resolves.toBe("second selection");
+    expect(writeTextMock).toHaveBeenCalledWith("");
+    expect(clipboardState.text).toBe("");
   });
 });
 
