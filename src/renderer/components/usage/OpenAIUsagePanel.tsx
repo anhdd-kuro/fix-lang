@@ -221,39 +221,51 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
                   {t("usage.openai.projectSpend.empty")}
                 </div>
               ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-                      <th className="py-1 pr-2 font-medium">
-                        {t("usage.columns.project")}
-                      </th>
-                      <th className="py-1 pl-2 text-right font-medium">
-                        {t("usage.columns.spend")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {projectCosts.data.projects.map((row) => {
-                      const label = projectLabel(row, t);
-                      return (
-                        <tr
-                          key={row.projectId}
-                          className="border-t border-card-control-border"
-                        >
-                          <td
-                            className="py-1 pr-2 text-foreground max-w-[14rem] truncate"
-                            title={label}
+                <>
+                  <div className="mb-3">
+                    <UsageCostShareChart
+                      embedded
+                      slices={projectCosts.data.projects.map((row) => ({
+                        label: projectLabel(row, t),
+                        costUsd: row.costUsd,
+                      }))}
+                      titleKey="usage.chart.costShare.byProject"
+                    />
+                  </div>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+                        <th className="py-1 pr-2 font-medium">
+                          {t("usage.columns.project")}
+                        </th>
+                        <th className="py-1 pl-2 text-right font-medium">
+                          {t("usage.columns.spend")}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {projectCosts.data.projects.map((row) => {
+                        const label = projectLabel(row, t);
+                        return (
+                          <tr
+                            key={row.projectId}
+                            className="border-t border-card-control-border"
                           >
-                            {label}
-                          </td>
-                          <td className="py-1 pl-2 text-right tabular-nums text-card-foreground">
-                            {formatUsageUsd(row.costUsd)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            <td
+                              className="py-1 pr-2 text-foreground max-w-[14rem] truncate"
+                              title={label}
+                            >
+                              {label}
+                            </td>
+                            <td className="py-1 pl-2 text-right tabular-nums text-card-foreground">
+                              {formatUsageUsd(row.costUsd)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </>
               ))}
           </CardBody>
         </div>
@@ -361,15 +373,6 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
         <UsageCostShareChart
           slices={costs.data.lineItems}
           titleKey="usage.chart.costShare.byLineItem"
-        />
-      )}
-      {projectCosts?.ok && (
-        <UsageCostShareChart
-          slices={projectCosts.data.projects.map((row) => ({
-            label: projectLabel(row, t),
-            costUsd: row.costUsd,
-          }))}
-          titleKey="usage.chart.costShare.byProject"
         />
       )}
     </div>
