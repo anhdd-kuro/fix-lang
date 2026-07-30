@@ -1,6 +1,6 @@
 /**
  * @file transform-context.test.ts
- * @description Tests for the shared source-app context block appended to the
+ * @description Tests for the shared source-app context block prepended to the
  * system prompt of transform and PromptGen requests. Pure unit tests.
  */
 import { describe, expect, it } from "vitest";
@@ -16,7 +16,7 @@ describe("buildActiveAppContextBlock", () => {
     expect(block).toContain('"Slack"');
     expect(block).toMatch(/do not mention/i);
     // Must read as metadata, so the model does not transform the block itself.
-    expect(block).toMatch(/not content to act on/i);
+    expect(block).toMatch(/# Metadata context/);
   });
 
   it("returns null when there is no usable app name", () => {
@@ -47,12 +47,13 @@ describe("buildActiveAppContextBlock", () => {
 });
 
 describe("withActiveAppContext", () => {
-  it("appends the block after the caller's system prompt", () => {
+  it("prepends the block before the caller's system prompt", () => {
     const result = withActiveAppContext("Fix grammar.", {
       activeAppName: "Slack",
     });
 
-    expect(result.startsWith("Fix grammar.")).toBe(true);
+    expect(result.startsWith("# Metadata context")).toBe(true);
+    expect(result.endsWith("Fix grammar.")).toBe(true);
     expect(result).toContain('"Slack"');
   });
 
@@ -73,7 +74,7 @@ describe("buildActiveAppContextBlock — formatting policy", () => {
 
     expect(block).toBe(
       [
-        "Context (metadata about the request, not content to act on):",
+        "# Metadata context",
         '- The text was selected in the macOS app "Slack".',
         "- Use it only to infer the expected tone, formality, and formatting conventions of that app.",
         "- Do not mention the app, and do not add app-specific markup the input does not already use.",
@@ -89,7 +90,7 @@ describe("buildActiveAppContextBlock — formatting policy", () => {
 
     expect(block).toBe(
       [
-        "Context (metadata about the request, not content to act on):",
+        "# Metadata context",
         '- The text was selected in the macOS app "Slack".',
         "- Use it only to infer the expected tone, formality, and formatting conventions of that app.",
         "- Do not mention the app, and do not add app-specific markup the input does not already use.",
@@ -104,7 +105,7 @@ describe("buildActiveAppContextBlock — formatting policy", () => {
     );
 
     expect(block).not.toBeNull();
-    expect(block).toContain("Context (metadata about the request, not content to act on):");
+    expect(block).toContain("# Metadata context");
     expect(block).toContain('"Slack"');
     expect(block).not.toContain(
       "do not add app-specific markup the input does not already use",
@@ -167,14 +168,14 @@ describe("withActiveAppContext — formatting policy", () => {
     ).toBe("Fix grammar.");
   });
 
-  it("appends the adapt-to-app block when a policy is passed", () => {
+  it("prepends the adapt-to-app block when a policy is passed", () => {
     const result = withActiveAppContext(
       "Fix grammar.",
       { activeAppName: "Slack" },
       "adapt-to-app",
     );
 
-    expect(result.startsWith("Fix grammar.")).toBe(true);
+    expect(result.endsWith("Fix grammar.")).toBe(true);
     expect(result).not.toContain(
       "do not add app-specific markup the input does not already use",
     );

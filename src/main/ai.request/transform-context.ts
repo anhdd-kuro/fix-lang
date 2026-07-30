@@ -61,7 +61,7 @@ export const buildActiveAppContextBlock = (
       : "- Do not mention the app, and do not add app-specific markup the input does not already use.";
 
   return [
-    "Context (metadata about the request, not content to act on):",
+    "# Metadata context",
     `- The text was selected in the macOS app "${sanitizeAppNameForPrompt(appName)}".`,
     "- Use it only to infer the expected tone, formality, and formatting conventions of that app.",
     lastBullet,
@@ -69,9 +69,12 @@ export const buildActiveAppContextBlock = (
 };
 
 /**
- * Append the context block to a system prompt. Appended rather than prepended
- * so the preset's own prompt keeps the leading position, and so the varying
- * part sits at the tail of the cacheable prefix (`./cache-strategy`).
+ * Prepend the context block to a system prompt. Prepended rather than
+ * appended so it carries more weight against the preset's own instructions —
+ * the trade-off is that the varying part now sits at the head of the prompt
+ * instead of the tail of the cacheable prefix (`./cache-strategy`), so a
+ * different active app busts the provider's prompt cache for the whole
+ * request instead of only adding an uncached suffix.
  */
 export const withActiveAppContext = (
   systemPrompt: string,
@@ -79,7 +82,7 @@ export const withActiveAppContext = (
   policy: AppContextFormattingPolicy = "preserve-input-markup",
 ): string => {
   const block = buildActiveAppContextBlock(context, policy);
-  return block ? `${systemPrompt}\n\n${block}` : systemPrompt;
+  return block ? `${block}\n\n${systemPrompt}` : systemPrompt;
 };
 
 /**
