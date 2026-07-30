@@ -1,6 +1,7 @@
 import { exec, execSync } from "child_process";
 import { clipboard, dialog, shell } from "electron";
 import { isKeystrokePermissionDenied } from "~/main/accessibility/keystrokePermission";
+import { logger } from "~/main/logging/logService";
 import { AccessibilityPermissionError } from "~/main/notifications/error";
 
 export const isMacOSAccessibilityGranted = (): boolean => {
@@ -61,6 +62,8 @@ export const promptAccessibilityPermission = async (): Promise<void> => {
 export const wait = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
+let clipboardOperationsInFlight = 0;
+
 type SelectionRead = {
   text: string;
   previousClipboardContent: string;
@@ -76,10 +79,38 @@ type SelectionRead = {
  */
 const readSelection = async (): Promise<SelectionRead> => {
   const previousClipboardContent = clipboard.readText();
+  const startedAt = Date.now();
+  clipboardOperationsInFlight += 1;
+
+  logger.debug("clipboard.copy", "Sending copy keystroke", {
+    previousLength: previousClipboardContent.length,
+    concurrentOps: clipboardOperationsInFlight,
+  });
+
   try {
     const text = await copyHighlightedText();
+
+    logger.debug("clipboard.copy", "Copy keystroke returned", {
+      copiedLength: text.length,
+      previousLength: previousClipboardContent.length,
+      matchedPreviousValue: text === previousClipboardContent,
+      // The raw comparison above answers "did the pasteboard value change".
+      // This one answers "will getHighlightedTextForOptionalContext report
+      // nothing-selected", which is the trimmed comparison it actually acts
+      // on. The two disagree exactly when the previous clipboard carried
+      // surrounding whitespace — the case that made the stale-clipboard guard
+      // silently ineffective — so logging only the raw one would mislead a
+      // reader at the moment the diagnosis matters most.
+      matchedPreviousValueTrimmed: text === previousClipboardContent.trim(),
+      elapsedMs: Date.now() - startedAt,
+    });
+
     return { text, previousClipboardContent };
   } catch (error) {
+    logger.warn("clipboard.copy", "Copy keystroke failed", {
+      elapsedMs: Date.now() - startedAt,
+      permissionDenied: isKeystrokePermissionDenied(error),
+    });
     console.error(error);
     // A revoked Accessibility permission is a distinct, actionable condition
     // (see `~/main/accessibility/keystrokePermission`) — pass it through as
@@ -91,6 +122,11 @@ const readSelection = async (): Promise<SelectionRead> => {
     throw new Error("Failed to get highlighted text", { cause: error });
   } finally {
     clipboard.writeText(previousClipboardContent);
+    clipboardOperationsInFlight -= 1;
+    logger.debug("clipboard.copy", "Previous clipboard restored", {
+      elapsedMs: Date.now() - startedAt,
+      concurrentOps: clipboardOperationsInFlight,
+    });
   }
 };
 
@@ -146,7 +182,9 @@ const copyHighlightedText = () => {
     `;
 
     exec(`osascript -e '${script}'`, (error, stdout) => {
-      console.log(`🚀 \n - exec \n - stdout:`, stdout);
+      logger.debug("clipboard.copy", "osascript copy stdout received", {
+        stdoutLength: stdout.length,
+      });
       if (error) {
         reject(`Error: ${error.message}`);
         return;
@@ -158,8 +196,17 @@ const copyHighlightedText = () => {
 
 export const pasteText = (text: string): Promise<void> => {
   const previousClipboardContent = clipboard.readText();
+  const startedAt = Date.now();
+  clipboardOperationsInFlight += 1;
   return new Promise((resolve, reject) => {
     clipboard.writeText(text);
+
+    logger.debug("clipboard.paste", "Sending paste keystroke", {
+      textLength: text.length,
+      previousLength: previousClipboardContent.length,
+      concurrentOps: clipboardOperationsInFlight,
+    });
+
     const script = `
       tell application "System Events"
         keystroke "v" using command down
@@ -168,6 +215,16 @@ export const pasteText = (text: string): Promise<void> => {
     `;
 
     exec(`osascript -e '${script}'`, (error) => {
+      clipboardOperationsInFlight -= 1;
+      logger.debug("clipboard.paste", "Paste keystroke returned", {
+        textLength: text.length,
+        restoreAfterMs: Date.now() - startedAt,
+        stillOnPasteboard: clipboard.readText() === text,
+        failed: error !== null,
+        permissionDenied: isKeystrokePermissionDenied(error),
+        concurrentOps: clipboardOperationsInFlight,
+      });
+
       if (error) {
         // Same permission-denial detection as `copyHighlightedText`/
         // `getHighlightedText` above — `pasteText` synthesizes keystrokes
