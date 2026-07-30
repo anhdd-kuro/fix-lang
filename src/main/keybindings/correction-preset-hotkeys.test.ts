@@ -11,9 +11,6 @@
  */
 import { globalShortcut } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-// Type-only, so it is erased before `vi.hoisted` runs and cannot create an
-// import that outranks the hoisted block below.
-import type { AxSelectedTextResult } from "~/main/accessibility/selectedText";
 const mocks = vi.hoisted(() => ({
   keyBindings: {
     promptGen: "Control+Alt+P",
@@ -126,6 +123,10 @@ import { showOverlaySpinner } from "../webViewWindows";
 import type * as KeybindingUtils from "./utils";
 import type { BrowserWindow } from "electron";
 import type { Mock } from "vitest";
+// Consumed by the `vi.hoisted` fixture far above, which runs before this line:
+// a type-only import is erased, so declaring it here creates no module import
+// that could outrank the hoisted block.
+import type { AxSelectedTextResult } from "~/main/accessibility/selectedText";
 
 /** Translate's built-in default accelerator — the one a stored preset claims. */
 const TRANSLATE_DEFAULT_HOTKEY = "Control+Shift+T";

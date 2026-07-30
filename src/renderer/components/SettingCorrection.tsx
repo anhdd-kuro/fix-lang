@@ -100,7 +100,7 @@ export const makeBuiltInPresetDefaults = (): Record<
     systemPrompt: DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
     model: "", // empty = inherit the global default model
     isBuiltIn: true,
-    reasoning: "minimal",
+    reasoning: "low",
   },
   [DEFAULT_SUMMARIZE_PRESET_ID]: {
     id: DEFAULT_SUMMARIZE_PRESET_ID,
@@ -125,7 +125,7 @@ export const makeBuiltInPresetDefaults = (): Record<
     systemPrompt: DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
     model: "", // empty = inherit the global default model
     isBuiltIn: true,
-    reasoning: "minimal",
+    reasoning: "low",
   },
   [DEFAULT_STRUCTURED_TEXT_PRESET_ID]: {
     id: DEFAULT_STRUCTURED_TEXT_PRESET_ID,

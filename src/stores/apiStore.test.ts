@@ -467,6 +467,56 @@ describe("the profile-bound variants write to the id they are handed, not the ac
     expect(getProfiles()[1].settings.models).toEqual([openAIModel]);
   });
 
+  it("clears the OpenAI project id on disconnect, and only for OpenAI", () => {
+    seedProfiles(
+      [
+        buildProfile({
+          id: "profile_1",
+          settings: buildSettings({
+            enabledProviders: ["openai", "openrouter"],
+            models: [openAIModel],
+            openaiProjectId: "proj_old_org",
+          }),
+        }),
+      ],
+      "profile_1",
+    );
+
+    // The project belongs to the organization the admin key names, so it must not
+    // outlive the connection: a key for a different org would keep attributing
+    // spend to a project that org has never heard of.
+    disconnectProviderFromProfile("profile_1", "openrouter");
+    expect(getProfiles()[0].settings.openaiProjectId).toBe("proj_old_org");
+
+    disconnectProviderFromProfile("profile_1", "openai");
+    expect(getProfiles()[0].settings.openaiProjectId).toBe("");
+  });
+
+  it("writes the OpenAI project id only when the caller supplied one", () => {
+    seedTwoConnected();
+    // Absent means "leave what is stored"; "" is a deliberate clear.
+    connectProviderToProfile("profile_1", "openai", [openAIModel], {
+      openaiProjectId: "proj_abc123",
+    });
+    expect(getProfiles()[0].settings.openaiProjectId).toBe("proj_abc123");
+
+    connectProviderToProfile("profile_1", "openai", [openAIModel]);
+    expect(getProfiles()[0].settings.openaiProjectId).toBe("proj_abc123");
+
+    connectProviderToProfile("profile_1", "openai", [openAIModel], {
+      openaiProjectId: "",
+    });
+    expect(getProfiles()[0].settings.openaiProjectId).toBe("");
+  });
+
+  it("refuses to store a malformed project id, rather than keeping it", () => {
+    seedTwoConnected();
+    connectProviderToProfile("profile_1", "openai", [openAIModel], {
+      openaiProjectId: "org-not-a-project",
+    });
+    expect(getProfiles()[0].settings.openaiProjectId).toBe("");
+  });
+
   it("connects the named profile and leaves the active one alone", () => {
     seedTwoConnected();
 
@@ -685,8 +735,9 @@ describe("apiStoreSchema — settingsCorrect default carries all six built-in pr
 //
 // This hash WAS updated for card 03 (adding business-writing/structured-text
 // to `makeDefaultCorrectionPresets()`), and again when those two built-in
-// prompt markdown assets changed (defaults embed prompt text), and when Prompt
-// optimization plus Business Writing gained `minimal` reasoning defaults,
+// prompt markdown assets changed (defaults embed prompt text), when Prompt
+// optimization plus Business Writing gained reasoning defaults, and when
+// those defaults changed from retired `minimal` to generic `low`,
 // after verifying the safety claim below
 // rather than taking it on faith:
 //
@@ -712,7 +763,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "21a1f7ebd678fb4de2cf717601c295286849bcd0daeff6e6b982b1b74e6ed5bb",
+      "162007bbc9340783ecb7a395240fad54ce2fa49a252d11032199e8602e1d128b",
     );
   });
 });
@@ -919,6 +970,7 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
         models: [{ id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" }],
         selectedModel: "openai::gpt-4o",
         enabledProviders: ["openai", "openrouter"],
+        openaiProjectId: "proj_exporter",
         settingsSummarize: {
           minLength: 3,
           maxLength: 9,
@@ -928,13 +980,15 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
       }),
     });
 
-  it("strips models, selectedModel, enabledProviders, preset models and both feature models", () => {
+  it("strips models, selectedModel, enabledProviders, the OpenAI project id, preset models and both feature models", () => {
     const result = toExportableProfile(exportableFixture());
 
     expect(result.settings.apiKey).toBeUndefined();
     expect(result.settings.models).toEqual([]);
     expect(result.settings.selectedModel).toBe("");
     expect(result.settings.enabledProviders).toEqual([]);
+    // Names a project inside the exporter's own OpenAI organization.
+    expect(result.settings.openaiProjectId).toBe("");
     expect(
       result.settings.settingsCorrect.presets.every((preset) => preset.model === ""),
     ).toBe(true);
@@ -954,18 +1008,21 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
     ).toEqual(["Fix grammar.", "Summarize."]);
   });
 
-  it("differs from withoutProfileSecrets on exactly the model-state set", () => {
+  it("differs from withoutProfileSecrets on exactly the machine-specific set", () => {
     const profile = exportableFixture();
     const secretsOnly = withoutProfileSecrets(profile);
     const exportable = toExportableProfile(profile);
 
-    // The set the two disagree on…
+    // The set the two disagree on — model cache plus account-local ids…
     expect(secretsOnly.settings.models).not.toEqual(exportable.settings.models);
     expect(secretsOnly.settings.selectedModel).not.toEqual(
       exportable.settings.selectedModel,
     );
     expect(secretsOnly.settings.enabledProviders).not.toEqual(
       exportable.settings.enabledProviders,
+    );
+    expect(secretsOnly.settings.openaiProjectId).not.toEqual(
+      exportable.settings.openaiProjectId,
     );
     expect(
       secretsOnly.settings.settingsCorrect.presets.map((p) => p.model),
@@ -986,6 +1043,7 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
         selectedModel: "",
         enabledProviders: [],
         providerEndpoints: {},
+        openaiProjectId: "",
         settingsCorrect: {
           ...secretsOnly.settings.settingsCorrect,
           presets: secretsOnly.settings.settingsCorrect.presets.map((preset) => ({

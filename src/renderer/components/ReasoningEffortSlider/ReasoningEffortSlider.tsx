@@ -1,6 +1,6 @@
 /**
  * @file ReasoningEffortSlider.tsx
- * @description Discrete 6-step None→Faster↔Smarter slider for AI SDK reasoning.
+ * @description Discrete 4-step None→Faster↔Smarter slider for generic AI reasoning.
  */
 import React, { useId } from "react";
 import {

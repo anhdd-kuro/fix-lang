@@ -521,6 +521,9 @@ export const VERBATIM_ALLOWED_WORDS: ReadonlySet<string> = new Set([
   // Kept in Latin script by Japanese UI convention (macOS labels its own OK button "OK").
   "v",
   "OK",
+  // Literal id prefix OpenAI mints ("proj_abc…"). Translating it would tell the
+  // user to type something the API never issues.
+  "proj",
 ]);
 
 /**

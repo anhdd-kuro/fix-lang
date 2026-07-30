@@ -126,12 +126,12 @@ describe("DefaultReasoningEffortSlider", () => {
         HTMLInputElement.prototype,
         "value",
       )?.set;
-      setter?.call(slider, "5");
+      setter?.call(slider, "4");
       slider.dispatchEvent(new Event("input", { bubbles: true }));
     });
     await waitForUi();
 
-    expect(api.setDefaultReasoningEffort).toHaveBeenCalledWith("xhigh");
+    expect(api.setDefaultReasoningEffort).toHaveBeenCalledWith("high");
     // Save failed: the optimistic update must revert to the previous step.
     expect(
       container.querySelector('[data-reasoning-step="medium"]')?.className,
@@ -142,13 +142,13 @@ describe("DefaultReasoningEffortSlider", () => {
     await render({}, "low");
     expect(api.getDefaultReasoningEffort).toHaveBeenCalledTimes(1);
 
-    api.getDefaultReasoningEffort.mockResolvedValueOnce("xhigh");
+    api.getDefaultReasoningEffort.mockResolvedValueOnce("high");
     await act(async () => {
       profileListener?.();
     });
     await waitForUi();
     expect(
-      container.querySelector('[data-reasoning-step="xhigh"]')?.className,
+      container.querySelector('[data-reasoning-step="high"]')?.className,
     ).toContain("font-medium");
 
     api.getDefaultReasoningEffort.mockResolvedValueOnce("none");

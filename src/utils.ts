@@ -1,6 +1,7 @@
 import { exec, execSync } from "child_process";
 import { clipboard, dialog, shell } from "electron";
 import { isKeystrokePermissionDenied } from "~/main/accessibility/keystrokePermission";
+import { logger } from "~/main/logging/logService";
 import { AccessibilityPermissionError } from "~/main/notifications/error";
 
 export const isMacOSAccessibilityGranted = (): boolean => {
@@ -61,6 +62,8 @@ export const promptAccessibilityPermission = async (): Promise<void> => {
 export const wait = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
+let clipboardOperationsInFlight = 0;
+
 /**
  * `clipboard.readText()` yields `""` for an image-only or RTF-only clipboard, so
  * writing that snapshot back would replace content this function never captured
@@ -75,6 +78,15 @@ const isNonTextClipboard = (textSnapshot: string): boolean =>
 export const getHighlightedText = async (): Promise<string> => {
   const previousClipboardContent = clipboard.readText();
   const skipRestore = isNonTextClipboard(previousClipboardContent);
+  const startedAt = Date.now();
+  clipboardOperationsInFlight += 1;
+
+  logger.debug("clipboard.copy", "Sending copy keystroke", {
+    previousLength: previousClipboardContent.length,
+    concurrentOps: clipboardOperationsInFlight,
+    skipRestore,
+  });
+
   try {
     const copiedText = await copyHighlightedText();
 
@@ -92,10 +104,23 @@ export const getHighlightedText = async (): Promise<string> => {
     // transforming the wrong text is not. Distinguishing the two would mean
     // writing a sentinel to the clipboard before the ⌘C, which would destroy
     // exactly the non-text clipboard `skipRestore` above exists to protect.
-    if (copiedText === previousClipboardContent.trim()) return "";
+    const matchedPreviousValue = copiedText === previousClipboardContent.trim();
+
+    logger.debug("clipboard.copy", "Copy keystroke returned", {
+      copiedLength: copiedText.length,
+      previousLength: previousClipboardContent.length,
+      matchedPreviousValue,
+      elapsedMs: Date.now() - startedAt,
+    });
+
+    if (matchedPreviousValue) return "";
 
     return copiedText;
   } catch (error) {
+    logger.warn("clipboard.copy", "Copy keystroke failed", {
+      elapsedMs: Date.now() - startedAt,
+      permissionDenied: isKeystrokePermissionDenied(error),
+    });
     // `error` here is the osascript failure (`Command failed: <script>` plus
     // stderr), never the copied text — the selection reaches stdout only, and
     // is deliberately never printed: `src/main/index.ts` patches `console.*`
@@ -114,6 +139,12 @@ export const getHighlightedText = async (): Promise<string> => {
     if (!skipRestore) {
       clipboard.writeText(previousClipboardContent);
     }
+    clipboardOperationsInFlight -= 1;
+    logger.debug("clipboard.copy", "Previous clipboard restored", {
+      elapsedMs: Date.now() - startedAt,
+      concurrentOps: clipboardOperationsInFlight,
+      skipRestore,
+    });
   }
 };
 
@@ -128,11 +159,15 @@ const copyHighlightedText = () => {
       return the clipboard
     `;
 
-    // Never log `stdout`: it IS the user's selection, and `console.*` is patched
-    // in `src/main/index.ts` to append to `~/.fixlang/log/runtime-*.log` —
-    // outside `userData`, unrotated, and reached by neither `redactLogMessage`
-    // nor `redactLogContext`.
+    // Never log `stdout` itself: it IS the user's selection. Its *length* below
+    // goes through `logger`, which writes the redacted JSONL under `userData`;
+    // `console.*` does not — `src/main/index.ts` patches it to append to
+    // `~/.fixlang/log/runtime-*.log`, outside `userData`, unrotated, and
+    // reached by neither `redactLogMessage` nor `redactLogContext`.
     exec(`osascript -e '${script}'`, (error, stdout) => {
+      logger.debug("clipboard.copy", "osascript copy stdout received", {
+        stdoutLength: stdout.length,
+      });
       if (error) {
         reject(`Error: ${error.message}`);
         return;
@@ -144,8 +179,17 @@ const copyHighlightedText = () => {
 
 export const pasteText = (text: string): Promise<void> => {
   const previousClipboardContent = clipboard.readText();
+  const startedAt = Date.now();
+  clipboardOperationsInFlight += 1;
   return new Promise((resolve, reject) => {
     clipboard.writeText(text);
+
+    logger.debug("clipboard.paste", "Sending paste keystroke", {
+      textLength: text.length,
+      previousLength: previousClipboardContent.length,
+      concurrentOps: clipboardOperationsInFlight,
+    });
+
     const script = `
       tell application "System Events"
         keystroke "v" using command down
@@ -154,6 +198,16 @@ export const pasteText = (text: string): Promise<void> => {
     `;
 
     exec(`osascript -e '${script}'`, (error) => {
+      clipboardOperationsInFlight -= 1;
+      logger.debug("clipboard.paste", "Paste keystroke returned", {
+        textLength: text.length,
+        restoreAfterMs: Date.now() - startedAt,
+        stillOnPasteboard: clipboard.readText() === text,
+        failed: error !== null,
+        permissionDenied: isKeystrokePermissionDenied(error),
+        concurrentOps: clipboardOperationsInFlight,
+      });
+
       if (error) {
         // Same permission-denial detection as `copyHighlightedText`/
         // `getHighlightedText` above — `pasteText` synthesizes keystrokes

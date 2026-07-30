@@ -50,7 +50,7 @@ describe("dashboard tab navigation targets", () => {
     // make every assertion below vacuously true.
     expect(targets.length).toBeGreaterThan(0);
     expect(targets.map((target) => target.file)).toContain(
-      "TrayWindow/components/TrayCreditBalance.tsx",
+      "TrayWindow/components/TrayProviderSummary.tsx",
     );
   });
 

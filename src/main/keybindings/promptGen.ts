@@ -8,6 +8,7 @@ import { generatePrompt } from "../ai.request";
 import { resolveSelectedText } from "./selectionSource";
 import { checkShortcut, handleError, withHotkeyThrottle } from "./utils";
 import { syncHistory } from "../ipc/features/history";
+import { logger } from "../logging/logService";
 import { LocalizedError } from "../notifications/error";
 import { showOverlaySpinner, hideOverlaySpinner } from "../webViewWindows";
 import { showPromptGenWindow } from "../webViewWindows/promptGenWindow";
@@ -20,7 +21,7 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
   const ret = globalShortcut.register(
     promptGenShortcut,
     withHotkeyThrottle(promptGenShortcut, async () => {
-    console.log(`${promptGenShortcut} pressed (PromptGen)`);
+    logger.info("promptGen.hotkey", "Hotkey triggered");
     try {
       // Before the spinner and the PromptGen window: once a FixLang window is
       // up, the frontmost-app read returns FixLang and yields null — and the

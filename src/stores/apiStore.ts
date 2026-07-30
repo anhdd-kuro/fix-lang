@@ -24,6 +24,7 @@ import {
   type ProviderEndpoint,
 } from "~/shared/lmstudioEndpoint";
 import { modelRefForModel, parseModelRef } from "~/shared/modelRef";
+import { sanitizeOpenAIProjectId } from "~/shared/openaiProject";
 import {
   isModelForProvider,
   isProviderId,
@@ -96,7 +97,7 @@ export type CorrectionPreset = {
   isBuiltIn: boolean;
   /**
    * Optional per-preset AI SDK `reasoning` effort. Undefined omits the parameter
-   * (provider-default). Slider steps: minimal → low → medium → high → xhigh.
+   * (provider-default). Slider steps: low → medium → high.
    */
   reasoning?: ReasoningEffort;
 };
@@ -127,6 +128,12 @@ export type SettingsStore = {
   enabledProviders: ProviderId[];
   /** Per-provider host/port. Used by LM Studio and Ollama local daemons. */
   providerEndpoints: ProviderEndpointMap;
+  /**
+   * OpenAI project whose spend the tray's Providers card reports. Not
+   * discoverable from the admin key (organization-scoped), so the user supplies
+   * it. Empty means "not configured".
+   */
+  openaiProjectId?: string;
   /** Profile-wide default reasoning effort; presets inherit when unset. */
   defaultReasoningEffort?: ReasoningEffort;
 
@@ -262,7 +269,7 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     systemPrompt: DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
     model: INHERIT_GLOBAL_MODEL,
     isBuiltIn: true,
-    reasoning: "minimal",
+    reasoning: "low",
   },
   {
     id: DEFAULT_TRANSLATE_PRESET_ID,
@@ -279,7 +286,7 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     systemPrompt: DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
     model: INHERIT_GLOBAL_MODEL,
     isBuiltIn: true,
-    reasoning: "minimal",
+    reasoning: "low",
   },
   {
     id: DEFAULT_STRUCTURED_TEXT_PRESET_ID,
@@ -409,7 +416,7 @@ export const normalizeCorrectionSettings = (
 
     seenIds.add(id);
 
-    // Existing profiles predate the two built-in Minimal defaults. Migrate
+    // Existing profiles predate the two built-in Low defaults. Migrate
     // only those recognized built-ins when the field is absent; explicit
     // stored values still win, and unknown values are still dropped.
     const rawCandidate = candidate as Record<string, unknown>;
@@ -418,7 +425,7 @@ export const normalizeCorrectionSettings = (
       fallback !== undefined &&
       (id === DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID ||
         id === DEFAULT_BUSINESS_WRITING_PRESET_ID)
-        ? "minimal"
+        ? "low"
         : sanitizeReasoningEffort(rawCandidate.reasoning);
 
     return [
@@ -574,6 +581,7 @@ export const apiStoreSchema = {
              */
             enabledProviders: { type: "array", items: { type: "string" }, default: [] },
             providerEndpoints: { type: "object", default: {} },
+            openaiProjectId: { type: "string", default: "" },
             models: {
               type: "array",
               items: {
@@ -755,7 +763,7 @@ export const connectProviderToProfile = (
   profileId: string,
   provider: ProviderId,
   providerModels: Model[],
-  options?: { endpoint?: ProviderEndpoint },
+  options?: { endpoint?: ProviderEndpoint; openaiProjectId?: string },
 ): Profile | null => {
   const profiles = getProfiles();
   const index = profiles.findIndex((profile) => profile.id === profileId);
@@ -791,6 +799,11 @@ export const connectProviderToProfile = (
       })),
     ],
     providerEndpoints,
+    // Absent means "leave what is stored"; `""` is a deliberate clear, so the
+    // key must only be written when the caller actually supplied a value.
+    ...(options?.openaiProjectId !== undefined
+      ? { openaiProjectId: sanitizeOpenAIProjectId(options.openaiProjectId) ?? "" }
+      : {}),
   });
 };
 
@@ -855,6 +868,10 @@ export const disconnectProviderFromProfile = (
     selectedModel: clearedSelectedModel
       ? INHERIT_GLOBAL_MODEL
       : (settings.selectedModel ?? ""),
+    // The project belongs to the organization the admin key names, so it does not
+    // survive the connection. Reconnecting with a key for a DIFFERENT org would
+    // otherwise keep attributing spend to a project that org has never heard of.
+    ...(provider === "openai" ? { openaiProjectId: "" } : {}),
     settingsCorrect: { ...correct, presets },
     settingsPromptGen: {
       ...settings.settingsPromptGen,
@@ -1035,6 +1052,10 @@ export const getProfileSetting = <K extends keyof SettingsStore>(
     return sanitizeProviderEndpoints(settings.providerEndpoints) as SettingsStore[K];
   }
 
+  if (settingType === "openaiProjectId") {
+    return sanitizeOpenAIProjectId(settings.openaiProjectId) as SettingsStore[K];
+  }
+
   return settings[settingType];
 };
 
@@ -1083,7 +1104,11 @@ export const updateProfileSetting = <K extends keyof SettingsStore>(
         ? (normalizeCorrectionSettings(value) as SettingsStore[K])
         : settingType === "providerEndpoints"
           ? (sanitizeProviderEndpoints(value) as SettingsStore[K])
-          : value;
+          : settingType === "openaiProjectId"
+            ? // "" rather than undefined: the schema types this as a string, and a
+              // deleted key would read back as the ajv default anyway.
+              ((sanitizeOpenAIProjectId(value) ?? "") as SettingsStore[K])
+            : value;
 
     const currentProfileId = apiStore.get("currentProfileId", "");
 
@@ -1146,6 +1171,7 @@ const buildDefaultProfileSettings = (): SettingsStore =>
     selectedModel: "",
     enabledProviders: [],
     providerEndpoints: {},
+    openaiProjectId: "",
     customSystemPrompt: "",
     customUserPrompt: "",
     tone: "",
@@ -1257,6 +1283,9 @@ export const toExportableProfile = (profile: Profile): Profile => {
       selectedModel: INHERIT_GLOBAL_MODEL,
       enabledProviders: [],
       providerEndpoints: {},
+      // Names a project inside the exporter's own OpenAI organization — account
+      // detail, not a portable setting, so it leaves with the connections.
+      openaiProjectId: "",
       // Not normalized: an export must not invent presets the user never had.
       settingsCorrect: {
         ...settings.settingsCorrect,

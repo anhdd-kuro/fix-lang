@@ -77,6 +77,7 @@ const FALLBACK_COLORS = [
 ] as const;
 
 const CHART_HEIGHT_PX = 260;
+const EMBEDDED_CHART_HEIGHT_PX = 180;
 
 /** Resolve a CSS custom property to a color Chart.js can paint. */
 const readCssColor = (varName: string, fallback: string): string => {
@@ -312,6 +313,7 @@ export const UsageDailyTokenChart = ({ points }: { points: UsageDailyPoint[] }) 
 export const UsageCostShareChart = ({
   slices,
   titleKey,
+  embedded = false,
 }: {
   slices: UsageCostSlice[];
   /** Providers slice spend differently — by model, billed line item, or project. */
@@ -319,6 +321,8 @@ export const UsageCostShareChart = ({
     | "usage.chart.costShare.byModel"
     | "usage.chart.costShare.byLineItem"
     | "usage.chart.costShare.byProject";
+  /** Skip the outer card frame — for charts nested inside another card. */
+  embedded?: boolean;
 }) => {
   const paletteTick = useThemePaletteTick();
   const { t, formatCurrency, formatNumber } = useI18n();
@@ -402,15 +406,19 @@ export const UsageCostShareChart = ({
     };
   }, [slices, titleKey, paletteTick, t, formatCurrency, formatNumber]);
 
-  return (
-    <ChartFrame title={t(titleKey)}>
-      {hasData ? (
-        <div style={{ height: CHART_HEIGHT_PX }}>
-          <Doughnut data={data} options={options} />
-        </div>
-      ) : (
-        <EmptyNote text={t("usage.chart.costShare.empty")} />
-      )}
-    </ChartFrame>
+  const chartHeight = embedded ? EMBEDDED_CHART_HEIGHT_PX : CHART_HEIGHT_PX;
+
+  const chartBody = hasData ? (
+    <div style={{ height: chartHeight }}>
+      <Doughnut data={data} options={options} />
+    </div>
+  ) : (
+    <EmptyNote text={t("usage.chart.costShare.empty")} />
   );
+
+  if (embedded) {
+    return chartBody;
+  }
+
+  return <ChartFrame title={t(titleKey)}>{chartBody}</ChartFrame>;
 };
