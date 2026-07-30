@@ -247,4 +247,25 @@ function initializeApp() {
   });
 }
 
-initializeApp();
+// Without this lock, launching FixLang a second time (e.g. a stray login-item
+// launch racing a manual one) spins up a second tray icon and tray
+// BrowserWindow with its own independent OpenRouter-analytics cache -- the two
+// windows land at nearly the same screen position and their credit cards
+// visually stack on top of each other.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    const mainWindow = getMainWindow();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    } else {
+      createMainWindow();
+    }
+  });
+
+  initializeApp();
+}

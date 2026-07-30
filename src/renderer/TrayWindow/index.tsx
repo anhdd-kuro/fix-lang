@@ -1,10 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "../main.css";
+import { DefaultReasoningEffortSlider } from "../components/DefaultReasoningEffortSlider";
 import { LanguageTabs } from "../components/LanguageTabs";
 import { ModelSelect } from "../components/ModelSelect";
 import { OutputModeTabs } from "../components/OutputModeTabs";
-import { ReasoningEffortSelect } from "../components/ReasoningEffortSelect";
 import Tooltip from "../components/Tooltip";
 import { useActiveProfileId } from "../hooks/useActiveProfileId";
 import { useTheme } from "../hooks/useTheme";
@@ -19,26 +19,26 @@ const rootElement = document.getElementById("root");
 const TrayGlobalSelectors: React.FC = () => {
   const { t } = useI18n();
 
+  const overrideTooltip = (
+    <Tooltip
+      tooltipText={t("tray.global.overrideTooltip")}
+      width="w-64"
+      className="shrink-0"
+    />
+  );
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-1.5">
-        <span className="text-xs font-medium text-card-foreground">
-          {t("tray.global.heading")}
-        </span>
-        <Tooltip
-          tooltipText={t("tray.global.overrideTooltip")}
-          width="w-64"
-          className="shrink-0"
-        />
-      </div>
-
       <div className="flex flex-col gap-1">
-        <label
-          htmlFor="model-select"
-          className="text-xs font-medium text-muted-foreground"
-        >
-          {t("tray.global.model.label")}
-        </label>
+        <div className="flex items-center gap-1.5">
+          <label
+            htmlFor="model-select"
+            className="text-xs font-medium text-muted-foreground"
+          >
+            {t("tray.global.model.label")}
+          </label>
+          {overrideTooltip}
+        </div>
         <ModelSelect
           saveOnChange
           showAdditionalInfo
@@ -48,15 +48,10 @@ const TrayGlobalSelectors: React.FC = () => {
         />
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label
-          htmlFor="tray-reasoning-select"
-          className="text-xs font-medium text-muted-foreground"
-        >
-          {t("tray.global.reasoning.label")}
-        </label>
-        <ReasoningEffortSelect selectClassName="w-full px-2 py-1.5 text-xs" />
-      </div>
+      <DefaultReasoningEffortSlider
+        label={t("tray.global.reasoning.label")}
+        labelAdornment={overrideTooltip}
+      />
     </div>
   );
 };
@@ -73,8 +68,10 @@ const TrayWindowMain: React.FC = () => {
     <TrayToolbar />
     <div className="flex flex-col gap-4 pb-2">
       <TrayCreditBalance key={profileId} />
-      <LanguageTabs />
-      <OutputModeTabs />
+      <div className="flex flex-col gap-2 rounded-lg border border-card-control-border bg-card p-2">
+        <LanguageTabs />
+        <OutputModeTabs />
+      </div>
       <TrayActivityHeatmapLoader />
       <TrayGlobalSelectors key={profileId} />
     </div>
