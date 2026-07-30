@@ -32,7 +32,6 @@
   "settings.correction.reasoning.step.high": "高",
   "settings.correction.reasoning.step.low": "低",
   "settings.correction.reasoning.step.medium": "中",
-  "settings.correction.reasoning.step.minimal": "最小",
   "settings.correction.reasoning.useGlobal": "全体の既定を使う",
   "settings.correction.resetBuiltIn": "ビルトインをリセット",
   "settings.correction.saveError": "変換プリセットの保存中にエラーが発生しました。",

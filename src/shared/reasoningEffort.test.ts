@@ -18,15 +18,14 @@ import {
 } from "./reasoningEffort";
 
 describe("REASONING_EFFORT_SLIDER_STEPS mapping (None → Faster → Smarter)", () => {
-  it("has five discrete steps starting at none", () => {
+  it("has four discrete steps starting at none", () => {
     expect(REASONING_EFFORT_SLIDER_STEPS).toEqual([
       "none",
-      "minimal",
       "low",
       "medium",
       "high",
     ]);
-    expect(REASONING_EFFORT_STEPS).toHaveLength(4);
+    expect(REASONING_EFFORT_STEPS).toHaveLength(3);
   });
 
   it("defaults to none", () => {
@@ -41,7 +40,6 @@ describe("sanitizeReasoningEffort / type guards", () => {
     for (const value of [
       "provider-default",
       "none",
-      "minimal",
       "low",
       "medium",
       "high",
@@ -52,9 +50,15 @@ describe("sanitizeReasoningEffort / type guards", () => {
   });
 
   it("steps a retired effort down instead of dropping it", () => {
-    // "xhigh" (the old Maximum step) must land on High, not on undefined:
+    // Retired steps must land on their replacements, not on undefined:
     // undefined reads as provider-default downstream, which would change a
     // stored preset's behaviour rather than lowering it one notch.
+    expect(sanitizeReasoningEffort("minimal")).toBe("low");
+    expect(isReasoningEffort("minimal")).toBe(false);
+    expect(reasoningForAiSdk("minimal" as never)).toBe("low");
+    expect(reasoningEffortToStepIndex("minimal" as never)).toBe(
+      REASONING_EFFORT_SLIDER_STEPS.indexOf("low"),
+    );
     expect(sanitizeReasoningEffort("xhigh")).toBe("high");
     expect(isReasoningEffort("xhigh")).toBe(false);
     expect(reasoningForAiSdk("xhigh" as never)).toBe("high");
@@ -84,8 +88,8 @@ describe("step index ↔ effort", () => {
   it("maps unset / provider-default to the fallback step", () => {
     expect(reasoningEffortToStepIndex(undefined)).toBe(0);
     expect(reasoningEffortToStepIndex("provider-default")).toBe(0);
-    expect(reasoningEffortToStepIndex(undefined, "medium")).toBe(3);
-    expect(reasoningEffortToStepIndex("provider-default", "medium")).toBe(3);
+    expect(reasoningEffortToStepIndex(undefined, "medium")).toBe(2);
+    expect(reasoningEffortToStepIndex("provider-default", "medium")).toBe(2);
   });
 
   it("clamps out-of-range indices", () => {
@@ -113,7 +117,7 @@ describe("reasoningForAiSdk", () => {
   });
 
   it("passes through slider steps and none", () => {
-    expect(reasoningForAiSdk("minimal")).toBe("minimal");
+    expect(reasoningForAiSdk("low")).toBe("low");
     expect(reasoningForAiSdk("high")).toBe("high");
     expect(reasoningForAiSdk("none")).toBe("none");
   });

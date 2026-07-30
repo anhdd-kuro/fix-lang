@@ -32,7 +32,6 @@
   "settings.correction.reasoning.step.high": "High",
   "settings.correction.reasoning.step.low": "Low",
   "settings.correction.reasoning.step.medium": "Medium",
-  "settings.correction.reasoning.step.minimal": "Minimal",
   "settings.correction.reasoning.useGlobal": "Use global default",
   "settings.correction.resetBuiltIn": "Reset built-in",
   "settings.correction.saveError": "Error saving transform presets.",
