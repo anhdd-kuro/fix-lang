@@ -11,11 +11,21 @@
  */
 import { globalShortcut } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+// Type-only, so it is erased before `vi.hoisted` runs and cannot create an
+// import that outranks the hoisted block below.
+import type { AxSelectedTextResult } from "~/main/accessibility/selectedText";
 const mocks = vi.hoisted(() => ({
   keyBindings: {
     promptGen: "Control+Alt+P",
     profileSwitch: "Control+Alt+O",
   },
+  axSelection: {
+    status: "ok",
+    role: "AXTextArea",
+    selectedText: "some selected text",
+    permissionDenied: false,
+  } as AxSelectedTextResult,
+  clipboardFallbackEnabled: true,
 }));
 vi.mock("electron-store", () => {
   class MockStore {
@@ -52,6 +62,16 @@ vi.mock("~/stores/apiStore", async (importOriginal) => {
 vi.mock("~/main/accessibility/activeApp", () => ({
   getActiveApp: vi.fn().mockResolvedValue(null),
 }));
+// `resolveSelectedText` itself stays REAL — it is the decision table under test
+// here; only its two reads and the user setting it consults are faked.
+vi.mock("~/main/accessibility/selectedText", () => ({
+  getAxSelectedText: vi.fn(async () => mocks.axSelection),
+}));
+vi.mock("~/stores/clipboardFallbackStore", () => ({
+  clipboardFallbackStore: {
+    getClipboardFallbackEnabled: vi.fn(() => mocks.clipboardFallbackEnabled),
+  },
+}));
 vi.mock("~/stores/keybindingStore", () => ({
   keybindingStore: { getKeyBindings: vi.fn(() => mocks.keyBindings) },
 }));
@@ -86,6 +106,7 @@ vi.mock("./utils", async (importOriginal) => {
 vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
   showErrorPopup: vi.fn(),
 }));
+import { getAxSelectedText } from "~/main/accessibility/selectedText";
 import {
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
   DEFAULT_STRUCTURED_TEXT_PRESET_ID,
@@ -96,9 +117,12 @@ import {
   normalizeCorrectionSettings,
 } from "~/stores/apiStore";
 import { registerCorrectionShortcut } from "./correction";
-import { resetHotkeyThrottleForTests } from "./utils";
+import { handleError, resetHotkeyThrottleForTests } from "./utils";
+import { getHighlightedText } from "../../utils";
 import { fixGrammar } from "../ai.request";
 import { logger } from "../logging/logService";
+import { LocalizedError } from "../notifications/error";
+import { showOverlaySpinner } from "../webViewWindows";
 import type * as KeybindingUtils from "./utils";
 import type { BrowserWindow } from "electron";
 import type { Mock } from "vitest";
@@ -269,6 +293,158 @@ describe("correction preset hotkeys — a materialized built-in never outranks a
     await expect(
       presetIdBehindHandler(structuredTextCall?.[1] as () => Promise<void>),
     ).resolves.toBe(DEFAULT_STRUCTURED_TEXT_PRESET_ID);
+  });
+});
+
+describe("correction hotkey selection source", () => {
+  const SOLE_PRESET_HOTKEY = "Control+Shift+F";
+  const SOLE_PRESET = {
+    presets: [storedBuiltIn("correction", "Correction", SOLE_PRESET_HOTKEY)],
+    selectedPresetId: "correction",
+  };
+
+  const runSolePresetHotkey = async (): Promise<void> => {
+    const calls = registerFrom(SOLE_PRESET);
+    const [, handler] = calls.find(
+      ([shortcut]) => shortcut === SOLE_PRESET_HOTKEY,
+    ) as RegisterCall;
+    await handler();
+  };
+
+  const reportedError = (): LocalizedError =>
+    (handleError as Mock).mock.calls[0][0] as LocalizedError;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetHotkeyThrottleForTests();
+    (globalShortcut.register as Mock).mockReturnValue(true);
+    mocks.keyBindings = {
+      promptGen: "Control+Alt+P",
+      profileSwitch: "Control+Alt+O",
+    };
+    mocks.axSelection = {
+      status: "ok",
+      role: "AXTextArea",
+      selectedText: "text read from accessibility",
+      permissionDenied: false,
+    };
+    mocks.clipboardFallbackEnabled = true;
+    (getHighlightedText as Mock).mockResolvedValue("text read from the clipboard");
+  });
+
+  it("transforms the accessibility selection without synthesizing ⌘C", async () => {
+    await runSolePresetHotkey();
+
+    expect(getHighlightedText).not.toHaveBeenCalled();
+    expect(fixGrammar).toHaveBeenCalledWith(
+      "text read from accessibility",
+      "correction",
+      expect.anything(),
+    );
+  });
+
+  it("falls back to the clipboard when accessibility reports no selection", async () => {
+    mocks.axSelection = {
+      status: "empty",
+      role: "AXTextArea",
+      selectedText: "",
+      permissionDenied: false,
+    };
+
+    await runSolePresetHotkey();
+
+    expect(getHighlightedText).toHaveBeenCalledOnce();
+    expect(fixGrammar).toHaveBeenCalledWith(
+      "text read from the clipboard",
+      "correction",
+      expect.anything(),
+    );
+  });
+
+  // Both reads have to happen while the user's app is still frontmost: once a
+  // FixLang window is on screen, "first application process whose frontmost is
+  // true" is FixLang and the AX read returns our own window.
+  it("performs the accessibility and clipboard reads before the overlay spinner", async () => {
+    mocks.axSelection = {
+      status: "empty",
+      role: "AXTextArea",
+      selectedText: "",
+      permissionDenied: false,
+    };
+
+    await runSolePresetHotkey();
+
+    const spinnerAt = (showOverlaySpinner as Mock).mock.invocationCallOrder[0];
+    expect((getAxSelectedText as Mock).mock.invocationCallOrder[0]).toBeLessThan(
+      spinnerAt,
+    );
+    expect((getHighlightedText as Mock).mock.invocationCallOrder[0]).toBeLessThan(
+      spinnerAt,
+    );
+  });
+
+  it("records the selection source on the completion log", async () => {
+    await runSolePresetHotkey();
+
+    const completed = (logger.info as Mock).mock.calls.find(
+      ([scope, message]) =>
+        scope === "correction.hotkey" && message === "Correction completed",
+    );
+    expect(completed?.[2]).toMatchObject({ selectionSource: "accessibility" });
+  });
+
+  it("refuses a secure field with the existing noTextSelected error, provider untouched", async () => {
+    mocks.axSelection = {
+      status: "secure",
+      role: "AXSecureTextField",
+      selectedText: "",
+      permissionDenied: false,
+    };
+
+    await runSolePresetHotkey();
+
+    expect(getHighlightedText).not.toHaveBeenCalled();
+    expect(fixGrammar).not.toHaveBeenCalled();
+    expect(showOverlaySpinner).not.toHaveBeenCalled();
+    expect(reportedError()).toBeInstanceOf(LocalizedError);
+    expect(reportedError().messageKey).toBe(
+      "notifications.error.noTextSelected.body",
+    );
+  });
+
+  it("refuses without touching the clipboard when the fallback is disabled", async () => {
+    mocks.axSelection = {
+      status: "unavailable",
+      role: "",
+      selectedText: "",
+      permissionDenied: false,
+    };
+    mocks.clipboardFallbackEnabled = false;
+
+    await runSolePresetHotkey();
+
+    expect(getHighlightedText).not.toHaveBeenCalled();
+    expect(fixGrammar).not.toHaveBeenCalled();
+    expect(reportedError().messageKey).toBe(
+      "notifications.error.noTextSelected.body",
+    );
+  });
+
+  it("reports the same error when the clipboard fallback comes back empty", async () => {
+    mocks.axSelection = {
+      status: "empty",
+      role: "AXTextArea",
+      selectedText: "",
+      permissionDenied: false,
+    };
+    (getHighlightedText as Mock).mockResolvedValue("");
+
+    await runSolePresetHotkey();
+
+    expect(fixGrammar).not.toHaveBeenCalled();
+    expect(reportedError().messageKey).toBe(
+      "notifications.error.noTextSelected.body",
+    );
   });
 });
 

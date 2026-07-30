@@ -61,6 +61,8 @@ const {
   resetKeyBindingsMock,
   getCorrectionOutputModeMock,
   setCorrectionOutputModeMock,
+  getClipboardFallbackEnabledMock,
+  setClipboardFallbackEnabledMock,
   setProvisioningKeyMock,
   clearProvisioningKeyMock,
   hasProvisioningKeyMock,
@@ -70,6 +72,8 @@ const {
   resetKeyBindingsMock: vi.fn(),
   getCorrectionOutputModeMock: vi.fn(),
   setCorrectionOutputModeMock: vi.fn(),
+  getClipboardFallbackEnabledMock: vi.fn(),
+  setClipboardFallbackEnabledMock: vi.fn(),
   setProvisioningKeyMock: vi.fn(),
   clearProvisioningKeyMock: vi.fn(),
   hasProvisioningKeyMock: vi.fn(),
@@ -90,6 +94,12 @@ vi.mock("~/stores/outputModeStore", () => ({
   outputModeStore: {
     getCorrectionOutputMode: getCorrectionOutputModeMock,
     setCorrectionOutputMode: setCorrectionOutputModeMock,
+  },
+}));
+vi.mock("~/stores/clipboardFallbackStore", () => ({
+  clipboardFallbackStore: {
+    getClipboardFallbackEnabled: getClipboardFallbackEnabledMock,
+    setClipboardFallbackEnabled: setClipboardFallbackEnabledMock,
   },
 }));
 vi.mock("~/stores/provisioningKeyStore", () => ({
@@ -136,6 +146,44 @@ describe("settings.ts IPC handlers — app-authored validation errors are transl
 
     expect(result).toEqual({ success: true, mode: "popup" });
     expect(setCorrectionOutputModeMock).toHaveBeenCalledWith("popup");
+  });
+
+  it("set-clipboard-fallback-enabled: a non-boolean value is a translatable 'Invalid clipboard fallback setting' Message", async () => {
+    const handler = handlers.get("set-clipboard-fallback-enabled");
+    const result = (await handler?.(undefined, "bogus")) as {
+      success: boolean;
+      error?: unknown;
+    };
+
+    expect(result.success).toBe(false);
+    const { en, ja } = resolveBoth(result.error);
+    expect(en).toBe(tEn("settings.general.clipboardFallback.invalid"));
+    expect(ja).toBe(tJa("settings.general.clipboardFallback.invalid"));
+    expect(ja).not.toBe(en);
+    expect(setClipboardFallbackEnabledMock).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])(
+    "get-clipboard-fallback-enabled: reports the stored %s rather than a constant",
+    async (stored) => {
+      getClipboardFallbackEnabledMock.mockReturnValue(stored);
+      const handler = handlers.get("get-clipboard-fallback-enabled");
+
+      await expect(handler?.(undefined)).resolves.toBe(stored);
+      expect(getClipboardFallbackEnabledMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("set-clipboard-fallback-enabled: a valid boolean still commits and returns no error", async () => {
+    const handler = handlers.get("set-clipboard-fallback-enabled");
+    const result = (await handler?.(undefined, false)) as {
+      success: boolean;
+      enabled?: boolean;
+      error?: unknown;
+    };
+
+    expect(result).toEqual({ success: true, enabled: false });
+    expect(setClipboardFallbackEnabledMock).toHaveBeenCalledWith(false);
   });
 
   it("set-key-bindings: a real Error thrown by the store crosses as opaque raw text, not translated", async () => {

@@ -5,12 +5,14 @@
 import { BrowserWindow, ipcMain, Notification } from "electron";
 import { DEFAULT_KEY_BINDINGS } from "~/const";
 import { reloadHotkeys, unregisterHotkeys } from "~/main/keybindings";
+import { normalizeClipboardFallbackEnabled } from "~/shared/clipboardFallback";
 import { messageLabel } from "~/shared/i18n/message";
 import { normalizeCorrectionOutputMode } from "~/shared/outputMode";
 import { supportsAdminKey } from "~/shared/providers";
 import {
   sanitizeReasoningEffort,
 } from "~/shared/reasoningEffort";
+import { clipboardFallbackStore } from "~/stores/clipboardFallbackStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { outputModeStore } from "~/stores/outputModeStore";
 import {
@@ -65,6 +67,26 @@ export const registerSettingsHandlers = () => {
       const mode = normalizeCorrectionOutputMode(raw);
       outputModeStore.setCorrectionOutputMode(mode);
       return { success: true, mode };
+    },
+  );
+
+  ipcMain.handle("get-clipboard-fallback-enabled", async () =>
+    clipboardFallbackStore.getClipboardFallbackEnabled(),
+  );
+
+  ipcMain.handle(
+    "set-clipboard-fallback-enabled",
+    async (_event: Electron.IpcMainInvokeEvent, raw: unknown) => {
+      if (typeof raw !== "boolean") {
+        return {
+          success: false,
+          error: messageLabel("settings.general.clipboardFallback.invalid"),
+        };
+      }
+
+      const enabled = normalizeClipboardFallbackEnabled(raw);
+      clipboardFallbackStore.setClipboardFallbackEnabled(enabled);
+      return { success: true, enabled };
     },
   );
 

@@ -11,6 +11,7 @@ import {
   buildDashboardRows,
   buildPresetRows,
   buildProviderRows,
+  clipboardFallbackDescriptor,
   GUIDE_TOPICS,
   outputModeDescriptor,
   splitHotkey,
@@ -101,6 +102,40 @@ describe("outputModeDescriptor", () => {
       const descriptor = outputModeDescriptor(mode);
       expect(catalogKeys).toContain(descriptor?.labelKey);
       expect(catalogKeys).toContain(descriptor?.descriptionKey);
+    }
+  });
+});
+
+describe("clipboardFallbackDescriptor", () => {
+  it("reuses the Settings checkbox's own strings and reports the real on/off state", () => {
+    expect(clipboardFallbackDescriptor(true)).toEqual({
+      labelKey: "settings.general.clipboardFallback.label",
+      hintKey: "settings.general.clipboardFallback.hint",
+      statusKey: "settings.general.clipboardFallback.statusOn",
+    });
+    expect(clipboardFallbackDescriptor(false)).toEqual({
+      labelKey: "settings.general.clipboardFallback.label",
+      hintKey: "settings.general.clipboardFallback.hint",
+      statusKey: "settings.general.clipboardFallback.statusOff",
+    });
+  });
+
+  it("has no descriptor for an unread value (drives the unknown state)", () => {
+    expect(clipboardFallbackDescriptor(null)).toBeNull();
+  });
+
+  it("never hardcodes the default — a read `false` must not report the default `on`", () => {
+    expect(clipboardFallbackDescriptor(false)?.statusKey).not.toBe(
+      "settings.general.clipboardFallback.statusOn",
+    );
+  });
+
+  it("names only keys the EN catalog defines", () => {
+    for (const enabled of [true, false]) {
+      const descriptor = clipboardFallbackDescriptor(enabled);
+      expect(catalogKeys).toContain(descriptor?.labelKey);
+      expect(catalogKeys).toContain(descriptor?.hintKey);
+      expect(catalogKeys).toContain(descriptor?.statusKey);
     }
   });
 });

@@ -1,5 +1,6 @@
 // Settings-related preload functionality
 import { ipcRenderer } from "electron";
+import { normalizeClipboardFallbackEnabled } from "~/shared/clipboardFallback";
 import { messageLabel, type Label } from "~/shared/i18n/message";
 import { supportsAdminKey, type ProviderId } from "~/shared/providers";
 import {
@@ -48,6 +49,29 @@ export const settingsFeature = {
       };
     }
     const result = await ipcRenderer.invoke("set-correction-output-mode", mode);
+    return { ...result, error: asLabel(result?.error) };
+  },
+
+  getClipboardFallbackEnabled: (): Promise<boolean> =>
+    ipcRenderer.invoke("get-clipboard-fallback-enabled"),
+
+  setClipboardFallbackEnabled: async (
+    enabled: boolean,
+  ): Promise<{
+    success: boolean;
+    enabled?: boolean;
+    error?: Label;
+  }> => {
+    if (typeof enabled !== "boolean") {
+      return {
+        success: false,
+        error: messageLabel("settings.general.clipboardFallback.invalid"),
+      };
+    }
+    const result = await ipcRenderer.invoke(
+      "set-clipboard-fallback-enabled",
+      normalizeClipboardFallbackEnabled(enabled),
+    );
     return { ...result, error: asLabel(result?.error) };
   },
 

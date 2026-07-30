@@ -37,6 +37,21 @@ vi.mock("~/stores/apiStore", async (importOriginal) => {
 vi.mock("~/main/accessibility/activeApp", () => ({
   getActiveApp: vi.fn().mockResolvedValue(null),
 }));
+// The real `resolveSelectedText` runs over these two: an AX selection is
+// available, so the ⌘C fallback below is never reached.
+vi.mock("~/main/accessibility/selectedText", () => ({
+  getAxSelectedText: vi.fn().mockResolvedValue({
+    status: "ok",
+    role: "AXTextArea",
+    selectedText: "some selected text",
+    permissionDenied: false,
+  }),
+}));
+vi.mock("~/stores/clipboardFallbackStore", () => ({
+  clipboardFallbackStore: {
+    getClipboardFallbackEnabled: vi.fn().mockReturnValue(true),
+  },
+}));
 vi.mock("~/stores/keybindingStore", () => ({
   keybindingStore: {
     getKeyBindings: vi
@@ -76,6 +91,7 @@ import { getProfileSetting } from "~/stores/apiStore";
 import { fixGrammar } from "../ai.request";
 import { registerCorrectionShortcut } from "./correction";
 import { syncHistory } from "../ipc/features/history";
+import { logger } from "../logging/logService";
 import type { BrowserWindow } from "electron";
 import type { Mock } from "vitest";
 import type { Model, ProviderId } from "~/stores/apiStore";
@@ -185,5 +201,20 @@ describe("correction hotkey cost snapshot — provider decides local, not the ra
 
     expect(entry.costStatus).toBe("zero");
     expect(entry.estimatedCostUsd).toBe(0);
+  });
+
+  // Where the input text came from is the only way to tell an AX read from a ⌘C
+  // fallback after the fact. The outcome object itself is never spread into the
+  // log: `selectedText` would carry the user's plaintext selection.
+  it("carries the selection source on the completion log, never the text", async () => {
+    await runHotkey("openrouter");
+
+    const completed = (logger.info as Mock).mock.calls.find(
+      ([scope, message]) =>
+        scope === "correction.hotkey" && message === "Correction completed",
+    );
+    expect(completed?.[2]).toMatchObject({ selectionSource: "accessibility" });
+    expect(completed?.[2]).not.toHaveProperty("selectedText");
+    expect(JSON.stringify(completed?.[2])).not.toContain("some selected text");
   });
 });

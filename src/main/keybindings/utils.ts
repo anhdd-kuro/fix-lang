@@ -10,11 +10,28 @@ export const HOTKEY_THROTTLE_MS = 500;
 
 const lastHotkeyInvokeAt = new Map<string, number>();
 
+const acceleratorsInFlight = new Set<string>();
+
 /**
  * Wraps a global-shortcut callback so a fast accidental double-press of the
  * same accelerator is ignored. Distinct accelerators do not block each other.
  * The first press inside the window always runs; later presses after the
  * window elapses run normally.
+ *
+ * The time window is not enough on its own. Nothing stops a user binding
+ * Command+C to a preset (`validateHotkeys` keeps no reserved-system-key list),
+ * and the handler synthesizes ⌘C itself — behind `getActiveApp()` plus the AX
+ * selection read, whose combined timeouts exceed `HOTKEY_THROTTLE_MS` several
+ * times over. A synthesized press landing outside the window would re-enter the
+ * handler and fire another provider request, once per iteration. The in-flight
+ * set refuses re-entry for as long as a run is unfinished, which makes that
+ * recursion impossible whatever the timing, and also stops a second press from
+ * starting a parallel transform while a slow provider is still answering.
+ *
+ * Kept per-accelerator, matching the timestamp map: the recursion above is
+ * necessarily same-accelerator (only a ⌘C binding can be re-triggered by a
+ * synthesized ⌘C), and a process-wide flag would let one slow transform block
+ * an unrelated binding such as profile switch.
  */
 export const withHotkeyThrottle = (
   accelerator: string,
@@ -27,14 +44,37 @@ export const withHotkeyThrottle = (
     if (at - last < HOTKEY_THROTTLE_MS) {
       return;
     }
+    if (acceleratorsInFlight.has(accelerator)) {
+      return;
+    }
     lastHotkeyInvokeAt.set(accelerator, at);
-    return handler();
+    acceleratorsInFlight.add(accelerator);
+
+    // Released on every exit path — synchronous return, synchronous throw,
+    // resolution and rejection alike. A leaked entry would kill the hotkey
+    // until the app restarts, which is worse than the recursion it prevents.
+    const releaseAccelerator = () => {
+      acceleratorsInFlight.delete(accelerator);
+    };
+
+    try {
+      const running = handler();
+      if (running instanceof Promise) {
+        return running.finally(releaseAccelerator);
+      }
+      releaseAccelerator();
+      return running;
+    } catch (error) {
+      releaseAccelerator();
+      throw error;
+    }
   };
 };
 
-/** Clears throttle timestamps between tests. */
+/** Clears throttle timestamps and in-flight state between tests. */
 export const resetHotkeyThrottleForTests = (): void => {
   lastHotkeyInvokeAt.clear();
+  acceleratorsInFlight.clear();
 };
 
 export const checkShortcut = (shortcut: boolean) => {

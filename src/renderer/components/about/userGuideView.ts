@@ -98,6 +98,33 @@ export const outputModeDescriptor = (
 ): OutputModeDescriptor | null =>
   mode === null ? null : (OUTPUT_MODE_DESCRIPTORS[mode] ?? null);
 
+export type ClipboardFallbackDescriptor = {
+  labelKey: MessageKey;
+  hintKey: MessageKey;
+  /** Reflects the user's REAL stored value — never the default — so the guide
+   * cannot describe the setting as "on" when it has actually been turned off. */
+  statusKey: MessageKey;
+};
+
+/**
+ * Reuses the Settings checkbox's own label/hint strings, so the guide can
+ * never describe the clipboard fallback differently from the control that
+ * changes it. `null` for an unread value — the panel then shows its unknown
+ * state, same convention as `outputModeDescriptor`.
+ */
+export const clipboardFallbackDescriptor = (
+  enabled: boolean | null,
+): ClipboardFallbackDescriptor | null =>
+  enabled === null
+    ? null
+    : {
+        labelKey: "settings.general.clipboardFallback.label",
+        hintKey: "settings.general.clipboardFallback.hint",
+        statusKey: enabled
+          ? "settings.general.clipboardFallback.statusOn"
+          : "settings.general.clipboardFallback.statusOff",
+      };
+
 /**
  * One-line description per dashboard tab, so the guide can point a new user at
  * the right tab. Keyed by `DashboardTabId` and consumed through

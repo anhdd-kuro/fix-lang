@@ -1,8 +1,11 @@
 import { globalShortcut, screen } from "electron";
 import { getActiveApp } from "~/main/accessibility/activeApp";
+import { getAxSelectedText } from "~/main/accessibility/selectedText";
+import { clipboardFallbackStore } from "~/stores/clipboardFallbackStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { getHighlightedText } from "../../utils";
 import { generatePrompt } from "../ai.request";
+import { resolveSelectedText } from "./selectionSource";
 import { checkShortcut, handleError, withHotkeyThrottle } from "./utils";
 import { syncHistory } from "../ipc/features/history";
 import { LocalizedError } from "../notifications/error";
@@ -20,15 +23,23 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
     console.log(`${promptGenShortcut} pressed (PromptGen)`);
     try {
       // Before the spinner and the PromptGen window: once a FixLang window is
-      // up, the frontmost-app read returns FixLang and yields null.
+      // up, the frontmost-app read returns FixLang and yields null — and the
+      // selection read below, which walks the same frontmost process, would
+      // report our own window's selection instead of the user's.
       const activeApp = await getActiveApp();
-      const selectedText = await getHighlightedText();
-      if (!selectedText || !selectedText.trim()) {
+      const selection = await resolveSelectedText({
+        readAx: getAxSelectedText,
+        readClipboard: getHighlightedText,
+        clipboardFallbackEnabled:
+          clipboardFallbackStore.getClipboardFallbackEnabled(),
+      });
+      if (selection.selectedText === null) {
         handleError(
           new LocalizedError("No text selected.", "notifications.error.noTextSelected.body"),
         );
         return;
       }
+      const { selectedText } = selection;
       const { x, y } = screen.getCursorScreenPoint();
       showOverlaySpinner();
 

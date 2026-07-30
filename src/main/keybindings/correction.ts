@@ -1,14 +1,17 @@
 import { globalShortcut, Notification } from "electron";
 import { getActiveApp } from "~/main/accessibility/activeApp";
+import { getAxSelectedText } from "~/main/accessibility/selectedText";
 import { DEFAULT_CORRECTION_PRESET_ID } from "~/prompts";
 // No apiStore import needed as api key is handled in shared.ts
 import { getProfileSetting } from "~/stores/apiStore";
+import { clipboardFallbackStore } from "~/stores/clipboardFallbackStore";
 import { keybindingStore } from "~/stores/keybindingStore";
 import { outputModeStore } from "~/stores/outputModeStore";
 import { getHighlightedText, pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
 import { buildCorrectionGoodJobNotification } from "./correctionNotifications";
 import { deliverCorrectionOutput } from "./correctionOutput";
+import { resolveSelectedText } from "./selectionSource";
 import { checkShortcut, handleError, withHotkeyThrottle } from "./utils";
 import { buildPriceMap, computeCost } from "../ai.request/cost";
 import { getCachedModels, isLocalModelId } from "../ai.request/shared";
@@ -58,15 +61,25 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
 
       try {
         // Must precede `showOverlaySpinner` below: once a FixLang window is on
-        // screen this read reports FixLang and yields null.
+        // screen this read reports FixLang and yields null. The same applies to
+        // the selection read that follows — "first application process whose
+        // frontmost is true" would be FixLang, so it would report our own
+        // window's (empty) selection.
         const activeApp = await getActiveApp();
-        const selectedText = await getHighlightedText();
+        const selection = await resolveSelectedText({
+          readAx: getAxSelectedText,
+          readClipboard: getHighlightedText,
+          clipboardFallbackEnabled:
+            clipboardFallbackStore.getClipboardFallbackEnabled(),
+        });
 
-        if (!selectedText || !selectedText.trim()) {
+        if (selection.selectedText === null) {
+          // `source`/`reason` only — never the outcome itself: spreading it
+          // would put the user's selection in the on-disk JSONL.
           logger.warn(
             "correction.hotkey",
             "No text selected or clipboard is empty",
-            { presetId: preset.id },
+            { presetId: preset.id, reason: selection.reason },
           );
           handleError(
             new LocalizedError(
@@ -76,6 +89,8 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           );
           return;
         }
+
+        const { selectedText, source: selectionSource } = selection;
 
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send("start-loading");
@@ -107,6 +122,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
 
         logger.info("correction.hotkey", "Correction completed", {
           presetId: preset.id,
+          selectionSource,
           textLength: selectedText.length,
           model: result.model,
           // `?? null` throughout: `LogValue` has no `undefined` member.

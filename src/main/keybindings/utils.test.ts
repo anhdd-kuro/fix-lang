@@ -165,6 +165,102 @@ describe("withHotkeyThrottle", () => {
     expect(second).toHaveBeenCalledTimes(1);
   });
 
+  // The time window alone cannot stop recursion. A user may bind Command+C to
+  // a preset (`validateHotkeys` has no reserved-system-key list), and the
+  // handler synthesizes ⌘C itself — now behind `getActiveApp()` plus the AX
+  // selection read (1.5s timeout), so the synthesized press can land well
+  // outside 500ms and re-enter, each iteration firing another provider request.
+  it("refuses re-entry while the same accelerator's handler is still in flight", async () => {
+    let clock = 1_000;
+    let finishHandler!: () => void;
+    const handler = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishHandler = resolve;
+        }),
+    );
+    const throttled = withHotkeyThrottle("Command+C", handler, () => clock);
+
+    const firstRun = throttled();
+    // Far outside the time window — only the in-flight guard can refuse this.
+    clock += HOTKEY_THROTTLE_MS * 4;
+    void throttled();
+
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    finishHandler();
+    await firstRun;
+    clock += HOTKEY_THROTTLE_MS;
+    const secondRun = throttled();
+
+    expect(handler).toHaveBeenCalledTimes(2);
+
+    finishHandler();
+    await secondRun;
+  });
+
+  it("releases the in-flight guard when the handler rejects", async () => {
+    let clock = 1_000;
+    const failing = vi.fn().mockRejectedValue(new Error("handler failed"));
+    const throttled = withHotkeyThrottle("Control+Shift+D", failing, () => clock);
+
+    await expect(throttled()).rejects.toThrow("handler failed");
+
+    // A guard leaked by a failed transform would disable the hotkey until the
+    // app restarts — worse than the recursion it prevents.
+    clock += HOTKEY_THROTTLE_MS;
+    await expect(throttled()).rejects.toThrow("handler failed");
+    expect(failing).toHaveBeenCalledTimes(2);
+  });
+
+  it("releases the in-flight guard when the handler throws synchronously", async () => {
+    let clock = 1_000;
+    const throwing = vi.fn(() => {
+      throw new Error("sync boom");
+    });
+    const throttled = withHotkeyThrottle("Control+Shift+D", throwing, () => clock);
+
+    expect(() => throttled()).toThrow("sync boom");
+    clock += HOTKEY_THROTTLE_MS;
+    expect(() => throttled()).toThrow("sync boom");
+    expect(throwing).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not let one accelerator's in-flight run block a different accelerator", async () => {
+    const clock = 1_000;
+    let finishFirst!: () => void;
+    const first = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishFirst = resolve;
+        }),
+    );
+    const second = vi.fn().mockResolvedValue(undefined);
+    const throttledFirst = withHotkeyThrottle("Control+Shift+D", first, () => clock);
+    const throttledSecond = withHotkeyThrottle("Control+Shift+S", second, () => clock);
+
+    const firstRun = throttledFirst();
+    await throttledSecond();
+
+    expect(second).toHaveBeenCalledTimes(1);
+
+    finishFirst();
+    await firstRun;
+  });
+
+  it("resets the in-flight guard for tests", async () => {
+    let clock = 1_000;
+    const handler = vi.fn(() => new Promise<void>(() => undefined));
+    const throttled = withHotkeyThrottle("Command+C", handler, () => clock);
+
+    void throttled();
+    resetHotkeyThrottleForTests();
+    clock += HOTKEY_THROTTLE_MS;
+    void throttled();
+
+    expect(handler).toHaveBeenCalledTimes(2);
+  });
+
   it("leaves handler success and failure behavior unchanged", async () => {
     let clock = 1_000;
     const success = vi.fn().mockResolvedValue(undefined);

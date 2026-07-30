@@ -61,12 +61,46 @@ export const promptAccessibilityPermission = async (): Promise<void> => {
 export const wait = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * `clipboard.readText()` yields `""` for an image-only or RTF-only clipboard, so
+ * writing that snapshot back would replace content this function never captured
+ * and cannot reproduce. Only an *actually empty* clipboard — no flavours at all
+ * — is safe to restore from an empty snapshot. A swallowed ⌘C leaves the
+ * non-text content intact, and leaving it there is recoverable; blanking it is
+ * not.
+ */
+const isNonTextClipboard = (textSnapshot: string): boolean =>
+  textSnapshot.length === 0 && clipboard.availableFormats().length > 0;
+
 export const getHighlightedText = async (): Promise<string> => {
   const previousClipboardContent = clipboard.readText();
+  const skipRestore = isNonTextClipboard(previousClipboardContent);
   try {
-    const selectedText = await copyHighlightedText();
-    return selectedText;
+    const copiedText = await copyHighlightedText();
+
+    // The AppleScript ends in `return the clipboard`, which cannot tell a
+    // successful copy from an app that ignored the synthesized ⌘C — in the
+    // latter case it hands back whatever was on the clipboard beforehand.
+    // Returning that would send the user's *previous* clipboard to an AI
+    // provider as if it were their selection, silently and with no error, so an
+    // unchanged value is reported as a miss instead (`resolveSelectedText`
+    // already routes that to its `clipboardEmpty` refusal).
+    //
+    // The cost is that a selection identical to what the user just copied now
+    // refuses instead of transforming. Accepted deliberately: a visible "no
+    // text selected" is recoverable by pressing the hotkey again, whereas
+    // transforming the wrong text is not. Distinguishing the two would mean
+    // writing a sentinel to the clipboard before the ⌘C, which would destroy
+    // exactly the non-text clipboard `skipRestore` above exists to protect.
+    if (copiedText === previousClipboardContent.trim()) return "";
+
+    return copiedText;
   } catch (error) {
+    // `error` here is the osascript failure (`Command failed: <script>` plus
+    // stderr), never the copied text — the selection reaches stdout only, and
+    // is deliberately never printed: `src/main/index.ts` patches `console.*`
+    // to append to an unrotated `~/.fixlang/log/runtime-*.log` that no
+    // redactor reads.
     console.error(error);
     // A revoked Accessibility permission is a distinct, actionable condition
     // (see `~/main/accessibility/keystrokePermission`) — pass it through as
@@ -77,7 +111,9 @@ export const getHighlightedText = async (): Promise<string> => {
     }
     throw new Error("Failed to get highlighted text", { cause: error });
   } finally {
-    clipboard.writeText(previousClipboardContent);
+    if (!skipRestore) {
+      clipboard.writeText(previousClipboardContent);
+    }
   }
 };
 
@@ -92,8 +128,11 @@ const copyHighlightedText = () => {
       return the clipboard
     `;
 
+    // Never log `stdout`: it IS the user's selection, and `console.*` is patched
+    // in `src/main/index.ts` to append to `~/.fixlang/log/runtime-*.log` —
+    // outside `userData`, unrotated, and reached by neither `redactLogMessage`
+    // nor `redactLogContext`.
     exec(`osascript -e '${script}'`, (error, stdout) => {
-      console.log(`🚀 \n - exec \n - stdout:`, stdout);
       if (error) {
         reject(`Error: ${error.message}`);
         return;
@@ -168,28 +207,3 @@ export class StringPrettifier extends String {
     return new StringPrettifier(emptyLinesRemoved.join("\n"));
   }
 }
-
-export const waitForClipboardChange = async ({
-  timeout = 3 * 1000,
-  oldValue = clipboard.readText(),
-}: {
-  timeout?: number;
-  oldValue?: string;
-} = {}): Promise<string> => {
-  const start = Date.now();
-  console.log("Waiting for clipboard change!");
-  console.log("Old value:", oldValue);
-  while (Date.now() - start < timeout) {
-    const newValue = clipboard.readText();
-    if (newValue !== oldValue) {
-      console.log(`Total time taken: ${Date.now() - start}ms`);
-      return newValue;
-    }
-    await wait(50);
-  }
-
-  console.log(
-    `No clipboard changes detected. Total time taken: ${Date.now() - start}ms`
-  );
-  return oldValue;
-};
