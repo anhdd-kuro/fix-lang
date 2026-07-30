@@ -95,6 +95,29 @@ const runFrontmostAppScript = (): Promise<string> =>
   });
 
 /**
+ * Debug-logs the outcome of a frontmost-app read: this is the only place
+ * that says whether a request carried app context, and "context silently
+ * missing" has no other symptom. On a drop, the raw line shows *why* (own
+ * app, empty read, over-long name) — capped, since it is untrusted process
+ * output.
+ *
+ * Shared by `getActiveApp` below and `~/utils`'s
+ * `getHighlightedTextWithActiveApp` (the correction hotkey's combined
+ * frontmost-app-read-then-copy), so both land in the same
+ * `accessibility.activeApp` log scope regardless of which `osascript`
+ * invocation produced the raw line.
+ */
+export const logActiveAppRead = (app: ActiveApp | null, rawStdout: string): void => {
+  logger.debug(
+    "accessibility.activeApp",
+    app ? "Frontmost app read" : "Frontmost app not usable as context",
+    app
+      ? { app: app.name, bundleId: app.bundleId }
+      : { raw: rawStdout.trim().slice(0, RAW_LOG_LIMIT) || null },
+  );
+};
+
+/**
  * Best-effort read of the frontmost app. Returns null on non-darwin, on any
  * osascript failure (including a revoked Accessibility permission), and when
  * the frontmost app is FixLang itself.
@@ -109,17 +132,7 @@ export const getActiveApp = async (): Promise<ActiveApp | null> => {
     const stdout = await runFrontmostAppScript();
     const app = parseActiveApp(stdout);
 
-    // Debug level, both ways: this is the only place that says whether a
-    // request carried app context, and "context silently missing" has no
-    // other symptom. On a drop, the raw line shows *why* (own app, empty
-    // read, over-long name) — capped, since it is untrusted process output.
-    logger.debug(
-      "accessibility.activeApp",
-      app ? "Frontmost app read" : "Frontmost app not usable as context",
-      app
-        ? { app: app.name, bundleId: app.bundleId }
-        : { raw: stdout.trim().slice(0, RAW_LOG_LIMIT) || null },
-    );
+    logActiveAppRead(app, stdout);
 
     return app;
   } catch (error) {

@@ -57,7 +57,7 @@ import {
   getProfileSetting,
   normalizeCorrectionSettings,
 } from "~/stores/apiStore";
-import { fixGrammar } from "./correction";
+import { effectiveModelRef, fixGrammar } from "./correction";
 import { makeAIRequest } from "./shared";
 import type { Mock } from "vitest";
 import type { CorrectionPreset, CorrectionSettings } from "~/stores/apiStore";
@@ -252,6 +252,45 @@ describe("fixGrammar — empty input early return", () => {
       presetId: "test-preset-1",
       presetName: "Test Preset",
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: effectiveModelRef — the inherit rule the connection prewarmer
+// (`~/main/llm/prewarm.ts`) reuses to know what to warm before the real
+// request is built.
+// ---------------------------------------------------------------------------
+
+describe("effectiveModelRef", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns the preset's own (trimmed) model ref when it has one", () => {
+    (getDefaultModelId as Mock).mockReturnValue("openrouter::should-not-be-used");
+
+    expect(effectiveModelRef(makePreset({ model: "  openai::gpt-4o  " }))).toBe(
+      "openai::gpt-4o",
+    );
+    expect(getDefaultModelId).not.toHaveBeenCalled();
+  });
+
+  it("inherits the global default when the preset's model is empty", () => {
+    (getDefaultModelId as Mock).mockReturnValue("ollama::llama3.2:3b");
+
+    expect(effectiveModelRef(makePreset({ model: "" }))).toBe("ollama::llama3.2:3b");
+  });
+
+  it("inherits the global default when the preset's model is whitespace-only", () => {
+    (getDefaultModelId as Mock).mockReturnValue("openai::gpt-4o");
+
+    expect(effectiveModelRef(makePreset({ model: "   " }))).toBe("openai::gpt-4o");
+  });
+
+  it("propagates the inherit sentinel when the global default is also unset", () => {
+    (getDefaultModelId as Mock).mockReturnValue("");
+
+    expect(effectiveModelRef(makePreset({ model: "" }))).toBe("");
   });
 });
 

@@ -160,7 +160,13 @@ describe("shared AI request logging", () => {
       ],
     });
 
-    expect(createOpenAIMock).toHaveBeenCalledWith({ apiKey: "direct-openai-key" });
+    expect(createOpenAIMock).toHaveBeenCalledWith({
+      apiKey: "direct-openai-key",
+      // The keep-alive dispatcher wired in `~/main/llm/httpKeepAlive.ts` (see
+      // that module's own doc comment) — asserted as "a function" rather than
+      // the exact reference, since this test doesn't mock that module.
+      fetch: expect.any(Function),
+    });
     expect(generateTextMock).toHaveBeenCalledTimes(2);
     expect(response).toMatchObject({
       content: ["first", "second"],

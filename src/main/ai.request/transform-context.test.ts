@@ -47,14 +47,18 @@ describe("buildActiveAppContextBlock", () => {
 });
 
 describe("withActiveAppContext", () => {
-  it("prepends the block before the caller's system prompt", () => {
-    const result = withActiveAppContext("Fix grammar.", {
-      activeAppName: "Slack",
-    });
+  it("appends the block after the caller's system prompt", () => {
+    const context = { activeAppName: "Slack" };
+    const result = withActiveAppContext("Fix grammar.", context);
+    const block = buildActiveAppContextBlock(context);
 
-    expect(result.startsWith("# Metadata context")).toBe(true);
-    expect(result.endsWith("Fix grammar.")).toBe(true);
+    expect(result.startsWith("Fix grammar.")).toBe(true);
+    expect(result.endsWith(block as string)).toBe(true);
     expect(result).toContain('"Slack"');
+    // The preset text is the stable prefix; the block trails it.
+    expect(result.indexOf("Fix grammar.")).toBeLessThan(
+      result.indexOf("# Metadata context"),
+    );
   });
 
   it("returns the system prompt untouched when no app name is known", () => {
@@ -65,6 +69,20 @@ describe("withActiveAppContext", () => {
     expect(withActiveAppContext("Fix grammar.", { activeAppName: null })).toBe(
       "Fix grammar.",
     );
+  });
+
+  it("keeps the preset's system prompt as a stable prefix regardless of which app is reported", () => {
+    // The whole point of trailing placement: two requests that differ only in
+    // active app must share an identical leading prefix, so a provider's
+    // prefix-based cache (explicit breakpoint or automatic) can still match
+    // the preset's own instructions even though the trailing metadata varies.
+    const preset = "Fix grammar. Preserve meaning. Keep tone unchanged.";
+    const slack = withActiveAppContext(preset, { activeAppName: "Slack" });
+    const mail = withActiveAppContext(preset, { activeAppName: "Mail" });
+
+    expect(slack.startsWith(preset)).toBe(true);
+    expect(mail.startsWith(preset)).toBe(true);
+    expect(slack).not.toBe(mail);
   });
 });
 
@@ -168,14 +186,14 @@ describe("withActiveAppContext — formatting policy", () => {
     ).toBe("Fix grammar.");
   });
 
-  it("prepends the adapt-to-app block when a policy is passed", () => {
+  it("appends the adapt-to-app block when a policy is passed", () => {
     const result = withActiveAppContext(
       "Fix grammar.",
       { activeAppName: "Slack" },
       "adapt-to-app",
     );
 
-    expect(result.endsWith("Fix grammar.")).toBe(true);
+    expect(result.startsWith("Fix grammar.")).toBe(true);
     expect(result).not.toContain(
       "do not add app-specific markup the input does not already use",
     );

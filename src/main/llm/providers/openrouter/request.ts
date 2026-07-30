@@ -19,6 +19,7 @@ import {
   type AIRequestOptions,
 } from "~/main/ai.request/requestTypes";
 import { extractResolvedModel } from "~/main/ai.request/resolve-model";
+import { keepAliveFetch } from "~/main/llm/httpKeepAlive";
 import { showErrorNotification } from "~/main/notifications/error";
 import { reasoningForAiSdk } from "~/shared/reasoningEffort";
 import { getApiKey } from "~/stores/apiKeyStore";
@@ -42,7 +43,7 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
       `Sending request to OpenRouter with model: ${options.model}, top_p: ${options.top_p}, reasoning: ${options.reasoning ?? "provider-default"}`,
     );
 
-    const openRouter = createOpenRouter({ apiKey: apiKey.trim() });
+    const openRouter = createOpenRouter({ apiKey: apiKey.trim(), fetch: keepAliveFetch });
     const modelId = options.model as string;
     const modelOpenRouter = openRouter(modelId, {
       extraBody: {

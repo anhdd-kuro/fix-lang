@@ -34,9 +34,6 @@ vi.mock("~/stores/apiStore", async (importOriginal) => {
     apiStore: { get: vi.fn().mockReturnValue(undefined), set: vi.fn() },
   };
 });
-vi.mock("~/main/accessibility/activeApp", () => ({
-  getActiveApp: vi.fn().mockResolvedValue(null),
-}));
 vi.mock("~/stores/keybindingStore", () => ({
   keybindingStore: {
     getKeyBindings: vi
@@ -48,7 +45,9 @@ vi.mock("~/stores/outputModeStore", () => ({
   outputModeStore: { getCorrectionOutputMode: vi.fn().mockReturnValue("popup") },
 }));
 vi.mock("../../utils", () => ({
-  getHighlightedText: vi.fn().mockResolvedValue("some selected text"),
+  getHighlightedTextWithActiveApp: vi
+    .fn()
+    .mockResolvedValue({ text: "some selected text", activeApp: null }),
   pasteText: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../ai.request", () => ({ fixGrammar: vi.fn() }));
