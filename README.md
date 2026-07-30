@@ -50,7 +50,7 @@ Overview and Models share a time-range filter (All / 30d / 7d).
 
 ### Language
 
-FixLang is available in **English** and **Japanese**. On first run, the app automatically uses your system language (English if your system language is not one of the supported ones). You can change the language anytime in **Settings → General → Language**, or from the tray popover, without restarting the app. The tray popover also has a quick switch for transform output mode (**Direct paste** / **Show popup**), right below the language switch, plus **global** model and reasoning-effort selectors (presets can override both in Settings → Transform). History rows with a saved session expose a Show details (eye) control with the raw completion JSON.
+FixLang is available in **English** and **Japanese**. On first run, the app automatically uses your system language (English if your system language is not one of the supported ones). You can change the language anytime in **Settings → General → Language**, or from the tray popover, without restarting the app. The tray popover also has a quick switch for transform output mode (**Direct paste** / **Show popup**), right below the language switch, plus **global** model and reasoning-effort selectors (presets can override both in Settings → Transform). At the top it shows a **Providers** card with one tab per connected, usage-capable provider — OpenRouter shows remaining credit, OpenAI shows the last 7 days of billed spend for the project set in **Settings → General → OpenAI → Project ID**. Clicking the figure opens that provider's Usage sub-tab. History rows with a saved session expose a Show details (eye) control with the raw completion JSON.
 
 ### Provider setup (Settings → General)
 
@@ -62,6 +62,7 @@ You can connect multiple providers at once. Each connected provider's models app
 2. For each provider you want to use:
    - Enter its API key when required (OpenAI and OpenRouter need keys; Ollama needs none but accepts host/port like LM Studio; LM Studio accepts an optional key plus host/port for its local server)
    - Optionally add an admin key to unlock that provider's **Usage** sub-tab: an OpenRouter provisioning key, or an OpenAI Admin API key (`sk-admin-…`, organization owner). Admin keys are read only in the main process and never returned to the UI.
+   - OpenAI only: optionally set a **Project ID** (`proj_…`) so the tray's Providers card can report that project's billed spend. An admin key covers the whole organization, so OpenAI cannot tell FixLang which project you meant.
    - Click **Connect** — this validates the credentials and fetches that provider's model list
 3. Choose a default model for the profile
 4. A preset's model selector shows all connected providers' models, grouped by provider

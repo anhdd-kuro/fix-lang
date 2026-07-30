@@ -18,16 +18,15 @@ import {
 } from "./reasoningEffort";
 
 describe("REASONING_EFFORT_SLIDER_STEPS mapping (None → Faster → Smarter)", () => {
-  it("has six discrete steps starting at none", () => {
+  it("has five discrete steps starting at none", () => {
     expect(REASONING_EFFORT_SLIDER_STEPS).toEqual([
       "none",
       "minimal",
       "low",
       "medium",
       "high",
-      "xhigh",
     ]);
-    expect(REASONING_EFFORT_STEPS).toHaveLength(5);
+    expect(REASONING_EFFORT_STEPS).toHaveLength(4);
   });
 
   it("defaults to none", () => {
@@ -46,11 +45,22 @@ describe("sanitizeReasoningEffort / type guards", () => {
       "low",
       "medium",
       "high",
-      "xhigh",
     ]) {
       expect(isReasoningEffort(value)).toBe(true);
       expect(sanitizeReasoningEffort(value)).toBe(value);
     }
+  });
+
+  it("steps a retired effort down instead of dropping it", () => {
+    // "xhigh" (the old Maximum step) must land on High, not on undefined:
+    // undefined reads as provider-default downstream, which would change a
+    // stored preset's behaviour rather than lowering it one notch.
+    expect(sanitizeReasoningEffort("xhigh")).toBe("high");
+    expect(isReasoningEffort("xhigh")).toBe(false);
+    expect(reasoningForAiSdk("xhigh" as never)).toBe("high");
+    expect(reasoningEffortToStepIndex("xhigh" as never)).toBe(
+      REASONING_EFFORT_SLIDER_STEPS.indexOf("high"),
+    );
   });
 
   it("rejects unknown values", () => {
@@ -80,7 +90,7 @@ describe("step index ↔ effort", () => {
 
   it("clamps out-of-range indices", () => {
     expect(stepIndexToReasoningEffort(-1)).toBe("none");
-    expect(stepIndexToReasoningEffort(99)).toBe("xhigh");
+    expect(stepIndexToReasoningEffort(99)).toBe("high");
   });
 });
 
@@ -104,7 +114,7 @@ describe("reasoningForAiSdk", () => {
 
   it("passes through slider steps and none", () => {
     expect(reasoningForAiSdk("minimal")).toBe("minimal");
-    expect(reasoningForAiSdk("xhigh")).toBe("xhigh");
+    expect(reasoningForAiSdk("high")).toBe("high");
     expect(reasoningForAiSdk("none")).toBe("none");
   });
 });

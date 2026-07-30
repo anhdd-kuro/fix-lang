@@ -24,6 +24,11 @@ export type ProviderConnectInput = {
   host?: string;
   /** Local provider port (Ollama / LM Studio). */
   port?: number;
+  /**
+   * OpenAI project id for the tray's project-spend card. Sent raw so `""` still
+   * reaches main as a deliberate clear rather than as "field not submitted".
+   */
+  projectId?: string;
 };
 
 export const isProviderConnectInput = (value: unknown): value is ProviderConnectInput => {
@@ -40,6 +45,7 @@ export const isProviderConnectInput = (value: unknown): value is ProviderConnect
     (input.provisioningKey === undefined || typeof input.provisioningKey === "string") &&
     (input.secretKey === undefined || typeof input.secretKey === "string") &&
     (input.region === undefined || typeof input.region === "string") &&
+    (input.projectId === undefined || typeof input.projectId === "string") &&
     hostOk &&
     portOk
   );
