@@ -3,7 +3,9 @@
  * @description Verifies the Ask AI input popup: a creation-cached singleton
  * (same shape as `correctionResultWindow.ts`) that prevents the static
  * `<title>` from clobbering the locale-aware window title, and forwards
- * `ask-input-submit` / `ask-input-cancel` to the caller-supplied handlers.
+ * `ask-input-submit` / `ask-input-cancel` to the caller-supplied handlers, and
+ * tells the renderer about EVERY dismissal path rather than only the one that
+ * originated there (02/f17).
  * Electron is mocked exactly as `correctionResultWindow.test.ts:44-58` does —
  * this never boots a real window.
  */
@@ -188,6 +190,57 @@ describe("askInputWindow", () => {
     closeCall?.[1]({ preventDefault: vi.fn() });
 
     expect(onCancel).toHaveBeenCalledOnce();
+  });
+
+  // 02/f17. Only ESC originates in the renderer. Cmd-W, the red X and a profile
+  // switch all land here, and a window that is hidden rather than destroyed
+  // keeps whatever it was showing — so without this signal the next open shows
+  // the abandoned question and its ghost suggestion for a frame, because
+  // `revealWindow` shows the window right after pushing the fresh payload.
+  describe("telling the renderer the ask was abandoned (02/f17)", () => {
+    const dismissedSends = () =>
+      lastWindow?.webContents.send.mock.calls.filter(
+        ([channel]) => channel === "ask-input-dismissed",
+      ) ?? [];
+
+    it("sends ask-input-dismissed on a chrome dismissal (Cmd-W / red X)", async () => {
+      const { showAskInputWindow } = await loadModule();
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+
+      const closeCall = lastWindow?.on.mock.calls.find(
+        ([eventName]) => eventName === "close",
+      );
+      closeCall?.[1]({ preventDefault: vi.fn() });
+
+      expect(dismissedSends()).toHaveLength(1);
+    });
+
+    it("sends ask-input-dismissed on ask-input-cancel (ESC)", async () => {
+      const { showAskInputWindow } = await loadModule();
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+
+      getIpcHandler("ask-input-cancel")(undefined);
+
+      expect(dismissedSends()).toHaveLength(1);
+    });
+
+    it("sends ask-input-dismissed when a profile switch dismisses a pending ask", async () => {
+      const { showAskInputWindow, dismissAskInputWindow } = await loadModule();
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+
+      dismissAskInputWindow();
+
+      expect(dismissedSends()).toHaveLength(1);
+    });
+
+    it("does not send to a destroyed window", async () => {
+      const { showAskInputWindow, dismissAskInputWindow } = await loadModule();
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+      lastWindow?.isDestroyed.mockReturnValue(true);
+
+      expect(() => dismissAskInputWindow()).not.toThrow();
+      expect(dismissedSends()).toHaveLength(0);
+    });
   });
 
   it("clears handlers on a chrome dismissal so a later invocation's handlers are not dropped", async () => {

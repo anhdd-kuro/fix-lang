@@ -24,13 +24,14 @@ const makeEntry = (overrides: Partial<HistoryEntry> = {}): HistoryEntry => ({
 });
 
 describe("DASHBOARD_TABS", () => {
-  it("exposes the six tabs in order Overview/History/Models/OpenRouter/Logs/About", () => {
+  it("exposes the seven tabs in order Overview/History/Models/OpenRouter/Logs/Autocomplete/About", () => {
     expect(DASHBOARD_TABS.map((t) => t.id)).toEqual([
       "overview",
       "history",
       "models",
       "usage",
       "logs",
+      "autocomplete",
       "about",
     ]);
     // Labels are translation keys, not prose — this file must stay
@@ -42,8 +43,15 @@ describe("DASHBOARD_TABS", () => {
       "dashboard.tab.models",
       "dashboard.tab.usage",
       "dashboard.tab.logs",
+      "dashboard.tab.autocomplete",
       "dashboard.tab.about",
     ]);
+  });
+
+  it("places autocomplete second-to-last, immediately before about", () => {
+    const ids = DASHBOARD_TABS.map((t) => t.id);
+    expect(ids[ids.length - 2]).toBe("autocomplete");
+    expect(ids[ids.length - 1]).toBe("about");
   });
 
   it("defaults the active tab to Overview (index 0)", () => {

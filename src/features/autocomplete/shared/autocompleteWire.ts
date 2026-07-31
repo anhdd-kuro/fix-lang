@@ -1,0 +1,143 @@
+/**
+ * @file autocompleteWire.ts
+ * @description The autocomplete IPC wire contract. Read by main, preload AND
+ * the renderer, so this file must stay Electron-free: no `electron` import,
+ * no `~/features/providers/store/apiStore` import, nothing that resolves
+ * `app.getPath` at import time.
+ *
+ * `AutocompleteDayRollup` is DEFINED here rather than in
+ * `autocompleteUsageStore.ts`. That store module is not Electron-free (its
+ * `store` getter constructs an `electron-store`), so if the renderer imported
+ * the type from there, bundling the type would risk bundling the store
+ * alongside it. Defining the shape here and having the store import it back
+ * keeps the direction of the dependency renderer-safe. The store deliberately
+ * does NOT re-export the type — a second import path would make that module a
+ * discoverable route into the renderer bundle, and the failure is invisible to
+ * `dev`, `test` and `lint`. Its own header forbids restoring the re-export.
+ *
+ * `sessionId` is deliberately absent from `AutocompleteSuggestRequest`.
+ * `service.ts` keys its single-flight abort map by session, and a renderer
+ * that could name its own session could abort another window's in-flight
+ * request. Main derives the session id from `event.sender.id` instead — see
+ * `main/ipc.ts`.
+ */
+
+/**
+ * Below this many characters before the caret the request is guesswork and the
+ * suggestion is usually noise, so no request is made.
+ *
+ * Lives here, not in `service.ts`, for the same reason `dailyCap` rides the
+ * usage snapshot: the renderer gates on this threshold too, and `service.ts`
+ * imports `apiStore`, `logService` and `~/prompts`, so nothing renderer-side
+ * can reach it there. A hardcoded copy in a hook would go stale on the next
+ * change with no compile error. `LOG_QUERY_PAGE_SIZE` in
+ * `~/features/logs/shared/logging` sets the precedent. `service.ts`
+ * re-exports it so existing importers keep working.
+ */
+export const MIN_PREFIX_CHARS = 12;
+
+/**
+ * One day's counters.
+ *
+ * The three "how much of this is actually known" counters exist because a
+ * rollup with no way to say "unknown" has to say `0`, and `$0.00` against a day
+ * of genuinely billed requests is the false zero that `cost.ts` and
+ * `overviewAggregations.ts` both refuse to print. Two independent things can be
+ * missing, and a single flag cannot express both:
+ *
+ * - a LOCAL provider (Ollama, LM Studio) returns no token counts, yet its cost
+ *   is honestly known to be `$0` — tokens unknown, price known;
+ * - DIRECT OpenAI returns real token counts, yet `computeCost` refuses to price
+ *   its bare model ids — tokens known, price unknown.
+ *
+ * So the counters come in pairs against `responses`, and every one of them sums
+ * cleanly, which is what makes a month that mixes the two states readable
+ * rather than silently collapsed into its knowable half.
+ *
+ * Separate axes, but NOT independent ones. A price computed as
+ * `tokens × price` is only as knowable as the tokens it came from, so a
+ * PRICEABLE provider that omits its usage block is counted on BOTH axes at
+ * once: tokens unknown AND price unknown. Left as tokens-only, `computeCost`
+ * hands back a confident `status: "ok"` at zero over tokens the provider never
+ * sent, the response lands among the priced, and the day claims full coverage
+ * over a real bill — the same false `$0.00` these counters were added to stop.
+ * Only a LOCAL provider's `$0` survives a token gap as a known price, because
+ * it was never calculated from tokens (`computeCost` short-circuits it to
+ * `status: "zero"`). `resolveResponseCostUsd` in `main/service.ts` owns that
+ * distinction; the reading rules below are untouched by it.
+ *
+ * Reading it (this is the whole contract, no heuristics needed):
+ *
+ * - `requests === 0` — nothing happened. A genuine zero; render it as `0`.
+ * - `unpricedResponses === 0 && responses > 0` — every price is known.
+ *   `estimatedCostUsd` is the whole truth.
+ * - `unpricedResponses === responses` — no price is known. Render N/A, NEVER a
+ *   number, however tempting the `0` sitting in `estimatedCostUsd` looks.
+ * - `0 < unpricedResponses < responses` — part known, part not. Render the
+ *   amount AND say how much of it is covered; reporting the known part alone is
+ *   another false number.
+ *
+ * `tokenlessResponses` reads the same way against `promptTokens` /
+ * `completionTokens`.
+ *
+ * The cost triple maps 1:1 onto `CostSum` in `~/renderer/analytics/shared`, so
+ * the renderer can hand it straight to `resolveOverviewCostHint` and inherit
+ * the none/na/amount/partial rendering the Overview card already uses:
+ * `{ totalUsd: estimatedCostUsd, pricedCount: responses - unpricedResponses,
+ *    total: responses, hasNa: unpricedResponses > 0 }`.
+ */
+export type AutocompleteDayRollup = {
+  /** `YYYY-MM-DD` in local time, matching how the user reads "today". */
+  date: string;
+  /**
+   * Requests DISPATCHED to a provider — attempts, not completions. A request
+   * superseded a keystroke later was still asked for and still billed, and the
+   * daily cap counts these.
+   */
+  requests: number;
+  /** Of `requests`, how many came back. The rest aborted or failed. */
+  responses: number;
+  /** Of `responses`, how many reported incomplete token counts. */
+  tokenlessResponses: number;
+  /** Of `responses`, how many carried no knowable price. */
+  unpricedResponses: number;
+  /** Summed over the responses that reported them; see `tokenlessResponses`. */
+  promptTokens: number;
+  completionTokens: number;
+  /**
+   * Summed over PRICED responses only. Meaningless on its own — always read it
+   * next to `unpricedResponses`, which says how much of the day it covers.
+   *
+   * That is an invariant, not a description, and the sums must agree with the
+   * counters on the SAME day: money here that no `responses - unpricedResponses`
+   * can account for reappears as a real number the moment the day is summed with
+   * another. Summing breaks the `unpricedResponses === responses` equality that
+   * makes a lone all-unknown day render as N/A, so a month reads the leftover
+   * amount as "amount plus coverage" and prints it behind a coverage badge that
+   * disowns it. A day migrated from before these counters therefore carries
+   * `0` in all three sums — no priced responses, so no money, and the same for
+   * the token pair (`normalizeRollup` in `~/features/autocomplete/store/autocompleteUsageStore`).
+   */
+  estimatedCostUsd: number;
+};
+
+export type AutocompleteSuggestRequest = {
+  /** Monotonic per surface; echoed back so the renderer can drop stale replies. */
+  requestId: number;
+  prefix: string;
+  suffix?: string;
+};
+
+export type AutocompleteSuggestReply = {
+  requestId: number;
+  suggestion: string | null;
+};
+
+export type AutocompleteUsageSnapshot = {
+  today: AutocompleteDayRollup;
+  month: AutocompleteDayRollup;
+  /** Newest first, at most 62 (`RETAINED_DAYS` in `autocompleteUsageStore.ts`). */
+  days: AutocompleteDayRollup[];
+  /** `DAILY_REQUEST_CAP` from `service.ts`, so no UI hardcodes it. */
+  dailyCap: number;
+};

@@ -19,6 +19,7 @@ import {
 } from "./providerCards";
 import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
 import { Select } from "./Select";
+import { SettingAutocomplete } from "./SettingAutocomplete";
 import {
   plainStatus,
   wrappedError,
@@ -1030,6 +1031,8 @@ export const SettingGeneral: React.FC = () => {
           descriptionKey="settings.general.defaultModel.description"
         />
       </section>
+
+      <SettingAutocomplete />
 
       <section className="mb-4">
         <h2 className="text-sm font-medium text-card-foreground">

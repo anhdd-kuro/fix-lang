@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { PREFIX_WINDOW_CHARS } from "./prompt";
 import {
   abortAutocomplete,
+  CACHE_MAX_ENTRIES,
+  CACHE_TTL_MS,
   DAILY_REQUEST_CAP,
   MAX_OUTPUT_TOKENS,
   MIN_PREFIX_CHARS,
@@ -10,25 +13,36 @@ import {
 
 const {
   makeAIRequestMock,
+  getCachedModelsMock,
+  computeCostMock,
   getProfileSettingMock,
   getDefaultModelIdMock,
   usageStoreMock,
   loggerMock,
 } = vi.hoisted(() => ({
   makeAIRequestMock: vi.fn(),
+  // A mock rather than a plain stub: it reads a store, so the tests have to be
+  // able to make it throw the way the store does in the field.
+  getCachedModelsMock: vi.fn(),
+  computeCostMock: vi.fn(),
   getProfileSettingMock: vi.fn(),
   getDefaultModelIdMock: vi.fn(),
-  usageStoreMock: { record: vi.fn(), getDay: vi.fn(), getMonth: vi.fn() },
+  usageStoreMock: {
+    recordDispatch: vi.fn(),
+    recordUsage: vi.fn(),
+    getDay: vi.fn(),
+    getMonth: vi.fn(),
+  },
   loggerMock: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
 vi.mock("~/main/ai.request/shared", () => ({
   makeAIRequest: makeAIRequestMock,
-  getCachedModels: () => [],
+  getCachedModels: getCachedModelsMock,
 }));
 vi.mock("~/main/ai.request/cost", () => ({
   buildPriceMap: () => new Map(),
-  computeCost: () => ({ status: "zero", estimatedCostUsd: 0, pricePrompt: null, priceCompletion: null }),
+  computeCost: computeCostMock,
 }));
 vi.mock("~/features/providers/store/apiStore", () => ({
   getProfileSetting: getProfileSettingMock,
@@ -65,6 +79,25 @@ const respondWith = (text: string) =>
     completionTokens: 8,
   });
 
+/**
+ * A stateful stand-in for the usage store's day counter. The cap is read back
+ * through `getDay()` between requests, so a fixed return value could never
+ * show whether a dispatch was counted at all.
+ */
+let dayRequests = 0;
+
+/** Leaves every request in flight so it can be superseded and aborted. */
+const pendingRequests = (): AbortSignal[] => {
+  const signals: AbortSignal[] = [];
+  makeAIRequestMock.mockImplementation((options: { abortSignal: AbortSignal }) => {
+    signals.push(options.abortSignal);
+    return new Promise(() => {
+      // Never settles: the request stays in flight for the test.
+    });
+  });
+  return signals;
+};
+
 describe("requestAutocompleteSuggestion", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -75,12 +108,26 @@ describe("requestAutocompleteSuggestion", () => {
       return undefined;
     });
     getDefaultModelIdMock.mockReturnValue("openai::gpt-4o");
-    usageStoreMock.getDay.mockReturnValue({
+    dayRequests = 0;
+    usageStoreMock.recordDispatch.mockImplementation(() => {
+      dayRequests += 1;
+    });
+    usageStoreMock.getDay.mockImplementation(() => ({
       date: "2026-07-31",
-      requests: 0,
+      requests: dayRequests,
+      responses: 0,
+      tokenlessResponses: 0,
+      unpricedResponses: 0,
       promptTokens: 0,
       completionTokens: 0,
       estimatedCostUsd: 0,
+    }));
+    getCachedModelsMock.mockReturnValue([]);
+    computeCostMock.mockReturnValue({
+      status: "ok",
+      estimatedCostUsd: 0.0004,
+      pricePrompt: "0.000003",
+      priceCompletion: "0.000012",
     });
     respondWith(" over the lazy dog.");
   });
@@ -227,16 +274,7 @@ describe("requestAutocompleteSuggestion", () => {
   });
 
   describe("single flight", () => {
-    const pending = () => {
-      const signals: AbortSignal[] = [];
-      makeAIRequestMock.mockImplementation((options: { abortSignal: AbortSignal }) => {
-        signals.push(options.abortSignal);
-        return new Promise(() => {
-          // Never settles: the request stays in flight for the test.
-        });
-      });
-      return signals;
-    };
+    const pending = pendingRequests;
 
     it("aborts the previous request for the same surface", async () => {
       const signals = pending();
@@ -283,6 +321,40 @@ describe("requestAutocompleteSuggestion", () => {
       expect((await inFlightRequest).suggestion).toBeNull();
     });
 
+    /**
+     * A superseded request's cleanup must not evict the entry that replaced
+     * it. Deleting unconditionally instead of only when the map still holds
+     * THIS controller left the surface with no registered request, so the next
+     * keystroke had nothing to abort and two calls ran on in parallel — both
+     * billed, only one wanted.
+     */
+    it("does not let a superseded request unregister its successor", async () => {
+      // Must actually settle on abort: a request that never rejects never runs
+      // its cleanup, and cleanup is the whole subject here.
+      const signals: AbortSignal[] = [];
+      makeAIRequestMock.mockImplementation((options: { abortSignal: AbortSignal }) => {
+        signals.push(options.abortSignal);
+        return new Promise((_resolve, reject) => {
+          options.abortSignal.addEventListener("abort", () => {
+            const error = new Error("aborted");
+            error.name = "AbortError";
+            reject(error);
+          });
+        });
+      });
+
+      void ask({ prefix: `${LONG_PREFIX} one` });
+      await waitForCalls(1);
+      void ask({ prefix: `${LONG_PREFIX} two` });
+      await waitForCalls(2);
+      // Let the first request's abort rejection settle so its cleanup runs.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      void ask({ prefix: `${LONG_PREFIX} three` });
+      await waitForCalls(3);
+
+      expect(signals[1].aborted).toBe(true);
+    });
+
     it("aborts every surface when no session is named", async () => {
       const signals = pending();
 
@@ -297,14 +369,9 @@ describe("requestAutocompleteSuggestion", () => {
   });
 
   describe("daily cap", () => {
-    const atCap = () =>
-      usageStoreMock.getDay.mockReturnValue({
-        date: "2026-07-31",
-        requests: DAILY_REQUEST_CAP,
-        promptTokens: 0,
-        completionTokens: 0,
-        estimatedCostUsd: 0,
-      });
+    const atCap = () => {
+      dayRequests = DAILY_REQUEST_CAP;
+    };
 
     it("stops making requests once tripped", async () => {
       atCap();
@@ -323,14 +390,263 @@ describe("requestAutocompleteSuggestion", () => {
 
       expect(loggerMock.warn).toHaveBeenCalledOnce();
     });
+
+    /**
+     * The exact scenario the cap exists for. A user typing continuously has
+     * every request superseded and aborted before it can return, yet the
+     * provider was asked — and bills — for each one. Counting only completions
+     * left the counter at zero here and the hard stop never fired.
+     */
+    it("counts a dispatched request that is later aborted", async () => {
+      dayRequests = DAILY_REQUEST_CAP - 2;
+      const signals = pendingRequests();
+
+      void ask({ prefix: `${LONG_PREFIX} one` });
+      await waitForCalls(1);
+      void ask({ prefix: `${LONG_PREFIX} two` });
+      await waitForCalls(2);
+
+      expect(signals[0].aborted).toBe(true);
+      expect((await ask({ prefix: `${LONG_PREFIX} three` })).suggestion).toBeNull();
+      expect(makeAIRequestMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("counts a dispatched request that fails", async () => {
+      makeAIRequestMock.mockRejectedValue(new Error("401 unauthorized"));
+
+      await ask();
+
+      expect(usageStoreMock.recordDispatch).toHaveBeenCalledOnce();
+    });
+
+    it("does not count a suggestion served from cache", async () => {
+      await ask();
+      await ask({ requestId: 2 });
+
+      expect(usageStoreMock.recordDispatch).toHaveBeenCalledOnce();
+    });
+
+    it("does not count a request the cap itself refused", async () => {
+      atCap();
+
+      await ask();
+
+      expect(usageStoreMock.recordDispatch).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["the feature is disabled", { enabled: false, model: "openai::gpt-4o-mini" }, LONG_PREFIX],
+      ["the prefix is too short", { enabled: true, model: "openai::gpt-4o-mini" }, "short"],
+      ["no model resolves", { enabled: true, model: "" }, LONG_PREFIX],
+    ])("does not count a request gated before dispatch: %s", async (_case, settings, prefix) => {
+      getProfileSettingMock.mockImplementation((key: string) =>
+        key === "settingsAutocomplete" ? settings : { presets: [] },
+      );
+      getDefaultModelIdMock.mockReturnValue("");
+
+      await ask({ prefix });
+
+      expect(usageStoreMock.recordDispatch).not.toHaveBeenCalled();
+    });
   });
 
   describe("spend and logging", () => {
     it("records usage for a completed request", async () => {
       await ask();
 
-      expect(usageStoreMock.record).toHaveBeenCalledWith(
+      expect(usageStoreMock.recordUsage).toHaveBeenCalledWith(
         expect.objectContaining({ promptTokens: 100, completionTokens: 8 }),
+        expect.any(Date),
+      );
+    });
+
+    /**
+     * The computed cost had no assertion anywhere, so replacing it with a
+     * literal `0` — the exact false zero this feature's money path must never
+     * print — survived the whole suite.
+     */
+    describe("the computed cost", () => {
+      it("prices the model the provider actually served", async () => {
+        makeAIRequestMock.mockResolvedValue({
+          content: [" over the lazy dog."],
+          model: "openai::gpt-4o-mini",
+          resolvedModel: "gpt-4o-mini-2026-01-01",
+          provider: "openai",
+          promptTokens: 100,
+          completionTokens: 8,
+        });
+
+        await ask();
+
+        expect(computeCostMock).toHaveBeenCalledWith(
+          {
+            provider: "openai",
+            model: "openai::gpt-4o-mini",
+            resolvedModel: "gpt-4o-mini-2026-01-01",
+            promptTokens: 100,
+            completionTokens: 8,
+          },
+          expect.anything(),
+        );
+      });
+
+      it("reaches the rollup unchanged", async () => {
+        computeCostMock.mockReturnValue({
+          status: "ok",
+          estimatedCostUsd: 0.00123,
+          pricePrompt: "0.000003",
+          priceCompletion: "0.000012",
+        });
+
+        await ask();
+
+        expect(usageStoreMock.recordUsage).toHaveBeenCalledWith(
+          expect.objectContaining({ estimatedCostUsd: 0.00123 }),
+          expect.any(Date),
+        );
+      });
+
+      /**
+       * `computeCost` returns N/A unconditionally for direct OpenAI, so this is
+       * what every OpenAI autocomplete request records. Coalescing that null to
+       * `0` on the way to the store made a day of genuinely billed requests
+       * report `$0.00`; the store now counts it as an unpriced response
+       * instead, and it can only do that if the null arrives intact.
+       */
+      it("passes an unpriceable cost through as null, never as zero", async () => {
+        computeCostMock.mockReturnValue({
+          status: "na",
+          estimatedCostUsd: null,
+          pricePrompt: null,
+          priceCompletion: null,
+        });
+
+        await ask();
+
+        expect(usageStoreMock.recordUsage).toHaveBeenCalledWith(
+          expect.objectContaining({ estimatedCostUsd: null }),
+          expect.any(Date),
+        );
+      });
+
+      /**
+       * The false `$0.00` came back through here after the coverage counters
+       * were added, because tokens and price were treated as independent axes
+       * and a price MULTIPLIED OUT OF TOKENS is not independent of them.
+       *
+       * A PRICEABLE PROVIDER THAT OMITS ITS USAGE BLOCK — OpenRouter, Bedrock —
+       * matches the price map, so `computeCost` succeeds: `status: "ok"` with a
+       * cost of `0 × price`. Booked as priced, the day reported
+       * `unpricedResponses: 0` beside `estimatedCostUsd: 0` and the card printed
+       * "Est. $0.00" as the whole truth over spend the provider really billed.
+       * Only the local-provider case below is a real zero.
+       */
+      it("does not book a priceable provider's tokenless response as a priced zero", async () => {
+        makeAIRequestMock.mockResolvedValue({
+          content: [" over the lazy dog."],
+          model: "openrouter::meta-llama/llama-3.3-70b-instruct",
+          provider: "openrouter",
+          promptTokens: null,
+          completionTokens: null,
+        });
+        computeCostMock.mockReturnValue({
+          status: "ok",
+          estimatedCostUsd: 0,
+          pricePrompt: "0.0000009",
+          priceCompletion: "0.0000009",
+        });
+
+        await ask();
+
+        expect(usageStoreMock.recordUsage).toHaveBeenCalledWith(
+          { promptTokens: null, completionTokens: null, estimatedCostUsd: null },
+          expect.any(Date),
+        );
+      });
+
+      // Half the counts is still a price derived from a number the provider
+      // never sent, so the amount is no more knowable than the missing half.
+      it("does not book a priceable provider's half-reported response as priced", async () => {
+        makeAIRequestMock.mockResolvedValue({
+          content: [" over the lazy dog."],
+          model: "openrouter::meta-llama/llama-3.3-70b-instruct",
+          provider: "openrouter",
+          promptTokens: 100,
+          completionTokens: null,
+        });
+        computeCostMock.mockReturnValue({
+          status: "ok",
+          estimatedCostUsd: 0.00009,
+          pricePrompt: "0.0000009",
+          priceCompletion: "0.0000009",
+        });
+
+        await ask();
+
+        expect(usageStoreMock.recordUsage).toHaveBeenCalledWith(
+          expect.objectContaining({ estimatedCostUsd: null }),
+          expect.any(Date),
+        );
+      });
+
+      /**
+       * The other side of the same rule, and the reason it is keyed on
+       * `status` rather than on the missing tokens alone: Ollama and LM Studio
+       * report no tokens either, but `computeCost` short-circuits them to
+       * `status: "zero"` without multiplying anything, so their `$0` is a
+       * measurement. Reading it as N/A would be its own wrong answer.
+       */
+      it("still books a local provider's tokenless $0 as a real, priced zero", async () => {
+        makeAIRequestMock.mockResolvedValue({
+          content: [" over the lazy dog."],
+          model: "ollama::llama3.2",
+          provider: "ollama",
+          promptTokens: null,
+          completionTokens: null,
+        });
+        computeCostMock.mockReturnValue({
+          status: "zero",
+          estimatedCostUsd: 0,
+          pricePrompt: null,
+          priceCompletion: null,
+        });
+
+        await ask();
+
+        expect(usageStoreMock.recordUsage).toHaveBeenCalledWith(
+          expect.objectContaining({ estimatedCostUsd: 0 }),
+          expect.any(Date),
+        );
+      });
+    });
+
+    /**
+     * Ollama and LM Studio return no token counts at all. Dropping their usage
+     * row entirely went unnoticed: no test drove a null-token response, so
+     * every local-provider request recorded a dispatch and then silently lost
+     * its response — and with it the only evidence the request ever returned.
+     */
+    it("records usage for a response that reported no token counts", async () => {
+      makeAIRequestMock.mockResolvedValue({
+        content: [" over the lazy dog."],
+        model: "ollama::llama3.2",
+        provider: "ollama",
+        promptTokens: null,
+        completionTokens: null,
+      });
+      computeCostMock.mockReturnValue({
+        status: "zero",
+        estimatedCostUsd: 0,
+        pricePrompt: null,
+        priceCompletion: null,
+      });
+
+      await ask();
+
+      expect(usageStoreMock.recordUsage).toHaveBeenCalledWith(
+        // Null, not 0: the store counts the gap rather than averaging it away.
+        { promptTokens: null, completionTokens: null, estimatedCostUsd: 0 },
+        expect.any(Date),
       );
     });
 
@@ -344,11 +660,294 @@ describe("requestAutocompleteSuggestion", () => {
       expect(JSON.stringify(context)).not.toContain("quick brown fox");
     });
 
-    it("returns no suggestion and records nothing when the request fails", async () => {
+    // A request with no response has no usage to record. Writing zeroes would
+    // pad the token and spend figures with measurements that never happened.
+    it("returns no suggestion and records no usage when the request fails", async () => {
       makeAIRequestMock.mockRejectedValue(new Error("401 unauthorized"));
 
       expect((await ask()).suggestion).toBeNull();
-      expect(usageStoreMock.record).not.toHaveBeenCalled();
+      expect(usageStoreMock.recordUsage).not.toHaveBeenCalled();
+    });
+
+    it("records no usage for a request that was aborted mid-flight", async () => {
+      makeAIRequestMock.mockImplementation(
+        (options: { abortSignal: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            options.abortSignal.addEventListener("abort", () => {
+              const error = new Error("aborted");
+              error.name = "AbortError";
+              reject(error);
+            });
+          }),
+      );
+
+      const inFlightRequest = ask({ prefix: `${LONG_PREFIX} one` });
+      await waitForCalls(1);
+      abortAutocomplete("window-1");
+
+      expect((await inFlightRequest).suggestion).toBeNull();
+      expect(usageStoreMock.recordDispatch).toHaveBeenCalledOnce();
+      expect(usageStoreMock.recordUsage).not.toHaveBeenCalled();
+    });
+
+    /**
+     * A Bedrock `AccessDeniedException` states the AWS account id and the full
+     * IAM principal ARN in its message, and neither `SENSITIVE_KEY` nor
+     * `redactLogMessage` reduces either. Logged verbatim from a path that runs
+     * once per failing keystroke, that put account identifiers into
+     * userData/logs/*.jsonl hundreds of times, copyable and exportable from the
+     * Logs tab.
+     */
+    it("logs the failure's class, never the provider's message", async () => {
+      const denied = new Error(
+        "User: arn:aws:iam::123456789012:user/fixlang is not authorized to perform bedrock:InvokeModel",
+      );
+      denied.name = "AccessDeniedException";
+      makeAIRequestMock.mockRejectedValue(denied);
+
+      await ask();
+
+      const [, , context] = loggerMock.debug.mock.calls[0];
+      expect(context.errorName).toBe("AccessDeniedException");
+      const serialized = JSON.stringify(context);
+      expect(serialized).not.toContain("arn:aws:iam");
+      expect(serialized).not.toContain("123456789012");
+    });
+
+    it("keeps a numeric status when the provider supplies one", async () => {
+      const rejected = Object.assign(new Error("Rate limit reached for org-abc"), {
+        name: "RateLimitError",
+        status: 429,
+      });
+      makeAIRequestMock.mockRejectedValue(rejected);
+
+      await ask();
+
+      const [, , context] = loggerMock.debug.mock.calls[0];
+      expect(context).toMatchObject({ errorName: "RateLimitError", status: 429 });
+      expect(JSON.stringify(context)).not.toContain("org-abc");
+    });
+  });
+
+  /**
+   * Both halves of one request share the dispatching instant. Giving each its
+   * own `new Date()` booked a request dispatched at 23:59:59.9 and answered at
+   * 00:00:00.1 across two days: yesterday held a request with no spend, today
+   * held spend with no request, and `getMonth` counted one without the other
+   * across a month boundary.
+   */
+  describe("a request that crosses midnight", () => {
+    const lastMoment = new Date(2026, 6, 31, 23, 59, 59, 900);
+    const justAfter = new Date(2026, 7, 1, 0, 0, 0, 100);
+
+    it("books its dispatch and its usage on the same day", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      try {
+        vi.setSystemTime(lastMoment);
+        makeAIRequestMock.mockImplementation(() => {
+          vi.setSystemTime(justAfter);
+          return Promise.resolve({
+            content: [" over the lazy dog."],
+            model: "gpt-4o-mini",
+            provider: "openai",
+            promptTokens: 100,
+            completionTokens: 8,
+          });
+        });
+
+        await ask();
+
+        const [dispatchedAt] = usageStoreMock.recordDispatch.mock.calls[0] as [Date];
+        const [, recordedAt] = usageStoreMock.recordUsage.mock.calls[0] as [unknown, Date];
+        expect(dispatchedAt.getTime()).toBe(lastMoment.getTime());
+        expect(recordedAt.getTime()).toBe(dispatchedAt.getTime());
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("reads the cap against the same day it will write to", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      try {
+        vi.setSystemTime(lastMoment);
+
+        await ask();
+
+        const [readAt] = usageStoreMock.getDay.mock.calls[0] as [Date];
+        expect(readAt.getTime()).toBe(lastMoment.getTime());
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  /**
+   * `electron-store` writes synchronously, so a full disk or a locked config
+   * file throws straight out of these calls. Unguarded, the throw escaped
+   * `requestAutocompleteSuggestion`, crossed IPC as a rejected `invoke`, and
+   * reached the renderer as an unhandled rejection once per keystroke — where
+   * the honest outcome is simply no ghost text.
+   */
+  describe("when the usage store fails", () => {
+    const diskFull = () => {
+      throw new Error("ENOSPC: no space left on device");
+    };
+
+    it("resolves to no suggestion instead of rejecting when the counter cannot be written", async () => {
+      usageStoreMock.recordDispatch.mockImplementation(diskFull);
+
+      await expect(ask()).resolves.toEqual({ requestId: 1, suggestion: null });
+    });
+
+    /**
+     * An uncountable request is an uncappable one, and the cap is the only hard
+     * stop between a stuck loop and an overnight bill. Refusing to dispatch
+     * keeps "every dispatched request is counted" true rather than quietly
+     * spending under a counter that has stopped moving.
+     */
+    it("does not dispatch a request it could not count", async () => {
+      usageStoreMock.recordDispatch.mockImplementation(diskFull);
+
+      await ask();
+
+      expect(makeAIRequestMock).not.toHaveBeenCalled();
+      expect(loggerMock.warn).toHaveBeenCalled();
+    });
+
+    it("leaves the previous request in flight when it refuses to dispatch", async () => {
+      const signals = pendingRequests();
+      void ask({ prefix: `${LONG_PREFIX} one` });
+      await waitForCalls(1);
+      usageStoreMock.recordDispatch.mockImplementation(diskFull);
+
+      await ask({ prefix: `${LONG_PREFIX} two` });
+
+      expect(signals[0].aborted).toBe(false);
+    });
+
+    it("resolves to no suggestion instead of rejecting when the day cannot be read", async () => {
+      usageStoreMock.getDay.mockImplementation(diskFull);
+
+      await expect(ask()).resolves.toEqual({ requestId: 1, suggestion: null });
+      expect(makeAIRequestMock).not.toHaveBeenCalled();
+    });
+
+    // The suggestion is already in hand by then; throwing it away because a
+    // bookkeeping write failed would turn a full disk into no ghost text.
+    it("still returns the suggestion when only the usage write fails", async () => {
+      usageStoreMock.recordUsage.mockImplementation(diskFull);
+
+      await expect(ask()).resolves.toEqual({
+        requestId: 1,
+        suggestion: " over the lazy dog.",
+      });
+    });
+
+    /**
+     * Pricing the response reads a store too — `getCachedModels()` — and it sat
+     * OUTSIDE the guard that exists for exactly this. A throw there escaped
+     * into the caller's catch, so the suggestion already in hand was thrown
+     * away and, worse, the response that had arrived was never recorded: the
+     * rollup booked it as `responses: 0`, invisible to the counters whose whole
+     * job is to say how much of the day is known.
+     */
+    describe("when the price lookup fails", () => {
+      beforeEach(() => {
+        getCachedModelsMock.mockImplementation(diskFull);
+      });
+
+      it("still records the response, with no knowable price", async () => {
+        await ask();
+
+        expect(usageStoreMock.recordUsage).toHaveBeenCalledWith(
+          // Not a priced zero: the cost is unknown, and the store counts it as
+          // an unpriced response rather than as `$0`.
+          { promptTokens: 100, completionTokens: 8, estimatedCostUsd: null },
+          expect.any(Date),
+        );
+      });
+
+      it("still returns the suggestion", async () => {
+        await expect(ask()).resolves.toEqual({
+          requestId: 1,
+          suggestion: " over the lazy dog.",
+        });
+      });
+
+      it("warns instead of rejecting", async () => {
+        await expect(ask()).resolves.toBeDefined();
+
+        expect(loggerMock.warn).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe("cache bounds", () => {
+    const start = new Date(2026, 6, 31, 12, 0, 0);
+
+    const askTwice = async (gapMs: number): Promise<void> => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      try {
+        vi.setSystemTime(start);
+        await ask();
+        vi.setSystemTime(new Date(start.getTime() + gapMs));
+        await ask({ requestId: 2 });
+      } finally {
+        vi.useRealTimers();
+      }
+    };
+
+    it("serves a repeat inside the TTL from cache", async () => {
+      await askTwice(CACHE_TTL_MS - 1_000);
+
+      expect(makeAIRequestMock).toHaveBeenCalledOnce();
+    });
+
+    // Stale text is worse than a second call: the suggestion would continue a
+    // document the user has since rewritten.
+    it("re-requests once the entry has expired", async () => {
+      await askTwice(CACHE_TTL_MS + 1_000);
+
+      expect(makeAIRequestMock).toHaveBeenCalledTimes(2);
+    });
+
+    /**
+     * The bound is what stops a long session's cache growing without limit.
+     * Eviction is oldest-first, so the very first prefix is the first to go.
+     */
+    it("evicts the oldest entry once the bound is passed", async () => {
+      const askFor = (prefix: string) =>
+        requestAutocompleteSuggestion({ requestId: 1, sessionId: "window-1", prefix });
+
+      await askFor(`${LONG_PREFIX} 0`);
+      for (let index = 1; index <= CACHE_MAX_ENTRIES; index += 1) {
+        await askFor(`${LONG_PREFIX} ${index}`);
+      }
+      const beforeRepeat = makeAIRequestMock.mock.calls.length;
+
+      await askFor(`${LONG_PREFIX} 0`);
+      await askFor(`${LONG_PREFIX} ${CACHE_MAX_ENTRIES}`);
+
+      // The oldest was evicted and must be fetched again; the newest is still
+      // cached, so it must not be.
+      expect(makeAIRequestMock.mock.calls.length).toBe(beforeRepeat + 1);
+    });
+  });
+
+  describe("de-duplication across the prompt window", () => {
+    /**
+     * `buildAutocompletePrompt` keeps only the last `PREFIX_WINDOW_CHARS`
+     * before the caret, so two prefixes differing only further back produce a
+     * byte-identical request. Keying the cache on the raw prefix made those a
+     * guaranteed miss — a fresh billed call per keystroke in a long document.
+     */
+    it("serves a prefix whose only difference is outside the prompt window from cache", async () => {
+      const window = "x".repeat(PREFIX_WINDOW_CHARS);
+
+      await ask({ prefix: `first paragraph ${window}` });
+      await ask({ requestId: 2, prefix: `second paragraph ${window}` });
+
+      expect(makeAIRequestMock).toHaveBeenCalledOnce();
     });
   });
 });

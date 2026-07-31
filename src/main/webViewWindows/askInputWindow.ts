@@ -48,6 +48,26 @@ const sendCurrentPayload = (): void => {
   inputWindow.webContents.send("ask-input-data", currentPayload);
 };
 
+/**
+ * Tells the renderer the current ask has been abandoned so it drops the typed
+ * question and any ghost suggestion still on screen or in flight.
+ *
+ * Needed because only ESC originates in the renderer: Cmd-W, the red X and a
+ * profile switch all reach `dismissAskInputWindow` from here with nothing sent
+ * back. The window is hidden rather than destroyed, so whatever it was showing
+ * survives — and `revealWindow` shows the reopened window right after pushing
+ * the new payload, giving the abandoned question and its ghost a frame to paint
+ * over a fresh, unrelated ask.
+ *
+ * Sent unconditionally on every dismissal, ESC included: the renderer's own
+ * reset is idempotent, and a send that is sometimes skipped is how three of
+ * four paths came to be missed in the first place.
+ */
+const notifyRendererDismissed = (): void => {
+  if (!inputWindow || inputWindow.isDestroyed()) return;
+  inputWindow.webContents.send("ask-input-dismissed");
+};
+
 const revealWindow = (): void => {
   if (!inputWindow || inputWindow.isDestroyed()) return;
   sendCurrentPayload();
@@ -118,9 +138,11 @@ const hideAskInputWindow = (): void => {
  * Runs the shared dismissal path for every way the Ask input window can be
  * abandoned without submitting — ESC (via `ask-input-cancel`), Cmd-W, and the
  * red X. All three are the same user intent and must produce the same
- * effect: `onCancel` fires exactly once and `currentHandlers` is cleared, so
- * the invoking flow is told the ask was abandoned and a later
- * `showAskInputWindow` never silently overwrites a still-live handler pair.
+ * effect: `onCancel` fires exactly once, `currentHandlers` is cleared, and the
+ * renderer is told (see {@link notifyRendererDismissed}) — so the invoking flow
+ * is told the ask was abandoned, a later `showAskInputWindow` never silently
+ * overwrites a still-live handler pair, and the hidden window holds no
+ * abandoned question or ghost suggestion to flash on the next open.
  * Reading-then-nulling `currentHandlers` up front makes a second dismissal
  * (e.g. a chrome close arriving after an already-processed cancel) a no-op
  * instead of a double `onCancel` call.
@@ -132,6 +154,7 @@ const hideAskInputWindow = (): void => {
 export const dismissAskInputWindow = (): void => {
   const handlers = currentHandlers;
   currentHandlers = null;
+  notifyRendererDismissed();
   hideAskInputWindow();
   handlers?.onCancel();
 };

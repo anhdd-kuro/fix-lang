@@ -1,3 +1,5 @@
+export * from "~/features/autocomplete/main/ipc";
+export * from "~/features/autocomplete/main/settings";
 export * from "~/features/providers/main/api";
 export * from "~/features/correction/main/correction";
 export * from "~/features/history/main/history";

@@ -26,6 +26,7 @@
   "notifications.profilesUpdated.title": "Profiles Updated",
   "notifications.settings.saved.body": "Your settings have been saved.",
   "notifications.settings.saved.title": "Settings Updated",
+  "notifications.window.askInput.acceptHint": "Tab to accept",
   "notifications.window.askInput.cancelHint": "Esc to close",
   "notifications.window.askInput.contextChip_one": "Context attached · {count} char",
   "notifications.window.askInput.contextChip_other": "Context attached · {count} chars",
