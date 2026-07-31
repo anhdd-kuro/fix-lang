@@ -4,7 +4,7 @@
 
 Local macOS menu-bar app: fixes grammar and improves writing on selected text via AI (OpenAI, OpenRouter, AWS Bedrock, Ollama, LM Studio). Electron + React + TypeScript, runs on **bun**.
 
-Current release: **v0.14.0**.
+Current release: **v0.15.0**.
 
 ## Main Features
 
@@ -23,6 +23,7 @@ What the user gets. Implementation traps for each area live under [Known Gotchas
 - **Usage** — account-level spend and token usage, one sub-tab per connected provider that has a billing API (OpenAI, OpenRouter). OpenAI reports tokens per model, spend per line item and spend per project — never a per-model dollar figure or a credit balance, because its API exposes neither.
 - **Tray popover** — Providers card (one tab per usage-capable connected provider: OpenRouter credit, OpenAI recent billed spend), language switch, output-mode switch, global model + reasoning-effort selectors, update check, dashboard opener.
 - **Logs** — structured, redacted JSONL under `userData/logs/{YYYY-MM-DD}/fixlang.jsonl`; Logs tab with multi-select level filter, search, copy/export, virtual infinite scroll, timezone stated once in the footer.
+- **Latency logging** — one `correction.latency` info line per hotkey press states what the user actually felt: `totalMs` from press to result in front of them (paste keystroke returned, or popup shown) plus a `phases` breakdown (`keystrokeSent`, `selectionPoll`, `aiRequest`, `delivery`) and an `outcome`. Every press that reaches the handler logs one line and never two: abort (`no-selection`) and failure (`failed`) paths finish the timer too, and the first `finish` wins so a throw *after* delivery cannot relabel a real `delivered` measurement. (A press swallowed by `withHotkeyThrottle` logs nothing — it never starts a timer.) **Phase names are a closed set (`LATENCY_PHASE_NAMES`) for a reason**: `redactLogContext` blanks any context key merely *containing* `clipboard`/`token`/`secret`/`selected_text`, so the obvious name `clipboardRead` persisted as `"[REDACTED]"` and destroyed the metric with no error — hence `selectionPoll`, and a test that runs every phase name through the real redactor. Post-delivery bookkeeping (cost, history write, IPC) sits outside the measurement — the user never waits for it. Ask AI is split in two, because the gap between its hotkey and its submit is the user typing: the hotkey press measures press → input window (`input-shown`), and `askFlow.ts` starts a fresh timer at submit (`Ask latency`).
 - **Hotkeys** — every transform preset hotkey plus PromptGen and profile-switch bindings are remappable; conflicts are refused before save, and a default-sourced binding yields to one the user already claimed.
 - **About** — two sub-tabs: **App updates** (version check + one-click Homebrew upgrade) and **User guide**, onboarding copy built from the user's REAL config (their presets, hotkeys, output mode, connected providers) with jump links into Settings and the dashboard tabs.
 - **Appearance & language** — 149 terminal-inspired themes; English and Japanese, switchable without restart.
