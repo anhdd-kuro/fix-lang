@@ -58,11 +58,23 @@ export type AutocompleteUsageDelta = {
 };
 
 class AutocompleteUsageStore {
-  private readonly store = new Store<AutocompleteUsageSchema>({
-    name: "autocompleteUsage",
-    defaults: { days: {} },
-    clearInvalidConfig: true,
-  });
+  private backing: Store<AutocompleteUsageSchema> | null = null;
+
+  /**
+   * Constructed on first use, not at import time. `electron-store` resolves
+   * `app.getPath` in its constructor, so building it eagerly would make merely
+   * *importing* anything downstream of this module require a running Electron —
+   * which is how `profileChange` ended up dragging Electron into unit tests that
+   * never touch usage at all.
+   */
+  private get store(): Store<AutocompleteUsageSchema> {
+    this.backing ??= new Store<AutocompleteUsageSchema>({
+      name: "autocompleteUsage",
+      defaults: { days: {} },
+      clearInvalidConfig: true,
+    });
+    return this.backing;
+  }
 
   private readDays(): Record<string, AutocompleteDayRollup> {
     const raw = this.store.get("days", {});

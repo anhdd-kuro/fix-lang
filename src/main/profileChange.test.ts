@@ -20,6 +20,10 @@ vi.mock("./webViewWindows/broadcast", () => ({
 vi.mock("./webViewWindows/askInputWindow", () => ({
   dismissAskInputWindow: vi.fn(),
 }));
+vi.mock("~/features/autocomplete/main/service", () => ({
+  abortAutocomplete: vi.fn(),
+}));
+import { abortAutocomplete } from "~/features/autocomplete/main/service";
 import { ACTIVE_PROFILE_CHANGED } from "~/features/core/shared/ipcChannels";
 import { notifyActiveProfileChanged } from "./profileChange";
 import { dismissAskInputWindow } from "./webViewWindows/askInputWindow";
@@ -94,5 +98,26 @@ describe("every profile activation site goes through the chokepoint", () => {
     }
 
     expect(offenders).toEqual([]);
+  });
+});
+
+// An in-flight suggestion outlives the profile the same way a pending Ask
+// input does: resolved after the switch, it carries profile A's model into a
+// window now scoped to B.
+describe("notifyActiveProfileChanged — autocomplete", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("aborts every in-flight suggestion", () => {
+    notifyActiveProfileChanged();
+
+    expect(abortAutocomplete).toHaveBeenCalledOnce();
+  });
+
+  it("aborts across all surfaces, not just one", () => {
+    notifyActiveProfileChanged();
+
+    expect(abortAutocomplete).toHaveBeenCalledWith();
   });
 });
