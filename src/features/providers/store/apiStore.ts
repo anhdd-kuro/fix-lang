@@ -5,6 +5,11 @@
 import Store from "electron-store";
 import { DEFAULT_LANGUAGE, resolveDefaultModel } from "~/const";
 import {
+  AUTOCOMPLETE_INHERIT_ASK_MODEL,
+  normalizeAutocompleteSettings,
+  type AutocompleteSettings,
+} from "~/features/autocomplete/shared/autocompleteSettings";
+import {
   DEFAULT_REASONING_EFFORT,
   sanitizeReasoningEffort,
   type ReasoningEffort,
@@ -179,6 +184,13 @@ export type SettingsStore = {
     autoCopy: boolean;
     model: string;
   };
+  /**
+   * Profile-scoped, not global: a model ref names a provider, and providers are
+   * connected per profile. A global ref could point at a provider the active
+   * profile never connected, so `resolveModelRef` would return null and every
+   * keystroke would fail.
+   */
+  settingsAutocomplete: AutocompleteSettings;
 
   // Profiles
   profiles: Profile[];
@@ -736,6 +748,22 @@ export const apiStoreSchema = {
                 model: "",
               },
             },
+            settingsAutocomplete: {
+              type: "object",
+              properties: {
+                // NEVER an ajv `enum` or `required` here — same reason spelled
+                // out on `enabledProviders` and `outputMode`: this store runs
+                // `clearInvalidConfig: true`, so ONE stored value failing
+                // validation wipes every profile, preset and key reference.
+                enabled: { type: "boolean", default: true },
+                model: { type: "string", default: "" },
+              },
+              // Belt and braces for the whole-node-absent case only.
+              // `useDefaults` injects an *object* default, so a stored object
+              // missing just `enabled` never receives it — that case is carried
+              // by `normalizeAutocompleteSettings`, which is the load-bearing one.
+              default: { enabled: true, model: "" },
+            },
           },
         },
       },
@@ -800,7 +828,7 @@ export const getDefaultModelId = (): string => {
 export type ClearedModelRefs = {
   selectedModel: boolean;
   presetIds: string[];
-  features: ("promptGen" | "summarize")[];
+  features: ("promptGen" | "summarize" | "autocomplete")[];
 };
 
 const NO_CLEARED_REFS: ClearedModelRefs = {
@@ -922,11 +950,15 @@ export const disconnectProviderFromProfile = (
     return { ...preset, model: INHERIT_GLOBAL_MODEL };
   });
 
-  const clearedFeatures: ("promptGen" | "summarize")[] = [];
+  const clearedFeatures: ("promptGen" | "summarize" | "autocomplete")[] = [];
   const promptGenModel = settings.settingsPromptGen?.model ?? "";
   const summarizeModel = settings.settingsSummarize?.model ?? "";
+  const autocompleteModel = settings.settingsAutocomplete?.model ?? "";
   if (refBelongsToProvider(promptGenModel, provider)) clearedFeatures.push("promptGen");
   if (refBelongsToProvider(summarizeModel, provider)) clearedFeatures.push("summarize");
+  // Without this the feature keeps firing at a provider whose key is gone —
+  // one failed request per keystroke rather than a single visible error.
+  if (refBelongsToProvider(autocompleteModel, provider)) clearedFeatures.push("autocomplete");
 
   const clearedSelectedModel = refBelongsToProvider(
     settings.selectedModel ?? "",
@@ -958,6 +990,12 @@ export const disconnectProviderFromProfile = (
       model: clearedFeatures.includes("summarize")
         ? INHERIT_GLOBAL_MODEL
         : summarizeModel,
+    },
+    settingsAutocomplete: {
+      ...normalizeAutocompleteSettings(settings.settingsAutocomplete),
+      model: clearedFeatures.includes("autocomplete")
+        ? AUTOCOMPLETE_INHERIT_ASK_MODEL
+        : autocompleteModel,
     },
   });
 
@@ -1130,6 +1168,12 @@ export const getProfileSetting = <K extends keyof SettingsStore>(
     return sanitizeOpenAIProjectId(settings.openaiProjectId) as SettingsStore[K];
   }
 
+  // Reading through the normalizer is what turns the feature on for a profile
+  // that predates it: the stored node is absent, and absent reads as enabled.
+  if (settingType === "settingsAutocomplete") {
+    return normalizeAutocompleteSettings(settings.settingsAutocomplete) as SettingsStore[K];
+  }
+
   return settings[settingType];
 };
 
@@ -1182,7 +1226,9 @@ export const updateProfileSetting = <K extends keyof SettingsStore>(
             ? // "" rather than undefined: the schema types this as a string, and a
               // deleted key would read back as the ajv default anyway.
               ((sanitizeOpenAIProjectId(value) ?? "") as SettingsStore[K])
-            : value;
+            : settingType === "settingsAutocomplete"
+              ? (normalizeAutocompleteSettings(value) as SettingsStore[K])
+              : value;
 
     const currentProfileId = apiStore.get("currentProfileId", "");
 
@@ -1265,6 +1311,7 @@ const buildDefaultProfileSettings = (): SettingsStore =>
       autoCopy: false,
       model: "",
     },
+    settingsAutocomplete: { enabled: true, model: AUTOCOMPLETE_INHERIT_ASK_MODEL },
   }) as SettingsStore;
 
 /**
@@ -1375,6 +1422,12 @@ export const toExportableProfile = (profile: Profile): Profile => {
       settingsSummarize: {
         ...settings.settingsSummarize,
         model: INHERIT_GLOBAL_MODEL,
+      },
+      // The ref is per-machine model state; `enabled` is a genuine preference
+      // and travels with the profile.
+      settingsAutocomplete: {
+        ...normalizeAutocompleteSettings(settings.settingsAutocomplete),
+        model: AUTOCOMPLETE_INHERIT_ASK_MODEL,
       },
     },
   } as Profile;

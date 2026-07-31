@@ -468,6 +468,53 @@ describe("the profile-bound variants write to the id they are handed, not the ac
     expect(getProfiles()[1].settings.models).toEqual([openAIModel]);
   });
 
+  // Without this the feature keeps firing at a provider whose key is gone —
+  // one failed request per keystroke rather than one visible error.
+  it("clears the autocomplete model ref when its provider is disconnected", () => {
+    seedProfiles(
+      [
+        buildProfile({
+          id: "profile_1",
+          settings: buildSettings({
+            enabledProviders: ["openai", "openrouter"],
+            models: [openAIModel],
+            settingsAutocomplete: { enabled: true, model: "openai::gpt-4o" },
+          }),
+        }),
+      ],
+      "profile_1",
+    );
+
+    const result = disconnectProviderFromProfile("profile_1", "openai");
+
+    expect(getProfiles()[0].settings.settingsAutocomplete.model).toBe("");
+    // The warning has to be able to name it, or the user is never told.
+    expect(result?.cleared.features).toContain("autocomplete");
+    // Disconnecting a provider is not a request to turn the feature off.
+    expect(getProfiles()[0].settings.settingsAutocomplete.enabled).toBe(true);
+  });
+
+  it("leaves an autocomplete ref belonging to another provider alone", () => {
+    seedProfiles(
+      [
+        buildProfile({
+          id: "profile_1",
+          settings: buildSettings({
+            enabledProviders: ["openai", "openrouter"],
+            models: [openAIModel],
+            settingsAutocomplete: { enabled: true, model: "openrouter::llama" },
+          }),
+        }),
+      ],
+      "profile_1",
+    );
+
+    const result = disconnectProviderFromProfile("profile_1", "openai");
+
+    expect(getProfiles()[0].settings.settingsAutocomplete.model).toBe("openrouter::llama");
+    expect(result?.cleared.features).not.toContain("autocomplete");
+  });
+
   it("clears the OpenAI project id on disconnect, and only for OpenAI", () => {
     seedProfiles(
       [
@@ -850,6 +897,16 @@ describe("apiStoreSchema — settingsCorrect default carries all seven built-in 
 // no `required` entry and no new property changed. `default` nodes are
 // consulted only when a profile stores no presets at all, so no existing
 // user's config is touched or invalidated.
+// Updated again for `settingsAutocomplete`. Also purely additive, and also
+// verified rather than assumed: deleting that one node from the serialised
+// schema reproduces the previous snapshot
+// `5fc69f499f3d9241d13443a02129fd5ecc93b724ae8462234b35276c6d784092` exactly,
+// the key occurs exactly once, and the node declares no `required` entry and no
+// `enum` — the latter deliberately, because `clearInvalidConfig: true` means one
+// stored value failing validation would wipe every profile, preset and key
+// reference. Existing configs are untouched: the node's `default` is consulted
+// only when a profile stores nothing under it, and reads route through
+// `normalizeAutocompleteSettings`, which treats absent as enabled.
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
@@ -858,7 +915,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "5fc69f499f3d9241d13443a02129fd5ecc93b724ae8462234b35276c6d784092",
+      "a52a0b60f23b3ef2a9db4429bf6f2494d2be6d71f5322ae0f27cb4f81144bf25",
     );
   });
 });
@@ -1082,6 +1139,7 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
           model: "openai::gpt-4o",
           targetLanguage: "ja",
         },
+        settingsAutocomplete: { enabled: false, model: "openai::gpt-4o" },
       }),
     });
 
@@ -1099,6 +1157,9 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
     ).toBe(true);
     expect(result.settings.settingsPromptGen.model).toBe("");
     expect(result.settings.settingsSummarize.model).toBe("");
+    expect(result.settings.settingsAutocomplete.model).toBe("");
+    // `enabled` is a genuine preference, not machine state — it must survive.
+    expect(result.settings.settingsAutocomplete.enabled).toBe(false);
   });
 
   it("keeps every non-model setting, so an export is still a usable profile", () => {
@@ -1138,6 +1199,9 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
     expect(secretsOnly.settings.settingsSummarize.model).not.toEqual(
       exportable.settings.settingsSummarize.model,
     );
+    expect(secretsOnly.settings.settingsAutocomplete.model).not.toEqual(
+      exportable.settings.settingsAutocomplete.model,
+    );
 
     // …and nothing else.
     const blanked = {
@@ -1158,6 +1222,7 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
         },
         settingsPromptGen: { ...secretsOnly.settings.settingsPromptGen, model: "" },
         settingsSummarize: { ...secretsOnly.settings.settingsSummarize, model: "" },
+        settingsAutocomplete: { ...secretsOnly.settings.settingsAutocomplete, model: "" },
       },
     };
     expect(exportable).toEqual(blanked);
@@ -1451,3 +1516,4 @@ describe("resolveDefaultOpenAIModel — legacy delegate stays byte-for-byte comp
     expect(resolveDefaultOpenAIModel([])).toBe("openai/gpt-4.1-mini");
   });
 });
+
