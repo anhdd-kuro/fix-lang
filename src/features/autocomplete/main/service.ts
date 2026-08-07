@@ -32,7 +32,11 @@ import { createHash } from "node:crypto";
 import { resolveAutocompleteModelRef } from "~/features/autocomplete/shared/autocompleteModel";
 import { MIN_PREFIX_CHARS } from "~/features/autocomplete/shared/autocompleteWire";
 import { autocompleteUsageStore } from "~/features/autocomplete/store/autocompleteUsageStore";
-import { getDefaultModelId, getProfileSetting } from "~/features/providers/store/apiStore";
+import {
+  getCurrentProfileId,
+  getDefaultModelId,
+  getProfileSetting,
+} from "~/features/providers/store/apiStore";
 import { logger } from "~/main/logging/logService";
 import { DEFAULT_ASK_PRESET_ID } from "~/prompts";
 import { buildAutocompletePrompt } from "./prompt";
@@ -83,6 +87,40 @@ const cache = new Map<string, CacheEntry>();
 let capWarnedForDay = "";
 
 /**
+ * Which BACKEND a suggestion came from, so a cached one is never replayed
+ * against a different one: the active profile id plus every configured provider
+ * endpoint.
+ *
+ * A model ref does not identify a backend. Two profiles both set to
+ * `ollama::llama3.2` can point `providerEndpoints.ollama.host` at different
+ * machines — different weights, different quantization, a different system
+ * entirely — and for Bedrock the endpoint IS the AWS region. None of that
+ * reached the key, so within `CACHE_TTL_MS` of a profile switch the new profile
+ * was served text its own backend never generated.
+ *
+ * Two vectors, one key. A PROFILE SWITCH changes the profile id; EDITING the
+ * active provider's endpoint changes the fingerprint with no switch involved.
+ * Clearing the cache at profile activation would close only the first —
+ * `profileChange.ts` never runs for a settings edit — and would leave the
+ * closure depending on a future activation site remembering the funnel.
+ *
+ * The WHOLE endpoint map, not just the ref's own provider: a bare (unprefixed)
+ * ref names no provider to look up. Over-invalidating costs a few extra requests
+ * right after a settings edit; under-invalidating hands the user a suggestion
+ * from a backend they have already left.
+ */
+const backendIdentity = (): string => {
+  const endpoints = getProfileSetting("providerEndpoints") ?? {};
+  const fingerprint = Object.entries(endpoints)
+    // Sorted: persisted key order is whatever the last writer left, and a
+    // reordered map is still the same backend.
+    .sort(([left], [right]) => (left < right ? -1 : 1))
+    .map(([provider, endpoint]) => `${provider}=${endpoint?.host ?? ""}:${endpoint?.port ?? ""}`)
+    .join(",");
+  return `${getCurrentProfileId()}|${fingerprint}`;
+};
+
+/**
  * Keyed on the WINDOWED prompt, never on the raw prefix.
  *
  * `buildAutocompletePrompt` keeps only `PREFIX_WINDOW_CHARS` before the caret,
@@ -91,14 +129,17 @@ let capWarnedForDay = "";
  * fresh billed call on each keystroke in a long document — and ran sha256 over
  * the whole document on the main process to reach that wrong answer.
  *
+ * `backend` is `backendIdentity()`, passed in rather than read here so this stays
+ * a pure function of its arguments.
+ *
  * The `\0` field delimiter is written as an ESCAPE, never as a raw 0x00 byte in
  * the source. One raw NUL makes this module binary to git: `git diff` renders
  * the whole file as `Bin`, so no reviewer, PR or release diff can read a change
  * to the feature's cost-control logic, and string-matching edit tools stop
  * matching around the line. The hashed string is identical either way.
  */
-const cacheKey = (userPrompt: string, modelRef: string): string =>
-  createHash("sha256").update(`${modelRef}\0${userPrompt}`).digest("hex");
+const cacheKey = (userPrompt: string, modelRef: string, backend: string): string =>
+  createHash("sha256").update(`${backend}\0${modelRef}\0${userPrompt}`).digest("hex");
 
 const readCache = (key: string, now: number): CacheEntry | undefined => {
   const entry = cache.get(key);
@@ -262,9 +303,22 @@ export const requestAutocompleteSuggestion = async (
 
   const startedAt = now.getTime();
   const { systemPrompt, userPrompt } = buildAutocompletePrompt({ prefix, suffix });
-  const key = cacheKey(userPrompt, modelRef);
+  const key = cacheKey(userPrompt, modelRef, backendIdentity());
   const cached = readCache(key, startedAt);
   if (cached) {
+    // Aborts BEFORE returning, unlike the `countDispatch` refusal below.
+    //
+    // A cache hit means the user has a suggestion in hand right now, so anything
+    // still in flight for this surface is answering text they have already moved
+    // past — and the provider keeps billing that request until it is cancelled.
+    // Editing back to a recently cached prefix (backspace-and-retype is the
+    // whole reason the cache exists) therefore used to leave an obsolete request
+    // running to completion, paid for, and its reply discarded as stale.
+    //
+    // The refusal below returns WITHOUT aborting for the opposite reason: it has
+    // no suggestion to offer, so killing the in-flight request would make room
+    // for one that is never sent.
+    abortAutocomplete(sessionId);
     return { requestId, suggestion: cached.suggestion };
   }
 

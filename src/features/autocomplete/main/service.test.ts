@@ -17,6 +17,7 @@ const {
   computeCostMock,
   getProfileSettingMock,
   getDefaultModelIdMock,
+  getCurrentProfileIdMock,
   usageStoreMock,
   loggerMock,
 } = vi.hoisted(() => ({
@@ -27,6 +28,7 @@ const {
   computeCostMock: vi.fn(),
   getProfileSettingMock: vi.fn(),
   getDefaultModelIdMock: vi.fn(),
+  getCurrentProfileIdMock: vi.fn(),
   usageStoreMock: {
     recordDispatch: vi.fn(),
     recordUsage: vi.fn(),
@@ -47,6 +49,7 @@ vi.mock("~/main/ai.request/cost", () => ({
 vi.mock("~/features/providers/store/apiStore", () => ({
   getProfileSetting: getProfileSettingMock,
   getDefaultModelId: getDefaultModelIdMock,
+  getCurrentProfileId: getCurrentProfileIdMock,
 }));
 vi.mock("~/features/autocomplete/store/autocompleteUsageStore", () => ({
   autocompleteUsageStore: usageStoreMock,
@@ -86,6 +89,13 @@ const respondWith = (text: string) =>
  */
 let dayRequests = 0;
 
+/**
+ * The active BACKEND, as the cache key must see it. A profile switch moves the
+ * first; editing a local provider's host moves the second without any switch.
+ */
+let currentProfileId = "profile-a";
+let providerEndpoints: Record<string, { host: string; port: number }> = {};
+
 /** Leaves every request in flight so it can be superseded and aborted. */
 const pendingRequests = (): AbortSignal[] => {
   const signals: AbortSignal[] = [];
@@ -102,11 +112,15 @@ describe("requestAutocompleteSuggestion", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetAutocompleteState();
+    currentProfileId = "profile-a";
+    providerEndpoints = {};
     getProfileSettingMock.mockImplementation((key: string) => {
       if (key === "settingsAutocomplete") return { enabled: true, model: "openai::gpt-4o-mini" };
       if (key === "settingsCorrect") return { presets: [], selectedPresetId: "" };
+      if (key === "providerEndpoints") return providerEndpoints;
       return undefined;
     });
+    getCurrentProfileIdMock.mockImplementation(() => currentProfileId);
     getDefaultModelIdMock.mockReturnValue("openai::gpt-4o");
     dayRequests = 0;
     usageStoreMock.recordDispatch.mockImplementation(() => {
@@ -365,6 +379,49 @@ describe("requestAutocompleteSuggestion", () => {
       abortAutocomplete();
 
       expect(signals.every((signal) => signal.aborted)).toBe(true);
+    });
+
+    /**
+     * THE ROUTE: the cache hit's early `return`, which used to sit ABOVE
+     * `abortAutocomplete(sessionId)`.
+     *
+     * Named after the route rather than the symptom on purpose. "A request kept
+     * billing after it was obsolete" has now arrived by several different paths,
+     * and every fix that closed only the path it was reported on let the next one
+     * through — so what is pinned here is which line the return jumps over.
+     *
+     * Backspace-and-retype is the motion `CACHE_TTL_MS` exists to serve, so this
+     * is the ordinary case: the user edits back to a prefix answered seconds ago
+     * while the request for the prefix they just left is still open. Returning
+     * the cached suggestion first left that request to run to completion, billed
+     * in full, its reply then discarded as stale.
+     */
+    it("aborts the request still in flight when it serves a cache hit", async () => {
+      // The first answer has to actually land, so there is something cached.
+      await ask({ prefix: `${LONG_PREFIX} one` });
+      const signals = pending();
+      void ask({ prefix: `${LONG_PREFIX} two` });
+      await waitForCalls(2);
+
+      const fromCache = await ask({ requestId: 3, prefix: `${LONG_PREFIX} one` });
+
+      expect(fromCache).toEqual({ requestId: 3, suggestion: " over the lazy dog." });
+      // No new call — it really was a cache hit, not a re-request.
+      expect(makeAIRequestMock).toHaveBeenCalledTimes(2);
+      expect(signals[0].aborted).toBe(true);
+    });
+
+    // Scoped like every other abort here: one surface's cache hit says nothing
+    // about what another typing surface is still waiting for.
+    it("leaves another surface's request alone when it serves a cache hit", async () => {
+      await ask({ prefix: `${LONG_PREFIX} one`, sessionId: "window-1" });
+      const signals = pending();
+      void ask({ prefix: `${LONG_PREFIX} two`, sessionId: "window-2" });
+      await waitForCalls(2);
+
+      await ask({ requestId: 3, prefix: `${LONG_PREFIX} one`, sessionId: "window-1" });
+
+      expect(signals[0].aborted).toBe(false);
     });
   });
 
@@ -931,6 +988,71 @@ describe("requestAutocompleteSuggestion", () => {
       // The oldest was evicted and must be fetched again; the newest is still
       // cached, so it must not be.
       expect(makeAIRequestMock.mock.calls.length).toBe(beforeRepeat + 1);
+    });
+  });
+
+  /**
+   * A cached suggestion belongs to the BACKEND that generated it, and the model
+   * ref does not identify one. Two profiles both set to `ollama::llama3.2` can
+   * point `providerEndpoints.ollama.host` at different machines — different
+   * weights, a different system — and for Bedrock the endpoint IS the AWS
+   * region. With neither the profile id nor the endpoint in the key, anything
+   * cached in the last `CACHE_TTL_MS` was replayed across the change.
+   *
+   * Two vectors, and the key covers both: switching profile, and editing the
+   * active provider's endpoint without switching at all. Clearing the cache in
+   * `profileChange.ts` would close only the first — that funnel never runs for a
+   * settings edit.
+   */
+  describe("cache scoping to the active backend", () => {
+    it("does not serve one profile's suggestion to another", async () => {
+      await ask();
+      currentProfileId = "profile-b";
+
+      await ask({ requestId: 2 });
+
+      expect(makeAIRequestMock).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+      ["host", { host: "192.168.1.50", port: 11434 }],
+      ["port", { host: "127.0.0.1", port: 11435 }],
+    ])(
+      "does not serve a suggestion from the %s the user just edited away from",
+      async (_field, edited) => {
+        providerEndpoints = { ollama: { host: "127.0.0.1", port: 11434 } };
+        await ask();
+        // No profile switch — the same profile, pointed somewhere else.
+        providerEndpoints = { ollama: edited };
+
+        await ask({ requestId: 2 });
+
+        expect(makeAIRequestMock).toHaveBeenCalledTimes(2);
+      },
+    );
+
+    // The cache still has to work, or the fix is just a cost regression.
+    it("still serves the same backend's own repeat from cache", async () => {
+      providerEndpoints = { ollama: { host: "127.0.0.1", port: 11434 } };
+      await ask();
+
+      await ask({ requestId: 2 });
+
+      expect(makeAIRequestMock).toHaveBeenCalledOnce();
+    });
+
+    // Persisted key order is whatever the last writer left, so a reordered map
+    // describes the same backend and must not cost a fresh billed call.
+    it("treats a reordered endpoint map as the same backend", async () => {
+      const ollama = { host: "127.0.0.1", port: 11434 };
+      const lmstudio = { host: "127.0.0.1", port: 1234 };
+      providerEndpoints = { ollama, lmstudio };
+      await ask();
+      providerEndpoints = { lmstudio, ollama };
+
+      await ask({ requestId: 2 });
+
+      expect(makeAIRequestMock).toHaveBeenCalledOnce();
     });
   });
 

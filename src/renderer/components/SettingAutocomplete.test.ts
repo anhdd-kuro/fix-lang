@@ -95,6 +95,7 @@ const baseElectronAPI = (
   setAutocompleteSettings: vi.fn().mockResolvedValue({ success: true }),
   getAutocompleteUsage: vi.fn().mockResolvedValue(usageSnapshot()),
   onSettingsUpdated: vi.fn().mockReturnValue(vi.fn()),
+  onActiveProfileChanged: vi.fn().mockReturnValue(vi.fn()),
   fetchAIModels: vi.fn().mockResolvedValue({ success: true, models: [MODEL] }),
   getProviderStates: vi.fn().mockResolvedValue(CONNECTED_OPENAI),
   getSelectedModel: vi.fn().mockResolvedValue(""),
@@ -205,6 +206,53 @@ describe("SettingAutocomplete", () => {
       enabled: true,
       model: "openai::gpt-5-mini",
     });
+  });
+
+  // A profile switch broadcasts `active-profile-changed`, not
+  // `settings-updated` (`notifyActiveProfileChanged` in
+  // `~/main/profileChange.ts`), and `settingsAutocomplete` is a per-profile
+  // setting. Left unhandled, a Settings window open across a profile switch
+  // keeps showing the OLD profile's enabled/model values, and the next
+  // toggle or model pick would write that stale state into the newly active
+  // profile.
+  it("reloads settings on an active-profile-changed broadcast, not just settings-updated", async () => {
+    let profileListener: (() => void) | undefined;
+    const getAutocompleteSettings = vi
+      .fn()
+      .mockResolvedValueOnce({ enabled: true, model: "" });
+    await mount(
+      baseElectronAPI({
+        getAutocompleteSettings,
+        onActiveProfileChanged: vi.fn((callback: () => void) => {
+          profileListener = callback;
+          return vi.fn();
+        }),
+      }),
+    );
+
+    expect(checkbox()?.checked).toBe(true);
+    expect(container.textContent).toContain(
+      tEn("settings.autocomplete.model.sameAsAskAI"),
+    );
+
+    if (!profileListener) {
+      throw new Error("onActiveProfileChanged was not subscribed");
+    }
+    // The newly active profile has autocomplete off and a real model chosen.
+    getAutocompleteSettings.mockResolvedValueOnce({
+      enabled: false,
+      model: "openai::gpt-5-mini",
+    });
+    await act(async () => {
+      profileListener?.();
+    });
+    await settleUi();
+
+    expect(getAutocompleteSettings).toHaveBeenCalledTimes(2);
+    expect(checkbox()?.checked).toBe(false);
+    expect(container.textContent).not.toContain(
+      tEn("settings.autocomplete.model.sameAsAskAI"),
+    );
   });
 
   it('shows "Same as Ask AI" for the empty inherit sentinel instead of a blank picker', async () => {

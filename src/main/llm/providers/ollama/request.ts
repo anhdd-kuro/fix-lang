@@ -11,6 +11,27 @@ import { notifyRequestError } from "~/main/notifications/error";
 import { createOllamaClient } from "./client";
 import type { AIRequestOptions } from "~/main/ai.request/requestTypes";
 
+/**
+ * One token count off the daemon's chat response, or `null` for "it did not say".
+ *
+ * NEVER `0` as the missing value. `0` is a MEASUREMENT everywhere downstream:
+ * `recordUsage` (`~/features/autocomplete/store/autocompleteUsageStore`) and
+ * `resolveResponseCostUsd` (`~/features/autocomplete/main/service`) both decide
+ * "the provider did not tell us" with `=== null`, so a zero booked every Ollama
+ * response as fully measured — `tokenlessResponses` stayed 0 and the day
+ * reported a measured zero-token total where the truth was unknown. Same rule
+ * `sumTokenField` states for every other provider.
+ *
+ * A REPORTED zero is left as zero: Ollama serves a fully cached prompt with
+ * `prompt_eval_count: 0`, and that one really is a measurement.
+ *
+ * The daemon is an external boundary, so the field is validated rather than
+ * trusted. The `ollama` package types both counts as a required `number`, but an
+ * older daemon or a proxy in front of it can omit them.
+ */
+const tokenCount = (raw: unknown): number | null =>
+  typeof raw === "number" && Number.isFinite(raw) ? raw : null;
+
 export const makeLocalAIRequest = async (options: AIRequestOptions) => {
   const modelId = options.model as string;
 
@@ -74,6 +95,19 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
     );
     const abortClient = () => client.abort();
     options.abortSignal?.addEventListener("abort", abortClient, { once: true });
+    // A signal that fired BEFORE this point never reaches the listener above:
+    // `addEventListener` does not replay an event that has already dispatched.
+    // The window is real and routinely hit — a superseded autocomplete keystroke
+    // or a profile switch aborts while the lazy provider import is still
+    // resolving — and without this the call still started, so the cancellation
+    // saved nothing and a machine already busy ran one more stale inference.
+    //
+    // `throwIfAborted()` throws the signal's own reason, which for the bare
+    // `controller.abort()` every caller here uses is the same
+    // `AbortError`-named DOMException an abort DURING the call produces. The
+    // caller therefore cannot tell the two apart, and `isAbortError`
+    // (`~/main/notifications/error`) keeps both silent.
+    options.abortSignal?.throwIfAborted();
     const response = await client
       .chat({
         messages: serializedMessages,
@@ -101,8 +135,10 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
     return {
       content: [text],
       prompts: [text], // For compatibility with existing code
-      promptTokens: 0, // Local models don't provide token information
-      completionTokens: 0,
+      // Ollama DOES report usage — the previous `0` sat under a comment
+      // claiming otherwise. See `tokenCount` for why the fallback is `null`.
+      promptTokens: tokenCount(response.prompt_eval_count),
+      completionTokens: tokenCount(response.eval_count),
       model: modelId,
       provider: "ollama" as const,
       // Local models have no alias indirection — served id == requested id.

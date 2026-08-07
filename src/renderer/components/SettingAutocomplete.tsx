@@ -112,11 +112,29 @@ export const SettingAutocomplete: React.FC = () => {
   // Cross-window sync, matching ModelSelect/SettingCorrection: another
   // window's profile switch or settings change must not leave this card
   // showing a stale enabled/model value.
+  //
+  // Profile switches broadcast `active-profile-changed`, not
+  // `settings-updated` (see `notifyActiveProfileChanged` in
+  // `~/main/profileChange.ts`), and `settingsAutocomplete` is a per-profile
+  // setting (`getProfileSetting`/`updateProfileSetting` in
+  // `settings.ts`) — so without this second subscription, switching profiles
+  // with Settings left open keeps showing the OLD profile's enabled/model
+  // values, and the next toggle or model pick writes that stale state into
+  // the newly active profile. Usage is deliberately NOT reloaded here:
+  // `autocompleteUsageStore` is a single global electron-store keyed only by
+  // date, with no profile id anywhere in its schema or writes, so a profile
+  // switch can never change what `getAutocompleteUsage` returns.
   useEffect(() => {
-    const off = window.electronAPI.onSettingsUpdated?.(() => {
+    const offActiveProfile = window.electronAPI.onActiveProfileChanged?.(() => {
       loadSettings();
     });
-    return () => off?.();
+    const offSettings = window.electronAPI.onSettingsUpdated?.(() => {
+      loadSettings();
+    });
+    return () => {
+      offActiveProfile?.();
+      offSettings?.();
+    };
   }, [loadSettings]);
 
   /**
