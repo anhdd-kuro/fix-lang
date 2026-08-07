@@ -23,6 +23,20 @@ vi.mock("./attachThemeSync", () => ({
   attachThemeSync: vi.fn(),
 }));
 
+const autocompleteServiceMocks = vi.hoisted(() => ({
+  abortAutocomplete: vi.fn(),
+}));
+
+vi.mock("~/features/autocomplete/main/service", () => ({
+  abortAutocomplete: autocompleteServiceMocks.abortAutocomplete,
+}));
+
+// A fixed, distinguishable id so assertions can pin the exact string
+// `dismissAskInputWindow` must pass to `abortAutocomplete` — the same
+// `String(webContents.id)` shape `autocomplete-suggest`'s handler derives
+// from `event.sender.id`.
+const WEB_CONTENTS_ID = 7;
+
 class BrowserWindowMock {
   setTitle = vi.fn();
   setVisibleOnAllWorkspaces = vi.fn();
@@ -35,7 +49,7 @@ class BrowserWindowMock {
   focus = vi.fn();
   loadFile = vi.fn();
   setPosition = vi.fn();
-  webContents = { send: vi.fn(), on: vi.fn() };
+  webContents = { id: WEB_CONTENTS_ID, send: vi.fn(), on: vi.fn() };
 }
 
 let lastWindow: BrowserWindowMock | null = null;
@@ -240,6 +254,102 @@ describe("askInputWindow", () => {
 
       expect(() => dismissAskInputWindow()).not.toThrow();
       expect(dismissedSends()).toHaveLength(0);
+    });
+  });
+
+  // A dismissed Ask input must stop billing an autocomplete request the user
+  // will never see, not just tell the renderer it is gone. Every dismissal
+  // route goes through `dismissAskInputWindow`, so each one is covered here.
+  describe("aborting an in-flight autocomplete request on dismissal", () => {
+    it("aborts this window's session on a chrome dismissal (Cmd-W / red X)", async () => {
+      const { showAskInputWindow } = await loadModule();
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+
+      const closeCall = lastWindow?.on.mock.calls.find(
+        ([eventName]) => eventName === "close",
+      );
+      closeCall?.[1]({ preventDefault: vi.fn() });
+
+      expect(autocompleteServiceMocks.abortAutocomplete).toHaveBeenCalledWith(
+        String(WEB_CONTENTS_ID),
+      );
+    });
+
+    it("aborts this window's session on ask-input-cancel (ESC)", async () => {
+      const { showAskInputWindow } = await loadModule();
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+
+      getIpcHandler("ask-input-cancel")(undefined);
+
+      expect(autocompleteServiceMocks.abortAutocomplete).toHaveBeenCalledWith(
+        String(WEB_CONTENTS_ID),
+      );
+    });
+
+    it("aborts this window's session when a profile switch dismisses a pending ask", async () => {
+      const { showAskInputWindow, dismissAskInputWindow } = await loadModule();
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+
+      dismissAskInputWindow();
+
+      expect(autocompleteServiceMocks.abortAutocomplete).toHaveBeenCalledWith(
+        String(WEB_CONTENTS_ID),
+      );
+    });
+
+    it("does not abort when dismissing a destroyed window", async () => {
+      const { showAskInputWindow, dismissAskInputWindow } = await loadModule();
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+      lastWindow?.isDestroyed.mockReturnValue(true);
+
+      expect(() => dismissAskInputWindow()).not.toThrow();
+      expect(autocompleteServiceMocks.abortAutocomplete).not.toHaveBeenCalled();
+    });
+
+    it("does not throw dismissing with no window ever created", async () => {
+      const { dismissAskInputWindow } = await loadModule();
+
+      expect(() => dismissAskInputWindow()).not.toThrow();
+      expect(autocompleteServiceMocks.abortAutocomplete).not.toHaveBeenCalled();
+    });
+  });
+
+  // Same leak, sibling path: submitting ends the ghost-text request for the
+  // OLD prefix just as surely as a dismissal does — the renderer's
+  // `clearGhost()` on submit only ignores a late reply locally, it cannot
+  // reach a request already dispatched from the main process.
+  describe("aborting an in-flight autocomplete request on submit", () => {
+    it("aborts this window's session on a submitted question", async () => {
+      const { showAskInputWindow } = await loadModule();
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+
+      getIpcHandler("ask-input-submit")(undefined, "What is a monad?");
+
+      expect(autocompleteServiceMocks.abortAutocomplete).toHaveBeenCalledWith(
+        String(WEB_CONTENTS_ID),
+      );
+    });
+
+    it("aborts this window's session even when the submit payload is rejected as non-string", async () => {
+      const { showAskInputWindow } = await loadModule();
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+
+      getIpcHandler("ask-input-submit")(undefined, 42);
+
+      expect(autocompleteServiceMocks.abortAutocomplete).toHaveBeenCalledWith(
+        String(WEB_CONTENTS_ID),
+      );
+    });
+
+    it("does not abort when submitting against a destroyed window", async () => {
+      const { showAskInputWindow } = await loadModule();
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+      lastWindow?.isDestroyed.mockReturnValue(true);
+
+      expect(() =>
+        getIpcHandler("ask-input-submit")(undefined, "question"),
+      ).not.toThrow();
+      expect(autocompleteServiceMocks.abortAutocomplete).not.toHaveBeenCalled();
     });
   });
 
