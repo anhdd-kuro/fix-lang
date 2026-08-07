@@ -83,6 +83,47 @@ describe("sanitizeSuggestion", () => {
     });
   });
 
+  /**
+   * Ghost text paints through a plain mirror span and is accepted into a plain
+   * textarea, so markdown never renders there today — the guarantee is that it
+   * cannot start to, and that a Tab press inserts prose rather than markup
+   * pointing at a URL the model chose.
+   */
+  describe("markdown images", () => {
+    it("strips a complete image, keeping the prose around it", () => {
+      expect(sanitizeSuggestion(" and here ![alt](https://example.com/x.png) it is")).toBe(
+        " and here  it is",
+      );
+    });
+
+    it("strips an image with no alt text", () => {
+      expect(sanitizeSuggestion("see ![](data:image/png;base64,AAAA)")).toBe("see");
+    });
+
+    it("returns null when the suggestion was only an image", () => {
+      expect(sanitizeSuggestion("![alt](https://example.com/x.png)")).toBeNull();
+    });
+
+    /**
+     * Links are deliberately left alone: they render as literal characters
+     * everywhere a suggestion can reach, they fetch nothing on their own, and
+     * bracketed text followed by a parenthesis is prose a user may well be
+     * mid-way through typing.
+     */
+    it("keeps a markdown link, which is ordinary text here", () => {
+      expect(sanitizeSuggestion(" see [the docs](https://example.com)")).toBe(
+        " see [the docs](https://example.com)",
+      );
+    });
+
+    // An unterminated `![` must not swallow the rest of a multi-line suggestion.
+    it("leaves an incomplete image alone rather than eating what follows", () => {
+      expect(sanitizeSuggestion("![alt\nthe real continuation")).toBe(
+        "![alt\nthe real continuation",
+      );
+    });
+  });
+
   describe("length cap", () => {
     it("caps an overlong suggestion", () => {
       const suggestion = sanitizeSuggestion("a".repeat(MAX_SUGGESTION_CHARS + 50));

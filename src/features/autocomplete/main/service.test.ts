@@ -8,7 +8,6 @@ import {
   CACHE_MAX_ENTRIES,
   CACHE_TTL_MS,
   DAILY_REQUEST_CAP,
-  MAX_OUTPUT_TOKENS,
   MIN_PREFIX_CHARS,
   RATE_LIMIT_GLOBAL,
   RATE_LIMIT_MEMORY_MAX_ENTRIES,
@@ -91,11 +90,29 @@ const waitForCalls = async (count: number): Promise<void> => {
   );
 };
 
+/**
+ * The reply as the protocol requires it. Every test that cares about a
+ * SUGGESTION goes through here rather than stubbing `content` with raw text: a
+ * raw-text stub no longer means "the model suggested this", it means "the model
+ * broke the contract", and the two must not be spelled the same way.
+ */
+const jsonReply = (suggestion: string): string[] => [JSON.stringify({ suggestion })];
+
 const respondWith = (text: string) =>
   makeAIRequestMock.mockResolvedValue({
-    content: [text],
+    content: jsonReply(text),
     model: "gpt-4o-mini",
     provider: "openai",
+    promptTokens: 100,
+    completionTokens: 8,
+  });
+
+/** A reply exactly as the provider returned it, contract or not. */
+const respondRaw = (raw: unknown) =>
+  makeAIRequestMock.mockResolvedValue({
+    content: [raw],
+    model: "ornith-1.0-9b",
+    provider: "lmstudio",
     promptTokens: 100,
     completionTokens: 8,
   });
@@ -263,17 +280,45 @@ describe("requestAutocompleteSuggestion", () => {
 
   // The whole point of the feature's cost profile.
   describe("request shape", () => {
-    it("forces reasoning off, caps output, stops early, and stays quiet", async () => {
+    it("forces reasoning off and stays quiet", async () => {
       await ask();
 
       expect(makeAIRequestMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          reasoning: "none",
-          maxOutputTokens: MAX_OUTPUT_TOKENS,
-          stop: ["\n\n"],
-          quiet: true,
-        }),
+        expect.objectContaining({ reasoning: "none", quiet: true }),
       );
+    });
+
+    /**
+     * NO OUTPUT CEILING, by explicit decision: the model decides how long the
+     * reply is and the system prompt asks for one short sentence.
+     *
+     * The key must be ABSENT, not `undefined`-valued — the two are only
+     * interchangeable because every provider spreads it conditionally
+     * (`options.maxOutputTokens !== undefined ? … : {}`), and Ollama maps it to
+     * `options.num_predict` where a value that leaks through would become a hard
+     * per-call token limit on a local model rather than a no-op. Asserting
+     * absence pins the shape that survives all five request builders.
+     */
+    it("sends no output-token ceiling to the provider", async () => {
+      await ask();
+
+      const [options] = makeAIRequestMock.mock.calls[0];
+      expect(options.maxOutputTokens).toBeUndefined();
+      expect(Object.keys(options)).not.toContain("maxOutputTokens");
+    });
+
+    /**
+     * No stop sequence at all, where `["\n\n"]` used to be. It cannot fire
+     * inside the envelope (a newline in the suggestion is an escape, not a line
+     * break) so it saves nothing on a rambling model; it CAN fire on one that
+     * pretty-prints with a blank line, and firing there removes the closing
+     * brace and turns a reply that would have parsed into no suggestion.
+     */
+    it("sends no stop sequence, which could only truncate a valid envelope", async () => {
+      await ask();
+
+      const [options] = makeAIRequestMock.mock.calls[0];
+      expect(options.stop).toBeUndefined();
     });
 
     it("passes an abort signal", async () => {
@@ -898,7 +943,7 @@ describe("requestAutocompleteSuggestion", () => {
     describe("the computed cost", () => {
       it("prices the model the provider actually served", async () => {
         makeAIRequestMock.mockResolvedValue({
-          content: [" over the lazy dog."],
+          content: jsonReply(" over the lazy dog."),
           model: "openai::gpt-4o-mini",
           resolvedModel: "gpt-4o-mini-2026-01-01",
           provider: "openai",
@@ -973,7 +1018,7 @@ describe("requestAutocompleteSuggestion", () => {
        */
       it("does not book a priceable provider's tokenless response as a priced zero", async () => {
         makeAIRequestMock.mockResolvedValue({
-          content: [" over the lazy dog."],
+          content: jsonReply(" over the lazy dog."),
           model: "openrouter::meta-llama/llama-3.3-70b-instruct",
           provider: "openrouter",
           promptTokens: null,
@@ -998,7 +1043,7 @@ describe("requestAutocompleteSuggestion", () => {
       // never sent, so the amount is no more knowable than the missing half.
       it("does not book a priceable provider's half-reported response as priced", async () => {
         makeAIRequestMock.mockResolvedValue({
-          content: [" over the lazy dog."],
+          content: jsonReply(" over the lazy dog."),
           model: "openrouter::meta-llama/llama-3.3-70b-instruct",
           provider: "openrouter",
           promptTokens: 100,
@@ -1028,7 +1073,7 @@ describe("requestAutocompleteSuggestion", () => {
        */
       it("still books a local provider's tokenless $0 as a real, priced zero", async () => {
         makeAIRequestMock.mockResolvedValue({
-          content: [" over the lazy dog."],
+          content: jsonReply(" over the lazy dog."),
           model: "ollama::llama3.2",
           provider: "ollama",
           promptTokens: null,
@@ -1058,7 +1103,7 @@ describe("requestAutocompleteSuggestion", () => {
      */
     it("records usage for a response that reported no token counts", async () => {
       makeAIRequestMock.mockResolvedValue({
-        content: [" over the lazy dog."],
+        content: jsonReply(" over the lazy dog."),
         model: "ollama::llama3.2",
         provider: "ollama",
         promptTokens: null,
@@ -1177,7 +1222,7 @@ describe("requestAutocompleteSuggestion", () => {
         makeAIRequestMock.mockImplementation(() => {
           vi.setSystemTime(justAfter);
           return Promise.resolve({
-            content: [" over the lazy dog."],
+            content: jsonReply(" over the lazy dog."),
             model: "gpt-4o-mini",
             provider: "openai",
             promptTokens: 100,
@@ -1703,6 +1748,177 @@ describe("requestAutocompleteSuggestion", () => {
       for (const secret of [prefix, suffix, suggestion, "private", "confidential"]) {
         expect(everythingLogged).not.toContain(secret);
       }
+    });
+  });
+
+  /**
+   * THE REGRESSION THIS WHOLE CHANGE EXISTS TO PREVENT, driven end to end
+   * through the service rather than only through the parser.
+   *
+   * The model must answer `{"suggestion":"…"}` and NOTHING that fails to parse
+   * may reach the UI. That is the property, and it is what makes refusal prose
+   * unable to become ghost text by construction: a sentence is not JSON,
+   * whatever sentence a given model happens to choose.
+   */
+  describe("the JSON reply contract", () => {
+    const unparseableLines = (): LogContext[] =>
+      loggerMock.warn.mock.calls
+        .map((call) => call[2] as LogContext)
+        .filter((context) => context?.reason === "unparseable-reply");
+
+    it("returns the suggestion carried in the envelope", async () => {
+      respondRaw('{"suggestion":" over the lazy dog."}');
+
+      expect((await ask()).suggestion).toBe(" over the lazy dog.");
+    });
+
+    /**
+     * The two strings the running app actually produced: `ornith-1.0-9b` via LM
+     * Studio at a 3-character prefix, each returned AS THE SUGGESTION because
+     * the old prompt's closing English sentence invited a prose continuation.
+     * Each painted as ghost text one Tab press from the user's own question.
+     * Pinned verbatim — a paraphrase would let the observed failure drift out of
+     * the suite while the test still passed.
+     */
+    it.each([
+      'Nothing to continue here as the input text "tes" appears to be an incomplete word or fragment without clear context for further',
+      "nothing at all, as there is no clear context or narrative to continue.",
+    ])("shows nothing for the real refusal %#", async (refusal) => {
+      respondRaw(refusal);
+
+      expect((await ask()).suggestion).toBeNull();
+    });
+
+    it("unwraps a fenced envelope, which models add reflexively", async () => {
+      respondRaw('```json\n{"suggestion":" over the lazy dog."}\n```');
+
+      expect((await ask()).suggestion).toBe(" over the lazy dog.");
+    });
+
+    /**
+     * The whole property in one line: anything that is not the shape yields NO
+     * suggestion. A truncated envelope in particular must never become a partial
+     * string — that string would be inserted verbatim on Tab.
+     */
+    it.each([
+      ["an empty-string answer", '{"suggestion":""}'],
+      ["a truncated envelope", '{"suggestion":" over the lazy do'],
+      ["a non-string suggestion field", '{"suggestion":42}'],
+      ["a null suggestion field", '{"suggestion":null}'],
+      ["a bare string, which is what the old protocol expected", " over the lazy dog."],
+      ["prose wrapped around a valid object", 'Sure! {"suggestion":" tail"}'],
+    ])("shows nothing for %s", async (_description, raw) => {
+      respondRaw(raw);
+
+      expect((await ask()).suggestion).toBeNull();
+    });
+
+    /**
+     * An empty-string answer is the model OBEYING the contract, so it must not
+     * be reported as a broken one — otherwise every quiet moment produces a
+     * warning and the warning stops meaning anything.
+     */
+    it("says nothing when the model answers with an empty suggestion", async () => {
+      respondRaw('{"suggestion":""}');
+
+      expect((await ask()).suggestion).toBeNull();
+      expect(unparseableLines()).toHaveLength(0);
+    });
+
+    describe("saying so", () => {
+      /**
+       * `warn` on the FIRST occurrence, unlike the timing reasons beside it.
+       * There is no ordinary version of this: a model either answers in the
+       * contract or it does not, and one that does not fails on every request
+       * for as long as it stays selected — while the UI shows the same empty
+       * space it shows for a model with genuinely nothing to suggest.
+       */
+      it("warns the first time a reply is not the contract", async () => {
+        respondRaw("I cannot continue that fragment.");
+
+        await ask();
+
+        expect(loggerMock.warn).toHaveBeenCalled();
+        expect(unparseableLines()[0]).toMatchObject({
+          reason: "unparseable-reply",
+          model: "ornith-1.0-9b",
+          provider: "lmstudio",
+          replyLength: "I cannot continue that fragment.".length,
+        });
+      });
+
+      // A broken model produces this on EVERY keystroke; an unthrottled warn
+      // per keypress is the flood the throttle exists for.
+      it("says it once however many replies are refused", async () => {
+        respondRaw("I cannot continue that fragment.");
+
+        for (let press = 0; press < 5; press += 1) {
+          await ask({ requestId: press, prefix: `${LONG_PREFIX} ${press}` });
+        }
+
+        expect(unparseableLines()).toHaveLength(1);
+      });
+
+      it("emits only context keys that survive the real redactor", async () => {
+        respondRaw("I cannot continue that fragment.");
+        await ask();
+
+        const context = unparseableLines()[0] ?? {};
+        expect(redactLogContext(context)).toEqual(context);
+        expect(Object.keys(context).length).toBeGreaterThan(1);
+      });
+
+      /**
+       * The reply is model output ABOUT the user's unsent text, and it quotes it
+       * — the real refusal above contains the typed fragment verbatim. Logs-tab
+       * lines are copyable and exportable, so the length goes in and the text
+       * never does.
+       */
+      it("carries the reply's length, never the reply, the prefix or the suffix", async () => {
+        const prefix = "my private unsent sentence about a medical result";
+        respondRaw(`Nothing to continue here as the input text "${prefix}" is unclear`);
+
+        await ask({ prefix, suffix: " and its confidential continuation" });
+
+        const everythingLogged = JSON.stringify([
+          ...loggerMock.debug.mock.calls,
+          ...loggerMock.info.mock.calls,
+          ...loggerMock.warn.mock.calls,
+          ...loggerMock.error.mock.calls,
+        ]);
+        for (const secret of [prefix, "private", "medical", "confidential", "Nothing to continue"]) {
+          expect(everythingLogged).not.toContain(secret);
+        }
+      });
+    });
+
+    /**
+     * The reply was dispatched and billed whether or not it parsed, so the
+     * rollup must still count it — otherwise a model that emits nothing usable
+     * also spends invisibly.
+     */
+    it("still records the spend for a reply it discarded", async () => {
+      respondRaw("I cannot continue that fragment.");
+
+      await ask();
+
+      expect(usageStoreMock.recordDispatch).toHaveBeenCalledOnce();
+      expect(usageStoreMock.recordUsage).toHaveBeenCalledOnce();
+    });
+
+    /**
+     * Cached as a null, like any other empty result: a model that cannot answer
+     * this prefix cannot answer it a keystroke later either, and re-billing it
+     * on every backspace-and-retype is what the cache exists to stop.
+     */
+    it("does not re-bill an identical prefix after an unparseable reply", async () => {
+      respondRaw("I cannot continue that fragment.");
+
+      await ask();
+      const second = await ask({ requestId: 2 });
+
+      expect(makeAIRequestMock).toHaveBeenCalledOnce();
+      expect(second.suggestion).toBeNull();
     });
   });
 

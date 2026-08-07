@@ -120,7 +120,11 @@ describe("reason tokens survive the real redactor", () => {
     expect(redactLogContext(context)).toEqual(context);
   });
 
-  const WASTED_REASONS: AutocompleteWastedReason[] = ["superseded", "reply-too-late"];
+  const WASTED_REASONS: AutocompleteWastedReason[] = [
+    "superseded",
+    "reply-too-late",
+    "unparseable-reply",
+  ];
 
   /**
    * The wasted-suggestion lines carry the only two fields that make them worth
@@ -135,6 +139,13 @@ describe("reason tokens survive the real redactor", () => {
       provider: "lmstudio",
       latencyMs: 24484,
       prefixLength: 39,
+      /**
+       * `unparseable-reply` only, and the key that has to be watched: the
+       * obvious names for it are all trapped. `replyTokens` would be blanked for
+       * containing `token`, exactly as `clipboardRead` was, leaving a warning
+       * that says the model emitted garbage and refuses to say how much.
+       */
+      replyLength: 128,
       suppressedSincePrevious: 3,
       suppressedInRenderer: 2,
       suppressedInMain: 1,

@@ -131,11 +131,20 @@ export const AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS = 60_000;
  *   the caret; main matches the reported `requestId` back to its own record to
  *   supply the model and the latency.
  *
- * Neither subsumes the other, which is why both exist. A user typing steadily
- * against a 24-second model produces nothing but the first; a user who types
- * and then pauses produces nothing but the second.
+ * - `unparseable-reply` — it answered IN TIME and the answer was not the JSON
+ *   contract (`{"suggestion":"…"}`), so `parseReply.ts` refused it and nothing
+ *   was painted. The odd one out again: the first two are timing, this one is
+ *   the model itself. It is the ONLY evidence of a model that cannot serve this
+ *   feature at all — the UI shows the same empty space it shows for a model with
+ *   genuinely nothing to suggest, so without this line "my model emits garbage"
+ *   is indistinguishable from "autocomplete is quiet today".
+ *
+ * No one of these subsumes another, which is why all three exist. A user typing
+ * steadily against a 24-second model produces nothing but the first; a user who
+ * types and then pauses produces nothing but the second; a user on a model that
+ * answers in prose produces nothing but the third, on every single request.
  */
-export type AutocompleteWastedReason = "superseded" | "reply-too-late";
+export type AutocompleteWastedReason = "superseded" | "reply-too-late" | "unparseable-reply";
 
 /**
  * How loudly to say a suggestion was wasted.

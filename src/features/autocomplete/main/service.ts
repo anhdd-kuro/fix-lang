@@ -36,6 +36,15 @@
  * and exportable from the Logs tab and the typed text is the whole payload the
  * user has not chosen to send anywhere.
  *
+ * THE REPLY IS JSON, and that is a safety property rather than a formatting
+ * preference. `parseReply.ts` accepts `{"suggestion":"…"}` and nothing else, so
+ * a model that answers with refusal prose ("Nothing to continue here as the
+ * input text …") produces NO suggestion instead of painting that sentence as
+ * ghost text a Tab press away from the user's own question. Nothing that fails
+ * to parse reaches the UI, ever — which is why an unparseable reply is a `warn`,
+ * and which is now the ONLY thing bounding what a reply may contain: the request
+ * carries no output-token ceiling, only a prompt asking for one short sentence.
+ *
  * Deliberately imports NEITHER `getDefaultReasoningEffort` NOR
  * `resolveReasoningEffort`. Reasoning must be the literal `"none"`: leaving it
  * undefined omits the parameter, and a reasoning-capable model's own default is
@@ -57,6 +66,7 @@ import {
 } from "~/features/providers/store/apiStore";
 import { logger } from "~/main/logging/logService";
 import { DEFAULT_ASK_PRESET_ID } from "~/prompts";
+import { parseAutocompleteReply } from "./parseReply";
 import { buildAutocompletePrompt } from "./prompt";
 import { sanitizeSuggestion } from "./sanitize";
 import type { AutocompleteWastedReason } from "~/features/autocomplete/shared/autocompleteDiagnostics";
@@ -74,8 +84,6 @@ import type { ProviderId } from "~/features/providers/shared/providers";
  * threshold and cannot import this file — see the comment there.
  */
 export { MIN_PREFIX_CHARS };
-/** A continuation, not an essay. Latency scales with what the model emits. */
-export const MAX_OUTPUT_TOKENS = 24;
 /**
  * Hard stop, not configurable. The only real protection against a stuck loop
  * billing an account overnight; a user cannot raise it by accident.
@@ -568,6 +576,37 @@ const logWastedSuggestion = (
 };
 
 /**
+ * States that a reply came back and was not the JSON contract.
+ *
+ * `warn` ON THE FIRST OCCURRENCE, which is why this does not go through
+ * `wastedSuggestionLogLevel` like the two timing reasons do. That rule starts at
+ * `debug` because ONE superseded or late suggestion is ordinary fast typing and
+ * costs the user nothing they would notice. There is no ordinary version of
+ * this: a model either answers in the contract or it does not, and one that does
+ * not will fail on every request for as long as it stays selected. It is also
+ * invisible from the UI, which shows the same empty space it shows for a model
+ * with genuinely nothing to suggest — so `debug`, a level most readers filter
+ * out, is the one place "the model is emitting garbage" must not hide.
+ *
+ * Throttled on the same `wastedThrottle` as the other two: a broken model
+ * produces this on EVERY keystroke, and an unthrottled warn per keypress is the
+ * flood the throttle exists for.
+ */
+const logUnparseableReply = (nowMs: number, context: LogContext): void => {
+  const decision = wastedThrottle.admit("unparseable-reply", nowMs);
+  if (!decision.emit) return;
+  logger.warn(
+    "autocomplete",
+    "Suggestion discarded: the model's reply was not the expected JSON, so nothing could be shown",
+    {
+      reason: "unparseable-reply" satisfies AutocompleteWastedReason,
+      suppressedSincePrevious: decision.suppressedSincePrevious,
+      ...context,
+    },
+  );
+};
+
+/**
  * Describes a failure for the log WITHOUT quoting the provider.
  *
  * This path runs once per failing keystroke, and its lines are copyable and
@@ -794,17 +833,67 @@ export const requestAutocompleteSuggestion = async (
       userPrompt,
       model: modelRef,
       reasoning: "none",
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      stop: ["\n\n"],
+      // NO OUTPUT CEILING, where `maxOutputTokens: 40` used to be. Deliberate,
+      // and the honest description of it is that length is now a SOFT
+      // constraint: the system prompt asks for one sentence of at most fifteen
+      // words, and a weak model can simply not comply. This file already has the
+      // evidence — the prompt that said `output nothing at all` was CONTINUED as
+      // prose by a 9B local model instead of obeyed, which is the whole reason
+      // the JSON contract exists. An instruction is not an enforcement point.
+      //
+      // The enforcement point is the envelope plus `parseReply.ts`: a rambling
+      // reply is not `{"suggestion":"…"}`, so it yields NO suggestion, and a
+      // reply that does parse is still cut to `MAX_SUGGESTION_CHARS` by
+      // `sanitizeSuggestion` before it can be painted. Nothing unbounded reaches
+      // the UI; what is now unbounded is what the provider BILLS and how long the
+      // user waits for it.
+      //
+      // Stated plainly, since this is the last hard per-request spend bound
+      // leaving a path that dispatches from `MIN_PREFIX_CHARS` characters of
+      // typing: the remaining guards — the renderer's debounce, `CACHE_TTL_MS`,
+      // the short-window rate limit, `DAILY_REQUEST_CAP` — all bound HOW MANY
+      // requests happen. Not one of them bounds how large a single reply is.
+      //
+      // NO STOP SEQUENCE either, where there used to be `["\n\n"]`.
+      //
+      // Against a JSON reply that sequence can only do harm. It cannot fire
+      // INSIDE the envelope — a newline in the suggestion is the two characters
+      // backslash-n, not a line break — so it saves nothing on a rambling model,
+      // which is what it was for. It CAN fire on a model that pretty-prints with
+      // a blank line, or that preambles before the object, and firing there cuts
+      // the reply before its closing brace: a reply that would have parsed
+      // becomes a parse failure, i.e. no suggestion. The closing brace is the
+      // reply's own terminator, and it is the only terminator now that no token
+      // ceiling exists — a stop sequence that can fire early would cost valid
+      // answers without capping the invalid ones.
       abortSignal: controller.signal,
       quiet: true,
     });
 
-    const suggestion = sanitizeSuggestion(response.content?.[0]);
+    const rawReply = response.content?.[0];
+    // Parse THEN sanitize, never the other way round: sanitizing first would
+    // strip the control characters out of the JSON source text rather than out
+    // of the decoded suggestion, and would happily hand the parser a string it
+    // had already rewritten.
+    const parsedReply = parseAutocompleteReply(rawReply);
+    const suggestion = parsedReply.ok ? sanitizeSuggestion(parsedReply.suggestion) : null;
     writeCache(key, suggestion, Date.now());
     await recordResponseUsage(response, now);
 
     const latencyMs = Date.now() - startedAt;
+    if (!parsedReply.ok) {
+      // The instant the reply LANDED, not the shared `startedAt` this request
+      // books its spend against — same rule as the superseded line below.
+      logUnparseableReply(startedAt + latencyMs, {
+        model: response.model,
+        provider: response.provider,
+        // The LENGTH of the reply, never the reply. It is model output, but it
+        // is model output about the user's unsent text, and these lines are
+        // copyable and exportable from the Logs tab.
+        replyLength: rawReply?.length ?? 0,
+        latencyMs,
+      });
+    }
     // Kept so that IF the renderer reports this reply as having arrived too
     // late, the line can name the model that was slow — main's own numbers, not
     // the renderer's word for them. Nothing here is typed text.
