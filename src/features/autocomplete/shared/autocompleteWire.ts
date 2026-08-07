@@ -23,8 +23,29 @@
  */
 
 /**
- * Below this many characters before the caret the request is guesswork and the
- * suggestion is usually noise, so no request is made.
+ * Fewer characters than this before the caret and no request is made.
+ *
+ * INCLUSIVE: a prefix of exactly this length already qualifies (the gate is
+ * `< MIN_PREFIX_CHARS`), so at 3 the third keystroke is the first that can
+ * dispatch.
+ *
+ * Three, not twelve. Twelve was chosen as a cost gate — below it a
+ * continuation is guesswork, so refusing was free — but it also meant the
+ * feature never fired at all for the short questions the Ask AI window mostly
+ * gets. A user typing `tes` and expecting a dimmed `t` saw nothing, forever,
+ * with no way to tell that from a broken feature; twelve characters is most of
+ * a short question, so the ghost only ever appeared once it had stopped being
+ * useful. Three is the smallest prefix a model has any chance of continuing
+ * meaningfully, and it is a deliberate product choice to pay for that.
+ *
+ * WHAT IT COSTS, stated rather than discovered later. The threshold was doing
+ * most of the rate limiting: at twelve, the first eleven keystrokes of every
+ * question were free. At three, essentially the whole question is live, so
+ * `GHOST_TEXT_DEBOUNCE_MS` in `~/renderer/hooks/useGhostText` is now nearly the
+ * only thing between a keystroke and a billed request — it was raised in the
+ * same change for exactly that reason, and lowering it re-opens this. The other
+ * backstop is `DAILY_REQUEST_CAP` in `main/service.ts`, which this change moves
+ * from unreachable to merely unlikely.
  *
  * Lives here, not in `service.ts`, for the same reason `dailyCap` rides the
  * usage snapshot: the renderer gates on this threshold too, and `service.ts`
@@ -34,7 +55,7 @@
  * `~/features/logs/shared/logging` sets the precedent. `service.ts`
  * re-exports it so existing importers keep working.
  */
-export const MIN_PREFIX_CHARS = 12;
+export const MIN_PREFIX_CHARS = 3;
 
 /**
  * One day's counters.

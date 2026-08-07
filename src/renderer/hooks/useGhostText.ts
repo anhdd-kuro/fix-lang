@@ -90,6 +90,36 @@
  * `AskInputWindow`'s Enter handler already documents for the same two
  * signals (`isComposing` / legacy `keyCode === 229`).
  *
+ * DIAGNOSTICS. Four paths here decline to dispatch — composing, prefix below
+ * the threshold, the caret having left the anchor by the time the debounce
+ * fires, and a missing bridge method — and all four used to be silent. That
+ * silence is worse than main's was: when the renderer never dispatches, main
+ * never runs, so NOTHING is logged anywhere and "autocomplete does nothing"
+ * cannot be told apart from "main refused". Each now reports its reason to main
+ * over the one-way `autocomplete-skip` channel, which main validates and logs.
+ *
+ * Throttled per reason before it is sent (`createSkipThrottle`), because these
+ * are keystroke-rate paths and a line per keypress would fill the user's log
+ * file with the diagnostic instead of the diagnosis. Main throttles again on
+ * arrival; that second one is the real guard, since this side is exactly the
+ * side under suspicion.
+ *
+ * `prefixLength` and counts only. This feature's whole purpose is text the user
+ * has NOT chosen to send anywhere, and Logs-tab lines are copyable and
+ * exportable, so no prefix, suffix or suggestion may appear in a report.
+ *
+ * A FIFTH reason, `reply-too-late`, is not a non-dispatch at all: the request
+ * went out, the account was billed, and the answer landed after the surface had
+ * moved on — so it is discarded in the resolution handler below and nothing is
+ * painted. That discard is the definition of "too late", and this side is the
+ * only one that can see it, main having no knowledge of the caret. It travels
+ * with the reply's `requestId` and nothing else; main matches that back to its
+ * own record to name the model and the latency, because a model id sent upwards
+ * from here would be renderer-controlled text in an exportable log file. Main's
+ * complementary half is `superseded` in `main/service.ts`, for the requests a
+ * slow model never answers at all — steady typing produces only those, and a
+ * type-then-pause produces only these.
+ *
  * `prefix`/`suffix` cross `structuredClone` on every `invoke`, so an unbounded
  * document would be re-cloned on every debounce firing regardless of what
  * `service.ts` itself windows down to for the prompt (`PREFIX_WINDOW_CHARS` /
@@ -99,10 +129,31 @@
  * silently start starving main of context it could have used.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createSkipThrottle } from "~/features/autocomplete/shared/autocompleteDiagnostics";
 import { MIN_PREFIX_CHARS } from "~/features/autocomplete/shared/autocompleteWire";
+import type { AutocompleteRendererSkipReason } from "~/features/autocomplete/shared/autocompleteDiagnostics";
 
-/** Fires once typing has been idle this long. */
-export const GHOST_TEXT_DEBOUNCE_MS = 180;
+/**
+ * Fires once typing has been idle this long.
+ *
+ * 300, raised from 180 when `MIN_PREFIX_CHARS` dropped 12 → 3, and the two
+ * numbers have to be read together. At twelve characters the threshold was
+ * doing most of the rate limiting and this value only had to avoid dispatching
+ * mid-burst. At three it is very nearly the ONLY thing between a keystroke and
+ * a billed request, so what it has to clear is different: a fluent typist's
+ * inter-keystroke gap is roughly 150–250 ms, and 180 sits inside that band —
+ * it fired mid-word, several times per question. 300 sits above it, so a
+ * request goes out at a real pause (a word boundary, or the user thinking),
+ * which is also where a continuation is most likely to be worth having.
+ *
+ * The 120 ms this adds is invisible next to the provider round trip it gates —
+ * hundreds of milliseconds at best, and tens of seconds on a badly-chosen model
+ * (see the late-arrival line in `main/service.ts`). Lowering it back toward 180
+ * multiplies dispatches per question by roughly three or four, which is the
+ * difference between `DAILY_REQUEST_CAP` being a runaway backstop and being a
+ * budget an ordinary day can exhaust.
+ */
+export const GHOST_TEXT_DEBOUNCE_MS = 300;
 /** Characters before the caret sent over IPC, tail-kept (nearest the caret). */
 export const MAX_PREFIX_CHARS_SENT = 2000;
 /** Characters after the caret sent over IPC, head-kept (nearest the caret). */
@@ -244,6 +295,39 @@ export const useGhostText = ({
     undefined,
   );
   const isComposingRef = useRef(false);
+  // Per hook instance, not per module: two surfaces would otherwise silence
+  // each other's diagnostics, and tests would leak throttle state between cases.
+  const skipThrottleRef = useRef(createSkipThrottle());
+
+  /**
+   * Tells main why nothing was dispatched — see the header's DIAGNOSTICS note.
+   *
+   * `prefixLength`, never the prefix. Fire-and-forget, and defensive about the
+   * bridge itself: this runs on the typing path and a throw here would take the
+   * keystroke handler with it.
+   */
+  const reportSkip = useCallback(
+    (
+      reason: AutocompleteRendererSkipReason,
+      prefixLength: number,
+      /**
+       * `reply-too-late` only: the reply main is being asked about, so it can
+       * answer with the model and the latency from its OWN records. Nothing
+       * about the provider travels upwards from here.
+       */
+      requestId?: number,
+    ): void => {
+      const decision = skipThrottleRef.current.admit(reason, Date.now());
+      if (!decision.emit) return;
+      window.electronAPI?.reportAutocompleteSkip?.({
+        reason,
+        prefixLength,
+        suppressedSincePrevious: decision.suppressedSincePrevious,
+        ...(requestId === undefined ? {} : { requestId }),
+      });
+    },
+    [],
+  );
 
   const cancelDebounce = useCallback((): void => {
     if (debounceTimerRef.current !== undefined) {
@@ -276,10 +360,16 @@ export const useGhostText = ({
       // ghost painted by a reply still in flight.
       invalidate();
 
-      if (isComposingRef.current) return;
-
       const rawPrefix = text.slice(0, selectionStart);
-      if (rawPrefix.length < MIN_PREFIX_CHARS) return;
+      if (isComposingRef.current) {
+        reportSkip("composing", rawPrefix.length);
+        return;
+      }
+
+      if (rawPrefix.length < MIN_PREFIX_CHARS) {
+        reportSkip("prefix-too-short", rawPrefix.length);
+        return;
+      }
 
       // Armed and anchored together: below the threshold nothing is armed, so
       // there is nothing for a later caret move to protect either.
@@ -297,10 +387,22 @@ export const useGhostText = ({
         // (see the header). Reading the live surface here needs no event, so
         // an abandoned caret cannot be billed for.
         if (!isSurfaceOnAnchor(readSurfaceRef.current(), anchor)) {
+          reportSkip("caret-moved", prefix.length);
           invalidate();
           return;
         }
         const requestId = requestIdRef.current;
+        // Reported rather than assumed. A missing bridge method throws right
+        // here, inside a timer callback, so the failure reaches no `catch` in
+        // this file and no log in main — the renderer simply goes quiet, which
+        // is indistinguishable from every other silent path this file now
+        // reports. The Ask window's payload arriving proves the preload loaded,
+        // so the reporting method below is reachable even when this one is not.
+        if (typeof window.electronAPI?.requestAutocompleteSuggestion !== "function") {
+          reportSkip("bridge-unavailable", prefix.length);
+          invalidate();
+          return;
+        }
         void window.electronAPI
           .requestAutocompleteSuggestion({ requestId, prefix, suffix })
           .then(
@@ -308,7 +410,20 @@ export const useGhostText = ({
               // Rejects any reply the surface has moved on from, and — since
               // `invoke` resolutions can interleave — an older reply arriving
               // after a newer one too.
-              if (reply.requestId !== requestIdRef.current) return;
+              //
+              // This discard, and the paint gate below, ARE "the suggestion
+              // arrived too late to be useful": the provider was called, the
+              // account was billed, and the answer reached nobody because the
+              // user moved on first. Reported rather than silently dropped,
+              // because from the Logs tab a 24-second model that always misses
+              // is indistinguishable from a feature that does not work — and
+              // only this side can see it, main having no idea where the caret
+              // is. The reply's own id goes with it so main can name the model
+              // it was slow on; the renderer sends no provider detail itself.
+              if (reply.requestId !== requestIdRef.current) {
+                reportSkip("reply-too-late", prefix.length, reply.requestId);
+                return;
+              }
               if (reply.suggestion === null) {
                 setGhost(null);
                 return;
@@ -318,6 +433,7 @@ export const useGhostText = ({
               // caret has left, spaced by an abandoned prefix, with "Tab to
               // accept" lit under it.
               if (!isSurfaceOnAnchor(readSurfaceRef.current(), anchor)) {
+                reportSkip("reply-too-late", prefix.length, reply.requestId);
                 invalidate();
                 return;
               }
@@ -335,7 +451,7 @@ export const useGhostText = ({
           );
       }, GHOST_TEXT_DEBOUNCE_MS);
     },
-    [invalidate],
+    [invalidate, reportSkip],
   );
 
   const notifyCaretMove = useCallback(

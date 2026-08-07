@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS } from "~/features/autocomplete/shared/autocompleteDiagnostics";
+import { redactLogContext } from "~/features/logs/shared/logging";
+import { GHOST_TEXT_DEBOUNCE_MS } from "~/renderer/hooks/useGhostText";
 import { PREFIX_WINDOW_CHARS } from "./prompt";
 import {
   abortAutocomplete,
@@ -7,9 +10,16 @@ import {
   DAILY_REQUEST_CAP,
   MAX_OUTPUT_TOKENS,
   MIN_PREFIX_CHARS,
+  RATE_LIMIT_GLOBAL,
+  RATE_LIMIT_MEMORY_MAX_ENTRIES,
+  RATE_LIMIT_PER_SESSION,
+  RATE_LIMIT_WINDOW_MS,
   requestAutocompleteSuggestion,
   resetAutocompleteState,
+  RESOLUTION_MEMORY_MAX_ENTRIES,
+  takeAutocompleteResolution,
 } from "./service";
+import type { LogContext } from "~/features/logs/shared/logging";
 
 const {
   makeAIRequestMock,
@@ -57,6 +67,14 @@ vi.mock("~/features/autocomplete/store/autocompleteUsageStore", () => ({
 vi.mock("~/main/logging/logService", () => ({ logger: loggerMock }));
 
 const LONG_PREFIX = "The quick brown fox jumps";
+/**
+ * Named for its relation to the threshold, never for its length. `"short"` was
+ * a five-character literal that stopped being short the moment
+ * `MIN_PREFIX_CHARS` moved 12 -> 3, and a fixture that no longer means what its
+ * name says is worse than no fixture. The VALUE of the threshold is pinned
+ * once, deliberately, in its own test.
+ */
+const BELOW_THRESHOLD = "a".repeat(MIN_PREFIX_CHARS - 1);
 
 /**
  * The service reaches `makeAIRequest` through a dynamic import, so a single
@@ -158,6 +176,21 @@ describe("requestAutocompleteSuggestion", () => {
     const result = await ask({ requestId: 7 });
 
     expect(result).toEqual({ requestId: 7, suggestion: " over the lazy dog." });
+  });
+
+  /**
+   * The one place the VALUE is pinned rather than referenced.
+   *
+   * Every other test here builds its fixtures from `MIN_PREFIX_CHARS`, which is
+   * what keeps them meaning "the threshold" when it moves. That leaves nothing
+   * at all guarding the number itself, and this one is a product decision with
+   * a price attached: at 12 the threshold was most of the rate limiting, and
+   * dropping it to 3 put that load onto `GHOST_TEXT_DEBOUNCE_MS` and
+   * `DAILY_REQUEST_CAP`. A silent edit back and forth here changes what the
+   * feature costs, so it should have to change a test that says so.
+   */
+  it("keeps the deliberate 3-character threshold", () => {
+    expect(MIN_PREFIX_CHARS).toBe(3);
   });
 
   describe("gates that make no request at all", () => {
@@ -493,7 +526,11 @@ describe("requestAutocompleteSuggestion", () => {
 
     it.each([
       ["the feature is disabled", { enabled: false, model: "openai::gpt-4o-mini" }, LONG_PREFIX],
-      ["the prefix is too short", { enabled: true, model: "openai::gpt-4o-mini" }, "short"],
+      [
+        "the prefix is too short",
+        { enabled: true, model: "openai::gpt-4o-mini" },
+        BELOW_THRESHOLD,
+      ],
       ["no model resolves", { enabled: true, model: "" }, LONG_PREFIX],
     ])("does not count a request gated before dispatch: %s", async (_case, settings, prefix) => {
       getProfileSettingMock.mockImplementation((key: string) =>
@@ -504,6 +541,342 @@ describe("requestAutocompleteSuggestion", () => {
       await ask({ prefix });
 
       expect(usageStoreMock.recordDispatch).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * The short-window backstop. `DAILY_REQUEST_CAP` says what a day may cost;
+   * this says how fast that budget may be spent, which until now was decided
+   * entirely by a renderer main does not trust — `sessionId` is derived from
+   * `event.sender.id` precisely because of that, while the RATE was left to a
+   * debounce living in `useGhostText.ts`.
+   *
+   * The load-bearing test here is the human-typing one. A limit an ordinary
+   * user can trip is not a guard, it is a feature that stops working for no
+   * stated reason, and it would look exactly like the silent-refusal bugs the
+   * whole diagnostics pass above was written to end.
+   */
+  describe("short-window rate limit", () => {
+    const FROZEN = new Date(2026, 6, 31, 12, 0, 0);
+
+    const atFrozenClock = async (body: (setNow: (ms: number) => void) => Promise<void>) => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      try {
+        vi.setSystemTime(FROZEN);
+        await body((ms) => vi.setSystemTime(new Date(FROZEN.getTime() + ms)));
+      } finally {
+        vi.useRealTimers();
+      }
+    };
+
+    /** Distinct every time, so nothing is answered from cache. */
+    const askFresh = (index: number, sessionId = "window-1") =>
+      requestAutocompleteSuggestion({
+        requestId: index,
+        sessionId,
+        prefix: `${LONG_PREFIX} ${index}`,
+      });
+
+    const rateLimitedLines = (): LogContext[] =>
+      [...loggerMock.debug.mock.calls, ...loggerMock.warn.mock.calls]
+        .map((call) => call[2] as LogContext)
+        .filter((context) => context.reason === "rate-limited");
+
+    /**
+     * The arithmetic, pinned against the constant it is derived from rather
+     * than against the numbers themselves.
+     *
+     * The debounce is trailing and rearms on every change, so a
+     * correctly-working surface cannot dispatch faster than one request per
+     * `GHOST_TEXT_DEBOUNCE_MS` — a hard ceiling per window, reached by a steady
+     * ~40 WPM typist whose gaps sit just above the debounce. The session limit
+     * has to stay clear of that ceiling for the guard to be unreachable by
+     * typing; the global one has to clear a surface spending its WHOLE
+     * allowance plus another typing flat out, or one window's runaway starves a
+     * second window's real user.
+     */
+    it("leaves headroom over the fastest rate the debounce can produce", () => {
+      const perWindowCeiling = Math.ceil(RATE_LIMIT_WINDOW_MS / GHOST_TEXT_DEBOUNCE_MS);
+
+      expect(RATE_LIMIT_PER_SESSION).toBeGreaterThanOrEqual(perWindowCeiling * 2);
+      expect(RATE_LIMIT_GLOBAL).toBeGreaterThanOrEqual(
+        RATE_LIMIT_PER_SESSION + perWindowCeiling,
+      );
+    });
+
+    /**
+     * THE ONE THAT MATTERS. Not a leisurely typist but the worst legitimate
+     * case: every keystroke separated by just over the debounce, so every
+     * single one dispatches, sustained for a minute without a pause. Nothing
+     * here may be refused.
+     */
+    it("never refuses a human typing at the fastest cadence the debounce permits", async () => {
+      const presses = Math.ceil(60_000 / GHOST_TEXT_DEBOUNCE_MS);
+
+      await atFrozenClock(async (setNow) => {
+        for (let press = 0; press < presses; press += 1) {
+          setNow(press * GHOST_TEXT_DEBOUNCE_MS);
+          await askFresh(press);
+        }
+      });
+
+      expect(makeAIRequestMock).toHaveBeenCalledTimes(presses);
+      expect(rateLimitedLines()).toEqual([]);
+    });
+
+    it("refuses a burst once the surface has spent its window", async () => {
+      await atFrozenClock(async () => {
+        for (let press = 0; press < RATE_LIMIT_PER_SESSION * 3; press += 1) {
+          await askFresh(press);
+        }
+      });
+
+      expect(makeAIRequestMock).toHaveBeenCalledTimes(RATE_LIMIT_PER_SESSION);
+    });
+
+    /**
+     * A refused request was never asked for, so it must not walk the daily
+     * counter up: the cap reads the same number the rate limit just protected.
+     */
+    it("counts no dispatch for a request it refused", async () => {
+      await atFrozenClock(async () => {
+        for (let press = 0; press < RATE_LIMIT_PER_SESSION * 3; press += 1) {
+          await askFresh(press);
+        }
+      });
+
+      expect(usageStoreMock.recordDispatch).toHaveBeenCalledTimes(RATE_LIMIT_PER_SESSION);
+    });
+
+    it("admits again once the window has elapsed", async () => {
+      await atFrozenClock(async (setNow) => {
+        for (let press = 0; press < RATE_LIMIT_PER_SESSION + 5; press += 1) {
+          await askFresh(press);
+        }
+        expect(makeAIRequestMock).toHaveBeenCalledTimes(RATE_LIMIT_PER_SESSION);
+
+        setNow(RATE_LIMIT_WINDOW_MS);
+        await askFresh(9_000);
+      });
+
+      expect(makeAIRequestMock).toHaveBeenCalledTimes(RATE_LIMIT_PER_SESSION + 1);
+    });
+
+    /**
+     * An NTP correction or a user changing the date moves the clock backward,
+     * which makes the elapsed time negative — and negative reads as "not
+     * expired yet". Left alone, an hour's jump would keep a spent window shut
+     * for an hour, i.e. turn the guard into an outage with nothing on screen to
+     * explain it.
+     */
+    it("reopens a spent window when the clock jumps backward", async () => {
+      await atFrozenClock(async (setNow) => {
+        for (let press = 0; press < RATE_LIMIT_PER_SESSION + 5; press += 1) {
+          await askFresh(press);
+        }
+        expect(makeAIRequestMock).toHaveBeenCalledTimes(RATE_LIMIT_PER_SESSION);
+
+        setNow(-60 * 60 * 1000);
+        await askFresh(9_000);
+      });
+
+      expect(makeAIRequestMock).toHaveBeenCalledTimes(RATE_LIMIT_PER_SESSION + 1);
+    });
+
+    /**
+     * A per-surface limit alone does not bound spend — one more window (a
+     * composer is planned) and the ceiling doubles. The global window is the
+     * one that says what the ACCOUNT may spend per interval.
+     */
+    it("bounds every surface together, not each one on its own", async () => {
+      const surfaces = 8;
+      const perSurface = RATE_LIMIT_PER_SESSION - 5;
+
+      await atFrozenClock(async () => {
+        let index = 0;
+        for (let round = 0; round < perSurface; round += 1) {
+          for (let surface = 0; surface < surfaces; surface += 1) {
+            index += 1;
+            await askFresh(index, `window-${surface}`);
+          }
+        }
+      });
+
+      // No surface came close to its own limit; the global one is what refused.
+      expect(perSurface).toBeLessThan(RATE_LIMIT_PER_SESSION);
+      expect(makeAIRequestMock).toHaveBeenCalledTimes(RATE_LIMIT_GLOBAL);
+      expect(rateLimitedLines()[0]).toMatchObject({ limitScope: "global" });
+    });
+
+    /**
+     * The session map is bounded, so it is evicted — and an evictable counter
+     * keyed by something the caller can churn is a counter the caller can
+     * clear. A loop that opened a fresh surface per request would walk its own
+     * bucket out of the map every time; only the global window, which is keyed
+     * by nothing, survives that.
+     */
+    it("cannot be evaded by churning session ids past the memory bound", async () => {
+      const attempts = RATE_LIMIT_GLOBAL * 3;
+
+      await atFrozenClock(async () => {
+        for (let index = 0; index < attempts; index += 1) {
+          await askFresh(index, `window-${index}`);
+        }
+      });
+
+      expect(attempts).toBeGreaterThan(RATE_LIMIT_MEMORY_MAX_ENTRIES);
+      expect(makeAIRequestMock).toHaveBeenCalledTimes(RATE_LIMIT_GLOBAL);
+    });
+
+    /**
+     * THE ORDERING TRAP. A cache hit calls no provider and returns text already
+     * paid for, so it is the cheapest path there is; charging it would punish
+     * exactly the motion `CACHE_TTL_MS` exists to serve — backspacing back over
+     * a phrase answered seconds ago.
+     */
+    it("spends nothing on a suggestion served from cache", async () => {
+      const cached = `${LONG_PREFIX} already answered`;
+
+      await atFrozenClock(async () => {
+        await ask({ requestId: 0, prefix: cached });
+        for (let repeat = 0; repeat < RATE_LIMIT_PER_SESSION * 3; repeat += 1) {
+          await ask({ requestId: repeat + 1, prefix: cached });
+        }
+        // The window is untouched, so a genuinely new prefix still dispatches.
+        await ask({ requestId: 9_000, prefix: `${LONG_PREFIX} new` });
+      });
+
+      expect(makeAIRequestMock).toHaveBeenCalledTimes(2);
+      expect(rateLimitedLines()).toEqual([]);
+    });
+
+    it("still serves the cache after the window is spent", async () => {
+      const cached = `${LONG_PREFIX} already answered`;
+
+      await atFrozenClock(async () => {
+        await ask({ requestId: 0, prefix: cached });
+        for (let press = 0; press < RATE_LIMIT_PER_SESSION * 2; press += 1) {
+          await askFresh(press + 1);
+        }
+
+        expect(await ask({ requestId: 9_000, prefix: cached })).toEqual({
+          requestId: 9_000,
+          suggestion: " over the lazy dog.",
+        });
+      });
+    });
+
+    /**
+     * Refusing without aborting, for the same reason `countDispatch`'s refusal
+     * does: this path has no suggestion to offer, so killing the request
+     * already running would make room for one that is never sent.
+     */
+    it("leaves the in-flight request alone when it refuses", async () => {
+      await atFrozenClock(async () => {
+        const signals = pendingRequests();
+        for (let press = 0; press < RATE_LIMIT_PER_SESSION; press += 1) {
+          void askFresh(press);
+          await waitForCalls(press + 1);
+        }
+        // The window is spent; everything from here is refused.
+        for (let refused = 0; refused < 5; refused += 1) {
+          await askFresh(9_000 + refused);
+        }
+
+        // The last ADMITTED request is still open, and the refusals that
+        // followed it made room for nothing, so they must not have killed it.
+        expect(makeAIRequestMock).toHaveBeenCalledTimes(RATE_LIMIT_PER_SESSION);
+        expect(signals[RATE_LIMIT_PER_SESSION - 1].aborted).toBe(false);
+      });
+    });
+
+    /**
+     * `warn`, not `debug`. No amount of typing can reach this limit, so a line
+     * here is our own bug or something pathological — and `debug` is the level
+     * most readers filter out, which is the one place a runaway must not hide.
+     */
+    describe("what it says about itself", () => {
+      const burst = () =>
+        atFrozenClock(async () => {
+          for (let press = 0; press < RATE_LIMIT_PER_SESSION * 5; press += 1) {
+            await askFresh(press);
+          }
+        });
+
+      it("warns, with the scope, the limit and the window it measured", async () => {
+        await burst();
+
+        expect(loggerMock.warn.mock.calls[0]?.[2]).toMatchObject({
+          reason: "rate-limited",
+          limitScope: "session",
+          limit: RATE_LIMIT_PER_SESSION,
+          windowMs: RATE_LIMIT_WINDOW_MS,
+          dispatchesInWindow: RATE_LIMIT_PER_SESSION,
+        });
+      });
+
+      /**
+       * A loop trips this thousands of times, and every one of those lines
+       * would land in `userData/logs/*.jsonl`. Unthrottled, the diagnostic
+       * becomes the second copy of the problem it was added to report.
+       */
+      it("says it once however many requests are refused", async () => {
+        await burst();
+
+        expect(rateLimitedLines()).toHaveLength(1);
+      });
+
+      it("says it again once the throttle interval has passed, counting what it swallowed", async () => {
+        await atFrozenClock(async (setNow) => {
+          for (let press = 0; press < RATE_LIMIT_PER_SESSION + 5; press += 1) {
+            await askFresh(press);
+          }
+          setNow(AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS);
+          for (let press = 0; press < RATE_LIMIT_PER_SESSION + 5; press += 1) {
+            await askFresh(press + 10_000);
+          }
+        });
+
+        expect(rateLimitedLines()).toHaveLength(2);
+        expect(rateLimitedLines()[1]).toMatchObject({
+          reason: "rate-limited",
+          suppressedSincePrevious: 4,
+        });
+      });
+
+      /**
+       * `redactLogContext` blanks any key merely CONTAINING `clipboard`,
+       * `token`, `secret` or `selected_text`, silently and with no error — the
+       * `selectionPoll` trap. A blanked `limit` or `dispatchesInWindow` would
+       * leave a warning that says a runaway happened and refuses to say how big.
+       */
+      it("emits only context keys that survive the real redactor", async () => {
+        await burst();
+
+        const context = rateLimitedLines()[0] ?? {};
+        expect(redactLogContext(context)).toEqual(context);
+        expect(Object.keys(context).length).toBeGreaterThan(1);
+      });
+
+      it("carries no typed text, only counts and limits", async () => {
+        const prefix = "my private unsent sentence about a medical result";
+
+        await atFrozenClock(async () => {
+          for (let press = 0; press < RATE_LIMIT_PER_SESSION + 5; press += 1) {
+            await ask({ requestId: press, prefix: `${prefix} ${press}` });
+          }
+        });
+
+        const everythingLogged = JSON.stringify([
+          ...loggerMock.debug.mock.calls,
+          ...loggerMock.info.mock.calls,
+          ...loggerMock.warn.mock.calls,
+          ...loggerMock.error.mock.calls,
+        ]);
+        expect(everythingLogged).not.toContain(prefix);
+        expect(everythingLogged).not.toContain("private");
+        expect(everythingLogged).not.toContain("medical");
+      });
     });
   });
 
@@ -971,23 +1344,52 @@ describe("requestAutocompleteSuggestion", () => {
     /**
      * The bound is what stops a long session's cache growing without limit.
      * Eviction is oldest-first, so the very first prefix is the first to go.
+     *
+     * CLOCK-DRIVEN, and it has to be. Filling the cache means dispatching
+     * `CACHE_MAX_ENTRIES + 1` requests, and the short-window rate limit refuses
+     * anything past `RATE_LIMIT_PER_SESSION` a second — a burst at machine speed
+     * is now precisely what that guard exists to stop, so this test would be
+     * measuring the limiter rather than the cache. The step is chosen to clear
+     * BOTH bounds at once: comfortably under the limiter's rate, and the whole
+     * fill still finishing inside `CACHE_TTL_MS`, so the oldest entry is missing
+     * because it was EVICTED and not because it expired. A step that overran the
+     * TTL would leave this passing for the wrong reason, with the eviction loop
+     * itself untested.
      */
     it("evicts the oldest entry once the bound is passed", async () => {
+      const stepMs = 130;
       const askFor = (prefix: string) =>
         requestAutocompleteSuggestion({ requestId: 1, sessionId: "window-1", prefix });
 
-      await askFor(`${LONG_PREFIX} 0`);
-      for (let index = 1; index <= CACHE_MAX_ENTRIES; index += 1) {
-        await askFor(`${LONG_PREFIX} ${index}`);
+      vi.useFakeTimers({ toFake: ["Date"] });
+      try {
+        let elapsed = 0;
+        const tick = async (prefix: string) => {
+          vi.setSystemTime(new Date(start.getTime() + elapsed));
+          elapsed += stepMs;
+          await askFor(prefix);
+        };
+
+        await tick(`${LONG_PREFIX} 0`);
+        for (let index = 1; index <= CACHE_MAX_ENTRIES; index += 1) {
+          await tick(`${LONG_PREFIX} ${index}`);
+        }
+        const beforeRepeat = makeAIRequestMock.mock.calls.length;
+        // Every fill request really was dispatched: nothing was rate-limited,
+        // so the cache genuinely holds `CACHE_MAX_ENTRIES + 1` entries' worth.
+        expect(beforeRepeat).toBe(CACHE_MAX_ENTRIES + 1);
+        // Still inside the TTL, so expiry cannot be what removes the oldest.
+        expect(elapsed).toBeLessThan(CACHE_TTL_MS);
+
+        await tick(`${LONG_PREFIX} 0`);
+        await tick(`${LONG_PREFIX} ${CACHE_MAX_ENTRIES}`);
+
+        // The oldest was evicted and must be fetched again; the newest is still
+        // cached, so it must not be.
+        expect(makeAIRequestMock.mock.calls.length).toBe(beforeRepeat + 1);
+      } finally {
+        vi.useRealTimers();
       }
-      const beforeRepeat = makeAIRequestMock.mock.calls.length;
-
-      await askFor(`${LONG_PREFIX} 0`);
-      await askFor(`${LONG_PREFIX} ${CACHE_MAX_ENTRIES}`);
-
-      // The oldest was evicted and must be fetched again; the newest is still
-      // cached, so it must not be.
-      expect(makeAIRequestMock.mock.calls.length).toBe(beforeRepeat + 1);
     });
   });
 
@@ -1070,6 +1472,426 @@ describe("requestAutocompleteSuggestion", () => {
       await ask({ requestId: 2, prefix: `second paragraph ${window}` });
 
       expect(makeAIRequestMock).toHaveBeenCalledOnce();
+    });
+  });
+
+  /**
+   * Five of the six paths that decline to call a provider used to return in
+   * total silence, so a user whose ghost text never appeared had nothing at all
+   * to look at — not even enough to tell a disabled feature from a profile that
+   * names no model. Each assertion below pins the `reason` token, because that
+   * is what a bug report gets grepped for; the prose beside it is free to change.
+   */
+  describe("why no request was made", () => {
+    /** Every context this suite's lines carry, whatever level they came out at. */
+    const loggedContexts = (): LogContext[] =>
+      [...loggerMock.debug.mock.calls, ...loggerMock.warn.mock.calls].map(
+        (call) => call[2] as LogContext,
+      );
+
+    const reasonsLogged = (): unknown[] =>
+      loggedContexts().map((context) => context.reason);
+
+    const disableFeature = (): void => {
+      getProfileSettingMock.mockImplementation((key: string) =>
+        key === "settingsAutocomplete" ? { enabled: false, model: "" } : { presets: [] },
+      );
+    };
+
+    const removeEveryModel = (): void => {
+      getProfileSettingMock.mockImplementation((key: string) =>
+        key === "settingsAutocomplete" ? { enabled: true, model: "" } : { presets: [] },
+      );
+      getDefaultModelIdMock.mockReturnValue("");
+    };
+
+    it("states that the feature is off", async () => {
+      disableFeature();
+
+      await ask();
+
+      expect(loggerMock.debug).toHaveBeenCalledOnce();
+      expect(loggerMock.debug.mock.calls[0]?.[2]).toMatchObject({ reason: "disabled" });
+    });
+
+    it("states that the prefix is too short, with its length and the threshold", async () => {
+      await ask({ prefix: BELOW_THRESHOLD });
+
+      expect(loggerMock.debug.mock.calls[0]?.[2]).toMatchObject({
+        reason: "prefix-too-short",
+        prefixLength: MIN_PREFIX_CHARS - 1,
+        minPrefixChars: MIN_PREFIX_CHARS,
+      });
+    });
+
+    /**
+     * A `warn`, not a `debug`. Nothing on screen says the feature has turned
+     * itself off, and no amount of retrying will fix a corrupt or unwritable
+     * counter file — being told is the only route to a fix.
+     */
+    it("warns that the usage counter could not be read, and says what threw", async () => {
+      usageStoreMock.getDay.mockImplementation(() => {
+        throw new Error("ENOSPC: no space left on device");
+      });
+
+      await ask();
+
+      expect(loggerMock.warn).toHaveBeenCalledOnce();
+      expect(loggerMock.warn.mock.calls[0]?.[2]).toMatchObject({
+        reason: "usage-unreadable",
+        stage: "read",
+        errorName: "Error",
+      });
+    });
+
+    /** Same reasoning as above: silent, invisible, and unfixable unless stated. */
+    it("warns that no model is configured, and names the settings it checked", async () => {
+      removeEveryModel();
+
+      await ask();
+
+      expect(loggerMock.warn).toHaveBeenCalledOnce();
+      expect(loggerMock.warn.mock.calls[0]?.[2]).toMatchObject({
+        reason: "no-model",
+        checkedSources: [
+          "settingsAutocomplete.model",
+          "askPreset.model",
+          "profileDefaultModel",
+        ],
+      });
+    });
+
+    it("states a cache hit rather than looking like a request that never happened", async () => {
+      await ask();
+      loggerMock.debug.mockClear();
+
+      await ask({ requestId: 2 });
+
+      expect(makeAIRequestMock).toHaveBeenCalledOnce();
+      expect(loggerMock.debug.mock.calls[0]?.[2]).toMatchObject({
+        reason: "cache-hit",
+        prefixLength: LONG_PREFIX.length,
+        hasSuggestion: true,
+      });
+    });
+
+    /**
+     * The cap line predates the rest and keeps its own once-per-day throttle,
+     * which is stricter than the interval below. It gains only the machine
+     * -readable token the others carry.
+     */
+    it("tags the existing daily-cap warning with the same reason vocabulary", async () => {
+      dayRequests = DAILY_REQUEST_CAP;
+
+      await ask();
+
+      expect(loggerMock.warn.mock.calls[0]?.[2]).toMatchObject({
+        reason: "cap-reached",
+        cap: DAILY_REQUEST_CAP,
+      });
+    });
+
+    /**
+     * Every one of these paths is on the typing route. A line per request would
+     * fill `userData/logs/*.jsonl` with the diagnostic instead of the diagnosis,
+     * and leave the Logs tab unreadable — the feature would be worse for having
+     * been instrumented.
+     */
+    describe("throttling", () => {
+      it("logs one line per reason however many requests hit it", async () => {
+        disableFeature();
+
+        for (let i = 0; i < 40; i += 1) await ask({ requestId: i });
+
+        expect(loggerMock.debug).toHaveBeenCalledOnce();
+      });
+
+      it("reports how many it suppressed on the next line for that reason", async () => {
+        vi.useFakeTimers({ toFake: ["Date"] });
+        try {
+          vi.setSystemTime(new Date(2026, 6, 31, 12, 0, 0));
+          disableFeature();
+          for (let i = 0; i < 5; i += 1) await ask({ requestId: i });
+
+          vi.setSystemTime(
+            new Date(2026, 6, 31, 12, 0, 0).getTime() + AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS,
+          );
+          await ask({ requestId: 99 });
+        } finally {
+          vi.useRealTimers();
+        }
+
+        expect(loggerMock.debug).toHaveBeenCalledTimes(2);
+        expect(loggerMock.debug.mock.calls[1]?.[2]).toMatchObject({
+          reason: "disabled",
+          suppressedSincePrevious: 4,
+        });
+      });
+
+      /**
+       * A single "last reason" slot would emit on every event once two reasons
+       * alternate — which is what backspacing across `MIN_PREFIX_CHARS` does.
+       * The throttle is per reason precisely so that stays bounded.
+       */
+      it("stays bounded when two reasons alternate", async () => {
+        removeEveryModel();
+
+        for (let i = 0; i < 20; i += 1) {
+          await ask({ requestId: i, prefix: BELOW_THRESHOLD });
+          await ask({ requestId: i, prefix: LONG_PREFIX });
+        }
+
+        expect(reasonsLogged().sort()).toEqual(["no-model", "prefix-too-short"]);
+      });
+
+      it("does not let one reason silence a different one", async () => {
+        await ask({ prefix: BELOW_THRESHOLD });
+        disableFeature();
+        await ask();
+
+        expect(reasonsLogged()).toEqual(["prefix-too-short", "disabled"]);
+      });
+    });
+
+    /**
+     * `redactLogContext` blanks any key merely CONTAINING `clipboard`, `token`,
+     * `secret` or `selected_text`, and it does so with no error — this project
+     * already lost a latency metric to exactly that (the `selectionPoll` phase
+     * name). Every key these lines emit goes through the REAL redactor here
+     * rather than being eyeballed.
+     */
+    it("emits only context keys that survive the real redactor", async () => {
+      await ask({ prefix: BELOW_THRESHOLD });
+      await ask();
+      await ask({ requestId: 2 });
+      usageStoreMock.getDay.mockImplementation(() => {
+        throw new Error("ENOSPC");
+      });
+      await ask({ requestId: 3, prefix: `${LONG_PREFIX} other` });
+      removeEveryModel();
+      resetAutocompleteState();
+      await ask({ requestId: 4, prefix: `${LONG_PREFIX} again` });
+
+      const contexts = loggedContexts();
+      expect(contexts.length).toBeGreaterThanOrEqual(4);
+      for (const context of contexts) {
+        expect(redactLogContext(context)).toEqual(context);
+      }
+    });
+
+    /**
+     * The whole feature is about text the user has NOT chosen to send anywhere,
+     * and Logs-tab lines are copyable and exportable. Lengths and counts only —
+     * on the refusal paths and on the success path alike.
+     */
+    it("never writes the typed text, the suffix or the suggestion into a log line", async () => {
+      const prefix = "my private unsent sentence about a medical result";
+      const suffix = " and its confidential continuation";
+      const suggestion = " a model completion nobody asked to store";
+      respondWith(suggestion);
+
+      await ask({ prefix, suffix });
+      await ask({ requestId: 2, prefix, suffix });
+      await ask({ requestId: 3, prefix: BELOW_THRESHOLD });
+
+      const everythingLogged = JSON.stringify([
+        ...loggerMock.debug.mock.calls,
+        ...loggerMock.info.mock.calls,
+        ...loggerMock.warn.mock.calls,
+        ...loggerMock.error.mock.calls,
+      ]);
+      for (const secret of [prefix, suffix, suggestion, "private", "confidential"]) {
+        expect(everythingLogged).not.toContain(secret);
+      }
+    });
+  });
+
+  /**
+   * A request that WAS dispatched and WAS billed, and reached nobody. Distinct
+   * from every refusal above, which never called a provider at all.
+   *
+   * This is the half of "the model is too slow" that only main can see: with a
+   * 24-second model and a user who keeps typing, every request is killed by the
+   * next keystroke, so nothing resolves, nothing is painted, and — until this
+   * line existed — not one word was written anywhere while every one of those
+   * prompts was billed. The renderer's complementary half (`reply-too-late`,
+   * for a reply that did answer and landed after the caret moved) is in
+   * `ipc.ts`, because only the renderer knows where the caret is.
+   */
+  describe("a dispatched suggestion that reached nobody", () => {
+    /** Rejects with an AbortError the moment the signal fires, as a provider does. */
+    const rejectOnAbort = (): void => {
+      makeAIRequestMock.mockImplementation(
+        (options: { abortSignal: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            options.abortSignal.addEventListener("abort", () => {
+              const error = new Error("aborted");
+              error.name = "AbortError";
+              reject(error);
+            });
+          }),
+      );
+    };
+
+    /** Dispatches, supersedes, and lets the abort rejection settle. */
+    const supersede = async (count = 1): Promise<void> => {
+      rejectOnAbort();
+      for (let index = 0; index < count + 1; index += 1) {
+        void ask({ requestId: index, prefix: `${LONG_PREFIX} ${index}` });
+        await waitForCalls(index + 1);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    };
+
+    const wastedLine = (): [string, string, LogContext] | undefined =>
+      (loggerMock.warn.mock.calls[0] ?? loggerMock.debug.mock.calls[0]) as
+        | [string, string, LogContext]
+        | undefined;
+
+    it("names the model it was slow on, rather than returning in silence", async () => {
+      await supersede();
+
+      expect(wastedLine()?.[2]).toMatchObject({
+        reason: "superseded",
+        model: "openai::gpt-4o-mini",
+      });
+      expect(wastedLine()?.[2].latencyMs).toEqual(expect.any(Number));
+    });
+
+    it("stays at debug for a single supersession, which is ordinary fast typing", async () => {
+      await supersede();
+
+      expect(loggerMock.warn).not.toHaveBeenCalled();
+      expect(
+        loggerMock.debug.mock.calls.filter(
+          (call) => (call[2] as LogContext).reason === "superseded",
+        ),
+      ).toHaveLength(1);
+    });
+
+    /**
+     * The line has to be throttled like every other one on the typing path: a
+     * model slow enough to be superseded once is slow enough to be superseded
+     * on every keystroke, which is a line per keypress into a file the user
+     * later exports.
+     */
+    /**
+     * As many as one window allows: past `RATE_LIMIT_PER_SESSION` the requests
+     * are refused before dispatch, so they are never superseded either — a
+     * burst of twenty at machine speed is now exactly what that guard stops.
+     */
+    it("logs once however many requests are superseded", async () => {
+      await supersede(RATE_LIMIT_PER_SESSION - 1);
+
+      const supersededLines = [
+        ...loggerMock.debug.mock.calls,
+        ...loggerMock.warn.mock.calls,
+      ].filter((call) => (call[2] as LogContext).reason === "superseded");
+      expect(supersededLines).toHaveLength(1);
+    });
+
+    it("emits only context keys that survive the real redactor", async () => {
+      await supersede();
+
+      const context = wastedLine()?.[2] ?? {};
+      expect(redactLogContext(context)).toEqual(context);
+    });
+
+    it("carries no typed text, only the model and the elapsed time", async () => {
+      const prefix = "my private unsent sentence about a medical result";
+      rejectOnAbort();
+      void ask({ requestId: 1, prefix });
+      await waitForCalls(1);
+      void ask({ requestId: 2, prefix: `${prefix} more` });
+      await waitForCalls(2);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const everythingLogged = JSON.stringify([
+        ...loggerMock.debug.mock.calls,
+        ...loggerMock.warn.mock.calls,
+      ]);
+      expect(everythingLogged).not.toContain(prefix);
+      expect(everythingLogged).not.toContain("private");
+    });
+
+    /**
+     * The join between the two halves. The renderer reports only an id, because
+     * a model name coming UP from it would be renderer-controlled text in an
+     * exportable log file; these are main's own measurements, looked up by that
+     * id.
+     */
+    describe("takeAutocompleteResolution", () => {
+      it("hands back what the round trip actually was", async () => {
+        respondWith(" over the lazy dog.");
+
+        await ask({ requestId: 7 });
+
+        expect(takeAutocompleteResolution("window-1", 7)).toMatchObject({
+          requestId: 7,
+          model: "gpt-4o-mini",
+          provider: "openai",
+        });
+      });
+
+      /** Consumed by the read, so a replayed id cannot re-emit the line. */
+      it("gives the same reply up only once", async () => {
+        respondWith(" over the lazy dog.");
+        await ask({ requestId: 7 });
+
+        takeAutocompleteResolution("window-1", 7);
+
+        expect(takeAutocompleteResolution("window-1", 7)).toBeNull();
+      });
+
+      it("refuses an id it did not answer", async () => {
+        respondWith(" over the lazy dog.");
+        await ask({ requestId: 7 });
+
+        expect(takeAutocompleteResolution("window-1", 8)).toBeNull();
+      });
+
+      it("refuses another surface's reply", async () => {
+        respondWith(" over the lazy dog.");
+        await ask({ requestId: 7 });
+
+        expect(takeAutocompleteResolution("window-2", 7)).toBeNull();
+      });
+
+      /**
+       * A cache hit calls no provider, so it has no model and no latency to
+       * blame — and it is instant, so it is never the thing that was too slow.
+       */
+      it("records nothing for a reply served from the cache", async () => {
+        respondWith(" over the lazy dog.");
+        await ask({ requestId: 7 });
+        takeAutocompleteResolution("window-1", 7);
+
+        await ask({ requestId: 8 });
+
+        expect(takeAutocompleteResolution("window-1", 8)).toBeNull();
+      });
+
+      it("records nothing for a refusal that never called a provider", async () => {
+        await ask({ requestId: 7, prefix: BELOW_THRESHOLD });
+
+        expect(takeAutocompleteResolution("window-1", 7)).toBeNull();
+      });
+
+      /**
+       * Keyed by a `webContents.id` that only ever increases, so an unbounded
+       * map here would be a leak nothing else in the feature would reveal.
+       */
+      it("keeps at most RESOLUTION_MEMORY_MAX_ENTRIES surfaces, oldest out first", async () => {
+        respondWith(" over the lazy dog.");
+        for (let index = 0; index <= RESOLUTION_MEMORY_MAX_ENTRIES; index += 1) {
+          await ask({ requestId: index, sessionId: `window-${index}`, prefix: `${LONG_PREFIX} ${index}` });
+        }
+
+        expect(takeAutocompleteResolution("window-0", 0)).toBeNull();
+        expect(
+          takeAutocompleteResolution(`window-${RESOLUTION_MEMORY_MAX_ENTRIES}`, RESOLUTION_MEMORY_MAX_ENTRIES),
+        ).not.toBeNull();
+      });
     });
   });
 });

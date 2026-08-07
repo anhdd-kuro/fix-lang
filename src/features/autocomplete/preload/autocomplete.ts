@@ -1,4 +1,6 @@
 import { ipcRenderer } from "electron";
+import { AUTOCOMPLETE_SKIP_CHANNEL } from "~/features/autocomplete/shared/autocompleteDiagnostics";
+import type { AutocompleteSkipReport } from "~/features/autocomplete/shared/autocompleteDiagnostics";
 import type {
   AutocompleteDayRollup,
   AutocompleteSuggestReply,
@@ -101,6 +103,37 @@ export const autocompleteFeature = {
   ): Promise<AutocompleteSuggestReply> => {
     const result = await invokeOrNull("autocomplete-suggest", request);
     return isSuggestReply(result) ? result : { requestId: request.requestId, suggestion: null };
+  },
+
+  /**
+   * Tells main why the renderer did NOT ask for a suggestion.
+   *
+   * `send`, not `invoke`, and that is the whole design. The gap this closes is
+   * that a renderer which never dispatches leaves main with nothing to log, so
+   * "it did nothing" and "main refused" look identical from the Logs tab. But
+   * the paths being reported sit on the typing route, so the report must cost
+   * nothing: one-way, no round trip, no reply, no promise for the caller to
+   * await or forget to catch. The renderer throttles what it sends and main
+   * throttles again on arrival — the second one is the load-bearing one, since
+   * a buggy renderer is precisely what this exists to diagnose.
+   *
+   * Also carries `reply-too-late`, which is not a non-dispatch: the request
+   * went out and was billed, and the answer landed after the surface had moved
+   * on. The renderer is the only side that can see that, so it is the same
+   * one-way report — but it names no model, only the `requestId` main should
+   * look the model up under.
+   *
+   * The payload carries lengths, ids and a closed-set reason, never typed text.
+   * Field by field, never a spread: the caller's object is the one place a
+   * future field carrying typed content could arrive from.
+   */
+  reportAutocompleteSkip: (report: AutocompleteSkipReport): void => {
+    ipcRenderer.send(AUTOCOMPLETE_SKIP_CHANNEL, {
+      reason: report.reason,
+      prefixLength: report.prefixLength,
+      suppressedSincePrevious: report.suppressedSincePrevious,
+      ...(report.requestId === undefined ? {} : { requestId: report.requestId }),
+    });
   },
 
   /** A malformed or rejected reply falls back to an empty, honestly-zeroed snapshot. */

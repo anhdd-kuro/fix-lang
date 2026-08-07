@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { autocompleteFeature } from "./autocomplete";
 
-const electronMocks = vi.hoisted(() => ({ invoke: vi.fn() }));
+const electronMocks = vi.hoisted(() => ({ invoke: vi.fn(), send: vi.fn() }));
 
 vi.mock("electron", () => ({ ipcRenderer: electronMocks }));
 
@@ -30,6 +30,83 @@ const zeroedRollup = {
 describe("autocomplete preload boundary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  /**
+   * One-way on purpose: this runs on the typing path, so a round trip per
+   * non-dispatch would cost more than the diagnostic is worth, and there is no
+   * answer to wait for.
+   */
+  describe("reportAutocompleteSkip", () => {
+    it("sends on the skip channel rather than invoking", () => {
+      autocompleteFeature.reportAutocompleteSkip({
+        reason: "caret-moved",
+        prefixLength: 31,
+        suppressedSincePrevious: 2,
+      });
+
+      expect(electronMocks.send).toHaveBeenCalledWith("autocomplete-skip", {
+        reason: "caret-moved",
+        prefixLength: 31,
+        suppressedSincePrevious: 2,
+      });
+      expect(electronMocks.invoke).not.toHaveBeenCalled();
+    });
+
+    /**
+     * Rebuilt field by field, never spread. A caller that grew an extra field
+     * would otherwise put it on the wire and into an exportable log file
+     * unnoticed — and on this feature the obvious extra field is the typed text.
+     */
+    it("puts only the three declared fields on the wire", () => {
+      autocompleteFeature.reportAutocompleteSkip({
+        reason: "prefix-too-short",
+        prefixLength: 4,
+        suppressedSincePrevious: 0,
+        prefix: "my private unsent sentence",
+      } as Parameters<typeof autocompleteFeature.reportAutocompleteSkip>[0]);
+
+      const [, payload] = electronMocks.send.mock.calls[0] ?? [];
+      expect(Object.keys(payload as object).sort()).toEqual([
+        "prefixLength",
+        "reason",
+        "suppressedSincePrevious",
+      ]);
+      expect(JSON.stringify(payload)).not.toContain("private");
+    });
+
+    /**
+     * `reply-too-late` needs a fourth field, because main can only name the
+     * model that was slow if it can match the report to the reply it sent. An
+     * ID, never a model name: a model id supplied by the renderer would be
+     * renderer-controlled text in an exportable log file.
+     */
+    it("carries the reply id for a late arrival, and only for one", () => {
+      autocompleteFeature.reportAutocompleteSkip({
+        reason: "reply-too-late",
+        prefixLength: 39,
+        suppressedSincePrevious: 0,
+        requestId: 12,
+      });
+
+      expect(electronMocks.send).toHaveBeenCalledWith("autocomplete-skip", {
+        reason: "reply-too-late",
+        prefixLength: 39,
+        suppressedSincePrevious: 0,
+        requestId: 12,
+      });
+    });
+
+    it("omits requestId entirely when the reason does not carry one", () => {
+      autocompleteFeature.reportAutocompleteSkip({
+        reason: "composing",
+        prefixLength: 9,
+        suppressedSincePrevious: 0,
+      });
+
+      const [, payload] = electronMocks.send.mock.calls[0] ?? [];
+      expect(Object.keys(payload as object)).not.toContain("requestId");
+    });
   });
 
   describe("requestAutocompleteSuggestion", () => {

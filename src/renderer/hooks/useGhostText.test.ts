@@ -42,6 +42,8 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS } from "~/features/autocomplete/shared/autocompleteDiagnostics";
+import { MIN_PREFIX_CHARS } from "~/features/autocomplete/shared/autocompleteWire";
 import {
   isSurfaceOnAnchor,
   useGhostText,
@@ -51,10 +53,22 @@ import {
   type GhostTextSurfaceState,
   type UseGhostText,
 } from "./useGhostText";
+import type { AutocompleteSkipReport } from "~/features/autocomplete/shared/autocompleteDiagnostics";
 import type {
   AutocompleteSuggestReply,
   AutocompleteSuggestRequest,
 } from "~/features/autocomplete/shared/autocompleteWire";
+
+/**
+ * Named for its relation to the threshold, never for its length. A literal
+ * would silently stop meaning "too short" the next time `MIN_PREFIX_CHARS`
+ * moves — which it just did, 12 → 3, turning every previous "short" fixture
+ * into a perfectly dispatchable prefix with the assertions still green in the
+ * suites that only checked a negative.
+ *
+ * The VALUE of the threshold is pinned once, deliberately, in its own test.
+ */
+const BELOW_THRESHOLD = "a".repeat(MIN_PREFIX_CHARS - 1);
 
 type DeferredReply = {
   promise: Promise<AutocompleteSuggestReply>;
@@ -74,6 +88,7 @@ describe("useGhostText", () => {
   let root: Root;
   let hook: UseGhostText | undefined;
   let requestAutocompleteSuggestion: ReturnType<typeof vi.fn>;
+  let reportAutocompleteSkip: ReturnType<typeof vi.fn>;
   /** Stands in for the textarea: what a live DOM read would report right now. */
   let liveSurface: GhostTextSurfaceState | null = null;
 
@@ -143,9 +158,10 @@ describe("useGhostText", () => {
     vi.useFakeTimers();
     liveSurface = null;
     requestAutocompleteSuggestion = vi.fn();
+    reportAutocompleteSkip = vi.fn();
     Object.defineProperty(window, "electronAPI", {
       configurable: true,
-      value: { requestAutocompleteSuggestion },
+      value: { requestAutocompleteSuggestion, reportAutocompleteSkip },
     });
     await mount();
   });
@@ -289,14 +305,44 @@ describe("useGhostText", () => {
   });
 
   it("does not request below MIN_PREFIX_CHARS", async () => {
-    const short = "too short";
     await act(async () => {
-      change(short, short.length);
+      change(BELOW_THRESHOLD, BELOW_THRESHOLD.length);
       vi.advanceTimersByTime(GHOST_TEXT_DEBOUNCE_MS * 2);
     });
     await flushMicrotasks();
 
     expect(requestAutocompleteSuggestion).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Pinned as a VALUE, unlike every other use of it in this file.
+   *
+   * Once `MIN_PREFIX_CHARS` dropped to 3 the threshold stopped being the rate
+   * limiter, and this is what replaced it: 300 ms clears a fluent typist's
+   * inter-keystroke gap (roughly 150–250 ms), so a request goes out at a real
+   * pause instead of several times per question. Every other test here advances
+   * by the symbol and would stay green at any value, including 0 — so without
+   * this one, the only guard on what the feature COSTS is a comment.
+   */
+  it("keeps the deliberate 300 ms pause before spending anything", () => {
+    expect(GHOST_TEXT_DEBOUNCE_MS).toBe(300);
+  });
+
+  /**
+   * The gate is `< MIN_PREFIX_CHARS`, so a prefix of EXACTLY the threshold
+   * dispatches. Pinned next to the negative above because the pair is what
+   * makes the boundary unambiguous — "reaches 3 characters" in the docs, not
+   * "past 3".
+   */
+  it("requests as soon as the prefix reaches MIN_PREFIX_CHARS", async () => {
+    requestAutocompleteSuggestion.mockResolvedValue({
+      requestId: 1,
+      suggestion: null,
+    } satisfies AutocompleteSuggestReply);
+
+    await typeAndSettle("a".repeat(MIN_PREFIX_CHARS));
+
+    expect(requestAutocompleteSuggestion).toHaveBeenCalledOnce();
   });
 
   // Every one of these resolves a reply that IS the newest request ever sent,
@@ -338,7 +384,7 @@ describe("useGhostText", () => {
       // Below the threshold `notifyChange` returns before arming a timer, so
       // no future request exists to overwrite a ghost painted here.
       await act(async () => {
-        change("abc", 3);
+        change(BELOW_THRESHOLD, BELOW_THRESHOLD.length);
         vi.advanceTimersByTime(GHOST_TEXT_DEBOUNCE_MS * 2);
       });
       await act(async () => {
@@ -565,8 +611,8 @@ describe("useGhostText", () => {
 
       // Below MIN_PREFIX_CHARS nothing is armed and nothing is anchored.
       await act(async () => {
-        change("abc", 3);
-        caretMove("abc", 1, 1);
+        change(BELOW_THRESHOLD, BELOW_THRESHOLD.length);
+        caretMove(BELOW_THRESHOLD, 1, 1);
       });
 
       // A real request armed straight afterwards must still reach the wire.
@@ -908,6 +954,305 @@ describe("useGhostText", () => {
       expect(sentRequest()).toMatchObject({
         prefix: keptPrefixTail,
         suffix: keptSuffixHead,
+      });
+    });
+  });
+
+  /**
+   * The hardest half of "autocomplete does nothing". When this hook declines to
+   * dispatch, main never runs, so there is no log line anywhere and the user
+   * cannot tell "the window never asked" from "main refused". Each non-dispatch
+   * path therefore reports its reason over the one-way skip channel.
+   *
+   * The assertions pin the `reason` token rather than any prose, since that is
+   * what a bug report gets grepped for.
+   */
+  describe("reporting why nothing was dispatched", () => {
+    /** The report bodies the hook actually put on the wire. */
+    const reports = (): AutocompleteSkipReport[] =>
+      reportAutocompleteSkip.mock.calls.map(
+        (call) => call[0] as AutocompleteSkipReport,
+      );
+
+    const reasons = (): string[] => reports().map((report) => report.reason);
+
+    it("reports a prefix below the threshold, with its length", async () => {
+      await act(async () => {
+        change(BELOW_THRESHOLD, BELOW_THRESHOLD.length);
+      });
+
+      expect(reports()).toEqual([
+        {
+          reason: "prefix-too-short",
+          prefixLength: MIN_PREFIX_CHARS - 1,
+          suppressedSincePrevious: 0,
+        },
+      ]);
+    });
+
+    it("reports an IME composition rather than going quiet", async () => {
+      await act(async () => {
+        hook?.notifyCompositionStart();
+        change("これは十分に長い日本語の文章です", 15);
+      });
+
+      expect(reasons()).toEqual(["composing"]);
+      expect(requestAutocompleteSuggestion).not.toHaveBeenCalled();
+    });
+
+    /**
+     * The event-independent spend gate: a mousedown inside the debounce window
+     * moves the caret and fires nothing at all, so the hook refuses to bill for
+     * a caret the user has left. Silent, it looked identical to a broken hook.
+     */
+    it("reports a caret that moved before the debounce fired", async () => {
+      await act(async () => {
+        change("twelve characters or more", 25);
+      });
+      moveSurfaceSilently("twelve characters or more", 3);
+      await act(async () => {
+        vi.advanceTimersByTime(GHOST_TEXT_DEBOUNCE_MS);
+      });
+      await flushMicrotasks();
+
+      expect(reasons()).toEqual(["caret-moved"]);
+      expect(requestAutocompleteSuggestion).not.toHaveBeenCalled();
+    });
+
+    /**
+     * A missing bridge method throws inside a timer callback, where no `catch`
+     * in this file and no log in main can see it — the renderer just goes
+     * quiet. The Ask window's payload arriving proves the preload loaded, so
+     * the reporting method is still reachable to say so.
+     */
+    it("reports a missing suggest bridge instead of throwing inside the timer", async () => {
+      Object.defineProperty(window, "electronAPI", {
+        configurable: true,
+        value: { reportAutocompleteSkip },
+      });
+
+      await typeAndSettle("twelve characters or more");
+
+      expect(reasons()).toEqual(["bridge-unavailable"]);
+    });
+
+    it("says nothing when a request is actually dispatched", async () => {
+      requestAutocompleteSuggestion.mockResolvedValue({
+        requestId: 1,
+        suggestion: " continues",
+      } satisfies AutocompleteSuggestReply);
+
+      await typeAndSettle("twelve characters or more");
+
+      expect(reportAutocompleteSkip).not.toHaveBeenCalled();
+    });
+
+    /**
+     * This runs on every keystroke. Unthrottled it would put a line per
+     * keypress into `userData/logs/*.jsonl` and make the Logs tab unusable —
+     * the diagnostic would be a worse bug than the one it was added for.
+     */
+    describe("throttling", () => {
+      it("reports a repeated reason once, not once per keystroke", async () => {
+        for (let keystroke = 0; keystroke < 5; keystroke += 1) {
+          await act(async () => {
+            change(BELOW_THRESHOLD, BELOW_THRESHOLD.length);
+          });
+        }
+
+        expect(reportAutocompleteSkip).toHaveBeenCalledOnce();
+      });
+
+      it("carries the suppressed count on the next report for that reason", async () => {
+        for (let keystroke = 0; keystroke < 4; keystroke += 1) {
+          await act(async () => {
+            change(BELOW_THRESHOLD, BELOW_THRESHOLD.length);
+          });
+        }
+
+        await act(async () => {
+          vi.advanceTimersByTime(AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS);
+          change(BELOW_THRESHOLD, BELOW_THRESHOLD.length);
+        });
+
+        expect(reports()).toHaveLength(2);
+        expect(reports()[1]).toMatchObject({
+          reason: "prefix-too-short",
+          suppressedSincePrevious: 3,
+        });
+      });
+
+      it("does not let one reason silence a different one", async () => {
+        await act(async () => {
+          change(BELOW_THRESHOLD, BELOW_THRESHOLD.length);
+          hook?.notifyCompositionStart();
+          change("これは十分に長い日本語の文章です", 15);
+        });
+
+        expect(reasons()).toEqual(["prefix-too-short", "composing"]);
+      });
+    });
+
+    /**
+     * The feature's entire purpose is text the user has NOT chosen to send
+     * anywhere, and the report ends up in a log file they can copy and export.
+     * Lengths only — on every reason, including the ones whose prefix is long
+     * enough to be interesting.
+     */
+    it("never puts typed text on the wire, only its length", async () => {
+      const secret = "my private unsent sentence";
+      await act(async () => {
+        change(BELOW_THRESHOLD, BELOW_THRESHOLD.length);
+      });
+      await act(async () => {
+        hook?.notifyCompositionStart();
+        change(secret, secret.length);
+      });
+
+      const serialized = JSON.stringify(reports());
+      expect(serialized).not.toContain(secret);
+      expect(serialized).not.toContain("private");
+      for (const report of reports()) {
+        expect(Object.keys(report).sort()).toEqual([
+          "prefixLength",
+          "reason",
+          "suppressedSincePrevious",
+        ]);
+      }
+    });
+
+    /**
+     * The odd reason out, and the one the whole late-arrival change is for: a
+     * request that WAS dispatched and WAS billed, whose answer landed after the
+     * user had moved on. A 24-second model produces this on every question, and
+     * silently — from the Logs tab it was indistinguishable from a feature that
+     * does not work.
+     *
+     * Only this side can see it: main has no idea where the caret is. So the
+     * report carries the reply's id and NOTHING about the provider — main
+     * matches that id back to its own record to name the model, because a model
+     * id travelling upwards from here would be renderer-controlled text landing
+     * in a file the user can export.
+     */
+    describe("a reply that arrived too late to be shown", () => {
+      it("reports a reply the surface has already typed past, with its id", async () => {
+        const pending = deferReply();
+        requestAutocompleteSuggestion.mockReturnValueOnce(pending.promise);
+
+        await typeAndSettle("abcdefghijkl");
+        const inFlight = sentRequest();
+        await act(async () => {
+          change("abcdefghijklmno", 15);
+        });
+        await act(async () => {
+          pending.resolve({ requestId: inFlight.requestId, suggestion: "stale ghost" });
+        });
+        await flushMicrotasks();
+
+        expect(reports()).toEqual([
+          {
+            reason: "reply-too-late",
+            prefixLength: "abcdefghijkl".length,
+            suppressedSincePrevious: 0,
+            requestId: inFlight.requestId,
+          },
+        ]);
+      });
+
+      /**
+       * The paint gate, which is a different discard: this reply IS the newest
+       * request ever sent, so no id comparison is challenged. Only the live
+       * surface read can tell that the caret left, and a mousedown fires no
+       * React event at all.
+       */
+      it("reports a reply that lands after the caret silently left the anchor", async () => {
+        const pending = deferReply();
+        requestAutocompleteSuggestion.mockReturnValueOnce(pending.promise);
+
+        await typeAndSettle("abcdefghijkl");
+        const inFlight = sentRequest();
+        moveSurfaceSilently("abcdefghijkl", 3);
+        await act(async () => {
+          pending.resolve({ requestId: inFlight.requestId, suggestion: " continues" });
+        });
+        await flushMicrotasks();
+
+        expect(hook?.suggestion).toBeNull();
+        expect(reports()).toEqual([
+          {
+            reason: "reply-too-late",
+            prefixLength: "abcdefghijkl".length,
+            suppressedSincePrevious: 0,
+            requestId: inFlight.requestId,
+          },
+        ]);
+      });
+
+      it("says nothing when the suggestion actually paints", async () => {
+        requestAutocompleteSuggestion.mockResolvedValue({
+          requestId: 1,
+          suggestion: " continues",
+        } satisfies AutocompleteSuggestReply);
+
+        await typeAndSettle("abcdefghijkl");
+
+        expect(hook?.suggestion).toBe(" continues");
+        expect(reportAutocompleteSkip).not.toHaveBeenCalled();
+      });
+
+      /**
+       * A model slow enough to miss once misses on every keystroke, so this is
+       * the reason most able to flood the log. Same per-reason throttle as the
+       * rest.
+       */
+      it("reports a repeated late arrival once, not once per keystroke", async () => {
+        requestAutocompleteSuggestion.mockImplementation(
+          async (request: AutocompleteSuggestRequest) => {
+            // Answers an id the hook has already moved past, which is exactly
+            // what a reply outrunning the user's typing looks like.
+            hook?.notifyBlur();
+            return { requestId: request.requestId, suggestion: " continues" };
+          },
+        );
+
+        for (const text of ["abcdefghijkl", "abcdefghijklm", "abcdefghijklmn"]) {
+          await typeAndSettle(text);
+        }
+
+        expect(
+          reasons().filter((reason) => reason === "reply-too-late"),
+        ).toEqual(["reply-too-late"]);
+      });
+
+      /**
+       * The report is about a model, which makes it the likeliest place for a
+       * provider detail — or typed text dressed as one — to creep onto the
+       * wire. It carries an id and lengths, and nothing else.
+       */
+      it("puts no typed text and no provider detail on the wire", async () => {
+        const secret = "my private unsent sentence";
+        const pending = deferReply();
+        requestAutocompleteSuggestion.mockReturnValueOnce(pending.promise);
+
+        await typeAndSettle(secret);
+        const inFlight = sentRequest();
+        await act(async () => {
+          change(`${secret} continued`, secret.length + 10);
+        });
+        await act(async () => {
+          pending.resolve({ requestId: inFlight.requestId, suggestion: secret });
+        });
+        await flushMicrotasks();
+
+        const serialized = JSON.stringify(reports());
+        expect(serialized).not.toContain(secret);
+        expect(serialized).not.toContain("private");
+        expect(Object.keys(reports()[0] ?? {}).sort()).toEqual([
+          "prefixLength",
+          "reason",
+          "requestId",
+          "suppressedSincePrevious",
+        ]);
       });
     });
   });
