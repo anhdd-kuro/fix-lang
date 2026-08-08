@@ -175,15 +175,29 @@ describe("SettingCorrection primary actions", () => {
   });
 });
 
-/** React ignores a direct `.value` assignment; the native setter bypasses it. */
-const setSelectValue = async (element: HTMLSelectElement, value: string) => {
+/**
+ * The per-preset output mode is a react-select combobox (the control
+ * `<ModelSelect>` uses), not a native `<select>`: there is no `.value` to set.
+ * Open the menu from its input, then click the row by its label.
+ */
+const chooseOption = async (
+  container: HTMLElement,
+  input: HTMLInputElement,
+  label: string,
+) => {
   await act(async () => {
-    const setter = Object.getOwnPropertyDescriptor(
-      HTMLSelectElement.prototype,
-      "value",
-    )?.set;
-    setter?.call(element, value);
-    element.dispatchEvent(new Event("change", { bubbles: true }));
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    );
+  });
+  const row = [...container.querySelectorAll('[role="option"]')].find(
+    (option) => option.textContent === label,
+  );
+  if (!row) {
+    throw new Error(`No output-mode option labelled "${label}"`);
+  }
+  await act(async () => {
+    row.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   });
 };
 
@@ -270,7 +284,22 @@ describe("SettingCorrection output-mode and markdown controls", () => {
     });
   };
 
-  it("round-trips a preset's output-mode Select through save", async () => {
+  /** react-select's inner text input — what `<label htmlFor>` points at. */
+  const outputModeInput = (): HTMLInputElement => {
+    const input = container.querySelector<HTMLInputElement>(
+      "input#preset-output-mode",
+    );
+    if (!input) {
+      throw new Error("Expected the output-mode combobox input");
+    }
+    return input;
+  };
+
+  /** The closed control's own text: the selected row's label. */
+  const outputModeControlText = (): string =>
+    container.querySelector("#preset-output-mode-control")?.textContent ?? "";
+
+  it("round-trips a preset's output-mode select through save", async () => {
     const setCorrectSettings = vi.fn().mockResolvedValue({ success: true });
     Object.defineProperty(window, "electronAPI", {
       configurable: true,
@@ -285,15 +314,25 @@ describe("SettingCorrection output-mode and markdown controls", () => {
 
     await mount();
 
-    const select =
-      container.querySelector<HTMLSelectElement>("#preset-output-mode");
-    if (!select) {
-      throw new Error("Expected the output-mode Select to be rendered.");
-    }
-    expect(select.value).toBe("inherit");
+    const input = outputModeInput();
+    // `inputId`, not `id`: react-select's `htmlFor` target is the input.
+    expect(input.getAttribute("role")).toBe("combobox");
+    expect(
+      container.querySelector<HTMLLabelElement>('label[for="preset-output-mode"]')
+        ?.textContent,
+    ).toBe(tEn("settings.correction.outputMode.label"));
+    expect(outputModeControlText()).toContain(
+      tEn("settings.correction.outputMode.inherit"),
+    );
 
-    await setSelectValue(select, "paste");
-    expect(select.value).toBe("paste");
+    await chooseOption(
+      container,
+      input,
+      tEn("settings.correction.outputMode.paste"),
+    );
+    expect(outputModeControlText()).toContain(
+      tEn("settings.correction.outputMode.paste"),
+    );
 
     const form = container.querySelector("form");
     await act(async () => {
@@ -432,10 +471,9 @@ describe("SettingCorrection output-mode and markdown controls", () => {
     // Before reset: requiresInput is false, so no markdown control; outputMode
     // reads the overridden "paste".
     expect(markdownInput()).toBeNull();
-    expect(
-      container.querySelector<HTMLSelectElement>("#preset-output-mode")
-        ?.value,
-    ).toBe("paste");
+    expect(outputModeControlText()).toContain(
+      tEn("settings.correction.outputMode.paste"),
+    );
 
     const resetButton = [...container.querySelectorAll("button")].find(
       (button) => button.textContent === tEn("settings.correction.resetBuiltIn"),
@@ -444,10 +482,9 @@ describe("SettingCorrection output-mode and markdown controls", () => {
       resetButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
-    expect(
-      container.querySelector<HTMLSelectElement>("#preset-output-mode")
-        ?.value,
-    ).toBe("popup");
+    expect(outputModeControlText()).toContain(
+      tEn("settings.correction.outputMode.popup"),
+    );
     expect(markdownInput()).not.toBeNull();
     expect(markdownInput()?.checked).toBe(true);
   });

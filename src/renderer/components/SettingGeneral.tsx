@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { components as reactSelectComponents } from "react-select";
 import { messageLabel, type Label, type Message } from "~/features/i18n/shared/message";
 import { BEDROCK_DEFAULT_REGION } from "~/features/providers/shared/bedrockEndpoint";
 import { LMSTUDIO_DEFAULT_ENDPOINT } from "~/features/providers/shared/lmstudioEndpoint";
@@ -18,7 +19,7 @@ import {
   type TypedProviderKeys,
 } from "./providerCards";
 import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
-import { Select } from "./Select";
+import { SearchableSelect } from "./SearchableSelect";
 import {
   plainStatus,
   wrappedError,
@@ -26,6 +27,7 @@ import {
   type StatusDescriptor,
 } from "./statusDescriptor";
 import { useI18n } from "../i18n/useI18n";
+import type { GroupBase, InputProps } from "react-select";
 import type { CorrectionOutputMode } from "~/features/correction/shared/outputMode";
 import type { ReasoningEffort } from "~/features/correction/shared/reasoningEffort";
 import type { ProviderId } from "~/features/providers/store/apiStore";
@@ -59,7 +61,29 @@ const CORRECTION_OUTPUT_MODES = [
 }[];
 
 const CORRECTION_OUTPUT_MODE_FIELD_ID = "correction-output-mode";
+const CORRECTION_OUTPUT_MODE_CONTROL_ID = "correction-output-mode-control";
 const CORRECTION_OUTPUT_MODE_HINT_ID = "correction-output-mode-hint";
+
+type OutputModeOption = { value: CorrectionOutputMode; label: string };
+
+/**
+ * react-select owns the combobox input's `aria-describedby` (it points at its
+ * own placeholder/live region), so the field hint is appended to what is
+ * already there instead of replacing it.
+ */
+const OutputModeInput = (
+  props: InputProps<OutputModeOption, false, GroupBase<OutputModeOption>>,
+): React.ReactElement => (
+  <reactSelectComponents.Input
+    {...props}
+    aria-describedby={[props["aria-describedby"], CORRECTION_OUTPUT_MODE_HINT_ID]
+      .filter(Boolean)
+      .join(" ")}
+  />
+);
+
+/** Module-level: a fresh identity each render would remount the input. */
+const OUTPUT_MODE_SELECT_COMPONENTS = { Input: OutputModeInput };
 
 export const SettingGeneral: React.FC = () => {
   const { t, tm, tl } = useI18n();
@@ -271,6 +295,22 @@ export const SettingGeneral: React.FC = () => {
   const selectedOutputMode =
     CORRECTION_OUTPUT_MODES.find(({ mode }) => mode === correctionOutputMode) ??
     CORRECTION_OUTPUT_MODES[0];
+
+  // `t` changes identity on a locale switch and must stay in the deps, or the
+  // menu rows keep the previous language.
+  const outputModeOptions = useMemo<OutputModeOption[]>(
+    () =>
+      CORRECTION_OUTPUT_MODES.map(({ mode, labelKey }) => ({
+        value: mode,
+        label: t(labelKey),
+      })),
+    [t],
+  );
+
+  const selectedOutputModeOption: OutputModeOption = {
+    value: selectedOutputMode.mode,
+    label: t(selectedOutputMode.labelKey),
+  };
 
   const setTypedKey = (
     provider: ProviderId,
@@ -965,26 +1005,21 @@ export const SettingGeneral: React.FC = () => {
           <label htmlFor={CORRECTION_OUTPUT_MODE_FIELD_ID} className="sr-only">
             {t("settings.general.correctionOutput.title")}
           </label>
-          <Select
-            id={CORRECTION_OUTPUT_MODE_FIELD_ID}
-            value={correctionOutputMode}
-            disabled={savingOutputMode}
-            aria-describedby={CORRECTION_OUTPUT_MODE_HINT_ID}
-            onChange={(event) =>
-              void handleOutputModeChange(
-                event.target.value as CorrectionOutputMode,
-              )
-            }
-            className="h-10 w-full px-3 text-sm"
-          >
-            {CORRECTION_OUTPUT_MODES.map(({ mode, labelKey }) => (
-              <option key={mode} value={mode}>
-                {t(labelKey)}
-              </option>
-            ))}
-          </Select>
-          {/* A native <option> carries no description, so the selected mode's
-              copy is restated here as the field hint. */}
+          <SearchableSelect<OutputModeOption>
+            id={CORRECTION_OUTPUT_MODE_CONTROL_ID}
+            inputId={CORRECTION_OUTPUT_MODE_FIELD_ID}
+            className="w-full text-sm"
+            value={selectedOutputModeOption}
+            options={outputModeOptions}
+            isDisabled={savingOutputMode}
+            noOptionsMessage={t("common.select.noOptions")}
+            components={OUTPUT_MODE_SELECT_COMPONENTS}
+            onChange={(option) => {
+              if (option) void handleOutputModeChange(option.value);
+            }}
+          />
+          {/* A menu row carries no description, so the selected mode's copy is
+              restated here as the field hint. */}
           <p
             id={CORRECTION_OUTPUT_MODE_HINT_ID}
             className="text-xs text-muted-foreground"

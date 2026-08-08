@@ -53,7 +53,7 @@ import {
 import { ModelSelect } from "./ModelSelect";
 import { PROVIDER_LABEL_KEYS } from "./modelSelectOptions";
 import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
-import { Select } from "./Select/Select";
+import { SearchableSelect } from "./SearchableSelect";
 import {
   plainStatus,
   wrappedError,
@@ -69,6 +69,23 @@ import type {
   CorrectionSettings,
   Model,
 } from "~/features/providers/store/apiStore";
+
+type PresetOutputMode = NonNullable<CorrectionPreset["outputMode"]>;
+type PresetOutputModeOption = { value: PresetOutputMode; label: string };
+
+type ComboStepPresetOption = { value: string; label: string };
+
+const PRESET_OUTPUT_MODE_FIELD_ID = "preset-output-mode";
+const PRESET_OUTPUT_MODE_CONTROL_ID = "preset-output-mode-control";
+
+const PRESET_OUTPUT_MODES = [
+  { mode: "inherit", labelKey: "settings.correction.outputMode.inherit" },
+  { mode: "paste", labelKey: "settings.correction.outputMode.paste" },
+  { mode: "popup", labelKey: "settings.correction.outputMode.popup" },
+] as const satisfies readonly {
+  readonly mode: PresetOutputMode;
+  readonly labelKey: string;
+}[];
 
 /**
  * Read-only hotkey chips for the preset list. Matches `HotkeyChips` in
@@ -274,10 +291,26 @@ export const SettingCorrection: React.FC = () => {
 
   const builtInDefaults = useMemo(() => makeBuiltInPresetDefaults(), []);
 
+  // `t` changes identity on a locale switch, so it must stay in the deps or the
+  // rows keep the previous language.
+  const outputModeOptions = useMemo<PresetOutputModeOption[]>(
+    () =>
+      PRESET_OUTPUT_MODES.map(({ mode, labelKey }) => ({
+        value: mode,
+        label: t(labelKey),
+      })),
+    [t],
+  );
+
   const activePreset =
     correctionSettings.presets.find(
       (preset) => preset.id === correctionSettings.selectedPresetId,
     ) || correctionSettings.presets[0];
+
+  const selectedOutputModeOption =
+    outputModeOptions.find(
+      (option) => option.value === (activePreset?.outputMode ?? "inherit"),
+    ) ?? null;
 
   // Absent reads as `[]` — the whole migration (see `CorrectionSettings.combos`).
   // Memoized so a bare `?? []` fallback does not mint a new array reference
@@ -289,6 +322,17 @@ export const SettingCorrection: React.FC = () => {
 
   const comboStepPresets = useMemo(
     () => buildComboStepPresetLookup(correctionSettings.presets),
+    [correctionSettings.presets],
+  );
+
+  // Preset names are user-authored, so unlike `outputModeOptions` these labels
+  // carry no `t` dependency — a locale switch does not rename a preset.
+  const comboStepPresetOptions = useMemo<ComboStepPresetOption[]>(
+    () =>
+      correctionSettings.presets.map((preset) => ({
+        value: preset.id,
+        label: preset.name,
+      })),
     [correctionSettings.presets],
   );
 
@@ -818,32 +862,24 @@ export const SettingCorrection: React.FC = () => {
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <div className="flex flex-col gap-2">
               <label
-                htmlFor="preset-output-mode"
+                htmlFor={PRESET_OUTPUT_MODE_FIELD_ID}
                 className="text-sm text-card-foreground"
               >
                 {t("settings.correction.outputMode.label")}
               </label>
-              <Select
-                id="preset-output-mode"
-                value={activePreset.outputMode ?? "inherit"}
-                onChange={(event) =>
-                  updatePreset(activePreset.id, {
-                    outputMode: event.target
-                      .value as CorrectionPreset["outputMode"],
-                  })
-                }
-                className="h-10 px-3"
-              >
-                <option value="inherit">
-                  {t("settings.correction.outputMode.inherit")}
-                </option>
-                <option value="paste">
-                  {t("settings.correction.outputMode.paste")}
-                </option>
-                <option value="popup">
-                  {t("settings.correction.outputMode.popup")}
-                </option>
-              </Select>
+              <SearchableSelect<PresetOutputModeOption>
+                id={PRESET_OUTPUT_MODE_CONTROL_ID}
+                inputId={PRESET_OUTPUT_MODE_FIELD_ID}
+                className="w-full text-sm"
+                value={selectedOutputModeOption}
+                options={outputModeOptions}
+                noOptionsMessage={t("common.select.noOptions")}
+                onChange={(option) => {
+                  if (option) {
+                    updatePreset(activePreset.id, { outputMode: option.value });
+                  }
+                }}
+              />
               <p className="text-xs text-muted-foreground">
                 {t("settings.correction.outputMode.hint")}
               </p>
@@ -1039,27 +1075,26 @@ export const SettingCorrection: React.FC = () => {
                       >
                         {t("settings.correction.outputMode.label")}
                       </label>
-                      <Select
-                        id={`combo-${combo.id}-output-mode`}
-                        value={combo.outputMode ?? "inherit"}
-                        onChange={(event) =>
-                          updateCombo(combo.id, {
-                            outputMode: event.target
-                              .value as ComboPreset["outputMode"],
-                          })
+                      <SearchableSelect<PresetOutputModeOption>
+                        id={`combo-${combo.id}-output-mode-control`}
+                        inputId={`combo-${combo.id}-output-mode`}
+                        className="w-full text-sm"
+                        value={
+                          outputModeOptions.find(
+                            (option) =>
+                              option.value === (combo.outputMode ?? "inherit"),
+                          ) ?? null
                         }
-                        className="h-10 px-3"
-                      >
-                        <option value="inherit">
-                          {t("settings.correction.outputMode.inherit")}
-                        </option>
-                        <option value="paste">
-                          {t("settings.correction.outputMode.paste")}
-                        </option>
-                        <option value="popup">
-                          {t("settings.correction.outputMode.popup")}
-                        </option>
-                      </Select>
+                        options={outputModeOptions}
+                        noOptionsMessage={t("common.select.noOptions")}
+                        onChange={(option) => {
+                          if (option) {
+                            updateCombo(combo.id, {
+                              outputMode: option.value,
+                            });
+                          }
+                        }}
+                      />
                       <p className="text-xs text-muted-foreground">
                         {t("settings.correction.combos.outputModeHint")}
                       </p>
@@ -1177,27 +1212,29 @@ export const SettingCorrection: React.FC = () => {
                               <span className="w-5 shrink-0 text-right text-xs text-muted-foreground">
                                 {stepIndex + 1}.
                               </span>
-                              <Select
-                                aria-label={t(
+                              <SearchableSelect<ComboStepPresetOption>
+                                ariaLabel={t(
                                   "settings.correction.combos.stepPresetLabel",
                                   { number: stepIndex + 1 },
                                 )}
-                                value={step.presetId}
-                                onChange={(event) =>
-                                  handleComboStepPresetChange(
-                                    combo,
-                                    stepIndex,
-                                    event.target.value,
-                                  )
+                                className="min-w-0 flex-1 text-sm"
+                                value={
+                                  comboStepPresetOptions.find(
+                                    (option) => option.value === step.presetId,
+                                  ) ?? null
                                 }
-                                className="h-9 flex-1 px-2 text-sm"
-                              >
-                                {correctionSettings.presets.map((preset) => (
-                                  <option key={preset.id} value={preset.id}>
-                                    {preset.name}
-                                  </option>
-                                ))}
-                              </Select>
+                                options={comboStepPresetOptions}
+                                noOptionsMessage={t("common.select.noOptions")}
+                                onChange={(option) => {
+                                  if (option) {
+                                    handleComboStepPresetChange(
+                                      combo,
+                                      stepIndex,
+                                      option.value,
+                                    );
+                                  }
+                                }}
+                              />
                               <Button
                                 type="button"
                                 variant="outline"

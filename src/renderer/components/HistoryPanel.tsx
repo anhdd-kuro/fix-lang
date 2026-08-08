@@ -106,12 +106,12 @@ export const HistoryPanel = ({
         </div>
       )}
 
-      <ul className="mb-4 flex-1 divide-y divide-border overflow-y-auto">
+      <ul className="mb-4 min-w-0 flex-1 divide-y divide-border overflow-y-auto overflow-x-hidden">
         {/* Use our custom fuzzy search hook to filter history entries */}
         {filteredHistory.map((entry: HistoryEntry, idx: number) => (
           <li
             key={idx}
-            className="py-2 hover:bg-secondary px-2 relative group/history-entry"
+            className="min-w-0 py-2 hover:bg-secondary px-2 relative group/history-entry"
           >
             <HistoryEntryItem
               entry={entry}
