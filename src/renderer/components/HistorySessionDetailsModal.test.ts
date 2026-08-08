@@ -89,6 +89,21 @@ describe("HistorySessionDetailsModal", () => {
     expect(chat).toContain("Reasoning effort: Medium");
   });
 
+  it("keeps a stable 80vh box with the tabpanel as the only scroll region", async () => {
+    await render();
+
+    const card = container.firstElementChild?.firstElementChild;
+    const cardClasses = card?.className.split(/\s+/) ?? [];
+    expect(cardClasses).toEqual(expect.arrayContaining(["h-[80vh]", "max-h-[80vh]"]));
+    expect(cardClasses).toEqual(expect.arrayContaining(["flex", "flex-col", "overflow-hidden"]));
+
+    const panelClasses =
+      container.querySelector('[role="tabpanel"]')?.className.split(/\s+/) ?? [];
+    expect(panelClasses).toEqual(
+      expect.arrayContaining(["min-h-0", "flex-1", "overflow-auto"]),
+    );
+  });
+
   it("closes when the overlay is clicked", async () => {
     await render();
 

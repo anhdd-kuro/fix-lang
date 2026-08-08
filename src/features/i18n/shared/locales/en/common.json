@@ -22,6 +22,7 @@
   "common.searchInput.ariaLabel": "Search history",
   "common.searchInput.clearAriaLabel": "Clear search",
   "common.searchInput.placeholder": "Search…",
+  "common.select.noOptions": "No matches",
   "common.textAreaBox.copyResultText": "Copy result text",
   "common.textAreaBox.promptTokensAriaLabel": "Prompt tokens for original text",
   "common.textAreaBox.promptTokensTitle": "Input + Prompt tokens",

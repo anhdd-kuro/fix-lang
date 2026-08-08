@@ -121,6 +121,63 @@ describe("HistoryEntryItem", () => {
     expect(jaExpected).toBe(enExpected);
   });
 
+  it("truncates the preset badge instead of wrapping it onto a second line", async () => {
+    const entry = makeEntry({ presetName: "Context-Aware Structured Text" });
+    await render(entry);
+
+    const badge = container.querySelector<HTMLElement>(
+      `span[title="${entry.presetName}"]`,
+    );
+
+    expect(badge?.textContent).toBe(entry.presetName);
+    // `truncate` = overflow-hidden + text-ellipsis + whitespace-nowrap, so a
+    // long preset name can never make one row taller than its neighbours.
+    expect(badge?.className).toContain("truncate");
+  });
+
+  it("appends no literal ellipsis to a preview that already fits", async () => {
+    const entry = makeEntry({ original: "short" });
+    await render(entry);
+
+    const preview = container.querySelector<HTMLElement>(
+      `p[title="${entry.original}"]`,
+    );
+
+    expect(preview?.textContent).toBe("short");
+  });
+
+  /**
+   * `truncate`/`line-clamp` silently do nothing on a flex child whose ancestors
+   * keep the default `min-width: auto`: the child refuses to shrink below its
+   * longest word, the row grows past the list, and `overflow-y-auto` on the
+   * list (whose `overflow-x: visible` then computes to `auto`) answers with a
+   * horizontal scrollbar. Every ancestor on the path from a truncating element
+   * up to the row root must therefore carry `min-w-0` — including the ones
+   * whose only flex marker is `flex-1`, which is a flex ITEM, not a container,
+   * and is exactly the ancestor an earlier version of this guard missed.
+   */
+  it("gives every ancestor of a truncating element the min-w-0 that makes truncation work", async () => {
+    const entry = makeEntry({
+      original: "a".repeat(400),
+      model: "anthropic.claude-3-5-sonnet-20241022-v2:0",
+      presetName: "Context-Aware Structured Text",
+    });
+    await render(entry);
+
+    const truncating = [...container.querySelectorAll<HTMLElement>(".truncate")];
+    expect(truncating.length).toBeGreaterThanOrEqual(3);
+
+    for (const element of truncating) {
+      for (
+        let ancestor = element.parentElement;
+        ancestor && ancestor !== container;
+        ancestor = ancestor.parentElement
+      ) {
+        expect([...ancestor.classList]).toContain("min-w-0");
+      }
+    }
+  });
+
   it("places the session-details control before the history title", async () => {
     const entry = makeEntry({
       sessionJson: JSON.stringify({
