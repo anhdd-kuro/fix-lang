@@ -4,6 +4,7 @@ import { isPromptGenEnabled } from "~/features/core/shared/features";
 import { Button } from "./Button";
 import ProfileManager from "./ProfileManager";
 import { SettingAppearance } from "./SettingAppearance";
+import { SettingAutocomplete } from "./SettingAutocomplete";
 import { SettingCorrection } from "./SettingCorrection";
 import { SettingGeneral } from "./SettingGeneral";
 import { SettingPromptGen } from "./SettingPromptGen";
@@ -27,15 +28,27 @@ export type SettingsTabId =
   | "general"
   | "appearance"
   | "correction"
+  | "autocomplete"
   | "promptGen";
 
 /**
  * Visible tab ids for the current build (promptGen only when the feature tag
  * is on). Lets callers outside this file (e.g. the user guide) resolve a tab
  * id to an index without importing the tabs' JSX.
+ *
+ * `autocomplete` is listed unconditionally, unlike `promptGen`: it has no
+ * build-time feature tag, only a runtime `enabled` toggle that ships OFF —
+ * and this tab is where that toggle lives, so hiding it while the feature is
+ * off would leave no route to turning it on.
  */
 export const visibleSettingsTabIds = (): SettingsTabId[] => {
-  const ids: SettingsTabId[] = ["profiles", "general", "correction", "appearance"];
+  const ids: SettingsTabId[] = [
+    "profiles",
+    "general",
+    "correction",
+    "autocomplete",
+    "appearance",
+  ];
   if (isPromptGenEnabled()) {
     ids.push("promptGen");
   }
@@ -53,8 +66,9 @@ type SettingsModalProps = {
   onClose: () => void;
   /**
    * Initial active tab index (0-based) into the *visible* tab list
-   * (Profiles, General, Transform, Appearance, and PromptGen only when the
-   * PromptGen feature tag is built in). Out-of-range values are clamped.
+   * (Profiles, General, Transform, Autocomplete, Appearance, and PromptGen
+   * only when the PromptGen feature tag is built in). Out-of-range values are
+   * clamped.
    */
   initialTab?: number;
 };
@@ -122,6 +136,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       labelKey: "settings.modal.tabs.correction",
       icon: <></>,
       component: <SettingCorrection />,
+    },
+    // Beside Transform, not inside General: both are per-feature areas, and
+    // an icon-less tab matches its Transform/PromptGen siblings.
+    {
+      id: "autocomplete",
+      labelKey: "settings.modal.tabs.autocomplete",
+      icon: <></>,
+      component: <SettingAutocomplete />,
     },
     {
       id: "appearance",

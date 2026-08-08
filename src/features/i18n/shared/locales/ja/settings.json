@@ -157,6 +157,7 @@
   "settings.icon.defaultTitle": "設定を開く",
   "settings.modal.close": "設定モーダルを閉じる",
   "settings.modal.tabs.appearance": "外観",
+  "settings.modal.tabs.autocomplete": "オートコンプリート",
   "settings.modal.tabs.correction": "変換",
   "settings.modal.tabs.general": "一般",
   "settings.modal.tabs.profiles": "プロファイル",

@@ -100,7 +100,10 @@ type SettingGeneralApi = {
   getSelectedModel: ReturnType<typeof vi.fn>;
   setSelectedModel: ReturnType<typeof vi.fn>;
   onSettingsUpdated: ReturnType<typeof vi.fn>;
-  // Read by the embedded `<SettingAutocomplete>`.
+  // Kept stubbed although `SettingGeneral` no longer embeds
+  // `<SettingAutocomplete>`: the "no longer renders" test proves the move by
+  // asserting these are never called, which needs them to exist and be
+  // callable.
   getAutocompleteSettings: ReturnType<typeof vi.fn>;
   getAutocompleteUsage: ReturnType<typeof vi.fn>;
   setAutocompleteSettings: ReturnType<typeof vi.fn>;
@@ -614,33 +617,32 @@ describe("SettingGeneral", () => {
     expect(jaWrapped).not.toBe(enWrapped);
   });
 
-  // Every other autocomplete-card test drives `SettingAutocomplete` in
-  // isolation, so without this one the whole card could be dropped from
-  // General — `{false && <SettingAutocomplete />}` — and the suite would
-  // still be green while the user found no autocomplete card at all.
-  it("mounts the autocomplete card inside General, past its loading state", async () => {
+  // The autocomplete card moved out of General into its own Settings tab
+  // (`SettingsModal.test.ts` owns the guarantee that it still renders, and
+  // that its toggle and model picker are reachable there). This is the other
+  // half: General must not keep a second copy, which would give the user two
+  // toggles writing the same per-profile setting.
+  it("no longer renders the autocomplete card — it lives in its own tab", async () => {
     await render({ success: true });
-    // The card's own mount-time `getAutocompleteSettings`/`getAutocompleteUsage`
-    // pair needs its own ticks before `isLoading` clears.
+    // Enough ticks that the card would be past its own loading state if it
+    // were still mounted here; absence must mean absent, not just slow.
     await waitForUi();
     await waitForUi();
 
     expect(
       [...container.querySelectorAll("h2")].map((element) => element.textContent),
-    ).toContain(tEn("settings.autocomplete.heading"));
+    ).not.toContain(tEn("settings.autocomplete.heading"));
+    expect(container.textContent).not.toContain(
+      tEn("settings.autocomplete.enabled.label"),
+    );
+    expect(container.textContent).not.toContain(
+      tEn("settings.autocomplete.privacy.hint"),
+    );
     expect(container.textContent).not.toContain(
       tEn("settings.autocomplete.loading"),
     );
-    // Not just the heading: the card's actual controls and its privacy
-    // statement have to be on screen too.
-    expect(container.textContent).toContain(
-      tEn("settings.autocomplete.enabled.label"),
-    );
-    expect(container.textContent).toContain(
-      tEn("settings.autocomplete.privacy.hint"),
-    );
-    expect(api.getAutocompleteSettings).toHaveBeenCalled();
-    expect(api.getAutocompleteUsage).toHaveBeenCalled();
+    expect(api.getAutocompleteSettings).not.toHaveBeenCalled();
+    expect(api.getAutocompleteUsage).not.toHaveBeenCalled();
   });
 
   describe("the global Transform output mode is the shared Select", () => {
