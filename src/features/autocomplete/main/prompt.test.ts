@@ -115,6 +115,70 @@ describe("buildAutocompletePrompt", () => {
     });
 
     /**
+     * THE PRIORITY, pinned as an ORDER rather than as two rules that happen to
+     * both exist. A prompt listing the phrase case first invites the failure it
+     * replaced: `ornith-1.0-9b`, given `tes`, answered ` is a common
+     * abbreviation for test.` — it read a half-typed word as a finished thought
+     * to comment on. The mid-word case has to be the first branch the model
+     * reads, so a rewrite that keeps both rules but reverses them fails here.
+     */
+    it("puts the mid-word rule before the fall-back phrase rule", () => {
+      const rules = AUTOCOMPLETE_SYSTEM_PROMPT.split("\n");
+      const wordRuleIndex = rules.findIndex((line) => /^- Ends mid-word/.test(line));
+      const phraseRuleIndex = rules.findIndex((line) => /^- Ends on a whole word/.test(line));
+
+      expect(wordRuleIndex).toBeGreaterThanOrEqual(0);
+      expect(phraseRuleIndex).toBeGreaterThan(wordRuleIndex);
+    });
+
+    /**
+     * THE MISTAKE A WORD-COMPLETING MODEL MAKES, pinned by checking the example
+     * is arithmetically right rather than merely present.
+     *
+     * A suggestion is APPENDED at the caret, so completing `tes` means `t`. The
+     * "never repeat the input" rule already implies that, but re-emitting the
+     * whole word is exactly what a model reaches for when the word is what it is
+     * thinking of — so the prompt shows the fragment. The regex pulls the
+     * example apart and re-derives it: the literal must parse, its suggestion
+     * must NOT be the whole word, and typed + suggestion must BE the whole word.
+     * Editing the example into `{"suggestion":"test"}` — the very output being
+     * forbidden — turns it from a demonstration into an instruction to repeat,
+     * and only re-deriving it catches that.
+     */
+    it("demonstrates appending at the caret, not re-emitting the word", () => {
+      const example = /"(\w+)" -> (\{"suggestion":"[^"]*"\}), not "(\w+)"/.exec(
+        AUTOCOMPLETE_SYSTEM_PROMPT,
+      );
+      if (!example) throw new Error("the mid-word rule must carry a literal example");
+
+      const [, typed, literal, wholeWord] = example;
+      const { suggestion } = JSON.parse(literal) as { suggestion: string };
+
+      expect(suggestion).not.toBe(wholeWord);
+      expect(typed + suggestion).toBe(wholeWord);
+    });
+
+    /**
+     * THE AMBIGUOUS CASE, decided in the prompt rather than left to the model.
+     *
+     * `test` is a whole word and could also be the start of `testing`. Extending
+     * it edits INSIDE a word the user had already finished, and a Tab aimed at
+     * the sentence rewrites it; continuing past it appends beyond a boundary the
+     * user has crossed, which typing on discards. So a whole word counts as
+     * done, listed with the trailing space and the punctuation mark it behaves
+     * like — dropping it from that list is what reopens the argument.
+     */
+    it("treats an already-complete word as done, like a space or a mark", () => {
+      const phraseRule = AUTOCOMPLETE_SYSTEM_PROMPT.split("\n").find((line) =>
+        /^- Ends on/.test(line),
+      );
+
+      expect(phraseRule).toMatch(/whole word/);
+      expect(phraseRule).toMatch(/space/);
+      expect(phraseRule).toMatch(/mark/);
+    });
+
+    /**
      * THE BUG, pinned at its source.
      *
      * The old prompt's last line was `If a sensible continuation is not obvious,

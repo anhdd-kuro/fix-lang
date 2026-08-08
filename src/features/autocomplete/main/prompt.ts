@@ -47,16 +47,53 @@ export const SUFFIX_WINDOW_CHARS = 200;
  * words. A word count cannot be reinterpreted, so the rule states one — an
  * imperative with a number in it, not an adjective.
  *
+ * WHY THE WORD RULE COMES FIRST, and why it carries an example.
+ *
+ * `Continue from exactly where the input stops, mid-word if it stops mid-word.`
+ * described the caret's position without saying what to DO at it, so a model was
+ * free to read a half-typed word as a finished thought and comment on it.
+ * `ornith-1.0-9b` did exactly that: `tes` came back as ` is a common
+ * abbreviation for test.` — grammatical, a valid continuation of the TEXT, and
+ * useless as a completion of the WORD. So the two cases are now stated as an
+ * ordered pair, mid-word first: finish the word, else continue the phrase.
+ *
+ * The example is not decoration. "Never repeat the input" already implies the
+ * answer for `tes` is `t`, but completing a word is precisely the moment a model
+ * re-emits the whole of it (`test`), because that is the token it is thinking
+ * of. `"tes" -> {"suggestion":"t"}, not "test".` closes the gap by showing the
+ * appended fragment rather than restating the rule — a suggestion is always what
+ * lands AT the caret, never the word that contains it.
+ *
+ * WHAT AN ALREADY-COMPLETE WORD GETS, and why it is the phrase and not `-ing`.
+ * `test` could be finished or could be `testing`; nothing in the buffer says
+ * which. The two mistakes are not symmetric. Continuing the phrase appends past
+ * a boundary the user has already crossed, so a wrong ghost is discarded by
+ * typing on; lengthening a word the user had finished edits INSIDE their word,
+ * and a Tab meant for the sentence silently rewrites it. A whole word therefore
+ * counts as done, alongside a trailing space or mark.
+ *
+ * HOW WELL THAT BRANCH ACTUALLY HOLDS, measured rather than assumed. It does
+ * not hold absolutely: across 30 runs of `test` against `ornith-1.0-9b`, 9 came
+ * back `ing`. Say it plainly, because the next person reading this will test it
+ * once and conclude the rule is broken — it is a REQUEST, like the length rule
+ * beside it, and the ambiguous case is the one place a weak model still guesses.
+ * The residual error is the benign one (a ghost the user ignores), and no
+ * wording tried removed it: rules phrased at the LETTER level (`add words, never
+ * letters`) traded it for damage to the branch that matters, answering `test`
+ * for `tes` — re-emitting the word the mid-word rule exists to fragment. So the
+ * fall-back names what to ADD rather than what not to spell.
+ *
  * Short on purpose — it is sent on every dispatch and is the cacheable prefix.
  */
-export const AUTOCOMPLETE_SYSTEM_PROMPT = `Reply with one JSON object and nothing else:
-{"suggestion":"<text that continues the input>"}
+export const AUTOCOMPLETE_SYSTEM_PROMPT = `Reply with one JSON object only:
+{"suggestion":"<text appended at the caret>"}
 
 - "suggestion" holds only the continuation, never any of the input text.
-- Continue from exactly where the input stops, mid-word if it stops mid-word.
-- Match the language, tone, and register of the input.
+- Ends mid-word: finish that word. "tes" -> {"suggestion":"t"}, not "test".
+- Ends on a whole word, space or mark: add what comes next.
+- Match input language, tone and register.
 - Stop after one sentence; never emit more than 15 words.
-- No markdown, no code fences, no commentary, inside or outside the JSON.
+- No markdown, no code fences, no commentary, inside or out.
 - Nothing worth suggesting: {"suggestion":""}`;
 
 export type AutocompletePromptInput = {

@@ -2,10 +2,16 @@ import { describe, expect, it } from "vitest";
 import { parseAutocompleteReply } from "./parseReply";
 import { MAX_SUGGESTION_CHARS, sanitizeSuggestion } from "./sanitize";
 
-/** The pipeline as `service.ts` runs it: parse the envelope, then sanitize. */
+/**
+ * The pipeline as `service.ts` runs it: parse the envelope, then sanitize.
+ *
+ * An empty prefix, because these cases are about the ENVELOPE. The overlap guard
+ * needs a prefix ending mid-word to fire at all, so `""` keeps it out of the way
+ * of assertions that are not about it; its own cases live in `sanitize.test.ts`.
+ */
 const suggestionFor = (raw: unknown): string | null => {
   const parsed = parseAutocompleteReply(raw);
-  return parsed.ok ? sanitizeSuggestion(parsed.suggestion) : null;
+  return parsed.ok ? sanitizeSuggestion(parsed.suggestion, "") : null;
 };
 
 describe("parseAutocompleteReply", () => {

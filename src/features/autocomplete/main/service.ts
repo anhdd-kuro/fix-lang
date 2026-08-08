@@ -876,7 +876,11 @@ export const requestAutocompleteSuggestion = async (
     // of the decoded suggestion, and would happily hand the parser a string it
     // had already rewritten.
     const parsedReply = parseAutocompleteReply(rawReply);
-    const suggestion = parsedReply.ok ? sanitizeSuggestion(parsedReply.suggestion) : null;
+    // The RAW prefix, not the windowed one the prompt carries. They agree over
+    // the only region the overlap guard reads (`OVERLAP_LOOKBACK_CHARS` is far
+    // inside `PREFIX_WINDOW_CHARS`), and the raw one is what the suggestion is
+    // actually appended to in the renderer.
+    const suggestion = parsedReply.ok ? sanitizeSuggestion(parsedReply.suggestion, prefix) : null;
     writeCache(key, suggestion, Date.now());
     await recordResponseUsage(response, now);
 
