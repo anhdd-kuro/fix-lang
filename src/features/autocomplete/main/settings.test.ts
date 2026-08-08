@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_DAILY_COST_CAP_USD } from "~/features/autocomplete/shared/autocompleteSettings";
 import { registerAutocompleteSettingsHandlers } from "./settings";
 
 const { electronMocks, apiStoreMocks } = vi.hoisted(() => ({
@@ -38,7 +39,11 @@ describe("registerAutocompleteSettingsHandlers", () => {
       expect(apiStoreMocks.getProfileSetting).toHaveBeenCalledWith(
         "settingsAutocomplete",
       );
-      expect(result).toEqual({ enabled: false, model: "openai::gpt-5" });
+      expect(result).toEqual({
+        enabled: false,
+        model: "openai::gpt-5",
+        dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+      });
     });
 
     it("falls back to normalized defaults instead of throwing when the store errors", async () => {
@@ -48,7 +53,11 @@ describe("registerAutocompleteSettingsHandlers", () => {
 
       const result = await getHandler("get-autocomplete-settings")(undefined);
 
-      expect(result).toEqual({ enabled: false, model: "" });
+      expect(result).toEqual({
+        enabled: false,
+        model: "",
+        dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+      });
     });
 
     it("normalizes a raw stored value missing enabled, rather than trusting the store to have normalized it", async () => {
@@ -60,7 +69,11 @@ describe("registerAutocompleteSettingsHandlers", () => {
 
       const result = await getHandler("get-autocomplete-settings")(undefined);
 
-      expect(result).toEqual({ enabled: false, model: "openai::gpt-5" });
+      expect(result).toEqual({
+        enabled: false,
+        model: "openai::gpt-5",
+        dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+      });
     });
 
     it("normalizes a raw stored value with junk field types", async () => {
@@ -71,7 +84,11 @@ describe("registerAutocompleteSettingsHandlers", () => {
 
       const result = await getHandler("get-autocomplete-settings")(undefined);
 
-      expect(result).toEqual({ enabled: false, model: "" });
+      expect(result).toEqual({
+        enabled: false,
+        model: "",
+        dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+      });
     });
 
     it("normalizes a null stored value", async () => {
@@ -79,7 +96,11 @@ describe("registerAutocompleteSettingsHandlers", () => {
 
       const result = await getHandler("get-autocomplete-settings")(undefined);
 
-      expect(result).toEqual({ enabled: false, model: "" });
+      expect(result).toEqual({
+        enabled: false,
+        model: "",
+        dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+      });
     });
   });
 
@@ -90,11 +111,12 @@ describe("registerAutocompleteSettingsHandlers", () => {
       const result = await getHandler("set-autocomplete-settings")(undefined, {
         enabled: true,
         model: "ollama::llama3",
+        dailyCostCapUsd: 2.5,
       });
 
       expect(apiStoreMocks.updateProfileSetting).toHaveBeenCalledWith(
         "settingsAutocomplete",
-        { enabled: true, model: "ollama::llama3" },
+        { enabled: true, model: "ollama::llama3", dailyCostCapUsd: 2.5 },
       );
       expect(result).toEqual({ success: true });
     });
@@ -108,6 +130,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
       const result = await getHandler("set-autocomplete-settings")(undefined, {
         enabled: true,
         model: "",
+        dailyCostCapUsd: 5,
       });
 
       expect(result).toEqual({ success: false, error: "write failed" });
@@ -116,6 +139,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
     it("rejects a payload missing enabled without calling updateProfileSetting", async () => {
       const result = await getHandler("set-autocomplete-settings")(undefined, {
         model: "openai::gpt-5",
+        dailyCostCapUsd: 5,
       });
 
       expect(apiStoreMocks.updateProfileSetting).not.toHaveBeenCalled();
@@ -129,6 +153,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
       const result = await getHandler("set-autocomplete-settings")(undefined, {
         enabled: "yes",
         model: "openai::gpt-5",
+        dailyCostCapUsd: 5,
       });
 
       expect(apiStoreMocks.updateProfileSetting).not.toHaveBeenCalled();
@@ -141,6 +166,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
     it("rejects a payload missing model without calling updateProfileSetting", async () => {
       const result = await getHandler("set-autocomplete-settings")(undefined, {
         enabled: true,
+        dailyCostCapUsd: 5,
       });
 
       expect(apiStoreMocks.updateProfileSetting).not.toHaveBeenCalled();
@@ -154,6 +180,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
       const result = await getHandler("set-autocomplete-settings")(undefined, {
         enabled: true,
         model: 42,
+        dailyCostCapUsd: 5,
       });
 
       expect(apiStoreMocks.updateProfileSetting).not.toHaveBeenCalled();
@@ -162,6 +189,31 @@ describe("registerAutocompleteSettingsHandlers", () => {
         error: "Malformed autocomplete settings",
       });
     });
+
+    it.each([
+      { enabled: true, model: "" }, // missing cap
+      { enabled: true, model: "", dailyCostCapUsd: "5" }, // non-number cap
+      // Both are `typeof "number"` and both make `estimatedCostUsd >= cap`
+      // permanently false, so a payload carrying one is a budget that never
+      // fires — rejected here rather than clamped, because there is no honest
+      // number to clamp them TO.
+      { enabled: true, model: "", dailyCostCapUsd: Number.NaN },
+      { enabled: true, model: "", dailyCostCapUsd: Number.POSITIVE_INFINITY },
+    ])(
+      "rejects an unusable daily cap without calling updateProfileSetting: %j",
+      async (payload) => {
+        const result = await getHandler("set-autocomplete-settings")(
+          undefined,
+          payload,
+        );
+
+        expect(apiStoreMocks.updateProfileSetting).not.toHaveBeenCalled();
+        expect(result).toEqual({
+          success: false,
+          error: "Malformed autocomplete settings",
+        });
+      },
+    );
 
     it.each([undefined, null, "a string", 42, []])(
       // `%j` stringifies an array fixture the same as `undefined`, so the
@@ -189,6 +241,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
       const result = await getHandler("set-autocomplete-settings")(undefined, {
         enabled: true,
         model: "",
+        dailyCostCapUsd: 5,
       });
 
       expect(result).toEqual({ success: false, error: "disk full" });

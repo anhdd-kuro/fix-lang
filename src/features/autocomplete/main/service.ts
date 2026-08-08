@@ -22,10 +22,13 @@
  * and it fails CLOSED on the cap path: a request that cannot be counted is not
  * sent, because an uncountable request is an uncappable one.
  *
- * Guards come in two kinds and both are needed. `DAILY_REQUEST_CAP` is a BUDGET
- * — it says how much a day may cost. The short-window limiter below is a RATE —
- * it says how fast that budget may be spent, which is the part the renderer
- * used to decide on its own with nothing but a debounce.
+ * Guards come in three kinds and all three are needed. The BUDGET is
+ * `settingsAutocomplete.dailyCostCapUsd` — how much a day may cost, in dollars,
+ * chosen by the user. `DAILY_REQUEST_BACKSTOP` is the RUNAWAY stop, because a
+ * dollar budget is blind to a local or unpriced provider that bills nothing it
+ * can see. The short-window limiter below is the RATE — how fast either may be
+ * spent, which is the part the renderer used to decide on its own with nothing
+ * but a debounce.
  *
  * EVERY refusal states why. Seven paths here decline to call a provider and five
  * of them used to do it in silence, so "autocomplete does nothing" produced no
@@ -57,6 +60,7 @@ import {
   wastedSuggestionLogLevel,
 } from "~/features/autocomplete/shared/autocompleteDiagnostics";
 import { resolveAutocompleteModelRef } from "~/features/autocomplete/shared/autocompleteModel";
+import { normalizeDailyCostCapUsd } from "~/features/autocomplete/shared/autocompleteSettings";
 import { MIN_PREFIX_CHARS } from "~/features/autocomplete/shared/autocompleteWire";
 import { autocompleteUsageStore } from "~/features/autocomplete/store/autocompleteUsageStore";
 import {
@@ -85,10 +89,31 @@ import type { ProviderId } from "~/features/providers/shared/providers";
  */
 export { MIN_PREFIX_CHARS };
 /**
- * Hard stop, not configurable. The only real protection against a stuck loop
- * billing an account overnight; a user cannot raise it by accident.
+ * THE RUNAWAY STOP, and why a money cap cannot be the only one.
+ *
+ * `settingsAutocomplete.dailyCostCapUsd` is the BUDGET, and it is the right
+ * thing to show a user: dollars are what they actually care about. But it is
+ * computed from `estimatedCostUsd`, which sums PRICED responses only, so there
+ * are two whole classes of request it cannot see:
+ *
+ * - a LOCAL provider (Ollama, LM Studio) costs a genuine `$0` — the privacy
+ *   hint in Settings recommends exactly these — so a stuck loop against Ollama
+ *   would never move the budget by a cent and would never be stopped by it;
+ * - a provider whose model `computeCost` refuses to price (direct OpenAI's bare
+ *   model ids, most obviously) bills real money and records `$0`, counted in
+ *   `unpricedResponses`. Money is leaving and the budget reads empty.
+ *
+ * It is also TRAILING even when it does work: spend is booked when a reply
+ * lands, so the request that crosses the line is already paid for.
+ *
+ * Hence this: a hard per-day ceiling on DISPATCHES, not configurable, and set
+ * far beyond what a human can reach so it is a runaway stop rather than a
+ * second budget. The trailing debounce caps a correct surface at ~3.33
+ * dispatches a second, so 10,000 is around fifty minutes of literally
+ * uninterrupted typing into one small input window — a number no real session
+ * produces and a stuck loop reaches in under half an hour.
  */
-export const DAILY_REQUEST_CAP = 1500;
+export const DAILY_REQUEST_BACKSTOP = 10_000;
 /** Long enough to cover backspace-and-retype, short enough to stay current. */
 export const CACHE_TTL_MS = 30_000;
 /** Bounds the cache in a long session; oldest entries are evicted first. */
@@ -106,7 +131,7 @@ export const RESOLUTION_MEMORY_MAX_ENTRIES = 8;
 /**
  * THE SHORT-WINDOW BACKSTOP, and why main has to own one.
  *
- * Everything between one keystroke and `DAILY_REQUEST_CAP` used to be enforced
+ * Everything between one keystroke and the daily stops used to be enforced
  * in the renderer: `GHOST_TEXT_DEBOUNCE_MS` is the only short-interval limiter
  * and it lives in `useGhostText.ts`. `sessionId` is derived from
  * `event.sender.id` precisely BECAUSE the renderer is not trusted — yet the
@@ -145,9 +170,10 @@ export const RESOLUTION_MEMORY_MAX_ENTRIES = 8;
  * spending its ENTIRE allowance (10) plus another typing flat out (4), so a
  * runaway in one window cannot starve a second window's real user.
  *
- * This is a RATE guard, not a budget one. `DAILY_REQUEST_CAP` remains the money
- * stop; this bounds how fast that budget can be spent and — via the `warn` it
- * emits — is the only thing that says a loop is happening while it happens.
+ * This is a RATE guard, not a budget one. `settingsAutocomplete.dailyCostCapUsd`
+ * remains the money stop and `DAILY_REQUEST_BACKSTOP` the runaway one; this
+ * bounds how fast either can be spent and — via the `warn` it emits — is the
+ * only thing that says a loop is happening WHILE it happens rather than after.
  */
 export const RATE_LIMIT_WINDOW_MS = 1_000;
 /** Dispatches one typing surface may make per window. See the arithmetic above. */
@@ -457,6 +483,7 @@ export type AutocompleteSkipReason =
   | "prefix-too-short"
   | "usage-unreadable"
   | "cap-reached"
+  | "request-backstop"
   | "no-model"
   | "cache-hit"
   | "rate-limited";
@@ -514,6 +541,18 @@ const SKIP_LINES: Record<
     level: "warn",
     message:
       "Suggestion skipped: too many requests in a short window, which no normal typing can produce",
+  },
+  /**
+   * `warn`, and for the same reason as `rate-limited`: a human cannot type their
+   * way to `DAILY_REQUEST_BACKSTOP`, so a line here is a runaway — and one the
+   * money cap could not see, since it is only ever reached when the day's spend
+   * stayed under budget the whole way (a local or unpriced provider). That is
+   * precisely the case with nothing else to report it.
+   */
+  "request-backstop": {
+    level: "warn",
+    message:
+      "Suggestion skipped: the daily request backstop was reached, which no normal typing can produce",
   },
 };
 
@@ -668,7 +707,7 @@ const readToday = (
  * Counts one dispatch, reporting whether it landed.
  *
  * A request that cannot be counted must not be sent: an uncountable request is
- * an uncappable one, which is the exact hole `DAILY_REQUEST_CAP` exists to
+ * an uncappable one, which is the exact hole the daily stops exist to
  * close. Refusing here keeps "every dispatched request is counted" true by
  * never dispatching the one that would break it.
  */
@@ -723,17 +762,38 @@ export const requestAutocompleteSuggestion = async (
     logSkip("usage-unreadable", startedAt, { stage: "read", ...todayFailure });
     return none(requestId);
   }
-  if (today.requests >= DAILY_REQUEST_CAP) {
+  // THE BUDGET. Compared against the day's PRICED spend, so it fires only where
+  // a price is knowable — see `DAILY_REQUEST_BACKSTOP` above for what it cannot
+  // see, and why that is a separate guard rather than a bigger number here.
+  //
+  // `>=`, so a cap of `0` refuses from the first request: a user who set zero
+  // meant "spend nothing", and that reading has to hold before any spend exists.
+  const dailyCostCapUsd = normalizeDailyCostCapUsd(settings.dailyCostCapUsd);
+  if (today.estimatedCostUsd >= dailyCostCapUsd) {
     // One line per day, not per keystroke — this path is hit on every press
     // once tripped.
     if (capWarnedForDay !== today.date) {
       capWarnedForDay = today.date;
-      logger.warn("autocomplete", "Daily request cap reached; suggestions are off until tomorrow", {
+      logger.warn("autocomplete", "Daily spend cap reached; suggestions are off until tomorrow", {
         reason: "cap-reached" satisfies AutocompleteSkipReason,
-        cap: DAILY_REQUEST_CAP,
+        capUsd: dailyCostCapUsd,
+        spentUsd: today.estimatedCostUsd,
+        // What the amount above does NOT cover. A day whose responses are all
+        // unpriced trips this only at a cap of zero, and a reader deserves to
+        // see that rather than infer it.
+        pricedResponses: today.responses - today.unpricedResponses,
+        responses: today.responses,
         date: today.date,
       });
     }
+    return none(requestId);
+  }
+  if (today.requests >= DAILY_REQUEST_BACKSTOP) {
+    logSkip("request-backstop", startedAt, {
+      backstop: DAILY_REQUEST_BACKSTOP,
+      requests: today.requests,
+      date: today.date,
+    });
     return none(requestId);
   }
 
@@ -811,7 +871,7 @@ export const requestAutocompleteSuggestion = async (
   // provider has been asked, and it bills whether the answer ever reaches the
   // user. Recording on success only kept the counter at zero for a user typing
   // continuously — every request superseded, every request paid for — which is
-  // the one runaway `DAILY_REQUEST_CAP` exists to stop.
+  // the one runaway `DAILY_REQUEST_BACKSTOP` exists to stop.
   //
   // Ahead of the single-flight swap on purpose: a refused count returns without
   // having aborted the request already in flight, which would otherwise be
@@ -851,7 +911,7 @@ export const requestAutocompleteSuggestion = async (
       // Stated plainly, since this is the last hard per-request spend bound
       // leaving a path that dispatches from `MIN_PREFIX_CHARS` characters of
       // typing: the remaining guards — the renderer's debounce, `CACHE_TTL_MS`,
-      // the short-window rate limit, `DAILY_REQUEST_CAP` — all bound HOW MANY
+      // the short-window rate limit, the daily stops — all bound HOW MANY
       // requests happen. Not one of them bounds how large a single reply is.
       //
       // NO STOP SEQUENCE either, where there used to be `["\n\n"]`.

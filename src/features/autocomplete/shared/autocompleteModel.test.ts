@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { resolveAutocompleteModelRef } from "./autocompleteModel";
-import { normalizeAutocompleteSettings } from "./autocompleteSettings";
+import {
+  DEFAULT_DAILY_COST_CAP_USD,
+  MAX_DAILY_COST_CAP_USD,
+  normalizeAutocompleteSettings,
+} from "./autocompleteSettings";
 
 describe("resolveAutocompleteModelRef", () => {
   it("prefers an explicitly stored ref", () => {
@@ -92,10 +96,45 @@ describe("normalizeAutocompleteSettings", () => {
     });
   });
 
-  it("returns both fields regardless of input shape", () => {
+  it("returns every field regardless of input shape", () => {
     expect(normalizeAutocompleteSettings("not an object at all")).toEqual({
       enabled: false,
       model: "",
+      dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+    });
+  });
+
+  describe("dailyCostCapUsd", () => {
+    it("defaults an absent cap rather than reading it as zero", () => {
+      // Zero is a REAL setting ("spend nothing"), so a missing field must not
+      // land on it — that would turn a feature the user enabled into one that
+      // refuses every request, with nothing on screen to say why.
+      expect(normalizeAutocompleteSettings({}).dailyCostCapUsd).toBe(
+        DEFAULT_DAILY_COST_CAP_USD,
+      );
+    });
+
+    it.each([undefined, null, "5", Number.NaN, Number.POSITIVE_INFINITY])(
+      "falls back to the default for an unusable cap: %j",
+      (dailyCostCapUsd) => {
+        expect(
+          normalizeAutocompleteSettings({ dailyCostCapUsd }).dailyCostCapUsd,
+        ).toBe(DEFAULT_DAILY_COST_CAP_USD);
+      },
+    );
+
+    it("keeps a stored cap inside the range", () => {
+      expect(normalizeAutocompleteSettings({ dailyCostCapUsd: 2.5 }).dailyCostCapUsd).toBe(2.5);
+      expect(normalizeAutocompleteSettings({ dailyCostCapUsd: 0 }).dailyCostCapUsd).toBe(0);
+    });
+
+    // Clamped, never rejected: `apiStore` runs `clearInvalidConfig: true`, so a
+    // schema that refused an out-of-range cap would wipe every profile.
+    it("clamps out-of-range caps instead of refusing them", () => {
+      expect(normalizeAutocompleteSettings({ dailyCostCapUsd: -3 }).dailyCostCapUsd).toBe(0);
+      expect(
+        normalizeAutocompleteSettings({ dailyCostCapUsd: 5_000 }).dailyCostCapUsd,
+      ).toBe(MAX_DAILY_COST_CAP_USD);
     });
   });
 });

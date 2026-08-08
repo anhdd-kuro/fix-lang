@@ -6,6 +6,7 @@ import Store from "electron-store";
 import { DEFAULT_LANGUAGE, resolveDefaultModel } from "~/const";
 import {
   AUTOCOMPLETE_INHERIT_ASK_MODEL,
+  DEFAULT_DAILY_COST_CAP_USD,
   normalizeAutocompleteSettings,
   type AutocompleteSettings,
 } from "~/features/autocomplete/shared/autocompleteSettings";
@@ -915,12 +916,21 @@ export const apiStoreSchema = {
                 // validation wipes every profile, preset and key reference.
                 enabled: { type: "boolean", default: false },
                 model: { type: "string", default: "" },
+                // No `minimum`/`maximum` here either, for the same reason: a
+                // stored value outside the range must be CLAMPED by
+                // `normalizeDailyCostCapUsd`, not fail validation and wipe the
+                // whole config.
+                dailyCostCapUsd: { type: "number", default: DEFAULT_DAILY_COST_CAP_USD },
               },
               // Belt and braces for the whole-node-absent case only.
               // `useDefaults` injects an *object* default, so a stored object
               // missing just `enabled` never receives it — that case is carried
               // by `normalizeAutocompleteSettings`, which is the load-bearing one.
-              default: { enabled: false, model: "" },
+              default: {
+                enabled: false,
+                model: "",
+                dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+              },
             },
           },
         },
@@ -1469,7 +1479,11 @@ const buildDefaultProfileSettings = (): SettingsStore =>
       autoCopy: false,
       model: "",
     },
-    settingsAutocomplete: { enabled: false, model: AUTOCOMPLETE_INHERIT_ASK_MODEL },
+    settingsAutocomplete: {
+      enabled: false,
+      model: AUTOCOMPLETE_INHERIT_ASK_MODEL,
+      dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+    },
   }) as SettingsStore;
 
 /**

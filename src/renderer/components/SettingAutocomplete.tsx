@@ -1,8 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   AUTOCOMPLETE_INHERIT_ASK_MODEL,
+  DEFAULT_DAILY_COST_CAP_USD,
+  MAX_DAILY_COST_CAP_USD,
+  normalizeDailyCostCapUsd,
   type AutocompleteSettings,
 } from "~/features/autocomplete/shared/autocompleteSettings";
+import { resolveAutocompleteCapUsage } from "./autocompleteUsageView";
 import { Checkbox } from "./Checkbox";
 import { ModelSelect } from "./ModelSelect";
 import { formatOverviewCostHint } from "./overviewCostView";
@@ -20,10 +24,19 @@ import type {
 
 /**
  * @file SettingAutocomplete.tsx
- * @description Settings > Autocomplete: on/off, model, the privacy
- * statement, and a today/month-to-date usage readout. It is the whole tab,
- * mounted from `SettingsModal.tsx` — a sibling of Transform rather than a
+ * @description Settings > Autocomplete: on/off, model, the daily spend cap, the
+ * privacy statement, and a today/month-to-date usage readout. It is the whole
+ * tab, mounted from `SettingsModal.tsx` — a sibling of Transform rather than a
  * card inside General.
+ *
+ * The cap is stated with its own limits beside it, not just an input. It is a
+ * budget over PRICED spend, so it never fires for a local provider (which costs
+ * a real `$0`) nor for a model `computeCost` cannot price (which bills and
+ * records `$0`) — and this tab is the one place recommending local providers
+ * for privacy, so leaving that unsaid would sell a guarantee the number does
+ * not carry. `DAILY_REQUEST_BACKSTOP` in `main/service.ts` covers those cases
+ * and is deliberately not surfaced here: it is set past what typing can reach,
+ * so showing it would read as a second budget.
  *
  * `ModelSelect`'s own built-in inherit row (rendered whenever `""` is passed
  * as `selectedModelId`) says "Use global default" — that is the correct copy
@@ -37,6 +50,7 @@ import type {
 const DEFAULT_SETTINGS: AutocompleteSettings = {
   enabled: false,
   model: AUTOCOMPLETE_INHERIT_ASK_MODEL,
+  dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
 };
 
 const emptyRollup = (): AutocompleteDayRollup => ({
@@ -54,7 +68,7 @@ const emptyUsage = (): AutocompleteUsageSnapshot => ({
   today: emptyRollup(),
   month: emptyRollup(),
   days: [],
-  dailyCap: 0,
+  dailyCostCapUsd: 0,
 });
 
 /**
@@ -73,9 +87,23 @@ const rollupCostSum = (rollup: AutocompleteDayRollup): CostSum => ({
 });
 
 export const SettingAutocomplete: React.FC = () => {
-  const { t, tm, tl, formatNumber } = useI18n();
+  const { t, tm, tl, formatNumber, formatCurrency } = useI18n();
   const [settings, setSettings] = useState<AutocompleteSettings>(DEFAULT_SETTINGS);
   const [usage, setUsage] = useState<AutocompleteUsageSnapshot>(emptyUsage);
+  /**
+   * The cap field while it is being typed, or `null` for "show what is stored".
+   *
+   * A draft rather than a controlled number, because a number input passes
+   * through states no cap should ever be persisted from: `""` while the field
+   * is cleared to retype it, and `"0."` mid-decimal. Committing on every
+   * keystroke would write a `0` cap — which means "spend nothing" and silently
+   * turns the feature off — the moment the user selects-all and starts typing.
+   *
+   * `null` rather than a synced copy so an external change (another window's
+   * profile switch, `settings-updated`) flows straight through without an
+   * effect writing state back into render.
+   */
+  const [capDraft, setCapDraft] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [status, setStatus] = useState<StatusDescriptor | null>(null);
   const [statusIsError, setStatusIsError] = useState(false);
@@ -174,10 +202,29 @@ export const SettingAutocomplete: React.FC = () => {
     );
   }
 
-  const capPct =
-    usage.dailyCap > 0
-      ? Math.min(100, Math.round((usage.today.requests / usage.dailyCap) * 100))
-      : null;
+  // The SAME derivation the dashboard's cap card uses, imported rather than
+  // recomputed: an inline `estimatedCostUsd / cap` here printed `$0.00 of $5.00`
+  // over a day whose responses all went unpriced — the exact false zero the
+  // readout below already refuses for its own cost line.
+  const cap = resolveAutocompleteCapUsage(usage.today, settings.dailyCostCapUsd);
+  const capPct = Math.round(cap.ratio * 100);
+
+  /**
+   * Commits the typed cap, or reverts to the stored one.
+   *
+   * An unparseable field reverts rather than clamping to `0`: the two are
+   * indistinguishable at the DOM (`Number.parseFloat("")` is `NaN` either way),
+   * and one of them turns off a feature the user was only editing.
+   */
+  const commitCap = (): void => {
+    if (capDraft === null) return;
+    const typed = Number.parseFloat(capDraft);
+    setCapDraft(null);
+    if (!Number.isFinite(typed)) return;
+    const next = normalizeDailyCostCapUsd(typed);
+    if (next === settings.dailyCostCapUsd) return;
+    void persist(settings, { ...settings, dailyCostCapUsd: next });
+  };
 
   const todayCostHint = formatOverviewCostHint(rollupCostSum(usage.today), t, formatNumber);
   const monthCostHint = formatOverviewCostHint(rollupCostSum(usage.month), t, formatNumber);
@@ -215,6 +262,49 @@ export const SettingAutocomplete: React.FC = () => {
         )}
       </div>
 
+      <div className="mt-3 flex flex-col gap-2">
+        <label
+          htmlFor="autocomplete-daily-cap"
+          className="block text-sm text-card-foreground"
+        >
+          {t("settings.autocomplete.dailyCap.label")}
+        </label>
+        <input
+          id="autocomplete-daily-cap"
+          type="number"
+          min={0}
+          max={MAX_DAILY_COST_CAP_USD}
+          step={0.5}
+          inputMode="decimal"
+          aria-label={t("settings.autocomplete.dailyCap.label")}
+          value={capDraft ?? String(settings.dailyCostCapUsd)}
+          onChange={(event) => setCapDraft(event.target.value)}
+          onBlur={commitCap}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+          }}
+          className="w-32 rounded border border-control-border bg-secondary p-1 text-foreground"
+        />
+        <p className="text-xs text-muted-foreground">
+          {t("settings.autocomplete.dailyCap.description", {
+            max: MAX_DAILY_COST_CAP_USD,
+          })}
+        </p>
+        {/* Stated because a $0 cap looks like a broken feature otherwise: it
+            refuses every request, and nothing else on screen says why. */}
+        {settings.dailyCostCapUsd === 0 && (
+          <p className="text-xs text-warning">
+            {t("settings.autocomplete.dailyCap.zero")}
+          </p>
+        )}
+        {/* The cap only sees spend it can price. A local model bills nothing
+            and never moves it, which is a feature of the provider and a hole in
+            the budget — the user should hear it from us, not discover it. */}
+        <p className="text-xs text-muted-foreground">
+          {t("settings.autocomplete.dailyCap.unpricedHint")}
+        </p>
+      </div>
+
       <p className="mt-3 rounded-md border border-card-control-border bg-background/40 p-3 text-xs text-muted-foreground">
         {t("settings.autocomplete.privacy.hint")}
       </p>
@@ -248,15 +338,17 @@ export const SettingAutocomplete: React.FC = () => {
         {t("settings.autocomplete.usage.requestsHint")}
       </p>
 
-      {capPct !== null && (
-        <p className="mt-1 text-xs text-muted-foreground">
-          {t("settings.autocomplete.usage.capUsage", {
-            used: usage.today.requests,
-            cap: usage.dailyCap,
-            pct: capPct,
-          })}
-        </p>
-      )}
+      <p className="mt-1 text-xs text-muted-foreground">
+        {cap.spent.kind === "na"
+          ? t("autocomplete.cap.unmeasured", {
+              cap: formatCurrency(cap.capUsd, "USD"),
+            })
+          : t("settings.autocomplete.usage.capUsage", {
+              used: formatCurrency(cap.spent.value, "USD"),
+              cap: formatCurrency(cap.capUsd, "USD"),
+              pct: capPct,
+            })}
+      </p>
 
       {status && (
         <p
