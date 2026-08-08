@@ -1617,7 +1617,7 @@ const consumerContractRows = [
     "SITE-ffaaad62c6e612d8-01",
     "LIVE-ffaaad62c6e612d8",
     "src/renderer/components/Dialog.tsx",
-    62,
+    32,
     11,
   ],
   [
@@ -1657,15 +1657,15 @@ const consumerContractRows = [
     "SITE-ae28524fa5a91a81-01",
     "LIVE-ae28524fa5a91a81",
     "src/renderer/components/HistorySessionDetailsModal.tsx",
-    91,
+    100,
     15,
   ],
   [
     "BTN-018",
-    "SITE-26691da216743279-01",
-    "LIVE-26691da216743279",
+    "SITE-557ad180021cb842-01",
+    "LIVE-36b0efef55fb64e4",
     "src/renderer/components/HistorySessionDetailsModal.tsx",
-    215,
+    224,
     11,
   ],
   [
@@ -1985,7 +1985,7 @@ const consumerContractRows = [
     "SITE-7ddd61f39a4603c1-01",
     "LIVE-7ddd61f39a4603c1",
     "src/renderer/components/SettingCorrection.tsx",
-    712,
+    713,
     9,
   ],
   [
@@ -1993,7 +1993,7 @@ const consumerContractRows = [
     "SITE-07f2a8ba23e043f1-01",
     "LIVE-07f2a8ba23e043f1",
     "src/renderer/components/SettingGeneral.tsx",
-    836,
+    843,
     11,
   ],
   [
@@ -2001,7 +2001,7 @@ const consumerContractRows = [
     "SITE-c4546c1f1b582275-01",
     "LIVE-c4546c1f1b582275",
     "src/renderer/components/SettingGeneral.tsx",
-    849,
+    856,
     13,
   ],
   [
@@ -2009,7 +2009,7 @@ const consumerContractRows = [
     "SITE-f528b6225f5af211-01",
     "LIVE-f528b6225f5af211",
     "src/renderer/components/SettingGeneral.tsx",
-    883,
+    890,
     15,
   ],
   [
@@ -2017,7 +2017,7 @@ const consumerContractRows = [
     "SITE-d3d535844d3ea12d-01",
     "LIVE-d3d535844d3ea12d",
     "src/renderer/components/SettingGeneral.tsx",
-    891,
+    898,
     15,
   ],
   [
@@ -2025,7 +2025,7 @@ const consumerContractRows = [
     "SITE-9366f8ce82dfacc2-01",
     "LIVE-9366f8ce82dfacc2",
     "src/renderer/components/SettingGeneral.tsx",
-    1048,
+    1044,
     9,
   ],
   [
@@ -2073,7 +2073,7 @@ const consumerContractRows = [
     "SITE-426eacdcf8f96389-01",
     "LIVE-426eacdcf8f96389",
     "src/renderer/components/SettingsModal.tsx",
-    219,
+    260,
     11,
   ],
   [
@@ -2081,7 +2081,7 @@ const consumerContractRows = [
     "SITE-131332cadfcd6d7c-01",
     "LIVE-131332cadfcd6d7c",
     "src/renderer/components/SettingsModal.tsx",
-    261,
+    302,
     17,
   ],
   [
@@ -2297,7 +2297,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "d2d3a94b6593e3d9fd3d07e7bf4a722acc0043281dccba842307370afbe44a74";
+  "2ca7959a1036e3fd0dc38ac305d757a790eb444538003720d9f0c633e9dbd313";
 
 const compareConsumers = (
   left: ButtonConsumer,

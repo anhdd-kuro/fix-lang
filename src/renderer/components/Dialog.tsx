@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import { Button } from "./Button";
+import { useModalDismiss } from "../hooks/useModalDismiss";
 import { useI18n } from "../i18n/useI18n";
 
 type DialogProps = {
@@ -16,38 +17,7 @@ export const Dialog: React.FC<DialogProps> = ({
   children,
 }) => {
   const { t } = useI18n();
-  const dialogRef = useRef<HTMLDivElement>(null);
-
-  // Handle click outside to close
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dialogRef.current &&
-        !dialogRef.current.contains(event.target as Node) &&
-        isOpen
-      ) {
-        onClose();
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen, onClose]);
-
-  // Handle ESC key to close
-  useEffect(() => {
-    const handleEsc = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && isOpen) {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleEsc);
-    return () => {
-      window.removeEventListener("keydown", handleEsc);
-    };
-  }, [isOpen, onClose]);
+  const dialogRef = useModalDismiss<HTMLDivElement>(isOpen, onClose);
 
   if (!isOpen) return null;
 
