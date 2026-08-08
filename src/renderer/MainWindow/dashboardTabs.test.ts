@@ -24,14 +24,13 @@ const makeEntry = (overrides: Partial<HistoryEntry> = {}): HistoryEntry => ({
 });
 
 describe("DASHBOARD_TABS", () => {
-  it("exposes the seven tabs in order Overview/History/Models/OpenRouter/Logs/Autocomplete/About", () => {
+  it("exposes the six tabs in order Overview/History/Models/Usage/Logs/About", () => {
     expect(DASHBOARD_TABS.map((t) => t.id)).toEqual([
       "overview",
       "history",
       "models",
       "usage",
       "logs",
-      "autocomplete",
       "about",
     ]);
     // Labels are translation keys, not prose — this file must stay
@@ -43,14 +42,16 @@ describe("DASHBOARD_TABS", () => {
       "dashboard.tab.models",
       "dashboard.tab.usage",
       "dashboard.tab.logs",
-      "dashboard.tab.autocomplete",
       "dashboard.tab.about",
     ]);
   });
 
-  it("places autocomplete second-to-last, immediately before about", () => {
+  // Autocomplete usage is a sub-tab of Usage, not a top-level tab: it reports
+  // spend, and spend already has a home. A stray top-level entry would mean the
+  // move left one of the two copies behind.
+  it("keeps autocomplete out of the top-level bar", () => {
     const ids = DASHBOARD_TABS.map((t) => t.id);
-    expect(ids[ids.length - 2]).toBe("autocomplete");
+    expect(ids).not.toContain("autocomplete");
     expect(ids[ids.length - 1]).toBe("about");
   });
 

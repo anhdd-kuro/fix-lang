@@ -40,6 +40,8 @@
   "usage.range.7d": "7d",
   "usage.rangeGroupLabel": "Usage range",
   "usage.refreshing": "Refreshing…",
-  "usage.subTabs.ariaLabel": "Usage providers",
+  "usage.subTab.autocomplete": "Autocomplete",
+  "usage.subTab.providers": "Providers",
+  "usage.subTabs.ariaLabel": "Usage sections",
   "usage.tokens.title": "Tokens ({range})"
 }
