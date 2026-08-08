@@ -161,6 +161,7 @@
   "settings.icon.defaultTitle": "Open settings",
   "settings.modal.close": "Close settings modal",
   "settings.modal.tabs.appearance": "Appearance",
+  "settings.modal.tabs.autocomplete": "Autocomplete",
   "settings.modal.tabs.correction": "Transform",
   "settings.modal.tabs.general": "General",
   "settings.modal.tabs.profiles": "Profiles",

@@ -29,6 +29,8 @@
   "notifications.window.askInput.acceptHint": "Tabで確定",
   "notifications.window.askInput.cancelHint": "Escで閉じる",
   "notifications.window.askInput.contextChip_other": "コンテキストを添付 · {count} 文字",
+  "notifications.window.askInput.contextCollapse": "折りたたむ",
+  "notifications.window.askInput.contextExpand": "もっと見る",
   "notifications.window.askInput.placeholder": "何でも聞いてください…",
   "notifications.window.askInput.sendHint": "Enterで送信、Shift+Enterで改行",
   "notifications.window.askInput.title": "AIに質問",
