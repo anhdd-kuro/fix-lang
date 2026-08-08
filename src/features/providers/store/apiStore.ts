@@ -10,6 +10,9 @@ import {
   normalizeAutocompleteSettings,
   type AutocompleteSettings,
 } from "~/features/autocomplete/shared/autocompleteSettings";
+// Runtime import, but no cycle: `comboValidation` takes only TYPES from this
+// module (`ComboPreset`, `CorrectionPreset`), which are erased.
+import { COMBO_CANCEL_ACCELERATOR } from "~/features/correction/shared/comboValidation";
 import {
   DEFAULT_REASONING_EFFORT,
   sanitizeReasoningEffort,
@@ -133,9 +136,136 @@ const sanitizePresetOutputMode = (
 const sanitizeBoolean = (raw: unknown): boolean | undefined =>
   typeof raw === "boolean" ? raw : undefined;
 
+/** One node in a Combo chain. Text in, text out — always. */
+export type ComboStep = {
+  /** Stable id. Survives reorder; keys the UI row and the per-step log line. */
+  id: string;
+  presetId: string;
+  /**
+   * Frozen stand-in for the question a `requiresInput` preset would have
+   * prompted for. A Combo never opens the Ask input window, so a step whose
+   * preset has `requiresInput` is invalid without this.
+   */
+  inlineInput?: string;
+};
+
+export type ComboPreset = {
+  id: string;
+  name: string;
+  hotkey: string;
+  /** Execution order IS array order. No `order` field — one source of truth. */
+  steps: ComboStep[];
+  /** Combo-level only. Step presets' own outputMode is ignored. */
+  outputMode?: "inherit" | "paste" | "popup";
+  /** Applies to the FINAL step's output only. */
+  markdownOutput?: boolean;
+  schemaVersion: 1;
+};
+
 export type CorrectionSettings = {
   presets: CorrectionPreset[];
   selectedPresetId: string;
+  /** Absent reads as []. That is the whole migration. */
+  combos?: ComboPreset[];
+};
+
+// A missing id is materialized (never fatal) so one unusable field can't
+// shorten the chain the user configured. But `step-${index + 1}` collides
+// once any earlier step in the same combo already holds that id — explicitly
+// stored or materialized the same way. Bump with a numeric suffix until the
+// candidate is unique within `seenStepIds`, mirroring the top-level
+// `seenIds` dedup `sanitizeCombos` already does across combos, and record
+// the winner so later steps see it as taken too. A collision must resolve
+// to a distinct id, never a dropped step.
+const resolveUniqueStepId = (candidateId: string, seenStepIds: Set<string>): string => {
+  if (!seenStepIds.has(candidateId)) return candidateId;
+
+  let suffix = 2;
+  let bumped = `${candidateId}-${suffix}`;
+  while (seenStepIds.has(bumped)) {
+    suffix += 1;
+    bumped = `${candidateId}-${suffix}`;
+  }
+  return bumped;
+};
+
+const sanitizeComboStep = (
+  raw: unknown,
+  index: number,
+  seenStepIds: Set<string>,
+): ComboStep | null => {
+  if (!raw || typeof raw !== "object") return null;
+
+  const candidate = raw as Record<string, unknown>;
+  const presetId =
+    typeof candidate.presetId === "string" ? candidate.presetId.trim() : "";
+  if (!presetId) return null;
+
+  const storedId = typeof candidate.id === "string" ? candidate.id.trim() : "";
+  // Kept verbatim: it is free text the model receives. Whitespace-only is a
+  // validation error (`validateCombo`), not something to silently rewrite.
+  const inlineInput =
+    typeof candidate.inlineInput === "string" ? candidate.inlineInput : undefined;
+
+  const id = resolveUniqueStepId(storedId || `step-${index + 1}`, seenStepIds);
+  seenStepIds.add(id);
+
+  return {
+    id,
+    presetId,
+    ...(inlineInput !== undefined ? { inlineInput } : {}),
+  };
+};
+
+const sanitizeCombo = (raw: unknown): ComboPreset | null => {
+  if (!raw || typeof raw !== "object") return null;
+
+  const candidate = raw as Record<string, unknown>;
+  const id = typeof candidate.id === "string" ? candidate.id.trim() : "";
+  const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
+  if (!id || !name || !Array.isArray(candidate.steps)) return null;
+
+  // One unusable step invalidates the whole chain: dropping just that step
+  // would run a SHORTER combo than the user configured, silently.
+  const steps: ComboStep[] = [];
+  const seenStepIds = new Set<string>();
+  for (const [index, rawStep] of candidate.steps.entries()) {
+    const step = sanitizeComboStep(rawStep, index, seenStepIds);
+    if (!step) return null;
+    steps.push(step);
+  }
+
+  const outputMode = sanitizePresetOutputMode(candidate.outputMode);
+  const markdownOutput = sanitizeBoolean(candidate.markdownOutput);
+
+  return {
+    id,
+    name,
+    // Never rewritten here, not even onto a hotkey some preset or app binding
+    // already holds: every accelerator in the app shares one registration
+    // space, and resolving a collision across all of them is the pre-save
+    // `validateHotkeys` gate's job, not the sanitizer's.
+    hotkey: typeof candidate.hotkey === "string" ? candidate.hotkey.trim() : "",
+    steps,
+    ...(outputMode !== undefined ? { outputMode } : {}),
+    ...(markdownOutput !== undefined ? { markdownOutput } : {}),
+    // Lazy upgrade on read. `1` is the only version the union admits today, so
+    // an absent or unrecognized value normalizes rather than costing the user
+    // the combo; a future version 2 branches here.
+    schemaVersion: 1,
+  };
+};
+
+const sanitizeCombos = (raw: unknown): ComboPreset[] => {
+  if (!Array.isArray(raw)) return [];
+
+  const seenIds = new Set<string>();
+  return raw.flatMap((entry) => {
+    const combo = sanitizeCombo(entry);
+    if (!combo || seenIds.has(combo.id)) return [];
+    seenIds.add(combo.id);
+    return [combo];
+  });
 };
 
 /**
@@ -354,6 +484,9 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
 export const getDefaultCorrectionSettings = (): CorrectionSettings => ({
   presets: makeDefaultCorrectionPresets(),
   selectedPresetId: DEFAULT_CORRECTION_PRESET_ID,
+  // No built-in combos ship. Present-and-empty rather than absent so every
+  // reader of a normalized `settingsCorrect` can index it without a guard.
+  combos: [],
 });
 
 const buildLegacyCorrectionPrompt = (
@@ -373,11 +506,21 @@ const buildLegacyCorrectionPrompt = (
  * Read through a defaulted parameter rather than inline so tests can drive a
  * remapped binding without reaching into `keybindingStore`, while no call site
  * can forget to supply it and silently lose the guard below.
+ *
+ * `COMBO_CANCEL_ACCELERATOR` (`Control+Escape`) is included unconditionally,
+ * not just when `promptGen`/`profileSwitch` happen to collide (design C6,
+ * closing V2) — unlike the app bindings, it is not user-remappable, so it
+ * belongs in the base list rather than behind a caller-supplied override. A
+ * STORED preset hotkey on that chord is still never rewritten here; that stays
+ * `validateHotkeys`' pre-save job and `registerCorrectionShortcut`'s
+ * migration-path skip. Exported for direct assertion in
+ * `normalizeCorrectionSettings.test.ts` — no built-in default currently sits
+ * on this chord, so the effect is otherwise unobservable end-to-end.
  */
-const readReservedAppAccelerators = (): readonly string[] => {
+export const readReservedAppAccelerators = (): readonly string[] => {
   const { promptGen, profileSwitch } = keybindingStore.getKeyBindings();
 
-  return [promptGen, profileSwitch];
+  return [promptGen, profileSwitch, COMBO_CANCEL_ACCELERATOR];
 };
 
 export const normalizeCorrectionSettings = (
@@ -419,6 +562,8 @@ export const normalizeCorrectionSettings = (
 
   const raw = value as Partial<CorrectionSettings> & LegacyCorrectionSettings;
 
+  const combos = sanitizeCombos(raw.combos);
+
   const storedHadTranslatePreset =
     Array.isArray(raw.presets) &&
     raw.presets.some(
@@ -450,6 +595,7 @@ export const normalizeCorrectionSettings = (
         false,
       ),
       selectedPresetId: migratedCorrectionPreset.id,
+      combos,
     };
   }
 
@@ -590,6 +736,7 @@ export const normalizeCorrectionSettings = (
   return {
     presets: migratedPresets,
     selectedPresetId,
+    combos,
   };
 };
 
@@ -710,6 +857,17 @@ export const apiStoreSchema = {
                   },
                   default: makeDefaultCorrectionPresets(),
                 },
+                /**
+                 * Deliberately carries NO `items` schema, unlike `presets`
+                 * above, and no `default`. Combos are hand-edited config until
+                 * the Settings editor lands, and `clearInvalidConfig: true`
+                 * turns ONE mistyped field into a wipe of every profile, preset
+                 * and key reference. Per-combo shape is enforced in code by
+                 * `sanitizeCombos`, which drops just the malformed combo. Only
+                 * "not an array at all" is worth a validation failure here, and
+                 * that matches what `presets` already risks.
+                 */
+                combos: { type: "array" },
               },
               default: getDefaultCorrectionSettings(),
             },

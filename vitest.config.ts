@@ -18,6 +18,7 @@ const sharedExclude = [
 ];
 
 export default defineConfig({
+  assetsInclude: ["**/*.html"],
   test: {
     globals: true,
     testTimeout: 1000 * 10,
