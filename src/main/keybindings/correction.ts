@@ -13,7 +13,7 @@ import {
   pasteText,
 } from "../../utils";
 import { fixGrammar } from "../ai.request";
-import { runAskFlow } from "./askFlow";
+import { buildAppLocaleDirective, runAskFlow } from "./askFlow";
 import { abortActiveCombo, withComboCancel } from "./comboCancel";
 import {
   COMBO_TOTAL_BUDGET_MS,
@@ -38,7 +38,7 @@ import { effectiveModelRef } from "../ai.request/correction";
 import { buildPriceMap, computeCost } from "../ai.request/cost";
 import { getCachedModels, isLocalModelId } from "../ai.request/shared";
 import { prewarmProviderConnection } from "../llm/prewarm";
-import { startLatencyTimer } from "../logging/latencyTimer";
+import { startLatencyTimer, type LatencyTimer } from "../logging/latencyTimer";
 import { logger } from "../logging/logService";
 import { LocalizedError } from "../notifications/error";
 import {
@@ -60,6 +60,15 @@ import type { ComboProgressView } from "~/main/webViewWindows/comboProgressView"
  */
 const isComboCancelledError = (error: unknown): boolean =>
   error instanceof ComboCancelledError;
+
+/**
+ * The abort check for the part of a combo run that happens OUTSIDE
+ * `runCombo` — the selection read. Throws the same class `runCombo` throws
+ * so one `catch` routes both to the same "Combo Cancelled" notification.
+ */
+const throwIfComboCancelled = (signal: AbortSignal): void => {
+  if (signal.aborted) throw new ComboCancelledError();
+};
 
 /**
  * Display name for a failed step's preset (e.g. "Translate" in "Step 2 of 3
@@ -133,17 +142,27 @@ const recordComboStepHistory = (payload: ComboStepHistoryPayload): void => {
  */
 const buildComboRunDependencies = (
   onProgress: (view: ComboProgressView) => void,
+  latency: LatencyTimer,
 ): RunComboDependencies => ({
   getCorrectionSettings: () => getProfileSetting("settingsCorrect"),
   fixGrammar: (text, presetId, context) => fixGrammar(text, presetId, context),
   recordStepHistory: recordComboStepHistory,
-  deliver: (mode, payload) =>
-    deliverCorrectionOutput(mode, payload, {
+  // `deliver` is the only seam that sits between "every step has run" and
+  // "the user has the result", so it is where the AI/delivery split in the
+  // latency breakdown is taken. `aiRequest` covers the whole chain here, not
+  // one request — a combo's steps are what the user waits through.
+  deliver: async (mode, payload) => {
+    latency.mark("aiRequest");
+    const delivery = await deliverCorrectionOutput(mode, payload, {
       paste: pasteText,
       showPopup: showCorrectionResultWindow,
-    }),
+    });
+    latency.mark("delivery");
+    return delivery;
+  },
   onProgress,
   defaultOutputMode: outputModeStore.getCorrectionOutputMode(),
+  buildAskLocaleDirective: buildAppLocaleDirective,
 });
 
 /**
@@ -175,6 +194,18 @@ const handleComboError = (error: unknown, combo: ComboPreset): void => {
       comboId: combo.id,
       stepIndex: error.stepIndex,
       code: error.code,
+      // Present only for `step-failed`, where the real reason (an API error,
+      // an auth failure, a network drop) is the wrapped cause — the notification
+      // deliberately shows only the step, so the diagnosis has to live here.
+      // Spread rather than an `undefined` value: `LogValue` has no undefined.
+      ...(error.cause === undefined
+        ? {}
+        : {
+            cause:
+              error.cause instanceof Error
+                ? error.cause.message
+                : String(error.cause),
+          }),
     });
     new Notification(
       buildComboStepFailedNotification({
@@ -311,102 +342,135 @@ const runComboFromHotkey = async (
   combo: ComboPreset,
   mainWindow: BrowserWindow,
   watchdogSignal: AbortSignal,
+  latency: LatencyTimer,
 ): Promise<void> => {
   logger.info("correction.hotkey", "Combo hotkey triggered", {
     comboId: combo.id,
     comboName: combo.name,
   });
 
+  // Finding F1 (board) — `runCombo` only ever reports "running"/"failed"
+  // (it has no visibility into the abort that produces "cancelling", which
+  // happens outside its loop, in `withComboCancel`'s `onCancelling` below).
+  // This remembers the latest view `onProgress` delivered so `onCancelling`
+  // can replay it with `state: "cancelling"` instead of painting a ring it
+  // cannot itself describe. Seeded before step 1 fires so a cancel pressed
+  // in that narrow window still shows step 1, not a blank ring.
+  let latestProgress: ComboProgressView = {
+    total: combo.steps.length,
+    completed: 0,
+    current: 1,
+    state: "running",
+  };
+
   try {
-    // Same combined read as the single-preset path, for the same reason: the
-    // frontmost-app read has to happen before any FixLang window becomes
-    // visible, or it reports FixLang instead of the real source app.
-    const { text: selectedText, activeApp } = await getHighlightedTextWithActiveApp(() => {
-      showOverlaySpinner();
-    });
+    // The cancel scope opens HERE, not around `runCombo` alone. `withComboCancel`
+    // is what publishes this run to `abortActiveCombo()`, and the selection read
+    // below is an await like any other: a profile switch during it used to find
+    // no active combo, no-op, and let the read complete — after which every step
+    // resolved its `presetId` against the NEW profile, sending a selection
+    // captured under profile A to profile B's provider and key. Opening the scope
+    // first means that switch aborts the run at the `throwIfComboCancelled` check
+    // right after the read, before any request is made. The `exec()` inside the
+    // read still cannot be interrupted mid-flight; the abort is observed the
+    // moment it returns.
+    await withComboCancel(
+      async (signal) => {
+        // Same combined read as the single-preset path, for the same reason: the
+        // frontmost-app read has to happen before any FixLang window becomes
+        // visible, or it reports FixLang instead of the real source app.
+        const { text: selectedText, activeApp } = await getHighlightedTextWithActiveApp(
+          () => {
+            latency.mark("keystrokeSent");
+            showOverlaySpinner();
+          },
+        );
+        latency.mark("selectionPoll");
 
-    // Finding F2 (board, first branch) — the earliest point this handler can
-    // check its own abandonment: the combined read's `exec()` cannot be
-    // aborted mid-flight, so this only ever observes a PAST watchdog trip,
-    // never causes one. A stuck-then-unwedged run stops here instead of
-    // proceeding into `withComboCancel`/`runCombo`, where it would otherwise
-    // race whatever later run the freed lock already admitted, straight to
-    // `deliver`.
-    if (watchdogSignal.aborted) {
-      hideOverlaySpinner();
-      logger.warn(
-        "correction.hotkey",
-        "Combo handler resumed after the lock watchdog already abandoned it; skipping delivery",
-        { comboId: combo.id },
-      );
-      return;
-    }
+        // Finding F2 (board, first branch) — the earliest point this handler can
+        // check its own abandonment: the combined read's `exec()` cannot be
+        // aborted mid-flight, so this only ever observes a PAST watchdog trip,
+        // never causes one. A stuck-then-unwedged run stops here instead of
+        // proceeding into `runCombo`, where it would otherwise race whatever
+        // later run the freed lock already admitted, straight to `deliver`.
+        if (watchdogSignal.aborted) {
+          hideOverlaySpinner();
+          logger.warn(
+            "correction.hotkey",
+            "Combo handler resumed after the lock watchdog already abandoned it; skipping delivery",
+            { comboId: combo.id },
+          );
+          latency.finish({ outcome: "failed", reason: "watchdog-abandoned" });
+          return;
+        }
 
-    if (!selectedText || !selectedText.trim()) {
-      hideOverlaySpinner();
-      logger.warn("correction.hotkey", "No text selected or clipboard is empty", {
-        comboId: combo.id,
-      });
-      handleError(
-        new LocalizedError(
-          "No text selected or clipboard is empty.",
-          "notifications.error.noTextSelected.body",
-        ),
-      );
-      return;
-    }
+        // The profile-switch abort this scope exists for. Reached whenever
+        // `abortActiveCombo()` fired while the selection read was still in
+        // flight; throwing here routes it to the same "Combo Cancelled"
+        // notification a Ctrl+Esc press produces, before any request runs.
+        throwIfComboCancelled(signal);
 
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("start-loading");
-    }
+        if (!selectedText || !selectedText.trim()) {
+          hideOverlaySpinner();
+          logger.warn("correction.hotkey", "No text selected or clipboard is empty", {
+            comboId: combo.id,
+          });
+          latency.finish({ outcome: "no-selection" });
+          handleError(
+            new LocalizedError(
+              "No text selected or clipboard is empty.",
+              "notifications.error.noTextSelected.body",
+            ),
+          );
+          return;
+        }
 
-    // Finding F1 (board) — `runCombo` only ever reports "running"/"failed"
-    // (it has no visibility into the abort that produces "cancelling", which
-    // happens outside its loop, in `withComboCancel`'s `onCancelling` below).
-    // This remembers the latest view `onProgress` delivered so `onCancelling`
-    // can replay it with `state: "cancelling"` instead of painting a ring it
-    // cannot itself describe. Seeded before step 1 fires so a cancel pressed
-    // in that narrow window still shows step 1, not a blank ring.
-    let latestProgress: ComboProgressView = {
-      total: combo.steps.length,
-      completed: 0,
-      current: 1,
-      state: "running",
-    };
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("start-loading");
+        }
 
-    const result = await withComboCancel(
-      (signal) =>
-        runCombo(
+        const result = await runCombo(
           { combo, input: selectedText, activeAppName: activeApp?.name, signal },
-          buildComboRunDependencies((view) => {
-            latestProgress = view;
-            updateComboProgress(view);
-          }),
-        ),
+          buildComboRunDependencies(
+            (view) => {
+              latestProgress = view;
+              updateComboProgress(view);
+            },
+            latency,
+          ),
+        );
+
+        logger.info("correction.hotkey", "Combo completed", {
+          comboId: combo.id,
+          steps: result.completed.length,
+          delivery: result.delivery,
+        });
+        latency.finish({ outcome: "delivered", delivery: result.delivery });
+
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("stop-loading");
+        } else {
+          logger.warn(
+            "correction.hotkey",
+            "Cannot send IPC message: mainWindow is null or destroyed",
+          );
+        }
+
+        hideOverlaySpinner();
+      },
       () => {
         logger.info("correction.hotkey", "Combo cancelling", { comboId: combo.id });
         updateComboProgress({ ...latestProgress, state: "cancelling" });
       },
     );
-
-    logger.info("correction.hotkey", "Combo completed", {
-      comboId: combo.id,
-      steps: result.completed.length,
-      delivery: result.delivery,
-    });
-
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("stop-loading");
-    } else {
-      logger.warn(
-        "correction.hotkey",
-        "Cannot send IPC message: mainWindow is null or destroyed",
-      );
-    }
-
-    hideOverlaySpinner();
   } catch (error) {
     hideOverlaySpinner();
+    // First-`finish`-wins, so this never relabels a run that already reported
+    // `delivered` and then threw on the way out.
+    latency.finish({
+      outcome: "failed",
+      reason: isComboCancelledError(error) ? "cancelled" : "error",
+    });
 
     // Finding F3 (board, minor) — `watchdogSignal.aborted` can only be true
     // here because THIS run's own watchdog timer already fired (each run
@@ -725,10 +789,20 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
     const registered = globalShortcut.register(
       shortcut,
       withHotkeyThrottle(shortcut, async () => {
+        // Started at the press boundary, not inside the handler, so the lock-busy
+        // and watchdog exits below are measured too. A press swallowed by
+        // `withHotkeyThrottle` never gets here and so never starts a timer —
+        // same contract as the single-preset path.
+        const latency = startLatencyTimer({
+          scope: "correction.latency",
+          message: "Combo latency",
+          context: { comboId: combo.id },
+        });
+
         try {
           await withComboLock(() =>
             withComboLockWatchdog((signal) =>
-              runComboFromHotkey(combo, mainWindow, signal),
+              runComboFromHotkey(combo, mainWindow, signal, latency),
             ),
           );
         } catch (error) {
@@ -738,6 +812,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
               "Refused a second combo press while one is already running",
               { comboId: combo.id },
             );
+            latency.finish({ outcome: "failed", reason: "lock-busy" });
             new Notification(buildComboLockBusyNotification()).show();
             return;
           }
@@ -753,12 +828,17 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
               "Combo handler exceeded max lock hold time; lock released",
               { comboId: combo.id, maxHoldMs: COMBO_LOCK_MAX_HOLD_MS },
             );
+            latency.finish({ outcome: "failed", reason: "lock-watchdog" });
             handleError(error);
             return;
           }
           // Unreachable in practice: `runComboFromHotkey` catches everything
           // else itself. Kept as a fallback so a future change to that
-          // function cannot silently swallow an error here instead.
+          // function cannot silently swallow an error here instead — and the
+          // timer is finished here too, so even that path cannot leave a press
+          // unmeasured. First-`finish`-wins makes this a no-op on every path
+          // that already reported.
+          latency.finish({ outcome: "failed", reason: "unhandled" });
           handleError(error);
         }
       }),

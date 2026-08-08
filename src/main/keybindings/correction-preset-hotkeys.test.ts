@@ -87,7 +87,13 @@ vi.mock("../webViewWindows/correctionResultWindow", () => ({
 vi.mock("../webViewWindows/askInputWindow", () => ({
   showAskInputWindow: vi.fn(),
 }));
-vi.mock("./askFlow", () => ({ runAskFlow: vi.fn() }));
+// `buildAppLocaleDirective` is mocked alongside `runAskFlow` because
+// `buildComboRunDependencies` injects it into `runCombo` — a combo's
+// `requiresInput` step composes its message through the same Ask contract.
+vi.mock("./askFlow", () => ({
+  runAskFlow: vi.fn(),
+  buildAppLocaleDirective: vi.fn().mockReturnValue("App locale: en"),
+}));
 // `withHotkeyThrottle` stays REAL: it wraps every registered handler, so a stub
 // pass-through would hide a throttle that swallowed the invocations these tests
 // await. Its timestamp map is module state — hence the per-test reset below.
@@ -113,6 +119,7 @@ import {
   DEFAULT_STRUCTURED_TEXT_PRESET_ID,
 } from "~/prompts/correction";
 import { runAskFlow } from "./askFlow";
+import { abortActiveCombo, resetActiveComboForTests } from "./comboCancel";
 import { resetComboLockForTests } from "./comboLock";
 import {
   COMBO_LOCK_MAX_HOLD_MS,
@@ -1383,6 +1390,155 @@ describe("correction preset hotkeys — the watchdog owns the whole handler, not
       "correction.hotkey",
       "Combo handler resumed after the lock watchdog already abandoned it; skipping delivery",
       { comboId: "combo-1" },
+    );
+  });
+});
+
+/**
+ * The cancel scope has to open BEFORE the selection read, not around
+ * `runCombo` alone. `withComboCancel` is what publishes a run to
+ * `abortActiveCombo()`, and `notifyActiveProfileChanged` calls exactly that:
+ * with the scope opening late, a profile switch that lands while the read is
+ * still in flight found no active combo, no-opped, and let the read finish —
+ * after which every step re-resolved its `presetId` against the NEW profile,
+ * sending a selection captured under profile A through profile B's provider
+ * and key. Nothing failed; the request simply went somewhere the user never
+ * authorized for that run.
+ */
+describe("correction preset hotkeys — a profile switch during the selection read aborts the combo", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetHotkeyThrottleForTests();
+    resetComboLockForTests();
+    resetActiveComboForTests();
+    (globalShortcut.register as Mock).mockReturnValue(true);
+    mocks.keyBindings = {
+      promptGen: "Control+Alt+P",
+      profileSwitch: "Control+Alt+O",
+    };
+  });
+
+  it("makes no request at all when the switch lands mid-read, and reports it as a cancel", async () => {
+    let releaseSelection: (() => void) | undefined;
+    (getHighlightedTextWithActiveApp as Mock).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseSelection = () =>
+            resolve({ text: "some selected text", activeApp: null });
+        }),
+    );
+
+    const calls = registerFrom({
+      presets: [
+        storedBuiltIn("correction", "Correction", "Control+Shift+F"),
+        storedBuiltIn("summarize", "Summarize", "Control+Shift+S"),
+      ],
+      selectedPresetId: "correction",
+      combos: [storedCombo({ hotkey: "Control+Alt+K" })],
+    });
+
+    const pressed = calls.find(([shortcut]) => shortcut === "Control+Alt+K")?.[1]();
+
+    // The run is in flight and stuck in the read — this is exactly the window
+    // the bug lived in.
+    expect(getHighlightedTextWithActiveApp).toHaveBeenCalledTimes(1);
+    expect(fixGrammar).not.toHaveBeenCalled();
+
+    // What `notifyActiveProfileChanged` calls. A no-op before the fix.
+    abortActiveCombo();
+
+    releaseSelection?.();
+    await pressed;
+
+    expect(fixGrammar).not.toHaveBeenCalled();
+    expect(pasteText).not.toHaveBeenCalled();
+    expect(showCorrectionResultWindow).not.toHaveBeenCalled();
+    expect(Notification).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * CLAUDE.md's latency contract: every press that reaches a handler logs one
+ * `correction.latency` line and never two. The combo hotkey is a handler like
+ * any other, and started life with no timer at all — every combo press was a
+ * hole in the user-perceived latency data, on every outcome.
+ */
+describe("correction preset hotkeys — every combo press logs exactly one latency line", () => {
+  const latencyLines = () =>
+    (logger.info as Mock).mock.calls.filter(
+      ([scope, message]) => scope === "correction.latency" && message === "Combo latency",
+    );
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetHotkeyThrottleForTests();
+    resetComboLockForTests();
+    resetActiveComboForTests();
+    (globalShortcut.register as Mock).mockReturnValue(true);
+    mocks.keyBindings = {
+      promptGen: "Control+Alt+P",
+      profileSwitch: "Control+Alt+O",
+    };
+    (getHighlightedTextWithActiveApp as Mock).mockResolvedValue({
+      text: "some selected text",
+      activeApp: null,
+    });
+  });
+
+  const comboProfile = () => ({
+    presets: [
+      storedBuiltIn("correction", "Correction", "Control+Shift+F"),
+      storedBuiltIn("summarize", "Summarize", "Control+Shift+S"),
+    ],
+    selectedPresetId: "correction",
+    combos: [storedCombo({ hotkey: "Control+Alt+K" })],
+  });
+
+  it("logs one delivered line, with the phase breakdown, for a run that reaches the user", async () => {
+    const calls = registerFrom(comboProfile());
+    await calls.find(([shortcut]) => shortcut === "Control+Alt+K")?.[1]();
+
+    const lines = latencyLines();
+    expect(lines).toHaveLength(1);
+    const [, , context] = lines[0] as [string, string, Record<string, unknown>];
+    expect(context.outcome).toBe("delivered");
+    expect(context.comboId).toBe("combo-1");
+    expect(typeof context.totalMs).toBe("number");
+    // The AI/delivery split is taken at `deliver`, the only seam between "all
+    // steps ran" and "the user has it".
+    expect(Object.keys(context.phases as Record<string, number>)).toEqual(
+      expect.arrayContaining(["aiRequest", "delivery"]),
+    );
+  });
+
+  it("logs one no-selection line, not zero, when the press aborts before any request", async () => {
+    (getHighlightedTextWithActiveApp as Mock).mockResolvedValue({
+      text: "",
+      activeApp: null,
+    });
+
+    const calls = registerFrom(comboProfile());
+    await calls.find(([shortcut]) => shortcut === "Control+Alt+K")?.[1]();
+
+    const lines = latencyLines();
+    expect(lines).toHaveLength(1);
+    expect((lines[0] as [string, string, Record<string, unknown>])[2].outcome).toBe(
+      "no-selection",
+    );
+  });
+
+  it("logs one failed line when a step fails, and never a second one after it", async () => {
+    (fixGrammar as Mock)
+      .mockResolvedValueOnce(fixGrammarResult({ correctedText: "step one output" }))
+      .mockResolvedValueOnce(fixGrammarResult({ correctedText: "   " }));
+
+    const calls = registerFrom(comboProfile());
+    await calls.find(([shortcut]) => shortcut === "Control+Alt+K")?.[1]();
+
+    const lines = latencyLines();
+    expect(lines).toHaveLength(1);
+    expect((lines[0] as [string, string, Record<string, unknown>])[2].outcome).toBe(
+      "failed",
     );
   });
 });

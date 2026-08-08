@@ -46,8 +46,14 @@ export type RunAskFlowParams = {
  * purpose: baking it in would freeze it at whatever locale was active when
  * the prompt asset was written, instead of tracking the user's current
  * choice.
+ *
+ * Exported so a `requiresInput` step inside a Combo appends the SAME
+ * directive (`comboFlow.ts` takes it as an injected dependency). A second
+ * copy of this string would drift silently: nothing fails when a combo's Ask
+ * answers in the wrong language, it just does.
  */
-const buildAppLocaleDirective = (): string => `App locale: ${getLocale()}`;
+export const buildAppLocaleDirective = (): string =>
+  `App locale: ${getLocale()}`;
 
 /**
  * Runs the Ask AI request once the input window reports a submitted

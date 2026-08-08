@@ -39,6 +39,10 @@ import {
   type ComboValidationError,
 } from "~/features/correction/shared/comboValidation";
 import { resolvePresetOutputMode } from "~/features/correction/shared/presetOutputMode";
+// Pure string composition, no Electron reach — the one Ask-path helper this
+// module may import directly. The locale directive around it is injected,
+// because THAT one reads the main-process locale store.
+import { composeAskMessage } from "./askMessage";
 import type { CorrectionOutputMode } from "~/features/correction/shared/outputMode";
 import type {
   ComboPreset,
@@ -63,21 +67,39 @@ export const COMBO_TOTAL_BUDGET_MS = 120_000;
 export type ComboStepErrorCode =
   | "empty-output"
   | "step-timeout"
-  | "combo-timeout";
+  | "combo-timeout"
+  /**
+   * The step's `fixGrammar` call rejected for any reason this module does not
+   * model itself — an API error, an auth failure, a network drop. Wrapped
+   * rather than rethrown raw so the caller's notification can still name the
+   * failing step and its preset; a multi-provider combo is exactly the case
+   * where "something failed" is useless and "step 2 of 3 — Translate" is not.
+   * The original error is preserved as `cause`.
+   */
+  | "step-failed";
 
 /**
  * Raised for a single step: a whitespace-only intermediate output (E6, never
- * a silent pass-through) or a timeout (E9). Carries the step and its index so
- * the caller (a different card's notification builder) can name the failing
- * step and its position without re-deriving them from a generic Error.
+ * a silent pass-through), a timeout (E9), or a wrapped provider/request
+ * failure. Carries the step and its index so the caller (a different card's
+ * notification builder) can name the failing step and its position without
+ * re-deriving them from a generic Error.
  */
 export class ComboStepError extends Error {
   readonly step: ComboStep;
   readonly stepIndex: number;
   readonly code: ComboStepErrorCode;
 
-  constructor(step: ComboStep, stepIndex: number, code: ComboStepErrorCode) {
-    super(`Combo step ${stepIndex + 1} (preset "${step.presetId}") failed: ${code}`);
+  constructor(
+    step: ComboStep,
+    stepIndex: number,
+    code: ComboStepErrorCode,
+    options?: { cause?: unknown },
+  ) {
+    super(
+      `Combo step ${stepIndex + 1} (preset "${step.presetId}") failed: ${code}`,
+      options,
+    );
     this.name = "ComboStepError";
     this.step = step;
     this.stepIndex = stepIndex;
@@ -271,6 +293,15 @@ export type RunComboDependencies = {
    * particular) never has to supply one.
    */
   onProgress?: (view: ComboProgressView) => void;
+  /**
+   * Returns the `App locale: <code>` directive `askFlow.ts` appends to every
+   * Ask request. Injected rather than imported for the same reason as
+   * everything else here — `getLocale()` reaches the main-process i18n store
+   * — and optional so a test that does not exercise a `requiresInput` step
+   * need not supply one. Wired by `correction.ts` from the SAME builder
+   * `askFlow.ts` uses, so the two paths cannot drift.
+   */
+  buildAskLocaleDirective?: () => string;
 };
 
 export type RunComboParams = {
@@ -337,6 +368,28 @@ const raceWithTimeout = <T>(
   });
 
 /**
+ * Builds the message for a `requiresInput` step exactly as the Ask hotkey
+ * path builds one: the frozen `inlineInput` is the question, the text carried
+ * in from the previous step (or the original selection, at step 1) is the
+ * optional context block, and the app-locale directive trails both.
+ *
+ * `composeAskMessage` returns `null` only for an empty question, which
+ * `validateCombo` already refuses — falling back to the carried text keeps
+ * this defensive branch from sending an empty prompt.
+ */
+const composeAskStepMessage = (
+  question: string,
+  carriedText: string,
+  buildLocaleDirective?: () => string,
+): string => {
+  const composed = composeAskMessage({ question, context: carriedText });
+  if (composed === null) return carriedText;
+
+  const directive = buildLocaleDirective?.();
+  return directive ? `${composed}\n\n${directive}` : composed;
+};
+
+/**
  * Runs a Combo's steps in order, feeding each step's `correctedText` into the
  * next, and delivers the final text exactly once. See the file header for why
  * every side effect below is a parameter rather than an import.
@@ -378,17 +431,36 @@ export const runCombo = async (
 
     // D4 — a `requiresInput` step (e.g. Ask AI) never opens the Ask input
     // window; `validateCombo` (inside `resolveComboSteps`) already refused
-    // any such step lacking a non-empty `inlineInput`, so this is a
-    // defensive re-check, not the primary guard.
+    // any such step lacking a non-empty `inlineInput`, so the `inlineInput`
+    // check is a defensive re-check, not the primary guard.
+    //
+    // The message is composed through `composeAskMessage` — the same function
+    // the real Ask hotkey path uses — rather than a bare
+    // `${question}\n\n${text}` concatenation. Two things depend on it: the
+    // carried text has to sit inside the `----- context -----` delimiters or
+    // the model reads it as part of the question, and the trailing
+    // `App locale: <code>` directive is what the bundled Ask system prompt
+    // consults to pick its response language. Concatenating by hand silently
+    // changed both.
     const composedText =
       resolved.preset.requiresInput && resolved.step.inlineInput
-        ? `${resolved.step.inlineInput}\n\n${text}`
+        ? composeAskStepMessage(
+            resolved.step.inlineInput,
+            text,
+            deps.buildAskLocaleDirective,
+          )
         : text;
 
     // E4 — source-app context describes where the ORIGINAL selection came
     // from. Steps 2+ receive text produced by FixLang, not by the source app.
+    // A `requiresInput` step never gets it at all, at any position: the real
+    // Ask path passes no `TransformContext`, and a first-step Ask that did
+    // would be answering under a source-app hint the same preset never sees
+    // when run by its own hotkey.
     const context: TransformContext | undefined =
-      index === 0 ? { activeAppName } : undefined;
+      index === 0 && !resolved.preset.requiresInput
+        ? { activeAppName }
+        : undefined;
 
     const stepTimeoutMs = Math.min(COMBO_STEP_TIMEOUT_MS, remainingBudgetMs);
     let result: FixGrammarResult;
@@ -405,15 +477,29 @@ export const runCombo = async (
         signal,
       );
     } catch (error) {
-      if (error instanceof ComboStepError) {
-        deps.onProgress?.({
-          total: resolvedSteps.length,
-          completed: index,
-          current: index + 1,
-          state: "failed",
-        });
-      }
-      throw error;
+      // A cancel is not a step failure: it must keep its own class so the
+      // caller shows "cancelled", not "step 2 of 3 failed", and must NOT
+      // repaint the ring as failed — `withComboCancel`'s `onCancelling`
+      // already owns that state.
+      if (error instanceof ComboCancelledError) throw error;
+
+      deps.onProgress?.({
+        total: resolvedSteps.length,
+        completed: index,
+        current: index + 1,
+        state: "failed",
+      });
+
+      // Anything the provider threw arrives here untyped. Wrapping it (rather
+      // than rethrowing, which drops the caller into its generic "something
+      // failed" notification) is what lets the user be told WHICH step and
+      // which preset died — the only useful thing to say about a combo whose
+      // steps may each sit behind a different provider and key.
+      throw error instanceof ComboStepError
+        ? error
+        : new ComboStepError(resolved.step, index, "step-failed", {
+            cause: error,
+          });
     }
 
     // E6 — fixGrammar returns its input unchanged, with no error, on

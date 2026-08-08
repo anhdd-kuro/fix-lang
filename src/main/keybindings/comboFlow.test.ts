@@ -326,11 +326,68 @@ describe("runCombo — E7: fail fast, completed steps stay in history", () => {
       .mockResolvedValue(makeResult({ correctedText: "should never run" }));
     const deps = makeDeps({ fixGrammar });
 
-    await expect(runCombo({ combo, input: "start" }, deps)).rejects.toBe(failure);
+    // Wrapped, not rethrown raw: the caller's notification builder can only
+    // name "step 2 of 3 — Translate" from a `ComboStepError`. A bare provider
+    // error would fall through to the generic "something failed" banner,
+    // which for a multi-provider combo says nothing useful.
+    const rejection = await runCombo({ combo, input: "start" }, deps).catch(
+      (error: unknown) => error,
+    );
+    expect(rejection).toBeInstanceOf(ComboStepError);
+    const stepError = rejection as ComboStepError;
+    expect(stepError.code).toBe("step-failed");
+    expect(stepError.stepIndex).toBe(1);
+    expect(stepError.step.presetId).toBe("translate");
+    // The original is preserved, so the log line can still state the real reason.
+    expect(stepError.cause).toBe(failure);
 
     expect(fixGrammar).toHaveBeenCalledTimes(2);
     expect(deps.recordStepHistory).toHaveBeenCalledTimes(1);
     expect(deps.deliver).not.toHaveBeenCalled();
+  });
+
+  it("paints the ring failed for a wrapped provider rejection, not just for the codes it models itself", async () => {
+    const combo = makeCombo({ steps: [makeStep("correction"), makeStep("translate")] });
+    const fixGrammar = vi
+      .fn()
+      .mockResolvedValueOnce(makeResult({ correctedText: "step1 output" }))
+      .mockRejectedValueOnce(new Error("401 unauthorized"));
+    const onProgress = vi.fn();
+    const deps = makeDeps({ fixGrammar, onProgress });
+
+    await expect(runCombo({ combo, input: "start" }, deps)).rejects.toBeInstanceOf(
+      ComboStepError,
+    );
+
+    expect(onProgress).toHaveBeenCalledWith({
+      total: 2,
+      completed: 1,
+      current: 2,
+      state: "failed",
+    });
+  });
+
+  it("lets a cancel keep its own class instead of relabelling it as a step failure", async () => {
+    const combo = makeCombo({
+      steps: [makeStep("correction"), makeStep("translate")],
+    });
+    const controller = new AbortController();
+    const fixGrammar = vi.fn(async () => {
+      controller.abort();
+      return makeResult({ correctedText: "too late" });
+    });
+    const onProgress = vi.fn();
+    const deps = makeDeps({ fixGrammar, onProgress });
+
+    await expect(
+      runCombo({ combo, input: "start", signal: controller.signal }, deps),
+    ).rejects.toBeInstanceOf(ComboCancelledError);
+
+    // `withComboCancel`'s `onCancelling` owns the cancelling ring; runCombo
+    // must not overwrite it with "failed" on the way out.
+    expect(onProgress).not.toHaveBeenCalledWith(
+      expect.objectContaining({ state: "failed" }),
+    );
   });
 });
 
@@ -392,30 +449,62 @@ describe("runCombo — H1: one history row per completed step", () => {
 });
 
 describe("runCombo — D4: a requiresInput step never opens the Ask window", () => {
-  it("prepends the stored inlineInput to the carried text instead", async () => {
-    const combo = makeCombo({
+  const askCombo = () =>
+    makeCombo({
       steps: [
         makeStep("ask", { inlineInput: "What should I reply?" }),
         makeStep("correction"),
       ],
     });
-    const settings = makeSettings({
+  const askSettings = () =>
+    makeSettings({
       presets: [
         makePreset("ask", { name: "Ask AI", requiresInput: true }),
         makePreset("correction", { name: "Correction" }),
       ],
     });
+
+  it("composes the frozen inlineInput through the real Ask contract, not a bare concatenation", async () => {
     const fixGrammar = vi.fn(async (text: string) => makeResult({ correctedText: text }));
-    const deps = makeDeps({ settings, fixGrammar });
+    const deps = makeDeps({
+      settings: askSettings(),
+      fixGrammar,
+      buildAskLocaleDirective: () => "App locale: ja",
+    });
 
-    await runCombo({ combo, input: "the selection" }, deps);
+    await runCombo({ combo: askCombo(), input: "the selection" }, deps);
 
+    // The carried text must sit INSIDE the delimiters — outside them the model
+    // reads it as part of the question — and the locale directive must trail
+    // the whole thing, because the bundled Ask prompt consults it to choose a
+    // response language. A `${question}\n\n${text}` concatenation loses both,
+    // silently: the answer just comes back in the wrong language.
     expect(fixGrammar).toHaveBeenNthCalledWith(
       1,
-      "What should I reply?\n\nthe selection",
+      [
+        "What should I reply?",
+        "",
+        "----- context -----",
+        "the selection",
+        "----- end context -----",
+        "",
+        "App locale: ja",
+      ].join("\n"),
       "ask",
-      expect.anything(),
+      undefined,
     );
+  });
+
+  it("gives a first-step Ask no source-app context, exactly as the Ask hotkey path does not", async () => {
+    const fixGrammar = vi.fn(async (text: string) => makeResult({ correctedText: text }));
+    const deps = makeDeps({ settings: askSettings(), fixGrammar });
+
+    await runCombo(
+      { combo: askCombo(), input: "the selection", activeAppName: "Slack" },
+      deps,
+    );
+
+    expect(fixGrammar).toHaveBeenNthCalledWith(1, expect.any(String), "ask", undefined);
   });
 
   it("never imports or calls an Ask input window — comboFlow.ts has no such import", () => {
