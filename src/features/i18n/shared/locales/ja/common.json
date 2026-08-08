@@ -22,6 +22,7 @@
   "common.searchInput.ariaLabel": "履歴を検索",
   "common.searchInput.clearAriaLabel": "検索をクリア",
   "common.searchInput.placeholder": "検索…",
+  "common.select.noOptions": "一致する項目がありません",
   "common.textAreaBox.copyResultText": "結果テキストをコピー",
   "common.textAreaBox.promptTokensAriaLabel": "元のテキストのプロンプトトークン数",
   "common.textAreaBox.promptTokensTitle": "入力とプロンプトのトークン数",

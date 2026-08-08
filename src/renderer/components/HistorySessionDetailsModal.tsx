@@ -74,7 +74,7 @@ export const HistorySessionDetailsModal: React.FC<
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay-backdrop">
       <div
         ref={modalRef}
-        className="flex max-h-[90vh] w-2/3 max-w-3xl flex-col overflow-hidden rounded-lg bg-card p-6 shadow-xl"
+        className="flex h-[80vh] max-h-[80vh] w-2/3 max-w-3xl flex-col overflow-hidden rounded-lg bg-card p-6 shadow-xl"
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-xl text-card-foreground">
