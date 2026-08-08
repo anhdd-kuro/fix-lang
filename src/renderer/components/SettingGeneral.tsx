@@ -59,6 +59,7 @@ const CORRECTION_OUTPUT_MODES = [
 }[];
 
 const CORRECTION_OUTPUT_MODE_FIELD_ID = "correction-output-mode";
+const CORRECTION_OUTPUT_MODE_HINT_ID = "correction-output-mode-hint";
 
 export const SettingGeneral: React.FC = () => {
   const { t, tm, tl } = useI18n();
@@ -264,6 +265,12 @@ export const SettingGeneral: React.FC = () => {
     () => buildProviderCards(providerStates, typedKeys),
     [providerStates, typedKeys],
   );
+
+  // Falls back to the first mode so an unknown stored value still renders a
+  // hint rather than an empty line under the control.
+  const selectedOutputMode =
+    CORRECTION_OUTPUT_MODES.find(({ mode }) => mode === correctionOutputMode) ??
+    CORRECTION_OUTPUT_MODES[0];
 
   const setTypedKey = (
     provider: ProviderId,
@@ -962,6 +969,7 @@ export const SettingGeneral: React.FC = () => {
             id={CORRECTION_OUTPUT_MODE_FIELD_ID}
             value={correctionOutputMode}
             disabled={savingOutputMode}
+            aria-describedby={CORRECTION_OUTPUT_MODE_HINT_ID}
             onChange={(event) =>
               void handleOutputModeChange(
                 event.target.value as CorrectionOutputMode,
@@ -975,26 +983,14 @@ export const SettingGeneral: React.FC = () => {
               </option>
             ))}
           </Select>
-          {/* A native <option> carries no description, so every mode's copy
-              stays here, with the active one emphasised. */}
-          <dl className="flex flex-col gap-0.5 text-xs">
-            {CORRECTION_OUTPUT_MODES.map(
-              ({ mode, labelKey, descriptionKey }) => (
-                <div key={mode} className="flex flex-wrap gap-x-1">
-                  <dt
-                    className={`font-medium ${
-                      mode === correctionOutputMode
-                        ? "text-card-foreground"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {t(labelKey)}
-                  </dt>
-                  <dd className="text-muted-foreground">{t(descriptionKey)}</dd>
-                </div>
-              ),
-            )}
-          </dl>
+          {/* A native <option> carries no description, so the selected mode's
+              copy is restated here as the field hint. */}
+          <p
+            id={CORRECTION_OUTPUT_MODE_HINT_ID}
+            className="text-xs text-muted-foreground"
+          >
+            {t(selectedOutputMode.descriptionKey)}
+          </p>
         </div>
         {outputModeStatus && (
           <p
