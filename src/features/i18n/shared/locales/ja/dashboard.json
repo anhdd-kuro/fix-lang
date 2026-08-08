@@ -54,7 +54,7 @@
   "dashboard.tab.overview": "概要",
   "dashboard.tab.usage": "使用状況",
   "dashboard.tabs.ariaLabel": "ダッシュボードのタブ",
-  "guide.dashboard.autocomplete": "本日と今月のオートコンプリートのリクエスト数・トークン数・コスト、1日の上限に対する使用状況。プロバイダーにキー入力を送りたくない場合は、設定 → 一般 → オートコンプリートでオフにできます。",
+  "guide.dashboard.autocomplete": "本日と今月のオートコンプリートのリクエスト数・トークン数・コスト、1日の上限に対する使用状況。プロバイダーにキー入力を送りたくない場合は、設定 → オートコンプリートでオフにできます。",
   "guide.dashboard.history": "変換ごとのコストと、直前の結果のプレビュー。",
   "guide.dashboard.logs": "秘匿情報を除去したアプリのイベント。検索と書き出しができます。",
   "guide.dashboard.models": "接続中の各プロバイダーが提供するモデル。",

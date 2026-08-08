@@ -55,7 +55,7 @@
   "dashboard.tab.overview": "Overview",
   "dashboard.tab.usage": "Usage",
   "dashboard.tabs.ariaLabel": "Dashboard tabs",
-  "guide.dashboard.autocomplete": "Autocomplete request counts, tokens and cost for today and this month, plus how much of the daily cap is used. Turn it off in Settings → General → Autocomplete if you'd rather not send keystrokes to a provider.",
+  "guide.dashboard.autocomplete": "Autocomplete request counts, tokens and cost for today and this month, plus how much of the daily cap is used. Turn it off in Settings → Autocomplete if you'd rather not send keystrokes to a provider.",
   "guide.dashboard.history": "Every transform with its cost, plus a preview of the last one.",
   "guide.dashboard.logs": "Redacted app events, searchable and exportable.",
   "guide.dashboard.models": "Which models each connected provider offers.",
