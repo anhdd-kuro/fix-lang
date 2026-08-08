@@ -31,6 +31,10 @@ vi.mock("./webViewWindows/askInputWindow", () => ({
 vi.mock("./keybindings/comboCancel", () => ({
   abortActiveCombo: vi.fn(),
 }));
+vi.mock("~/features/autocomplete/main/service", () => ({
+  abortAutocomplete: vi.fn(),
+}));
+import { abortAutocomplete } from "~/features/autocomplete/main/service";
 import { ACTIVE_PROFILE_CHANGED } from "~/features/core/shared/ipcChannels";
 import { abortActiveCombo } from "./keybindings/comboCancel";
 import { notifyActiveProfileChanged } from "./profileChange";
@@ -115,5 +119,26 @@ describe("every profile activation site goes through the chokepoint", () => {
     }
 
     expect(offenders).toEqual([]);
+  });
+});
+
+// An in-flight suggestion outlives the profile the same way a pending Ask
+// input does: resolved after the switch, it carries profile A's model into a
+// window now scoped to B.
+describe("notifyActiveProfileChanged — autocomplete", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("aborts every in-flight suggestion", () => {
+    notifyActiveProfileChanged();
+
+    expect(abortAutocomplete).toHaveBeenCalledOnce();
+  });
+
+  it("aborts across all surfaces, not just one", () => {
+    notifyActiveProfileChanged();
+
+    expect(abortAutocomplete).toHaveBeenCalledWith();
   });
 });

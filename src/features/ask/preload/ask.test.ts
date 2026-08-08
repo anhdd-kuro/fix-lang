@@ -90,6 +90,38 @@ describe("ask preload boundary", () => {
     });
   });
 
+  // 02/f17. Main-to-renderer, and payload-free: the renderer is being told the
+  // ask was abandoned, not being told anything about it.
+  describe("ask-input-dismissed", () => {
+    it("invokes the callback when main reports a dismissal", () => {
+      const callback = vi.fn();
+      askFeature.onAskInputDismissed(callback);
+
+      expect(electronMocks.on).toHaveBeenCalledWith(
+        "ask-input-dismissed",
+        expect.any(Function),
+      );
+      const listener = electronMocks.on.mock.calls[0][1] as (
+        event: unknown,
+      ) => void;
+
+      listener(undefined);
+      expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it("the returned unsubscribe function removes the same listener", () => {
+      const unsubscribe = askFeature.onAskInputDismissed(vi.fn());
+      const listener = electronMocks.on.mock.calls[0][1];
+
+      unsubscribe();
+
+      expect(electronMocks.removeListener).toHaveBeenCalledWith(
+        "ask-input-dismissed",
+        listener,
+      );
+    });
+  });
+
   describe("ask-result-data", () => {
     it("passes a valid payload through to the callback", () => {
       const callback = vi.fn();

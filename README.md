@@ -21,9 +21,17 @@ A local macOS menu-bar app that fixes grammar, improves writing, and runs other 
   hotkey, settings tab, and history chip alike). See
   [Feature tags](#feature-tags-opt-in-features).
 
+### Autocomplete
+
+- Inline ghost-text suggestions in the **Ask AI** input window only: once you've typed 3 characters or more and paused (about a third of a second), a greyed suggestion appears at the caret. **Tab** accepts it into the textarea (refused whenever text is selected); the **first `Esc`** clears the ghost and leaves the window open, a **second `Esc`** (with no ghost showing) cancels the window; **Enter** always submits the question you typed, never an unaccepted suggestion
+- The suggestion is plain text, never markdown — it's untrusted model output landing in something you're about to send
+- Enable/disable and pick a model in **Settings → General → Autocomplete**. Leave the model at "Same as Ask AI" to inherit the Ask AI preset's model, or pick any connected provider's model. A privacy note recommends a local provider (Ollama or LM Studio), since autocomplete sends whatever you're typing before you've sent it anywhere
+- Ships **off** by default — no build-time feature tag; the Settings toggle above is how you opt in
+- Requests **dispatched** count against a 1,500/day cap, whether or not they complete (an aborted request still bills). The dashboard's **Autocomplete** tab reports today, month-to-date, and a 62-day daily history, plus how much of the cap today has used. No history rows are written for it — only day-level totals, so no snippet you typed and never sent lands in a queryable database
+
 ### Dashboard (MainWindow)
 
-Six tabs, opened from the menu-bar tray or after a transform:
+Seven tabs, opened from the menu-bar tray or after a transform:
 
 | Tab | What it shows |
 | --- | --- |
@@ -32,6 +40,7 @@ Six tabs, opened from the menu-bar tray or after a transform:
 | **Models** | Token usage over time, Model Breakdown donut + table for the selected range |
 | **Usage** | Account-level spend and token usage, one sub-tab per connected provider that has a billing API (OpenAI, OpenRouter) — daily spend and token charts, spend-share donut, per-model activity, and (OpenAI) billed spend per project |
 | **Logs** | Structured, redacted app events — multi-select level filter, search, copy/export as `.txt` |
+| **Autocomplete** | Today / month-to-date / 62-day request, token, and estimated-cost rollups for ghost-text suggestions, plus how much of the daily request cap is spent |
 | **About** | Two sub-tabs — **App updates** (version, release notes, install; see [App updates](#app-updates)) and **User guide** (onboarding that shows your own preset shortcuts, output mode, connected providers, and why History/Usage may look empty) |
 
 Overview and Models share a time-range filter (All / 30d / 7d).

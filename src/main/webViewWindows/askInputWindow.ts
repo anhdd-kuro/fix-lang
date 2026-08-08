@@ -9,6 +9,7 @@
  */
 import path from "node:path";
 import { app, BrowserWindow, ipcMain, screen } from "electron";
+import { abortAutocomplete } from "~/features/autocomplete/main/service";
 import { attachThemeSync } from "./attachThemeSync";
 import { clampToWorkArea } from "./cursorPlacement";
 import { buildAskInputWindowTitle } from "./windowTitles";
@@ -46,6 +47,26 @@ const sendCurrentPayload = (): void => {
     return;
   }
   inputWindow.webContents.send("ask-input-data", currentPayload);
+};
+
+/**
+ * Tells the renderer the current ask has been abandoned so it drops the typed
+ * question and any ghost suggestion still on screen or in flight.
+ *
+ * Needed because only ESC originates in the renderer: Cmd-W, the red X and a
+ * profile switch all reach `dismissAskInputWindow` from here with nothing sent
+ * back. The window is hidden rather than destroyed, so whatever it was showing
+ * survives — and `revealWindow` shows the reopened window right after pushing
+ * the new payload, giving the abandoned question and its ghost a frame to paint
+ * over a fresh, unrelated ask.
+ *
+ * Sent unconditionally on every dismissal, ESC included: the renderer's own
+ * reset is idempotent, and a send that is sometimes skipped is how three of
+ * four paths came to be missed in the first place.
+ */
+const notifyRendererDismissed = (): void => {
+  if (!inputWindow || inputWindow.isDestroyed()) return;
+  inputWindow.webContents.send("ask-input-dismissed");
 };
 
 const revealWindow = (): void => {
@@ -115,23 +136,62 @@ const hideAskInputWindow = (): void => {
 };
 
 /**
+ * Aborts THIS window's own in-flight autocomplete session, if it has one.
+ * Shared by every path that ends the current ask without letting a stale
+ * ghost-text request run to completion: dismissal (ESC, Cmd-W, the red X, a
+ * profile switch) and submission alike. Submitting is not "the ghost
+ * answered" — it is "the user moved on before it did" — so a request still in
+ * flight for the OLD prefix bills exactly the same as one left running after
+ * a dismissal, and its answer is discarded the same way.
+ *
+ * Scoped to `String(webContents.id)` — the same string
+ * `autocomplete-suggest`'s handler derives from `event.sender.id`, per
+ * `src/features/autocomplete/main/ipc.ts` — never a bare abort-everything.
+ * Ask input is the only ghost-text surface today, so the two are equivalent
+ * in practice, but a future composer window would run its own session under
+ * its own id, and a bare abort-everything here would cancel that unrelated
+ * request too. Callers read this ahead of `hideAskInputWindow()` while
+ * `inputWindow` is still known live — hiding only calls `.hide()` and does
+ * not destroy the window, but staying ahead of it means this does not depend
+ * on that remaining true. Guarded exactly like `notifyRendererDismissed`: no
+ * window, or an already-destroyed one, has no session id to abort and must
+ * not throw.
+ */
+const abortWindowAutocomplete = (): void => {
+  if (inputWindow && !inputWindow.isDestroyed()) {
+    abortAutocomplete(String(inputWindow.webContents.id));
+  }
+};
+
+/**
  * Runs the shared dismissal path for every way the Ask input window can be
  * abandoned without submitting — ESC (via `ask-input-cancel`), Cmd-W, and the
  * red X. All three are the same user intent and must produce the same
- * effect: `onCancel` fires exactly once and `currentHandlers` is cleared, so
- * the invoking flow is told the ask was abandoned and a later
- * `showAskInputWindow` never silently overwrites a still-live handler pair.
+ * effect: `onCancel` fires exactly once, `currentHandlers` is cleared, the
+ * renderer is told (see {@link notifyRendererDismissed}), and any autocomplete
+ * request this window has in flight is aborted (see
+ * {@link abortWindowAutocomplete}) — so the invoking flow is told the ask was
+ * abandoned, a later `showAskInputWindow` never silently overwrites a
+ * still-live handler pair, the hidden window holds no abandoned question or
+ * ghost suggestion to flash on the next open, and a suggestion nobody will
+ * read stops billing the moment the window goes away instead of running to
+ * completion.
  * Reading-then-nulling `currentHandlers` up front makes a second dismissal
  * (e.g. a chrome close arriving after an already-processed cancel) a no-op
  * instead of a double `onCancel` call.
  *
  * Exported for `notifyActiveProfileChanged`: a pending ask must not survive a
  * profile switch, because `runAskFlow` re-resolves the preset id against
- * whatever profile is active at SUBMIT time.
+ * whatever profile is active at SUBMIT time. `notifyActiveProfileChanged`
+ * separately calls the bare, all-sessions `abortAutocomplete()` afterward —
+ * correct there because a profile switch invalidates every surface's request,
+ * not just this window's.
  */
 export const dismissAskInputWindow = (): void => {
   const handlers = currentHandlers;
   currentHandlers = null;
+  abortWindowAutocomplete();
+  notifyRendererDismissed();
   hideAskInputWindow();
   handlers?.onCancel();
 };
@@ -181,9 +241,17 @@ ipcMain.on("ask-input-ready", () => {
   revealWindow();
 });
 
+// Submitting is a real question, not a dismissal, but it still ends whatever
+// ghost-text request was running for the prefix typed before this Enter —
+// the renderer's own `clearGhost()` on submit only bumps its local request
+// id so a late reply is ignored; it cannot reach a request already
+// dispatched to the provider from the main process. Without this, that
+// request ran to completion and billed for an answer nobody was ever going
+// to read. Read before `hideAskInputWindow()`, same as the dismissal path.
 ipcMain.on("ask-input-submit", (_event, question: unknown) => {
   const handlers = currentHandlers;
   currentHandlers = null;
+  abortWindowAutocomplete();
   hideAskInputWindow();
   if (typeof question === "string" && handlers) {
     handlers.onSubmit(question);
@@ -194,6 +262,18 @@ ipcMain.on("ask-input-cancel", () => {
   dismissAskInputWindow();
 });
 
+// Deliberately does NOT call `abortWindowAutocomplete()`. Nothing in this
+// codebase calls `event.preventDefault()` on `before-quit` (the only
+// `preventDefault` calls anywhere are on window `close` events, a different
+// listener entirely — checked across every `webViewWindows/*.ts`), so once
+// this handler runs the process is actually going to exit, not merely
+// "asked to". At that point the OS tears down every open socket, including
+// any autocomplete request still in flight, whether or not `abort()` fired
+// first — the bytes already sent to the provider (and whatever it bills for
+// them) are the same either way. `abortAutocomplete()` earns its keep only
+// when the PROCESS keeps running past the request's end (a hidden window,
+// or a dispatch superseded by the next keystroke); here nothing survives to
+// benefit.
 app.on("before-quit", () => {
   if (inputWindow && !inputWindow.isDestroyed()) {
     inputWindow.removeAllListeners("close");

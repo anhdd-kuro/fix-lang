@@ -100,6 +100,10 @@ type SettingGeneralApi = {
   getSelectedModel: ReturnType<typeof vi.fn>;
   setSelectedModel: ReturnType<typeof vi.fn>;
   onSettingsUpdated: ReturnType<typeof vi.fn>;
+  // Read by the embedded `<SettingAutocomplete>`.
+  getAutocompleteSettings: ReturnType<typeof vi.fn>;
+  getAutocompleteUsage: ReturnType<typeof vi.fn>;
+  setAutocompleteSettings: ReturnType<typeof vi.fn>;
   // `SettingGeneral` renders inside `<I18nProvider>`, which reads these off
   // `window.electronAPI` on mount (see `localeState.ts`'s `LocaleBridge`).
   getLocale: ReturnType<typeof vi.fn>;
@@ -138,6 +142,24 @@ const providerState = (overrides: Record<string, unknown> = {}) => ({
   provisioningKeySet: false,
   modelCount: 0,
   ...overrides,
+});
+
+const autocompleteRollup = () => ({
+  date: "",
+  requests: 0,
+  responses: 0,
+  tokenlessResponses: 0,
+  unpricedResponses: 0,
+  promptTokens: 0,
+  completionTokens: 0,
+  estimatedCostUsd: 0,
+});
+
+const autocompleteUsage = () => ({
+  today: autocompleteRollup(),
+  month: autocompleteRollup(),
+  days: [],
+  dailyCap: 1500,
 });
 
 const componentSource = (fileName: string) =>
@@ -429,6 +451,11 @@ describe("SettingGeneral", () => {
       getSelectedModel: vi.fn().mockResolvedValue(""),
       setSelectedModel: vi.fn().mockResolvedValue({ success: true }),
       onSettingsUpdated: vi.fn().mockReturnValue(vi.fn()),
+      getAutocompleteSettings: vi
+        .fn()
+        .mockResolvedValue({ enabled: true, model: "" }),
+      getAutocompleteUsage: vi.fn().mockResolvedValue(autocompleteUsage()),
+      setAutocompleteSettings: vi.fn().mockResolvedValue({ success: true }),
       getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
       setLocale: vi.fn().mockResolvedValue({ success: true }),
       onLocaleChanged: vi.fn((callback: (locale: Locale) => void) => {
@@ -585,6 +612,35 @@ describe("SettingGeneral", () => {
     });
     expect(statuses()).toContain(jaWrapped);
     expect(jaWrapped).not.toBe(enWrapped);
+  });
+
+  // Every other autocomplete-card test drives `SettingAutocomplete` in
+  // isolation, so without this one the whole card could be dropped from
+  // General — `{false && <SettingAutocomplete />}` — and the suite would
+  // still be green while the user found no autocomplete card at all.
+  it("mounts the autocomplete card inside General, past its loading state", async () => {
+    await render({ success: true });
+    // The card's own mount-time `getAutocompleteSettings`/`getAutocompleteUsage`
+    // pair needs its own ticks before `isLoading` clears.
+    await waitForUi();
+    await waitForUi();
+
+    expect(
+      [...container.querySelectorAll("h2")].map((element) => element.textContent),
+    ).toContain(tEn("settings.autocomplete.heading"));
+    expect(container.textContent).not.toContain(
+      tEn("settings.autocomplete.loading"),
+    );
+    // Not just the heading: the card's actual controls and its privacy
+    // statement have to be on screen too.
+    expect(container.textContent).toContain(
+      tEn("settings.autocomplete.enabled.label"),
+    );
+    expect(container.textContent).toContain(
+      tEn("settings.autocomplete.privacy.hint"),
+    );
+    expect(api.getAutocompleteSettings).toHaveBeenCalled();
+    expect(api.getAutocompleteUsage).toHaveBeenCalled();
   });
 
   describe("the global Transform output mode is the shared Select", () => {

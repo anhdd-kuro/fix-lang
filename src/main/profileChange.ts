@@ -24,6 +24,7 @@
  * `profileChange.test.ts` guard forbids: three sites already had to remember
  * this, and a fourth would have skipped it silently.
  */
+import { abortAutocomplete } from "~/features/autocomplete/main/service";
 import { ACTIVE_PROFILE_CHANGED } from "~/features/core/shared/ipcChannels";
 import { abortActiveCombo } from "./keybindings/comboCancel";
 import { dismissAskInputWindow } from "./webViewWindows/askInputWindow";
@@ -38,5 +39,10 @@ import { broadcastToAllWindows } from "./webViewWindows/broadcast";
 export const notifyActiveProfileChanged = (): void => {
   dismissAskInputWindow();
   abortActiveCombo();
+  // Same reasoning as the dismissal above, one layer down: a suggestion
+  // resolved after the switch would carry profile A's model into a window now
+  // scoped to B, and the next request would resolve its ref against B's
+  // providers.
+  abortAutocomplete();
   broadcastToAllWindows(ACTIVE_PROFILE_CHANGED);
 };

@@ -61,6 +61,58 @@ export class AccessibilityPermissionError extends LocalizedError {
 }
 
 /**
+ * Notifies for a failed AI request unless the request asked to stay quiet.
+ *
+ * Every provider module notifies from its `catch` and from its
+ * credentials-missing path. Those are correct for a request the user started
+ * deliberately, and wrong for one started by typing: see `quiet` on
+ * `AIRequestOptions`. Routing all of them through one helper keeps the
+ * suppression rule in a single place instead of eleven inverted conditionals.
+ */
+export const notifyRequestError = (
+  options: { quiet?: boolean },
+  error: unknown,
+  fallbackMessage?: string,
+): void => {
+  if (options.quiet) {
+    return;
+  }
+  if (fallbackMessage === undefined) {
+    showErrorNotification(error);
+    return;
+  }
+  showErrorNotification(error, fallbackMessage);
+};
+
+/**
+ * True when `error` is (or wraps) a cancellation rather than a failure.
+ *
+ * A caller that aborts its own request already knows the outcome, so telling
+ * the user about it is noise at best. It is a correctness issue for any caller
+ * that aborts routinely: autocomplete supersedes the in-flight request on every
+ * keystroke, and each abort rejects through a provider `catch` that notifies —
+ * one native macOS notification per character typed.
+ *
+ * Suppressing here rather than at the eleven notify sites keeps a single rule:
+ * `fetch` rejects with `AbortError`, `AbortSignal.timeout` with `TimeoutError`,
+ * and the AI SDK re-wraps both, so the `cause` chain is walked rather than only
+ * the outermost error inspected.
+ */
+export const isAbortError = (error: unknown): boolean => {
+  const seen = new Set<unknown>();
+  let current = error;
+  while (current !== null && typeof current === "object" && !seen.has(current)) {
+    seen.add(current);
+    const { name } = current as { name?: unknown };
+    if (name === "AbortError" || name === "TimeoutError") {
+      return true;
+    }
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+};
+
+/**
  * Resolves the user-facing notification body for `error`: the catalog
  * translation for a {@link LocalizedError}, `error.message` verbatim for any
  * other `Error` (assumed already safe, locale-agnostic user copy), or
@@ -92,6 +144,10 @@ export const showErrorNotification = (
   error: unknown,
   fallbackMessage = mainT("notifications.error.body"),
 ): void => {
+  if (isAbortError(error)) {
+    return;
+  }
+
   const showFallback = (): void => {
     showErrorPopup(resolveNotificationBody(error, fallbackMessage));
     if (error !== null && typeof error === "object") {

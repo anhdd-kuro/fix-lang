@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTranslator } from "~/features/i18n/shared/translate";
-import { AccessibilityPermissionError, LocalizedError, showErrorNotification } from "./error";
+import {
+  AccessibilityPermissionError,
+  LocalizedError,
+  notifyRequestError,
+  showErrorNotification,
+} from "./error";
 
 const {
   notificationConstructorMock,
@@ -290,6 +295,98 @@ describe("showErrorNotification", () => {
 
       expect(error).toBeInstanceOf(LocalizedError);
       expect(error.messageKey).toBe("notifications.error.accessibilityDenied.body");
+    });
+  });
+
+  // A caller that cancels its own request already knows the outcome. This
+  // matters most for autocomplete, which supersedes the in-flight request on
+  // every keystroke: without suppression each abort rejects through a provider
+  // `catch` that notifies, so the user gets one notification per character.
+  describe("cancellation", () => {
+    const abortError = (): Error => {
+      const error = new Error("The operation was aborted.");
+      error.name = "AbortError";
+      return error;
+    };
+
+    it("stays silent for an aborted request", () => {
+      showErrorNotification(abortError());
+
+      expect(notificationConstructorMock).not.toHaveBeenCalled();
+      expect(showErrorPopupMock).not.toHaveBeenCalled();
+    });
+
+    it("stays silent for a timed-out request", () => {
+      const error = new Error("The operation timed out.");
+      error.name = "TimeoutError";
+
+      showErrorNotification(error);
+
+      expect(notificationConstructorMock).not.toHaveBeenCalled();
+      expect(showErrorPopupMock).not.toHaveBeenCalled();
+    });
+
+    // The AI SDK re-wraps the underlying fetch rejection, so the abort is not
+    // the outermost error by the time a provider `catch` sees it.
+    it("stays silent for an abort wrapped by another error", () => {
+      const wrapped = new Error("Failed to get a response.", { cause: abortError() });
+
+      showErrorNotification(wrapped);
+
+      expect(notificationConstructorMock).not.toHaveBeenCalled();
+      expect(showErrorPopupMock).not.toHaveBeenCalled();
+    });
+
+    it("does not suppress a genuine failure that merely mentions aborting", () => {
+      showErrorNotification(new Error("The provider aborted the stream."));
+
+      expect(notificationConstructorMock).toHaveBeenCalledOnce();
+    });
+
+    // A self-referencing `cause` must not hang the walk.
+    it("terminates on a cyclic cause chain", () => {
+      const error = new Error("Cyclic.") as Error & { cause?: unknown };
+      error.cause = error;
+
+      showErrorNotification(error);
+
+      expect(notificationConstructorMock).toHaveBeenCalledOnce();
+    });
+  });
+
+  // The eleven provider notify sites all route through this helper, so its
+  // polarity is the single thing standing between a quiet request and a
+  // notification per keystroke.
+  describe("notifyRequestError", () => {
+    it("notifies for a request that did not ask to stay quiet", () => {
+      notifyRequestError({}, new Error("The AI request failed."));
+
+      expect(notificationConstructorMock).toHaveBeenCalledOnce();
+    });
+
+    it("stays silent for a quiet request", () => {
+      notifyRequestError({ quiet: true }, new Error("The AI request failed."));
+
+      expect(notificationConstructorMock).not.toHaveBeenCalled();
+      expect(showErrorPopupMock).not.toHaveBeenCalled();
+    });
+
+    it("passes a caller fallback through for a non-Error value", () => {
+      notifyRequestError({}, "not an error", "Failed to reach the provider.");
+
+      expect(notificationConstructorMock).toHaveBeenCalledWith(
+        expect.objectContaining({ body: "Failed to reach the provider." }),
+      );
+    });
+
+    // Omitting the argument must fall through to the localized default rather
+    // than passing `undefined` as the body.
+    it("uses the localized default body when no fallback is given", () => {
+      notifyRequestError({}, "not an error");
+
+      expect(notificationConstructorMock).toHaveBeenCalledWith(
+        expect.objectContaining({ body: tEn("notifications.error.body") }),
+      );
     });
   });
 });

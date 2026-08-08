@@ -15,6 +15,8 @@ import {
 } from "../utils";
 import {
   registerApiHandlers,
+  registerAutocompleteHandlers,
+  registerAutocompleteSettingsHandlers,
   registerCorrectionHandlers,
   setupHistoryManagerHandlers,
   registerLocaleHandlers,
@@ -113,6 +115,8 @@ const registerIpcHandlers = (): UpdateService => {
   // Register all feature handlers in a specific order (UI-first approach)
   registerUiHandlers();
   registerApiHandlers();
+  registerAutocompleteHandlers();
+  registerAutocompleteSettingsHandlers();
   registerSettingsHandlers();
   registerThemeHandlers();
 
