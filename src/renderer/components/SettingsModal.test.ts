@@ -54,7 +54,7 @@ const autocompleteUsage = (): AutocompleteUsageSnapshot => ({
   today: emptyRollup(),
   month: emptyRollup(),
   days: [],
-  dailyCap: 1500,
+  dailyCostCapUsd: 1500,
 });
 
 describe("SettingsModal", () => {

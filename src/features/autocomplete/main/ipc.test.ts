@@ -4,16 +4,16 @@ import { redactLogContext } from "~/features/logs/shared/logging";
 import { registerAutocompleteHandlers } from "./ipc";
 import type { LogContext } from "~/features/logs/shared/logging";
 
-const { electronMocks, serviceMocks, usageStoreMocks, loggerMock } = vi.hoisted(() => ({
+const { electronMocks, serviceMocks, usageStoreMocks, apiStoreMocks, loggerMock } = vi.hoisted(() => ({
   electronMocks: { handle: vi.fn(), on: vi.fn() },
   serviceMocks: {
     requestAutocompleteSuggestion: vi.fn(),
     takeAutocompleteResolution: vi.fn(),
-    // A value distinguishable from the real DAILY_REQUEST_CAP (1500), so a
-    // test asserting on it proves the handler imports the constant rather
-    // than hardcoding its own copy.
-    DAILY_REQUEST_CAP: 42,
   },
+  // The cap is a PROFILE setting, not a module constant, so the handler has to
+  // read it per call. A value no default could produce (42) proves the snapshot
+  // came from the store rather than from a hardcoded copy.
+  apiStoreMocks: { getProfileSetting: vi.fn(() => ({ enabled: true, model: "", dailyCostCapUsd: 42 })) },
   usageStoreMocks: {
     getDay: vi.fn(),
     getMonth: vi.fn(),
@@ -29,6 +29,7 @@ vi.mock("~/features/autocomplete/main/service", () => serviceMocks);
 vi.mock("~/features/autocomplete/store/autocompleteUsageStore", () => ({
   autocompleteUsageStore: usageStoreMocks,
 }));
+vi.mock("~/features/providers/store/apiStore", () => apiStoreMocks);
 vi.mock("~/main/logging/logService", () => ({ logger: loggerMock }));
 
 type Handler = (event: unknown, raw?: unknown) => unknown;
@@ -529,7 +530,7 @@ describe("registerAutocompleteHandlers", () => {
     // The series must come from `getDays()`. A fixture of `[today]` would keep
     // passing if the handler answered `days: [getDay()]` and never read the
     // series at all, which is a dashboard showing one bar forever.
-    it("returns today, month, the day series and the daily cap", async () => {
+    it("returns today, month, the day series and the daily spend cap", async () => {
       const today = rollup("2026-07-31", 3, 10, 0.01);
       const month = rollup("2026-07-31", 30, 100, 0.1);
       const yesterday = rollup("2026-07-30", 7, 60, 0.04);
@@ -540,7 +541,7 @@ describe("registerAutocompleteHandlers", () => {
 
       const snapshot = await getHandler("autocomplete-usage")(undefined);
 
-      expect(snapshot).toEqual({ today, month, days, dailyCap: 42 });
+      expect(snapshot).toEqual({ today, month, days, dailyCostCapUsd: 42 });
       expect(usageStoreMocks.getDays).toHaveBeenCalledOnce();
     });
 

@@ -32,7 +32,16 @@ const isAutocompleteSettings = (
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
   return (
-    typeof record.enabled === "boolean" && typeof record.model === "string"
+    typeof record.enabled === "boolean" &&
+    typeof record.model === "string" &&
+    // Finite only. `NaN` and `Infinity` are both `number`, and either one
+    // reaching the cap comparison in `service.ts` decides the day's budget by
+    // accident: `estimatedCostUsd >= NaN` is always false (no cap at all),
+    // `>= Infinity` always false too. The range itself is CLAMPED rather than
+    // rejected — see `normalizeDailyCostCapUsd` — so a slider that overshoots
+    // is corrected, not refused.
+    typeof record.dailyCostCapUsd === "number" &&
+    Number.isFinite(record.dailyCostCapUsd)
   );
 };
 

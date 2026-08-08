@@ -1,7 +1,8 @@
 /**
  * @file AutocompletePanel.tsx
- * @description Autocomplete dashboard tab: today, month-to-date, the up-to-62-day
- * rollup series, and how much of the daily request cap today has spent.
+ * @description Autocomplete usage, rendered as the Usage tab's Autocomplete
+ * sub-tab: today, month-to-date, the up-to-62-day rollup series, and how much of
+ * the daily SPEND cap today has used.
  * Fetches its own snapshot over IPC on mount (`getAutocompleteUsage`) — unlike
  * Overview/Models it has no shared `history` prop to derive from, so it
  * follows `LogsPanel.tsx`'s self-fetching load/error/empty-state shape
@@ -78,6 +79,8 @@ export const AutocompletePanel = () => {
     );
   }
 
+  const capCoverage = formatAutocompleteCoverage(view.cap.spent, t);
+
   const renderRollupStats = (rollup: AutocompleteRollupView) => (
     <>
       <StatCard
@@ -129,12 +132,23 @@ export const AutocompletePanel = () => {
           />
         </div>
         <div className="mt-2 text-sm text-card-foreground">
-          {t("autocomplete.cap.usage", {
-            requests: view.cap.requests,
-            cap: view.cap.dailyCap,
-            percent: formatPercent(view.cap.ratio),
-          })}
+          {/* An unmeasured day gets its own sentence rather than "N/A of $5.00
+              spent today (0%)", which reads as a measurement at zero. */}
+          {view.cap.spent.kind === "na"
+            ? t("autocomplete.cap.unmeasured", {
+                cap: formatCurrency(view.cap.capUsd, "USD"),
+              })
+            : t("autocomplete.cap.usage", {
+                spent: formatCurrency(view.cap.spent.value, "USD"),
+                cap: formatCurrency(view.cap.capUsd, "USD"),
+                percent: formatPercent(view.cap.ratio),
+              })}
         </div>
+        {/* The bar above is drawn from priced responses only. Saying so beats
+            letting it read as "budget left" over spend nobody can measure. */}
+        {capCoverage && (
+          <div className="mt-1 text-xs text-muted-foreground">{capCoverage}</div>
+        )}
       </section>
 
       <section className="flex flex-col gap-3">

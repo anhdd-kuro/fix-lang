@@ -10,7 +10,6 @@
  */
 import { ipcMain } from "electron";
 import {
-  DAILY_REQUEST_CAP,
   requestAutocompleteSuggestion,
   takeAutocompleteResolution,
 } from "~/features/autocomplete/main/service";
@@ -20,7 +19,9 @@ import {
   isAutocompleteRendererSkipReason,
   wastedSuggestionLogLevel,
 } from "~/features/autocomplete/shared/autocompleteDiagnostics";
+import { normalizeDailyCostCapUsd } from "~/features/autocomplete/shared/autocompleteSettings";
 import { autocompleteUsageStore } from "~/features/autocomplete/store/autocompleteUsageStore";
+import { getProfileSetting } from "~/features/providers/store/apiStore";
 import { logger } from "~/main/logging/logService";
 import type { AutocompleteRequest } from "~/features/autocomplete/main/service";
 import type {
@@ -222,7 +223,12 @@ export const registerAutocompleteHandlers = (): void => {
       today: autocompleteUsageStore.getDay(),
       month: autocompleteUsageStore.getMonth(),
       days: autocompleteUsageStore.getDays(),
-      dailyCap: DAILY_REQUEST_CAP,
+      // Read per call, from the ACTIVE profile: the cap is a profile setting,
+      // so a snapshot built from a cached value would report the cap of
+      // whichever profile happened to be active when this handler registered.
+      dailyCostCapUsd: normalizeDailyCostCapUsd(
+        getProfileSetting("settingsAutocomplete").dailyCostCapUsd,
+      ),
     }),
   );
 };

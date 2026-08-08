@@ -41,7 +41,7 @@ const emptySnapshot = (): AutocompleteUsageSnapshot => ({
     estimatedCostUsd: 0,
   },
   days: [],
-  dailyCap: 1500,
+  dailyCostCapUsd: 1500,
 });
 
 describe("AutocompletePanel", () => {
@@ -136,7 +136,7 @@ describe("AutocompletePanel", () => {
           estimatedCostUsd: 0,
         },
       ],
-      dailyCap: 1500,
+      dailyCostCapUsd: 1500,
     };
     await render(vi.fn().mockResolvedValue(snapshot));
 
@@ -174,7 +174,7 @@ describe("AutocompletePanel", () => {
         estimatedCostUsd: 0,
       },
       days: [],
-      dailyCap: 1500,
+      dailyCostCapUsd: 1500,
     };
     await render(vi.fn().mockResolvedValue(snapshot));
 
@@ -201,7 +201,7 @@ describe("AutocompletePanel", () => {
       today: mixedDay,
       month: mixedDay,
       days: [mixedDay],
-      dailyCap: 1500,
+      dailyCostCapUsd: 1500,
     };
     await render(vi.fn().mockResolvedValue(snapshot));
 

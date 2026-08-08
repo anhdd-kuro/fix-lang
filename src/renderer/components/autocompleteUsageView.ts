@@ -64,9 +64,21 @@ export type AutocompleteRollupView = {
 };
 
 export type AutocompleteCapUsage = {
-  requests: number;
-  dailyCap: number;
-  /** 0..1 ratio, clamped — `0` when `dailyCap <= 0` rather than `NaN`/`Infinity`. */
+  /**
+   * Today's spend as a METRIC, not a number, and that is the whole point: a day
+   * whose responses all went unpriced has no measurable spend, and rendering the
+   * `0` sitting in `estimatedCostUsd` would print `$0.00 of $5.00` over a real
+   * bill. Same three-way read as every other cost in this file, inherited from
+   * `resolveCostMetric` rather than re-derived — `partial` on it means the
+   * amount is a FLOOR.
+   */
+  spent: AutocompleteMetric;
+  capUsd: number;
+  /**
+   * 0..1, clamped. `0` when the cap is `<= 0` (rather than `NaN`/`Infinity`) and
+   * `0` when nothing could be priced — an unmeasured day must not draw a bar
+   * that reads as "budget to spare".
+   */
   ratio: number;
 };
 
@@ -153,15 +165,21 @@ export const resolveAutocompleteRollupView = (
   estimatedCostUsd: resolveCostMetric(rollup),
 });
 
-/** How much of the daily request cap today's rollup has spent, clamped to [0, 1]. */
+/** How much of the daily spend cap today's rollup has used, clamped to [0, 1]. */
 export const resolveAutocompleteCapUsage = (
   today: AutocompleteDayRollup,
-  dailyCap: number
-): AutocompleteCapUsage => ({
-  requests: today.requests,
-  dailyCap,
-  ratio: dailyCap > 0 ? Math.min(1, Math.max(0, today.requests / dailyCap)) : 0,
-});
+  capUsd: number
+): AutocompleteCapUsage => {
+  const spent = resolveCostMetric(today);
+  return {
+    spent,
+    capUsd,
+    ratio:
+      spent.kind === "value" && capUsd > 0
+        ? Math.min(1, Math.max(0, spent.value / capUsd))
+        : 0,
+  };
+};
 
 /** Assembles the full pure view from a raw wire snapshot. */
 export const resolveAutocompleteUsageView = (
@@ -170,7 +188,7 @@ export const resolveAutocompleteUsageView = (
   today: resolveAutocompleteRollupView(snapshot.today),
   month: resolveAutocompleteRollupView(snapshot.month),
   days: snapshot.days.map(resolveAutocompleteRollupView),
-  cap: resolveAutocompleteCapUsage(snapshot.today, snapshot.dailyCap),
+  cap: resolveAutocompleteCapUsage(snapshot.today, snapshot.dailyCostCapUsd),
 });
 
 /** Renders a count-shaped metric (requests, tokens) — N/A or a locale-formatted number. */

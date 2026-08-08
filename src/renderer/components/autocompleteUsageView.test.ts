@@ -143,20 +143,70 @@ describe("resolveAutocompleteRollupView — reading rule 4: mixed coverage", () 
 });
 
 describe("resolveAutocompleteCapUsage", () => {
-  it("computes the used ratio against the daily cap", () => {
-    expect(resolveAutocompleteCapUsage(rollup({ requests: 750 }), 1500)).toEqual({
-      requests: 750,
-      dailyCap: 1500,
-      ratio: 0.5,
-    });
+  it("computes the used ratio against the daily spend cap", () => {
+    expect(
+      resolveAutocompleteCapUsage(
+        rollup({ requests: 750, responses: 750, estimatedCostUsd: 2.5 }),
+        5,
+      ),
+    ).toEqual({ spent: { kind: "value", value: 2.5, partial: undefined }, capUsd: 5, ratio: 0.5 });
   });
 
   it("clamps a ratio above 1 down to 1", () => {
-    expect(resolveAutocompleteCapUsage(rollup({ requests: 2000 }), 1500).ratio).toBe(1);
+    expect(
+      resolveAutocompleteCapUsage(
+        rollup({ responses: 10, estimatedCostUsd: 9 }),
+        5,
+      ).ratio,
+    ).toBe(1);
+  });
+
+  /**
+   * The `$0.00 of $5.00` bug, pinned. A day whose responses ALL went unpriced
+   * has `estimatedCostUsd: 0` sitting in the rollup over real billed activity,
+   * and drawing a ratio from it paints an empty bar and a confident zero.
+   */
+  it("reports unmeasured spend as N/A with no bar, never as $0", () => {
+    const usage = resolveAutocompleteCapUsage(
+      rollup({ requests: 42, responses: 42, unpricedResponses: 42, estimatedCostUsd: 0 }),
+      5,
+    );
+
+    expect(usage.spent).toEqual({ kind: "na" });
+    expect(usage.ratio).toBe(0);
   });
 
   it("returns a 0 ratio (not NaN/Infinity) when the cap is 0", () => {
-    expect(resolveAutocompleteCapUsage(rollup({ requests: 5 }), 0).ratio).toBe(0);
+    expect(
+      resolveAutocompleteCapUsage(rollup({ responses: 5, estimatedCostUsd: 1 }), 0).ratio,
+    ).toBe(0);
+  });
+
+  /**
+   * The bar is drawn from PRICED spend only. Left unqualified it reads as
+   * "plenty of budget left" over money nobody can measure — the same false zero
+   * the rollup's coverage counters exist to stop, redrawn as a progress bar.
+   */
+  it("reports partial coverage when some responses carried no price", () => {
+    expect(
+      resolveAutocompleteCapUsage(
+        rollup({ responses: 10, unpricedResponses: 4, estimatedCostUsd: 1 }),
+        5,
+      ),
+    ).toEqual({
+      spent: { kind: "value", value: 1, partial: { known: 6, total: 10 } },
+      capUsd: 5,
+      ratio: 0.2,
+    });
+  });
+
+  it("carries no coverage qualifier when every response was priced", () => {
+    expect(
+      resolveAutocompleteCapUsage(
+        rollup({ responses: 10, unpricedResponses: 0, estimatedCostUsd: 1 }),
+        5,
+      ).spent,
+    ).toEqual({ kind: "value", value: 1, partial: undefined });
   });
 });
 
@@ -190,7 +240,7 @@ describe("resolveAutocompleteUsageView", () => {
         }),
         rollup({ date: "2026-07-30", requests: 50, responses: 0 }),
       ],
-      dailyCap: 1500,
+      dailyCostCapUsd: 5,
     };
 
     const view = resolveAutocompleteUsageView(snapshot);
@@ -203,7 +253,11 @@ describe("resolveAutocompleteUsageView", () => {
     expect(view.days[0].date).toBe("2026-07-31");
     // 50 requests, 0 responses — attempted but nothing came back: a real zero.
     expect(view.days[1].totalTokens).toEqual({ kind: "value", value: 0 });
-    expect(view.cap).toEqual({ requests: 300, dailyCap: 1500, ratio: 0.2 });
+    expect(view.cap).toEqual({
+      spent: { kind: "value", value: 0.15, partial: undefined },
+      capUsd: 5,
+      ratio: 0.03,
+    });
   });
 });
 
@@ -213,7 +267,7 @@ describe("isAutocompleteUsageEmpty", () => {
       today: rollup(),
       month: rollup(),
       days: [],
-      dailyCap: 1500,
+      dailyCostCapUsd: 1500,
     });
     expect(isAutocompleteUsageEmpty(view)).toBe(true);
   });
@@ -223,7 +277,7 @@ describe("isAutocompleteUsageEmpty", () => {
       today: rollup({ requests: 1, responses: 1 }),
       month: rollup({ requests: 1, responses: 1 }),
       days: [],
-      dailyCap: 1500,
+      dailyCostCapUsd: 1500,
     });
     expect(isAutocompleteUsageEmpty(view)).toBe(false);
   });

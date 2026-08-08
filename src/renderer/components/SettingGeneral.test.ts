@@ -162,7 +162,7 @@ const autocompleteUsage = () => ({
   today: autocompleteRollup(),
   month: autocompleteRollup(),
   days: [],
-  dailyCap: 1500,
+  dailyCostCapUsd: 1500,
 });
 
 const componentSource = (fileName: string) =>
