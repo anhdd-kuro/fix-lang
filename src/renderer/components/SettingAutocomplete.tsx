@@ -20,11 +20,10 @@ import type {
 
 /**
  * @file SettingAutocomplete.tsx
- * @description Settings > General's Autocomplete card: on/off, model, the
- * privacy statement, and a today/month-to-date usage readout.
- *
- * Its own file, not a block inside SettingGeneral.tsx: that file is already
- * over CLAUDE.md's 800-line ceiling, so it gets exactly one mounting line.
+ * @description Settings > Autocomplete: on/off, model, the privacy
+ * statement, and a today/month-to-date usage readout. It is the whole tab,
+ * mounted from `SettingsModal.tsx` — a sibling of Transform rather than a
+ * card inside General.
  *
  * `ModelSelect`'s own built-in inherit row (rendered whenever `""` is passed
  * as `selectedModelId`) says "Use global default" — that is the correct copy

@@ -37,6 +37,8 @@
   "notifications.window.askInput.cancelHint": "Esc to close",
   "notifications.window.askInput.contextChip_one": "Context attached · {count} char",
   "notifications.window.askInput.contextChip_other": "Context attached · {count} chars",
+  "notifications.window.askInput.contextCollapse": "Show less",
+  "notifications.window.askInput.contextExpand": "Show more",
   "notifications.window.askInput.placeholder": "Ask anything…",
   "notifications.window.askInput.sendHint": "Enter to send, Shift+Enter for a new line",
   "notifications.window.askInput.title": "Ask AI",
