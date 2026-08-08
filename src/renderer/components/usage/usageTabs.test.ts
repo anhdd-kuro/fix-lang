@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { PROVIDER_ORDER } from "~/features/providers/shared/providers";
 import {
+  buildUsageBar,
   buildUsageSubTabs,
   isUsageProvider,
   resolveActiveUsageProvider,
+  resolveActiveUsageSubTab,
   USAGE_PROVIDERS,
 } from "./usageTabs";
 
@@ -90,5 +92,62 @@ describe("usage sub-tabs", () => {
 
     expect(resolveActiveUsageProvider(tabs, "openai")).toBe("openrouter");
     expect(resolveActiveUsageProvider([], "openai")).toBeNull();
+  });
+});
+
+describe("usage sub-tab bar", () => {
+  it("appends Autocomplete after every provider sub-tab", () => {
+    const bar = buildUsageBar(
+      buildUsageSubTabs({ openai: connected(), openrouter: connected() }),
+    );
+
+    expect(bar.map((tab) => tab.key)).toEqual([
+      "openai",
+      "openrouter",
+      "autocomplete",
+    ]);
+    expect(bar.at(-1)?.labelKey).toBe("usage.subTab.autocomplete");
+  });
+
+  // Autocomplete reports what THIS app spent from local rollups, so it needs no
+  // account at all. A user on Ollama alone has zero provider sub-tabs and would
+  // otherwise have no way to reach it.
+  it("still offers Autocomplete when no provider is connected", () => {
+    const bar = buildUsageBar([]);
+
+    expect(bar.map((tab) => tab.key)).toContain("autocomplete");
+  });
+
+  // The connect-a-provider card used to replace the whole Usage tab. With
+  // another sub-tab beside it that guidance would vanish, so it keeps a slot —
+  // and keeps being the one the user lands on.
+  it("keeps the connect-a-provider slot first when nothing is connected", () => {
+    const bar = buildUsageBar([]);
+
+    expect(bar.map((tab) => tab.key)).toEqual(["providers", "autocomplete"]);
+    expect(resolveActiveUsageSubTab(bar, null)).toBe("providers");
+  });
+
+  it("drops the empty slot as soon as a provider connects", () => {
+    const bar = buildUsageBar(buildUsageSubTabs({ openai: connected() }));
+
+    expect(bar.map((tab) => tab.key)).not.toContain("providers");
+  });
+
+  it("keeps the user on Autocomplete across a provider-state refresh", () => {
+    const before = buildUsageBar(buildUsageSubTabs({ openai: connected() }));
+    const after = buildUsageBar(
+      buildUsageSubTabs({ openai: connected(), openrouter: connected() }),
+    );
+
+    expect(resolveActiveUsageSubTab(before, "autocomplete")).toBe("autocomplete");
+    expect(resolveActiveUsageSubTab(after, "autocomplete")).toBe("autocomplete");
+  });
+
+  it("falls back to the first slot when the chosen one disappears", () => {
+    const bar = buildUsageBar(buildUsageSubTabs({ openrouter: connected() }));
+
+    expect(resolveActiveUsageSubTab(bar, "openai")).toBe("openrouter");
+    expect(resolveActiveUsageSubTab([], "openai")).toBeNull();
   });
 });

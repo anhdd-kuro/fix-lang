@@ -40,6 +40,8 @@
   "usage.range.7d": "7日間",
   "usage.rangeGroupLabel": "使用量の期間",
   "usage.refreshing": "更新中…",
-  "usage.subTabs.ariaLabel": "使用量プロバイダー",
+  "usage.subTab.autocomplete": "オートコンプリート",
+  "usage.subTab.providers": "プロバイダー",
+  "usage.subTabs.ariaLabel": "使用量セクション",
   "usage.tokens.title": "トークン（{range}）"
 }

@@ -7,7 +7,6 @@ import {
   bucketsForClear,
 } from "./dashboardTabs";
 import { AboutPanel } from "../components/about/AboutPanel";
-import { AutocompletePanel } from "../components/AutocompletePanel";
 import { Button } from "../components/Button";
 import { formatModelLineage } from "../components/historyModel";
 import { HistoryPanel } from "../components/HistoryPanel";
@@ -306,7 +305,6 @@ const App: React.FC = () => {
       />
     ),
     logs: <LogsPanel />,
-    autocomplete: <AutocompletePanel />,
     // Two sub-tabs: the update controls (default) and the user guide. The
     // wrapping card lives inside AboutPanel, below its sub-tab bar.
     about: (
