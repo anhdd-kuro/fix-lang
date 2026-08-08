@@ -48,7 +48,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
 
       const result = await getHandler("get-autocomplete-settings")(undefined);
 
-      expect(result).toEqual({ enabled: true, model: "" });
+      expect(result).toEqual({ enabled: false, model: "" });
     });
 
     it("normalizes a raw stored value missing enabled, rather than trusting the store to have normalized it", async () => {
@@ -60,7 +60,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
 
       const result = await getHandler("get-autocomplete-settings")(undefined);
 
-      expect(result).toEqual({ enabled: true, model: "openai::gpt-5" });
+      expect(result).toEqual({ enabled: false, model: "openai::gpt-5" });
     });
 
     it("normalizes a raw stored value with junk field types", async () => {
@@ -71,7 +71,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
 
       const result = await getHandler("get-autocomplete-settings")(undefined);
 
-      expect(result).toEqual({ enabled: true, model: "" });
+      expect(result).toEqual({ enabled: false, model: "" });
     });
 
     it("normalizes a null stored value", async () => {
@@ -79,7 +79,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
 
       const result = await getHandler("get-autocomplete-settings")(undefined);
 
-      expect(result).toEqual({ enabled: true, model: "" });
+      expect(result).toEqual({ enabled: false, model: "" });
     });
   });
 

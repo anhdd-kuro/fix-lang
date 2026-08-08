@@ -36,7 +36,7 @@ import type {
  */
 
 const DEFAULT_SETTINGS: AutocompleteSettings = {
-  enabled: true,
+  enabled: false,
   model: AUTOCOMPLETE_INHERIT_ASK_MODEL,
 };
 

@@ -906,7 +906,16 @@ describe("apiStoreSchema — settingsCorrect default carries all seven built-in 
 // stored value failing validation would wipe every profile, preset and key
 // reference. Existing configs are untouched: the node's `default` is consulted
 // only when a profile stores nothing under it, and reads route through
-// `normalizeAutocompleteSettings`, which treats absent as enabled.
+// `normalizeAutocompleteSettings`.
+//
+// Updated again to flip `settingsAutocomplete`'s `enabled` default from `true`
+// to `false`: this feature now ships OFF, so an install upgrading into it must
+// not be opted into a paid provider it never chose. Still purely a `default`
+// value change — the property stays `type: "boolean"` with no `enum` or
+// `required` added — so no existing stored `true`/`false` value fails
+// validation and `clearInvalidConfig: true` has nothing to wipe. Reads still
+// route through `normalizeAutocompleteSettings`, which is what actually
+// decides the value for an absent node.
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
@@ -915,7 +924,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "a52a0b60f23b3ef2a9db4429bf6f2494d2be6d71f5322ae0f27cb4f81144bf25",
+      "97a22497f462118000ece61ba64836f9469a66cec60ea032882f7195a0ff75b6",
     );
   });
 });

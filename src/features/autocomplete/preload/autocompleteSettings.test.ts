@@ -48,7 +48,7 @@ describe("autocompleteSettings preload boundary", () => {
 
         const result = await autocompleteSettingsFeature.getAutocompleteSettings();
 
-        expect(result).toEqual({ enabled: true, model: "" });
+        expect(result).toEqual({ enabled: false, model: "" });
       },
     );
   });

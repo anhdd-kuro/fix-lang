@@ -755,14 +755,14 @@ export const apiStoreSchema = {
                 // out on `enabledProviders` and `outputMode`: this store runs
                 // `clearInvalidConfig: true`, so ONE stored value failing
                 // validation wipes every profile, preset and key reference.
-                enabled: { type: "boolean", default: true },
+                enabled: { type: "boolean", default: false },
                 model: { type: "string", default: "" },
               },
               // Belt and braces for the whole-node-absent case only.
               // `useDefaults` injects an *object* default, so a stored object
               // missing just `enabled` never receives it — that case is carried
               // by `normalizeAutocompleteSettings`, which is the load-bearing one.
-              default: { enabled: true, model: "" },
+              default: { enabled: false, model: "" },
             },
           },
         },
@@ -1168,8 +1168,8 @@ export const getProfileSetting = <K extends keyof SettingsStore>(
     return sanitizeOpenAIProjectId(settings.openaiProjectId) as SettingsStore[K];
   }
 
-  // Reading through the normalizer is what turns the feature on for a profile
-  // that predates it: the stored node is absent, and absent reads as enabled.
+  // Reading through the normalizer is what keeps the feature off for a profile
+  // that predates it: the stored node is absent, and absent reads as disabled.
   if (settingType === "settingsAutocomplete") {
     return normalizeAutocompleteSettings(settings.settingsAutocomplete) as SettingsStore[K];
   }
@@ -1311,7 +1311,7 @@ const buildDefaultProfileSettings = (): SettingsStore =>
       autoCopy: false,
       model: "",
     },
-    settingsAutocomplete: { enabled: true, model: AUTOCOMPLETE_INHERIT_ASK_MODEL },
+    settingsAutocomplete: { enabled: false, model: AUTOCOMPLETE_INHERIT_ASK_MODEL },
   }) as SettingsStore;
 
 /**

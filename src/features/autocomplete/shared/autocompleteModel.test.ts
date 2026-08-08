@@ -41,9 +41,11 @@ describe("resolveAutocompleteModelRef", () => {
 });
 
 describe("normalizeAutocompleteSettings", () => {
-  // Default-ON is what turns the feature on for an install that has never seen
-  // it, with no migration pass and no configVersion bump.
-  describe("enabled defaults to true", () => {
+  // Default-OFF is what keeps the feature off for an install that has never
+  // seen it, with no migration pass and no configVersion bump — an existing
+  // user must not be upgraded into a paid autocomplete provider they never
+  // opted into.
+  describe("enabled defaults to false", () => {
     it.each([
       ["undefined input", undefined],
       ["null input", null],
@@ -52,15 +54,16 @@ describe("normalizeAutocompleteSettings", () => {
       ["a non-boolean enabled", { enabled: "yes" }],
       ["a numeric enabled", { enabled: 0 }],
       ["a null enabled", { enabled: null }],
-    ])("reads %s as enabled", (_description, raw) => {
-      expect(normalizeAutocompleteSettings(raw).enabled).toBe(true);
+      ["a stored false", { enabled: false }],
+    ])("reads %s as disabled", (_description, raw) => {
+      expect(normalizeAutocompleteSettings(raw).enabled).toBe(false);
     });
   });
 
-  // Only a stored literal `false` disables — otherwise a user who turned the
-  // feature off would silently get it back.
-  it("preserves a stored false", () => {
-    expect(normalizeAutocompleteSettings({ enabled: false }).enabled).toBe(false);
+  // Only a stored literal `true` enables — otherwise a user who never opted
+  // in would silently get the feature turned on for them.
+  it("preserves a stored true", () => {
+    expect(normalizeAutocompleteSettings({ enabled: true }).enabled).toBe(true);
   });
 
   describe("model", () => {
@@ -91,7 +94,7 @@ describe("normalizeAutocompleteSettings", () => {
 
   it("returns both fields regardless of input shape", () => {
     expect(normalizeAutocompleteSettings("not an object at all")).toEqual({
-      enabled: true,
+      enabled: false,
       model: "",
     });
   });
