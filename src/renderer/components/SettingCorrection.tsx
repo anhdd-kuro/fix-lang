@@ -851,6 +851,7 @@ export const SettingCorrection: React.FC = () => {
 
             {activePreset.requiresInput && (
               <div className="flex flex-col gap-2">
+                <span aria-hidden="true" className="hidden h-5 md:block" />
                 <Checkbox
                   name="preset-markdown-output"
                   checked={activePreset.markdownOutput ?? false}
@@ -858,7 +859,7 @@ export const SettingCorrection: React.FC = () => {
                     updatePreset(activePreset.id, { markdownOutput })
                   }
                   label={t("settings.correction.markdownOutput.label")}
-                  className="text-card-foreground"
+                  className="text-card-foreground md:h-10"
                 />
                 <p className="text-xs text-muted-foreground">
                   {t("settings.correction.markdownOutput.hint")}

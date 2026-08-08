@@ -1542,7 +1542,7 @@ const consumerContractRows = [
   ],
   [
     "BTN-003",
-    "SITE-a9bc638af859af8c-01",
+    "SITE-211eb02ae6a571cc-01",
     "LIVE-211eb02ae6a571cc",
     "src/renderer/AskResultWindow/index.tsx",
     158,
@@ -1617,7 +1617,7 @@ const consumerContractRows = [
     "SITE-ffaaad62c6e612d8-01",
     "LIVE-ffaaad62c6e612d8",
     "src/renderer/components/Dialog.tsx",
-    62,
+    32,
     11,
   ],
   [
@@ -1657,15 +1657,15 @@ const consumerContractRows = [
     "SITE-ae28524fa5a91a81-01",
     "LIVE-ae28524fa5a91a81",
     "src/renderer/components/HistorySessionDetailsModal.tsx",
-    91,
+    100,
     15,
   ],
   [
     "BTN-018",
-    "SITE-26691da216743279-01",
-    "LIVE-26691da216743279",
+    "SITE-36b0efef55fb64e4-01",
+    "LIVE-36b0efef55fb64e4",
     "src/renderer/components/HistorySessionDetailsModal.tsx",
-    215,
+    224,
     11,
   ],
   [
@@ -1982,58 +1982,58 @@ const consumerContractRows = [
   ],
   [
     "BTN-058",
-    "SITE-41cbef0414af423e-01",
+    "SITE-c6f68671b4e7baaa-01",
     "LIVE-c6f68671b4e7baaa",
     "src/renderer/components/SettingCorrection.tsx",
-    902,
+    903,
     11,
   ],
   [
     "BTN-059",
-    "SITE-4f0dd6c24c889ba0-01",
+    "SITE-d075f1d72ad0d18a-01",
     "LIVE-d075f1d72ad0d18a",
     "src/renderer/components/SettingCorrection.tsx",
-    986,
+    987,
     21,
   ],
   [
     "BTN-060",
-    "SITE-e4663a0916a663fd-01",
+    "SITE-fc67ee9bcb57e17b-01",
     "LIVE-fc67ee9bcb57e17b",
     "src/renderer/components/SettingCorrection.tsx",
-    1021,
+    1022,
     23,
   ],
   [
     "BTN-061",
-    "SITE-3720b8992ea5c656-01",
+    "SITE-36e5afbdd76aa45a-01",
     "LIVE-36e5afbdd76aa45a",
     "src/renderer/components/SettingCorrection.tsx",
-    1200,
+    1201,
     31,
   ],
   [
     "BTN-062",
-    "SITE-ae2208d020d0dcff-01",
+    "SITE-e551e6f7bc3ae4a4-01",
     "LIVE-e551e6f7bc3ae4a4",
     "src/renderer/components/SettingCorrection.tsx",
-    1214,
+    1215,
     31,
   ],
   [
     "BTN-063",
-    "SITE-f2a1c8e9dc264393-01",
+    "SITE-a5bfea8fd20aa789-01",
     "LIVE-a5bfea8fd20aa789",
     "src/renderer/components/SettingCorrection.tsx",
-    1230,
+    1231,
     31,
   ],
   [
     "BTN-064",
-    "SITE-6c2a6c177bac4e53-01",
+    "SITE-db51ebf60cecc607-01",
     "LIVE-db51ebf60cecc607",
     "src/renderer/components/SettingCorrection.tsx",
-    1282,
+    1283,
     21,
   ],
   [
@@ -2041,7 +2041,7 @@ const consumerContractRows = [
     "SITE-7ddd61f39a4603c1-01",
     "LIVE-7ddd61f39a4603c1",
     "src/renderer/components/SettingCorrection.tsx",
-    1300,
+    1301,
     9,
   ],
   [
@@ -2049,7 +2049,7 @@ const consumerContractRows = [
     "SITE-07f2a8ba23e043f1-01",
     "LIVE-07f2a8ba23e043f1",
     "src/renderer/components/SettingGeneral.tsx",
-    836,
+    843,
     11,
   ],
   [
@@ -2057,7 +2057,7 @@ const consumerContractRows = [
     "SITE-c4546c1f1b582275-01",
     "LIVE-c4546c1f1b582275",
     "src/renderer/components/SettingGeneral.tsx",
-    849,
+    856,
     13,
   ],
   [
@@ -2065,7 +2065,7 @@ const consumerContractRows = [
     "SITE-f528b6225f5af211-01",
     "LIVE-f528b6225f5af211",
     "src/renderer/components/SettingGeneral.tsx",
-    883,
+    890,
     15,
   ],
   [
@@ -2073,7 +2073,7 @@ const consumerContractRows = [
     "SITE-d3d535844d3ea12d-01",
     "LIVE-d3d535844d3ea12d",
     "src/renderer/components/SettingGeneral.tsx",
-    891,
+    898,
     15,
   ],
   [
@@ -2081,7 +2081,7 @@ const consumerContractRows = [
     "SITE-9366f8ce82dfacc2-01",
     "LIVE-9366f8ce82dfacc2",
     "src/renderer/components/SettingGeneral.tsx",
-    1048,
+    1044,
     9,
   ],
   [
@@ -2129,7 +2129,7 @@ const consumerContractRows = [
     "SITE-426eacdcf8f96389-01",
     "LIVE-426eacdcf8f96389",
     "src/renderer/components/SettingsModal.tsx",
-    219,
+    260,
     11,
   ],
   [
@@ -2137,7 +2137,7 @@ const consumerContractRows = [
     "SITE-131332cadfcd6d7c-01",
     "LIVE-131332cadfcd6d7c",
     "src/renderer/components/SettingsModal.tsx",
-    261,
+    302,
     17,
   ],
   [
@@ -2286,7 +2286,7 @@ const consumerContractRows = [
   ],
   [
     "BTN-096",
-    "SITE-cda3ee060bf9b96d-01",
+    "SITE-4375aafcfe900c3b-01",
     "LIVE-4375aafcfe900c3b",
     "src/renderer/components/usage/UsagePanel.tsx",
     117,
@@ -2294,7 +2294,7 @@ const consumerContractRows = [
   ],
   [
     "BTN-097",
-    "SITE-e27f5c86266c2ef9-01",
+    "SITE-cda3ee060bf9b96d-01",
     "LIVE-cda3ee060bf9b96d",
     "src/renderer/components/usage/UsagePanel.tsx",
     162,
@@ -2353,7 +2353,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "306b1185b800d0e58071a938faf59345b83a45150f5df4945e88d4e9d55eda4d";
+  "1d35438d765e0844e3ed7d31449b55cf3cc75c2e289de4fe1a7c4a3ffb40ef2f";
 
 const compareConsumers = (
   left: ButtonConsumer,

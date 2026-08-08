@@ -250,7 +250,9 @@ new Notification({
 
 ## CI
 
-- **PR + push to `main`** — `.github/workflows/ci.yml` runs `bun run lint` then `bun run test` on `ubuntu-latest` (Bun 1.3.14, Node 24 for `node:sqlite`). Concurrency cancels superseded runs. Release packaging stays in `release.yml` only.
+- **PR + push to `main`** — `.github/workflows/ci.yml` runs two independent jobs on `ubuntu-latest` (Bun 1.3.14; the test job also sets up Node 24 for `node:sqlite`): a `lint` job, and a `test` job fanned out over a 3-way `--shard` matrix with `fail-fast: false` so one shard's failure still reports the others. Concurrency cancels superseded runs. Release packaging stays in `release.yml` only.
+- **Vitest runs as two projects, and the split is the whole reason CI is fast** — `node` (everything outside `src/renderer/`) and `renderer` (`src/renderer/**`, `jsdom`). jsdom costs roughly 0.75 s of environment setup **per test file**, so running all 188 files under it spent ~143 s of cumulative environment time for the 33 files that actually need a DOM; the split cut a full local run from 24.7 s to 13.4 s with no change to what is tested. A new test outside `src/renderer/` that reaches for `document`/`window` will fail under the `node` project — move it under `src/renderer/`, or give that one file a `// @vitest-environment jsdom` docblock, rather than widening the `renderer` project's globs.
+- **Coverage is off by default** (`coverage.enabled: false`); run `bun run test:coverage` for a report. Nothing gates on it, and a sharded run only ever sees its own third of the files, so a coverage number collected in CI would be a lie.
 
 ## Release & Distribution
 

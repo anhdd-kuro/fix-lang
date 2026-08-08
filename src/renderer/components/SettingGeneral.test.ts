@@ -685,53 +685,54 @@ describe("SettingGeneral", () => {
       expect(container.querySelector('button[role="radio"]')).toBeNull();
     });
 
-    it("keeps both mode descriptions visible beside the control", async () => {
+    // A native <option> carries no description, so the selected mode's copy is
+    // restated as the field hint — the same `text-xs text-muted-foreground`
+    // shape `SettingCorrection` uses under its per-preset output-mode Select.
+    const outputModeHint = (): HTMLParagraphElement => {
+      const described = outputModeSelect().getAttribute("aria-describedby");
+      const hint = described
+        ? container.querySelector<HTMLParagraphElement>(`#${described}`)
+        : null;
+      if (!hint) {
+        throw new Error("Expected the output-mode hint the select describes");
+      }
+      return hint;
+    };
+
+    it("hints the SELECTED mode's description under the control", async () => {
       await render({ success: true });
 
-      const section = outputModeSelect().closest("section");
-      expect(section?.textContent).toContain(
+      const hint = outputModeHint();
+      expect(hint.textContent).toBe(
         tEn("settings.general.correctionOutput.paste.description"),
       );
-      expect(section?.textContent).toContain(
-        tEn("settings.general.correctionOutput.popup.description"),
-      );
+      expect(hint.className).toContain("text-xs");
+      expect(hint.className).toContain("text-muted-foreground");
     });
 
-    it("moves the emphasised description onto the newly active mode", async () => {
+    it("swaps the hint onto the newly active mode, keeping both descriptions in use", async () => {
       await render({ success: true });
       api.setCorrectionOutputMode.mockResolvedValueOnce({
         success: true,
         mode: "popup",
       });
 
-      const emphasisByLabel = (): Record<string, boolean> =>
-        Object.fromEntries(
-          [
-            ...(outputModeSelect()
-              .closest("section")
-              ?.querySelectorAll("dt") ?? []),
-          ].map((term) => [
-            term.textContent ?? "",
-            term.className.includes("text-card-foreground"),
-          ]),
-        );
-
-      const pasteLabel = tEn("settings.general.correctionOutput.paste.label");
-      const popupLabel = tEn("settings.general.correctionOutput.popup.label");
-
-      expect(emphasisByLabel()).toEqual({
-        [pasteLabel]: true,
-        [popupLabel]: false,
-      });
+      const pasteDescription = tEn(
+        "settings.general.correctionOutput.paste.description",
+      );
+      const popupDescription = tEn(
+        "settings.general.correctionOutput.popup.description",
+      );
+      expect(pasteDescription).not.toBe(popupDescription);
+      expect(outputModeHint().textContent).toBe(pasteDescription);
 
       await setSelectValue(outputModeSelect(), "popup");
       await waitForUi();
       await waitForUi();
 
-      expect(emphasisByLabel()).toEqual({
-        [pasteLabel]: false,
-        [popupLabel]: true,
-      });
+      // Kills: a hard-coded hint, or one keyed off the first entry rather than
+      // the current value — which would orphan `popup.description`.
+      expect(outputModeHint().textContent).toBe(popupDescription);
     });
 
     it("persists the chosen mode through setCorrectionOutputMode", async () => {
