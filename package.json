@@ -32,6 +32,7 @@
     "check:bundle": "bun run scripts/check-bundle-externals.ts",
     "vitest": "vitest",
     "test": "vitest --watch=false",
+    "test:coverage": "vitest --watch=false --coverage.enabled",
     "test:w": "vitest",
     "themes:download": "bun run themes:download:tm && bun run themes:download:terminal",
     "themes:generate": "bun run scripts/generate-theme-css.ts",
