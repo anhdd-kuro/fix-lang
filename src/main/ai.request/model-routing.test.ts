@@ -59,8 +59,16 @@ vi.mock("electron", () => ({
     on = vi.fn().mockReturnThis();
   },
 }));
+// `notifyRequestError` mirrors the real helper: it forwards to
+// `showErrorNotification` unless the request asked to stay quiet. Keeping that
+// behavior in the mock is what lets the assertion below still read as "the user
+// was notified" rather than "some function was called".
 vi.mock("~/main/notifications/error", () => ({
   showErrorNotification: showErrorNotificationMock,
+  notifyRequestError: (options: { quiet?: boolean }, error: unknown, fallback?: string) => {
+    if (options.quiet) return;
+    showErrorNotificationMock(error, fallback);
+  },
 }));
 vi.mock("@openrouter/ai-sdk-provider", () => ({
   createOpenRouter: createOpenRouterMock,

@@ -82,6 +82,20 @@ export const askFeature = {
   },
 
   /**
+   * Subscribes to the "this ask was abandoned" signal main emits from every
+   * dismissal path — Cmd-W, the red X and a profile switch as well as ESC.
+   * Only ESC originates in the renderer, so without this the window keeps the
+   * abandoned question and its ghost suggestion and can flash both over the
+   * next, unrelated ask. Payload-free on purpose: there is nothing to validate,
+   * and nothing about the abandoned ask the renderer should be told.
+   */
+  onAskInputDismissed: (callback: () => void): (() => void) => {
+    const listener = () => callback();
+    ipcRenderer.on("ask-input-dismissed", listener);
+    return () => ipcRenderer.removeListener("ask-input-dismissed", listener);
+  },
+
+  /**
    * Subscribes to ask-result payloads (the question + answer to render) from
    * the main process. Call {@link signalAskResultReady} after installing this
    * listener so the first payload is not lost.

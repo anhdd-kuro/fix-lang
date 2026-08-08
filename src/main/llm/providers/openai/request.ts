@@ -20,7 +20,7 @@ import {
 } from "~/main/ai.request/requestTypes";
 import { extractResolvedModel } from "~/main/ai.request/resolve-model";
 import { keepAliveFetch } from "~/main/llm/httpKeepAlive";
-import { showErrorNotification } from "~/main/notifications/error";
+import { notifyRequestError } from "~/main/notifications/error";
 
 export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
   const profileId = getCurrentProfileId();
@@ -29,7 +29,7 @@ export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
     : null;
   if (!apiKey) {
     const error = new Error("OpenAI API key is missing.");
-    showErrorNotification(error);
+    notifyRequestError(options, error);
     throw error;
   }
 
@@ -53,6 +53,10 @@ export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
           return reasoning !== undefined ? { reasoning } : {};
         })(),
         ...(options.stop ? { stopSequences: options.stop } : {}),
+        ...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
+        ...(options.maxOutputTokens !== undefined
+          ? { maxOutputTokens: options.maxOutputTokens }
+          : {}),
       });
     const responses = await Promise.all(
       Array.from({ length: Math.max(1, options.n ?? 1) }, request),
@@ -75,7 +79,7 @@ export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
     };
   } catch (error) {
     console.error("makeOpenAIAIRequest error:", error);
-    showErrorNotification(error, "Failed to get a response from OpenAI.");
+    notifyRequestError(options, error, "Failed to get a response from OpenAI.");
     throw error;
   }
 };

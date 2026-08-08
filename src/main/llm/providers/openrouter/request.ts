@@ -23,7 +23,7 @@ import {
 } from "~/main/ai.request/requestTypes";
 import { extractResolvedModel } from "~/main/ai.request/resolve-model";
 import { keepAliveFetch } from "~/main/llm/httpKeepAlive";
-import { showErrorNotification } from "~/main/notifications/error";
+import { notifyRequestError } from "~/main/notifications/error";
 
 export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
   const apiKey =
@@ -34,7 +34,7 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
     "";
   if (!apiKey) {
     const error = new Error("OpenRouter API key is missing.");
-    showErrorNotification(error);
+    notifyRequestError(options, error);
     throw error;
   }
 
@@ -82,6 +82,10 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
       ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: conversationMessages as never,
       ...(reasoning !== undefined ? { reasoning } : {}),
+      ...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
+      ...(options.maxOutputTokens !== undefined
+        ? { maxOutputTokens: options.maxOutputTokens }
+        : {}),
     });
     const { usage, text, reasoningText } = genResponse;
     const normalizedUsage = usageCounts(usage);
@@ -151,7 +155,7 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
     };
   } catch (error) {
     console.error("makeOpenRouterAIRequest error:", error);
-    showErrorNotification(error, "Failed to get a response from the AI provider.");
+    notifyRequestError(options, error, "Failed to get a response from the AI provider.");
     throw error;
   }
 };

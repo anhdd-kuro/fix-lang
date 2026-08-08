@@ -19,7 +19,7 @@ import {
   type AIRequestOptions,
 } from "~/main/ai.request/requestTypes";
 import { extractResolvedModel } from "~/main/ai.request/resolve-model";
-import { showErrorNotification } from "~/main/notifications/error";
+import { notifyRequestError } from "~/main/notifications/error";
 import { resolveLmStudioApiKey } from "./client";
 
 export const makeLmStudioAIRequest = async (options: AIRequestOptions) => {
@@ -51,6 +51,10 @@ export const makeLmStudioAIRequest = async (options: AIRequestOptions) => {
           return reasoning !== undefined ? { reasoning } : {};
         })(),
         ...(options.stop ? { stopSequences: options.stop } : {}),
+        ...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
+        ...(options.maxOutputTokens !== undefined
+          ? { maxOutputTokens: options.maxOutputTokens }
+          : {}),
       });
     const responses = await Promise.all(
       Array.from({ length: Math.max(1, options.n ?? 1) }, request),
@@ -73,7 +77,7 @@ export const makeLmStudioAIRequest = async (options: AIRequestOptions) => {
     };
   } catch (error) {
     console.error("makeLmStudioAIRequest error:", error);
-    showErrorNotification(error, "Failed to get a response from LM Studio.");
+    notifyRequestError(options, error, "Failed to get a response from LM Studio.");
     throw error;
   }
 };

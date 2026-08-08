@@ -26,6 +26,7 @@
   "notifications.profilesUpdated.title": "プロファイル設定を更新しました",
   "notifications.settings.saved.body": "設定を保存しました。",
   "notifications.settings.saved.title": "設定を更新しました",
+  "notifications.window.askInput.acceptHint": "Tabで確定",
   "notifications.window.askInput.cancelHint": "Escで閉じる",
   "notifications.window.askInput.contextChip_other": "コンテキストを添付 · {count} 文字",
   "notifications.window.askInput.placeholder": "何でも聞いてください…",
