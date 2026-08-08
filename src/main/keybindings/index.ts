@@ -1,5 +1,6 @@
 import { globalShortcut, BrowserWindow } from "electron";
 import { isPromptGenEnabled } from "~/features/core/shared/features";
+import { rearmCancelAcceleratorForActiveCombo } from "./comboCancel";
 import { registerCorrectionShortcut } from "./correction";
 import { registerProfileSwitchShortcut } from "./profileSwitch";
 import { registerPromptGenShortcut } from "./promptGen";
@@ -40,6 +41,16 @@ export const reloadHotkeys = (): void => {
   if (mainWindow) {
     registerHotkeys(mainWindow);
   }
+
+  // `unregisterHotkeys()` above wiped Control+Escape too if a combo is
+  // mid-run — re-claim it for that run synchronously, in this same tick,
+  // instead of leaving it to a poll (see comboCancel.ts's file header for why
+  // that poll was deleted). This call must stay HERE, not inside
+  // `unregisterHotkeys()` itself: `pause-hotkeys` and app quit/close call
+  // that function alone, with no re-register, specifically so every
+  // accelerator stays free (HotkeyInput capturing a raw keypress; the app
+  // shutting down) — re-arming on either of those paths would defeat both.
+  rearmCancelAcceleratorForActiveCombo();
 };
 
 /**

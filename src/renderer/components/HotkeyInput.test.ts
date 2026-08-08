@@ -199,4 +199,168 @@ describe("HotkeyInput", () => {
     expect(status()?.textContent).toBe(jaWrapped);
     expect(jaWrapped).not.toBe(enWrapped);
   });
+
+  it("refuses to capture the reserved combo cancel chord, explains why, and keeps the previous binding", async () => {
+    // C6 layer 1. `handleKeyDown` lets any `e.key.length > 1` through, so
+    // Escape was a capturable accelerator — a binding holding Control+Escape
+    // makes the combo run's own `globalShortcut.register` return false and the
+    // run silently uncancellable.
+    const localSetKeyBindings = vi.fn().mockResolvedValue({ success: true });
+    const api = {
+      getKeyBindings: vi.fn().mockResolvedValue({
+        promptGen: "Control+Shift+P",
+        profileSwitch: "Control+Shift+O",
+      }),
+      resumeHotkeys: vi.fn().mockResolvedValue(undefined),
+      pauseHotkeys: vi.fn().mockResolvedValue(undefined),
+      getCorrectSettings: vi.fn().mockResolvedValue({ presets: [] }),
+      setKeyBindings: localSetKeyBindings,
+      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+      setLocale: vi.fn().mockResolvedValue({ success: true }),
+      onLocaleChanged: vi.fn((callback: (locale: Locale) => void) => {
+        localeListener = callback;
+        return vi.fn();
+      }),
+    };
+    Object.defineProperty(window, "electronAPI", { configurable: true, value: api });
+
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(
+          I18nProvider,
+          null,
+          createElement(HotkeyInput, { hotkeyKey: "promptGen", label: "PromptGen" }),
+        ),
+      );
+    });
+    await waitForUi();
+    await waitForUi();
+
+    const input = container.querySelector("input");
+    if (!input) throw new Error("Expected the hotkey capture input");
+    await act(async () => {
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", ctrlKey: true, bubbles: true }),
+      );
+    });
+
+    const alert = () => container.querySelector('[role="alert"]');
+    expect(alert()?.textContent).toBe(
+      tEn("settings.hotkeys.reservedComboCancel", { hotkey: "Control+Escape" }),
+    );
+    // The refused chord never lands in the field, so Apply cannot ship it.
+    expect(input.value).toBe("Control+Shift+P");
+    const applyButton = [...container.querySelectorAll("button")].find(
+      (candidate) => candidate.textContent === tEn("settings.hotkeys.applyButton"),
+    );
+    expect(applyButton?.hasAttribute("disabled")).toBe(true);
+
+    // Locale-free descriptor, same as every other message in this component.
+    await act(async () => {
+      localeListener?.("ja");
+    });
+    await waitForUi();
+    const jaReserved = tJa("settings.hotkeys.reservedComboCancel", {
+      hotkey: "Control+Escape",
+    });
+    expect(alert()?.textContent).toBe(jaReserved);
+    expect(jaReserved).not.toBe(
+      tEn("settings.hotkeys.reservedComboCancel", { hotkey: "Control+Escape" }),
+    );
+
+    // An ordinary chord still captures — the refusal is scoped to the one key.
+    await act(async () => {
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "K", ctrlKey: true, bubbles: true }),
+      );
+    });
+    expect(alert()).toBeNull();
+    expect(input.value).toBe("Control+K");
+    expect(localSetKeyBindings).not.toHaveBeenCalled();
+  });
+
+  it("blocks Apply when the captured chord collides with a combo, naming both parties", async () => {
+    // The validator is global now: a promptGen binding must lose to a combo
+    // hotkey exactly as it already loses to a preset hotkey.
+    const localSetKeyBindings = vi.fn().mockResolvedValue({ success: true });
+    const api = {
+      getKeyBindings: vi.fn().mockResolvedValue({
+        promptGen: "Control+Shift+P",
+        profileSwitch: "Control+Shift+O",
+      }),
+      resumeHotkeys: vi.fn().mockResolvedValue(undefined),
+      pauseHotkeys: vi.fn().mockResolvedValue(undefined),
+      getCorrectSettings: vi.fn().mockResolvedValue({
+        presets: [],
+        combos: [
+          {
+            id: "combo-1",
+            name: "Polish then translate",
+            hotkey: "Control+K",
+            steps: [
+              { id: "s1", presetId: "correction" },
+              { id: "s2", presetId: "translate" },
+            ],
+            schemaVersion: 1,
+          },
+        ],
+      }),
+      setKeyBindings: localSetKeyBindings,
+      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+      setLocale: vi.fn().mockResolvedValue({ success: true }),
+      onLocaleChanged: vi.fn((callback: (locale: Locale) => void) => {
+        localeListener = callback;
+        return vi.fn();
+      }),
+    };
+    Object.defineProperty(window, "electronAPI", { configurable: true, value: api });
+
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(
+          I18nProvider,
+          null,
+          createElement(HotkeyInput, { hotkeyKey: "promptGen", label: "PromptGen" }),
+        ),
+      );
+    });
+    await waitForUi();
+    await waitForUi();
+
+    const input = container.querySelector("input");
+    if (!input) throw new Error("Expected the hotkey capture input");
+    await act(async () => {
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "K", ctrlKey: true, bubbles: true }),
+      );
+    });
+
+    const applyButton = [...container.querySelectorAll("button")].find(
+      (candidate) => candidate.textContent === tEn("settings.hotkeys.applyButton"),
+    );
+    if (!applyButton) throw new Error("Expected the Apply button");
+    await act(async () => {
+      applyButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForUi();
+    await waitForUi();
+
+    const status = () => container.querySelector('[role="status"]');
+    expect(status()?.textContent).toBe(
+      tEn("settings.general.error", {
+        message: tEn("settings.hotkeys.conflict", {
+          hotkey: "Control+K",
+          presetOrKey: "Polish then translate",
+          conflictsWith: "promptGen",
+        }),
+      }),
+    );
+    expect(localSetKeyBindings).not.toHaveBeenCalled();
+  });
 });

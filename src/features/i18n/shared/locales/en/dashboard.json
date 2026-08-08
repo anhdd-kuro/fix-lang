@@ -77,6 +77,8 @@
   "guide.title": "Getting started",
   "guide.topic.adminKey.body": "Optional. Add an OpenAI admin key or an OpenRouter provisioning key to fill the Usage tab with account-level spend.",
   "guide.topic.adminKey.title": "Admin / Provisioning keys",
+  "guide.topic.combo.body": "Chain 2–5 presets behind one hotkey in Settings → Correction, feeding each result into the next. Press Control+Escape while it runs to cancel before anything is delivered.",
+  "guide.topic.combo.title": "Combos",
   "guide.topic.language.body": "The interface follows your system language on first run. Change it in Settings → General; every window updates without a restart.",
   "guide.topic.language.title": "Language",
   "guide.topic.models.body": "Give a preset its own model when it needs more capability than your default, and leave the others inheriting that default.",

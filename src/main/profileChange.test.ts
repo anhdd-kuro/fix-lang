@@ -12,6 +12,11 @@
  * makes `notifyActiveProfileChanged` the chokepoint all three activation sites
  * must go through. This file pins both halves: the dismissal happens, and the
  * broadcast every renderer depends on still happens with it.
+ *
+ * A running Combo has the same "resolves against the live profile" problem
+ * one step further out (E5): `abortActiveCombo()` is wired into the same
+ * chokepoint so a mid-chain profile switch stops the run instead of sending
+ * a later step through another profile's model, provider and key.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./webViewWindows/broadcast", () => ({
@@ -20,7 +25,14 @@ vi.mock("./webViewWindows/broadcast", () => ({
 vi.mock("./webViewWindows/askInputWindow", () => ({
   dismissAskInputWindow: vi.fn(),
 }));
+// Mocked wholesale (not just its `electron` import) so this file never has to
+// mock `globalShortcut` — profileChange.ts only needs to know the funnel
+// calls this hook, not how the cancel wrapper implements it.
+vi.mock("./keybindings/comboCancel", () => ({
+  abortActiveCombo: vi.fn(),
+}));
 import { ACTIVE_PROFILE_CHANGED } from "~/features/core/shared/ipcChannels";
+import { abortActiveCombo } from "./keybindings/comboCancel";
 import { notifyActiveProfileChanged } from "./profileChange";
 import { dismissAskInputWindow } from "./webViewWindows/askInputWindow";
 import { broadcastToAllWindows } from "./webViewWindows/broadcast";
@@ -36,16 +48,25 @@ describe("notifyActiveProfileChanged", () => {
     expect(dismissAskInputWindow).toHaveBeenCalledTimes(1);
   });
 
+  it("aborts an in-flight Combo run so a later step cannot resolve against the new profile", () => {
+    notifyActiveProfileChanged();
+
+    expect(abortActiveCombo).toHaveBeenCalledTimes(1);
+  });
+
   it("still broadcasts ACTIVE_PROFILE_CHANGED to every window", () => {
     notifyActiveProfileChanged();
 
     expect(broadcastToAllWindows).toHaveBeenCalledWith(ACTIVE_PROFILE_CHANGED);
   });
 
-  it("dismisses before broadcasting, so no renderer reacts to the new profile while a stale ask is still submittable", () => {
+  it("dismisses and aborts before broadcasting, so no renderer reacts to the new profile while a stale ask or combo is still in flight", () => {
     const order: string[] = [];
     (dismissAskInputWindow as ReturnType<typeof vi.fn>).mockImplementation(() =>
       order.push("dismiss"),
+    );
+    (abortActiveCombo as ReturnType<typeof vi.fn>).mockImplementation(() =>
+      order.push("abort-combo"),
     );
     (broadcastToAllWindows as ReturnType<typeof vi.fn>).mockImplementation(() =>
       order.push("broadcast"),
@@ -53,7 +74,7 @@ describe("notifyActiveProfileChanged", () => {
 
     notifyActiveProfileChanged();
 
-    expect(order).toEqual(["dismiss", "broadcast"]);
+    expect(order).toEqual(["dismiss", "abort-combo", "broadcast"]);
   });
 });
 

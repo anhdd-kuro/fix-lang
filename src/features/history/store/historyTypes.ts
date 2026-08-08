@@ -31,6 +31,14 @@ export type HistoryEntry = {
    * Absent on legacy rows; shown via History "Show details".
    */
   sessionJson?: string;
+  /**
+   * Combo run grouping (see historyRepo.ts's guarded ALTER TABLE). Both
+   * optional: only rows written by a combo step carry them; every other row
+   * (including all pre-combo history) stays valid with neither set. No UI
+   * consumes these in v1 — write path only.
+   */
+  comboRunId?: string; // Shared by every step-row of one hotkey press
+  comboStepIndex?: number; // 0-based position of this row within its combo run
 };
 
 // Narrowed to only the two valid feature buckets. lastActionHistory is not a feature bucket.
