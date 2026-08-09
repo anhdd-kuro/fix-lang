@@ -22,7 +22,10 @@ import { useTheme } from "../hooks/useTheme";
 import { I18nProvider } from "../i18n/I18nProvider";
 import { useI18n } from "../i18n/useI18n";
 import "../main.css";
-import type { AskInputPayload } from "~/features/ask/shared/ask";
+import type {
+  AskContextSource,
+  AskInputPayload,
+} from "~/features/ask/shared/ask";
 
 /**
  * Exported (not just used below for the entry-point auto-render) so
@@ -159,6 +162,8 @@ export const AskInputWindow = () => {
   }, [clearGhost]);
 
   const context = payload?.context ?? "";
+  // Absent means `selection` — an older main process, or the ordinary case.
+  const contextSource = payload?.contextSource ?? "selection";
 
   // Handed to the context fold control so toggling never strands focus on a
   // button in a window whose whole purpose is the textarea. Clicking the
@@ -292,6 +297,7 @@ export const AskInputWindow = () => {
         <ContextPreview
           key={context}
           text={context}
+          source={contextSource}
           onToggled={focusTextarea}
         />
       )}
@@ -350,6 +356,7 @@ export const AskInputWindow = () => {
 
 type ContextPreviewProps = {
   text: string;
+  source: AskContextSource;
   onToggled: () => void;
 };
 
@@ -373,7 +380,7 @@ type ContextPreviewProps = {
  * width and not on its character count. Mirrors `FoldableTextBlock` in
  * `AskResultWindow/index.tsx`, including the trap in the effect below.
  */
-const ContextPreview = ({ text, onToggled }: ContextPreviewProps) => {
+const ContextPreview = ({ text, source, onToggled }: ContextPreviewProps) => {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const [truncated, setTruncated] = useState(false);
@@ -403,12 +410,21 @@ const ContextPreview = ({ text, onToggled }: ContextPreviewProps) => {
         bordered card under a small uppercase role line. Without the label the
         card reads as an unexplained blob of someone else's text sitting above
         the question box.
+
+        The label names the SOURCE, and that is what makes attaching the
+        clipboard acceptable at all: when the hotkey's own copy produced
+        nothing, this text may be minutes old and unrelated to what the user is
+        looking at. Told which it is, they can send it or press Esc; told
+        nothing, they would be sending it either way.
       */}
       <p
         data-ask-context-label
+        data-ask-context-source={source}
         className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
       >
-        {t("notifications.window.askInput.contextLabel")}
+        {source === "clipboard"
+          ? t("notifications.window.askInput.contextLabelClipboard")
+          : t("notifications.window.askInput.contextLabel")}
       </p>
       <p
         ref={bodyRef}

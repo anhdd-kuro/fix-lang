@@ -14,6 +14,16 @@ const isAskInputPayload = (value: unknown): value is AskInputPayload => {
   if (!("context" in value) || typeof value.context !== "string") {
     return false;
   }
+  // Optional, but checked against the exact two members rather than `string`:
+  // the window branches its label on this, and an unknown value would fall
+  // through to the "this is your selection" wording for text that is not.
+  if (
+    "contextSource" in value &&
+    value.contextSource !== "selection" &&
+    value.contextSource !== "clipboard"
+  ) {
+    return false;
+  }
   return true;
 };
 

@@ -22,7 +22,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AccessibilityPermissionError } from "~/main/notifications/error";
 import {
   getHighlightedText,
-  getHighlightedTextForOptionalContext,
+  getAskContext,
   getHighlightedTextWithActiveApp,
   promptAccessibilityPermission,
   waitForClipboardChange,
@@ -181,21 +181,21 @@ describe("getHighlightedText", () => {
     await expect(getHighlightedText()).resolves.toBe("previous clipboard content");
   });
 
-  it("returns \"\" — never the previous clipboard — when the copy produces nothing", async () => {
-    // Nothing selected: the synthesized Cmd-C is a no-op, so the emptied
-    // pasteboard stays empty. Returning the previous clipboard here is what
-    // used to send a stale, unrelated selection through a transform; callers
-    // abort on "" instead.
+  it("falls back to the clipboard snapshot when the copy produces nothing", async () => {
+    // The fallback is what makes the hotkey work at all on a machine where the
+    // synthesized Cmd-C does not reach the frontmost app: the user copies by
+    // hand, then presses. Removing it turned every transform into "No text
+    // selected" — measured, not theorised.
     vi.useFakeTimers();
     mockCopyExec({});
 
     const pending = getHighlightedText();
     await vi.advanceTimersByTimeAsync(3_000);
 
-    await expect(pending).resolves.toBe("");
+    await expect(pending).resolves.toBe("previous clipboard content");
   });
 
-  it("returns \"\" on a poll timeout, even if the copy lands too late", async () => {
+  it("falls back to the clipboard snapshot on a poll timeout, even if the copy lands too late", async () => {
     vi.useFakeTimers();
     mockCopyExec({});
     // Lands well after the poll's timeout, so the poll never observes it.
@@ -206,7 +206,7 @@ describe("getHighlightedText", () => {
     const pending = getHighlightedText();
     await vi.advanceTimersByTimeAsync(3_000);
 
-    await expect(pending).resolves.toBe("");
+    await expect(pending).resolves.toBe("previous clipboard content");
   });
 
   it("restores the clipboard after a successful read", async () => {
@@ -218,7 +218,7 @@ describe("getHighlightedText", () => {
   });
 });
 
-describe("getHighlightedTextForOptionalContext", () => {
+describe("getAskContext", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clipboardState.text = "previous clipboard content";
@@ -228,22 +228,30 @@ describe("getHighlightedTextForOptionalContext", () => {
     vi.useRealTimers();
   });
 
-  it("returns \"\" when the copy did not change the clipboard (nothing selected: Cmd-C was a no-op)", async () => {
-    // Reproduces finding 07/f1: with nothing selected, the Cmd-C keystroke is
-    // a no-op and the clipboard still holds whatever was there before — here,
-    // a password-manager-style secret that must never be reported as "the
-    // selection".
+  it("attaches the clipboard, labelled as such, when the copy produces nothing", async () => {
+    // The same clipboard every other preset uses, and the reason Ask AI can
+    // use it too: the source travels with the text, so the input window says
+    // "From clipboard" over content that may be minutes old instead of
+    // presenting it as what the user just highlighted.
+    //
+    // This deliberately reverses an earlier refusal. Reporting "" here was
+    // meant to keep an unrelated clipboard away from the model, but the
+    // synthesized Cmd-C fails often enough that the refusal removed the only
+    // context the feature ever had — on a real machine's logs, every press.
     vi.useFakeTimers();
-    clipboardState.text = "hunter2-super-secret-password";
+    clipboardState.text = "text the user copied by hand";
     mockCopyExec({});
 
-    const pending = getHighlightedTextForOptionalContext();
+    const pending = getAskContext();
     await vi.advanceTimersByTimeAsync(3_000);
 
-    await expect(pending).resolves.toBe("");
+    await expect(pending).resolves.toEqual({
+      text: "text the user copied by hand",
+      source: "clipboard",
+    });
   });
 
-  it("settles the no-change case fast — Ask AI's empty selection is the NORMAL path, not a 3s stall", async () => {
+  it("settles the no-copy case fast — Ask AI's empty selection is the NORMAL path, not a 3s stall", async () => {
     // `waitForClipboardChange`'s own default is 3s. Inheriting it here meant
     // the Ask AI hotkey sat unresponsive for three seconds before its input
     // window opened, every single time nothing was selected — worse than the
@@ -253,39 +261,52 @@ describe("getHighlightedTextForOptionalContext", () => {
     vi.useFakeTimers();
     mockCopyExec({});
 
-    const pending = getHighlightedTextForOptionalContext();
+    const pending = getAskContext();
     await vi.advanceTimersByTimeAsync(600);
 
-    await expect(pending).resolves.toBe("");
+    await expect(pending).resolves.toEqual({
+      text: "previous clipboard content",
+      source: "clipboard",
+    });
   });
 
-  it("returns the new selection when the copy changed the clipboard", async () => {
+  it("reports the copy as the source when the copy produced the text", async () => {
     mockCopyExec({ newClipboardValue: "the user's real selection" });
 
-    await expect(getHighlightedTextForOptionalContext()).resolves.toBe(
-      "the user's real selection",
-    );
+    await expect(getAskContext()).resolves.toEqual({
+      text: "the user's real selection",
+      source: "selection",
+    });
   });
 
-  it("documents the accepted false negative: a real selection byte-identical to the clipboard also resolves to \"\"", async () => {
-    // Intentional trade-off, not a bug: context is optional for this
-    // caller, so reporting "no selection" here only costs a missing context
-    // block, versus the alternative of leaking an unrelated clipboard as if
-    // it were the selection.
+  it("attaches nothing when the copy fails AND the clipboard is empty", async () => {
+    // "" still means no context at all: with no copy and nothing to fall back
+    // on, the window shows no card rather than an empty one.
     vi.useFakeTimers();
-    clipboardState.text = "same text on both sides";
-    mockCopyExec({}); // Cmd-C fires but the pasteboard value never observably changes
+    clipboardState.text = "";
+    mockCopyExec({});
 
-    const pending = getHighlightedTextForOptionalContext();
+    const pending = getAskContext();
     await vi.advanceTimersByTimeAsync(3_000);
 
-    await expect(pending).resolves.toBe("");
+    await expect(pending).resolves.toEqual({ text: "", source: "clipboard" });
+  });
+
+  it("reads a selection byte-identical to the clipboard as a selection, not a fallback", async () => {
+    // Distinguishable only because the pasteboard is emptied first: the value
+    // is the same either way, but `source` is what the window shows the user.
+    mockCopyExec({ newClipboardValue: "previous clipboard content" });
+
+    await expect(getAskContext()).resolves.toEqual({
+      text: "previous clipboard content",
+      source: "selection",
+    });
   });
 
   it("maps a keystroke-permission denial to AccessibilityPermissionError, same as getHighlightedText", async () => {
     mockCopyExec({ error: new Error(REAL_DENIAL_MESSAGE) });
 
-    await expect(getHighlightedTextForOptionalContext()).rejects.toBeInstanceOf(
+    await expect(getAskContext()).rejects.toBeInstanceOf(
       AccessibilityPermissionError,
     );
   });
@@ -293,7 +314,7 @@ describe("getHighlightedTextForOptionalContext", () => {
   it("restores the clipboard after a successful read", async () => {
     mockCopyExec({ newClipboardValue: "the user's real selection" });
 
-    await getHighlightedTextForOptionalContext();
+    await getAskContext();
 
     expect(clipboardState.text).toBe("previous clipboard content");
   });
@@ -408,7 +429,7 @@ describe("getHighlightedTextWithActiveApp — combined frontmost-app + copy read
     expect(order).toEqual(["callback", "resolved"]);
   });
 
-  it("returns \"\" when the copy produces nothing, still keeping the parsed activeApp", async () => {
+  it("falls back to the clipboard snapshot when the copy produces nothing, still keeping the parsed activeApp", async () => {
     // Same contract as getHighlightedText (see its doc comment): this stands
     // in for that function at the correction hotkey's ordinary preset call
     // site. Nothing copied is reported as nothing, so the hotkey's own
@@ -423,7 +444,7 @@ describe("getHighlightedTextWithActiveApp — combined frontmost-app + copy read
     await vi.advanceTimersByTimeAsync(3_000);
 
     await expect(pending).resolves.toEqual({
-      text: "",
+      text: "previous clipboard content",
       activeApp: { name: "Slack", bundleId: "com.tinyspeck.slackmacgap" },
     });
   });

@@ -1138,6 +1138,41 @@ describe("AskInputWindow", () => {
       );
     });
 
+    it("labels a clipboard-sourced context as such, not as the user's selection", async () => {
+      // The label is what makes attaching the clipboard acceptable: when the
+      // hotkey's own copy produced nothing, this text may be minutes old and
+      // unrelated. Told which it is, the user can send it or press Esc.
+      await render();
+      await act(async () => {
+        payloadListener?.({
+          presetId: "ask",
+          context: LONG_CONTEXT,
+          contextSource: "clipboard",
+        });
+      });
+
+      const label = contextSection()?.querySelector(
+        "[data-ask-context-label]",
+      ) as HTMLElement;
+      expect(label.textContent).toBe(
+        tEn("notifications.window.askInput.contextLabelClipboard"),
+      );
+      expect(label.getAttribute("data-ask-context-source")).toBe("clipboard");
+    });
+
+    it("falls back to the selection label when the payload names no source", async () => {
+      await render();
+      await showContext();
+
+      const label = contextSection()?.querySelector(
+        "[data-ask-context-label]",
+      ) as HTMLElement;
+      expect(label.textContent).toBe(
+        tEn("notifications.window.askInput.contextLabel"),
+      );
+      expect(label.getAttribute("data-ask-context-source")).toBe("selection");
+    });
+
     it("renders the context as plain text, never as markdown or HTML", async () => {
       const hostile = "**bold** <b>tag</b> [link](http://example.com)";
       await render();
