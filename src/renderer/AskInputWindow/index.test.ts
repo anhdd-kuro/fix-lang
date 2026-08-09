@@ -1172,7 +1172,17 @@ describe("AskInputWindow", () => {
       const body = contextBody();
       const control = foldControl() as HTMLButtonElement;
 
-      expect([...section.children].indexOf(body)).toBe(0);
+      const label = section.querySelector(
+        "[data-ask-context-label]",
+      ) as HTMLElement;
+      expect(label.textContent).toBe(
+        tEn("notifications.window.askInput.contextLabel"),
+      );
+      // Label, then the text it labels, then the control — the card reads top
+      // to bottom in the same order as the session-detail system-prompt block
+      // it is modelled on.
+      expect([...section.children].indexOf(label)).toBe(0);
+      expect([...section.children].indexOf(body)).toBe(1);
       expect(section.lastElementChild).toBe(control);
       // The control precedes the textarea in document order, so a FORWARD Tab
       // from the input can never land on it — the only Tab the textarea sees

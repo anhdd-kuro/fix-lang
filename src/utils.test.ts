@@ -47,6 +47,13 @@ vi.mock("electron", () => {
       writeText: (value: string) => {
         clipboardState.text = value;
       },
+      // Modelled as "the pasteboard now holds no text", which is what the
+      // selection read depends on: it empties the clipboard so the poll that
+      // follows asks "did the copy put anything here" instead of "did this
+      // value change".
+      clear: () => {
+        clipboardState.text = "";
+      },
     },
     dialog: {
       showMessageBox: showMessageBoxMock,
@@ -162,24 +169,33 @@ describe("getHighlightedText", () => {
     await expect(getHighlightedText()).resolves.toBe("the user's real selection");
   });
 
-  it("falls back to the (unchanged) clipboard content, NOT \"\", when the clipboard never changes", async () => {
-    // Strict path gains no stale-clipboard protection from the poll: an
-    // unchanged clipboard here is indistinguishable from a genuine
-    // re-selection of text byte-identical to what was already on the
-    // clipboard (copy a paragraph, paste it, select it again, hit a
-    // transform hotkey), so it must fall back to the clipboard's own content
-    // — exactly like the pre-poll implementation — instead of aborting a
-    // real selection with "no text selected".
+  it("returns a selection byte-identical to the previous clipboard, instead of reading as \"nothing copied\"", async () => {
+    // The workflow the old change-poll could not serve: copy a paragraph,
+    // paste it, select that same text again, hit a transform hotkey. The
+    // pasteboard value is unchanged from start to finish, so a change-poll saw
+    // nothing and the strict path had to fall back to the previous clipboard
+    // to avoid aborting a real selection. Emptying the pasteboard first turns
+    // it into an ordinary successful copy, so the fallback is not needed.
+    mockCopyExec({ newClipboardValue: "previous clipboard content" });
+
+    await expect(getHighlightedText()).resolves.toBe("previous clipboard content");
+  });
+
+  it("returns \"\" — never the previous clipboard — when the copy produces nothing", async () => {
+    // Nothing selected: the synthesized Cmd-C is a no-op, so the emptied
+    // pasteboard stays empty. Returning the previous clipboard here is what
+    // used to send a stale, unrelated selection through a transform; callers
+    // abort on "" instead.
     vi.useFakeTimers();
-    mockCopyExec({}); // Cmd-C fires but the pasteboard value never changes
+    mockCopyExec({});
 
     const pending = getHighlightedText();
     await vi.advanceTimersByTimeAsync(3_000);
 
-    await expect(pending).resolves.toBe("previous clipboard content");
+    await expect(pending).resolves.toBe("");
   });
 
-  it("falls back to the (unchanged) clipboard content on a poll timeout, even if the clipboard eventually changes too late", async () => {
+  it("returns \"\" on a poll timeout, even if the copy lands too late", async () => {
     vi.useFakeTimers();
     mockCopyExec({});
     // Lands well after the poll's timeout, so the poll never observes it.
@@ -190,7 +206,7 @@ describe("getHighlightedText", () => {
     const pending = getHighlightedText();
     await vi.advanceTimersByTimeAsync(3_000);
 
-    await expect(pending).resolves.toBe("previous clipboard content");
+    await expect(pending).resolves.toBe("");
   });
 
   it("restores the clipboard after a successful read", async () => {
@@ -392,11 +408,13 @@ describe("getHighlightedTextWithActiveApp — combined frontmost-app + copy read
     expect(order).toEqual(["callback", "resolved"]);
   });
 
-  it("falls back to the (unchanged) clipboard content, NOT \"\", when the clipboard never changes, keeping the parsed activeApp", async () => {
-    // Same strict fallback as getHighlightedText (see its doc comment): this
-    // stands in for that function at the correction hotkey's ordinary preset
-    // call site, so it must not regress a genuine re-selection of text
-    // byte-identical to the clipboard into a false "no text selected" abort.
+  it("returns \"\" when the copy produces nothing, still keeping the parsed activeApp", async () => {
+    // Same contract as getHighlightedText (see its doc comment): this stands
+    // in for that function at the correction hotkey's ordinary preset call
+    // site. Nothing copied is reported as nothing, so the hotkey's own
+    // "no text selected" abort fires instead of a transform running on a
+    // stale clipboard. The frontmost-app read is independent of the copy and
+    // survives either way.
     vi.useFakeTimers();
     clipboardState.text = "previous clipboard content";
     mockCopyExec({ stdout: "Slack\tcom.tinyspeck.slackmacgap" });
@@ -405,6 +423,19 @@ describe("getHighlightedTextWithActiveApp — combined frontmost-app + copy read
     await vi.advanceTimersByTimeAsync(3_000);
 
     await expect(pending).resolves.toEqual({
+      text: "",
+      activeApp: { name: "Slack", bundleId: "com.tinyspeck.slackmacgap" },
+    });
+  });
+
+  it("returns a selection byte-identical to the previous clipboard, with its activeApp", async () => {
+    clipboardState.text = "previous clipboard content";
+    mockCopyExec({
+      stdout: "Slack\tcom.tinyspeck.slackmacgap",
+      newClipboardValue: "previous clipboard content",
+    });
+
+    await expect(getHighlightedTextWithActiveApp()).resolves.toEqual({
       text: "previous clipboard content",
       activeApp: { name: "Slack", bundleId: "com.tinyspeck.slackmacgap" },
     });
