@@ -1100,9 +1100,16 @@ describe("scanForSecrets", () => {
      * names the gate CANNOT turn away, each with a value the accept stage then
      * rejects. Nothing bounds these but the value's own maximum, so the cost is
      * candidates × `MAX_CREDENTIAL_VALUE_LENGTH` — measured at 182 ms under V8,
-     * against 76 SECONDS before this round. The budget is wider than its
-     * siblings' because the measurement is, and it is still decisive: a return
-     * to quadratic on this shape is two orders of magnitude away from it.
+     * against 76 SECONDS before this round.
+     *
+     * The budget is wider than its siblings' because the measurement is, and
+     * wider again than a local measurement suggests because this is the one
+     * perf case with no room to spare on a shared CI runner: 222 ms on this
+     * developer's machine, 706 ms on a GitHub ubuntu runner, which failed a
+     * 600 ms budget set from local numbers alone. It is still decisive — the
+     * defect it exists to catch is 76 seconds, two orders of magnitude away,
+     * so a budget tolerant of a 3x slower runner loses none of its power.
+     * Do not tighten this back to a local measurement.
      */
     it("scans a 800 000-character run of accepted names with rejected values", () => {
       const text = Array.from(
@@ -1110,7 +1117,7 @@ describe("scanForSecrets", () => {
         (_unused, index) => `api_key=\${VAR${index}}`,
       ).join("|");
       expect(text.length).toBeGreaterThan(400_000);
-      expect(scanMs(text)).toBeLessThan(600);
+      expect(scanMs(text)).toBeLessThan(2_000);
     });
 
     /**
