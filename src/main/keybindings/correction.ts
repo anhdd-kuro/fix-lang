@@ -583,6 +583,15 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         if (preset.requiresInput) {
           const context = await getHighlightedTextForOptionalContext();
           latency.mark("selectionRead");
+          // The one line that says whether the selection made it. Without it,
+          // "the user selected nothing" and "the read dropped what they
+          // selected" both look like an input window with no context block.
+          // Length only — the selection itself never goes in a log.
+          logger.debug("correction.hotkey", "Ask context resolved", {
+            presetId: preset.id,
+            contextLength: context.length,
+            contextAttached: context.length > 0,
+          });
           showAskInputWindow(
             { presetId: preset.id, context },
             {

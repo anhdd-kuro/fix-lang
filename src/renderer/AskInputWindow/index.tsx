@@ -398,11 +398,23 @@ const ContextPreview = ({ text, onToggled }: ContextPreviewProps) => {
       data-ask-context
       className="flex shrink-0 flex-col gap-1 rounded-md border border-card-control-border bg-card px-2 py-1.5"
     >
+      {/*
+        Labelled the way the session-detail chat labels its system prompt: a
+        bordered card under a small uppercase role line. Without the label the
+        card reads as an unexplained blob of someone else's text sitting above
+        the question box.
+      */}
+      <p
+        data-ask-context-label
+        className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+      >
+        {t("notifications.window.askInput.contextLabel")}
+      </p>
       <p
         ref={bodyRef}
         data-ask-context-text
         className={twJoin(
-          "whitespace-pre-wrap break-words text-xs leading-snug text-muted-foreground",
+          "whitespace-pre-wrap break-words text-xs leading-snug text-card-foreground",
           expanded ? "max-h-16 overflow-y-auto" : "line-clamp-1",
         )}
       >
