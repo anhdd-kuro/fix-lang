@@ -44,11 +44,10 @@
  * `GHOST_TEXT_DEBOUNCE_MS` in `~/renderer/hooks/useGhostText` is now nearly the
  * only thing between a keystroke and a billed request — it was raised in the
  * same change for exactly that reason, and lowering it re-opens this. The other
- * backstops are the day's spend cap (`settingsAutocomplete.dailyCostCapUsd`)
- * and `DAILY_REQUEST_BACKSTOP` in `main/service.ts`, which this change moves
+ * backstop is `DAILY_REQUEST_CAP` in `main/service.ts`, which this change moves
  * from unreachable to merely unlikely.
  *
- * Lives here, not in `service.ts`, for the same reason the spend cap rides the
+ * Lives here, not in `service.ts`, for the same reason `dailyCap` rides the
  * usage snapshot: the renderer gates on this threshold too, and `service.ts`
  * imports `apiStore`, `logService` and `~/prompts`, so nothing renderer-side
  * can reach it there. A hardcoded copy in a hook would go stale on the next
@@ -160,18 +159,6 @@ export type AutocompleteUsageSnapshot = {
   month: AutocompleteDayRollup;
   /** Newest first, at most 62 (`RETAINED_DAYS` in `autocompleteUsageStore.ts`). */
   days: AutocompleteDayRollup[];
-  /**
-   * The active profile's `settingsAutocomplete.dailyCostCapUsd`, so no UI
-   * hardcodes it.
-   *
-   * A BUDGET in dollars, and deliberately not the request backstop it replaced.
-   * Compare it against `today.estimatedCostUsd` — which means the comparison
-   * inherits that field's coverage rule: with `unpricedResponses > 0` the spend
-   * is a LOWER BOUND, so a readout must say how much of the day it covers
-   * rather than presenting the ratio as complete. `DAILY_REQUEST_BACKSTOP` in
-   * `main/service.ts` is the separate runaway stop and is not on the wire: it is
-   * set beyond what any human typing can reach, so surfacing it as a second
-   * progress bar would only imply a budget it is not.
-   */
-  dailyCostCapUsd: number;
+  /** `DAILY_REQUEST_CAP` from `service.ts`, so no UI hardcodes it. */
+  dailyCap: number;
 };

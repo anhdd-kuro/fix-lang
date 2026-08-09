@@ -14,6 +14,8 @@ import {
   openaiUsageFeature,
   promptGenFeature,
   profilesFeature,
+  secretGuardFeature,
+  selectionGuardsFeature,
   settingsFeature,
   themeFeature,
   uiFeature,
@@ -35,6 +37,8 @@ import type {
   OpenRouterFeature,
   ProfilesFeature,
   PromptGenFeature,
+  SecretGuardFeature,
+  SelectionGuardsFeature,
   SettingsFeature,
   ThemeFeature,
   UIFeature,
@@ -57,6 +61,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...logsFeature,
   ...promptGenFeature,
   ...profilesFeature,
+  ...secretGuardFeature,
+  ...selectionGuardsFeature,
   ...settingsFeature,
   ...themeFeature,
   ...uiFeature,
@@ -80,6 +86,8 @@ export type ElectronAPI = HistoryFeature &
   LocaleFeature &
   LogsFeature &
   ProfilesFeature &
+  SecretGuardFeature &
+  SelectionGuardsFeature &
   SettingsFeature &
   ThemeFeature &
   UIFeature &

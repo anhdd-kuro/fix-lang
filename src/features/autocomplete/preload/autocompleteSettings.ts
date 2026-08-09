@@ -29,13 +29,7 @@ const isAutocompleteSettings = (
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
   return (
-    typeof record.enabled === "boolean" &&
-    typeof record.model === "string" &&
-    // Finite, for the same reason the main-process guard requires it: `NaN` and
-    // `Infinity` are both `number` and both make the day's cap comparison
-    // silently always-false, which is a budget that never fires.
-    typeof record.dailyCostCapUsd === "number" &&
-    Number.isFinite(record.dailyCostCapUsd)
+    typeof record.enabled === "boolean" && typeof record.model === "string"
   );
 };
 

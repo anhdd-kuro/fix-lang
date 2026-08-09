@@ -1,6 +1,6 @@
 {
   "name": "fix-lang",
-  "version": "0.19.4",
+  "version": "0.16.0",
   "description": "Local macOS menu-bar app: AI text correction and writing tools via OpenAI, OpenRouter, Ollama, or LM Studio",
   "author": {
     "name": "Anhdd Kuro",
@@ -32,7 +32,6 @@
     "check:bundle": "bun run scripts/check-bundle-externals.ts",
     "vitest": "vitest",
     "test": "vitest --watch=false",
-    "test:coverage": "vitest --watch=false --coverage.enabled",
     "test:w": "vitest",
     "themes:download": "bun run themes:download:tm && bun run themes:download:terminal",
     "themes:generate": "bun run scripts/generate-theme-css.ts",

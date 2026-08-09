@@ -21,13 +21,6 @@ type HistoryEntryItemProps = {
 const getFeatureId = (entry: HistoryEntry): HistoryFeatureId =>
   entry.presetName === "PromptGen" ? "promptGen" : "corrections";
 
-/**
- * Upper bound on the preview text handed to the DOM. The visible cut is made by
- * CSS (`truncate`), which is why no literal ellipsis is appended: this only
- * keeps a multi-kilobyte entry out of the row's text node.
- */
-const PREVIEW_MAX_CHARS = 200;
-
 const EyeIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg
     className={className}
@@ -59,28 +52,22 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
   const [showDetails, setShowDetails] = useState(false);
   const sessionJson = entry.sessionJson;
   const hasSession = typeof sessionJson === "string" && sessionJson.length > 0;
-  const presetLabel = entry.presetName ?? t("common.unknown");
-  const modelLineage = formatModelLineage(entry.model, entry.resolvedModel);
 
   return (
-    <div className="flex min-w-0 justify-between items-start gap-2">
+    <div className="flex justify-between items-start gap-2">
       <div
-        className="min-w-0 flex-1 cursor-pointer"
+        className="flex-1 cursor-pointer"
         onClick={() => onSelect(entry)}
       >
-        <div className="flex min-w-0 items-center gap-2 text-xs">
-          <span className="shrink-0 whitespace-nowrap text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-muted-foreground">
             {formatDateTime(entry.timestamp)}
           </span>
-          <div className="ml-auto flex min-w-0 items-center gap-1">
-            <span
-              className="min-w-0 truncate px-1.5 py-0.5 bg-primary text-primary-foreground rounded-sm"
-              title={presetLabel}
-            >
-              {presetLabel}
+          <div className="ml-auto flex items-center gap-1">
+            <span className="px-1.5 py-0.5 bg-primary text-primary-foreground rounded-sm">
+              {entry.presetName ?? t("common.unknown")}
             </span>
             <TrashButton
-              className="shrink-0"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(entry, getFeatureId(entry));
@@ -89,7 +76,7 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
             />
           </div>
         </div>
-        <div className="flex min-w-0 items-center gap-1">
+        <div className="flex items-center gap-1">
           {hasSession ? (
             <Tooltip
               tooltipText={t("history.details.tooltip")}
@@ -113,18 +100,18 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
             />
           ) : null}
           <p
-            className="min-w-0 flex-1 truncate text-sm text-foreground"
+            className="min-w-0 text-sm text-foreground line-clamp-1"
             title={entry.original}
           >
-            {entry.original.slice(0, PREVIEW_MAX_CHARS)}
+            {entry.original.slice(0, 50)}...
           </p>
         </div>
-        <div className="flex min-w-0 items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2">
           <p
-            className="min-w-0 flex-1 truncate text-sm text-foreground"
-            title={modelLineage}
+            className="text-sm text-foreground line-clamp-1"
+            title={formatModelLineage(entry.model, entry.resolvedModel)}
           >
-            {modelLineage}
+            {formatModelLineage(entry.model, entry.resolvedModel)}
           </p>
           <span
             className="shrink-0 text-xs text-muted-foreground tabular-nums"

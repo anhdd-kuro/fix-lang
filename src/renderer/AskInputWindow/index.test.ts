@@ -11,8 +11,6 @@
  * nothing; the context chip renders only when context is non-empty, with the
  * character count interpolated through `t()`; and the ghost-text keyboard
  * traps — Tab accepts and clears the ghost, the first Escape clears the ghost
- * (and, in the `foldable context preview` suite, the attached selection folding
- * open and shut without taking Tab away from the ghost-accept path)
  * and leaves the window open, a second Escape (with no ghost showing) cancels
  * it, Enter submits only the typed text even with an unaccepted suggestion up
  * and invalidates on the way out, and a caret move retires the ghost rather
@@ -83,95 +81,14 @@ const nativeTextareaValueSetter = Object.getOwnPropertyDescriptor(
   "value",
 )?.set;
 
-class StubResizeObserver {
-  // `ContextPreview` observes its body to re-measure the clamp on resize;
-  // jsdom provides no `ResizeObserver`, and these tests drive the measurement
-  // through the stubbed heights below rather than through resize events.
-  observe(): void {
-    // no-op stub
-  }
-  unobserve(): void {
-    // no-op stub
-  }
-  disconnect(): void {
-    // no-op stub
-  }
-}
-
-/**
- * jsdom lays nothing out, so every element reports `scrollHeight === 0` and
- * `clientHeight === 0` — overflow would never be detected and the fold control
- * would never render. These getters model the one thing `ContextPreview`
- * reads: a `[data-ask-context-text]` body whose full height is
- * `stubbedContextLines`, cropped to one line while the clamp class is on it.
- * Because `clientHeight` tracks the clamp class, expanding really does report
- * "no overflow" here, exactly as in a browser — which is what makes the
- * measure-while-expanded trap observable from a test at all.
- */
-const LINE_HEIGHT_PX = 16;
-const CLAMPED_LINES = 1;
-let stubbedContextLines = 4;
-
-const isContextText = (element: HTMLElement) =>
-  typeof element.hasAttribute === "function" &&
-  element.hasAttribute("data-ask-context-text");
-
-const originalHeightDescriptors = {
-  scrollHeight: Object.getOwnPropertyDescriptor(
-    HTMLElement.prototype,
-    "scrollHeight",
-  ),
-  clientHeight: Object.getOwnPropertyDescriptor(
-    HTMLElement.prototype,
-    "clientHeight",
-  ),
-} as const;
-
-const installTextMetrics = () => {
-  Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
-    configurable: true,
-    get(this: HTMLElement) {
-      return isContextText(this) ? stubbedContextLines * LINE_HEIGHT_PX : 0;
-    },
-  });
-  Object.defineProperty(HTMLElement.prototype, "clientHeight", {
-    configurable: true,
-    get(this: HTMLElement) {
-      if (!isContextText(this)) return 0;
-      const visibleLines = this.className.includes("line-clamp-1")
-        ? Math.min(CLAMPED_LINES, stubbedContextLines)
-        : stubbedContextLines;
-      return visibleLines * LINE_HEIGHT_PX;
-    },
-  });
-};
-
-const restoreTextMetrics = () => {
-  for (const property of ["scrollHeight", "clientHeight"] as const) {
-    const original = originalHeightDescriptors[property];
-    if (original) {
-      Object.defineProperty(HTMLElement.prototype, property, original);
-    } else {
-      // jsdom defines these on `Element.prototype`, so there is normally no own
-      // descriptor here to restore — the stub has to be removed outright.
-      Reflect.deleteProperty(HTMLElement.prototype, property);
-    }
-  }
-};
-
 describe("AskInputWindow", () => {
   let container: HTMLDivElement;
   let root: Root;
   let payloadListener: ((payload: AskInputPayload) => void) | undefined;
   let dismissListener: (() => void) | undefined;
   let api: ElectronApiMock;
-  const originalResizeObserver = globalThis.ResizeObserver;
 
   const render = async () => {
-    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
-      StubResizeObserver;
-    installTextMetrics();
-
     api = {
       onAskInputData: vi.fn((callback: (payload: AskInputPayload) => void) => {
         payloadListener = callback;
@@ -220,27 +137,6 @@ describe("AskInputWindow", () => {
 
   const ghostMirror = (): HTMLElement | null =>
     container.querySelector("[data-ghost-mirror]");
-
-  const contextSection = (): HTMLElement | null =>
-    container.querySelector("[data-ask-context]");
-
-  const contextBody = (): HTMLElement =>
-    container.querySelector("[data-ask-context-text]") as HTMLElement;
-
-  const foldControl = (): HTMLButtonElement | undefined =>
-    [...container.querySelectorAll("button")].find(
-      (button) =>
-        button.textContent ===
-          tEn("notifications.window.askInput.contextExpand") ||
-        button.textContent ===
-          tEn("notifications.window.askInput.contextCollapse"),
-    );
-
-  const clickFold = async () => {
-    await act(async () => {
-      foldControl()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-  };
 
   const acceptHintShown = (): boolean =>
     (container.textContent ?? "").includes(
@@ -355,10 +251,6 @@ describe("AskInputWindow", () => {
     container?.remove();
     payloadListener = undefined;
     dismissListener = undefined;
-    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
-      originalResizeObserver;
-    restoreTextMetrics();
-    stubbedContextLines = 4;
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -1042,240 +934,6 @@ describe("AskInputWindow", () => {
 
         expect(textarea().value).toBe("");
         expect(paintedGhost()).toBeNull();
-      });
-    });
-  });
-
-  /**
-   * The attached selection itself, foldable. Mirrors `FoldableTextBlock` in
-   * `AskResultWindow`, so the same two traps are pinned here: the control must
-   * be gated on a MEASURED overflow (never on string length, which cannot know
-   * the window width), and the measurement must run only while collapsed — an
-   * expanded body reports "it fits", so re-measuring there unmounts the only
-   * control that gets the user back to collapsed.
-   */
-  describe("foldable context preview", () => {
-    const LONG_CONTEXT =
-      "The quarterly report needs a rewrite before Friday, and the numbers in section three do not agree with the appendix.";
-
-    const showContext = async (context = LONG_CONTEXT) => {
-      await act(async () => {
-        payloadListener?.({ presetId: "ask", context });
-      });
-    };
-
-    it("renders no context preview when nothing was selected", async () => {
-      await render();
-      await showContext("");
-
-      expect(contextSection()).toBeNull();
-      expect(foldControl()).toBeUndefined();
-    });
-
-    it("shows the attached context collapsed to a single line by default", async () => {
-      await render();
-      await showContext();
-
-      expect(contextBody().className).toContain("line-clamp-1");
-      expect(contextBody().className).not.toContain("overflow-y-auto");
-      expect(contextBody().textContent).toBe(LONG_CONTEXT);
-      expect(foldControl()?.textContent).toBe(
-        tEn("notifications.window.askInput.contextExpand"),
-      );
-      expect(foldControl()?.getAttribute("aria-expanded")).toBe("false");
-    });
-
-    it("omits the fold control entirely when the context fits on one line", async () => {
-      stubbedContextLines = 1;
-      await render();
-      await showContext("short selection");
-
-      expect(contextBody().textContent).toBe("short selection");
-      expect(foldControl()).toBeUndefined();
-      expect(container.textContent).not.toContain(
-        tEn("notifications.window.askInput.contextExpand"),
-      );
-    });
-
-    it("expanding reveals the full context under a capped scroll, and collapsing returns", async () => {
-      await render();
-      await showContext();
-
-      await clickFold();
-
-      expect(contextBody().className).not.toContain("line-clamp-1");
-      // Capped rather than unbounded: the window never grows, so an expanded
-      // selection scrolls inside its own box instead of eating the textarea.
-      expect(contextBody().className).toContain("max-h-16");
-      expect(contextBody().className).toContain("overflow-y-auto");
-      expect(contextBody().textContent).toBe(LONG_CONTEXT);
-      expect(foldControl()?.textContent).toBe(
-        tEn("notifications.window.askInput.contextCollapse"),
-      );
-      expect(foldControl()?.getAttribute("aria-expanded")).toBe("true");
-
-      await clickFold();
-
-      expect(contextBody().className).toContain("line-clamp-1");
-      expect(foldControl()?.textContent).toBe(
-        tEn("notifications.window.askInput.contextExpand"),
-      );
-    });
-
-    it("keeps the fold control mounted once expanded, though the unclamped context reports no overflow", async () => {
-      await render();
-      await showContext();
-
-      await clickFold();
-
-      const body = contextBody();
-      expect(body.className).not.toContain("line-clamp-1");
-      // Unclamped, the body's scrollHeight equals its clientHeight: measuring
-      // here would report "fits" and unmount the only way back to collapsed.
-      expect(body.scrollHeight).toBe(body.clientHeight);
-      expect(foldControl()?.textContent).toBe(
-        tEn("notifications.window.askInput.contextCollapse"),
-      );
-    });
-
-    it("renders the context as plain text, never as markdown or HTML", async () => {
-      const hostile = "**bold** <b>tag</b> [link](http://example.com)";
-      await render();
-      await showContext(hostile);
-
-      const section = contextSection() as HTMLElement;
-      expect(section.querySelector("b")).toBeNull();
-      expect(section.querySelector("strong")).toBeNull();
-      expect(section.querySelector("a")).toBeNull();
-      expect(contextBody().textContent).toBe(hostile);
-    });
-
-    it("opens collapsed again when a fresh payload brings a different selection", async () => {
-      await render();
-      await showContext();
-      await clickFold();
-      expect(contextBody().className).not.toContain("line-clamp-1");
-
-      await showContext("An entirely different passage from another app.");
-
-      expect(contextBody().className).toContain("line-clamp-1");
-      expect(foldControl()?.textContent).toBe(
-        tEn("notifications.window.askInput.contextExpand"),
-      );
-    });
-
-    it("puts the fold control after the context text and ahead of the textarea in the tab order", async () => {
-      await render();
-      await showContext();
-
-      const section = contextSection() as HTMLElement;
-      const body = contextBody();
-      const control = foldControl() as HTMLButtonElement;
-
-      const label = section.querySelector(
-        "[data-ask-context-label]",
-      ) as HTMLElement;
-      expect(label.textContent).toBe(
-        tEn("notifications.window.askInput.contextLabel"),
-      );
-      // Label, then the text it labels, then the control — the card reads top
-      // to bottom in the same order as the session-detail system-prompt block
-      // it is modelled on.
-      expect([...section.children].indexOf(label)).toBe(0);
-      expect([...section.children].indexOf(body)).toBe(1);
-      expect(section.lastElementChild).toBe(control);
-      // The control precedes the textarea in document order, so a FORWARD Tab
-      // from the input can never land on it — the only Tab the textarea sees
-      // stays the ghost's. Shift+Tab is what reaches the control.
-      expect(
-        control.compareDocumentPosition(textarea()) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
-    });
-
-    it("returns focus to the textarea after toggling, so the next keystroke is not dropped", async () => {
-      await render();
-      await showContext();
-
-      await act(async () => {
-        foldControl()?.focus();
-      });
-      expect(document.activeElement).toBe(foldControl());
-
-      await clickFold();
-
-      expect(document.activeElement).toBe(textarea());
-    });
-
-    describe("the existing keyboard contract still holds with context attached", () => {
-      const mockSuggestion = (suggestion: string) => {
-        api.requestAutocompleteSuggestion.mockImplementation(
-          async (request: { requestId: number }) => ({
-            requestId: request.requestId,
-            suggestion,
-          }),
-        );
-      };
-
-      it("Tab still accepts the ghost suggestion", async () => {
-        await render();
-        await showContext();
-        mockSuggestion(" world");
-        const typed = "Hello there my friend";
-        await type(typed);
-        await settleGhostDebounce();
-        expect(paintedGhost()).toBe(" world");
-
-        const event = await keydown({ key: "Tab" });
-
-        expect(event.defaultPrevented).toBe(true);
-        expect(textarea().value).toBe(`${typed} world`);
-        expect(paintedGhost()).toBeNull();
-      });
-
-      it("Tab still accepts the ghost while the context is expanded", async () => {
-        await render();
-        await showContext();
-        await clickFold();
-        mockSuggestion(" world");
-        const typed = "Hello there my friend";
-        await type(typed);
-        await settleGhostDebounce();
-        expect(paintedGhost()).toBe(" world");
-
-        await keydown({ key: "Tab" });
-
-        expect(textarea().value).toBe(`${typed} world`);
-      });
-
-      it("the first Esc still clears the ghost and the second still cancels", async () => {
-        await render();
-        await showContext();
-        mockSuggestion(" world");
-        await type("Hello there my friend");
-        await settleGhostDebounce();
-        expect(paintedGhost()).toBe(" world");
-
-        await keydown({ key: "Escape" });
-
-        expect(api.cancelAskInput).not.toHaveBeenCalled();
-        expect(paintedGhost()).toBeNull();
-
-        await keydown({ key: "Escape" });
-
-        expect(api.cancelAskInput).toHaveBeenCalledTimes(1);
-      });
-
-      it("Enter still submits the trimmed question with the context expanded", async () => {
-        await render();
-        await showContext();
-        await clickFold();
-        await type("  what changed?  ");
-
-        const event = await keydown({ key: "Enter" });
-
-        expect(api.submitAskInput).toHaveBeenCalledWith("what changed?");
-        expect(event.defaultPrevented).toBe(true);
       });
     });
   });

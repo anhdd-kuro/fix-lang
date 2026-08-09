@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { Button } from "./Button";
 import CopyButton from "./CopyButton";
 import {
@@ -10,7 +10,6 @@ import {
   reasoningEffortDisplayKey,
   type HistorySessionDetailsTab,
 } from "./historySessionDetailsView";
-import { useModalDismiss } from "../hooks/useModalDismiss";
 import { useI18n } from "../i18n/useI18n";
 import type { TKey } from "~/features/i18n/shared/translate";
 
@@ -36,11 +35,6 @@ export const HistorySessionDetailsModal: React.FC<
   const tabRefs = useRef<Partial<Record<HistorySessionDetailsTab, HTMLButtonElement>>>(
     {},
   );
-  const closeModal = useCallback(() => {
-    setActiveTab("json");
-    onClose();
-  }, [onClose]);
-  const modalRef = useModalDismiss<HTMLDivElement>(isOpen, closeModal);
   const pretty = formatHistorySessionJson(sessionJson);
   const chatMessages = historyChatMessages(sessionJson);
   const chatMeta = historyChatSessionMeta(sessionJson);
@@ -72,10 +66,7 @@ export const HistorySessionDetailsModal: React.FC<
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay-backdrop">
-      <div
-        ref={modalRef}
-        className="flex h-[80vh] max-h-[80vh] w-2/3 max-w-3xl flex-col overflow-hidden rounded-lg bg-card p-6 shadow-xl"
-      >
+      <div className="flex max-h-[90vh] w-2/3 max-w-3xl flex-col overflow-hidden rounded-lg bg-card p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-xl text-card-foreground">
             {t("history.details.title")}
@@ -224,7 +215,10 @@ export const HistorySessionDetailsModal: React.FC<
           <Button
             type="button"
             variant="primary"
-            onClick={closeModal}
+            onClick={() => {
+              setActiveTab("json");
+              onClose();
+            }}
             className="rounded px-4 py-2"
             aria-label={t("history.details.closeAriaLabel")}
           >

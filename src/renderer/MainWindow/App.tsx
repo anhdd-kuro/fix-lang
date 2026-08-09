@@ -7,6 +7,7 @@ import {
   bucketsForClear,
 } from "./dashboardTabs";
 import { AboutPanel } from "../components/about/AboutPanel";
+import { AutocompletePanel } from "../components/AutocompletePanel";
 import { Button } from "../components/Button";
 import { formatModelLineage } from "../components/historyModel";
 import { HistoryPanel } from "../components/HistoryPanel";
@@ -16,6 +17,7 @@ import { LogsPanel } from "../components/LogsPanel";
 import ModelManagerDialog from "../components/ModelManagerDialog";
 import { ModelsPanel } from "../components/ModelsPanel";
 import { OverviewPanel } from "../components/OverviewPanel";
+import { SecurityPanel } from "../components/security/SecurityPanel";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { SettingsButton } from "../components/SettingsIcon";
 import {
@@ -305,6 +307,8 @@ const App: React.FC = () => {
       />
     ),
     logs: <LogsPanel />,
+    security: <SecurityPanel />,
+    autocomplete: <AutocompletePanel />,
     // Two sub-tabs: the update controls (default) and the user guide. The
     // wrapping card lives inside AboutPanel, below its sub-tab bar.
     about: (

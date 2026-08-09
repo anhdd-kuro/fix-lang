@@ -28,6 +28,7 @@ import { messageLabel, textLabel, type Label } from "~/features/i18n/shared/mess
 import { createTranslator } from "~/features/i18n/shared/translate";
 import ModelManagerDialog from "./ModelManagerDialog";
 import ProfileManager from "./ProfileManager";
+import { selectControlClassName } from "./Select/Select";
 import { SettingGeneral } from "./SettingGeneral";
 import { SettingPromptGen } from "./SettingPromptGen";
 import { I18nProvider } from "../i18n/I18nProvider";
@@ -99,10 +100,7 @@ type SettingGeneralApi = {
   getSelectedModel: ReturnType<typeof vi.fn>;
   setSelectedModel: ReturnType<typeof vi.fn>;
   onSettingsUpdated: ReturnType<typeof vi.fn>;
-  // Kept stubbed although `SettingGeneral` no longer embeds
-  // `<SettingAutocomplete>`: the "no longer renders" test proves the move by
-  // asserting these are never called, which needs them to exist and be
-  // callable.
+  // Read by the embedded `<SettingAutocomplete>`.
   getAutocompleteSettings: ReturnType<typeof vi.fn>;
   getAutocompleteUsage: ReturnType<typeof vi.fn>;
   setAutocompleteSettings: ReturnType<typeof vi.fn>;
@@ -125,29 +123,15 @@ const type = async (input: HTMLInputElement, value: string) => {
   });
 };
 
-/**
- * The output mode is a react-select combobox (same control as `<ModelSelect>`),
- * not a native `<select>`: there is no `.value` to set. Open its menu from the
- * input — as `ModelSelect.test.ts` does — then click the row by its label.
- */
-const chooseOption = async (
-  container: HTMLElement,
-  input: HTMLInputElement,
-  label: string,
-) => {
+/** Same native-setter trick for `<select>`, which React drives via "change". */
+const setSelectValue = async (element: HTMLSelectElement, value: string) => {
   await act(async () => {
-    input.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
-    );
-  });
-  const row = [...container.querySelectorAll('[role="option"]')].find(
-    (option) => option.textContent === label,
-  );
-  if (!row) {
-    throw new Error(`No output-mode option labelled "${label}"`);
-  }
-  await act(async () => {
-    row.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLSelectElement.prototype,
+      "value",
+    )?.set;
+    setter?.call(element, value);
+    element.dispatchEvent(new Event("change", { bubbles: true }));
   });
 };
 
@@ -175,7 +159,7 @@ const autocompleteUsage = () => ({
   today: autocompleteRollup(),
   month: autocompleteRollup(),
   days: [],
-  dailyCostCapUsd: 1500,
+  dailyCap: 1500,
 });
 
 const componentSource = (fileName: string) =>
@@ -596,17 +580,13 @@ describe("SettingGeneral", () => {
       error: messageLabel("settings.general.outputMode.invalid"),
     });
 
-    const modeInput = container.querySelector<HTMLInputElement>(
-      "input#correction-output-mode",
+    const modeSelect = container.querySelector<HTMLSelectElement>(
+      "select#correction-output-mode",
     );
-    if (!modeInput) {
-      throw new Error("Expected the output-mode combobox input");
+    if (!modeSelect) {
+      throw new Error("Expected the output-mode <select>");
     }
-    await chooseOption(
-      container,
-      modeInput,
-      tEn("settings.general.correctionOutput.popup.label"),
-    );
+    await setSelectValue(modeSelect, "popup");
     await waitForUi();
     await waitForUi();
 
@@ -634,81 +614,64 @@ describe("SettingGeneral", () => {
     expect(jaWrapped).not.toBe(enWrapped);
   });
 
-  // The autocomplete card moved out of General into its own Settings tab
-  // (`SettingsModal.test.ts` owns the guarantee that it still renders, and
-  // that its toggle and model picker are reachable there). This is the other
-  // half: General must not keep a second copy, which would give the user two
-  // toggles writing the same per-profile setting.
-  it("no longer renders the autocomplete card — it lives in its own tab", async () => {
+  // Every other autocomplete-card test drives `SettingAutocomplete` in
+  // isolation, so without this one the whole card could be dropped from
+  // General — `{false && <SettingAutocomplete />}` — and the suite would
+  // still be green while the user found no autocomplete card at all.
+  it("mounts the autocomplete card inside General, past its loading state", async () => {
     await render({ success: true });
-    // Enough ticks that the card would be past its own loading state if it
-    // were still mounted here; absence must mean absent, not just slow.
+    // The card's own mount-time `getAutocompleteSettings`/`getAutocompleteUsage`
+    // pair needs its own ticks before `isLoading` clears.
     await waitForUi();
     await waitForUi();
 
     expect(
       [...container.querySelectorAll("h2")].map((element) => element.textContent),
-    ).not.toContain(tEn("settings.autocomplete.heading"));
-    expect(container.textContent).not.toContain(
-      tEn("settings.autocomplete.enabled.label"),
-    );
-    expect(container.textContent).not.toContain(
-      tEn("settings.autocomplete.privacy.hint"),
-    );
+    ).toContain(tEn("settings.autocomplete.heading"));
     expect(container.textContent).not.toContain(
       tEn("settings.autocomplete.loading"),
     );
-    expect(api.getAutocompleteSettings).not.toHaveBeenCalled();
-    expect(api.getAutocompleteUsage).not.toHaveBeenCalled();
+    // Not just the heading: the card's actual controls and its privacy
+    // statement have to be on screen too.
+    expect(container.textContent).toContain(
+      tEn("settings.autocomplete.enabled.label"),
+    );
+    expect(container.textContent).toContain(
+      tEn("settings.autocomplete.privacy.hint"),
+    );
+    expect(api.getAutocompleteSettings).toHaveBeenCalled();
+    expect(api.getAutocompleteUsage).toHaveBeenCalled();
   });
 
-  describe("the global Transform output mode is a react-select combobox", () => {
-    /** react-select's inner text input — what `<label htmlFor>` points at. */
-    const outputModeInput = (): HTMLInputElement => {
-      const input = container.querySelector<HTMLInputElement>(
-        "input#correction-output-mode",
+  describe("the global Transform output mode is the shared Select", () => {
+    const outputModeSelect = (): HTMLSelectElement => {
+      const select = container.querySelector<HTMLSelectElement>(
+        "select#correction-output-mode",
       );
-      if (!input) {
-        throw new Error("Expected the output-mode combobox input");
+      if (!select) {
+        throw new Error("Expected the output-mode <select>");
       }
-      return input;
+      return select;
     };
 
-    /** The closed control's own text: the selected row's label. */
-    const outputModeControlText = (): string =>
-      container.querySelector("#correction-output-mode-control")?.textContent ??
-      "";
-
-    const chooseMode = async (label: string) => {
-      await chooseOption(container, outputModeInput(), label);
-    };
-
-    it("renders a labelled combobox carrying paste and popup, with no Button radiogroup left", async () => {
+    it("renders a labelled select carrying paste and popup, with no Button radiogroup left", async () => {
       await render({ success: true });
 
-      const input = outputModeInput();
-      // Kills a swap back to a native <select>, which has no combobox role and
-      // would not match `<ModelSelect>`.
-      expect(input.getAttribute("role")).toBe("combobox");
-      expect(container.querySelector("select#correction-output-mode")).toBeNull();
-
-      await act(async () => {
-        input.dispatchEvent(
-          new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
-        );
-      });
-      expect(
-        [...container.querySelectorAll('[role="option"]')].map(
-          (option) => option.textContent,
-        ),
-      ).toEqual([
+      const select = outputModeSelect();
+      expect([...select.options].map((option) => option.value)).toEqual([
+        "paste",
+        "popup",
+      ]);
+      expect([...select.options].map((option) => option.textContent)).toEqual([
         tEn("settings.general.correctionOutput.paste.label"),
         tEn("settings.general.correctionOutput.popup.label"),
       ]);
+      expect(select.value).toBe("paste");
+      // Compared against the shared component's own exported class string, so
+      // a hand-rolled `<select>` copying a couple of those tokens cannot pass.
+      expect(select.className).toContain(selectControlClassName);
 
-      // The accessible name survives the native-select → react-select swap:
-      // react-select needs `inputId` (not `id`) for `htmlFor` to reach the
-      // focusable element.
+      // The accessible name survives the Button → Select swap.
       const label = container.querySelector<HTMLLabelElement>(
         'label[for="correction-output-mode"]',
       );
@@ -720,59 +683,53 @@ describe("SettingGeneral", () => {
       expect(container.querySelector('button[role="radio"]')).toBeNull();
     });
 
-    // A menu row carries no description, so the selected mode's copy is
-    // restated as the field hint — the same `text-xs text-muted-foreground`
-    // shape `SettingCorrection` uses under its per-preset output-mode select.
-    // react-select writes the input's own `aria-describedby`, so the hint id is
-    // appended to it rather than replacing it: match the id anywhere in the list.
-    const outputModeHint = (): HTMLParagraphElement => {
-      const described = outputModeInput().getAttribute("aria-describedby") ?? "";
-      const hintId = described
-        .split(/\s+/)
-        .find((id) => id === "correction-output-mode-hint");
-      const hint = hintId
-        ? container.querySelector<HTMLParagraphElement>(`#${hintId}`)
-        : null;
-      if (!hint) {
-        throw new Error("Expected the output-mode hint the combobox describes");
-      }
-      return hint;
-    };
-
-    it("hints the SELECTED mode's description under the control", async () => {
+    it("keeps both mode descriptions visible beside the control", async () => {
       await render({ success: true });
 
-      const hint = outputModeHint();
-      expect(hint.textContent).toBe(
+      const section = outputModeSelect().closest("section");
+      expect(section?.textContent).toContain(
         tEn("settings.general.correctionOutput.paste.description"),
       );
-      expect(hint.className).toContain("text-xs");
-      expect(hint.className).toContain("text-muted-foreground");
+      expect(section?.textContent).toContain(
+        tEn("settings.general.correctionOutput.popup.description"),
+      );
     });
 
-    it("swaps the hint onto the newly active mode, keeping both descriptions in use", async () => {
+    it("moves the emphasised description onto the newly active mode", async () => {
       await render({ success: true });
       api.setCorrectionOutputMode.mockResolvedValueOnce({
         success: true,
         mode: "popup",
       });
 
-      const pasteDescription = tEn(
-        "settings.general.correctionOutput.paste.description",
-      );
-      const popupDescription = tEn(
-        "settings.general.correctionOutput.popup.description",
-      );
-      expect(pasteDescription).not.toBe(popupDescription);
-      expect(outputModeHint().textContent).toBe(pasteDescription);
+      const emphasisByLabel = (): Record<string, boolean> =>
+        Object.fromEntries(
+          [
+            ...(outputModeSelect()
+              .closest("section")
+              ?.querySelectorAll("dt") ?? []),
+          ].map((term) => [
+            term.textContent ?? "",
+            term.className.includes("text-card-foreground"),
+          ]),
+        );
 
-      await chooseMode(tEn("settings.general.correctionOutput.popup.label"));
+      const pasteLabel = tEn("settings.general.correctionOutput.paste.label");
+      const popupLabel = tEn("settings.general.correctionOutput.popup.label");
+
+      expect(emphasisByLabel()).toEqual({
+        [pasteLabel]: true,
+        [popupLabel]: false,
+      });
+
+      await setSelectValue(outputModeSelect(), "popup");
       await waitForUi();
       await waitForUi();
 
-      // Kills: a hard-coded hint, or one keyed off the first entry rather than
-      // the current value — which would orphan `popup.description`.
-      expect(outputModeHint().textContent).toBe(popupDescription);
+      expect(emphasisByLabel()).toEqual({
+        [pasteLabel]: false,
+        [popupLabel]: true,
+      });
     });
 
     it("persists the chosen mode through setCorrectionOutputMode", async () => {
@@ -782,14 +739,12 @@ describe("SettingGeneral", () => {
         mode: "popup",
       });
 
-      await chooseMode(tEn("settings.general.correctionOutput.popup.label"));
+      await setSelectValue(outputModeSelect(), "popup");
       await waitForUi();
       await waitForUi();
 
       expect(api.setCorrectionOutputMode).toHaveBeenCalledWith("popup");
-      expect(outputModeControlText()).toContain(
-        tEn("settings.general.correctionOutput.popup.label"),
-      );
+      expect(outputModeSelect().value).toBe("popup");
       expect(
         [...container.querySelectorAll('[role="status"]')].map(
           (el) => el.textContent,
@@ -804,18 +759,12 @@ describe("SettingGeneral", () => {
         error: messageLabel("settings.general.outputMode.invalid"),
       });
 
-      await chooseMode(tEn("settings.general.correctionOutput.popup.label"));
+      await setSelectValue(outputModeSelect(), "popup");
       await waitForUi();
       await waitForUi();
 
       expect(api.setCorrectionOutputMode).toHaveBeenCalledWith("popup");
-      // The optimistic value is rolled back to what main still holds.
-      expect(outputModeControlText()).toContain(
-        tEn("settings.general.correctionOutput.paste.label"),
-      );
-      expect(outputModeControlText()).not.toContain(
-        tEn("settings.general.correctionOutput.popup.label"),
-      );
+      expect(outputModeSelect().value).toBe("paste");
     });
   });
 

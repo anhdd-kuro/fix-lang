@@ -150,7 +150,7 @@ import type { AutocompleteRendererSkipReason } from "~/features/autocomplete/sha
  * hundreds of milliseconds at best, and tens of seconds on a badly-chosen model
  * (see the late-arrival line in `main/service.ts`). Lowering it back toward 180
  * multiplies dispatches per question by roughly three or four, which is the
- * difference between the daily spend cap being a runaway backstop and being a
+ * difference between `DAILY_REQUEST_CAP` being a runaway backstop and being a
  * budget an ordinary day can exhaust.
  */
 export const GHOST_TEXT_DEBOUNCE_MS = 300;

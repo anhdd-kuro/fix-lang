@@ -183,7 +183,7 @@ describe("autocomplete preload boundary", () => {
         today: validRollup,
         month: validRollup,
         days: [validRollup],
-        dailyCostCapUsd: 1500,
+        dailyCap: 1500,
       };
       electronMocks.invoke.mockResolvedValue(snapshot);
 
@@ -197,46 +197,46 @@ describe("autocomplete preload boundary", () => {
       undefined,
       null,
       "a string",
-      { today: validRollup, month: validRollup, days: [validRollup] }, // missing dailyCostCapUsd
-      { today: validRollup, month: validRollup, days: [validRollup], dailyCostCapUsd: "1500" }, // non-number dailyCostCapUsd
-      { today: { ...validRollup, requests: "3" }, month: validRollup, days: [], dailyCostCapUsd: 1500 }, // bad today field
-      { today: validRollup, month: { ...validRollup, date: 42 }, days: [], dailyCostCapUsd: 1500 }, // bad month field
-      { today: validRollup, month: validRollup, days: [{ ...validRollup, estimatedCostUsd: "0" }], dailyCostCapUsd: 1500 }, // bad day-series entry
-      { today: validRollup, month: validRollup, days: "not an array", dailyCostCapUsd: 1500 }, // days not an array
+      { today: validRollup, month: validRollup, days: [validRollup] }, // missing dailyCap
+      { today: validRollup, month: validRollup, days: [validRollup], dailyCap: "1500" }, // non-number dailyCap
+      { today: { ...validRollup, requests: "3" }, month: validRollup, days: [], dailyCap: 1500 }, // bad today field
+      { today: validRollup, month: { ...validRollup, date: 42 }, days: [], dailyCap: 1500 }, // bad month field
+      { today: validRollup, month: validRollup, days: [{ ...validRollup, estimatedCostUsd: "0" }], dailyCap: 1500 }, // bad day-series entry
+      { today: validRollup, month: validRollup, days: "not an array", dailyCap: 1500 }, // days not an array
       // Token counts land in the renderer's arithmetic. A string or a null
       // there is not a display bug, it is NaN in a total.
-      { today: { ...validRollup, promptTokens: "40" }, month: validRollup, days: [], dailyCostCapUsd: 1500 },
-      { today: { ...validRollup, completionTokens: null }, month: validRollup, days: [], dailyCostCapUsd: 1500 },
-      { today: validRollup, month: { ...validRollup, promptTokens: null }, days: [], dailyCostCapUsd: 1500 },
-      { today: validRollup, month: { ...validRollup, completionTokens: "12" }, days: [], dailyCostCapUsd: 1500 },
+      { today: { ...validRollup, promptTokens: "40" }, month: validRollup, days: [], dailyCap: 1500 },
+      { today: { ...validRollup, completionTokens: null }, month: validRollup, days: [], dailyCap: 1500 },
+      { today: validRollup, month: { ...validRollup, promptTokens: null }, days: [], dailyCap: 1500 },
+      { today: validRollup, month: { ...validRollup, completionTokens: "12" }, days: [], dailyCap: 1500 },
       {
         today: validRollup,
         month: validRollup,
         days: [{ ...validRollup, promptTokens: undefined }],
-        dailyCostCapUsd: 1500,
+        dailyCap: 1500,
       },
       // A rollup that is not an object at all. Without the object/null guard
       // the field reads below throw out of the bridge, and the renderer gets a
       // rejected promise instead of the zeroed fallback.
-      { today: null, month: validRollup, days: [], dailyCostCapUsd: 1500 },
-      { today: validRollup, month: null, days: [], dailyCostCapUsd: 1500 },
-      { today: validRollup, month: validRollup, days: [null], dailyCostCapUsd: 1500 },
-      { today: "2026-07-31", month: validRollup, days: [], dailyCostCapUsd: 1500 },
+      { today: null, month: validRollup, days: [], dailyCap: 1500 },
+      { today: validRollup, month: null, days: [], dailyCap: 1500 },
+      { today: validRollup, month: validRollup, days: [null], dailyCap: 1500 },
+      { today: "2026-07-31", month: validRollup, days: [], dailyCap: 1500 },
       // The coverage counters are the only thing standing between an
       // unpriceable day and a rendered "$0.00". A missing one reads as
       // `undefined`, every comparison against it is false, and the panel goes
       // back to fabricating the zero — so a rollup without them is malformed.
-      { today: { ...validRollup, responses: undefined }, month: validRollup, days: [], dailyCostCapUsd: 1500 },
-      { today: { ...validRollup, unpricedResponses: null }, month: validRollup, days: [], dailyCostCapUsd: 1500 },
-      { today: { ...validRollup, tokenlessResponses: "0" }, month: validRollup, days: [], dailyCostCapUsd: 1500 },
-      { today: validRollup, month: { ...validRollup, responses: "3" }, days: [], dailyCostCapUsd: 1500 },
-      { today: validRollup, month: { ...validRollup, unpricedResponses: undefined }, days: [], dailyCostCapUsd: 1500 },
-      { today: validRollup, month: { ...validRollup, tokenlessResponses: null }, days: [], dailyCostCapUsd: 1500 },
+      { today: { ...validRollup, responses: undefined }, month: validRollup, days: [], dailyCap: 1500 },
+      { today: { ...validRollup, unpricedResponses: null }, month: validRollup, days: [], dailyCap: 1500 },
+      { today: { ...validRollup, tokenlessResponses: "0" }, month: validRollup, days: [], dailyCap: 1500 },
+      { today: validRollup, month: { ...validRollup, responses: "3" }, days: [], dailyCap: 1500 },
+      { today: validRollup, month: { ...validRollup, unpricedResponses: undefined }, days: [], dailyCap: 1500 },
+      { today: validRollup, month: { ...validRollup, tokenlessResponses: null }, days: [], dailyCap: 1500 },
       {
         today: validRollup,
         month: validRollup,
         days: [{ ...validRollup, unpricedResponses: "1" }],
-        dailyCostCapUsd: 1500,
+        dailyCap: 1500,
       },
     ])(
       "drops a malformed autocomplete-usage reply and falls back to an empty snapshot: %j",
@@ -249,7 +249,7 @@ describe("autocomplete preload boundary", () => {
           today: zeroedRollup,
           month: zeroedRollup,
           days: [],
-          dailyCostCapUsd: 0,
+          dailyCap: 0,
         });
       },
     );

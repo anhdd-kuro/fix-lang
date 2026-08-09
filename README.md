@@ -25,23 +25,23 @@ A local macOS menu-bar app that fixes grammar, improves writing, and runs other 
 
 - Inline ghost-text suggestions in the **Ask AI** input window only: once you've typed 3 characters or more and paused (about a third of a second), a greyed suggestion appears at the caret. **Tab** accepts it into the textarea (refused whenever text is selected); the **first `Esc`** clears the ghost and leaves the window open, a **second `Esc`** (with no ghost showing) cancels the window; **Enter** always submits the question you typed, never an unaccepted suggestion
 - The suggestion is plain text, never markdown — it's untrusted model output landing in something you're about to send
-- Enable/disable, pick a model, and set the **daily spend cap** in **Settings → Autocomplete**, its own tab beside Transform. Leave the model at "Same as Ask AI" to inherit the Ask AI preset's model, or pick any connected provider's model. A privacy note recommends a local provider (Ollama or LM Studio), since autocomplete sends whatever you're typing before you've sent it anywhere
+- Enable/disable and pick a model in **Settings → General → Autocomplete**. Leave the model at "Same as Ask AI" to inherit the Ask AI preset's model, or pick any connected provider's model. A privacy note recommends a local provider (Ollama or LM Studio), since autocomplete sends whatever you're typing before you've sent it anywhere
 - Ships **off** by default — no build-time feature tag; the Settings toggle above is how you opt in
-- Suggestions stop for the rest of the day once today's estimated spend reaches the **daily spend cap** — **$5** by default, adjustable up to $100 in Settings → Autocomplete. Set it to 0 to block every suggestion without turning the feature off
-- The cap only counts spend we can price. A local model (Ollama, LM Studio) genuinely costs nothing and never moves it; a model with no published pricing bills you without moving it either. A fixed 10,000-requests/day backstop covers both — it is a runaway stop, not a budget, and no amount of typing can reach it
-- Requests are counted as **dispatched**, whether or not they complete (an aborted request still bills). The dashboard's **Usage → Autocomplete** sub-tab reports today, month-to-date, and a 62-day daily history, plus how much of the cap today has used. No history rows are written for it — only day-level totals, so no snippet you typed and never sent lands in a queryable database
+- Requests **dispatched** count against a 1,500/day cap, whether or not they complete (an aborted request still bills). The dashboard's **Autocomplete** tab reports today, month-to-date, and a 62-day daily history, plus how much of the cap today has used. No history rows are written for it — only day-level totals, so no snippet you typed and never sent lands in a queryable database
 
 ### Dashboard (MainWindow)
 
-Seven tabs, opened from the menu-bar tray or after a transform:
+Eight tabs, opened from the menu-bar tray or after a transform:
 
 | Tab | What it shows |
 | --- | --- |
 | **Overview** | Token stats with an estimated-spend hint (and how many transforms could be priced), preset usage charts, Codex-style token activity calendar |
 | **History** | Transform, Ask AI, and PromptGen history with cost tracking; last-action preview. The eye control opens the saved completion — raw JSON, or a **View as chat** tab that also states prompt/completion tokens and the reasoning effort used |
 | **Models** | Token usage over time, Model Breakdown donut + table for the selected range |
-| **Usage** | Account-level spend and token usage, one sub-tab per connected provider that has a billing API (OpenAI, OpenRouter) — daily spend and token charts, spend-share donut, per-model activity, and (OpenAI) billed spend per project. A last **Autocomplete** sub-tab reports today / month-to-date / 62-day request, token, and estimated-cost rollups for ghost-text suggestions, plus how much of the daily spend cap is used |
+| **Usage** | Account-level spend and token usage, one sub-tab per connected provider that has a billing API (OpenAI, OpenRouter) — daily spend and token charts, spend-share donut, per-model activity, and (OpenAI) billed spend per project |
 | **Logs** | Structured, redacted app events — multi-select level filter, search, copy/export as `.txt` |
+| **Security** | The four guard rails on the transform path — stale-clipboard age limit, maximum selection size, blocked apps (with a recently-used list to pick from), and the secret guard's mode + opt-in high-entropy rule, alongside a plain statement of what the check can and cannot do |
+| **Autocomplete** | Today / month-to-date / 62-day request, token, and estimated-cost rollups for ghost-text suggestions, plus how much of the daily request cap is spent |
 | **About** | Two sub-tabs — **App updates** (version, release notes, install; see [App updates](#app-updates)) and **User guide** (onboarding that shows your own preset shortcuts, output mode, connected providers, and why History/Usage may look empty) |
 
 Overview and Models share a time-range filter (All / 30d / 7d).
@@ -269,7 +269,7 @@ the tag if you want it.
 1. Select text in any application (or copy to clipboard)
 2. Press a preset hotkey (default: `Ctrl+Shift+F` for Correction)
 3. FixLang delivers the result using the mode selected in **Settings → General → Transform output**: **Direct paste** or **Show popup**
-4. Open the tray popover → dashboard icon for Overview, History, Models, Usage, Logs, or About
+4. Open the tray popover → dashboard icon for Overview, History, Models, Usage, Logs, Security, Autocomplete, or About
 5. `Ctrl+Shift+G` opens PromptGen on the current selection — tag-on builds only, see [Feature tags](#feature-tags-opt-in-features)
 6. `Ctrl+Shift+P` cycles to the next profile
 7. `Ctrl+Shift+A` opens **Ask AI**'s input window — no selection required; any selected text is carried along as optional context

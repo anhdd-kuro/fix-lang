@@ -16,4 +16,6 @@ export type DashboardTabId =
   | "models"
   | "usage"
   | "logs"
+  | "security"
+  | "autocomplete"
   | "about";

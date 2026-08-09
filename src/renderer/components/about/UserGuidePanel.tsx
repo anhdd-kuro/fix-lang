@@ -254,7 +254,6 @@ export const UserGuidePanel = ({
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
           <li>{t("guide.transform.select")}</li>
           <li>{t("guide.transform.press")}</li>
-          <li>{t("guide.transform.copy")}</li>
           <li>{t("guide.transform.receive")}</li>
         </ol>
 

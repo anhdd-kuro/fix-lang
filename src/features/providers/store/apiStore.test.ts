@@ -478,11 +478,7 @@ describe("the profile-bound variants write to the id they are handed, not the ac
           settings: buildSettings({
             enabledProviders: ["openai", "openrouter"],
             models: [openAIModel],
-            settingsAutocomplete: {
-              enabled: true,
-              model: "openai::gpt-4o",
-              dailyCostCapUsd: 5,
-            },
+            settingsAutocomplete: { enabled: true, model: "openai::gpt-4o" },
           }),
         }),
       ],
@@ -506,11 +502,7 @@ describe("the profile-bound variants write to the id they are handed, not the ac
           settings: buildSettings({
             enabledProviders: ["openai", "openrouter"],
             models: [openAIModel],
-            settingsAutocomplete: {
-              enabled: true,
-              model: "openrouter::llama",
-              dailyCostCapUsd: 5,
-            },
+            settingsAutocomplete: { enabled: true, model: "openrouter::llama" },
           }),
         }),
       ],
@@ -924,21 +916,6 @@ describe("apiStoreSchema — settingsCorrect default carries all seven built-in 
 // validation and `clearInvalidConfig: true` has nothing to wipe. Reads still
 // route through `normalizeAutocompleteSettings`, which is what actually
 // decides the value for an absent node.
-//
-// Updated again to add `settingsAutocomplete.dailyCostCapUsd` — the daily SPEND
-// cap that replaced the fixed request cap. Purely additive, and deliberately
-// carries neither `minimum` nor `maximum` for the same reason the node carries
-// no `enum`: `clearInvalidConfig: true` means a stored value failing validation
-// wipes every profile, preset and key reference, so an out-of-range cap is
-// CLAMPED by `normalizeDailyCostCapUsd` instead of rejected here. The object
-// `default` gains the same field, and reads still route through
-// `normalizeAutocompleteSettings`, which is what supplies the value for a
-// stored object that omits it. Verified rather than assumed, as above: deleting
-// the property node and the object-default key from the serialised schema
-// reproduces the previous snapshot
-// `97a22497f462118000ece61ba64836f9469a66cec60ea032882f7195a0ff75b6` exactly,
-// and the key occurs exactly twice (once each), which together prove nothing
-// else moved.
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
@@ -947,7 +924,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "b35973f5513e0daf8214f962864565f591e508e35c9d83ede1b23e1cb8df9fb8",
+      "97a22497f462118000ece61ba64836f9469a66cec60ea032882f7195a0ff75b6",
     );
   });
 });
@@ -1171,11 +1148,7 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
           model: "openai::gpt-4o",
           targetLanguage: "ja",
         },
-        settingsAutocomplete: {
-          enabled: false,
-          model: "openai::gpt-4o",
-          dailyCostCapUsd: 2.5,
-        },
+        settingsAutocomplete: { enabled: false, model: "openai::gpt-4o" },
       }),
     });
 
@@ -1196,9 +1169,6 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
     expect(result.settings.settingsAutocomplete.model).toBe("");
     // `enabled` is a genuine preference, not machine state — it must survive.
     expect(result.settings.settingsAutocomplete.enabled).toBe(false);
-    // So is the spend cap: it names no provider, account or machine, and an
-    // export that reset it would hand the recipient a budget they never chose.
-    expect(result.settings.settingsAutocomplete.dailyCostCapUsd).toBe(2.5);
   });
 
   it("keeps every non-model setting, so an export is still a usable profile", () => {

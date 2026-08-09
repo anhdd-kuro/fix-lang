@@ -7,7 +7,11 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { redactLogContext } from "~/features/logs/shared/logging";
-import { LATENCY_PHASE_NAMES, startLatencyTimer } from "./latencyTimer";
+import {
+  LATENCY_PHASE_NAMES,
+  startLatencyTimer,
+  type LatencyOutcome,
+} from "./latencyTimer";
 
 const { infoMock } = vi.hoisted(() => ({ infoMock: vi.fn() }));
 
@@ -74,6 +78,7 @@ describe("startLatencyTimer", () => {
         aiRequest: 1200,
         delivery: 100,
       },
+      pausedMs: 0,
       totalMs: 1500,
     });
   });
@@ -88,7 +93,12 @@ describe("startLatencyTimer", () => {
     timer.finish({ outcome: "no-selection" });
 
     const [, , context] = infoMock.mock.calls[0];
-    expect(context).toEqual({ outcome: "no-selection", phases: {}, totalMs: 200 });
+    expect(context).toEqual({
+      outcome: "no-selection",
+      phases: {},
+      pausedMs: 0,
+      totalMs: 200,
+    });
   });
 
   it("ignores a second finish so a post-delivery throw cannot relabel the measurement", () => {
@@ -137,5 +147,86 @@ describe("startLatencyTimer", () => {
     const [, , context] = infoMock.mock.calls[0];
     expect(typeof context.totalMs).toBe("number");
     expect(context.totalMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it("excludes a pause/resume dialog wait from totalMs and the next phase delta", () => {
+    // start=0, aiRequest mark=1000 (delta 1000), pause=1000, resume=5000
+    // (4000ms dialog wait), delivery mark=5100 (delta 100, NOT 4100), finish=5200
+    const timer = startLatencyTimer({
+      scope: "correction.latency",
+      message: "Transform latency",
+      now: stepClock([0, 1000, 1000, 5000, 5100, 5200]),
+    });
+
+    timer.mark("aiRequest");
+    timer.pause();
+    timer.resume();
+    timer.mark("delivery");
+    timer.finish({ outcome: "delivered" });
+
+    const [, , context] = infoMock.mock.calls[0];
+    expect(context).toEqual({
+      outcome: "delivered",
+      phases: { aiRequest: 1000, delivery: 100 },
+      pausedMs: 4000,
+      totalMs: 1200,
+    });
+  });
+
+  it("counts a still-open pause against totalMs when finish is called without resume", () => {
+    // start=0, aiRequest mark=100 (delta 100), pause=100, finish=5000 while
+    // still paused: the open pause (4900ms) must count toward pausedMs and be
+    // excluded from totalMs, not inflate it.
+    const timer = startLatencyTimer({
+      scope: "correction.latency",
+      message: "Transform latency",
+      now: stepClock([0, 100, 100, 5000]),
+    });
+
+    timer.mark("aiRequest");
+    timer.pause();
+    timer.finish({ outcome: "failed" });
+
+    const [, , context] = infoMock.mock.calls[0];
+    expect(context).toEqual({
+      outcome: "failed",
+      phases: { aiRequest: 100 },
+      pausedMs: 4900,
+      totalMs: 100,
+    });
+  });
+
+  it("admits the four guard outcomes to LatencyOutcome and still lets the first finish win", () => {
+    const guardOutcomes: readonly LatencyOutcome[] = [
+      "stale-clipboard",
+      "denied-app",
+      "declined-size",
+      "secret-declined",
+    ];
+
+    for (const outcome of guardOutcomes) {
+      vi.clearAllMocks();
+      const timer = startLatencyTimer({
+        scope: "correction.latency",
+        message: "Transform latency",
+        now: stepClock([0, 10]),
+      });
+
+      timer.finish({ outcome });
+      timer.finish({ outcome: "failed" });
+
+      expect(infoMock).toHaveBeenCalledTimes(1);
+      expect(infoMock.mock.calls[0][2]).toMatchObject({ outcome });
+    }
+  });
+
+  it("pins a guard outcome value as redaction-safe — 'stale-clipboard' is a VALUE, not a key", () => {
+    // redactLogContext key-matches `clipboard` as a substring on KEY names
+    // only; redactLogMessage (run on string VALUES) has no such rule. The
+    // next reader will correctly flinch at a value containing "clipboard" —
+    // this pins that it is safe.
+    expect(redactLogContext({ outcome: "stale-clipboard" })).toEqual({
+      outcome: "stale-clipboard",
+    });
   });
 });

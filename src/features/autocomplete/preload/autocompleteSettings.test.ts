@@ -19,7 +19,6 @@ describe("autocompleteSettings preload boundary", () => {
       electronMocks.invoke.mockResolvedValue({
         enabled: false,
         model: "openai::gpt-5",
-        dailyCostCapUsd: 5,
       });
 
       const result = await autocompleteSettingsFeature.getAutocompleteSettings();
@@ -27,11 +26,7 @@ describe("autocompleteSettings preload boundary", () => {
       expect(electronMocks.invoke).toHaveBeenCalledWith(
         "get-autocomplete-settings",
       );
-      expect(result).toEqual({
-        enabled: false,
-        model: "openai::gpt-5",
-        dailyCostCapUsd: 5,
-      });
+      expect(result).toEqual({ enabled: false, model: "openai::gpt-5" });
     });
 
     it.each([
@@ -39,16 +34,10 @@ describe("autocompleteSettings preload boundary", () => {
       null,
       "a string",
       42,
-      { model: "openai::gpt-5", dailyCostCapUsd: 5 }, // missing enabled
-      { enabled: "yes", model: "", dailyCostCapUsd: 5 }, // non-boolean enabled
-      { enabled: true, dailyCostCapUsd: 5 }, // missing model
-      { enabled: true, model: 42, dailyCostCapUsd: 5 }, // non-string model
-      { enabled: true, model: "" }, // missing cap
-      { enabled: true, model: "", dailyCostCapUsd: "5" }, // non-number cap
-      // A cap that is `number` and unusable. `estimatedCostUsd >= NaN` is
-      // always false, so this shape reaches the service as "no cap at all".
-      { enabled: true, model: "", dailyCostCapUsd: Number.NaN },
-      { enabled: true, model: "", dailyCostCapUsd: Number.POSITIVE_INFINITY },
+      { model: "openai::gpt-5" }, // missing enabled
+      { enabled: "yes", model: "" }, // non-boolean enabled
+      { enabled: true }, // missing model
+      { enabled: true, model: 42 }, // non-string model
       [], // array: typeof is "object" but has neither field
     ])(
       // `%j` stringifies `[]` the same as `undefined`, so the index (`%#`)
@@ -59,7 +48,7 @@ describe("autocompleteSettings preload boundary", () => {
 
         const result = await autocompleteSettingsFeature.getAutocompleteSettings();
 
-        expect(result).toEqual({ enabled: false, model: "", dailyCostCapUsd: 5 });
+        expect(result).toEqual({ enabled: false, model: "" });
       },
     );
   });
@@ -71,12 +60,11 @@ describe("autocompleteSettings preload boundary", () => {
       const result = await autocompleteSettingsFeature.setAutocompleteSettings({
         enabled: true,
         model: "ollama::llama3",
-        dailyCostCapUsd: 5,
       });
 
       expect(electronMocks.invoke).toHaveBeenCalledWith(
         "set-autocomplete-settings",
-        { enabled: true, model: "ollama::llama3", dailyCostCapUsd: 5 },
+        { enabled: true, model: "ollama::llama3" },
       );
       expect(result).toEqual({ success: true });
     });
@@ -90,7 +78,6 @@ describe("autocompleteSettings preload boundary", () => {
       const result = await autocompleteSettingsFeature.setAutocompleteSettings({
         enabled: true,
         model: "",
-        dailyCostCapUsd: 5,
       });
 
       expect(result).toEqual({ success: false, error: "write failed" });
@@ -101,13 +88,10 @@ describe("autocompleteSettings preload boundary", () => {
       null,
       "a string",
       42,
-      { model: "openai::gpt-5", dailyCostCapUsd: 5 }, // missing enabled
-      { enabled: "yes", model: "", dailyCostCapUsd: 5 }, // non-boolean enabled
-      { enabled: true, dailyCostCapUsd: 5 }, // missing model
-      { enabled: true, model: 42, dailyCostCapUsd: 5 }, // non-string model
-      { enabled: true, model: "" }, // missing cap
-      { enabled: true, model: "", dailyCostCapUsd: "5" }, // non-number cap
-      { enabled: true, model: "", dailyCostCapUsd: Number.NaN }, // unusable cap
+      { model: "openai::gpt-5" }, // missing enabled
+      { enabled: "yes", model: "" }, // non-boolean enabled
+      { enabled: true }, // missing model
+      { enabled: true, model: 42 }, // non-string model
       [], // array: typeof is "object" but has neither field
     ])(
       // `%j` stringifies `[]` the same as `undefined`, so the index (`%#`)
@@ -115,11 +99,7 @@ describe("autocompleteSettings preload boundary", () => {
       "rejects a malformed payload without invoking the main process (case %#): %j",
       async (payload) => {
         const result = await autocompleteSettingsFeature.setAutocompleteSettings(
-          payload as unknown as {
-            enabled: boolean;
-            model: string;
-            dailyCostCapUsd: number;
-          },
+          payload as unknown as { enabled: boolean; model: string },
         );
 
         expect(electronMocks.invoke).not.toHaveBeenCalled();

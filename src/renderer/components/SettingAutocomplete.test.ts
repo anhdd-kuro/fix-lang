@@ -84,14 +84,14 @@ const usageSnapshot = (
   today: emptyRollup(),
   month: emptyRollup(),
   days: [],
-  dailyCostCapUsd: 1500,
+  dailyCap: 1500,
   ...overrides,
 });
 
 const baseElectronAPI = (
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> => ({
-  getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+  getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "" }),
   setAutocompleteSettings: vi.fn().mockResolvedValue({ success: true }),
   getAutocompleteUsage: vi.fn().mockResolvedValue(usageSnapshot()),
   onSettingsUpdated: vi.fn().mockReturnValue(vi.fn()),
@@ -165,7 +165,7 @@ describe("SettingAutocomplete", () => {
     const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
     await mount(
       baseElectronAPI({
-        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "" }),
         setAutocompleteSettings,
       }),
     );
@@ -180,166 +180,15 @@ describe("SettingAutocomplete", () => {
     expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith({
       enabled: false,
       model: "",
-      dailyCostCapUsd: 5,
     });
     expect(checkbox()?.checked).toBe(false);
-  });
-
-  const capField = (): HTMLInputElement | null =>
-    container.querySelector("input#autocomplete-daily-cap");
-
-  /** Types into the cap field and blurs, which is what commits it. */
-  const typeCap = async (value: string, { blur = true } = {}) => {
-    const input = capField();
-    if (!input) throw new Error("daily cap field not rendered");
-    await act(async () => {
-      const setter = Object.getOwnPropertyDescriptor(
-        HTMLInputElement.prototype,
-        "value",
-      )?.set;
-      setter?.call(input, value);
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-    if (blur) {
-      await act(async () => {
-        input.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
-      });
-    }
-    await settleUi();
-  };
-
-  describe("daily spend cap", () => {
-    it("shows the stored cap and persists a new one on blur", async () => {
-      const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
-      await mount(
-        baseElectronAPI({
-          getAutocompleteSettings: vi
-            .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
-          setAutocompleteSettings,
-        }),
-      );
-
-      expect(capField()?.value).toBe("5");
-
-      await typeCap("2.5");
-
-      expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith({
-        enabled: true,
-        model: "",
-        dailyCostCapUsd: 2.5,
-      });
-    });
-
-    /**
-     * The footgun this draft exists for. A user selecting the field and typing
-     * passes through `""`, and a committed `""` is `0` — which means "spend
-     * nothing" and turns the feature off with nothing on screen to say why.
-     */
-    it("writes nothing while the field is mid-edit", async () => {
-      const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
-      await mount(
-        baseElectronAPI({
-          getAutocompleteSettings: vi
-            .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
-          setAutocompleteSettings,
-        }),
-      );
-
-      await typeCap("", { blur: false });
-
-      expect(setAutocompleteSettings).not.toHaveBeenCalled();
-      expect(capField()?.value).toBe("");
-    });
-
-    it("reverts to the stored cap when the field is left empty", async () => {
-      const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
-      await mount(
-        baseElectronAPI({
-          getAutocompleteSettings: vi
-            .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
-          setAutocompleteSettings,
-        }),
-      );
-
-      await typeCap("");
-
-      expect(setAutocompleteSettings).not.toHaveBeenCalled();
-      expect(capField()?.value).toBe("5");
-    });
-
-    // Clamped rather than refused, matching the store: `clearInvalidConfig`
-    // makes a rejecting schema a config-wipe, so the range is enforced here.
-    it("clamps a cap beyond the maximum instead of storing it", async () => {
-      const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
-      await mount(
-        baseElectronAPI({
-          getAutocompleteSettings: vi
-            .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
-          setAutocompleteSettings,
-        }),
-      );
-
-      await typeCap("5000");
-
-      expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith({
-        enabled: true,
-        model: "",
-        dailyCostCapUsd: 100,
-      });
-    });
-
-    // A zero cap refuses every request, and nothing else on screen says so.
-    it("warns that a zero cap blocks every suggestion", async () => {
-      await mount(
-        baseElectronAPI({
-          getAutocompleteSettings: vi
-            .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 0 }),
-        }),
-      );
-
-      expect(container.textContent).toContain(
-        tEn("settings.autocomplete.dailyCap.zero"),
-      );
-    });
-
-    it("says nothing about a zero cap when one is set", async () => {
-      await mount(
-        baseElectronAPI({
-          getAutocompleteSettings: vi
-            .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
-        }),
-      );
-
-      expect(container.textContent).not.toContain(
-        tEn("settings.autocomplete.dailyCap.zero"),
-      );
-    });
-
-    /**
-     * The tab that recommends a local provider for privacy is the tab that has
-     * to say the cap cannot see what a local provider spends — otherwise the
-     * number reads as a guarantee it does not carry.
-     */
-    it("states that unpriced and local spend never reaches the cap", async () => {
-      await mount(baseElectronAPI({}));
-
-      expect(container.textContent).toContain(
-        tEn("settings.autocomplete.dailyCap.unpricedHint"),
-      );
-    });
   });
 
   it("round-trips the model picker", async () => {
     const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
     await mount(
       baseElectronAPI({
-        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "" }),
         setAutocompleteSettings,
       }),
     );
@@ -356,7 +205,6 @@ describe("SettingAutocomplete", () => {
     expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith({
       enabled: true,
       model: "openai::gpt-5-mini",
-      dailyCostCapUsd: 5,
     });
   });
 
@@ -394,7 +242,6 @@ describe("SettingAutocomplete", () => {
     getAutocompleteSettings.mockResolvedValueOnce({
       enabled: false,
       model: "openai::gpt-5-mini",
-      dailyCostCapUsd: 5,
     });
     await act(async () => {
       profileListener?.();
@@ -411,7 +258,7 @@ describe("SettingAutocomplete", () => {
   it('shows "Same as Ask AI" for the empty inherit sentinel instead of a blank picker', async () => {
     await mount(
       baseElectronAPI({
-        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "" }),
       }),
     );
 
@@ -594,7 +441,7 @@ describe("SettingAutocomplete", () => {
     const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: false });
     await mount(
       baseElectronAPI({
-        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "" }),
         setAutocompleteSettings,
       }),
     );
@@ -607,7 +454,6 @@ describe("SettingAutocomplete", () => {
     expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith({
       enabled: false,
       model: "",
-      dailyCostCapUsd: 5,
     });
     // The store was never written, so the checkbox must not keep showing the
     // rejected value — a silent stale-success UI is worse than the reload the
@@ -629,7 +475,7 @@ describe("SettingAutocomplete", () => {
       .mockRejectedValue(new Error("ipc channel closed"));
     await mount(
       baseElectronAPI({
-        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "" }),
         setAutocompleteSettings,
       }),
     );
@@ -642,7 +488,6 @@ describe("SettingAutocomplete", () => {
     expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith({
       enabled: false,
       model: "",
-      dailyCostCapUsd: 5,
     });
     expect(checkbox()?.checked).toBe(true);
     expect(container.textContent).toContain(
@@ -662,7 +507,7 @@ describe("SettingAutocomplete", () => {
       .mockRejectedValue(new Error("ipc channel closed"));
     await mount(
       baseElectronAPI({
-        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "" }),
         setAutocompleteSettings,
       }),
     );
@@ -679,7 +524,6 @@ describe("SettingAutocomplete", () => {
     expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith({
       enabled: true,
       model: "openai::gpt-5-mini",
-      dailyCostCapUsd: 5,
     });
     // Back to the inherit sentinel, whose caption is the visible proof.
     expect(container.textContent).toContain(

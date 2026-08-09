@@ -17,10 +17,12 @@ import { resolvePresetOutputMode } from "~/features/correction/shared/presetOutp
 import { outputModeStore } from "~/features/correction/store/outputModeStore";
 import { syncHistory } from "~/features/history/main/history";
 import { getLocale } from "~/features/i18n/store/localeStore";
+import { secretGuardStore } from "~/features/secretGuard/store/secretGuardStore";
 import { pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
 import { composeAskMessage } from "./askMessage";
 import { deliverCorrectionOutput } from "./correctionOutput";
+import { runSecretGate } from "./secretGate";
 import { handleError } from "./utils";
 import { buildPriceMap, computeCost } from "../ai.request/cost";
 import { getCachedModels, isLocalModelId } from "../ai.request/shared";
@@ -69,6 +71,49 @@ export const runAskFlow = async ({
 
   const message = `${composed}\n\n${buildAppLocaleDirective()}`;
 
+  // Gated on the COMPOSED message — a key is as likely typed into the question
+  // as carried in with the selection, and this is the text that crosses the
+  // wire. `runSecretGate` is the ONLY entry point: Ask's masking mode degrades
+  // to a confirm inside `SECRET_SEND_SITE_POLICY`, and re-deriving that here is
+  // exactly what the one table exists to prevent.
+  //
+  // Runs BEFORE the timer starts and before the spinner goes up, so this
+  // dialog needs neither `aroundDialog` nor a pause/resume: there is nothing
+  // yet to hide and no clock yet to stop.
+  // Its own try/catch, because it runs BEFORE the timer and therefore outside
+  // the one below: the only caller is a bare `void runAskFlow(...)`, so a throw
+  // here would become an unhandled rejection — no toast, no log line, and the
+  // user's question already gone with the input window. It fails closed either
+  // way; it must not fail silently.
+  let gate: Awaited<ReturnType<typeof runSecretGate>>;
+  try {
+    gate = await runSecretGate({
+      site: "ask",
+      text: message,
+      settings: secretGuardStore.getSecretGuardSettings(),
+    });
+  } catch (error) {
+    logger.error("correction.hotkey", "Ask secret gate failed", {
+      presetId: preset.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    handleError(error);
+    return;
+  }
+
+  if (gate.gateDecision === "declined") {
+    logger.info("correction.hotkey", "Ask declined at the secret guard", {
+      presetId: preset.id,
+      appliedMode: gate.appliedMode,
+    });
+    // NO error notification: the user made a decision.
+    return;
+  }
+
+  // Identical to `message` at this site — Ask never masks — but read from the
+  // gate rather than assumed, so the policy stays in one place.
+  const sentText = gate.sentText;
+
   // The Ask clock starts at submit, not at the hotkey: the gap between them is
   // the user typing their question. `correction.ts` measures press → input
   // window separately, under the `input-shown` outcome.
@@ -84,7 +129,7 @@ export const runAskFlow = async ({
     // finishing it.
     showOverlaySpinner();
 
-    const result = await fixGrammar(message, preset.id);
+    const result = await fixGrammar(sentText, preset.id);
     latency.mark("aiRequest");
 
     const delivery = await deliverAskResult({
@@ -105,7 +150,8 @@ export const runAskFlow = async ({
     });
 
     if (mainWindow && !mainWindow.isDestroyed()) {
-      recordAskHistory(message, result);
+      // What CROSSED the wire, not the pre-gate composition.
+      recordAskHistory(sentText, result);
     }
 
     hideOverlaySpinner();

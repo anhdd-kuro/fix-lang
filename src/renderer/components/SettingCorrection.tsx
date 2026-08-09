@@ -22,7 +22,7 @@ import { Button } from "./Button";
 import { Checkbox } from "./Checkbox";
 import { ModelSelect } from "./ModelSelect";
 import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
-import { SearchableSelect } from "./SearchableSelect";
+import { Select } from "./Select/Select";
 import {
   plainStatus,
   wrappedError,
@@ -32,21 +32,6 @@ import {
 import { validateHotkeys } from "./validateHotkeys";
 import type { ReasoningEffort } from "~/features/correction/shared/reasoningEffort";
 import type { CorrectionPreset, CorrectionSettings } from "~/features/providers/store/apiStore";
-
-type PresetOutputMode = NonNullable<CorrectionPreset["outputMode"]>;
-type PresetOutputModeOption = { value: PresetOutputMode; label: string };
-
-const PRESET_OUTPUT_MODE_FIELD_ID = "preset-output-mode";
-const PRESET_OUTPUT_MODE_CONTROL_ID = "preset-output-mode-control";
-
-const PRESET_OUTPUT_MODES = [
-  { mode: "inherit", labelKey: "settings.correction.outputMode.inherit" },
-  { mode: "paste", labelKey: "settings.correction.outputMode.paste" },
-  { mode: "popup", labelKey: "settings.correction.outputMode.popup" },
-] as const satisfies readonly {
-  readonly mode: PresetOutputMode;
-  readonly labelKey: string;
-}[];
 
 /**
  * Read-only hotkey chips for the preset list. Matches `HotkeyChips` in
@@ -245,26 +230,10 @@ export const SettingCorrection: React.FC = () => {
 
   const builtInDefaults = useMemo(() => makeBuiltInPresetDefaults(), []);
 
-  // `t` changes identity on a locale switch, so it must stay in the deps or the
-  // rows keep the previous language.
-  const outputModeOptions = useMemo<PresetOutputModeOption[]>(
-    () =>
-      PRESET_OUTPUT_MODES.map(({ mode, labelKey }) => ({
-        value: mode,
-        label: t(labelKey),
-      })),
-    [t],
-  );
-
   const activePreset =
     correctionSettings.presets.find(
       (preset) => preset.id === correctionSettings.selectedPresetId,
     ) || correctionSettings.presets[0];
-
-  const selectedOutputModeOption =
-    outputModeOptions.find(
-      (option) => option.value === (activePreset?.outputMode ?? "inherit"),
-    ) ?? null;
 
   const loadSettings = async () => {
     try {
@@ -668,24 +637,32 @@ export const SettingCorrection: React.FC = () => {
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <div className="flex flex-col gap-2">
               <label
-                htmlFor={PRESET_OUTPUT_MODE_FIELD_ID}
+                htmlFor="preset-output-mode"
                 className="text-sm text-card-foreground"
               >
                 {t("settings.correction.outputMode.label")}
               </label>
-              <SearchableSelect<PresetOutputModeOption>
-                id={PRESET_OUTPUT_MODE_CONTROL_ID}
-                inputId={PRESET_OUTPUT_MODE_FIELD_ID}
-                className="w-full text-sm"
-                value={selectedOutputModeOption}
-                options={outputModeOptions}
-                noOptionsMessage={t("common.select.noOptions")}
-                onChange={(option) => {
-                  if (option) {
-                    updatePreset(activePreset.id, { outputMode: option.value });
-                  }
-                }}
-              />
+              <Select
+                id="preset-output-mode"
+                value={activePreset.outputMode ?? "inherit"}
+                onChange={(event) =>
+                  updatePreset(activePreset.id, {
+                    outputMode: event.target
+                      .value as CorrectionPreset["outputMode"],
+                  })
+                }
+                className="h-10 px-3"
+              >
+                <option value="inherit">
+                  {t("settings.correction.outputMode.inherit")}
+                </option>
+                <option value="paste">
+                  {t("settings.correction.outputMode.paste")}
+                </option>
+                <option value="popup">
+                  {t("settings.correction.outputMode.popup")}
+                </option>
+              </Select>
               <p className="text-xs text-muted-foreground">
                 {t("settings.correction.outputMode.hint")}
               </p>
@@ -693,7 +670,6 @@ export const SettingCorrection: React.FC = () => {
 
             {activePreset.requiresInput && (
               <div className="flex flex-col gap-2">
-                <span aria-hidden="true" className="hidden h-5 md:block" />
                 <Checkbox
                   name="preset-markdown-output"
                   checked={activePreset.markdownOutput ?? false}
@@ -701,7 +677,7 @@ export const SettingCorrection: React.FC = () => {
                     updatePreset(activePreset.id, { markdownOutput })
                   }
                   label={t("settings.correction.markdownOutput.label")}
-                  className="text-card-foreground md:h-10"
+                  className="text-card-foreground"
                 />
                 <p className="text-xs text-muted-foreground">
                   {t("settings.correction.markdownOutput.hint")}

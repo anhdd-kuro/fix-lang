@@ -112,6 +112,8 @@ const DASHBOARD_BODY_KEYS: Readonly<Record<DashboardTabId, MessageKey | null>> =
     models: "guide.dashboard.models",
     usage: "guide.dashboard.usage",
     logs: "guide.dashboard.logs",
+    security: "guide.dashboard.security",
+    autocomplete: "guide.dashboard.autocomplete",
     // The reader is already on About; describing it back to them is noise.
     about: null,
   });
