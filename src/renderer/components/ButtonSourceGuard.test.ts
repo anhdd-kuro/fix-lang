@@ -2297,7 +2297,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "e961f008d0afc0ec4bfd486b70dc7f02edaad5e7509cfef7577d06b135a5163c";
+  "88db351d7ce46a7753719bbc6730edb1a69121b4a9b1314825c994eef2ee2f1a";
 
 const compareConsumers = (
   left: ButtonConsumer,
