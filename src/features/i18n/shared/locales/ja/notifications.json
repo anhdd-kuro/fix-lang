@@ -39,6 +39,7 @@
   "notifications.window.askInput.contextCollapse": "折りたたむ",
   "notifications.window.askInput.contextExpand": "もっと見る",
   "notifications.window.askInput.contextLabel": "選択したテキスト",
+  "notifications.window.askInput.contextLabelClipboard": "クリップボードから",
   "notifications.window.askInput.placeholder": "何でも聞いてください…",
   "notifications.window.askInput.sendHint": "Enterで送信、Shift+Enterで改行",
   "notifications.window.askInput.title": "AIに質問",

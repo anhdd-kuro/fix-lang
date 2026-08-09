@@ -68,7 +68,9 @@ vi.mock("../../utils", () => ({
   getHighlightedTextWithActiveApp: vi
     .fn()
     .mockResolvedValue({ text: "some selected text", activeApp: null }),
-  getHighlightedTextForOptionalContext: vi.fn().mockResolvedValue("some selected text"),
+  getAskContext: vi
+    .fn()
+    .mockResolvedValue({ text: "some selected text", source: "selection" }),
   pasteText: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../ai.request", () => ({ fixGrammar: vi.fn() }));
@@ -128,7 +130,7 @@ import {
 } from "./correction";
 import { resetHotkeyThrottleForTests, handleError  } from "./utils";
 import {
-  getHighlightedTextForOptionalContext,
+  getAskContext,
   getHighlightedTextWithActiveApp,
   pasteText,
 } from "../../utils";
@@ -513,7 +515,10 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
       text: "some selected text",
       activeApp: null,
     });
-    (getHighlightedTextForOptionalContext as Mock).mockResolvedValue("some selected text");
+    (getAskContext as Mock).mockResolvedValue({
+      text: "some selected text",
+      source: "selection",
+    });
   });
 
   const singleBuiltInProfile = {
@@ -535,14 +540,18 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
   });
 
   it("opens the Ask input window instead of aborting when nothing is selected, and never fires the noTextSelected notification", async () => {
-    (getHighlightedTextForOptionalContext as Mock).mockResolvedValue("");
+    (getAskContext as Mock).mockResolvedValue({ text: "", source: "clipboard" });
 
     const calls = registerFrom(singleBuiltInProfile);
     const askCall = calls.find(([shortcut]) => shortcut === ASK_HOTKEY);
     await askCall?.[1]();
 
     expect(showAskInputWindow).toHaveBeenCalledWith(
-      { presetId: DEFAULT_ASK_PRESET_ID, context: "" },
+      {
+        presetId: DEFAULT_ASK_PRESET_ID,
+        context: "",
+        contextSource: "clipboard",
+      },
       expect.objectContaining({
         onSubmit: expect.any(Function),
         onCancel: expect.any(Function),
@@ -555,27 +564,35 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
     );
   });
 
-  it("reads the selection via getHighlightedTextForOptionalContext, not the combined active-app read, so a stale clipboard on an empty selection never becomes the Ask context", async () => {
-    // Regression guard for finding 07/f1: a Cmd-C with nothing selected is a
-    // no-op, so a strict/combined read silently returns whatever was already
-    // on the clipboard (e.g. a password copied earlier). Ask must read
-    // through the optional-context variant instead, which reports "" for
-    // exactly that case (see src/utils.ts) — and, since Ask AI never uses
-    // source-app context, it must not even trigger the combined read.
+  it("reads via getAskContext, not the combined active-app read, and carries the source through to the window", async () => {
+    // Two properties in one. Ask AI never uses source-app context, so it must
+    // not pay for the combined read at all. And when the copy produced nothing,
+    // the clipboard it falls back to reaches the window LABELLED — the window
+    // says "From clipboard" over text that may be minutes old, instead of
+    // presenting it as what the user just highlighted. That label is the whole
+    // reason this path may attach the clipboard: an earlier version refused it
+    // outright, which removed the only context the feature ever had.
     (getHighlightedTextWithActiveApp as Mock).mockResolvedValue({
-      text: "stale clipboard: hunter2",
+      text: "should never be read here",
       activeApp: null,
     });
-    (getHighlightedTextForOptionalContext as Mock).mockResolvedValue("");
+    (getAskContext as Mock).mockResolvedValue({
+      text: "text the user copied by hand",
+      source: "clipboard",
+    });
 
     const calls = registerFrom(singleBuiltInProfile);
     const askCall = calls.find(([shortcut]) => shortcut === ASK_HOTKEY);
     await askCall?.[1]();
 
-    expect(getHighlightedTextForOptionalContext).toHaveBeenCalled();
+    expect(getAskContext).toHaveBeenCalled();
     expect(getHighlightedTextWithActiveApp).not.toHaveBeenCalled();
     expect(showAskInputWindow).toHaveBeenCalledWith(
-      { presetId: DEFAULT_ASK_PRESET_ID, context: "" },
+      {
+        presetId: DEFAULT_ASK_PRESET_ID,
+        context: "text the user copied by hand",
+        contextSource: "clipboard",
+      },
       expect.objectContaining({
         onSubmit: expect.any(Function),
         onCancel: expect.any(Function),

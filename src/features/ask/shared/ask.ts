@@ -6,12 +6,28 @@
  * from `~/features/providers/store/apiStore` or `electron`.
  */
 
+/**
+ * Where the attached context came from, so the input window can SAY so.
+ *
+ * `selection` — the hotkey's own Cmd-C produced it, so it is what the user had
+ * highlighted at that moment. `clipboard` — the copy produced nothing and this
+ * is the clipboard's existing content, which may be minutes old and unrelated.
+ *
+ * The distinction is the whole reason attaching the clipboard is acceptable
+ * here. Ask AI has no "nothing selected" abort, so silently attaching a stale
+ * clipboard would send text the user never chose; labelled and removable in a
+ * window they must still type into and submit, it is a visible offer instead.
+ */
+export type AskContextSource = "selection" | "clipboard";
+
 /** Sent from the hotkey/main flow to the Ask input window. */
 export type AskInputPayload = {
   /** Which correction preset (the "Ask AI" built-in, normally) is answering. */
   presetId: string;
   /** The current selection, carried in as optional context. Empty when nothing was selected. */
   context: string;
+  /** Absent is read as `selection` — see `AskContextSource`. */
+  contextSource?: AskContextSource;
 }
 
 /** Sent from the main flow to a newly opened Ask result window. */

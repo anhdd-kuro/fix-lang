@@ -8,7 +8,7 @@ import { getProfileSetting } from "~/features/providers/store/apiStore";
 import { DEFAULT_CORRECTION_PRESET_ID } from "~/prompts";
 // No apiStore import needed as api key is handled in shared.ts
 import {
-  getHighlightedTextForOptionalContext,
+  getAskContext,
   getHighlightedTextWithActiveApp,
   pasteText,
 } from "../../utils";
@@ -566,34 +566,36 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         // selection is the normal case (the question can stand alone), so it
         // must never hit the "no text selected" abort. The window itself
         // owns the request from here — asking the user for a question, then
-        // handing the answer off to `runAskFlow`. It reads via
-        // `getHighlightedTextForOptionalContext`, NOT the combined
-        // `getHighlightedTextWithActiveApp` below — the two disagree on
-        // purpose about what an unchanged clipboard means: the optional
-        // variant reports "" (no context) so a stale, unrelated clipboard is
-        // never attached as the question's context; the combined variant
-        // below instead falls back to the clipboard's own content, same as
-        // it always did, because it also has to support a real re-selection
-        // of text byte-identical to the clipboard (see `~/utils.ts`).
+        // handing the answer off to `runAskFlow`. It reads via `getAskContext`
+        // rather than the combined `getHighlightedTextWithActiveApp` below,
+        // which reads the frontmost app in the same osascript — a round trip
+        // this preset would waste, since Ask never uses app context.
+        //
+        // Same clipboard contract as every other preset, including the
+        // fallback: where the text came from travels with it, so the input
+        // window can label a clipboard-sourced context instead of passing it
+        // off as the user's selection (see `~/utils.ts`).
         //
         // Ask AI also never uses source-app context (see askFlow.ts's own
         // doc comment) — unlike the branch below, it does not read the
         // frontmost app at all, since that read would just be a wasted
         // osascript round-trip for this preset.
         if (preset.requiresInput) {
-          const context = await getHighlightedTextForOptionalContext();
+          const { text: context, source: contextSource } = await getAskContext();
           latency.mark("selectionRead");
-          // The one line that says whether the selection made it. Without it,
-          // "the user selected nothing" and "the read dropped what they
-          // selected" both look like an input window with no context block.
-          // Length only — the selection itself never goes in a log.
+          // The one line that says whether the selection made it, and which
+          // source it came from. Without it, "the user selected nothing" and
+          // "the copy produced nothing so this is their clipboard" both look
+          // like the same input window. Lengths only — the text itself never
+          // goes in a log.
           logger.debug("correction.hotkey", "Ask context resolved", {
             presetId: preset.id,
             contextLength: context.length,
             contextAttached: context.length > 0,
+            contextSource,
           });
           showAskInputWindow(
-            { presetId: preset.id, context },
+            { presetId: preset.id, context, contextSource },
             {
               onSubmit: (question) => {
                 void runAskFlow({ preset, context, question, mainWindow });
