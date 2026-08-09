@@ -111,6 +111,7 @@
   "guide.topic.theme.body": "設定 → 外観に端末風のテーマが同梱されています。変更はすべてのウィンドウに即座に反映されます。",
   "guide.topic.theme.title": "テーマ",
   "guide.topics.title": "覚えておきたい設定",
+  "guide.transform.copy": "FixLang は一瞬 Command+C（コピー）を送り、クリップボードに載った直後のテキストを選択内容として読み取り、その後クリップボードを元の内容に戻します。",
   "guide.transform.press": "使いたいプリセットのショートカットを押します。",
   "guide.transform.receive": "FixLang がテキストを送信し、結果を貼り戻すかポップアップで表示します。",
   "guide.transform.select": "どのアプリでもテキストを選択します。FixLang はそのアプリ名をプロンプトに添えるため、書いている場所に合った表現になります。",
