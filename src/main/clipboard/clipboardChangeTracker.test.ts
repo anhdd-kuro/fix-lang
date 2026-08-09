@@ -125,7 +125,9 @@ describe("clipboardChangeTracker", () => {
 
     readTextMock.mockReturnValue("before sleep — baseline");
     vi.advanceTimersByTime(1_000); // first sighting: baseline only
-    expect(tracker.ageMs()).toBeNull();
+    // Not a change, so it ages from the baseline rather than reporting null —
+    // a clipboard that predates FixLang is old, not of unknown age.
+    expect(tracker.ageMs()).toBe(0);
 
     readTextMock.mockReturnValue("before sleep — changed");
     vi.advanceTimersByTime(1_000); // genuine change

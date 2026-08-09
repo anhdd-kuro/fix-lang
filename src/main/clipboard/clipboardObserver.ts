@@ -28,9 +28,19 @@ export type ClipboardObserver = {
   /** Folds one observation into the running state. No-op while suspended. */
   observe: (text: string, at?: number) => void;
   /**
-   * Milliseconds since the last observed CHANGE. `null` until a change has
-   * ever been observed — the first sighting of any text is a baseline, not
-   * a change, so age is genuinely unknown, not zero.
+   * Milliseconds since the last observed change, or — before any change has
+   * been seen — since the first sighting.
+   *
+   * `null` only while nothing has been observed at all, which is the one
+   * state where the age is genuinely unknown and the guard fails open.
+   *
+   * The first sighting is NOT a change, so it does not set `lastChangedAt`.
+   * It does establish a LOWER BOUND: text already on the pasteboard when we
+   * first looked was copied at some point before that, so it is at least this
+   * old. Reporting `null` forever in that case left the stale-clipboard guard
+   * permanently disarmed for the exact value it exists to catch — a password
+   * copied before FixLang started, never touched again, served to a transform
+   * by the empty-selection fallback.
    */
   ageMs: (at?: number) => number | null;
   /** Marks the start of a window where external code owns the clipboard. */
@@ -60,6 +70,7 @@ export const createClipboardObserver = ({
   let hash: string | null = null;
   let length = 0;
   let lastChangedAt: number | null = null;
+  let baselineAt: number | null = null;
   let hasBaseline = false;
   let suspendDepth = 0;
 
@@ -70,6 +81,7 @@ export const createClipboardObserver = ({
     if (!hasBaseline) {
       hash = nextHash;
       length = nextLength;
+      baselineAt = at;
       hasBaseline = true;
       return;
     }
@@ -86,7 +98,12 @@ export const createClipboardObserver = ({
       if (suspendDepth > 0) return;
       fold(text, at);
     },
-    ageMs: (at = now()) => (lastChangedAt === null ? null : at - lastChangedAt),
+    // A real change always wins over the baseline; the baseline is only the
+    // floor for a clipboard we have never seen change.
+    ageMs: (at = now()) => {
+      const since = lastChangedAt ?? baselineAt;
+      return since === null ? null : at - since;
+    },
     suspend: () => {
       suspendDepth += 1;
     },

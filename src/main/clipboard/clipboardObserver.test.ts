@@ -14,18 +14,45 @@ import { describe, expect, it } from "vitest";
 import { createClipboardObserver } from "./clipboardObserver";
 
 describe("createClipboardObserver", () => {
-  it("leaves ageMs() null (not 0) after the very first observation", () => {
+  it("reports null only before anything has been observed at all", () => {
     const observer = createClipboardObserver();
 
-    observer.observe("first sighting", 1_000);
-
     expect(observer.ageMs(1_000)).toBeNull();
-    expect(observer.ageMs(50_000)).toBeNull();
+  });
+
+  /**
+   * The first sighting is not a change, so it must not set `lastChangedAt` —
+   * but it does bound the age from below. Text already on the pasteboard when
+   * FixLang first looked was copied at some point BEFORE that, so it is at
+   * least this old.
+   *
+   * This used to report `null` forever, which fails open. That left the guard
+   * disarmed for precisely the value it exists to catch: a password copied
+   * before FixLang started and never touched again, handed to a transform by
+   * the empty-selection fallback. A clipboard we saw 40 minutes ago is not of
+   * unknown age; it is at least 40 minutes old.
+   */
+  it("ages from the first sighting until a real change is seen", () => {
+    const observer = createClipboardObserver();
+
+    observer.observe("copied before FixLang started", 1_000);
+
+    expect(observer.ageMs(1_000)).toBe(0);
+    expect(observer.ageMs(50_000)).toBe(49_000);
     expect(observer.snapshot()).toEqual({
-      length: "first sighting".length,
+      length: "copied before FixLang started".length,
       hasBaseline: true,
       lastChangedAt: null,
     });
+  });
+
+  it("prefers a real change over the baseline once one is observed", () => {
+    const observer = createClipboardObserver();
+
+    observer.observe("before launch", 1_000);
+    observer.observe("a genuine copy", 30_000);
+
+    expect(observer.ageMs(40_000)).toBe(10_000);
   });
 
   it("registers two different strings of the SAME length as a change", () => {
@@ -46,8 +73,12 @@ describe("createClipboardObserver", () => {
     observer.observe("steady", 1_000); // baseline
     observer.observe("steady", 5_000); // same text again — reselecting identical text
 
+    // Still no CHANGE — that is what this test is about, and it is what keeps
+    // the reselect-identical-text workflow working. The age meanwhile runs
+    // from the baseline, because the text has demonstrably been sitting there
+    // since then.
     expect(observer.snapshot().lastChangedAt).toBeNull();
-    expect(observer.ageMs(5_000)).toBeNull();
+    expect(observer.ageMs(5_000)).toBe(4_000);
   });
 
   it("ignores observe() entirely while suspended", () => {
