@@ -40,6 +40,9 @@ type HistoryRow = {
   price_completion: string | null;
   cost_status: string | null;
   session_json: string | null;
+  // Combo run columns — added via guarded ALTER TABLE, see ensureComboColumns.
+  combo_run_id: string | null;
+  combo_step_index: number | null;
 };
 
 /** Bound parameters for an INSERT, mirroring `HistoryRow` column order. */
@@ -59,6 +62,8 @@ type HistoryInsertParams = {
   price_completion: string | null;
   cost_status: string | null;
   session_json: string | null;
+  combo_run_id: string | null;
+  combo_step_index: number | null;
 };
 
 /** Inclusive timestamp window (+ optional feature filter) for analytics. */
@@ -139,6 +144,12 @@ export const rowToEntry = (row: HistoryRow): HistoryEntry => {
   if (row.session_json !== null) {
     entry.sessionJson = row.session_json;
   }
+  if (row.combo_run_id !== null) {
+    entry.comboRunId = row.combo_run_id;
+  }
+  if (row.combo_step_index !== null) {
+    entry.comboStepIndex = row.combo_step_index;
+  }
   return entry;
 };
 
@@ -165,6 +176,8 @@ export const entryToParams = (
   price_completion: entry.priceCompletion ?? null,
   cost_status: entry.costStatus ?? null,
   session_json: entry.sessionJson ?? null,
+  combo_run_id: entry.comboRunId ?? null,
+  combo_step_index: entry.comboStepIndex ?? null,
 });
 
 /**
@@ -210,6 +223,37 @@ const ensureCostColumns = (db: DatabaseSync): void => {
   );
 };
 
+/**
+ * Combo run columns (design H1). Both nullable: only rows written by a combo
+ * step carry them, so every legacy row and every existing query stays valid
+ * with no WHERE change. `combo_run_id` groups the N step-rows written by one
+ * hotkey press; `combo_step_index` orders them. No UI reads these in v1 —
+ * this lands the write path only. Mirrors `ensureCostColumns`'s guarded
+ * ALTER TABLE pattern; safe to run repeatedly and on `:memory:`.
+ */
+const COMBO_COLUMNS: readonly { name: string; ddl: string }[] = [
+  { name: "combo_run_id", ddl: "combo_run_id TEXT" },
+  { name: "combo_step_index", ddl: "combo_step_index INTEGER" },
+];
+
+const ensureComboColumns = (db: DatabaseSync): void => {
+  const existing = new Set(
+    (db.prepare("PRAGMA table_info(history)").all() as { name: string }[]).map(
+      (c) => c.name
+    )
+  );
+  for (const column of COMBO_COLUMNS) {
+    if (!existing.has(column.name)) {
+      db.exec(`ALTER TABLE history ADD COLUMN ${column.ddl}`);
+    }
+  }
+  // Record the schema version (informational; the column guard is authoritative).
+  db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(
+    "schema_version",
+    "3"
+  );
+};
+
 const ensureSchema = (db: DatabaseSync): void => {
   db.exec(`
     CREATE TABLE IF NOT EXISTS history (
@@ -228,7 +272,9 @@ const ensureSchema = (db: DatabaseSync): void => {
       price_prompt TEXT,
       price_completion TEXT,
       cost_status TEXT,
-      session_json TEXT
+      session_json TEXT,
+      combo_run_id TEXT,
+      combo_step_index INTEGER
     );
     CREATE INDEX IF NOT EXISTS idx_history_ts ON history(timestamp);
     CREATE INDEX IF NOT EXISTS idx_history_feature ON history(feature_id, timestamp);
@@ -239,6 +285,8 @@ const ensureSchema = (db: DatabaseSync): void => {
   `);
   // Back-fill cost columns onto tables created before #56.
   ensureCostColumns(db);
+  // Back-fill combo columns onto tables created before combo (design H1).
+  ensureComboColumns(db);
 };
 
 /**
@@ -251,9 +299,9 @@ export const createHistoryRepo = (db: DatabaseSync): HistoryRepo => {
 
   const insertStmt = db.prepare(
     `INSERT INTO history
-       (feature_id, original, corrected, timestamp, prompt_tokens, completion_tokens, model, provider, resolved_model, preset_name, estimated_cost_usd, price_prompt, price_completion, cost_status, session_json)
+       (feature_id, original, corrected, timestamp, prompt_tokens, completion_tokens, model, provider, resolved_model, preset_name, estimated_cost_usd, price_prompt, price_completion, cost_status, session_json, combo_run_id, combo_step_index)
      VALUES
-       (:feature_id, :original, :corrected, :timestamp, :prompt_tokens, :completion_tokens, :model, :provider, :resolved_model, :preset_name, :estimated_cost_usd, :price_prompt, :price_completion, :cost_status, :session_json)`
+       (:feature_id, :original, :corrected, :timestamp, :prompt_tokens, :completion_tokens, :model, :provider, :resolved_model, :preset_name, :estimated_cost_usd, :price_prompt, :price_completion, :cost_status, :session_json, :combo_run_id, :combo_step_index)`
   );
 
   const insertEntry = (featureId: HistoryFeatureId, entry: HistoryEntry): void => {

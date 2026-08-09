@@ -94,6 +94,8 @@
   "guide.title": "はじめに",
   "guide.topic.adminKey.body": "任意です。OpenAI の管理者キーまたは OpenRouter のプロビジョニングキーを登録すると、使用状況タブにアカウント単位の利用額が表示されます。",
   "guide.topic.adminKey.title": "管理・プロビジョニングキー",
+  "guide.topic.combo.body": "設定 → 修正で、2〜5個のプリセットを1つのショートカットに連結し、各結果を次のプリセットへ渡して実行できます。実行中に Control+Escape を押すと、結果が反映される前にキャンセルできます。",
+  "guide.topic.combo.title": "コンボ",
   "guide.topic.language.body": "初回起動時はシステムの言語に従います。設定 → 一般で変更でき、再起動なしにすべてのウィンドウへ反映されます。",
   "guide.topic.language.title": "言語",
   "guide.topic.models.body": "既定より高い性能が必要なプリセットにだけ専用のモデルを指定し、残りは既定のモデルを継承させます。",

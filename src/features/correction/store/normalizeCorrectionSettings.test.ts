@@ -23,9 +23,11 @@ vi.mock("electron", () => ({
   app: { getPath: vi.fn().mockReturnValue("/tmp") },
 }));
 // Imports (after mocks)
+import { COMBO_CANCEL_ACCELERATOR } from "~/features/correction/shared/comboValidation";
 import {
   normalizeCorrectionSettings,
   getDefaultCorrectionSettings,
+  readReservedAppAccelerators,
   type LegacyTranslateSettings,
 } from "~/features/providers/store/apiStore";
 import {
@@ -1315,6 +1317,48 @@ describe("normalizeCorrectionSettings — a materialized default gives up a rese
 });
 
 /**
+ * B5 (design C6, closing V2): a default-sourced preset hotkey must give up
+ * `Control+Escape` the same way it gives up a remapped `promptGen`/
+ * `profileSwitch` above — the combo-cancel chord is statically reserved, not
+ * conditional on any app binding actually landing on it. Unlike `promptGen`/
+ * `profileSwitch`, this chord is not user-remappable, so
+ * `readReservedAppAccelerators()` must carry it unconditionally rather than
+ * behind the caller-supplied override used everywhere else in this file.
+ *
+ * No built-in default hotkey is `Control+Escape` today (all seven are
+ * `Control+Shift+*`), so the effect is inert in practice — this only guards
+ * against a future default ever moving onto that chord. The first test below
+ * asserts the fix directly, since a real default landing on the reserved
+ * accelerator (as every other case in this file proves through
+ * `normalizeCorrectionSettings` itself) cannot happen with today's defaults.
+ * The second test proves `normalizeCorrectionSettings` treats that constant
+ * exactly like any other reserved entry once it is part of the set, mirroring
+ * the mechanism already pinned above for `promptGen`/`profileSwitch`.
+ */
+describe("normalizeCorrectionSettings — B5: the combo-cancel chord is always reserved", () => {
+  it("readReservedAppAccelerators() includes Control+Escape unconditionally, alongside promptGen/profileSwitch", () => {
+    expect(readReservedAppAccelerators()).toContain(COMBO_CANCEL_ACCELERATOR);
+  });
+
+  it("blanks a materialized default whose hotkey sits on the combo-cancel chord, same mechanism as a remapped app binding", () => {
+    // Reuses the exact "materialized default gives up a reserved app
+    // accelerator" mechanism above, substituting COMBO_CANCEL_ACCELERATOR for
+    // an app binding to prove `withoutReservedHotkey` treats it identically.
+    const result = normalizeCorrectionSettings(
+      { presets: [storedCorrection], selectedPresetId: "correction" },
+      undefined,
+      ["Control+Shift+B", COMBO_CANCEL_ACCELERATOR],
+    );
+
+    expect(hotkeyOf(result, DEFAULT_BUSINESS_WRITING_PRESET_ID)).toBe("");
+    // Untouched defaults keep their hotkeys — the guard is targeted, not broad.
+    expect(hotkeyOf(result, DEFAULT_STRUCTURED_TEXT_PRESET_ID)).toBe(
+      "Control+Shift+R",
+    );
+  });
+});
+
+/**
  * `normalizeCorrectionSettings` does NOT spread the stored preset — it rebuilds
  * one from an explicit field list. A field missing from that list is discarded
  * on EVERY read of `settingsCorrect`, which is what both
@@ -1603,5 +1647,396 @@ describe("normalizeCorrectionSettings — Ask relinquishes its default hotkey on
     );
 
     expect(hotkeyOf(result, DEFAULT_ASK_PRESET_ID)).toBe("Control+Shift+A");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: Combo sanitizer
+// ---------------------------------------------------------------------------
+
+const storedCombo = (
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> => ({
+  id: "combo-1",
+  name: "Polish and Translate",
+  hotkey: "Control+Shift+K",
+  steps: [
+    { id: "s1", presetId: "correction" },
+    { id: "s2", presetId: "translate" },
+  ],
+  ...overrides,
+});
+
+const combosOf = (settings: ReturnType<typeof normalizeCorrectionSettings>) =>
+  settings.combos ?? [];
+
+describe("normalizeCorrectionSettings — combos read as [] when absent or unusable", () => {
+  it("returns [] when the stored settings carry no combos key", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+    });
+
+    expect(result.combos).toEqual([]);
+  });
+
+  it("returns [] when the stored value is not an object at all", () => {
+    expect(normalizeCorrectionSettings(undefined).combos).toEqual([]);
+  });
+
+  it("returns [] through the no-presets-array legacy path", () => {
+    expect(normalizeCorrectionSettings({ userInput: "Legacy." }).combos).toEqual(
+      [],
+    );
+  });
+
+  it("returns [] when combos is not an array", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: { id: "combo-1" },
+    });
+
+    expect(result.combos).toEqual([]);
+  });
+
+  it("carries combos through the no-presets-array legacy path when present", () => {
+    const result = normalizeCorrectionSettings({
+      userInput: "Legacy.",
+      combos: [storedCombo()],
+    });
+
+    expect(combosOf(result).map((combo) => combo.id)).toEqual(["combo-1"]);
+  });
+});
+
+describe("normalizeCorrectionSettings — combo sanitizer drops malformed entries", () => {
+  const combosFrom = (...combos: unknown[]) =>
+    combosOf(
+      normalizeCorrectionSettings({
+        presets: [storedCorrection],
+        selectedPresetId: "correction",
+        combos,
+      }),
+    );
+
+  it("keeps a well-formed combo verbatim", () => {
+    expect(combosFrom(storedCombo())).toEqual([
+      {
+        id: "combo-1",
+        name: "Polish and Translate",
+        hotkey: "Control+Shift+K",
+        steps: [
+          { id: "s1", presetId: "correction" },
+          { id: "s2", presetId: "translate" },
+        ],
+        schemaVersion: 1,
+      },
+    ]);
+  });
+
+  it("drops a non-object entry", () => {
+    expect(combosFrom("nope", null, 7, storedCombo())).toHaveLength(1);
+  });
+
+  it("drops an entry with no id", () => {
+    expect(combosFrom(storedCombo({ id: "   " }))).toEqual([]);
+  });
+
+  it("drops an entry with no name", () => {
+    expect(combosFrom(storedCombo({ name: "" }))).toEqual([]);
+  });
+
+  it("drops an entry whose steps is not an array", () => {
+    expect(combosFrom(storedCombo({ steps: "correction,translate" }))).toEqual(
+      [],
+    );
+  });
+
+  it("drops the WHOLE combo when any step is missing presetId", () => {
+    // Dropping only the bad step would silently run a shorter chain than the
+    // user configured — the change they would be least likely to notice.
+    const result = combosFrom(
+      storedCombo({
+        steps: [{ id: "s1", presetId: "correction" }, { id: "s2" }],
+      }),
+    );
+
+    expect(result).toEqual([]);
+  });
+
+  it("keeps an empty steps array — that is validateCombo's call, not the sanitizer's", () => {
+    expect(combosFrom(storedCombo({ steps: [] }))[0].steps).toEqual([]);
+  });
+
+  it("drops a duplicate id, keeping the first", () => {
+    const result = combosFrom(
+      storedCombo({ name: "First" }),
+      storedCombo({ name: "Second" }),
+    );
+
+    expect(result.map((combo) => combo.name)).toEqual(["First"]);
+  });
+
+  it("trims id, name and hotkey", () => {
+    const result = combosFrom(
+      storedCombo({
+        id: "  c1  ",
+        name: "  Polish  ",
+        hotkey: "  Control+Shift+K  ",
+      }),
+    );
+
+    expect(result[0]).toMatchObject({
+      id: "c1",
+      name: "Polish",
+      hotkey: "Control+Shift+K",
+    });
+  });
+
+  it("materializes a step id when one is missing", () => {
+    const result = combosFrom(
+      storedCombo({
+        steps: [{ presetId: "correction" }, { presetId: "translate" }],
+      }),
+    );
+
+    expect(result[0].steps.map((step) => step.id)).toEqual(["step-1", "step-2"]);
+  });
+
+  it("keeps inlineInput verbatim, whitespace included", () => {
+    const result = combosFrom(
+      storedCombo({
+        steps: [
+          { id: "s1", presetId: "ask", inlineInput: "  What changed?  " },
+          { id: "s2", presetId: "correction" },
+        ],
+      }),
+    );
+
+    expect(result[0].steps[0].inlineInput).toBe("  What changed?  ");
+  });
+
+  it("drops a non-string inlineInput rather than stringifying it", () => {
+    const result = combosFrom(
+      storedCombo({
+        steps: [
+          { id: "s1", presetId: "ask", inlineInput: 42 },
+          { id: "s2", presetId: "correction" },
+        ],
+      }),
+    );
+
+    expect(result[0].steps[0]).not.toHaveProperty("inlineInput");
+  });
+});
+
+describe("normalizeCorrectionSettings — combo sanitizer keeps step ids unique within a combo", () => {
+  const combosFrom = (...combos: unknown[]) =>
+    combosOf(
+      normalizeCorrectionSettings({
+        presets: [storedCorrection],
+        selectedPresetId: "correction",
+        combos,
+      }),
+    );
+
+  it("bumps a materialized id that collides with an earlier step's explicit id, keeping both steps", () => {
+    // Step 0 explicitly claims "step-2"; step 1 has no id, and its index-based
+    // materialization (`step-${index + 1}` -> "step-2") would collide with it.
+    // A collision must not become a drop — the sanitizer keeps a missing id
+    // recoverable, never fatal.
+    const result = combosFrom(
+      storedCombo({
+        steps: [
+          { id: "step-2", presetId: "correction" },
+          { presetId: "correction" },
+        ],
+      }),
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].steps).toHaveLength(2);
+
+    const ids = result[0].steps.map((step) => step.id);
+    expect(new Set(ids).size).toBe(2);
+    expect(ids[0]).toBe("step-2");
+    expect(ids[1]).not.toBe("step-2");
+  });
+
+  it("bumps the second of two explicitly-duplicated step ids, keeping both steps", () => {
+    const result = combosFrom(
+      storedCombo({
+        steps: [
+          { id: "step-1", presetId: "correction" },
+          { id: "step-1", presetId: "translate" },
+        ],
+      }),
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].steps).toHaveLength(2);
+
+    const ids = result[0].steps.map((step) => step.id);
+    expect(new Set(ids).size).toBe(2);
+    expect(ids[0]).toBe("step-1");
+    expect(ids[1]).not.toBe("step-1");
+    // Each step keeps its own presetId — resolving the id collision must not
+    // merge or reorder the steps themselves.
+    expect(result[0].steps[0].presetId).toBe("correction");
+    expect(result[0].steps[1].presetId).toBe("translate");
+  });
+
+  it("keeps three colliding materialized ids all distinct", () => {
+    const result = combosFrom(
+      storedCombo({
+        steps: [
+          { id: "step-2", presetId: "correction" },
+          { presetId: "translate" },
+          { presetId: "summarize" },
+        ],
+      }),
+    );
+
+    const ids = result[0].steps.map((step) => step.id);
+    expect(new Set(ids).size).toBe(3);
+  });
+});
+
+describe("normalizeCorrectionSettings — combo outputMode / markdownOutput / schemaVersion", () => {
+  const comboFrom = (overrides: Record<string, unknown>) =>
+    combosOf(
+      normalizeCorrectionSettings({
+        presets: [storedCorrection],
+        selectedPresetId: "correction",
+        combos: [storedCombo(overrides)],
+      }),
+    )[0];
+
+  it.each(["inherit", "paste", "popup"] as const)(
+    "keeps a recognized outputMode %s",
+    (outputMode) => {
+      expect(comboFrom({ outputMode }).outputMode).toBe(outputMode);
+    },
+  );
+
+  it("drops an unrecognized outputMode instead of failing the combo", () => {
+    const combo = comboFrom({ outputMode: "banana" });
+
+    expect(combo).not.toHaveProperty("outputMode");
+    expect(combo.id).toBe("combo-1");
+  });
+
+  it("keeps a boolean markdownOutput and drops a non-boolean one", () => {
+    expect(comboFrom({ markdownOutput: true }).markdownOutput).toBe(true);
+    expect(comboFrom({ markdownOutput: "yes" })).not.toHaveProperty(
+      "markdownOutput",
+    );
+  });
+
+  it("defaults schemaVersion to 1 when absent", () => {
+    expect(comboFrom({}).schemaVersion).toBe(1);
+  });
+
+  it("normalizes an unrecognized schemaVersion to 1 rather than dropping the combo", () => {
+    expect(comboFrom({ schemaVersion: "one" }).schemaVersion).toBe(1);
+  });
+});
+
+/**
+ * Adding a combo must never silently rewrite a hotkey — its own or anyone
+ * else's. Every accelerator in the app shares one registration space, and
+ * resolving a collision across presets, combos, `promptGen`, `profileSwitch`
+ * and the reserved cancel chord is the pre-save `validateHotkeys` gate's job.
+ * A relinquish rule here would resolve a subset of that space differently and
+ * without telling the user.
+ */
+describe("normalizeCorrectionSettings — combo hotkeys pass through untouched", () => {
+  const comboHotkeyWith = (
+    hotkey: string,
+    reservedAppAccelerators?: readonly string[],
+  ) =>
+    combosOf(
+      normalizeCorrectionSettings(
+        {
+          presets: [storedCorrection],
+          selectedPresetId: "correction",
+          combos: [storedCombo({ hotkey })],
+        },
+        undefined,
+        reservedAppAccelerators,
+      ),
+    )[0].hotkey;
+
+  it("keeps a free accelerator", () => {
+    expect(comboHotkeyWith("Control+Shift+K")).toBe("Control+Shift+K");
+  });
+
+  it("keeps a hotkey a materialized built-in default also carries", () => {
+    // And leaves that default alone too: neither side is rewritten here.
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [storedCombo({ hotkey: "Control+Shift+B" })],
+    });
+
+    expect(combosOf(result)[0].hotkey).toBe("Control+Shift+B");
+    expect(hotkeyOf(result, DEFAULT_BUSINESS_WRITING_PRESET_ID)).toBe(
+      "Control+Shift+B",
+    );
+  });
+
+  it("keeps a hotkey a stored preset also claims", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection, storedCustom("mine", "Control+Shift+K")],
+      selectedPresetId: "correction",
+      combos: [storedCombo({ hotkey: "Control+Shift+K" })],
+    });
+
+    expect(hotkeyOf(result, "mine")).toBe("Control+Shift+K");
+    expect(combosOf(result)[0].hotkey).toBe("Control+Shift+K");
+  });
+
+  it("keeps a hotkey sitting on a reserved app accelerator", () => {
+    expect(
+      comboHotkeyWith("Control+Shift+P", ["Control+Shift+G", "Control+Shift+P"]),
+    ).toBe("Control+Shift+P");
+  });
+
+  it("keeps a hotkey sitting on the combo-cancel chord", () => {
+    expect(comboHotkeyWith(COMBO_CANCEL_ACCELERATOR)).toBe(
+      COMBO_CANCEL_ACCELERATOR,
+    );
+  });
+
+  it("leaves a combo with no hotkey field blank", () => {
+    const stored = storedCombo();
+    delete stored.hotkey;
+
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [stored],
+    });
+
+    expect(combosOf(result)[0].hotkey).toBe("");
+  });
+
+  it("leaves all seven preset defaults intact whatever a combo holds", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [storedCombo({ hotkey: "Control+Shift+K" })],
+    });
+
+    expect(result.presets.map((preset) => preset.hotkey)).toEqual([
+      "Control+Shift+F",
+      "Control+Shift+S",
+      "Control+Shift+D",
+      "Control+Shift+T",
+      "Control+Shift+B",
+      "Control+Shift+R",
+      "Control+Shift+A",
+    ]);
   });
 });

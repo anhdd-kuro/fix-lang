@@ -147,4 +147,13 @@ describe("GUIDE_TOPICS", () => {
       expect(topic.interpolatesHotkey === true).toBe(usesHotkey);
     }
   });
+
+  it("has a combo topic mentioning the Control+Escape cancel", () => {
+    const combo = GUIDE_TOPICS.find((topic) => topic.id === "combo");
+    expect(combo).toBeDefined();
+    expect(combo?.settingsTab).toBe("correction");
+    expect(
+      EN_CATALOG[combo?.bodyKey as keyof typeof EN_CATALOG],
+    ).toContain("Control+Escape");
+  });
 });

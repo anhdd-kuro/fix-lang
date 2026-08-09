@@ -57,6 +57,7 @@ import {
   isModelForProvider,
   isProviderId,
   migrateStoredProfilesForModelRefs,
+  normalizeCorrectionSettings,
   PROVIDER_IDS,
   resetCurrentProfileSettings,
   sanitizeImportedProfile,
@@ -68,7 +69,12 @@ import {
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
   DEFAULT_STRUCTURED_TEXT_PRESET_ID,
 } from "~/prompts/correction";
-import type { Model, Profile, SettingsStore } from "~/features/providers/store/apiStore";
+import type {
+  CorrectionSettings,
+  Model,
+  Profile,
+  SettingsStore,
+} from "~/features/providers/store/apiStore";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -939,6 +945,30 @@ describe("apiStoreSchema — settingsCorrect default carries all seven built-in 
 // `97a22497f462118000ece61ba64836f9469a66cec60ea032882f7195a0ff75b6` exactly,
 // and the key occurs exactly twice (once each), which together prove nothing
 // else moved.
+//
+// Updated again for Combo, after the same verification. Two things changed:
+// `settingsCorrect.properties` gains ONE optional node, `combos: { type:
+// "array" }`, and the `settingsCorrect` default — which is
+// `getDefaultCorrectionSettings()` — now carries `combos: []`. The default is
+// not a constraint. The node deliberately carries no `items`, no `required`,
+// no `enum` and no `default`, so the ONLY stored value it can reject is a
+// `combos` that is not an array — a key no existing profile has, and one only
+// this codebase writes (always as an array). Every per-combo shape error is
+// handled in code by `sanitizeCombos`, which drops the one malformed combo
+// rather than failing validation. Combos are hand-edited config until the
+// Settings editor ships, so a mistyped field is the EXPECTED input: an `items`
+// schema here would fail validation on it and `clearInvalidConfig: true` would
+// drop every profile, preset and key reference. That a deliberately garbage
+// hand-edited combo survives the real engine is proven empirically by the
+// third round-trip test below.
+//
+// That those two insertions are the ONLY delta was verified rather than
+// assumed: the serialised schema grew by exactly 38 bytes, `,"combos":{"type":
+// "array"}` (26) occurs exactly once and `,"combos":[]` (12) exactly once, and
+// deleting just those two substrings from the new serialisation reproduces the
+// previous one byte-for-byte — back to the pre-Combo snapshot
+// `b35973f5513e0daf8214f962864565f591e508e35c9d83ede1b23e1cb8df9fb8`. So no
+// constraint, no `enum`, no `required` entry and no other property moved.
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
@@ -947,7 +977,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "b35973f5513e0daf8214f962864565f591e508e35c9d83ede1b23e1cb8df9fb8",
+      "c1ac345971a803d2d07768e49b60635203f31aca4f632e24e37878c4d804e53b",
     );
   });
 });
@@ -1517,6 +1547,54 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
       fs.rmSync(cwd, { recursive: true, force: true });
     }
   });
+
+  it("keeps a profile whose stored combo is malformed instead of wiping every profile", async () => {
+    // Combos are hand-edited config until the Settings editor ships, so a
+    // mistyped field is the EXPECTED input, not an exotic one. An `items`
+    // schema here would fail validation on it and `clearInvalidConfig: true`
+    // would drop every profile, preset and key reference. It must survive the
+    // engine and be dropped in code by `sanitizeCombos` instead.
+    const { default: Conf } = await import("conf");
+    const fs = await import("node:fs");
+    const os = await import("node:os");
+    const path = await import("node:path");
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "fixlang-apistore-combo-"));
+
+    try {
+      const realStore = new Conf<{ profiles: Profile[] }>({
+        cwd,
+        configName: "config",
+        clearInvalidConfig: true,
+        schema: apiStoreSchema,
+      });
+
+      const settings = buildSettings({});
+      const profile = buildProfile({
+        settings: {
+          ...settings,
+          settingsCorrect: {
+            ...settings.settingsCorrect,
+            combos: [
+              // Every field the wrong type, plus a missing one.
+              { id: 7, name: null, steps: "nope", schemaVersion: "one" },
+            ] as unknown as NonNullable<CorrectionSettings["combos"]>,
+          },
+        },
+      });
+
+      realStore.set("profiles", [profile]);
+      const readBack = realStore.get("profiles", []);
+
+      expect(readBack).toHaveLength(1);
+      expect(readBack[0].settings.settingsCorrect.combos).toHaveLength(1);
+      // The code-level funnel is what removes it.
+      expect(
+        normalizeCorrectionSettings(readBack[0].settings.settingsCorrect).combos,
+      ).toEqual([]);
+    } finally {
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("resolveDefaultModel", () => {
@@ -1555,4 +1633,5 @@ describe("resolveDefaultOpenAIModel — legacy delegate stays byte-for-byte comp
     expect(resolveDefaultOpenAIModel([])).toBe("openai/gpt-4.1-mini");
   });
 });
+
 
