@@ -52,7 +52,7 @@ const AWS_KEY = credentialFixture("AKIA", "IOSFODNN7EXAMPLE");
 const SECRET_TEXT = `my deploy key is ${AWS_KEY} and it works`;
 const CLEAN_TEXT = "please review this paragraph for me";
 
-const SITES: readonly SecretSendSite[] = ["correction", "promptGen", "ask"];
+const SITES: readonly SecretSendSite[] = ["correction", "promptGen", "ask", "combo"];
 
 const settings = (overrides: Partial<SecretGuardSettings> = {}): SecretGuardSettings => ({
   mode: "confirm",
@@ -101,6 +101,7 @@ describe("SECRET_SEND_SITE_POLICY", () => {
       correction: { off: "off", confirm: "confirm", mask: "mask-and-restore" },
       promptGen: { off: "off", confirm: "confirm", mask: "mask-no-restore" },
       ask: { off: "off", confirm: "confirm", mask: "confirm" },
+      combo: { off: "off", confirm: "confirm", mask: "confirm" },
     });
   });
 
@@ -173,16 +174,19 @@ describe("runSecretGate", () => {
       },
     );
 
-    it("allows ask in mask mode with NO masking — its mask degrades to confirm, and a confirm never masks", async () => {
-      const result = await gate("ask", CLEAN_TEXT, "mask");
+    it.each(["ask", "combo"] as const)(
+      "allows %s in mask mode with NO masking — its mask degrades to confirm, and a confirm never masks",
+      async (site) => {
+        const result = await gate(site, CLEAN_TEXT, "mask");
 
-      expect(result).toMatchObject({
-        gateDecision: "allow",
-        sentText: CLEAN_TEXT,
-        masking: null,
-        appliedMode: "confirm",
-      });
-    });
+        expect(result).toMatchObject({
+          gateDecision: "allow",
+          sentText: CLEAN_TEXT,
+          masking: null,
+          appliedMode: "confirm",
+        });
+      },
+    );
   });
 
   describe("confirm mode", () => {
@@ -250,6 +254,29 @@ describe("runSecretGate", () => {
         masking: null,
         appliedMode: "confirm",
       });
+    });
+
+    /**
+     * Same verdict as `ask`, for a stronger reason: only the LAST step's output
+     * is delivered, so a restore would have to survive every step in between —
+     * and the fold has no single site semantics, so a combo ending on a
+     * `Prompt optimization` step would get a live credential restored into a
+     * generated artifact. `mask-no-restore` is not available either: a combo
+     * pastes over the user's selection, so it would paste placeholders there.
+     */
+    it("degrades to confirm for combo — only the last step's output is delivered, so nothing can be restored across the fold", async () => {
+      const result = await gate("combo", SECRET_TEXT, "mask");
+
+      expect(confirmSecretSendMock).toHaveBeenCalledTimes(1);
+      expect(result).toMatchObject({
+        gateDecision: "confirmed",
+        sentText: SECRET_TEXT,
+        masking: null,
+        appliedMode: "confirm",
+      });
+      // No masking at this site means no placeholder can ever reach `deliver`,
+      // so the "Result not pasted" path has nothing to catch.
+      expect(result).toMatchObject({ restoreOnReply: false });
     });
 
     it.each(["correction", "promptGen"] as const)(

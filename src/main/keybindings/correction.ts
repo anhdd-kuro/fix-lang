@@ -372,6 +372,37 @@ const runComboFromHotkey = async (
     state: "running",
   };
 
+  /**
+   * True once this run's own lock watchdog has given up on it — at which point
+   * the user has ALREADY been told the combo failed, and the lock has already
+   * admitted whatever press came next.
+   *
+   * Called at every point where this handler resumes after an await it cannot
+   * itself interrupt. The selection read is one (Finding F2); the two guard
+   * dialogs below are the others, and they are the only awaits in this handler
+   * paced by a HUMAN rather than by a machine — so they are the ones most
+   * likely to outlive `COMBO_LOCK_MAX_HOLD_MS`. Without a check there, an
+   * abandoned run resumes on the user's click and walks on: it re-shows the
+   * spinner, opens a SECOND confirmation dialog for a request already reported
+   * as failed, and sends `start-loading` — all after the failure notification,
+   * and only stopped at `runCombo`'s own entry check.
+   *
+   * The `finish` here is a no-op whenever the watchdog's own handler already
+   * reported (first-finish-wins), exactly as the pre-existing check is.
+   */
+  const abandonedByLockWatchdog = (): boolean => {
+    if (!watchdogSignal.aborted) return false;
+
+    hideOverlaySpinner();
+    logger.warn(
+      "correction.hotkey",
+      "Combo handler resumed after the lock watchdog already abandoned it; skipping delivery",
+      { comboId: combo.id },
+    );
+    latency.finish({ outcome: "failed", reason: "watchdog-abandoned" });
+    return true;
+  };
+
   try {
     // The cancel scope opens HERE, not around `runCombo` alone. `withComboCancel`
     // is what publishes this run to `abortActiveCombo()`, and the selection read
@@ -388,7 +419,7 @@ const runComboFromHotkey = async (
         // Same combined read as the single-preset path, for the same reason: the
         // frontmost-app read has to happen before any FixLang window becomes
         // visible, or it reports FixLang instead of the real source app.
-        const { text: selectedText, activeApp } = await getHighlightedTextWithActiveApp(
+        const { text: selectedText, activeApp, changed } = await getHighlightedTextWithActiveApp(
           () => {
             latency.mark("keystrokeSent");
             showOverlaySpinner();
@@ -402,16 +433,7 @@ const runComboFromHotkey = async (
         // never causes one. A stuck-then-unwedged run stops here instead of
         // proceeding into `runCombo`, where it would otherwise race whatever
         // later run the freed lock already admitted, straight to `deliver`.
-        if (watchdogSignal.aborted) {
-          hideOverlaySpinner();
-          logger.warn(
-            "correction.hotkey",
-            "Combo handler resumed after the lock watchdog already abandoned it; skipping delivery",
-            { comboId: combo.id },
-          );
-          latency.finish({ outcome: "failed", reason: "watchdog-abandoned" });
-          return;
-        }
+        if (abandonedByLockWatchdog()) return;
 
         // The profile-switch abort this scope exists for. Reached whenever
         // `abortActiveCombo()` fired while the selection read was still in
@@ -434,12 +456,110 @@ const runComboFromHotkey = async (
           return;
         }
 
+        // The same guard block, in the same order, as the ordinary preset
+        // branch below — a combo is not a lesser send site but a worse one, so
+        // it must not be the cheap way around the rails: it hands the same
+        // selection to N models in sequence. Read fresh on every press for the
+        // same reason as there, and placed AFTER the empty-selection abort so
+        // "nothing selected" keeps its own, more basic message.
+        const verdict = evaluateSelectionGuards({
+          text: selectedText,
+          changed,
+          activeApp,
+          ageMs: clipboardChangeTracker.ageMs(),
+          settings: guardStore.getSelectionGuardSettings(),
+        });
+
+        if (verdict.kind === "block") {
+          hideOverlaySpinner();
+          latency.finish({ outcome: verdict.reason });
+          logger.warn("correction.hotkey", "Combo blocked by a selection guard", {
+            comboId: combo.id,
+            guardReason: verdict.reason,
+            ...(verdict.reason === "stale-clipboard"
+              ? { selectionAgeMs: verdict.ageMs, ageLimitMs: verdict.limitMs }
+              : { deniedBundleId: verdict.bundleId }),
+          });
+          handleError(
+            verdict.reason === "stale-clipboard"
+              ? new LocalizedError(
+                  "Selection blocked: clipboard is older than the configured age limit.",
+                  "notifications.error.staleClipboard.body",
+                  { seconds: Math.round(verdict.limitMs / 1000) },
+                )
+              : new LocalizedError(
+                  "Selection blocked: the frontmost app is on the deny-list.",
+                  "notifications.error.appNotAllowed.body",
+                  { app: activeApp?.name ?? verdict.bundleId },
+                ),
+          );
+          return;
+        }
+
+        if (verdict.kind === "confirm") {
+          hideOverlaySpinner();
+          latency.pause();
+          const proceed = await confirmLargeSelection(verdict.chars, verdict.limit);
+          latency.resume();
+
+          if (!proceed) {
+            latency.finish({ outcome: "declined-size" });
+            logger.info(
+              "correction.hotkey",
+              "Combo declined at the large-selection confirm",
+              { comboId: combo.id, textLength: verdict.chars, charLimit: verdict.limit },
+            );
+            // NO error notification — Cancel is a choice, not an error.
+            return;
+          }
+
+          // The dialog above is paced by the user, so it is the likeliest await
+          // in this handler to outlive the lock watchdog.
+          if (abandonedByLockWatchdog()) return;
+
+          showOverlaySpinner();
+        }
+
+        // `site: "combo"` is a real entry in `SECRET_SEND_SITE_POLICY`, not
+        // `correction` borrowed: a combo delivers the LAST step's output, so a
+        // mask taken here would have to survive every step in between and could
+        // land a restored credential in a derived artifact. That decision lives
+        // in the one table (see its file header) and is never re-derived here.
+        const gate = await runSecretGate({
+          site: "combo",
+          text: selectedText,
+          settings: secretGuardStore.getSecretGuardSettings(),
+          aroundDialog: async (showDialog) => {
+            hideOverlaySpinner();
+            latency.pause();
+            const answer = await showDialog();
+            latency.resume();
+            showOverlaySpinner();
+            return answer;
+          },
+        });
+
+        if (gate.gateDecision === "declined") {
+          hideOverlaySpinner();
+          latency.finish({ outcome: "secret-declined" });
+          logger.info("correction.hotkey", "Combo declined at the secret guard", {
+            comboId: combo.id,
+            appliedMode: gate.appliedMode,
+          });
+          // NO error notification, same as the large-selection Cancel.
+          return;
+        }
+
+        // Same reason as after the size confirm: the gate may have opened its
+        // own dialog and waited on a person.
+        if (abandonedByLockWatchdog()) return;
+
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send("start-loading");
         }
 
         const result = await runCombo(
-          { combo, input: selectedText, activeAppName: activeApp?.name, signal },
+          { combo, input: gate.sentText, activeAppName: activeApp?.name, signal },
           buildComboRunDependencies(
             (view) => {
               latestProgress = view;

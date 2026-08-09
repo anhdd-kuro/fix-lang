@@ -16,6 +16,21 @@
  *   ask        — a free-form answer rarely echoes placeholders back, so a
  *                restore would fail on most requests and permanently divert Ask
  *                to the popup. Masking therefore degrades to a confirm.
+ *   combo      — same verdict as `ask`, for a stronger reason. A combo folds N
+ *                presets, and only the LAST one's output is delivered, so a
+ *                restore has to survive every step in between: one Summarize or
+ *                Translate step drops the placeholders and the restore fails,
+ *                which is `ask`'s argument multiplied by N. Worse, the fold has
+ *                no single site semantics — a combo may end on a
+ *                `Prompt optimization` step, whose output is a generated
+ *                artifact the user keeps, and restoring a live credential into
+ *                THAT is precisely what promptGen's `mask-no-restore` exists to
+ *                avoid. The call site cannot tell which shape the fold produced.
+ *                And `mask-no-restore` is not available here either: unlike
+ *                promptGen, a combo pastes over the user's selection, so it
+ *                would paste placeholders into their document. What is left is
+ *                to ask — which is also the most valuable moment to ask, since
+ *                a confirmed send goes to N models, not one.
  *
  * Autocomplete is deliberately absent: it fires per keystroke, where a modal is
  * categorically impossible.
@@ -66,7 +81,7 @@ import type {
 } from "~/features/secretGuard/shared/secretGuardSettings";
 import type { SecretRuleId } from "~/features/secretGuard/shared/secretRules";
 
-export type SecretSendSite = "correction" | "promptGen" | "ask";
+export type SecretSendSite = "correction" | "promptGen" | "ask" | "combo";
 
 /** What a stored mode actually DOES once a site's own constraints are applied. */
 export type SecretGuardAppliedMode = "off" | "confirm" | "mask-and-restore" | "mask-no-restore";
@@ -92,6 +107,7 @@ export const SECRET_SEND_SITE_POLICY: SiteModePolicy = freezeSitePolicy({
   correction: { off: "off", confirm: "confirm", mask: "mask-and-restore" },
   promptGen: { off: "off", confirm: "confirm", mask: "mask-no-restore" },
   ask: { off: "off", confirm: "confirm", mask: "confirm" },
+  combo: { off: "off", confirm: "confirm", mask: "confirm" },
 });
 
 export type SecretGateResult =
