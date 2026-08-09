@@ -15,7 +15,7 @@ import type { HistoryEntry } from "~/features/history/store/historyStore";
 import type { MessageKey } from "~/features/i18n/shared/message";
 
 /**
- * Stable identifiers for the eight dashboard tabs. Re-exported from `~/features/core/shared/dashboardTabIds` so
+ * Stable identifiers for the seven dashboard tabs. Re-exported from `~/features/core/shared/dashboardTabIds` so
  * existing importers keep their path while preload shares the same union — a
  * second copy of it let a tab rename break tray navigation silently.
  */
@@ -38,7 +38,6 @@ export const DASHBOARD_TABS: readonly DashboardTabMeta[] = [
   { id: "usage", labelKey: "dashboard.tab.usage" },
   { id: "logs", labelKey: "dashboard.tab.logs" },
   { id: "security", labelKey: "dashboard.tab.security" },
-  { id: "autocomplete", labelKey: "dashboard.tab.autocomplete" },
   { id: "about", labelKey: "dashboard.tab.about" },
 ] as const;
 

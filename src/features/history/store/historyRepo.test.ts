@@ -244,6 +244,8 @@ describe("pure mappers", () => {
       price_completion: null,
       session_json: null,
       cost_status: null,
+      combo_run_id: null,
+      combo_step_index: null,
     });
     expect(entry).toEqual({
       original: "a",
@@ -278,6 +280,8 @@ describe("pure mappers", () => {
       price_completion: p.price_completion,
       cost_status: p.cost_status,
       session_json: p.session_json,
+      combo_run_id: p.combo_run_id,
+      combo_step_index: p.combo_step_index,
     });
     expect(back).toEqual(entry);
   });
@@ -305,6 +309,8 @@ describe("pure mappers", () => {
       price_completion: p.price_completion,
       cost_status: p.cost_status,
       session_json: p.session_json,
+      combo_run_id: p.combo_run_id,
+      combo_step_index: p.combo_step_index,
     });
     expect(back.sessionJson).toBe(entry.sessionJson);
   });
@@ -355,6 +361,8 @@ describe("cost snapshot persistence", () => {
       price_completion: null,
       session_json: null,
       cost_status: null,
+      combo_run_id: null,
+      combo_step_index: null,
     });
     expect(entry).not.toHaveProperty("provider");
   });
@@ -451,5 +459,105 @@ describe("cost column migration (v1 table → v2)", () => {
       legacyDb.prepare("PRAGMA table_info(history)").all() as { name: string }[]
     ).length;
     expect(cols2).toBe(cols.length);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Combo run columns (design H1) — round-trip + guarded migration on a
+// pre-existing (pre-combo) database, mirroring the cost-column tests above.
+// ---------------------------------------------------------------------------
+describe("combo run columns", () => {
+  it("round-trips comboRunId and comboStepIndex on a written row", () => {
+    repo.insert(
+      "corrections",
+      makeEntry({
+        timestamp: "2024-06-01T00:00:00Z",
+        comboRunId: "run-abc",
+        comboStepIndex: 2,
+      })
+    );
+    const [stored] = repo.getByFeature("corrections");
+    expect(stored.comboRunId).toBe("run-abc");
+    expect(stored.comboStepIndex).toBe(2);
+  });
+
+  it("reads a row without combo fields back as valid, with both undefined", () => {
+    repo.insert("corrections", makeEntry({ timestamp: "2024-06-02T00:00:00Z" }));
+    const [stored] = repo.getByFeature("corrections");
+    expect(stored.comboRunId).toBeUndefined();
+    expect(stored.comboStepIndex).toBeUndefined();
+    expect(stored).toEqual(
+      makeEntry({ timestamp: "2024-06-02T00:00:00Z" })
+    );
+  });
+
+  it("adds combo columns idempotently to a pre-existing (pre-combo) database", () => {
+    // Simulate a DB created before combo shipped: full v2 (cost columns present,
+    // no combo_run_id/combo_step_index) history table + one real row.
+    const legacyDb = new DatabaseSync(":memory:");
+    legacyDb.exec(`
+      CREATE TABLE history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        feature_id TEXT NOT NULL,
+        original TEXT,
+        corrected TEXT,
+        timestamp TEXT NOT NULL,
+        prompt_tokens INTEGER,
+        completion_tokens INTEGER,
+        model TEXT,
+        provider TEXT,
+        resolved_model TEXT,
+        preset_name TEXT,
+        estimated_cost_usd REAL,
+        price_prompt TEXT,
+        price_completion TEXT,
+        cost_status TEXT,
+        session_json TEXT
+      );
+      CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+    `);
+    legacyDb
+      .prepare(
+        "INSERT INTO history (feature_id, original, corrected, timestamp) VALUES (?,?,?,?)"
+      )
+      .run("corrections", "pre-combo", "pre-combo fixed", "2024-01-01T00:00:00Z");
+
+    // Opening through the repo must ALTER the table to add both combo columns.
+    const migratedRepo = createHistoryRepo(legacyDb);
+
+    const cols = (
+      legacyDb.prepare("PRAGMA table_info(history)").all() as { name: string }[]
+    ).map((c) => c.name);
+    expect(cols).toContain("combo_run_id");
+    expect(cols).toContain("combo_step_index");
+
+    // The pre-existing row still reads back fine, combo fields absent (N/A).
+    const [old] = migratedRepo.getByFeature("corrections");
+    expect(old.original).toBe("pre-combo");
+    expect(old.comboRunId).toBeUndefined();
+    expect(old.comboStepIndex).toBeUndefined();
+
+    // Re-opening the SAME (now-migrated) database is a no-op: nothing throws,
+    // no duplicate columns, no duplicate rows.
+    expect(() => createHistoryRepo(legacyDb)).not.toThrow();
+    const cols2 = (
+      legacyDb.prepare("PRAGMA table_info(history)").all() as { name: string }[]
+    ).map((c) => c.name);
+    expect(cols2).toEqual(cols);
+    expect(migratedRepo.getByFeature("corrections")).toHaveLength(1);
+
+    // The new columns are usable immediately after migration.
+    migratedRepo.insert(
+      "corrections",
+      makeEntry({
+        timestamp: "2024-06-03T00:00:00Z",
+        comboRunId: "run-xyz",
+        comboStepIndex: 0,
+      })
+    );
+    const stored = migratedRepo
+      .getByFeature("corrections")
+      .find((e) => e.comboRunId === "run-xyz");
+    expect(stored?.comboStepIndex).toBe(0);
   });
 });

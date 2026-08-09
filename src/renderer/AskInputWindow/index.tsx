@@ -10,6 +10,8 @@ import {
   type SyntheticEvent,
 } from "react";
 import { createRoot } from "react-dom/client";
+import { twJoin } from "tailwind-merge";
+import { Button } from "../components/Button";
 import { GhostTextOverlay } from "../components/GhostTextOverlay";
 import {
   isSurfaceOnAnchor,
@@ -20,7 +22,10 @@ import { useTheme } from "../hooks/useTheme";
 import { I18nProvider } from "../i18n/I18nProvider";
 import { useI18n } from "../i18n/useI18n";
 import "../main.css";
-import type { AskInputPayload } from "~/features/ask/shared/ask";
+import type {
+  AskContextSource,
+  AskInputPayload,
+} from "~/features/ask/shared/ask";
 
 /**
  * Exported (not just used below for the entry-point auto-render) so
@@ -157,6 +162,16 @@ export const AskInputWindow = () => {
   }, [clearGhost]);
 
   const context = payload?.context ?? "";
+  // Absent means `selection` — an older main process, or the ordinary case.
+  const contextSource = payload?.contextSource ?? "selection";
+
+  // Handed to the context fold control so toggling never strands focus on a
+  // button in a window whose whole purpose is the textarea. Clicking the
+  // control blurs the textarea (which retires any ghost, as it should), and
+  // this puts the caret back where the next keystroke belongs.
+  const focusTextarea = useCallback(() => {
+    textareaRef.current?.focus();
+  }, []);
 
   const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     const { value, selectionStart } = event.target;
@@ -268,6 +283,24 @@ export const AskInputWindow = () => {
 
   return (
     <main className="flex h-screen flex-col gap-3 bg-background p-4 text-foreground">
+      {/*
+        Keyed by the context itself so a new selection always opens collapsed:
+        the fold state belongs to the passage being folded, and remounting is
+        cheaper than threading a reset through the payload handshake.
+
+        Placed BEFORE the textarea on purpose. The control is a real focusable
+        button, so it joins the tab order — ahead of the textarea, where a
+        forward Tab from the input can never land on it. See `handleKeyDown`
+        for why Tab reaching the textarea must stay the ghost's.
+      */}
+      {context.length > 0 && (
+        <ContextPreview
+          key={context}
+          text={context}
+          source={contextSource}
+          onToggled={focusTextarea}
+        />
+      )}
       <div className="relative min-h-0 flex-1 rounded-md border border-card-control-border bg-card">
         {/*
           The anchor's PREFIX, not the whole question: the mirror exists to
@@ -318,6 +351,108 @@ export const AskInputWindow = () => {
         )}
       </footer>
     </main>
+  );
+};
+
+type ContextPreviewProps = {
+  text: string;
+  source: AskContextSource;
+  onToggled: () => void;
+};
+
+/**
+ * The attached selection, shown so the user can see WHAT they are about to
+ * send rather than only how many characters of it. Collapsed to a single
+ * ellipsised line by default: this window is 520x200 and the textarea is the
+ * point of it, so the resting state has to stay cheap.
+ *
+ * Expanded is capped at `max-h-16` with its own scroll rather than left
+ * unbounded — the window does not grow, so an unbounded selection would push
+ * the textarea to nothing.
+ *
+ * Rendered as plain text through React's own escaping: never `MarkdownView`,
+ * never `dangerouslySetInnerHTML`. This is untrusted text the user selected in
+ * some other app, sitting on an input surface.
+ *
+ * The fold control appears only when the clamp actually truncates the text,
+ * measured from the laid-out element rather than guessed from the string,
+ * because how many lines a passage occupies depends on the window's current
+ * width and not on its character count. Mirrors `FoldableTextBlock` in
+ * `AskResultWindow/index.tsx`, including the trap in the effect below.
+ */
+const ContextPreview = ({ text, source, onToggled }: ContextPreviewProps) => {
+  const { t } = useI18n();
+  const [expanded, setExpanded] = useState(false);
+  const [truncated, setTruncated] = useState(false);
+  const bodyRef = useRef<HTMLParagraphElement | null>(null);
+
+  // Measured only while collapsed. Expanding drops the clamp, so the element
+  // then reports no overflow — re-measuring there would clear `truncated` and
+  // take away the control the user needs to collapse again.
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!body || expanded) return;
+
+    const measure = () => setTruncated(body.scrollHeight > body.clientHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(body);
+    return () => observer.disconnect();
+  }, [expanded, text]);
+
+  return (
+    <section
+      data-ask-context
+      className="flex shrink-0 flex-col gap-1 rounded-md border border-card-control-border bg-card px-2 py-1.5"
+    >
+      {/*
+        Labelled the way the session-detail chat labels its system prompt: a
+        bordered card under a small uppercase role line. Without the label the
+        card reads as an unexplained blob of someone else's text sitting above
+        the question box.
+
+        The label names the SOURCE, and that is what makes attaching the
+        clipboard acceptable at all: when the hotkey's own copy produced
+        nothing, this text may be minutes old and unrelated to what the user is
+        looking at. Told which it is, they can send it or press Esc; told
+        nothing, they would be sending it either way.
+      */}
+      <p
+        data-ask-context-label
+        data-ask-context-source={source}
+        className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+      >
+        {source === "clipboard"
+          ? t("notifications.window.askInput.contextLabelClipboard")
+          : t("notifications.window.askInput.contextLabel")}
+      </p>
+      <p
+        ref={bodyRef}
+        data-ask-context-text
+        className={twJoin(
+          "whitespace-pre-wrap break-words text-xs leading-snug text-card-foreground",
+          expanded ? "max-h-16 overflow-y-auto" : "line-clamp-1",
+        )}
+      >
+        {text}
+      </p>
+      {truncated ? (
+        <Button
+          type="button"
+          variant="ghost"
+          className="self-start rounded px-0 py-0 text-xs font-medium text-primary hover:underline"
+          aria-expanded={expanded}
+          onClick={() => {
+            setExpanded((previous) => !previous);
+            onToggled();
+          }}
+        >
+          {expanded
+            ? t("notifications.window.askInput.contextCollapse")
+            : t("notifications.window.askInput.contextExpand")}
+        </Button>
+      ) : null}
+    </section>
   );
 };
 

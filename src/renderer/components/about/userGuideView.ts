@@ -113,7 +113,6 @@ const DASHBOARD_BODY_KEYS: Readonly<Record<DashboardTabId, MessageKey | null>> =
     usage: "guide.dashboard.usage",
     logs: "guide.dashboard.logs",
     security: "guide.dashboard.security",
-    autocomplete: "guide.dashboard.autocomplete",
     // The reader is already on About; describing it back to them is noise.
     about: null,
   });
@@ -191,5 +190,11 @@ export const GUIDE_TOPICS: readonly GuideTopic[] = Object.freeze([
     titleKey: "guide.topic.adminKey.title",
     bodyKey: "guide.topic.adminKey.body",
     settingsTab: "general",
+  },
+  {
+    id: "combo",
+    titleKey: "guide.topic.combo.title",
+    bodyKey: "guide.topic.combo.body",
+    settingsTab: "correction",
   },
 ] satisfies GuideTopic[]);

@@ -6,6 +6,7 @@
  * hotkeys and the sibling app keybinding before saving.
  */
 import React, { useState, useEffect } from "react";
+import { COMBO_CANCEL_ACCELERATOR } from "~/features/correction/shared/comboValidation";
 import { messageLabel, msg, type Message } from "~/features/i18n/shared/message";
 import { Button } from "./Button";
 import { plainStatus, wrappedError, resolveStatus, type StatusDescriptor } from "./statusDescriptor";
@@ -108,6 +109,16 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
       return;
     }
 
+    // Refused at capture rather than left to Apply: binding it would make an
+    // in-flight combo silently uncancellable, since the run's own
+    // `globalShortcut.register` just returns false and the run continues.
+    if (newCombo === COMBO_CANCEL_ACCELERATOR) {
+      setFieldError(
+        msg("settings.hotkeys.reservedComboCancel", { hotkey: newCombo }),
+      );
+      return;
+    }
+
     // Check intra-app duplicate (against sibling keybinding).
     if (keyBindings) {
       const siblingKeys = (Object.keys(keyBindings) as HotkeyKey[]).filter(
@@ -137,9 +148,15 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
     // Build updated bindings — preserve sibling field.
     const updated: KeyBindings = { ...keyBindings, [hotkeyKey]: pendingCombo };
 
-    // Validate against correction presets.
+    // Validate against every other keybinding — presets, combos, the sibling
+    // app binding and the reserved combo cancel chord. Both colliding parties
+    // are named because either one of them can be the field being edited.
     const correctionSettings = await window.electronAPI.getCorrectSettings();
-    const conflict = validateHotkeys(correctionSettings.presets, updated);
+    const conflict = validateHotkeys(
+      correctionSettings.presets,
+      updated,
+      correctionSettings.combos,
+    );
     if (conflict) {
       setStatusKind("error");
       setStatus(
@@ -147,6 +164,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
           messageLabel("settings.hotkeys.conflict", {
             hotkey: conflict.hotkey,
             presetOrKey: conflict.presetOrKey,
+            conflictsWith: conflict.conflictsWith,
           }),
         ),
       );

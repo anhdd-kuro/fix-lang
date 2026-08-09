@@ -91,7 +91,7 @@ vi.mock("../notifications/confirmLargeSelection", () => ({
 }));
 vi.mock("../../utils", () => ({
   getHighlightedTextWithActiveApp: vi.fn(),
-  getHighlightedTextForOptionalContext: vi.fn().mockResolvedValue(""),
+  getAskContext: vi.fn().mockResolvedValue({ text: "", source: "clipboard" }),
   pasteText: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../ai.request", () => ({ fixGrammar: vi.fn() }));

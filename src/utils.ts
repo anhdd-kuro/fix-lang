@@ -126,57 +126,80 @@ const logCopyKeystrokeFailure = (error: unknown, startedAt: number): void => {
 };
 
 /**
- * Polls the clipboard for a CHANGE (via `waitForClipboardChange`) rather than
- * reading the clipboard back from AppleScript itself: selection text can
- * contain tabs/newlines that would be unparseable if bundled into one
- * `osascript` stdout blob alongside app-name/bundle-id, and this is also what
- * lets `getHighlightedText`/`getHighlightedTextForOptionalContext`/
- * `getHighlightedTextWithActiveApp` share one "did the copy actually put
- * something new on the pasteboard" signal instead of each parsing it
- * differently.
+ * Empties the pasteboard so the poll that follows is asking "did the copy put
+ * anything there", not "did the pasteboard value change".
  *
- * `value` is always whatever the clipboard holds once the poll settles —
- * the new content when it changed, or the untouched `previousClipboardContent`
- * on a timeout/no-op — regardless of `changed`. A poll can only ever tell
- * "did the pasteboard value change", never "was there really a selection this
- * time": those two questions have the same answer when nothing was ever
- * copied before, but diverge the moment a real selection happens to be
- * byte-identical to whatever was already on the clipboard. Callers decide for
- * themselves which of `value`/`changed` to use — see the very different
- * choices `getHighlightedText` and `getHighlightedTextForOptionalContext`
- * make below.
+ * This is the whole reason the read is trustworthy. Polling for a CHANGE
+ * cannot distinguish "nothing was selected" from "the selection is
+ * byte-identical to what was already on the clipboard", and the second case is
+ * not exotic — copy a paragraph, leave it selected, hit a hotkey, and every
+ * caller here saw "unchanged". The strict path then transformed the stale
+ * clipboard and the Ask AI path silently dropped the context the user had
+ * selected. Against an empty starting value both questions collapse into one,
+ * so `changed` below means exactly "the app copied something".
+ *
+ * Cost, stated plainly: for the length of one read the user's clipboard is
+ * empty, and a hard crash inside that window leaves it empty rather than
+ * restoring it. `finally` restores on every non-crash path, including throws.
+ * Nothing is lost that `clipboard.writeText(previous)` was not already
+ * discarding — that restore has always dropped non-text flavours.
  */
-const finishClipboardRead = async (
-  previousClipboardContent: string,
-): Promise<{ value: string; changed: boolean }> => {
+const clearClipboardForSelectionRead = (): void => {
+  clipboard.clear();
+};
+
+/**
+ * Polls the now-empty clipboard for CONTENT (via `waitForClipboardChange`)
+ * rather than reading the clipboard back from AppleScript itself: selection
+ * text can contain tabs/newlines that would be unparseable if bundled into one
+ * `osascript` stdout blob alongside app-name/bundle-id, and this is also what
+ * lets `getHighlightedText`/`getAskContext`/
+ * `getHighlightedTextWithActiveApp` share one "did the copy actually put
+ * something on the pasteboard" signal instead of each parsing it differently.
+ *
+ * Requires `clearClipboardForSelectionRead` to have run first. `value` is what
+ * the copy produced, or `""` when the poll timed out with the pasteboard still
+ * empty — which now means one unambiguous thing: nothing was copied.
+ */
+const finishClipboardRead = async (): Promise<{
+  value: string;
+  changed: boolean;
+}> => {
   const value = await waitForClipboardChange({
-    oldValue: previousClipboardContent,
+    oldValue: "",
     interval: CLIPBOARD_POLL_INTERVAL_MS,
     timeout: CLIPBOARD_CHANGE_TIMEOUT_MS,
   });
-  return { value, changed: value !== previousClipboardContent };
+  return { value, changed: value !== "" };
 };
 
 type SelectionRead = {
+  /** What the copy produced, or the clipboard snapshot when it produced nothing. */
   value: string;
+  /** True when the copy itself produced the value; false when it fell back. */
   changed: boolean;
 };
 
 /**
  * Shared body behind `getHighlightedText` and
- * `getHighlightedTextForOptionalContext`: snapshots the clipboard, sends the
- * Cmd-C via `sendCopyKeystroke`, restores the clipboard in `finally` (running
- * on every path for both callers), and maps a revoked Accessibility
- * permission to `AccessibilityPermissionError` — everything the two exported
- * functions need to stay byte-identical on their own error handling. Returns
- * both `value` and `changed` unfiltered; each exported wrapper below decides
- * on its own what an unchanged clipboard should mean for its caller.
+ * `getAskContext`: snapshots the clipboard, EMPTIES it
+ * (see `clearClipboardForSelectionRead`), sends the Cmd-C via
+ * `sendCopyKeystroke`, restores the clipboard in `finally` (running on every
+ * path for both callers), and maps a revoked Accessibility permission to
+ * `AccessibilityPermissionError` — everything the two exported functions need
+ * to stay byte-identical on their own error handling. Returns both `value` and
+ * `changed` unfiltered; each exported wrapper below decides on its own what an
+ * empty read should mean for its caller.
  */
 const readSelection = async (): Promise<SelectionRead> => {
   const previousClipboardContent = clipboard.readText();
   const startedAt = Date.now();
   clipboardOperationsInFlight += 1;
   observeNow(previousClipboardContent);
+  // Opened BEFORE the try, so `clearClipboardForSelectionRead` below — a
+  // pasteboard write of ours — lands inside the bracket. Outside it, the 1 Hz
+  // observer would record our own clearing as a user copy and reset the age
+  // the stale-clipboard guard reads.
   beginSelfManagedRead();
 
   logger.debug("clipboard.copy", "Sending copy keystroke", {
@@ -185,13 +208,26 @@ const readSelection = async (): Promise<SelectionRead> => {
   });
 
   try {
+    clearClipboardForSelectionRead();
     await sendCopyKeystroke();
-    const { value, changed } = await finishClipboardRead(previousClipboardContent);
+    const { value: copied, changed } = await finishClipboardRead();
+    // The copy is the preferred source, the clipboard snapshot the fallback.
+    // On machines where the synthesized Cmd-C does not reach the frontmost app
+    // at all, the fallback is the ONLY source — every read on this developer's
+    // machine came back `copied === previous`, i.e. the transform ran on text
+    // they had copied by hand. `changed` is what tells the two apart, which is
+    // what the pasteboard clearing above buys.
+    const value = changed ? copied : previousClipboardContent;
 
+    // `selectionChanged`, NOT `clipboardChanged`: `redactLogContext` blanks any
+    // key merely CONTAINING "clipboard", so the older name persisted as
+    // "[REDACTED]" and this line could not answer the one question it exists
+    // for. Same trap as the `selectionPoll` latency phase.
     logger.debug("clipboard.copy", "Copy keystroke returned", {
-      copiedLength: value.length,
+      copiedLength: copied.length,
       previousLength: previousClipboardContent.length,
-      pasteboardChanged: changed,
+      selectionChanged: changed,
+      source: changed ? "selection" : "clipboard",
       elapsedMs: Date.now() - startedAt,
     });
 
@@ -211,30 +247,23 @@ const readSelection = async (): Promise<SelectionRead> => {
 };
 
 /**
- * Strict variant: production-unreferenced now that both the correction
- * hotkey's ordinary preset branch and PromptGen read via the combined
- * `getHighlightedTextWithActiveApp` below instead. Kept exported (and
- * tested) as the plain, no-app-context building block its doc comments below
- * still describe and compare against. Deliberately gains NO
- * stale-clipboard protection from the change-poll: it returns whatever the
- * clipboard holds once the poll settles, changed or not — byte-for-byte the
- * same answer this gave before the poll existed (the poll only replaced the
- * fixed `delay`, it did not change what gets returned here).
+ * Strict variant, used by PromptGen and (via `getHighlightedTextWithActiveApp`
+ * below) the correction hotkey's ordinary preset branch. Returns what the copy
+ * produced, falling back to the clipboard snapshot when it produced nothing.
  *
- * This is intentional, not an oversight. Losing that fallback would break a
- * genuine workflow: copy a paragraph, paste it into an editor, select that
- * same text again, hit a transform hotkey — the clipboard never "changes"
- * because the selection is byte-identical to what was already on it, so
- * treating "unchanged" as "nothing selected" would abort a real selection.
- * The trade-off this accepts: nothing selected (Cmd-C a no-op) is
- * indistinguishable from that case, so a stale previous clipboard can still
- * reach the transform as if it were the selection — exactly as before. That
- * is an acceptable cost here specifically because callers of this function
- * already abort on a truly EMPTY clipboard (see
- * `!selectedText || !selectedText.trim()` in `correction.ts`/`promptGen.ts`):
- * the failure mode is a wasted transform, not a leak. Contrast
- * `getHighlightedTextForOptionalContext` below, which has no such abort and
- * therefore cannot afford the same trade-off.
+ * The fallback is not a nicety. The synthesized Cmd-C does not reach every app
+ * — measured across two days of one machine's logs, not one read produced text
+ * the clipboard did not already hold — so for a user whose habit is to copy by
+ * hand and then press a hotkey, the fallback IS the feature. Removing it turned
+ * every transform into "No text selected".
+ *
+ * What it costs: nothing-selected is served the clipboard's existing content,
+ * so a transform can run on text the user did not choose. Callers abort on
+ * empty (`!selectedText || !selectedText.trim()` in
+ * `correction.ts`/`promptGen.ts`) but cannot tell stale from selected, so the
+ * cost is a wasted transform on visible text — not silence. Ask AI, which
+ * shows what it attached before sending it, gets the same fallback with the
+ * source labelled; see `getAskContext`.
  */
 export const getHighlightedText = async (): Promise<string> => {
   const { value } = await readSelection();
@@ -242,36 +271,44 @@ export const getHighlightedText = async (): Promise<string> => {
 };
 
 /**
- * Optional-context variant for presets where an empty selection is the
- * NORMAL case (currently only Ask AI) — unlike the six polish presets, which
- * abort outright when `getHighlightedText` comes back empty, so a stale
- * clipboard reaching them was harmless.
+ * Optional-context variant for presets where an empty selection is the NORMAL
+ * case (currently only Ask AI). Same read as every other preset — Cmd-C, then
+ * the clipboard as fallback — and it returns WHERE the text came from, which
+ * is the part that makes the fallback safe here.
  *
- * With nothing selected, the synthesized Cmd-C is a no-op, so the clipboard
- * never changes — indistinguishable from a real selection unless compared
- * against the pre-copy snapshot. Unlike `getHighlightedText` above, THIS
- * variant reports "" whenever `changed` is false, instead of falling back to
- * the clipboard's own content: Ask AI has no "nothing selected" abort to
- * catch a leak, so an unrelated previous clipboard (e.g. a password) reaching
- * the model as if it were the selection is the failure this guards against,
- * and it is worse than the false negative below.
+ * This used to refuse the fallback outright and report "" whenever the copy
+ * produced nothing, on the grounds that Ask AI has no "nothing selected" abort,
+ * so an unrelated clipboard (a password) could reach the model as if it were
+ * the selection. The reasoning was sound and the conclusion was still wrong,
+ * for a reason the comment never checked: the copy fails far more often than it
+ * was assumed to, so refusing the fallback did not protect a working feature —
+ * it removed the only source of context the feature ever had, on every press.
  *
- * Trade-off (intentionally the safe direction, and the mirror image of
- * `getHighlightedText`'s): if the user's actual selection happens to be
- * byte-identical to what was already on their clipboard, this also reports
- * "" — a false negative, context silently omitted. That is the right way
- * round here because context is OPTIONAL for this caller: the cost of the
- * false negative is a missing context block in a rare case, versus silently
- * leaking an unrelated clipboard into an AI request in the common case.
+ * What replaces the refusal is not a weaker rule but a different one. Unlike a
+ * transform, Ask AI puts its context on screen in a window the user must type
+ * into and submit; labelled by source and removable, a stale clipboard is an
+ * offer they can see and decline rather than a leak they cannot. `""` still
+ * means no context at all: an empty clipboard and a failed copy attach nothing.
  */
-export const getHighlightedTextForOptionalContext = async (): Promise<string> => {
+export type AskContext = {
+  text: string;
+  source: "selection" | "clipboard";
+};
+
+export const getAskContext = async (): Promise<AskContext> => {
   const { value, changed } = await readSelection();
-  return changed ? value : "";
+  return { text: value, source: changed ? "selection" : "clipboard" };
 };
 
 export type HighlightedSelectionWithActiveApp = {
   text: string;
   activeApp: ActiveApp | null;
+  /**
+   * True when the copy itself produced `text`; false when it fell back to the
+   * clipboard snapshot. The selection guards read this: a fallback read is the
+   * only one whose text can be arbitrarily old, so the stale-clipboard age
+   * limit applies to it and never to a genuine selection.
+   */
   changed: boolean;
 };
 
@@ -288,17 +325,14 @@ export type HighlightedSelectionWithActiveApp = {
  * guarantee is unchanged.
  *
  * `getActiveApp()` itself (`~/main/accessibility/activeApp`) is untouched and
- * still exported and tested, but is production-unreferenced now that both
- * call sites above bundle the two reads through this function instead of
- * calling it standalone.
+ * still exported and tested, but is production-unreferenced now that both call
+ * sites above bundle the two reads through this function instead of calling it
+ * standalone.
  *
- * Shares `getHighlightedText`'s STRICT clipboard contract, not
- * `getHighlightedTextForOptionalContext`'s: `text` falls back to the
- * clipboard's own (unchanged) content on a poll timeout/no-op, same as before
- * the change-poll existed, for the same reason `getHighlightedText`'s doc
- * comment explains — this replaces that function's call sites in
- * `correction.ts`'s ordinary preset branch and in `promptGen.ts`, so it must
- * not regress either.
+ * Shares `getHighlightedText`'s clipboard contract: the pasteboard is emptied
+ * before the copy so the two sources can be told apart, `text` is what the copy
+ * produced, and the clipboard snapshot stands in when it produced nothing. See
+ * `getHighlightedText`'s doc comment for why that fallback is load-bearing.
  *
  * `onFrontmostReadAndKeystrokeSent` fires as soon as the script returns,
  * BEFORE the clipboard-change poll: that is the earliest point at which it
@@ -326,6 +360,11 @@ export const getHighlightedTextWithActiveApp = async (
   });
 
   try {
+    // Before the script, not after: the keystroke it sends is the thing whose
+    // result the poll below reads, so the pasteboard has to already be empty
+    // when it fires.
+    clearClipboardForSelectionRead();
+
     // App context is best-effort; the COPY is not. When the combined script
     // fails or hits `ACTIVE_APP_READ_TIMEOUT_MS` (a beachballed frontmost
     // process still answers System Events, just slowly), retry with a plain
@@ -355,12 +394,15 @@ export const getHighlightedTextWithActiveApp = async (
 
     onFrontmostReadAndKeystrokeSent?.();
 
-    const { value, changed } = await finishClipboardRead(previousClipboardContent);
+    const { value: copied, changed } = await finishClipboardRead();
+    const value = changed ? copied : previousClipboardContent;
 
+    // `selectionChanged`, not `clipboardChanged` — see `readSelection`.
     logger.debug("clipboard.copy", "Copy keystroke returned", {
-      copiedLength: value.length,
+      copiedLength: copied.length,
       previousLength: previousClipboardContent.length,
-      pasteboardChanged: changed,
+      selectionChanged: changed,
+      source: changed ? "selection" : "clipboard",
       elapsedMs: Date.now() - startedAt,
     });
 

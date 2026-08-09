@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS } from "~/features/autocomplete/shared/autocompleteDiagnostics";
+import { DEFAULT_DAILY_COST_CAP_USD } from "~/features/autocomplete/shared/autocompleteSettings";
 import { redactLogContext } from "~/features/logs/shared/logging";
 import { GHOST_TEXT_DEBOUNCE_MS } from "~/renderer/hooks/useGhostText";
 import { PREFIX_WINDOW_CHARS } from "./prompt";
@@ -7,7 +8,7 @@ import {
   abortAutocomplete,
   CACHE_MAX_ENTRIES,
   CACHE_TTL_MS,
-  DAILY_REQUEST_CAP,
+  DAILY_REQUEST_BACKSTOP,
   MIN_PREFIX_CHARS,
   RATE_LIMIT_GLOBAL,
   RATE_LIMIT_MEMORY_MAX_ENTRIES,
@@ -123,6 +124,13 @@ const respondRaw = (raw: unknown) =>
  * show whether a dispatch was counted at all.
  */
 let dayRequests = 0;
+/**
+ * Today's PRICED spend, and the profile's cap over it. Both are stateful for
+ * the same reason `dayRequests` is: the budget is re-read from `getDay()`
+ * between requests, so a fixed pair could never show a cap being crossed.
+ */
+let daySpendUsd = 0;
+let dailyCostCapUsd = DEFAULT_DAILY_COST_CAP_USD;
 
 /**
  * The active BACKEND, as the cache key must see it. A profile switch moves the
@@ -150,7 +158,9 @@ describe("requestAutocompleteSuggestion", () => {
     currentProfileId = "profile-a";
     providerEndpoints = {};
     getProfileSettingMock.mockImplementation((key: string) => {
-      if (key === "settingsAutocomplete") return { enabled: true, model: "openai::gpt-4o-mini" };
+      if (key === "settingsAutocomplete") {
+        return { enabled: true, model: "openai::gpt-4o-mini", dailyCostCapUsd };
+      }
       if (key === "settingsCorrect") return { presets: [], selectedPresetId: "" };
       if (key === "providerEndpoints") return providerEndpoints;
       return undefined;
@@ -158,6 +168,8 @@ describe("requestAutocompleteSuggestion", () => {
     getCurrentProfileIdMock.mockImplementation(() => currentProfileId);
     getDefaultModelIdMock.mockReturnValue("openai::gpt-4o");
     dayRequests = 0;
+    daySpendUsd = 0;
+    dailyCostCapUsd = DEFAULT_DAILY_COST_CAP_USD;
     usageStoreMock.recordDispatch.mockImplementation(() => {
       dayRequests += 1;
     });
@@ -169,7 +181,7 @@ describe("requestAutocompleteSuggestion", () => {
       unpricedResponses: 0,
       promptTokens: 0,
       completionTokens: 0,
-      estimatedCostUsd: 0,
+      estimatedCostUsd: daySpendUsd,
     }));
     getCachedModelsMock.mockReturnValue([]);
     computeCostMock.mockReturnValue({
@@ -202,8 +214,8 @@ describe("requestAutocompleteSuggestion", () => {
    * what keeps them meaning "the threshold" when it moves. That leaves nothing
    * at all guarding the number itself, and this one is a product decision with
    * a price attached: at 12 the threshold was most of the rate limiting, and
-   * dropping it to 3 put that load onto `GHOST_TEXT_DEBOUNCE_MS` and
-   * `DAILY_REQUEST_CAP`. A silent edit back and forth here changes what the
+   * dropping it to 3 put that load onto `GHOST_TEXT_DEBOUNCE_MS` and the
+   * daily stops. A silent edit back and forth here changes what the
    * feature costs, so it should have to change a test that says so.
    */
   it("keeps the deliberate 3-character threshold", () => {
@@ -503,16 +515,63 @@ describe("requestAutocompleteSuggestion", () => {
     });
   });
 
-  describe("daily cap", () => {
+  describe("daily spend cap", () => {
     const atCap = () => {
-      dayRequests = DAILY_REQUEST_CAP;
+      daySpendUsd = dailyCostCapUsd;
     };
 
-    it("stops making requests once tripped", async () => {
+    it("stops making requests once today's spend reaches the cap", async () => {
       atCap();
 
       expect((await ask()).suggestion).toBeNull();
       expect(makeAIRequestMock).not.toHaveBeenCalled();
+    });
+
+    it("keeps making requests while spend is under the cap", async () => {
+      daySpendUsd = dailyCostCapUsd - 0.01;
+
+      expect((await ask()).suggestion).not.toBeNull();
+      expect(makeAIRequestMock).toHaveBeenCalledOnce();
+    });
+
+    // The cap is a PROFILE setting, so a profile with a bigger budget must not
+    // inherit the one that happened to be active first.
+    it("reads the cap from the active profile, not a constant", async () => {
+      dailyCostCapUsd = 0.5;
+      daySpendUsd = 1;
+
+      expect((await ask()).suggestion).toBeNull();
+
+      dailyCostCapUsd = 2;
+
+      expect((await ask({ requestId: 2, prefix: `${LONG_PREFIX} more` })).suggestion).not.toBeNull();
+    });
+
+    /**
+     * `>=`, not `>`. A cap of zero means "spend nothing", and that reading has
+     * to hold from the first request — before any spend exists to exceed it.
+     * Under `>` a zero cap would wave through every request whose predecessors
+     * all happened to be free, which is exactly the local-provider case.
+     */
+    it("refuses everything at a cap of zero, before any spend is recorded", async () => {
+      dailyCostCapUsd = 0;
+      daySpendUsd = 0;
+
+      expect((await ask()).suggestion).toBeNull();
+      expect(makeAIRequestMock).not.toHaveBeenCalled();
+    });
+
+    /**
+     * The hole the backstop exists for, stated as a test so it cannot be
+     * mistaken for an oversight. A local provider bills a genuine `$0`, so a
+     * runaway against Ollama never moves the budget and the money cap alone
+     * would let it run all day.
+     */
+    it("does not fire for a day of genuinely free responses", async () => {
+      daySpendUsd = 0;
+
+      expect((await ask()).suggestion).not.toBeNull();
+      expect(makeAIRequestMock).toHaveBeenCalledOnce();
     });
 
     // Once tripped this path runs on every keystroke; one line per day, not one
@@ -533,7 +592,7 @@ describe("requestAutocompleteSuggestion", () => {
      * left the counter at zero here and the hard stop never fired.
      */
     it("counts a dispatched request that is later aborted", async () => {
-      dayRequests = DAILY_REQUEST_CAP - 2;
+      dayRequests = DAILY_REQUEST_BACKSTOP - 2;
       const signals = pendingRequests();
 
       void ask({ prefix: `${LONG_PREFIX} one` });
@@ -561,7 +620,7 @@ describe("requestAutocompleteSuggestion", () => {
       expect(usageStoreMock.recordDispatch).toHaveBeenCalledOnce();
     });
 
-    it("does not count a request the cap itself refused", async () => {
+    it("does not count a request the spend cap itself refused", async () => {
       atCap();
 
       await ask();
@@ -590,7 +649,7 @@ describe("requestAutocompleteSuggestion", () => {
   });
 
   /**
-   * The short-window backstop. `DAILY_REQUEST_CAP` says what a day may cost;
+   * The short-window backstop. The spend cap says what a day may cost;
    * this says how fast that budget may be spent, which until now was decided
    * entirely by a renderer main does not trust — `sessionId` is derived from
    * `event.sender.id` precisely because of that, while the RATE was left to a
@@ -1626,13 +1685,31 @@ describe("requestAutocompleteSuggestion", () => {
      * -readable token the others carry.
      */
     it("tags the existing daily-cap warning with the same reason vocabulary", async () => {
-      dayRequests = DAILY_REQUEST_CAP;
+      daySpendUsd = DEFAULT_DAILY_COST_CAP_USD;
 
       await ask();
 
       expect(loggerMock.warn.mock.calls[0]?.[2]).toMatchObject({
         reason: "cap-reached",
-        cap: DAILY_REQUEST_CAP,
+        capUsd: DEFAULT_DAILY_COST_CAP_USD,
+        spentUsd: DEFAULT_DAILY_COST_CAP_USD,
+      });
+    });
+
+    /**
+     * The runaway stop, and it must be distinguishable from the budget in the
+     * log — they mean opposite things. `cap-reached` says the user spent what
+     * they chose to; `request-backstop` says a loop ran up a count no typing
+     * can produce, on spend the budget could not see.
+     */
+    it("tags the request backstop with its own reason", async () => {
+      dayRequests = DAILY_REQUEST_BACKSTOP;
+
+      await ask();
+
+      expect(loggerMock.warn.mock.calls[0]?.[2]).toMatchObject({
+        reason: "request-backstop",
+        backstop: DAILY_REQUEST_BACKSTOP,
       });
     });
 

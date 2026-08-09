@@ -55,7 +55,7 @@ const isUsageSnapshot = (value: unknown): value is AutocompleteUsageSnapshot => 
   if (!Array.isArray(record.days) || !record.days.every(isDayRollup)) {
     return false;
   }
-  if (typeof record.dailyCap !== "number") return false;
+  if (typeof record.dailyCostCapUsd !== "number") return false;
   return true;
 };
 
@@ -141,7 +141,7 @@ export const autocompleteFeature = {
     const result = await invokeOrNull("autocomplete-usage");
     return isUsageSnapshot(result)
       ? result
-      : { today: emptyRollup(), month: emptyRollup(), days: [], dailyCap: 0 };
+      : { today: emptyRollup(), month: emptyRollup(), days: [], dailyCostCapUsd: 0 };
   },
 };
 

@@ -940,6 +940,88 @@
       animation: prixClipFix 2s infinite linear;
     }
 
+    /*
+     * Combo progress ring (plan O1-O5). All geometry — segment count, angles,
+     * active-segment range, colours, the centre digit and whether to pulse —
+     * comes from `buildComboProgressStyle` in comboProgressView.ts via the CSS
+     * custom properties `window.__setComboProgress` assigns below. This CSS
+     * only draws what those properties say; it never computes an angle.
+     * The `--seg-*` fallbacks here matter only before the first
+     * `__setComboProgress` call — an inline style property always wins once set.
+     */
+    #combo-ring {
+      display: none;
+      position: relative;
+      width: 100%;
+      height: 100%;
+      --seg-total: 1;
+      --seg-done: 0;
+      --gap-deg: 6deg;
+      --seg-deg: calc(360deg / var(--seg-total));
+      --seg-active-start: 0deg;
+      --seg-active-end: 0deg;
+      --ring-opacity: 1;
+    }
+
+    body[data-overlay-mode="combo"] .loader {
+      display: none;
+    }
+
+    body[data-overlay-mode="combo"] #combo-ring {
+      display: block;
+    }
+
+    /* Done segments solid, pending segments in the track colour. */
+    #combo-ring::before,
+    #combo-ring::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      opacity: var(--ring-opacity);
+      mask:
+        repeating-conic-gradient(from calc(-90deg - var(--gap-deg) / 2),
+          #000 0 calc(var(--seg-deg) - var(--gap-deg)),
+          transparent calc(var(--seg-deg) - var(--gap-deg)) var(--seg-deg)),
+        radial-gradient(circle, transparent 0 62%, #000 62%);
+      mask-composite: intersect;
+    }
+
+    #combo-ring::before {
+      background: conic-gradient(from -90deg,
+        var(--overlay-spinner) 0 calc(var(--seg-deg) * var(--seg-done)),
+        var(--overlay-spinner-track) calc(var(--seg-deg) * var(--seg-done)) 360deg);
+    }
+
+    /* O1 — the current segment, drawn again on top so it can pulse on its own. */
+    #combo-ring::after {
+      background: conic-gradient(from -90deg,
+        transparent 0 var(--seg-active-start),
+        var(--seg-active-color, var(--overlay-spinner)) var(--seg-active-start) var(--seg-active-end),
+        transparent var(--seg-active-end) 360deg);
+    }
+
+    #combo-ring[data-running]::after {
+      animation: comboRingPulse 1.4s ease-in-out infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #combo-ring[data-running]::after {
+        animation: none;
+        opacity: 0.6;
+      }
+    }
+
+    .combo-ring-digit {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font: 700 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--digit-color, var(--overlay-spinner));
+    }
+
     #error-popup {
       display: none;
       width: 100%;
@@ -1054,11 +1136,26 @@
         clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 100%, 0 100%, 0 0)
       }
     }
+
+    @keyframes comboRingPulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+    }
   </style>
 </head>
 
 <body>
   <span class="loader"></span>
+  <div id="combo-ring" role="status" aria-hidden="true">
+    <span id="combo-ring-digit" class="combo-ring-digit"></span>
+  </div>
   <div id="error-popup" role="alert" aria-live="assertive">
     <span class="error-icon">!</span>
     <div class="error-copy">
@@ -1069,6 +1166,23 @@
       &times;
     </button>
   </div>
+  <script>
+    // O5 — no geometry here. `style.vars` and `style.digit` are assigned
+    // verbatim; the only decision this makes is the O1 `animate` -> `data-running`
+    // toggle the design calls for, since CSS (not a var) drives the pulse from it.
+    window.__setComboProgress = (style) => {
+      const ring = document.getElementById("combo-ring");
+      const digitEl = document.getElementById("combo-ring-digit");
+      if (!ring || !digitEl) return;
+
+      document.body.dataset.overlayMode = "combo";
+      for (const [name, value] of Object.entries(style.vars)) {
+        ring.style.setProperty(name, value);
+      }
+      ring.toggleAttribute("data-running", Boolean(style.animate));
+      digitEl.textContent = style.digit;
+    };
+  </script>
 </body>
 
 </html>

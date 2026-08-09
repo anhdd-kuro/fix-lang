@@ -24,7 +24,7 @@ const makeEntry = (overrides: Partial<HistoryEntry> = {}): HistoryEntry => ({
 });
 
 describe("DASHBOARD_TABS", () => {
-  it("exposes the eight tabs in order Overview/History/Models/OpenRouter/Logs/Security/Autocomplete/About", () => {
+  it("exposes the seven tabs in order Overview/History/Models/Usage/Logs/Security/About", () => {
     expect(DASHBOARD_TABS.map((t) => t.id)).toEqual([
       "overview",
       "history",
@@ -32,7 +32,6 @@ describe("DASHBOARD_TABS", () => {
       "usage",
       "logs",
       "security",
-      "autocomplete",
       "about",
     ]);
     // Labels are translation keys, not prose — this file must stay
@@ -45,16 +44,24 @@ describe("DASHBOARD_TABS", () => {
       "dashboard.tab.usage",
       "dashboard.tab.logs",
       "dashboard.tab.security",
-      "dashboard.tab.autocomplete",
       "dashboard.tab.about",
     ]);
   });
 
-  it("places security third-to-last, immediately before autocomplete and about", () => {
+  // Autocomplete usage is a sub-tab of Usage, not a top-level tab: it reports
+  // spend, and spend already has a home. A stray top-level entry would mean the
+  // move left one of the two copies behind.
+  it("keeps autocomplete out of the top-level bar", () => {
     const ids = DASHBOARD_TABS.map((t) => t.id);
-    expect(ids[ids.length - 3]).toBe("security");
-    expect(ids[ids.length - 2]).toBe("autocomplete");
+    expect(ids).not.toContain("autocomplete");
     expect(ids[ids.length - 1]).toBe("about");
+  });
+
+  // Security is the last tab before About: it configures the transform path
+  // rather than reporting on it, so it sits after every reporting tab.
+  it("places security immediately before about", () => {
+    const ids = DASHBOARD_TABS.map((t) => t.id);
+    expect(ids[ids.length - 2]).toBe("security");
   });
 
   it("defaults the active tab to Overview (index 0)", () => {

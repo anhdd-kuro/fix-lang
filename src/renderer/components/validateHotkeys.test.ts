@@ -22,9 +22,18 @@ vi.mock("electron", () => ({
   app: { getPath: vi.fn().mockReturnValue("/tmp") },
 }));
 import { DEFAULT_KEY_BINDINGS } from "~/const";
+import { COMBO_CANCEL_ACCELERATOR } from "~/features/correction/shared/comboValidation";
 import { getDefaultCorrectionSettings } from "~/features/providers/store/apiStore";
-import { validateHotkeys } from "./validateHotkeys";
-import type { CorrectionPreset, KeyBindings } from "~/features/providers/store/apiStore";
+import {
+  COMBO_CANCEL_LABEL,
+  findHotkeyConflicts,
+  validateHotkeys,
+} from "./validateHotkeys";
+import type {
+  ComboPreset,
+  CorrectionPreset,
+  KeyBindings,
+} from "~/features/providers/store/apiStore";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -41,6 +50,17 @@ const makePreset = (
   systemPrompt: "Some prompt.",
   model: "openai/gpt-4.1-mini",
   isBuiltIn: false,
+});
+
+const makeCombo = (id: string, name: string, hotkey: string): ComboPreset => ({
+  id,
+  name,
+  hotkey,
+  steps: [
+    { id: `${id}-1`, presetId: "correction" },
+    { id: `${id}-2`, presetId: "summarize" },
+  ],
+  schemaVersion: 1,
 });
 
 const makeKeyBindings = (
@@ -171,16 +191,266 @@ describe("validateHotkeys", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Combo cancel (C6 layer 2) — Control+Escape is reserved STATICALLY, not
+// derived from `keyBindings`, so a preset claiming it is rejected pre-save even
+// though no app keybinding holds it.
+// ---------------------------------------------------------------------------
+
+describe("validateHotkeys — the combo cancel accelerator is statically reserved", () => {
+  it("pins the reserved accelerator and its label", () => {
+    expect(COMBO_CANCEL_ACCELERATOR).toBe("Control+Escape");
+    expect(COMBO_CANCEL_LABEL).toBe("comboCancel");
+  });
+
+  it("rejects a preset bound to Control+Escape, naming comboCancel as the holder", () => {
+    const presets = [makePreset("custom", "My Custom", COMBO_CANCEL_ACCELERATOR)];
+
+    expect(validateHotkeys(presets, makeKeyBindings())).toEqual({
+      hotkey: COMBO_CANCEL_ACCELERATOR,
+      presetOrKey: "My Custom",
+      conflictsWith: COMBO_CANCEL_LABEL,
+    });
+  });
+
+  it("rejects it even when both app keybindings are blank — the reservation is not keyBindings-derived", () => {
+    const presets = [makePreset("custom", "My Custom", COMBO_CANCEL_ACCELERATOR)];
+
+    const result = validateHotkeys(presets, {
+      promptGen: "",
+      profileSwitch: "",
+    });
+
+    expect(result?.conflictsWith).toBe(COMBO_CANCEL_LABEL);
+  });
+
+  it("rejects a combo bound to it too", () => {
+    const result = validateHotkeys([], makeKeyBindings(), [
+      makeCombo("c1", "Polish then translate", COMBO_CANCEL_ACCELERATOR),
+    ]);
+
+    expect(result).toEqual({
+      hotkey: COMBO_CANCEL_ACCELERATOR,
+      presetOrKey: "Polish then translate",
+      conflictsWith: COMBO_CANCEL_LABEL,
+    });
+  });
+
+  it("rejects an app keybinding bound to it — every binding is checked, not just presets", () => {
+    const result = validateHotkeys(
+      [],
+      makeKeyBindings(COMBO_CANCEL_ACCELERATOR, "Control+Shift+N"),
+    );
+
+    expect(result).toEqual({
+      hotkey: COMBO_CANCEL_ACCELERATOR,
+      presetOrKey: "promptGen",
+      conflictsWith: COMBO_CANCEL_LABEL,
+    });
+  });
+
+  it("names comboCancel as the holder for every party when a legacy promptGen also holds the chord", () => {
+    // Reachable only from a config saved before this gate existed. The static
+    // claim comes first, so it owns the message for both offenders.
+    const presets = [makePreset("custom", "My Custom", COMBO_CANCEL_ACCELERATOR)];
+
+    const conflicts = findHotkeyConflicts(
+      presets,
+      makeKeyBindings(COMBO_CANCEL_ACCELERATOR, "Control+Shift+N"),
+    );
+
+    expect(conflicts.map((conflict) => conflict.conflictsWith)).toEqual([
+      COMBO_CANCEL_LABEL,
+      COMBO_CANCEL_LABEL,
+    ]);
+    expect(conflicts.map((conflict) => conflict.presetOrKey)).toEqual([
+      "promptGen",
+      "My Custom",
+    ]);
+  });
+
+  it("leaves a merely similar chord alone", () => {
+    const presets = [
+      makePreset("a", "Alpha", "Control+Shift+Escape"),
+      makePreset("b", "Beta", "Command+Escape"),
+    ];
+
+    expect(validateHotkeys(presets, makeKeyBindings())).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The user's design change: the validator arbitrates EVERY keybinding pair,
+// and a collision is an error — never a silent relinquish.
+// ---------------------------------------------------------------------------
+
+describe("validateHotkeys — every keybinding pair is checked", () => {
+  it("returns null for a fully distinct set of presets, combos and app keys", () => {
+    const result = validateHotkeys(
+      [
+        makePreset("correction", "Correction", "Control+Shift+F"),
+        makePreset("summarize", "Summarize", "Control+Shift+S"),
+      ],
+      makeKeyBindings(),
+      [
+        makeCombo("c1", "Combo One", "Control+Shift+1"),
+        makeCombo("c2", "Combo Two", "Control+Shift+2"),
+      ],
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it("rejects preset ↔ combo", () => {
+    const result = validateHotkeys(
+      [makePreset("correction", "Correction", "Control+Shift+F")],
+      makeKeyBindings(),
+      [makeCombo("c1", "Combo One", "Control+Shift+F")],
+    );
+
+    expect(result).toEqual({
+      hotkey: "Control+Shift+F",
+      presetOrKey: "Combo One",
+      conflictsWith: "Correction",
+    });
+  });
+
+  it("rejects combo ↔ combo", () => {
+    const result = validateHotkeys([], makeKeyBindings(), [
+      makeCombo("c1", "Combo One", "Control+Shift+1"),
+      makeCombo("c2", "Combo Two", "Control+Shift+1"),
+    ]);
+
+    expect(result).toEqual({
+      hotkey: "Control+Shift+1",
+      presetOrKey: "Combo Two",
+      conflictsWith: "Combo One",
+    });
+  });
+
+  it("rejects combo ↔ promptGen", () => {
+    const result = validateHotkeys([], makeKeyBindings(), [
+      makeCombo("c1", "Combo One", "Control+Shift+P"),
+    ]);
+
+    expect(result).toEqual({
+      hotkey: "Control+Shift+P",
+      presetOrKey: "Combo One",
+      conflictsWith: "promptGen",
+    });
+  });
+
+  it("rejects combo ↔ profileSwitch", () => {
+    const result = validateHotkeys([], makeKeyBindings(), [
+      makeCombo("c1", "Combo One", "Control+Shift+N"),
+    ]);
+
+    expect(result).toEqual({
+      hotkey: "Control+Shift+N",
+      presetOrKey: "Combo One",
+      conflictsWith: "profileSwitch",
+    });
+  });
+
+  it("rejects promptGen ↔ profileSwitch — the pair nothing used to check", () => {
+    const result = validateHotkeys(
+      [],
+      makeKeyBindings("Control+Shift+P", "Control+Shift+P"),
+    );
+
+    expect(result).toEqual({
+      hotkey: "Control+Shift+P",
+      presetOrKey: "profileSwitch",
+      conflictsWith: "promptGen",
+    });
+  });
+
+  it("ignores blank combo hotkeys, and two blank ones do not collide with each other", () => {
+    const result = validateHotkeys([], makeKeyBindings(), [
+      makeCombo("c1", "Combo One", ""),
+      makeCombo("c2", "Combo Two", "   "),
+      makeCombo("c3", "Combo Three", "\t"),
+    ]);
+
+    expect(result).toBeNull();
+  });
+
+  it("compares hotkeys exactly — no case folding", () => {
+    const result = validateHotkeys(
+      [
+        makePreset("a", "Alpha", "Control+Shift+F"),
+        makePreset("b", "Beta", "control+shift+f"),
+      ],
+      makeKeyBindings(),
+      [makeCombo("c1", "Combo One", "CONTROL+SHIFT+F")],
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it("matches hotkeys that differ only by surrounding whitespace", () => {
+    const result = validateHotkeys(
+      [makePreset("a", "Alpha", "  Control+Shift+F  ")],
+      makeKeyBindings(),
+      [makeCombo("c1", "Combo One", "Control+Shift+F")],
+    );
+
+    expect(result?.hotkey).toBe("Control+Shift+F");
+  });
+});
+
+describe("findHotkeyConflicts — reports every collision, not just the first", () => {
+  it("returns one entry per offending claim, in claim order", () => {
+    const conflicts = findHotkeyConflicts(
+      [
+        makePreset("a", "Alpha", "Control+Shift+F"),
+        makePreset("b", "Beta", "Control+Shift+F"),
+        makePreset("c", "Gamma", "Control+Shift+P"),
+      ],
+      makeKeyBindings(),
+      [makeCombo("c1", "Combo One", "Control+Shift+F")],
+    );
+
+    expect(conflicts).toEqual([
+      {
+        hotkey: "Control+Shift+F",
+        presetOrKey: "Beta",
+        conflictsWith: "Alpha",
+      },
+      {
+        hotkey: "Control+Shift+P",
+        presetOrKey: "Gamma",
+        conflictsWith: "promptGen",
+      },
+      {
+        hotkey: "Control+Shift+F",
+        presetOrKey: "Combo One",
+        conflictsWith: "Alpha",
+      },
+    ]);
+  });
+
+  it("returns an empty array when nothing collides, and validateHotkeys agrees", () => {
+    const presets = [makePreset("a", "Alpha", "Control+Shift+F")];
+
+    expect(findHotkeyConflicts(presets, makeKeyBindings())).toEqual([]);
+    expect(validateHotkeys(presets, makeKeyBindings())).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Card 03 — the two new built-in defaults (Business Writing / Structured
 // Text) must not collide with each other, the other four built-ins, or the
 // static app hotkeys (promptGen/profileSwitch).
 // ---------------------------------------------------------------------------
 
 describe("validateHotkeys — the six real built-in defaults never conflict with each other or the app", () => {
-  it("returns null for getDefaultCorrectionSettings().presets against DEFAULT_KEY_BINDINGS", () => {
+  it("returns null for getDefaultCorrectionSettings() against DEFAULT_KEY_BINDINGS", () => {
+    const defaults = getDefaultCorrectionSettings();
+
     const result = validateHotkeys(
-      getDefaultCorrectionSettings().presets,
+      defaults.presets,
       DEFAULT_KEY_BINDINGS,
+      defaults.combos,
     );
 
     expect(result).toBeNull();

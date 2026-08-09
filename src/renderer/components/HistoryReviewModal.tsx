@@ -56,7 +56,7 @@ const HistoryReviewModal: React.FC<HistoryReviewModalProps> = ({
             <textarea
               readOnly
               value={data.original}
-              className="w-full h-48 bg-secondary text-foreground p-2 rounded-md resize-none"
+              className="w-full h-48 bg-secondary text-foreground p-2 rounded-md resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label={t("history.reviewModal.originalTextArea")}
             />
           </div>
@@ -72,7 +72,7 @@ const HistoryReviewModal: React.FC<HistoryReviewModalProps> = ({
             <textarea
               readOnly
               value={data.corrected}
-              className="w-full h-48 bg-secondary text-foreground p-2 rounded-md resize-none"
+              className="w-full h-48 bg-secondary text-foreground p-2 rounded-md resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label={t("history.reviewModal.correctedTextArea")}
             />
           </div>

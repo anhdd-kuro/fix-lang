@@ -690,7 +690,7 @@ const NEGATIVES: readonly NegativeCase[] = [
   {
     ruleId: "shopify-token",
     description: "an unknown shp prefix",
-    text: "shpxx_0123456789abcdef0123456789abcdef",
+    text: credentialFixture("shp", "xx_0123456789abcdef0123456789abcdef"),
   },
   {
     ruleId: "digitalocean-token",

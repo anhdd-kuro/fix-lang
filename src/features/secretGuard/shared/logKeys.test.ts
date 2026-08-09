@@ -38,7 +38,8 @@ const APPROVED: LogContext = {
   confirmMs: 1_450,
   pausedMs: 1_450,
   delivery: "paste",
-  pasteboardChanged: false,
+  selectionChanged: false,
+  source: "clipboard",
 };
 
 /**
@@ -49,7 +50,7 @@ const REJECTED: readonly (readonly [string, string])[] = [
   ["clipboardAgeMs", "selectionAgeMs"],
   ["clipboardStale", "guardReason"],
   ["clipboardMaxAgeMs", "ageLimitMs"],
-  ["clipboardChanged", "pasteboardChanged"],
+  ["clipboardChanged", "selectionChanged"],
   ["selectedTextLength", "textLength"],
   ["selectedtextLength", "textLength"],
   ["originalTextLength", "textLength"],

@@ -69,7 +69,7 @@ vi.mock("../notifications/confirmLargeSelection", () => ({
 }));
 vi.mock("../../utils", () => ({
   getHighlightedTextWithActiveApp: vi.fn(),
-  getHighlightedTextForOptionalContext: vi.fn().mockResolvedValue(""),
+  getAskContext: vi.fn().mockResolvedValue({ text: "", source: "clipboard" }),
   pasteText: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../ai.request", () => ({ fixGrammar: vi.fn() }));
@@ -254,7 +254,7 @@ describe("correction selection guards — block: stale-clipboard", () => {
     // literal — through the REAL redactor. `redactLogContext` blanks any
     // context key merely CONTAINING `clipboard`/`token`/`secret`/`password`/
     // `selected_text`, silently. `clipboardChanged` already shipped that
-    // trap once (card 05 renamed it to `pasteboardChanged`); the natural
+    // trap once (it is now `selectionChanged` in `utils.ts`); the natural
     // name here would be `clipboardAgeMs`, which this line would catch.
     const [, , staleClipboardContext] = (logger.warn as Mock).mock.calls[0];
     expect(redactLogContext(staleClipboardContext)).toEqual(staleClipboardContext);
@@ -391,8 +391,8 @@ describe("correction selection guards — log key redaction safety", () => {
    * `clipboardAgeMs` reads better than `selectionAgeMs`, but `redactLogContext`
    * blanks any key merely CONTAINING `clipboard`, silently. This repo has
    * already shipped that exact mistake once: `clipboardChanged` persisted as
-   * `"[REDACTED]"` in production until card 05 renamed it to
-   * `pasteboardChanged`. Pinning the rejects (not just the approved names
+   * `"[REDACTED]"` in production until `utils.ts` renamed it to
+   * `selectionChanged`. Pinning the rejects (not just the approved names
    * above) is what stops a future "simplification" back to the natural name.
    */
   it.each([
