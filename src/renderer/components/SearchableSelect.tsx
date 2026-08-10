@@ -130,13 +130,20 @@ export const SearchableSelect = <Option extends SearchableOption>({
       theme={withThemeColors}
       styles={{
         option: selectOptionStyle,
+        // De-emphasized, and safe to be: it sits on `input`, where
+        // `muted-foreground` clears 3:1 in 148 of the 149 themes.
         placeholder: (base) => ({
           ...base,
           color: "var(--muted-foreground)",
         }),
+        // NOT muted, unlike the placeholder: this renders inside the menu, so
+        // its surface is `popover` — where `muted-foreground` drops to 2.03:1 in
+        // `slack-ochin` (`#9e9e9e` on `#e0e0e0`). It is also the select's only
+        // feedback when a search matches nothing, so it takes the surface's
+        // paired token, which clears 4.5:1 in all 149.
         noOptionsMessage: (base) => ({
           ...base,
-          color: "var(--muted-foreground)",
+          color: "var(--popover-foreground)",
         }),
         dropdownIndicator: (base) => ({
           ...base,

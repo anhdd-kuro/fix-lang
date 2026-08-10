@@ -113,7 +113,9 @@ describe("open menu", () => {
     container = undefined;
   });
 
-  const openMenu = async (): Promise<HTMLElement[]> => {
+  const open = async (
+    options: SearchableSelectProps<SearchableOption>["options"],
+  ): Promise<HTMLDivElement> => {
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -122,10 +124,10 @@ describe("open menu", () => {
     await act(async () => {
       mounted.render(
         createElement(SearchableSelect, {
-          options: [option("correction", "Correction"), option("summarize", "Summarize")],
+          options,
           value: null,
           onChange: () => undefined,
-          noOptionsMessage: "none",
+          noOptionsMessage: "No options",
           placeholder: "Select...",
         }),
       );
@@ -135,6 +137,14 @@ describe("open menu", () => {
         .querySelector('[class*="-control"]')
         ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
     });
+    return target;
+  };
+
+  const openMenu = async (): Promise<HTMLElement[]> => {
+    const target = await open([
+      option("correction", "Correction"),
+      option("summarize", "Summarize"),
+    ]);
     return [...target.querySelectorAll<HTMLElement>('[role="option"]')];
   };
 
@@ -155,6 +165,24 @@ describe("open menu", () => {
     // jsdom serializes `transparent` as its rgba() equivalent.
     expect(getComputedStyle(resting as HTMLElement).backgroundColor).toBe(
       "rgba(0, 0, 0, 0)",
+    );
+  });
+
+  it("keeps the empty-result message on the menu's own paired foreground", async () => {
+    // It renders INSIDE the `popover` menu, where `muted-foreground` falls to
+    // 2.03:1 in `slack-ochin` — and it is the only feedback a matchless search
+    // gets, so it may not be the token that fails there.
+    const target = await open([]);
+    const menu = target.querySelector('[class*="-menu"]');
+    const message = [...target.querySelectorAll<HTMLElement>("div")]
+      .reverse()
+      .find((node) => node.textContent === "No options");
+
+    expect(menu).toBeDefined();
+    expect(message).toBeDefined();
+    expect(getComputedStyle(menu as HTMLElement).backgroundColor).toBe("var(--popover)");
+    expect(getComputedStyle(message as HTMLElement).color).toBe(
+      "var(--popover-foreground)",
     );
   });
 });
