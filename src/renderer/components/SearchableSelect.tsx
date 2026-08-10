@@ -1,6 +1,7 @@
 import React from "react";
 import Select from "react-select";
 import { normalizeForSearch } from "~/const";
+import { selectOptionStyle, withThemeColors } from "./selectOptionSurface";
 import type {
   GroupBase,
   GroupHeadingProps,
@@ -126,7 +127,35 @@ export const SearchableSelect = <Option extends SearchableOption>({
       menuPosition={menuPortal ? "fixed" : "absolute"}
       menuShouldScrollIntoView={false}
       maxMenuHeight={menuPortal ? resolvedMaxHeight : undefined}
+      theme={withThemeColors}
       styles={{
+        option: selectOptionStyle,
+        placeholder: (base) => ({
+          ...base,
+          color: "var(--muted-foreground)",
+        }),
+        noOptionsMessage: (base) => ({
+          ...base,
+          color: "var(--muted-foreground)",
+        }),
+        dropdownIndicator: (base) => ({
+          ...base,
+          color: "var(--muted-foreground)",
+          "&:hover": {
+            color: "var(--foreground)",
+          },
+        }),
+        clearIndicator: (base) => ({
+          ...base,
+          color: "var(--muted-foreground)",
+          "&:hover": {
+            color: "var(--foreground)",
+          },
+        }),
+        indicatorSeparator: (base) => ({
+          ...base,
+          backgroundColor: "var(--card-control-border)",
+        }),
         control: (base) => ({
           ...base,
           backgroundColor: "var(--input)",

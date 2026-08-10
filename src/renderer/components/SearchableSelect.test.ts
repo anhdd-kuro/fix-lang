@@ -1,6 +1,7 @@
-import { createElement } from "react";
+import { act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   DefaultGroupHeading,
   SearchableSelect,
@@ -91,6 +92,70 @@ describe("DefaultGroupHeading", () => {
 
   it("renders nothing for an empty label — the inherit group has no heading", () => {
     expect(DefaultGroupHeading(headingProps(""))).toBeNull();
+  });
+});
+
+describe("open menu", () => {
+  // No `@testing-library/react` is installed, so this renders the real
+  // component via `react-dom/client` + `act`, as `ModelSelect.test.ts` does.
+  let container: HTMLDivElement | undefined;
+  let root: Root | undefined;
+
+  afterEach(async () => {
+    if (root) {
+      const mounted = root;
+      await act(async () => {
+        mounted.unmount();
+      });
+    }
+    container?.remove();
+    root = undefined;
+    container = undefined;
+  });
+
+  const openMenu = async (): Promise<HTMLElement[]> => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const mounted = root;
+    const target = container;
+    await act(async () => {
+      mounted.render(
+        createElement(SearchableSelect, {
+          options: [option("correction", "Correction"), option("summarize", "Summarize")],
+          value: null,
+          onChange: () => undefined,
+          noOptionsMessage: "none",
+          placeholder: "Select...",
+        }),
+      );
+    });
+    await act(async () => {
+      target
+        .querySelector('[class*="-control"]')
+        ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+    });
+    return [...target.querySelectorAll<HTMLElement>('[role="option"]')];
+  };
+
+  it("paints the focused row from the theme, not react-select's own blue", async () => {
+    const [focused] = await openMenu();
+    expect(focused).toBeDefined();
+    const style = getComputedStyle(focused as HTMLElement);
+    // react-select's `optionCSS` would put #DEEBFF here and inherit the text
+    // colour, which is what made a themed foreground unreadable on hover.
+    expect(style.backgroundColor).toBe("var(--secondary)");
+    expect(style.color).toBe("var(--secondary-foreground)");
+  });
+
+  it("leaves an unfocused row transparent so the menu colour shows through", async () => {
+    const options = await openMenu();
+    const resting = options[1];
+    expect(resting).toBeDefined();
+    // jsdom serializes `transparent` as its rgba() equivalent.
+    expect(getComputedStyle(resting as HTMLElement).backgroundColor).toBe(
+      "rgba(0, 0, 0, 0)",
+    );
   });
 });
 
