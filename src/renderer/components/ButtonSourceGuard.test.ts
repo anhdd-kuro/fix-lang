@@ -1529,7 +1529,7 @@ const consumerContractRows = [
     "SITE-49d04a99dd30ac75-01",
     "LIVE-49d04a99dd30ac75",
     "src/renderer/AskInputWindow/index.tsx",
-    440,
+    475,
     9,
   ],
   [
@@ -2385,7 +2385,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "c5479cb7c2ce5a74c7ca3d370978d6dccae2460b518f15354dbfa3620c82b792";
+  "d68371e388298590f3e5d7872b0ee16db668521adacb2e0a4975b962a340bd1c";
 
 const compareConsumers = (
   left: ButtonConsumer,

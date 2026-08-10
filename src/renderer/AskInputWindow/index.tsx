@@ -282,7 +282,17 @@ export const AskInputWindow = () => {
   };
 
   return (
-    <main className="flex h-screen flex-col gap-3 bg-background p-4 text-foreground">
+    /*
+      HEIGHT BUDGET. The window is 520x200, but that is the FRAMED size —
+      `askInputWindow.ts` sets no `useContentSize`, so macOS takes its 32px
+      title bar out of it and `h-screen` here is 168px, not 200. Measured, not
+      assumed: `BrowserWindow({height: 200}).getContentSize()` reports 168.
+      `py-3` (24) + two `gap-2` (16) + the `text-xs` footer (16) leave 112px to
+      split between the context card and the textarea, and `ContextPreview`'s
+      `max-h-15` (60) plus the textarea wrapper's `min-h-13` (52) sum to
+      exactly that. Change either number and change the other.
+    */
+    <main className="flex h-screen flex-col gap-2 bg-background p-3 text-foreground">
       {/*
         Keyed by the context itself so a new selection always opens collapsed:
         the fold state belongs to the passage being folded, and remounting is
@@ -301,7 +311,15 @@ export const AskInputWindow = () => {
           onToggled={focusTextarea}
         />
       )}
-      <div className="relative min-h-0 flex-1 rounded-md border border-card-control-border bg-card">
+      {/*
+        `min-h-13` (52px) rather than `min-h-0`: both defeat the flex item's
+        default `min-height: auto` — a textarea's intrinsic two-row height —
+        but only a floor keeps the context card from taking the whole window.
+        52 is one `text-sm leading-relaxed` line (22.75) plus the wrapper's own
+        `p-3` (24) and border (2), with 3px to spare, so the placeholder can
+        never come back half-cut.
+      */}
+      <div className="relative min-h-13 flex-1 rounded-md border border-card-control-border bg-card">
         {/*
           The anchor's PREFIX, not the whole question: the mirror exists to
           push the ghost to the caret, and feeding it text that lives after
@@ -363,12 +381,29 @@ type ContextPreviewProps = {
 /**
  * The attached selection, shown so the user can see WHAT they are about to
  * send rather than only how many characters of it. Collapsed to a single
- * ellipsised line by default: this window is 520x200 and the textarea is the
- * point of it, so the resting state has to stay cheap.
+ * ellipsised line by default: this window is 520x200 framed — 168px of actual
+ * page (see the height budget on `<main>`) — and the textarea is the point of
+ * it, so the resting state has to stay cheap.
  *
- * Expanded is capped at `max-h-16` with its own scroll rather than left
- * unbounded — the window does not grow, so an unbounded selection would push
- * the textarea to nothing.
+ * THE WHOLE CARD IS CAPPED (`max-h-15`, 60px), not just its text, and the cap
+ * is what the textarea's floor is subtracted from. Capping only the text left
+ * the label, both gaps, the padding and the fold control outside the bound, so
+ * an expanded card ran 114px in a 112px budget and the "Ask anything"
+ * placeholder was cut in half by the bottom of the card.
+ *
+ * Everything here is sized so the cap is REACHABLE rather than fought over by
+ * an inner element: border 2 + `py-1` 8 + `leading-none` label 10 + two
+ * `gap-0.5` 4 + `text-xs` fold control 16 = 40px of chrome, leaving 20px —
+ * hence the expanded body's `max-h-5`. Collapsed, the body is one
+ * `leading-snug` line (16.5), so the card rests at ~57px and the textarea gets
+ * the remaining 55. The label's `leading-none` is not cosmetic: `text-[10px]`
+ * sets no line-height, so its box would be whatever `normal` means for the
+ * user's font, and a card whose height is an estimate cannot be summed against
+ * a floor.
+ *
+ * Expanded therefore buys roughly one extra line plus a scrollbar. That is the
+ * ceiling a 168px window allows once a full line of question is guaranteed —
+ * not a value worth tuning without changing `WINDOW_HEIGHT` itself.
  *
  * Rendered as plain text through React's own escaping: never `MarkdownView`,
  * never `dangerouslySetInnerHTML`. This is untrusted text the user selected in
@@ -403,7 +438,7 @@ const ContextPreview = ({ text, source, onToggled }: ContextPreviewProps) => {
   return (
     <section
       data-ask-context
-      className="flex shrink-0 flex-col gap-1 rounded-md border border-card-control-border bg-card px-2 py-1.5"
+      className="flex max-h-15 shrink-0 flex-col gap-0.5 rounded-md border border-card-control-border bg-card px-2 py-1"
     >
       {/*
         Labelled the way the session-detail chat labels its system prompt: a
@@ -420,7 +455,7 @@ const ContextPreview = ({ text, source, onToggled }: ContextPreviewProps) => {
       <p
         data-ask-context-label
         data-ask-context-source={source}
-        className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+        className="text-[10px] font-medium uppercase leading-none tracking-wide text-muted-foreground"
       >
         {source === "clipboard"
           ? t("notifications.window.askInput.contextLabelClipboard")
@@ -431,7 +466,7 @@ const ContextPreview = ({ text, source, onToggled }: ContextPreviewProps) => {
         data-ask-context-text
         className={twJoin(
           "whitespace-pre-wrap break-words text-xs leading-snug text-card-foreground",
-          expanded ? "max-h-16 overflow-y-auto" : "line-clamp-1",
+          expanded ? "max-h-5 overflow-y-auto" : "line-clamp-1",
         )}
       >
         {text}
