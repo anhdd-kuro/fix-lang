@@ -57,6 +57,31 @@ describe("option surface", () => {
     expect(disabled[":active"]).toEqual({ backgroundColor: undefined });
   });
 
+  it("flattens a disabled row whatever else it is, in both representations", () => {
+    // A stored value can point AT a disabled option (an unavailable model), so
+    // `isDisabled` + `isSelected` is reachable — and used to paint `primary`
+    // under muted text on the default `Option` while the class variant said
+    // transparent. Every combination is pinned so the two cannot diverge again.
+    for (const isFocused of [false, true]) {
+      for (const isSelected of [false, true]) {
+        const state = { isFocused, isSelected, isDisabled: true };
+        const style = selectOptionStyle(base, state);
+
+        expect(style.backgroundColor, `bg for ${JSON.stringify(state)}`).toBe(
+          "transparent",
+        );
+        expect(style.color, `color for ${JSON.stringify(state)}`).toBe(
+          "var(--muted-foreground)",
+        );
+        expect(style.cursor).toBe("not-allowed");
+        expect(style[":active"]).toEqual({ backgroundColor: undefined });
+        expect(selectOptionClassName(state)).toBe(
+          "bg-transparent text-muted-foreground",
+        );
+      }
+    }
+  });
+
   it("pairs every background with its own foreground token, never the ambient one", () => {
     // `foreground` over `secondary` is identical in `tc-night-owl-light` and
     // under 3:1 in 36 of the 149 themes; over `primary` it fails in 123.

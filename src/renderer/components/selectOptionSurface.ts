@@ -67,14 +67,32 @@ export const selectOptionSurface = ({
       : OPTION_SURFACES.resting;
 
 /**
+ * The disabled row, in both representations. Its background is flat rather than
+ * the selected/focused one: a stored value can point AT a disabled option (an
+ * unavailable model), and painting that row `primary` while muting its text
+ * puts `muted-foreground` on a saturated fill and also claims a row is pickable
+ * when it is not.
+ *
+ * The muted text is deliberate and stays: the row is an inactive control, which
+ * WCAG 1.4.3 exempts from the 4.5:1 floor, and dimming is the only thing that
+ * says "not selectable" on the default `Option` (`ModelSelect`'s own renderer
+ * adds italics). `selectContrast.test.ts` records what that costs — 2.02:1 in
+ * `slack-ochin` — rather than asserting a floor it is exempt from.
+ */
+const DISABLED_OPTION_SURFACE: SelectOptionSurface = {
+  className: "bg-transparent text-muted-foreground",
+  backgroundColor: "transparent",
+  color: "var(--muted-foreground)",
+};
+
+/**
  * Tailwind classes for a custom `Option` renderer — the same pairing the
  * default `Option` gets from `selectOptionStyle`, so a bespoke row cannot drift
  * from the shared one.
  */
 export const selectOptionClassName = (state: SelectOptionState): string =>
-  state.isDisabled
-    ? "bg-transparent text-muted-foreground"
-    : selectOptionSurface(state).className;
+  (state.isDisabled ? DISABLED_OPTION_SURFACE : selectOptionSurface(state))
+    .className;
 
 /**
  * Hover pairing for an option row outside react-select (`MultiSelect`'s
@@ -90,23 +108,27 @@ export const selectOptionHoverClassName =
 export const selectOptionStyle = (
   base: CSSObjectWithLabel,
   state: SelectOptionState,
-): CSSObjectWithLabel => ({
-  ...base,
-  backgroundColor: selectOptionSurface(state).backgroundColor,
-  color: state.isDisabled
-    ? "var(--muted-foreground)"
-    : selectOptionSurface(state).color,
-  cursor: state.isDisabled ? "not-allowed" : "pointer",
-  // react-select's touch affordance re-introduces its own blue (`primary50`)
-  // on press, so the pressed row is themed here too.
-  ":active": state.isDisabled
-    ? { backgroundColor: undefined }
-    : {
-        backgroundColor: selectOptionSurface({ ...state, isFocused: true })
-          .backgroundColor,
-        color: selectOptionSurface({ ...state, isFocused: true }).color,
-      },
-});
+): CSSObjectWithLabel => {
+  const surface = state.isDisabled
+    ? DISABLED_OPTION_SURFACE
+    : selectOptionSurface(state);
+  const pressed = state.isDisabled
+    ? DISABLED_OPTION_SURFACE
+    : selectOptionSurface({ ...state, isFocused: true });
+
+  return {
+    ...base,
+    backgroundColor: surface.backgroundColor,
+    color: surface.color,
+    cursor: state.isDisabled ? "not-allowed" : "pointer",
+    // react-select's touch affordance re-introduces its own blue (`primary50`)
+    // on press, so the pressed row is themed here too — and a disabled row must
+    // not react to a press at all.
+    ":active": state.isDisabled
+      ? { backgroundColor: undefined }
+      : { backgroundColor: pressed.backgroundColor, color: pressed.color },
+  };
+};
 
 /**
  * react-select's palette drives anything not covered by an explicit `styles`
