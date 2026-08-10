@@ -25,10 +25,14 @@ vi.mock("./attachThemeSync", () => ({
 
 const autocompleteServiceMocks = vi.hoisted(() => ({
   abortAutocomplete: vi.fn(),
+  rememberAskContext: vi.fn(),
+  forgetAskContext: vi.fn(),
 }));
 
 vi.mock("~/features/autocomplete/main/service", () => ({
   abortAutocomplete: autocompleteServiceMocks.abortAutocomplete,
+  rememberAskContext: autocompleteServiceMocks.rememberAskContext,
+  forgetAskContext: autocompleteServiceMocks.forgetAskContext,
 }));
 
 // A fixed, distinguishable id so assertions can pin the exact string
@@ -455,6 +459,129 @@ describe("askInputWindow", () => {
         getIpcHandler("ask-input-submit")(undefined, "question"),
       ).not.toThrow();
       expect(autocompleteServiceMocks.abortAutocomplete).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * THE ATTACHED CONTEXT HANDED TO AUTOCOMPLETE, and its lifetime.
+   *
+   * The passage travels main-side — keyed by this window's `webContents.id`, the
+   * same string `autocomplete-suggest` derives its `sessionId` from — because a
+   * context field on the wire request would be renderer-controlled text going
+   * into a provider prompt. So the two things that can go wrong here are both
+   * about lifetime: a passage that never arrives, and a passage that outlives its
+   * ask. The second is the dangerous one, because there is nothing on screen to
+   * show it: the ghost text would be reading the PREVIOUS question's selection.
+   */
+  describe("handing the attached context to autocomplete", () => {
+    it("records the payload's context against this window's session id", async () => {
+      const { showAskInputWindow } = await loadModule();
+
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+
+      expect(autocompleteServiceMocks.rememberAskContext).toHaveBeenCalledWith(
+        String(WEB_CONTENTS_ID),
+        { text: "selected text", source: "selection" },
+      );
+    });
+
+    // `AskContextSource`'s own documented reading — and it must match the label
+    // the renderer's card shows, or the prompt would describe the passage
+    // differently from the window the user is looking at.
+    it("carries a clipboard-sourced context as such, and defaults an absent source to selection", async () => {
+      const { showAskInputWindow } = await loadModule();
+
+      showAskInputWindow(
+        { presetId: "ask", context: "stale clipboard text", contextSource: "clipboard" },
+        { onSubmit: vi.fn(), onCancel: vi.fn() },
+      );
+
+      expect(autocompleteServiceMocks.rememberAskContext).toHaveBeenLastCalledWith(
+        String(WEB_CONTENTS_ID),
+        { text: "stale clipboard text", source: "clipboard" },
+      );
+
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+
+      expect(autocompleteServiceMocks.rememberAskContext).toHaveBeenLastCalledWith(
+        String(WEB_CONTENTS_ID),
+        { text: "selected text", source: "selection" },
+      );
+    });
+
+    it("replaces the context on a second press", async () => {
+      const { showAskInputWindow } = await loadModule();
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+
+      showAskInputWindow(
+        { presetId: "ask", context: "a different selection" },
+        { onSubmit: vi.fn(), onCancel: vi.fn() },
+      );
+
+      expect(autocompleteServiceMocks.rememberAskContext).toHaveBeenLastCalledWith(
+        String(WEB_CONTENTS_ID),
+        { text: "a different selection", source: "selection" },
+      );
+    });
+
+    /**
+     * The window is a reused singleton under ONE `webContents.id`, so a press
+     * with nothing selected has to clear rather than skip: skipping would leave
+     * the previous press's passage in place and suggest against it, with no
+     * context card on screen to say a passage was attached at all.
+     */
+    it("clears the context when the next press has nothing selected", async () => {
+      const { showAskInputWindow } = await loadModule();
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+      autocompleteServiceMocks.rememberAskContext.mockClear();
+
+      showAskInputWindow(PAYLOAD_WITHOUT_CONTEXT, {
+        onSubmit: vi.fn(),
+        onCancel: vi.fn(),
+      });
+
+      expect(autocompleteServiceMocks.rememberAskContext).not.toHaveBeenCalled();
+      expect(autocompleteServiceMocks.forgetAskContext).toHaveBeenCalledWith(
+        String(WEB_CONTENTS_ID),
+      );
+    });
+
+    // Every path that ends an ask goes through `hideAskInputWindow`, dismissal
+    // and submission alike — the same reason `abortAutocomplete` is read on both.
+    const endTheAsk = {
+      "a chrome dismissal (Cmd-W / red X)": () => {
+        const closeCall = lastWindow?.on.mock.calls.find(
+          ([eventName]) => eventName === "close",
+        );
+        closeCall?.[1]({ preventDefault: vi.fn() });
+      },
+      "ask-input-cancel (ESC)": () => getIpcHandler("ask-input-cancel")(undefined),
+      "a submitted question": () =>
+        getIpcHandler("ask-input-submit")(undefined, "What is a monad?"),
+    };
+
+    it.each(Object.entries(endTheAsk))("drops the context on %s", async (_description, end) => {
+      const { showAskInputWindow } = await loadModule();
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+      autocompleteServiceMocks.forgetAskContext.mockClear();
+
+      end();
+
+      expect(autocompleteServiceMocks.forgetAskContext).toHaveBeenCalledWith(
+        String(WEB_CONTENTS_ID),
+      );
+    });
+
+    it("drops the context when a profile switch dismisses a pending ask", async () => {
+      const { showAskInputWindow, dismissAskInputWindow } = await loadModule();
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+      autocompleteServiceMocks.forgetAskContext.mockClear();
+
+      dismissAskInputWindow();
+
+      expect(autocompleteServiceMocks.forgetAskContext).toHaveBeenCalledWith(
+        String(WEB_CONTENTS_ID),
+      );
     });
   });
 

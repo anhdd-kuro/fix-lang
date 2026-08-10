@@ -3,13 +3,26 @@
  * @description Builds the autocomplete request's system and user prompts.
  *
  * Pure — no Electron, no store reads — so the windowing rules are unit-testable
- * without a running app.
+ * without a running app. The one import is a type.
  */
+import type { AskContextSource } from "~/features/ask/shared/ask";
 
 /** Characters of text before the caret sent as context. */
 export const PREFIX_WINDOW_CHARS = 600;
 /** Characters of text after the caret sent as context. */
 export const SUFFIX_WINDOW_CHARS = 200;
+/**
+ * Characters of the ATTACHED Ask context sent with the request.
+ *
+ * Windowed from the HEAD, which is the opposite end from the prefix beside it —
+ * and the reason is that this passage is not caret-relative at all. The prefix
+ * keeps its tail because the caret is the only position a continuation can be
+ * written from; the attached context is never continued, it only says what the
+ * question is ABOUT, and the opening of a passage is what identifies its
+ * subject. A tail-windowed context would hand the model the last 400 characters
+ * of something whose topic was stated in the first line.
+ */
+export const CONTEXT_WINDOW_CHARS = 400;
 
 /**
  * Kept here rather than in `src/prompts/` on purpose: that directory holds the
@@ -83,6 +96,15 @@ export const SUFFIX_WINDOW_CHARS = 200;
  * for `tes` — re-emitting the word the mid-word rule exists to fragment. So the
  * fall-back names what to ADD rather than what not to spell.
  *
+ * WHY A CONTEXT RULE EXISTS AT ALL. The user prompt may carry an attached
+ * passage — the selection (or clipboard text) the Ask input window is showing in
+ * its context card — and a model handed two blocks of text will sometimes
+ * continue the WRONG one, answering with a continuation of the passage rather
+ * than of the half-typed question. The rule is an imperative fragment like the
+ * ones around it and sits in the MIDDLE of the list, never at the end: the last
+ * line has to stay `{"suggestion":""}`, because the end of the prompt is where a
+ * continuation-shaped model picks up.
+ *
  * Short on purpose — it is sent on every dispatch and is the cacheable prefix.
  */
 export const AUTOCOMPLETE_SYSTEM_PROMPT = `Reply with one JSON object only:
@@ -91,16 +113,68 @@ export const AUTOCOMPLETE_SYSTEM_PROMPT = `Reply with one JSON object only:
 - "suggestion" holds only the continuation, never any of the input text.
 - Ends mid-word: finish that word. "tes" -> {"suggestion":"t"}, not "test".
 - Ends on a whole word, space or mark: add what comes next.
+- Context blocks are background only; continue the text before the caret.
 - Match input language, tone and register.
 - Stop after one sentence; never emit more than 15 words.
 - No markdown, no code fences, no commentary, inside or out.
 - Nothing worth suggesting: {"suggestion":""}`;
+
+/**
+ * The passage the Ask input window has attached, as the prompt needs to see it.
+ *
+ * `source` is the SAME `AskContextSource` the input window labels its card with,
+ * reused rather than restated: the card says `Selected text` or `From clipboard`
+ * to the user, and the prompt says the same thing to the model, so a third
+ * vocabulary here would let the two drift. The type is Electron-free, which is
+ * what lets this module stay so.
+ */
+export type AutocompleteAskContext = {
+  text: string;
+  source: AskContextSource;
+};
+
+/**
+ * Model-facing English, never an i18n key: this text is read by a provider, not
+ * by the user, and translating it would make the prompt — and with it the cache
+ * key — depend on the app's display language.
+ */
+const CONTEXT_SOURCE_LABELS: Record<AskContextSource, string> = {
+  selection: "selected text",
+  clipboard: "from clipboard",
+};
 
 export type AutocompletePromptInput = {
   /** Text before the caret. */
   prefix: string;
   /** Text after the caret; empty when the caret is at the end. */
   suffix?: string;
+  /** The attached Ask context, when the window has one. */
+  context?: AutocompleteAskContext;
+};
+
+/**
+ * The attached passage as a labelled block, plus how much of it is being sent.
+ *
+ * LABELLED, and labelled as something the user ATTACHED rather than as more
+ * input: without a label a second block of prose above the caret text is just
+ * more text to continue, which is the failure the system prompt's context rule
+ * and this heading defend against together. Naming the source in the heading
+ * also carries the one fact the model cannot infer — clipboard text may be
+ * minutes old and about something else entirely.
+ *
+ * The length is returned rather than recomputed by the caller so the windowing
+ * rule lives in exactly one place; it is what the dispatch log states, and the
+ * honest number there is what was SENT, not what was attached.
+ */
+const buildAskContextBlock = (
+  context: AutocompleteAskContext | undefined,
+): { block: string; length: number } => {
+  const windowed = context?.text.slice(0, CONTEXT_WINDOW_CHARS) ?? "";
+  if (!context || !windowed) return { block: "", length: 0 };
+  return {
+    block: `Context the user attached (${CONTEXT_SOURCE_LABELS[context.source]}):\n${windowed}\n\n`,
+    length: windowed.length,
+  };
 };
 
 /**
@@ -109,6 +183,7 @@ export type AutocompletePromptInput = {
  * The prefix keeps its TAIL and the suffix keeps its HEAD: the caret is the only
  * position that matters, so truncation has to discard the text furthest from it.
  * Trimming the wrong end would hand the model context it cannot continue from.
+ * The attached context is the contrasting case — see `CONTEXT_WINDOW_CHARS`.
  *
  * Whitespace is never trimmed — a trailing space is the difference between
  * continuing a word and starting the next one.
@@ -117,17 +192,36 @@ export type AutocompletePromptInput = {
  * reason the system prompt was rewritten: `Continuation:` is a prose cue, and
  * the observed failure was a model answering it with a sentence about why it
  * could not continue. `JSON:` cues a brace.
+ *
+ * WITH NO ATTACHED CONTEXT THE OUTPUT IS BYTE-IDENTICAL TO WHAT IT WAS BEFORE
+ * contexts existed. That is not politeness: `service.ts` keys its cache on this
+ * exact string, so a heading, a blank line or an "(none)" placeholder emitted
+ * for a bare question would invalidate every cached suggestion and re-bill the
+ * cheapest path the feature has.
  */
 export const buildAutocompletePrompt = ({
   prefix,
   suffix = "",
-}: AutocompletePromptInput): { systemPrompt: string; userPrompt: string } => {
+  context,
+}: AutocompletePromptInput): {
+  systemPrompt: string;
+  userPrompt: string;
+  /** Characters of attached context actually placed in the prompt; `0` for none. */
+  contextLength: number;
+} => {
   const windowedPrefix = prefix.slice(-PREFIX_WINDOW_CHARS);
   const windowedSuffix = suffix.slice(0, SUFFIX_WINDOW_CHARS);
+  const askContext = buildAskContextBlock(context);
 
+  // The context leads, so the caret text is the LAST thing the model reads
+  // before `JSON:` — the position it continues from.
   const userPrompt = windowedSuffix
-    ? `Text before the caret:\n${windowedPrefix}\n\nText after the caret:\n${windowedSuffix}\n\nJSON:`
-    : `Text before the caret:\n${windowedPrefix}\n\nJSON:`;
+    ? `${askContext.block}Text before the caret:\n${windowedPrefix}\n\nText after the caret:\n${windowedSuffix}\n\nJSON:`
+    : `${askContext.block}Text before the caret:\n${windowedPrefix}\n\nJSON:`;
 
-  return { systemPrompt: AUTOCOMPLETE_SYSTEM_PROMPT, userPrompt };
+  return {
+    systemPrompt: AUTOCOMPLETE_SYSTEM_PROMPT,
+    userPrompt,
+    contextLength: askContext.length,
+  };
 };
