@@ -1106,7 +1106,11 @@ describe("AskInputWindow", () => {
       expect(contextBody().className).not.toContain("line-clamp-1");
       // Capped rather than unbounded: the window never grows, so an expanded
       // selection scrolls inside its own box instead of eating the textarea.
-      expect(contextBody().className).toContain("max-h-16");
+      // 20px is what the card's own 60px cap leaves once its 40px of chrome
+      // (border, padding, label, two gaps, fold control) is subtracted — a
+      // taller body here would push the card past its cap and put the
+      // placeholder back under the bottom edge of the card.
+      expect(contextBody().className).toContain("max-h-5");
       expect(contextBody().className).toContain("overflow-y-auto");
       expect(contextBody().textContent).toBe(LONG_CONTEXT);
       expect(foldControl()?.textContent).toBe(
@@ -1120,6 +1124,49 @@ describe("AskInputWindow", () => {
       expect(foldControl()?.textContent).toBe(
         tEn("notifications.window.askInput.contextExpand"),
       );
+    });
+
+    /**
+     * Both ends of the split are pinned, because either one alone MOVES the
+     * overflow instead of removing it: a cap with no floor lets the `shrink-0`
+     * card sit at its natural height and squeeze the textarea to a half-line,
+     * and a floor with no cap pushes the footer off the bottom of the window
+     * instead. jsdom lays nothing out, so the heights below are arithmetic
+     * rather than measurement — what a test can hold is the class contract and
+     * the sum behind it:
+     *
+     *   168px of page (520x200 FRAMED, less macOS's 32px title bar — measured
+     *   via `BrowserWindow({height: 200}).getContentSize()`)
+     *   less 24 (`py-3`) + 16 (two `gap-2`) + 16 (`text-xs` footer)
+     *   = 112 to split, and 60 (`max-h-15`) + 52 (`min-h-13`) = 112.
+     *
+     * `min-h-0` is what the floor REPLACES, not something it sits beside: both
+     * defeat the flex item's default `min-height: auto`, but `min-h-0` also
+     * let the textarea shrink to nothing, which is the bug.
+     */
+    it("caps the context card and floors the textarea so neither can squeeze the other out of the window", async () => {
+      await render();
+      await showContext();
+
+      const section = contextSection() as HTMLElement;
+      const wrapper = textarea().parentElement as HTMLElement;
+
+      expect(section.className).toContain("max-h-15");
+      expect(wrapper.className).toContain("min-h-13");
+      expect(wrapper.className).not.toContain("min-h-0");
+    });
+
+    it("keeps the card capped while it is expanded, when the squeeze actually happens", async () => {
+      await render();
+      await showContext();
+
+      await clickFold();
+
+      const section = contextSection() as HTMLElement;
+      expect(section.className).toContain("max-h-15");
+      // The cap belongs to the card, not to the fold state: the body's own
+      // `max-h-5` only keeps the card's content INSIDE that cap.
+      expect(contextBody().className).toContain("max-h-5");
     });
 
     it("keeps the fold control mounted once expanded, though the unclamped context reports no overflow", async () => {
