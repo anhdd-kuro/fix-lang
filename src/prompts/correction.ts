@@ -103,6 +103,12 @@ export const DEFAULT_BUSINESS_WRITING_PRESET_ID = "business-writing";
 export const DEFAULT_STRUCTURED_TEXT_PRESET_ID = "structured-text";
 export const DEFAULT_ASK_PRESET_ID = "ask";
 
+/**
+ * The one built-in combo. Lives beside the preset ids because it is addressed
+ * the same way — by a stable id the normalizer matches against, never by name.
+ */
+export const DEFAULT_PERFECT_PROMPT_COMBO_ID = "perfect-prompt";
+
 export const DEFAULT_TRANSLATE_PRESET_PROMPT = `\
 You are a bilingual translation engine specialized in Japanese and English.
 

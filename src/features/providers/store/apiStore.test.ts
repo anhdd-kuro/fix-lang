@@ -64,6 +64,7 @@ import {
   toExportableProfile,
   withoutProfileSecrets,
 } from "~/features/providers/store/apiStore";
+import { DEFAULT_PERFECT_PROMPT_COMBO_ID } from "~/prompts";
 import {
   DEFAULT_ASK_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
@@ -962,6 +963,15 @@ describe("apiStoreSchema — settingsCorrect default carries all seven built-in 
 // hand-edited combo survives the real engine is proven empirically by the
 // third round-trip test below.
 //
+// Updated once more for the built-in "Perfect prompt" combo. NO schema node
+// changed: the only delta is the `settingsCorrect` DEFAULT, which now carries
+// that combo instead of `[]`. A default is not a constraint, so nothing new
+// can be rejected and the `clearInvalidConfig` risk is unchanged. Verified the
+// same empirical way: the serialised combo object occurs exactly once, and
+// deleting those 266 bytes reproduces the previous snapshot
+// `c1ac345971a803d2d07768e49b60635203f31aca4f632e24e37878c4d804e53b`
+// byte-for-byte.
+//
 // That those two insertions are the ONLY delta was verified rather than
 // assumed: the serialised schema grew by exactly 38 bytes, `,"combos":{"type":
 // "array"}` (26) occurs exactly once and `,"combos":[]` (12) exactly once, and
@@ -977,7 +987,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "c1ac345971a803d2d07768e49b60635203f31aca4f632e24e37878c4d804e53b",
+      "e4ef031251d8341ccbea3975a8aa12c00e159b5dbac92ea60c07349f22c47dec",
     );
   });
 });
@@ -1587,10 +1597,14 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
 
       expect(readBack).toHaveLength(1);
       expect(readBack[0].settings.settingsCorrect.combos).toHaveLength(1);
-      // The code-level funnel is what removes it.
+      // The code-level funnel is what removes it. What remains is the built-in
+      // combo the normalizer materializes into every profile — the malformed
+      // STORED entry is gone.
       expect(
-        normalizeCorrectionSettings(readBack[0].settings.settingsCorrect).combos,
-      ).toEqual([]);
+        normalizeCorrectionSettings(
+          readBack[0].settings.settingsCorrect,
+        ).combos?.map((combo) => combo.id),
+      ).toEqual([DEFAULT_PERFECT_PROMPT_COMBO_ID]);
     } finally {
       fs.rmSync(cwd, { recursive: true, force: true });
     }
@@ -1633,5 +1647,6 @@ describe("resolveDefaultOpenAIModel — legacy delegate stays byte-for-byte comp
     expect(resolveDefaultOpenAIModel([])).toBe("openai/gpt-4.1-mini");
   });
 });
+
 
 

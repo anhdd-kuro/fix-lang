@@ -49,6 +49,7 @@ class BrowserWindowMock {
   focus = vi.fn();
   loadFile = vi.fn();
   setPosition = vi.fn();
+  setSize = vi.fn();
   webContents = { id: WEB_CONTENTS_ID, send: vi.fn(), on: vi.fn() };
 }
 
@@ -56,6 +57,7 @@ let lastWindow: BrowserWindowMock | null = null;
 
 const electronMocks = vi.hoisted(() => ({
   ipcMainOn: vi.fn(),
+  getCursorScreenPoint: vi.fn(() => ({ x: 100, y: 100 })),
 }));
 
 vi.mock("electron", () => ({
@@ -64,7 +66,7 @@ vi.mock("electron", () => ({
     return lastWindow;
   }),
   screen: {
-    getCursorScreenPoint: vi.fn(() => ({ x: 100, y: 100 })),
+    getCursorScreenPoint: electronMocks.getCursorScreenPoint,
     getDisplayNearestPoint: vi.fn(() => ({
       workArea: { x: 0, y: 0, width: 1920, height: 1080 },
     })),
@@ -73,7 +75,14 @@ vi.mock("electron", () => ({
   app: { getAppPath: vi.fn(() => "/app"), on: vi.fn() },
 }));
 
+const WINDOW_WIDTH = 520;
+// Framed heights, mirroring `askInputWindow.ts`. Repeated rather than imported
+// so a silent edit there has to be acknowledged here too.
+const HEIGHT_WITHOUT_CONTEXT = 380;
+const HEIGHT_WITH_CONTEXT = 588;
+
 const PAYLOAD = { presetId: "ask", context: "selected text" };
+const PAYLOAD_WITHOUT_CONTEXT = { presetId: "ask", context: "" };
 
 const loadModule = async () => {
   vi.resetModules();
@@ -92,6 +101,102 @@ describe("askInputWindow", () => {
   beforeEach(() => {
     lastWindow = null;
     vi.clearAllMocks();
+    electronMocks.getCursorScreenPoint.mockReturnValue({ x: 100, y: 100 });
+  });
+
+  // The context card is a fixed 200px block the page either carries or does
+  // not, so the window is one of two heights rather than one height with slack
+  // in it. Both are FRAMED sizes — no `useContentSize` — and macOS takes its
+  // 32px title bar out of each, which is what the renderer's height budget is
+  // written against.
+  describe("sizing the window to whether a context is attached", () => {
+    it("opens tall enough for the context card when the payload carries one", async () => {
+      const { showAskInputWindow } = await loadModule();
+
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+
+      expect(lastWindow?.setSize).toHaveBeenCalledWith(
+        WINDOW_WIDTH,
+        HEIGHT_WITH_CONTEXT,
+      );
+    });
+
+    it("opens at the shorter height when nothing was selected", async () => {
+      const { showAskInputWindow } = await loadModule();
+
+      showAskInputWindow(PAYLOAD_WITHOUT_CONTEXT, {
+        onSubmit: vi.fn(),
+        onCancel: vi.fn(),
+      });
+
+      expect(lastWindow?.setSize).toHaveBeenCalledWith(
+        WINDOW_WIDTH,
+        HEIGHT_WITHOUT_CONTEXT,
+      );
+    });
+
+    it("resizes a reused window back down when the next ask has no context", async () => {
+      const { showAskInputWindow } = await loadModule();
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+
+      showAskInputWindow(PAYLOAD_WITHOUT_CONTEXT, {
+        onSubmit: vi.fn(),
+        onCancel: vi.fn(),
+      });
+
+      expect(lastWindow?.setSize).toHaveBeenLastCalledWith(
+        WINDOW_WIDTH,
+        HEIGHT_WITHOUT_CONTEXT,
+      );
+    });
+
+    it("constructs the window at the shorter height and refuses to be dragged below it", async () => {
+      const { showAskInputWindow } = await loadModule();
+      const { BrowserWindow } = await import("electron");
+
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+
+      expect(BrowserWindow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          width: WINDOW_WIDTH,
+          height: HEIGHT_WITHOUT_CONTEXT,
+          minHeight: HEIGHT_WITHOUT_CONTEXT,
+        }),
+      );
+    });
+
+    // The clamp must be handed the height actually in use. Fed a constant, the
+    // tall window is positioned as if it were the short one and runs off the
+    // bottom of the screen — so the cursor sits low enough here that the two
+    // heights produce different answers.
+    it("clamps the tall window against its own height, not the short one", async () => {
+      const { showAskInputWindow } = await loadModule();
+      electronMocks.getCursorScreenPoint.mockReturnValue({ x: 100, y: 1000 });
+
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+
+      expect(lastWindow?.setPosition).toHaveBeenCalledWith(
+        116,
+        1080 - HEIGHT_WITH_CONTEXT,
+        false,
+      );
+    });
+
+    it("clamps the short window against the short height", async () => {
+      const { showAskInputWindow } = await loadModule();
+      electronMocks.getCursorScreenPoint.mockReturnValue({ x: 100, y: 1000 });
+
+      showAskInputWindow(PAYLOAD_WITHOUT_CONTEXT, {
+        onSubmit: vi.fn(),
+        onCancel: vi.fn(),
+      });
+
+      expect(lastWindow?.setPosition).toHaveBeenCalledWith(
+        116,
+        1080 - HEIGHT_WITHOUT_CONTEXT,
+        false,
+      );
+    });
   });
 
   it("does nothing when syncing locale before any window has been created", async () => {
