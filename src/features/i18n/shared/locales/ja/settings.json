@@ -16,7 +16,7 @@
   "settings.autocomplete.model.description": "インライン補完の生成に使用するモデルです。",
   "settings.autocomplete.model.label": "オートコンプリートのモデル",
   "settings.autocomplete.model.sameAsAskAI": "Ask AIと同じ",
-  "settings.autocomplete.privacy.hint": "オートコンプリートは、まだどこにも送信していない入力中のテキストを、選択したモデルが属するプロバイダーへ送信します。ローカルプロバイダー（OllamaまたはLM Studio）が最適です — 無料で、レイテンシが最も低く、何もこの端末の外に出ません。",
+  "settings.autocomplete.privacy.hint": "オートコンプリートは、まだどこにも送信していない入力中のテキストを、選択したモデルが属するプロバイダーへ送信します。Ask AIにコンテキスト（選択したテキスト、またはクリップボードの内容）が添付されている場合、そのテキストも入力中の各候補リクエストに含めて、送信ボタンを押す前に送信されます。ローカルプロバイダー（OllamaまたはLM Studio）が最適です — 無料で、レイテンシが最も低く、何もこの端末の外に出ません。",
   "settings.autocomplete.saveError": "オートコンプリートの設定を保存できませんでした。",
   "settings.autocomplete.saved": "保存しました。",
   "settings.autocomplete.usage.capUsage": "1日の上限 {cap} のうち {used} を使用（{pct}%）",

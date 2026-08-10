@@ -9,7 +9,11 @@
  */
 import path from "node:path";
 import { app, BrowserWindow, ipcMain, screen } from "electron";
-import { abortAutocomplete } from "~/features/autocomplete/main/service";
+import {
+  abortAutocomplete,
+  forgetAskContext,
+  rememberAskContext,
+} from "~/features/autocomplete/main/service";
 import { attachThemeSync } from "./attachThemeSync";
 import { clampToWorkArea } from "./cursorPlacement";
 import { buildAskInputWindowTitle } from "./windowTitles";
@@ -162,8 +166,46 @@ const createAskInputWindow = (): BrowserWindow => {
   return inputWindow;
 };
 
+/**
+ * Hands this window's attached context to the autocomplete service, or takes it
+ * away — see `rememberAskContext` there for why the passage travels main-side
+ * rather than over the wire.
+ *
+ * An EMPTY context clears instead of storing: the window is a reused singleton
+ * under one `webContents.id`, so a press with nothing selected would otherwise
+ * keep suggesting against the PREVIOUS press's selection, with no card on screen
+ * to say a context was attached at all.
+ *
+ * The default of `selection` for an absent `contextSource` matches
+ * `AskContextSource`'s own documented reading, so the prompt cannot label a
+ * clipboard passage differently from the card that shows it.
+ */
+const syncAskAutocompleteContext = (
+  win: BrowserWindow,
+  payload: AskInputPayload,
+): void => {
+  const sessionId = String(win.webContents.id);
+  if (payload.context.length === 0) {
+    forgetAskContext(sessionId);
+    return;
+  }
+  rememberAskContext(sessionId, {
+    text: payload.context,
+    source: payload.contextSource ?? "selection",
+  });
+};
+
+/**
+ * Also the last stop for the attached context, and deliberately so rather than
+ * clearing it in `dismissAskInputWindow` alone: submitting is not a dismissal but
+ * it ends the ask just as completely, and both paths — plus any future one —
+ * reach the window's disappearance through here. The context outliving its ask
+ * is the same class of bug as a stale clipboard being attached unlabelled, except
+ * invisible: nothing would be on screen to show what the ghost text was reading.
+ */
 const hideAskInputWindow = (): void => {
   if (inputWindow && !inputWindow.isDestroyed()) {
+    forgetAskContext(String(inputWindow.webContents.id));
     inputWindow.hide();
   }
 };
@@ -242,6 +284,10 @@ export const showAskInputWindow = (
   currentPayload = payload;
   currentHandlers = handlers;
   const win = createAskInputWindow();
+  // After creation, because the key is this window's `webContents.id`, and
+  // before the window is revealed, because the first keystroke can dispatch a
+  // suggestion the moment it is.
+  syncAskAutocompleteContext(win, payload);
   // Resized before positioning, and the SAME height feeds the clamp — passing
   // a constant there would place the taller window as if it were the short one
   // and run it off the bottom of the screen.
