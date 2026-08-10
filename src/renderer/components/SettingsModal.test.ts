@@ -133,13 +133,37 @@ describe("SettingsModal", () => {
     vi.restoreAllMocks();
   });
 
-  it("lists Autocomplete as its own tab, beside Transform and before Appearance", () => {
+  it("lists Autocomplete as its own tab, in the per-feature run and before Appearance", () => {
     const ids = visibleSettingsTabIds();
 
     expect(ids).toContain("autocomplete");
-    expect(ids.indexOf("autocomplete")).toBe(ids.indexOf("correction") + 1);
+    // Transform, Combos and Autocomplete are consecutive: all three are
+    // per-feature areas, and Combos sits against Transform because a combo is
+    // a chain of the presets edited there.
+    expect(ids.indexOf("combos")).toBe(ids.indexOf("correction") + 1);
+    expect(ids.indexOf("autocomplete")).toBe(ids.indexOf("combos") + 1);
     expect(ids.indexOf("autocomplete")).toBeLessThan(ids.indexOf("appearance"));
     expect(settingsTabIndex("autocomplete")).toBe(ids.indexOf("autocomplete"));
+    expect(settingsTabIndex("combos")).toBe(ids.indexOf("combos"));
+  });
+
+  it("renders a Combos tab button that is reachable from another tab", async () => {
+    await render();
+
+    const tab = tabNamed(tEn("settings.modal.tabs.combos"));
+    // Starts on Profiles, so the tab is genuinely somewhere else to go.
+    expect(tab.getAttribute("aria-selected")).toBe("false");
+    expect(tab.getAttribute("aria-controls")).toBe("settings-combos");
+
+    await click(tab);
+    await waitForUi();
+
+    expect(
+      tabNamed(tEn("settings.modal.tabs.combos")).getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(
+      container.querySelector('[role="tabpanel"]')?.getAttribute("id"),
+    ).toBe("settings-combos");
   });
 
   it("renders an Autocomplete tab button that is reachable from another tab", async () => {
