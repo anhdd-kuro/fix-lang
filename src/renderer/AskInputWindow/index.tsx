@@ -283,14 +283,25 @@ export const AskInputWindow = () => {
 
   return (
     /*
-      HEIGHT BUDGET. The window is 520x200, but that is the FRAMED size —
-      `askInputWindow.ts` sets no `useContentSize`, so macOS takes its 32px
-      title bar out of it and `h-screen` here is 168px, not 200. Measured, not
-      assumed: `BrowserWindow({height: 200}).getContentSize()` reports 168.
-      `py-3` (24) + two `gap-2` (16) + the `text-xs` footer (16) leave 112px to
-      split between the context card and the textarea, and `ContextPreview`'s
-      `max-h-15` (60) plus the textarea wrapper's `min-h-13` (52) sum to
-      exactly that. Change either number and change the other.
+      HEIGHT BUDGET. The window is 520 wide and one of TWO heights, picked per
+      press in `askInputWindow.ts` from whether a context is attached — a
+      588px window for a bare one-line question would dominate the screen.
+      Both numbers there are FRAMED sizes: that file still sets no
+      `useContentSize`, so macOS takes its 32px title bar out and `h-screen`
+      here is always 32 less than what it passed to `BrowserWindow`. Measured,
+      not assumed: `BrowserWindow({height: 200}).getContentSize()` reports 168.
+
+        no context:   24 (`py-3`) + 300 (textarea floor) + 8 (one `gap-2`)
+                      + 16 (`text-xs` footer)          = 348 page / 380 framed
+        with context: that 348 + 200 (context card) + 8 (the second `gap-2`)
+                                                       = 556 page / 588 framed
+
+      The two floors below are the spec and the window is sized to fit them,
+      rather than the floors being whatever a fixed window had left. Both are
+      still needed: capping the card's TEXT alone leaves the label, the gaps,
+      the padding and the fold control outside the bound — which is why the
+      cap sits on the `<section>` — and a card cap with no textarea floor only
+      moves the overflow onto the footer.
     */
     <main className="flex h-screen flex-col gap-2 bg-background p-3 text-foreground">
       {/*
@@ -312,14 +323,14 @@ export const AskInputWindow = () => {
         />
       )}
       {/*
-        `min-h-13` (52px) rather than `min-h-0`: both defeat the flex item's
+        `min-h-75` (300px) rather than `min-h-0`: both defeat the flex item's
         default `min-height: auto` — a textarea's intrinsic two-row height —
         but only a floor keeps the context card from taking the whole window.
-        52 is one `text-sm leading-relaxed` line (22.75) plus the wrapper's own
-        `p-3` (24) and border (2), with 3px to spare, so the placeholder can
-        never come back half-cut.
+        300 is the spec'd input height; `flex-1` on top of it absorbs whatever
+        the window has left after the card, the gaps and the footer, which at
+        both heights in the budget above is exactly 300.
       */}
-      <div className="relative min-h-13 flex-1 rounded-md border border-card-control-border bg-card">
+      <div className="relative min-h-75 flex-1 rounded-md border border-card-control-border bg-card">
         {/*
           The anchor's PREFIX, not the whole question: the mirror exists to
           push the ghost to the caret, and feeding it text that lives after
@@ -380,30 +391,36 @@ type ContextPreviewProps = {
 
 /**
  * The attached selection, shown so the user can see WHAT they are about to
- * send rather than only how many characters of it. Collapsed to a single
- * ellipsised line by default: this window is 520x200 framed — 168px of actual
- * page (see the height budget on `<main>`) — and the textarea is the point of
- * it, so the resting state has to stay cheap.
+ * send rather than only how many characters of it.
  *
- * THE WHOLE CARD IS CAPPED (`max-h-15`, 60px), not just its text, and the cap
- * is what the textarea's floor is subtracted from. Capping only the text left
- * the label, both gaps, the padding and the fold control outside the bound, so
- * an expanded card ran 114px in a 112px budget and the "Ask anything"
- * placeholder was cut in half by the bottom of the card.
+ * `min-h-50` (200px) is the spec'd floor for this card; `max-h-50` beside it
+ * is not decoration but what makes the scroll container exist. The card is
+ * `shrink-0` in a flex column with nothing else bounding it, so expanded — the
+ * clamp dropped — a long selection would size the card to its content and push
+ * the textarea and the footer off the bottom of the window. Floor and cap being
+ * equal is the point: the card is exactly 200px whatever it holds, so the
+ * window height in `askInputWindow.ts` can be a constant rather than a guess.
  *
- * Everything here is sized so the cap is REACHABLE rather than fought over by
- * an inner element: border 2 + `py-1` 8 + `leading-none` label 10 + two
- * `gap-0.5` 4 + `text-xs` fold control 16 = 40px of chrome, leaving 20px —
- * hence the expanded body's `max-h-5`. Collapsed, the body is one
- * `leading-snug` line (16.5), so the card rests at ~57px and the textarea gets
- * the remaining 55. The label's `leading-none` is not cosmetic: `text-[10px]`
- * sets no line-height, so its box would be whatever `normal` means for the
- * user's font, and a card whose height is an estimate cannot be summed against
- * a floor.
+ * THE CAP IS ON THE CARD, not on its text. Capping only the text left the
+ * label, both gaps, the padding and the fold control outside the bound, so an
+ * expanded card overran its budget and the "Ask anything" placeholder was cut
+ * in half by the bottom of the card.
  *
- * Expanded therefore buys roughly one extra line plus a scrollbar. That is the
- * ceiling a 168px window allows once a full line of question is guaranteed —
- * not a value worth tuning without changing `WINDOW_HEIGHT` itself.
+ * Inside it, border 2 + `py-1` 8 + `leading-none` label 10 + two `gap-0.5` 4 +
+ * `text-xs` fold control 16 = 40px of chrome, leaving 160px for the body. A
+ * `text-xs leading-snug` line is 16.5px, so `line-clamp-9` (148.5) is the
+ * largest clamp that fits and is what collapsed ellipsises to; expanded, the
+ * body takes that same 160 via `flex-1` and scrolls inside it. The label's
+ * `leading-none` is not cosmetic: `text-[10px]` sets no line-height, so its box
+ * would be whatever `normal` means for the user's font, and a card whose height
+ * is an estimate cannot be summed against a floor.
+ *
+ * Collapsed is `line-clamp-9` rather than a plain `overflow-hidden` because the
+ * clamp is what draws the ellipsis — `-webkit-box` plus `overflow: hidden` plus
+ * `text-overflow: ellipsis` in one utility. A bare `overflow-hidden` cuts the
+ * ninth line off mid-glyph with nothing to say more follows. That also rules
+ * out putting `flex-1` on the collapsed branch: `-webkit-box` and flex sizing
+ * fight over the same box, so the flex sizing lives on the expanded branch only.
  *
  * Rendered as plain text through React's own escaping: never `MarkdownView`,
  * never `dangerouslySetInnerHTML`. This is untrusted text the user selected in
@@ -438,7 +455,7 @@ const ContextPreview = ({ text, source, onToggled }: ContextPreviewProps) => {
   return (
     <section
       data-ask-context
-      className="flex max-h-15 shrink-0 flex-col gap-0.5 rounded-md border border-card-control-border bg-card px-2 py-1"
+      className="flex max-h-50 min-h-50 shrink-0 flex-col gap-0.5 rounded-md border border-card-control-border bg-card px-2 py-1"
     >
       {/*
         Labelled the way the session-detail chat labels its system prompt: a
@@ -466,7 +483,7 @@ const ContextPreview = ({ text, source, onToggled }: ContextPreviewProps) => {
         data-ask-context-text
         className={twJoin(
           "whitespace-pre-wrap break-words text-xs leading-snug text-card-foreground",
-          expanded ? "max-h-5 overflow-y-auto" : "line-clamp-1",
+          expanded ? "min-h-0 flex-1 overflow-y-auto" : "line-clamp-9",
         )}
       >
         {text}
