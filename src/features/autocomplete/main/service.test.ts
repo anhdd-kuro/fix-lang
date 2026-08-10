@@ -3,22 +3,30 @@ import { AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS } from "~/features/autocomplete/share
 import { DEFAULT_DAILY_COST_CAP_USD } from "~/features/autocomplete/shared/autocompleteSettings";
 import { redactLogContext } from "~/features/logs/shared/logging";
 import { GHOST_TEXT_DEBOUNCE_MS } from "~/renderer/hooks/useGhostText";
-import { PREFIX_WINDOW_CHARS } from "./prompt";
+import {
+  AUTOCOMPLETE_SYSTEM_PROMPT,
+  CONTEXT_WINDOW_CHARS,
+  PREFIX_WINDOW_CHARS,
+} from "./prompt";
 import {
   abortAutocomplete,
+  ASK_CONTEXT_MEMORY_MAX_ENTRIES,
   CACHE_MAX_ENTRIES,
   CACHE_TTL_MS,
   DAILY_REQUEST_BACKSTOP,
+  forgetAskContext,
   MIN_PREFIX_CHARS,
   RATE_LIMIT_GLOBAL,
   RATE_LIMIT_MEMORY_MAX_ENTRIES,
   RATE_LIMIT_PER_SESSION,
   RATE_LIMIT_WINDOW_MS,
+  rememberAskContext,
   requestAutocompleteSuggestion,
   resetAutocompleteState,
   RESOLUTION_MEMORY_MAX_ENTRIES,
   takeAutocompleteResolution,
 } from "./service";
+import type { AskContextSource } from "~/features/ask/shared/ask";
 import type { LogContext } from "~/features/logs/shared/logging";
 
 const {
@@ -1576,6 +1584,222 @@ describe("requestAutocompleteSuggestion", () => {
       await ask({ requestId: 2, prefix: `second paragraph ${window}` });
 
       expect(makeAIRequestMock).toHaveBeenCalledOnce();
+    });
+  });
+
+  /**
+   * THE ATTACHED ASK CONTEXT, which reaches the provider WITHOUT crossing the
+   * wire.
+   *
+   * `showAskInputWindow` records the passage against the window's
+   * `webContents.id`, and this is the same string `autocomplete-suggest` derives
+   * its `sessionId` from — so the renderer supplies nothing, which is the point:
+   * a context field on the wire request would be renderer-controlled text going
+   * straight into a provider prompt, and `sessionId` is derived from the sender
+   * precisely because the renderer is not trusted.
+   */
+  describe("the attached Ask context", () => {
+    const sentPrompt = (call = 0): string =>
+      makeAIRequestMock.mock.calls[call][0].userPrompt as string;
+
+    const sentSystemPrompt = (call = 0): string =>
+      makeAIRequestMock.mock.calls[call][0].systemPrompt as string;
+
+    const attach = (text: string, source: AskContextSource = "selection"): void =>
+      rememberAskContext("window-1", { text, source });
+
+    it("sends the passage the window has attached", async () => {
+      attach("The deploy slipped to Friday.");
+
+      await ask();
+
+      expect(sentPrompt()).toContain("The deploy slipped to Friday.");
+      expect(sentPrompt()).toContain("Context the user attached (selected text):");
+    });
+
+    /**
+     * The passage rides the USER prompt, never the system one: the system prompt
+     * is the short, stable, cacheable prefix, and a per-press passage in it would
+     * change on every ask and cost the prefix cache on every provider that has
+     * one.
+     */
+    it("leaves the system prompt untouched", async () => {
+      attach("The deploy slipped to Friday.");
+
+      await ask();
+
+      expect(sentSystemPrompt()).toBe(AUTOCOMPLETE_SYSTEM_PROMPT);
+      expect(sentSystemPrompt()).not.toContain("The deploy slipped to Friday.");
+    });
+
+    /**
+     * THE CACHE KEY, which is the reason the passage belongs in the user prompt
+     * rather than being spliced in later: the key is hashed from that exact
+     * string. Keyed without it, the same half-typed question asked over a
+     * DIFFERENT selection would be served the first selection's suggestion —
+     * silently, and for `CACHE_TTL_MS`.
+     */
+    it("makes an identical prefix over a different passage a fresh request", async () => {
+      attach("First selection.");
+      await ask();
+
+      attach("Second selection.");
+      await ask({ requestId: 2 });
+
+      expect(makeAIRequestMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("still serves an identical prefix over the same passage from cache", async () => {
+      attach("Same selection.");
+
+      await ask();
+      await ask({ requestId: 2 });
+
+      expect(makeAIRequestMock).toHaveBeenCalledOnce();
+    });
+
+    /**
+     * Windowed from the HEAD, unlike the prefix: the passage is not
+     * caret-relative and its opening is what identifies its subject.
+     */
+    it("windows an overlong passage from its head", async () => {
+      attach(`HEAD${"x".repeat(CONTEXT_WINDOW_CHARS)}TAIL`);
+
+      await ask();
+
+      expect(sentPrompt()).toContain("HEAD");
+      expect(sentPrompt()).not.toContain("TAIL");
+    });
+
+    /**
+     * WITH NOTHING ATTACHED THE REQUEST IS BYTE-IDENTICAL TO WHAT IT WAS, which
+     * is what "preserves current behaviour" has to mean here — a bare question
+     * keeps the cheap path it already had, cache entries included.
+     */
+    it("sends exactly the pre-context prompt when nothing is attached", async () => {
+      await ask();
+      attach("A selection.");
+      forgetAskContext("window-1");
+      await ask({ requestId: 2, prefix: `${LONG_PREFIX} again` });
+
+      expect(sentPrompt(0)).not.toContain("Context the user attached");
+      expect(sentPrompt(1)).not.toContain("Context the user attached");
+      expect(sentPrompt(0).startsWith("Text before the caret:")).toBe(true);
+    });
+
+    it("keeps one surface's passage out of another surface's prompt", async () => {
+      attach("Window one's selection.");
+
+      await ask({ sessionId: "window-2" });
+
+      expect(sentPrompt()).not.toContain("Window one's selection.");
+    });
+
+    /**
+     * REPLACED on every press, not merged: a passage that outlived its press is
+     * the failure the input window's `From clipboard` label exists to make
+     * visible, and here there would be nothing on screen to see.
+     */
+    it("replaces the passage rather than accumulating", async () => {
+      attach("Old selection.");
+      attach("New selection.");
+
+      await ask();
+
+      expect(sentPrompt()).toContain("New selection.");
+      expect(sentPrompt()).not.toContain("Old selection.");
+    });
+
+    // Bounded for the same reason `lastResolutions` is: the key is an
+    // ever-increasing `webContents.id`, so an unbounded map keyed by one leaks
+    // with nothing to show it. LRU, so the surface being used is never the one
+    // dropped.
+    it("bounds how many surfaces' passages it remembers, evicting the coldest", async () => {
+      attach("Oldest surface's selection.");
+      for (let index = 0; index < ASK_CONTEXT_MEMORY_MAX_ENTRIES; index += 1) {
+        rememberAskContext(`other-${index}`, {
+          text: `filler ${index}`,
+          source: "selection",
+        });
+      }
+
+      await ask();
+
+      expect(sentPrompt()).not.toContain("Oldest surface's selection.");
+    });
+
+    describe("what it says about itself", () => {
+      const resolvedLine = (): LogContext =>
+        (loggerMock.debug.mock.calls.find(
+          (call) => call[1] === "Suggestion resolved",
+        )?.[2] ?? {}) as LogContext;
+
+      it("states how much context went out and where it came from", async () => {
+        attach("Older clipboard text.", "clipboard");
+
+        await ask();
+
+        expect(resolvedLine()).toMatchObject({
+          contextLength: "Older clipboard text.".length,
+          contextSource: "clipboard",
+        });
+      });
+
+      // What was SENT, not what was attached: the windowed length is the honest
+      // number on a line whose whole job is saying what left the machine.
+      it("states the windowed length, not the attached one", async () => {
+        attach("y".repeat(CONTEXT_WINDOW_CHARS + 500));
+
+        await ask();
+
+        expect(resolvedLine().contextLength).toBe(CONTEXT_WINDOW_CHARS);
+      });
+
+      it("reports a zero length and no source when nothing was attached", async () => {
+        await ask();
+
+        expect(resolvedLine().contextLength).toBe(0);
+        expect(resolvedLine()).not.toHaveProperty("contextSource");
+      });
+
+      /**
+       * `redactLogContext` blanks any key merely CONTAINING `clipboard`,
+       * `token`, `secret` or `selected_text`, silently and with no error — so
+       * `clipboardContext` or `selectedText` would have persisted as
+       * `"[REDACTED]"` and the two fields that describe this widening would have
+       * said nothing. Run through the REAL redactor, not eyeballed.
+       */
+      it("emits context keys that survive the real redactor", async () => {
+        attach("Older clipboard text.", "clipboard");
+
+        await ask();
+
+        const context = resolvedLine();
+        expect(redactLogContext(context)).toEqual(context);
+        expect(context).toHaveProperty("contextLength");
+        expect(context).toHaveProperty("contextSource");
+      });
+
+      /**
+       * The passage is the user's own text and these lines are copyable and
+       * exportable from the Logs tab — the same rule the prefix and the
+       * suggestion already follow. Lengths and the source only.
+       */
+      it("never writes the passage itself into a log line", async () => {
+        const passage = "a private clinic letter the user merely had selected";
+        attach(passage);
+
+        await ask();
+
+        const everythingLogged = JSON.stringify([
+          ...loggerMock.debug.mock.calls,
+          ...loggerMock.info.mock.calls,
+          ...loggerMock.warn.mock.calls,
+          ...loggerMock.error.mock.calls,
+        ]);
+        expect(everythingLogged).not.toContain(passage);
+        expect(everythingLogged).not.toContain("clinic");
+      });
     });
   });
 

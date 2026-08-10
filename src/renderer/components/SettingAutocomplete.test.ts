@@ -474,6 +474,33 @@ describe("SettingAutocomplete", () => {
     expect(privacyHintJa).toContain("選択したモデルが属するプロバイダー");
   });
 
+  /**
+   * THE WIDENING, stated to the user rather than only in the code.
+   *
+   * Autocomplete now also sends the passage Ask AI has attached — the selection,
+   * or a clipboard that may be minutes old and about something else. Before this,
+   * that text reached a provider only when the user pressed submit, and it went
+   * to the ASK model; it now goes to the autocomplete model, often a different
+   * provider, on every debounced keystroke. The context card makes the attachment
+   * visible in the Ask window; only this sentence says where it is going, so it is
+   * pinned in both locales beside the in-progress-text warning above.
+   */
+  it("says the attached Ask context is sent with suggestions too, in both locales", async () => {
+    await mount(baseElectronAPI());
+
+    const privacyHintEn = tEn("settings.autocomplete.privacy.hint");
+    expect(container.textContent).toContain(privacyHintEn);
+    expect(privacyHintEn).toContain("When Ask AI has context attached");
+    expect(privacyHintEn).toContain("from your clipboard");
+    expect(privacyHintEn).toContain("sent with every suggestion too");
+    expect(privacyHintEn).toContain("before you submit anything");
+
+    const privacyHintJa = tJa("settings.autocomplete.privacy.hint");
+    expect(privacyHintJa).toContain("コンテキスト");
+    expect(privacyHintJa).toContain("クリップボード");
+    expect(privacyHintJa).toContain("送信ボタンを押す前に");
+  });
+
   it("shows today and month-to-date usage, labelling requests as attempts rather than completions", async () => {
     const today = {
       date: "2026-07-31",

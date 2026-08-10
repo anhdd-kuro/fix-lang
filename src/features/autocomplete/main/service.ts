@@ -73,6 +73,7 @@ import { DEFAULT_ASK_PRESET_ID } from "~/prompts";
 import { parseAutocompleteReply } from "./parseReply";
 import { buildAutocompletePrompt } from "./prompt";
 import { sanitizeSuggestion } from "./sanitize";
+import type { AutocompleteAskContext } from "./prompt";
 import type { AutocompleteWastedReason } from "~/features/autocomplete/shared/autocompleteDiagnostics";
 import type {
   AutocompleteDayRollup,
@@ -358,6 +359,66 @@ export const takeAutocompleteResolution = (
   return resolution;
 };
 
+const askContexts = new Map<string, AutocompleteAskContext>();
+
+/**
+ * WHY THE ATTACHED CONTEXT TRAVELS THROUGH HERE AND NOT OVER THE WIRE.
+ *
+ * The Ask input window shows the user a card holding their selection (or their
+ * clipboard), and a continuation written without it cannot know what the question
+ * is about. Main ALREADY has that text — `showAskInputWindow` is handed it — so
+ * the renderer is asked for nothing. Three reasons, and the first is the same one
+ * `sessionId` exists for: the renderer is untrusted, and a context field on
+ * `AutocompleteSuggestRequest` would be renderer-controlled text going straight
+ * into a provider prompt. The second is that `autocompleteWire.ts` deliberately
+ * keeps `sessionId` off the wire for exactly that reason, and a context field
+ * would reopen it. The third is cost: the whole selection would cross IPC on
+ * every keystroke to be re-windowed to the same 400 characters each time.
+ *
+ * Keyed by the window's `webContents.id`, which is the string
+ * `autocomplete-suggest` derives its `sessionId` from — so the lookup below needs
+ * nothing the request does not already carry.
+ *
+ * Bounded, and LRU like `lastResolutions`. The Ask input window is a singleton
+ * today, so at most one entry is ever live; the bound is here because the key is
+ * an ever-increasing `webContents.id` and an unbounded map keyed by one is a leak
+ * no test would show.
+ */
+export const ASK_CONTEXT_MEMORY_MAX_ENTRIES = 8;
+
+/**
+ * Records what one Ask window has attached, replacing whatever it had.
+ *
+ * REPLACED on every press rather than merged, because a context that outlived
+ * its press is the failure the `From clipboard` label exists to make visible —
+ * and here it would be invisible: the next question's ghost text would be
+ * computed against the previous question's selection with nothing on screen
+ * saying so.
+ */
+export const rememberAskContext = (
+  sessionId: string,
+  context: AutocompleteAskContext,
+): void => {
+  askContexts.delete(sessionId);
+  askContexts.set(sessionId, context);
+  while (askContexts.size > ASK_CONTEXT_MEMORY_MAX_ENTRIES) {
+    const oldest = askContexts.keys().next();
+    if (oldest.done) break;
+    askContexts.delete(oldest.value);
+  }
+};
+
+/**
+ * Drops one window's attached context, called when the ask ends.
+ *
+ * Also the "this press attached nothing" path: a press with an empty selection
+ * must CLEAR the previous press's context rather than leave it standing, so the
+ * caller funnels both cases here.
+ */
+export const forgetAskContext = (sessionId: string): void => {
+  askContexts.delete(sessionId);
+};
+
 /**
  * Which BACKEND a suggestion came from, so a cached one is never replayed
  * against a different one: the active profile id plus every configured provider
@@ -403,6 +464,13 @@ const backendIdentity = (): string => {
  *
  * `backend` is `backendIdentity()`, passed in rather than read here so this stays
  * a pure function of its arguments.
+ *
+ * The ATTACHED ASK CONTEXT needs no field of its own precisely because it lives
+ * in that prompt: the same half-typed question asked over a different selection
+ * hashes differently, and a bare question hashes exactly as it did before
+ * contexts existed. Splicing the passage in downstream of this call would have
+ * required remembering to add it here too, and forgetting would have served one
+ * selection's suggestion over another for `CACHE_TTL_MS`.
  *
  * The `\0` field delimiter is written as an ESCAPE, never as a raw 0x00 byte in
  * the source. One raw NUL makes this module binary to git: `git diff` renders
@@ -454,6 +522,7 @@ export const resetAutocompleteState = (): void => {
   abortAutocomplete();
   cache.clear();
   lastResolutions.clear();
+  askContexts.clear();
   sessionWindows.clear();
   globalWindow = { startedAt: 0, dispatches: 0 };
   capWarnedForDay = "";
@@ -812,7 +881,22 @@ export const requestAutocompleteSuggestion = async (
     return none(requestId);
   }
 
-  const { systemPrompt, userPrompt } = buildAutocompletePrompt({ prefix, suffix });
+  // The attached context is part of the PROMPT, never of the system prompt: the
+  // system prompt is the short, stable, cacheable prefix, and a per-press passage
+  // in it would change on every ask. Carrying it in the user prompt also means
+  // `cacheKey` picks it up for free — the key is hashed from that exact string,
+  // so two identical questions asked over different selections cannot be served
+  // each other's suggestion.
+  //
+  // Read ONCE, into a local. Dismissing the window forgets the context while a
+  // request may still be in flight, so a second read at logging time could
+  // report a length with no source beside it.
+  const askContext = askContexts.get(sessionId);
+  const { systemPrompt, userPrompt, contextLength } = buildAutocompletePrompt({
+    prefix,
+    suffix,
+    context: askContext,
+  });
   const key = cacheKey(userPrompt, modelRef, backendIdentity());
   const cached = readCache(key, startedAt);
   if (cached) {
@@ -970,9 +1054,20 @@ export const requestAutocompleteSuggestion = async (
 
     // Prefix LENGTH only. `redactLogMessage` cannot help here — the typed text
     // IS the payload, and it would land in userData/logs/*.jsonl.
+    //
+    // The attached context is stated the same way: how much of it went out and
+    // where it came from, never a character of it. `contextLength` and
+    // `contextSource` are also the two names that SURVIVE `redactLogContext`,
+    // which blanks any key merely containing `clipboard`, `token`, `secret` or
+    // `selected_text` — so `clipboardContext` or `selectedText` would persist as
+    // `"[REDACTED]"` with no error at all (the `selectionPoll` trap). The source
+    // is omitted rather than reported as a null when nothing was attached, so a
+    // reader never has to decide what a source with no context means.
     logger.debug("autocomplete", "Suggestion resolved", {
       prefixLength: prefix.length,
       suffixLength: suffix.length,
+      contextLength,
+      ...(contextLength > 0 && askContext ? { contextSource: askContext.source } : {}),
       model: response.model,
       provider: response.provider,
       latencyMs,

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   AUTOCOMPLETE_SYSTEM_PROMPT,
   buildAutocompletePrompt,
+  CONTEXT_WINDOW_CHARS,
   PREFIX_WINDOW_CHARS,
   SUFFIX_WINDOW_CHARS,
 } from "./prompt";
@@ -84,6 +85,122 @@ describe("buildAutocompletePrompt", () => {
     });
   });
 
+  /**
+   * THE ATTACHED ASK CONTEXT — the selection (or clipboard text) the input
+   * window is showing in its card, so a continuation can reflect what the
+   * question is actually about.
+   */
+  describe("the attached Ask context", () => {
+    it("carries the passage, labelled as something the user attached", () => {
+      const { userPrompt, contextLength } = buildAutocompletePrompt({
+        prefix: "What does this mean for the sch",
+        context: { text: "Deployment slips to Friday.", source: "selection" },
+      });
+
+      expect(userPrompt).toContain("Deployment slips to Friday.");
+      expect(userPrompt).toContain("Context the user attached (selected text):");
+      expect(contextLength).toBe("Deployment slips to Friday.".length);
+    });
+
+    /**
+     * The source is NAMED, because it is the one fact the model cannot infer:
+     * clipboard text may be minutes old and about something else entirely, and
+     * the input window already tells the user which of the two it has. Both
+     * labels are pinned so a rename on one side cannot silently relabel the
+     * other.
+     */
+    it("names a clipboard-sourced passage as such", () => {
+      const { userPrompt } = buildAutocompletePrompt({
+        prefix: "summarise thi",
+        context: { text: "Older clipboard text.", source: "clipboard" },
+      });
+
+      expect(userPrompt).toContain("Context the user attached (from clipboard):");
+      expect(userPrompt).not.toContain("selected text");
+    });
+
+    /**
+     * The caret text is the LAST thing before `JSON:`, which is the position a
+     * continuation-shaped model picks up from. A context block appended after it
+     * would make the passage the thing being continued — the exact failure the
+     * system prompt's context rule also guards.
+     */
+    it("puts the context ahead of the caret text", () => {
+      const { userPrompt } = buildAutocompletePrompt({
+        prefix: "the answer i",
+        suffix: " tomorrow",
+        context: { text: "Attached passage.", source: "selection" },
+      });
+
+      expect(userPrompt.indexOf("Attached passage.")).toBeLessThan(
+        userPrompt.indexOf("Text before the caret:"),
+      );
+      expect(userPrompt.indexOf("Text before the caret:")).toBeLessThan(
+        userPrompt.indexOf("Text after the caret:"),
+      );
+      expect(userPrompt.endsWith("JSON:")).toBe(true);
+    });
+
+    /**
+     * WINDOWED FROM THE HEAD — the contrasting case to the prefix beside it. The
+     * passage is not caret-relative, and the opening of it is what identifies
+     * its subject, so truncation drops the END.
+     */
+    it("keeps the head of an overlong context", () => {
+      const text = `HEAD${"x".repeat(CONTEXT_WINDOW_CHARS)}TAIL`;
+
+      const { userPrompt, contextLength } = buildAutocompletePrompt({
+        prefix: "abc",
+        context: { text, source: "selection" },
+      });
+
+      expect(userPrompt).toContain("HEAD");
+      expect(userPrompt).not.toContain("TAIL");
+      expect(userPrompt).not.toContain("x".repeat(CONTEXT_WINDOW_CHARS));
+      expect(contextLength).toBe(CONTEXT_WINDOW_CHARS);
+    });
+
+    /**
+     * BYTE-IDENTICAL WITH NO CONTEXT, and this is a cost property rather than a
+     * tidiness one: `service.ts` hashes this exact string into its cache key, so
+     * a heading or a stray blank line emitted for a bare question would
+     * invalidate every cached suggestion the feature already paid for.
+     */
+    it.each([
+      ["no context field at all", undefined],
+      ["an empty passage", { text: "", source: "selection" } as const],
+    ])("builds the pre-context prompt unchanged for %s", (_description, context) => {
+      const withoutContext = buildAutocompletePrompt({
+        prefix: "Hello wor",
+        suffix: " and goodbye",
+      });
+      const built = buildAutocompletePrompt({
+        prefix: "Hello wor",
+        suffix: " and goodbye",
+        context,
+      });
+
+      expect(built.userPrompt).toBe(withoutContext.userPrompt);
+      expect(built.userPrompt).toBe(
+        "Text before the caret:\nHello wor\n\nText after the caret:\n and goodbye\n\nJSON:",
+      );
+      expect(built.contextLength).toBe(0);
+    });
+
+    // Two identical questions asked over different selections must not be able
+    // to serve each other's cached suggestion, and the cache key is hashed from
+    // this string alone.
+    it("changes the prompt when only the passage changes", () => {
+      const build = (text: string) =>
+        buildAutocompletePrompt({
+          prefix: "what about thi",
+          context: { text, source: "selection" },
+        }).userPrompt;
+
+      expect(build("First selection.")).not.toBe(build("Second selection."));
+    });
+  });
+
   // A trailing space decides whether the model continues the current word or
   // starts the next one, so the builder must not trim it away.
   it("preserves the prefix's trailing whitespace", () => {
@@ -109,6 +226,7 @@ describe("buildAutocompletePrompt", () => {
       ["forbids commentary", /no commentary/],
       ["allows continuing mid-word", /mid-word/],
       ["bounds the length with a number", /never emit more than 15 words/],
+      ["marks context blocks as background", /Context blocks are background only/],
       ["declines with an empty string rather than with prose", /\{"suggestion":""\}/],
     ])("%s", (_description, marker) => {
       expect(AUTOCOMPLETE_SYSTEM_PROMPT).toMatch(marker);
@@ -254,9 +372,31 @@ describe("buildAutocompletePrompt", () => {
       expect(lengthRule).toMatch(/^- (Stop|Emit|Keep|Write|Never)/);
     });
 
-    // Sent on every dispatch and used as the cacheable prefix, so it stays short.
+    /**
+     * THE CONTEXT RULE'S POSITION, which is the half of it that can regress
+     * silently. The rule itself is pinned above; this pins that it is neither the
+     * first nor the LAST line, because the end of the prompt must stay the decline
+     * object — a prose fragment there is the original bug, and a rule about
+     * context blocks is exactly the kind of line a later edit appends.
+     */
+    it("keeps the context rule in the middle of the list, never last", () => {
+      const lines = AUTOCOMPLETE_SYSTEM_PROMPT.trimEnd().split("\n");
+      const contextRuleIndex = lines.findIndex((line) =>
+        /^- Context blocks/.test(line),
+      );
+
+      expect(contextRuleIndex).toBeGreaterThan(0);
+      expect(contextRuleIndex).toBeLessThan(lines.length - 1);
+    });
+
+    /**
+     * Sent on every dispatch and used as the cacheable prefix, so it stays short.
+     * The bound is a ceiling on growth, not a byte pin — it moved 500 -> 600 when
+     * the context rule was added, and it should only ever move for a rule that
+     * earns its place on every keystroke.
+     */
     it("stays short enough to send on every keystroke", () => {
-      expect(AUTOCOMPLETE_SYSTEM_PROMPT.length).toBeLessThan(500);
+      expect(AUTOCOMPLETE_SYSTEM_PROMPT.length).toBeLessThan(600);
     });
   });
 });
