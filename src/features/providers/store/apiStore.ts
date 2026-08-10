@@ -44,6 +44,7 @@ import {
   DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
   DEFAULT_CORRECTION_PRESET_ID,
   DEFAULT_CUSTOM_PROMPT,
+  DEFAULT_PERFECT_PROMPT_COMBO_ID,
   DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
   DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
   DEFAULT_STRUCTURED_TEXT_PRESET_ID,
@@ -254,6 +255,35 @@ const sanitizeCombo = (raw: unknown): ComboPreset | null => {
     // the combo; a future version 2 branches here.
     schemaVersion: 1,
   };
+};
+
+/**
+ * Materializes a built-in combo the stored config does not have, exactly the
+ * way `normalizeCorrectionSettings` materializes a missing built-in preset:
+ * matched by id, stored entry always wins, defaults emitted first.
+ *
+ * Existing profiles predate the combo, so without this it would only ever reach
+ * fresh installs — the stored `combos: []` is a real value and
+ * `getDefaultCorrectionSettings` never runs against it.
+ *
+ * Consequence worth stating rather than hiding: a user who DELETES the built-in
+ * combo gets it back on the next load. That is the same bargain built-in
+ * presets already make (delete Summarize and it returns), so this follows the
+ * app's existing rule rather than inventing a second one — but it does mean
+ * "delete" means "reset" for this row, and emptying its steps is not an option
+ * either, since `validateCombo` refuses a combo under two steps.
+ */
+const withDefaultCombos = (stored: ComboPreset[]): ComboPreset[] => {
+  const defaults = makeDefaultCombos();
+  const defaultIds = new Set(defaults.map((combo) => combo.id));
+
+  return [
+    ...defaults.map(
+      (defaultCombo) =>
+        stored.find((combo) => combo.id === defaultCombo.id) ?? defaultCombo,
+    ),
+    ...stored.filter((combo) => !defaultIds.has(combo.id)),
+  ];
 };
 
 const sanitizeCombos = (raw: unknown): ComboPreset[] => {
@@ -481,12 +511,51 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
   },
 ];
 
+/**
+ * Ships one combo: Correction, then Context-Aware Structured Text, then Prompt
+ * optimization — clean the text, give it structure, then turn it into a prompt.
+ *
+ * **It ships with NO hotkey, and that is the point.** Every other built-in
+ * binding is one AI call; this one is three, on whatever models those presets
+ * resolve to. A default accelerator would also have to survive collision with
+ * whatever the user has already claimed, and the combo normalizer has no
+ * equivalent of the presets' `hotkeysClaimedByStoredPresets` yielding rule — so
+ * a chord chosen here could silently outrank a stored preset's and leave one of
+ * the two unregistered. The user assigns one in Settings → Combos.
+ *
+ * `outputMode` is left off (inherit) rather than pinned to `popup`: the last
+ * step's output is a prompt to paste somewhere, and which way the user wants
+ * that delivered is already a setting they have made.
+ */
+const makeDefaultCombos = (): ComboPreset[] => [
+  {
+    id: DEFAULT_PERFECT_PROMPT_COMBO_ID,
+    name: "Perfect prompt",
+    hotkey: "",
+    steps: [
+      {
+        id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-1`,
+        presetId: DEFAULT_CORRECTION_PRESET_ID,
+      },
+      {
+        id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-2`,
+        presetId: DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+      },
+      {
+        id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-3`,
+        presetId: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+      },
+    ],
+    schemaVersion: 1,
+  },
+];
+
 export const getDefaultCorrectionSettings = (): CorrectionSettings => ({
   presets: makeDefaultCorrectionPresets(),
   selectedPresetId: DEFAULT_CORRECTION_PRESET_ID,
-  // No built-in combos ship. Present-and-empty rather than absent so every
-  // reader of a normalized `settingsCorrect` can index it without a guard.
-  combos: [],
+  // Present rather than absent so every reader of a normalized
+  // `settingsCorrect` can index it without a guard.
+  combos: makeDefaultCombos(),
 });
 
 const buildLegacyCorrectionPrompt = (
@@ -562,7 +631,7 @@ export const normalizeCorrectionSettings = (
 
   const raw = value as Partial<CorrectionSettings> & LegacyCorrectionSettings;
 
-  const combos = sanitizeCombos(raw.combos);
+  const combos = withDefaultCombos(sanitizeCombos(raw.combos));
 
   const storedHadTranslatePreset =
     Array.isArray(raw.presets) &&
