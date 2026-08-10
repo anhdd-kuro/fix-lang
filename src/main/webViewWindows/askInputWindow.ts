@@ -16,7 +16,37 @@ import { buildAskInputWindowTitle } from "./windowTitles";
 import type { AskInputPayload } from "~/features/ask/shared/ask";
 
 const WINDOW_WIDTH = 520;
-const WINDOW_HEIGHT = 200;
+
+/**
+ * Two heights, chosen per press by {@link resolveWindowHeight}, because the
+ * attached-context card is a fixed 200px block the window either carries or
+ * does not — and a 588px window for a bare one-line question would dominate
+ * the screen.
+ *
+ * FRAMED sizes, not content sizes: there is deliberately no `useContentSize`
+ * here, so macOS takes its 32px title bar out of each of these and the
+ * renderer's `h-screen` is 32 less. Measured, not assumed —
+ * `BrowserWindow({height: 200}).getContentSize()` reports 168. The page
+ * budgets these frame (see the height budget on `<main>` in
+ * `src/renderer/AskInputWindow/index.tsx`):
+ *
+ *   no context:   24 (`py-3`) + 300 (textarea floor) + 8 (`gap-2`)
+ *                 + 16 (footer)                        = 348 page + 32 = 380
+ *   with context: that 348 + 200 (context card) + 8 (the second `gap-2`)
+ *                                                      = 556 page + 32 = 588
+ */
+const WINDOW_HEIGHT_WITHOUT_CONTEXT = 380;
+const WINDOW_HEIGHT_WITH_CONTEXT = 588;
+
+/**
+ * The renderer shows the context card exactly when `payload.context` is
+ * non-empty, so this asks the same question of the same field rather than
+ * carrying a second flag that could disagree with it.
+ */
+const resolveWindowHeight = (payload: AskInputPayload): number =>
+  payload.context.length > 0
+    ? WINDOW_HEIGHT_WITH_CONTEXT
+    : WINDOW_HEIGHT_WITHOUT_CONTEXT;
 
 /** Called with the submitted question text. */
 export type AskInputSubmitHandler = (question: string) => void;
@@ -82,9 +112,12 @@ const createAskInputWindow = (): BrowserWindow => {
   rendererReady = false;
   inputWindow = new BrowserWindow({
     width: WINDOW_WIDTH,
-    height: WINDOW_HEIGHT,
+    height: WINDOW_HEIGHT_WITHOUT_CONTEXT,
     minWidth: 420,
-    minHeight: 160,
+    // The shorter of the two heights, so a user drag can never squeeze the
+    // window below the textarea's own 300px floor and put the placeholder back
+    // under the bottom edge of the card.
+    minHeight: WINDOW_HEIGHT_WITHOUT_CONTEXT,
     show: false,
     skipTaskbar: true,
     title: buildAskInputWindowTitle(),
@@ -209,13 +242,18 @@ export const showAskInputWindow = (
   currentPayload = payload;
   currentHandlers = handlers;
   const win = createAskInputWindow();
+  // Resized before positioning, and the SAME height feeds the clamp — passing
+  // a constant there would place the taller window as if it were the short one
+  // and run it off the bottom of the screen.
+  const height = resolveWindowHeight(payload);
+  win.setSize(WINDOW_WIDTH, height);
   const cursor = screen.getCursorScreenPoint();
   const workArea = screen.getDisplayNearestPoint(cursor).workArea;
   const { x, y } = clampToWorkArea({
     cursor,
     workArea,
     width: WINDOW_WIDTH,
-    height: WINDOW_HEIGHT,
+    height,
   });
 
   win.setPosition(x, y, false);
