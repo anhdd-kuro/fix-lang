@@ -1,6 +1,7 @@
 import React from "react";
 import Select from "react-select";
 import { normalizeForSearch } from "~/const";
+import { selectOptionStyle, withThemeColors } from "./selectOptionSurface";
 import type {
   GroupBase,
   GroupHeadingProps,
@@ -126,7 +127,51 @@ export const SearchableSelect = <Option extends SearchableOption>({
       menuPosition={menuPortal ? "fixed" : "absolute"}
       menuShouldScrollIntoView={false}
       maxMenuHeight={menuPortal ? resolvedMaxHeight : undefined}
+      theme={withThemeColors}
       styles={{
+        option: selectOptionStyle,
+        // `muted-foreground` is the obvious choice for a placeholder and the
+        // wrong one: placeholder text is TEXT (WCAG 1.4.3, 4.5:1), and on
+        // `input` that token is under 4.5:1 in 87 of the 149 themes and under
+        // 3:1 in `slack-ochin`. There is no `--input-foreground`, so every
+        // candidate was measured against the real presets and only
+        // `popover-foreground` clears 4.5:1 in all 149 — see
+        // `selectContrast.test.ts`, which asserts it rather than the var name.
+        placeholder: (base) => ({
+          ...base,
+          color: "var(--popover-foreground)",
+        }),
+        // Renders inside the menu, so its surface is `popover`, where
+        // `muted-foreground` drops to 2.02:1 (`#9e9e9e` on `#e0e0e0`). It is
+        // also the select's only feedback when a search matches nothing.
+        noOptionsMessage: (base) => ({
+          ...base,
+          color: "var(--popover-foreground)",
+        }),
+        // Icons, so the floor is 3:1 (WCAG 1.4.11) rather than 4.5:1 — which is
+        // what lets these stay dimmer than the text beside them.
+        // `accent-foreground` is the dimmest token that still clears it on
+        // `input` in all 149 (worst 3.59); hover lifts to the same token the
+        // text uses, so the affordance is a contrast INCREASE from a floor that
+        // was already met.
+        dropdownIndicator: (base) => ({
+          ...base,
+          color: "var(--accent-foreground)",
+          "&:hover": {
+            color: "var(--popover-foreground)",
+          },
+        }),
+        clearIndicator: (base) => ({
+          ...base,
+          color: "var(--accent-foreground)",
+          "&:hover": {
+            color: "var(--popover-foreground)",
+          },
+        }),
+        indicatorSeparator: (base) => ({
+          ...base,
+          backgroundColor: "var(--card-control-border)",
+        }),
         control: (base) => ({
           ...base,
           backgroundColor: "var(--input)",
@@ -150,13 +195,18 @@ export const SearchableSelect = <Option extends SearchableOption>({
           maxHeight: menuPortal ? resolvedMaxHeight : base.maxHeight,
           overflowY: "auto",
         }),
+        // Pre-existing, and found by the same sweep: `foreground` on `input` is
+        // under 3:1 in 36 themes and IDENTICAL in `tc-night-owl-light` (both
+        // `#403f53`), i.e. the chosen value was invisible in its own control.
+        // Both of these are text on `input`, so they take the token the
+        // placeholder takes.
         singleValue: (base) => ({
           ...base,
-          color: "var(--foreground)",
+          color: "var(--popover-foreground)",
         }),
         input: (base) => ({
           ...base,
-          color: "var(--foreground)",
+          color: "var(--popover-foreground)",
         }),
         group: (base) => ({
           ...base,

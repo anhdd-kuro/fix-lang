@@ -195,6 +195,44 @@ Generated at build time. Each file contains a `:root` CSS var declaration:
 ❌ **WRONG**: Tune a threshold for one theme in `adjustSemanticTokenContrast`, assume it works
 ✅ **CORRECT**: Run `bun run test` to validate the change across all themes; adjust if needed
 
+### Pitfall: Text token not paired with the background it sits on
+
+Every surface ships its own foreground (`secondary`/`secondary-foreground`,
+`primary`/`primary-foreground`, `card`/`card-foreground`, `popover`/`popover-foreground`,
+`success`/`success-foreground`). The derive ladder guarantees contrast **within a
+pair**, and nothing else. Measured across all 149 presets:
+
+| pairing | below 3:1 | worst |
+|---|---|---|
+| `foreground` on `secondary` | 36 | **1.00** (`tc-night-owl-light`: both `#403f53`) |
+| `foreground` on `primary` | 123 | 1.01 (`ayu-dark`) |
+| `foreground` on `card` | 37 | 1.00 |
+| `foreground` on `success` | 133 | 1.01 |
+| each `X` + `X-foreground` | **0** | ≥ 4.27 |
+
+❌ **WRONG**: `className="bg-secondary text-foreground"` — reads fine in the theme
+you happened to be running, invisible in `tc-night-owl-light`
+✅ **CORRECT**: `className="bg-secondary text-secondary-foreground"`
+
+A hover/selected state is exactly where this bites, because the background
+changes underneath text whose token did not.
+
+### Pitfall: Third-party components with their own hardcoded palette
+
+react-select's `optionCSS` hardcodes `colors.primary25` (`#DEEBFF`) for the
+focused menu row and merely *inherits* the text colour, so a themed foreground
+landed on a light blue nothing in the theme chose. `styles.option` had never been
+supplied, so every select on the default `Option` had an unreadable hover;
+`ModelSelect` looked correct only because it renders a custom `Option`.
+
+Both representations now come from one table, `src/renderer/components/selectOptionSurface.ts`
+(CSS values for react-select's emotion styles, Tailwind classes for a custom
+`Option` or a non-react-select popover), and `withThemeColors` remaps the
+library's remaining blues so no unthemed highlight returns through a
+sub-component added later. `selectOptionSurface.test.ts` pins the pairings;
+`SearchableSelect.test.ts` opens a real menu in jsdom and asserts the computed
+background is the theme var and not `rgb(222, 235, 255)`.
+
 ## Related Code Locations
 
 - **Renderer theme consumer**: `src/renderer/MainWindow/MainWindow.tsx` (applies `preset-*.css` to the DOM)
