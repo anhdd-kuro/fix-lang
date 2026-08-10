@@ -133,7 +133,14 @@ describe("GUIDE_TOPICS", () => {
   });
 
   it("points every title at a real settings tab", () => {
-    const validTabs = ["profiles", "general", "appearance", "correction", "promptGen"];
+    const validTabs = [
+      "profiles",
+      "general",
+      "appearance",
+      "correction",
+      "combos",
+      "promptGen",
+    ];
     for (const topic of GUIDE_TOPICS) {
       expect(validTabs).toContain(topic.settingsTab);
     }
@@ -151,7 +158,7 @@ describe("GUIDE_TOPICS", () => {
   it("has a combo topic mentioning the Control+Escape cancel", () => {
     const combo = GUIDE_TOPICS.find((topic) => topic.id === "combo");
     expect(combo).toBeDefined();
-    expect(combo?.settingsTab).toBe("correction");
+    expect(combo?.settingsTab).toBe("combos");
     expect(
       EN_CATALOG[combo?.bodyKey as keyof typeof EN_CATALOG],
     ).toContain("Control+Escape");

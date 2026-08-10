@@ -5,6 +5,7 @@ import { Button } from "./Button";
 import ProfileManager from "./ProfileManager";
 import { SettingAppearance } from "./SettingAppearance";
 import { SettingAutocomplete } from "./SettingAutocomplete";
+import { SettingCombos } from "./SettingCombos";
 import { SettingCorrection } from "./SettingCorrection";
 import { SettingGeneral } from "./SettingGeneral";
 import { SettingPromptGen } from "./SettingPromptGen";
@@ -28,6 +29,7 @@ export type SettingsTabId =
   | "general"
   | "appearance"
   | "correction"
+  | "combos"
   | "autocomplete"
   | "promptGen";
 
@@ -46,6 +48,7 @@ export const visibleSettingsTabIds = (): SettingsTabId[] => {
     "profiles",
     "general",
     "correction",
+    "combos",
     "autocomplete",
     "appearance",
   ];
@@ -150,6 +153,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </svg>
       ),
       component: <SettingCorrection />,
+    },
+    // Directly after Transform: a combo is a chain of the presets edited there,
+    // and the two tabs write the same `settingsCorrect` store node.
+    {
+      id: "combos",
+      labelKey: "settings.modal.tabs.combos",
+      icon: (
+        <svg
+          className="h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 6h6m0 0a2 2 0 104 0 2 2 0 00-4 0zm4 0h8M4 18h8m0 0a2 2 0 104 0 2 2 0 00-4 0zm4 0h4"
+          />
+        </svg>
+      ),
+      component: <SettingCombos />,
     },
     // Beside Transform, not inside General: both are per-feature areas.
     {

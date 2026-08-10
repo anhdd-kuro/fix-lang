@@ -195,6 +195,6 @@ export const GUIDE_TOPICS: readonly GuideTopic[] = Object.freeze([
     id: "combo",
     titleKey: "guide.topic.combo.title",
     bodyKey: "guide.topic.combo.body",
-    settingsTab: "correction",
+    settingsTab: "combos",
   },
 ] satisfies GuideTopic[]);
