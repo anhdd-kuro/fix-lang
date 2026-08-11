@@ -222,6 +222,16 @@ describe("AskInputWindow", () => {
   const ghostMirror = (): HTMLElement | null =>
     container.querySelector("[data-ghost-mirror]");
 
+  /**
+   * Tailwind classes as EXACT tokens, never as substrings. `toContain("pt-2")`
+   * against the raw `className` is satisfied by `pt-2.5`, and a half-step is
+   * exactly the edit that silently breaks the card's height arithmetic: the
+   * budget below has 3.5px of slack, so `gap-1.5` + `pt-2.5` spends it and
+   * clips the ninth line while every substring assertion stays green.
+   */
+  const classTokens = (element: HTMLElement): string[] =>
+    element.className.split(/\s+/).filter((token) => token.length > 0);
+
   const contextSection = (): HTMLElement | null =>
     container.querySelector("[data-ask-context]");
 
@@ -1164,6 +1174,41 @@ describe("AskInputWindow", () => {
       expect(wrapper.className).not.toContain("min-h-0");
     });
 
+    /**
+     * The card's 200px is fixed, so its padding is not free: `pt-2` 8 + `pb-1` 4
+     * + border 2 + label 10 + two `gap-1` 8 + fold control 16 = 48px of chrome
+     * and 152px of body, against a `line-clamp-9` of 148.5px — 3.5px of slack in
+     * total, for the padding and both gaps together.
+     *
+     * Pinned as EXACT tokens (see `classTokens`) because 3.5px is less than one
+     * Tailwind half-step: `gap-1.5` with `pt-2.5` costs 6 more, leaves 146px, and
+     * clips the ninth line the clamp promised to ellipsise. Every substring
+     * assertion — `toContain("pt-2")`, `toContain("gap-1")` — passes on that
+     * edit, which is what makes this the one place the numbers are enforced
+     * rather than merely written down.
+     */
+    it("separates the label from the passage with padding the 200px card can afford", async () => {
+      await render();
+      await showContext();
+
+      const tokens = classTokens(contextSection() as HTMLElement);
+      expect(tokens).toContain("pt-2");
+      expect(tokens).toContain("pb-1");
+      expect(tokens).toContain("gap-1");
+      // The classes this replaced, and every half-step of the ones above.
+      expect(tokens).not.toContain("py-1");
+      expect(tokens).not.toContain("gap-0.5");
+      expect(tokens.filter((token) => token.startsWith("p"))).toEqual([
+        "px-2",
+        "pt-2",
+        "pb-1",
+      ]);
+      expect(tokens.filter((token) => token.startsWith("gap-"))).toEqual([
+        "gap-1",
+      ]);
+      expect(contextBody().className).toContain(CLAMP_CLASS);
+    });
+
     it("keeps the card capped while it is expanded, when the squeeze actually happens", async () => {
       await render();
       await showContext();
@@ -1387,7 +1432,9 @@ describe("AskInputWindow", () => {
    *   push the textarea and the footer off the bottom of a fixed window.
    *
    * Both strings are rendered by main and shown VERBATIM, which is the point of
-   * the row: what is on screen is what leaves the machine.
+   * the row: what is on screen is what leaves the machine — and they are shown
+   * UNFOLDED, because a fold inside a panel the user just opened is a second
+   * click in front of the one thing the row discloses.
    */
   describe("request transparency row", () => {
     const SYSTEM_PROMPT =
@@ -1427,10 +1474,8 @@ describe("AskInputWindow", () => {
     const transparencyBody = (): HTMLElement | null =>
       container.querySelector("[data-ask-transparency-body]");
 
-    const fold = (id: string): HTMLDetailsElement | null =>
-      container.querySelector(
-        `[data-chat-section="${id}"] details`,
-      ) as HTMLDetailsElement | null;
+    const block = (id: string): HTMLElement | null =>
+      container.querySelector(`[data-chat-section="${id}"]`);
 
     it("renders nothing at all when the payload carries neither field", async () => {
       await render();
@@ -1456,7 +1501,7 @@ describe("AskInputWindow", () => {
         ["system-prompt", "context-directives"],
       ],
     ] as const)(
-      "folds exactly what the payload carries: %s",
+      "shows exactly what the payload carries: %s",
       async (_name, payload, expectedSections) => {
         await render();
         await showPayload(payload);
@@ -1472,7 +1517,15 @@ describe("AskInputWindow", () => {
       },
     );
 
-    it("shows both blocks verbatim, each in its own labelled fold that starts closed", async () => {
+    /**
+     * ONE CLICK. Expanding the row used to hand the user two more collapsed
+     * `<details>` summaries, so reading the system prompt this row exists to
+     * disclose took three clicks. The absence of `<details>` is asserted as
+     * flatly as the presence of the text, because a fold that came back would
+     * still let every text assertion below pass — `textContent` reads a closed
+     * fold's body just fine.
+     */
+    it("shows both blocks verbatim and already open, with no second fold to click", async () => {
       await render();
       await showPayload({
         systemPrompt: SYSTEM_PROMPT,
@@ -1480,18 +1533,20 @@ describe("AskInputWindow", () => {
       });
       await clickTransparency();
 
-      const prompt = fold("system-prompt") as HTMLDetailsElement;
-      expect(prompt.open).toBe(false);
-      expect(prompt.querySelector("summary")?.textContent).toContain(
+      const body = transparencyBody() as HTMLElement;
+      expect(body.querySelectorAll("details")).toHaveLength(0);
+      expect(body.querySelectorAll("summary")).toHaveLength(0);
+
+      const prompt = block("system-prompt") as HTMLElement;
+      expect(prompt.querySelector("h3")?.textContent).toBe(
         tEn("notifications.window.askInput.transparencySystemPromptLabel"),
       );
       // Byte-for-byte, newlines included: main renders these and nothing here
       // re-wraps or prettifies them.
       expect(prompt.querySelector("pre")?.textContent).toBe(SYSTEM_PROMPT);
 
-      const directives = fold("context-directives") as HTMLDetailsElement;
-      expect(directives.open).toBe(false);
-      expect(directives.querySelector("summary")?.textContent).toContain(
+      const directives = block("context-directives") as HTMLElement;
+      expect(directives.querySelector("h3")?.textContent).toBe(
         tEn("notifications.window.askInput.transparencyDirectivesLabel"),
       );
       expect(directives.querySelector("pre")?.textContent).toBe(DIRECTIVES);
@@ -1507,7 +1562,7 @@ describe("AskInputWindow", () => {
       expect(body.querySelector("b")).toBeNull();
       expect(body.querySelector("strong")).toBeNull();
       expect(body.querySelector("a")).toBeNull();
-      expect(fold("system-prompt")?.querySelector("pre")?.textContent).toBe(
+      expect(block("system-prompt")?.querySelector("pre")?.textContent).toBe(
         hostile,
       );
     });

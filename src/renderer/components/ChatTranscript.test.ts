@@ -28,6 +28,7 @@ describe("ChatTranscript", () => {
     messages: ChatTranscriptMessage[];
     ariaLabel?: string;
     meta?: ChatTranscriptMetaItem[];
+    unfoldSystemMessages?: boolean;
   }) => {
     container = document.createElement("div");
     document.body.append(container);
@@ -79,6 +80,107 @@ describe("ChatTranscript", () => {
     );
     // The fold is not a bubble: no justification, no `max-w-[80%]` body.
     expect(section("system").className).toBe("");
+  });
+
+  /**
+   * The opt-in half of the same shape. Both states are pinned here because this
+   * file is one of only two real guards on the folded default — the history
+   * modal's tests read its chat tab through `textContent`, which cannot tell
+   * `<details><summary>` from `<div><h3>`, so they stay green through exactly
+   * that regression. See `ChatTranscript.tsx`'s file header.
+   *
+   * The omitted case is the load-bearing one: it is the PARAMETER DEFAULT under
+   * test, and passing `false` explicitly would leave a flipped default green.
+   */
+  it.each([
+    ["omitted, so the parameter default renders", {}],
+    ["explicitly false", { unfoldSystemMessages: false }],
+  ])("keeps system messages folded when the prop is %s", async (_name, props) => {
+    await render({
+      messages: [
+        {
+          role: "system",
+          label: "System prompt",
+          content: "You are a careful editor.",
+          sectionId: "system",
+        },
+      ],
+      ...props,
+    });
+
+    expect(container.querySelector("details")).toBeTruthy();
+    expect(container.querySelector("summary")?.textContent).toBe(
+      "System prompt …",
+    );
+  });
+
+  it("renders an unfolded system message as an open card with its label as a heading", async () => {
+    await render({
+      messages: [
+        {
+          role: "system",
+          label: "System prompt",
+          content: "You are a careful editor.",
+          sectionId: "system",
+        },
+      ],
+      unfoldSystemMessages: true,
+    });
+
+    const item = section("system");
+    expect(item.querySelector("details")).toBeNull();
+    expect(item.querySelector("summary")).toBeNull();
+
+    const card = item.querySelector("div") as HTMLElement;
+    expect(card.className).toContain("border-card-control-border");
+    expect(card.className).toContain("bg-card");
+    expect(card.className).toContain("p-3");
+
+    const heading = card.querySelector("h3") as HTMLElement;
+    // No trailing " …": the ellipsis only ever meant "click me for the rest",
+    // and the rest is already on screen.
+    expect(heading.textContent).toBe("System prompt");
+    expect(heading.className).toContain("uppercase");
+
+    expect(card.querySelector("pre")?.textContent).toBe(
+      "You are a careful editor.",
+    );
+    // Still not a bubble, exactly as when folded.
+    expect(item.className).toBe("");
+  });
+
+  it("leaves renderContent and data-chat-section alone when the fold is dropped", async () => {
+    await render({
+      messages: [
+        {
+          role: "system",
+          label: "Context directives",
+          content: "App locale: ja",
+          sectionId: "context-directives",
+          renderContent: (content) =>
+            createElement("em", { "data-custom-body": "" }, content),
+        },
+      ],
+      unfoldSystemMessages: true,
+    });
+
+    const item = section("context-directives");
+    expect(item.querySelector("pre")).toBeNull();
+    expect(item.querySelector("[data-custom-body]")?.textContent).toBe(
+      "App locale: ja",
+    );
+  });
+
+  it("renders an unfolded system message through React's own escaping, never as HTML", async () => {
+    const hostile = "**bold** <b>tag</b> [link](http://example.com)";
+    await render({
+      messages: [{ role: "system", label: "System", content: hostile }],
+      unfoldSystemMessages: true,
+    });
+
+    expect(container.querySelector("b")).toBeNull();
+    expect(container.querySelector("a")).toBeNull();
+    expect(container.querySelector("pre")?.textContent).toBe(hostile);
   });
 
   it("renders a user message as a right-hand primary bubble", async () => {

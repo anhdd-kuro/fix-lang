@@ -448,14 +448,25 @@ type ContextPreviewProps = {
  * expanded card overran its budget and the "Ask anything" placeholder was cut
  * in half by the bottom of the card.
  *
- * Inside it, border 2 + `py-1` 8 + `leading-none` label 10 + two `gap-0.5` 4 +
- * `text-xs` fold control 16 = 40px of chrome, leaving 160px for the body. A
- * `text-xs leading-snug` line is 16.5px, so `line-clamp-9` (148.5) is the
- * largest clamp that fits and is what collapsed ellipsises to; expanded, the
- * body takes that same 160 via `flex-1` and scrolls inside it. The label's
- * `leading-none` is not cosmetic: `text-[10px]` sets no line-height, so its box
- * would be whatever `normal` means for the user's font, and a card whose height
- * is an estimate cannot be summed against a floor.
+ * Inside it, border 2 + `pt-2` 8 + `pb-1` 4 + `leading-none` label 10 + two
+ * `gap-1` 8 + `text-xs` fold control 16 = 48px of chrome, leaving 152px for the
+ * body. A `text-xs leading-snug` line is 16.5px, so `line-clamp-9` (148.5) is
+ * still the largest clamp that fits. Collapsed, that clamp is what ellipsises;
+ * expanded, the body takes the same 152 via `flex-1` and scrolls inside it.
+ *
+ * THE HEADROOM IS 3.5px, for the padding and both gaps together — less than one
+ * full Tailwind step but more than a half one, so `pt-2.5` (+2) still fits while
+ * `pt-3` (+4) clips the ninth line. Spend it and the clamp has to drop to 8.
+ * `index.test.ts` pins these as exact class tokens for that reason: a substring
+ * assertion cannot tell `pt-2` from `pt-2.5`.
+ *
+ * The padding is asymmetric on purpose: the label needs air above it or it reads
+ * as glued to the passage, while the bottom edge already has the fold control
+ * standing off it.
+ *
+ * The label's `leading-none` is not cosmetic: `text-[10px]` sets no
+ * line-height, so its box would be whatever `normal` means for the user's font,
+ * and a card whose height is an estimate cannot be summed against a floor.
  *
  * Collapsed is `line-clamp-9` rather than a plain `overflow-hidden` because the
  * clamp is what draws the ellipsis — `-webkit-box` plus `overflow: hidden` plus
@@ -501,7 +512,7 @@ const ContextPreview = ({ text, source, onToggled }: ContextPreviewProps) => {
   return (
     <section
       data-ask-context
-      className="flex max-h-50 min-h-50 shrink-0 flex-col gap-0.5 rounded-md border border-card-control-border bg-card px-2 py-1"
+      className="flex max-h-50 min-h-50 shrink-0 flex-col gap-1 rounded-md border border-card-control-border bg-card px-2 pt-2 pb-1"
     >
       {/*
         Labelled the way the session-detail chat labels its system prompt: a
@@ -592,8 +603,11 @@ type RequestTransparencyProps = {
  * One toggle control, living in the header that both states share, so the
  * control is never duplicated and never hidden behind the panel it opened.
  *
- * The transcript's folds are collapsed by default (`<details>`), so the panel
- * opens showing two summary lines rather than a wall of prompt.
+ * ONE CLICK, NOT TWO. `unfoldSystemMessages` is what makes both blocks readable
+ * the moment the panel opens. The transcript's default is a `<details>` per
+ * system entry, which here meant expanding the row only to be handed two more
+ * collapsed summaries — a second fold in front of the one thing this row exists
+ * to show. The panel's own scroll is what handles a long prompt.
  */
 const RequestTransparency = ({
   systemPrompt,
@@ -671,6 +685,7 @@ const RequestTransparency = ({
                 "notifications.window.askInput.transparencyAriaLabel",
               )}
               messages={messages}
+              unfoldSystemMessages
             />
           </div>
         ) : null}

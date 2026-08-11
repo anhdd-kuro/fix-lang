@@ -11,8 +11,19 @@
  * `<dl>` meta strip, then an `<ol>` whose `system` entries are `<details>` folds
  * under an uppercase `<summary>` and whose remaining entries are bubbles —
  * `user` right and `bg-primary`, everything else left and bordered — each under
- * an uppercase `<h3>` role label. The modal's own tests are the proof; a change
- * here that needs one of them touched is a change in behaviour.
+ * an uppercase `<h3>` role label.
+ *
+ * WHAT ACTUALLY GUARDS THAT SHAPE is `ChatTranscript.test.ts` plus
+ * `AskResultWindow/index.test.ts` — not, as this file long claimed, the history
+ * modal's own tests. `HistorySessionDetailsModal.test.ts` reads the chat tab
+ * through `textContent` only, and `<div><h3>` yields the same text as
+ * `<details><summary>`, so it stays green through exactly the change it was
+ * cited as proving. Verified by flipping the default: those two files go red,
+ * the modal's seven tests do not. Pin structure where structure matters.
+ *
+ * That is also why `unfoldSystemMessages` is a prop and not a fix: the one
+ * consumer whose system text is the content, not the background, opts in — see
+ * the prop's own comment.
  *
  * TWO THINGS ARE DELIBERATELY THE CALLER'S:
  *
@@ -71,6 +82,26 @@ type ChatTranscriptProps = {
   /** Names the `<ol>` for assistive tech; translated by the caller. */
   ariaLabel: string;
   meta?: readonly ChatTranscriptMetaItem[];
+  /**
+   * Renders `system` entries as an already-open card — same border, same
+   * padding, uppercase label as a plain `<h3>` — instead of a `<details>` fold.
+   *
+   * OPT-IN, AND IT HAS TO STAY THAT WAY. The history modal and the Ask result
+   * popup are both showing a stored conversation whose system prompt is
+   * background the reader scrolled past: folded is right there. The Ask INPUT
+   * window is the one consumer where the system text IS the content — its
+   * transparency panel exists only to show what is about to leave the machine,
+   * and a fold inside a panel the user already opened means two clicks to read
+   * the one thing they asked for.
+   *
+   * Flipping this default is caught by `ChatTranscript.test.ts` and
+   * `AskResultWindow/index.test.ts`, and by NEITHER of the history modal's tests
+   * — see the file header for why that is not the guard it looks like.
+   *
+   * Also drops the summary's trailing ` …`, which said "there is more, click
+   * me" — a promise nothing here can keep once the body is already visible.
+   */
+  unfoldSystemMessages?: boolean;
 };
 
 const messageBody = (
@@ -83,10 +114,18 @@ const messageBody = (
     <pre className={fallbackClassName}>{message.content}</pre>
   );
 
+const SYSTEM_CARD_CLASS =
+  "rounded-md border border-card-control-border bg-card p-3";
+const SYSTEM_LABEL_CLASS =
+  "text-xs font-medium uppercase tracking-wide text-muted-foreground";
+const SYSTEM_BODY_CLASS =
+  "mt-2 text-sm text-foreground whitespace-pre-wrap break-words";
+
 export const ChatTranscript = ({
   messages,
   ariaLabel,
   meta,
+  unfoldSystemMessages = false,
 }: ChatTranscriptProps) => (
   <div className="flex flex-col gap-3">
     {meta && meta.length > 0 ? (
@@ -108,15 +147,19 @@ export const ChatTranscript = ({
         if (message.role === "system") {
           return (
             <li key={`${message.role}-${index}`} {...sectionAttribute}>
-              <details className="rounded-md border border-card-control-border bg-card p-3">
-                <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {message.label} …
-                </summary>
-                {messageBody(
-                  message,
-                  "mt-2 text-sm text-foreground whitespace-pre-wrap break-words",
-                )}
-              </details>
+              {unfoldSystemMessages ? (
+                <div className={SYSTEM_CARD_CLASS}>
+                  <h3 className={SYSTEM_LABEL_CLASS}>{message.label}</h3>
+                  {messageBody(message, SYSTEM_BODY_CLASS)}
+                </div>
+              ) : (
+                <details className={SYSTEM_CARD_CLASS}>
+                  <summary className={`cursor-pointer ${SYSTEM_LABEL_CLASS}`}>
+                    {message.label} …
+                  </summary>
+                  {messageBody(message, SYSTEM_BODY_CLASS)}
+                </details>
+              )}
             </li>
           );
         }
