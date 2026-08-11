@@ -4,7 +4,7 @@
 
 Local macOS menu-bar app: fixes grammar and improves writing on selected text via AI (OpenAI, OpenRouter, AWS Bedrock, Ollama, LM Studio). Electron + React + TypeScript, runs on **bun**.
 
-Current release: **v0.24.1**.
+Current release: **v0.24.2**.
 
 ## Main Features
 
@@ -19,7 +19,7 @@ What the user gets. Implementation traps live under [Known Gotchas](#known-gotch
   - **Hotkeys** — remappable preset, PromptGen, and profile-switch bindings; conflicts refused before save.
 - **Ask & autocomplete**
   - **Ask AI** — optional selection as context; opens an input window and answers in cascading popups, both rendered by the shared `ChatTranscript` (selection → question → markdown answer).
-  - **Request transparency** — the input window shows the exact system prompt and the exact context appended to the request, both rendered by main and shown verbatim, in a row that is 40px collapsed and overlays the window when expanded.
+  - **Request transparency** — the input window shows the exact system prompt and the exact context appended to the request, both rendered by main and shown verbatim, in a row that is 40px collapsed and overlays the window when expanded, showing both texts unfolded so one click reveals them.
   - **Request context** — resolved once per press (`askEnvironment.ts`): app locale, macOS system language, active keyboard input source (best-effort, absent when unreadable), current local time, and the last 5 transforms as **preset names and timestamps only** — never their text. Rides both the Ask submit and every autocomplete dispatch.
   - **Autocomplete** — opt-in ghost-text suggestions in the Ask AI input (Tab accept; Esc clears ghost, then closes); Settings toggle, model picker, daily cost cap, and Usage rollups.
   - **Prompt generation** — PromptGen builds AI prompts from selected text (`Control+Shift+G`); feature-tagged, OFF in release builds.
