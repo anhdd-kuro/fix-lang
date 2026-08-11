@@ -237,7 +237,7 @@
   "security.stats.footnote": "Counted from this machine's local logs, so clearing the Logs tab resets these numbers. Only interventions are recorded: a guard that lets text through writes nothing, so there is no total to compare these against.",
   "security.stats.lastEvent": "Last activity {date}",
   "security.stats.loading": "Reading guard activity…",
-  "security.stats.restoreFailures.hint": "The reply came back without its placeholders, so it opened in a popup instead of being pasted.",
+  "security.stats.restoreFailures.hint": "The masked values could not be put back safely — a placeholder went missing, was duplicated, moved, or came back mangled — so the reply opened in a popup instead of being pasted.",
   "security.stats.restoreFailures.label": "Values not restored",
   "security.stats.rules.hint": "Which detectors matched. Counted once per request, not once per value.",
   "security.stats.rules.title": "What was detected",

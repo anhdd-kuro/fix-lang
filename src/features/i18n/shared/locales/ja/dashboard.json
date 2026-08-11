@@ -232,7 +232,7 @@
   "security.stats.footnote": "この Mac のローカルログから集計しています。Logs タブを消去すると数値もリセットされます。記録されるのは介入だけです。通過させた場合は何も記録されないため、比較できる総数はありません。",
   "security.stats.lastEvent": "最終アクティビティ {date}",
   "security.stats.loading": "ガードの動作状況を読み込み中…",
-  "security.stats.restoreFailures.hint": "プレースホルダーのない返信が返ったため、貼り付けではなくポップアップで表示しました。",
+  "security.stats.restoreFailures.hint": "マスクした値を安全に戻せませんでした。プレースホルダーの欠落・重複・移動・改変のいずれもここに入ります。返信は貼り付けではなくポップアップで表示しました。",
   "security.stats.restoreFailures.label": "値を復元できず",
   "security.stats.rules.hint": "一致した検出ルール。値ごとではなくリクエストごとに 1 回集計します。",
   "security.stats.rules.title": "検出された内容",
