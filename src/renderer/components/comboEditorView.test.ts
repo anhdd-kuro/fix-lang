@@ -27,6 +27,7 @@ import {
   nextComboDraftName,
   removeComboStep,
   reorderComboStep,
+  reorderComboStepById,
   setComboStepInlineInput,
   setComboStepPreset,
 } from "./comboEditorView";
@@ -278,6 +279,54 @@ describe("reorderComboStep", () => {
 
   it("is a no-op copy on an empty list", () => {
     expect(reorderComboStep([], 0, 0)).toEqual([]);
+  });
+});
+
+describe("reorderComboStepById", () => {
+  const steps = [
+    step("a", { id: "id-a" }),
+    step("b", { id: "id-b" }),
+    step("c", { id: "id-c" }),
+    step("d", { id: "id-d" }),
+  ];
+  const ids = (result: readonly ComboStep[]) =>
+    result.map((entry) => entry.id);
+
+  it("resolves the dragged step by id, not by a cached start index", () => {
+    // Mid-drag ↑/↓ can shuffle indices; looking up by id still moves the
+    // step the user grabbed (id-a), even though its start index is stale.
+    expect(ids(reorderComboStepById(steps, "id-a", 2))).toEqual([
+      "id-b",
+      "id-c",
+      "id-a",
+      "id-d",
+    ]);
+  });
+
+  it("still moves the grabbed step after a neighbour swap reshuffled indices", () => {
+    // Simulate: user dragged id-d from index 3, then ↑ moved it to index 2
+    // before drop onto index 0. A stale fromIndex=3 would move id-c instead.
+    const midDrag = moveComboStep(steps, 3, "up");
+    expect(ids(midDrag)).toEqual(["id-a", "id-b", "id-d", "id-c"]);
+    expect(ids(reorderComboStepById(midDrag, "id-d", 0))).toEqual([
+      "id-d",
+      "id-a",
+      "id-b",
+      "id-c",
+    ]);
+  });
+
+  it("is a no-op copy when the dragged step was removed mid-drag", () => {
+    const withoutB = removeComboStep(steps, 1);
+    const result = reorderComboStepById(withoutB, "id-b", 0);
+    expect(result).toEqual(withoutB);
+    expect(result).not.toBe(withoutB);
+  });
+
+  it("is a no-op copy for an unknown step id", () => {
+    const result = reorderComboStepById(steps, "missing", 1);
+    expect(result).toEqual(steps);
+    expect(result).not.toBe(steps);
   });
 });
 

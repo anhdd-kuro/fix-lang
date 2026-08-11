@@ -1929,7 +1929,7 @@ const consumerContractRows = [
     "SITE-e1edc22effccf2d2-01",
     "LIVE-e1edc22effccf2d2",
     "src/renderer/components/SettingCombos.tsx",
-    419,
+    435,
     11,
   ],
   [
@@ -1937,7 +1937,7 @@ const consumerContractRows = [
     "SITE-65a1273b03b9d8fb-01",
     "LIVE-65a1273b03b9d8fb",
     "src/renderer/components/SettingCombos.tsx",
-    503,
+    519,
     21,
   ],
   [
@@ -1945,7 +1945,7 @@ const consumerContractRows = [
     "SITE-88523f64c949d38d-01",
     "LIVE-88523f64c949d38d",
     "src/renderer/components/SettingCombos.tsx",
-    538,
+    554,
     23,
   ],
   [
@@ -1953,7 +1953,7 @@ const consumerContractRows = [
     "SITE-ef91cdb1bc36a0dc-01",
     "LIVE-ef91cdb1bc36a0dc",
     "src/renderer/components/SettingCombos.tsx",
-    715,
+    731,
     31,
   ],
   [
@@ -1961,7 +1961,7 @@ const consumerContractRows = [
     "SITE-9c614de56e62eb0b-01",
     "LIVE-9c614de56e62eb0b",
     "src/renderer/components/SettingCombos.tsx",
-    758,
+    774,
     31,
   ],
   [
@@ -1969,7 +1969,7 @@ const consumerContractRows = [
     "SITE-0c46ac399ebc9dd9-01",
     "LIVE-0c46ac399ebc9dd9",
     "src/renderer/components/SettingCombos.tsx",
-    772,
+    788,
     31,
   ],
   [
@@ -1977,7 +1977,7 @@ const consumerContractRows = [
     "SITE-3f5a8e87f91e23c9-01",
     "LIVE-3f5a8e87f91e23c9",
     "src/renderer/components/SettingCombos.tsx",
-    788,
+    804,
     31,
   ],
   [
@@ -1985,7 +1985,7 @@ const consumerContractRows = [
     "SITE-4d3958923749ac58-01",
     "LIVE-4d3958923749ac58",
     "src/renderer/components/SettingCombos.tsx",
-    840,
+    856,
     21,
   ],
   [
@@ -1993,7 +1993,7 @@ const consumerContractRows = [
     "SITE-4b84063b743490d2-01",
     "LIVE-4b84063b743490d2",
     "src/renderer/components/SettingCombos.tsx",
-    858,
+    874,
     9,
   ],
   [
@@ -2369,7 +2369,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "0d1fac93b83e18201b3089f73f77e9bb47165489d70e27d1ff94dde5d333db31";
+  "46d1209087137addfd8d8de62c710b64f3e7085b5ccb5c05b1e414566c399542";
 
 const compareConsumers = (
   left: ButtonConsumer,

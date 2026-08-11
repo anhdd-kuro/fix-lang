@@ -21,7 +21,7 @@ import {
   moveComboStep,
   nextComboDraftName,
   removeComboStep,
-  reorderComboStep,
+  reorderComboStepById,
   setComboStepInlineInput,
   setComboStepPreset,
   type ComboStepDirection,
@@ -57,13 +57,15 @@ type ComboStepPresetOption = { value: string; label: string };
 
 /**
  * One drag, and it belongs to ONE combo. Carrying `comboId` alongside the
- * indices is what stops a step being dropped into a sibling combo's list: a
- * bare index would be meaningless the moment the pointer left its own list,
- * and every row on the tab would read as a valid drop target.
+ * step id (not a start index) is what stops a step being dropped into a
+ * sibling combo's list AND what keeps the drop moving the grabbed step after
+ * Remove or ↑/↓ reshuffles the list mid-drag. A bare index would be stale the
+ * moment the pointer left its own list, and every row on the tab would read as
+ * a valid drop target.
  */
 type ComboStepDragState = {
   comboId: string;
-  fromIndex: number;
+  stepId: string;
   overIndex: number;
 };
 
@@ -262,8 +264,9 @@ export const SettingCombos: React.FC = () => {
     event: React.DragEvent<HTMLElement>,
   ): void => {
     event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData(COMBO_STEP_DRAG_MIME, combo.steps[stepIndex].id);
-    setStepDrag({ comboId: combo.id, fromIndex: stepIndex, overIndex: stepIndex });
+    const stepId = combo.steps[stepIndex].id;
+    event.dataTransfer.setData(COMBO_STEP_DRAG_MIME, stepId);
+    setStepDrag({ comboId: combo.id, stepId, overIndex: stepIndex });
   };
 
   const isOwnStepDrag = (comboId: string): boolean =>
@@ -295,9 +298,14 @@ export const SettingCombos: React.FC = () => {
     if (!isOwnStepDrag(combo.id) || stepDrag === null) return;
 
     event.preventDefault();
+    // Prefer the MIME payload (set at drag start); fall back to React state if
+    // a browser withholds getData outside drop — either way, resolve by id so
+    // a mid-drag Remove/↑/↓ cannot make fromIndex point at a different step.
+    const draggedStepId =
+      event.dataTransfer.getData(COMBO_STEP_DRAG_MIME) || stepDrag.stepId;
     updateComboSteps(
       combo.id,
-      reorderComboStep(combo.steps, stepDrag.fromIndex, stepIndex),
+      reorderComboStepById(combo.steps, draggedStepId, stepIndex),
     );
     setStepDrag(null);
   };
@@ -321,7 +329,15 @@ export const SettingCombos: React.FC = () => {
     combo: ComboPreset,
     stepIndex: number,
   ): void => {
+    const removedStepId = combo.steps[stepIndex]?.id;
     updateComboSteps(combo.id, removeComboStep(combo.steps, stepIndex));
+    setStepDrag((current) =>
+      current !== null &&
+      current.comboId === combo.id &&
+      current.stepId === removedStepId
+        ? null
+        : current,
+    );
   };
 
   const handleComboStepPresetChange = (
@@ -684,11 +700,11 @@ export const SettingCombos: React.FC = () => {
                         const stepErrors = fieldMessages.stepErrorsById[step.id] ?? [];
                         const isDraggedStep =
                           stepDrag?.comboId === combo.id &&
-                          stepDrag.fromIndex === stepIndex;
+                          stepDrag.stepId === step.id;
                         const isDropTarget =
                           stepDrag?.comboId === combo.id &&
                           stepDrag.overIndex === stepIndex &&
-                          stepDrag.fromIndex !== stepIndex;
+                          stepDrag.stepId !== step.id;
 
                         return (
                           <li

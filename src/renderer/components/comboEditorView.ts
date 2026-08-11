@@ -126,6 +126,22 @@ export const reorderComboStep = (
   return next;
 };
 
+/**
+ * Drag-and-drop entry point: resolve the dragged step by id at drop time, then
+ * move-to-index. A cached start index is wrong the moment Remove or ↑/↓ runs
+ * mid-drag; looking up by id is what keeps the drop moving the step the user
+ * grabbed. Missing id (row removed mid-drag) is a no-op copy.
+ */
+export const reorderComboStepById = (
+  steps: readonly ComboStep[],
+  stepId: string,
+  toIndex: number,
+): ComboStep[] => {
+  const fromIndex = steps.findIndex((step) => step.id === stepId);
+  if (fromIndex < 0) return [...steps];
+  return reorderComboStep(steps, fromIndex, toIndex);
+};
+
 // --- Step add / remove --------------------------------------------------
 
 /** `COMBO_MAX_STEPS` is a hard product cap (donut legibility, cost) — not just a save-time error to fix later. */
