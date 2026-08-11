@@ -10,7 +10,6 @@ import {
   addComboStep,
   buildComboStepPresetLookup,
   canAddComboStep,
-  canMoveComboStep,
   collectComboErrors,
   comboStepNeedsInlineInput,
   createComboDraft,
@@ -59,9 +58,9 @@ type ComboStepPresetOption = { value: string; label: string };
  * One drag, and it belongs to ONE combo. Carrying `comboId` alongside the
  * step id (not a start index) is what stops a step being dropped into a
  * sibling combo's list AND what keeps the drop moving the grabbed step after
- * Remove or ↑/↓ reshuffles the list mid-drag. A bare index would be stale the
- * moment the pointer left its own list, and every row on the tab would read as
- * a valid drop target.
+ * Remove or ArrowUp/ArrowDown reshuffles the list mid-drag. A bare index would
+ * be stale the moment the pointer left its own list, and every row on the tab
+ * would read as a valid drop target.
  */
 type ComboStepDragState = {
   comboId: string;
@@ -300,7 +299,8 @@ export const SettingCombos: React.FC = () => {
     event.preventDefault();
     // Prefer the MIME payload (set at drag start); fall back to React state if
     // a browser withholds getData outside drop — either way, resolve by id so
-    // a mid-drag Remove/↑/↓ cannot make fromIndex point at a different step.
+    // a mid-drag Remove/ArrowUp/ArrowDown cannot make fromIndex point at a
+    // different step.
     const draggedStepId =
       event.dataTransfer.getData(COMBO_STEP_DRAG_MIME) || stepDrag.stepId;
     updateComboSteps(
@@ -312,6 +312,22 @@ export const SettingCombos: React.FC = () => {
 
   const handleComboStepDragEnd = (): void => {
     setStepDrag(null);
+  };
+
+  const handleComboStepDragHandleKeyDown = (
+    combo: ComboPreset,
+    stepIndex: number,
+    event: React.KeyboardEvent<HTMLElement>,
+  ): void => {
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      handleMoveComboStep(combo, stepIndex, "up");
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      handleMoveComboStep(combo, stepIndex, "down");
+    }
   };
 
   const handleAddComboStep = (combo: ComboPreset): void => {
@@ -722,18 +738,15 @@ export const SettingCombos: React.FC = () => {
                             } ${isDraggedStep ? "opacity-60" : ""}`}
                           >
                             <div className="flex items-center gap-2">
-                              {/* Mouse-only affordance: the arrow buttons below
-                                  are the keyboard path, so this handle stays out
-                                  of the tab order. `aria-hidden` and `tabIndex`
-                                  must move together — a focusable aria-hidden
-                                  control is its own violation — and `title`
-                                  keeps the tooltip for the mouse users it is for. */}
+                              {/* Drag handle is also the keyboard reorder path:
+                                  ArrowUp / ArrowDown move the focused step. */}
                               <Button
                                 type="button"
                                 variant="ghost"
                                 draggable
-                                aria-hidden="true"
-                                tabIndex={-1}
+                                aria-label={t("settings.correction.combos.dragStep", {
+                                  number: stepIndex + 1,
+                                })}
                                 title={t("settings.correction.combos.dragStep", {
                                   number: stepIndex + 1,
                                 })}
@@ -741,11 +754,18 @@ export const SettingCombos: React.FC = () => {
                                   handleComboStepDragStart(combo, stepIndex, event)
                                 }
                                 onDragEnd={handleComboStepDragEnd}
+                                onKeyDown={(event) =>
+                                  handleComboStepDragHandleKeyDown(
+                                    combo,
+                                    stepIndex,
+                                    event,
+                                  )
+                                }
                                 className="h-9 w-6 shrink-0 cursor-grab rounded-md px-0 text-sm text-muted-foreground active:cursor-grabbing"
                               >
                                 {"⠿"}
                               </Button>
-                              <span className="w-5 shrink-0 text-right text-xs text-muted-foreground">
+                              <span className="w-5 shrink-0 text-right text-xs font-bold text-muted-foreground">
                                 {stepIndex + 1}.
                               </span>
                               <SearchableSelect<ComboStepPresetOption>
@@ -773,40 +793,10 @@ export const SettingCombos: React.FC = () => {
                               />
                               <Button
                                 type="button"
-                                variant="outline"
-                                aria-label={t("settings.correction.combos.moveStepUp")}
-                                disabled={
-                                  !canMoveComboStep(combo.steps, stepIndex, "up")
-                                }
-                                onClick={() =>
-                                  handleMoveComboStep(combo, stepIndex, "up")
-                                }
-                                className="h-9 w-9 shrink-0 rounded-md px-0 text-xs font-semibold"
-                              >
-                                {"↑"}
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                aria-label={t(
-                                  "settings.correction.combos.moveStepDown",
-                                )}
-                                disabled={
-                                  !canMoveComboStep(combo.steps, stepIndex, "down")
-                                }
-                                onClick={() =>
-                                  handleMoveComboStep(combo, stepIndex, "down")
-                                }
-                                className="h-9 w-9 shrink-0 rounded-md px-0 text-xs font-semibold"
-                              >
-                                {"↓"}
-                              </Button>
-                              <Button
-                                type="button"
                                 variant="destructive"
                                 aria-label={t("settings.correction.combos.removeStep")}
                                 onClick={() => handleRemoveComboStep(combo, stepIndex)}
-                                className="h-9 w-9 shrink-0 rounded-md px-0 text-xs font-semibold"
+                                className="h-9 w-9 shrink-0 rounded-md px-0 text-lg font-semibold leading-none"
                               >
                                 {"×"}
                               </Button>
