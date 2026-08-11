@@ -108,6 +108,11 @@ const resolveAskContextUnderGuards = (
 
   logger.warn("correction.hotkey", "Ask context dropped by a selection guard", {
     presetId,
+    // `guardEvent` is what the Security dashboard counts on — the message is
+    // prose for a human reader and rewording one must never zero a metric.
+    // A dropped context is NOT a decline: the request went ahead without the
+    // selection attached.
+    guardEvent: "context-dropped",
     guardReason: verdict.reason,
     ...(verdict.kind === "block"
       ? { deniedBundleId: verdict.bundleId }
@@ -534,6 +539,7 @@ const runComboFromHotkey = async (
           latency.finish({ outcome: verdict.reason });
           logger.warn("correction.hotkey", "Combo blocked by a selection guard", {
             comboId: combo.id,
+            guardEvent: "blocked",
             guardReason: verdict.reason,
             deniedBundleId: verdict.bundleId,
           });
@@ -557,6 +563,7 @@ const runComboFromHotkey = async (
             latency.finish({ outcome: SELECTION_GUARD_DECLINE_OUTCOME[verdict.reason] });
             logger.info("correction.hotkey", "Combo declined at a selection-guard confirm", {
               comboId: combo.id,
+              guardEvent: "declined",
               guardReason: verdict.reason,
               ...selectionGuardLogContext(verdict),
             });
@@ -936,6 +943,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           latency.finish({ outcome: verdict.reason });
           logger.warn("correction.hotkey", "Transform blocked by a selection guard", {
             presetId: preset.id,
+            guardEvent: "blocked",
             guardReason: verdict.reason,
             deniedBundleId: verdict.bundleId,
           });
@@ -959,6 +967,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
             latency.finish({ outcome: SELECTION_GUARD_DECLINE_OUTCOME[verdict.reason] });
             logger.info("correction.hotkey", "Transform declined at a selection-guard confirm", {
               presetId: preset.id,
+              guardEvent: "declined",
               guardReason: verdict.reason,
               ...selectionGuardLogContext(verdict),
             });

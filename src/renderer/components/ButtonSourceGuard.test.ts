@@ -1911,33 +1911,33 @@ const consumerContractRows = [
   [
     "BTN-049",
     "SITE-5f364c40be2b17e5-01",
-    "LIVE-5f364c40be2b17e5",
-    "src/renderer/components/security/SecurityPanel.tsx",
-    338,
+    "LIVE-38b41e9662ef85eb",
+    "src/renderer/components/security/SettingSecurity.tsx",
+    342,
     17,
   ],
   [
     "BTN-050",
     "SITE-18a6321923e48979-01",
-    "LIVE-18a6321923e48979",
-    "src/renderer/components/security/SecurityPanel.tsx",
-    361,
+    "LIVE-b1fefcea3824a139",
+    "src/renderer/components/security/SettingSecurity.tsx",
+    365,
     11,
   ],
   [
     "BTN-051",
     "SITE-fe69aa2db4a229cb-01",
-    "LIVE-fe69aa2db4a229cb",
-    "src/renderer/components/security/SecurityPanel.tsx",
-    375,
+    "LIVE-8afb88035a3e0cf1",
+    "src/renderer/components/security/SettingSecurity.tsx",
+    379,
     17,
   ],
   [
     "BTN-052",
     "SITE-54bd9227bfbd0231-01",
-    "LIVE-54bd9227bfbd0231",
-    "src/renderer/components/security/SecurityPanel.tsx",
-    486,
+    "LIVE-e82f23376b34d519",
+    "src/renderer/components/security/SettingSecurity.tsx",
+    490,
     9,
   ],
   [
@@ -2161,7 +2161,7 @@ const consumerContractRows = [
     "SITE-426eacdcf8f96389-01",
     "LIVE-426eacdcf8f96389",
     "src/renderer/components/SettingsModal.tsx",
-    285,
+    311,
     11,
   ],
   [
@@ -2169,7 +2169,7 @@ const consumerContractRows = [
     "SITE-131332cadfcd6d7c-01",
     "LIVE-131332cadfcd6d7c",
     "src/renderer/components/SettingsModal.tsx",
-    327,
+    353,
     17,
   ],
   [
@@ -2345,7 +2345,7 @@ const consumerContractRows = [
     "SITE-212540f76558cdfa-01",
     "LIVE-212540f76558cdfa",
     "src/renderer/MainWindow/App.tsx",
-    348,
+    350,
     15,
   ],
   [
@@ -2385,7 +2385,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "e05cc141bb4e1e41aea3a877dbddb7d73bd075ca84246b0253fc64a46fc79773";
+  "6564f9ecc5341c789e2cf4e0faf66cc7a9c9900b962e4fc537824023e6753d44";
 
 const compareConsumers = (
   left: ButtonConsumer,

@@ -21,6 +21,7 @@ const REDACTED = "[REDACTED]";
 /** Every key the guard rails are allowed to ship, with a representative value. */
 const APPROVED: LogContext = {
   presetId: "correction",
+  guardEvent: "blocked",
   guardReason: "denied-app",
   deniedBundleId: "com.1password.1password",
   selectionAgeMs: 41_000,

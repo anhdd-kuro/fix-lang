@@ -16,7 +16,7 @@ import { LogsPanel } from "../components/LogsPanel";
 import ModelManagerDialog from "../components/ModelManagerDialog";
 import { ModelsPanel } from "../components/ModelsPanel";
 import { OverviewPanel } from "../components/OverviewPanel";
-import { SecurityPanel } from "../components/security/SecurityPanel";
+import { SecurityStatsPanel } from "../components/security/SecurityStatsPanel";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { SettingsButton } from "../components/SettingsIcon";
 import {
@@ -48,7 +48,7 @@ const RANGES: { id: AnalyticsRange; labelKey: MessageKey }[] = [
 ];
 
 /** Tabs that read the shared time-range pills. */
-const RANGE_AWARE_TABS = new Set(["overview", "models"]);
+const RANGE_AWARE_TABS = new Set(["overview", "models", "security"]);
 
 /**
  * Main App component for FixLang Preview UI.
@@ -306,7 +306,9 @@ const App: React.FC = () => {
       />
     ),
     logs: <LogsPanel />,
-    security: <SecurityPanel />,
+    // Read-only guard activity. The controls that configure the guards live in
+    // Settings → Security, so this tab is analytics like Overview and Models.
+    security: <SecurityStatsPanel range={range} />,
     // Two sub-tabs: the update controls (default) and the user guide. The
     // wrapping card lives inside AboutPanel, below its sub-tab bar.
     about: (
