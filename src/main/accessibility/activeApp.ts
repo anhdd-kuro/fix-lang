@@ -8,6 +8,7 @@
  * without app context than not at all, so every failure path returns null.
  */
 import { exec } from "child_process";
+import { recordActiveApp } from "~/main/accessibility/recentActiveApps";
 import { logger } from "~/main/logging/logService";
 
 export type ActiveApp = {
@@ -108,6 +109,7 @@ const runFrontmostAppScript = (): Promise<string> =>
  * invocation produced the raw line.
  */
 export const logActiveAppRead = (app: ActiveApp | null, rawStdout: string): void => {
+  if (app) recordActiveApp(app);
   logger.debug(
     "accessibility.activeApp",
     app ? "Frontmost app read" : "Frontmost app not usable as context",
@@ -124,6 +126,12 @@ export const logActiveAppRead = (app: ActiveApp | null, rawStdout: string): void
  *
  * Call this *before* anything that can change focus (the overlay spinner, a
  * result window) — afterwards it reports FixLang and yields null.
+ *
+ * Production-unreferenced as of the correction hotkey and PromptGen both
+ * switching to `~/utils`'s combined `getHighlightedTextWithActiveApp` (one
+ * osascript spawn instead of two). Kept exported, with its own tests, as a
+ * standalone frontmost-app read for any future caller that does not also
+ * need to send the Cmd-C keystroke in the same script.
  */
 export const getActiveApp = async (): Promise<ActiveApp | null> => {
   if (process.platform !== "darwin") return null;

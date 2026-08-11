@@ -16,6 +16,7 @@ import { LogsPanel } from "../components/LogsPanel";
 import ModelManagerDialog from "../components/ModelManagerDialog";
 import { ModelsPanel } from "../components/ModelsPanel";
 import { OverviewPanel } from "../components/OverviewPanel";
+import { SecurityPanel } from "../components/security/SecurityPanel";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { SettingsButton } from "../components/SettingsIcon";
 import {
@@ -305,6 +306,7 @@ const App: React.FC = () => {
       />
     ),
     logs: <LogsPanel />,
+    security: <SecurityPanel />,
     // Two sub-tabs: the update controls (default) and the user guide. The
     // wrapping card lives inside AboutPanel, below its sub-tab bar.
     about: (

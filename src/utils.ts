@@ -2,6 +2,11 @@ import { exec, execSync } from "child_process";
 import { clipboard, dialog, shell } from "electron";
 import { logActiveAppRead, parseActiveApp } from "~/main/accessibility/activeApp";
 import { isKeystrokePermissionDenied } from "~/main/accessibility/keystrokePermission";
+import {
+  beginSelfManagedRead,
+  endSelfManagedRead,
+  observeNow,
+} from "~/main/clipboard/clipboardChangeTracker";
 import { logger } from "~/main/logging/logService";
 import { AccessibilityPermissionError } from "~/main/notifications/error";
 import type { ActiveApp } from "~/main/accessibility/activeApp";
@@ -190,6 +195,12 @@ const readSelection = async (): Promise<SelectionRead> => {
   const previousClipboardContent = clipboard.readText();
   const startedAt = Date.now();
   clipboardOperationsInFlight += 1;
+  observeNow(previousClipboardContent);
+  // Opened BEFORE the try, so `clearClipboardForSelectionRead` below — a
+  // pasteboard write of ours — lands inside the bracket. Outside it, the 1 Hz
+  // observer would record our own clearing as a user copy and reset the age
+  // the stale-clipboard guard reads.
+  beginSelfManagedRead();
 
   logger.debug("clipboard.copy", "Sending copy keystroke", {
     previousLength: previousClipboardContent.length,
@@ -226,6 +237,7 @@ const readSelection = async (): Promise<SelectionRead> => {
     throw toSelectionError(error);
   } finally {
     clipboard.writeText(previousClipboardContent);
+    endSelfManagedRead(previousClipboardContent);
     clipboardOperationsInFlight -= 1;
     logger.debug("clipboard.copy", "Previous clipboard restored", {
       elapsedMs: Date.now() - startedAt,
@@ -277,27 +289,51 @@ export const getHighlightedText = async (): Promise<string> => {
  * into and submit; labelled by source and removable, a stale clipboard is an
  * offer they can see and decline rather than a leak they cannot. `""` still
  * means no context at all: an empty clipboard and a failed copy attach nothing.
+ *
+ * It reads through the COMBINED reader rather than `readSelection` directly,
+ * so the frontmost app comes back too. Ask AI still never puts an app name in
+ * its prompt — that part of the design is unchanged — but the deny-list is a
+ * rule about where text may be READ FROM, and a rule that covered every
+ * preset except the one with a free-text box would be a rule with a hole in
+ * the shape of its own purpose. It costs one extra AppleScript statement
+ * inside a script this press was already running, not an extra spawn.
  */
 export type AskContext = {
   text: string;
   source: "selection" | "clipboard";
+  activeApp: ActiveApp | null;
+  /** Same meaning as on {@link HighlightedSelectionWithActiveApp}. */
+  changed: boolean;
 };
 
 export const getAskContext = async (): Promise<AskContext> => {
-  const { value, changed } = await readSelection();
-  return { text: value, source: changed ? "selection" : "clipboard" };
+  const { text, activeApp, changed } = await getHighlightedTextWithActiveApp();
+  return {
+    text,
+    source: changed ? "selection" : "clipboard",
+    activeApp,
+    changed,
+  };
 };
 
 export type HighlightedSelectionWithActiveApp = {
   text: string;
   activeApp: ActiveApp | null;
+  /**
+   * True when the copy itself produced `text`; false when it fell back to the
+   * clipboard snapshot. The selection guards read this: a fallback read is the
+   * only one whose text can be arbitrarily old, so the stale-clipboard age
+   * limit applies to it and never to a genuine selection.
+   */
+  changed: boolean;
 };
 
 /**
- * Combined variant used only by the correction hotkey's ordinary (non-Ask)
- * preset branch (`~/main/keybindings/correction.ts`): ONE `osascript`
- * invocation reads the frontmost app and THEN sends the Cmd-C keystroke, in a
- * single System Events session — replacing the two separate spawns
+ * Combined variant used by the correction hotkey's ordinary (non-Ask) preset
+ * branch (`~/main/keybindings/correction.ts`) and by PromptGen
+ * (`~/main/keybindings/promptGen.ts`): ONE `osascript` invocation reads the
+ * frontmost app and THEN sends the Cmd-C keystroke, in a single System Events
+ * session — replacing, at each call site, the two separate spawns
  * (`getActiveApp()` + `getHighlightedText()`) that used to cost an extra
  * process spawn, plus a second System Events attach and process enumeration,
  * on top of the shared one. The frontmost read happens first inside the
@@ -305,8 +341,9 @@ export type HighlightedSelectionWithActiveApp = {
  * guarantee is unchanged.
  *
  * `getActiveApp()` itself (`~/main/accessibility/activeApp`) is untouched and
- * keeps working standalone — PromptGen still calls it separately, since only
- * this hotkey path bundles the two reads.
+ * still exported and tested, but is production-unreferenced now that both call
+ * sites above bundle the two reads through this function instead of calling it
+ * standalone.
  *
  * Shares `getHighlightedText`'s clipboard contract: the pasteboard is emptied
  * before the copy so the two sources can be told apart, `text` is what the copy
@@ -316,9 +353,9 @@ export type HighlightedSelectionWithActiveApp = {
  * `onFrontmostReadAndKeystrokeSent` fires as soon as the script returns,
  * BEFORE the clipboard-change poll: that is the earliest point at which it
  * is still safe to show the overlay spinner (see the ordering comment on
- * `correction.ts`'s hotkey handler and on `getActiveApp`'s own doc
- * comment) — once a FixLang window is on screen, a frontmost read reports
- * FixLang itself and yields null.
+ * `correction.ts`'s and `promptGen.ts`'s hotkey handlers, and on
+ * `getActiveApp`'s own doc comment) — once a FixLang window is on screen, a
+ * frontmost read reports FixLang itself and yields null.
  *
  * Ask AI does not use this: `askFlow.ts` never passes app context to
  * `fixGrammar`, so reading the frontmost app for that preset would be a
@@ -330,6 +367,8 @@ export const getHighlightedTextWithActiveApp = async (
   const previousClipboardContent = clipboard.readText();
   const startedAt = Date.now();
   clipboardOperationsInFlight += 1;
+  observeNow(previousClipboardContent);
+  beginSelfManagedRead();
 
   logger.debug("clipboard.copy", "Sending copy keystroke with frontmost-app read", {
     previousLength: previousClipboardContent.length,
@@ -383,12 +422,13 @@ export const getHighlightedTextWithActiveApp = async (
       elapsedMs: Date.now() - startedAt,
     });
 
-    return { text: value, activeApp };
+    return { text: value, activeApp, changed };
   } catch (error) {
     logCopyKeystrokeFailure(error, startedAt);
     throw toSelectionError(error);
   } finally {
     clipboard.writeText(previousClipboardContent);
+    endSelfManagedRead(previousClipboardContent);
     clipboardOperationsInFlight -= 1;
     logger.debug("clipboard.copy", "Previous clipboard restored", {
       elapsedMs: Date.now() - startedAt,
@@ -475,6 +515,7 @@ export const pasteText = (text: string): Promise<void> => {
   clipboardOperationsInFlight += 1;
   return new Promise((resolve, reject) => {
     clipboard.writeText(text);
+    beginSelfManagedRead();
 
     logger.debug("clipboard.paste", "Sending paste keystroke", {
       textLength: text.length,
@@ -500,20 +541,23 @@ export const pasteText = (text: string): Promise<void> => {
         concurrentOps: clipboardOperationsInFlight,
       });
 
-      if (error) {
-        // Same permission-denial detection as `sendCopyKeystroke`/
-        // `getHighlightedText` above — `pasteText` synthesizes keystrokes
-        // too, so it hits the exact same macOS TCC failure mode.
-        reject(
-          isKeystrokePermissionDenied(error)
-            ? new AccessibilityPermissionError()
-            : `Error: ${error.message}`,
-        );
+      try {
+        if (error) {
+          // Same permission-denial detection as `sendCopyKeystroke`/
+          // `getHighlightedText` above — `pasteText` synthesizes keystrokes
+          // too, so it hits the exact same macOS TCC failure mode.
+          reject(
+            isKeystrokePermissionDenied(error)
+              ? new AccessibilityPermissionError()
+              : `Error: ${error.message}`,
+          );
+          return;
+        }
+        resolve();
+      } finally {
         clipboard.writeText(previousClipboardContent);
-        return;
+        endSelfManagedRead(previousClipboardContent);
       }
-      resolve();
-      clipboard.writeText(previousClipboardContent);
     });
   });
 };

@@ -3,8 +3,19 @@ import { COMBO_CANCEL_ACCELERATOR } from "~/features/correction/shared/comboVali
 import { resolvePresetOutputMode } from "~/features/correction/shared/presetOutputMode";
 import { keybindingStore } from "~/features/correction/store/keybindingStore";
 import { outputModeStore } from "~/features/correction/store/outputModeStore";
+import {
+  evaluateSelectionGuards,
+  selectionGuardLogContext,
+  type SelectionGuardConfirmVerdict,
+  type SelectionGuardVerdict,
+} from "~/features/guards/shared/selectionGuards";
+import { guardStore } from "~/features/guards/store/guardStore";
 import { syncHistory } from "~/features/history/main/history";
 import { getProfileSetting } from "~/features/providers/store/apiStore";
+import { restoreSecrets } from "~/features/secretGuard/shared/maskSecrets";
+import { resolveSecretGuardOutputMode } from "~/features/secretGuard/shared/secretGuardOutputMode";
+import { secretGuardStore } from "~/features/secretGuard/store/secretGuardStore";
+import { mainT } from "~/main/i18n";
 import { DEFAULT_CORRECTION_PRESET_ID } from "~/prompts";
 // No apiStore import needed as api key is handled in shared.ts
 import {
@@ -34,14 +45,21 @@ import {
 } from "./comboNotifications";
 import { buildCorrectionGoodJobNotification } from "./correctionNotifications";
 import { deliverCorrectionOutput } from "./correctionOutput";
+import { runSecretGate } from "./secretGate";
 import { checkShortcut, handleError, withHotkeyThrottle } from "./utils";
 import { effectiveModelRef, resolveCorrectionPreset } from "../ai.request/correction";
 import { buildPriceMap, computeCost } from "../ai.request/cost";
 import { getCachedModels, isLocalModelId } from "../ai.request/shared";
+import * as clipboardChangeTracker from "../clipboard/clipboardChangeTracker";
 import { prewarmProviderConnection } from "../llm/prewarm";
-import { startLatencyTimer, type LatencyTimer } from "../logging/latencyTimer";
+import {
+  startLatencyTimer,
+  type LatencyOutcome,
+  type LatencyTimer,
+} from "../logging/latencyTimer";
 import { logger } from "../logging/logService";
-import { LocalizedError } from "../notifications/error";
+import { confirmSelectionGuard } from "../notifications/confirmSelectionGuard";
+import { LocalizedError, showNotificationWithFallback } from "../notifications/error";
 import {
   hideOverlaySpinner,
   showOverlaySpinner,
@@ -52,6 +70,55 @@ import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWi
 import type { BrowserWindow } from "electron";
 import type { ComboPreset, ComboStep } from "~/features/providers/store/apiStore";
 import type { ComboProgressView } from "~/main/webViewWindows/comboProgressView";
+
+/**
+ * One decline outcome per confirm reason, so a latency line says which
+ * dialog the user backed out of rather than collapsing three different
+ * decisions into one number.
+ */
+const SELECTION_GUARD_DECLINE_OUTCOME = {
+  "large-selection": "declined-size",
+  "stale-clipboard": "declined-stale",
+  "unknown-clipboard-age": "declined-unknown-age",
+} as const satisfies Record<SelectionGuardConfirmVerdict["reason"], LatencyOutcome>;
+
+/**
+ * Applies a selection-guard verdict to Ask AI's optional context, returning
+ * what may be attached — the text, or `""`.
+ *
+ * Ask DROPS rather than confirms, and that is the whole difference between
+ * this and every other preset. A dialog stacked in front of the input window
+ * would fight it for focus, and it would ask the wrong question: for a
+ * transform the choice is send-or-nothing, while here the question can always
+ * stand alone, so refusing the context still leaves a working press. Dropping
+ * is also the only option that stays honest about the deny-list, which is not
+ * overridable anywhere else and must not become overridable here.
+ *
+ * The user is told once, by notification, because a context that silently
+ * fails to attach is indistinguishable from a hotkey that silently failed to
+ * read anything — and that is the one thing the source label was added to
+ * stop. Which guard fired goes to the log, not the notification.
+ */
+const resolveAskContextUnderGuards = (
+  verdict: SelectionGuardVerdict,
+  text: string,
+  presetId: string,
+): string => {
+  if (verdict.kind === "allow") return text;
+
+  logger.warn("correction.hotkey", "Ask context dropped by a selection guard", {
+    presetId,
+    guardReason: verdict.reason,
+    ...(verdict.kind === "block"
+      ? { deniedBundleId: verdict.bundleId }
+      : selectionGuardLogContext(verdict)),
+  });
+  showNotificationWithFallback({
+    title: mainT("notifications.askContextDropped.title"),
+    body: mainT("notifications.askContextDropped.body"),
+  });
+  return "";
+};
 
 /**
  * `runCombo` throws this dedicated class (`comboFlow.ts`) at every abort
@@ -364,6 +431,37 @@ const runComboFromHotkey = async (
     state: "running",
   };
 
+  /**
+   * True once this run's own lock watchdog has given up on it — at which point
+   * the user has ALREADY been told the combo failed, and the lock has already
+   * admitted whatever press came next.
+   *
+   * Called at every point where this handler resumes after an await it cannot
+   * itself interrupt. The selection read is one (Finding F2); the two guard
+   * dialogs below are the others, and they are the only awaits in this handler
+   * paced by a HUMAN rather than by a machine — so they are the ones most
+   * likely to outlive `COMBO_LOCK_MAX_HOLD_MS`. Without a check there, an
+   * abandoned run resumes on the user's click and walks on: it re-shows the
+   * spinner, opens a SECOND confirmation dialog for a request already reported
+   * as failed, and sends `start-loading` — all after the failure notification,
+   * and only stopped at `runCombo`'s own entry check.
+   *
+   * The `finish` here is a no-op whenever the watchdog's own handler already
+   * reported (first-finish-wins), exactly as the pre-existing check is.
+   */
+  const abandonedByLockWatchdog = (): boolean => {
+    if (!watchdogSignal.aborted) return false;
+
+    hideOverlaySpinner();
+    logger.warn(
+      "correction.hotkey",
+      "Combo handler resumed after the lock watchdog already abandoned it; skipping delivery",
+      { comboId: combo.id },
+    );
+    latency.finish({ outcome: "failed", reason: "watchdog-abandoned" });
+    return true;
+  };
+
   try {
     // The cancel scope opens HERE, not around `runCombo` alone. `withComboCancel`
     // is what publishes this run to `abortActiveCombo()`, and the selection read
@@ -380,7 +478,7 @@ const runComboFromHotkey = async (
         // Same combined read as the single-preset path, for the same reason: the
         // frontmost-app read has to happen before any FixLang window becomes
         // visible, or it reports FixLang instead of the real source app.
-        const { text: selectedText, activeApp } = await getHighlightedTextWithActiveApp(
+        const { text: selectedText, activeApp, changed } = await getHighlightedTextWithActiveApp(
           () => {
             latency.mark("keystrokeSent");
             showOverlaySpinner();
@@ -394,16 +492,7 @@ const runComboFromHotkey = async (
         // never causes one. A stuck-then-unwedged run stops here instead of
         // proceeding into `runCombo`, where it would otherwise race whatever
         // later run the freed lock already admitted, straight to `deliver`.
-        if (watchdogSignal.aborted) {
-          hideOverlaySpinner();
-          logger.warn(
-            "correction.hotkey",
-            "Combo handler resumed after the lock watchdog already abandoned it; skipping delivery",
-            { comboId: combo.id },
-          );
-          latency.finish({ outcome: "failed", reason: "watchdog-abandoned" });
-          return;
-        }
+        if (abandonedByLockWatchdog()) return;
 
         // The profile-switch abort this scope exists for. Reached whenever
         // `abortActiveCombo()` fired while the selection read was still in
@@ -426,12 +515,102 @@ const runComboFromHotkey = async (
           return;
         }
 
+        // The same guard block, in the same order, as the ordinary preset
+        // branch below — a combo is not a lesser send site but a worse one, so
+        // it must not be the cheap way around the rails: it hands the same
+        // selection to N models in sequence. Read fresh on every press for the
+        // same reason as there, and placed AFTER the empty-selection abort so
+        // "nothing selected" keeps its own, more basic message.
+        const verdict = evaluateSelectionGuards({
+          text: selectedText,
+          changed,
+          activeApp,
+          age: clipboardChangeTracker.clipboardAge(),
+          settings: guardStore.getSelectionGuardSettings(),
+        });
+
+        if (verdict.kind === "block") {
+          hideOverlaySpinner();
+          latency.finish({ outcome: verdict.reason });
+          logger.warn("correction.hotkey", "Combo blocked by a selection guard", {
+            comboId: combo.id,
+            guardReason: verdict.reason,
+            deniedBundleId: verdict.bundleId,
+          });
+          handleError(
+            new LocalizedError(
+              "Selection blocked: the frontmost app is on the deny-list.",
+              "notifications.error.appNotAllowed.body",
+              { app: activeApp?.name ?? verdict.bundleId },
+            ),
+          );
+          return;
+        }
+
+        if (verdict.kind === "confirm") {
+          hideOverlaySpinner();
+          latency.pause();
+          const proceed = await confirmSelectionGuard(verdict);
+          latency.resume();
+
+          if (!proceed) {
+            latency.finish({ outcome: SELECTION_GUARD_DECLINE_OUTCOME[verdict.reason] });
+            logger.info("correction.hotkey", "Combo declined at a selection-guard confirm", {
+              comboId: combo.id,
+              guardReason: verdict.reason,
+              ...selectionGuardLogContext(verdict),
+            });
+            // NO error notification — Cancel is a choice, not an error.
+            return;
+          }
+
+          // The dialog above is paced by the user, so it is the likeliest await
+          // in this handler to outlive the lock watchdog.
+          if (abandonedByLockWatchdog()) return;
+
+          showOverlaySpinner();
+        }
+
+        // `site: "combo"` is a real entry in `SECRET_SEND_SITE_POLICY`, not
+        // `correction` borrowed: a combo delivers the LAST step's output, so a
+        // mask taken here would have to survive every step in between and could
+        // land a restored credential in a derived artifact. That decision lives
+        // in the one table (see its file header) and is never re-derived here.
+        const gate = await runSecretGate({
+          site: "combo",
+          text: selectedText,
+          settings: secretGuardStore.getSecretGuardSettings(),
+          aroundDialog: async (showDialog) => {
+            hideOverlaySpinner();
+            latency.pause();
+            const answer = await showDialog();
+            latency.resume();
+            showOverlaySpinner();
+            return answer;
+          },
+        });
+
+        if (gate.gateDecision === "declined") {
+          hideOverlaySpinner();
+          latency.finish({ outcome: "secret-declined" });
+          logger.info("correction.hotkey", "Combo declined at the secret guard", {
+            comboId: combo.id,
+            appliedMode: gate.appliedMode,
+          });
+          // NO error notification, same as the large-selection Cancel.
+          return;
+        }
+
+        // Same reason as after the size confirm: the gate may have opened its
+        // own dialog and waited on a person.
+        if (abandonedByLockWatchdog()) return;
+
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send("start-loading");
         }
 
         const result = await runCombo(
-          { combo, input: selectedText, activeAppName: activeApp?.name, signal },
+          { combo, input: gate.sentText, activeAppName: activeApp?.name, signal },
           buildComboRunDependencies(
             (view) => {
               latestProgress = view;
@@ -567,20 +746,21 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         // selection is the normal case (the question can stand alone), so it
         // must never hit the "no text selected" abort. The window itself
         // owns the request from here — asking the user for a question, then
-        // handing the answer off to `runAskFlow`. It reads via `getAskContext`
-        // rather than the combined `getHighlightedTextWithActiveApp` below,
-        // which reads the frontmost app in the same osascript — a round trip
-        // this preset would waste, since Ask never uses app context.
+        // handing the answer off to `runAskFlow`.
         //
         // Same clipboard contract as every other preset, including the
         // fallback: where the text came from travels with it, so the input
         // window can label a clipboard-sourced context instead of passing it
         // off as the user's selection (see `~/utils.ts`).
         //
-        // Ask AI also never uses source-app context (see askFlow.ts's own
-        // doc comment) — unlike the branch below, it does not read the
-        // frontmost app at all, since that read would just be a wasted
-        // osascript round-trip for this preset.
+        // Ask AI still never puts a source app in its PROMPT (see askFlow.ts's
+        // own doc comment). It does now READ one: `getAskContext` goes through
+        // the combined reader so the frontmost app comes back with the text,
+        // because the deny-list is a rule about where text may be read FROM,
+        // and a rule covering every preset except the one with a free-text box
+        // would be a rule with a hole in the shape of its own purpose. It costs
+        // one extra AppleScript statement in a script this press already runs,
+        // not an extra spawn.
         if (preset.requiresInput) {
           // ONCE PER PRESS, and this is the only place it is resolved. The same
           // string is appended to the submitted request, shown verbatim in the
@@ -599,9 +779,39 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           const environmentPromise = resolveAskEnvironment({
             systemLocale: app.getSystemLocale(),
           });
-          const { text: context, source: contextSource } = await getAskContext();
+          const {
+            text: askText,
+            source: contextSource,
+            activeApp: askActiveApp,
+            changed: askChanged,
+          } = await getAskContext();
           latency.mark("selectionRead");
-          // The two above overlap, so this phase is what was LEFT of the
+
+          // Ask reaches the same guards as every other preset, and reaches
+          // them HERE — before the window opens — rather than at submit.
+          // The window is a consent surface for what it displays, not a
+          // substitute for the rules the user configured: a denied app, a
+          // clipboard of unknown age and a whole selected document are all
+          // things they asked to be stopped on, and none of them is answered
+          // by a label. Attaching nothing is a supported state for this
+          // preset, so a refusal here drops the CONTEXT and still opens the
+          // window — the question can stand alone, and killing the press
+          // outright would make the guard read as a broken hotkey.
+          //
+          // Between the two awaits on purpose: it is synchronous, so it costs
+          // the overlap above nothing, and putting it after the environment
+          // await would leave a dropped context resolved a second later than
+          // it needs to be.
+          const askVerdict = evaluateSelectionGuards({
+            text: askText,
+            changed: askChanged,
+            activeApp: askActiveApp,
+            age: clipboardChangeTracker.clipboardAge(),
+            settings: guardStore.getSelectionGuardSettings(),
+          });
+          const context = resolveAskContextUnderGuards(askVerdict, askText, preset.id);
+
+          // The two reads above overlap, so this phase is what was LEFT of the
           // environment read once the context read returned — ~0 whenever the
           // clipboard poll was the slower half, which is the point of starting
           // it first. It is still its own phase because the alternative is the
@@ -667,7 +877,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         // earliest point it is still safe to show the overlay spinner: the
         // frontmost-app read must precede any FixLang window becoming
         // visible, since afterwards it would report FixLang and yield null.
-        const { text: selectedText, activeApp } = await getHighlightedTextWithActiveApp(
+        const { text: selectedText, activeApp, changed } = await getHighlightedTextWithActiveApp(
           () => {
             // Splits the osascript spawn from the clipboard-change poll that
             // follows it — the two fail slow for completely different reasons
@@ -699,17 +909,155 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           return;
         }
 
+        // Read fresh on every press, not once at registerCorrectionShortcut
+        // time: a settings change must take effect on the very next hotkey
+        // press, not only after the next hotkey reload.
+        //
+        // This check runs on the resolved read result rather than inside
+        // `getHighlightedTextWithActiveApp`'s own `onFrontmostReadAndKeystrokeSent`
+        // callback: by the time this line runs, the Cmd-C keystroke has
+        // already fired inside that same osascript session, and returning
+        // early from inside the callback would skip the clipboard restore in
+        // its `finally`. So be honest about what this guards: it prevents
+        // TRANSMISSION, not reading — the selection is still copied and
+        // restored, it just never reaches a provider.
+        const verdict = evaluateSelectionGuards({
+          text: selectedText,
+          changed,
+          activeApp,
+          age: clipboardChangeTracker.clipboardAge(),
+          settings: guardStore.getSelectionGuardSettings(),
+        });
+
+        if (verdict.kind === "block") {
+          hideOverlaySpinner();
+          // `verdict.reason` doubles as the `LatencyOutcome` member, so no
+          // separate mapping table between guard reasons and log outcomes.
+          latency.finish({ outcome: verdict.reason });
+          logger.warn("correction.hotkey", "Transform blocked by a selection guard", {
+            presetId: preset.id,
+            guardReason: verdict.reason,
+            deniedBundleId: verdict.bundleId,
+          });
+          handleError(
+            new LocalizedError(
+              "Selection blocked: the frontmost app is on the deny-list.",
+              "notifications.error.appNotAllowed.body",
+              { app: activeApp?.name ?? verdict.bundleId },
+            ),
+          );
+          return;
+        }
+
+        if (verdict.kind === "confirm") {
+          hideOverlaySpinner();
+          latency.pause();
+          const proceed = await confirmSelectionGuard(verdict);
+          latency.resume();
+
+          if (!proceed) {
+            latency.finish({ outcome: SELECTION_GUARD_DECLINE_OUTCOME[verdict.reason] });
+            logger.info("correction.hotkey", "Transform declined at a selection-guard confirm", {
+              presetId: preset.id,
+              guardReason: verdict.reason,
+              ...selectionGuardLogContext(verdict),
+            });
+            // NO error notification — the user clicked Cancel, which is not
+            // an error. A toast here would train people to dismiss toasts.
+            return;
+          }
+
+          showOverlaySpinner();
+        }
+
+        // Read fresh on every press, same reason as the selection guards
+        // above. `runSecretGate` is the ONLY entry point: the per-site policy
+        // lives in `SECRET_SEND_SITE_POLICY`, and re-deriving any part of it
+        // here is what that one table exists to prevent.
+        const gate = await runSecretGate({
+          site: "correction",
+          text: selectedText,
+          settings: secretGuardStore.getSecretGuardSettings(),
+          // Wraps ONLY the modal, never the whole gate: bracketing the gate
+          // would hide and re-show the spinner on every transform in confirm
+          // mode, including the vast majority where nothing is detected and no
+          // dialog opens at all.
+          aroundDialog: async (showDialog) => {
+            hideOverlaySpinner();
+            latency.pause();
+            const answer = await showDialog();
+            // No `mark()` between pause and resume: the wait would land in the
+            // phase delta instead of `pausedMs`.
+            latency.resume();
+            showOverlaySpinner();
+            return answer;
+          },
+        });
+
+        if (gate.gateDecision === "declined") {
+          hideOverlaySpinner();
+          latency.finish({ outcome: "secret-declined" });
+          logger.info(
+            "correction.hotkey",
+            "Transform declined at the secret guard",
+            { presetId: preset.id, appliedMode: gate.appliedMode },
+          );
+          // NO error notification, same as the large-selection Cancel. Usually
+          // that is because the user answered the dialog and a toast confirming
+          // their own Cancel would train people to dismiss toasts. It is NOT
+          // always a user choice: `confirmSecretSend` fails closed on a
+          // reentrant call and returns false without ever showing a dialog, so
+          // this branch also covers a decline nobody made. Staying silent is
+          // still right there — the transform simply did not happen, the
+          // selection is untouched, and the gate already logged why — but the
+          // reason is "there is nothing a toast could usefully say", not
+          // "the user decided".
+          return;
+        }
+
+        // What the model actually saw. Identity-equal to `selectedText` when
+        // masking is off or nothing matched, so comparing the reply against
+        // THIS rather than the selection is free in the common case and the
+        // only correct comparison once a mask is in play.
+        const sentText = gate.sentText;
+
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send("start-loading");
         }
 
-        const result = await fixGrammar(selectedText, preset.id, {
+        const result = await fixGrammar(sentText, preset.id, {
           activeAppName: activeApp?.name,
         });
         latency.mark("aiRequest");
 
+        // ONE branch: a masking mode always returns a `SecretMasking`, and an
+        // empty one restores cleanly.
+        const restore =
+          gate.restoreOnReply && gate.masking !== null
+            ? restoreSecrets(result.correctedText, gate.masking)
+            : ({ ok: true, text: result.correctedText } as const);
+
+        if (!restore.ok) {
+          logger.warn("secretGuard.mask", "Could not restore masked values into the reply", {
+            presetId: preset.id,
+            appliedMode: gate.appliedMode,
+            reason: restore.reason,
+            missingCount: restore.missingCount,
+            placeholderCount: gate.masking?.placeholderCount ?? 0,
+          });
+          // Not a bare `new Notification` — this warning is the ONLY thing
+          // explaining a popup full of placeholders, and an unsigned build
+          // fails notification delivery on the async `failed` event.
+          showNotificationWithFallback({
+            title: mainT("notifications.secretGuard.restoreFailed.title"),
+            body: mainT("notifications.secretGuard.restoreFailed.body"),
+            urgency: "critical",
+          });
+        }
+
         if (
-          result.correctedText === selectedText &&
+          restore.ok &&
+          result.correctedText === sentText &&
           preset.id === DEFAULT_CORRECTION_PRESET_ID
         ) {
           new Notification(buildCorrectionGoodJobNotification()).show();
@@ -719,14 +1067,21 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         // the `requiresInput` one, so resolve it here too — reading the global
         // store directly would leave that control visible, writable, persisted
         // and inert for all six polish presets.
+        //
+        // A failed restore then overrides that to the popup, carrying the
+        // MASKED reply: a partial restore mixes real secrets and placeholders
+        // indistinguishably, and the popup is copyable.
         const delivery = await deliverCorrectionOutput(
-          resolvePresetOutputMode(
-            preset.outputMode,
-            outputModeStore.getCorrectionOutputMode(),
+          resolveSecretGuardOutputMode(
+            resolvePresetOutputMode(
+              preset.outputMode,
+              outputModeStore.getCorrectionOutputMode(),
+            ),
+            restore.ok,
           ),
           {
             presetName: preset.name,
-            text: result.correctedText,
+            text: restore.ok ? restore.text : result.correctedText,
           },
           {
             paste: pasteText,
@@ -741,6 +1096,8 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
 
         logger.info("correction.hotkey", "Correction completed", {
           presetId: preset.id,
+          appliedMode: gate.appliedMode,
+          gateDecision: gate.gateDecision,
           textLength: selectedText.length,
           model: result.model,
           // `?? null` throughout: `LogValue` has no `undefined` member.
@@ -769,7 +1126,14 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
 
           syncHistory({
             entry: {
-              original: selectedText,
+              // Both sides are what CROSSED the wire: masked when masking is
+              // on, raw when it is off (`sentText` is the selection itself
+              // then). The history DB is unencrypted under `userData` and the
+              // snapshot viewer has copy buttons, so storing the restored text
+              // here would recreate — durably — exactly the exposure masking
+              // removed. Raw history after a Send anyway is correct: the
+              // dialog said the real value would be included.
+              original: sentText,
               corrected: result.correctedText,
               promptTokens: result.promptTokens ?? 0,
               completionTokens: result.completionTokens ?? 0,

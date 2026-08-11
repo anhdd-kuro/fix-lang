@@ -68,6 +68,7 @@ import {
   getDefaultModelId,
   getProfileSetting,
 } from "~/features/providers/store/apiStore";
+import { scanForSecrets } from "~/features/secretGuard/shared/detectSecrets";
 import { logger } from "~/main/logging/logService";
 import { DEFAULT_ASK_PRESET_ID } from "~/prompts";
 import { parseAutocompleteReply } from "./parseReply";
@@ -577,7 +578,8 @@ export type AutocompleteSkipReason =
   | "request-backstop"
   | "no-model"
   | "cache-hit"
-  | "rate-limited";
+  | "rate-limited"
+  | "secret-in-text";
 
 /**
  * Level and wording per reason, in one table so neither can drift from the
@@ -632,6 +634,18 @@ const SKIP_LINES: Record<
     level: "warn",
     message:
       "Suggestion skipped: too many requests in a short window, which no normal typing can produce",
+  },
+  /**
+   * `warn`, because this is the one skip a user can be actively harmed by not
+   * knowing about: it fires while they are typing something that looks like a
+   * credential, and the ghost simply stops appearing. Told nothing, they type
+   * on. It carries the matched RULE IDS and nothing else — never a length,
+   * which on a single-credential prefix is most of the way to a fingerprint.
+   */
+  "secret-in-text": {
+    level: "warn",
+    message:
+      "Suggestion skipped: the text around the caret looks like it contains a credential",
   },
   /**
    * `warn`, and for the same reason as `rate-limited`: a human cannot type their
@@ -923,6 +937,53 @@ export const requestAutocompleteSuggestion = async (
       context: askContext,
       environment: askSession?.environment,
     });
+
+  // ABOVE the cache, unlike every other refusal in this function.
+  //
+  // The others are about cost, and a cache hit costs nothing, so they sit
+  // below it. This one is about what leaves the machine, and it has to hold
+  // for the whole time the credential is on screen — not just until the first
+  // reply for that prefix is cached. Serving a hit here would also mean a
+  // suggestion continuing a credential lands in the ghost span.
+  //
+  // What it scans is the prefix, the suffix AND the attached Ask context,
+  // because as of 0.23.0 that context — the user's selection, or their
+  // clipboard — rides every ghost-text request. That is what makes this
+  // necessary rather than tidy: the `ask` gate in `SECRET_SEND_SITE_POLICY`
+  // runs at SUBMIT, and by then this path has already sent the selection to a
+  // provider once per debounce interval. A modal is categorically impossible
+  // per keystroke, so autocomplete refuses instead of asking — the only guard
+  // shape that fits a surface with no place to put a question.
+  //
+  // Honest about its own limits: it cannot protect a credential the user is
+  // still typing, since a half-typed key does not match a boundary-anchored
+  // rule and earlier dispatches have already carried what was typed so far.
+  // It closes the whole-value cases — an attached selection, a pasted key, a
+  // finished one — and the Security tab says exactly that.
+  //
+  // The Ask ENVIRONMENT block is deliberately not scanned: it carries preset
+  // names and timestamps only (`buildAskDirectives`), never the user's text.
+  //
+  // Imported lazily, like `makeAIRequest` below and for the same reason: the
+  // store module instantiates a real `electron-store` at module scope, which
+  // throws outside a running app and would drag Electron into the module graph
+  // of everything that imports this file.
+  const { secretGuardStore } = await import("~/features/secretGuard/store/secretGuardStore");
+  const secretGuardSettings = secretGuardStore.getSecretGuardSettings();
+  if (secretGuardSettings.mode !== "off") {
+    const scan = scanForSecrets(`${prefix}\n${suffix}\n${askContext?.text ?? ""}`, {
+      highEntropyRule: secretGuardSettings.highEntropyRule,
+    });
+    if (scan.matches.length > 0) {
+      // Spread to a mutable array: `LogValue` does not accept a readonly one.
+      // It stays an array VALUE and never becomes a set of KEYS — a spread
+      // like `{[ruleId]: 1}` would blank exactly the nine rule ids whose names
+      // contain "token"/"secret"/"key" and silently keep the rest.
+      logSkip("secret-in-text", startedAt, { ruleIds: [...scan.ruleIds] });
+      return none(requestId);
+    }
+  }
+
   const key = cacheKey(userPrompt, modelRef, backendIdentity());
   const cached = readCache(key, startedAt);
   if (cached) {

@@ -5,6 +5,7 @@ import {
   LocalizedError,
   notifyRequestError,
   showErrorNotification,
+  showNotificationWithFallback,
 } from "./error";
 
 const {
@@ -68,6 +69,60 @@ vi.mock("electron", () => ({
     }
   },
 }));
+
+/**
+ * The generic wrapper, extracted so a warning that is the ONLY explanation for
+ * something the app just did differently cannot be delivered by a bare
+ * `new Notification(...).show()`.
+ *
+ * FixLang ships unsigned, and macOS refuses notifications from an unsigned
+ * bundle with `Application is not code signed` — reported asynchronously on
+ * the `failed` event, NOT as a throw. So the naive call reports success and
+ * shows the user nothing at all, which is how the secret-guard restore
+ * failure used to leave a popup full of placeholders with nothing to say why.
+ */
+describe("showNotificationWithFallback", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    notificationState.failNextDelivery = false;
+    notificationState.isReady = true;
+    notificationState.readyListener = undefined;
+    notificationState.failedListener = undefined;
+    localeStoreMocks.getLocale.mockReturnValue("en");
+  });
+
+  it("shows a desktop notification with the given title and body", () => {
+    showNotificationWithFallback({ title: "Result not pasted", body: "Review it first." });
+
+    expect(notificationConstructorMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Result not pasted", body: "Review it first." }),
+    );
+    expect(notificationShowMock).toHaveBeenCalledOnce();
+    expect(showErrorPopupMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the in-app popup when delivery fails on the unsigned-app path", () => {
+    showNotificationWithFallback({ title: "Result not pasted", body: "Review it first." });
+    notificationState.failedListener?.({}, "Application is not code signed");
+
+    expect(showErrorPopupMock).toHaveBeenCalledWith("Review it first.");
+  });
+
+  it("falls back to the in-app popup when constructing the notification throws", () => {
+    notificationState.failNextDelivery = true;
+
+    showNotificationWithFallback({ title: "Result not pasted", body: "Review it first." });
+
+    expect(notificationShowMock).not.toHaveBeenCalled();
+    expect(showErrorPopupMock).toHaveBeenCalledWith("Review it first.");
+  });
+
+  it("omits urgency entirely rather than passing undefined when none is given", () => {
+    showNotificationWithFallback({ title: "T", body: "B" });
+
+    expect(Object.keys(notificationConstructorMock.mock.calls[0][0])).not.toContain("urgency");
+  });
+});
 
 describe("showErrorNotification", () => {
   beforeEach(() => {

@@ -36,7 +36,17 @@ export type LatencyOutcome =
   | "no-selection"
   /** Ask AI only: the input window is up, the user now owns the clock. */
   | "input-shown"
-  | "failed";
+  | "failed"
+  /** Guard refused: the frontmost app is on the denylist. */
+  | "denied-app"
+  /** Guard refused: the selection exceeds the char limit and the user declined. */
+  | "declined-size"
+  /** Guard refused: the clipboard is past the age limit and the user declined. */
+  | "declined-stale"
+  /** Guard refused: the clipboard predates the app and the user declined. */
+  | "declined-unknown-age"
+  /** Guard refused: secrets were found and the user declined to proceed. */
+  | "secret-declined";
 
 /**
  * The closed set of phase names, and the reason it is closed: `redactLogContext`
@@ -83,6 +93,17 @@ export type LatencyTimer = {
    * time went" and sum to roughly `totalMs`.
    */
   mark: (phase: LatencyPhase) => void;
+  /**
+   * Marks the start of a user-owned wait (a confirm dialog) that must not
+   * count against the user's felt latency. Idempotent while already paused.
+   */
+  pause: () => void;
+  /**
+   * Ends the wait started by `pause`, folding it into `pausedMs` and
+   * advancing the mark clock so the NEXT phase delta also excludes it.
+   * A no-op when not currently paused.
+   */
+  resume: () => void;
   finish: (result: { outcome: LatencyOutcome } & LogContext) => void;
 };
 
@@ -101,6 +122,8 @@ export const startLatencyTimer = ({
   const phases: Partial<Record<LatencyPhase, number>> = {};
   let lastMarkAt = startedAt;
   let finished = false;
+  let excludedMs = 0;
+  let pausedAt: number | null = null;
 
   return {
     mark: (phase: LatencyPhase) => {
@@ -108,17 +131,36 @@ export const startLatencyTimer = ({
       phases[phase] = at - lastMarkAt;
       lastMarkAt = at;
     },
+    pause: () => {
+      if (pausedAt !== null) {
+        return;
+      }
+      pausedAt = now();
+    },
+    resume: () => {
+      if (pausedAt === null) {
+        return;
+      }
+      const at = now();
+      excludedMs += at - pausedAt;
+      pausedAt = null;
+      lastMarkAt = at;
+    },
     finish: ({ outcome, ...rest }) => {
       if (finished) {
         return;
       }
       finished = true;
+      const at = now();
+      const openPauseMs = pausedAt !== null ? at - pausedAt : 0;
+      const pausedMs = excludedMs + openPauseMs;
       logger.info(scope, message, {
         ...context,
         ...rest,
         outcome,
         phases,
-        totalMs: now() - startedAt,
+        pausedMs,
+        totalMs: at - startedAt - pausedMs,
       });
     },
   };
