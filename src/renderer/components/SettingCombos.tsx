@@ -706,14 +706,21 @@ export const SettingCombos: React.FC = () => {
                             } ${isDraggedStep ? "opacity-60" : ""}`}
                           >
                             <div className="flex items-center gap-2">
+                              {/* Mouse-only affordance: the arrow buttons below
+                                  are the keyboard path, so this handle stays out
+                                  of the tab order. `aria-hidden` and `tabIndex`
+                                  must move together — a focusable aria-hidden
+                                  control is its own violation — and `title`
+                                  keeps the tooltip for the mouse users it is for. */}
                               <Button
                                 type="button"
                                 variant="ghost"
                                 draggable
-                                aria-label={t(
-                                  "settings.correction.combos.dragStep",
-                                  { number: stepIndex + 1 },
-                                )}
+                                aria-hidden="true"
+                                tabIndex={-1}
+                                title={t("settings.correction.combos.dragStep", {
+                                  number: stepIndex + 1,
+                                })}
                                 onDragStart={(event) =>
                                   handleComboStepDragStart(combo, stepIndex, event)
                                 }

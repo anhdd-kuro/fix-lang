@@ -240,8 +240,15 @@ describe("reorderComboStep", () => {
   });
 
   it("is a no-op copy for a negative index at either end", () => {
-    expect(reorderComboStep(steps, -1, 2)).toEqual(steps);
-    expect(reorderComboStep(steps, 1, -1)).toEqual(steps);
+    // `not.toBe` is the assertion that matters: a refusal handing back the
+    // caller's own array would satisfy `toEqual` while letting the caller's
+    // later mutation reach through into the stored steps.
+    const negativeFrom = reorderComboStep(steps, -1, 2);
+    expect(negativeFrom).toEqual(steps);
+    expect(negativeFrom).not.toBe(steps);
+    const negativeTo = reorderComboStep(steps, 1, -1);
+    expect(negativeTo).toEqual(steps);
+    expect(negativeTo).not.toBe(steps);
   });
 
   it("is a no-op copy for an out-of-range index at either end", () => {
@@ -250,7 +257,10 @@ describe("reorderComboStep", () => {
     const fromOutOfRange = reorderComboStep(steps, steps.length, 0);
     expect(fromOutOfRange).toEqual(steps);
     expect(fromOutOfRange).toHaveLength(steps.length);
-    expect(reorderComboStep(steps, 0, steps.length)).toEqual(steps);
+    expect(fromOutOfRange).not.toBe(steps);
+    const toOutOfRange = reorderComboStep(steps, 0, steps.length);
+    expect(toOutOfRange).toEqual(steps);
+    expect(toOutOfRange).not.toBe(steps);
   });
 
   it("never mutates the input array or its steps", () => {
