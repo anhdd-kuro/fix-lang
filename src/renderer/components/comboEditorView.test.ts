@@ -26,6 +26,8 @@ import {
   moveComboStep,
   nextComboDraftName,
   removeComboStep,
+  reorderComboStep,
+  reorderComboStepById,
   setComboStepInlineInput,
   setComboStepPreset,
 } from "./comboEditorView";
@@ -210,6 +212,121 @@ describe("canMoveComboStep / moveComboStep", () => {
     expect(result).toEqual(steps);
     expect(result).not.toBe(steps);
     expect(result).toHaveLength(steps.length);
+  });
+});
+
+describe("reorderComboStep", () => {
+  const steps = [step("a"), step("b"), step("c"), step("d")];
+  const ids = (result: readonly ComboStep[]) =>
+    result.map((entry) => entry.presetId);
+
+  it("moves a step to the drop index rather than swapping neighbours", () => {
+    // A drop onto a distant row means "put it here", so the steps between the
+    // grab and the drop close up — a neighbour swap would displace only one.
+    expect(ids(reorderComboStep(steps, 0, 2))).toEqual(["b", "c", "a", "d"]);
+  });
+
+  it("moves a step backwards to the drop index", () => {
+    expect(ids(reorderComboStep(steps, 3, 1))).toEqual(["a", "d", "b", "c"]);
+  });
+
+  it("moves a step to the end", () => {
+    expect(ids(reorderComboStep(steps, 1, 3))).toEqual(["a", "c", "d", "b"]);
+  });
+
+  it("is a no-op copy when the step is dropped on itself", () => {
+    const result = reorderComboStep(steps, 2, 2);
+    expect(result).toEqual(steps);
+    expect(result).not.toBe(steps);
+  });
+
+  it("is a no-op copy for a negative index at either end", () => {
+    // `not.toBe` is the assertion that matters: a refusal handing back the
+    // caller's own array would satisfy `toEqual` while letting the caller's
+    // later mutation reach through into the stored steps.
+    const negativeFrom = reorderComboStep(steps, -1, 2);
+    expect(negativeFrom).toEqual(steps);
+    expect(negativeFrom).not.toBe(steps);
+    const negativeTo = reorderComboStep(steps, 1, -1);
+    expect(negativeTo).toEqual(steps);
+    expect(negativeTo).not.toBe(steps);
+  });
+
+  it("is a no-op copy for an out-of-range index at either end", () => {
+    // A drag can outlive the row it started on (a step removed mid-drag), so
+    // both ends must fail closed instead of producing a sparse array.
+    const fromOutOfRange = reorderComboStep(steps, steps.length, 0);
+    expect(fromOutOfRange).toEqual(steps);
+    expect(fromOutOfRange).toHaveLength(steps.length);
+    expect(fromOutOfRange).not.toBe(steps);
+    const toOutOfRange = reorderComboStep(steps, 0, steps.length);
+    expect(toOutOfRange).toEqual(steps);
+    expect(toOutOfRange).not.toBe(steps);
+  });
+
+  it("never mutates the input array or its steps", () => {
+    const original = [step("a"), step("b"), step("c")];
+    const snapshot = original.map((entry) => ({ ...entry }));
+    const result = reorderComboStep(original, 0, 2);
+    expect(original).toEqual(snapshot);
+    expect(result).not.toBe(original);
+  });
+
+  it("keeps the same step objects, so per-step state survives a reorder", () => {
+    const result = reorderComboStep(steps, 0, 2);
+    expect(result[2]).toBe(steps[0]);
+  });
+
+  it("is a no-op copy on an empty list", () => {
+    expect(reorderComboStep([], 0, 0)).toEqual([]);
+  });
+});
+
+describe("reorderComboStepById", () => {
+  const steps = [
+    step("a", { id: "id-a" }),
+    step("b", { id: "id-b" }),
+    step("c", { id: "id-c" }),
+    step("d", { id: "id-d" }),
+  ];
+  const ids = (result: readonly ComboStep[]) =>
+    result.map((entry) => entry.id);
+
+  it("resolves the dragged step by id, not by a cached start index", () => {
+    // Mid-drag ↑/↓ can shuffle indices; looking up by id still moves the
+    // step the user grabbed (id-a), even though its start index is stale.
+    expect(ids(reorderComboStepById(steps, "id-a", 2))).toEqual([
+      "id-b",
+      "id-c",
+      "id-a",
+      "id-d",
+    ]);
+  });
+
+  it("still moves the grabbed step after a neighbour swap reshuffled indices", () => {
+    // Simulate: user dragged id-d from index 3, then ↑ moved it to index 2
+    // before drop onto index 0. A stale fromIndex=3 would move id-c instead.
+    const midDrag = moveComboStep(steps, 3, "up");
+    expect(ids(midDrag)).toEqual(["id-a", "id-b", "id-d", "id-c"]);
+    expect(ids(reorderComboStepById(midDrag, "id-d", 0))).toEqual([
+      "id-d",
+      "id-a",
+      "id-b",
+      "id-c",
+    ]);
+  });
+
+  it("is a no-op copy when the dragged step was removed mid-drag", () => {
+    const withoutB = removeComboStep(steps, 1);
+    const result = reorderComboStepById(withoutB, "id-b", 0);
+    expect(result).toEqual(withoutB);
+    expect(result).not.toBe(withoutB);
+  });
+
+  it("is a no-op copy for an unknown step id", () => {
+    const result = reorderComboStepById(steps, "missing", 1);
+    expect(result).toEqual(steps);
+    expect(result).not.toBe(steps);
   });
 });
 

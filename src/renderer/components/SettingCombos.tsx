@@ -21,6 +21,7 @@ import {
   moveComboStep,
   nextComboDraftName,
   removeComboStep,
+  reorderComboStepById,
   setComboStepInlineInput,
   setComboStepPreset,
   type ComboStepDirection,
@@ -53,6 +54,23 @@ import type {
 type ComboOutputMode = NonNullable<ComboPreset["outputMode"]>;
 type ComboOutputModeOption = { value: ComboOutputMode; label: string };
 type ComboStepPresetOption = { value: string; label: string };
+
+/**
+ * One drag, and it belongs to ONE combo. Carrying `comboId` alongside the
+ * step id (not a start index) is what stops a step being dropped into a
+ * sibling combo's list AND what keeps the drop moving the grabbed step after
+ * Remove or ↑/↓ reshuffles the list mid-drag. A bare index would be stale the
+ * moment the pointer left its own list, and every row on the tab would read as
+ * a valid drop target.
+ */
+type ComboStepDragState = {
+  comboId: string;
+  stepId: string;
+  overIndex: number;
+};
+
+/** Custom MIME rather than `text/plain`, so an accidental drop on a text field inserts nothing. */
+const COMBO_STEP_DRAG_MIME = "application/x-fixlang-combo-step";
 
 const COMBO_OUTPUT_MODES = [
   { mode: "inherit", labelKey: "settings.correction.outputMode.inherit" },
@@ -96,6 +114,7 @@ export const SettingCombos: React.FC = () => {
   const [comboEstimateModels, setComboEstimateModels] = useState<Model[]>([]);
   const [comboGlobalDefaultModelRef, setComboGlobalDefaultModelRef] =
     useState<string>("");
+  const [stepDrag, setStepDrag] = useState<ComboStepDragState | null>(null);
 
   // `t` changes identity on a locale switch, so it must stay in the deps or
   // the rows keep the previous language.
@@ -239,6 +258,62 @@ export const SettingCombos: React.FC = () => {
     );
   };
 
+  const handleComboStepDragStart = (
+    combo: ComboPreset,
+    stepIndex: number,
+    event: React.DragEvent<HTMLElement>,
+  ): void => {
+    event.dataTransfer.effectAllowed = "move";
+    const stepId = combo.steps[stepIndex].id;
+    event.dataTransfer.setData(COMBO_STEP_DRAG_MIME, stepId);
+    setStepDrag({ comboId: combo.id, stepId, overIndex: stepIndex });
+  };
+
+  const isOwnStepDrag = (comboId: string): boolean =>
+    stepDrag !== null && stepDrag.comboId === comboId;
+
+  const handleComboStepDragOver = (
+    combo: ComboPreset,
+    stepIndex: number,
+    event: React.DragEvent<HTMLElement>,
+  ): void => {
+    // Without `preventDefault` the browser never fires `drop`; withholding it
+    // for a foreign combo is what makes those rows refuse the drop outright.
+    if (!isOwnStepDrag(combo.id)) return;
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setStepDrag((current) =>
+      current === null || current.overIndex === stepIndex
+        ? current
+        : { ...current, overIndex: stepIndex },
+    );
+  };
+
+  const handleComboStepDrop = (
+    combo: ComboPreset,
+    stepIndex: number,
+    event: React.DragEvent<HTMLElement>,
+  ): void => {
+    if (!isOwnStepDrag(combo.id) || stepDrag === null) return;
+
+    event.preventDefault();
+    // Prefer the MIME payload (set at drag start); fall back to React state if
+    // a browser withholds getData outside drop — either way, resolve by id so
+    // a mid-drag Remove/↑/↓ cannot make fromIndex point at a different step.
+    const draggedStepId =
+      event.dataTransfer.getData(COMBO_STEP_DRAG_MIME) || stepDrag.stepId;
+    updateComboSteps(
+      combo.id,
+      reorderComboStepById(combo.steps, draggedStepId, stepIndex),
+    );
+    setStepDrag(null);
+  };
+
+  const handleComboStepDragEnd = (): void => {
+    setStepDrag(null);
+  };
+
   const handleAddComboStep = (combo: ComboPreset): void => {
     const defaultPresetId = correctionSettings.presets[0]?.id ?? "";
     updateComboSteps(
@@ -254,7 +329,15 @@ export const SettingCombos: React.FC = () => {
     combo: ComboPreset,
     stepIndex: number,
   ): void => {
+    const removedStepId = combo.steps[stepIndex]?.id;
     updateComboSteps(combo.id, removeComboStep(combo.steps, stepIndex));
+    setStepDrag((current) =>
+      current !== null &&
+      current.comboId === combo.id &&
+      current.stepId === removedStepId
+        ? null
+        : current,
+    );
   };
 
   const handleComboStepPresetChange = (
@@ -615,13 +698,53 @@ export const SettingCombos: React.FC = () => {
                           comboStepPresets,
                         );
                         const stepErrors = fieldMessages.stepErrorsById[step.id] ?? [];
+                        const isDraggedStep =
+                          stepDrag?.comboId === combo.id &&
+                          stepDrag.stepId === step.id;
+                        const isDropTarget =
+                          stepDrag?.comboId === combo.id &&
+                          stepDrag.overIndex === stepIndex &&
+                          stepDrag.stepId !== step.id;
 
                         return (
                           <li
                             key={step.id}
-                            className="flex flex-col gap-2 rounded-md border border-card-control-border/60 p-2"
+                            onDragOver={(event) =>
+                              handleComboStepDragOver(combo, stepIndex, event)
+                            }
+                            onDrop={(event) =>
+                              handleComboStepDrop(combo, stepIndex, event)
+                            }
+                            className={`flex flex-col gap-2 rounded-md border p-2 transition-colors motion-reduce:transition-none ${
+                              isDropTarget
+                                ? "border-ring bg-secondary/40"
+                                : "border-card-control-border/60"
+                            } ${isDraggedStep ? "opacity-60" : ""}`}
                           >
                             <div className="flex items-center gap-2">
+                              {/* Mouse-only affordance: the arrow buttons below
+                                  are the keyboard path, so this handle stays out
+                                  of the tab order. `aria-hidden` and `tabIndex`
+                                  must move together — a focusable aria-hidden
+                                  control is its own violation — and `title`
+                                  keeps the tooltip for the mouse users it is for. */}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                draggable
+                                aria-hidden="true"
+                                tabIndex={-1}
+                                title={t("settings.correction.combos.dragStep", {
+                                  number: stepIndex + 1,
+                                })}
+                                onDragStart={(event) =>
+                                  handleComboStepDragStart(combo, stepIndex, event)
+                                }
+                                onDragEnd={handleComboStepDragEnd}
+                                className="h-9 w-6 shrink-0 cursor-grab rounded-md px-0 text-sm text-muted-foreground active:cursor-grabbing"
+                              >
+                                {"⠿"}
+                              </Button>
                               <span className="w-5 shrink-0 text-right text-xs text-muted-foreground">
                                 {stepIndex + 1}.
                               </span>
@@ -690,7 +813,7 @@ export const SettingCombos: React.FC = () => {
                             </div>
 
                             {needsInlineInput && (
-                              <div className="ml-7 flex flex-col gap-1">
+                              <div className="ml-15 flex flex-col gap-1">
                                 <label
                                   htmlFor={`combo-${combo.id}-step-${step.id}-input`}
                                   className="text-xs text-muted-foreground"
@@ -719,7 +842,7 @@ export const SettingCombos: React.FC = () => {
                             {stepErrors.map((message, index) => (
                               <p
                                 key={index}
-                                className="ml-7 text-xs text-destructive"
+                                className="ml-15 text-xs text-destructive"
                                 role="alert"
                               >
                                 {tm(message)}
