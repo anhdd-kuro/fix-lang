@@ -1,6 +1,6 @@
 /**
- * @file SecurityPanel.test.ts
- * @description Component-level tests for the Security dashboard tab.
+ * @file SettingSecurity.test.ts
+ * @description Component-level tests for the Settings → Security panel.
  * Renders the real component via `react-dom/client` + `act` (no
  * `@testing-library/react` is installed) — the same technique used in
  * `AutocompletePanel.test.ts`/`LogsPanel.test.ts`.
@@ -15,7 +15,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_SECRET_GUARD_SETTINGS } from "~/features/secretGuard/shared/secretGuardSettings";
-import { SecurityPanel } from "./SecurityPanel";
+import { SettingSecurity } from "./SettingSecurity";
 import { I18nProvider } from "../../i18n/I18nProvider";
 import type { SelectionGuardSettings } from "~/features/guards/shared/guardSettings";
 import type { Locale } from "~/features/i18n/shared/registry";
@@ -48,7 +48,7 @@ const defaultGuardSettings = (): SelectionGuardSettings => ({
   deniedBundleIds: ["com.1password.1password"],
 });
 
-describe("SecurityPanel", () => {
+describe("SettingSecurity", () => {
   let container: HTMLDivElement;
   let root: Root;
   let localeListener: ((locale: Locale) => void) | undefined;
@@ -75,7 +75,7 @@ describe("SecurityPanel", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root.render(createElement(I18nProvider, null, createElement(SecurityPanel)));
+      root.render(createElement(I18nProvider, null, createElement(SettingSecurity)));
     });
     await waitForUi();
     await waitForUi();

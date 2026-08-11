@@ -20,6 +20,7 @@ import {
   registerAutocompleteHandlers,
   registerAutocompleteSettingsHandlers,
   registerCorrectionHandlers,
+  registerSecurityStatsHandlers,
   registerSelectionGuardHandlers,
   setupHistoryManagerHandlers,
   registerLocaleHandlers,
@@ -142,6 +143,10 @@ const registerIpcHandlers = (): UpdateService => {
   // Selection guards (stale-clipboard age, size cap, app deny-list) — before
   // correction so its hotkey handler can read guardStore from the first press.
   registerSelectionGuardHandlers();
+
+  // Guard-activity roll-up for the Security dashboard tab. Read-only over the
+  // persisted logs, so it has no ordering requirement of its own.
+  registerSecurityStatsHandlers();
 
   // Secret guard settings — same reason, and its hotkey handlers read the
   // store per press so a settings change never waits for a hotkey reload.

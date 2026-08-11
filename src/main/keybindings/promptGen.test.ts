@@ -270,6 +270,7 @@ describe("promptGen selection guards — confirm: stale-clipboard", () => {
       "promptGen.hotkey",
       "PromptGen declined at a selection-guard confirm",
       {
+        guardEvent: "declined",
         guardReason: "stale-clipboard",
         selectionAgeMs: 600_000,
         ageLimitMs: 5_000,
@@ -320,6 +321,7 @@ describe("promptGen selection guards — block: denied-app", () => {
       "promptGen.hotkey",
       "PromptGen blocked by a selection guard",
       {
+        guardEvent: "blocked",
         guardReason: "denied-app",
         deniedBundleId: "com.1password.1password",
       },
@@ -359,7 +361,12 @@ describe("promptGen selection guards — confirm: Cancel", () => {
     expect(logger.info).toHaveBeenCalledWith(
       "promptGen.hotkey",
       "PromptGen declined at a selection-guard confirm",
-      { guardReason: "large-selection", textLength: 30_000, charLimit: 20_000 },
+      {
+        guardEvent: "declined",
+        guardReason: "large-selection",
+        textLength: 30_000,
+        charLimit: 20_000,
+      },
     );
 
     // Spinner hidden once for the confirm dialog and never re-shown.

@@ -18,9 +18,17 @@ import {
   normalizeBundleId,
   normalizeSelectionGuardSettings,
 } from "~/features/guards/shared/guardSettings";
+import {
+  isSecurityStats,
+  isSecurityStatsRange,
+} from "~/features/guards/shared/securityStats";
 import { textLabel, type Label } from "~/features/i18n/shared/message";
 import { asLabel } from "~/features/settings/preload/ipcLabel";
 import type { SelectionGuardSettings } from "~/features/guards/shared/guardSettings";
+import type {
+  SecurityStats,
+  SecurityStatsRange,
+} from "~/features/guards/shared/securityStats";
 import type { ActiveApp } from "~/main/accessibility/activeApp";
 
 /**
@@ -109,6 +117,22 @@ export const selectionGuardsFeature = {
   getRecentActiveApps: async (): Promise<ActiveApp[]> => {
     const result: unknown = await ipcRenderer.invoke("get-recent-active-apps");
     return Array.isArray(result) && result.every(isActiveApp) ? result : [];
+  },
+
+  /**
+   * Unlike the getters above, a malformed reply REJECTS instead of falling back:
+   * an all-zero roll-up reads as "no guard ever fired", which is a different
+   * claim from "the numbers could not be read".
+   */
+  getSecurityStats: async (range: SecurityStatsRange): Promise<SecurityStats> => {
+    if (!isSecurityStatsRange(range)) {
+      throw new Error("Malformed security stats range");
+    }
+    const result: unknown = await ipcRenderer.invoke("get-security-stats", range);
+    if (!isSecurityStats(result)) {
+      throw new Error("Malformed security stats reply");
+    }
+    return result;
   },
 };
 

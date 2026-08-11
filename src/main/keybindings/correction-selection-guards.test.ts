@@ -258,6 +258,7 @@ describe("correction selection guards — confirm: stale-clipboard", () => {
       "Transform declined at a selection-guard confirm",
       {
         presetId: "correction",
+        guardEvent: "declined",
         guardReason: "stale-clipboard",
         selectionAgeMs: 600_000,
         ageLimitMs: 5_000,
@@ -332,6 +333,7 @@ describe("correction selection guards — block: denied-app", () => {
       "Transform blocked by a selection guard",
       {
         presetId: "correction",
+        guardEvent: "blocked",
         guardReason: "denied-app",
         deniedBundleId: "com.1password.1password",
       },
@@ -382,6 +384,7 @@ describe("correction selection guards — confirm: Cancel", () => {
       "Transform declined at a selection-guard confirm",
       {
         presetId: "correction",
+        guardEvent: "declined",
         guardReason: "large-selection",
         textLength: 30_000,
         charLimit: 20_000,

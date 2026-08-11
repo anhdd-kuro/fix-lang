@@ -76,6 +76,7 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
       if (verdict.kind === "block") {
         hideOverlaySpinner();
         logger.warn("promptGen.hotkey", "PromptGen blocked by a selection guard", {
+          guardEvent: "blocked",
           guardReason: verdict.reason,
           deniedBundleId: verdict.bundleId,
         });
@@ -95,6 +96,7 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
 
         if (!proceed) {
           logger.info("promptGen.hotkey", "PromptGen declined at a selection-guard confirm", {
+            guardEvent: "declined",
             guardReason: verdict.reason,
             ...selectionGuardLogContext(verdict),
           });
