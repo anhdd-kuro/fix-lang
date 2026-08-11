@@ -12,6 +12,10 @@ import {
 import { createRoot } from "react-dom/client";
 import { twJoin } from "tailwind-merge";
 import { Button } from "../components/Button";
+import {
+  ChatTranscript,
+  type ChatTranscriptMessage,
+} from "../components/ChatTranscript";
 import { GhostTextOverlay } from "../components/GhostTextOverlay";
 import {
   isSurfaceOnAnchor,
@@ -164,6 +168,12 @@ export const AskInputWindow = () => {
   const context = payload?.context ?? "";
   // Absent means `selection` — an older main process, or the ordinary case.
   const contextSource = payload?.contextSource ?? "selection";
+  // Both are rendered by MAIN and shown verbatim — never re-wrapped, re-indented
+  // or prettified here. The row exists so the user can read WHAT LEAVES THE
+  // MACHINE, and a renderer that reformats is a second copy of the request's
+  // wording that can drift from the one actually sent while still looking right.
+  const systemPrompt = payload?.systemPrompt ?? "";
+  const contextDirectives = payload?.contextDirectives ?? "";
 
   // Handed to the context fold control so toggling never strands focus on a
   // button in a window whose whole purpose is the textarea. Clicking the
@@ -283,18 +293,30 @@ export const AskInputWindow = () => {
 
   return (
     /*
-      HEIGHT BUDGET. The window is 520 wide and one of TWO heights, picked per
+      HEIGHT BUDGET. The window is 620 wide and one of TWO heights, picked per
       press in `askInputWindow.ts` from whether a context is attached — a
-      588px window for a bare one-line question would dominate the screen.
+      636px window for a bare one-line question would dominate the screen.
       Both numbers there are FRAMED sizes: that file still sets no
       `useContentSize`, so macOS takes its 32px title bar out and `h-screen`
       here is always 32 less than what it passed to `BrowserWindow`. Measured,
       not assumed: `BrowserWindow({height: 200}).getContentSize()` reports 168.
 
-        no context:   24 (`py-3`) + 300 (textarea floor) + 8 (one `gap-2`)
-                      + 16 (`text-xs` footer)          = 348 page / 380 framed
-        with context: that 348 + 200 (context card) + 8 (the second `gap-2`)
-                                                       = 556 page / 588 framed
+        no context:   24 (`p-3`) + 300 (textarea floor) + 8 (`gap-2`)
+                      + 16 (`text-xs` footer)
+                      + 48 (transparency row + its `gap-2`)
+                                                       = 396 page / 428 framed
+        with context: that 396 + 200 (context card) + 8 (the second `gap-2`)
+                                                       = 604 page / 636 framed
+
+      That 48 is `RequestTransparency`'s COLLAPSED height (a fixed 40px row) plus
+      the one `gap-2` above it, and collapsed is the only state the window is
+      sized for: the expanded panel leaves the flow entirely and scrolls inside
+      the window rather than growing it. `askInputWindow.ts` carries the same
+      arithmetic in its own comment and has to be edited with this one.
+
+      The row is absent altogether when the payload carries neither a system
+      prompt nor any directives; the textarea's `flex-1` simply absorbs the 48,
+      which is why nothing else has to know.
 
       The two floors below are the spec and the window is sized to fit them,
       rather than the floors being whatever a fixed window had left. Both are
@@ -302,8 +324,11 @@ export const AskInputWindow = () => {
       the padding and the fold control outside the bound — which is why the
       cap sits on the `<section>` — and a card cap with no textarea floor only
       moves the overflow onto the footer.
+
+      `relative` is what the expanded transparency panel is positioned against:
+      it fills this page from the top padding down to just above the footer.
     */
-    <main className="flex h-screen flex-col gap-2 bg-background p-3 text-foreground">
+    <main className="relative flex h-screen flex-col gap-2 bg-background p-3 text-foreground">
       {/*
         Keyed by the context itself so a new selection always opens collapsed:
         the fold state belongs to the passage being folded, and remounting is
@@ -322,6 +347,23 @@ export const AskInputWindow = () => {
           onToggled={focusTextarea}
         />
       )}
+      {/*
+        Also placed BEFORE the textarea, for the same tab-order reason as the
+        card above it: every focusable control in this window sits ahead of the
+        input, so the only Tab the textarea ever sees stays the ghost's.
+
+        Keyed by what it shows, exactly like the card above: the fold state
+        belongs to the text being folded, and this window is hidden rather than
+        destroyed, so an expanded panel left behind by the last press would
+        otherwise reopen covering the textarea. The directives carry the press
+        time, so in practice every press remounts this.
+      */}
+      <RequestTransparency
+        key={`${systemPrompt} ${contextDirectives}`}
+        systemPrompt={systemPrompt}
+        contextDirectives={contextDirectives}
+        onToggled={focusTextarea}
+      />
       {/*
         `min-h-75` (300px) rather than `min-h-0`: both defeat the flex item's
         default `min-height: auto` — a textarea's intrinsic two-row height —
@@ -429,8 +471,12 @@ type ContextPreviewProps = {
  * The fold control appears only when the clamp actually truncates the text,
  * measured from the laid-out element rather than guessed from the string,
  * because how many lines a passage occupies depends on the window's current
- * width and not on its character count. Mirrors `FoldableTextBlock` in
- * `AskResultWindow/index.tsx`, including the trap in the effect below.
+ * width and not on its character count.
+ *
+ * This is now the ONLY measured fold in the app — the Ask result popup's
+ * `FoldableTextBlock` was replaced by `ChatTranscript`, whose system fold is a
+ * native `<details>` and needs no measurement. So the trap in the effect below
+ * is documented here rather than by reference to a sibling.
  */
 const ContextPreview = ({ text, source, onToggled }: ContextPreviewProps) => {
   const { t } = useI18n();
@@ -505,6 +551,132 @@ const ContextPreview = ({ text, source, onToggled }: ContextPreviewProps) => {
         </Button>
       ) : null}
     </section>
+  );
+};
+
+type RequestTransparencyProps = {
+  systemPrompt: string;
+  contextDirectives: string;
+  onToggled: () => void;
+};
+
+/**
+ * The row that answers "what is actually being sent?" — the preset's system
+ * prompt and the environment directives appended to it, shown through the same
+ * `ChatTranscript` the history modal and the Ask result popup use, so a request
+ * about to be sent reads exactly like a stored one.
+ *
+ * BOTH STRINGS ARE SHOWN VERBATIM. Main renders them; nothing here re-wraps,
+ * re-indents or prettifies them, because the point of the row is that what is on
+ * screen IS what leaves the machine.
+ *
+ * Absent fields render NOTHING — no row, no placeholder, no empty fold. A preset
+ * with neither looks exactly as it did before this row existed.
+ *
+ * TWO STATES, AND ONLY ONE OF THEM IS IN THE WINDOW'S HEIGHT BUDGET:
+ *
+ * - Collapsed, this is a fixed `h-10` (40px) `shrink-0` bar. 40 is not a
+ *   consequence of what it holds — it is the number `askInputWindow.ts` reserved
+ *   for it (48 with the `gap-2` above), so a row that measured anything else
+ *   would put the window back out of budget. `h-10` on the section and `h-10` on
+ *   the header inside it is what makes the height independent of the label's
+ *   font.
+ * - Expanded, the section leaves the flow (`absolute`) and fills the page from
+ *   the top padding to just above the footer, scrolling INSIDE itself. It has to
+ *   leave the flow: a system prompt is long and the window is fixed, so an
+ *   inline block that grew would push the textarea and the footer off the
+ *   bottom, and a 40px inline scroll box — the only inline alternative that
+ *   fits — would be useless. An `h-10 shrink-0` spacer takes the row's place in
+ *   the flow so nothing below it moves while the panel is open.
+ *
+ * One toggle control, living in the header that both states share, so the
+ * control is never duplicated and never hidden behind the panel it opened.
+ *
+ * The transcript's folds are collapsed by default (`<details>`), so the panel
+ * opens showing two summary lines rather than a wall of prompt.
+ */
+const RequestTransparency = ({
+  systemPrompt,
+  contextDirectives,
+  onToggled,
+}: RequestTransparencyProps) => {
+  const { t } = useI18n();
+  const [expanded, setExpanded] = useState(false);
+
+  const messages: ChatTranscriptMessage[] = [
+    ...(systemPrompt.length > 0
+      ? [
+          {
+            role: "system",
+            sectionId: "system-prompt",
+            label: t(
+              "notifications.window.askInput.transparencySystemPromptLabel",
+            ),
+            content: systemPrompt,
+          },
+        ]
+      : []),
+    ...(contextDirectives.length > 0
+      ? [
+          {
+            role: "system",
+            sectionId: "context-directives",
+            label: t("notifications.window.askInput.transparencyDirectivesLabel"),
+            content: contextDirectives,
+          },
+        ]
+      : []),
+  ];
+
+  if (messages.length === 0) return null;
+
+  return (
+    <>
+      <section
+        data-ask-transparency
+        data-ask-transparency-expanded={expanded ? "true" : "false"}
+        className={twJoin(
+          "flex flex-col rounded-md border border-card-control-border bg-card",
+          expanded
+            ? "absolute inset-x-3 top-3 bottom-9 z-10 gap-2 p-2"
+            : "h-10 shrink-0 px-2",
+        )}
+      >
+        <div className="flex h-10 shrink-0 items-center justify-between gap-2">
+          <p className="text-[10px] font-medium uppercase leading-none tracking-wide text-muted-foreground">
+            {t("notifications.window.askInput.transparencyLabel")}
+          </p>
+          <Button
+            type="button"
+            variant="ghost"
+            className="rounded px-0 py-0 text-xs font-medium text-primary hover:underline"
+            aria-expanded={expanded}
+            onClick={() => {
+              setExpanded((previous) => !previous);
+              onToggled();
+            }}
+          >
+            {expanded
+              ? t("notifications.window.askInput.transparencyCollapse")
+              : t("notifications.window.askInput.transparencyExpand")}
+          </Button>
+        </div>
+        {expanded ? (
+          <div
+            data-ask-transparency-body
+            className="min-h-0 flex-1 overflow-y-auto"
+          >
+            <ChatTranscript
+              ariaLabel={t(
+                "notifications.window.askInput.transparencyAriaLabel",
+              )}
+              messages={messages}
+            />
+          </div>
+        ) : null}
+      </section>
+      {expanded ? <div aria-hidden="true" className="h-10 shrink-0" /> : null}
+    </>
   );
 };
 

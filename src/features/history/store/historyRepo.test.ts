@@ -81,6 +81,102 @@ describe("uncapped storage", () => {
   });
 });
 
+/**
+ * The bounded read beside the uncapped one. The Ask hotkey calls this on every
+ * press to name the last few transforms, so BOTH bounds have to be fixed by SQL
+ * rather than applied afterwards — the row count by `LIMIT`, the columns by
+ * naming them. Otherwise a long history means loading every `original`,
+ * `corrected` and `session_json` value on the main thread to keep five preset
+ * names.
+ */
+describe("getRecentByFeature", () => {
+  const insertMany = (count: number): void => {
+    for (let i = 0; i < count; i++) {
+      repo.insert(
+        "corrections",
+        makeEntry({
+          original: `entry-${i}`,
+          presetName: `preset-${i}`,
+          timestamp: new Date(Date.UTC(2024, 0, 1, 0, 0, i)).toISOString(),
+        })
+      );
+    }
+  };
+
+  it("returns only the newest rows, most recent first", () => {
+    insertMany(50);
+
+    const recent = repo.getRecentByFeature("corrections", 5);
+
+    expect(recent).toHaveLength(5);
+    expect(recent.map((row) => row.presetName)).toEqual([
+      "preset-49",
+      "preset-48",
+      "preset-47",
+      "preset-46",
+      "preset-45",
+    ]);
+  });
+
+  it("returns names and times ONLY — never the transformed text", () => {
+    // The privacy property is structural: these rows go into an Ask prompt, and
+    // the columns that hold the user's text (`original`, `corrected`, and the
+    // whole prompt/response snapshot in `session_json`) are never selected, so
+    // there is nothing for a caller downstream to reach for by accident.
+    repo.insert(
+      "corrections",
+      makeEntry({
+        original: "the private paragraph",
+        corrected: "the private paragraph, corrected",
+        presetName: "Correction",
+        sessionJson: '{"messages":[{"role":"user","content":"secret"}]}',
+        timestamp: "2024-03-01T00:00:00Z",
+      })
+    );
+
+    expect(repo.getRecentByFeature("corrections", 5)).toEqual([
+      { presetName: "Correction", timestamp: "2024-03-01T00:00:00Z" },
+    ]);
+  });
+
+  it("omits presetName entirely for a legacy row that never had one", () => {
+    repo.insert("corrections", makeEntry({ timestamp: "2024-04-01T00:00:00Z" }));
+
+    expect(repo.getRecentByFeature("corrections", 5)).toEqual([
+      { timestamp: "2024-04-01T00:00:00Z" },
+    ]);
+  });
+
+  it("returns everything when the history is shorter than the limit", () => {
+    insertMany(3);
+
+    expect(repo.getRecentByFeature("corrections", 20)).toHaveLength(3);
+  });
+
+  it("is scoped to one feature", () => {
+    repo.insert("promptGen", makeEntry({ timestamp: "2024-06-01T00:00:00Z" }));
+    insertMany(2);
+
+    expect(repo.getRecentByFeature("promptGen", 20)).toHaveLength(1);
+  });
+
+  it("reads nothing for a non-positive limit rather than erroring", () => {
+    insertMany(3);
+
+    expect(repo.getRecentByFeature("corrections", 0)).toHaveLength(0);
+    expect(repo.getRecentByFeature("corrections", -1)).toHaveLength(0);
+  });
+
+  it("reads nothing for a limit that is not a number — NaN binds as NULL, and LIMIT NULL is no limit at all", () => {
+    insertMany(30);
+
+    expect(repo.getRecentByFeature("corrections", Number.NaN)).toHaveLength(0);
+    expect(
+      repo.getRecentByFeature("corrections", Number.POSITIVE_INFINITY)
+    ).toHaveLength(0);
+  });
+});
+
 // Test 4 — remove deletes by timestamp; siblings remain.
 describe("remove", () => {
   it("deletes by timestamp and leaves siblings intact", () => {

@@ -360,10 +360,31 @@ export const takeAutocompleteResolution = (
   return resolution;
 };
 
-const askContexts = new Map<string, AutocompleteAskContext>();
+/**
+ * What one Ask window's press resolved, as the prompt needs to see it.
+ *
+ * Both halves are OPTIONAL and travel together because they are resolved
+ * together, once, by the same press: a window with a selection attached but no
+ * readable environment is as ordinary as the reverse. One entry per window
+ * rather than two parallel maps keyed identically — the lifecycle is shared
+ * (both are replaced on a press and dropped when the ask ends), and two maps
+ * with one lifecycle is how one of them comes to be forgotten.
+ */
+export type AutocompleteAskSession = {
+  /** The passage the input window is showing in its card. */
+  context?: AutocompleteAskContext;
+  /**
+   * The directive block `askEnvironment.ts` rendered for this press — locale,
+   * keyboard, press time, recent preset names. The SAME string the request
+   * carries and the window shows, never a second rendering of it.
+   */
+  environment?: string;
+};
+
+const askSessions = new Map<string, AutocompleteAskSession>();
 
 /**
- * WHY THE ATTACHED CONTEXT TRAVELS THROUGH HERE AND NOT OVER THE WIRE.
+ * WHY THE PRESS'S CONTEXT TRAVELS THROUGH HERE AND NOT OVER THE WIRE.
  *
  * The Ask input window shows the user a card holding their selection (or their
  * clipboard), and a continuation written without it cannot know what the question
@@ -375,6 +396,9 @@ const askContexts = new Map<string, AutocompleteAskContext>();
  * keeps `sessionId` off the wire for exactly that reason, and a context field
  * would reopen it. The third is cost: the whole selection would cross IPC on
  * every keystroke to be re-windowed to the same 400 characters each time.
+ *
+ * All three apply verbatim to the environment block beside it, which is
+ * additionally a thing the renderer has no way to resolve at all.
  *
  * Keyed by the window's `webContents.id`, which is the string
  * `autocomplete-suggest` derives its `sessionId` from — so the lookup below needs
@@ -388,36 +412,34 @@ const askContexts = new Map<string, AutocompleteAskContext>();
 export const ASK_CONTEXT_MEMORY_MAX_ENTRIES = 8;
 
 /**
- * Records what one Ask window has attached, replacing whatever it had.
+ * Records what one Ask window's press resolved, REPLACING whatever it had.
  *
- * REPLACED on every press rather than merged, because a context that outlived
- * its press is the failure the `From clipboard` label exists to make visible —
- * and here it would be invisible: the next question's ghost text would be
- * computed against the previous question's selection with nothing on screen
- * saying so.
+ * Replaced wholesale rather than merged, because a context that outlived its
+ * press is the failure the `From clipboard` label exists to make visible — and
+ * here it would be invisible: the next question's ghost text would be computed
+ * against the previous question's selection with nothing on screen saying so.
+ * A press that attaches nothing therefore passes a session with no `context`,
+ * which clears the previous one by replacement rather than by a second call.
  */
-export const rememberAskContext = (
+export const rememberAskSession = (
   sessionId: string,
-  context: AutocompleteAskContext,
+  session: AutocompleteAskSession,
 ): void => {
-  askContexts.delete(sessionId);
-  askContexts.set(sessionId, context);
-  while (askContexts.size > ASK_CONTEXT_MEMORY_MAX_ENTRIES) {
-    const oldest = askContexts.keys().next();
+  askSessions.delete(sessionId);
+  askSessions.set(sessionId, session);
+  while (askSessions.size > ASK_CONTEXT_MEMORY_MAX_ENTRIES) {
+    const oldest = askSessions.keys().next();
     if (oldest.done) break;
-    askContexts.delete(oldest.value);
+    askSessions.delete(oldest.value);
   }
 };
 
 /**
- * Drops one window's attached context, called when the ask ends.
- *
- * Also the "this press attached nothing" path: a press with an empty selection
- * must CLEAR the previous press's context rather than leave it standing, so the
- * caller funnels both cases here.
+ * Drops one window's whole press record, called when the ask ends — and when a
+ * press resolved nothing at all to carry.
  */
-export const forgetAskContext = (sessionId: string): void => {
-  askContexts.delete(sessionId);
+export const forgetAskSession = (sessionId: string): void => {
+  askSessions.delete(sessionId);
 };
 
 /**
@@ -523,7 +545,7 @@ export const resetAutocompleteState = (): void => {
   abortAutocomplete();
   cache.clear();
   lastResolutions.clear();
-  askContexts.clear();
+  askSessions.clear();
   sessionWindows.clear();
   globalWindow = { startedAt: 0, dispatches: 0 };
   capWarnedForDay = "";
@@ -895,22 +917,27 @@ export const requestAutocompleteSuggestion = async (
     return none(requestId);
   }
 
-  // The attached context is part of the PROMPT, never of the system prompt: the
-  // system prompt is the short, stable, cacheable prefix, and a per-press passage
-  // in it would change on every ask. Carrying it in the user prompt also means
-  // `cacheKey` picks it up for free — the key is hashed from that exact string,
-  // so two identical questions asked over different selections cannot be served
-  // each other's suggestion.
+  // The attached context and the press's environment block are part of the
+  // PROMPT, never of the system prompt: the system prompt is the short, stable,
+  // cacheable prefix, and a per-press passage in it would change on every ask.
+  // Carrying them in the user prompt also means `cacheKey` picks them up for
+  // free — the key is hashed from that exact string, so two identical questions
+  // asked over different selections (or in different keyboard layouts, or hours
+  // apart) cannot be served each other's suggestion.
   //
-  // Read ONCE, into a local. Dismissing the window forgets the context while a
+  // Read ONCE, into a local. Dismissing the window forgets the session while a
   // request may still be in flight, so a second read at logging time could
   // report a length with no source beside it.
-  const askContext = askContexts.get(sessionId);
-  const { systemPrompt, userPrompt, contextLength } = buildAutocompletePrompt({
-    prefix,
-    suffix,
-    context: askContext,
-  });
+  const askSession = askSessions.get(sessionId);
+  const askContext = askSession?.context;
+  const { systemPrompt, userPrompt, contextLength, environmentLength } =
+    buildAutocompletePrompt({
+      prefix,
+      suffix,
+      context: askContext,
+      environment: askSession?.environment,
+    });
+
   // ABOVE the cache, unlike every other refusal in this function.
   //
   // The others are about cost, and a cache hit costs nothing, so they sit
@@ -933,6 +960,10 @@ export const requestAutocompleteSuggestion = async (
   // rule and earlier dispatches have already carried what was typed so far.
   // It closes the whole-value cases — an attached selection, a pasted key, a
   // finished one — and the Security tab says exactly that.
+  //
+  // The Ask ENVIRONMENT block is deliberately not scanned: it carries preset
+  // names and timestamps only (`buildAskDirectives`), never the user's text.
+  //
   // Imported lazily, like `makeAIRequest` below and for the same reason: the
   // store module instantiates a real `electron-store` at module scope, which
   // throws outside a running app and would drag Electron into the module graph
@@ -940,7 +971,7 @@ export const requestAutocompleteSuggestion = async (
   const { secretGuardStore } = await import("~/features/secretGuard/store/secretGuardStore");
   const secretGuardSettings = secretGuardStore.getSecretGuardSettings();
   if (secretGuardSettings.mode !== "off") {
-    const scan = scanForSecrets(`${prefix}\n${suffix}\n${askContexts.get(sessionId)?.text ?? ""}`, {
+    const scan = scanForSecrets(`${prefix}\n${suffix}\n${askContext?.text ?? ""}`, {
       highEntropyRule: secretGuardSettings.highEntropyRule,
     });
     if (scan.matches.length > 0) {
@@ -1124,6 +1155,12 @@ export const requestAutocompleteSuggestion = async (
       suffixLength: suffix.length,
       contextLength,
       ...(contextLength > 0 && askContext ? { contextSource: askContext.source } : {}),
+      // The environment block's SIZE only. Its lines name the user's presets
+      // and state the minute they pressed the hotkey, and these lines are
+      // copyable and exportable from the Logs tab. `environmentLength` also
+      // survives `redactLogContext`, which blanks any key merely containing
+      // `clipboard`, `token`, `secret` or `selected_text`.
+      environmentLength,
       model: response.model,
       provider: response.provider,
       latencyMs,

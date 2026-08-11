@@ -58,6 +58,52 @@ describe("ask preload boundary", () => {
       expect(callback).not.toHaveBeenCalled();
     });
 
+    /**
+     * THE TRANSPARENCY STRINGS, which exist so the user can see what leaves the
+     * machine — and are therefore the two fields a malformed payload would take
+     * the whole window down with, since the renderer draws each as `string`
+     * text. Optional, so a payload with neither is still valid.
+     */
+    it("passes the system prompt and the appended directives through verbatim", () => {
+      const callback = vi.fn();
+      askFeature.onAskInputData(callback);
+      const listener = electronMocks.on.mock.calls[0][1] as (
+        event: unknown,
+        payload: unknown,
+      ) => void;
+
+      const payload = {
+        presetId: "ask",
+        context: "selected text",
+        systemPrompt: "You are a helpful assistant.",
+        contextDirectives: "App locale: en\nSystem language: en-US",
+      };
+      listener(undefined, payload);
+
+      expect(callback).toHaveBeenCalledWith(payload);
+    });
+
+    it.each([
+      ["systemPrompt", { presetId: "ask", context: "", systemPrompt: 42 }],
+      ["systemPrompt as an object", { presetId: "ask", context: "", systemPrompt: {} }],
+      ["contextDirectives", { presetId: "ask", context: "", contextDirectives: null }],
+      [
+        "contextDirectives as an array",
+        { presetId: "ask", context: "", contextDirectives: ["App locale: en"] },
+      ],
+    ])("rejects a non-string %s", (_description, payload) => {
+      const callback = vi.fn();
+      askFeature.onAskInputData(callback);
+      const listener = electronMocks.on.mock.calls[0][1] as (
+        event: unknown,
+        payload: unknown,
+      ) => void;
+
+      listener(undefined, payload);
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+
     it("the returned unsubscribe function removes the same listener", () => {
       const callback = vi.fn();
       const unsubscribe = askFeature.onAskInputData(callback);
