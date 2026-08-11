@@ -245,7 +245,7 @@ new Notification({
   - Spawn fresh sub-agent to review the changes before committing.
   - Run linting and testing to verify changes.
   - Update AGENTS.md instructions if needed.
-- Use clear function and variable names so the code speaks for itself. **Avoid comments to code** unless they are absolutely necessary to explain non-obvious intent or constraints. Prioritize readability through naming, structure, and small, focused functions.
+- Use clear, descriptive function and variable names so the code is understandable without additional explanation. Prioritize readability through meaningful naming, straightforward structure, and small, focused functions. Avoid comments unless they explain non-obvious intent, constraints, or decisions that cannot be expressed clearly in the code itself.
 
 ⚠️ Ask first:
 
