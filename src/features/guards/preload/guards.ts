@@ -120,12 +120,9 @@ export const selectionGuardsFeature = {
   },
 
   /**
-   * Guard-activity roll-up for the Security dashboard tab.
-   *
-   * A malformed range is rejected here rather than sent, and a malformed reply
-   * REJECTS rather than falling back to zeros — an all-zero roll-up reads as
-   * "no guard ever fired", which is a different claim from "the numbers could
-   * not be read". The panel renders its load-failed state instead.
+   * Unlike the getters above, a malformed reply REJECTS instead of falling back:
+   * an all-zero roll-up reads as "no guard ever fired", which is a different
+   * claim from "the numbers could not be read".
    */
   getSecurityStats: async (range: SecurityStatsRange): Promise<SecurityStats> => {
     if (!isSecurityStatsRange(range)) {

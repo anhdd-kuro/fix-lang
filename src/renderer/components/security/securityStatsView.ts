@@ -1,15 +1,11 @@
 /**
  * @file securityStatsView.ts
- * @description PURE view-layer derivation for the Security dashboard tab's
- * guard-activity roll-up. Locale-free: every piece of copy leaves here as a
- * `MessageKey` or a `StatusDescriptor`, never a resolved string — see
- * `statusDescriptor.ts` for the locale-switch regression that rule prevents.
+ * @description PURE view derivation for the Security dashboard tab. Copy leaves
+ * here as a `MessageKey` or `StatusDescriptor`, never a resolved string — see
+ * `statusDescriptor.ts` for the locale-switch regression that prevents.
  *
- * A rule id read out of a log line is an arbitrary string, not a
- * `SecretRuleId`: an id retired from `secretRules.ts` stays in yesterday's log
- * forever. Unknown ids therefore come back with `labelKey: null` and the panel
- * shows the raw id, rather than the view inventing a translation key that
- * `t()` would fail to resolve.
+ * A rule id read out of a log line is an arbitrary string, not a `SecretRuleId`:
+ * an id retired from `secretRules.ts` stays in yesterday's log forever.
  */
 import { topSecurityRules } from "~/features/guards/shared/securityStats";
 import { SECRET_RULES } from "~/features/secretGuard/shared/secretRules";
@@ -18,7 +14,6 @@ import type { SecurityStats } from "~/features/guards/shared/securityStats";
 import type { MessageKey } from "~/features/i18n/shared/message";
 import type { SecretRuleId } from "~/features/secretGuard/shared/secretRules";
 
-/** How many detector rules the panel lists before it stops. */
 export const TOP_RULE_LIMIT = 6;
 
 export type SecurityStatCardId =
@@ -38,7 +33,6 @@ export type SecurityStatCard = {
   value: number;
   /** Second line — a count that only makes sense beside the headline number. */
   detail: StatusDescriptor | null;
-  /** One-line explanation of what the number means. */
   hintKey: MessageKey;
 };
 
@@ -53,22 +47,15 @@ export type SecurityStatsView = {
   secretCards: readonly SecurityStatCard[];
   selectionCards: readonly SecurityStatCard[];
   ruleRows: readonly SecurityRuleRow[];
-  /** `false` when no guard has fired in the range at all. */
   hasActivity: boolean;
-  /** Non-null only when there is nothing to show. */
   emptyHint: StatusDescriptor | null;
-  /** Non-null only when at least one masked request had rules to name. */
   rulesHint: StatusDescriptor | null;
   lastEventAt: string | null;
 };
 
 const KNOWN_RULE_IDS: ReadonlySet<string> = new Set(SECRET_RULES.map((rule) => rule.id));
 
-/**
- * `security.rules.<id>` exists for every shipped rule (pinned by the i18n
- * catalog audit), so the cast is safe exactly when the id is still known —
- * which is what `KNOWN_RULE_IDS` decides one line above the call.
- */
+/** The cast holds only because `KNOWN_RULE_IDS` was checked first. */
 const ruleLabelKey = (ruleId: string): MessageKey | null =>
   KNOWN_RULE_IDS.has(ruleId)
     ? (`security.rules.${ruleId as SecretRuleId}` satisfies MessageKey)

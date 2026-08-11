@@ -1,9 +1,8 @@
 /**
  * @file securityStatsView.test.ts
- * @description Pure view derivation for the Security dashboard tab. The two
- * rules worth pinning: nothing leaves here as resolved prose (a locale switch
- * would strand it), and a rule id that is no longer in `SECRET_RULES` gets a
- * `null` label rather than a translation key `t()` cannot resolve.
+ * @description Two rules worth pinning: nothing leaves the view as resolved
+ * prose, and a rule id no longer in `SECRET_RULES` gets a `null` label rather
+ * than a translation key `t()` cannot resolve.
  */
 import { describe, expect, it } from "vitest";
 import { EMPTY_SECURITY_STATS } from "~/features/guards/shared/securityStats";
@@ -128,11 +127,7 @@ describe("resolveSecurityStatsView", () => {
     expect(SECRET_RULES.length).toBeGreaterThan(TOP_RULE_LIMIT);
   });
 
-  /**
-   * Every string that reaches the user must be a key or a descriptor. A
-   * resolved sentence here would freeze into whatever locale was active when
-   * the fetch landed — see `statusDescriptor.ts`.
-   */
+  /** A resolved sentence would freeze into the locale active at fetch time. */
   it("emits keys and descriptors, never prose", () => {
     const view = resolveSecurityStatsView(
       stats({ secretMasked: 1, maskedValues: 1, maskedPlaceholders: 1, eventCount: 1 }),

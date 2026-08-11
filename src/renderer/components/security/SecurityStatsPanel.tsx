@@ -1,18 +1,12 @@
 /**
  * @file SecurityStatsPanel.tsx
- * @description Security dashboard tab: what the guard rails actually did, for
- * the shared analytics range. The controls that configure them live in
- * Settings → Security (`SettingSecurity.tsx`); this tab is read-only.
+ * @description Security dashboard tab: what the guard rails did over the shared
+ * analytics range. Read-only — the controls live in Settings → Security
+ * (`SettingSecurity.tsx`).
  *
- * Self-fetching load/error/ready panel, same shape as `AutocompletePanel.tsx`.
- * The preload bridge REJECTS a malformed reply rather than returning zeros
- * (see `~/features/guards/preload/guards.ts`), so a failure lands in the error
- * state instead of being rendered as "no guard ever fired".
- *
- * Every number is a count of times a guard ACTED — there is no denominator to
- * divide it by, because a guard that allows text through logs nothing. The
- * footnote says so, and says that clearing the Logs tab resets these counts,
- * since that is where they are read from.
+ * The preload bridge REJECTS a malformed reply rather than returning zeros (see
+ * `~/features/guards/preload/guards.ts`), so a failure shows the error state
+ * instead of rendering as "no guard ever fired".
  */
 import { useEffect, useMemo, useState } from "react";
 import { resolveSecurityStatsView } from "./securityStatsView";
@@ -28,7 +22,6 @@ type LoadState =
   | { status: "ready"; stats: SecurityStats };
 
 type SecurityStatsPanelProps = {
-  /** Shared dashboard range pills — the panel refetches when this changes. */
   range: AnalyticsRange;
 };
 

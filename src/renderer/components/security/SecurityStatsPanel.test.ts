@@ -1,14 +1,12 @@
 /**
  * @file SecurityStatsPanel.test.ts
- * @description Component-level tests for the Security dashboard tab. Renders
- * the real component via `react-dom/client` + `act` (no
+ * @description Renders the real component via `react-dom/client` + `act` (no
  * `@testing-library/react` is installed) — same technique as
- * `SettingSecurity.test.ts` / `AutocompletePanel.test.ts`.
+ * `SettingSecurity.test.ts`.
  *
- * Two behaviours carry the weight: a rejected bridge call must land in the
- * error state rather than being drawn as a wall of zeros (which reads as "no
- * guard ever fired"), and changing the shared range pill must refetch, because
- * a range the panel ignores would show 7-day numbers under a 30-day label.
+ * The two behaviours that carry the weight: a rejected bridge call must show the
+ * error state rather than a wall of zeros, and an ignored range prop would show
+ * 7-day numbers under a 30-day label.
  */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";

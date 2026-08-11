@@ -1,21 +1,16 @@
 /**
  * @file securityStats.ts
- * @description Reads guard-rail activity off the persisted JSONL logs and
- * returns the roll-up the Security dashboard renders. IPC channel
- * `get-security-stats` (raw string channel — only multi-origin channels get a
- * constant in `~/features/core/shared/ipcChannels.ts`).
+ * @description Reads guard-rail activity off the persisted JSONL logs for the
+ * Security dashboard tab. Raw string channel `get-security-stats` — only
+ * multi-origin channels get a constant in `~/features/core/shared/ipcChannels.ts`.
  *
- * Two-stage narrowing so a long-lived log never has to be held in memory: day
- * folders outside the range are skipped without being read at all, and each day
- * that is read is reduced to its guard lines (`isSecurityEvent`) before the next
- * day is opened. All counting policy lives in the pure
- * `~/features/guards/shared/securityStats` module; this file only decides which
- * bytes it sees.
+ * Decides only which bytes the pure `~/features/guards/shared/securityStats`
+ * module sees; all counting policy lives there.
  *
  * A malformed range throws rather than being coerced. Neither fallback is
- * honest: `"all"` reports numbers the caller did not ask for, and an all-zero
- * roll-up reads as "no guard ever fired". A rejected invoke reaches the panel
- * as its load-failed state, which is what actually happened.
+ * honest: `"all"` answers a question the caller did not ask, and an all-zero
+ * roll-up reads as "no guard ever fired". A rejected invoke reaches the panel as
+ * its load-failed state, which is what actually happened.
  */
 import { ipcMain } from "electron";
 import {
@@ -30,10 +25,7 @@ import { logService } from "~/main/logging/logService";
 import type { SecurityStats, SecurityStatsRange } from "~/features/guards/shared/securityStats";
 import type { LogEntry } from "~/features/logs/shared/logging";
 
-/**
- * `now` is injected so the range window is deterministic in tests, matching the
- * clock-injection style used by `startLatencyTimer` and `createClipboardObserver`.
- */
+/** `now` is injected to keep the range window deterministic in tests. */
 export const collectSecurityStats = async (
   range: SecurityStatsRange,
   now: Date = new Date(),
@@ -43,11 +35,10 @@ export const collectSecurityStats = async (
   const events: LogEntry[] = [];
 
   for (const day of days) {
-    if (!dayFolderInRange(day, cutoff)) {
-      // Folders are newest-first, so the first out-of-range day means every
-      // remaining one is older still.
-      break;
-    }
+    // Newest-first, so the first out-of-range day means every remaining one is
+    // older still — without this an archive is re-read on every range switch.
+    if (!dayFolderInRange(day, cutoff)) break;
+
     const dayEntries = await logService.readPersistedDay(day);
     for (const entry of dayEntries) {
       if (isSecurityEvent(entry) && entryInRange(entry, cutoff)) {

@@ -1,9 +1,8 @@
 /**
  * @file securityStats.test.ts
- * @description Pins the counting policy: which log lines count, which are
- * ignored, and the two ways a metric can be silently destroyed — an
- * unrecognised reason folded into a neighbouring bucket, and a redacted
- * context key read as if it were still a number.
+ * @description Pins the counting policy, and the two ways a metric dies
+ * silently: an unrecognised reason folded into a neighbouring bucket, and a
+ * redacted context key read as if it were still a number.
  */
 import { describe, expect, it } from "vitest";
 import { redactLogContext } from "~/features/logs/shared/logging";
@@ -36,8 +35,7 @@ const entry = (
     level: overrides.level ?? "info",
     scope,
     message: "Guard event",
-    // Runs the REAL redactor, so a test can never pass on a key the shipped
-    // logger would have blanked.
+    // The REAL redactor, so no test passes on a key the logger would blank.
     context: redactLogContext(context),
   };
 };
@@ -76,9 +74,8 @@ describe("summarizeSecurityStats", () => {
   });
 
   /**
-   * The bug this prevents: a fourth confirm reason added to
-   * `selectionGuards.ts` and shipped before this roll-up learns about it must
-   * read as a missing metric, not as extra stale-clipboard declines.
+   * A fourth confirm reason added to `selectionGuards.ts` must read as a missing
+   * metric, not as extra stale-clipboard declines.
    */
   it("drops a decline whose reason it does not recognise instead of guessing", () => {
     const stats = summarizeSecurityStats([selectionGuard("declined", "some-future-reason")]);
@@ -148,11 +145,7 @@ describe("summarizeSecurityStats", () => {
     expect(summarizeSecurityStats([older, newer]).lastEventAt).toBe(newer.timestamp);
   });
 
-  /**
-   * A rename to `secretCount`/`clipboardStale` would leave the value as
-   * `"[REDACTED]"` and every number here at zero. The entry builder above runs
-   * the real redactor, so this asserts the shipped key names specifically.
-   */
+  /** A rename to `secretCount`/`clipboardStale` would zero every number here. */
   it("survives the real redactor with numbers intact", () => {
     const stats = summarizeSecurityStats([
       secretGate({ gateDecision: "masked", matchCount: 5, placeholderCount: 4, ruleIds: ["jwt"] }),

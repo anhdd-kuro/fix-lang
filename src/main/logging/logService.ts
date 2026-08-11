@@ -90,10 +90,8 @@ class LogService {
   }
 
   /**
-   * Local-day folder names newest-first, after pending writes are flushed.
-   * Exposed for callers that aggregate across days (the Security dashboard's
-   * guard-activity roll-up) and would otherwise need the private directory —
-   * paging through `query` cannot express "every matching line since a date".
+   * Local-day folder names newest-first, after pending writes are flushed. For
+   * callers aggregating across days, which `query`'s paging cannot express.
    */
   public async listPersistedDays(): Promise<string[]> {
     const directory = this.persistenceDirectory;

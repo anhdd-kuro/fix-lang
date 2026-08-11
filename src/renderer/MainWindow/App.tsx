@@ -306,8 +306,6 @@ const App: React.FC = () => {
       />
     ),
     logs: <LogsPanel />,
-    // Read-only guard activity. The controls that configure the guards live in
-    // Settings → Security, so this tab is analytics like Overview and Models.
     security: <SecurityStatsPanel range={range} />,
     // Two sub-tabs: the update controls (default) and the user guide. The
     // wrapping card lives inside AboutPanel, below its sub-tab bar.

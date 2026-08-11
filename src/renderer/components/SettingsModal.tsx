@@ -200,9 +200,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       ),
       component: <SettingAutocomplete />,
     },
-    // The guard rails are configuration, so they belong beside the other
-    // per-feature settings. What they DID is a dashboard tab of its own
-    // (`SecurityStatsPanel`), the same split every other feature already has.
+    // Configuration only; what the guards DID is the Security dashboard tab.
     {
       id: "security",
       labelKey: "settings.modal.tabs.security",

@@ -1,12 +1,7 @@
 /**
  * @file securityStats.test.ts
- * @description What the main-process collector reads, and what it refuses to
- * read. The counting policy itself lives in (and is tested by) the pure
- * `~/features/guards/shared/securityStats` module; this file pins the disk walk:
- * a day folder outside the range is never opened, the walk stops at the first
- * out-of-range folder rather than continuing through years of logs, and a
- * malformed range from the renderer throws instead of quietly answering a
- * different question.
+ * @description The disk walk only — counting policy is tested in the pure
+ * `~/features/guards/shared/securityStats` module.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { collectSecurityStats } from "./securityStats";
@@ -76,11 +71,7 @@ describe("collectSecurityStats", () => {
     expect(readPersistedDay).toHaveBeenCalledTimes(2);
   });
 
-  /**
-   * Folders arrive newest-first, so the first out-of-range one means the rest
-   * are older still. Without the break, a machine with two years of logs pays
-   * for all of them on every range switch.
-   */
+  /** Without the break, two years of logs are re-read on every range switch. */
   it("stops at the first out-of-range day instead of walking the whole archive", async () => {
     listPersistedDays.mockResolvedValue([
       "2026-08-11",
@@ -96,10 +87,8 @@ describe("collectSecurityStats", () => {
   });
 
   /**
-   * A local day folder can hold UTC timestamps either side of the boundary, so
-   * the surplus folder is read and then filtered per entry. Both halves matter:
-   * without the folder, the whole day is lost; without the entry filter, the
-   * window silently stretches by a day.
+   * Both halves matter: without the surplus folder a whole local day is lost;
+   * without the entry filter the window stretches by a day.
    */
   it("keeps the boundary folder but drops the entries that fall before the cutoff", async () => {
     listPersistedDays.mockResolvedValue(["2026-08-04", "2026-08-03"]);

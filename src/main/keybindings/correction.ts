@@ -108,10 +108,8 @@ const resolveAskContextUnderGuards = (
 
   logger.warn("correction.hotkey", "Ask context dropped by a selection guard", {
     presetId,
-    // `guardEvent` is what the Security dashboard counts on — the message is
-    // prose for a human reader and rewording one must never zero a metric.
-    // A dropped context is NOT a decline: the request went ahead without the
-    // selection attached.
+    // The Security dashboard counts `guardEvent`, not the message prose. A
+    // dropped context is not a decline: the request went ahead without it.
     guardEvent: "context-dropped",
     guardReason: verdict.reason,
     ...(verdict.kind === "block"
