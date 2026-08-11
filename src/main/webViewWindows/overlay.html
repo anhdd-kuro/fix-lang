@@ -983,7 +983,7 @@
         repeating-conic-gradient(from calc(-90deg - var(--gap-deg) / 2),
           #000 0 calc(var(--seg-deg) - var(--gap-deg)),
           transparent calc(var(--seg-deg) - var(--gap-deg)) var(--seg-deg)),
-        radial-gradient(circle, transparent 0 62%, #000 62%);
+        radial-gradient(circle, transparent 0 calc(62% - 1px), #000 calc(62% - 1px));
       mask-composite: intersect;
     }
 
