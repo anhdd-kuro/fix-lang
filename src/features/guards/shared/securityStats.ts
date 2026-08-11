@@ -12,6 +12,13 @@
  * by message prose — rewording a log message must not zero a metric. Both key
  * names survive `redactLogContext` (`~/features/secretGuard/shared/logKeys.test.ts`).
  *
+ * `guardEvent` did not exist before the roll-up did, so a selection-guard line
+ * from an older build carries `guardReason` alone. Those lines are counted as
+ * `legacyEvents` and named as such rather than classified: a legacy block and a
+ * legacy Ask context-drop wrote the SAME context keys, which is exactly why
+ * `guardEvent` was added. Counting them somewhere keeps `eventCount` honest, so
+ * an archive of nothing but legacy lines can never render as "no guard fired".
+ *
  * There is no denominator here and there cannot be: a guard that ALLOWS logs
  * nothing. Every count is a count of times a guard acted, and dividing one by a
  * transform count from history compares different populations.
@@ -59,6 +66,8 @@ export type SecurityStats = {
   maskedPlaceholders: number;
   /** Replies whose placeholders could not be restored, so nothing was pasted. */
   restoreFailures: number;
+  /** Pre-`guardEvent` selection-guard lines: real events, not classifiable. */
+  legacyEvents: number;
   /** Counted once per event that named the rule, not once per match. */
   ruleCounts: Readonly<Record<string, number>>;
   lastEventAt: string | null;
@@ -77,6 +86,7 @@ export const EMPTY_SECURITY_STATS: SecurityStats = Object.freeze({
   maskedValues: 0,
   maskedPlaceholders: 0,
   restoreFailures: 0,
+  legacyEvents: 0,
   ruleCounts: Object.freeze({}),
   lastEventAt: null,
   eventCount: 0,
@@ -106,7 +116,9 @@ const contextRuleIds = (entry: LogEntry): string[] => {
 export const isSecurityEvent = (entry: LogEntry): boolean => {
   if (entry.scope === SECRET_MASK_SCOPE) return true;
   if (entry.scope === SECRET_GATE_SCOPE) return contextString(entry, "gateDecision") !== null;
-  return contextString(entry, "guardEvent") !== null;
+  return (
+    contextString(entry, "guardEvent") !== null || contextString(entry, "guardReason") !== null
+  );
 };
 
 /** String compare is correct here: `logService` writes ISO-8601 UTC timestamps. */
@@ -128,6 +140,11 @@ const countSelectionGuardEvent = (stats: MutableStats, entry: LogEntry): boolean
   const event = contextString(entry, "guardEvent");
   const reason = contextString(entry, "guardReason");
 
+  if (event === null) {
+    if (reason === null) return false;
+    stats.legacyEvents += 1;
+    return true;
+  }
   if (event === "blocked") {
     stats.blockedByApp += 1;
     return true;
@@ -256,6 +273,7 @@ const COUNT_KEYS: readonly (keyof SecurityStats)[] = [
   "maskedValues",
   "maskedPlaceholders",
   "restoreFailures",
+  "legacyEvents",
   "eventCount",
 ];
 

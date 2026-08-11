@@ -82,22 +82,45 @@ describe("resolveSecurityStatsView", () => {
     expect(view.emptyHint).toBeNull();
   });
 
-  it("adds the values/placeholders detail only when something was masked", () => {
+  /**
+   * One descriptor per count, each carrying `count`: the two counts move
+   * independently, so a single sentence would render "1 values, 2 placeholders".
+   */
+  it("adds one plural-aware detail per masked count, and only when something was masked", () => {
     const masked = resolveSecurityStatsView(
-      stats({ secretMasked: 2, maskedValues: 5, maskedPlaceholders: 4, eventCount: 2 }),
+      stats({ secretMasked: 2, maskedValues: 1, maskedPlaceholders: 4, eventCount: 2 }),
     );
     const maskedCard = masked.secretCards.find((card) => card.id === "secretMasked");
 
-    expect(maskedCard?.detail).toEqual({
-      kind: "plain",
-      message: {
-        key: "security.stats.secretMasked.detail",
-        params: { values: 5, placeholders: 4 },
+    expect(maskedCard?.details).toEqual([
+      {
+        kind: "plain",
+        message: { key: "security.stats.secretMasked.values", params: { count: 1 } },
       },
-    });
+      {
+        kind: "plain",
+        message: { key: "security.stats.secretMasked.placeholders", params: { count: 4 } },
+      },
+    ]);
 
     const clean = resolveSecurityStatsView(stats({ secretConfirmed: 1, eventCount: 1 }));
-    expect(clean.secretCards.find((card) => card.id === "secretMasked")?.detail).toBeNull();
+    expect(clean.secretCards.find((card) => card.id === "secretMasked")?.details).toEqual([]);
+  });
+
+  /**
+   * Pre-`guardEvent` log lines are real events that cannot be classified. The
+   * panel must say so instead of letting them read as no activity at all.
+   */
+  it("names legacy events and never pairs them with the empty hint", () => {
+    const view = resolveSecurityStatsView(stats({ legacyEvents: 3, eventCount: 3 }));
+
+    expect(view.legacyNotice).toEqual({
+      kind: "plain",
+      message: { key: "security.stats.legacy", params: { count: 3 } },
+    });
+    expect(view.hasActivity).toBe(true);
+    expect(view.emptyHint).toBeNull();
+    expect(resolveSecurityStatsView(EMPTY_SECURITY_STATS).legacyNotice).toBeNull();
   });
 
   it("names a known rule by key and leaves a retired id unlabelled", () => {
@@ -136,8 +159,8 @@ describe("resolveSecurityStatsView", () => {
     for (const card of [...view.secretCards, ...view.selectionCards]) {
       expect(card.labelKey.startsWith("security.stats.")).toBe(true);
       expect(card.hintKey.startsWith("security.stats.")).toBe(true);
-      if (card.detail !== null) {
-        expect(card.detail.kind).toBe("plain");
+      for (const detail of card.details) {
+        expect(detail.kind).toBe("plain");
       }
     }
   });

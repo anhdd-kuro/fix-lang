@@ -231,6 +231,7 @@
   "security.stats.error": "ガードの動作状況を読み取れませんでした。",
   "security.stats.footnote": "この Mac のローカルログから集計しています。Logs タブを消去すると数値もリセットされます。記録されるのは介入だけです。通過させた場合は何も記録されないため、比較できる総数はありません。",
   "security.stats.lastEvent": "最終アクティビティ {date}",
+  "security.stats.legacy_other": "{count} 件の過去のイベントは上のカウントに含まれていません。このバージョンより前のログには、ガードが作動したことは記録されていても、どの種類かは記録されていないためです。Logs タブには残っています。",
   "security.stats.loading": "ガードの動作状況を読み込み中…",
   "security.stats.restoreFailures.hint": "マスクした値を安全に戻せませんでした。プレースホルダーの欠落・重複・移動・改変のいずれもここに入ります。返信は貼り付けではなくポップアップで表示しました。",
   "security.stats.restoreFailures.label": "値を復元できず",
@@ -240,9 +241,10 @@
   "security.stats.secretConfirmed.label": "確認後に送信",
   "security.stats.secretDeclined.hint": "シークレットの確認でキャンセルしたため、何も送信されていません。",
   "security.stats.secretDeclined.label": "シークレットガードでキャンセル",
-  "security.stats.secretMasked.detail": "{values} 件の値、{placeholders} 件のプレースホルダー",
   "security.stats.secretMasked.hint": "実際の値の代わりにプレースホルダーを入れて送信したリクエスト。",
   "security.stats.secretMasked.label": "マスクしたリクエスト",
+  "security.stats.secretMasked.placeholders_other": "プレースホルダー {count} 件を使用",
+  "security.stats.secretMasked.values_other": "値 {count} 件をマスク",
   "security.stats.secretSection.title": "シークレットガード",
   "security.stats.selectionSection.title": "選択範囲ガード"
 }

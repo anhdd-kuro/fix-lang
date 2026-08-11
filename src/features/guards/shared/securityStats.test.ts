@@ -83,6 +83,39 @@ describe("summarizeSecurityStats", () => {
     expect(stats).toEqual(EMPTY_SECURITY_STATS);
   });
 
+  /**
+   * A line from a build that predates `guardEvent`. It is not classified — a
+   * legacy block and a legacy Ask context-drop wrote identical context keys — but
+   * it must still count somewhere, or an upgraded user's archive reads as empty.
+   */
+  it("counts a pre-guardEvent line as a legacy event", () => {
+    const legacy = entry("correction.hotkey", {
+      presetId: "correction",
+      guardReason: "denied-app",
+      deniedBundleId: "com.apple.keychainaccess",
+    });
+
+    const stats = summarizeSecurityStats([legacy]);
+
+    expect(stats.legacyEvents).toBe(1);
+    expect(stats.eventCount).toBe(1);
+    expect(stats.lastEventAt).toBe(legacy.timestamp);
+    expect(stats.blockedByApp).toBe(0);
+    expect(stats.askContextDropped).toBe(0);
+    expect(isSecurityEvent(legacy)).toBe(true);
+  });
+
+  it("keeps legacy lines out of the classified buckets alongside current ones", () => {
+    const stats = summarizeSecurityStats([
+      entry("correction.hotkey", { presetId: "correction", guardReason: "large-selection" }),
+      selectionGuard("declined", "large-selection"),
+    ]);
+
+    expect(stats.legacyEvents).toBe(1);
+    expect(stats.declinedLargeSelection).toBe(1);
+    expect(stats.eventCount).toBe(2);
+  });
+
   it("counts both arms of the secret dialog and the masked path", () => {
     const stats = summarizeSecurityStats([
       secretGate({ gateDecision: "confirmed", matchCount: 2, ruleIds: ["openai-key"] }),

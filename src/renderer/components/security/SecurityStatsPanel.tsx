@@ -74,9 +74,11 @@ export const SecurityStatsPanel = ({ range }: SecurityStatsPanelProps) => {
     >
       <span className="text-sm text-muted-foreground">{t(card.labelKey)}</span>
       <span className="text-2xl font-semibold text-foreground">{formatNumber(card.value)}</span>
-      {card.detail && (
-        <span className="text-xs text-muted-foreground">{resolve(card.detail)}</span>
-      )}
+      {card.details.map((detail, index) => (
+        <span key={`${card.id}-detail-${index}`} className="text-xs text-muted-foreground">
+          {resolve(detail)}
+        </span>
+      ))}
       <span className="text-xs text-muted-foreground">{t(card.hintKey)}</span>
     </div>
   );
@@ -96,6 +98,9 @@ export const SecurityStatsPanel = ({ range }: SecurityStatsPanelProps) => {
         </div>
         {!view.hasActivity && (
           <p className="text-sm text-muted-foreground">{resolve(view.emptyHint)}</p>
+        )}
+        {view.legacyNotice !== null && (
+          <p className="text-sm text-muted-foreground">{resolve(view.legacyNotice)}</p>
         )}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {view.secretCards.map(renderCard)}

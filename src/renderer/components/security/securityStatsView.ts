@@ -31,8 +31,12 @@ export type SecurityStatCard = {
   id: SecurityStatCardId;
   labelKey: MessageKey;
   value: number;
-  /** Second line — a count that only makes sense beside the headline number. */
-  detail: StatusDescriptor | null;
+  /**
+   * Extra lines — counts that only make sense beside the headline number. One
+   * descriptor per count rather than one sentence holding several: each count
+   * varies on its own, and a single string cannot pluralize two of them.
+   */
+  details: readonly StatusDescriptor[];
   hintKey: MessageKey;
 };
 
@@ -49,6 +53,8 @@ export type SecurityStatsView = {
   ruleRows: readonly SecurityRuleRow[];
   hasActivity: boolean;
   emptyHint: StatusDescriptor | null;
+  /** Names the pre-`guardEvent` lines the cards above cannot account for. */
+  legacyNotice: StatusDescriptor | null;
   rulesHint: StatusDescriptor | null;
   lastEventAt: string | null;
 };
@@ -66,8 +72,8 @@ const card = (
   labelKey: MessageKey,
   hintKey: MessageKey,
   value: number,
-  detail: StatusDescriptor | null = null,
-): SecurityStatCard => ({ id, labelKey, hintKey, value, detail });
+  details: readonly StatusDescriptor[] = [],
+): SecurityStatCard => ({ id, labelKey, hintKey, value, details });
 
 export const resolveSecurityStatsView = (stats: SecurityStats): SecurityStatsView => {
   const ruleRows = topSecurityRules(stats, TOP_RULE_LIMIT).map((rule) => ({
@@ -84,11 +90,15 @@ export const resolveSecurityStatsView = (stats: SecurityStats): SecurityStatsVie
         "security.stats.secretMasked.hint",
         stats.secretMasked,
         stats.secretMasked > 0
-          ? plainStatus("security.stats.secretMasked.detail", {
-              values: stats.maskedValues,
-              placeholders: stats.maskedPlaceholders,
-            })
-          : null,
+          ? [
+              plainStatus("security.stats.secretMasked.values", {
+                count: stats.maskedValues,
+              }),
+              plainStatus("security.stats.secretMasked.placeholders", {
+                count: stats.maskedPlaceholders,
+              }),
+            ]
+          : [],
       ),
       card(
         "secretConfirmed",
@@ -144,6 +154,10 @@ export const resolveSecurityStatsView = (stats: SecurityStats): SecurityStatsVie
     ruleRows,
     hasActivity: stats.eventCount > 0,
     emptyHint: stats.eventCount === 0 ? plainStatus("security.stats.empty") : null,
+    legacyNotice:
+      stats.legacyEvents > 0
+        ? plainStatus("security.stats.legacy", { count: stats.legacyEvents })
+        : null,
     rulesHint: ruleRows.length === 0 ? null : plainStatus("security.stats.rules.hint"),
     lastEventAt: stats.lastEventAt,
   };

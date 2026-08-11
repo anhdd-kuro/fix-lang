@@ -95,9 +95,32 @@ describe("SecurityStatsPanel", () => {
     expect(text).toContain("Secret guard");
     expect(text).toContain("Selection guards");
     expect(text).toContain("Requests masked");
-    expect(text).toContain("3 values, 2 placeholders");
+    expect(text).toContain("3 values masked");
+    expect(text).toContain("2 placeholders used");
     // Reads from the local logs, and says so — clearing Logs resets the counts.
     expect(text).toContain("Logs");
+  });
+
+  /** The two counts move independently, so each picks its own plural form. */
+  it("pluralizes the masked counts separately", async () => {
+    await render(
+      vi.fn().mockResolvedValue(
+        stats({ secretMasked: 1, maskedValues: 1, maskedPlaceholders: 2, eventCount: 1 }),
+      ),
+    );
+
+    const text = container.textContent ?? "";
+    expect(text).toContain("1 value masked");
+    expect(text).toContain("2 placeholders used");
+    expect(text).not.toContain("1 values");
+  });
+
+  it("names pre-upgrade events rather than reporting no activity", async () => {
+    await render(vi.fn().mockResolvedValue(stats({ legacyEvents: 2, eventCount: 2 })));
+
+    const text = container.textContent ?? "";
+    expect(text).toContain("2 earlier events are not in the counts above");
+    expect(text).not.toContain("No guard has fired in this range");
   });
 
   it("says nothing has fired instead of leaving an empty page", async () => {

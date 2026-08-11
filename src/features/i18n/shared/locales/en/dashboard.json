@@ -236,6 +236,8 @@
   "security.stats.error": "Couldn't read guard activity.",
   "security.stats.footnote": "Counted from this machine's local logs, so clearing the Logs tab resets these numbers. Only interventions are recorded: a guard that lets text through writes nothing, so there is no total to compare these against.",
   "security.stats.lastEvent": "Last activity {date}",
+  "security.stats.legacy_one": "{count} earlier event is not in the counts above: logs written before this version recorded that a guard fired but not which kind. The Logs tab still lists them.",
+  "security.stats.legacy_other": "{count} earlier events are not in the counts above: logs written before this version recorded that a guard fired but not which kind. The Logs tab still lists them.",
   "security.stats.loading": "Reading guard activity…",
   "security.stats.restoreFailures.hint": "The masked values could not be put back safely — a placeholder went missing, was duplicated, moved, or came back mangled — so the reply opened in a popup instead of being pasted.",
   "security.stats.restoreFailures.label": "Values not restored",
@@ -245,9 +247,12 @@
   "security.stats.secretConfirmed.label": "Sent after confirming",
   "security.stats.secretDeclined.hint": "You cancelled at the secret confirmation, so nothing was sent.",
   "security.stats.secretDeclined.label": "Cancelled at the secret guard",
-  "security.stats.secretMasked.detail": "{values} values, {placeholders} placeholders",
   "security.stats.secretMasked.hint": "Requests that left with placeholders in place of the real values.",
   "security.stats.secretMasked.label": "Requests masked",
+  "security.stats.secretMasked.placeholders_one": "{count} placeholder used",
+  "security.stats.secretMasked.placeholders_other": "{count} placeholders used",
+  "security.stats.secretMasked.values_one": "{count} value masked",
+  "security.stats.secretMasked.values_other": "{count} values masked",
   "security.stats.secretSection.title": "Secret guard",
   "security.stats.selectionSection.title": "Selection guards"
 }
