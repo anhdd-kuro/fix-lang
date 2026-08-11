@@ -102,6 +102,30 @@ export const moveComboStep = (
   return next;
 };
 
+/**
+ * Move-to-index, the drag-and-drop counterpart of `moveComboStep`'s neighbor
+ * swap: a drop onto a distant row means "put it HERE", so the steps in between
+ * close up. Any index outside the list — a drag whose row was removed while it
+ * was in flight — is a no-op copy rather than a sparse array, matching every
+ * other out-of-range path in this module.
+ */
+export const reorderComboStep = (
+  steps: readonly ComboStep[],
+  fromIndex: number,
+  toIndex: number,
+): ComboStep[] => {
+  const isInRange = (index: number): boolean =>
+    index >= 0 && index < steps.length;
+  if (!isInRange(fromIndex) || !isInRange(toIndex) || fromIndex === toIndex) {
+    return [...steps];
+  }
+
+  const next = [...steps];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+  return next;
+};
+
 // --- Step add / remove --------------------------------------------------
 
 /** `COMBO_MAX_STEPS` is a hard product cap (donut legibility, cost) — not just a save-time error to fix later. */

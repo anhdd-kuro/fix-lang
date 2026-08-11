@@ -30,6 +30,7 @@
   "settings.correction.clearHotkey": "ホットキーをクリア",
   "settings.correction.combos.addCombo": "コンボを追加",
   "settings.correction.combos.addStep": "ステップを追加",
+  "settings.correction.combos.dragStep": "ドラッグしてステップ{number}を並べ替え",
   "settings.correction.combos.empty": "まだコンボがありません。プリセットを1つのホットキーにまとめるコンボを追加できます。",
   "settings.correction.combos.error.missingInlineInput": "「{presetName}」はコンボ内で専用の入力テキストが必要です。",
   "settings.correction.combos.error.nameDuplicate": "「{name}」という名前のコンボは既に存在します。",

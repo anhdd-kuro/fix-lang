@@ -31,6 +31,7 @@
   "settings.correction.clearHotkey": "Clear hotkey",
   "settings.correction.combos.addCombo": "Add combo",
   "settings.correction.combos.addStep": "Add step",
+  "settings.correction.combos.dragStep": "Drag to reorder step {number}",
   "settings.correction.combos.empty": "No combos yet. Add one to chain presets together under a single hotkey.",
   "settings.correction.combos.error.missingInlineInput": "\"{presetName}\" needs its own input text inside a combo.",
   "settings.correction.combos.error.nameDuplicate": "Another combo is already called \"{name}\".",

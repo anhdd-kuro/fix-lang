@@ -26,6 +26,7 @@ import {
   moveComboStep,
   nextComboDraftName,
   removeComboStep,
+  reorderComboStep,
   setComboStepInlineInput,
   setComboStepPreset,
 } from "./comboEditorView";
@@ -210,6 +211,63 @@ describe("canMoveComboStep / moveComboStep", () => {
     expect(result).toEqual(steps);
     expect(result).not.toBe(steps);
     expect(result).toHaveLength(steps.length);
+  });
+});
+
+describe("reorderComboStep", () => {
+  const steps = [step("a"), step("b"), step("c"), step("d")];
+  const ids = (result: readonly ComboStep[]) =>
+    result.map((entry) => entry.presetId);
+
+  it("moves a step to the drop index rather than swapping neighbours", () => {
+    // A drop onto a distant row means "put it here", so the steps between the
+    // grab and the drop close up — a neighbour swap would displace only one.
+    expect(ids(reorderComboStep(steps, 0, 2))).toEqual(["b", "c", "a", "d"]);
+  });
+
+  it("moves a step backwards to the drop index", () => {
+    expect(ids(reorderComboStep(steps, 3, 1))).toEqual(["a", "d", "b", "c"]);
+  });
+
+  it("moves a step to the end", () => {
+    expect(ids(reorderComboStep(steps, 1, 3))).toEqual(["a", "c", "d", "b"]);
+  });
+
+  it("is a no-op copy when the step is dropped on itself", () => {
+    const result = reorderComboStep(steps, 2, 2);
+    expect(result).toEqual(steps);
+    expect(result).not.toBe(steps);
+  });
+
+  it("is a no-op copy for a negative index at either end", () => {
+    expect(reorderComboStep(steps, -1, 2)).toEqual(steps);
+    expect(reorderComboStep(steps, 1, -1)).toEqual(steps);
+  });
+
+  it("is a no-op copy for an out-of-range index at either end", () => {
+    // A drag can outlive the row it started on (a step removed mid-drag), so
+    // both ends must fail closed instead of producing a sparse array.
+    const fromOutOfRange = reorderComboStep(steps, steps.length, 0);
+    expect(fromOutOfRange).toEqual(steps);
+    expect(fromOutOfRange).toHaveLength(steps.length);
+    expect(reorderComboStep(steps, 0, steps.length)).toEqual(steps);
+  });
+
+  it("never mutates the input array or its steps", () => {
+    const original = [step("a"), step("b"), step("c")];
+    const snapshot = original.map((entry) => ({ ...entry }));
+    const result = reorderComboStep(original, 0, 2);
+    expect(original).toEqual(snapshot);
+    expect(result).not.toBe(original);
+  });
+
+  it("keeps the same step objects, so per-step state survives a reorder", () => {
+    const result = reorderComboStep(steps, 0, 2);
+    expect(result[2]).toBe(steps[0]);
+  });
+
+  it("is a no-op copy on an empty list", () => {
+    expect(reorderComboStep([], 0, 0)).toEqual([]);
   });
 });
 
