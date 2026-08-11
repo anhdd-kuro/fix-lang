@@ -1,6 +1,9 @@
 import { globalShortcut, screen } from "electron";
 import { keybindingStore } from "~/features/correction/store/keybindingStore";
-import { evaluateSelectionGuards } from "~/features/guards/shared/selectionGuards";
+import {
+  evaluateSelectionGuards,
+  selectionGuardLogContext,
+} from "~/features/guards/shared/selectionGuards";
 import { guardStore } from "~/features/guards/store/guardStore";
 import { syncHistory } from "~/features/history/main/history";
 import { secretGuardStore } from "~/features/secretGuard/store/secretGuardStore";
@@ -10,7 +13,7 @@ import { runSecretGate } from "./secretGate";
 import { checkShortcut, handleError, withHotkeyThrottle } from "./utils";
 import * as clipboardChangeTracker from "../clipboard/clipboardChangeTracker";
 import { logger } from "../logging/logService";
-import { confirmLargeSelection } from "../notifications/confirmLargeSelection";
+import { confirmSelectionGuard } from "../notifications/confirmSelectionGuard";
 import { LocalizedError } from "../notifications/error";
 import { showOverlaySpinner, hideOverlaySpinner } from "../webViewWindows";
 import { showPromptGenWindow } from "../webViewWindows/promptGenWindow";
@@ -66,7 +69,7 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
         text: selectedText,
         changed,
         activeApp,
-        ageMs: clipboardChangeTracker.ageMs(),
+        age: clipboardChangeTracker.clipboardAge(),
         settings: guardStore.getSelectionGuardSettings(),
       });
 
@@ -74,36 +77,27 @@ export const registerPromptGenShortcut = (_mainWindow: BrowserWindow): void => {
         hideOverlaySpinner();
         logger.warn("promptGen.hotkey", "PromptGen blocked by a selection guard", {
           guardReason: verdict.reason,
-          ...(verdict.reason === "stale-clipboard"
-            ? { selectionAgeMs: verdict.ageMs, ageLimitMs: verdict.limitMs }
-            : { deniedBundleId: verdict.bundleId }),
+          deniedBundleId: verdict.bundleId,
         });
         handleError(
-          verdict.reason === "stale-clipboard"
-            ? new LocalizedError(
-                "Selection blocked: clipboard is older than the configured age limit.",
-                "notifications.error.staleClipboard.body",
-                { seconds: Math.round(verdict.limitMs / 1000) },
-              )
-            : new LocalizedError(
-                "Selection blocked: the frontmost app is on the deny-list.",
-                "notifications.error.appNotAllowed.body",
-                { app: activeApp?.name ?? verdict.bundleId },
-              ),
+          new LocalizedError(
+            "Selection blocked: the frontmost app is on the deny-list.",
+            "notifications.error.appNotAllowed.body",
+            { app: activeApp?.name ?? verdict.bundleId },
+          ),
         );
         return;
       }
 
       if (verdict.kind === "confirm") {
         hideOverlaySpinner();
-        const proceed = await confirmLargeSelection(verdict.chars, verdict.limit);
+        const proceed = await confirmSelectionGuard(verdict);
 
         if (!proceed) {
-          logger.info(
-            "promptGen.hotkey",
-            "PromptGen declined at the large-selection confirm",
-            { textLength: verdict.chars, charLimit: verdict.limit },
-          );
+          logger.info("promptGen.hotkey", "PromptGen declined at a selection-guard confirm", {
+            guardReason: verdict.reason,
+            ...selectionGuardLogContext(verdict),
+          });
           // NO error notification — the user clicked Cancel, which is not an
           // error. A toast here would train people to dismiss toasts.
           return;

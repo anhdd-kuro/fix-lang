@@ -289,15 +289,31 @@ export const getHighlightedText = async (): Promise<string> => {
  * into and submit; labelled by source and removable, a stale clipboard is an
  * offer they can see and decline rather than a leak they cannot. `""` still
  * means no context at all: an empty clipboard and a failed copy attach nothing.
+ *
+ * It reads through the COMBINED reader rather than `readSelection` directly,
+ * so the frontmost app comes back too. Ask AI still never puts an app name in
+ * its prompt — that part of the design is unchanged — but the deny-list is a
+ * rule about where text may be READ FROM, and a rule that covered every
+ * preset except the one with a free-text box would be a rule with a hole in
+ * the shape of its own purpose. It costs one extra AppleScript statement
+ * inside a script this press was already running, not an extra spawn.
  */
 export type AskContext = {
   text: string;
   source: "selection" | "clipboard";
+  activeApp: ActiveApp | null;
+  /** Same meaning as on {@link HighlightedSelectionWithActiveApp}. */
+  changed: boolean;
 };
 
 export const getAskContext = async (): Promise<AskContext> => {
-  const { value, changed } = await readSelection();
-  return { text: value, source: changed ? "selection" : "clipboard" };
+  const { text, activeApp, changed } = await getHighlightedTextWithActiveApp();
+  return {
+    text,
+    source: changed ? "selection" : "clipboard",
+    activeApp,
+    changed,
+  };
 };
 
 export type HighlightedSelectionWithActiveApp = {

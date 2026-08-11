@@ -269,9 +269,10 @@ describe("getAskContext", () => {
     const pending = getAskContext();
     await vi.advanceTimersByTimeAsync(3_000);
 
-    await expect(pending).resolves.toEqual({
+    await expect(pending).resolves.toMatchObject({
       text: "text the user copied by hand",
       source: "clipboard",
+      changed: false,
     });
   });
 
@@ -288,7 +289,7 @@ describe("getAskContext", () => {
     const pending = getAskContext();
     await vi.advanceTimersByTimeAsync(600);
 
-    await expect(pending).resolves.toEqual({
+    await expect(pending).resolves.toMatchObject({
       text: "previous clipboard content",
       source: "clipboard",
     });
@@ -297,9 +298,10 @@ describe("getAskContext", () => {
   it("reports the copy as the source when the copy produced the text", async () => {
     mockCopyExec({ newClipboardValue: "the user's real selection" });
 
-    await expect(getAskContext()).resolves.toEqual({
+    await expect(getAskContext()).resolves.toMatchObject({
       text: "the user's real selection",
       source: "selection",
+      changed: true,
     });
   });
 
@@ -313,7 +315,7 @@ describe("getAskContext", () => {
     const pending = getAskContext();
     await vi.advanceTimersByTimeAsync(3_000);
 
-    await expect(pending).resolves.toEqual({ text: "", source: "clipboard" });
+    await expect(pending).resolves.toMatchObject({ text: "", source: "clipboard" });
   });
 
   it("reads a selection byte-identical to the clipboard as a selection, not a fallback", async () => {
@@ -321,9 +323,29 @@ describe("getAskContext", () => {
     // is the same either way, but `source` is what the window shows the user.
     mockCopyExec({ newClipboardValue: "previous clipboard content" });
 
-    await expect(getAskContext()).resolves.toEqual({
+    await expect(getAskContext()).resolves.toMatchObject({
       text: "previous clipboard content",
       source: "selection",
+    });
+  });
+
+  /**
+   * Ask reads through the COMBINED reader, so the frontmost app comes back
+   * with the text. Nothing puts that app name in Ask's prompt — that part of
+   * the design is unchanged — but the deny-list is a rule about where text
+   * may be READ FROM, and without this field Ask was the one preset it could
+   * not cover: the branch never read the frontmost app at all, so selecting
+   * inside 1Password and pressing the Ask hotkey attached it like any other
+   * text.
+   */
+  it("returns the frontmost app so the deny-list can cover Ask too", async () => {
+    mockCopyExec({
+      stdout: "1Password\tcom.1password.1password",
+      newClipboardValue: "the user's real selection",
+    });
+
+    await expect(getAskContext()).resolves.toMatchObject({
+      activeApp: { name: "1Password", bundleId: "com.1password.1password" },
     });
   });
 

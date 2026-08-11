@@ -24,25 +24,47 @@ export type ClipboardObserverSnapshot = {
   lastChangedAt: number | null;
 };
 
+/**
+ * Where a reported age is measured FROM, which is the difference between a
+ * real number and a lower bound.
+ *
+ * `"change"` — a copy was observed happening. The age is the elapsed time
+ * since it, and it is correct.
+ *
+ * `"baseline"` — the text was already on the pasteboard the first time
+ * FixLang looked. The elapsed time since that sighting is all we have, and it
+ * is a LOWER bound on the true age, not the age: a password copied forty
+ * minutes before the app launched reports a few milliseconds. Treating that
+ * number as an age is exactly the startup hole the guard exists to close, so
+ * callers must branch on this rather than compare `ms` alone.
+ */
+export type ClipboardAgeOrigin = "change" | "baseline";
+
+export type ClipboardAge = {
+  ms: number;
+  origin: ClipboardAgeOrigin;
+};
+
 export type ClipboardObserver = {
   /** Folds one observation into the running state. No-op while suspended. */
   observe: (text: string, at?: number) => void;
   /**
-   * Milliseconds since the last observed change, or — before any change has
-   * been seen — since the first sighting.
+   * How long the current clipboard content has been there, tagged with what
+   * that number is measured from (see {@link ClipboardAgeOrigin}).
    *
    * `null` only while nothing has been observed at all, which is the one
-   * state where the age is genuinely unknown and the guard fails open.
+   * state where there is nothing to report and the guard fails open.
    *
-   * The first sighting is NOT a change, so it does not set `lastChangedAt`.
-   * It does establish a LOWER BOUND: text already on the pasteboard when we
-   * first looked was copied at some point before that, so it is at least this
-   * old. Reporting `null` forever in that case left the stale-clipboard guard
-   * permanently disarmed for the exact value it exists to catch — a password
-   * copied before FixLang started, never touched again, served to a transform
-   * by the empty-selection fallback.
+   * The first sighting is NOT a change, so it does not set `lastChangedAt`;
+   * it is reported as `origin: "baseline"` instead. Reporting `null` forever
+   * in that case left the stale-clipboard guard permanently disarmed for the
+   * exact value it exists to catch — a password copied before FixLang
+   * started, never touched again, served to a transform by the
+   * empty-selection fallback. Reporting it as a plain number left the same
+   * hole open for one limit-length window after launch, since the elapsed
+   * time since the sighting starts at zero however old the text is.
    */
-  ageMs: (at?: number) => number | null;
+  age: (at?: number) => ClipboardAge | null;
   /** Marks the start of a window where external code owns the clipboard. */
   suspend: () => void;
   /**
@@ -100,9 +122,10 @@ export const createClipboardObserver = ({
     },
     // A real change always wins over the baseline; the baseline is only the
     // floor for a clipboard we have never seen change.
-    ageMs: (at = now()) => {
-      const since = lastChangedAt ?? baselineAt;
-      return since === null ? null : at - since;
+    age: (at = now()) => {
+      if (lastChangedAt !== null) return { ms: at - lastChangedAt, origin: "change" };
+      if (baselineAt !== null) return { ms: at - baselineAt, origin: "baseline" };
+      return null;
     },
     suspend: () => {
       suspendDepth += 1;

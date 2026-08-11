@@ -37,6 +37,7 @@ const {
   getDefaultModelIdMock,
   getCurrentProfileIdMock,
   usageStoreMock,
+  getSecretGuardSettingsMock,
   loggerMock,
 } = vi.hoisted(() => ({
   makeAIRequestMock: vi.fn(),
@@ -53,6 +54,10 @@ const {
     getDay: vi.fn(),
     getMonth: vi.fn(),
   },
+  // Defaults to the shipped default (`confirm`), so every test in this file
+  // runs with the scan ARMED rather than with the one setting that disables it
+  // — a suite that silently tested `off` would prove nothing about the guard.
+  getSecretGuardSettingsMock: vi.fn(() => ({ mode: "confirm", highEntropyRule: false })),
   loggerMock: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
@@ -71,6 +76,9 @@ vi.mock("~/features/providers/store/apiStore", () => ({
 }));
 vi.mock("~/features/autocomplete/store/autocompleteUsageStore", () => ({
   autocompleteUsageStore: usageStoreMock,
+}));
+vi.mock("~/features/secretGuard/store/secretGuardStore", () => ({
+  secretGuardStore: { getSecretGuardSettings: getSecretGuardSettingsMock },
 }));
 vi.mock("~/main/logging/logService", () => ({ logger: loggerMock }));
 
@@ -1584,6 +1592,100 @@ describe("requestAutocompleteSuggestion", () => {
       await ask({ requestId: 2, prefix: `second paragraph ${window}` });
 
       expect(makeAIRequestMock).toHaveBeenCalledOnce();
+    });
+  });
+
+  /**
+   * THE SECRET SCAN, which is the only guard shape that fits this surface.
+   *
+   * `SECRET_SEND_SITE_POLICY` gives Ask a `confirm` at SUBMIT — and as of
+   * 0.23.0 that is too late for this path, because ghost-text requests carry
+   * the ATTACHED Ask context, so the user's selection reaches a provider once
+   * per debounce interval long before there is anything to submit. A modal is
+   * categorically impossible per keystroke, so autocomplete refuses to
+   * dispatch instead of asking.
+   */
+  describe("the secret scan", () => {
+    // Assembled rather than written out, so the file itself never contains a
+    // contiguous credential-shaped literal for a scanner to flag.
+    const fakeAwsKeyId = ["AKIA", "IOSFODNN7", "EXAMPLE"].join("");
+
+    // `vi.clearAllMocks()` in the outer `beforeEach` clears CALLS, not
+    // implementations, so the `mode: "off"` case below would otherwise leak
+    // into every test declared after it and silently disarm them.
+    beforeEach(() => {
+      getSecretGuardSettingsMock.mockReturnValue({ mode: "confirm", highEntropyRule: false });
+    });
+
+    it("dispatches nothing when the text around the caret looks like a credential", async () => {
+      await ask({ prefix: `my key is ${fakeAwsKeyId}` });
+
+      expect(makeAIRequestMock).not.toHaveBeenCalled();
+    });
+
+    /**
+     * The half of this that actually matters. The typed prefix is FixLang's
+     * own window; the attached context is the user's selection or clipboard,
+     * and it rides every request without them typing a character of it.
+     */
+    it("dispatches nothing when the ATTACHED context contains one, even on an innocuous prefix", async () => {
+      rememberAskContext("window-1", { text: `deploy key ${fakeAwsKeyId}`, source: "selection" });
+
+      await ask({ prefix: LONG_PREFIX });
+
+      expect(makeAIRequestMock).not.toHaveBeenCalled();
+    });
+
+    /**
+     * ABOVE the cache, unlike every other refusal in this function. The others
+     * are about cost, and a cache hit costs nothing; this one is about what
+     * leaves the machine, and it has to hold for as long as the credential is
+     * on screen rather than until the first reply for that prefix is cached.
+     */
+    it("refuses a prefix whose suggestion is already cached", async () => {
+      const prefix = `${LONG_PREFIX} over`;
+      await ask({ prefix });
+      expect(makeAIRequestMock).toHaveBeenCalledOnce();
+
+      rememberAskContext("window-1", { text: fakeAwsKeyId, source: "clipboard" });
+      const result = await ask({ requestId: 2, prefix });
+
+      expect(result.suggestion).toBeNull();
+      expect(makeAIRequestMock).toHaveBeenCalledOnce();
+    });
+
+    it("dispatches normally when the secret guard is off", async () => {
+      getSecretGuardSettingsMock.mockReturnValue({ mode: "off", highEntropyRule: false });
+
+      await ask({ prefix: `my key is ${fakeAwsKeyId}` });
+
+      expect(makeAIRequestMock).toHaveBeenCalledOnce();
+    });
+
+    /**
+     * `warn`, because this is the one skip the user can be actively harmed by
+     * not knowing about: it fires while they type something credential-shaped
+     * and the ghost simply stops appearing.
+     *
+     * The rule ids are an array VALUE. Spread as KEYS — `{[ruleId]: 1}` —
+     * `redactLogContext` would blank exactly the ones whose names contain
+     * `key`/`token`/`secret` and silently keep the rest, so the mistake looks
+     * like it worked in half the cases. Nothing here carries a length either:
+     * on a prefix that is mostly one credential, that is most of a fingerprint.
+     */
+    it("warns with the rule ids and not one character of the text", async () => {
+      await ask({ prefix: `my key is ${fakeAwsKeyId}` });
+
+      const context = loggerMock.warn.mock.calls
+        .map(([, , logContext]) => logContext as LogContext)
+        .find((logContext) => logContext?.reason === "secret-in-text");
+      expect(context).toBeDefined();
+      expect(context).toMatchObject({
+        reason: "secret-in-text",
+        ruleIds: ["aws-access-key-id"],
+      });
+      expect(redactLogContext(context ?? {})).toEqual(context);
+      expect(JSON.stringify(context)).not.toContain(fakeAwsKeyId);
     });
   });
 

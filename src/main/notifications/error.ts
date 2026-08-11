@@ -129,6 +129,47 @@ const resolveNotificationBody = (
 };
 
 /**
+ * Shows a desktop notification, falling back to the in-app error popup when
+ * the platform cannot deliver one.
+ *
+ * FixLang ships unsigned, and macOS refuses notifications from an unsigned
+ * bundle with `Application is not code signed` — delivered asynchronously on
+ * the `failed` event, not as a throw, so a bare `new Notification(...).show()`
+ * reports success and shows the user nothing. Any warning that is the only
+ * explanation for something the app just did differently must come through
+ * here rather than construct its own `Notification`.
+ */
+export const showNotificationWithFallback = (options: {
+  title: string;
+  body: string;
+  urgency?: "normal" | "critical";
+}): void => {
+  const showFallback = (): void => {
+    showErrorPopup(options.body);
+  };
+
+  try {
+    if (Notification.isSupported?.() === false) {
+      showFallback();
+      return;
+    }
+
+    const notification = new Notification({
+      title: options.title,
+      body: options.body,
+      ...(options.urgency === undefined ? {} : { urgency: options.urgency }),
+    });
+    notification.on("failed", (_event, notificationError: string) => {
+      console.error("Desktop notification failed:", notificationError);
+      showFallback();
+    });
+    notification.show();
+  } catch {
+    showFallback();
+  }
+};
+
+/**
  * Shows a desktop notification for a user-visible main-process error.
  *
  * The same Error is commonly rethrown through the AI request, hotkey, and IPC

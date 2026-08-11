@@ -64,13 +64,28 @@ vi.mock("~/features/correction/store/keybindingStore", () => ({
 vi.mock("~/features/correction/store/outputModeStore", () => ({
   outputModeStore: { getCorrectionOutputMode: vi.fn().mockReturnValue("popup") },
 }));
+vi.mock("~/features/guards/store/guardStore", () => ({
+  guardStore: {
+    getSelectionGuardSettings: vi.fn(() => ({
+      clipboardMaxAgeSeconds: 5,
+      maxSelectionChars: 20_000,
+      deniedBundleIds: [],
+    })),
+  },
+}));
+vi.mock("../clipboard/clipboardChangeTracker", () => ({
+  clipboardAge: vi.fn(() => null),
+}));
 vi.mock("../../utils", () => ({
   getHighlightedTextWithActiveApp: vi
     .fn()
     .mockResolvedValue({ text: "some selected text", activeApp: null }),
-  getAskContext: vi
-    .fn()
-    .mockResolvedValue({ text: "some selected text", source: "selection" }),
+  getAskContext: vi.fn().mockResolvedValue({
+    text: "some selected text",
+    source: "selection",
+    activeApp: null,
+    changed: true,
+  }),
   pasteText: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../ai.request", () => ({ fixGrammar: vi.fn() }));
@@ -109,6 +124,7 @@ vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
   showErrorPopup: vi.fn(),
 }));
 import { COMBO_CANCEL_ACCELERATOR } from "~/features/correction/shared/comboValidation";
+import { guardStore } from "~/features/guards/store/guardStore";
 import {
   getDefaultCorrectionSettings,
   getProfileSetting,
@@ -518,6 +534,8 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
     (getAskContext as Mock).mockResolvedValue({
       text: "some selected text",
       source: "selection",
+      activeApp: null,
+      changed: true,
     });
   });
 
@@ -540,7 +558,12 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
   });
 
   it("opens the Ask input window instead of aborting when nothing is selected, and never fires the noTextSelected notification", async () => {
-    (getAskContext as Mock).mockResolvedValue({ text: "", source: "clipboard" });
+    (getAskContext as Mock).mockResolvedValue({
+      text: "",
+      source: "clipboard",
+      activeApp: null,
+      changed: false,
+    });
 
     const calls = registerFrom(singleBuiltInProfile);
     const askCall = calls.find(([shortcut]) => shortcut === ASK_HOTKEY);
@@ -564,9 +587,12 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
     );
   });
 
-  it("reads via getAskContext, not the combined active-app read, and carries the source through to the window", async () => {
-    // Two properties in one. Ask AI never uses source-app context, so it must
-    // not pay for the combined read at all. And when the copy produced nothing,
+  it("reads via getAskContext, not the combined read directly, and carries the source through to the window", async () => {
+    // Two properties in one. Ask AI never puts a source app in its PROMPT, so
+    // it goes through `getAskContext` rather than reaching for the combined
+    // reader itself (what that helper now does internally to expose the
+    // frontmost app to the deny-list is its business, not this branch's). And
+    // when the copy produced nothing,
     // the clipboard it falls back to reaches the window LABELLED — the window
     // says "From clipboard" over text that may be minutes old, instead of
     // presenting it as what the user just highlighted. That label is the whole
@@ -579,6 +605,8 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
     (getAskContext as Mock).mockResolvedValue({
       text: "text the user copied by hand",
       source: "clipboard",
+      activeApp: null,
+      changed: false,
     });
 
     const calls = registerFrom(singleBuiltInProfile);
@@ -597,6 +625,82 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
         onSubmit: expect.any(Function),
         onCancel: expect.any(Function),
       }),
+    );
+  });
+
+  /**
+   * ASK REACHES THE SAME GUARDS AS EVERY OTHER PRESET, and reaches them
+   * BEFORE the window opens rather than at submit.
+   *
+   * The window is a consent surface for what it DISPLAYS; it is not a
+   * substitute for the rules the user configured. A denied app, a clipboard
+   * of unknown age and a whole selected document are all things they asked to
+   * be stopped on, and a `From clipboard` label answers none of them. Before
+   * this, `preset.requiresInput` never called `evaluateSelectionGuards` at
+   * all and never read the frontmost app, so a selection inside 1Password was
+   * attached like any other text.
+   *
+   * Ask DROPS rather than confirms: a modal stacked in front of the input
+   * window would fight it for focus and ask the wrong question, since the
+   * question can always stand alone.
+   */
+  it("drops a denied app's selection but still opens the window, and says so", async () => {
+    (getAskContext as Mock).mockResolvedValue({
+      text: "my master password is hunter2",
+      source: "selection",
+      activeApp: { name: "1Password", bundleId: "com.1password.1password" },
+      changed: true,
+    });
+    (guardStore.getSelectionGuardSettings as Mock).mockReturnValue({
+      clipboardMaxAgeSeconds: 5,
+      maxSelectionChars: 20_000,
+      deniedBundleIds: ["com.1password.1password"],
+    });
+
+    const calls = registerFrom(singleBuiltInProfile);
+    const askCall = calls.find(([shortcut]) => shortcut === ASK_HOTKEY);
+    await askCall?.[1]();
+
+    // The window still opens — a refusal that killed the press outright would
+    // read as a broken hotkey.
+    expect(showAskInputWindow).toHaveBeenCalledWith(
+      expect.objectContaining({ context: "" }),
+      expect.anything(),
+    );
+    // Told once, because a context that silently fails to attach is
+    // indistinguishable from a hotkey that silently read nothing.
+    expect(Notification).toHaveBeenCalledTimes(1);
+
+    const warn = (logger.warn as Mock).mock.calls.find(
+      ([, message]) => message === "Ask context dropped by a selection guard",
+    );
+    expect(warn?.[2]).toMatchObject({
+      presetId: DEFAULT_ASK_PRESET_ID,
+      guardReason: "denied-app",
+      deniedBundleId: "com.1password.1password",
+    });
+  });
+
+  it("drops an over-limit context rather than opening a modal in front of the input window", async () => {
+    (getAskContext as Mock).mockResolvedValue({
+      text: "x".repeat(30_000),
+      source: "selection",
+      activeApp: null,
+      changed: true,
+    });
+    (guardStore.getSelectionGuardSettings as Mock).mockReturnValue({
+      clipboardMaxAgeSeconds: 5,
+      maxSelectionChars: 20_000,
+      deniedBundleIds: [],
+    });
+
+    const calls = registerFrom(singleBuiltInProfile);
+    const askCall = calls.find(([shortcut]) => shortcut === ASK_HOTKEY);
+    await askCall?.[1]();
+
+    expect(showAskInputWindow).toHaveBeenCalledWith(
+      expect.objectContaining({ context: "" }),
+      expect.anything(),
     );
   });
 

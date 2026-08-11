@@ -17,7 +17,7 @@ describe("createClipboardObserver", () => {
   it("reports null only before anything has been observed at all", () => {
     const observer = createClipboardObserver();
 
-    expect(observer.ageMs(1_000)).toBeNull();
+    expect(observer.age(1_000)).toBeNull();
   });
 
   /**
@@ -37,8 +37,8 @@ describe("createClipboardObserver", () => {
 
     observer.observe("copied before FixLang started", 1_000);
 
-    expect(observer.ageMs(1_000)).toBe(0);
-    expect(observer.ageMs(50_000)).toBe(49_000);
+    expect(observer.age(1_000)).toEqual({ ms: 0, origin: "baseline" });
+    expect(observer.age(50_000)).toEqual({ ms: 49_000, origin: "baseline" });
     expect(observer.snapshot()).toEqual({
       length: "copied before FixLang started".length,
       hasBaseline: true,
@@ -52,7 +52,7 @@ describe("createClipboardObserver", () => {
     observer.observe("before launch", 1_000);
     observer.observe("a genuine copy", 30_000);
 
-    expect(observer.ageMs(40_000)).toBe(10_000);
+    expect(observer.age(40_000)).toEqual({ ms: 10_000, origin: "change" });
   });
 
   it("registers two different strings of the SAME length as a change", () => {
@@ -64,7 +64,7 @@ describe("createClipboardObserver", () => {
     const snapshot = observer.snapshot();
     expect(snapshot.lastChangedAt).toBe(2_000);
     expect(snapshot.length).toBe(8);
-    expect(observer.ageMs(2_500)).toBe(500);
+    expect(observer.age(2_500)).toEqual({ ms: 500, origin: "change" });
   });
 
   it("does not register a re-observation of the identical text as a change", () => {
@@ -78,7 +78,7 @@ describe("createClipboardObserver", () => {
     // from the baseline, because the text has demonstrably been sitting there
     // since then.
     expect(observer.snapshot().lastChangedAt).toBeNull();
-    expect(observer.ageMs(5_000)).toBe(4_000);
+    expect(observer.age(5_000)).toEqual({ ms: 4_000, origin: "baseline" });
   });
 
   it("ignores observe() entirely while suspended", () => {
@@ -125,14 +125,14 @@ describe("createClipboardObserver", () => {
     // the change/no-change decision.
     observer.resume("inner-window-snapshot", 601_000);
     expect(observer.snapshot().lastChangedAt).toBe(1_000);
-    expect(observer.ageMs(601_000)).toBe(600_000);
+    expect(observer.age(601_000)).toEqual({ ms: 600_000, origin: "change" });
 
     // Outer window closes, restoring exactly what was there before either
     // window opened. Depth reaches 0, so this DOES fold, and it matches the
     // baseline, so lastChangedAt still must not move.
     observer.resume("real-change", 601_500);
     expect(observer.snapshot().lastChangedAt).toBe(1_000);
-    expect(observer.ageMs(601_500)).toBe(600_500);
+    expect(observer.age(601_500)).toEqual({ ms: 600_500, origin: "change" });
   });
 
   it("never exposes the observed text from snapshot()", () => {

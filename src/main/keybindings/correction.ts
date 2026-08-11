@@ -3,7 +3,12 @@ import { COMBO_CANCEL_ACCELERATOR } from "~/features/correction/shared/comboVali
 import { resolvePresetOutputMode } from "~/features/correction/shared/presetOutputMode";
 import { keybindingStore } from "~/features/correction/store/keybindingStore";
 import { outputModeStore } from "~/features/correction/store/outputModeStore";
-import { evaluateSelectionGuards } from "~/features/guards/shared/selectionGuards";
+import {
+  evaluateSelectionGuards,
+  selectionGuardLogContext,
+  type SelectionGuardConfirmVerdict,
+  type SelectionGuardVerdict,
+} from "~/features/guards/shared/selectionGuards";
 import { guardStore } from "~/features/guards/store/guardStore";
 import { syncHistory } from "~/features/history/main/history";
 import { getProfileSetting } from "~/features/providers/store/apiStore";
@@ -46,10 +51,14 @@ import { buildPriceMap, computeCost } from "../ai.request/cost";
 import { getCachedModels, isLocalModelId } from "../ai.request/shared";
 import * as clipboardChangeTracker from "../clipboard/clipboardChangeTracker";
 import { prewarmProviderConnection } from "../llm/prewarm";
-import { startLatencyTimer, type LatencyTimer } from "../logging/latencyTimer";
+import {
+  startLatencyTimer,
+  type LatencyOutcome,
+  type LatencyTimer,
+} from "../logging/latencyTimer";
 import { logger } from "../logging/logService";
-import { confirmLargeSelection } from "../notifications/confirmLargeSelection";
-import { LocalizedError } from "../notifications/error";
+import { confirmSelectionGuard } from "../notifications/confirmSelectionGuard";
+import { LocalizedError, showNotificationWithFallback } from "../notifications/error";
 import {
   hideOverlaySpinner,
   showOverlaySpinner,
@@ -60,6 +69,55 @@ import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWi
 import type { BrowserWindow } from "electron";
 import type { ComboPreset, ComboStep } from "~/features/providers/store/apiStore";
 import type { ComboProgressView } from "~/main/webViewWindows/comboProgressView";
+
+/**
+ * One decline outcome per confirm reason, so a latency line says which
+ * dialog the user backed out of rather than collapsing three different
+ * decisions into one number.
+ */
+const SELECTION_GUARD_DECLINE_OUTCOME = {
+  "large-selection": "declined-size",
+  "stale-clipboard": "declined-stale",
+  "unknown-clipboard-age": "declined-unknown-age",
+} as const satisfies Record<SelectionGuardConfirmVerdict["reason"], LatencyOutcome>;
+
+/**
+ * Applies a selection-guard verdict to Ask AI's optional context, returning
+ * what may be attached — the text, or `""`.
+ *
+ * Ask DROPS rather than confirms, and that is the whole difference between
+ * this and every other preset. A dialog stacked in front of the input window
+ * would fight it for focus, and it would ask the wrong question: for a
+ * transform the choice is send-or-nothing, while here the question can always
+ * stand alone, so refusing the context still leaves a working press. Dropping
+ * is also the only option that stays honest about the deny-list, which is not
+ * overridable anywhere else and must not become overridable here.
+ *
+ * The user is told once, by notification, because a context that silently
+ * fails to attach is indistinguishable from a hotkey that silently failed to
+ * read anything — and that is the one thing the source label was added to
+ * stop. Which guard fired goes to the log, not the notification.
+ */
+const resolveAskContextUnderGuards = (
+  verdict: SelectionGuardVerdict,
+  text: string,
+  presetId: string,
+): string => {
+  if (verdict.kind === "allow") return text;
+
+  logger.warn("correction.hotkey", "Ask context dropped by a selection guard", {
+    presetId,
+    guardReason: verdict.reason,
+    ...(verdict.kind === "block"
+      ? { deniedBundleId: verdict.bundleId }
+      : selectionGuardLogContext(verdict)),
+  });
+  showNotificationWithFallback({
+    title: mainT("notifications.askContextDropped.title"),
+    body: mainT("notifications.askContextDropped.body"),
+  });
+  return "";
+};
 
 /**
  * `runCombo` throws this dedicated class (`comboFlow.ts`) at every abort
@@ -466,7 +524,7 @@ const runComboFromHotkey = async (
           text: selectedText,
           changed,
           activeApp,
-          ageMs: clipboardChangeTracker.ageMs(),
+          age: clipboardChangeTracker.clipboardAge(),
           settings: guardStore.getSelectionGuardSettings(),
         });
 
@@ -476,22 +534,14 @@ const runComboFromHotkey = async (
           logger.warn("correction.hotkey", "Combo blocked by a selection guard", {
             comboId: combo.id,
             guardReason: verdict.reason,
-            ...(verdict.reason === "stale-clipboard"
-              ? { selectionAgeMs: verdict.ageMs, ageLimitMs: verdict.limitMs }
-              : { deniedBundleId: verdict.bundleId }),
+            deniedBundleId: verdict.bundleId,
           });
           handleError(
-            verdict.reason === "stale-clipboard"
-              ? new LocalizedError(
-                  "Selection blocked: clipboard is older than the configured age limit.",
-                  "notifications.error.staleClipboard.body",
-                  { seconds: Math.round(verdict.limitMs / 1000) },
-                )
-              : new LocalizedError(
-                  "Selection blocked: the frontmost app is on the deny-list.",
-                  "notifications.error.appNotAllowed.body",
-                  { app: activeApp?.name ?? verdict.bundleId },
-                ),
+            new LocalizedError(
+              "Selection blocked: the frontmost app is on the deny-list.",
+              "notifications.error.appNotAllowed.body",
+              { app: activeApp?.name ?? verdict.bundleId },
+            ),
           );
           return;
         }
@@ -499,16 +549,16 @@ const runComboFromHotkey = async (
         if (verdict.kind === "confirm") {
           hideOverlaySpinner();
           latency.pause();
-          const proceed = await confirmLargeSelection(verdict.chars, verdict.limit);
+          const proceed = await confirmSelectionGuard(verdict);
           latency.resume();
 
           if (!proceed) {
-            latency.finish({ outcome: "declined-size" });
-            logger.info(
-              "correction.hotkey",
-              "Combo declined at the large-selection confirm",
-              { comboId: combo.id, textLength: verdict.chars, charLimit: verdict.limit },
-            );
+            latency.finish({ outcome: SELECTION_GUARD_DECLINE_OUTCOME[verdict.reason] });
+            logger.info("correction.hotkey", "Combo declined at a selection-guard confirm", {
+              comboId: combo.id,
+              guardReason: verdict.reason,
+              ...selectionGuardLogContext(verdict),
+            });
             // NO error notification — Cancel is a choice, not an error.
             return;
           }
@@ -710,8 +760,33 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         // frontmost app at all, since that read would just be a wasted
         // osascript round-trip for this preset.
         if (preset.requiresInput) {
-          const { text: context, source: contextSource } = await getAskContext();
+          const {
+            text: askText,
+            source: contextSource,
+            activeApp: askActiveApp,
+            changed: askChanged,
+          } = await getAskContext();
           latency.mark("selectionRead");
+
+          // Ask reaches the same guards as every other preset, and reaches
+          // them HERE — before the window opens — rather than at submit.
+          // The window is a consent surface for what it displays, not a
+          // substitute for the rules the user configured: a denied app, a
+          // clipboard of unknown age and a whole selected document are all
+          // things they asked to be stopped on, and none of them is answered
+          // by a label. Attaching nothing is a supported state for this
+          // preset, so a refusal here drops the CONTEXT and still opens the
+          // window — the question can stand alone, and killing the press
+          // outright would make the guard read as a broken hotkey.
+          const askVerdict = evaluateSelectionGuards({
+            text: askText,
+            changed: askChanged,
+            activeApp: askActiveApp,
+            age: clipboardChangeTracker.clipboardAge(),
+            settings: guardStore.getSelectionGuardSettings(),
+          });
+
+          const context = resolveAskContextUnderGuards(askVerdict, askText, preset.id);
           // The one line that says whether the selection made it, and which
           // source it came from. Without it, "the user selected nothing" and
           // "the copy produced nothing so this is their clipboard" both look
@@ -798,7 +873,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           text: selectedText,
           changed,
           activeApp,
-          ageMs: clipboardChangeTracker.ageMs(),
+          age: clipboardChangeTracker.clipboardAge(),
           settings: guardStore.getSelectionGuardSettings(),
         });
 
@@ -810,22 +885,14 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           logger.warn("correction.hotkey", "Transform blocked by a selection guard", {
             presetId: preset.id,
             guardReason: verdict.reason,
-            ...(verdict.reason === "stale-clipboard"
-              ? { selectionAgeMs: verdict.ageMs, ageLimitMs: verdict.limitMs }
-              : { deniedBundleId: verdict.bundleId }),
+            deniedBundleId: verdict.bundleId,
           });
           handleError(
-            verdict.reason === "stale-clipboard"
-              ? new LocalizedError(
-                  "Selection blocked: clipboard is older than the configured age limit.",
-                  "notifications.error.staleClipboard.body",
-                  { seconds: Math.round(verdict.limitMs / 1000) },
-                )
-              : new LocalizedError(
-                  "Selection blocked: the frontmost app is on the deny-list.",
-                  "notifications.error.appNotAllowed.body",
-                  { app: activeApp?.name ?? verdict.bundleId },
-                ),
+            new LocalizedError(
+              "Selection blocked: the frontmost app is on the deny-list.",
+              "notifications.error.appNotAllowed.body",
+              { app: activeApp?.name ?? verdict.bundleId },
+            ),
           );
           return;
         }
@@ -833,16 +900,16 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         if (verdict.kind === "confirm") {
           hideOverlaySpinner();
           latency.pause();
-          const proceed = await confirmLargeSelection(verdict.chars, verdict.limit);
+          const proceed = await confirmSelectionGuard(verdict);
           latency.resume();
 
           if (!proceed) {
-            latency.finish({ outcome: "declined-size" });
-            logger.info(
-              "correction.hotkey",
-              "Transform declined at the large-selection confirm",
-              { presetId: preset.id, textLength: verdict.chars, charLimit: verdict.limit },
-            );
+            latency.finish({ outcome: SELECTION_GUARD_DECLINE_OUTCOME[verdict.reason] });
+            logger.info("correction.hotkey", "Transform declined at a selection-guard confirm", {
+              presetId: preset.id,
+              guardReason: verdict.reason,
+              ...selectionGuardLogContext(verdict),
+            });
             // NO error notification — the user clicked Cancel, which is not
             // an error. A toast here would train people to dismiss toasts.
             return;
@@ -926,10 +993,14 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
             missingCount: restore.missingCount,
             placeholderCount: gate.masking?.placeholderCount ?? 0,
           });
-          new Notification({
+          // Not a bare `new Notification` — this warning is the ONLY thing
+          // explaining a popup full of placeholders, and an unsigned build
+          // fails notification delivery on the async `failed` event.
+          showNotificationWithFallback({
             title: mainT("notifications.secretGuard.restoreFailed.title"),
             body: mainT("notifications.secretGuard.restoreFailed.body"),
-          }).show();
+            urgency: "critical",
+          });
         }
 
         if (

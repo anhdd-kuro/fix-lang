@@ -69,7 +69,7 @@ describe("clipboardChangeTracker", () => {
 
     expect(setIntervalSpy).not.toHaveBeenCalled();
     expect(readTextMock).not.toHaveBeenCalled();
-    expect(tracker.ageMs()).toBeNull();
+    expect(tracker.clipboardAge()).toBeNull();
   });
 
   it("start() alone never arms the interval before any settings have been applied (maxAgeSeconds defaults to 0)", async () => {
@@ -126,12 +126,13 @@ describe("clipboardChangeTracker", () => {
     readTextMock.mockReturnValue("before sleep — baseline");
     vi.advanceTimersByTime(1_000); // first sighting: baseline only
     // Not a change, so it ages from the baseline rather than reporting null —
-    // a clipboard that predates FixLang is old, not of unknown age.
-    expect(tracker.ageMs()).toBe(0);
+    // a clipboard that predates FixLang is old, not of unknown age. The
+    // `origin` is what says the number is a lower bound rather than an age.
+    expect(tracker.clipboardAge()).toEqual({ ms: 0, origin: "baseline" });
 
     readTextMock.mockReturnValue("before sleep — changed");
     vi.advanceTimersByTime(1_000); // genuine change
-    expect(tracker.ageMs()).toBe(0);
+    expect(tracker.clipboardAge()).toEqual({ ms: 0, origin: "change" });
 
     const suspend = powerMonitorHandlers.get("suspend");
     const resume = powerMonitorHandlers.get("resume");
@@ -146,12 +147,12 @@ describe("clipboardChangeTracker", () => {
 
     // Immediately on wake, before any new poll: age already reflects the
     // real elapsed time because it is computed from the clock, not ticks.
-    expect(tracker.ageMs()).toBe(EIGHT_HOURS_MS);
+    expect(tracker.clipboardAge()).toEqual({ ms: EIGHT_HOURS_MS, origin: "change" });
 
     // The clipboard is unchanged across the sleep, so the next real poll
     // must not reset lastChangedAt back toward 0.
     vi.advanceTimersByTime(1_000);
-    expect(tracker.ageMs()).toBe(EIGHT_HOURS_MS + 1_000);
+    expect(tracker.clipboardAge()).toEqual({ ms: EIGHT_HOURS_MS + 1_000, origin: "change" });
   });
 
   it("pauses the poll on suspend so it does not read the clipboard while the machine is asleep", async () => {

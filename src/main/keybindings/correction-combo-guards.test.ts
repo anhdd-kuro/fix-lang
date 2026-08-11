@@ -13,7 +13,7 @@
  * `evaluateSelectionGuards`, `runSecretGate`, `scanForSecrets`, `maskSecrets`
  * and `runCombo` are all kept REAL — only their electron-touching neighbours
  * (`guardStore`, `secretGuardStore`, `clipboardChangeTracker`,
- * `confirmLargeSelection`, `confirmSecretSend`) are mocked. A mocked gate
+ * `confirmSelectionGuard`, `confirmSecretSend`) are mocked. A mocked gate
  * would let a call site that re-derives the per-site policy pass, which is
  * exactly the failure `SECRET_SEND_SITE_POLICY` exists to prevent.
  */
@@ -76,9 +76,9 @@ vi.mock("~/features/secretGuard/store/secretGuardStore", () => ({
 vi.mock("~/main/notifications/secretGuardDialog", () => ({
   confirmSecretSend: vi.fn(),
 }));
-vi.mock("../clipboard/clipboardChangeTracker", () => ({ ageMs: vi.fn() }));
-vi.mock("../notifications/confirmLargeSelection", () => ({
-  confirmLargeSelection: vi.fn(),
+vi.mock("../clipboard/clipboardChangeTracker", () => ({ clipboardAge: vi.fn() }));
+vi.mock("../notifications/confirmSelectionGuard", () => ({
+  confirmSelectionGuard: vi.fn(),
 }));
 vi.mock("../../utils", () => ({
   getHighlightedTextWithActiveApp: vi.fn(),
@@ -128,7 +128,7 @@ import { getHighlightedTextWithActiveApp, pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
 import * as clipboardChangeTracker from "../clipboard/clipboardChangeTracker";
 import { logger } from "../logging/logService";
-import { confirmLargeSelection } from "../notifications/confirmLargeSelection";
+import { confirmSelectionGuard } from "../notifications/confirmSelectionGuard";
 import {
   hideOverlaySpinner,
   showOverlaySpinner,
@@ -282,7 +282,7 @@ beforeEach(() => {
   resetActiveComboForTests();
   (globalShortcut.register as Mock).mockReturnValue(true);
   (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(defaultGuardSettings());
-  (clipboardChangeTracker.ageMs as Mock).mockReturnValue(null);
+  (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue(null);
   setSecretGuardMode({ mode: "off" });
   mockSelection({ text: "some selected text" });
   // Each step returns text derived from what it was handed, so no assertion
@@ -311,24 +311,31 @@ describe("combo selection guards — allow", () => {
   });
 });
 
-describe("combo selection guards — block: stale-clipboard", () => {
-  it("blocks before any provider call, with a distinct localized error and one finish", async () => {
+describe("combo selection guards — confirm: stale-clipboard", () => {
+  it("asks before any provider call, and runs nothing when declined", async () => {
     mockSelection({ text: "a password copied 40 minutes ago", changed: false });
-    (clipboardChangeTracker.ageMs as Mock).mockReturnValue(2_400_000);
+    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({ ms: 2_400_000, origin: "change" });
+    (confirmSelectionGuard as Mock).mockResolvedValue(false);
 
     const handler = registerComboHandler();
     await handler();
 
+    expect(confirmSelectionGuard).toHaveBeenCalledWith({
+      kind: "confirm",
+      reason: "stale-clipboard",
+      ageMs: 2_400_000,
+      limitMs: 5_000,
+    });
     expectComboNeverRan();
-    expect(latencyOutcome()).toMatchObject({ outcome: "stale-clipboard" });
+    expect(latencyOutcome()).toMatchObject({ outcome: "declined-stale" });
     expect(hideOverlaySpinner).toHaveBeenCalled();
-    expect(handleError).toHaveBeenCalledTimes(1);
-    expect(errorMessageKey()).toBe("notifications.error.staleClipboard.body");
+    // Cancel is a decision, not an error.
+    expect(handleError).not.toHaveBeenCalled();
 
-    const warn = (logger.warn as Mock).mock.calls.find(
-      ([, message]) => message === "Combo blocked by a selection guard",
+    const info = (logger.info as Mock).mock.calls.find(
+      ([, message]) => message === "Combo declined at a selection-guard confirm",
     );
-    expect(warn?.[2]).toMatchObject({
+    expect(info?.[2]).toMatchObject({
       comboId: "combo-1",
       guardReason: "stale-clipboard",
       selectionAgeMs: 2_400_000,
@@ -369,12 +376,17 @@ describe("combo selection guards — confirm: Cancel", () => {
     (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
       defaultGuardSettings({ maxSelectionChars: 10 }),
     );
-    (confirmLargeSelection as Mock).mockResolvedValue(false);
+    (confirmSelectionGuard as Mock).mockResolvedValue(false);
 
     const handler = registerComboHandler();
     await handler();
 
-    expect(confirmLargeSelection).toHaveBeenCalledWith(40, 10);
+    expect(confirmSelectionGuard).toHaveBeenCalledWith({
+      kind: "confirm",
+      reason: "large-selection",
+      chars: 40,
+      limit: 10,
+    });
     expectComboNeverRan();
     expect(latencyOutcome()).toMatchObject({ outcome: "declined-size" });
     // Cancel is a choice, not an error: no toast, no notification.
@@ -389,7 +401,7 @@ describe("combo selection guards — confirm: Send", () => {
     (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
       defaultGuardSettings({ maxSelectionChars: 10 }),
     );
-    (confirmLargeSelection as Mock).mockResolvedValue(true);
+    (confirmSelectionGuard as Mock).mockResolvedValue(true);
 
     const handler = registerComboHandler();
     await handler();
@@ -527,7 +539,7 @@ describe("combo guard logging — log key redaction safety", () => {
       "a stale-clipboard block",
       () => {
         mockSelection({ text: "a password copied 40 minutes ago", changed: false });
-        (clipboardChangeTracker.ageMs as Mock).mockReturnValue(2_400_000);
+        (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({ ms: 2_400_000, origin: "change" });
       },
     ],
     [
@@ -546,7 +558,7 @@ describe("combo guard logging — log key redaction safety", () => {
         (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
           defaultGuardSettings({ maxSelectionChars: 10 }),
         );
-        (confirmLargeSelection as Mock).mockResolvedValue(false);
+        (confirmSelectionGuard as Mock).mockResolvedValue(false);
       },
     ],
     [
@@ -590,7 +602,7 @@ describe("combo guards — a run the lock watchdog already abandoned stops at th
       (confirmSecretSend as Mock).mockResolvedValue(true);
 
       let answerDialog: ((proceed: boolean) => void) | undefined;
-      (confirmLargeSelection as Mock).mockImplementation(
+      (confirmSelectionGuard as Mock).mockImplementation(
         () =>
           new Promise<boolean>((resolve) => {
             answerDialog = resolve;

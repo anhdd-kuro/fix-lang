@@ -29,6 +29,7 @@
  */
 import { clipboard, powerMonitor } from "electron";
 import { createClipboardObserver } from "./clipboardObserver";
+import type { ClipboardAge } from "./clipboardObserver";
 import type { SelectionGuardSettings } from "~/features/guards/shared/guardSettings";
 
 export const CLIPBOARD_TRACK_INTERVAL_MS = 1_000;
@@ -96,8 +97,11 @@ export const stop = (): void => {
   clearIntervalIfRunning();
 };
 
-/** Milliseconds since the last observed clipboard CHANGE, or `null` if none has been observed. */
-export const ageMs = (): number | null => observer.ageMs();
+/**
+ * How old the clipboard content is, tagged with whether that is a measured
+ * age or only a lower bound. `null` when nothing has been observed at all.
+ */
+export const clipboardAge = (): ClipboardAge | null => observer.age();
 
 /**
  * Folds in a clipboard read the caller already performed for another

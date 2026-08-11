@@ -196,11 +196,12 @@ describe("startLatencyTimer", () => {
     });
   });
 
-  it("admits the four guard outcomes to LatencyOutcome and still lets the first finish win", () => {
+  it("admits every guard outcome to LatencyOutcome and still lets the first finish win", () => {
     const guardOutcomes: readonly LatencyOutcome[] = [
-      "stale-clipboard",
       "denied-app",
       "declined-size",
+      "declined-stale",
+      "declined-unknown-age",
       "secret-declined",
     ];
 

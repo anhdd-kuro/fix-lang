@@ -37,12 +37,14 @@ export type LatencyOutcome =
   /** Ask AI only: the input window is up, the user now owns the clock. */
   | "input-shown"
   | "failed"
-  /** Guard refused: the copied selection is older than the age limit. */
-  | "stale-clipboard"
   /** Guard refused: the frontmost app is on the denylist. */
   | "denied-app"
   /** Guard refused: the selection exceeds the char limit and the user declined. */
   | "declined-size"
+  /** Guard refused: the clipboard is past the age limit and the user declined. */
+  | "declined-stale"
+  /** Guard refused: the clipboard predates the app and the user declined. */
+  | "declined-unknown-age"
   /** Guard refused: secrets were found and the user declined to proceed. */
   | "secret-declined";
 

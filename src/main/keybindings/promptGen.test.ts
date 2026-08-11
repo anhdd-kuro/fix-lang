@@ -14,7 +14,7 @@
  *
  * `evaluateSelectionGuards` (`~/features/guards/shared/selectionGuards`) is
  * kept REAL and pure — only its electron-touching neighbours (`guardStore`,
- * `clipboardChangeTracker`, `confirmLargeSelection`) are mocked, same as the
+ * `clipboardChangeTracker`, `confirmSelectionGuard`) are mocked, same as the
  * correction test file.
  */
 import { globalShortcut } from "electron";
@@ -56,9 +56,9 @@ vi.mock("~/features/secretGuard/store/secretGuardStore", () => ({
 vi.mock("~/main/notifications/secretGuardDialog", () => ({
   confirmSecretSend: vi.fn(),
 }));
-vi.mock("../clipboard/clipboardChangeTracker", () => ({ ageMs: vi.fn() }));
-vi.mock("../notifications/confirmLargeSelection", () => ({
-  confirmLargeSelection: vi.fn(),
+vi.mock("../clipboard/clipboardChangeTracker", () => ({ clipboardAge: vi.fn() }));
+vi.mock("../notifications/confirmSelectionGuard", () => ({
+  confirmSelectionGuard: vi.fn(),
 }));
 // Both former call sites of the two-spawn pair this migration replaces are
 // spied on directly (rather than merely absent from the mock) so criterion 1
@@ -104,7 +104,7 @@ import { registerPromptGenShortcut } from "./promptGen";
 import { handleError, resetHotkeyThrottleForTests } from "./utils";
 import * as clipboardChangeTracker from "../clipboard/clipboardChangeTracker";
 import { logger } from "../logging/logService";
-import { confirmLargeSelection } from "../notifications/confirmLargeSelection";
+import { confirmSelectionGuard } from "../notifications/confirmSelectionGuard";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
 import { showPromptGenWindow } from "../webViewWindows/promptGenWindow";
 import type * as KeybindingUtils from "./utils";
@@ -197,7 +197,7 @@ beforeEach(() => {
   resetHotkeyThrottleForTests();
   (globalShortcut.register as Mock).mockReturnValue(true);
   (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(defaultGuardSettings());
-  (clipboardChangeTracker.ageMs as Mock).mockReturnValue(null);
+  (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue(null);
   setSecretGuardMode("confirm");
   (confirmSecretSend as Mock).mockResolvedValue(true);
   (generatePrompt as Mock).mockResolvedValue({
@@ -242,26 +242,33 @@ describe("promptGen selection guards — allow", () => {
   });
 });
 
-describe("promptGen selection guards — block: stale-clipboard", () => {
-  it("blocks before generatePrompt, with a distinct localized error", async () => {
+describe("promptGen selection guards — confirm: stale-clipboard", () => {
+  it("asks before generatePrompt, and dispatches nothing when declined", async () => {
     mockSelection({ text: "a password copied 40 minutes ago", activeApp: null, changed: false });
     (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
       defaultGuardSettings({ clipboardMaxAgeSeconds: 5 }),
     );
-    (clipboardChangeTracker.ageMs as Mock).mockReturnValue(600_000);
+    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({ ms: 600_000, origin: "change" });
+    (confirmSelectionGuard as Mock).mockResolvedValue(false);
 
     const handler = registerPromptGenHandler();
     await handler();
 
+    expect(confirmSelectionGuard).toHaveBeenCalledWith({
+      kind: "confirm",
+      reason: "stale-clipboard",
+      ageMs: 600_000,
+      limitMs: 5_000,
+    });
     expect(generatePrompt).not.toHaveBeenCalled();
     expect(showPromptGenWindow).not.toHaveBeenCalled();
     expect(syncHistory).not.toHaveBeenCalled();
     expect(hideOverlaySpinner).toHaveBeenCalledTimes(1);
     expect(showOverlaySpinner).toHaveBeenCalledTimes(1); // only the initial combined-read callback
 
-    expect(logger.warn).toHaveBeenCalledWith(
+    expect(logger.info).toHaveBeenCalledWith(
       "promptGen.hotkey",
-      "PromptGen blocked by a selection guard",
+      "PromptGen declined at a selection-guard confirm",
       {
         guardReason: "stale-clipboard",
         selectionAgeMs: 600_000,
@@ -269,13 +276,28 @@ describe("promptGen selection guards — block: stale-clipboard", () => {
       },
     );
 
-    expect(handleError).toHaveBeenCalledTimes(1);
-    const [reportedError] = (handleError as Mock).mock.calls[0];
-    expect(reportedError).toMatchObject({
-      name: "LocalizedError",
-      messageKey: "notifications.error.staleClipboard.body",
+    // Cancel is a decision, not an error.
+    expect(handleError).not.toHaveBeenCalled();
+  });
+
+  it("asks about a baseline-origin age even when the number is well under the limit", async () => {
+    mockSelection({ text: "a password copied before launch", activeApp: null, changed: false });
+    (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
+      defaultGuardSettings({ clipboardMaxAgeSeconds: 5 }),
+    );
+    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({ ms: 12, origin: "baseline" });
+    (confirmSelectionGuard as Mock).mockResolvedValue(false);
+
+    const handler = registerPromptGenHandler();
+    await handler();
+
+    expect(confirmSelectionGuard).toHaveBeenCalledWith({
+      kind: "confirm",
+      reason: "unknown-clipboard-age",
+      ageMs: 12,
+      limitMs: 5_000,
     });
-    expect(reportedError.messageKey).not.toBe("notifications.error.noTextSelected.body");
+    expect(generatePrompt).not.toHaveBeenCalled();
   });
 });
 
@@ -318,12 +340,17 @@ describe("promptGen selection guards — confirm: Cancel", () => {
   it("dispatches nothing and raises no error notification", async () => {
     const bigText = "x".repeat(30_000);
     mockSelection({ text: bigText, activeApp: null, changed: true });
-    (confirmLargeSelection as Mock).mockResolvedValue(false);
+    (confirmSelectionGuard as Mock).mockResolvedValue(false);
 
     const handler = registerPromptGenHandler();
     await handler();
 
-    expect(confirmLargeSelection).toHaveBeenCalledWith(30_000, 20_000);
+    expect(confirmSelectionGuard).toHaveBeenCalledWith({
+      kind: "confirm",
+      reason: "large-selection",
+      chars: 30_000,
+      limit: 20_000,
+    });
     expect(generatePrompt).not.toHaveBeenCalled();
     expect(showPromptGenWindow).not.toHaveBeenCalled();
     // Cancel is a decision, not an error: no error notification at all.
@@ -331,8 +358,8 @@ describe("promptGen selection guards — confirm: Cancel", () => {
 
     expect(logger.info).toHaveBeenCalledWith(
       "promptGen.hotkey",
-      "PromptGen declined at the large-selection confirm",
-      { textLength: 30_000, charLimit: 20_000 },
+      "PromptGen declined at a selection-guard confirm",
+      { guardReason: "large-selection", textLength: 30_000, charLimit: 20_000 },
     );
 
     // Spinner hidden once for the confirm dialog and never re-shown.
@@ -345,12 +372,17 @@ describe("promptGen selection guards — confirm: Send", () => {
   it("re-shows the spinner and proceeds through generatePrompt", async () => {
     const bigText = "x".repeat(30_000);
     mockSelection({ text: bigText, activeApp: null, changed: true });
-    (confirmLargeSelection as Mock).mockResolvedValue(true);
+    (confirmSelectionGuard as Mock).mockResolvedValue(true);
 
     const handler = registerPromptGenHandler();
     await handler();
 
-    expect(confirmLargeSelection).toHaveBeenCalledWith(30_000, 20_000);
+    expect(confirmSelectionGuard).toHaveBeenCalledWith({
+      kind: "confirm",
+      reason: "large-selection",
+      chars: 30_000,
+      limit: 20_000,
+    });
     expect(generatePrompt).toHaveBeenCalledTimes(1);
     expect(generatePrompt).toHaveBeenCalledWith({ text: bigText, activeAppName: undefined });
     expect(showPromptGenWindow).toHaveBeenCalledTimes(1);
@@ -374,12 +406,12 @@ describe("promptGen selection guards — precedence", () => {
     (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(
       defaultGuardSettings({ clipboardMaxAgeSeconds: 5, maxSelectionChars: 20_000 }),
     );
-    (clipboardChangeTracker.ageMs as Mock).mockReturnValue(600_000);
+    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({ ms: 600_000, origin: "change" });
 
     const handler = registerPromptGenHandler();
     await handler();
 
-    expect(confirmLargeSelection).not.toHaveBeenCalled();
+    expect(confirmSelectionGuard).not.toHaveBeenCalled();
     expect(generatePrompt).not.toHaveBeenCalled();
 
     expect(logger.warn).toHaveBeenCalledWith(
