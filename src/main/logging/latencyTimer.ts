@@ -57,6 +57,18 @@ export const LATENCY_PHASE_NAMES = [
   "selectionPoll",
   /** Ask AI's optional-context read (single step, no spinner split). */
   "selectionRead",
+  /**
+   * Ask AI's press-environment read (`resolveAskEnvironment`) — the `defaults`
+   * spawn and the bounded history read. Dispatched CONCURRENTLY with
+   * `selectionRead`, so this is the time still left on it once the context read
+   * returned, not its full cost: normally ~0, and non-zero only when the
+   * environment read is the slower of the two.
+   *
+   * Named for what it reads and nothing else. `keyboardRead` would have been
+   * fine too, but anything carrying `clipboard`/`token`/`secret`/`selected_text`
+   * would have been blanked by `redactLogContext` — see the note above.
+   */
+  "environmentRead",
   "aiRequest",
   /** Paste keystroke returned, or the result popup was shown. */
   "delivery",

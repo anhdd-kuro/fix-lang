@@ -14,13 +14,13 @@ import {
   CACHE_MAX_ENTRIES,
   CACHE_TTL_MS,
   DAILY_REQUEST_BACKSTOP,
-  forgetAskContext,
+  forgetAskSession,
   MIN_PREFIX_CHARS,
   RATE_LIMIT_GLOBAL,
   RATE_LIMIT_MEMORY_MAX_ENTRIES,
   RATE_LIMIT_PER_SESSION,
   RATE_LIMIT_WINDOW_MS,
-  rememberAskContext,
+  rememberAskSession,
   requestAutocompleteSuggestion,
   resetAutocompleteState,
   RESOLUTION_MEMORY_MAX_ENTRIES,
@@ -1606,7 +1606,7 @@ describe("requestAutocompleteSuggestion", () => {
       makeAIRequestMock.mock.calls[call][0].systemPrompt as string;
 
     const attach = (text: string, source: AskContextSource = "selection"): void =>
-      rememberAskContext("window-1", { text, source });
+      rememberAskSession("window-1", { context: { text, source } });
 
     it("sends the passage the window has attached", async () => {
       attach("The deploy slipped to Friday.");
@@ -1679,7 +1679,7 @@ describe("requestAutocompleteSuggestion", () => {
     it("sends exactly the pre-context prompt when nothing is attached", async () => {
       await ask();
       attach("A selection.");
-      forgetAskContext("window-1");
+      forgetAskSession("window-1");
       await ask({ requestId: 2, prefix: `${LONG_PREFIX} again` });
 
       expect(sentPrompt(0)).not.toContain("Context the user attached");
@@ -1717,9 +1717,8 @@ describe("requestAutocompleteSuggestion", () => {
     it("bounds how many surfaces' passages it remembers, evicting the coldest", async () => {
       attach("Oldest surface's selection.");
       for (let index = 0; index < ASK_CONTEXT_MEMORY_MAX_ENTRIES; index += 1) {
-        rememberAskContext(`other-${index}`, {
-          text: `filler ${index}`,
-          source: "selection",
+        rememberAskSession(`other-${index}`, {
+          context: { text: `filler ${index}`, source: "selection" },
         });
       }
 
@@ -1799,6 +1798,149 @@ describe("requestAutocompleteSuggestion", () => {
         ]);
         expect(everythingLogged).not.toContain(passage);
         expect(everythingLogged).not.toContain("clinic");
+      });
+    });
+  });
+
+  /**
+   * THE PRESS ENVIRONMENT — the app locale, the system language, the keyboard
+   * input source, the press time and the recent preset names, rendered once at
+   * the hotkey by `askEnvironment.ts` and stashed here alongside the passage.
+   *
+   * It rides the same route and for the same reasons: the renderer cannot
+   * resolve any of it, and a field on the wire request would be
+   * renderer-controlled text going into a provider prompt.
+   */
+  describe("the press environment", () => {
+    const sentPrompt = (call = 0): string =>
+      makeAIRequestMock.mock.calls[call][0].userPrompt as string;
+
+    const ENVIRONMENT = [
+      "App locale: en",
+      "Keyboard input source: Japanese",
+      "Current time: 2026-08-11T14:32:05+09:00 (Asia/Tokyo)",
+    ].join("\n");
+
+    const attachEnvironment = (environment = ENVIRONMENT): void =>
+      rememberAskSession("window-1", { environment });
+
+    it("sends the block the press resolved", async () => {
+      attachEnvironment();
+
+      await ask();
+
+      expect(sentPrompt()).toContain("Keyboard input source: Japanese");
+    });
+
+    it("sends it alongside an attached passage rather than instead of one", async () => {
+      rememberAskSession("window-1", {
+        context: { text: "The deploy slipped to Friday.", source: "selection" },
+        environment: ENVIRONMENT,
+      });
+
+      await ask();
+
+      expect(sentPrompt()).toContain("The deploy slipped to Friday.");
+      expect(sentPrompt()).toContain("App locale: en");
+    });
+
+    /**
+     * THE CACHE KEY, hashed from the user prompt alone — so this lands in it for
+     * free, and the same half-typed question asked in a different keyboard
+     * layout (or hours later) cannot be served the earlier one's suggestion.
+     */
+    it("makes an identical prefix under a different environment a fresh request", async () => {
+      attachEnvironment();
+      await ask();
+
+      attachEnvironment(ENVIRONMENT.replace("Japanese", "ABC"));
+      await ask({ requestId: 2 });
+
+      expect(makeAIRequestMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("still serves an identical prefix under the same environment from cache", async () => {
+      attachEnvironment();
+
+      await ask();
+      await ask({ requestId: 2 });
+
+      expect(makeAIRequestMock).toHaveBeenCalledOnce();
+    });
+
+    /**
+     * WITH NEITHER BLOCK THE REQUEST IS BYTE-IDENTICAL TO WHAT IT WAS — the cost
+     * property, not a tidiness one: a bare question keeps the cheap path it
+     * already had, cache entries included.
+     */
+    it("sends exactly the pre-environment prompt when the press resolved none", async () => {
+      await ask();
+
+      expect(sentPrompt(0)).not.toContain("Environment at the time of the request");
+      expect(sentPrompt(0).startsWith("Text before the caret:")).toBe(true);
+    });
+
+    it("keeps one surface's environment out of another surface's prompt", async () => {
+      attachEnvironment();
+
+      await ask({ sessionId: "window-2" });
+
+      expect(sentPrompt()).not.toContain("Keyboard input source: Japanese");
+    });
+
+    describe("what it says about itself", () => {
+      const resolvedLine = (): LogContext =>
+        (loggerMock.debug.mock.calls.find(
+          (call) => call[1] === "Suggestion resolved",
+        )?.[2] ?? {}) as LogContext;
+
+      it("states how much of the block went out", async () => {
+        attachEnvironment();
+
+        await ask();
+
+        expect(resolvedLine().environmentLength).toBe(ENVIRONMENT.length);
+      });
+
+      it("reports zero when the press resolved no environment", async () => {
+        await ask();
+
+        expect(resolvedLine().environmentLength).toBe(0);
+      });
+
+      /**
+       * `redactLogContext` blanks any key merely CONTAINING `clipboard`,
+       * `token`, `secret` or `selected_text`, silently and with no error — the
+       * `selectionPoll` trap. Run through the REAL redactor.
+       */
+      it("emits an environment key that survives the real redactor", async () => {
+        attachEnvironment();
+
+        await ask();
+
+        const context = resolvedLine();
+        expect(redactLogContext(context)).toEqual(context);
+        expect(context).toHaveProperty("environmentLength");
+      });
+
+      /**
+       * The block names the user's own presets and states the minute they
+       * pressed the hotkey, and these lines are copyable and exportable from the
+       * Logs tab. Lengths only, exactly like the passage and the prefix.
+       */
+      it("never writes a directive line into a log", async () => {
+        attachEnvironment(`${ENVIRONMENT}\n- Clinic letter polish (2026-08-11T05:28:00.000Z)`);
+
+        await ask();
+
+        const everythingLogged = JSON.stringify([
+          ...loggerMock.debug.mock.calls,
+          ...loggerMock.info.mock.calls,
+          ...loggerMock.warn.mock.calls,
+          ...loggerMock.error.mock.calls,
+        ]);
+        expect(everythingLogged).not.toContain("Clinic letter polish");
+        expect(everythingLogged).not.toContain("Asia/Tokyo");
       });
     });
   });

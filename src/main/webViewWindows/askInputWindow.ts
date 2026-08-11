@@ -11,20 +11,25 @@ import path from "node:path";
 import { app, BrowserWindow, ipcMain, screen } from "electron";
 import {
   abortAutocomplete,
-  forgetAskContext,
-  rememberAskContext,
+  forgetAskSession,
+  rememberAskSession,
 } from "~/features/autocomplete/main/service";
 import { attachThemeSync } from "./attachThemeSync";
 import { clampToWorkArea } from "./cursorPlacement";
 import { buildAskInputWindowTitle } from "./windowTitles";
 import type { AskInputPayload } from "~/features/ask/shared/ask";
 
-const WINDOW_WIDTH = 520;
+/**
+ * 620, up from 520. Width only: the question box gets a longer line, which is
+ * what a 100px widening buys, and nothing in the height budget below moves with
+ * it. `minWidth` stays 420 — a user may still drag it narrow.
+ */
+const WINDOW_WIDTH = 620;
 
 /**
  * Two heights, chosen per press by {@link resolveWindowHeight}, because the
  * attached-context card is a fixed 200px block the window either carries or
- * does not — and a 588px window for a bare one-line question would dominate
+ * does not — and a 636px window for a bare one-line question would dominate
  * the screen.
  *
  * FRAMED sizes, not content sizes: there is deliberately no `useContentSize`
@@ -32,15 +37,23 @@ const WINDOW_WIDTH = 520;
  * renderer's `h-screen` is 32 less. Measured, not assumed —
  * `BrowserWindow({height: 200}).getContentSize()` reports 168. The page
  * budgets these frame (see the height budget on `<main>` in
- * `src/renderer/AskInputWindow/index.tsx`):
+ * `src/renderer/AskInputWindow/index.tsx`, which carries the SAME arithmetic
+ * and has to be edited with these):
  *
  *   no context:   24 (`py-3`) + 300 (textarea floor) + 8 (`gap-2`)
- *                 + 16 (footer)                        = 348 page + 32 = 380
- *   with context: that 348 + 200 (context card) + 8 (the second `gap-2`)
- *                                                      = 556 page + 32 = 588
+ *                 + 16 (footer) + 48 (transparency row + its `gap-2`)
+ *                                                      = 396 page + 32 = 428
+ *   with context: that 396 + 200 (context card) + 8 (the second `gap-2`)
+ *                                                      = 604 page + 32 = 636
+ *
+ * The 48 is the collapsed transparency row — the fold that states the system
+ * prompt and the appended directives verbatim — plus the one `gap-2` above it.
+ * Collapsed is the only state the window is sized for: expanding it scrolls
+ * inside the row rather than growing the window, the same bargain the context
+ * card's equal floor and cap make.
  */
-const WINDOW_HEIGHT_WITHOUT_CONTEXT = 380;
-const WINDOW_HEIGHT_WITH_CONTEXT = 588;
+const WINDOW_HEIGHT_WITHOUT_CONTEXT = 428;
+const WINDOW_HEIGHT_WITH_CONTEXT = 636;
 
 /**
  * The renderer shows the context card exactly when `payload.context` is
@@ -167,31 +180,46 @@ const createAskInputWindow = (): BrowserWindow => {
 };
 
 /**
- * Hands this window's attached context to the autocomplete service, or takes it
- * away — see `rememberAskContext` there for why the passage travels main-side
- * rather than over the wire.
+ * Hands this window's press record — the attached passage and the environment
+ * directives — to the autocomplete service, or takes it away. See
+ * `rememberAskSession` there for why both travel main-side rather than over the
+ * wire.
  *
- * An EMPTY context clears instead of storing: the window is a reused singleton
- * under one `webContents.id`, so a press with nothing selected would otherwise
- * keep suggesting against the PREVIOUS press's selection, with no card on screen
- * to say a context was attached at all.
+ * ONE call per press, carrying whatever this press resolved, because the store
+ * replaces wholesale: the window is a reused singleton under one
+ * `webContents.id`, so a press with nothing selected must not keep suggesting
+ * against the PREVIOUS press's selection with no card on screen to say a context
+ * was attached at all. Passing a session with no `context` clears it by
+ * replacement; a press that resolved neither clears the entry outright.
+ *
+ * `contextDirectives` is passed through verbatim rather than re-rendered, so the
+ * ghost text is written against the exact bytes the submitted question will
+ * carry and the transparency row is showing.
  *
  * The default of `selection` for an absent `contextSource` matches
  * `AskContextSource`'s own documented reading, so the prompt cannot label a
  * clipboard passage differently from the card that shows it.
  */
-const syncAskAutocompleteContext = (
+const syncAskAutocompleteSession = (
   win: BrowserWindow,
   payload: AskInputPayload,
 ): void => {
   const sessionId = String(win.webContents.id);
-  if (payload.context.length === 0) {
-    forgetAskContext(sessionId);
+  const environment = payload.contextDirectives ?? "";
+  if (payload.context.length === 0 && environment.length === 0) {
+    forgetAskSession(sessionId);
     return;
   }
-  rememberAskContext(sessionId, {
-    text: payload.context,
-    source: payload.contextSource ?? "selection",
+  rememberAskSession(sessionId, {
+    ...(payload.context.length > 0
+      ? {
+          context: {
+            text: payload.context,
+            source: payload.contextSource ?? "selection",
+          },
+        }
+      : {}),
+    ...(environment.length > 0 ? { environment } : {}),
   });
 };
 
@@ -205,7 +233,7 @@ const syncAskAutocompleteContext = (
  */
 const hideAskInputWindow = (): void => {
   if (inputWindow && !inputWindow.isDestroyed()) {
-    forgetAskContext(String(inputWindow.webContents.id));
+    forgetAskSession(String(inputWindow.webContents.id));
     inputWindow.hide();
   }
 };
@@ -287,7 +315,7 @@ export const showAskInputWindow = (
   // After creation, because the key is this window's `webContents.id`, and
   // before the window is revealed, because the first keystroke can dispatch a
   // suggestion the moment it is.
-  syncAskAutocompleteContext(win, payload);
+  syncAskAutocompleteSession(win, payload);
   // Resized before positioning, and the SAME height feeds the clamp — passing
   // a constant there would place the taller window as if it were the short one
   // and run it off the bottom of the screen.

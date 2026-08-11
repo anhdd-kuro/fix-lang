@@ -184,6 +184,60 @@ describe("runAskFlow", () => {
     );
   });
 
+  /**
+   * THE DIRECTIVES ARE HANDED IN, not rebuilt here — and that is the whole
+   * point of the transparency row: the input window is showing this exact
+   * string, and every autocomplete dispatch made while the user typed already
+   * carried it. Rebuilding at submit would state one thing on screen and send
+   * another, and would re-read a clock the window quoted minutes ago.
+   */
+  it("appends the caller's directive block verbatim instead of rebuilding one", async () => {
+    (getLocale as Mock).mockReturnValue("ja");
+    const directives = [
+      "App locale: ja",
+      "System language: en-US",
+      "Keyboard input source: Japanese",
+      "Current time: 2026-08-11T14:32:05+09:00 (Asia/Tokyo)",
+      "Recent transforms (most recent first, names and times only):",
+      "- Correction (2026-08-11T05:28:00.000Z)",
+    ].join("\n");
+
+    await runAskFlow({
+      preset: basePreset,
+      context: "",
+      question: "How do I say this politely?",
+      directives,
+      mainWindow: fakeMainWindow(),
+    });
+
+    expect(fixGrammar).toHaveBeenCalledWith(
+      `How do I say this politely?\n\n${directives}`,
+      "ask",
+    );
+    // Not consulted at all: the locale in the block is the one the press
+    // resolved, not whatever is active now.
+    expect(getLocale).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A caller that resolves no environment sends exactly what this flow sent
+   * before an environment existed — the fall back is a compatibility guarantee,
+   * not a convenience.
+   */
+  it("falls back to the app-locale line alone when no directives are passed", async () => {
+    await runAskFlow({
+      preset: basePreset,
+      context: "",
+      question: "Just a question",
+      mainWindow: fakeMainWindow(),
+    });
+
+    expect(fixGrammar).toHaveBeenCalledWith(
+      "Just a question\n\nApp locale: en",
+      "ask",
+    );
+  });
+
   it("shows the spinner before the request and hides it after a successful popup delivery", async () => {
     await runAskFlow({
       preset: basePreset,

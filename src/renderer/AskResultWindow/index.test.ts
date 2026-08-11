@@ -7,10 +7,13 @@
  * Close invoking the close bridge; and the snapshotted `markdown` flag being
  * honoured (plain text renders literally, without going through
  * `react-markdown`, when `markdown` is `false`). Also covers the layout
- * contract: the footer copy control carries no icon, the sections render in
- * input > question > answer order with the input block absent entirely on an
- * empty selection, and input/question clamp to 3 lines until folded open while
- * the answer never clamps.
+ * contract now that the body is the shared `ChatTranscript`: the footer copy
+ * control carries no icon, the sections render in input > question > answer
+ * order with the input block absent entirely on an empty selection, the
+ * attached selection keeps its FOLDED treatment (a `<details>` that starts
+ * closed, which is what a `system` message gets in the chat view) while the
+ * question and the answer are bubbles, and the answer is never folded — it is
+ * what the popup exists to show.
  */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -40,88 +43,6 @@ const waitForUi = async () => {
   });
 };
 
-class StubResizeObserver {
-  // `FoldableTextBlock` observes its body to re-measure the clamp on resize;
-  // jsdom provides no `ResizeObserver`, and these tests drive the measurement
-  // through the stubbed heights below rather than through resize events.
-  observe(): void {
-    // no-op stub
-  }
-  unobserve(): void {
-    // no-op stub
-  }
-  disconnect(): void {
-    // no-op stub
-  }
-}
-
-/**
- * jsdom lays nothing out, so every element reports `scrollHeight === 0` and
- * `clientHeight === 0` — overflow would never be detected and the fold control
- * would never render. These getters model the one thing the component reads:
- * a `[data-ask-text]` body whose full height is `stubbedTextLines`, cropped to
- * `CLAMPED_LINES` while the clamp class is on it. Because `clientHeight`
- * tracks the clamp class, expanding really does report "no overflow" here,
- * exactly as in a browser.
- */
-const LINE_HEIGHT_PX = 20;
-const CLAMPED_LINES = 3;
-let stubbedTextLines = 6;
-
-const isAskText = (element: HTMLElement) =>
-  typeof element.hasAttribute === "function" &&
-  element.hasAttribute("data-ask-text");
-
-const originalHeightDescriptors = {
-  scrollHeight: Object.getOwnPropertyDescriptor(
-    HTMLElement.prototype,
-    "scrollHeight",
-  ),
-  clientHeight: Object.getOwnPropertyDescriptor(
-    HTMLElement.prototype,
-    "clientHeight",
-  ),
-} as const;
-
-const installTextMetrics = () => {
-  Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
-    configurable: true,
-    get(this: HTMLElement) {
-      return isAskText(this) ? stubbedTextLines * LINE_HEIGHT_PX : 0;
-    },
-  });
-  Object.defineProperty(HTMLElement.prototype, "clientHeight", {
-    configurable: true,
-    get(this: HTMLElement) {
-      if (!isAskText(this)) return 0;
-      const visibleLines = this.className.includes("line-clamp-3")
-        ? Math.min(CLAMPED_LINES, stubbedTextLines)
-        : stubbedTextLines;
-      return visibleLines * LINE_HEIGHT_PX;
-    },
-  });
-};
-
-const restoreTextMetrics = () => {
-  for (const property of ["scrollHeight", "clientHeight"] as const) {
-    const original = originalHeightDescriptors[property];
-    if (original) {
-      Object.defineProperty(HTMLElement.prototype, property, original);
-    } else {
-      // jsdom defines these on `Element.prototype`, so there is normally no own
-      // descriptor here to restore — the stub has to be removed outright.
-      Reflect.deleteProperty(HTMLElement.prototype, property);
-    }
-  }
-};
-
-const foldControl = (section: HTMLElement) =>
-  [...section.querySelectorAll("button")].find(
-    (button) =>
-      button.textContent === tEn("notifications.window.askResult.expand") ||
-      button.textContent === tEn("notifications.window.askResult.collapse"),
-  );
-
 const GFM_MARKDOWN = [
   "| Col A | Col B |",
   "| --- | --- |",
@@ -137,13 +58,16 @@ describe("AskResultWindow", () => {
   let root: Root;
   let payloadListener: ((payload: AskResultPayload) => void) | undefined;
   let api: ElectronApiMock;
-  const originalResizeObserver = globalThis.ResizeObserver;
+
+  const sectionIds = (): (string | null)[] =>
+    [...container.querySelectorAll("[data-chat-section]")].map((element) =>
+      element.getAttribute("data-chat-section"),
+    );
+
+  const section = (id: string): HTMLElement | null =>
+    container.querySelector(`[data-chat-section="${id}"]`);
 
   const render = async () => {
-    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
-      StubResizeObserver;
-    installTextMetrics();
-
     api = {
       onAskResultData: vi.fn(
         (callback: (payload: AskResultPayload) => void) => {
@@ -188,10 +112,6 @@ describe("AskResultWindow", () => {
     }
     container?.remove();
     payloadListener = undefined;
-    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
-      originalResizeObserver;
-    restoreTextMetrics();
-    stubbedTextLines = 6;
     vi.restoreAllMocks();
   });
 
@@ -347,11 +267,7 @@ describe("AskResultWindow", () => {
       });
     });
 
-    expect(
-      [...container.querySelectorAll("[data-ask-section]")].map((element) =>
-        element.getAttribute("data-ask-section"),
-      ),
-    ).toEqual(["input", "question", "answer"]);
+    expect(sectionIds()).toEqual(["input", "question", "answer"]);
     expect(container.textContent).toContain(
       tEn("notifications.window.askResult.inputLabel"),
     );
@@ -369,15 +285,11 @@ describe("AskResultWindow", () => {
       });
     });
 
-    expect(container.querySelector('[data-ask-section="input"]')).toBeNull();
+    expect(section("input")).toBeNull();
     expect(container.textContent).not.toContain(
       tEn("notifications.window.askResult.inputLabel"),
     );
-    expect(
-      [...container.querySelectorAll("[data-ask-section]")].map((element) =>
-        element.getAttribute("data-ask-section"),
-      ),
-    ).toEqual(["question", "answer"]);
+    expect(sectionIds()).toEqual(["question", "answer"]);
   });
 
   it.each(["   ", "\n\n"])(
@@ -393,15 +305,11 @@ describe("AskResultWindow", () => {
         });
       });
 
-      expect(container.querySelector('[data-ask-section="input"]')).toBeNull();
+      expect(section("input")).toBeNull();
       expect(container.textContent).not.toContain(
         tEn("notifications.window.askResult.inputLabel"),
       );
-      expect(
-        [...container.querySelectorAll("[data-ask-section]")].map((element) =>
-          element.getAttribute("data-ask-section"),
-        ),
-      ).toEqual(["question", "answer"]);
+      expect(sectionIds()).toEqual(["question", "answer"]);
     },
   );
 
@@ -415,10 +323,22 @@ describe("AskResultWindow", () => {
       });
     });
 
-    expect(container.querySelector('[data-ask-section="input"]')).toBeNull();
+    expect(section("input")).toBeNull();
   });
 
-  it("clamps the input and question to 3 lines and unclamps them on the fold control", async () => {
+  /**
+   * The three sections are the shared chat view's three shapes, and which shape
+   * each one gets is the contract:
+   *
+   * - the attached selection is a `system` message, so it renders as a
+   *   `<details>` fold that starts CLOSED — it can be a whole document, and the
+   *   answer is what the popup exists to show. This is what replaced the old
+   *   measured line-clamp, and it folds without measuring anything, which is
+   *   why the jsdom height stubs this file used to carry are gone;
+   * - the question is a `user` bubble, right-aligned;
+   * - the answer is an `assistant` bubble, left-aligned, and never folded.
+   */
+  it("folds the attached selection into a closed <details>, and leaves the answer unfolded", async () => {
     await render();
     await act(async () => {
       payloadListener?.({
@@ -429,56 +349,23 @@ describe("AskResultWindow", () => {
       });
     });
 
-    for (const sectionId of ["input", "question"]) {
-      const section = container.querySelector(
-        `[data-ask-section="${sectionId}"]`,
-      ) as HTMLElement;
-      const body = section.querySelector("[data-ask-text]") as HTMLElement;
-      expect(body.className).toContain("line-clamp-3");
-
-      const toggle = foldControl(section);
-      expect(toggle?.textContent).toBe(
-        tEn("notifications.window.askResult.expand"),
-      );
-
-      await act(async () => {
-        toggle?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      });
-
-      expect(body.className).not.toContain("line-clamp-3");
-      expect(
-        [...section.querySelectorAll("button")].map(
-          (button) => button.textContent,
-        ),
-      ).toContain(tEn("notifications.window.askResult.collapse"));
-    }
-  });
-
-  it("omits the fold control entirely when the text fits inside the clamp", async () => {
-    stubbedTextLines = 2;
-    await render();
-    await act(async () => {
-      payloadListener?.({
-        question: "Short?",
-        answer: "Yes",
-        markdown: false,
-        input: "one short line",
-      });
-    });
-
-    for (const sectionId of ["input", "question"]) {
-      const section = container.querySelector(
-        `[data-ask-section="${sectionId}"]`,
-      ) as HTMLElement;
-      expect(section.querySelector("[data-ask-text]")).toBeTruthy();
-      expect(foldControl(section)).toBeUndefined();
-    }
-    expect(container.textContent).not.toContain(
-      tEn("notifications.window.askResult.expand"),
+    const input = section("input") as HTMLElement;
+    const details = input.querySelector("details") as HTMLDetailsElement;
+    expect(details).toBeTruthy();
+    expect(details.open).toBe(false);
+    expect(details.querySelector("summary")?.textContent).toContain(
+      tEn("notifications.window.askResult.inputLabel"),
     );
+    // Closed is a fold, not a truncation: the whole passage is in the DOM and
+    // the disclosure triangle is what says so.
+    expect(details.textContent).toContain("the selected passage");
+
+    for (const id of ["question", "answer"]) {
+      expect((section(id) as HTMLElement).querySelector("details")).toBeNull();
+    }
   });
 
-  it("renders the fold control after the text block, not beside the label", async () => {
+  it("renders the question as a right-hand bubble and the answer as a left-hand one", async () => {
     await render();
     await act(async () => {
       payloadListener?.({
@@ -489,83 +376,58 @@ describe("AskResultWindow", () => {
       });
     });
 
-    for (const sectionId of ["input", "question"]) {
-      const section = container.querySelector(
-        `[data-ask-section="${sectionId}"]`,
-      ) as HTMLElement;
-      const body = section.querySelector("[data-ask-text]") as HTMLElement;
-      const toggle = foldControl(section) as HTMLButtonElement;
+    const question = section("question") as HTMLElement;
+    expect(question.className).toContain("justify-end");
+    expect(question.querySelector("div")?.className).toContain("bg-primary");
+    expect(question.querySelector("h3")?.textContent).toBe(
+      tEn("notifications.window.askResult.questionLabel"),
+    );
 
-      expect(section.lastElementChild).toBe(toggle);
-      expect(
-        body.compareDocumentPosition(toggle) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
-      // The label/body/control are three siblings in source order, so the
-      // control can no longer sit in a header row shared with the label.
-      expect([...section.children].indexOf(body)).toBe(1);
-      expect(toggle.parentElement).toBe(section);
-    }
+    const answer = section("answer") as HTMLElement;
+    expect(answer.className).toContain("justify-start");
+    expect(answer.querySelector("div")?.className).not.toContain("bg-primary");
+    expect(answer.querySelector("h3")?.textContent).toBe(
+      tEn("notifications.window.askResult.answerLabel"),
+    );
   });
 
-  it("keeps the fold control mounted once expanded, though the unclamped text reports no overflow", async () => {
+  it("keeps the answer on the markdown path inside its bubble", async () => {
     await render();
     await act(async () => {
       payloadListener?.({
-        question: "What does this mean?",
-        answer: "It means...",
-        markdown: false,
+        question: "Show me a table and code",
+        answer: GFM_MARKDOWN,
+        markdown: true,
         input: "the selected passage",
       });
     });
 
-    const section = container.querySelector(
-      '[data-ask-section="question"]',
-    ) as HTMLElement;
-
-    await act(async () => {
-      foldControl(section)?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
-    });
-
-    const body = section.querySelector("[data-ask-text]") as HTMLElement;
-    expect(body.className).not.toContain("line-clamp-3");
-    // Unclamped, the body's scrollHeight equals its clientHeight: measuring
-    // here would report "fits" and unmount the only way back to collapsed.
-    expect(body.scrollHeight).toBe(body.clientHeight);
-    expect(foldControl(section)?.textContent).toBe(
-      tEn("notifications.window.askResult.collapse"),
-    );
-
-    await act(async () => {
-      foldControl(section)?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
-    });
-
-    expect(body.className).toContain("line-clamp-3");
-    expect(foldControl(section)?.textContent).toBe(
-      tEn("notifications.window.askResult.expand"),
-    );
+    const answer = section("answer") as HTMLElement;
+    expect(answer.querySelector("table")).toBeTruthy();
+    expect(answer.querySelector("pre > code")).toBeTruthy();
+    // The selection is NOT markdown, however hostile it is: it is text the user
+    // highlighted in another app, and the chat view renders it through React's
+    // own escaping.
+    expect((section("input") as HTMLElement).querySelector("table")).toBeNull();
   });
 
-  it("never clamps the answer", async () => {
+  it("renders the selection as plain text, never as markdown or HTML", async () => {
+    const hostile = "**bold** <b>tag</b> [link](http://example.com)";
     await render();
     await act(async () => {
       payloadListener?.({
         question: "q",
         answer: "a",
-        markdown: false,
-        input: "selection",
+        markdown: true,
+        input: hostile,
       });
     });
 
-    const answerSection = container.querySelector(
-      '[data-ask-section="answer"]',
-    ) as HTMLElement;
-    expect(answerSection.className).not.toContain("line-clamp");
-    expect(answerSection.querySelector(".line-clamp-3")).toBeNull();
+    const input = section("input") as HTMLElement;
+    expect(input.querySelector("b")).toBeNull();
+    expect(input.querySelector("strong")).toBeNull();
+    expect(input.querySelector("a")).toBeNull();
+    expect(input.textContent).toContain(hostile);
   });
 
   it("Close invokes the close bridge", async () => {

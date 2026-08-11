@@ -23,6 +23,23 @@ export const SUFFIX_WINDOW_CHARS = 200;
  * of something whose topic was stated in the first line.
  */
 export const CONTEXT_WINDOW_CHARS = 400;
+/**
+ * Characters of the press's ENVIRONMENT block sent with the request.
+ *
+ * Small but not unbounded, which is the whole reason it has a constant at all:
+ * the block is a handful of `Key: value` lines, but five of those lines are
+ * recent PRESET NAMES, and a preset name is user-editable text with no length
+ * of its own. `askEnvironment.ts` already caps each name; this caps the block,
+ * so a profile full of essay-length preset names cannot quietly become the
+ * largest thing on a request that fires while the user types.
+ *
+ * Windowed from the HEAD like the attached context, and for a sharper version
+ * of the same reason: the block's leading lines are the locale, the keyboard
+ * and the time — the facts a continuation can actually use — and the recent
+ * transforms trailing them are the softest thing in it. Truncation drops the
+ * least useful end.
+ */
+export const ENVIRONMENT_WINDOW_CHARS = 400;
 
 /**
  * Kept here rather than in `src/prompts/` on purpose: that directory holds the
@@ -150,6 +167,17 @@ export type AutocompletePromptInput = {
   suffix?: string;
   /** The attached Ask context, when the window has one. */
   context?: AutocompleteAskContext;
+  /**
+   * The press's environment directives, exactly as
+   * `~/main/keybindings/askEnvironment.ts` rendered them for the Ask request
+   * itself — the app locale, the system language, the keyboard input source,
+   * the press time and the recent preset names.
+   *
+   * Passed through as a STRING rather than as the structure behind it, so the
+   * ghost text is written against the same bytes the submitted question will
+   * carry. A second rendering here would drift from that one silently.
+   */
+  environment?: string;
 };
 
 /**
@@ -178,6 +206,31 @@ const buildAskContextBlock = (
 };
 
 /**
+ * The press's environment lines as a labelled block, plus how much went out.
+ *
+ * LABELLED `background only` in the heading itself, not merely covered by the
+ * system prompt's context rule: these lines are the most continuable thing on
+ * the request. `App locale: en` invites `-US`, and a model that picks the block
+ * up instead of the caret text produces a ghost the user would Tab into their
+ * own question. The heading and the rule work together, exactly as they do for
+ * the attached passage above.
+ *
+ * The block carries no fence of its own — see `buildAskDirectives` — which is
+ * what makes the head-window below safe: a slice through a fenced block would
+ * cut its closing delimiter and leave the caret text inside it.
+ */
+const buildEnvironmentBlock = (
+  environment: string | undefined,
+): { block: string; length: number } => {
+  const windowed = environment?.slice(0, ENVIRONMENT_WINDOW_CHARS) ?? "";
+  if (!windowed) return { block: "", length: 0 };
+  return {
+    block: `Environment at the time of the request (background only):\n${windowed}\n\n`,
+    length: windowed.length,
+  };
+};
+
+/**
  * Windows the surrounding text and frames it for the model.
  *
  * The prefix keeps its TAIL and the suffix keeps its HEAD: the caret is the only
@@ -193,35 +246,44 @@ const buildAskContextBlock = (
  * the observed failure was a model answering it with a sentence about why it
  * could not continue. `JSON:` cues a brace.
  *
- * WITH NO ATTACHED CONTEXT THE OUTPUT IS BYTE-IDENTICAL TO WHAT IT WAS BEFORE
- * contexts existed. That is not politeness: `service.ts` keys its cache on this
- * exact string, so a heading, a blank line or an "(none)" placeholder emitted
- * for a bare question would invalidate every cached suggestion and re-bill the
- * cheapest path the feature has.
+ * WITH NEITHER AN ATTACHED CONTEXT NOR AN ENVIRONMENT THE OUTPUT IS
+ * BYTE-IDENTICAL TO WHAT IT WAS BEFORE EITHER EXISTED. That is not politeness:
+ * `service.ts` keys its cache on this exact string, so a heading, a blank line
+ * or an "(none)" placeholder emitted for a bare question would invalidate every
+ * cached suggestion and re-bill the cheapest path the feature has.
  */
 export const buildAutocompletePrompt = ({
   prefix,
   suffix = "",
   context,
+  environment,
 }: AutocompletePromptInput): {
   systemPrompt: string;
   userPrompt: string;
   /** Characters of attached context actually placed in the prompt; `0` for none. */
   contextLength: number;
+  /** Characters of the environment block actually placed in the prompt; `0` for none. */
+  environmentLength: number;
 } => {
   const windowedPrefix = prefix.slice(-PREFIX_WINDOW_CHARS);
   const windowedSuffix = suffix.slice(0, SUFFIX_WINDOW_CHARS);
   const askContext = buildAskContextBlock(context);
+  // AFTER the attached passage, so the ordering runs from least to most
+  // caret-relevant: ambient facts, then the passage the question is about, then
+  // the text being continued.
+  const environmentBlock = buildEnvironmentBlock(environment);
+  const preamble = `${environmentBlock.block}${askContext.block}`;
 
-  // The context leads, so the caret text is the LAST thing the model reads
+  // The preamble leads, so the caret text is the LAST thing the model reads
   // before `JSON:` — the position it continues from.
   const userPrompt = windowedSuffix
-    ? `${askContext.block}Text before the caret:\n${windowedPrefix}\n\nText after the caret:\n${windowedSuffix}\n\nJSON:`
-    : `${askContext.block}Text before the caret:\n${windowedPrefix}\n\nJSON:`;
+    ? `${preamble}Text before the caret:\n${windowedPrefix}\n\nText after the caret:\n${windowedSuffix}\n\nJSON:`
+    : `${preamble}Text before the caret:\n${windowedPrefix}\n\nJSON:`;
 
   return {
     systemPrompt: AUTOCOMPLETE_SYSTEM_PROMPT,
     userPrompt,
     contextLength: askContext.length,
+    environmentLength: environmentBlock.length,
   };
 };

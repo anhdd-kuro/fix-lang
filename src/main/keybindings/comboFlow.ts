@@ -21,7 +21,7 @@
  * guard a unit test rather than an integration test.
  *
  * **R3 (recorded, do not re-litigate):** `fixGrammar` re-resolves `presetId`
- * against the LIVE profile on every call (`getCorrectionPreset` in
+ * against the LIVE profile on every call (`resolveCorrectionPreset` in
  * `~/main/ai.request/correction.ts`), so this module's t0 snapshot of preset
  * *objects* does NOT by itself stop a mid-run profile switch from routing a
  * later step through another profile's model/provider/key — `fixGrammar`

@@ -25,14 +25,14 @@ vi.mock("./attachThemeSync", () => ({
 
 const autocompleteServiceMocks = vi.hoisted(() => ({
   abortAutocomplete: vi.fn(),
-  rememberAskContext: vi.fn(),
-  forgetAskContext: vi.fn(),
+  rememberAskSession: vi.fn(),
+  forgetAskSession: vi.fn(),
 }));
 
 vi.mock("~/features/autocomplete/main/service", () => ({
   abortAutocomplete: autocompleteServiceMocks.abortAutocomplete,
-  rememberAskContext: autocompleteServiceMocks.rememberAskContext,
-  forgetAskContext: autocompleteServiceMocks.forgetAskContext,
+  rememberAskSession: autocompleteServiceMocks.rememberAskSession,
+  forgetAskSession: autocompleteServiceMocks.forgetAskSession,
 }));
 
 // A fixed, distinguishable id so assertions can pin the exact string
@@ -79,11 +79,11 @@ vi.mock("electron", () => ({
   app: { getAppPath: vi.fn(() => "/app"), on: vi.fn() },
 }));
 
-const WINDOW_WIDTH = 520;
+const WINDOW_WIDTH = 620;
 // Framed heights, mirroring `askInputWindow.ts`. Repeated rather than imported
 // so a silent edit there has to be acknowledged here too.
-const HEIGHT_WITHOUT_CONTEXT = 380;
-const HEIGHT_WITH_CONTEXT = 588;
+const HEIGHT_WITHOUT_CONTEXT = 428;
+const HEIGHT_WITH_CONTEXT = 636;
 
 const PAYLOAD = { presetId: "ask", context: "selected text" };
 const PAYLOAD_WITHOUT_CONTEXT = { presetId: "ask", context: "" };
@@ -479,9 +479,9 @@ describe("askInputWindow", () => {
 
       showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
 
-      expect(autocompleteServiceMocks.rememberAskContext).toHaveBeenCalledWith(
+      expect(autocompleteServiceMocks.rememberAskSession).toHaveBeenCalledWith(
         String(WEB_CONTENTS_ID),
-        { text: "selected text", source: "selection" },
+        { context: { text: "selected text", source: "selection" } },
       );
     });
 
@@ -496,16 +496,16 @@ describe("askInputWindow", () => {
         { onSubmit: vi.fn(), onCancel: vi.fn() },
       );
 
-      expect(autocompleteServiceMocks.rememberAskContext).toHaveBeenLastCalledWith(
+      expect(autocompleteServiceMocks.rememberAskSession).toHaveBeenLastCalledWith(
         String(WEB_CONTENTS_ID),
-        { text: "stale clipboard text", source: "clipboard" },
+        { context: { text: "stale clipboard text", source: "clipboard" } },
       );
 
       showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
 
-      expect(autocompleteServiceMocks.rememberAskContext).toHaveBeenLastCalledWith(
+      expect(autocompleteServiceMocks.rememberAskSession).toHaveBeenLastCalledWith(
         String(WEB_CONTENTS_ID),
-        { text: "selected text", source: "selection" },
+        { context: { text: "selected text", source: "selection" } },
       );
     });
 
@@ -518,10 +518,57 @@ describe("askInputWindow", () => {
         { onSubmit: vi.fn(), onCancel: vi.fn() },
       );
 
-      expect(autocompleteServiceMocks.rememberAskContext).toHaveBeenLastCalledWith(
+      expect(autocompleteServiceMocks.rememberAskSession).toHaveBeenLastCalledWith(
         String(WEB_CONTENTS_ID),
-        { text: "a different selection", source: "selection" },
+        { context: { text: "a different selection", source: "selection" } },
       );
+    });
+
+    /**
+     * The press's directive block travels the same route and for the same
+     * reasons — the renderer cannot resolve any of it, and a field on the wire
+     * request would be renderer-controlled text going into a provider prompt.
+     * Passed through VERBATIM, so the ghost text is written against the exact
+     * bytes the submitted question will carry and the transparency row shows.
+     */
+    it("records the press's directives alongside the passage", async () => {
+      const { showAskInputWindow } = await loadModule();
+
+      showAskInputWindow(
+        { ...PAYLOAD, contextDirectives: "App locale: en\nKeyboard input source: ABC" },
+        { onSubmit: vi.fn(), onCancel: vi.fn() },
+      );
+
+      expect(autocompleteServiceMocks.rememberAskSession).toHaveBeenCalledWith(
+        String(WEB_CONTENTS_ID),
+        {
+          context: { text: "selected text", source: "selection" },
+          environment: "App locale: en\nKeyboard input source: ABC",
+        },
+      );
+    });
+
+    /**
+     * The two halves are independent: a press with nothing selected still has an
+     * environment worth suggesting against, and the record has to survive with
+     * only that half — while still clearing the previous press's passage, which
+     * is what the wholesale replacement buys.
+     */
+    it("keeps the directives when nothing was selected, and drops the previous passage", async () => {
+      const { showAskInputWindow } = await loadModule();
+      showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
+      autocompleteServiceMocks.rememberAskSession.mockClear();
+
+      showAskInputWindow(
+        { ...PAYLOAD_WITHOUT_CONTEXT, contextDirectives: "App locale: en" },
+        { onSubmit: vi.fn(), onCancel: vi.fn() },
+      );
+
+      expect(autocompleteServiceMocks.rememberAskSession).toHaveBeenCalledWith(
+        String(WEB_CONTENTS_ID),
+        { environment: "App locale: en" },
+      );
+      expect(autocompleteServiceMocks.forgetAskSession).not.toHaveBeenCalled();
     });
 
     /**
@@ -533,15 +580,15 @@ describe("askInputWindow", () => {
     it("clears the context when the next press has nothing selected", async () => {
       const { showAskInputWindow } = await loadModule();
       showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
-      autocompleteServiceMocks.rememberAskContext.mockClear();
+      autocompleteServiceMocks.rememberAskSession.mockClear();
 
       showAskInputWindow(PAYLOAD_WITHOUT_CONTEXT, {
         onSubmit: vi.fn(),
         onCancel: vi.fn(),
       });
 
-      expect(autocompleteServiceMocks.rememberAskContext).not.toHaveBeenCalled();
-      expect(autocompleteServiceMocks.forgetAskContext).toHaveBeenCalledWith(
+      expect(autocompleteServiceMocks.rememberAskSession).not.toHaveBeenCalled();
+      expect(autocompleteServiceMocks.forgetAskSession).toHaveBeenCalledWith(
         String(WEB_CONTENTS_ID),
       );
     });
@@ -563,11 +610,11 @@ describe("askInputWindow", () => {
     it.each(Object.entries(endTheAsk))("drops the context on %s", async (_description, end) => {
       const { showAskInputWindow } = await loadModule();
       showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
-      autocompleteServiceMocks.forgetAskContext.mockClear();
+      autocompleteServiceMocks.forgetAskSession.mockClear();
 
       end();
 
-      expect(autocompleteServiceMocks.forgetAskContext).toHaveBeenCalledWith(
+      expect(autocompleteServiceMocks.forgetAskSession).toHaveBeenCalledWith(
         String(WEB_CONTENTS_ID),
       );
     });
@@ -575,11 +622,11 @@ describe("askInputWindow", () => {
     it("drops the context when a profile switch dismisses a pending ask", async () => {
       const { showAskInputWindow, dismissAskInputWindow } = await loadModule();
       showAskInputWindow(PAYLOAD, { onSubmit: vi.fn(), onCancel: vi.fn() });
-      autocompleteServiceMocks.forgetAskContext.mockClear();
+      autocompleteServiceMocks.forgetAskSession.mockClear();
 
       dismissAskInputWindow();
 
-      expect(autocompleteServiceMocks.forgetAskContext).toHaveBeenCalledWith(
+      expect(autocompleteServiceMocks.forgetAskSession).toHaveBeenCalledWith(
         String(WEB_CONTENTS_ID),
       );
     });

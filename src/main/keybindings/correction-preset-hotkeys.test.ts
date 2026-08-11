@@ -45,6 +45,7 @@ vi.mock("electron", () => ({
   app: {
     getPath: vi.fn().mockReturnValue("/tmp"),
     getLocale: vi.fn().mockReturnValue("en-US"),
+    getSystemLocale: vi.fn().mockReturnValue("en-US"),
   },
 }));
 vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
@@ -96,6 +97,21 @@ vi.mock("./askFlow", () => ({
   runAskFlow: vi.fn(),
   buildAppLocaleDirective: vi.fn().mockReturnValue("App locale: en"),
 }));
+// The Ask branch resolves the press's environment before it opens the window.
+// Stubbed here because it shells out to `defaults` and reads SQLite history —
+// neither of which says anything about hotkey registration, which is what this
+// file is about. `askEnvironment.test.ts` owns the real thing.
+vi.mock("./askEnvironment", () => ({
+  resolveAskEnvironment: vi.fn().mockResolvedValue({
+    appLocale: "en",
+    systemLocale: "en-US",
+    keyboardInputSource: "ABC",
+    capturedAt: "2026-08-11T09:00:00+09:00",
+    timeZone: "Asia/Tokyo",
+    recentTransforms: [],
+  }),
+  buildAskDirectives: vi.fn().mockReturnValue("App locale: en\nSystem language: en-US"),
+}));
 // `withHotkeyThrottle` stays REAL: it wraps every registered handler, so a stub
 // pass-through would hide a throttle that swallowed the invocations these tests
 // await. Its timestamp map is module state — hence the per-test reset below.
@@ -109,6 +125,7 @@ vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
   showErrorPopup: vi.fn(),
 }));
 import { COMBO_CANCEL_ACCELERATOR } from "~/features/correction/shared/comboValidation";
+import { redactLogContext } from "~/features/logs/shared/logging";
 import {
   getDefaultCorrectionSettings,
   getProfileSetting,
@@ -146,6 +163,7 @@ import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWi
 import type * as KeybindingUtils from "./utils";
 import type { BrowserWindow } from "electron";
 import type { Mock } from "vitest";
+import type { LogContext } from "~/features/logs/shared/logging";
 
 /** Translate's built-in default accelerator — the one a stored preset claims. */
 const TRANSLATE_DEFAULT_HOTKEY = "Control+Shift+T";
@@ -526,6 +544,26 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
     selectedPresetId: "correction",
   };
 
+  /**
+   * The Ask preset's prompt as the profile under test actually holds it — read
+   * from the same defaults `normalizeCorrectionSettings` materializes it from,
+   * so the pin cannot go stale when the bundled prompt is edited.
+   *
+   * Pinned rather than `expect.any(String)` because the whole claim of the
+   * transparency row is that it shows the prompt that WILL RUN: `any(String)`
+   * passes for another preset's prompt, for `""`, and for the snapshot captured
+   * at registration time that the code says must not be used.
+   */
+  const askDefaultSystemPrompt = (): string => {
+    const preset = getDefaultCorrectionSettings().presets.find(
+      ({ id }) => id === DEFAULT_ASK_PRESET_ID,
+    );
+    if (!preset?.systemPrompt) {
+      throw new Error("The Ask AI default preset has no system prompt.");
+    }
+    return preset.systemPrompt;
+  };
+
   it("registers Control+Shift+A for the Ask AI preset", async () => {
     const calls = registerFrom(singleBuiltInProfile);
     const shortcuts = calls.map(([shortcut]) => shortcut);
@@ -551,6 +589,8 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
         presetId: DEFAULT_ASK_PRESET_ID,
         context: "",
         contextSource: "clipboard",
+        systemPrompt: askDefaultSystemPrompt(),
+        contextDirectives: "App locale: en\nSystem language: en-US",
       },
       expect.objectContaining({
         onSubmit: expect.any(Function),
@@ -592,12 +632,88 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
         presetId: DEFAULT_ASK_PRESET_ID,
         context: "text the user copied by hand",
         contextSource: "clipboard",
+        systemPrompt: askDefaultSystemPrompt(),
+        contextDirectives: "App locale: en\nSystem language: en-US",
       },
       expect.objectContaining({
         onSubmit: expect.any(Function),
         onCancel: expect.any(Function),
       }),
     );
+  });
+
+  /**
+   * `redactLogContext` blanks any context KEY merely CONTAINING `clipboard`,
+   * `token`, `secret` or `selected_text` — silently, with no error, leaving
+   * `"[REDACTED]"` where a number was. That is how `clipboardRead` (now
+   * `selectionPoll`) and `replyTokens` (now `replyLength`) were caught, and
+   * every key the Ask press emits is one rename away from the same fate. The
+   * REAL redactor runs here; the mocked logger above never reaches it.
+   */
+  it("emits only log keys that survive the real redactor, latency phases included", async () => {
+    const calls = registerFrom(singleBuiltInProfile);
+    const askCall = calls.find(([shortcut]) => shortcut === ASK_HOTKEY);
+    await askCall?.[1]();
+
+    const askContextResolved = (logger.debug as Mock).mock.calls.find(
+      ([scope, message]) =>
+        scope === "correction.hotkey" && message === "Ask context resolved",
+    )?.[2] as LogContext;
+
+    // Asserted present, not merely redaction-clean: a key that stopped being
+    // emitted would pass a redaction check trivially.
+    expect(askContextResolved).toMatchObject({
+      contextLength: expect.any(Number),
+      contextAttached: expect.any(Boolean),
+      directivesLength: expect.any(Number),
+      recentTransformCount: expect.any(Number),
+      keyboardInputSourceRead: expect.any(Boolean),
+    });
+    expect(redactLogContext(askContextResolved)).toEqual(askContextResolved);
+
+    const latencyLine = (logger.info as Mock).mock.calls.find(
+      ([scope, message]) =>
+        scope === "correction.latency" && message === "Transform latency",
+    )?.[2] as LogContext;
+
+    // The phase the environment read reports under. Named `environmentRead`
+    // precisely because it has to survive the check on the next line.
+    expect(Object.keys(latencyLine.phases as object)).toEqual([
+      "selectionRead",
+      "environmentRead",
+    ]);
+    expect(redactLogContext(latencyLine)).toEqual(latencyLine);
+  });
+
+  it("resolves the system prompt at PRESS time, not from the preset captured at registration", async () => {
+    const calls = registerFrom(singleBuiltInProfile);
+    const askCall = calls.find(([shortcut]) => shortcut === ASK_HOTKEY);
+
+    // The profile changes between registering the shortcut and pressing it —
+    // an edit in Settings, or a profile switch. `fixGrammar` looks the preset
+    // up again at submit, so the transparency row would be stating a prompt
+    // the request is not going to carry if it used the registration snapshot.
+    (getProfileSetting as Mock).mockImplementation((key: string) =>
+      key === "models"
+        ? []
+        : normalizeCorrectionSettings({
+            presets: [
+              storedBuiltIn("correction", "Correction", "Control+Shift+F"),
+              storedBuiltIn(DEFAULT_ASK_PRESET_ID, "Ask AI", ASK_HOTKEY),
+            ],
+            selectedPresetId: "correction",
+          }),
+    );
+
+    await askCall?.[1]();
+
+    expect(showAskInputWindow).toHaveBeenCalledWith(
+      expect.objectContaining({ systemPrompt: "Ask AI prompt." }),
+      expect.anything(),
+    );
+    // The edited prompt is genuinely different from the one registration saw,
+    // so the assertion above cannot pass by accident.
+    expect(askDefaultSystemPrompt()).not.toBe("Ask AI prompt.");
   });
 
   it("still aborts a non-requiresInput preset with the noTextSelected notification when nothing is selected", async () => {
@@ -630,6 +746,8 @@ describe("correction preset hotkeys — Ask AI requiresInput branch", () => {
         preset: expect.objectContaining({ id: DEFAULT_ASK_PRESET_ID }),
         context: "some selected text",
         question: "What does this mean?",
+        // The SAME string the window was handed, not a second rendering of it.
+        directives: "App locale: en\nSystem language: en-US",
       }),
     );
   });

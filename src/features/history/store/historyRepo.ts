@@ -73,8 +73,37 @@ export type HistoryRangeQuery = {
   featureId?: HistoryFeatureId;
 };
 
+/**
+ * What the newest-rows read returns: A NAME AND A TIME, nothing else.
+ *
+ * Deliberately NOT a `HistoryEntry`. Its one caller (`readRecentTransforms`,
+ * which puts these into an Ask prompt) may never see `original`, `corrected` or
+ * `session_json`, and a full entry would hand it all three and leave that rule
+ * to downstream discipline. A type with no field to reach for cannot be
+ * misused, and the SELECT below never loads the columns in the first place.
+ */
+export type RecentHistorySummary = {
+  /** Absent for legacy rows written before the preset-name snapshot existed. */
+  presetName?: string;
+  timestamp: string;
+};
+
+/** The two columns {@link RecentHistorySummary} is built from. */
+type RecentHistoryRow = {
+  timestamp: string;
+  preset_name: string | null;
+};
+
 export type HistoryRepo = {
   getByFeature: (featureId: HistoryFeatureId) => HistoryEntry[];
+  /**
+   * The newest `limit` rows of one feature, bounded in SQL and narrowed to
+   * names and times — see {@link RecentHistorySummary}.
+   */
+  getRecentByFeature: (
+    featureId: HistoryFeatureId,
+    limit: number
+  ) => RecentHistorySummary[];
   insert: (featureId: HistoryFeatureId, entry: HistoryEntry) => void;
   remove: (featureId: HistoryFeatureId, entry: HistoryEntry) => void;
   clear: (featureId: HistoryFeatureId) => void;
@@ -152,6 +181,20 @@ export const rowToEntry = (row: HistoryRow): HistoryEntry => {
   }
   return entry;
 };
+
+/**
+ * Pure mapper — narrowed row → {@link RecentHistorySummary}. Its own mapper
+ * rather than `rowToEntry` because the row it maps HAS no other columns: reusing
+ * the full mapper would mean selecting them again. A NULL `preset_name` is left
+ * off entirely (same NULL↔undefined rule as `rowToEntry`), which is what lets
+ * the caller skip legacy rows by asking whether the name is there.
+ */
+export const rowToRecentSummary = (
+  row: RecentHistoryRow
+): RecentHistorySummary =>
+  row.preset_name === null
+    ? { timestamp: row.timestamp }
+    : { presetName: row.preset_name, timestamp: row.timestamp };
 
 /**
  * Pure mapper — `HistoryEntry` → INSERT params. Absent optional fields become
@@ -317,6 +360,40 @@ export const createHistoryRepo = (db: DatabaseSync): HistoryRepo => {
     return rows.map(rowToEntry);
   };
 
+  /**
+   * The newest `limit` rows, bounded IN SQL rather than by slicing what
+   * `getByFeature` returns — and bounded by COLUMNS as well as by rows.
+   *
+   * The difference matters on the one caller: the Ask hotkey reads this on
+   * every press to name the last few transforms, and `getByFeature` has no
+   * `LIMIT` at all — it materializes every row of an uncapped, SQLite-backed
+   * history (the full `original` and `corrected` text columns included) on the
+   * main thread just to keep five preset names. A `LIMIT` keeps that read the
+   * same size whether the user has run ten transforms or ten thousand.
+   *
+   * `SELECT preset_name, timestamp`, never `SELECT *`: twenty rows of `*` still
+   * pull `original`, `corrected` and — far larger than either — `session_json`,
+   * the whole prompt/response snapshot, synchronously on the main thread, on
+   * every single press. Naming the two columns makes "names and times only" a
+   * property of the QUERY rather than a rule the caller has to keep.
+   */
+  const getRecentByFeature = (
+    featureId: HistoryFeatureId,
+    limit: number
+  ): RecentHistorySummary[] => {
+    // `Math.trunc(NaN)` is `NaN`, and `Math.max(0, NaN)` is NaN too — which
+    // SQLite binds as NULL, and `LIMIT NULL` means NO LIMIT: the unbounded read
+    // this function exists to avoid, reached by passing a value that was never
+    // a number.
+    const safeLimit = Number.isFinite(limit) ? Math.max(0, Math.trunc(limit)) : 0;
+    const rows = db
+      .prepare(
+        "SELECT preset_name, timestamp FROM history WHERE feature_id = ? ORDER BY timestamp DESC LIMIT ?"
+      )
+      .all(featureId, safeLimit) as RecentHistoryRow[];
+    return rows.map(rowToRecentSummary);
+  };
+
   const insert = (featureId: HistoryFeatureId, entry: HistoryEntry): void => {
     insertEntry(featureId, entry);
   };
@@ -413,6 +490,7 @@ export const createHistoryRepo = (db: DatabaseSync): HistoryRepo => {
 
   return {
     getByFeature,
+    getRecentByFeature,
     insert,
     remove,
     clear,

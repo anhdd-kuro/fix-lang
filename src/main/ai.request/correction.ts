@@ -47,7 +47,19 @@ type CorrectionResult = {
 export const effectiveModelRef = (preset: CorrectionPreset): string =>
   preset.model?.trim() || getDefaultModelId();
 
-const getCorrectionPreset = (presetId?: string): CorrectionPreset => {
+/**
+ * The preset a `fixGrammar(text, presetId)` call will actually run.
+ *
+ * Exported so the Ask hotkey can state that preset's system prompt in the input
+ * window's transparency row WITHOUT re-deriving it. The window promises to show
+ * what will be sent, and the id-to-preset lookup (with its fall back to the
+ * profile's selected preset, then to the first one) is precisely the step where
+ * a second implementation would quietly show a different preset's prompt than
+ * the request carries. Reading a preset captured at hotkey-registration time has
+ * the same failure by another route: `fixGrammar` re-resolves at SUBMIT, so a
+ * settings edit in between would leave the row quoting a prompt nobody sent.
+ */
+export const resolveCorrectionPreset = (presetId?: string): CorrectionPreset => {
   const correctionSettings = getProfileSetting("settingsCorrect");
   const selectedPreset = presetId
     ? correctionSettings.presets.find((preset) => preset.id === presetId)
@@ -123,7 +135,7 @@ export const fixGrammar = async (
     // nothing to a user. The log line is kept for that defensive case.
     console.log("fixGrammar called with empty or whitespace-only text.");
 
-    const preset = getCorrectionPreset(presetId);
+    const preset = resolveCorrectionPreset(presetId);
 
     // Reports `provider: undefined` for a bare or empty ref rather than
     // guessing: a wrong provider is silently written into history and priced.
@@ -142,7 +154,7 @@ export const fixGrammar = async (
     };
   }
 
-  const preset = getCorrectionPreset(presetId);
+  const preset = resolveCorrectionPreset(presetId);
   // Empty preset model inherits the global default (dynamic latest GPT mini).
   const effectiveModel = effectiveModelRef(preset);
 

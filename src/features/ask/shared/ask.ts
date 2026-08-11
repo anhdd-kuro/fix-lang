@@ -28,6 +28,26 @@ export type AskInputPayload = {
   context: string;
   /** Absent is read as `selection` — see `AskContextSource`. */
   contextSource?: AskContextSource;
+  /**
+   * The preset's system prompt as it will actually be sent.
+   *
+   * RENDERED BY MAIN AND SHOWN VERBATIM, like {@link contextDirectives} beside
+   * it. Neither is a structure for the renderer to format: the point of showing
+   * them is that the user can see WHAT LEAVES THE MACHINE, and a renderer that
+   * re-formats is a second copy of the request's wording that can drift from
+   * the one actually sent while still looking right.
+   *
+   * Optional because a window opened by a future flow may have no preset prompt
+   * to state; absent means the row simply has nothing to show for it.
+   */
+  systemPrompt?: string;
+  /**
+   * The exact context/directive text appended to the request — the app locale,
+   * the system language, the keyboard input source, the press time and the
+   * recent preset names, as `~/main/keybindings/askEnvironment.ts` rendered
+   * them. The same string rides every autocomplete dispatch from this window.
+   */
+  contextDirectives?: string;
 }
 
 /** Sent from the main flow to a newly opened Ask result window. */

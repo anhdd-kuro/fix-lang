@@ -20,6 +20,7 @@ import {
   type HistoryStore,
   type LastActionHistory,
 } from "./historyTypes";
+import type { RecentHistorySummary } from "./historyRepo";
 import type { Schema } from "electron-store";
 
 // Re-export the electron-free types + pure helpers so the public surface of
@@ -100,6 +101,23 @@ const getHistoryStore = (): Store<HistoryStore> => {
 
 export function getHistory(featureId: HistoryFeatureId): HistoryEntry[] {
   return getHistoryRepo().getByFeature(featureId);
+}
+
+/**
+ * The newest `limit` entries of one feature, most recent first, as NAMES AND
+ * TIMES ONLY (`RecentHistorySummary`).
+ *
+ * Separate from `getHistory` because both bounds live in SQL: the Ask hotkey
+ * reads this on every press, and loading an uncapped history to keep five rows
+ * would put the whole `original`/`corrected`/`session_json` corpus through the
+ * main thread for a handful of preset names. The narrow return type is the
+ * structural half of that — a caller has no text field to reach for.
+ */
+export function getRecentHistory(
+  featureId: HistoryFeatureId,
+  limit: number
+): RecentHistorySummary[] {
+  return getHistoryRepo().getRecentByFeature(featureId, limit);
 }
 
 export function clearHistory(featureId: HistoryFeatureId): void {

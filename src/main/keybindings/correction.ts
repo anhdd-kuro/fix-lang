@@ -1,4 +1,4 @@
-import { globalShortcut, Notification } from "electron";
+import { app, globalShortcut, Notification } from "electron";
 import { COMBO_CANCEL_ACCELERATOR } from "~/features/correction/shared/comboValidation";
 import { resolvePresetOutputMode } from "~/features/correction/shared/presetOutputMode";
 import { keybindingStore } from "~/features/correction/store/keybindingStore";
@@ -13,6 +13,7 @@ import {
   pasteText,
 } from "../../utils";
 import { fixGrammar } from "../ai.request";
+import { buildAskDirectives, resolveAskEnvironment } from "./askEnvironment";
 import { buildAppLocaleDirective, runAskFlow } from "./askFlow";
 import { abortActiveCombo, withComboCancel } from "./comboCancel";
 import {
@@ -34,7 +35,7 @@ import {
 import { buildCorrectionGoodJobNotification } from "./correctionNotifications";
 import { deliverCorrectionOutput } from "./correctionOutput";
 import { checkShortcut, handleError, withHotkeyThrottle } from "./utils";
-import { effectiveModelRef } from "../ai.request/correction";
+import { effectiveModelRef, resolveCorrectionPreset } from "../ai.request/correction";
 import { buildPriceMap, computeCost } from "../ai.request/cost";
 import { getCachedModels, isLocalModelId } from "../ai.request/shared";
 import { prewarmProviderConnection } from "../llm/prewarm";
@@ -581,24 +582,69 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         // frontmost app at all, since that read would just be a wasted
         // osascript round-trip for this preset.
         if (preset.requiresInput) {
+          // ONCE PER PRESS, and this is the only place it is resolved. The same
+          // string is appended to the submitted request, shown verbatim in the
+          // input window's transparency row, and carried by every autocomplete
+          // dispatch made while the user types — so a second resolution
+          // anywhere downstream would mean the window stating one thing and the
+          // request sending another. Best-effort throughout: an unreadable
+          // source contributes no line, exactly like the frontmost-app read.
+          //
+          // STARTED BEFORE the context read is awaited, and never after it:
+          // nothing here depends on the selection, while the read itself is a
+          // `defaults` spawn bounded by `INPUT_SOURCE_TIMEOUT_MS` (1 s) plus a
+          // synchronous SQLite read — a full second of blocking delay in front
+          // of the input window if it were serialized behind a clipboard poll
+          // that is already happening anyway.
+          const environmentPromise = resolveAskEnvironment({
+            systemLocale: app.getSystemLocale(),
+          });
           const { text: context, source: contextSource } = await getAskContext();
           latency.mark("selectionRead");
+          // The two above overlap, so this phase is what was LEFT of the
+          // environment read once the context read returned — ~0 whenever the
+          // clipboard poll was the slower half, which is the point of starting
+          // it first. It is still its own phase because the alternative is the
+          // `defaults` timeout landing in `totalMs` under no phase at all.
+          const askEnvironment = await environmentPromise;
+          latency.mark("environmentRead");
+          const contextDirectives = buildAskDirectives(askEnvironment);
+          // Re-resolved rather than read off the `preset` captured at hotkey
+          // registration: `fixGrammar` looks the preset up again at SUBMIT, and
+          // the row promises to show what will actually be sent.
+          const systemPrompt = resolveCorrectionPreset(preset.id).systemPrompt;
           // The one line that says whether the selection made it, and which
           // source it came from. Without it, "the user selected nothing" and
           // "the copy produced nothing so this is their clipboard" both look
           // like the same input window. Lengths only — the text itself never
-          // goes in a log.
+          // goes in a log, and neither does a directive line: those name the
+          // user's own presets and state the minute they pressed the hotkey.
           logger.debug("correction.hotkey", "Ask context resolved", {
             presetId: preset.id,
             contextLength: context.length,
             contextAttached: context.length > 0,
             contextSource,
+            directivesLength: contextDirectives.length,
+            recentTransformCount: askEnvironment.recentTransforms.length,
+            keyboardInputSourceRead: askEnvironment.keyboardInputSource !== null,
           });
           showAskInputWindow(
-            { presetId: preset.id, context, contextSource },
+            {
+              presetId: preset.id,
+              context,
+              contextSource,
+              systemPrompt,
+              contextDirectives,
+            },
             {
               onSubmit: (question) => {
-                void runAskFlow({ preset, context, question, mainWindow });
+                void runAskFlow({
+                  preset,
+                  context,
+                  question,
+                  directives: contextDirectives,
+                  mainWindow,
+                });
               },
               onCancel: () => {
                 logger.debug("correction.hotkey", "Ask input cancelled", {

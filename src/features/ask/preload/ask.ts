@@ -24,6 +24,16 @@ const isAskInputPayload = (value: unknown): value is AskInputPayload => {
   ) {
     return false;
   }
+  // The two transparency strings, checked one at a time and never spread: the
+  // window renders each as `string`-typed text, so a non-string reaching it
+  // would crash the render rather than being rejected here. Optional — a
+  // payload carrying neither is valid and the row simply shows nothing.
+  if ("systemPrompt" in value && typeof value.systemPrompt !== "string") {
+    return false;
+  }
+  if ("contextDirectives" in value && typeof value.contextDirectives !== "string") {
+    return false;
+  }
   return true;
 };
 

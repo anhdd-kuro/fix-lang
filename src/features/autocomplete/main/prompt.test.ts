@@ -3,6 +3,7 @@ import {
   AUTOCOMPLETE_SYSTEM_PROMPT,
   buildAutocompletePrompt,
   CONTEXT_WINDOW_CHARS,
+  ENVIRONMENT_WINDOW_CHARS,
   PREFIX_WINDOW_CHARS,
   SUFFIX_WINDOW_CHARS,
 } from "./prompt";
@@ -198,6 +199,108 @@ describe("buildAutocompletePrompt", () => {
         }).userPrompt;
 
       expect(build("First selection.")).not.toBe(build("Second selection."));
+    });
+  });
+
+  /**
+   * THE PRESS'S ENVIRONMENT — the same directive block the submitted question
+   * will carry and the input window is showing, so the ghost text is written
+   * against the bytes actually going out rather than a second rendering.
+   */
+  describe("the press environment", () => {
+    const ENVIRONMENT = [
+      "App locale: en",
+      "System language: ja-JP",
+      "Keyboard input source: Japanese",
+      "Current time: 2026-08-11T14:32:05+09:00 (Asia/Tokyo)",
+    ].join("\n");
+
+    it("carries the block, labelled as background", () => {
+      const { userPrompt, environmentLength } = buildAutocompletePrompt({
+        prefix: "how do I say thi",
+        environment: ENVIRONMENT,
+      });
+
+      expect(userPrompt).toContain("Keyboard input source: Japanese");
+      expect(userPrompt).toContain(
+        "Environment at the time of the request (background only):",
+      );
+      expect(environmentLength).toBe(ENVIRONMENT.length);
+    });
+
+    /**
+     * These lines are the most CONTINUABLE thing on the request — `App locale:
+     * en` invites `-US` — so they must sit ahead of the caret text, which stays
+     * the last thing the model reads before `JSON:`.
+     */
+    it("puts the block ahead of everything, with the caret text still last", () => {
+      const { userPrompt } = buildAutocompletePrompt({
+        prefix: "the answer i",
+        environment: ENVIRONMENT,
+        context: { text: "Attached passage.", source: "selection" },
+      });
+
+      expect(userPrompt.indexOf("App locale: en")).toBeLessThan(
+        userPrompt.indexOf("Attached passage."),
+      );
+      expect(userPrompt.indexOf("Attached passage.")).toBeLessThan(
+        userPrompt.indexOf("Text before the caret:"),
+      );
+      expect(userPrompt.endsWith("JSON:")).toBe(true);
+    });
+
+    /**
+     * Windowed from the HEAD: the locale, the keyboard and the time lead the
+     * block, and the recent transforms trailing them are the softest thing in
+     * it — so truncation drops the least useful end. Five user-editable preset
+     * names are why the cap exists at all.
+     */
+    it("keeps the head of an overlong block", () => {
+      const environment = `${ENVIRONMENT}\n${"- Very Long Preset Name (2026-08-11T05:28:00.000Z)\n".repeat(30)}TAIL`;
+
+      const { userPrompt, environmentLength } = buildAutocompletePrompt({
+        prefix: "abc",
+        environment,
+      });
+
+      expect(userPrompt).toContain("App locale: en");
+      expect(userPrompt).not.toContain("TAIL");
+      expect(environmentLength).toBe(ENVIRONMENT_WINDOW_CHARS);
+    });
+
+    /**
+     * The cache key is hashed from this string alone, so the same half-typed
+     * question asked hours apart, or in a different keyboard layout, must not be
+     * able to serve the earlier one's suggestion.
+     */
+    it("changes the prompt when only the environment changes", () => {
+      const build = (environment: string) =>
+        buildAutocompletePrompt({ prefix: "what about thi", environment }).userPrompt;
+
+      expect(build(ENVIRONMENT)).not.toBe(
+        build(ENVIRONMENT.replace("Japanese", "ABC")),
+      );
+    });
+
+    /**
+     * BYTE-IDENTICAL WITH NEITHER BLOCK, which is the cost property: every
+     * cached suggestion the feature already paid for is keyed on this exact
+     * string.
+     */
+    it.each([
+      ["no environment field at all", undefined],
+      ["an empty environment", ""],
+    ])("builds the pre-environment prompt unchanged for %s", (_description, environment) => {
+      const built = buildAutocompletePrompt({
+        prefix: "Hello wor",
+        suffix: " and goodbye",
+        environment,
+      });
+
+      expect(built.userPrompt).toBe(
+        "Text before the caret:\nHello wor\n\nText after the caret:\n and goodbye\n\nJSON:",
+      );
+      expect(built.environmentLength).toBe(0);
     });
   });
 

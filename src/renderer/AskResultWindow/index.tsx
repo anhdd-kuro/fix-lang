@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { twJoin } from "tailwind-merge";
 import { Button } from "../components/Button";
+import {
+  ChatTranscript,
+  type ChatTranscriptMessage,
+} from "../components/ChatTranscript";
 import CopyButton from "../components/CopyButton";
 import { MarkdownView } from "../components/MarkdownView";
 import { useTheme } from "../hooks/useTheme";
@@ -44,6 +47,55 @@ export const AskResultWindow = () => {
 
   if (!payload) return null;
 
+  /*
+    The same transcript the history modal shows for a stored session, so an
+    answer looks the same wherever the user reads it.
+
+    The attached selection keeps the FOLDED treatment it had before the move —
+    it is context the user may not want expanded, and the popup exists to show
+    the answer, not its inputs. In the chat view the fold is what a `system`
+    message gets, so that is the role it is mapped to. The question is a `user`
+    bubble and the answer an `assistant` one.
+
+    The answer alone overrides the body renderer, because `payload.markdown` was
+    snapshotted at request time and is the only thing that decides whether this
+    text goes through `MarkdownView`. `renderContent` returning `undefined` is
+    not an option — the field is read as "is a renderer present" — so the plain
+    branch names its own element.
+  */
+  const messages: ChatTranscriptMessage[] = [
+    ...(payload.input?.trim()
+      ? [
+          {
+            role: "system",
+            sectionId: "input",
+            label: t("notifications.window.askResult.inputLabel"),
+            content: payload.input,
+          },
+        ]
+      : []),
+    {
+      role: "user",
+      sectionId: "question",
+      label: t("notifications.window.askResult.questionLabel"),
+      content: payload.question,
+    },
+    {
+      role: "assistant",
+      sectionId: "answer",
+      label: t("notifications.window.askResult.answerLabel"),
+      content: payload.answer,
+      renderContent: (answer: string) =>
+        payload.markdown ? (
+          <MarkdownView markdown={answer} />
+        ) : (
+          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+            {answer}
+          </p>
+        ),
+    },
+  ];
+
   return (
     <main className="flex h-screen flex-col gap-3 bg-background p-4 text-foreground">
       <header>
@@ -53,29 +105,10 @@ export const AskResultWindow = () => {
       </header>
 
       <section className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto rounded-md border border-card-control-border bg-card p-4">
-        {payload.input?.trim() ? (
-          <FoldableTextBlock
-            sectionId="input"
-            label={t("notifications.window.askResult.inputLabel")}
-            text={payload.input}
-          />
-        ) : null}
-
-        <FoldableTextBlock
-          sectionId="question"
-          label={t("notifications.window.askResult.questionLabel")}
-          text={payload.question}
+        <ChatTranscript
+          ariaLabel={t("notifications.window.askResult.chatAriaLabel")}
+          messages={messages}
         />
-
-        <div className="border-t border-border pt-3" data-ask-section="answer">
-          {payload.markdown ? (
-            <MarkdownView markdown={payload.answer} />
-          ) : (
-            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-              {payload.answer}
-            </p>
-          )}
-        </div>
       </section>
 
       <footer className="flex justify-end gap-4">
@@ -97,77 +130,6 @@ export const AskResultWindow = () => {
         />
       </footer>
     </main>
-  );
-};
-
-type FoldableTextBlockProps = {
-  sectionId: "input" | "question";
-  label: string;
-  text: string;
-};
-
-/**
- * Collapsed by default: the input can be a whole selected document, and the
- * answer — not its inputs — is what the popup exists to show.
- *
- * The fold control appears only when the clamp actually truncates the text.
- * That is measured from the laid-out element rather than guessed from the
- * string, because how many lines a passage occupies depends on the popup's
- * current width, not on its character count.
- */
-const FoldableTextBlock = ({
-  sectionId,
-  label,
-  text,
-}: FoldableTextBlockProps) => {
-  const { t } = useI18n();
-  const [expanded, setExpanded] = useState(false);
-  const [truncated, setTruncated] = useState(false);
-  const bodyRef = useRef<HTMLParagraphElement | null>(null);
-
-  // Measured only while collapsed. Expanding drops the clamp, so the element
-  // then reports no overflow — re-measuring there would clear `truncated` and
-  // take away the control the user needs to collapse again.
-  useEffect(() => {
-    const body = bodyRef.current;
-    if (!body || expanded) return;
-
-    const measure = () => setTruncated(body.scrollHeight > body.clientHeight);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(body);
-    return () => observer.disconnect();
-  }, [expanded, text]);
-
-  return (
-    <div className="flex flex-col gap-1" data-ask-section={sectionId}>
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
-      <p
-        ref={bodyRef}
-        data-ask-text
-        className={twJoin(
-          "whitespace-pre-wrap break-words text-sm leading-relaxed",
-          !expanded && "line-clamp-3",
-        )}
-      >
-        {text}
-      </p>
-      {truncated ? (
-        <Button
-          type="button"
-          variant="ghost"
-          className="self-start rounded px-0 py-0.5 text-xs font-medium text-primary hover:underline"
-          aria-expanded={expanded}
-          onClick={() => setExpanded((previous) => !previous)}
-        >
-          {expanded
-            ? t("notifications.window.askResult.collapse")
-            : t("notifications.window.askResult.expand")}
-        </Button>
-      ) : null}
-    </div>
   );
 };
 

@@ -37,6 +37,21 @@ export type RunAskFlowParams = {
   context: string;
   /** The user's typed question from the Ask AI input window. */
   question: string;
+  /**
+   * The directive block resolved ONCE at the hotkey press
+   * (`askEnvironment.ts`), appended verbatim below the composed message.
+   *
+   * Passed in rather than built here, and that is the whole point: the input
+   * window is SHOWING this exact string in its transparency row, and every
+   * autocomplete dispatch made while the user typed already carried it. Building
+   * a second copy at submit would state one thing on screen and send another —
+   * and would re-read a clock the window quoted minutes ago.
+   *
+   * Absent falls back to the app-locale line alone, which is what this flow
+   * appended before an environment existed, so a caller that resolves no
+   * environment sends exactly what it used to.
+   */
+  directives?: string;
   mainWindow: BrowserWindow | null;
 };
 
@@ -66,6 +81,7 @@ export const runAskFlow = async ({
   preset,
   context,
   question,
+  directives,
   mainWindow,
 }: RunAskFlowParams): Promise<void> => {
   const composed = composeAskMessage({ question, context });
@@ -73,7 +89,12 @@ export const runAskFlow = async ({
     return;
   }
 
-  const message = `${composed}\n\n${buildAppLocaleDirective()}`;
+  // The composed half is deterministic (`askMessage.ts` guarantees it); this
+  // half never was — it has always carried the call-time app locale, and now
+  // carries the press's wall-clock time as well. History's `original` column
+  // therefore records what was actually SENT rather than something replayable,
+  // which is the right trade for a transparency feature.
+  const message = `${composed}\n\n${directives ?? buildAppLocaleDirective()}`;
 
   // The Ask clock starts at submit, not at the hotkey: the gap between them is
   // the user typing their question. `correction.ts` measures press → input
