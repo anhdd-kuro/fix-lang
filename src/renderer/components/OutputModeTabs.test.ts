@@ -232,7 +232,9 @@ describe("OutputModeTabs", () => {
         vi.advanceTimersByTime(2000);
       });
 
-      expect(status?.textContent).toContain(
+      const liveStatus = container.querySelector('[role="status"]');
+      expect(liveStatus).not.toBeNull();
+      expect(liveStatus?.textContent).toContain(
         t("settings.general.error", { message: t("settings.general.outputMode.saveFailed") }),
       );
     } finally {
