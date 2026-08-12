@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { DEFAULT_CORRECTION_OUTPUT_MODE } from "~/features/correction/shared/outputMode";
+import { messageLabel } from "~/features/i18n/shared/message";
 import { SegmentedControl } from "./SegmentedControl";
+import {
+  plainStatus,
+  resolveStatus,
+  wrappedError,
+  type StatusDescriptor,
+} from "./statusDescriptor";
 import { useI18n } from "../i18n/useI18n";
 import type { CorrectionOutputMode } from "~/features/correction/shared/outputMode";
 
@@ -9,7 +16,7 @@ import type { CorrectionOutputMode } from "~/features/correction/shared/outputMo
  * segmented control, same tray-and-settings split as `LanguageTabs`: this is
  * the compact tray rendering of the value; `SettingGeneral.tsx` renders the
  * same underlying `getCorrectionOutputMode`/`setCorrectionOutputMode` value
- * as a labelled radio group with descriptions.
+ * with optional save-status feedback when `showSaveStatus` is set.
  *
  * Loads once on mount and saves on change — mirrors `SettingGeneral`'s own
  * load/save pattern; changing the mode does not currently broadcast
@@ -24,21 +31,43 @@ type OutputModeTabsProps = {
   size?: OutputModeTabsSize;
   /** Extra classes for the container — e.g. `w-full` in a settings panel. */
   className?: string;
+  /** Settings panel: show saving/error status and disable while persisting. */
+  showSaveStatus?: boolean;
 };
 
 export const OutputModeTabs: React.FC<OutputModeTabsProps> = ({
   size = "sm",
   className,
+  showSaveStatus = false,
 }) => {
-  const { t } = useI18n();
+  const { t, tm, tl } = useI18n();
   const [mode, setMode] = useState<CorrectionOutputMode>(
     DEFAULT_CORRECTION_OUTPUT_MODE,
   );
+  const [saveStatus, setSaveStatus] = useState<StatusDescriptor | null>(null);
+  const [saveIsError, setSaveIsError] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    window.electronAPI
-      ?.getCorrectionOutputMode?.()
+    const api = window.electronAPI;
+
+    if (!api?.getCorrectionOutputMode) {
+      void Promise.resolve().then(() => {
+        if (mounted && showSaveStatus) {
+          setSaveIsError(true);
+          setSaveStatus(
+            wrappedError(messageLabel("settings.general.outputMode.unavailable")),
+          );
+        }
+      });
+      return () => {
+        mounted = false;
+      };
+    }
+
+    api
+      .getCorrectionOutputMode()
       .then((value) => {
         if (mounted) {
           setMode(value);
@@ -46,45 +75,111 @@ export const OutputModeTabs: React.FC<OutputModeTabsProps> = ({
       })
       .catch((error: unknown) => {
         console.error("OutputModeTabs: Error loading output mode:", error);
+        if (mounted && showSaveStatus) {
+          setSaveIsError(true);
+          setSaveStatus(
+            wrappedError(messageLabel("settings.general.outputMode.unavailable")),
+          );
+        }
       });
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [showSaveStatus]);
+
+  const persistMode = async (next: CorrectionOutputMode) => {
+    const api = window.electronAPI;
+    if (!api?.setCorrectionOutputMode) {
+      if (showSaveStatus) {
+        setSaveIsError(true);
+        setSaveStatus(
+          wrappedError(messageLabel("settings.general.outputMode.unavailable")),
+        );
+      }
+      return;
+    }
+
+    const previous = mode;
+    setMode(next);
+    if (showSaveStatus) {
+      setSaving(true);
+      setSaveIsError(false);
+      setSaveStatus(plainStatus("settings.general.outputMode.saving"));
+    }
+
+    try {
+      const result = await api.setCorrectionOutputMode(next);
+      if (!result.success) {
+        setMode(previous);
+        if (showSaveStatus) {
+          setSaveIsError(true);
+          setSaveStatus(
+            wrappedError(
+              result.error ??
+                messageLabel("settings.general.outputMode.saveFailed"),
+            ),
+          );
+        }
+        return;
+      }
+
+      setMode(result.mode ?? next);
+      if (showSaveStatus) {
+        setSaveIsError(false);
+        setSaveStatus(plainStatus("settings.general.outputMode.saved"));
+        setTimeout(() => {
+          setSaveStatus(null);
+        }, 2000);
+      }
+    } catch (error: unknown) {
+      console.error("OutputModeTabs: Error saving output mode:", error);
+      setMode(previous);
+      if (showSaveStatus) {
+        setSaveIsError(true);
+        setSaveStatus(
+          wrappedError(messageLabel("settings.general.outputMode.saveError")),
+        );
+      }
+    } finally {
+      if (showSaveStatus) {
+        setSaving(false);
+      }
+    }
+  };
 
   return (
-    <SegmentedControl
-      value={mode}
-      onChange={(next) => {
-        const previous = mode;
-        setMode(next);
-        void window.electronAPI
-          ?.setCorrectionOutputMode?.(next)
-          .then((result) => {
-            if (!result.success) {
-              setMode(previous);
-            }
-          })
-          .catch((error: unknown) => {
-            console.error("OutputModeTabs: Error saving output mode:", error);
-            setMode(previous);
-          });
-      }}
-      ariaLabel={t("settings.general.correctionOutput.title")}
-      size={size}
-      equalWidth
-      className={className}
-      options={[
-        {
-          value: "paste",
-          label: t("settings.general.correctionOutput.paste.label"),
-        },
-        {
-          value: "popup",
-          label: t("settings.general.correctionOutput.popup.label"),
-        },
-      ]}
-    />
+    <div>
+      <SegmentedControl
+        value={mode}
+        onChange={(next) => {
+          void persistMode(next);
+        }}
+        ariaLabel={t("settings.general.correctionOutput.title")}
+        size={size}
+        equalWidth
+        className={className}
+        options={[
+          {
+            value: "paste",
+            label: t("settings.general.correctionOutput.paste.label"),
+            disabled: saving,
+          },
+          {
+            value: "popup",
+            label: t("settings.general.correctionOutput.popup.label"),
+            disabled: saving,
+          },
+        ]}
+      />
+      {showSaveStatus && saveStatus ? (
+        <p
+          className={`mt-1 text-xs ${saveIsError ? "text-destructive" : "text-success"}`}
+          role="status"
+        >
+          {resolveStatus(saveStatus, t, tm, tl)}
+        </p>
+      ) : null}
+    </div>
   );
 };
 

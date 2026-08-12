@@ -877,7 +877,7 @@ export const SettingGeneral: React.FC = () => {
           {t("settings.general.correctionOutput.description")}
         </p>
         <div className="mt-3">
-          <OutputModeTabs size="md" className="w-full" />
+          <OutputModeTabs size="md" className="w-full" showSaveStatus />
         </div>
       </section>
 

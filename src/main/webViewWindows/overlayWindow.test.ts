@@ -307,3 +307,35 @@ describe("overlay.html — window.__setComboProgress stays a pure applier (O5)",
     expect(comboProgressScript).not.toMatch(/\/\s*(?:style\.)?total\b/i);
   });
 });
+
+
+describe("overlay.html — combo ring mask geometry", () => {
+  let overlayCss: string;
+
+  beforeEach(async () => {
+    const overlayHtmlPath = join(
+      process.cwd(),
+      "src/main/webViewWindows/overlay.html",
+    );
+    const html = await readFile(overlayHtmlPath, "utf8");
+    const styleMatch = html.match(/<style>([\s\S]*?)<\/style>/);
+    if (!styleMatch) {
+      throw new Error("overlay.html has no <style> block to inspect");
+    }
+    overlayCss = styleMatch[1];
+  });
+
+  it("uses closest-side radial mask so ring thickness tracks --border-width", () => {
+    expect(overlayCss).toContain(
+      "radial-gradient(circle closest-side, transparent calc(100% - var(--border-width)), #000 calc(100% - var(--border-width)))",
+    );
+  });
+
+  it("derives standalone text sizes from --font-size-base", () => {
+    expect(overlayCss).toContain("font-size: var(--font-size-base, 14px);");
+    expect(overlayCss).toContain(
+      "font-size: calc(var(--font-size-base, 14px) * 12 / 14);",
+    );
+  });
+});
+

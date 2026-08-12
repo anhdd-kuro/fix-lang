@@ -130,6 +130,63 @@ describe("OutputModeTabs", () => {
     expect(popup.getAttribute("aria-pressed")).toBe("false");
   });
 
+
+  it("shows save status in settings mode when persistence fails", async () => {
+    await mount("paste");
+    setCorrectionOutputMode.mockResolvedValueOnce({ success: false });
+
+    await act(async () => {
+      root.render(
+        createElement(
+          I18nProvider,
+          null,
+          createElement(OutputModeTabs, { showSaveStatus: true }),
+        ),
+      );
+    });
+    await waitForUi();
+    await waitForUi();
+
+    const popup = buttons(container).find(
+      (b) => b.textContent === t("settings.general.correctionOutput.popup.label"),
+    );
+    if (!popup) throw new Error("popup button not rendered");
+    await click(popup);
+    await waitForUi();
+
+    const status = container.querySelector('[role="status"]');
+    expect(status?.textContent).toContain(
+      t("settings.general.error", { message: t("settings.general.outputMode.saveFailed") }),
+    );
+  });
+
+  it("shows unavailable status in settings mode when the bridge is missing on load", async () => {
+    (window as unknown as { electronAPI: unknown }).electronAPI = {
+      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+      setLocale: vi.fn().mockResolvedValue({ success: true }),
+      onLocaleChanged: vi.fn().mockReturnValue(vi.fn()),
+    };
+
+    await act(async () => {
+      root.render(
+        createElement(
+          I18nProvider,
+          null,
+          createElement(OutputModeTabs, { showSaveStatus: true }),
+        ),
+      );
+    });
+    await waitForUi();
+    await waitForUi();
+
+    const status = container.querySelector('[role="status"]');
+    expect(status?.textContent).toContain(
+      t("settings.general.error", {
+        message: t("settings.general.outputMode.unavailable"),
+      }),
+    );
+  });
+
   it("translates its accessible name", async () => {
     await mount("paste");
     expect(group(container).getAttribute("aria-label")).toBe(

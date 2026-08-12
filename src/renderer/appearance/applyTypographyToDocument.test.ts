@@ -17,5 +17,6 @@ describe("applyTypographyToDocument", () => {
     ).toContain("monospace");
     expect(document.documentElement.dataset.fontSize).toBe("lg");
     expect(document.documentElement.dataset.fontFamily).toBe("mono");
+    expect(document.documentElement.style.getPropertyValue("font-size")).toBe("");
   });
 });
