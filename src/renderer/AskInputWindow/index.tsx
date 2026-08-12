@@ -466,7 +466,7 @@ type ContextPreviewProps = {
  * as glued to the passage, while the bottom edge already has the fold control
  * standing off it.
  *
- * The label's `leading-none` is not cosmetic: `text-[10px]` sets no
+ * The label's `leading-none` is not cosmetic: `text-2xs` sets no
  * line-height, so its box would be whatever `normal` means for the user's font,
  * and a card whose height is an estimate cannot be summed against a floor.
  *
@@ -531,7 +531,7 @@ const ContextPreview = ({ text, source, onToggled }: ContextPreviewProps) => {
       <p
         data-ask-context-label
         data-ask-context-source={source}
-        className="text-[10px] font-medium uppercase leading-none tracking-wide text-muted-foreground"
+        className="text-2xs font-medium uppercase leading-none tracking-wide text-muted-foreground"
       >
         {source === "clipboard"
           ? t("notifications.window.askInput.contextLabelClipboard")
@@ -659,7 +659,7 @@ const RequestTransparency = ({
         )}
       >
         <div className="flex h-10 shrink-0 items-center justify-between gap-2">
-          <p className="text-[10px] font-medium uppercase leading-none tracking-wide text-muted-foreground">
+          <p className="text-2xs font-medium uppercase leading-none tracking-wide text-muted-foreground">
             {t("notifications.window.askInput.transparencyLabel")}
           </p>
           <Button

@@ -657,7 +657,7 @@ export const SettingCombos: React.FC = () => {
                           {estimate.providers.map((provider) => (
                             <li
                               key={provider}
-                              className="inline-block rounded-full border border-card-control-border bg-muted px-2 py-0.5 text-[11px] font-semibold text-foreground"
+                              className="inline-block rounded-full border border-card-control-border bg-muted px-2 py-0.5 text-xxs font-semibold text-foreground"
                             >
                               {t(PROVIDER_LABEL_KEYS[provider])}
                             </li>

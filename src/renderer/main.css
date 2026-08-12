@@ -12,6 +12,8 @@
     Arial,
     sans-serif
   );
+  --text-2xs: calc(0.625rem * var(--font-size-text-scale, 1));
+  --text-xxs: calc(0.6875rem * var(--font-size-text-scale, 1));
   --text-xs: calc(0.75rem * var(--font-size-text-scale, 1));
   --text-sm: calc(0.875rem * var(--font-size-text-scale, 1));
   --text-base: calc(1rem * var(--font-size-text-scale, 1));
@@ -99,6 +101,10 @@
     background-color: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
+  }
+
+  body,
+  #root {
     font-size: var(--font-size-base, 14px);
   }
 

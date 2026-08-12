@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { DEFAULT_CORRECTION_OUTPUT_MODE } from "~/features/correction/shared/outputMode";
 import { messageLabel } from "~/features/i18n/shared/message";
 import { SegmentedControl } from "./SegmentedControl";
@@ -47,6 +47,16 @@ export const OutputModeTabs: React.FC<OutputModeTabsProps> = ({
   const [saveStatus, setSaveStatus] = useState<StatusDescriptor | null>(null);
   const [saveIsError, setSaveIsError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const savedStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelSavedStatusTimer = () => {
+    if (savedStatusTimerRef.current !== null) {
+      clearTimeout(savedStatusTimerRef.current);
+      savedStatusTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => () => cancelSavedStatusTimer(), []);
 
   useEffect(() => {
     let mounted = true;
@@ -91,6 +101,7 @@ export const OutputModeTabs: React.FC<OutputModeTabsProps> = ({
     const api = window.electronAPI;
     if (!api?.setCorrectionOutputMode) {
       if (showSaveStatus) {
+        cancelSavedStatusTimer();
         setSaveIsError(true);
         setSaveStatus(
           wrappedError(messageLabel("settings.general.outputMode.unavailable")),
@@ -102,6 +113,7 @@ export const OutputModeTabs: React.FC<OutputModeTabsProps> = ({
     const previous = mode;
     setMode(next);
     if (showSaveStatus) {
+      cancelSavedStatusTimer();
       setSaving(true);
       setSaveIsError(false);
       setSaveStatus(plainStatus("settings.general.outputMode.saving"));
@@ -112,6 +124,7 @@ export const OutputModeTabs: React.FC<OutputModeTabsProps> = ({
       if (!result.success) {
         setMode(previous);
         if (showSaveStatus) {
+          cancelSavedStatusTimer();
           setSaveIsError(true);
           setSaveStatus(
             wrappedError(
@@ -125,9 +138,11 @@ export const OutputModeTabs: React.FC<OutputModeTabsProps> = ({
 
       setMode(result.mode ?? next);
       if (showSaveStatus) {
+        cancelSavedStatusTimer();
         setSaveIsError(false);
         setSaveStatus(plainStatus("settings.general.outputMode.saved"));
-        setTimeout(() => {
+        savedStatusTimerRef.current = setTimeout(() => {
+          savedStatusTimerRef.current = null;
           setSaveStatus(null);
         }, 2000);
       }
@@ -135,6 +150,7 @@ export const OutputModeTabs: React.FC<OutputModeTabsProps> = ({
       console.error("OutputModeTabs: Error saving output mode:", error);
       setMode(previous);
       if (showSaveStatus) {
+        cancelSavedStatusTimer();
         setSaveIsError(true);
         setSaveStatus(
           wrappedError(messageLabel("settings.general.outputMode.saveError")),

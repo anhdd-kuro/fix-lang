@@ -187,6 +187,59 @@ describe("OutputModeTabs", () => {
     );
   });
 
+
+  it("keeps failure status when a success clear timer would have fired", async () => {
+    vi.useFakeTimers();
+    try {
+      await mount("paste");
+
+      await act(async () => {
+        root.render(
+          createElement(
+            I18nProvider,
+            null,
+            createElement(OutputModeTabs, { showSaveStatus: true }),
+          ),
+        );
+      });
+      await waitForUi();
+      await waitForUi();
+
+      setCorrectionOutputMode
+        .mockResolvedValueOnce({ success: true, mode: "popup" })
+        .mockResolvedValueOnce({ success: false });
+
+      const popup = buttons(container).find(
+        (b) => b.textContent === t("settings.general.correctionOutput.popup.label"),
+      );
+      const paste = buttons(container).find(
+        (b) => b.textContent === t("settings.general.correctionOutput.paste.label"),
+      );
+      if (!popup || !paste) throw new Error("output mode buttons not rendered");
+
+      await click(popup);
+      await waitForUi();
+
+      await click(paste);
+      await waitForUi();
+
+      const status = container.querySelector('[role="status"]');
+      expect(status?.textContent).toContain(
+        t("settings.general.error", { message: t("settings.general.outputMode.saveFailed") }),
+      );
+
+      await act(async () => {
+        vi.advanceTimersByTime(2000);
+      });
+
+      expect(status?.textContent).toContain(
+        t("settings.general.error", { message: t("settings.general.outputMode.saveFailed") }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("translates its accessible name", async () => {
     await mount("paste");
     expect(group(container).getAttribute("aria-label")).toBe(

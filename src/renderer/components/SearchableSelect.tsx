@@ -56,7 +56,7 @@ export const DefaultGroupHeading = <Option extends SearchableOption>({
   const label = typeof data.label === "string" ? data.label : "";
   if (label === "") return null;
   return (
-    <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="px-3 pt-2 pb-1 text-xxs font-semibold uppercase tracking-wide text-muted-foreground">
       {label}
     </div>
   );
