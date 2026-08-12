@@ -147,6 +147,21 @@ describe("SettingsModal", () => {
     expect(settingsTabIndex("combos")).toBe(ids.indexOf("combos"));
   });
 
+  /**
+   * The guard rails are configuration, so they live here rather than on the
+   * dashboard — the dashboard's Security tab shows what the guards DID. A
+   * regression that puts the controls back on the dashboard shows up as this
+   * tab disappearing from the settings list.
+   */
+  it("lists Security in the per-feature run, after Autocomplete and before Appearance", () => {
+    const ids = visibleSettingsTabIds();
+
+    expect(ids).toContain("security");
+    expect(ids.indexOf("security")).toBe(ids.indexOf("autocomplete") + 1);
+    expect(ids.indexOf("security")).toBeLessThan(ids.indexOf("appearance"));
+    expect(settingsTabIndex("security")).toBe(ids.indexOf("security"));
+  });
+
   it("renders a Combos tab button that is reachable from another tab", async () => {
     await render();
 

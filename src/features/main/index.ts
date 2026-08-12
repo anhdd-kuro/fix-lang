@@ -4,6 +4,7 @@ export * from "~/features/autocomplete/main/settings";
 export * from "~/features/providers/main/api";
 export * from "~/features/correction/main/correction";
 export * from "~/features/guards/main/guards";
+export * from "~/features/guards/main/securityStats";
 export * from "~/features/history/main/history";
 export * from "~/features/i18n/main/locale";
 export * from "~/features/logs/main/logs";

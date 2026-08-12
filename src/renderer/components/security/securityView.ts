@@ -2,7 +2,7 @@
  * @file securityView.ts
  * @description PURE view-layer helpers for the Security dashboard tab.
  * Mirrors `autocompleteUsageView.ts` / `modelsView.ts`: all derivation lives
- * here, locale-free, so `SecurityPanel.tsx` only resolves descriptors through
+ * here, locale-free, so `SettingSecurity.tsx` only resolves descriptors through
  * `t()`/`tm()` at render time.
  *
  * Every conditional piece of copy (the age/size guard's "running" vs.

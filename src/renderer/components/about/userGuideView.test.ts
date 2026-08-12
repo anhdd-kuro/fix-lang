@@ -133,12 +133,17 @@ describe("GUIDE_TOPICS", () => {
   });
 
   it("points every title at a real settings tab", () => {
+    // Mirrors the `SettingsTabId` union in `SettingsModal.tsx`, including the
+    // tabs no topic currently points at — a topic aimed at a tab that does not
+    // exist opens Profiles instead, silently.
     const validTabs = [
       "profiles",
       "general",
       "appearance",
       "correction",
       "combos",
+      "autocomplete",
+      "security",
       "promptGen",
     ];
     for (const topic of GUIDE_TOPICS) {

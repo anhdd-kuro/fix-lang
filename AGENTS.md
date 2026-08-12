@@ -4,7 +4,7 @@
 
 Local macOS menu-bar app: fixes grammar and improves writing on selected text via AI (OpenAI, OpenRouter, AWS Bedrock, Ollama, LM Studio). Electron + React + TypeScript, runs on **bun**.
 
-Current release: **v0.24.2**.
+Current release: **v0.25.0**.
 
 ## Main Features
 
@@ -23,7 +23,7 @@ What the user gets. Implementation traps live under [Known Gotchas](#known-gotch
   - **Request context** — resolved once per press (`askEnvironment.ts`): app locale, macOS system language, active keyboard input source (best-effort, absent when unreadable), current local time, and the last 5 transforms as **preset names and timestamps only** — never their text. Rides both the Ask submit and every autocomplete dispatch.
   - **Autocomplete** — opt-in ghost-text suggestions in the Ask AI input (Tab accept; Esc clears ghost, then closes); Settings toggle, model picker, daily cost cap, and Usage rollups.
   - **Prompt generation** — PromptGen builds AI prompts from selected text (`Control+Shift+G`); feature-tagged, OFF in release builds.
-  - **Security guard rails** — four checks before text leaves the machine: a frontmost-app deny-list, a stale/unknown-age clipboard confirm, a selection-size confirm, and a secret guard (`off`/`confirm`/`mask`). Configured from the Security dashboard tab; autocomplete cannot show a dialog, so it refuses to dispatch instead. See [Security guard rails](.claude/skills/fixlang/fixlang-security-guards/SKILL.md).
+  - **Security guard rails** — four checks before text leaves the machine: a frontmost-app deny-list, a stale/unknown-age clipboard confirm, a selection-size confirm, and a secret guard (`off`/`confirm`/`mask`). Configured from **Settings → Security**; the **Security** dashboard tab is the read-only roll-up of what they did (masked requests, blocked apps, cancelled confirms), derived from the persisted JSONL logs. Autocomplete cannot show a dialog, so it refuses to dispatch instead. See [Security guard rails](.claude/skills/fixlang/fixlang-security-guards/SKILL.md).
 - **Providers & profiles**
   - **Multi-provider** — OpenAI, OpenRouter, AWS Bedrock, Ollama, and LM Studio can all be connected; any preset can use any connected model.
   - **Admin keys** — OpenAI Admin / OpenRouter provisioning keys unlock that provider's Usage sub-tab (encrypted, main-process-only).

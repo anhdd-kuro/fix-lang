@@ -1,9 +1,13 @@
 /**
- * @file SecurityPanel.tsx
- * @description Security dashboard tab: one scrolling page configuring all
- * four guard rails (stale-clipboard age, selection size cap, app deny-list,
- * secret guard). Self-fetching load/error/ready panel, same shape as
+ * @file SettingSecurity.tsx
+ * @description Settings → Security: one scrolling page configuring all four
+ * guard rails (stale-clipboard age, selection size cap, app deny-list, secret
+ * guard). Self-fetching load/error/ready panel, same shape as
  * `AutocompletePanel.tsx`.
+ *
+ * Configuration only. What the guards DID is the Security dashboard tab
+ * (`SecurityStatsPanel.tsx`), which reads the persisted logs and never writes
+ * either store.
  *
  * All derivation — the age/size guard's "running" vs. "disabled" hint, the
  * deny-list's empty states, the secret guard's mask hint, and the
@@ -73,7 +77,7 @@ const defaultGuardSettings = (): SelectionGuardSettings => ({
 const recentAppChipKey = (chip: RecentAppChip, index: number): string =>
   chip.app.bundleId ?? `${chip.app.name}-${String(index)}`;
 
-export const SecurityPanel = () => {
+export const SettingSecurity = () => {
   const { t, tm, tl } = useI18n();
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [saveStatus, setSaveStatus] = useState<StatusDescriptor | null>(null);

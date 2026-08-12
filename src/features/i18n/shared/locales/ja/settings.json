@@ -209,6 +209,7 @@
   "settings.modal.tabs.general": "一般",
   "settings.modal.tabs.profiles": "プロファイル",
   "settings.modal.tabs.promptGen": "PromptGen",
+  "settings.modal.tabs.security": "セキュリティ",
   "settings.modal.tabsAriaLabel": "設定タブ",
   "settings.modal.title": "設定",
   "settings.promptGen.allowNsfw": "NSFWを許可",

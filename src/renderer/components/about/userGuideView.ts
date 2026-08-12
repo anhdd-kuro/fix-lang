@@ -197,4 +197,13 @@ export const GUIDE_TOPICS: readonly GuideTopic[] = Object.freeze([
     bodyKey: "guide.topic.combo.body",
     settingsTab: "combos",
   },
+  // The guard rails are the one feature that is ON without the user turning it
+  // on, so a first-timer meeting a confirmation dialog needs somewhere to read
+  // what it is and where to change it.
+  {
+    id: "guards",
+    titleKey: "guide.topic.guards.title",
+    bodyKey: "guide.topic.guards.body",
+    settingsTab: "security",
+  },
 ] satisfies GuideTopic[]);

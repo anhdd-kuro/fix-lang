@@ -10,9 +10,11 @@ import {
   serializeLogJsonLine,
 } from "~/features/logs/shared/logging";
 import {
+  listDayFoldersNewestFirst,
   LOG_JSONL_FILENAME,
   queryPersistedLogs,
   readAllPersistedLogs,
+  readDayLogEntries,
 } from "./logPersistence";
 import type {
   LogContext,
@@ -85,6 +87,29 @@ class LogService {
     // Flush pending writes so the latest entries are visible on disk.
     await this.writeQueue;
     return queryPersistedLogs(directory, request);
+  }
+
+  /**
+   * Local-day folder names newest-first, after pending writes are flushed. For
+   * callers aggregating across days, which `query`'s paging cannot express.
+   */
+  public async listPersistedDays(): Promise<string[]> {
+    const directory = this.persistenceDirectory;
+    if (directory === null) {
+      return [];
+    }
+    await this.writeQueue;
+    return listDayFoldersNewestFirst(directory);
+  }
+
+  /** One day folder's entries, oldest→newest; empty when unreadable. */
+  public async readPersistedDay(dayKey: string): Promise<LogEntry[]> {
+    const directory = this.persistenceDirectory;
+    if (directory === null) {
+      return [];
+    }
+    await this.writeQueue;
+    return readDayLogEntries(directory, dayKey);
   }
 
   /**
