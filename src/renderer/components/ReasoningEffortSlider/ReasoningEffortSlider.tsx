@@ -110,7 +110,7 @@ export const ReasoningEffortSlider: React.FC<ReasoningEffortSliderProps> = ({
           className="reasoning-effort-slider absolute inset-0 z-10 h-8 w-full cursor-pointer appearance-none bg-transparent disabled:cursor-not-allowed disabled:opacity-50"
         />
       </div>
-      <div className="relative h-4 text-[11px] leading-none" aria-hidden="true">
+      <div className="relative h-4 text-xxs leading-none" aria-hidden="true">
         {REASONING_EFFORT_SLIDER_STEPS.map((step, index) => (
           <span
             key={step}

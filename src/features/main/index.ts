@@ -1,3 +1,4 @@
+export * from "~/features/appearance/main/appearance";
 export * from "~/features/autocomplete/main/ipc";
 export * from "~/features/autocomplete/main/settings";
 export * from "~/features/providers/main/api";

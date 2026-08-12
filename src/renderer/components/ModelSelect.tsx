@@ -301,12 +301,12 @@ return (
               return (
                 <div className="px-3 pt-2 pb-1">
                   {group.label ? (
-                    <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <span className="block text-xxs font-semibold uppercase tracking-wide text-muted-foreground">
                       {group.label}
                     </span>
                   ) : null}
                   {group.error ? (
-                    <span className="block text-[11px] text-destructive" role="alert">
+                    <span className="block text-xxs text-destructive" role="alert">
                       {group.error}
                     </span>
                   ) : null}

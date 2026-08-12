@@ -194,7 +194,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M13 10V3L4 14h7v-7l9 11h-7z"
+            d="M4 7h8M4 11h6M4 15h4M14 8h6M14 12h4M14 16h5"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M14 8l3 3m0 0l3-3m-3 3V5"
+            opacity={0.55}
           />
         </svg>
       ),

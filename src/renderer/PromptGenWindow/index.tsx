@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "../main.css";
 import CopyButton from "../components/CopyButton";
 import { formatModelLineage } from "../components/historyModel";
+import { useAppearanceTypography } from "../hooks/useAppearanceTypography";
 import { useTheme } from "../hooks/useTheme";
 import { I18nProvider } from "../i18n/I18nProvider";
 import { useI18n } from "../i18n/useI18n";
@@ -20,6 +21,7 @@ type PromptGenData = {
 
 const PromptGenWindow: React.FC = () => {
   useTheme();
+  useAppearanceTypography();
   const { t } = useI18n();
   const [data, setData] = useState<PromptGenData | null>(null);
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Button } from "../components/Button";
 import CopyButton from "../components/CopyButton";
+import { useAppearanceTypography } from "../hooks/useAppearanceTypography";
 import { useTheme } from "../hooks/useTheme";
 import { I18nProvider } from "../i18n/I18nProvider";
 import { useI18n } from "../i18n/useI18n";
@@ -17,6 +18,7 @@ import type { CorrectionResultPayload } from "~/features/correction/shared/corre
  */
 export const CorrectionResultWindow = () => {
   useTheme();
+  useAppearanceTypography();
   const { t } = useI18n();
   const [payload, setPayload] = useState<CorrectionResultPayload | null>(null);
 

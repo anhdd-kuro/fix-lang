@@ -4,6 +4,7 @@
 import { contextBridge } from "electron";
 import {
   apiFeature,
+  appearanceFeature,
   askFeature,
   autocompleteFeature,
   autocompleteSettingsFeature,
@@ -25,6 +26,7 @@ import {
 } from "~/features/preload";
 import type {
   ApiFeature,
+  AppearanceFeature,
   AskFeature,
   AutocompleteFeature,
   AutocompleteSettingsFeature,
@@ -51,6 +53,7 @@ console.log("Preload script is being executed");
 // Expose a controlled API to the renderer process
 contextBridge.exposeInMainWorld("electronAPI", {
   ...historyFeature,
+  ...appearanceFeature,
   ...apiFeature,
   ...askFeature,
   ...autocompleteFeature,
@@ -76,6 +79,7 @@ console.log(
 );
 
 export type ElectronAPI = HistoryFeature &
+  AppearanceFeature &
   PromptGenFeature &
   AskFeature &
   AutocompleteFeature &

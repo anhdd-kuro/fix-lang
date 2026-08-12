@@ -11,6 +11,7 @@ import { ModelSelect } from "../components/ModelSelect";
 import { OutputModeTabs } from "../components/OutputModeTabs";
 import Tooltip from "../components/Tooltip";
 import { useActiveProfileId } from "../hooks/useActiveProfileId";
+import { useAppearanceTypography } from "../hooks/useAppearanceTypography";
 import { useTheme } from "../hooks/useTheme";
 import { useI18n } from "../i18n/useI18n";
 import { TrayActivityHeatmapLoader } from "./components/TrayActivityHeatmap";
@@ -60,6 +61,7 @@ const TrayGlobalSelectors: React.FC = () => {
 
 export const TrayWindowMain: React.FC = () => {
   useTheme();
+  useAppearanceTypography();
   // Account figures below carry a 60s cache and a latched `hasKey`, so they must
   // not survive a profile switch — the tray stays open across one, and a stale
   // balance reads as the new profile's.

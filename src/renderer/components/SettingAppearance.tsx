@@ -1,9 +1,12 @@
 import React, { useMemo, useState } from "react";
 import { twJoin } from "tailwind-merge";
+import { useAppearanceTypography } from "../hooks/useAppearanceTypography";
 import { useTheme } from "../hooks/useTheme";
 import { useI18n } from "../i18n/useI18n";
 import { THEME_PRESETS } from "../themes";
 import { Button } from "./Button";
+import { FontFamilyTabs } from "./FontFamilyTabs";
+import { FontSizeTabs } from "./FontSizeTabs";
 import type { ThemeId } from "~/features/theme/store/themeIds";
 
 const THEME_CARD_MIN = "9.5rem";
@@ -15,6 +18,12 @@ const THEME_CARD_MAX = "13rem";
 export const SettingAppearance: React.FC = () => {
   const { t } = useI18n();
   const { themeId, setTheme, isLoading } = useTheme();
+  const {
+    typography,
+    setFontSize,
+    setFontFamily,
+    isLoading: typographyLoading,
+  } = useAppearanceTypography();
   const [query, setQuery] = useState("");
 
   const filteredPresets = useMemo(() => {
@@ -40,6 +49,44 @@ export const SettingAppearance: React.FC = () => {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <section className="shrink-0">
+        <h3 className="text-lg font-medium text-foreground">
+          {t("settings.appearance.fontSize.title")}
+        </h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {t("settings.appearance.fontSize.description")}
+        </p>
+        <div className="mt-3">
+          <FontSizeTabs
+            value={typography.fontSize}
+            onChange={(fontSize) => {
+              void setFontSize(fontSize);
+            }}
+            disabled={typographyLoading}
+            className="w-full"
+          />
+        </div>
+      </section>
+
+      <section className="shrink-0">
+        <h3 className="text-lg font-medium text-foreground">
+          {t("settings.appearance.fontFamily.title")}
+        </h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {t("settings.appearance.fontFamily.description")}
+        </p>
+        <div className="mt-3">
+          <FontFamilyTabs
+            value={typography.fontFamily}
+            onChange={(fontFamily) => {
+              void setFontFamily(fontFamily);
+            }}
+            disabled={typographyLoading}
+            className="w-full"
+          />
+        </div>
+      </section>
+
       <div className="shrink-0">
         <h3 className="text-lg font-medium text-foreground">
           {t("settings.appearance.title")}

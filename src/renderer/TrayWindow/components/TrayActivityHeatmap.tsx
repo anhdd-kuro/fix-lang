@@ -78,7 +78,7 @@ export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
           </div>
 
           <div
-            className="grid gap-0.5 text-[10px] text-muted-foreground text-center"
+            className="grid gap-0.5 text-2xs text-muted-foreground text-center"
             style={{
               gridTemplateColumns: `repeat(${heatmap.days.length}, minmax(0, 1fr))`,
             }}

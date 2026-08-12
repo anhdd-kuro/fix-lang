@@ -1,3 +1,4 @@
+export * from "~/features/appearance/preload/appearance";
 export * from "~/features/autocomplete/preload/autocomplete";
 export * from "~/features/autocomplete/preload/autocompleteSettings";
 export * from "~/features/providers/preload/api";

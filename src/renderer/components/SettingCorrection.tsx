@@ -89,7 +89,7 @@ const PresetHotkeyChips = ({
       {keys.map((key, index) => (
         <li
           key={`${String(index)}-${key}`}
-          className={`inline-block rounded-lg border px-1.5 py-0.5 text-[10px] font-semibold ${
+          className={`inline-block rounded-lg border px-1.5 py-0.5 text-2xs font-semibold ${
             selected
               ? "border-primary-foreground/35 bg-primary-foreground/15 text-inherit"
               : "border-control-border bg-muted text-foreground"
@@ -533,7 +533,7 @@ export const SettingCorrection: React.FC = () => {
                           emptyLabel={t("settings.correction.noHotkeyAssigned")}
                         />
                       </div>
-                      <span className="shrink-0 whitespace-nowrap rounded-full bg-secondary px-2 py-1 text-[11px] text-card-foreground">
+                      <span className="shrink-0 whitespace-nowrap rounded-full bg-secondary px-2 py-1 text-xxs text-card-foreground">
                         {preset.isBuiltIn
                           ? t("settings.correction.badge.builtIn")
                           : t("settings.correction.badge.custom")}

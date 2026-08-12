@@ -1,14 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { components as reactSelectComponents } from "react-select";
 import { messageLabel, type Label, type Message } from "~/features/i18n/shared/message";
 import { BEDROCK_DEFAULT_REGION } from "~/features/providers/shared/bedrockEndpoint";
 import { LMSTUDIO_DEFAULT_ENDPOINT } from "~/features/providers/shared/lmstudioEndpoint";
 import { OLLAMA_DEFAULT_ENDPOINT } from "~/features/providers/shared/ollamaEndpoint";
 import { isMalformedOpenAIProjectId } from "~/features/providers/shared/openaiProject";
+import { PROVIDER_ORDER } from "~/features/providers/shared/providers";
 import { Button } from "./Button";
 import { LanguageTabs } from "./LanguageTabs";
 import { ModelSelect } from "./ModelSelect";
 import { PROVIDER_LABEL_KEYS } from "./modelSelectOptions";
+import { OutputModeTabs } from "./OutputModeTabs";
 import {
   ADMIN_KEY_MESSAGE_KEYS,
   buildProviderCards,
@@ -18,8 +19,8 @@ import {
   type ProviderConnectionState,
   type TypedProviderKeys,
 } from "./providerCards";
+import { ProviderTabs } from "./ProviderTabs";
 import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
-import { SearchableSelect } from "./SearchableSelect";
 import {
   plainStatus,
   wrappedError,
@@ -27,8 +28,6 @@ import {
   type StatusDescriptor,
 } from "./statusDescriptor";
 import { useI18n } from "../i18n/useI18n";
-import type { GroupBase, InputProps } from "react-select";
-import type { CorrectionOutputMode } from "~/features/correction/shared/outputMode";
 import type { ReasoningEffort } from "~/features/correction/shared/reasoningEffort";
 import type { ProviderId } from "~/features/providers/store/apiStore";
 
@@ -43,60 +42,13 @@ type ProviderStatus = {
   isError: boolean;
 };
 
-const CORRECTION_OUTPUT_MODES = [
-  {
-    mode: "paste",
-    labelKey: "settings.general.correctionOutput.paste.label",
-    descriptionKey: "settings.general.correctionOutput.paste.description",
-  },
-  {
-    mode: "popup",
-    labelKey: "settings.general.correctionOutput.popup.label",
-    descriptionKey: "settings.general.correctionOutput.popup.description",
-  },
-] as const satisfies readonly {
-  readonly mode: CorrectionOutputMode;
-  readonly labelKey: string;
-  readonly descriptionKey: string;
-}[];
-
-const CORRECTION_OUTPUT_MODE_FIELD_ID = "correction-output-mode";
-const CORRECTION_OUTPUT_MODE_CONTROL_ID = "correction-output-mode-control";
-const CORRECTION_OUTPUT_MODE_HINT_ID = "correction-output-mode-hint";
-
-type OutputModeOption = { value: CorrectionOutputMode; label: string };
-
-/**
- * react-select owns the combobox input's `aria-describedby` (it points at its
- * own placeholder/live region), so the field hint is appended to what is
- * already there instead of replacing it.
- */
-const OutputModeInput = (
-  props: InputProps<OutputModeOption, false, GroupBase<OutputModeOption>>,
-): React.ReactElement => (
-  <reactSelectComponents.Input
-    {...props}
-    aria-describedby={[props["aria-describedby"], CORRECTION_OUTPUT_MODE_HINT_ID]
-      .filter(Boolean)
-      .join(" ")}
-  />
-);
-
-/** Module-level: a fresh identity each render would remount the input. */
-const OUTPUT_MODE_SELECT_COMPONENTS = { Input: OutputModeInput };
-
 export const SettingGeneral: React.FC = () => {
   const { t, tm, tl } = useI18n();
 
   // Descriptors, never resolved strings — see `StatusDescriptor` above for why.
   const [resetStatus, setResetStatus] = useState<StatusDescriptor | null>(null);
   const [resetIsError, setResetIsError] = useState<boolean>(false);
-  const [correctionOutputMode, setCorrectionOutputMode] =
-    useState<CorrectionOutputMode>("paste");
-  const [outputModeStatus, setOutputModeStatus] =
-    useState<StatusDescriptor | null>(null);
-  const [outputModeIsError, setOutputModeIsError] = useState<boolean>(false);
-  const [savingOutputMode, setSavingOutputMode] = useState(false);
+  const [activeProvider, setActiveProvider] = useState<ProviderId>(PROVIDER_ORDER[0]);
   const [defaultReasoningEffort, setDefaultReasoningEffort] =
     useState<ReasoningEffort>("none");
   const [savingReasoning, setSavingReasoning] = useState(false);
@@ -245,7 +197,6 @@ export const SettingGeneral: React.FC = () => {
     };
   }, [refreshProviderStates]);
 
-  // Correction output mode is global — load once on mount.
   useEffect(() => {
     window.electronAPI
       ?.getDefaultReasoningEffort?.()
@@ -255,18 +206,6 @@ export const SettingGeneral: React.FC = () => {
       .catch((error: unknown) => {
         console.error("SettingGeneral: Error loading default reasoning:", error);
       });
-    window.electronAPI
-      ?.getCorrectionOutputMode?.()
-      .then(setCorrectionOutputMode)
-      .catch((error: unknown) => {
-        console.error("SettingGeneral: Error loading output mode:", error);
-        setOutputModeIsError(true);
-        setOutputModeStatus(
-          wrappedError(messageLabel("settings.general.outputMode.unavailable")),
-        );
-      });
-    // Descriptor-only now — no `t()` call in this effect, so no locale
-    // dependency to worry about; load-once on mount is correct as written.
   }, []);
 
   const handleDefaultReasoningChange = async (effort: ReasoningEffort) => {
@@ -290,28 +229,6 @@ export const SettingGeneral: React.FC = () => {
     [providerStates, typedKeys],
   );
 
-  // Falls back to the first mode so an unknown stored value still renders a
-  // hint rather than an empty line under the control.
-  const selectedOutputMode =
-    CORRECTION_OUTPUT_MODES.find(({ mode }) => mode === correctionOutputMode) ??
-    CORRECTION_OUTPUT_MODES[0];
-
-  // `t` changes identity on a locale switch and must stay in the deps, or the
-  // menu rows keep the previous language.
-  const outputModeOptions = useMemo<OutputModeOption[]>(
-    () =>
-      CORRECTION_OUTPUT_MODES.map(({ mode, labelKey }) => ({
-        value: mode,
-        label: t(labelKey),
-      })),
-    [t],
-  );
-
-  const selectedOutputModeOption: OutputModeOption = {
-    value: selectedOutputMode.mode,
-    label: t(selectedOutputMode.labelKey),
-  };
-
   const setTypedKey = (
     provider: ProviderId,
     field: "apiKey" | "secretKey" | "provisioningKey",
@@ -321,48 +238,6 @@ export const SettingGeneral: React.FC = () => {
       ...current,
       [provider]: { ...current[provider], [field]: value },
     }));
-  };
-
-  const handleOutputModeChange = async (mode: CorrectionOutputMode) => {
-    if (!window.electronAPI?.setCorrectionOutputMode) {
-      setOutputModeIsError(true);
-      setOutputModeStatus(
-        wrappedError(messageLabel("settings.general.outputMode.unavailable")),
-      );
-      return;
-    }
-
-    const previousMode = correctionOutputMode;
-    setCorrectionOutputMode(mode);
-    setSavingOutputMode(true);
-    setOutputModeIsError(false);
-    setOutputModeStatus(plainStatus("settings.general.outputMode.saving"));
-
-    try {
-      const result = await window.electronAPI.setCorrectionOutputMode(mode);
-      if (!result.success) {
-        setCorrectionOutputMode(previousMode);
-        setOutputModeIsError(true);
-        setOutputModeStatus(
-          wrappedError(
-            result.error ??
-              messageLabel("settings.general.outputMode.saveFailed"),
-          ),
-        );
-        return;
-      }
-      setCorrectionOutputMode(result.mode ?? mode);
-      setOutputModeIsError(false);
-      setOutputModeStatus(plainStatus("settings.general.outputMode.saved"));
-      setTimeout(() => setOutputModeStatus(null), 2000);
-    } catch (error) {
-      console.error("SettingGeneral: Error saving output mode:", error);
-      setCorrectionOutputMode(previousMode);
-      setOutputModeIsError(true);
-      setOutputModeStatus(plainStatus("settings.general.outputMode.saveError"));
-    } finally {
-      setSavingOutputMode(false);
-    }
   };
 
   const reportProvider = (
@@ -1001,40 +876,9 @@ export const SettingGeneral: React.FC = () => {
         <p className="mt-1 text-xs text-muted-foreground">
           {t("settings.general.correctionOutput.description")}
         </p>
-        <div className="mt-3 flex flex-col gap-2">
-          <label htmlFor={CORRECTION_OUTPUT_MODE_FIELD_ID} className="sr-only">
-            {t("settings.general.correctionOutput.title")}
-          </label>
-          <SearchableSelect<OutputModeOption>
-            id={CORRECTION_OUTPUT_MODE_CONTROL_ID}
-            inputId={CORRECTION_OUTPUT_MODE_FIELD_ID}
-            className="w-full text-sm"
-            value={selectedOutputModeOption}
-            options={outputModeOptions}
-            isDisabled={savingOutputMode}
-            noOptionsMessage={t("common.select.noOptions")}
-            components={OUTPUT_MODE_SELECT_COMPONENTS}
-            onChange={(option) => {
-              if (option) void handleOutputModeChange(option.value);
-            }}
-          />
-          {/* A menu row carries no description, so the selected mode's copy is
-              restated here as the field hint. */}
-          <p
-            id={CORRECTION_OUTPUT_MODE_HINT_ID}
-            className="text-xs text-muted-foreground"
-          >
-            {t(selectedOutputMode.descriptionKey)}
-          </p>
+        <div className="mt-3">
+          <OutputModeTabs size="md" className="w-full" showSaveStatus />
         </div>
-        {outputModeStatus && (
-          <p
-            className={`mt-1 text-xs ${outputModeIsError ? "text-destructive" : "text-success"}`}
-            role="status"
-          >
-            {resolveStatus(outputModeStatus)}
-          </p>
-        )}
       </section>
 
       <section className="mb-4">
@@ -1070,7 +914,15 @@ export const SettingGeneral: React.FC = () => {
           {t("settings.general.providers.description")}
         </p>
         <div className="mt-3 flex flex-col gap-3">
-          {cards.map(renderProviderCard)}
+          <ProviderTabs
+            value={activeProvider}
+            onChange={setActiveProvider}
+            className="w-full overflow-x-auto"
+          />
+          {(() => {
+            const card = cards.find(({ provider }) => provider === activeProvider);
+            return card ? renderProviderCard(card) : null;
+          })()}
         </div>
       </section>
 

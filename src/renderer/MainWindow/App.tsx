@@ -26,6 +26,7 @@ import {
 } from "../components/SettingsModal";
 import { TextAreaBox } from "../components/TextAreaBox";
 import { UsagePanel } from "../components/usage/UsagePanel";
+import { useAppearanceTypography } from "../hooks/useAppearanceTypography";
 import { useTheme } from "../hooks/useTheme";
 import { useUsageCacheInvalidation } from "../hooks/useUsageCacheInvalidation";
 import { useI18n } from "../i18n/useI18n";
@@ -60,6 +61,7 @@ const RANGE_AWARE_TABS = new Set(["overview", "models", "security"]);
  */
 const App: React.FC = () => {
   useTheme();
+  useAppearanceTypography();
   useUsageCacheInvalidation();
   // Resolves DASHBOARD_TABS[]/RANGES[] labelKeys plus every other
   // user-facing string in this file (headings, TextAreaBox labels,

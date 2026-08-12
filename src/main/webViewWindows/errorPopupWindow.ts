@@ -1,6 +1,8 @@
 import { app, BrowserWindow, screen } from "electron";
+import { appearanceStore } from "~/features/appearance/store/appearanceStore";
 import { themeStore } from "~/features/theme/store/themeStore";
 import errorPopupHtml from "./overlay.html?asset";
+import { applyStandaloneTypography } from "./syncStandaloneTypography";
 import {
   buildErrorPopupCloseLabel,
   buildErrorPopupTitle,
@@ -144,6 +146,7 @@ export const createErrorPopupWindow = (): BrowserWindow => {
   errorPopupWindow.webContents.on("did-finish-load", () => {
     errorPopupReady = true;
     syncErrorPopupTheme(themeStore.getThemeId());
+    syncErrorPopupTypography(appearanceStore.getTypography());
     syncErrorPopupLocale();
     wireErrorPopupCloseButton();
     if (pendingMessage) displayErrorPopup(pendingMessage);
@@ -173,6 +176,15 @@ export const initializeErrorPopupWindow = (): void => {
     errorPopupWindow = null;
     errorPopupReady = false;
   });
+};
+
+
+export const syncErrorPopupTypography = (
+  typography = appearanceStore.getTypography(),
+): void => {
+  if (!errorPopupWindow || errorPopupWindow.isDestroyed()) return;
+
+  applyStandaloneTypography(errorPopupWindow.webContents, typography);
 };
 
 export const syncErrorPopupTheme = (themeId: ThemeId): void => {

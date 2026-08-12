@@ -321,7 +321,7 @@ export const SettingSecurity = () => {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 pb-8">
+    <div className="mx-auto flex h-full min-h-0 w-full flex-col gap-6 pb-8">
       {/* 1. Blocked apps */}
       <section className="flex flex-col gap-3 rounded-lg border border-card-control-border bg-card p-4">
         <h2 className="text-base font-semibold text-foreground">
@@ -486,8 +486,13 @@ export const SettingSecurity = () => {
         </div>
       </section>
 
-      <div className="flex items-center gap-3">
-        <Button type="button" variant="secondary" onClick={handleRestoreDefaults}>
+      <div className="flex items-center gap-3 border-t border-card-control-border pt-4">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={handleRestoreDefaults}
+          className="rounded px-3 py-2 text-sm font-semibold"
+        >
           {t("security.restoreDefaults")}
         </Button>
         <span className="text-sm text-muted-foreground" role="status">
