@@ -29,6 +29,12 @@ vi.mock("~/features/theme/store/themeStore", () => ({
   themeStore: { getThemeId: vi.fn(() => "default") },
 }));
 
+vi.mock("~/features/appearance/store/appearanceStore", () => ({
+  appearanceStore: {
+    getTypography: vi.fn(() => ({ fontSize: "md", fontFamily: "system" })),
+  },
+}));
+
 class BrowserWindowMock {
   setVisibleOnAllWorkspaces = vi.fn();
   setIgnoreMouseEvents = vi.fn();
@@ -45,6 +51,7 @@ class BrowserWindowMock {
   webContents = {
     on: vi.fn(),
     executeJavaScript: vi.fn().mockResolvedValue(undefined),
+    isDestroyed: vi.fn(() => false),
   };
 }
 

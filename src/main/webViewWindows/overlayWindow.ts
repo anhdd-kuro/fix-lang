@@ -1,7 +1,9 @@
 import { BrowserWindow, app, screen } from "electron";
+import { appearanceStore } from "~/features/appearance/store/appearanceStore";
 import { themeStore } from "~/features/theme/store/themeStore";
 import { buildComboProgressStyle, type ComboProgressView } from "./comboProgressView";
 import spinnerOverlayHtml from "./overlay.html?asset";
+import { applyStandaloneTypography } from "./syncStandaloneTypography";
 import type { ThemeId } from "~/features/theme/store/themeIds";
 
 /**
@@ -91,6 +93,7 @@ export const createOverlayWindow = (): BrowserWindow => {
   overlayWindow.webContents.on("did-finish-load", () => {
     overlayReady = true;
     syncOverlayTheme(themeStore.getThemeId());
+    syncOverlayTypography(appearanceStore.getTypography());
   });
 
   overlayWindow.once("ready-to-show", () => {
@@ -125,6 +128,20 @@ export const destroyOverlayWindow = () => {
 /**
  * Applies the active theme to the overlay spinner document.
  */
+
+/**
+ * Applies the active typography settings to the overlay spinner document.
+ */
+export const syncOverlayTypography = (
+  typography = appearanceStore.getTypography(),
+): void => {
+  if (!overlayWindow || overlayWindow.isDestroyed()) {
+    return;
+  }
+
+  applyStandaloneTypography(overlayWindow.webContents, typography);
+};
+
 export const syncOverlayTheme = (themeId: ThemeId): void => {
   if (!overlayWindow || overlayWindow.isDestroyed()) {
     return;

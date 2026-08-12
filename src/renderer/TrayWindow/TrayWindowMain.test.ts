@@ -45,6 +45,15 @@ vi.mock("../hooks/useTheme", () => ({
   useTheme: () => ({ themeId: "default", setTheme: vi.fn(), isLoading: false }),
 }));
 
+vi.mock("../hooks/useAppearanceTypography", () => ({
+  useAppearanceTypography: () => ({
+    typography: { fontSize: "md", fontFamily: "system" },
+    setFontSize: vi.fn(),
+    setFontFamily: vi.fn(),
+    isLoading: false,
+  }),
+}));
+
 const { I18nProvider } = await import("../i18n/I18nProvider");
 const { TrayWindowMain } = await import("./TrayWindowMain");
 

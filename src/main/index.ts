@@ -16,6 +16,7 @@ import {
   promptAccessibilityPermission,
 } from "../utils";
 import {
+  registerAppearanceHandlers,
   registerApiHandlers,
   registerAutocompleteHandlers,
   registerAutocompleteSettingsHandlers,
@@ -122,6 +123,7 @@ const registerIpcHandlers = (): UpdateService => {
   registerAutocompleteHandlers();
   registerAutocompleteSettingsHandlers();
   registerSettingsHandlers();
+  registerAppearanceHandlers();
   registerThemeHandlers();
 
   // One-time system-locale detection: a no-op once the user has chosen a

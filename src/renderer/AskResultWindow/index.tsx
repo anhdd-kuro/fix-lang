@@ -7,6 +7,7 @@ import {
 } from "../components/ChatTranscript";
 import CopyButton from "../components/CopyButton";
 import { MarkdownView } from "../components/MarkdownView";
+import { useAppearanceTypography } from "../hooks/useAppearanceTypography";
 import { useTheme } from "../hooks/useTheme";
 import { I18nProvider } from "../i18n/I18nProvider";
 import { useI18n } from "../i18n/useI18n";
@@ -21,6 +22,7 @@ import type { AskResultPayload } from "~/features/ask/shared/ask";
  */
 export const AskResultWindow = () => {
   useTheme();
+  useAppearanceTypography();
   const { t } = useI18n();
   const [payload, setPayload] = useState<AskResultPayload | null>(null);
 

@@ -17,6 +17,7 @@ import {
   type ChatTranscriptMessage,
 } from "../components/ChatTranscript";
 import { GhostTextOverlay } from "../components/GhostTextOverlay";
+import { useAppearanceTypography } from "../hooks/useAppearanceTypography";
 import {
   isSurfaceOnAnchor,
   useGhostText,
@@ -39,6 +40,7 @@ import type {
  */
 export const AskInputWindow = () => {
   useTheme();
+  useAppearanceTypography();
   const { t } = useI18n();
   const [payload, setPayload] = useState<AskInputPayload | null>(null);
   const [question, setQuestion] = useState("");

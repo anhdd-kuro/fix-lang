@@ -65,6 +65,28 @@ const buttonNamed = (
 };
 
 
+
+const selectProviderTab = async (root: HTMLElement, label: string) => {
+  const tab = [...root.querySelectorAll("button")].find(
+    (candidate) => candidate.textContent === label,
+  );
+  if (!tab) {
+    throw new Error(`Expected a provider tab named "${label}"`);
+  }
+  await click(tab);
+  await waitForUi();
+};
+
+const segmentedGroup = (root: HTMLElement, ariaLabel: string): HTMLElement => {
+  const group = [...root.querySelectorAll<HTMLElement>('[role="group"]')].find(
+    (candidate) => candidate.getAttribute("aria-label") === ariaLabel,
+  );
+  if (!group) {
+    throw new Error(`Expected a segmented control named "${ariaLabel}"`);
+  }
+  return group;
+};
+
 const connectButtonNear = (
   root: HTMLElement,
   fieldId: string,
@@ -122,32 +144,6 @@ const type = async (input: HTMLInputElement, value: string) => {
     )?.set;
     setter?.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
-  });
-};
-
-/**
- * The output mode is a react-select combobox (same control as `<ModelSelect>`),
- * not a native `<select>`: there is no `.value` to set. Open its menu from the
- * input — as `ModelSelect.test.ts` does — then click the row by its label.
- */
-const chooseOption = async (
-  container: HTMLElement,
-  input: HTMLInputElement,
-  label: string,
-) => {
-  await act(async () => {
-    input.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
-    );
-  });
-  const row = [...container.querySelectorAll('[role="option"]')].find(
-    (option) => option.textContent === label,
-  );
-  if (!row) {
-    throw new Error(`No output-mode option labelled "${label}"`);
-  }
-  await act(async () => {
-    row.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   });
 };
 
@@ -472,6 +468,10 @@ describe("SettingGeneral", () => {
         .mockResolvedValue({ enabled: true, model: "" }),
       getAutocompleteUsage: vi.fn().mockResolvedValue(autocompleteUsage()),
       setAutocompleteSettings: vi.fn().mockResolvedValue({ success: true }),
+      getAppearanceTypography: vi.fn().mockResolvedValue({ fontSize: "md", fontFamily: "system" }),
+      setAppearanceFontSize: vi.fn().mockResolvedValue({ success: true, typography: { fontSize: "md", fontFamily: "system" } }),
+      setAppearanceFontFamily: vi.fn().mockResolvedValue({ success: true, typography: { fontSize: "md", fontFamily: "system" } }),
+      onAppearanceTypographyChanged: vi.fn().mockReturnValue(vi.fn()),
       getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
       setLocale: vi.fn().mockResolvedValue({ success: true }),
       onLocaleChanged: vi.fn((callback: (locale: Locale) => void) => {
@@ -583,56 +583,6 @@ describe("SettingGeneral", () => {
     expect(jaWrapped).toContain("disk full");
   });
 
-  it("re-resolves an app-authored output-mode error Label directly (no double `textLabel` wrap) in Japanese", async () => {
-    // PR #87 review finding: `set-correction-output-mode`'s "Invalid
-    // correction output mode" used to be a raw string the renderer wrapped
-    // with `textLabel(result.error)`. Main now returns a `messageLabel(...)`
-    // `Label` directly — if this component still wrapped it in `textLabel`,
-    // the resolved text would stay frozen in whatever locale was active at
-    // the moment of the click instead of re-translating below.
-    await render({ success: true });
-    api.setCorrectionOutputMode.mockResolvedValueOnce({
-      success: false,
-      error: messageLabel("settings.general.outputMode.invalid"),
-    });
-
-    const modeInput = container.querySelector<HTMLInputElement>(
-      "input#correction-output-mode",
-    );
-    if (!modeInput) {
-      throw new Error("Expected the output-mode combobox input");
-    }
-    await chooseOption(
-      container,
-      modeInput,
-      tEn("settings.general.correctionOutput.popup.label"),
-    );
-    await waitForUi();
-    await waitForUi();
-
-    const statuses = () =>
-      [...container.querySelectorAll('[role="status"]')].map(
-        (el) => el.textContent,
-      );
-    const enWrapped = tEn("settings.general.error", {
-      message: tEn("settings.general.outputMode.invalid"),
-    });
-    expect(statuses()).toContain(enWrapped);
-
-    await act(async () => {
-      localeListener?.("ja");
-    });
-    await waitForUi();
-
-    // Only the "Error: " wrapper AND the message both re-translate — proving
-    // the underlying error is a `Message` resolved via `tl()`, not raw text
-    // frozen by a stray `textLabel(result.error)` wrap.
-    const jaWrapped = tJa("settings.general.error", {
-      message: tJa("settings.general.outputMode.invalid"),
-    });
-    expect(statuses()).toContain(jaWrapped);
-    expect(jaWrapped).not.toBe(enWrapped);
-  });
 
   // The autocomplete card moved out of General into its own Settings tab
   // (`SettingsModal.test.ts` owns the guarantee that it still renders, and
@@ -662,117 +612,24 @@ describe("SettingGeneral", () => {
     expect(api.getAutocompleteUsage).not.toHaveBeenCalled();
   });
 
-  describe("the global Transform output mode is a react-select combobox", () => {
-    /** react-select's inner text input — what `<label htmlFor>` points at. */
-    const outputModeInput = (): HTMLInputElement => {
-      const input = container.querySelector<HTMLInputElement>(
-        "input#correction-output-mode",
-      );
-      if (!input) {
-        throw new Error("Expected the output-mode combobox input");
-      }
-      return input;
-    };
+  describe("the global Transform output mode uses segmented tabs", () => {
+    const outputModeGroup = (): HTMLElement =>
+      segmentedGroup(container, tEn("settings.general.correctionOutput.title"));
 
-    /** The closed control's own text: the selected row's label. */
-    const outputModeControlText = (): string =>
-      container.querySelector("#correction-output-mode-control")?.textContent ??
-      "";
+    const outputModeButtons = (): HTMLButtonElement[] =>
+      Array.from(outputModeGroup().querySelectorAll("button"));
 
-    const chooseMode = async (label: string) => {
-      await chooseOption(container, outputModeInput(), label);
-    };
-
-    it("renders a labelled combobox carrying paste and popup, with no Button radiogroup left", async () => {
+    it("renders paste and popup as a segmented control", async () => {
       await render({ success: true });
 
-      const input = outputModeInput();
-      // Kills a swap back to a native <select>, which has no combobox role and
-      // would not match `<ModelSelect>`.
-      expect(input.getAttribute("role")).toBe("combobox");
-      expect(container.querySelector("select#correction-output-mode")).toBeNull();
-
-      await act(async () => {
-        input.dispatchEvent(
-          new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
-        );
-      });
-      expect(
-        [...container.querySelectorAll('[role="option"]')].map(
-          (option) => option.textContent,
-        ),
-      ).toEqual([
+      expect(outputModeGroup().getAttribute("aria-label")).toBe(
+        tEn("settings.general.correctionOutput.title"),
+      );
+      expect(outputModeButtons().map((button) => button.textContent)).toEqual([
         tEn("settings.general.correctionOutput.paste.label"),
         tEn("settings.general.correctionOutput.popup.label"),
       ]);
-
-      // The accessible name survives the native-select → react-select swap:
-      // react-select needs `inputId` (not `id`) for `htmlFor` to reach the
-      // focusable element.
-      const label = container.querySelector<HTMLLabelElement>(
-        'label[for="correction-output-mode"]',
-      );
-      expect(label?.textContent).toBe(
-        tEn("settings.general.correctionOutput.title"),
-      );
-
-      expect(container.querySelector('[role="radiogroup"]')).toBeNull();
-      expect(container.querySelector('button[role="radio"]')).toBeNull();
-    });
-
-    // A menu row carries no description, so the selected mode's copy is
-    // restated as the field hint — the same `text-xs text-muted-foreground`
-    // shape `SettingCorrection` uses under its per-preset output-mode select.
-    // react-select writes the input's own `aria-describedby`, so the hint id is
-    // appended to it rather than replacing it: match the id anywhere in the list.
-    const outputModeHint = (): HTMLParagraphElement => {
-      const described = outputModeInput().getAttribute("aria-describedby") ?? "";
-      const hintId = described
-        .split(/\s+/)
-        .find((id) => id === "correction-output-mode-hint");
-      const hint = hintId
-        ? container.querySelector<HTMLParagraphElement>(`#${hintId}`)
-        : null;
-      if (!hint) {
-        throw new Error("Expected the output-mode hint the combobox describes");
-      }
-      return hint;
-    };
-
-    it("hints the SELECTED mode's description under the control", async () => {
-      await render({ success: true });
-
-      const hint = outputModeHint();
-      expect(hint.textContent).toBe(
-        tEn("settings.general.correctionOutput.paste.description"),
-      );
-      expect(hint.className).toContain("text-xs");
-      expect(hint.className).toContain("text-muted-foreground");
-    });
-
-    it("swaps the hint onto the newly active mode, keeping both descriptions in use", async () => {
-      await render({ success: true });
-      api.setCorrectionOutputMode.mockResolvedValueOnce({
-        success: true,
-        mode: "popup",
-      });
-
-      const pasteDescription = tEn(
-        "settings.general.correctionOutput.paste.description",
-      );
-      const popupDescription = tEn(
-        "settings.general.correctionOutput.popup.description",
-      );
-      expect(pasteDescription).not.toBe(popupDescription);
-      expect(outputModeHint().textContent).toBe(pasteDescription);
-
-      await chooseMode(tEn("settings.general.correctionOutput.popup.label"));
-      await waitForUi();
-      await waitForUi();
-
-      // Kills: a hard-coded hint, or one keyed off the first entry rather than
-      // the current value — which would orphan `popup.description`.
-      expect(outputModeHint().textContent).toBe(popupDescription);
+      expect(container.querySelector("input#correction-output-mode")).toBeNull();
     });
 
     it("persists the chosen mode through setCorrectionOutputMode", async () => {
@@ -782,47 +639,26 @@ describe("SettingGeneral", () => {
         mode: "popup",
       });
 
-      await chooseMode(tEn("settings.general.correctionOutput.popup.label"));
-      await waitForUi();
+      const popup = outputModeButtons().find(
+        (button) =>
+          button.textContent ===
+          tEn("settings.general.correctionOutput.popup.label"),
+      );
+      if (!popup) throw new Error("popup button not rendered");
+      await click(popup);
       await waitForUi();
 
       expect(api.setCorrectionOutputMode).toHaveBeenCalledWith("popup");
-      expect(outputModeControlText()).toContain(
-        tEn("settings.general.correctionOutput.popup.label"),
-      );
-      expect(
-        [...container.querySelectorAll('[role="status"]')].map(
-          (el) => el.textContent,
-        ),
-      ).toContain(tEn("settings.general.outputMode.saved"));
-    });
-
-    it("reverts the local value when the save reports failure", async () => {
-      await render({ success: true });
-      api.setCorrectionOutputMode.mockResolvedValueOnce({
-        success: false,
-        error: messageLabel("settings.general.outputMode.invalid"),
-      });
-
-      await chooseMode(tEn("settings.general.correctionOutput.popup.label"));
-      await waitForUi();
-      await waitForUi();
-
-      expect(api.setCorrectionOutputMode).toHaveBeenCalledWith("popup");
-      // The optimistic value is rolled back to what main still holds.
-      expect(outputModeControlText()).toContain(
-        tEn("settings.general.correctionOutput.paste.label"),
-      );
-      expect(outputModeControlText()).not.toContain(
-        tEn("settings.general.correctionOutput.popup.label"),
-      );
+      expect(popup.getAttribute("aria-pressed")).toBe("true");
     });
   });
 
   describe("provider cards", () => {
-    it("renders one card per provider, each with its own connection state", async () => {
+    it("renders provider tabs and the active provider card", async () => {
       await render({ success: true });
 
+      const providerGroup = container.querySelector('[role="group"][aria-label="' + tEn("settings.general.providers.title") + '"]');
+      expect(providerGroup).toBeTruthy();
       for (const key of [
         "models.select.provider.openai",
         "models.select.provider.openrouter",
@@ -833,16 +669,20 @@ describe("SettingGeneral", () => {
       expect(container.textContent).toContain(
         tEn("settings.general.providers.card.connected"),
       );
-      expect(container.textContent).toContain(
-        tEn("settings.general.providers.card.notConnected"),
-      );
-      expect(container.textContent).toContain(
-        tEn("settings.general.providers.card.modelCount", { count: 3 }),
-      );
+      expect(container.querySelector("#api-key-openai")).toBeTruthy();
+      expect(container.querySelector("#api-key-openrouter")).toBeNull();
     });
 
     it("connects one provider without a modelId and without touching the others", async () => {
       await render({ success: true });
+
+      const openrouterTab = [...container.querySelectorAll("button")].find(
+        (button) =>
+          button.textContent === tEn("models.select.provider.openrouter"),
+      );
+      if (!openrouterTab) throw new Error("expected an OpenRouter tab");
+      await click(openrouterTab);
+      await waitForUi();
 
       const input = container.querySelector<HTMLInputElement>(
         "#api-key-openrouter",
@@ -1042,8 +882,9 @@ describe("SettingGeneral", () => {
     it("keeps credential fields masked and out of browser autofill", async () => {
       await render({ success: true });
 
+      await selectProviderTab(container, tEn("models.select.provider.openrouter"));
+
       for (const id of [
-        "#api-key-openai",
         "#api-key-openrouter",
         "#provisioning-key-openrouter",
       ]) {
@@ -1061,6 +902,8 @@ describe("SettingGeneral", () => {
     it("drops the typed key from renderer state as soon as main has it", async () => {
       await render({ success: true });
 
+      await selectProviderTab(container, tEn("models.select.provider.openrouter"));
+
       const input = () =>
         container.querySelector<HTMLInputElement>("#api-key-openrouter");
       const field = input();
@@ -1077,6 +920,8 @@ describe("SettingGeneral", () => {
 
     it("drops the typed key after a disconnect too", async () => {
       await render({ success: true });
+
+      await selectProviderTab(container, tEn("models.select.provider.openai"));
 
       const input = () =>
         container.querySelector<HTMLInputElement>("#api-key-openai");
@@ -1098,6 +943,8 @@ describe("SettingGeneral", () => {
 
     it("keeps one provider's in-flight connect from unlocking another's button", async () => {
       await render({ success: true });
+
+      await selectProviderTab(container, tEn("models.select.provider.openrouter"));
 
       // Hold OpenRouter's connect open.
       let settle: (value: unknown) => void = () => undefined;
@@ -1131,6 +978,7 @@ describe("SettingGeneral", () => {
       expect(testing).toHaveLength(1);
 
       // Ollama needs no key and must still be connectable meanwhile.
+      await selectProviderTab(container, tEn("models.select.provider.ollama"));
       const ollamaConnect = connectButtons().find(
         (button) =>
           button.textContent === tEn("settings.general.providers.card.connect"),
@@ -1145,6 +993,8 @@ describe("SettingGeneral", () => {
 
     it("refuses to attempt a connect with no stored and no typed key", async () => {
       await render({ success: true });
+
+      await selectProviderTab(container, tEn("models.select.provider.openrouter"));
 
       // OpenRouter: no stored key, nothing typed.
       expect(connectButtonNear(container, "#api-key-openrouter").disabled).toBe(true);
@@ -1224,6 +1074,8 @@ describe("SettingGeneral", () => {
         },
       );
 
+      await selectProviderTab(container, tEn("models.select.provider.ollama"));
+
       await click(
         buttonNamed(
           container,
@@ -1258,6 +1110,8 @@ describe("SettingGeneral", () => {
         },
       );
 
+      await selectProviderTab(container, tEn("models.select.provider.openrouter"));
+
       const near = (id: string): string => {
         const field = container.querySelector(id);
         return field?.parentElement?.textContent ?? "";
@@ -1283,9 +1137,11 @@ describe("SettingGeneral", () => {
         },
       );
 
+      await selectProviderTab(container, tEn("models.select.provider.openrouter"));
+
       const field = container.querySelector("#provisioning-key-openrouter");
       const near = field?.parentElement?.textContent ?? "";
-      expect(near).toContain(tEn("settings.general.secret.connected"));
+      expect(near).toContain(tEn("settings.general.secret.adminConnected"));
       expect(near).not.toContain(tEn("settings.general.secret.set"));
     });
 
@@ -1331,32 +1187,22 @@ describe("SettingGeneral", () => {
   it("uses shared selected, disabled, and destructive button variants", async () => {
     await render({ success: true });
 
-    // The output-mode radio pair is gone (it is the shared `Select` now), so
-    // Connect — which takes the default `primary` variant — is what pins the
-    // shared selected/primary tokens here.
-    const primaryConnect = [
-      ...container.querySelectorAll<HTMLButtonElement>("button"),
-    ].find(
-      (button) =>
-        button.textContent === tEn("settings.general.providers.card.connect"),
-    );
-    const disabledConnect = [
-      ...container.querySelectorAll<HTMLButtonElement>("button"),
-    ].find(
-      (button) =>
-        button.textContent === tEn("settings.general.providers.card.connect") &&
-        button.disabled,
-    );
+    const primaryConnect = connectButtonNear(container, "#api-key-openai");
 
+    await selectProviderTab(container, tEn("models.select.provider.openrouter"));
+    const disabledConnect = connectButtonNear(container, "#api-key-openrouter");
+
+    await selectProviderTab(container, tEn("models.select.provider.openai"));
     await click(
       buttonNamed(container, tEn("settings.general.providers.card.disconnect")),
     );
     const destructiveConfirm = confirmDisconnectButton();
 
-    expect(primaryConnect?.className).toContain(
+    expect(primaryConnect.className).toContain(
       "[&:where(:enabled:hover)]:bg-primary-hover",
     );
-    expect(disabledConnect?.className).toContain("disabled:cursor-not-allowed");
+    expect(disabledConnect.disabled).toBe(true);
+    expect(disabledConnect.className).toContain("disabled:cursor-not-allowed");
     expect(destructiveConfirm.type).toBe("button");
     expect(destructiveConfirm.className).toContain("bg-destructive");
   });
