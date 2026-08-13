@@ -47,6 +47,8 @@ describe("typography text scale", () => {
     expect(mainCss).toContain(
       "--text-2xs: calc(0.625rem * var(--font-size-text-scale, 1));",
     );
+    expect(mainCss).toContain("--font-size-text-scale: calc(12 / 14);");
+    expect(mainCss).toContain("--font-size-text-scale: calc(13 / 14);");
   });
 
   it("keeps the html rem baseline while typography sets the body base variable", () => {
@@ -55,7 +57,7 @@ describe("typography text scale", () => {
     expect(getComputedStyle(document.documentElement).fontSize).toBe("16px");
     expect(
       document.documentElement.style.getPropertyValue("--font-size-base"),
-    ).toBe("14px");
+    ).toBe("13px");
     expect(style.textContent).toContain(
       "font-size: var(--font-size-base, 14px);",
     );

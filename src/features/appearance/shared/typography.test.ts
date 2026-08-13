@@ -103,7 +103,10 @@ describe("normalizeAppearanceTypography", () => {
 
 describe("resolveFontSizeCss", () => {
   it("uses preset px values", () => {
-    expect(resolveFontSizeCss(DEFAULT_APPEARANCE_TYPOGRAPHY)).toBe("14px");
+    expect(resolveFontSizeCss(DEFAULT_APPEARANCE_TYPOGRAPHY)).toBe("13px");
+    expect(
+      resolveFontSizeCss({ ...DEFAULT_APPEARANCE_TYPOGRAPHY, fontSize: "sm" }),
+    ).toBe("12px");
   });
 
   it("uses the stored custom value", () => {

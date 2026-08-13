@@ -53,7 +53,7 @@ export const SettingAppearance: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <section className="shrink-0">
         <h3 className="text-lg font-medium text-foreground">
           {t("settings.appearance.fontSize.title")}
@@ -196,7 +196,7 @@ export const SettingAppearance: React.FC = () => {
         </p>
       ) : (
         <div
-          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-1"
+          className="p-1"
           role="radiogroup"
           aria-label={t("settings.appearance.radioGroupLabel")}
         >

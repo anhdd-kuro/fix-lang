@@ -1,7 +1,7 @@
 /**
  * @file overlayWindow.test.ts
  * @description Covers card 04's slice of the combo overlay (plan O1-O5):
- * the window grows to a single fixed 28x28 / +10 size used for every mode
+ * the window grows to a single fixed 24x24 / +10 size used for every mode
  * (O2 — no per-mode `setSize`, since that would race the 60Hz `setPosition`
  * tracking loop), and `updateComboProgress` ships exactly one
  * `executeJavaScript` per step boundary carrying `buildComboProgressStyle`'s
@@ -78,7 +78,7 @@ vi.mock("electron", () => ({
   app: { whenReady: vi.fn(() => Promise.resolve()), on: vi.fn() },
 }));
 
-describe("overlayWindow — O2 fixed 28x28 / +10 size for every mode", () => {
+describe("overlayWindow — O2 fixed 24x24 / +10 size for every mode", () => {
   beforeEach(() => {
     destroyOverlayWindow();
     lastWindow = null;
@@ -94,11 +94,11 @@ describe("overlayWindow — O2 fixed 28x28 / +10 size for every mode", () => {
     vi.useRealTimers();
   });
 
-  it("creates the overlay window at 28x28, not the old 20x20 spinner-only size", () => {
+  it("creates the overlay window at 24x24, not the old 20x20 spinner-only size", () => {
     createOverlayWindow();
 
     expect(electronMocks.browserWindowCtor).toHaveBeenCalledWith(
-      expect.objectContaining({ width: 28, height: 28 }),
+      expect.objectContaining({ width: 24, height: 24 }),
     );
   });
 

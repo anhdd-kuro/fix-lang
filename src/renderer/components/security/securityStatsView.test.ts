@@ -7,7 +7,12 @@
 import { describe, expect, it } from "vitest";
 import { EMPTY_SECURITY_STATS } from "~/features/guards/shared/securityStats";
 import { SECRET_RULES } from "~/features/secretGuard/shared/secretRules";
-import { resolveSecurityStatsView, TOP_RULE_LIMIT } from "./securityStatsView";
+import {
+  resolveSecurityStatsView,
+  securityChartBarTooltip,
+  securityChartDonutTooltip,
+  TOP_RULE_LIMIT,
+} from "./securityStatsView";
 import type { SecurityStats } from "~/features/guards/shared/securityStats";
 
 const stats = (overrides: Partial<SecurityStats> = {}): SecurityStats => ({
@@ -171,5 +176,16 @@ describe("resolveSecurityStatsView", () => {
     );
 
     expect(view.lastEventAt).toBe("2026-08-10T09:00:00.000Z");
+  });
+
+  it("emits chart tooltip descriptors, never prose", () => {
+    expect(securityChartDonutTooltip(1, "25")).toEqual({
+      key: "security.stats.charts.tooltip",
+      params: { pct: "25", count: 1 },
+    });
+    expect(securityChartBarTooltip(4)).toEqual({
+      key: "security.stats.charts.barTooltip",
+      params: { count: 4 },
+    });
   });
 });
