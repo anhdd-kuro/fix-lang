@@ -99,7 +99,7 @@ export const SecurityStatsPanel = ({ range }: SecurityStatsPanelProps) => {
           <p className="text-sm text-muted-foreground">{resolve(view.legacyNotice)}</p>
         )}
         <SecurityCharts
-          secretCards={view.secretCards}
+          secretCards={view.secretMixCards}
           selectionCards={view.selectionCards}
         />
       </div>

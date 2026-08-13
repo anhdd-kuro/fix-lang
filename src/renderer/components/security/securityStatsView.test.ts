@@ -8,9 +8,13 @@ import { describe, expect, it } from "vitest";
 import { EMPTY_SECURITY_STATS } from "~/features/guards/shared/securityStats";
 import { SECRET_RULES } from "~/features/secretGuard/shared/secretRules";
 import {
+  joinChartAriaSummary,
   resolveSecurityStatsView,
+  SECRET_GATE_MIX_IDS,
+  securityChartAriaLabel,
   securityChartBarTooltip,
   securityChartDonutTooltip,
+  securityChartNamedSlice,
   TOP_RULE_LIMIT,
 } from "./securityStatsView";
 import type { SecurityStats } from "~/features/guards/shared/securityStats";
@@ -187,5 +191,39 @@ describe("resolveSecurityStatsView", () => {
       key: "security.stats.charts.barTooltip",
       params: { count: 4 },
     });
+  });
+
+  it("keeps restore failures on the cards but out of the mix donut", () => {
+    const view = resolveSecurityStatsView(
+      stats({ secretMasked: 1, restoreFailures: 1, eventCount: 2 }),
+    );
+
+    expect(view.secretCards.map((card) => card.id)).toEqual([
+      "secretMasked",
+      "secretConfirmed",
+      "secretDeclined",
+      "restoreFailures",
+    ]);
+    expect(view.secretMixCards.map((card) => card.id)).toEqual([
+      "secretMasked",
+      "secretConfirmed",
+      "secretDeclined",
+    ]);
+    expect(view.secretMixCards.every((card) => SECRET_GATE_MIX_IDS.has(card.id))).toBe(true);
+    expect(view.secretMixCards.find((card) => card.id === "secretMasked")?.value).toBe(1);
+  });
+
+  it("emits chart aria descriptors, never prose", () => {
+    expect(securityChartNamedSlice("Masked", "50% · 1 event")).toEqual({
+      key: "security.stats.charts.namedSlice",
+      params: { label: "Masked", detail: "50% · 1 event" },
+    });
+    expect(securityChartAriaLabel("Secret guard mix", "Masked: 50% · 1 event")).toEqual({
+      key: "security.stats.charts.ariaLabel",
+      params: { title: "Secret guard mix", summary: "Masked: 50% · 1 event" },
+    });
+    expect(joinChartAriaSummary(["Masked: 50% · 1 event", "Cancelled: 50% · 1 event"])).toBe(
+      "Masked: 50% · 1 event; Cancelled: 50% · 1 event",
+    );
   });
 });

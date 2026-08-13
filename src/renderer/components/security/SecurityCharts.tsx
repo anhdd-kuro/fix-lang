@@ -24,8 +24,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Bar, Doughnut } from "react-chartjs-2";
 import {
   SECURITY_CHART_KEYS,
+  joinChartAriaSummary,
+  securityChartAriaLabel,
   securityChartBarTooltip,
   securityChartDonutTooltip,
+  securityChartNamedSlice,
   type SecurityRuleRow,
   type SecurityStatCard,
 } from "./securityStatsView";
@@ -202,17 +205,36 @@ const GuardMixDonut = ({
     return { data: chartData, options: chartOptions, slices: active };
   }, [cards, paletteTick, t, tm, formatNumber, datasetKey]);
 
+  const total = slices.reduce((sum, card) => sum + card.value, 0);
+  const ariaLabel = tm(
+    securityChartAriaLabel(
+      t(titleKey),
+      joinChartAriaSummary(
+        slices.map((slice) =>
+          tm(
+            securityChartNamedSlice(
+              t(slice.labelKey),
+              tm(
+                securityChartDonutTooltip(
+                  slice.value,
+                  percentLabel(slice.value, total, formatNumber),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
   return (
-    <div
-      className="rounded-lg border border-card-control-border bg-card p-4"
-      aria-label={t(titleKey)}
-    >
+    <div className="rounded-lg border border-card-control-border bg-card p-4">
       <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
         {t(titleKey)}
       </div>
       {slices.length > 0 ? (
         <div style={{ height: DONUT_HEIGHT_PX }} className="min-w-0">
-          <Doughnut data={data} options={options} />
+          <Doughnut data={data} options={options} aria-label={ariaLabel} />
         </div>
       ) : (
         <p className="py-6 text-center text-sm text-muted-foreground">{t(emptyKey)}</p>
@@ -297,13 +319,28 @@ export const SecurityRulesBar = ({ rows }: { rows: readonly SecurityRuleRow[] })
     return { data: chartData, options: chartOptions };
   }, [rows, paletteTick, t, tm, formatNumber]);
 
+  const ariaLabel = tm(
+    securityChartAriaLabel(
+      t(SECURITY_CHART_KEYS.rulesTitle),
+      joinChartAriaSummary(
+        rows.map((row) =>
+          tm(
+            securityChartNamedSlice(
+              row.labelKey === null ? row.ruleId : t(row.labelKey),
+              tm(securityChartBarTooltip(row.count)),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
   return (
     <div
       style={{ height: Math.max(BAR_HEIGHT_PX, rows.length * 36) }}
       className="min-w-0"
-      aria-label={t(SECURITY_CHART_KEYS.rulesDataset)}
     >
-      <Bar data={data} options={options} />
+      <Bar data={data} options={options} aria-label={ariaLabel} />
     </div>
   );
 };

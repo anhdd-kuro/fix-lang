@@ -21,6 +21,7 @@ export const SECURITY_CHART_KEYS = {
   selectionTitle: "security.stats.charts.selection.title",
   selectionDataset: "security.stats.charts.selection.datasetLabel",
   selectionEmpty: "security.stats.charts.selection.empty",
+  rulesTitle: "security.stats.rules.title",
   rulesDataset: "security.stats.charts.rules.datasetLabel",
   yAxis: "security.stats.charts.yAxis",
 } as const satisfies Record<string, MessageKey>;
@@ -32,6 +33,17 @@ export const securityChartDonutTooltip = (count: number, pctLabel: string): Mess
 /** Bar tooltip: `{count} event(s)`. */
 export const securityChartBarTooltip = (count: number): Message =>
   msg("security.stats.charts.barTooltip", { count });
+
+/** One named slice inside a chart's accessible name: `{label}: {detail}`. */
+export const securityChartNamedSlice = (label: string, detail: string): Message =>
+  msg("security.stats.charts.namedSlice", { label, detail });
+
+/** Chart canvas name: `{title}. {summary}`. `summary` is already joined. */
+export const securityChartAriaLabel = (title: string, summary: string): Message =>
+  msg("security.stats.charts.ariaLabel", { title, summary });
+
+/** Screen-reader join for already-resolved slice phrases. Locale-neutral. */
+export const joinChartAriaSummary = (parts: readonly string[]): string => parts.join("; ");
 
 export const TOP_RULE_LIMIT = 6;
 
@@ -45,6 +57,17 @@ export type SecurityStatCardId =
   | "declinedStaleClipboard"
   | "declinedUnknownClipboardAge"
   | "askContextDropped";
+
+/**
+ * Restore failures are a follow-on log line for a request already counted in
+ * `secretMasked`. A mix donut that summed both would split one request across
+ * two slices (50/50 for a single unrestored mask).
+ */
+export const SECRET_GATE_MIX_IDS: ReadonlySet<SecurityStatCardId> = new Set([
+  "secretMasked",
+  "secretConfirmed",
+  "secretDeclined",
+]);
 
 export type SecurityStatCard = {
   id: SecurityStatCardId;
@@ -68,6 +91,8 @@ export type SecurityRuleRow = {
 
 export type SecurityStatsView = {
   secretCards: readonly SecurityStatCard[];
+  /** Gate outcomes only — omits restore failures, which overlap `secretMasked`. */
+  secretMixCards: readonly SecurityStatCard[];
   selectionCards: readonly SecurityStatCard[];
   ruleRows: readonly SecurityRuleRow[];
   hasActivity: boolean;
@@ -101,43 +126,46 @@ export const resolveSecurityStatsView = (stats: SecurityStats): SecurityStatsVie
     labelKey: ruleLabelKey(rule.ruleId),
   }));
 
+  const secretCards = [
+    card(
+      "secretMasked",
+      "security.stats.secretMasked.label",
+      "security.stats.secretMasked.hint",
+      stats.secretMasked,
+      stats.secretMasked > 0
+        ? [
+            plainStatus("security.stats.secretMasked.values", {
+              count: stats.maskedValues,
+            }),
+            plainStatus("security.stats.secretMasked.placeholders", {
+              count: stats.maskedPlaceholders,
+            }),
+          ]
+        : [],
+    ),
+    card(
+      "secretConfirmed",
+      "security.stats.secretConfirmed.label",
+      "security.stats.secretConfirmed.hint",
+      stats.secretConfirmed,
+    ),
+    card(
+      "secretDeclined",
+      "security.stats.secretDeclined.label",
+      "security.stats.secretDeclined.hint",
+      stats.secretDeclined,
+    ),
+    card(
+      "restoreFailures",
+      "security.stats.restoreFailures.label",
+      "security.stats.restoreFailures.hint",
+      stats.restoreFailures,
+    ),
+  ];
+
   return {
-    secretCards: [
-      card(
-        "secretMasked",
-        "security.stats.secretMasked.label",
-        "security.stats.secretMasked.hint",
-        stats.secretMasked,
-        stats.secretMasked > 0
-          ? [
-              plainStatus("security.stats.secretMasked.values", {
-                count: stats.maskedValues,
-              }),
-              plainStatus("security.stats.secretMasked.placeholders", {
-                count: stats.maskedPlaceholders,
-              }),
-            ]
-          : [],
-      ),
-      card(
-        "secretConfirmed",
-        "security.stats.secretConfirmed.label",
-        "security.stats.secretConfirmed.hint",
-        stats.secretConfirmed,
-      ),
-      card(
-        "secretDeclined",
-        "security.stats.secretDeclined.label",
-        "security.stats.secretDeclined.hint",
-        stats.secretDeclined,
-      ),
-      card(
-        "restoreFailures",
-        "security.stats.restoreFailures.label",
-        "security.stats.restoreFailures.hint",
-        stats.restoreFailures,
-      ),
-    ],
+    secretCards,
+    secretMixCards: secretCards.filter((item) => SECRET_GATE_MIX_IDS.has(item.id)),
     selectionCards: [
       card(
         "blockedByApp",
