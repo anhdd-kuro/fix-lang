@@ -18,6 +18,7 @@ import {
   appContextPolicyForPreset,
   withActiveAppContext,
 } from "./transform-context";
+import { withUserMetadata } from "./user-metadata";
 import type { TransformContext } from "./transform-context";
 
 type CorrectionResult = {
@@ -162,10 +163,13 @@ export const fixGrammar = async (
     const response = await makeAIRequest({
       // Source-app context goes on the system prompt, not the user prompt:
       // metadata beside the text to transform is easy to mistake for content.
-      systemPrompt: withActiveAppContext(
-        preset.systemPrompt,
-        context,
-        appContextPolicyForPreset(preset.id),
+      systemPrompt: withUserMetadata(
+        withActiveAppContext(
+          preset.systemPrompt,
+          context,
+          appContextPolicyForPreset(preset.id),
+        ),
+        context?.userMetadata,
       ),
       userPrompt: buildCorrectionUserPrompt(text, preset),
       model: effectiveModel,

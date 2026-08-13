@@ -14,6 +14,12 @@ import { DEFAULT_STRUCTURED_TEXT_PRESET_ID } from "~/prompts";
 export type TransformContext = {
   /** Frontmost macOS app when the hotkey fired, e.g. "Slack". */
   activeAppName?: string | null;
+  /**
+   * Ask-environment directives from `buildAskDirectives`. Applied to the
+   * system prompt by `withUserMetadata`. Absent or empty leaves that prompt
+   * byte-identical — this field must not invent a `# Metadata context` block.
+   */
+  userMetadata?: string | null;
 };
 
 /**

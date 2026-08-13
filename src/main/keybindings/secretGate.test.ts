@@ -21,7 +21,9 @@
  * `replacements` map above all — ever reaches a log line.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { summarizeSecurityStats } from "~/features/guards/shared/securityStats";
 import { redactLogContext } from "~/features/logs/shared/logging";
+import { IRREVERSIBLE_SECRET_REDACTION } from "~/features/secretGuard/shared/maskSecrets";
 import { SECRET_GUARD_MODES } from "~/features/secretGuard/shared/secretGuardSettings";
 import { SECRET_PLACEHOLDER_MARKER } from "~/features/secretGuard/shared/secretRules";
 import { SECRET_SEND_SITE_POLICY, runSecretGate } from "./secretGate";
@@ -604,5 +606,135 @@ describe("runSecretGate", () => {
       expect(Array.isArray(withRules?.ruleIds)).toBe(true);
       expect(withRules?.ruleIds).toEqual(["aws-access-key-id"]);
     });
+  });
+});
+
+describe("runSecretGate — companionText (system-prompt metadata)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    confirmSecretSendMock.mockResolvedValue(true);
+  });
+
+  const COMPANION = [
+    "App locale: en",
+    "Recent transforms (most recent first, names and times only):",
+    `- ${AWS_KEY} (2026-08-11T05:28:00.000Z)`,
+  ].join("\n");
+
+  it("opens the confirm dialog when only the companion looks like a credential", async () => {
+    confirmSecretSendMock.mockResolvedValue(true);
+
+    const result = await runSecretGate({
+      site: "correction",
+      text: CLEAN_TEXT,
+      companionText: COMPANION,
+      settings: settings({ mode: "confirm" }),
+    });
+
+    expect(confirmSecretSendMock).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({
+      gateDecision: "confirmed",
+      sentText: CLEAN_TEXT,
+      sentCompanionText: COMPANION,
+    });
+  });
+
+  it("declines the whole request when the companion confirm is cancelled", async () => {
+    confirmSecretSendMock.mockResolvedValue(false);
+
+    const result = await runSecretGate({
+      site: "correction",
+      text: CLEAN_TEXT,
+      companionText: COMPANION,
+      settings: settings({ mode: "confirm" }),
+    });
+
+    expect(result).toEqual({ gateDecision: "declined", appliedMode: "confirm" });
+    expect(result).not.toHaveProperty("sentCompanionText");
+  });
+
+  it("redacts the companion without restore placeholders in mask mode", async () => {
+    const result = await runSecretGate({
+      site: "correction",
+      text: CLEAN_TEXT,
+      companionText: COMPANION,
+      settings: settings({ mode: "mask" }),
+      salt: () => "A1B2C3",
+    });
+
+    expect(confirmSecretSendMock).not.toHaveBeenCalled();
+    if (result.gateDecision === "declined") throw new Error("unexpected decline");
+    expect(result.gateDecision).toBe("masked");
+    expect(result.sentText).toBe(CLEAN_TEXT);
+    expect(result.sentCompanionText).not.toContain(AWS_KEY);
+    expect(result.sentCompanionText).toContain(IRREVERSIBLE_SECRET_REDACTION);
+    expect(result.sentCompanionText).not.toContain(SECRET_PLACEHOLDER_MARKER);
+    expect(result.restoreOnReply).toBe(true);
+  });
+
+  it("counts a companion-only redaction as masked on the Security dashboard", async () => {
+    await runSecretGate({
+      site: "correction",
+      text: CLEAN_TEXT,
+      companionText: COMPANION,
+      settings: settings({ mode: "mask" }),
+      salt: () => "A1B2C3",
+    });
+
+    const call = loggerMock.info.mock.calls.find((entry) => entry[0] === "secretGuard.gate");
+    expect(call).toBeDefined();
+    if (call === undefined) throw new Error("expected a secretGuard.gate log");
+    const message = call[1];
+    const context = (call[2] ?? {}) as LogContext;
+    expect(context).toMatchObject({
+      gateDecision: "masked",
+      placeholderCount: 0,
+      matchCount: 1,
+      ruleIds: ["aws-access-key-id"],
+    });
+
+    const stats = summarizeSecurityStats([
+      {
+        id: "companion-only",
+        timestamp: "2026-08-13T13:00:00.000Z",
+        level: "info",
+        scope: "secretGuard.gate",
+        message: typeof message === "string" ? message : "",
+        context,
+      },
+    ]);
+    expect(stats.secretMasked).toBe(1);
+    expect(stats.eventCount).toBe(1);
+    expect(stats.lastEventAt).toBe("2026-08-13T13:00:00.000Z");
+    expect(stats.maskedPlaceholders).toBe(0);
+    expect(stats.maskedValues).toBe(1);
+    expect(stats.ruleCounts).toEqual({ "aws-access-key-id": 1 });
+  });
+
+  it("sends the companion unchanged when the guard is off", async () => {
+    const result = await runSecretGate({
+      site: "correction",
+      text: CLEAN_TEXT,
+      companionText: COMPANION,
+      settings: settings({ mode: "off" }),
+    });
+
+    expect(confirmSecretSendMock).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      gateDecision: "allow",
+      sentText: CLEAN_TEXT,
+      sentCompanionText: COMPANION,
+    });
+  });
+
+  it("returns an empty companion when none was passed", async () => {
+    const result = await runSecretGate({
+      site: "correction",
+      text: CLEAN_TEXT,
+      settings: settings({ mode: "confirm" }),
+    });
+
+    if (result.gateDecision === "declined") throw new Error("unexpected decline");
+    expect(result.sentCompanionText).toBe("");
   });
 });

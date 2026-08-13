@@ -309,6 +309,15 @@ export type RunComboParams = {
   input: string;
   /** Best-effort source app the ORIGINAL selection came from; reaches step 1 only (E4). */
   activeAppName?: string;
+  /**
+   * Ask-environment directives from `buildAskDirectives`. Reaches every
+   * non-Ask step's system prompt via `fixGrammar`. Ask steps get the same
+   * block on the user message (`composeAskStepMessage`) and omit
+   * `TransformContext`, so they do not receive it twice. Absent/empty
+   * falls back to the locale-only directive the Ask path used before an
+   * environment existed.
+   */
+  userMetadata?: string;
   /** Cooperative cancellation, checked before each step starts. Wiring an `AbortController` into this is a different card's job (E10/D1-D4). */
   signal?: AbortSignal;
 };
@@ -371,7 +380,7 @@ const raceWithTimeout = <T>(
  * Builds the message for a `requiresInput` step exactly as the Ask hotkey
  * path builds one: the frozen `inlineInput` is the question, the text carried
  * in from the previous step (or the original selection, at step 1) is the
- * optional context block, and the app-locale directive trails both.
+ * optional context block, and the press's directive block trails both.
  *
  * `composeAskMessage` returns `null` only for an empty question, which
  * `validateCombo` already refuses — falling back to the carried text keeps
@@ -380,13 +389,13 @@ const raceWithTimeout = <T>(
 const composeAskStepMessage = (
   question: string,
   carriedText: string,
-  buildLocaleDirective?: () => string,
+  directives?: string,
 ): string => {
   const composed = composeAskMessage({ question, context: carriedText });
   if (composed === null) return carriedText;
 
-  const directive = buildLocaleDirective?.();
-  return directive ? `${composed}\n\n${directive}` : composed;
+  const block = directives?.trim();
+  return block ? `${composed}\n\n${block}` : composed;
 };
 
 /**
@@ -395,7 +404,7 @@ const composeAskStepMessage = (
  * every side effect below is a parameter rather than an import.
  */
 export const runCombo = async (
-  { combo, input, activeAppName, signal }: RunComboParams,
+  { combo, input, activeAppName, userMetadata, signal }: RunComboParams,
   deps: RunComboDependencies,
 ): Promise<RunComboResult> => {
   throwIfCancelled(signal);
@@ -442,13 +451,12 @@ export const runCombo = async (
     // `App locale: <code>` directive is what the bundled Ask system prompt
     // consults to pick its response language. Concatenating by hand silently
     // changed both.
+    const askDirectives = userMetadata?.trim()
+      ? userMetadata
+      : deps.buildAskLocaleDirective?.();
     const composedText =
       resolved.preset.requiresInput && resolved.step.inlineInput
-        ? composeAskStepMessage(
-            resolved.step.inlineInput,
-            text,
-            deps.buildAskLocaleDirective,
-          )
+        ? composeAskStepMessage(resolved.step.inlineInput, text, askDirectives)
         : text;
 
     // E4 — source-app context describes where the ORIGINAL selection came
@@ -457,10 +465,16 @@ export const runCombo = async (
     // Ask path passes no `TransformContext`, and a first-step Ask that did
     // would be answering under a source-app hint the same preset never sees
     // when run by its own hotkey.
-    const context: TransformContext | undefined =
-      index === 0 && !resolved.preset.requiresInput
-        ? { activeAppName }
-        : undefined;
+    const context: TransformContext | undefined = resolved.preset.requiresInput
+      ? undefined
+      : index === 0
+        ? {
+            activeAppName,
+            ...(userMetadata ? { userMetadata } : {}),
+          }
+        : userMetadata
+          ? { userMetadata }
+          : undefined;
 
     const stepTimeoutMs = Math.min(COMBO_STEP_TIMEOUT_MS, remainingBudgetMs);
     let result: FixGrammarResult;

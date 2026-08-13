@@ -932,6 +932,40 @@ describe("correction preset hotkeys — overlay spinner timing", () => {
  * `reservedShortcuts` skip, so a combo cannot silently win a race a preset
  * would otherwise have refused (and vice versa).
  */
+describe("correction preset hotkeys — user metadata rides the system prompt", () => {
+  const singleBuiltInProfile = {
+    presets: [storedBuiltIn("correction", "Correction", "Control+Shift+F")],
+    selectedPresetId: "correction",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetHotkeyThrottleForTests();
+    (globalShortcut.register as Mock).mockReturnValue(true);
+    mocks.keyBindings = {
+      promptGen: "Control+Alt+P",
+      profileSwitch: "Control+Alt+O",
+    };
+  });
+
+  it("passes the press's Ask directives into fixGrammar as userMetadata", async () => {
+    (getHighlightedTextWithActiveApp as Mock).mockResolvedValue({
+      text: "some selected text",
+      activeApp: { name: "Slack" },
+      changed: true,
+    });
+
+    const calls = registerFrom(singleBuiltInProfile);
+    const correctionCall = calls.find(([shortcut]) => shortcut === "Control+Shift+F");
+    await correctionCall?.[1]();
+
+    expect(fixGrammar).toHaveBeenCalledWith("some selected text", "correction", {
+      activeAppName: "Slack",
+      userMetadata: "App locale: en\nSystem language: en-US",
+    });
+  });
+});
+
 describe("correction preset hotkeys — combo hotkeys register in the same pass as presets", () => {
   const twoPresetProfile = (combos: unknown[]) => ({
     presets: [

@@ -125,6 +125,47 @@ export const maskSecrets = (text: string, options?: MaskSecretsOptions): SecretM
   };
 };
 
+/**
+ * Marker swapped in for a credential in text that will NOT be restored — the
+ * Ask-environment block on a system prompt, where the model is not supposed
+ * to echo the span and a `FIXLANG_SECRET_` placeholder would fail restore
+ * (or force the popup) on every reply.
+ */
+export const IRREVERSIBLE_SECRET_REDACTION = "[redacted]";
+
+/**
+ * Replaces every detected credential with {@link IRREVERSIBLE_SECRET_REDACTION}.
+ *
+ * Unlike {@link maskSecrets}, this produces no `replacements` map and must
+ * never be paired with {@link restoreSecrets}. Use it for companion text that
+ * leaves the machine beside the selection (system-prompt metadata) rather
+ * than as the selection itself.
+ *
+ * Callers MUST check {@link isFullyMaskable} first. This helper ignores each
+ * match's `maskable` flag and will replace only the detected head of an
+ * ambiguous assignment, leaving the credential tail in the returned string.
+ *
+ * @param text - Text to scan.
+ * @param options - Same scan options {@link maskSecrets} takes.
+ * @returns `text` unchanged when nothing matches.
+ */
+export const redactSecretsIrreversibly = (
+  text: string,
+  options?: SecretScanOptions,
+): string => {
+  const scan = scanForSecrets(text, { highEntropyRule: options?.highEntropyRule });
+  if (scan.matches.length === 0) return text;
+
+  const pieces: string[] = [];
+  let cursor = 0;
+  for (const match of scan.matches) {
+    pieces.push(text.slice(cursor, match.start), IRREVERSIBLE_SECRET_REDACTION);
+    cursor = match.end;
+  }
+  pieces.push(text.slice(cursor));
+  return pieces.join("");
+};
+
 const occurrenceIndexes = (haystack: string, needle: string): number[] => {
   const indexes: number[] = [];
   let index = haystack.indexOf(needle);

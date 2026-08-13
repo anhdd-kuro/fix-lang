@@ -6,12 +6,12 @@
  * renders them into ONE directive string.
  *
  * ONCE PER HOTKEY PRESS, never per keystroke. The same string is handed to
- * three places: the composed Ask message (`askFlow.ts`), the input window's
- * transparency row (`AskInputPayload.contextDirectives`), and the autocomplete
- * user prompt (`features/autocomplete/main/prompt.ts`, which fires while the
- * user types). Resolving it again anywhere downstream would mean the window
- * showing one thing and the request carrying another, which is the whole
- * failure the transparency row exists to prevent.
+ * the composed Ask message (`askFlow.ts`), the input window's transparency
+ * row (`AskInputPayload.contextDirectives`), every preset's system prompt
+ * (`withUserMetadata` in `ai.request/user-metadata.ts`), and Autocomplete's
+ * system prompt (same apply function). Resolving it again anywhere downstream
+ * would mean one surface stating one thing and another sending a different
+ * block.
  *
  * BEST-EFFORT, exactly like the frontmost-app read in
  * `~/main/accessibility/activeApp.ts`: every source here can fail, and a

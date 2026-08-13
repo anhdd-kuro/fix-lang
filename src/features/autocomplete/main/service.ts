@@ -68,7 +68,8 @@ import {
   getDefaultModelId,
   getProfileSetting,
 } from "~/features/providers/store/apiStore";
-import { scanForSecrets } from "~/features/secretGuard/shared/detectSecrets";
+import { isFullyMaskable, scanForSecrets } from "~/features/secretGuard/shared/detectSecrets";
+import { redactSecretsIrreversibly } from "~/features/secretGuard/shared/maskSecrets";
 import { logger } from "~/main/logging/logService";
 import { DEFAULT_ASK_PRESET_ID } from "~/prompts";
 import { parseAutocompleteReply } from "./parseReply";
@@ -501,8 +502,15 @@ const backendIdentity = (): string => {
  * to the feature's cost-control logic, and string-matching edit tools stop
  * matching around the line. The hashed string is identical either way.
  */
-const cacheKey = (userPrompt: string, modelRef: string, backend: string): string =>
-  createHash("sha256").update(`${backend}\0${modelRef}\0${userPrompt}`).digest("hex");
+const cacheKey = (
+  systemPrompt: string,
+  userPrompt: string,
+  modelRef: string,
+  backend: string,
+): string =>
+  createHash("sha256")
+    .update(`${backend}\0${modelRef}\0${systemPrompt}\0${userPrompt}`)
+    .digest("hex");
 
 const readCache = (key: string, now: number): CacheEntry | undefined => {
   const entry = cache.get(key);
@@ -917,25 +925,51 @@ export const requestAutocompleteSuggestion = async (
     return none(requestId);
   }
 
-  // The attached context and the press's environment block are part of the
-  // PROMPT, never of the system prompt: the system prompt is the short, stable,
-  // cacheable prefix, and a per-press passage in it would change on every ask.
-  // Carrying them in the user prompt also means `cacheKey` picks them up for
-  // free — the key is hashed from that exact string, so two identical questions
-  // asked over different selections (or in different keyboard layouts, or hours
-  // apart) cannot be served each other's suggestion.
+  // The attached context stays on the USER prompt (caret-relative, cacheable
+  // with the typed text). Environment directives ride the SYSTEM prompt via
+  // `withUserMetadata` — the same apply function preset transforms use — and
+  // `cacheKey` hashes both strings so two identical questions asked in
+  // different keyboard layouts, or hours apart, cannot be served each other's
+  // suggestion.
   //
   // Read ONCE, into a local. Dismissing the window forgets the session while a
   // request may still be in flight, so a second read at logging time could
   // report a length with no source beside it.
   const askSession = askSessions.get(sessionId);
   const askContext = askSession?.context;
+
+  // Imported lazily, like `makeAIRequest` below and for the same reason: the
+  // store module instantiates a real `electron-store` at module scope, which
+  // throws outside a running app and would drag Electron into the module graph
+  // of everything that imports this file.
+  const { secretGuardStore } = await import("~/features/secretGuard/store/secretGuardStore");
+  const secretGuardSettings = secretGuardStore.getSecretGuardSettings();
+  const scanOptions = { highEntropyRule: secretGuardSettings.highEntropyRule };
+
+  // Environment carries user-editable preset names. A modal is impossible per
+  // keystroke, so a fully-maskable secret-shaped name is redacted in place
+  // rather than refusing the whole ghost — restore placeholders do not belong
+  // here. `redactSecretsIrreversibly` ignores `maskable`, so an unmaskable
+  // assignment (`password=Correct Horse Battery`) would hide only the detected
+  // head and send the tail. That scan refuses instead, same as prefix/context.
+  let environment = askSession?.environment;
+  if (secretGuardSettings.mode !== "off" && environment) {
+    const environmentScan = scanForSecrets(environment, scanOptions);
+    if (!isFullyMaskable(environmentScan)) {
+      logSkip("secret-in-text", startedAt, { ruleIds: [...environmentScan.ruleIds] });
+      return none(requestId);
+    }
+    if (environmentScan.matches.length > 0) {
+      environment = redactSecretsIrreversibly(environment, scanOptions);
+    }
+  }
+
   const { systemPrompt, userPrompt, contextLength, environmentLength } =
     buildAutocompletePrompt({
       prefix,
       suffix,
       context: askContext,
-      environment: askSession?.environment,
+      environment,
     });
 
   // ABOVE the cache, unlike every other refusal in this function.
@@ -961,19 +995,12 @@ export const requestAutocompleteSuggestion = async (
   // It closes the whole-value cases — an attached selection, a pasted key, a
   // finished one — and the Security tab says exactly that.
   //
-  // The Ask ENVIRONMENT block is deliberately not scanned: it carries preset
-  // names and timestamps only (`buildAskDirectives`), never the user's text.
-  //
-  // Imported lazily, like `makeAIRequest` below and for the same reason: the
-  // store module instantiates a real `electron-store` at module scope, which
-  // throws outside a running app and would drag Electron into the module graph
-  // of everything that imports this file.
-  const { secretGuardStore } = await import("~/features/secretGuard/store/secretGuardStore");
-  const secretGuardSettings = secretGuardStore.getSecretGuardSettings();
+  // Prefix, suffix and attached Ask context still refuse to dispatch: those
+  // are the user's own text, and a redacted ghost continuing a credential is
+  // worse than no ghost. A fully-maskable environment was already redacted
+  // above; an unmaskable one already refused.
   if (secretGuardSettings.mode !== "off") {
-    const scan = scanForSecrets(`${prefix}\n${suffix}\n${askContext?.text ?? ""}`, {
-      highEntropyRule: secretGuardSettings.highEntropyRule,
-    });
+    const scan = scanForSecrets(`${prefix}\n${suffix}\n${askContext?.text ?? ""}`, scanOptions);
     if (scan.matches.length > 0) {
       // Spread to a mutable array: `LogValue` does not accept a readonly one.
       // It stays an array VALUE and never becomes a set of KEYS — a spread
@@ -984,7 +1011,7 @@ export const requestAutocompleteSuggestion = async (
     }
   }
 
-  const key = cacheKey(userPrompt, modelRef, backendIdentity());
+  const key = cacheKey(systemPrompt, userPrompt, modelRef, backendIdentity());
   const cached = readCache(key, startedAt);
   if (cached) {
     // Aborts BEFORE returning, unlike the `countDispatch` refusal below.
