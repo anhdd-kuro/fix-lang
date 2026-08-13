@@ -41,6 +41,7 @@ vi.mock("electron", () => ({
   app: {
     getPath: vi.fn().mockReturnValue("/tmp"),
     getLocale: vi.fn().mockReturnValue("en-US"),
+    getSystemLocale: vi.fn().mockReturnValue("en-US"),
   },
 }));
 vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
@@ -104,6 +105,17 @@ vi.mock("../webViewWindows/askInputWindow", () => ({
 vi.mock("./askFlow", () => ({
   runAskFlow: vi.fn(),
   buildAppLocaleDirective: vi.fn().mockReturnValue("App locale: en"),
+}));
+vi.mock("./askEnvironment", () => ({
+  resolveAskEnvironment: vi.fn().mockResolvedValue({
+    appLocale: "en",
+    systemLocale: "en-US",
+    keyboardInputSource: "ABC",
+    capturedAt: "2026-08-11T09:00:00+09:00",
+    timeZone: "Asia/Tokyo",
+    recentTransforms: [],
+  }),
+  buildAskDirectives: vi.fn().mockReturnValue("App locale: en\nSystem language: en-US"),
 }));
 // `withHotkeyThrottle` stays REAL, same reason as `correction-preset-hotkeys.test.ts`.
 vi.mock("./utils", async (importOriginal) => {

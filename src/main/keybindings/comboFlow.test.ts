@@ -313,6 +313,77 @@ describe("runCombo — E4: source-app context reaches step 1 only", () => {
   });
 });
 
+describe("runCombo — user metadata reaches every non-Ask step", () => {
+  const DIRECTIVES = "App locale: en\nKeyboard input source: ABC";
+
+  it("passes userMetadata on step 0 alongside the source app, and on later steps alone", async () => {
+    const combo = makeCombo({
+      steps: [makeStep("correction"), makeStep("translate"), makeStep("summarize")],
+    });
+    const fixGrammar = vi.fn(async (text: string) => makeResult({ correctedText: text }));
+    const deps = makeDeps({ fixGrammar });
+
+    await runCombo(
+      { combo, input: "start", activeAppName: "Slack", userMetadata: DIRECTIVES },
+      deps,
+    );
+
+    expect(fixGrammar).toHaveBeenNthCalledWith(1, "start", "correction", {
+      activeAppName: "Slack",
+      userMetadata: DIRECTIVES,
+    });
+    expect(fixGrammar).toHaveBeenNthCalledWith(2, "start", "translate", {
+      userMetadata: DIRECTIVES,
+    });
+    expect(fixGrammar).toHaveBeenNthCalledWith(3, "start", "summarize", {
+      userMetadata: DIRECTIVES,
+    });
+  });
+
+  it("does not pass userMetadata to a requiresInput step", async () => {
+    const combo = makeCombo({
+      steps: [
+        makeStep("ask", { inlineInput: "What should I reply?" }),
+        makeStep("correction"),
+      ],
+    });
+    const fixGrammar = vi.fn(async (text: string) => makeResult({ correctedText: text }));
+    const deps = makeDeps({
+      settings: makeSettings({
+        presets: [
+          makePreset("ask", { name: "Ask AI", requiresInput: true }),
+          makePreset("correction", { name: "Correction" }),
+        ],
+      }),
+      fixGrammar,
+      buildAskLocaleDirective: () => "App locale: en",
+    });
+
+    await runCombo(
+      { combo, input: "the selection", activeAppName: "Slack", userMetadata: DIRECTIVES },
+      deps,
+    );
+
+    expect(fixGrammar.mock.calls[0][2]).toBeUndefined();
+    expect(fixGrammar.mock.calls[1][2]).toEqual({ userMetadata: DIRECTIVES });
+  });
+
+  it("omits the field entirely when userMetadata is absent, matching the pre-metadata shape", async () => {
+    const combo = makeCombo({
+      steps: [makeStep("correction"), makeStep("translate")],
+    });
+    const fixGrammar = vi.fn(async (text: string) => makeResult({ correctedText: text }));
+    const deps = makeDeps({ fixGrammar });
+
+    await runCombo({ combo, input: "start", activeAppName: "Slack" }, deps);
+
+    expect(fixGrammar).toHaveBeenNthCalledWith(1, "start", "correction", {
+      activeAppName: "Slack",
+    });
+    expect(fixGrammar).toHaveBeenNthCalledWith(2, "start", "translate", undefined);
+  });
+});
+
 describe("runCombo — E7: fail fast, completed steps stay in history", () => {
   it("a rejection at step 2 of 3 stops the chain, delivers nothing, records exactly one history row", async () => {
     const combo = makeCombo({

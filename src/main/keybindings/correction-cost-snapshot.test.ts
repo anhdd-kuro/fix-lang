@@ -21,7 +21,7 @@ vi.mock("electron", () => ({
     show = vi.fn();
   },
   ipcMain: { handle: vi.fn(), on: vi.fn() },
-  app: { getPath: vi.fn().mockReturnValue("/tmp"), getLocale: vi.fn().mockReturnValue("en-US") },
+  app: { getPath: vi.fn().mockReturnValue("/tmp"), getLocale: vi.fn().mockReturnValue("en-US"), getSystemLocale: vi.fn().mockReturnValue("en-US") },
 }));
 vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
@@ -64,6 +64,17 @@ vi.mock("../webViewWindows/correctionResultWindow", () => ({
 }));
 vi.mock("../webViewWindows/askInputWindow", () => ({ showAskInputWindow: vi.fn() }));
 vi.mock("./askFlow", () => ({ runAskFlow: vi.fn() }));
+vi.mock("./askEnvironment", () => ({
+  resolveAskEnvironment: vi.fn().mockResolvedValue({
+    appLocale: "en",
+    systemLocale: "en-US",
+    keyboardInputSource: "ABC",
+    capturedAt: "2026-08-11T09:00:00+09:00",
+    timeZone: "Asia/Tokyo",
+    recentTransforms: [],
+  }),
+  buildAskDirectives: vi.fn().mockReturnValue("App locale: en\nSystem language: en-US"),
+}));
 vi.mock("./utils", () => ({
   checkShortcut: vi.fn(),
   handleError: vi.fn(),

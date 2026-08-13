@@ -309,6 +309,13 @@ export type RunComboParams = {
   input: string;
   /** Best-effort source app the ORIGINAL selection came from; reaches step 1 only (E4). */
   activeAppName?: string;
+  /**
+   * Ask-environment directives from `buildAskDirectives`. Reaches every
+   * non-Ask step's system prompt via `fixGrammar`. Ask steps keep locale on
+   * the user message (`composeAskStepMessage`) so they do not get it twice.
+   * Absent/empty leaves those prompts byte-identical.
+   */
+  userMetadata?: string;
   /** Cooperative cancellation, checked before each step starts. Wiring an `AbortController` into this is a different card's job (E10/D1-D4). */
   signal?: AbortSignal;
 };
@@ -395,7 +402,7 @@ const composeAskStepMessage = (
  * every side effect below is a parameter rather than an import.
  */
 export const runCombo = async (
-  { combo, input, activeAppName, signal }: RunComboParams,
+  { combo, input, activeAppName, userMetadata, signal }: RunComboParams,
   deps: RunComboDependencies,
 ): Promise<RunComboResult> => {
   throwIfCancelled(signal);
@@ -457,10 +464,16 @@ export const runCombo = async (
     // Ask path passes no `TransformContext`, and a first-step Ask that did
     // would be answering under a source-app hint the same preset never sees
     // when run by its own hotkey.
-    const context: TransformContext | undefined =
-      index === 0 && !resolved.preset.requiresInput
-        ? { activeAppName }
-        : undefined;
+    const context: TransformContext | undefined = resolved.preset.requiresInput
+      ? undefined
+      : index === 0
+        ? {
+            activeAppName,
+            ...(userMetadata ? { userMetadata } : {}),
+          }
+        : userMetadata
+          ? { userMetadata }
+          : undefined;
 
     const stepTimeoutMs = Math.min(COMBO_STEP_TIMEOUT_MS, remainingBudgetMs);
     let result: FixGrammarResult;

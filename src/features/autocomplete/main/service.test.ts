@@ -1918,8 +1918,11 @@ describe("requestAutocompleteSuggestion", () => {
    * renderer-controlled text going into a provider prompt.
    */
   describe("the press environment", () => {
-    const sentPrompt = (call = 0): string =>
+    const sentUserPrompt = (call = 0): string =>
       makeAIRequestMock.mock.calls[call][0].userPrompt as string;
+
+    const sentSystemPrompt = (call = 0): string =>
+      makeAIRequestMock.mock.calls[call][0].systemPrompt as string;
 
     const ENVIRONMENT = [
       "App locale: en",
@@ -1935,7 +1938,8 @@ describe("requestAutocompleteSuggestion", () => {
 
       await ask();
 
-      expect(sentPrompt()).toContain("Keyboard input source: Japanese");
+      expect(sentSystemPrompt()).toContain("Keyboard input source: Japanese");
+      expect(sentUserPrompt()).not.toContain("Keyboard input source: Japanese");
     });
 
     it("sends it alongside an attached passage rather than instead of one", async () => {
@@ -1946,8 +1950,8 @@ describe("requestAutocompleteSuggestion", () => {
 
       await ask();
 
-      expect(sentPrompt()).toContain("The deploy slipped to Friday.");
-      expect(sentPrompt()).toContain("App locale: en");
+      expect(sentUserPrompt()).toContain("The deploy slipped to Friday.");
+      expect(sentSystemPrompt()).toContain("App locale: en");
     });
 
     /**
@@ -1982,8 +1986,8 @@ describe("requestAutocompleteSuggestion", () => {
     it("sends exactly the pre-environment prompt when the press resolved none", async () => {
       await ask();
 
-      expect(sentPrompt(0)).not.toContain("Environment at the time of the request");
-      expect(sentPrompt(0).startsWith("Text before the caret:")).toBe(true);
+      expect(sentSystemPrompt(0)).not.toContain("Environment at the time of the request");
+      expect(sentUserPrompt(0).startsWith("Text before the caret:")).toBe(true);
     });
 
     it("keeps one surface's environment out of another surface's prompt", async () => {
@@ -1991,7 +1995,7 @@ describe("requestAutocompleteSuggestion", () => {
 
       await ask({ sessionId: "window-2" });
 
-      expect(sentPrompt()).not.toContain("Keyboard input source: Japanese");
+      expect(sentSystemPrompt()).not.toContain("Keyboard input source: Japanese");
     });
 
     describe("what it says about itself", () => {

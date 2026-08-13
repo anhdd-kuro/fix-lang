@@ -243,6 +243,63 @@ describe("fixGrammar — active app context", () => {
   });
 });
 
+describe("fixGrammar — user metadata", () => {
+  const DIRECTIVES = [
+    "App locale: en",
+    "Keyboard input source: ABC",
+    "Current time: 2026-08-11T14:32:05+09:00 (Asia/Tokyo)",
+  ].join("\n");
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("appends the directive block to the system prompt", async () => {
+    setup(makePreset({ systemPrompt: "Fix grammar." }));
+
+    await fixGrammar("hello world", undefined, { userMetadata: DIRECTIVES });
+
+    const { systemPrompt } = lastCall();
+    expect(systemPrompt.startsWith("Fix grammar.")).toBe(true);
+    expect(systemPrompt).toContain("Keyboard input source: ABC");
+    expect(systemPrompt).not.toContain("# Metadata context");
+  });
+
+  it.each([
+    ["omitted", undefined],
+    ["an empty string", ""],
+    ["whitespace only", "  \n  "],
+  ])("leaves the system prompt byte-identical when user metadata is %s", async (_label, userMetadata) => {
+    setup(makePreset({ systemPrompt: "Fix grammar." }));
+
+    await fixGrammar("hello world", undefined, { userMetadata });
+
+    expect(lastCall().systemPrompt).toBe("Fix grammar.");
+  });
+
+  it("trails the source-app block so the pinned Metadata context wording is unchanged", async () => {
+    setup(makePreset({ systemPrompt: "Fix grammar." }));
+
+    await fixGrammar("hello world", undefined, {
+      activeAppName: "Slack",
+      userMetadata: DIRECTIVES,
+    });
+
+    const { systemPrompt } = lastCall();
+    expect(systemPrompt).toContain(
+      [
+        "# Metadata context",
+        '- The text was selected in the macOS app "Slack".',
+        "- Use it only to infer the expected tone, formality, and formatting conventions of that app.",
+        "- Do not mention the app, and do not add app-specific markup the input does not already use.",
+      ].join("\n"),
+    );
+    expect(systemPrompt.indexOf("# Metadata context")).toBeLessThan(
+      systemPrompt.indexOf("App locale: en"),
+    );
+  });
+});
+
 describe("generatePrompt — active app context", () => {
   beforeEach(() => {
     vi.clearAllMocks();

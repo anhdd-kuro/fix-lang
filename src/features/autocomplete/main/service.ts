@@ -501,8 +501,15 @@ const backendIdentity = (): string => {
  * to the feature's cost-control logic, and string-matching edit tools stop
  * matching around the line. The hashed string is identical either way.
  */
-const cacheKey = (userPrompt: string, modelRef: string, backend: string): string =>
-  createHash("sha256").update(`${backend}\0${modelRef}\0${userPrompt}`).digest("hex");
+const cacheKey = (
+  systemPrompt: string,
+  userPrompt: string,
+  modelRef: string,
+  backend: string,
+): string =>
+  createHash("sha256")
+    .update(`${backend}\0${modelRef}\0${systemPrompt}\0${userPrompt}`)
+    .digest("hex");
 
 const readCache = (key: string, now: number): CacheEntry | undefined => {
   const entry = cache.get(key);
@@ -917,13 +924,12 @@ export const requestAutocompleteSuggestion = async (
     return none(requestId);
   }
 
-  // The attached context and the press's environment block are part of the
-  // PROMPT, never of the system prompt: the system prompt is the short, stable,
-  // cacheable prefix, and a per-press passage in it would change on every ask.
-  // Carrying them in the user prompt also means `cacheKey` picks them up for
-  // free — the key is hashed from that exact string, so two identical questions
-  // asked over different selections (or in different keyboard layouts, or hours
-  // apart) cannot be served each other's suggestion.
+  // The attached context stays on the USER prompt (caret-relative, cacheable
+  // with the typed text). Environment directives ride the SYSTEM prompt via
+  // `withUserMetadata` — the same apply function preset transforms use — and
+  // `cacheKey` hashes both strings so two identical questions asked in
+  // different keyboard layouts, or hours apart, cannot be served each other's
+  // suggestion.
   //
   // Read ONCE, into a local. Dismissing the window forgets the session while a
   // request may still be in flight, so a second read at logging time could
@@ -984,7 +990,7 @@ export const requestAutocompleteSuggestion = async (
     }
   }
 
-  const key = cacheKey(userPrompt, modelRef, backendIdentity());
+  const key = cacheKey(systemPrompt, userPrompt, modelRef, backendIdentity());
   const cached = readCache(key, startedAt);
   if (cached) {
     // Aborts BEFORE returning, unlike the `countDispatch` refusal below.

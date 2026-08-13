@@ -3,8 +3,10 @@
  * @description Builds the autocomplete request's system and user prompts.
  *
  * Pure — no Electron, no store reads — so the windowing rules are unit-testable
- * without a running app. The one import is a type.
+ * without a running app. Imports are a type plus the shared metadata apply
+ * function (`withUserMetadata`), which is itself Electron-free.
  */
+import { withUserMetadata } from "~/main/ai.request/user-metadata";
 import type { AskContextSource } from "~/features/ask/shared/ask";
 
 /** Characters of text before the caret sent as context. */
@@ -268,20 +270,24 @@ export const buildAutocompletePrompt = ({
   const windowedPrefix = prefix.slice(-PREFIX_WINDOW_CHARS);
   const windowedSuffix = suffix.slice(0, SUFFIX_WINDOW_CHARS);
   const askContext = buildAskContextBlock(context);
-  // AFTER the attached passage, so the ordering runs from least to most
-  // caret-relevant: ambient facts, then the passage the question is about, then
-  // the text being continued.
   const environmentBlock = buildEnvironmentBlock(environment);
-  const preamble = `${environmentBlock.block}${askContext.block}`;
 
-  // The preamble leads, so the caret text is the LAST thing the model reads
-  // before `JSON:` — the position it continues from.
+  // The attached passage still leads the USER prompt so the caret text is the
+  // LAST thing the model reads before `JSON:` — the position it continues from.
+  // Environment directives used to live here too; they now ride the SYSTEM
+  // prompt via `withUserMetadata` so presets and Autocomplete share one apply
+  // function. Empty environment keeps both prompts byte-identical to the
+  // pre-metadata shape (the cache key hashes both).
   const userPrompt = windowedSuffix
-    ? `${preamble}Text before the caret:\n${windowedPrefix}\n\nText after the caret:\n${windowedSuffix}\n\nJSON:`
-    : `${preamble}Text before the caret:\n${windowedPrefix}\n\nJSON:`;
+    ? `${askContext.block}Text before the caret:\n${windowedPrefix}\n\nText after the caret:\n${windowedSuffix}\n\nJSON:`
+    : `${askContext.block}Text before the caret:\n${windowedPrefix}\n\nJSON:`;
 
   return {
-    systemPrompt: AUTOCOMPLETE_SYSTEM_PROMPT,
+    systemPrompt: withUserMetadata(
+      AUTOCOMPLETE_SYSTEM_PROMPT,
+      environmentBlock.block,
+      "before-last-line",
+    ),
     userPrompt,
     contextLength: askContext.length,
     environmentLength: environmentBlock.length,

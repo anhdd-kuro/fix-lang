@@ -204,8 +204,10 @@ describe("buildAutocompletePrompt", () => {
 
   /**
    * THE PRESS'S ENVIRONMENT — the same directive block the submitted question
-   * will carry and the input window is showing, so the ghost text is written
-   * against the bytes actually going out rather than a second rendering.
+   * will carry and the input window is showing. It rides the SYSTEM prompt
+   * through `withUserMetadata` (before the last JSON line, so a continuation
+   * still lands on `{"suggestion":""}`) rather than the user prompt, which
+   * stays the caret text a model continues from.
    */
   describe("the press environment", () => {
     const ENVIRONMENT = [
@@ -215,38 +217,52 @@ describe("buildAutocompletePrompt", () => {
       "Current time: 2026-08-11T14:32:05+09:00 (Asia/Tokyo)",
     ].join("\n");
 
-    it("carries the block, labelled as background", () => {
-      const { userPrompt, environmentLength } = buildAutocompletePrompt({
+    it("carries the block on the system prompt, labelled as background", () => {
+      const { systemPrompt, userPrompt, environmentLength } = buildAutocompletePrompt({
         prefix: "how do I say thi",
         environment: ENVIRONMENT,
       });
 
-      expect(userPrompt).toContain("Keyboard input source: Japanese");
-      expect(userPrompt).toContain(
+      expect(systemPrompt).toContain("Keyboard input source: Japanese");
+      expect(systemPrompt).toContain(
         "Environment at the time of the request (background only):",
       );
+      expect(userPrompt).not.toContain("Keyboard input source: Japanese");
       expect(environmentLength).toBe(ENVIRONMENT.length);
     });
 
     /**
-     * These lines are the most CONTINUABLE thing on the request — `App locale:
-     * en` invites `-US` — so they must sit ahead of the caret text, which stays
-     * the last thing the model reads before `JSON:`.
+     * First and last lines of the Autocomplete system prompt are JSON on
+     * purpose. Metadata must not become the last line or a continuation-shaped
+     * model continues `App locale: en` as ghost text.
      */
-    it("puts the block ahead of everything, with the caret text still last", () => {
+    it("keeps the system prompt's last line as the decline JSON", () => {
+      const { systemPrompt } = buildAutocompletePrompt({
+        prefix: "the answer i",
+        environment: ENVIRONMENT,
+        context: { text: "Attached passage.", source: "selection" },
+      });
+
+      expect(systemPrompt.startsWith("Reply with one JSON object only:")).toBe(true);
+      expect(systemPrompt.endsWith('{"suggestion":""}')).toBe(true);
+      expect(systemPrompt.indexOf("App locale: en")).toBeLessThan(
+        systemPrompt.lastIndexOf('{"suggestion":""}'),
+      );
+    });
+
+    it("keeps the attached passage and caret text on the user prompt", () => {
       const { userPrompt } = buildAutocompletePrompt({
         prefix: "the answer i",
         environment: ENVIRONMENT,
         context: { text: "Attached passage.", source: "selection" },
       });
 
-      expect(userPrompt.indexOf("App locale: en")).toBeLessThan(
-        userPrompt.indexOf("Attached passage."),
-      );
+      expect(userPrompt).toContain("Attached passage.");
       expect(userPrompt.indexOf("Attached passage.")).toBeLessThan(
         userPrompt.indexOf("Text before the caret:"),
       );
       expect(userPrompt.endsWith("JSON:")).toBe(true);
+      expect(userPrompt).not.toContain("App locale: en");
     });
 
     /**
@@ -258,24 +274,24 @@ describe("buildAutocompletePrompt", () => {
     it("keeps the head of an overlong block", () => {
       const environment = `${ENVIRONMENT}\n${"- Very Long Preset Name (2026-08-11T05:28:00.000Z)\n".repeat(30)}TAIL`;
 
-      const { userPrompt, environmentLength } = buildAutocompletePrompt({
+      const { systemPrompt, environmentLength } = buildAutocompletePrompt({
         prefix: "abc",
         environment,
       });
 
-      expect(userPrompt).toContain("App locale: en");
-      expect(userPrompt).not.toContain("TAIL");
+      expect(systemPrompt).toContain("App locale: en");
+      expect(systemPrompt).not.toContain("TAIL");
       expect(environmentLength).toBe(ENVIRONMENT_WINDOW_CHARS);
     });
 
     /**
-     * The cache key is hashed from this string alone, so the same half-typed
+     * The cache key hashes the system prompt too, so the same half-typed
      * question asked hours apart, or in a different keyboard layout, must not be
      * able to serve the earlier one's suggestion.
      */
-    it("changes the prompt when only the environment changes", () => {
+    it("changes the system prompt when only the environment changes", () => {
       const build = (environment: string) =>
-        buildAutocompletePrompt({ prefix: "what about thi", environment }).userPrompt;
+        buildAutocompletePrompt({ prefix: "what about thi", environment }).systemPrompt;
 
       expect(build(ENVIRONMENT)).not.toBe(
         build(ENVIRONMENT.replace("Japanese", "ABC")),
@@ -284,13 +300,13 @@ describe("buildAutocompletePrompt", () => {
 
     /**
      * BYTE-IDENTICAL WITH NEITHER BLOCK, which is the cost property: every
-     * cached suggestion the feature already paid for is keyed on this exact
-     * string.
+     * cached suggestion the feature already paid for is keyed on these exact
+     * strings.
      */
     it.each([
       ["no environment field at all", undefined],
       ["an empty environment", ""],
-    ])("builds the pre-environment prompt unchanged for %s", (_description, environment) => {
+    ])("builds the pre-environment prompts unchanged for %s", (_description, environment) => {
       const built = buildAutocompletePrompt({
         prefix: "Hello wor",
         suffix: " and goodbye",
@@ -300,6 +316,7 @@ describe("buildAutocompletePrompt", () => {
       expect(built.userPrompt).toBe(
         "Text before the caret:\nHello wor\n\nText after the caret:\n and goodbye\n\nJSON:",
       );
+      expect(built.systemPrompt).toBe(AUTOCOMPLETE_SYSTEM_PROMPT);
       expect(built.environmentLength).toBe(0);
     });
   });
@@ -313,7 +330,7 @@ describe("buildAutocompletePrompt", () => {
   });
 
   describe("system prompt", () => {
-    it("is returned unchanged", () => {
+    it("is returned unchanged when the press resolved no environment", () => {
       expect(buildAutocompletePrompt({ prefix: "a" }).systemPrompt).toBe(
         AUTOCOMPLETE_SYSTEM_PROMPT,
       );

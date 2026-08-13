@@ -481,6 +481,11 @@ const runComboFromHotkey = async (
         // Same combined read as the single-preset path, for the same reason: the
         // frontmost-app read has to happen before any FixLang window becomes
         // visible, or it reports FixLang instead of the real source app.
+        // Environment is resolved in parallel so combo steps share the same
+        // user-metadata block the single-preset path injects.
+        const environmentPromise = resolveAskEnvironment({
+          systemLocale: app.getSystemLocale(),
+        });
         const { text: selectedText, activeApp, changed } = await getHighlightedTextWithActiveApp(
           () => {
             latency.mark("keystrokeSent");
@@ -614,8 +619,9 @@ const runComboFromHotkey = async (
           mainWindow.webContents.send("start-loading");
         }
 
+        const userMetadata = buildAskDirectives(await environmentPromise);
         const result = await runCombo(
-          { combo, input: gate.sentText, activeAppName: activeApp?.name, signal },
+          { combo, input: gate.sentText, activeAppName: activeApp?.name, userMetadata, signal },
           buildComboRunDependencies(
             (view) => {
               latestProgress = view;
@@ -747,6 +753,18 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         // finishing it, even if that contract is ever broken.
         prewarmProviderConnection(effectiveModelRef(preset));
 
+        // ONCE PER PRESS for every preset, not just Ask. The same rendered
+        // string is what Autocomplete and `fixGrammar` inject into the system
+        // prompt (`withUserMetadata`) and what Ask appends to the submitted
+        // message / shows in the transparency row. Resolving it again
+        // downstream would let those surfaces drift. Started HERE so it
+        // overlaps the selection read on both branches — a `defaults` spawn
+        // bounded by `INPUT_SOURCE_TIMEOUT_MS` must not sit in front of the
+        // input window or the overlay spinner.
+        const environmentPromise = resolveAskEnvironment({
+          systemLocale: app.getSystemLocale(),
+        });
+
         // Ask AI inverts the outbound-polish presets below: an empty
         // selection is the normal case (the question can stand alone), so it
         // must never hit the "no text selected" abort. The window itself
@@ -767,23 +785,6 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         // one extra AppleScript statement in a script this press already runs,
         // not an extra spawn.
         if (preset.requiresInput) {
-          // ONCE PER PRESS, and this is the only place it is resolved. The same
-          // string is appended to the submitted request, shown verbatim in the
-          // input window's transparency row, and carried by every autocomplete
-          // dispatch made while the user types — so a second resolution
-          // anywhere downstream would mean the window stating one thing and the
-          // request sending another. Best-effort throughout: an unreadable
-          // source contributes no line, exactly like the frontmost-app read.
-          //
-          // STARTED BEFORE the context read is awaited, and never after it:
-          // nothing here depends on the selection, while the read itself is a
-          // `defaults` spawn bounded by `INPUT_SOURCE_TIMEOUT_MS` (1 s) plus a
-          // synchronous SQLite read — a full second of blocking delay in front
-          // of the input window if it were serialized behind a clipboard poll
-          // that is already happening anyway.
-          const environmentPromise = resolveAskEnvironment({
-            systemLocale: app.getSystemLocale(),
-          });
           const {
             text: askText,
             source: contextSource,
@@ -1032,8 +1033,10 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           mainWindow.webContents.send("start-loading");
         }
 
+        const userMetadata = buildAskDirectives(await environmentPromise);
         const result = await fixGrammar(sentText, preset.id, {
           activeAppName: activeApp?.name,
+          userMetadata,
         });
         latency.mark("aiRequest");
 
