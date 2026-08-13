@@ -18,6 +18,11 @@ import type { AnalyticsRange } from "../../analytics/shared";
 import type { SecurityStats } from "~/features/guards/shared/securityStats";
 import type { Locale } from "~/features/i18n/shared/registry";
 
+vi.mock("./SecurityCharts", () => ({
+  SecurityCharts: () => null,
+  SecurityRulesBar: () => null,
+}));
+
 const waitForUi = async () => {
   await act(async () => {
     await Promise.resolve();

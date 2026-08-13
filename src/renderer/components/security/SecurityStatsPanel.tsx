@@ -9,6 +9,7 @@
  * instead of rendering as "no guard ever fired".
  */
 import { useEffect, useMemo, useState } from "react";
+import { SecurityCharts, SecurityRulesBar } from "./SecurityCharts";
 import { resolveSecurityStatsView } from "./securityStatsView";
 import { useI18n } from "../../i18n/useI18n";
 import { resolveStatus, type StatusDescriptor } from "../statusDescriptor";
@@ -85,23 +86,28 @@ export const SecurityStatsPanel = ({ range }: SecurityStatsPanelProps) => {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 pb-8">
-      <section className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-base font-semibold text-foreground">
-            {t("security.stats.secretSection.title")}
-          </h2>
-          {view.lastEventAt !== null && (
-            <span className="text-xs text-muted-foreground">
-              {t("security.stats.lastEvent", { date: formatDate(new Date(view.lastEventAt)) })}
-            </span>
-          )}
-        </div>
+      <div className="flex flex-col gap-3">
+        {view.lastEventAt !== null && (
+          <span className="text-xs text-muted-foreground">
+            {t("security.stats.lastEvent", { date: formatDate(new Date(view.lastEventAt)) })}
+          </span>
+        )}
         {!view.hasActivity && (
           <p className="text-sm text-muted-foreground">{resolve(view.emptyHint)}</p>
         )}
         {view.legacyNotice !== null && (
           <p className="text-sm text-muted-foreground">{resolve(view.legacyNotice)}</p>
         )}
+        <SecurityCharts
+          secretCards={view.secretMixCards}
+          selectionCards={view.selectionCards}
+        />
+      </div>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-base font-semibold text-foreground">
+          {t("security.stats.secretSection.title")}
+        </h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {view.secretCards.map(renderCard)}
         </div>
@@ -122,6 +128,7 @@ export const SecurityStatsPanel = ({ range }: SecurityStatsPanelProps) => {
             {t("security.stats.rules.title")}
           </h2>
           <p className="text-sm text-muted-foreground">{resolve(view.rulesHint)}</p>
+          <SecurityRulesBar rows={view.ruleRows} />
           <ul className="flex flex-col gap-1">
             {view.ruleRows.map((row) => (
               <li key={row.ruleId} className="flex items-baseline justify-between gap-4 text-sm">

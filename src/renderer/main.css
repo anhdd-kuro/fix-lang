@@ -86,6 +86,10 @@
   }
 
   html[data-font-size="sm"] {
+    --font-size-text-scale: calc(12 / 14);
+  }
+
+  html[data-font-size="md"] {
     --font-size-text-scale: calc(13 / 14);
   }
 

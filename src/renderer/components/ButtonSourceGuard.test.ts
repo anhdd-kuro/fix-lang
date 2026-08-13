@@ -1903,7 +1903,7 @@ const consumerContractRows = [
     [
     "BTN-048",
     "SITE-b1fefcea3824a139-01",
-    "LIVE-b1fefcea3824a139",
+    "LIVE-6a59bc31fcc6d246",
     "src/renderer/components/security/SettingSecurity.tsx",
     365,
     11,
@@ -2369,7 +2369,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "abef9b0aea88ac1579d9282cc23ee18ca4339c527a1f9005474d9349653967df";
+  "246fc7ae2bae5ab1138702431fd4cd2834f8f57c68338851edf4f9f1e8518108";
 
 const compareConsumers = (
   left: ButtonConsumer,

@@ -362,7 +362,7 @@ export const SettingSecurity = () => {
             aria-label={t("security.deniedApps.addLabel")}
             className="flex-1 rounded border border-control-border bg-input p-1 text-sm text-foreground"
           />
-          <Button type="button" variant="secondary" disabled={!canAddBundleId} onClick={handleAddDeniedApp}>
+          <Button type="button" variant="secondary" disabled={!canAddBundleId} onClick={handleAddDeniedApp} className="shrink-0 rounded px-3 py-2 text-sm font-semibold">
             {t("security.deniedApps.addLabel")}
           </Button>
         </div>

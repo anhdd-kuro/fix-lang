@@ -37,8 +37,8 @@ export const DEFAULT_APPEARANCE_TYPOGRAPHY: AppearanceTypography = Object.freeze
 
 export const FONT_SIZE_PX: Readonly<Record<Exclude<FontSizeId, "custom">, number>> =
   Object.freeze({
-    sm: 13,
-    md: 14,
+    sm: 12,
+    md: 13,
     lg: 16,
   });
 
