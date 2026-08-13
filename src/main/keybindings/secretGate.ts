@@ -326,16 +326,11 @@ export const runSecretGate = async ({
 
   const restoreOnReply = appliedMode === "mask-and-restore";
 
-  if (masking.matchCount === 0) {
-    if (companionScan.matches.length > 0) {
-      logger.info(LOG_SCOPE, `Secret guard gate at ${site}`, {
-        guardMode: settings.mode,
-        appliedMode,
-        gateDecision: "allow",
-        matchCount: companionScan.matches.length,
-        ruleIds: [...companionScan.ruleIds],
-      });
-    }
+  // Companion-only redaction is still a mask: `summarizeSecurityStats` drops
+  // `allow`, and a log that redacted metadata but claimed nothing happened
+  // would let an archive of only these events read as "no guard has fired".
+  // `placeholderCount` stays 0 — irreversible `[redacted]`, no restore slots.
+  if (masking.matchCount === 0 && companionScan.matches.length === 0) {
     return {
       gateDecision: "allow",
       appliedMode,

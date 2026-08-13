@@ -141,6 +141,10 @@ export const IRREVERSIBLE_SECRET_REDACTION = "[redacted]";
  * leaves the machine beside the selection (system-prompt metadata) rather
  * than as the selection itself.
  *
+ * Callers MUST check {@link isFullyMaskable} first. This helper ignores each
+ * match's `maskable` flag and will replace only the detected head of an
+ * ambiguous assignment, leaving the credential tail in the returned string.
+ *
  * @param text - Text to scan.
  * @param options - Same scan options {@link maskSecrets} takes.
  * @returns `text` unchanged when nothing matches.

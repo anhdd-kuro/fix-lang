@@ -21,6 +21,7 @@
  * `replacements` map above all — ever reaches a log line.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { summarizeSecurityStats } from "~/features/guards/shared/securityStats";
 import { redactLogContext } from "~/features/logs/shared/logging";
 import { IRREVERSIBLE_SECRET_REDACTION } from "~/features/secretGuard/shared/maskSecrets";
 import { SECRET_GUARD_MODES } from "~/features/secretGuard/shared/secretGuardSettings";
@@ -663,11 +664,51 @@ describe("runSecretGate — companionText (system-prompt metadata)", () => {
 
     expect(confirmSecretSendMock).not.toHaveBeenCalled();
     if (result.gateDecision === "declined") throw new Error("unexpected decline");
+    expect(result.gateDecision).toBe("masked");
     expect(result.sentText).toBe(CLEAN_TEXT);
     expect(result.sentCompanionText).not.toContain(AWS_KEY);
     expect(result.sentCompanionText).toContain(IRREVERSIBLE_SECRET_REDACTION);
     expect(result.sentCompanionText).not.toContain(SECRET_PLACEHOLDER_MARKER);
     expect(result.restoreOnReply).toBe(true);
+  });
+
+  it("counts a companion-only redaction as masked on the Security dashboard", async () => {
+    await runSecretGate({
+      site: "correction",
+      text: CLEAN_TEXT,
+      companionText: COMPANION,
+      settings: settings({ mode: "mask" }),
+      salt: () => "A1B2C3",
+    });
+
+    const call = loggerMock.info.mock.calls.find((entry) => entry[0] === "secretGuard.gate");
+    expect(call).toBeDefined();
+    if (call === undefined) throw new Error("expected a secretGuard.gate log");
+    const message = call[1];
+    const context = (call[2] ?? {}) as LogContext;
+    expect(context).toMatchObject({
+      gateDecision: "masked",
+      placeholderCount: 0,
+      matchCount: 1,
+      ruleIds: ["aws-access-key-id"],
+    });
+
+    const stats = summarizeSecurityStats([
+      {
+        id: "companion-only",
+        timestamp: "2026-08-13T13:00:00.000Z",
+        level: "info",
+        scope: "secretGuard.gate",
+        message: typeof message === "string" ? message : "",
+        context,
+      },
+    ]);
+    expect(stats.secretMasked).toBe(1);
+    expect(stats.eventCount).toBe(1);
+    expect(stats.lastEventAt).toBe("2026-08-13T13:00:00.000Z");
+    expect(stats.maskedPlaceholders).toBe(0);
+    expect(stats.maskedValues).toBe(1);
+    expect(stats.ruleCounts).toEqual({ "aws-access-key-id": 1 });
   });
 
   it("sends the companion unchanged when the guard is off", async () => {

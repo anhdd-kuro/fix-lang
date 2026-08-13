@@ -68,7 +68,7 @@ import {
   getDefaultModelId,
   getProfileSetting,
 } from "~/features/providers/store/apiStore";
-import { scanForSecrets } from "~/features/secretGuard/shared/detectSecrets";
+import { isFullyMaskable, scanForSecrets } from "~/features/secretGuard/shared/detectSecrets";
 import { redactSecretsIrreversibly } from "~/features/secretGuard/shared/maskSecrets";
 import { logger } from "~/main/logging/logService";
 import { DEFAULT_ASK_PRESET_ID } from "~/prompts";
@@ -947,11 +947,21 @@ export const requestAutocompleteSuggestion = async (
   const scanOptions = { highEntropyRule: secretGuardSettings.highEntropyRule };
 
   // Environment carries user-editable preset names. A modal is impossible per
-  // keystroke, so a secret-shaped name is redacted in place rather than
-  // refusing the whole ghost — restore placeholders do not belong here.
+  // keystroke, so a fully-maskable secret-shaped name is redacted in place
+  // rather than refusing the whole ghost — restore placeholders do not belong
+  // here. `redactSecretsIrreversibly` ignores `maskable`, so an unmaskable
+  // assignment (`password=Correct Horse Battery`) would hide only the detected
+  // head and send the tail. That scan refuses instead, same as prefix/context.
   let environment = askSession?.environment;
   if (secretGuardSettings.mode !== "off" && environment) {
-    environment = redactSecretsIrreversibly(environment, scanOptions);
+    const environmentScan = scanForSecrets(environment, scanOptions);
+    if (!isFullyMaskable(environmentScan)) {
+      logSkip("secret-in-text", startedAt, { ruleIds: [...environmentScan.ruleIds] });
+      return none(requestId);
+    }
+    if (environmentScan.matches.length > 0) {
+      environment = redactSecretsIrreversibly(environment, scanOptions);
+    }
   }
 
   const { systemPrompt, userPrompt, contextLength, environmentLength } =
@@ -987,7 +997,8 @@ export const requestAutocompleteSuggestion = async (
   //
   // Prefix, suffix and attached Ask context still refuse to dispatch: those
   // are the user's own text, and a redacted ghost continuing a credential is
-  // worse than no ghost. Environment was already redacted above.
+  // worse than no ghost. A fully-maskable environment was already redacted
+  // above; an unmaskable one already refused.
   if (secretGuardSettings.mode !== "off") {
     const scan = scanForSecrets(`${prefix}\n${suffix}\n${askContext?.text ?? ""}`, scanOptions);
     if (scan.matches.length > 0) {

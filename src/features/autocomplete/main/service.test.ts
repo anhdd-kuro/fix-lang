@@ -1683,6 +1683,30 @@ describe("requestAutocompleteSuggestion", () => {
       expect(systemPrompt).toContain("[redacted]");
     });
 
+    /**
+     * `redactSecretsIrreversibly` ignores `maskable`. The assignment rule stops
+     * at the first space, so a naive redact would send `password=[redacted] Horse
+     * Battery`. Prefix/context refuse; environment must too when the scan is
+     * not fully maskable.
+     */
+    it.each(["confirm", "mask"] as const)(
+      "refuses an unmaskable environment assignment span in %s mode",
+      async (mode) => {
+        getSecretGuardSettingsMock.mockReturnValue({ mode, highEntropyRule: false });
+        rememberAskSession("window-1", {
+          environment: [
+            "App locale: en",
+            "Recent transforms (most recent first, names and times only):",
+            "- password=Correct Horse Battery (2026-08-11T05:28:00.000Z)",
+          ].join("\n"),
+        });
+
+        await ask({ prefix: LONG_PREFIX });
+
+        expect(makeAIRequestMock).not.toHaveBeenCalled();
+      },
+    );
+
     it("sends a secret-shaped environment name unchanged when the guard is off", async () => {
       getSecretGuardSettingsMock.mockReturnValue({ mode: "off", highEntropyRule: false });
       rememberAskSession("window-1", {
