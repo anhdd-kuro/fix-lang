@@ -6,11 +6,13 @@
  */
 import { describe, expect, it } from "vitest";
 import { EMPTY_SECURITY_STATS } from "~/features/guards/shared/securityStats";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import { SECRET_RULES } from "~/features/secretGuard/shared/secretRules";
 import {
   joinChartAriaSummary,
   resolveSecurityStatsView,
   SECRET_GATE_MIX_IDS,
+  SECURITY_CHART_KEYS,
   securityChartAriaLabel,
   securityChartBarTooltip,
   securityChartDonutTooltip,
@@ -18,6 +20,8 @@ import {
   TOP_RULE_LIMIT,
 } from "./securityStatsView";
 import type { SecurityStats } from "~/features/guards/shared/securityStats";
+
+const tEn = createTranslator("en");
 
 const stats = (overrides: Partial<SecurityStats> = {}): SecurityStats => ({
   ...EMPTY_SECURITY_STATS,
@@ -211,6 +215,27 @@ describe("resolveSecurityStatsView", () => {
     ]);
     expect(view.secretMixCards.every((card) => SECRET_GATE_MIX_IDS.has(card.id))).toBe(true);
     expect(view.secretMixCards.find((card) => card.id === "secretMasked")?.value).toBe(1);
+  });
+
+  /**
+   * A restore-failure log can land in-range while its matching mask gate
+   * does not (cutoff, or a restore-only line). The mix donut then has no
+   * slices even though the restore card is 1 — empty copy must name gate
+   * outcomes, not "no secret-guard events".
+   */
+  it("keeps a restore-only range active with an empty gate-outcomes donut", () => {
+    const view = resolveSecurityStatsView(
+      stats({ restoreFailures: 1, secretMasked: 0, eventCount: 1 }),
+    );
+
+    expect(view.hasActivity).toBe(true);
+    expect(view.emptyHint).toBeNull();
+    expect(view.secretCards.find((card) => card.id === "restoreFailures")?.value).toBe(1);
+    expect(view.secretMixCards.every((card) => card.value === 0)).toBe(true);
+    expect(SECURITY_CHART_KEYS.secretTitle).toBe("security.stats.charts.secret.title");
+    expect(SECURITY_CHART_KEYS.secretEmpty).toBe("security.stats.charts.secret.empty");
+    expect(tEn(SECURITY_CHART_KEYS.secretTitle)).toBe("Secret gate outcomes");
+    expect(tEn(SECURITY_CHART_KEYS.secretEmpty)).toBe("No secret gate outcomes in this range.");
   });
 
   it("emits chart aria descriptors, never prose", () => {
