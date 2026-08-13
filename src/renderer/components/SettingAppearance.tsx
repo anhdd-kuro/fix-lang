@@ -12,6 +12,9 @@ import type { ThemeId } from "~/features/theme/store/themeIds";
 const THEME_CARD_MIN = "9.5rem";
 const THEME_CARD_MAX = "13rem";
 
+const inputClassName =
+  "w-full rounded-md border border-control-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+
 /**
  * Appearance settings — searchable theme preset picker with square preview cards.
  */
@@ -22,6 +25,8 @@ export const SettingAppearance: React.FC = () => {
     typography,
     setFontSize,
     setFontFamily,
+    setCustomFontSize,
+    setCustomFontFamily,
     isLoading: typographyLoading,
   } = useAppearanceTypography();
   const [query, setQuery] = useState("");
@@ -66,6 +71,43 @@ export const SettingAppearance: React.FC = () => {
             className="w-full"
           />
         </div>
+        {typography.fontSize === "custom" ? (
+          <div className="mt-3 flex flex-col gap-1">
+            <label
+              htmlFor="appearance-custom-font-size"
+              className="text-sm text-card-foreground"
+            >
+              {t("settings.appearance.fontSize.customLabel")}
+            </label>
+            <input
+              key={typography.customFontSize}
+              id="appearance-custom-font-size"
+              type="text"
+              defaultValue={typography.customFontSize}
+              disabled={typographyLoading}
+              placeholder={t("settings.appearance.fontSize.customPlaceholder")}
+              className={inputClassName}
+              onBlur={(event) => {
+                const trimmed = event.target.value.trim();
+                if (trimmed.length === 0 || trimmed === typography.customFontSize) {
+                  event.target.value = typography.customFontSize;
+                  return;
+                }
+                void setCustomFontSize(trimmed).catch(() => {
+                  event.target.value = typography.customFontSize;
+                });
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.currentTarget.blur();
+                }
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("settings.appearance.fontSize.customHint")}
+            </p>
+          </div>
+        ) : null}
       </section>
 
       <section className="shrink-0">
@@ -85,6 +127,43 @@ export const SettingAppearance: React.FC = () => {
             className="w-full"
           />
         </div>
+        {typography.fontFamily === "custom" ? (
+          <div className="mt-3 flex flex-col gap-1">
+            <label
+              htmlFor="appearance-custom-font-family"
+              className="text-sm text-card-foreground"
+            >
+              {t("settings.appearance.fontFamily.customLabel")}
+            </label>
+            <input
+              key={typography.customFontFamily}
+              id="appearance-custom-font-family"
+              type="text"
+              defaultValue={typography.customFontFamily}
+              disabled={typographyLoading}
+              placeholder={t("settings.appearance.fontFamily.customPlaceholder")}
+              className={inputClassName}
+              onBlur={(event) => {
+                const trimmed = event.target.value.trim();
+                if (trimmed.length === 0 || trimmed === typography.customFontFamily) {
+                  event.target.value = typography.customFontFamily;
+                  return;
+                }
+                void setCustomFontFamily(trimmed).catch(() => {
+                  event.target.value = typography.customFontFamily;
+                });
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.currentTarget.blur();
+                }
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("settings.appearance.fontFamily.customHint")}
+            </p>
+          </div>
+        ) : null}
       </section>
 
       <div className="shrink-0">
@@ -107,7 +186,7 @@ export const SettingAppearance: React.FC = () => {
             setQuery(event.target.value);
           }}
           placeholder={t("settings.appearance.searchPlaceholder")}
-          className="w-full rounded-md border border-control-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className={inputClassName}
         />
       </label>
 

@@ -186,9 +186,9 @@ describe("AskInputWindow", () => {
       submitAskInput: vi.fn(),
       cancelAskInput: vi.fn(),
       getTheme: vi.fn().mockResolvedValue({ themeId: "brand-codex-dark" }),
-      getAppearanceTypography: vi.fn().mockResolvedValue({ fontSize: "md", fontFamily: "system" }),
-      setAppearanceFontSize: vi.fn().mockResolvedValue({ success: true, typography: { fontSize: "md", fontFamily: "system" } }),
-      setAppearanceFontFamily: vi.fn().mockResolvedValue({ success: true, typography: { fontSize: "md", fontFamily: "system" } }),
+      getAppearanceTypography: vi.fn().mockResolvedValue({ fontSize: "md", fontFamily: "system", customFontSize: "14px", customFontFamily: "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif" }),
+      setAppearanceFontSize: vi.fn().mockResolvedValue({ success: true, typography: { fontSize: "md", fontFamily: "system", customFontSize: "14px", customFontFamily: "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif" } }),
+      setAppearanceFontFamily: vi.fn().mockResolvedValue({ success: true, typography: { fontSize: "md", fontFamily: "system", customFontSize: "14px", customFontFamily: "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif" } }),
       onAppearanceTypographyChanged: vi.fn().mockReturnValue(vi.fn()),
       onThemeChanged: vi.fn().mockReturnValue(vi.fn()),
       setTheme: vi.fn().mockResolvedValue({ success: true }),
@@ -233,31 +233,7 @@ describe("AskInputWindow", () => {
    * budget below has 3.5px of slack, so `gap-1.5` + `pt-2.5` spends it and
    * clips the ninth line while every substring assertion stays green.
    */
-  const classTokens = (element: HTMLElement): string[] =>
-    element.className.split(/\s+/).filter((token) => token.length > 0);
-
-  const contextSection = (): HTMLElement | null =>
-    container.querySelector("[data-ask-context]");
-
-  const contextBody = (): HTMLElement =>
-    container.querySelector("[data-ask-context-text]") as HTMLElement;
-
-  const foldControl = (): HTMLButtonElement | undefined =>
-    [...container.querySelectorAll("button")].find(
-      (button) =>
-        button.textContent ===
-          tEn("notifications.window.askInput.contextExpand") ||
-        button.textContent ===
-          tEn("notifications.window.askInput.contextCollapse"),
-    );
-
-  const clickFold = async () => {
-    await act(async () => {
-      foldControl()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-  };
-
-  const acceptHintShown = (): boolean =>
+            const acceptHintShown = (): boolean =>
     (container.textContent ?? "").includes(
       tEn("notifications.window.askInput.acceptHint"),
     );
@@ -1062,385 +1038,13 @@ describe("AskInputWindow", () => {
   });
 
   /**
-   * The attached selection itself, foldable — and since the Ask result popup
-   * moved to `ChatTranscript`'s native `<details>`, the last measured fold in
-   * the app. Both of its traps are pinned here: the control must
-   * be gated on a MEASURED overflow (never on string length, which cannot know
-   * the window width), and the measurement must run only while collapsed — an
-   * expanded body reports "it fits", so re-measuring there unmounts the only
-   * control that gets the user back to collapsed.
+   * Chat-style layout: read-only blocks fold independently through
+   * `ChatTranscript`'s native `<details>` entries, and the question input
+   * sits in a user bubble at the bottom of the scroll area.
    */
-  describe("foldable context preview", () => {
+  describe("chat-style ask layout", () => {
     const LONG_CONTEXT =
       "The quarterly report needs a rewrite before Friday, and the numbers in section three do not agree with the appendix.";
-
-    const showContext = async (context = LONG_CONTEXT) => {
-      await act(async () => {
-        payloadListener?.({ presetId: "ask", context });
-      });
-    };
-
-    it("renders no context preview when nothing was selected", async () => {
-      await render();
-      await showContext("");
-
-      expect(contextSection()).toBeNull();
-      expect(foldControl()).toBeUndefined();
-    });
-
-    it("shows the attached context collapsed to an ellipsised clamp by default", async () => {
-      await render();
-      await showContext();
-
-      // The clamp, not a bare `overflow-hidden`: `line-clamp-*` is what brings
-      // the ellipsis with it, and an ellipsis is what says more text follows.
-      expect(contextBody().className).toContain(CLAMP_CLASS);
-      expect(contextBody().className).not.toContain("overflow-y-auto");
-      expect(contextBody().textContent).toBe(LONG_CONTEXT);
-      expect(foldControl()?.textContent).toBe(
-        tEn("notifications.window.askInput.contextExpand"),
-      );
-      expect(foldControl()?.getAttribute("aria-expanded")).toBe("false");
-    });
-
-    it("omits the fold control entirely when the context fits inside the clamp", async () => {
-      stubbedContextLines = 1;
-      await render();
-      await showContext("short selection");
-
-      expect(contextBody().textContent).toBe("short selection");
-      expect(foldControl()).toBeUndefined();
-      expect(container.textContent).not.toContain(
-        tEn("notifications.window.askInput.contextExpand"),
-      );
-    });
-
-    it("expanding turns the clamp into a scroll, and collapsing returns", async () => {
-      await render();
-      await showContext();
-
-      await clickFold();
-
-      expect(contextBody().className).not.toContain(CLAMP_CLASS);
-      // Scrollable rather than unbounded: "Show more" changes the overflow from
-      // hidden to auto, and `flex-1` inside the card's fixed 200px is what
-      // gives that scroll something to scroll INSIDE. Without the flex sizing
-      // the body would size to its content and push the fold control, and then
-      // the textarea, off the bottom.
-      expect(contextBody().className).toContain("flex-1");
-      expect(contextBody().className).toContain("overflow-y-auto");
-      expect(contextBody().textContent).toBe(LONG_CONTEXT);
-      expect(foldControl()?.textContent).toBe(
-        tEn("notifications.window.askInput.contextCollapse"),
-      );
-      expect(foldControl()?.getAttribute("aria-expanded")).toBe("true");
-
-      await clickFold();
-
-      expect(contextBody().className).toContain(CLAMP_CLASS);
-      expect(foldControl()?.textContent).toBe(
-        tEn("notifications.window.askInput.contextExpand"),
-      );
-    });
-
-    /**
-     * Both floors are pinned, and so is the card's cap, because each one alone
-     * MOVES the overflow instead of removing it: a card with no cap sits at its
-     * natural height once expanded and squeezes the textarea to a half-line,
-     * and a card cap with no textarea floor pushes the footer off the bottom of
-     * the window instead. jsdom lays nothing out, so the numbers below are the
-     * class contract and the sum behind it rather than measurement — the real
-     * pixels are measured in a live Electron window:
-     *
-     *   200px card (`min-h-50` = `max-h-50`; the floor is the spec, the cap is
-     *   what gives the expanded body something to scroll inside)
-     *   300px textarea (`min-h-75`)
-     *   40px collapsed transparency row (`h-10`)
-     *   plus 24 (`p-3`) + 24 (three `gap-2`) + 16 (`text-xs` footer)
-     *   = 604 page, which is the 636 FRAMED height `askInputWindow.ts` opens
-     *   with a context attached, less macOS's 32px title bar. Without a context
-     *   the card and one gap drop out: 396 page / 428 framed.
-     *
-     * `min-h-0` is what the textarea's floor REPLACES, not something it sits
-     * beside: both defeat the flex item's default `min-height: auto`, but
-     * `min-h-0` also let the textarea shrink to nothing, which is the bug.
-     */
-    it("floors the card and the textarea, and caps the card so neither can squeeze the other out of the window", async () => {
-      await render();
-      await showContext();
-
-      const section = contextSection() as HTMLElement;
-      const wrapper = textarea().parentElement as HTMLElement;
-
-      expect(section.className).toContain("min-h-50");
-      expect(section.className).toContain("max-h-50");
-      expect(wrapper.className).toContain("min-h-75");
-      expect(wrapper.className).not.toContain("min-h-0");
-    });
-
-    /**
-     * The card's 200px is fixed, so its padding is not free: `pt-2` 8 + `pb-1` 4
-     * + border 2 + label 10 + two `gap-1` 8 + fold control 16 = 48px of chrome
-     * and 152px of body, against a `line-clamp-9` of 148.5px — 3.5px of slack in
-     * total, for the padding and both gaps together.
-     *
-     * Pinned as EXACT tokens (see `classTokens`) because 3.5px is less than one
-     * Tailwind half-step: `gap-1.5` with `pt-2.5` costs 6 more, leaves 146px, and
-     * clips the ninth line the clamp promised to ellipsise. Every substring
-     * assertion — `toContain("pt-2")`, `toContain("gap-1")` — passes on that
-     * edit, which is what makes this the one place the numbers are enforced
-     * rather than merely written down.
-     */
-    it("separates the label from the passage with padding the 200px card can afford", async () => {
-      await render();
-      await showContext();
-
-      const tokens = classTokens(contextSection() as HTMLElement);
-      expect(tokens).toContain("pt-2");
-      expect(tokens).toContain("pb-1");
-      expect(tokens).toContain("gap-1");
-      // The classes this replaced, and every half-step of the ones above.
-      expect(tokens).not.toContain("py-1");
-      expect(tokens).not.toContain("gap-0.5");
-      expect(tokens.filter((token) => token.startsWith("p"))).toEqual([
-        "px-2",
-        "pt-2",
-        "pb-1",
-      ]);
-      expect(tokens.filter((token) => token.startsWith("gap-"))).toEqual([
-        "gap-1",
-      ]);
-      expect(contextBody().className).toContain(CLAMP_CLASS);
-    });
-
-    it("keeps the card capped while it is expanded, when the squeeze actually happens", async () => {
-      await render();
-      await showContext();
-
-      await clickFold();
-
-      const section = contextSection() as HTMLElement;
-      expect(section.className).toContain("max-h-50");
-      // The cap belongs to the card, not to the fold state: the body's own
-      // `flex-1` only keeps the card's content INSIDE that cap.
-      expect(contextBody().className).toContain("flex-1");
-    });
-
-    it("keeps the fold control mounted once expanded, though the unclamped context reports no overflow", async () => {
-      await render();
-      await showContext();
-
-      await clickFold();
-
-      const body = contextBody();
-      expect(body.className).not.toContain(CLAMP_CLASS);
-      // Unclamped, the body's scrollHeight equals its clientHeight: measuring
-      // here would report "fits" and unmount the only way back to collapsed.
-      expect(body.scrollHeight).toBe(body.clientHeight);
-      expect(foldControl()?.textContent).toBe(
-        tEn("notifications.window.askInput.contextCollapse"),
-      );
-    });
-
-    it("labels a clipboard-sourced context as such, not as the user's selection", async () => {
-      // The label is what makes attaching the clipboard acceptable: when the
-      // hotkey's own copy produced nothing, this text may be minutes old and
-      // unrelated. Told which it is, the user can send it or press Esc.
-      await render();
-      await act(async () => {
-        payloadListener?.({
-          presetId: "ask",
-          context: LONG_CONTEXT,
-          contextSource: "clipboard",
-        });
-      });
-
-      const label = contextSection()?.querySelector(
-        "[data-ask-context-label]",
-      ) as HTMLElement;
-      expect(label.textContent).toBe(
-        tEn("notifications.window.askInput.contextLabelClipboard"),
-      );
-      expect(label.getAttribute("data-ask-context-source")).toBe("clipboard");
-    });
-
-    it("falls back to the selection label when the payload names no source", async () => {
-      await render();
-      await showContext();
-
-      const label = contextSection()?.querySelector(
-        "[data-ask-context-label]",
-      ) as HTMLElement;
-      expect(label.textContent).toBe(
-        tEn("notifications.window.askInput.contextLabel"),
-      );
-      expect(label.getAttribute("data-ask-context-source")).toBe("selection");
-    });
-
-    it("renders the context as plain text, never as markdown or HTML", async () => {
-      const hostile = "**bold** <b>tag</b> [link](http://example.com)";
-      await render();
-      await showContext(hostile);
-
-      const section = contextSection() as HTMLElement;
-      expect(section.querySelector("b")).toBeNull();
-      expect(section.querySelector("strong")).toBeNull();
-      expect(section.querySelector("a")).toBeNull();
-      expect(contextBody().textContent).toBe(hostile);
-    });
-
-    it("opens collapsed again when a fresh payload brings a different selection", async () => {
-      await render();
-      await showContext();
-      await clickFold();
-      expect(contextBody().className).not.toContain(CLAMP_CLASS);
-
-      await showContext("An entirely different passage from another app.");
-
-      expect(contextBody().className).toContain(CLAMP_CLASS);
-      expect(foldControl()?.textContent).toBe(
-        tEn("notifications.window.askInput.contextExpand"),
-      );
-    });
-
-    it("puts the fold control after the context text and ahead of the textarea in the tab order", async () => {
-      await render();
-      await showContext();
-
-      const section = contextSection() as HTMLElement;
-      const body = contextBody();
-      const control = foldControl() as HTMLButtonElement;
-
-      const label = section.querySelector(
-        "[data-ask-context-label]",
-      ) as HTMLElement;
-      expect(label.textContent).toBe(
-        tEn("notifications.window.askInput.contextLabel"),
-      );
-      // Label, then the text it labels, then the control — the card reads top
-      // to bottom in the same order as the session-detail system-prompt block
-      // it is modelled on.
-      expect([...section.children].indexOf(label)).toBe(0);
-      expect([...section.children].indexOf(body)).toBe(1);
-      expect(section.lastElementChild).toBe(control);
-      // The control precedes the textarea in document order, so a FORWARD Tab
-      // from the input can never land on it — the only Tab the textarea sees
-      // stays the ghost's. Shift+Tab is what reaches the control.
-      expect(
-        control.compareDocumentPosition(textarea()) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
-    });
-
-    it("returns focus to the textarea after toggling, so the next keystroke is not dropped", async () => {
-      await render();
-      await showContext();
-
-      await act(async () => {
-        foldControl()?.focus();
-      });
-      expect(document.activeElement).toBe(foldControl());
-
-      await clickFold();
-
-      expect(document.activeElement).toBe(textarea());
-    });
-
-    describe("the existing keyboard contract still holds with context attached", () => {
-      const mockSuggestion = (suggestion: string) => {
-        api.requestAutocompleteSuggestion.mockImplementation(
-          async (request: { requestId: number }) => ({
-            requestId: request.requestId,
-            suggestion,
-          }),
-        );
-      };
-
-      it("Tab still accepts the ghost suggestion", async () => {
-        await render();
-        await showContext();
-        mockSuggestion(" world");
-        const typed = "Hello there my friend";
-        await type(typed);
-        await settleGhostDebounce();
-        expect(paintedGhost()).toBe(" world");
-
-        const event = await keydown({ key: "Tab" });
-
-        expect(event.defaultPrevented).toBe(true);
-        expect(textarea().value).toBe(`${typed} world`);
-        expect(paintedGhost()).toBeNull();
-      });
-
-      it("Tab still accepts the ghost while the context is expanded", async () => {
-        await render();
-        await showContext();
-        await clickFold();
-        mockSuggestion(" world");
-        const typed = "Hello there my friend";
-        await type(typed);
-        await settleGhostDebounce();
-        expect(paintedGhost()).toBe(" world");
-
-        await keydown({ key: "Tab" });
-
-        expect(textarea().value).toBe(`${typed} world`);
-      });
-
-      it("the first Esc still clears the ghost and the second still cancels", async () => {
-        await render();
-        await showContext();
-        mockSuggestion(" world");
-        await type("Hello there my friend");
-        await settleGhostDebounce();
-        expect(paintedGhost()).toBe(" world");
-
-        await keydown({ key: "Escape" });
-
-        expect(api.cancelAskInput).not.toHaveBeenCalled();
-        expect(paintedGhost()).toBeNull();
-
-        await keydown({ key: "Escape" });
-
-        expect(api.cancelAskInput).toHaveBeenCalledTimes(1);
-      });
-
-      it("Enter still submits the trimmed question with the context expanded", async () => {
-        await render();
-        await showContext();
-        await clickFold();
-        await type("  what changed?  ");
-
-        const event = await keydown({ key: "Enter" });
-
-        expect(api.submitAskInput).toHaveBeenCalledWith("what changed?");
-        expect(event.defaultPrevented).toBe(true);
-      });
-    });
-  });
-
-  /**
-   * The transparency row: what is ACTUALLY being sent, shown through the same
-   * `ChatTranscript` the history modal and the Ask result popup use.
-   *
-   * Two properties carry the whole design and both are asserted here rather than
-   * inferred:
-   *
-   * - collapsed it is a fixed `h-10 shrink-0` bar, because 40px (plus the
-   *   `gap-2` above it, so 48) is what `askInputWindow.ts` reserved in BOTH
-   *   window heights. A row that measured anything else puts the window back out
-   *   of budget, and jsdom lays nothing out — so the class contract is what can
-   *   be pinned;
-   * - expanded it leaves the flow (`absolute`) and scrolls inside itself, with
-   *   an `h-10 shrink-0` spacer taking its place, so a long system prompt cannot
-   *   push the textarea and the footer off the bottom of a fixed window.
-   *
-   * Both strings are rendered by main and shown VERBATIM, which is the point of
-   * the row: what is on screen is what leaves the machine — and they are shown
-   * UNFOLDED, because a fold inside a panel the user just opened is a second
-   * click in front of the one thing the row discloses.
-   */
-  describe("request transparency row", () => {
     const SYSTEM_PROMPT =
       "You are a careful assistant.\n\nAnswer the question directly.";
     const DIRECTIVES = [
@@ -1455,40 +1059,48 @@ describe("AskInputWindow", () => {
       });
     };
 
-    const transparencySection = (): HTMLElement | null =>
-      container.querySelector("[data-ask-transparency]");
+    const chatSection = (): HTMLElement | null =>
+      container.querySelector("[data-ask-chat]");
 
-    const transparencyToggle = (): HTMLButtonElement | undefined =>
-      [...container.querySelectorAll("button")].find(
-        (button) =>
-          button.textContent ===
-            tEn("notifications.window.askInput.transparencyExpand") ||
-          button.textContent ===
-            tEn("notifications.window.askInput.transparencyCollapse"),
-      );
-
-    const clickTransparency = async () => {
-      await act(async () => {
-        transparencyToggle()?.dispatchEvent(
-          new MouseEvent("click", { bubbles: true }),
-        );
-      });
-    };
-
-    const transparencyBody = (): HTMLElement | null =>
-      container.querySelector("[data-ask-transparency-body]");
+    const questionBubble = (): HTMLElement | null =>
+      container.querySelector("[data-ask-question-input]");
 
     const block = (id: string): HTMLElement | null =>
       container.querySelector(`[data-chat-section="${id}"]`);
 
-    it("renders nothing at all when the payload carries neither field", async () => {
+    it("renders the scrollable chat area with a user-styled question bubble", async () => {
       await render();
-      await showPayload();
 
-      expect(transparencySection()).toBeNull();
-      expect(transparencyToggle()).toBeUndefined();
-      expect(container.textContent).not.toContain(
-        tEn("notifications.window.askInput.transparencyLabel"),
+      const chat = chatSection() as HTMLElement;
+      const bubble = questionBubble() as HTMLElement;
+      expect(chat.className).toContain("overflow-y-auto");
+      expect(chat.className).toContain("bg-secondary");
+      expect(bubble.querySelector("textarea")).toBe(textarea());
+      expect(bubble.querySelector(".bg-primary")).toBeTruthy();
+      expect(bubble.textContent).toContain(
+        tEn("notifications.window.askResult.questionLabel"),
+      );
+    });
+
+    it("shows attached selection as its own foldable system block", async () => {
+      await render();
+      await showPayload({ context: LONG_CONTEXT });
+
+      const selection = block("selection-context") as HTMLElement;
+      expect(selection).toBeTruthy();
+      expect(selection.querySelector("summary")?.textContent).toContain(
+        tEn("notifications.window.askInput.contextLabel"),
+      );
+      expect(selection.querySelector("pre")?.textContent).toBe(LONG_CONTEXT);
+    });
+
+    it("labels a clipboard-sourced context in its summary", async () => {
+      await render();
+      await showPayload({ context: LONG_CONTEXT, contextSource: "clipboard" });
+
+      const selection = block("selection-context") as HTMLElement;
+      expect(selection?.querySelector("summary")?.textContent).toContain(
+        tEn("notifications.window.askInput.contextLabelClipboard"),
       );
     });
 
@@ -1500,20 +1112,23 @@ describe("AskInputWindow", () => {
         ["context-directives"],
       ],
       [
-        "both",
-        { systemPrompt: SYSTEM_PROMPT, contextDirectives: DIRECTIVES },
-        ["system-prompt", "context-directives"],
+        "all three blocks",
+        {
+          context: LONG_CONTEXT,
+          systemPrompt: SYSTEM_PROMPT,
+          contextDirectives: DIRECTIVES,
+        },
+        ["selection-context", "system-prompt", "context-directives"],
       ],
     ] as const)(
-      "shows exactly what the payload carries: %s",
+      "shows independently foldable request blocks: %s",
       async (_name, payload, expectedSections) => {
         await render();
         await showPayload(payload);
-        await clickTransparency();
 
         expect(
           [
-            ...(transparencyBody() as HTMLElement).querySelectorAll(
+            ...(chatSection() as HTMLElement).querySelectorAll(
               "[data-chat-section]",
             ),
           ].map((element) => element.getAttribute("data-chat-section")),
@@ -1521,218 +1136,114 @@ describe("AskInputWindow", () => {
       },
     );
 
-    /**
-     * ONE CLICK. Expanding the row used to hand the user two more collapsed
-     * `<details>` summaries, so reading the system prompt this row exists to
-     * disclose took three clicks. The absence of `<details>` is asserted as
-     * flatly as the presence of the text, because a fold that came back would
-     * still let every text assertion below pass — `textContent` reads a closed
-     * fold's body just fine.
-     */
-    it("shows both blocks verbatim and already open, with no second fold to click", async () => {
+    it("uses separate `<details>` folds with no master show/hide control", async () => {
       await render();
       await showPayload({
         systemPrompt: SYSTEM_PROMPT,
         contextDirectives: DIRECTIVES,
       });
-      await clickTransparency();
 
-      const body = transparencyBody() as HTMLElement;
-      expect(body.querySelectorAll("details")).toHaveLength(0);
-      expect(body.querySelectorAll("summary")).toHaveLength(0);
-
-      const prompt = block("system-prompt") as HTMLElement;
-      expect(prompt.querySelector("h3")?.textContent).toBe(
-        tEn("notifications.window.askInput.transparencySystemPromptLabel"),
+      expect(container.textContent).not.toContain(
+        tEn("notifications.window.askInput.transparencyExpand"),
       );
-      // Byte-for-byte, newlines included: main renders these and nothing here
-      // re-wraps or prettifies them.
-      expect(prompt.querySelector("pre")?.textContent).toBe(SYSTEM_PROMPT);
-
-      const directives = block("context-directives") as HTMLElement;
-      expect(directives.querySelector("h3")?.textContent).toBe(
-        tEn("notifications.window.askInput.transparencyDirectivesLabel"),
+      expect(container.textContent).not.toContain(
+        tEn("notifications.window.askInput.transparencyCollapse"),
       );
-      expect(directives.querySelector("pre")?.textContent).toBe(DIRECTIVES);
+      expect(container.querySelectorAll("details").length).toBeGreaterThanOrEqual(
+        2,
+      );
     });
 
-    it("renders the two blocks as plain text, never as markdown or HTML", async () => {
+    it("renders request text verbatim inside each fold", async () => {
+      await render();
+      await showPayload({
+        systemPrompt: SYSTEM_PROMPT,
+        contextDirectives: DIRECTIVES,
+      });
+
+      expect(block("system-prompt")?.querySelector("pre")?.textContent).toBe(
+        SYSTEM_PROMPT,
+      );
+      expect(block("context-directives")?.querySelector("pre")?.textContent).toBe(
+        DIRECTIVES,
+      );
+    });
+
+    it("renders request blocks as plain text, never as markdown or HTML", async () => {
       const hostile = "**bold** <b>tag</b> [link](http://example.com)";
       await render();
       await showPayload({ systemPrompt: hostile, contextDirectives: hostile });
-      await clickTransparency();
 
-      const body = transparencyBody() as HTMLElement;
-      expect(body.querySelector("b")).toBeNull();
-      expect(body.querySelector("strong")).toBeNull();
-      expect(body.querySelector("a")).toBeNull();
+      const chat = chatSection() as HTMLElement;
+      expect(chat.querySelector("b")).toBeNull();
+      expect(chat.querySelector("strong")).toBeNull();
+      expect(chat.querySelector("a")).toBeNull();
       expect(block("system-prompt")?.querySelector("pre")?.textContent).toBe(
         hostile,
       );
     });
 
-    it("is exactly a 40px shrink-0 row while collapsed, with no panel mounted", async () => {
+    it("remounts the preamble when a fresh press brings different text", async () => {
       await render();
-      await showPayload({ systemPrompt: SYSTEM_PROMPT });
+      await showPayload({ systemPrompt: SYSTEM_PROMPT, contextDirectives: DIRECTIVES });
 
-      const section = transparencySection() as HTMLElement;
-      expect(section.className).toContain("h-10");
-      expect(section.className).toContain("shrink-0");
-      expect(section.className).not.toContain("absolute");
-      expect(section.getAttribute("data-ask-transparency-expanded")).toBe(
-        "false",
-      );
-      expect(transparencyBody()).toBeNull();
-      expect(transparencyToggle()?.textContent).toBe(
-        tEn("notifications.window.askInput.transparencyExpand"),
-      );
-      expect(transparencyToggle()?.getAttribute("aria-expanded")).toBe("false");
-    });
-
-    it("expands into an overlay that scrolls inside the window instead of growing it, and collapses back", async () => {
-      await render();
-      await showPayload({ systemPrompt: SYSTEM_PROMPT });
-
-      await clickTransparency();
-
-      const section = transparencySection() as HTMLElement;
-      // Out of the flow entirely, spanning the page from its top padding down
-      // to just above the footer — an inline block would push the textarea and
-      // the footer off the bottom of a window whose height is fixed.
-      expect(section.className).toContain("absolute");
-      expect(section.className).toContain("inset-x-3");
-      expect(section.className).toContain("top-3");
-      expect(section.className).toContain("bottom-9");
-      expect(section.className).not.toContain("h-10");
-      expect(section.getAttribute("data-ask-transparency-expanded")).toBe(
-        "true",
-      );
-      // Its own scroll container, bounded by the panel rather than by content.
-      const body = transparencyBody() as HTMLElement;
-      expect(body.className).toContain("overflow-y-auto");
-      expect(body.className).toContain("flex-1");
-      expect(body.className).toContain("min-h-0");
-      // The 40px the window budgeted stays reserved while the panel is open,
-      // so nothing below the row moves.
-      const spacer = [...(section.parentElement?.children ?? [])].find(
-        (element) => element.getAttribute("aria-hidden") === "true",
-      ) as HTMLElement;
-      expect(spacer.className).toContain("h-10");
-      expect(spacer.className).toContain("shrink-0");
-
-      expect(transparencyToggle()?.textContent).toBe(
-        tEn("notifications.window.askInput.transparencyCollapse"),
-      );
-      expect(transparencyToggle()?.getAttribute("aria-expanded")).toBe("true");
-
-      await clickTransparency();
-
-      expect((transparencySection() as HTMLElement).className).toContain(
-        "h-10",
-      );
-      expect(transparencyBody()).toBeNull();
-    });
-
-    it("opens collapsed again when a fresh press brings different directives", async () => {
-      // The window is hidden, not destroyed, so an expanded panel left behind
-      // by the last press would reopen covering the textarea.
-      await render();
-      await showPayload({
-        systemPrompt: SYSTEM_PROMPT,
-        contextDirectives: DIRECTIVES,
-      });
-      await clickTransparency();
-      expect(transparencyBody()).toBeTruthy();
+      const first = block("context-directives")?.querySelector("pre")?.textContent;
+      expect(first).toBe(DIRECTIVES);
 
       await showPayload({
         systemPrompt: SYSTEM_PROMPT,
         contextDirectives: "Current time: 2026-08-11T15:00:00+09:00",
       });
 
-      expect(transparencyBody()).toBeNull();
-      expect(transparencyToggle()?.textContent).toBe(
-        tEn("notifications.window.askInput.transparencyExpand"),
+      expect(block("context-directives")?.querySelector("pre")?.textContent).toBe(
+        "Current time: 2026-08-11T15:00:00+09:00",
       );
     });
 
-    it("positions the panel against the page, so `<main>` stays the containing block", async () => {
+    it("floors the chat scroll area so the question bubble keeps room", async () => {
       await render();
-      await showPayload({ systemPrompt: SYSTEM_PROMPT });
-      await clickTransparency();
+      await showPayload({ context: LONG_CONTEXT });
 
-      const main = container.querySelector("main") as HTMLElement;
-      expect(main.className).toContain("relative");
-      expect((transparencySection() as HTMLElement).parentElement).toBe(main);
+      expect((chatSection() as HTMLElement).className).toContain("min-h-75");
+      expect(questionBubble()).toBeTruthy();
     });
 
-    it("keeps its control ahead of the textarea in the tab order, collapsed and expanded alike", async () => {
-      await render();
-      await showPayload({ systemPrompt: SYSTEM_PROMPT });
+    describe("the existing keyboard contract still holds with chat layout", () => {
+      const mockSuggestion = (suggestion: string) => {
+        api.requestAutocompleteSuggestion.mockImplementation(
+          async (request: { requestId: number }) => ({
+            requestId: request.requestId,
+            suggestion,
+          }),
+        );
+      };
 
-      const collapsed = transparencyToggle() as HTMLButtonElement;
-      expect(
-        collapsed.compareDocumentPosition(textarea()) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
+      it("Tab still accepts the ghost suggestion", async () => {
+        await render();
+        await showPayload({ context: LONG_CONTEXT });
+        mockSuggestion(" world");
+        const typed = "Hello there my friend";
+        await type(typed);
+        await settleGhostDebounce();
+        expect(paintedGhost()).toBe(" world");
 
-      await clickTransparency();
+        const event = await keydown({ key: "Tab" });
 
-      const expanded = transparencyToggle() as HTMLButtonElement;
-      expect(
-        expanded.compareDocumentPosition(textarea()) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
-      // One control, never two: a second copy left in the collapsed bar would
-      // be a focusable the panel is covering.
-      expect(
-        [...container.querySelectorAll("button")].filter(
-          (button) =>
-            button.textContent ===
-              tEn("notifications.window.askInput.transparencyExpand") ||
-            button.textContent ===
-              tEn("notifications.window.askInput.transparencyCollapse"),
-        ),
-      ).toHaveLength(1);
-    });
-
-    it("returns focus to the textarea after toggling, so the next keystroke is not dropped", async () => {
-      await render();
-      await showPayload({ systemPrompt: SYSTEM_PROMPT });
-
-      await act(async () => {
-        transparencyToggle()?.focus();
-      });
-      expect(document.activeElement).toBe(transparencyToggle());
-
-      await clickTransparency();
-
-      expect(document.activeElement).toBe(textarea());
-    });
-
-    it("sits after the context card and before the textarea when both are shown", async () => {
-      await render();
-      await showPayload({
-        context: "the selected passage",
-        systemPrompt: SYSTEM_PROMPT,
+        expect(event.defaultPrevented).toBe(true);
+        expect(textarea().value).toBe(`${typed} world`);
+        expect(paintedGhost()).toBeNull();
       });
 
-      const main = container.querySelector("main") as HTMLElement;
-      const children = [...main.children];
-      expect(children.indexOf(contextSection() as HTMLElement)).toBe(0);
-      expect(children.indexOf(transparencySection() as HTMLElement)).toBe(1);
-      expect(children.indexOf(textarea().parentElement as HTMLElement)).toBe(2);
-    });
+      it("Enter still submits the trimmed question", async () => {
+        await render();
+        await showPayload({ context: LONG_CONTEXT, systemPrompt: SYSTEM_PROMPT });
+        await type("  what changed?  ");
 
-    it("leaves Enter, Tab and Escape exactly as they were while the panel is open", async () => {
-      await render();
-      await showPayload({ systemPrompt: SYSTEM_PROMPT });
-      await clickTransparency();
-      await type("  what changed?  ");
+        const event = await keydown({ key: "Enter" });
 
-      const event = await keydown({ key: "Enter" });
-
-      expect(api.submitAskInput).toHaveBeenCalledWith("what changed?");
-      expect(event.defaultPrevented).toBe(true);
+        expect(api.submitAskInput).toHaveBeenCalledWith("what changed?");
+        expect(event.defaultPrevented).toBe(true);
+      });
     });
   });
 });

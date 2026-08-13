@@ -82,8 +82,7 @@ vi.mock("electron", () => ({
 const WINDOW_WIDTH = 620;
 // Framed heights, mirroring `askInputWindow.ts`. Repeated rather than imported
 // so a silent edit there has to be acknowledged here too.
-const HEIGHT_WITHOUT_CONTEXT = 428;
-const HEIGHT_WITH_CONTEXT = 636;
+const WINDOW_HEIGHT = 380;
 
 const PAYLOAD = { presetId: "ask", context: "selected text" };
 const PAYLOAD_WITHOUT_CONTEXT = { presetId: "ask", context: "" };
@@ -121,7 +120,7 @@ describe("askInputWindow", () => {
 
       expect(lastWindow?.setSize).toHaveBeenCalledWith(
         WINDOW_WIDTH,
-        HEIGHT_WITH_CONTEXT,
+        WINDOW_HEIGHT,
       );
     });
 
@@ -135,7 +134,7 @@ describe("askInputWindow", () => {
 
       expect(lastWindow?.setSize).toHaveBeenCalledWith(
         WINDOW_WIDTH,
-        HEIGHT_WITHOUT_CONTEXT,
+        WINDOW_HEIGHT,
       );
     });
 
@@ -150,7 +149,7 @@ describe("askInputWindow", () => {
 
       expect(lastWindow?.setSize).toHaveBeenLastCalledWith(
         WINDOW_WIDTH,
-        HEIGHT_WITHOUT_CONTEXT,
+        WINDOW_HEIGHT,
       );
     });
 
@@ -163,8 +162,8 @@ describe("askInputWindow", () => {
       expect(BrowserWindow).toHaveBeenCalledWith(
         expect.objectContaining({
           width: WINDOW_WIDTH,
-          height: HEIGHT_WITHOUT_CONTEXT,
-          minHeight: HEIGHT_WITHOUT_CONTEXT,
+          height: WINDOW_HEIGHT,
+          minHeight: WINDOW_HEIGHT,
         }),
       );
     });
@@ -181,7 +180,7 @@ describe("askInputWindow", () => {
 
       expect(lastWindow?.setPosition).toHaveBeenCalledWith(
         116,
-        1080 - HEIGHT_WITH_CONTEXT,
+        1080 - WINDOW_HEIGHT,
         false,
       );
     });
@@ -197,7 +196,7 @@ describe("askInputWindow", () => {
 
       expect(lastWindow?.setPosition).toHaveBeenCalledWith(
         116,
-        1080 - HEIGHT_WITHOUT_CONTEXT,
+        1080 - WINDOW_HEIGHT,
         false,
       );
     });
