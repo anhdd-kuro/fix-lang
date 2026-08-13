@@ -1666,6 +1666,36 @@ describe("requestAutocompleteSuggestion", () => {
       expect(makeAIRequestMock).toHaveBeenCalledOnce();
     });
 
+    it("still dispatches when only the environment block looks like a credential, but redacts that span", async () => {
+      rememberAskSession("window-1", {
+        environment: [
+          "App locale: en",
+          "Recent transforms (most recent first, names and times only):",
+          `- ${fakeAwsKeyId} (2026-08-11T05:28:00.000Z)`,
+        ].join("\n"),
+      });
+
+      await ask({ prefix: LONG_PREFIX });
+
+      expect(makeAIRequestMock).toHaveBeenCalledOnce();
+      const systemPrompt = makeAIRequestMock.mock.calls[0][0].systemPrompt as string;
+      expect(systemPrompt).not.toContain(fakeAwsKeyId);
+      expect(systemPrompt).toContain("[redacted]");
+    });
+
+    it("sends a secret-shaped environment name unchanged when the guard is off", async () => {
+      getSecretGuardSettingsMock.mockReturnValue({ mode: "off", highEntropyRule: false });
+      rememberAskSession("window-1", {
+        environment: `- ${fakeAwsKeyId} (2026-08-11T05:28:00.000Z)`,
+      });
+
+      await ask({ prefix: LONG_PREFIX });
+
+      expect(makeAIRequestMock).toHaveBeenCalledOnce();
+      const systemPrompt = makeAIRequestMock.mock.calls[0][0].systemPrompt as string;
+      expect(systemPrompt).toContain(fakeAwsKeyId);
+    });
+
     /**
      * `warn`, because this is the one skip the user can be actively harmed by
      * not knowing about: it fires while they type something credential-shaped

@@ -340,7 +340,7 @@ describe("runCombo — user metadata reaches every non-Ask step", () => {
     });
   });
 
-  it("does not pass userMetadata to a requiresInput step", async () => {
+  it("does not pass userMetadata to a requiresInput step's TransformContext", async () => {
     const combo = makeCombo({
       steps: [
         makeStep("ask", { inlineInput: "What should I reply?" }),
@@ -365,6 +365,8 @@ describe("runCombo — user metadata reaches every non-Ask step", () => {
     );
 
     expect(fixGrammar.mock.calls[0][2]).toBeUndefined();
+    expect(fixGrammar.mock.calls[0][0]).toContain(DIRECTIVES);
+    expect(fixGrammar.mock.calls[0][0]).not.toContain("App locale: en\nApp locale:");
     expect(fixGrammar.mock.calls[1][2]).toEqual({ userMetadata: DIRECTIVES });
   });
 
@@ -534,6 +536,30 @@ describe("runCombo — D4: a requiresInput step never opens the Ask window", () 
         makePreset("correction", { name: "Correction" }),
       ],
     });
+
+  it("appends the full userMetadata block to a requiresInput step, not locale alone", async () => {
+    const combo = askCombo();
+    const fixGrammar = vi.fn(async (text: string) => makeResult({ correctedText: text }));
+    const deps = makeDeps({
+      settings: askSettings(),
+      fixGrammar,
+      buildAskLocaleDirective: () => "App locale: ja",
+    });
+    const directives = [
+      "App locale: en",
+      "System language: en-US",
+      "Keyboard input source: ABC",
+    ].join("\n");
+
+    await runCombo(
+      { combo, input: "the selection", userMetadata: directives },
+      deps,
+    );
+
+    expect(fixGrammar.mock.calls[0][0]).toContain(directives);
+    expect(fixGrammar.mock.calls[0][0]).not.toContain("App locale: ja");
+    expect(fixGrammar.mock.calls[0][2]).toBeUndefined();
+  });
 
   it("composes the frozen inlineInput through the real Ask contract, not a bare concatenation", async () => {
     const fixGrammar = vi.fn(async (text: string) => makeResult({ correctedText: text }));

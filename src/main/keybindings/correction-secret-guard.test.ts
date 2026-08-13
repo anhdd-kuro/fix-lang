@@ -139,6 +139,7 @@ import { redactLogContext } from "~/features/logs/shared/logging";
 import { getProfileSetting, normalizeCorrectionSettings } from "~/features/providers/store/apiStore";
 import { secretGuardStore } from "~/features/secretGuard/store/secretGuardStore";
 import { confirmSecretSend } from "~/main/notifications/secretGuardDialog";
+import { buildAskDirectives } from "./askEnvironment";
 import { registerCorrectionShortcut } from "./correction";
 import { handleError, resetHotkeyThrottleForTests } from "./utils";
 import { getHighlightedTextWithActiveApp, pasteText } from "../../utils";
@@ -633,5 +634,58 @@ describe("correction secret guard — decline log redaction safety", () => {
     )?.[2];
     expect(declineContext).toBeDefined();
     expect(redactLogContext(declineContext)).toEqual(declineContext);
+  });
+});
+
+describe("correction secret guard — userMetadata companion", () => {
+  const AWS_KEY = ["AKIA", "IOSFODNN7EXAMPLE"].join("");
+  const METADATA_WITH_SECRET = [
+    "App locale: en",
+    "Recent transforms (most recent first, names and times only):",
+    `- ${AWS_KEY} (2026-08-11T05:28:00.000Z)`,
+  ].join("\n");
+
+  const sentMetadata = (): string | undefined =>
+    (fixGrammar as Mock).mock.calls[0]?.[2]?.userMetadata as string | undefined;
+
+  beforeEach(() => {
+    (buildAskDirectives as Mock).mockReturnValue(METADATA_WITH_SECRET);
+  });
+
+  it("opens the confirm dialog when only recent preset names look like a credential", async () => {
+    mockSelection(SELECTION_WITHOUT_SECRET);
+    (confirmSecretSend as Mock).mockResolvedValue(true);
+
+    const handler = registerCorrectionHandler();
+    await handler();
+
+    expect(confirmSecretSend).toHaveBeenCalledTimes(1);
+    expect(sentToProvider()).toBe(SELECTION_WITHOUT_SECRET);
+    expect(sentMetadata()).toBe(METADATA_WITH_SECRET);
+  });
+
+  it("sends nothing when that companion confirm is declined", async () => {
+    mockSelection(SELECTION_WITHOUT_SECRET);
+    (confirmSecretSend as Mock).mockResolvedValue(false);
+
+    const handler = registerCorrectionHandler();
+    await handler();
+
+    expect(fixGrammar).not.toHaveBeenCalled();
+    expect(pasteText).not.toHaveBeenCalled();
+  });
+
+  it("redacts the preset name in mask mode without a restore placeholder", async () => {
+    setGuardMode({ mode: "mask" });
+    mockSelection(SELECTION_WITHOUT_SECRET);
+
+    const handler = registerCorrectionHandler();
+    await handler();
+
+    expect(confirmSecretSend).not.toHaveBeenCalled();
+    expect(sentToProvider()).toBe(SELECTION_WITHOUT_SECRET);
+    expect(sentMetadata()).not.toContain(AWS_KEY);
+    expect(sentMetadata()).toContain("[redacted]");
+    expect(sentMetadata()).not.toMatch(PLACEHOLDER_PATTERN);
   });
 });

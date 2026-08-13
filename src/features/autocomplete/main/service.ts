@@ -69,6 +69,7 @@ import {
   getProfileSetting,
 } from "~/features/providers/store/apiStore";
 import { scanForSecrets } from "~/features/secretGuard/shared/detectSecrets";
+import { redactSecretsIrreversibly } from "~/features/secretGuard/shared/maskSecrets";
 import { logger } from "~/main/logging/logService";
 import { DEFAULT_ASK_PRESET_ID } from "~/prompts";
 import { parseAutocompleteReply } from "./parseReply";
@@ -936,12 +937,29 @@ export const requestAutocompleteSuggestion = async (
   // report a length with no source beside it.
   const askSession = askSessions.get(sessionId);
   const askContext = askSession?.context;
+
+  // Imported lazily, like `makeAIRequest` below and for the same reason: the
+  // store module instantiates a real `electron-store` at module scope, which
+  // throws outside a running app and would drag Electron into the module graph
+  // of everything that imports this file.
+  const { secretGuardStore } = await import("~/features/secretGuard/store/secretGuardStore");
+  const secretGuardSettings = secretGuardStore.getSecretGuardSettings();
+  const scanOptions = { highEntropyRule: secretGuardSettings.highEntropyRule };
+
+  // Environment carries user-editable preset names. A modal is impossible per
+  // keystroke, so a secret-shaped name is redacted in place rather than
+  // refusing the whole ghost — restore placeholders do not belong here.
+  let environment = askSession?.environment;
+  if (secretGuardSettings.mode !== "off" && environment) {
+    environment = redactSecretsIrreversibly(environment, scanOptions);
+  }
+
   const { systemPrompt, userPrompt, contextLength, environmentLength } =
     buildAutocompletePrompt({
       prefix,
       suffix,
       context: askContext,
-      environment: askSession?.environment,
+      environment,
     });
 
   // ABOVE the cache, unlike every other refusal in this function.
@@ -967,19 +985,11 @@ export const requestAutocompleteSuggestion = async (
   // It closes the whole-value cases — an attached selection, a pasted key, a
   // finished one — and the Security tab says exactly that.
   //
-  // The Ask ENVIRONMENT block is deliberately not scanned: it carries preset
-  // names and timestamps only (`buildAskDirectives`), never the user's text.
-  //
-  // Imported lazily, like `makeAIRequest` below and for the same reason: the
-  // store module instantiates a real `electron-store` at module scope, which
-  // throws outside a running app and would drag Electron into the module graph
-  // of everything that imports this file.
-  const { secretGuardStore } = await import("~/features/secretGuard/store/secretGuardStore");
-  const secretGuardSettings = secretGuardStore.getSecretGuardSettings();
+  // Prefix, suffix and attached Ask context still refuse to dispatch: those
+  // are the user's own text, and a redacted ghost continuing a credential is
+  // worse than no ghost. Environment was already redacted above.
   if (secretGuardSettings.mode !== "off") {
-    const scan = scanForSecrets(`${prefix}\n${suffix}\n${askContext?.text ?? ""}`, {
-      highEntropyRule: secretGuardSettings.highEntropyRule,
-    });
+    const scan = scanForSecrets(`${prefix}\n${suffix}\n${askContext?.text ?? ""}`, scanOptions);
     if (scan.matches.length > 0) {
       // Spread to a mutable array: `LogValue` does not accept a readonly one.
       // It stays an array VALUE and never becomes a set of KEYS — a spread

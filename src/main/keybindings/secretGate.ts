@@ -70,8 +70,8 @@
  * masking object never appears in a log context, whole or in part. Only counts,
  * rule ids and mode names are logged.
  */
-import { scanForSecrets } from "~/features/secretGuard/shared/detectSecrets";
-import { maskSecrets } from "~/features/secretGuard/shared/maskSecrets";
+import { isFullyMaskable, scanForSecrets } from "~/features/secretGuard/shared/detectSecrets";
+import { maskSecrets, redactSecretsIrreversibly } from "~/features/secretGuard/shared/maskSecrets";
 import { logger } from "~/main/logging/logService";
 import { confirmSecretSend } from "~/main/notifications/secretGuardDialog";
 import type { SecretMasking } from "~/features/secretGuard/shared/maskSecrets";
@@ -117,6 +117,12 @@ export type SecretGateResult =
       /** What to send. Identical to the input unless something was masked. */
       sentText: string;
       /**
+       * Companion after the same decision. Identity-equal to the input
+       * companion when nothing was redacted; `""` when none was passed.
+       * Never contains restore placeholders — see `companionText`.
+       */
+      sentCompanionText: string;
+      /**
        * Present whenever the applied mode masks, even with zero matches, so the
        * reply path has ONE branch: an empty masking restores cleanly and needs
        * no special case.
@@ -132,6 +138,15 @@ export type SecretGateInput = {
   settings: SecretGuardSettings;
   /** Injected in tests, the same way `latencyTimer` injects `now`. */
   salt?: () => string;
+  /**
+   * Extra text that also leaves the machine but is NOT the selection — the
+   * Ask-environment block on the system prompt. Scanned for the same
+   * confirm/decline decision as `text`. A mask here is irreversible
+   * redaction (`[redacted]`), never a restore placeholder: restore looks
+   * for placeholders in the model output, and this text is not supposed to
+   * be echoed.
+   */
+  companionText?: string;
   /**
    * Wraps ONLY the confirmation modal await — never the whole gate — so a
    * caller holding an overlay spinner can hide it for exactly the dialog's
@@ -157,17 +172,37 @@ const LOG_SCOPE = "secretGuard.gate";
  */
 type SecretGateReason = "partial-mask";
 
-const allow = (text: string, appliedMode: SecretGuardAppliedMode): SecretGateResult => ({
+const allow = (
+  text: string,
+  appliedMode: SecretGuardAppliedMode,
+  companionText = "",
+): SecretGateResult => ({
   gateDecision: "allow",
   appliedMode,
   sentText: text,
+  sentCompanionText: companionText,
   masking: null,
   restoreOnReply: false,
 });
 
+const mergeRuleIds = (
+  left: readonly SecretRuleId[],
+  right: readonly SecretRuleId[],
+): SecretRuleId[] => {
+  const seen = new Set<SecretRuleId>();
+  const merged: SecretRuleId[] = [];
+  for (const id of [...left, ...right]) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    merged.push(id);
+  }
+  return merged;
+};
+
 type ConfirmSendInput = {
   site: SecretSendSite;
   text: string;
+  companionText: string;
   guardMode: SecretGuardMode;
   ruleIds: readonly SecretRuleId[];
   matchCount: number;
@@ -190,6 +225,7 @@ type ConfirmSendInput = {
 const confirmSend = async ({
   site,
   text,
+  companionText,
   guardMode,
   ruleIds,
   matchCount,
@@ -213,6 +249,7 @@ const confirmSend = async ({
         gateDecision: "confirmed",
         appliedMode: "confirm",
         sentText: text,
+        sentCompanionText: companionText,
         masking: null,
         restoreOnReply: false,
       }
@@ -224,26 +261,31 @@ export const runSecretGate = async ({
   text,
   settings,
   salt,
+  companionText = "",
   aroundDialog = (show) => show(),
 }: SecretGateInput): Promise<SecretGateResult> => {
   const appliedMode = SECRET_SEND_SITE_POLICY[site][settings.mode];
+  const scanOptions = { highEntropyRule: settings.highEntropyRule };
 
   if (appliedMode === "off") {
-    return allow(text, appliedMode);
+    return allow(text, appliedMode, companionText);
   }
 
+  const companionScan = scanForSecrets(companionText, scanOptions);
+
   if (appliedMode === "confirm") {
-    const scan = scanForSecrets(text, { highEntropyRule: settings.highEntropyRule });
-    if (scan.matches.length === 0) {
-      return allow(text, appliedMode);
+    const scan = scanForSecrets(text, scanOptions);
+    if (scan.matches.length === 0 && companionScan.matches.length === 0) {
+      return allow(text, appliedMode, companionText);
     }
 
     return confirmSend({
       site,
       text,
+      companionText,
       guardMode: settings.mode,
-      ruleIds: scan.ruleIds,
-      matchCount: scan.matches.length,
+      ruleIds: mergeRuleIds(scan.ruleIds, companionScan.ruleIds),
+      matchCount: scan.matches.length + companionScan.matches.length,
       aroundDialog,
     });
   }
@@ -259,25 +301,46 @@ export const runSecretGate = async ({
   // selection never reaches the dialog. The masking computed above is DROPPED
   // here — nothing is masked, and its `replacements` map (real secrets) goes
   // no further.
-  if (!masking.fullyMaskable) {
+  //
+  // Companion secrets use the same fully-maskable test, then irreversible
+  // redaction rather than restore placeholders: a placeholder in system-prompt
+  // metadata would fail restore on every reply (the model is not asked to echo
+  // it) and divert the paste to the popup.
+  if (!masking.fullyMaskable || !isFullyMaskable(companionScan)) {
     return confirmSend({
       site,
       text,
+      companionText,
       guardMode: settings.mode,
-      ruleIds: masking.ruleIds,
-      matchCount: masking.matchCount,
+      ruleIds: mergeRuleIds(masking.ruleIds, companionScan.ruleIds),
+      matchCount: masking.matchCount + companionScan.matches.length,
       aroundDialog,
       reason: "partial-mask",
     });
   }
 
+  const sentCompanionText =
+    companionScan.matches.length === 0
+      ? companionText
+      : redactSecretsIrreversibly(companionText, scanOptions);
+
   const restoreOnReply = appliedMode === "mask-and-restore";
 
   if (masking.matchCount === 0) {
+    if (companionScan.matches.length > 0) {
+      logger.info(LOG_SCOPE, `Secret guard gate at ${site}`, {
+        guardMode: settings.mode,
+        appliedMode,
+        gateDecision: "allow",
+        matchCount: companionScan.matches.length,
+        ruleIds: [...companionScan.ruleIds],
+      });
+    }
     return {
       gateDecision: "allow",
       appliedMode,
       sentText: masking.maskedText,
+      sentCompanionText,
       masking,
       restoreOnReply,
     };
@@ -287,15 +350,16 @@ export const runSecretGate = async ({
     guardMode: settings.mode,
     appliedMode,
     gateDecision: "masked",
-    matchCount: masking.matchCount,
+    matchCount: masking.matchCount + companionScan.matches.length,
     placeholderCount: masking.placeholderCount,
-    ruleIds: [...masking.ruleIds],
+    ruleIds: mergeRuleIds(masking.ruleIds, companionScan.ruleIds),
   });
 
   return {
     gateDecision: "masked",
     appliedMode,
     sentText: masking.maskedText,
+    sentCompanionText,
     masking,
     restoreOnReply,
   };

@@ -311,9 +311,11 @@ export type RunComboParams = {
   activeAppName?: string;
   /**
    * Ask-environment directives from `buildAskDirectives`. Reaches every
-   * non-Ask step's system prompt via `fixGrammar`. Ask steps keep locale on
-   * the user message (`composeAskStepMessage`) so they do not get it twice.
-   * Absent/empty leaves those prompts byte-identical.
+   * non-Ask step's system prompt via `fixGrammar`. Ask steps get the same
+   * block on the user message (`composeAskStepMessage`) and omit
+   * `TransformContext`, so they do not receive it twice. Absent/empty
+   * falls back to the locale-only directive the Ask path used before an
+   * environment existed.
    */
   userMetadata?: string;
   /** Cooperative cancellation, checked before each step starts. Wiring an `AbortController` into this is a different card's job (E10/D1-D4). */
@@ -378,7 +380,7 @@ const raceWithTimeout = <T>(
  * Builds the message for a `requiresInput` step exactly as the Ask hotkey
  * path builds one: the frozen `inlineInput` is the question, the text carried
  * in from the previous step (or the original selection, at step 1) is the
- * optional context block, and the app-locale directive trails both.
+ * optional context block, and the press's directive block trails both.
  *
  * `composeAskMessage` returns `null` only for an empty question, which
  * `validateCombo` already refuses — falling back to the carried text keeps
@@ -387,13 +389,13 @@ const raceWithTimeout = <T>(
 const composeAskStepMessage = (
   question: string,
   carriedText: string,
-  buildLocaleDirective?: () => string,
+  directives?: string,
 ): string => {
   const composed = composeAskMessage({ question, context: carriedText });
   if (composed === null) return carriedText;
 
-  const directive = buildLocaleDirective?.();
-  return directive ? `${composed}\n\n${directive}` : composed;
+  const block = directives?.trim();
+  return block ? `${composed}\n\n${block}` : composed;
 };
 
 /**
@@ -449,13 +451,12 @@ export const runCombo = async (
     // `App locale: <code>` directive is what the bundled Ask system prompt
     // consults to pick its response language. Concatenating by hand silently
     // changed both.
+    const askDirectives = userMetadata?.trim()
+      ? userMetadata
+      : deps.buildAskLocaleDirective?.();
     const composedText =
       resolved.preset.requiresInput && resolved.step.inlineInput
-        ? composeAskStepMessage(
-            resolved.step.inlineInput,
-            text,
-            deps.buildAskLocaleDirective,
-          )
+        ? composeAskStepMessage(resolved.step.inlineInput, text, askDirectives)
         : text;
 
     // E4 — source-app context describes where the ORIGINAL selection came

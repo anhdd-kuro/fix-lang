@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { scanForSecrets } from "./detectSecrets";
-import { maskSecrets, restoreSecrets } from "./maskSecrets";
+import { IRREVERSIBLE_SECRET_REDACTION, maskSecrets, redactSecretsIrreversibly, restoreSecrets } from "./maskSecrets";
 
 const FIXED_SALT = () => "A1B2C3";
 const ENTROPY_ON = { highEntropyRule: true, salt: FIXED_SALT } as const;
@@ -570,5 +570,22 @@ describe("restoreSecrets", () => {
         restoreSecrets("[[FIXLANG_SECRET_A1B2C3_01]] and 「FIXLANG_SECRET_A1B2C3_02」", maskOne()),
       ).toEqual({ ok: false, reason: "placeholder-residue", missingCount: 0 });
     });
+  });
+});
+
+describe("redactSecretsIrreversibly", () => {
+  it("leaves clean text byte-identical", () => {
+    const text = "Recent transforms: Correction (2026-08-11T05:28:00.000Z)";
+    expect(redactSecretsIrreversibly(text)).toBe(text);
+  });
+
+  it("replaces a credential with the irreversible marker, not a restore placeholder", () => {
+    const text = `- ${AWS_DOC_ACCESS_KEY_ID} (2026-08-11T05:28:00.000Z)`;
+    const redacted = redactSecretsIrreversibly(text);
+
+    expect(redacted).not.toContain(AWS_DOC_ACCESS_KEY_ID);
+    expect(redacted).toContain(IRREVERSIBLE_SECRET_REDACTION);
+    expect(redacted).not.toContain("FIXLANG_SECRET_");
+    expect(redacted).toBe(`- ${IRREVERSIBLE_SECRET_REDACTION} (2026-08-11T05:28:00.000Z)`);
   });
 });

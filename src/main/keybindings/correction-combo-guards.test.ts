@@ -132,6 +132,7 @@ import { redactLogContext } from "~/features/logs/shared/logging";
 import { getProfileSetting, normalizeCorrectionSettings } from "~/features/providers/store/apiStore";
 import { secretGuardStore } from "~/features/secretGuard/store/secretGuardStore";
 import { confirmSecretSend } from "~/main/notifications/secretGuardDialog";
+import { buildAskDirectives } from "./askEnvironment";
 import { resetActiveComboForTests } from "./comboCancel";
 import { resetComboLockForTests } from "./comboLock";
 import { COMBO_LOCK_MAX_HOLD_MS, registerCorrectionShortcut } from "./correction";
@@ -651,5 +652,45 @@ describe("combo guards — a run the lock watchdog already abandoned stops at th
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("combo secret gate — userMetadata companion", () => {
+  const AWS_KEY = ["AKIA", "IOSFODNN7EXAMPLE"].join("");
+  const METADATA_WITH_SECRET = [
+    "App locale: en",
+    "Recent transforms (most recent first, names and times only):",
+    `- ${AWS_KEY} (2026-08-11T05:28:00.000Z)`,
+  ].join("\n");
+
+  const sentMetadata = (): string | undefined =>
+    (fixGrammar as Mock).mock.calls[0]?.[2]?.userMetadata as string | undefined;
+
+  beforeEach(() => {
+    (buildAskDirectives as Mock).mockReturnValue(METADATA_WITH_SECRET);
+  });
+
+  it("opens the confirm dialog when only recent preset names look like a credential", async () => {
+    mockSelection({ text: "nothing sensitive here at all" });
+    setSecretGuardMode({ mode: "confirm" });
+    (confirmSecretSend as Mock).mockResolvedValue(true);
+
+    const handler = registerComboHandler();
+    await handler();
+
+    expect(confirmSecretSend).toHaveBeenCalledTimes(1);
+    expect(fixGrammar).toHaveBeenCalledTimes(2);
+    expect(sentMetadata()).toBe(METADATA_WITH_SECRET);
+  });
+
+  it("sends nothing when that companion confirm is declined", async () => {
+    mockSelection({ text: "nothing sensitive here at all" });
+    setSecretGuardMode({ mode: "confirm" });
+    (confirmSecretSend as Mock).mockResolvedValue(false);
+
+    const handler = registerComboHandler();
+    await handler();
+
+    expectComboNeverRan();
   });
 });

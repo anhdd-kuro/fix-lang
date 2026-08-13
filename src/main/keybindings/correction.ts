@@ -586,9 +586,11 @@ const runComboFromHotkey = async (
         // mask taken here would have to survive every step in between and could
         // land a restored credential in a derived artifact. That decision lives
         // in the one table (see its file header) and is never re-derived here.
+        const userMetadata = buildAskDirectives(await environmentPromise);
         const gate = await runSecretGate({
           site: "combo",
           text: selectedText,
+          companionText: userMetadata,
           settings: secretGuardStore.getSecretGuardSettings(),
           aroundDialog: async (showDialog) => {
             hideOverlaySpinner();
@@ -619,9 +621,14 @@ const runComboFromHotkey = async (
           mainWindow.webContents.send("start-loading");
         }
 
-        const userMetadata = buildAskDirectives(await environmentPromise);
         const result = await runCombo(
-          { combo, input: gate.sentText, activeAppName: activeApp?.name, userMetadata, signal },
+          {
+            combo,
+            input: gate.sentText,
+            activeAppName: activeApp?.name,
+            userMetadata: gate.sentCompanionText,
+            signal,
+          },
           buildComboRunDependencies(
             (view) => {
               latestProgress = view;
@@ -982,9 +989,15 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         // above. `runSecretGate` is the ONLY entry point: the per-site policy
         // lives in `SECRET_SEND_SITE_POLICY`, and re-deriving any part of it
         // here is what that one table exists to prevent.
+        //
+        // Await the environment BEFORE the gate so recent preset names (user-
+        // editable) are scanned with the selection. One dialog covers both;
+        // companion masking is irreversible redaction, not restore placeholders.
+        const userMetadata = buildAskDirectives(await environmentPromise);
         const gate = await runSecretGate({
           site: "correction",
           text: selectedText,
+          companionText: userMetadata,
           settings: secretGuardStore.getSecretGuardSettings(),
           // Wraps ONLY the modal, never the whole gate: bracketing the gate
           // would hide and re-show the spinner on every transform in confirm
@@ -1033,10 +1046,9 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           mainWindow.webContents.send("start-loading");
         }
 
-        const userMetadata = buildAskDirectives(await environmentPromise);
         const result = await fixGrammar(sentText, preset.id, {
           activeAppName: activeApp?.name,
-          userMetadata,
+          userMetadata: gate.sentCompanionText,
         });
         latency.mark("aiRequest");
 
