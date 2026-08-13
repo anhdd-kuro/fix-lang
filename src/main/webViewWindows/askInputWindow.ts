@@ -27,43 +27,21 @@ import type { AskInputPayload } from "~/features/ask/shared/ask";
 const WINDOW_WIDTH = 620;
 
 /**
- * Two heights, chosen per press by {@link resolveWindowHeight}, because the
- * attached-context card is a fixed 200px block the window either carries or
- * does not — and a 636px window for a bare one-line question would dominate
- * the screen.
+ * One framed height. The renderer keeps every read-only block inside a single
+ * scrollable chat column, so attached context no longer reserves a fixed card
+ * outside it.
  *
- * FRAMED sizes, not content sizes: there is deliberately no `useContentSize`
- * here, so macOS takes its 32px title bar out of each of these and the
- * renderer's `h-screen` is 32 less. Measured, not assumed —
+ * FRAMED size, not content size: macOS takes its 32px title bar out and the
+ * renderer's `h-screen` is 32 less. Measured —
  * `BrowserWindow({height: 200}).getContentSize()` reports 168. The page
- * budgets these frame (see the height budget on `<main>` in
- * `src/renderer/AskInputWindow/index.tsx`, which carries the SAME arithmetic
- * and has to be edited with these):
+ * budget (see `<main>` in `src/renderer/AskInputWindow/index.tsx`):
  *
- *   no context:   24 (`py-3`) + 300 (textarea floor) + 8 (`gap-2`)
- *                 + 16 (footer) + 48 (transparency row + its `gap-2`)
- *                                                      = 396 page + 32 = 428
- *   with context: that 396 + 200 (context card) + 8 (the second `gap-2`)
- *                                                      = 604 page + 32 = 636
- *
- * The 48 is the collapsed transparency row — the fold that states the system
- * prompt and the appended directives verbatim — plus the one `gap-2` above it.
- * Collapsed is the only state the window is sized for: expanding it scrolls
- * inside the row rather than growing the window, the same bargain the context
- * card's equal floor and cap make.
+ *   24 (`p-3`) + 300 (`min-h-75` chat scroll floor) + 8 (`gap-2`)
+ *   + 16 (footer) = 348 page + 32 = 380
  */
-const WINDOW_HEIGHT_WITHOUT_CONTEXT = 428;
-const WINDOW_HEIGHT_WITH_CONTEXT = 636;
+const WINDOW_HEIGHT = 380;
 
-/**
- * The renderer shows the context card exactly when `payload.context` is
- * non-empty, so this asks the same question of the same field rather than
- * carrying a second flag that could disagree with it.
- */
-const resolveWindowHeight = (payload: AskInputPayload): number =>
-  payload.context.length > 0
-    ? WINDOW_HEIGHT_WITH_CONTEXT
-    : WINDOW_HEIGHT_WITHOUT_CONTEXT;
+const resolveWindowHeight = (_payload: AskInputPayload): number => WINDOW_HEIGHT;
 
 /** Called with the submitted question text. */
 export type AskInputSubmitHandler = (question: string) => void;
@@ -129,12 +107,12 @@ const createAskInputWindow = (): BrowserWindow => {
   rendererReady = false;
   inputWindow = new BrowserWindow({
     width: WINDOW_WIDTH,
-    height: WINDOW_HEIGHT_WITHOUT_CONTEXT,
+    height: WINDOW_HEIGHT,
     minWidth: 420,
     // The shorter of the two heights, so a user drag can never squeeze the
     // window below the textarea's own 300px floor and put the placeholder back
     // under the bottom edge of the card.
-    minHeight: WINDOW_HEIGHT_WITHOUT_CONTEXT,
+    minHeight: WINDOW_HEIGHT,
     show: false,
     skipTaskbar: true,
     title: buildAskInputWindowTitle(),

@@ -6,6 +6,8 @@ import { BrowserWindow, ipcMain } from "electron";
 import {
   isFontFamilyId,
   isFontSizeId,
+  isValidCustomFontFamily,
+  isValidCustomFontSize,
   type AppearanceTypography,
 } from "~/features/appearance/shared/typography";
 import { appearanceStore } from "~/features/appearance/store/appearanceStore";
@@ -74,4 +76,50 @@ export const registerAppearanceHandlers = (): void => {
     broadcastAppearanceTypography(typography);
     return { success: true, typography };
   });
+
+  ipcMain.handle(
+    "set-appearance-custom-font-size",
+    async (_event, raw: unknown) => {
+      if (!isValidCustomFontSize(raw)) {
+        return {
+          success: false,
+          error: "Invalid custom font size",
+        };
+      }
+
+      const typography = appearanceStore.setCustomFontSize(raw);
+      if (typography === null) {
+        return {
+          success: false,
+          error: "Invalid custom font size",
+        };
+      }
+
+      broadcastAppearanceTypography(typography);
+      return { success: true, typography };
+    },
+  );
+
+  ipcMain.handle(
+    "set-appearance-custom-font-family",
+    async (_event, raw: unknown) => {
+      if (!isValidCustomFontFamily(raw)) {
+        return {
+          success: false,
+          error: "Invalid custom font family",
+        };
+      }
+
+      const typography = appearanceStore.setCustomFontFamily(raw);
+      if (typography === null) {
+        return {
+          success: false,
+          error: "Invalid custom font family",
+        };
+      }
+
+      broadcastAppearanceTypography(typography);
+      return { success: true, typography };
+    },
+  );
 };

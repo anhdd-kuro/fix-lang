@@ -11,6 +11,8 @@ type UseAppearanceTypographyResult = {
   typography: AppearanceTypography;
   setFontSize: (fontSize: FontSizeId) => Promise<void>;
   setFontFamily: (fontFamily: FontFamilyId) => Promise<void>;
+  setCustomFontSize: (customFontSize: string) => Promise<void>;
+  setCustomFontFamily: (customFontFamily: string) => Promise<void>;
   isLoading: boolean;
 };
 
@@ -84,5 +86,36 @@ export const useAppearanceTypography = (): UseAppearanceTypographyResult => {
     }
   }, []);
 
-  return { typography, setFontSize, setFontFamily, isLoading };
+  const setCustomFontSize = useCallback(async (customFontSize: string) => {
+    const result =
+      await window.electronAPI.setAppearanceCustomFontSize(customFontSize);
+    if (!result.success) {
+      throw new Error(result.error ?? "Failed to set custom font size");
+    }
+    if (result.typography) {
+      setTypography(result.typography);
+      applyTypographyToDocument(result.typography);
+    }
+  }, []);
+
+  const setCustomFontFamily = useCallback(async (customFontFamily: string) => {
+    const result =
+      await window.electronAPI.setAppearanceCustomFontFamily(customFontFamily);
+    if (!result.success) {
+      throw new Error(result.error ?? "Failed to set custom font family");
+    }
+    if (result.typography) {
+      setTypography(result.typography);
+      applyTypographyToDocument(result.typography);
+    }
+  }, []);
+
+  return {
+    typography,
+    setFontSize,
+    setFontFamily,
+    setCustomFontSize,
+    setCustomFontFamily,
+    isLoading,
+  };
 };

@@ -5,7 +5,11 @@
 import Store from "electron-store";
 import {
   DEFAULT_APPEARANCE_TYPOGRAPHY,
+  isValidCustomFontFamily,
+  isValidCustomFontSize,
   normalizeAppearanceTypography,
+  normalizeCustomFontFamily,
+  normalizeCustomFontSize,
   normalizeFontFamilyId,
   normalizeFontSizeId,
   type AppearanceTypography,
@@ -33,6 +37,14 @@ class AppearanceStore {
         "fontFamily",
         DEFAULT_APPEARANCE_TYPOGRAPHY.fontFamily,
       ),
+      customFontSize: this.store.get(
+        "customFontSize",
+        DEFAULT_APPEARANCE_TYPOGRAPHY.customFontSize,
+      ),
+      customFontFamily: this.store.get(
+        "customFontFamily",
+        DEFAULT_APPEARANCE_TYPOGRAPHY.customFontFamily,
+      ),
     });
   }
 
@@ -45,6 +57,26 @@ class AppearanceStore {
   setFontFamily(fontFamily: FontFamilyId): AppearanceTypography {
     const next = normalizeFontFamilyId(fontFamily);
     this.store.set("fontFamily", next);
+    return this.getTypography();
+  }
+
+  setCustomFontSize(customFontSize: string): AppearanceTypography | null {
+    if (!isValidCustomFontSize(customFontSize)) {
+      return null;
+    }
+    const next = normalizeCustomFontSize(customFontSize);
+    this.store.set("fontSize", "custom");
+    this.store.set("customFontSize", next);
+    return this.getTypography();
+  }
+
+  setCustomFontFamily(customFontFamily: string): AppearanceTypography | null {
+    if (!isValidCustomFontFamily(customFontFamily)) {
+      return null;
+    }
+    const next = normalizeCustomFontFamily(customFontFamily);
+    this.store.set("fontFamily", "custom");
+    this.store.set("customFontFamily", next);
     return this.getTypography();
   }
 }

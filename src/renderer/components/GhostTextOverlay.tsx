@@ -51,12 +51,15 @@ export type GhostTextOverlayProps = {
    * with no compile error.
    */
   scrollTop: number;
+  /** Optional class for the suggestion span when the mirror sits on a tinted surface. */
+  suggestionClassName?: string;
 };
 
 export const GhostTextOverlay = ({
   typed,
   suggestion,
   scrollTop,
+  suggestionClassName = "text-muted-foreground",
 }: GhostTextOverlayProps) => {
   if (suggestion === null || suggestion.length === 0) return null;
 
@@ -71,7 +74,7 @@ export const GhostTextOverlay = ({
         style={{ transform: `translateY(${-scrollTop}px)` }}
       >
         <span className="invisible">{typed}</span>
-        <span data-ghost-suggestion="" className="text-muted-foreground">
+        <span data-ghost-suggestion="" className={suggestionClassName}>
           {suggestion}
         </span>
       </div>
