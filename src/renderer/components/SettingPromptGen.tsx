@@ -3,6 +3,7 @@ import { messageLabel } from "~/features/i18n/shared/message";
 import { Button } from "./Button";
 import { Checkbox } from "./Checkbox";
 import { HotkeyInput } from "./HotkeyInput";
+import { Input, Textarea } from "./Input";
 import { ModelSelect } from "./ModelSelect";
 import { plainStatus, wrappedError, resolveStatus, type StatusDescriptor } from "./statusDescriptor";
 import Tooltip from "./Tooltip";
@@ -180,7 +181,7 @@ export const SettingPromptGen: React.FC = () => {
             >
               {t("settings.promptGen.minLength")}
             </label>
-            <input
+            <Input
               id="promptGen-min"
               type="number"
               name="minLength"
@@ -193,7 +194,7 @@ export const SettingPromptGen: React.FC = () => {
                   minLength: Number(e.target.value),
                 })
               }
-              className="w-full p-1 bg-secondary border border-control-border rounded text-foreground"
+              className="w-full"
               placeholder={t("settings.promptGen.minPlaceholder")}
             />
           </div>
@@ -204,7 +205,7 @@ export const SettingPromptGen: React.FC = () => {
             >
               {t("settings.promptGen.maxLength")}
             </label>
-            <input
+            <Input
               id="promptGen-max"
               type="number"
               name="maxLength"
@@ -217,7 +218,7 @@ export const SettingPromptGen: React.FC = () => {
                   maxLength: Number(e.target.value),
                 })
               }
-              className="w-full p-1 bg-secondary border border-control-border rounded text-foreground"
+              className="w-full"
               placeholder={t("settings.promptGen.maxPlaceholder")}
             />
           </div>
@@ -230,7 +231,7 @@ export const SettingPromptGen: React.FC = () => {
             >
               {t("settings.promptGen.batchCount")}
             </label>
-            <input
+            <Input
               id="promptGen-batch"
               type="number"
               name="batchCount"
@@ -242,7 +243,7 @@ export const SettingPromptGen: React.FC = () => {
                   batchCount: Number(e.target.value),
                 })
               }
-              className="w-20 p-1 bg-secondary border border-control-border rounded text-foreground"
+              className="w-20"
               placeholder={t("settings.promptGen.countPlaceholder")}
               min="1"
             />
@@ -302,7 +303,7 @@ export const SettingPromptGen: React.FC = () => {
               </Button>
             </div>
           </div>
-          <textarea
+          <Textarea
             id="promptGen-context"
             name="context"
             aria-label={t("settings.promptGen.customContextAria")}
@@ -313,7 +314,7 @@ export const SettingPromptGen: React.FC = () => {
                 context: e.target.value,
               })
             }
-            className="w-full p-2 bg-secondary border border-control-border rounded text-foreground min-h-20 text-sm"
+            className="min-h-20 w-full"
             placeholder={t("settings.promptGen.customContextPlaceholder")}
             rows={4}
           />

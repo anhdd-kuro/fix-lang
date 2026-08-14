@@ -209,6 +209,25 @@ describe("SettingAutocomplete", () => {
   };
 
   describe("daily spend cap", () => {
+    it("uses shared Input chrome matching General API key", async () => {
+      await mount(
+        baseElectronAPI({
+          getAutocompleteSettings: vi
+            .fn()
+            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        }),
+      );
+
+      const field = capField();
+      if (!field) throw new Error("daily cap field not rendered");
+      expect(field.className).toContain("bg-secondary");
+      expect(field.className).toContain("p-2");
+      expect(field.className).toContain("border-control-border");
+      expect(field.className).toContain("focus-visible:ring-ring");
+      expect(field.className).not.toContain("bg-input");
+      expect(field.className).not.toContain("rounded-md");
+    });
+
     it("shows the stored cap and persists a new one on blur", async () => {
       const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
       await mount(

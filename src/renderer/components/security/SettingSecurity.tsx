@@ -44,6 +44,7 @@ import {
 import { useI18n } from "../../i18n/useI18n";
 import { Button } from "../Button";
 import { Checkbox } from "../Checkbox";
+import { Input } from "../Input";
 import { SegmentedControl } from "../SegmentedControl";
 import { plainStatus, resolveStatus, wrappedError, type StatusDescriptor } from "../statusDescriptor";
 import type { SelectionGuardSettings } from "~/features/guards/shared/guardSettings";
@@ -354,13 +355,13 @@ export const SettingSecurity = () => {
         )}
 
         <div className="flex items-center gap-2">
-          <input
+          <Input
             type="text"
             value={newBundleId}
             onChange={(event) => setNewBundleId(event.target.value)}
             placeholder={t("security.deniedApps.addPlaceholder")}
             aria-label={t("security.deniedApps.addLabel")}
-            className="flex-1 rounded border border-control-border bg-input p-1 text-sm text-foreground"
+            className="flex-1"
           />
           <Button type="button" variant="secondary" disabled={!canAddBundleId} onClick={handleAddDeniedApp} className="shrink-0 rounded px-3 py-2 text-sm font-semibold">
             {t("security.deniedApps.addLabel")}
@@ -403,13 +404,13 @@ export const SettingSecurity = () => {
             {t("security.clipboardAge.limitLabel")}
           </label>
           <div className="flex items-center gap-2">
-            <input
+            <Input
               id="security-clipboard-age"
               type="number"
               min={0}
               value={view.clipboardAge.maxAgeSeconds}
               onChange={handleClipboardAgeChange}
-              className="w-24 rounded border border-control-border bg-input p-1 text-foreground"
+              className="w-24"
             />
             <span className="text-sm text-muted-foreground">
               {t("security.clipboardAge.limitUnit")}
@@ -429,13 +430,13 @@ export const SettingSecurity = () => {
             {t("security.selectionSize.limitLabel")}
           </label>
           <div className="flex items-center gap-2">
-            <input
+            <Input
               id="security-selection-size"
               type="number"
               min={0}
               value={view.selectionSize.maxChars}
               onChange={handleSelectionSizeChange}
-              className="w-32 rounded border border-control-border bg-input p-1 text-foreground"
+              className="w-32"
             />
             <span className="text-sm text-muted-foreground">
               {t("security.selectionSize.limitUnit")}

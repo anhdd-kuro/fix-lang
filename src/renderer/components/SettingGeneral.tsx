@@ -6,6 +6,7 @@ import { OLLAMA_DEFAULT_ENDPOINT } from "~/features/providers/shared/ollamaEndpo
 import { isMalformedOpenAIProjectId } from "~/features/providers/shared/openaiProject";
 import { PROVIDER_ORDER } from "~/features/providers/shared/providers";
 import { Button } from "./Button";
+import { Input } from "./Input";
 import { LanguageTabs } from "./LanguageTabs";
 import { ModelSelect } from "./ModelSelect";
 import { PROVIDER_LABEL_KEYS } from "./modelSelectOptions";
@@ -484,11 +485,11 @@ export const SettingGeneral: React.FC = () => {
                 >
                   {t(hostKey)}
                 </label>
-                <input
+                <Input
                   id={`${provider}-host`}
                   type="text"
                   autoComplete="off"
-                  className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full"
                   value={endpoint?.host ?? defaults.host}
                   onChange={(event) =>
                     setTypedEndpoints((current) => ({
@@ -510,12 +511,12 @@ export const SettingGeneral: React.FC = () => {
                 >
                   {t(portKey)}
                 </label>
-                <input
+                <Input
                   id={`${provider}-port`}
                   type="text"
                   inputMode="numeric"
                   autoComplete="off"
-                  className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full"
                   value={endpoint?.port ?? String(defaults.port)}
                   onChange={(event) =>
                     setTypedEndpoints((current) => ({
@@ -541,11 +542,11 @@ export const SettingGeneral: React.FC = () => {
             >
               {t("settings.general.providers.bedrock.region")}
             </label>
-            <input
+            <Input
               id="bedrock-region"
               type="text"
               autoComplete="off"
-              className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full"
               value={typedEndpoints.bedrock?.host ?? BEDROCK_DEFAULT_REGION}
               onChange={(event) =>
                 setTypedEndpoints((current) => ({
@@ -581,11 +582,11 @@ export const SettingGeneral: React.FC = () => {
                 ? t("settings.general.secret.set")
                 : t("settings.general.secret.unset")}
             </p>
-            <input
+            <Input
               id={`api-key-${provider}`}
               type="password"
               autoComplete="off"
-              className="w-full p-2 bg-secondary border border-control-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full"
               value={typed.apiKey ?? ""}
               onChange={(event) =>
                 setTypedKey(provider, "apiKey", event.target.value)
@@ -626,11 +627,11 @@ export const SettingGeneral: React.FC = () => {
                 ? t("settings.general.secret.set")
                 : t("settings.general.secret.unset")}
             </p>
-            <input
+            <Input
               id="bedrock-secret-key"
               type="password"
               autoComplete="off"
-              className="w-full p-2 bg-secondary border border-control-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full"
               value={typed.secretKey ?? ""}
               onChange={(event) =>
                 setTypedKey(provider, "secretKey", event.target.value)
@@ -667,11 +668,11 @@ export const SettingGeneral: React.FC = () => {
                 ? t("settings.general.secret.adminConnected")
                 : t("settings.general.secret.unset")}
             </p>
-            <input
+            <Input
               id={`provisioning-key-${provider}`}
               type="password"
               autoComplete="off"
-              className="w-full p-2 bg-secondary border border-control-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full"
               value={typed.provisioningKey ?? ""}
               onChange={(event) =>
                 setTypedKey(provider, "provisioningKey", event.target.value)
@@ -713,12 +714,12 @@ export const SettingGeneral: React.FC = () => {
             >
               {t("settings.general.providers.openai.projectId.label")}
             </label>
-            <input
+            <Input
               id="openai-project-id"
               type="text"
               autoComplete="off"
               spellCheck={false}
-              className="w-full p-2 bg-secondary border border-control-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full"
               value={typedOpenAIProjectId ?? ""}
               disabled={typedOpenAIProjectId === undefined}
               onChange={(event) => setTypedOpenAIProjectId(event.target.value)}

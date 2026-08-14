@@ -19,8 +19,8 @@ import type { ThemeId } from "~/features/theme/store/themeIds";
 // O2 — fixed for every mode (plain spinner and combo ring alike). A 20px box
 // cannot hold a legible digit; growing it per-mode would race the 60Hz
 // `setPosition` loop below, so it is one constant, not a per-call choice.
-// 24 is a bit smaller than the original 28 while still holding the combo digit.
-const OVERLAY_SIZE = 24;
+// 26 is 2px larger than the previous 24 shrink, still smaller than the original 28.
+const OVERLAY_SIZE = 26;
 const OVERLAY_CURSOR_OFFSET = 10;
 
 let overlayWindow: BrowserWindow | null = null;

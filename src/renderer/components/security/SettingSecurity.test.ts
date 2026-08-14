@@ -108,6 +108,25 @@ describe("SettingSecurity", () => {
     expect(order).toEqual([...order].sort((a, b) => a - b));
   });
 
+  it("uses shared Input chrome matching General API key on every text and number field", async () => {
+    await render();
+
+    const fields = [
+      ...container.querySelectorAll<HTMLInputElement>(
+        "input:not([type=checkbox])",
+      ),
+    ];
+    expect(fields.length).toBeGreaterThanOrEqual(3);
+    for (const field of fields) {
+      expect(field.className).toContain("bg-secondary");
+      expect(field.className).toContain("p-2");
+      expect(field.className).toContain("border-control-border");
+      expect(field.className).toContain("focus-visible:ring-ring");
+      expect(field.className).not.toContain("bg-input");
+      expect(field.className).not.toContain("rounded-md");
+    }
+  });
+
   it("renders the honest-limitations copy verbatim, not hidden behind a disclosure", async () => {
     await render();
 

@@ -33,6 +33,7 @@ import {
   resolveComboCostDisplay,
 } from "./comboEstimate";
 import { captureHotkey } from "./hotkeyCapture";
+import { Input } from "./Input";
 import { PROVIDER_LABEL_KEYS } from "./modelSelectOptions";
 import { SearchableSelect } from "./SearchableSelect";
 import {
@@ -513,14 +514,14 @@ export const SettingCombos: React.FC = () => {
                       >
                         {t("settings.correction.combos.nameLabel")}
                       </label>
-                      <input
+                      <Input
                         id={`combo-${combo.id}-name`}
                         type="text"
                         value={combo.name}
                         onChange={(event) =>
                           updateCombo(combo.id, { name: event.target.value })
                         }
-                        className="h-10 max-w-sm rounded-md border border-control-border bg-secondary px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="max-w-sm w-full"
                       />
                       {fieldMessages.nameErrors.map((message, index) => (
                         <p
@@ -550,7 +551,7 @@ export const SettingCombos: React.FC = () => {
                       >
                         {t("settings.correction.hotkeyLabel")}
                       </label>
-                      <input
+                      <Input
                         id={`combo-${combo.id}-hotkey`}
                         type="text"
                         value={combo.hotkey}
@@ -565,7 +566,7 @@ export const SettingCombos: React.FC = () => {
                         }}
                         placeholder={t("settings.hotkeys.pressShortcut")}
                         readOnly
-                        className="h-10 rounded-md border border-control-border bg-secondary px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="w-full"
                       />
                       <Button
                         type="button"
@@ -810,7 +811,7 @@ export const SettingCombos: React.FC = () => {
                                 >
                                   {t("settings.correction.combos.inlineInputLabel")}
                                 </label>
-                                <input
+                                <Input
                                   id={`combo-${combo.id}-step-${step.id}-input`}
                                   type="text"
                                   value={step.inlineInput ?? ""}
@@ -824,7 +825,7 @@ export const SettingCombos: React.FC = () => {
                                   placeholder={t(
                                     "settings.correction.combos.inlineInputPlaceholder",
                                   )}
-                                  className="h-9 rounded-md border border-control-border bg-secondary px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                  className="w-full"
                                 />
                               </div>
                             )}

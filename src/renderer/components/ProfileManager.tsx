@@ -3,6 +3,7 @@ import { messageLabel, textLabel, type Label } from "~/features/i18n/shared/mess
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
 import { HotkeyInput } from "./HotkeyInput";
+import { Input, Textarea } from "./Input";
 import { useI18n } from "../i18n/useI18n";
 import type { Profile } from "~/features/providers/store/apiStore";
 
@@ -404,13 +405,13 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
             >
               {t("profiles.manager.nameLabel")}
             </label>
-            <input
+            <Input
               id="profileName"
               type="text"
               value={newProfileName}
               onChange={(e) => setNewProfileName(e.target.value)}
               placeholder={t("profiles.manager.namePlaceholder")}
-              className="w-full px-3 py-2 text-foreground bg-card rounded border border-card-control-border focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              className="w-full"
               required
             />
           </div>
@@ -422,12 +423,12 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
             >
               {t("profiles.manager.descriptionLabel")}
             </label>
-            <textarea
+            <Textarea
               id="profileDescription"
               value={newProfileDescription}
               onChange={(e) => setNewProfileDescription(e.target.value)}
               placeholder={t("profiles.manager.descriptionPlaceholder")}
-              className="w-full px-3 py-2 text-foreground bg-card rounded border border-card-control-border focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              className="w-full"
               rows={3}
             />
           </div>
@@ -467,11 +468,11 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
             >
               {t("profiles.manager.jsonLabel")}
             </label>
-            <textarea
+            <Textarea
               id="exportJson"
               value={exportProfileJson}
               readOnly
-              className="w-full px-3 py-2 text-foreground bg-card rounded border border-card-control-border focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              className="w-full"
               rows={10}
             />
           </div>
@@ -510,12 +511,12 @@ const ProfileManager: React.FC<ProfileManagerProps> = ({ className = "" }) => {
             >
               {t("profiles.manager.pasteJsonLabel")}
             </label>
-            <textarea
+            <Textarea
               id="importJson"
               value={importProfileJson}
               onChange={(e) => setImportProfileJson(e.target.value)}
               placeholder={t("profiles.manager.pasteJsonPlaceholder")}
-              className="w-full px-3 py-2 text-foreground bg-card rounded border border-card-control-border focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              className="w-full"
               rows={10}
             />
           </div>
