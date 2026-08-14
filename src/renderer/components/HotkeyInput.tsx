@@ -9,6 +9,7 @@ import React, { useState, useEffect } from "react";
 import { COMBO_CANCEL_ACCELERATOR } from "~/features/correction/shared/comboValidation";
 import { messageLabel, msg, type Message } from "~/features/i18n/shared/message";
 import { Button } from "./Button";
+import { Input } from "./Input";
 import { plainStatus, wrappedError, resolveStatus, type StatusDescriptor } from "./statusDescriptor";
 import { validateHotkeys } from "./validateHotkeys";
 import { useI18n } from "../i18n/useI18n";
@@ -205,7 +206,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
         {label}
       </label>
       <div className="flex items-center gap-3">
-        <input
+        <Input
           id={`hotkey-${hotkeyKey}`}
           type="text"
           value={pendingCombo}
@@ -215,11 +216,7 @@ export const HotkeyInput: React.FC<HotkeyInputProps> = ({
           readOnly
           placeholder={t("settings.hotkeys.pressShortcut")}
           aria-label={t("settings.hotkeys.ariaLabel", { hotkeyKey })}
-          className={`flex-1 rounded px-2 py-1 bg-secondary text-secondary-foreground ${
-            fieldError
-              ? "border border-destructive"
-              : "border border-control-border"
-          }`}
+          className={`flex-1 ${fieldError ? "border-destructive" : ""}`}
         />
         <Button
           type="button"

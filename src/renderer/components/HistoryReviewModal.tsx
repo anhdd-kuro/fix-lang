@@ -2,6 +2,7 @@ import React from "react";
 import { Button } from "./Button";
 import CopyButton from "./CopyButton";
 import { formatCostLabel } from "./historyCost";
+import { Textarea } from "./Input";
 import { useI18n } from "../i18n/useI18n";
 import type { HistoryEntry } from "~/features/history/store/historyStore";
 
@@ -53,10 +54,10 @@ const HistoryReviewModal: React.FC<HistoryReviewModalProps> = ({
               label={t("history.reviewModal.copyOriginal")}
               className="self-end mb-2"
             />
-            <textarea
+            <Textarea
               readOnly
               value={data.original}
-              className="w-full h-48 bg-secondary text-foreground p-2 rounded-md resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-48 w-full resize-none"
               aria-label={t("history.reviewModal.originalTextArea")}
             />
           </div>
@@ -69,10 +70,10 @@ const HistoryReviewModal: React.FC<HistoryReviewModalProps> = ({
               label={t("history.reviewModal.copyCorrected")}
               className="self-end mb-2"
             />
-            <textarea
+            <Textarea
               readOnly
               value={data.corrected}
-              className="w-full h-48 bg-secondary text-foreground p-2 rounded-md resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-48 w-full resize-none"
               aria-label={t("history.reviewModal.correctedTextArea")}
             />
           </div>

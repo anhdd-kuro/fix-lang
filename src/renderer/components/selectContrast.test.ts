@@ -101,10 +101,11 @@ describe("select colour pairings across every generated theme", () => {
     }
   });
 
-  it("keeps the control's own text readable on the input surface", () => {
-    // `singleValue` (chosen value), `input` (what the user types) and the
-    // placeholder all sit on `--input`. There is no `--input-foreground`.
-    expectFloor("input", "popover-foreground", TEXT_FLOOR);
+  it("keeps the control's own text readable on the secondary surface", () => {
+    // `singleValue`, typed `input`, and the placeholder sit on `--secondary`,
+    // matching Settings → General → API key. The paired foreground is required;
+    // `foreground` on `secondary` fails 4.5:1.
+    expectFloor("secondary", "secondary-foreground", TEXT_FLOOR);
   });
 
   it("keeps the empty-result message readable on the menu", () => {
@@ -112,8 +113,8 @@ describe("select colour pairings across every generated theme", () => {
   });
 
   it("keeps both indicator icons above the non-text floor, resting and hovered", () => {
-    expectFloor("input", "accent-foreground", NON_TEXT_FLOOR);
-    expectFloor("input", "popover-foreground", NON_TEXT_FLOOR);
+    expectFloor("secondary", "accent-foreground", NON_TEXT_FLOOR);
+    expectFloor("secondary", "secondary-foreground", NON_TEXT_FLOOR);
   });
 
   it("keeps MultiSelect's hovered row readable, since it shares the hover pairing", () => {

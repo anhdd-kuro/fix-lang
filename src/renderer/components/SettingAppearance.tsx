@@ -7,13 +7,11 @@ import { THEME_PRESETS } from "../themes";
 import { Button } from "./Button";
 import { FontFamilyTabs } from "./FontFamilyTabs";
 import { FontSizeTabs } from "./FontSizeTabs";
+import { Input } from "./Input";
 import type { ThemeId } from "~/features/theme/store/themeIds";
 
 const THEME_CARD_MIN = "9.5rem";
 const THEME_CARD_MAX = "13rem";
-
-const inputClassName =
-  "w-full rounded-md border border-control-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 /**
  * Appearance settings — searchable theme preset picker with square preview cards.
@@ -79,14 +77,14 @@ export const SettingAppearance: React.FC = () => {
             >
               {t("settings.appearance.fontSize.customLabel")}
             </label>
-            <input
+            <Input
               key={typography.customFontSize}
               id="appearance-custom-font-size"
               type="text"
               defaultValue={typography.customFontSize}
               disabled={typographyLoading}
               placeholder={t("settings.appearance.fontSize.customPlaceholder")}
-              className={inputClassName}
+              className="w-full"
               onBlur={(event) => {
                 const trimmed = event.target.value.trim();
                 if (trimmed.length === 0 || trimmed === typography.customFontSize) {
@@ -135,14 +133,14 @@ export const SettingAppearance: React.FC = () => {
             >
               {t("settings.appearance.fontFamily.customLabel")}
             </label>
-            <input
+            <Input
               key={typography.customFontFamily}
               id="appearance-custom-font-family"
               type="text"
               defaultValue={typography.customFontFamily}
               disabled={typographyLoading}
               placeholder={t("settings.appearance.fontFamily.customPlaceholder")}
-              className={inputClassName}
+              className="w-full"
               onBlur={(event) => {
                 const trimmed = event.target.value.trim();
                 if (trimmed.length === 0 || trimmed === typography.customFontFamily) {
@@ -179,14 +177,14 @@ export const SettingAppearance: React.FC = () => {
 
       <label className="block shrink-0">
         <span className="sr-only">{t("settings.appearance.searchLabel")}</span>
-        <input
+        <Input
           type="search"
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
           }}
           placeholder={t("settings.appearance.searchPlaceholder")}
-          className={inputClassName}
+          className="w-full"
         />
       </label>
 

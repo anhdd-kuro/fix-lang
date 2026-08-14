@@ -363,4 +363,17 @@ describe("HotkeyInput", () => {
     );
     expect(localSetKeyBindings).not.toHaveBeenCalled();
   });
+
+  it("uses shared Input chrome matching General API key", async () => {
+    await render();
+
+    const field = container.querySelector("input");
+    expect(field).toBeTruthy();
+    expect(field?.className).toContain("bg-secondary");
+    expect(field?.className).toContain("p-2");
+    expect(field?.className).toContain("border-control-border");
+    expect(field?.className).toContain("focus-visible:ring-ring");
+    expect(field?.className).not.toContain("bg-input");
+    expect(field?.className).not.toContain("rounded-md");
+  });
 });

@@ -1,5 +1,6 @@
 import { useId } from "react";
 import CopyButton from "./CopyButton";
+import { Textarea } from "./Input";
 import { useI18n } from "../i18n/useI18n";
 
 export const TextAreaBox = ({
@@ -34,10 +35,10 @@ export const TextAreaBox = ({
         </label>
         <CopyButton value={value} label={t("common.textAreaBox.copyResultText")} />
       </div>
-      <textarea
+      <Textarea
         id={id}
         rows={rows ?? 4}
-        className="w-full flex-1 mt-2 p-2 bg-card border border-card-control-border rounded text-foreground resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="mt-2 w-full flex-1 resize-none"
         placeholder={placeholder}
         value={value}
         readOnly={readOnly}

@@ -1,9 +1,13 @@
-/** Shared themed select control. */
+/** Shared themed select control. Chrome matches Settings → General → API key. */
 import { forwardRef, type SelectHTMLAttributes } from "react";
 import { twMerge } from "tailwind-merge";
+import { controlFocusClassName } from "../Input";
 
-export const selectControlClassName =
-  "rounded-md border border-card-control-border bg-input text-foreground outline-none transition-colors hover:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none";
+export const selectControlClassName = [
+  "rounded border border-control-border bg-secondary p-2 text-sm text-foreground",
+  "transition-colors hover:border-ring disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none",
+  controlFocusClassName,
+].join(" ");
 
 export type SelectProps = SelectHTMLAttributes<HTMLSelectElement>;
 

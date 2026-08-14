@@ -103,7 +103,7 @@ export const MultiSelect = ({
         onClick={() => setIsOpen((open) => !open)}
         className={twMerge(
           selectControlClassName,
-          "flex w-full items-center justify-between gap-2 px-2 py-1.5 text-sm",
+          "flex w-full items-center justify-between gap-2",
         )}
       >
         <span className="truncate">{triggerLabel}</span>

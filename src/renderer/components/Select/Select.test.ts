@@ -14,8 +14,12 @@ describe("Select", () => {
       ),
     );
 
-    expect(markup).toContain("border-card-control-border");
-    expect(markup).toContain("bg-input");
+    expect(markup).toContain("border-control-border");
+    expect(markup).toContain("bg-secondary");
+    expect(markup).toContain("p-2");
+    expect(markup).toContain("focus-visible:ring-ring");
+    expect(markup).toContain("outline-none");
     expect(markup).not.toContain("border-current");
+    expect(markup).not.toContain("ring-primary");
   });
 });

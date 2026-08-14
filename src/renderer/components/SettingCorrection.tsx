@@ -25,6 +25,7 @@ import {
   hasBlockingComboErrors,
 } from "./comboEditorView";
 import { captureHotkey } from "./hotkeyCapture";
+import { Input, Textarea } from "./Input";
 import { ModelSelect } from "./ModelSelect";
 import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
 import { SearchableSelect } from "./SearchableSelect";
@@ -595,14 +596,14 @@ export const SettingCorrection: React.FC = () => {
               >
                 {t("settings.correction.presetName")}
               </label>
-              <input
+              <Input
                 id="preset-name"
                 type="text"
                 value={activePreset.name}
                 onChange={(event) =>
                   updatePreset(activePreset.id, { name: event.target.value })
                 }
-                className="h-10 rounded-md border border-control-border bg-secondary px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="w-full"
               />
             </div>
 
@@ -613,7 +614,7 @@ export const SettingCorrection: React.FC = () => {
               >
                 {t("settings.correction.hotkeyLabel")}
               </label>
-              <input
+              <Input
                 id="preset-hotkey"
                 type="text"
                 value={activePreset.hotkey}
@@ -630,7 +631,7 @@ export const SettingCorrection: React.FC = () => {
                 }}
                 placeholder={t("settings.hotkeys.pressShortcut")}
                 readOnly
-                className="h-10 rounded-md border border-control-border bg-secondary px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="w-full"
               />
               <Button
                 type="button"
@@ -735,7 +736,7 @@ export const SettingCorrection: React.FC = () => {
             >
               {t("settings.correction.systemPrompt")}
             </label>
-            <textarea
+            <Textarea
               id="system-prompt"
               value={activePreset.systemPrompt}
               onChange={(event) =>
@@ -744,7 +745,7 @@ export const SettingCorrection: React.FC = () => {
                 })
               }
               rows={16}
-              className="min-h-72 rounded-md border border-control-border bg-secondary p-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="min-h-72 w-full"
             />
           </div>
         </section>

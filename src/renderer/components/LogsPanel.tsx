@@ -17,6 +17,7 @@ import {
 } from "~/features/logs/shared/logging";
 import { Button } from "./Button";
 import { Checkbox } from "./Checkbox";
+import { Input } from "./Input";
 import { logRowKey, timeZoneLabel } from "./logsView";
 import { MultiSelect } from "./MultiSelect";
 import { useI18n } from "../i18n/useI18n";
@@ -307,12 +308,12 @@ export const LogsPanel = () => {
       <div className="flex flex-wrap items-center gap-2">
         <label className="min-w-48 flex-1">
           <span className="sr-only">{t("logs.panel.search")}</span>
-          <input
+          <Input
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={t("logs.panel.search")}
-            className="w-full rounded-md border border-card-control-border bg-card px-3 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
+            className="w-full"
           />
         </label>
 

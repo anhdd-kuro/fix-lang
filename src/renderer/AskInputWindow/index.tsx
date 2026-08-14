@@ -15,6 +15,7 @@ import {
   type ChatTranscriptMessage,
 } from "../components/ChatTranscript";
 import { GhostTextOverlay } from "../components/GhostTextOverlay";
+import { Textarea } from "../components/Input";
 import { useAppearanceTypography } from "../hooks/useAppearanceTypography";
 import {
   isSurfaceOnAnchor,
@@ -360,10 +361,10 @@ export const AskInputWindow = () => {
               scrollTop={textareaScrollTop}
               suggestionClassName="text-primary-foreground/60"
             />
-            <textarea
+            <Textarea
               ref={textareaRef}
               autoFocus
-              className="relative min-h-24 w-full resize-none bg-transparent text-sm leading-relaxed text-primary-foreground outline-none placeholder:text-primary-foreground/60"
+              className="relative min-h-24 w-full resize-none border-0 bg-transparent p-0 leading-relaxed text-primary-foreground placeholder:text-primary-foreground/60 focus-visible:ring-offset-0"
               placeholder={t("notifications.window.askInput.placeholder")}
               value={question}
               onChange={handleChange}

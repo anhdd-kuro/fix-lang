@@ -116,6 +116,28 @@
     cursor: pointer;
   }
 
+  /*
+   * Chromium on macOS paints an orange :focus outline on native form
+   * controls. Visible focus is the theme ring from controlFocusClassName.
+   */
+  :where(input, textarea, select):focus {
+    outline: none;
+  }
+
+  input[type="range"] {
+    accent-color: var(--ring);
+  }
+
+  input[type="number"] {
+    appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
+  }
+
   input::-webkit-calendar-picker-indicator {
     display: none !important;
   }

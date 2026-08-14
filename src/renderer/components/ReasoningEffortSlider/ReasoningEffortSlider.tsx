@@ -11,6 +11,7 @@ import {
   type ReasoningEffortSliderStep,
 } from "~/features/correction/shared/reasoningEffort";
 import { useI18n } from "../../i18n/useI18n";
+import { controlFocusClassName } from "../Input";
 
 type ReasoningEffortSliderProps = {
   value: ReasoningEffort | undefined;
@@ -107,7 +108,7 @@ export const ReasoningEffortSlider: React.FC<ReasoningEffortSliderProps> = ({
           onChange={(event) => {
             onChange(stepIndexToReasoningEffort(Number(event.target.value)));
           }}
-          className="reasoning-effort-slider absolute inset-0 z-10 h-8 w-full cursor-pointer appearance-none bg-transparent disabled:cursor-not-allowed disabled:opacity-50"
+          className={`reasoning-effort-slider absolute inset-0 z-10 h-8 w-full cursor-pointer appearance-none bg-transparent disabled:cursor-not-allowed disabled:opacity-50 ${controlFocusClassName}`}
         />
       </div>
       <div className="relative h-4 text-xxs leading-none" aria-hidden="true">

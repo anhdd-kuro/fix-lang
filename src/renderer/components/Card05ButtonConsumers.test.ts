@@ -264,7 +264,7 @@ const consumers = [
       "aria-controls": "{isOpen ? listId : undefined}",
       onClick: "{() => setIsOpen((open) => !open)}",
       className:
-        '{twMerge(selectControlClassName, "flex w-full items-center justify-between gap-2 px-2 py-1.5 text-sm",)}',
+        '{twMerge(selectControlClassName, "flex w-full items-center justify-between gap-2",)}',
     },
   },
   {

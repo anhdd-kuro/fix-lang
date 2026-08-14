@@ -8,6 +8,7 @@ import {
 } from "~/features/autocomplete/shared/autocompleteSettings";
 import { resolveAutocompleteCapUsage } from "./autocompleteUsageView";
 import { Checkbox } from "./Checkbox";
+import { Input } from "./Input";
 import { ModelSelect } from "./ModelSelect";
 import { formatOverviewCostHint } from "./overviewCostView";
 import {
@@ -269,7 +270,7 @@ export const SettingAutocomplete: React.FC = () => {
         >
           {t("settings.autocomplete.dailyCap.label")}
         </label>
-        <input
+        <Input
           id="autocomplete-daily-cap"
           type="number"
           min={0}
@@ -283,7 +284,7 @@ export const SettingAutocomplete: React.FC = () => {
           onKeyDown={(event) => {
             if (event.key === "Enter") event.currentTarget.blur();
           }}
-          className="w-32 rounded border border-control-border bg-secondary p-1 text-foreground"
+          className="w-32"
         />
         <p className="text-xs text-muted-foreground">
           {t("settings.autocomplete.dailyCap.description", {
