@@ -117,7 +117,10 @@ export const SecurityCharts = ({
   secretCards,
   selectionCards,
 }: SecurityChartsProps) => (
-  <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+  // Dashboard BrowserWindow is 1000px and the tab body has p-6, so the
+  // content is ~952px. Tailwind `lg` is 1024px — `lg:grid-cols-2` never
+  // activates there and the two donuts stack. Always two columns.
+  <div className="grid grid-cols-2 gap-3">
     <GuardMixDonut
       cards={secretCards}
       titleKey={SECURITY_CHART_KEYS.secretTitle}
@@ -228,7 +231,7 @@ const GuardMixDonut = ({
   );
 
   return (
-    <div className="rounded-lg border border-card-control-border bg-card p-4">
+    <div className="min-w-0 rounded-lg border border-card-control-border bg-card p-4">
       <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
         {t(titleKey)}
       </div>
