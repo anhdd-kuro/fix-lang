@@ -43,6 +43,9 @@ import type {
 const PROVIDER_SUPPORTS_USAGE: Readonly<Record<ProviderId, boolean>> = Object.freeze({
   openai: true,
   openrouter: true,
+  // Anthropic's usage/cost reports need an org admin key, which no profile
+  // stores — see `PROVIDER_SUPPORTS_PROVISIONING_KEY`.
+  anthropic: false,
   bedrock: false,
   ollama: false,
   lmstudio: false,
@@ -85,6 +88,12 @@ export const PROVIDER_CAPABILITIES: Readonly<Record<ProviderId, ProviderCapabili
         import("./openrouter/request").then((m) =>
           m.makeOpenRouterAIRequest(options),
         ),
+    }),
+    anthropic: capabilities("anthropic", {
+      fetchModels: (apiKey) =>
+        import("./anthropic/models").then((m) => m.fetchAnthropicModels(apiKey)),
+      makeRequest: (options) =>
+        import("./anthropic/request").then((m) => m.makeAnthropicAIRequest(options)),
     }),
     bedrock: capabilities("bedrock", {
       fetchModels: (_apiKey) =>

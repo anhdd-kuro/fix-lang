@@ -1,6 +1,6 @@
 # FixLang
 
-A local macOS menu-bar app that fixes grammar, improves writing, and runs other text transformations on selected text via AI. Supports **OpenAI**, **OpenRouter**, **AWS Bedrock**, **Ollama**, and **LM Studio**. Runs entirely on your machine; API keys never leave it and are encrypted at rest via the macOS keychain.
+A local macOS menu-bar app that fixes grammar, improves writing, and runs other text transformations on selected text via AI. Supports **OpenAI**, **OpenRouter**, **Anthropic**, **AWS Bedrock**, **Ollama**, and **LM Studio**. Runs entirely on your machine; API keys never leave it and are encrypted at rest via the macOS keychain.
 
 ## Features
 
@@ -73,7 +73,7 @@ You can connect multiple providers at once. Each connected provider's models app
 
 1. Open Settings → General → Providers
 2. For each provider you want to use:
-   - Enter its API key when required (OpenAI and OpenRouter need keys; Ollama needs none but accepts host/port like LM Studio; LM Studio accepts an optional key plus host/port for its local server)
+   - Enter its API key when required (OpenAI, OpenRouter, and Anthropic need keys; AWS Bedrock needs an access key ID + secret access key plus a region; Ollama needs none but accepts host/port like LM Studio; LM Studio accepts an optional key plus host/port for its local server)
    - **AWS Bedrock** takes three fields instead of one key: an **access key ID**, a **secret access key**, and an **AWS region** (defaults to `us-east-1`). Connect fetches the text-capable foundation models your account can see in that region. Bedrock has no admin key and no Usage sub-tab — AWS billing lives in the AWS console.
    - A key that provably belongs to a different provider or slot (for example an `sk-admin-…` key pasted into OpenRouter, or an OpenAI project key in the Admin field) is refused when you connect, instead of being stored and failing later with an opaque `Unauthorized`
    - Optionally add an admin key to unlock that provider's **Usage** sub-tab: an OpenRouter provisioning key, or an OpenAI Admin API key (`sk-admin-…`, organization owner). Admin keys are read only in the main process and never returned to the UI.
@@ -86,7 +86,7 @@ You can connect multiple providers at once. Each connected provider's models app
 
 If you disconnect a provider, only the presets and settings that were using it get reset — their model reference changes to "inherit from global default". Other presets keep their settings intact.
 
-**Cost:** Direct OpenAI requests report cost as N/A (no per-token pricing available). OpenRouter cost is estimated from OpenRouter's published pricing. AWS Bedrock is estimated the same way when the model matches a published price and reports N/A otherwise — never a made-up `$0`. Ollama and LM Studio (local) are always zero cost.
+**Cost:** Direct OpenAI and direct Anthropic requests report cost as N/A (neither provider's model list ships per-token pricing, and matching their versioned ids against OpenRouter's catalogue would report a neighbouring version's price as if it were exact). OpenRouter cost is estimated from OpenRouter's published pricing. AWS Bedrock is estimated the same way when the model matches a published price and reports N/A otherwise — never a made-up `$0`. Ollama and LM Studio (local) are always zero cost.
 
 ### App updates
 
@@ -360,7 +360,7 @@ GitHub Releases.
 - Keys are never included in profile import or export; exporting a profile shares its settings, never its credentials.
 - Secrets are scoped to one profile and one provider at a time — switching profiles switches the whole connected set, and neither another profile nor another provider can read a key it did not store.
 - A freshly created profile has no provider connected — nothing is auto-selected or auto-populated from another profile.
-- Requests are sent only to the providers you connect (OpenAI, OpenRouter, AWS Bedrock, Ollama, or LM Studio), and each request carries only that provider's credentials. Structured logs redact keys, tokens, and clipboard content before writing to disk.
+- Requests are sent only to the providers you connect (OpenAI, OpenRouter, Anthropic, AWS Bedrock, Ollama, or LM Studio), and each request carries only that provider's credentials. Structured logs redact keys, tokens, and clipboard content before writing to disk.
 - Four guard rails run before a selection leaves the machine: a frontmost-app deny-list, a stale/unknown-age clipboard confirm, a selection-size confirm, and a secret guard (`off` / `confirm` / `mask`). They are configured in **Settings → Security** — each is adjustable and each can be turned off — and the **Security** dashboard tab shows what they have done. The secret guard is a pattern check, not a guarantee: it will miss a credential that does not look like one, it cannot un-send, and text you send after choosing *Send anyway* is saved to local history like any other transform.
 
 ## License

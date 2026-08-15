@@ -32,6 +32,9 @@ describe("provider capability registry", () => {
     // LM Studio accepts an optional API key but bills nothing — the key tables
     // cannot stand in for this fact.
     expect(providerCapabilities("lmstudio").supportsUsage).toBe(false);
+    // Anthropic bills an account, but its usage report needs an admin key no
+    // profile stores — a Usage sub-tab here would have nothing to read.
+    expect(providerCapabilities("anthropic").supportsUsage).toBe(false);
   });
 
   it("lists usage-capable providers in PROVIDER_ORDER", () => {
@@ -49,6 +52,7 @@ describe("provider capability registry", () => {
     // "empty vs unreachable" distinction this signature cannot express.
     expect(providerCapabilities("openai").fetchModels).toBeTypeOf("function");
     expect(providerCapabilities("openrouter").fetchModels).toBeTypeOf("function");
+    expect(providerCapabilities("anthropic").fetchModels).toBeTypeOf("function");
     expect(providerCapabilities("ollama").fetchModels).toBeUndefined();
     expect(providerCapabilities("lmstudio").fetchModels).toBeUndefined();
   });

@@ -143,6 +143,21 @@ describe("prewarmProviderConnection", () => {
     expect(init.headers.Authorization).toBe("Bearer sk-test-openai-key");
   });
 
+  it("warms Anthropic with x-api-key and a pinned version, not a bearer token", async () => {
+    // Kills: copying the OpenAI warm-up. Anthropic 401s a bearer token and
+    // 400s a request with no `anthropic-version`, so either slip warms nothing
+    // while still looking like a successful prewarm.
+    prewarmProviderConnection("anthropic::claude-opus-4-5-20251101");
+    await vi.waitFor(() => expect(keepAliveFetchMock).toHaveBeenCalledTimes(1));
+
+    const [url, init] = keepAliveFetchMock.mock.calls[0];
+    expect(url).toBe("https://api.anthropic.com/v1/models");
+    expect(init.method).toBe("GET");
+    expect(init.headers["x-api-key"]).toBe("sk-test-openai-key");
+    expect(init.headers["anthropic-version"]).toBe("2023-06-01");
+    expect(init.headers.Authorization).toBeUndefined();
+  });
+
   it("warms OpenRouter via the tiny /credits endpoint, not the multi-MB model list", async () => {
     prewarmProviderConnection("openrouter::openai/gpt-4o");
     await vi.waitFor(() => expect(keepAliveFetchMock).toHaveBeenCalledTimes(1));

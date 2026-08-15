@@ -74,6 +74,24 @@ describe("computeCost", () => {
     );
     expect(result).toMatchObject({ status: "na", estimatedCostUsd: null });
   });
+  it("returns N/A for direct Anthropic, whose ids fuzzy-match the WRONG OpenRouter entry", () => {
+    // Measured, not hypothetical: without the short-circuit, `claude-opus-4-5`
+    // matches `anthropic/claude-opus-4.1` under the threshold and is billed at
+    // Opus 4.1's rate — 3x the real price, reported as `status: "ok"`. A
+    // confidently wrong number is worse than N/A.
+    const result = computeCost(
+      {
+        provider: "anthropic",
+        resolvedModel: "claude-opus-4-5",
+        promptTokens: 1000,
+        completionTokens: 500,
+      },
+      new Map([
+        ["anthropic/claude-opus-4.1", { prompt: "0.000015", completion: "0.000075" }],
+      ]),
+    );
+    expect(result).toMatchObject({ status: "na", estimatedCostUsd: null });
+  });
   it("computes a confident exact match in USD with the prices used", () => {
     const result = computeCost(
       { resolvedModel: "openai/gpt-4o", promptTokens: 1000, completionTokens: 500 },

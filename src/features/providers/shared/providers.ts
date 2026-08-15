@@ -11,6 +11,7 @@
 export const PROVIDER_IDS = Object.freeze([
   "openai",
   "openrouter",
+  "anthropic",
   "bedrock",
   "ollama",
   "lmstudio",
@@ -28,10 +29,16 @@ type Permutation<T extends string, Rest extends string = T> = [T] extends [never
 /**
  * Display order AND `resolveModelRef` precedence for bare ids — reordering it
  * reroutes every un-migrated bare id to a different provider, key and price.
+ *
+ * `anthropic` sits BELOW `openrouter` for that reason: a legacy bare
+ * `claude-…` ref predates this provider and has always billed through
+ * OpenRouter, so a newly connected Anthropic account must not silently capture
+ * it.
  */
 export const PROVIDER_ORDER: readonly ProviderId[] = Object.freeze([
   "openai",
   "openrouter",
+  "anthropic",
   "bedrock",
   "ollama",
   "lmstudio",
@@ -41,6 +48,7 @@ export const PROVIDER_ORDER: readonly ProviderId[] = Object.freeze([
 export const PROVIDER_LOG_LABELS: Readonly<Record<ProviderId, string>> = Object.freeze({
   openai: "OpenAI",
   openrouter: "OpenRouter",
+  anthropic: "Anthropic",
   bedrock: "AWS Bedrock",
   ollama: "Ollama",
   lmstudio: "LM Studio",
@@ -49,6 +57,7 @@ export const PROVIDER_LOG_LABELS: Readonly<Record<ProviderId, string>> = Object.
 export const PROVIDER_REQUIRES_API_KEY: Readonly<Record<ProviderId, boolean>> = Object.freeze({
   openai: true,
   openrouter: true,
+  anthropic: true,
   bedrock: true,
   ollama: false,
   lmstudio: false,
@@ -62,6 +71,7 @@ export const PROVIDER_REQUIRES_API_KEY: Readonly<Record<ProviderId, boolean>> = 
 export const PROVIDER_SUPPORTS_API_KEY: Readonly<Record<ProviderId, boolean>> = Object.freeze({
   openai: true,
   openrouter: true,
+  anthropic: true,
   bedrock: true,
   ollama: false,
   lmstudio: true,
@@ -71,11 +81,17 @@ export const PROVIDER_SUPPORTS_API_KEY: Readonly<Record<ProviderId, boolean>> = 
  * Whether the provider has an admin-scoped key distinct from its request key —
  * OpenRouter's provisioning key, OpenAI's Admin API key. Both are read only in
  * the main process, and only for account usage/billing reads.
+ *
+ * `anthropic` is false even though Anthropic does mint an admin key
+ * (`sk-ant-admin…`) for its usage/cost report endpoints: FixLang ships no
+ * Anthropic Usage sub-tab, and a stored key nothing reads is a credential held
+ * for no reason.
  */
 export const PROVIDER_SUPPORTS_PROVISIONING_KEY: Readonly<Record<ProviderId, boolean>> =
   Object.freeze({
     openai: true,
     openrouter: true,
+    anthropic: false,
     bedrock: false,
     ollama: false,
     lmstudio: false,

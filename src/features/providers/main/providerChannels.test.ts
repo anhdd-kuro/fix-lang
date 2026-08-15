@@ -184,7 +184,14 @@ describe("get-provider-states answers every provider in one round-trip", () => {
 
     const states = (await invoke("get-provider-states")) as ProviderStates;
 
-    expect(Object.keys(states).sort()).toEqual(["bedrock", "lmstudio", "ollama", "openai", "openrouter"]);
+    expect(Object.keys(states).sort()).toEqual([
+      "anthropic",
+      "bedrock",
+      "lmstudio",
+      "ollama",
+      "openai",
+      "openrouter",
+    ]);
     expect(states).toEqual({
       openai: {
         connected: true,
@@ -209,6 +216,13 @@ describe("get-provider-states answers every provider in one round-trip", () => {
         apiKeySet: false,
         provisioningKeySet: false,
         modelCount: 1,
+      },
+      anthropic: {
+        connected: false,
+        configured: false,
+        apiKeySet: false,
+        provisioningKeySet: false,
+        modelCount: 0,
       },
       lmstudio: {
         connected: false,
@@ -313,7 +327,7 @@ describe("get-provider-states answers every provider in one round-trip", () => {
     }
     // The key length never leaks either — the only number is a model count.
     const numbers = leaves.filter((leaf) => typeof leaf === "number");
-    expect(numbers).toEqual([1, 1, 0, 0, 0]);
+    expect(numbers).toEqual([1, 1, 0, 0, 0, 0]);
     for (const [provider, state] of Object.entries(states)) {
       const expectedKeys = provider === "bedrock"
         ? ["accessKeySet", "apiKeySet", "configured", "connected", "modelCount", "provisioningKeySet", "secretKeySet"]
@@ -385,7 +399,7 @@ describe("disconnect-provider", () => {
   });
 
   it("rejects an unknown provider without deleting anything", async () => {
-    const result = (await invoke("disconnect-provider", "anthropic")) as {
+    const result = (await invoke("disconnect-provider", "not-a-provider")) as {
       success: boolean;
       error?: unknown;
     };
@@ -605,7 +619,7 @@ describe("fetch-ai-models fans out across every connected provider", () => {
 
   it("drops an unknown provider left in enabledProviders instead of asking for it", async () => {
     seedProfile({
-      enabledProviders: ["openai", "anthropic" as ProviderId, "openai"],
+      enabledProviders: ["openai", "not-a-provider" as ProviderId, "openai"],
     });
 
     await invoke("fetch-ai-models", true);

@@ -85,6 +85,7 @@
   "models.select.optionLabel.local": "{id}, {createdAt}, {size}",
   "models.select.placeholder": "Select model",
   "models.select.placeholder.noProviders": "Connect a provider to choose a model",
+  "models.select.provider.anthropic": "Anthropic",
   "models.select.provider.bedrock": "AWS Bedrock",
   "models.select.provider.lmstudio": "LM Studio",
   "models.select.provider.ollama": "Ollama",

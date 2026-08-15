@@ -125,6 +125,26 @@ const warmOpenRouter = async (): Promise<void> => {
 };
 
 /**
+ * Anthropic authenticates with `x-api-key` plus a pinned API version, not a
+ * bearer token — a warm-up sent the OpenAI way would 401 and warm nothing. The
+ * model list is small enough to drain.
+ */
+const warmAnthropic = async (): Promise<void> => {
+  const profileId = getCurrentProfileId();
+  const apiKey = profileId ? await getProfileSecret(profileId, "anthropic", "api") : null;
+  if (!apiKey) return;
+  const response = await keepAliveFetch("https://api.anthropic.com/v1/models", {
+    method: "GET",
+    headers: {
+      "x-api-key": apiKey.trim(),
+      "anthropic-version": "2023-06-01",
+    },
+    signal: AbortSignal.timeout(5000),
+  });
+  await drain(response);
+};
+
+/**
  * Providers this module knows how to warm with a cheap, non-billable request.
  * Bedrock is cloud too but goes through the AWS SDK's SigV4-signed client
  * rather than a plain `fetch`, so it has no warm-up implementation here and is
@@ -133,6 +153,7 @@ const warmOpenRouter = async (): Promise<void> => {
 const WARM_BY_PROVIDER: Readonly<Partial<Record<ProviderId, () => Promise<void>>>> = {
   openai: warmOpenAI,
   openrouter: warmOpenRouter,
+  anthropic: warmAnthropic,
 };
 
 export const prewarmProviderConnection = (modelRef: string): void => {

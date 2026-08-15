@@ -7,7 +7,11 @@ description: "Use when adding a provider, touching API/admin key storage, the pr
 
 Code: `src/main/llm/providers/` (one folder per `ProviderId` + `index.ts` registry), `src/features/providers/shared/providers.ts`, `src/features/providers/shared/providerKeyShapes.ts`, `src/features/providers/shared/bedrockEndpoint.ts`, `src/features/providers/store/profileSecretStore.ts`, `src/main/ai.request/shared.ts`, `src/features/logs/shared/logging.ts`.
 
-Providers: `openai`, `openrouter`, `bedrock`, `ollama`, `lmstudio`. Model ref plumbing: see [Model refs](../fixlang-model-refs/SKILL.md).
+Providers: `openai`, `openrouter`, `anthropic`, `bedrock`, `ollama`, `lmstudio`. Model ref plumbing: see [Model refs](../fixlang-model-refs/SKILL.md).
+
+## A new provider's slot in PROVIDER_ORDER is a billing decision
+
+`PROVIDER_ORDER` is `resolveModelRef`'s precedence for BARE ids, so inserting a provider above an existing one hands it every un-migrated ref both providers can serve. `anthropic` sits BELOW `openrouter` for exactly that reason: a legacy bare `claude-…` ref has always billed through OpenRouter, and a newly connected Anthropic account must not silently capture it.
 
 ## The capability registry is the only dispatch table
 
@@ -29,6 +33,8 @@ Every accessor in `provisioningKeyStore` and all three IPC channels take an expl
 
 A key pasted into the wrong slot used to store fine and show "Key set" (existence is all `hasProfileSecret` can see without decrypting), then 401 forever. `shared/providerKeyShapes.ts` classifies a key by prefix and `findKeyShapeMismatch(provider, kind, raw)` refuses a positively-identified foreign one at BOTH the `connect-provider` handler and `setProfileSecret` (the chokepoint a future writer cannot skip). Slot-level, not provider-level: OpenAI's admin endpoints reject a project key and its chat endpoints reject an admin key, so both wrong-slot-same-account cases are refused too.
 
+`sk-ant-` is ONE shape covering both Anthropic kinds (`sk-ant-api…` request, `sk-ant-admin…` admin): FixLang stores only the request key, and an admin key is just as foreign in every other slot. Adding a provider means adding it to the other providers' `FOREIGN_SHAPES` lists too — a one-way entry only refuses the paste in one direction.
+
 An **unrecognized** format is still accepted on purpose — refusing it would lock out legacy `sk-…` keys, LM Studio's arbitrary local key, and any future format.
 
 Each admin-key field carries a "where to get this key" link to the provider's own console; label/placeholder/link keys sit together in `ADMIN_KEY_MESSAGE_KEYS` (`renderer/components/providerCards.ts`) and open via `openExternalLink`. Main only permits http/https, so a mistyped scheme makes the link a silent no-op — `providerCards.test.ts` asserts against it.
@@ -46,5 +52,6 @@ Log the shape, never the value, and keep labels free of an `sk-…` prefix: `red
 `ai.request/cost.ts` prices a request by matching the served model id against the cached OpenRouter price map (exact, then fuse.js under `FUZZY_SCORE_THRESHOLD`). Rules that must not be "improved" into a fabricated number:
 
 - `openai` short-circuits to **N/A** — direct OpenAI discovery ships no pricing, and fuzzy-matching its bare ids against the OpenRouter catalogue would invent prices.
+- `anthropic` short-circuits to **N/A** for the same reason, and here the failure is MEASURED, not theoretical: `claude-opus-4-5` matches `anthropic/claude-opus-4.1` under `FUZZY_SCORE_THRESHOLD` and bills at 3x the real rate with `status: "ok"`. Anthropic's versioned ids differ from OpenRouter's by one character, so the matcher lands on a neighbouring version rather than failing.
 - `ollama` / `lmstudio` / any `isLocal` → status `zero`, renders `$0.00`, never N/A.
 - Everything else (OpenRouter, Bedrock) is estimated only on a confident match; no match, unpriced, or parse failure → N/A, never `$0`.

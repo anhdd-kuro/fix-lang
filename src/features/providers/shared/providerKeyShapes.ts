@@ -33,6 +33,7 @@ export type ProviderKeyShape =
   | "openrouter"
   | "openai-project"
   | "openai-admin"
+  | "anthropic"
   | "unrecognized";
 
 /** Prefixes in match order — `sk-or-` must be tested before any bare `sk-`. */
@@ -40,6 +41,10 @@ const SHAPE_PREFIXES: readonly { prefix: string; shape: ProviderKeyShape }[] = [
   { prefix: "sk-or-", shape: "openrouter" },
   { prefix: "sk-proj-", shape: "openai-project" },
   { prefix: "sk-admin-", shape: "openai-admin" },
+  // Covers both `sk-ant-api…` request keys and `sk-ant-admin…` admin keys:
+  // neither belongs in any other provider's slot, and FixLang stores only the
+  // request kind, so one shape is enough to refuse a foreign paste.
+  { prefix: "sk-ant-", shape: "anthropic" },
 ];
 
 export const describeKeyShape = (raw: string): ProviderKeyShape =>
@@ -52,6 +57,7 @@ const EXPECTED_PREFIX: Readonly<Record<string, string>> = Object.freeze({
   "openrouter:provisioning": "sk-or-v1-",
   "openai:api": "sk-proj-",
   "openai:provisioning": "sk-admin-",
+  "anthropic:api": "sk-ant-",
 });
 
 /**
@@ -62,10 +68,11 @@ const EXPECTED_PREFIX: Readonly<Record<string, string>> = Object.freeze({
  */
 const FOREIGN_SHAPES: Readonly<Record<string, readonly ProviderKeyShape[]>> =
   Object.freeze({
-    "openrouter:api": ["openai-project", "openai-admin"],
-    "openrouter:provisioning": ["openai-project", "openai-admin"],
-    "openai:api": ["openrouter", "openai-admin"],
-    "openai:provisioning": ["openrouter", "openai-project"],
+    "openrouter:api": ["openai-project", "openai-admin", "anthropic"],
+    "openrouter:provisioning": ["openai-project", "openai-admin", "anthropic"],
+    "openai:api": ["openrouter", "openai-admin", "anthropic"],
+    "openai:provisioning": ["openrouter", "openai-project", "anthropic"],
+    "anthropic:api": ["openrouter", "openai-project", "openai-admin"],
   });
 
 export type KeyShapeMismatch = {

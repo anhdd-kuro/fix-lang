@@ -185,9 +185,9 @@ describe("modelRefForModel", () => {
       id: "x",
       name: "x",
       created: 1,
-      provider: "anthropic" as ProviderId,
+      provider: "not-a-provider" as ProviderId,
     };
-    expect(modelRefForModel(model)).toBe("anthropic::x");
+    expect(modelRefForModel(model)).toBe("not-a-provider::x");
     expect(parseModelRef(modelRefForModel(model)).provider).toBeNull();
     expect(resolveModelRef(modelRefForModel(model), [model])).toBeNull();
   });

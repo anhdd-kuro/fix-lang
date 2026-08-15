@@ -144,9 +144,12 @@ export const computeCost = (
   input: CostInput,
   priceMap: PriceMap
 ): CostSnapshot => {
-  // Direct OpenAI model discovery intentionally has no pricing. Do not fuzzy
-  // match its bare model ids against the OpenRouter catalogue.
-  if (input.provider === "openai") {
+  // Direct OpenAI and Anthropic model discovery intentionally has no pricing.
+  // Do not fuzzy match their bare model ids against the OpenRouter catalogue:
+  // Anthropic's versioned ids differ from OpenRouter's by one character, so a
+  // match lands on a NEIGHBOURING version and prices it as `status: "ok"` —
+  // `claude-opus-4-5` bills at `anthropic/claude-opus-4.1`'s rate.
+  if (input.provider === "openai" || input.provider === "anthropic") {
     return NA;
   }
 

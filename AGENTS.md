@@ -2,7 +2,7 @@
 
 ## Overview
 
-Local macOS menu-bar app: fixes grammar and improves writing on selected text via AI (OpenAI, OpenRouter, AWS Bedrock, Ollama, LM Studio). Electron + React + TypeScript, runs on **bun**.
+Local macOS menu-bar app: fixes grammar and improves writing on selected text via AI (OpenAI, OpenRouter, Anthropic, AWS Bedrock, Ollama, LM Studio). Electron + React + TypeScript, runs on **bun**.
 
 Current release: **v0.31.0**.
 
@@ -25,7 +25,7 @@ What the user gets. Implementation traps live under [Known Gotchas](#known-gotch
   - **Prompt generation** — PromptGen builds AI prompts from selected text (`Control+Shift+G`); feature-tagged, OFF in release builds.
   - **Security guard rails** — four checks before text leaves the machine: a frontmost-app deny-list, a stale/unknown-age clipboard confirm, a selection-size confirm, and a secret guard (`off`/`confirm`/`mask`). Configured from **Settings → Security**; the **Security** dashboard tab is the read-only roll-up of what they did (masked requests, blocked apps, cancelled confirms), derived from the persisted JSONL logs. Autocomplete cannot show a dialog, so it refuses to dispatch instead. See [Security guard rails](.claude/skills/fixlang/fixlang-security-guards/SKILL.md).
 - **Providers & profiles**
-  - **Multi-provider** — OpenAI, OpenRouter, AWS Bedrock, Ollama, and LM Studio can all be connected; any preset can use any connected model.
+  - **Multi-provider** — OpenAI, OpenRouter, Anthropic, AWS Bedrock, Ollama, and LM Studio can all be connected; any preset can use any connected model.
   - **Admin keys** — OpenAI Admin / OpenRouter provisioning keys unlock that provider's Usage sub-tab (encrypted, main-process-only).
   - **Profiles** — named configs cycled with `Control+Shift+P`; a switch reloads hotkeys, settings, and history together.
 - **History, usage & diagnostics**
@@ -96,7 +96,7 @@ fix-lang/
 - Frontend
   - React 19.2, TypeScript 6.0 (stay on 6.x until typescript-eslint supports 7), Tailwind 4.3
 - AI
-  - openai 6.49, @ai-sdk/openai 4.0, @openrouter/ai-sdk-provider 3.0, @ai-sdk/amazon-bedrock 5.0 + @aws-sdk/client-bedrock 3.x, ai 7.0, ollama 0.6 — each wired in its own `src/main/llm/providers/<id>/request.ts` and reached through the capability registry; LM Studio and Ollama both use a configurable local host/port (LM Studio via OpenAI-compatible `baseURL`; Ollama via its daemon URL), and Bedrock stores its AWS region in `providerEndpoints.bedrock.host` (`src/features/providers/shared/bedrockEndpoint.ts`, default `us-east-1`)
+  - openai 6.49, @ai-sdk/openai 4.0, @openrouter/ai-sdk-provider 3.0, @ai-sdk/anthropic 4.0.23 (pinned — see below), @ai-sdk/amazon-bedrock 5.0 + @aws-sdk/client-bedrock 3.x, ai 7.0, ollama 0.6 — each wired in its own `src/main/llm/providers/<id>/request.ts` and reached through the capability registry; LM Studio and Ollama both use a configurable local host/port (LM Studio via OpenAI-compatible `baseURL`; Ollama via its daemon URL), and Bedrock stores its AWS region in `providerEndpoints.bedrock.host` (`src/features/providers/shared/bedrockEndpoint.ts`, default `us-east-1`)
 - Persistence
   - node:sqlite (history) + electron-store 11 + JSONL logs under userData — no zustand
 - Testing
@@ -117,6 +117,7 @@ bun run build:promptgen # feature-tag build (also dev:promptgen, pack:mac:prompt
 ```
 
 - **The packaged app ships no `node_modules`** (`build.files` excludes it) — every runtime dependency must be inlined by Vite into `out/`. Adding a dependency and importing it passes `dev`, `test`, and `lint` unchanged; only `bun run check:bundle` against a real `bun run build` catches a dependency Vite left external. The scanner lives in `src/features/core/shared/bundleExternals.ts` (AST walk via the TypeScript compiler API, not a regex); `scripts/check-bundle-externals.ts` is a CLI-only wrapper that runs under **bun**, whose TS parser differs from vitest's esbuild — which is why an integration test drives that exact file under bun. `ALLOWLIST` is empty on purpose: an entry hides a `MODULE_NOT_FOUND` for users instead of fixing it. Every packaging script (`pack`, `pack:mac`, `pack:mac:prod`, `release:mac`) runs the check. See [Bundle externals](.claude/skills/fixlang/fixlang-bundle-externals/SKILL.md).
+- **`@ai-sdk/anthropic` is pinned to `4.0.23`, and the pin is the bundle check, not taste** — from `4.0.24` it depends on `@ai-sdk/provider-utils` ≥ `5.0.15`, which bun installs as a NESTED copy (the other providers hold the hoisted `5.0.12`/`5.0.14`). That copy resolves `undici` through a runtime `createRequire` for its file-download path — a specifier Vite cannot inline and a `node_modules`-free `app.asar` cannot resolve. Same reason Anthropic's model list is a plain `keepAliveFetch` against `/v1/models` rather than `@anthropic-ai/sdk`, which carries the identical require. Re-run `bun run check:bundle` after any bump.
 - **`dependencies` vs `devDependencies` no longer signals what ships** — nothing resolves from `node_modules` at runtime, so the split is bookkeeping only; what ships is whatever Vite inlined into `out/`. Do not "fix" a runtime import by moving its package between the two sections.
 - **Feature tags are opt-in** — features listed in `src/features/core/shared/features.ts` are excluded unless the build carries their tag (`FIXLANG_FEATURES=promptgen` env, or `--promptgen` CLI). Flag-off builds emit no renderer bundle for the feature and skip its hotkey, IPC handlers, and settings tab. Read flags at runtime via `isPromptGenEnabled()`, never `__FEATURE_PROMPT_GEN__` directly (the define is absent under vitest). Plain `bun run build` (what the release workflow runs) ships PromptGen OFF.
 
@@ -289,7 +290,7 @@ Project-specific traps under `.claude/skills/fixlang/`:
 
 - [Hotkeys](.claude/skills/fixlang/fixlang-hotkeys/SKILL.md) — preset hotkey reload on profile switch (silent failures) + pre-save conflict validation + frontmost-app read must precede the overlay spinner.
 - [Presets](.claude/skills/fixlang/fixlang-presets/SKILL.md) — retired reasoning efforts must MAP, not vanish; per-preset `outputMode` must be resolved on BOTH delivery paths; Ask AI's optional selection and its markdown answer are both untrusted; the `# Metadata context` block's default wording is byte-pinned.
-- [Provider credentials](.claude/skills/fixlang/fixlang-provider-credentials/SKILL.md) — capability registry is the only dispatch table (and its `import()`s must stay lazy); secret slots are per profile + provider + kind; a foreign-shaped key is refused at both write chokepoints; log the key's shape, never its value; per-provider cost honesty rules.
+- [Provider credentials](.claude/skills/fixlang/fixlang-provider-credentials/SKILL.md) — capability registry is the only dispatch table (and its `import()`s must stay lazy); secret slots are per profile + provider + kind; a foreign-shaped key is refused at both write chokepoints; log the key's shape, never its value; per-provider cost honesty rules; a new provider's slot in `PROVIDER_ORDER` reroutes bare ids and is a billing decision.
 - [Usage & analytics](.claude/skills/fixlang/fixlang-usage-analytics/SKILL.md) — OpenAI's MONEY RULE (tokens per model, dollars per line item/project, never per-model dollars or a balance); split Spend card so one failed half cannot blank the other; tray siblings keyed by `profileId` need distinct key prefixes or a duplicate card survives.
 - [i18n](.claude/skills/fixlang/fixlang-i18n/SKILL.md) — JSON values widen to `string` (params not type-checked); tests must be `.test.ts` (no RTL); aggregations return descriptors; memoized callbacks over `t` or formatters must list them in deps; `date-fns` needs explicit `{ locale }`; main process uses `mainT()`, not `useI18n()`.
 - [Prompt bundling](.claude/skills/fixlang/fixlang-prompt-bundling/SKILL.md) — prompts bundle at build time from `src/prompts/`, not `~/.agents/`; rebuild + reinstall to apply.
