@@ -180,7 +180,7 @@ describe("the registered channel set", () => {
 
 describe("connect-provider — payload validation", () => {
   it("rejects an unknown provider without fetching or connecting", async () => {
-    const result = await connect({ provider: "anthropic" });
+    const result = await connect({ provider: "not-a-provider" });
 
     expect(result.success).toBe(false);
     expect(result.error).toEqual({

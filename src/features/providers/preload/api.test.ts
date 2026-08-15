@@ -45,7 +45,7 @@ describe("isProviderConnectInput", () => {
   });
 
   it("rejects a bad/unknown provider", () => {
-    expect(isProviderConnectInput({ provider: "anthropic" })).toBe(false);
+    expect(isProviderConnectInput({ provider: "not-a-provider" })).toBe(false);
     expect(isProviderConnectInput({ provider: "" })).toBe(false);
     expect(isProviderConnectInput({})).toBe(false);
   });
@@ -88,7 +88,7 @@ describe("the bridge no longer exposes the deleted channel", () => {
 describe("every mutating method validates BEFORE it invokes", () => {
   it("connectProvider rejects an invalid input without crossing the boundary", async () => {
     const result = await apiFeature.connectProvider({
-      provider: "anthropic" as ProviderConnectInput["provider"],
+      provider: "not-a-provider" as ProviderConnectInput["provider"],
     });
 
     expect(result.success).toBe(false);
@@ -102,7 +102,7 @@ describe("every mutating method validates BEFORE it invokes", () => {
 
   it("disconnectProvider rejects an invalid provider without crossing the boundary", async () => {
     const result = await apiFeature.disconnectProvider(
-      "anthropic" as ProviderConnectInput["provider"],
+      "not-a-provider" as ProviderConnectInput["provider"],
     );
 
     expect(result.success).toBe(false);
@@ -116,7 +116,7 @@ describe("every mutating method validates BEFORE it invokes", () => {
 
   it("fetchProviderModels rejects an invalid input without crossing the boundary", async () => {
     const result = await apiFeature.fetchProviderModels({
-      provider: "anthropic" as ProviderConnectInput["provider"],
+      provider: "not-a-provider" as ProviderConnectInput["provider"],
     });
 
     expect(result.success).toBe(false);

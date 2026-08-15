@@ -97,7 +97,7 @@ describe("parseProviderConnect", () => {
   });
 
   it("rejects a bad/unknown provider", () => {
-    expect(parseProviderConnect({ provider: "anthropic" })).toBeNull();
+    expect(parseProviderConnect({ provider: "not-a-provider" })).toBeNull();
     expect(parseProviderConnect({ provider: "" })).toBeNull();
     expect(parseProviderConnect({})).toBeNull();
   });

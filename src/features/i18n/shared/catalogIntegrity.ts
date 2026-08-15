@@ -513,6 +513,7 @@ export const VERBATIM_ALLOWED_WORDS: ReadonlySet<string> = new Set([
   // Brand and product names, untranslated in every locale FixLang ships.
   "OpenAI",
   "OpenRouter",
+  "Anthropic",
   "Ollama",
   "LM",
   "Studio",

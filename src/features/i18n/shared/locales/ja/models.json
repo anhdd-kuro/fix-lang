@@ -85,6 +85,7 @@
   "models.select.optionLabel.local": "{id}, {createdAt}, {size}",
   "models.select.placeholder": "モデルを選択",
   "models.select.placeholder.noProviders": "プロバイダーを接続してモデルを選択してください",
+  "models.select.provider.anthropic": "Anthropic",
   "models.select.provider.bedrock": "AWS Bedrock（Amazon Bedrock）",
   "models.select.provider.lmstudio": "LM Studio",
   "models.select.provider.ollama": "Ollama",

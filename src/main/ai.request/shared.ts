@@ -39,6 +39,7 @@ import type { Model, ProviderId } from "~/features/providers/store/apiStore";
 const PROVIDER_NAME_KEYS = {
   openai: "models.select.provider.openai",
   openrouter: "models.select.provider.openrouter",
+  anthropic: "models.select.provider.anthropic",
   ollama: "models.select.provider.ollama",
   lmstudio: "models.select.provider.lmstudio",
   bedrock: "models.select.provider.bedrock",

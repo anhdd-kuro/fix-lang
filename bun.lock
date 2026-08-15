@@ -6,6 +6,7 @@
       "name": "fix-lang",
       "dependencies": {
         "@ai-sdk/amazon-bedrock": "^5.0.35",
+        "@ai-sdk/anthropic": "4.0.23",
         "@ai-sdk/openai": "4.0.20",
         "@aws-sdk/client-bedrock": "^3.1097.0",
         "@tanstack/react-virtual": "3.14.8",

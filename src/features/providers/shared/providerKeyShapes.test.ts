@@ -10,6 +10,8 @@ const OPENROUTER = "sk-or-v1-0123456789abcdef";
 const OPENAI_PROJECT = "sk-proj-0123456789abcdef";
 const OPENAI_ADMIN = "sk-admin-0123456789abcdef";
 const OPENAI_LEGACY = "sk-0123456789abcdef";
+const ANTHROPIC = "sk-ant-api03-0123456789abcdef";
+const ANTHROPIC_ADMIN = "sk-ant-admin01-0123456789abcdef";
 
 describe("describeKeyShape", () => {
   it("identifies each provider prefix", () => {
@@ -17,6 +19,10 @@ describe("describeKeyShape", () => {
       [OPENROUTER, "openrouter"],
       [OPENAI_PROJECT, "openai-project"],
       [OPENAI_ADMIN, "openai-admin"],
+      [ANTHROPIC, "anthropic"],
+      // One shape covers both Anthropic kinds: FixLang stores only the request
+      // key, and an admin key is just as foreign in every other slot.
+      [ANTHROPIC_ADMIN, "anthropic"],
     ];
     for (const [raw, shape] of cases) {
       expect(describeKeyShape(raw)).toBe(shape);
@@ -67,11 +73,32 @@ describe("findKeyShapeMismatch", () => {
     ).toBe("sk-admin-");
   });
 
+  it("refuses an Anthropic key in an OpenAI or OpenRouter slot", () => {
+    for (const slot of ["api", "provisioning"] as const) {
+      expect(findKeyShapeMismatch("openai", slot, ANTHROPIC)?.shape).toBe("anthropic");
+      expect(findKeyShapeMismatch("openrouter", slot, ANTHROPIC)?.shape).toBe("anthropic");
+    }
+  });
+
+  it("refuses another provider's key in Anthropic's slot", () => {
+    expect(findKeyShapeMismatch("anthropic", "api", OPENROUTER)).toEqual({
+      shape: "openrouter",
+      expectedPrefix: "sk-ant-",
+    });
+    expect(findKeyShapeMismatch("anthropic", "api", OPENAI_PROJECT)?.shape).toBe(
+      "openai-project",
+    );
+    expect(findKeyShapeMismatch("anthropic", "api", OPENAI_ADMIN)?.shape).toBe(
+      "openai-admin",
+    );
+  });
+
   it("accepts every key in its own slot", () => {
     expect(findKeyShapeMismatch("openrouter", "api", OPENROUTER)).toBeNull();
     expect(findKeyShapeMismatch("openrouter", "provisioning", OPENROUTER)).toBeNull();
     expect(findKeyShapeMismatch("openai", "api", OPENAI_PROJECT)).toBeNull();
     expect(findKeyShapeMismatch("openai", "provisioning", OPENAI_ADMIN)).toBeNull();
+    expect(findKeyShapeMismatch("anthropic", "api", ANTHROPIC)).toBeNull();
   });
 
   it("accepts an unrecognized format anywhere", () => {

@@ -413,7 +413,7 @@ export const registerApiHandlers = (): void => {
         return {
           success: false,
           error: messageLabel("models.providerSetup.error.apiKeyRequiredFirst", {
-            provider: payload.provider === "openai" ? "OpenAI" : "OpenRouter",
+            provider: PROVIDER_LOG_LABELS[payload.provider],
           }),
         };
       }
@@ -614,7 +614,7 @@ export const registerApiHandlers = (): void => {
           return {
             success: false,
             error: messageLabel("models.providerSetup.error.apiKeyRequired", {
-              provider: payload.provider === "openai" ? "OpenAI" : "OpenRouter",
+              provider: PROVIDER_LOG_LABELS[payload.provider],
             }),
           };
         }
