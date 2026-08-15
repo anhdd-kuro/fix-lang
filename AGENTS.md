@@ -4,7 +4,7 @@
 
 Local macOS menu-bar app: fixes grammar and improves writing on selected text via AI (OpenAI, OpenRouter, AWS Bedrock, Ollama, LM Studio). Electron + React + TypeScript, runs on **bun**.
 
-Current release: **v0.26.0**.
+Current release: **v0.31.0**.
 
 ## Main Features
 
@@ -298,5 +298,6 @@ Project-specific traps under `.claude/skills/fixlang/`:
 - [Theme mapping](.claude/skills/fixlang/fixlang-theme-mapping/SKILL.md) — derive-ladder + composite-alpha strategy; run `bun run themes:generate` after theme .ts edits, then `bun run test` to validate all 149 themes.
 - [Package upgrade](.claude/skills/fixlang/fixlang-pkg-upgrade/SKILL.md) — wave-based bun upgrades; pin TypeScript to 6.x; Electron 43+ requires main/preload CommonJS (`.cjs`) or app shows white screen; unset `ELECTRON_RUN_AS_NODE` when launching Electron from Cursor's terminal.
 - [Release + Homebrew](.claude/skills/fixlang/fixlang-release-homebrew/SKILL.md) — release trigger + orphan-tag resume; release Test step needs Node 24 on macos-14 (`node:sqlite` builtin); tap cask write uses `jq -je` (not `-er`); `brew style/audit` need a registered tap + `#{version}` URL + `depends_on :macos`; genuine-release-only `brew upgrade` proof.
+- [Settings panel writes](.claude/skills/fixlang/fixlang-settings-writes/SKILL.md) — every `Setting*.tsx` persists the WHOLE settings object, so overlapping writes clobber, a writer-computed rollback target is never trustworthy, and a value the store REJECTED can ride into the next write and become real. Serialize per store; claim the status line at the user's action and never re-claim late. The renderer harness hides all of it — a dispatched click on a controlled checkbox makes zero writes and still reports green.
 - [Security guard rails](.claude/skills/fixlang/fixlang-security-guards/SKILL.md) — clipboard age carries an ORIGIN (a baseline is a lower bound, not an age); the age guards CONFIRM rather than block because an identical re-copy is indistinguishable from no copy; `SECRET_SEND_SITE_POLICY` is the one table; restore enforces multiplicity and non-relocation; and every natural log key in the feature is blanked by `redactLogContext`.
 - [Bundle externals](.claude/skills/fixlang/fixlang-bundle-externals/SKILL.md) — `app.asar` ships no `node_modules`; a new runtime dependency must be Vite-inlined or it dies at launch in a packaged build only, never in `dev`/`test`/`lint`. Run `bun run check:bundle` after `bun run build`.

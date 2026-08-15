@@ -11,7 +11,12 @@
  * TypeScript type, which only holds at compile time. Never bypass this —
  * every IPC boundary in this app validates independently on both sides.
  */
-import { ipcRenderer } from "electron";
+import { ipcRenderer, webUtils } from "electron";
+import {
+  MAX_APP_BUNDLE_PATHS,
+  hasAppBundlePathShape,
+  isAppBundleIdsResult,
+} from "~/features/guards/shared/appBundleIds";
 import {
   MAX_BUNDLE_ID_LENGTH,
   MAX_DENIED_BUNDLE_IDS,
@@ -22,8 +27,9 @@ import {
   isSecurityStats,
   isSecurityStatsRange,
 } from "~/features/guards/shared/securityStats";
-import { textLabel, type Label } from "~/features/i18n/shared/message";
+import { messageLabel, textLabel, type Label } from "~/features/i18n/shared/message";
 import { asLabel } from "~/features/settings/preload/ipcLabel";
+import type { AppBundleIdsResult } from "~/features/guards/shared/appBundleIds";
 import type { SelectionGuardSettings } from "~/features/guards/shared/guardSettings";
 import type {
   SecurityStats,
@@ -117,6 +123,56 @@ export const selectionGuardsFeature = {
   getRecentActiveApps: async (): Promise<ActiveApp[]> => {
     const result: unknown = await ipcRenderer.invoke("get-recent-active-apps");
     return Array.isArray(result) && result.every(isActiveApp) ? result : [];
+  },
+
+  /**
+   * The renderer cannot read a dropped file's path itself — Electron 43
+   * removed `File.path` — so `webUtils.getPathForFile` is exposed here, at the
+   * preload boundary, rather than reached for in React. Returns `null` for
+   * anything that is not a `File` or whose path does not look like an `.app`
+   * bundle, so a stray text file drop is reported to the user instead of being
+   * sent to main as a path it will only reject.
+   */
+  getAppBundlePathForFile: (file: unknown): string | null => {
+    try {
+      // `instanceof File` is NOT the guard here: the object arrives from the
+      // renderer's world through `contextBridge`, so its prototype is not this
+      // context's `File` and the check would reject every real drop. The cast
+      // is narrowed by what follows instead — a throw and a non-`.app` result
+      // both come back as `null`.
+      const filePath = webUtils.getPathForFile(file as File);
+      return hasAppBundlePathShape(filePath) ? filePath : null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Resolves dropped `.app` paths to bundle ids. The list is bounded and every
+   * entry shape-checked here, then INDEPENDENTLY re-validated (plus checked
+   * for existence) in main — this boundary cannot trust its own caller's
+   * TypeScript types at runtime, and main cannot trust this boundary.
+   */
+  resolveAppBundleIds: async (paths: readonly string[]): Promise<AppBundleIdsResult> => {
+    if (
+      !Array.isArray(paths) ||
+      paths.length > MAX_APP_BUNDLE_PATHS ||
+      !paths.every(hasAppBundlePathShape)
+    ) {
+      return { success: false, error: messageLabel("security.deniedApps.dropInvalid") };
+    }
+    const result: unknown = await ipcRenderer.invoke("resolve-app-bundle-ids", [...paths]);
+    return isAppBundleIdsResult(result)
+      ? result
+      : { success: false, error: textLabel("Malformed app bundle ids reply") };
+  },
+
+  /** Opens the native `.app` picker in main and returns the chosen bundle ids. */
+  chooseDeniedApps: async (): Promise<AppBundleIdsResult> => {
+    const result: unknown = await ipcRenderer.invoke("choose-denied-apps");
+    return isAppBundleIdsResult(result)
+      ? result
+      : { success: false, error: textLabel("Malformed app bundle ids reply") };
   },
 
   /**

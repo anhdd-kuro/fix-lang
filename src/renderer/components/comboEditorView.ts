@@ -15,7 +15,13 @@ import {
   validateCombo,
   type ComboValidationError,
 } from "~/features/correction/shared/comboValidation";
-import { msg, type Message } from "~/features/i18n/shared/message";
+import {
+  messageLabel,
+  msg,
+  textLabel,
+  type Label,
+  type Message,
+} from "~/features/i18n/shared/message";
 import type {
   ComboPreset,
   ComboStep,
@@ -307,3 +313,129 @@ export const collectComboErrors = (
 
 export const hasBlockingComboErrors = (errorsById: ComboErrorsById): boolean =>
   errorsById.size > 0;
+
+// --- Tab strip: labels, error markers, selection -------------------------
+
+/** The subset of a combo the tab strip reads. Keeps these helpers cheap to call from tests. */
+type ComboTabSource = Pick<ComboPreset, "id" | "name">;
+
+/**
+ * A tab's visible name. A user-authored name is verbatim user data and must
+ * never pass through `t()`; a blank name falls back to translated UI chrome
+ * numbered by the combo's 1-based position. `Label`'s tagged union is what
+ * keeps those two cases distinguishable — see `message.ts`.
+ */
+export const comboTabLabel = (name: string, index: number): Label =>
+  name.trim().length > 0
+    ? textLabel(name)
+    : messageLabel("settings.correction.combos.tabFallbackName", {
+        number: index + 1,
+      });
+
+export type ComboTabDescriptor = {
+  comboId: string;
+  label: Label;
+  /**
+   * Only ONE combo's editor is mounted at a time, so an invalid combo on a
+   * hidden tab has no inline errors on screen. This flag is what keeps the
+   * Save-blocked banner actionable: the tab strip marks which combo to open.
+   */
+  hasErrors: boolean;
+};
+
+export const buildComboTabs = (
+  combos: readonly ComboTabSource[],
+  errorsById: ComboErrorsById,
+): ComboTabDescriptor[] =>
+  combos.map((combo, index) => ({
+    comboId: combo.id,
+    label: comboTabLabel(combo.name, index),
+    hasErrors: (errorsById.get(combo.id)?.length ?? 0) > 0,
+  }));
+
+/**
+ * Keeps a selected combo id valid against the combos that actually exist.
+ * `loadSettings` re-runs on every `settings-updated` broadcast, and a profile
+ * switch can replace the whole combo list — a selection tracked by id would
+ * otherwise survive as a stale id and render an empty tab body. Falls back to
+ * the first combo, or `null` when the profile has none.
+ */
+export const reconcileSelectedComboId = (
+  combos: readonly ComboTabSource[],
+  selectedComboId: string | null,
+): string | null => {
+  if (combos.length === 0) return null;
+  if (
+    selectedComboId !== null &&
+    combos.some((combo) => combo.id === selectedComboId)
+  ) {
+    return selectedComboId;
+  }
+  return combos[0].id;
+};
+
+/**
+ * The selection to keep once `removedComboId` is deleted, computed against the
+ * list as it stood BEFORE the removal. Deleting the selected tab lands on its
+ * right-hand neighbour (or the new last combo when it was rightmost); deleting
+ * any other tab leaves the selection where it was. `null` when nothing remains.
+ */
+export const selectedComboIdAfterRemoval = (
+  combos: readonly ComboTabSource[],
+  removedComboId: string,
+  selectedComboId: string | null,
+): string | null => {
+  const remaining = combos.filter((combo) => combo.id !== removedComboId);
+  if (remaining.length === 0) return null;
+  if (selectedComboId !== removedComboId) {
+    return reconcileSelectedComboId(remaining, selectedComboId);
+  }
+
+  const removedIndex = combos.findIndex((combo) => combo.id === removedComboId);
+  const neighbourIndex = Math.min(
+    Math.max(removedIndex, 0),
+    remaining.length - 1,
+  );
+  return remaining[neighbourIndex].id;
+};
+
+/** Roving-focus moves the tab strip answers to, mapped from Left/Right/Home/End. */
+export type ComboTabMove = "previous" | "next" | "first" | "last";
+
+/** Arrow keys wrap around the strip, matching the WAI-ARIA tabs pattern. */
+export const comboTabIndexAfterMove = (
+  currentIndex: number,
+  tabCount: number,
+  move: ComboTabMove,
+): number => {
+  if (tabCount <= 0) return -1;
+  const safeIndex =
+    currentIndex >= 0 && currentIndex < tabCount ? currentIndex : 0;
+
+  switch (move) {
+    case "first":
+      return 0;
+    case "last":
+      return tabCount - 1;
+    case "previous":
+      return (safeIndex - 1 + tabCount) % tabCount;
+    case "next":
+      return (safeIndex + 1) % tabCount;
+  }
+};
+
+/** Maps a keyboard event's `key` to a tab move, or `null` for keys the strip ignores. */
+export const comboTabMoveForKey = (key: string): ComboTabMove | null => {
+  switch (key) {
+    case "ArrowLeft":
+      return "previous";
+    case "ArrowRight":
+      return "next";
+    case "Home":
+      return "first";
+    case "End":
+      return "last";
+    default:
+      return null;
+  }
+};

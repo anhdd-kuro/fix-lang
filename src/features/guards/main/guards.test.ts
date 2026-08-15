@@ -5,18 +5,24 @@ import {
 } from "~/features/guards/shared/guardSettings";
 import { registerSelectionGuardHandlers } from "./guards";
 
-const { electronMocks, guardStoreMocks, recentActiveAppsMocks } = vi.hoisted(() => ({
-  electronMocks: { handle: vi.fn() },
-  guardStoreMocks: {
-    getSelectionGuardSettings: vi.fn(),
-    setSelectionGuardSettings: vi.fn(),
-  },
-  recentActiveAppsMocks: { getRecentActiveApps: vi.fn() },
-}));
+const { electronMocks, guardStoreMocks, recentActiveAppsMocks, appBundleIdMocks } =
+  vi.hoisted(() => ({
+    electronMocks: { handle: vi.fn(), showOpenDialog: vi.fn() },
+    guardStoreMocks: {
+      getSelectionGuardSettings: vi.fn(),
+      setSelectionGuardSettings: vi.fn(),
+    },
+    recentActiveAppsMocks: { getRecentActiveApps: vi.fn() },
+    appBundleIdMocks: { resolveAppBundleIds: vi.fn() },
+  }));
 
-vi.mock("electron", () => ({ ipcMain: { handle: electronMocks.handle } }));
+vi.mock("electron", () => ({
+  ipcMain: { handle: electronMocks.handle },
+  dialog: { showOpenDialog: electronMocks.showOpenDialog },
+}));
 vi.mock("~/features/guards/store/guardStore", () => ({ guardStore: guardStoreMocks }));
 vi.mock("~/main/accessibility/recentActiveApps", () => recentActiveAppsMocks);
+vi.mock("~/features/guards/main/appBundleIds", () => appBundleIdMocks);
 
 type Handler = (event: unknown, raw?: unknown) => unknown;
 
@@ -184,6 +190,69 @@ describe("registerSelectionGuardHandlers", () => {
       const result = await getHandler("get-recent-active-apps")(undefined);
 
       expect(result).toEqual(apps);
+    });
+  });
+
+  describe("resolve-app-bundle-ids", () => {
+    /**
+     * The handler must NOT pre-filter, sanitize or repair the payload before
+     * handing it over: `resolveAppBundleIds` is where "reject, never coerce"
+     * lives, and a second, laxer copy of that rule here is exactly how a
+     * validated path stops being validated.
+     */
+    it("hands the raw renderer payload straight to the resolver", async () => {
+      const failure = { success: false, error: { kind: "text", text: "nope" } };
+      appBundleIdMocks.resolveAppBundleIds.mockResolvedValue(failure);
+
+      const result = await getHandler("resolve-app-bundle-ids")(undefined, ["../evil"]);
+
+      expect(appBundleIdMocks.resolveAppBundleIds).toHaveBeenCalledWith(["../evil"]);
+      expect(result).toEqual(failure);
+    });
+  });
+
+  describe("choose-denied-apps", () => {
+    it("opens a multi-select .app picker rooted at /Applications", async () => {
+      electronMocks.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] });
+
+      await getHandler("choose-denied-apps")(undefined);
+
+      expect(electronMocks.showOpenDialog).toHaveBeenCalledWith({
+        properties: ["openFile", "multiSelections"],
+        filters: [{ name: "Applications", extensions: ["app"] }],
+        defaultPath: "/Applications",
+      });
+    });
+
+    // Cancelling is the user changing their mind, not a failure to report.
+    it("reports a cancelled dialog as a success with no ids, without resolving anything", async () => {
+      electronMocks.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] });
+
+      const result = await getHandler("choose-denied-apps")(undefined);
+
+      expect(result).toEqual({ success: true, bundleIds: [] });
+      expect(appBundleIdMocks.resolveAppBundleIds).not.toHaveBeenCalled();
+    });
+
+    // Main picked these paths itself, and they STILL go through the one
+    // resolver — the "existing .app with a readable identifier" rule has a
+    // single implementation, not one per entry point.
+    it("resolves the picked paths through the same resolver a drop uses", async () => {
+      electronMocks.showOpenDialog.mockResolvedValue({
+        canceled: false,
+        filePaths: ["/Applications/Slack.app"],
+      });
+      appBundleIdMocks.resolveAppBundleIds.mockResolvedValue({
+        success: true,
+        bundleIds: ["com.tinyspeck.slackmacgap"],
+      });
+
+      const result = await getHandler("choose-denied-apps")(undefined);
+
+      expect(appBundleIdMocks.resolveAppBundleIds).toHaveBeenCalledWith([
+        "/Applications/Slack.app",
+      ]);
+      expect(result).toEqual({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] });
     });
   });
 });

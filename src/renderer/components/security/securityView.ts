@@ -21,10 +21,12 @@
  */
 import {
   isBundleIdDenied,
+  MAX_DENIED_BUNDLE_IDS,
   normalizeBundleId,
 } from "~/features/guards/shared/guardSettings";
 import { plainStatus, type StatusDescriptor } from "../statusDescriptor";
 import type { SelectionGuardSettings } from "~/features/guards/shared/guardSettings";
+import type { MessageKey } from "~/features/i18n/shared/message";
 import type { SecretGuardSettings } from "~/features/secretGuard/shared/secretGuardSettings";
 import type { ActiveApp } from "~/main/accessibility/activeApp";
 
@@ -119,6 +121,25 @@ const resolveSecretGuardView = (
     settings.mode === "mask" ? plainStatus("security.secretGuard.maskHint") : null,
 });
 
+/**
+ * The "What this can and can't do" points, in the order they are shown.
+ *
+ * One key per claim, rather than one paragraph holding all five: the panel
+ * renders them as a list, and a reader who skips the block entirely should
+ * still be able to see how many separate limitations there are. The ORDER is
+ * meaning-bearing — what the check is (a pattern match), then the surprising
+ * mask behaviour, then its scope, then that it cannot be undone, then the one
+ * path that cannot ask at all — so it lives here beside the rest of the
+ * derivation instead of being re-listed at each call site.
+ */
+export const SECRET_GUARD_LIMITATION_KEYS: readonly MessageKey[] = [
+  "security.secretGuard.limitations.patternCheck",
+  "security.secretGuard.limitations.partialMask",
+  "security.secretGuard.limitations.scope",
+  "security.secretGuard.limitations.noUndo",
+  "security.secretGuard.limitations.autocomplete",
+];
+
 /** Assembles the full pure view from the two loaded settings objects plus the recent-apps MRU. */
 export const resolveSecurityView = (
   guardSettings: SelectionGuardSettings,
@@ -133,22 +154,75 @@ export const resolveSecurityView = (
 
 /**
  * Adds a bundle id to the deny-list, immutably. A no-op (returns the SAME
- * settings reference) for an invalid id or one already denied — the latter
+ * settings reference) for an invalid id, one already denied — the latter
  * checked via `isBundleIdDenied` rather than a raw membership test, for the
- * same reason `resolveDeniedAppsView` above uses it.
+ * same reason `resolveDeniedAppsView` above uses it — or one that would push
+ * the list past `MAX_DENIED_BUNDLE_IDS`.
+ *
+ * The cap is enforced HERE, not only at the caller, because
+ * `set-selection-guards` rejects an over-cap payload as malformed and fails
+ * the WHOLE write. Growing the list past the cap in the renderer therefore
+ * does not persist 200 entries and drop the rest — it persists nothing, and
+ * the user is told their settings failed to save.
  */
 export const withDeniedBundleId = (
   settings: SelectionGuardSettings,
   rawBundleId: string,
 ): SelectionGuardSettings => {
   const normalized = normalizeBundleId(rawBundleId);
-  if (normalized === null || isBundleIdDenied(normalized, settings.deniedBundleIds)) {
+  if (
+    normalized === null ||
+    isBundleIdDenied(normalized, settings.deniedBundleIds) ||
+    settings.deniedBundleIds.length >= MAX_DENIED_BUNDLE_IDS
+  ) {
     return settings;
   }
   return {
     ...settings,
     deniedBundleIds: [...settings.deniedBundleIds, normalized],
   };
+};
+
+/**
+ * Outcome of a bulk add. `droppedForCapacity` counts ids that were valid and
+ * not already denied but did not fit under `MAX_DENIED_BUNDLE_IDS` — the
+ * caller reports that rather than letting a picker selection appear to
+ * succeed while silently blocking fewer apps than the user chose.
+ */
+export type DeniedBundleIdsAddition = {
+  settings: SelectionGuardSettings;
+  droppedForCapacity: number;
+};
+
+/**
+ * Adds several bundle ids in one immutable step — the shape a file-dialog
+ * multi-selection or a multi-file drop arrives in. Folds `withDeniedBundleId`,
+ * so duplicates, non-canonical casing, invalid entries and the cap are all
+ * handled by the same single rule, and returns the SAME settings reference
+ * when nothing was added, which is what lets the caller skip a pointless
+ * store write.
+ */
+export const withDeniedBundleIds = (
+  settings: SelectionGuardSettings,
+  rawBundleIds: readonly string[],
+): DeniedBundleIdsAddition => {
+  let current = settings;
+  let droppedForCapacity = 0;
+
+  for (const rawBundleId of rawBundleIds) {
+    const next = withDeniedBundleId(current, rawBundleId);
+    // Distinguishes "did not fit" from "invalid or already denied": only the
+    // former is worth telling the user about, and only a full list can cause it.
+    if (next === current && current.deniedBundleIds.length >= MAX_DENIED_BUNDLE_IDS) {
+      const normalized = normalizeBundleId(rawBundleId);
+      if (normalized !== null && !isBundleIdDenied(normalized, current.deniedBundleIds)) {
+        droppedForCapacity += 1;
+      }
+    }
+    current = next;
+  }
+
+  return { settings: current, droppedForCapacity };
 };
 
 /**

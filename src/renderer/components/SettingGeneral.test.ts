@@ -603,7 +603,7 @@ describe("SettingGeneral", () => {
       tEn("settings.autocomplete.enabled.label"),
     );
     expect(container.textContent).not.toContain(
-      tEn("settings.autocomplete.privacy.hint"),
+      tEn("settings.autocomplete.privacy.typing"),
     );
     expect(container.textContent).not.toContain(
       tEn("settings.autocomplete.loading"),

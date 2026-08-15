@@ -14,6 +14,11 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
+  DEFAULT_DENIED_BUNDLE_IDS,
+  DEFAULT_MAX_SELECTION_CHARS,
+} from "~/features/guards/shared/guardSettings";
 import { DEFAULT_SECRET_GUARD_SETTINGS } from "~/features/secretGuard/shared/secretGuardSettings";
 import { SettingSecurity } from "./SettingSecurity";
 import { I18nProvider } from "../../i18n/I18nProvider";
@@ -61,6 +66,9 @@ describe("SettingSecurity", () => {
       getRecentActiveApps: vi.fn().mockResolvedValue([]),
       getSecretGuardSettings: vi.fn().mockResolvedValue(DEFAULT_SECRET_GUARD_SETTINGS),
       setSecretGuardSettings: vi.fn().mockResolvedValue({ success: true }),
+      chooseDeniedApps: vi.fn().mockResolvedValue({ success: true, bundleIds: [] }),
+      resolveAppBundleIds: vi.fn().mockResolvedValue({ success: true, bundleIds: [] }),
+      getAppBundlePathForFile: vi.fn().mockReturnValue(null),
       getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
       setLocale: vi.fn().mockResolvedValue({ success: true }),
       onLocaleChanged: vi.fn((callback: (locale: Locale) => void) => {
@@ -392,6 +400,709 @@ describe("SettingSecurity", () => {
     expect(container.textContent).toContain(
       "the secret guard settings failed to save and were left unchanged",
     );
+  });
+
+  /** Fires the click WITHOUT flushing, so a still-pending handler stays pending. */
+  const clickButtonLabelledSync = (label: string): void => {
+    const button = [...container.querySelectorAll("button")].find(
+      (candidate) => candidate.textContent === label,
+    );
+    if (!button) throw new Error(`Expected a "${label}" button`);
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  };
+
+  const clickButtonLabelled = async (label: string): Promise<void> => {
+    await act(async () => {
+      clickButtonLabelledSync(label);
+    });
+    await waitForUi();
+    await waitForUi();
+  };
+
+  /** A drop carrying `files`, which jsdom's `Event` does not model on its own. */
+  const dropFilesOnBlockedApps = async (files: readonly unknown[]): Promise<void> => {
+    const section = container.querySelector("section");
+    if (!section) throw new Error("Expected the blocked-apps section");
+    const dropEvent = new Event("drop", { bubbles: true });
+    Object.defineProperty(dropEvent, "dataTransfer", { value: { files } });
+    await act(async () => {
+      section.dispatchEvent(dropEvent);
+    });
+    await waitForUi();
+    await waitForUi();
+  };
+
+  it("adds the bundle ids picked in the native app chooser", async () => {
+    await render({
+      chooseDeniedApps: vi
+        .fn()
+        .mockResolvedValue({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] }),
+    });
+
+    await clickButtonLabelled("Choose app…");
+
+    expect(api.chooseDeniedApps).toHaveBeenCalled();
+    expect(api.setSelectionGuards).toHaveBeenCalledWith({
+      ...defaultGuardSettings(),
+      deniedBundleIds: ["com.1password.1password", "com.tinyspeck.slackmacgap"],
+    });
+  });
+
+  // Cancelling the dialog is a success with no ids: nothing to write, and
+  // nothing to tell the user about.
+  it("writes nothing when the app chooser is cancelled", async () => {
+    await render();
+
+    await clickButtonLabelled("Choose app…");
+
+    expect(api.setSelectionGuards).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Every deny-list write replaces the WHOLE settings object, and both
+   * app-picking paths are async. Two overlapping resolutions that each build
+   * on the settings captured at their own render would make the later write
+   * erase the earlier one's app — the user blocks two apps and ends up with
+   * one, with a "Saved." flash claiming otherwise. The second write must
+   * therefore carry BOTH ids.
+   */
+  it("merges a second app resolution onto the first instead of erasing it", async () => {
+    let resolveFirst: ((value: unknown) => void) | null = null;
+    const chooseDeniedApps = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockResolvedValue({ success: true, bundleIds: ["com.figma.Desktop"] });
+
+    await render({ chooseDeniedApps });
+
+    // First pick is still in flight when the second one starts and settles.
+    await act(async () => {
+      clickButtonLabelledSync("Choose app…");
+    });
+    await clickButtonLabelled("Choose app…");
+    await act(async () => {
+      resolveFirst?.({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] });
+    });
+    await waitForUi();
+
+    const written = api.setSelectionGuards.mock.calls.at(-1)?.[0] as SelectionGuardSettings;
+    expect(written.deniedBundleIds).toContain("com.figma.desktop");
+    expect(written.deniedBundleIds).toContain("com.tinyspeck.slackmacgap");
+  });
+
+  it("reports the failure from main instead of silently adding nothing", async () => {
+    await render({
+      chooseDeniedApps: vi.fn().mockResolvedValue({
+        success: false,
+        error: { kind: "message", message: { key: "security.deniedApps.dropError" } },
+      }),
+    });
+
+    await clickButtonLabelled("Choose app…");
+
+    expect(api.setSelectionGuards).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Couldn't read the bundle ID of that app.");
+  });
+
+  it("resolves dropped .app bundles through main and blocks them", async () => {
+    await render({
+      getAppBundlePathForFile: vi.fn().mockReturnValue("/Applications/Slack.app"),
+      resolveAppBundleIds: vi
+        .fn()
+        .mockResolvedValue({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] }),
+    });
+
+    await dropFilesOnBlockedApps([{}]);
+
+    expect(api.resolveAppBundleIds).toHaveBeenCalledWith(["/Applications/Slack.app"]);
+    expect(api.setSelectionGuards).toHaveBeenCalledWith({
+      ...defaultGuardSettings(),
+      deniedBundleIds: ["com.1password.1password", "com.tinyspeck.slackmacgap"],
+    });
+  });
+
+  /**
+   * `File.path` is gone in Electron 43, so a path the preload bridge cannot
+   * resolve to an `.app` yields `null`. Dropping a document must SAY so —
+   * "nothing happened" is indistinguishable from a broken feature.
+   */
+  it("tells the user when a drop carried no .app bundle, instead of doing nothing", async () => {
+    await render();
+
+    await dropFilesOnBlockedApps([{}]);
+
+    expect(api.resolveAppBundleIds).not.toHaveBeenCalled();
+    expect(api.setSelectionGuards).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Only .app bundles can be added this way.");
+  });
+
+  /**
+   * A drop is all-or-nothing, matching `resolveAppBundleIds` in main. Blocking
+   * only the resolvable half and reporting success would hide that something
+   * was ignored — and the item that vanished could be the app the user meant
+   * to block, which they would discover only by not being protected by it.
+   */
+  it("refuses the whole drop when one item is not an .app, rather than blocking the rest", async () => {
+    await render({
+      getAppBundlePathForFile: vi
+        .fn()
+        .mockReturnValueOnce("/Applications/Slack.app")
+        .mockReturnValueOnce(null),
+    });
+
+    await dropFilesOnBlockedApps([{}, {}]);
+
+    expect(api.resolveAppBundleIds).not.toHaveBeenCalled();
+    expect(api.setSelectionGuards).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Only .app bundles can be added this way.");
+  });
+
+  /**
+   * Each write optimistically installs its own `next`. An OLDER write that
+   * fails after a NEWER one succeeded must not rewind to its own pre-state:
+   * that would leave the panel showing S0 while the store holds B, and the
+   * next edit — built from the rewound state — would overwrite B for real.
+   * No response reordering is needed to reach this; W1 simply loses.
+   */
+  it("does not let a superseded failed write roll back a newer successful one", async () => {
+    const firstWrite = deferred<{ success: boolean }>();
+    const setSelectionGuards = vi
+      .fn()
+      .mockImplementationOnce(() => firstWrite.promise)
+      .mockResolvedValue({ success: true });
+
+    await render({
+      setSelectionGuards,
+      // Must actually add something, or W1 makes no write and the deferred
+      // promise would be consumed by W2 instead.
+      chooseDeniedApps: vi
+        .fn()
+        .mockResolvedValue({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] }),
+    });
+
+    // W1: block an app via the chooser. Left in flight.
+    await act(async () => {
+      clickButtonLabelledSync("Choose app…");
+    });
+
+    // W2: a newer write that succeeds — remove the pre-existing denied app.
+    const removeButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove com.1password.1password from the blocked list"]',
+    );
+    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    await act(async () => {
+      removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForUi();
+
+    // Only now does the older write fail.
+    await act(async () => {
+      firstWrite.resolve({ success: false });
+    });
+    await waitForUi();
+
+    // The removal stuck in the store, so it must still be gone from the panel.
+    // An unguarded rollback would resurrect the chip here.
+    expect(
+      container.querySelector(
+        '[aria-label="Remove com.1password.1password from the blocked list"]',
+      ),
+    ).toBeNull();
+  });
+
+  /**
+   * TWO failures in inverse order. A latest-writer rewind is not enough here:
+   * W1 installs A over S0 and stays pending; W2 installs B and fails FIRST,
+   * rewinding to its own `previous` (A); W1 then fails but is superseded, so
+   * its rewind is skipped — leaving the panel at A while the store never left
+   * S0. Reconciling from the store instead is what makes the outcome S0.
+   */
+  it("shows what the store actually holds when two writes fail in inverse order", async () => {
+    const firstWrite = deferred<{ success: boolean }>();
+    const setSelectionGuards = vi
+      .fn()
+      .mockImplementationOnce(() => firstWrite.promise)
+      .mockResolvedValue({ success: false });
+
+    await render({
+      setSelectionGuards,
+      chooseDeniedApps: vi
+        .fn()
+        .mockResolvedValue({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] }),
+    });
+
+    // W1: block Slack. Pending.
+    await act(async () => {
+      clickButtonLabelledSync("Choose app…");
+    });
+    // W2: remove the pre-existing app. Fails immediately.
+    const removeButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove com.1password.1password from the blocked list"]',
+    );
+    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    await act(async () => {
+      removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForUi();
+    // Only now does W1 fail too.
+    await act(async () => {
+      firstWrite.resolve({ success: false });
+    });
+    await waitForUi();
+    await waitForUi();
+
+    // Nothing persisted, so the panel must match the store: 1Password still
+    // blocked, Slack never added. A phantom would show the inverse.
+    const text = container.textContent ?? "";
+    expect(text).toContain("com.1password.1password");
+    expect(text).not.toContain("com.tinyspeck.slackmacgap");
+  });
+
+  /**
+   * `.click()` rather than a dispatched `MouseEvent`: only the former runs the
+   * activation behaviour that flips `checked`, and React reads `target.checked`
+   * to synthesise a checkbox's `onChange`. A dispatched event leaves the box
+   * unchanged, React dedupes it, and the write under test silently never
+   * happens — which a test asserting only the final state reports as a pass.
+   */
+  const toggleHighEntropy = async (): Promise<void> => {
+    const box = [...container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].at(0);
+    if (!box) throw new Error("Expected the high-entropy checkbox");
+    await act(async () => {
+      box.click();
+    });
+  };
+
+  /** React's `onChange` for a text/number field is the native `input` event. */
+  const typeIntoNumberField = async (id: string, value: string): Promise<void> => {
+    const field = container.querySelector<HTMLInputElement>(`#${id}`);
+    if (!field) throw new Error(`Expected the ${id} field`);
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    await act(async () => {
+      setValue?.call(field, value);
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  };
+
+  /**
+   * The write queue's reason to exist. Every write persists the WHOLE settings
+   * object, so a second write that builds on a REJECTED first one carries the
+   * rejection into the store and makes it real.
+   *
+   * W1 removes a blocked app and fails; W2 edits an unrelated scalar. If W2's
+   * payload is assembled from W1's optimistic value, W2 succeeds and persists
+   * the removal the store had refused — the app the user believes is blocked
+   * is now genuinely unblocked, by a write that reported success.
+   */
+  it("does not carry a rejected deny-list change into the next write's payload", async () => {
+    const firstWrite = deferred<{ success: boolean }>();
+    const setSelectionGuards = vi
+      .fn()
+      .mockImplementationOnce(() => firstWrite.promise)
+      .mockResolvedValue({ success: true });
+
+    await render({ setSelectionGuards });
+
+    const removeButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove com.1password.1password from the blocked list"]',
+    );
+    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    await act(async () => {
+      removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    // W2 is issued while W1 is still pending — the exact overlap the queue
+    // exists to prevent, so it must not have reached the store yet.
+    await typeIntoNumberField("security-selection-size", "1234");
+    expect(setSelectionGuards).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      firstWrite.resolve({ success: false });
+    });
+    await waitForUi();
+    await waitForUi();
+    await waitForUi();
+
+    expect(setSelectionGuards).toHaveBeenCalledTimes(2);
+    const secondPayload = setSelectionGuards.mock.calls[1]?.[0] as SelectionGuardSettings;
+    expect(secondPayload.maxSelectionChars).toBe(1234);
+    // The rejected removal must NOT be along for the ride.
+    expect(secondPayload.deniedBundleIds).toEqual(["com.1password.1password"]);
+  });
+
+  /** The secret-guard store is the other half of this panel — same contract. */
+  it("does not carry a rejected secret-guard change into the next write's payload", async () => {
+    const firstWrite = deferred<{ success: boolean }>();
+    const setSecretGuardSettings = vi
+      .fn()
+      .mockImplementationOnce(() => firstWrite.promise)
+      .mockResolvedValue({ success: true });
+    const stored = { mode: "confirm" as const, highEntropyRule: false };
+
+    await render({
+      setSecretGuardSettings,
+      getSecretGuardSettings: vi.fn().mockResolvedValue(stored),
+    });
+
+    await toggleHighEntropy(); // W1: highEntropyRule -> true, pending
+    expect(setSecretGuardSettings).toHaveBeenCalledTimes(1);
+    expect(setSecretGuardSettings.mock.calls[0]?.[0]).toEqual({
+      mode: "confirm",
+      highEntropyRule: true,
+    });
+
+    await clickButtonLabelled("Mask and restore"); // W2, queued behind W1
+    expect(setSecretGuardSettings).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      firstWrite.resolve({ success: false });
+    });
+    await waitForUi();
+    await waitForUi();
+    await waitForUi();
+
+    expect(setSecretGuardSettings).toHaveBeenCalledTimes(2);
+    // `highEntropyRule` must come from the store, not from W1's rejection.
+    expect(setSecretGuardSettings.mock.calls[1]?.[0]).toEqual({
+      mode: "mask",
+      highEntropyRule: false,
+    });
+  });
+
+  /**
+   * When the re-read after a failed write ALSO fails, the panel is showing a
+   * value the store rejected and has no way to learn the real one. Persisting
+   * a whole object assembled around that phantom would make it real, so the
+   * next write must refuse rather than guess.
+   */
+  it("refuses the next write when the post-failure re-read also fails", async () => {
+    const setSelectionGuards = vi.fn().mockResolvedValue({ success: false });
+    const getSelectionGuards = vi
+      .fn()
+      .mockResolvedValueOnce(defaultGuardSettings()) // initial load
+      .mockRejectedValue(new Error("store unreadable"));
+
+    await render({ setSelectionGuards, getSelectionGuards });
+
+    const removeButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove com.1password.1password from the blocked list"]',
+    );
+    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    await act(async () => {
+      removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForUi();
+    await waitForUi();
+    expect(setSelectionGuards).toHaveBeenCalledTimes(1);
+
+    await typeIntoNumberField("security-selection-size", "1234");
+    await waitForUi();
+    await waitForUi();
+    await waitForUi();
+
+    // One more re-read attempt is allowed; a second WRITE is not.
+    expect(setSelectionGuards).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("Couldn't save");
+  });
+
+  /**
+   * The refusal above must not extend to Restore defaults. Restore does not
+   * read the current settings, so it has no rejected value to carry into the
+   * store — and it is precisely the control a user reaches for when the panel
+   * has wedged. Gating it on a readable store would disable the only way out.
+   */
+  it("still restores defaults when the store cannot be read", async () => {
+    const setSelectionGuards = vi
+      .fn()
+      .mockResolvedValueOnce({ success: false }) // wedges the base
+      .mockResolvedValue({ success: true });
+    const getSelectionGuards = vi
+      .fn()
+      .mockResolvedValueOnce(defaultGuardSettings()) // initial load
+      .mockRejectedValue(new Error("store unreadable"));
+
+    await render({ setSelectionGuards, getSelectionGuards });
+
+    const removeButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove com.1password.1password from the blocked list"]',
+    );
+    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    await act(async () => {
+      removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForUi();
+    await waitForUi();
+
+    await clickButtonLabelled("Restore defaults");
+    await waitForUi();
+    await waitForUi();
+
+    expect(setSelectionGuards).toHaveBeenCalledTimes(2);
+    expect(setSelectionGuards.mock.calls[1]?.[0]).toEqual({
+      clipboardMaxAgeSeconds: DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
+      maxSelectionChars: DEFAULT_MAX_SELECTION_CHARS,
+      deniedBundleIds: [...DEFAULT_DENIED_BUNDLE_IDS],
+    });
+
+    // A successful setter is authoritative on its own: the store now holds
+    // what the panel shows, so the next ordinary edit must go through rather
+    // than being refused for want of a read that still is not possible.
+    await typeIntoNumberField("security-selection-size", "4321");
+    await waitForUi();
+    await waitForUi();
+
+    expect(setSelectionGuards).toHaveBeenCalledTimes(3);
+    expect((setSelectionGuards.mock.calls[2]?.[0] as SelectionGuardSettings).maxSelectionChars).toBe(
+      4321,
+    );
+  });
+
+  /**
+   * A drop resolves through main, which can take a while. When it finally
+   * lands it is an OLD action finishing late — it must report under the claim
+   * taken when the files were dropped, not seize ownership afresh, or it will
+   * narrate "Saved." over a failure the user caused in the meantime.
+   */
+  it("does not let a slow drop's success overwrite a newer edit's failure", async () => {
+    const resolution = deferred<{ success: boolean; bundleIds: string[] }>();
+    const setSelectionGuards = vi
+      .fn()
+      .mockResolvedValueOnce({ success: false }) // the newer edit
+      .mockResolvedValue({ success: true }); // the drop's add, landing later
+
+    await render({
+      setSelectionGuards,
+      getAppBundlePathForFile: vi.fn().mockReturnValue("/Applications/Slack.app"),
+      resolveAppBundleIds: vi.fn().mockImplementation(() => resolution.promise),
+    });
+
+    await dropFilesOnBlockedApps([{ name: "Slack.app" }]);
+
+    // Newer edit fails while the drop is still resolving.
+    const removeButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove com.1password.1password from the blocked list"]',
+    );
+    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    await act(async () => {
+      removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForUi();
+    await waitForUi();
+    expect(container.textContent).toContain("Couldn't save");
+
+    await act(async () => {
+      resolution.resolve({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] });
+    });
+    await waitForUi();
+    await waitForUi();
+    await waitForUi();
+
+    // The add still happens — only its narration is outranked.
+    expect(setSelectionGuards).toHaveBeenCalledTimes(2);
+    expect(container.textContent).not.toContain("Saved.");
+    expect(container.textContent).toContain("Couldn't save");
+  });
+
+  /**
+   * The native chooser is the same shape of hazard as the drop above, and for
+   * a sharper reason: `dialog.showOpenDialog` is called with no parent window
+   * (`src/features/guards/main/guards.ts`), so it is NOT modal — the panel
+   * stays editable for as long as the dialog sits open. A pick made minutes
+   * later is still an older action than an edit made in between.
+   */
+  it("does not let a slow app chooser's success overwrite a newer edit's failure", async () => {
+    const picked = deferred<{ success: boolean; bundleIds: string[] }>();
+    const setSelectionGuards = vi
+      .fn()
+      .mockResolvedValueOnce({ success: false }) // the newer edit
+      .mockResolvedValue({ success: true }); // the chooser's add, landing later
+
+    await render({
+      setSelectionGuards,
+      chooseDeniedApps: vi.fn().mockImplementation(() => picked.promise),
+    });
+
+    await act(async () => {
+      clickButtonLabelledSync("Choose app…");
+    });
+    await waitForUi();
+
+    const removeButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove com.1password.1password from the blocked list"]',
+    );
+    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    await act(async () => {
+      removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForUi();
+    await waitForUi();
+    expect(container.textContent).toContain("Couldn't save");
+
+    await act(async () => {
+      picked.resolve({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] });
+    });
+    await waitForUi();
+    await waitForUi();
+    await waitForUi();
+
+    expect(setSelectionGuards).toHaveBeenCalledTimes(2);
+    expect(container.textContent).not.toContain("Saved.");
+    expect(container.textContent).toContain("Couldn't save");
+  });
+
+  /**
+   * Completions are not ordered. An older success finishing last must not
+   * overwrite a newer failure's message with "Saved." — the live region would
+   * then announce success for a write that did not happen.
+   */
+  it("does not let an older success overwrite a newer failure's status", async () => {
+    const firstWrite = deferred<{ success: boolean }>();
+    const setSelectionGuards = vi
+      .fn()
+      .mockImplementationOnce(() => firstWrite.promise)
+      .mockResolvedValue({ success: false });
+
+    await render({
+      setSelectionGuards,
+      chooseDeniedApps: vi
+        .fn()
+        .mockResolvedValue({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] }),
+    });
+
+    await act(async () => {
+      clickButtonLabelledSync("Choose app…");
+    });
+    const removeButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove com.1password.1password from the blocked list"]',
+    );
+    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    await act(async () => {
+      removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForUi();
+    // The OLDER write now succeeds, after the newer one already failed.
+    await act(async () => {
+      firstWrite.resolve({ success: true });
+    });
+    await waitForUi();
+    await waitForUi();
+
+    expect(container.textContent).not.toContain("Saved.");
+  });
+
+  /**
+   * Status ownership has to cover EVERY mutation, not just the two ordinary
+   * persistence wrappers. Restore writes both stores, so it can still be
+   * in flight long after a later edit has finished and reported; when it
+   * finally lands it must not narrate over that newer outcome.
+   */
+  it("does not let a still-pending restore overwrite a newer edit's status", async () => {
+    const secretWrite = deferred<{ success: boolean }>();
+    await render({
+      setSecretGuardSettings: vi.fn().mockImplementation(() => secretWrite.promise),
+    });
+
+    await act(async () => {
+      clickButtonLabelledSync("Restore defaults");
+    });
+    await waitForUi();
+
+    // A newer edit finishes while the restore's secret write is still open.
+    const removeButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove com.1password.1password from the blocked list"]',
+    );
+    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    await act(async () => {
+      removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForUi();
+    await waitForUi();
+    expect(container.textContent).toContain("Saved.");
+
+    await act(async () => {
+      secretWrite.resolve({ success: false });
+    });
+    await waitForUi();
+    await waitForUi();
+
+    expect(container.textContent).not.toContain("Restore only partly worked");
+  });
+
+  /**
+   * The capacity warning may only stand if the partial write actually landed.
+   * Reporting solely "these did not fit" after a failed write would leave the
+   * user believing the ones that DID fit were saved.
+   */
+  it("reports the write failure, not just the overflow, when a partial add fails", async () => {
+    const full = Array.from({ length: 199 }, (_unused, index) => `com.example.app${String(index)}`);
+    await render({
+      getSelectionGuards: vi
+        .fn()
+        .mockResolvedValue({ ...defaultGuardSettings(), deniedBundleIds: full }),
+      setSelectionGuards: vi.fn().mockResolvedValue({ success: false }),
+      chooseDeniedApps: vi.fn().mockResolvedValue({
+        success: true,
+        bundleIds: ["com.tinyspeck.slackmacgap", "com.figma.desktop"],
+      }),
+    });
+
+    await clickButtonLabelled("Choose app…");
+
+    expect(container.textContent).toContain("Couldn't save");
+  });
+
+  /**
+   * `withDeniedBundleId` returning the same reference at the cap made every
+   * single-id add look like a generic no-op: the control stayed enabled and
+   * nothing was said, so Add and the recent-app chips appeared broken.
+   */
+  it("explains the limit when a typed add cannot fit", async () => {
+    const full = Array.from({ length: 200 }, (_unused, index) => `com.example.app${String(index)}`);
+    await render({
+      getSelectionGuards: vi
+        .fn()
+        .mockResolvedValue({ ...defaultGuardSettings(), deniedBundleIds: full }),
+    });
+
+    const input = container.querySelector<HTMLInputElement>(
+      'input[aria-label="Block an app"]',
+    );
+    if (!input) throw new Error("Expected the bundle-id input");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value",
+      )?.set?.call(input, "com.tinyspeck.slackmacgap");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await clickButtonLabelled("Block an app");
+
+    expect(api.setSelectionGuards).not.toHaveBeenCalled();
+    // The exact sentence, not just "full" — the limitations copy below also
+    // contains the word "full", which would match no matter what happened.
+    expect(container.textContent).toContain("The blocked-apps list is full at 200");
+    // The rejected id stays in the field rather than vanishing.
+    expect(input.value).toBe("com.tinyspeck.slackmacgap");
+  });
+
+  it("sizes the secret-guard mode switch to its options rather than the panel width", async () => {
+    await render();
+
+    const modeSwitch = container.querySelector('[role="group"][aria-label="Mode"]');
+    expect(modeSwitch?.className).toContain("self-start");
+  });
+
+  it("renders the limitations as separate points, not one paragraph", async () => {
+    await render();
+
+    const points = [...container.querySelectorAll("li")].map((item) => item.textContent);
+    expect(points).toContain("It cannot un-send. Text you send is saved to your local history on this machine, including when you choose Send anyway.");
+    expect(points.length).toBeGreaterThanOrEqual(5);
   });
 
   it("survives a language switch — no resolved string frozen into state", async () => {

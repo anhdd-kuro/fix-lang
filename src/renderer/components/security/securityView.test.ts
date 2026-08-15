@@ -8,10 +8,14 @@
  * `statusDescriptor.ts`).
  */
 import { describe, expect, it } from "vitest";
+import { MAX_DENIED_BUNDLE_IDS } from "~/features/guards/shared/guardSettings";
+import { EN_CATALOG } from "~/features/i18n/shared/locales";
 import { DEFAULT_SECRET_GUARD_SETTINGS } from "~/features/secretGuard/shared/secretGuardSettings";
 import {
+  SECRET_GUARD_LIMITATION_KEYS,
   resolveSecurityView,
   withDeniedBundleId,
+  withDeniedBundleIds,
   withoutDeniedBundleId,
 } from "./securityView";
 import type { SelectionGuardSettings } from "~/features/guards/shared/guardSettings";
@@ -199,5 +203,132 @@ describe("withoutDeniedBundleId", () => {
     const before = JSON.stringify(settings);
     withoutDeniedBundleId(settings, "com.slack.slack");
     expect(JSON.stringify(settings)).toBe(before);
+  });
+});
+
+describe("withDeniedBundleIds", () => {
+  it("adds every valid id in one step, normalized", () => {
+    const next = withDeniedBundleIds(guardSettings({ deniedBundleIds: [] }), [
+      " Com.Slack.Slack ",
+      "com.figma.Desktop",
+    ]);
+    expect(next.settings.deniedBundleIds).toEqual([
+      "com.slack.slack",
+      "com.figma.desktop",
+    ]);
+    expect(next.droppedForCapacity).toBe(0);
+  });
+
+  it("adds a duplicate within the same batch only once", () => {
+    const next = withDeniedBundleIds(guardSettings({ deniedBundleIds: [] }), [
+      "com.slack.slack",
+      "COM.SLACK.SLACK",
+    ]);
+    expect(next.settings.deniedBundleIds).toEqual(["com.slack.slack"]);
+  });
+
+  /**
+   * Reference identity is the caller's "nothing changed" signal — it is what
+   * lets a drop of an already-blocked app skip the store write (and the
+   * "Saved." flash that would otherwise claim something happened).
+   */
+  it("returns the SAME reference when every id was already denied", () => {
+    const settings = guardSettings({ deniedBundleIds: ["com.slack.slack"] });
+    expect(withDeniedBundleIds(settings, [" com.slack.slack "]).settings).toBe(settings);
+  });
+
+  it("returns the SAME reference for an empty batch", () => {
+    const settings = guardSettings();
+    expect(withDeniedBundleIds(settings, []).settings).toBe(settings);
+  });
+
+  it("keeps the valid ids when the batch also holds an invalid one", () => {
+    const next = withDeniedBundleIds(guardSettings({ deniedBundleIds: [] }), [
+      "   ",
+      "com.slack.slack",
+    ]);
+    expect(next.settings.deniedBundleIds).toEqual(["com.slack.slack"]);
+    // An invalid id is not a capacity problem, and must not be reported as one.
+    expect(next.droppedForCapacity).toBe(0);
+  });
+
+  /**
+   * `set-selection-guards` rejects an over-cap payload as MALFORMED and fails
+   * the whole write, so an unbounded renderer-side append does not persist the
+   * first `MAX_DENIED_BUNDLE_IDS` and drop the rest — it persists nothing.
+   */
+  it("stops at MAX_DENIED_BUNDLE_IDS and counts what did not fit", () => {
+    const full = Array.from({ length: MAX_DENIED_BUNDLE_IDS }, (_unused, index) =>
+      `com.example.app${String(index)}`,
+    );
+    const next = withDeniedBundleIds(guardSettings({ deniedBundleIds: full }), [
+      "com.slack.slack",
+      "com.figma.desktop",
+    ]);
+    expect(next.settings.deniedBundleIds).toHaveLength(MAX_DENIED_BUNDLE_IDS);
+    expect(next.droppedForCapacity).toBe(2);
+  });
+
+  it("fills the remaining capacity and counts only the overflow", () => {
+    const nearlyFull = Array.from(
+      { length: MAX_DENIED_BUNDLE_IDS - 1 },
+      (_unused, index) => `com.example.app${String(index)}`,
+    );
+    const next = withDeniedBundleIds(guardSettings({ deniedBundleIds: nearlyFull }), [
+      "com.slack.slack",
+      "com.figma.desktop",
+    ]);
+    expect(next.settings.deniedBundleIds).toHaveLength(MAX_DENIED_BUNDLE_IDS);
+    expect(next.settings.deniedBundleIds).toContain("com.slack.slack");
+    expect(next.droppedForCapacity).toBe(1);
+  });
+
+  /** An already-denied id needs no capacity, so a full list still accepts it as a no-op. */
+  it("does not count an already-denied id as dropped when the list is full", () => {
+    const full = Array.from({ length: MAX_DENIED_BUNDLE_IDS }, (_unused, index) =>
+      `com.example.app${String(index)}`,
+    );
+    const settings = guardSettings({ deniedBundleIds: full });
+    const next = withDeniedBundleIds(settings, ["com.example.app0"]);
+    expect(next.settings).toBe(settings);
+    expect(next.droppedForCapacity).toBe(0);
+  });
+
+  it("never mutates the settings passed in", () => {
+    const settings = guardSettings({ deniedBundleIds: ["com.slack.slack"] });
+    const before = JSON.stringify(settings);
+    withDeniedBundleIds(settings, ["com.figma.desktop", "com.apple.notes"]);
+    expect(JSON.stringify(settings)).toBe(before);
+  });
+});
+
+describe("SECRET_GUARD_LIMITATION_KEYS", () => {
+  it("resolves every point against the English catalog", () => {
+    for (const key of SECRET_GUARD_LIMITATION_KEYS) {
+      expect(EN_CATALOG[key as keyof typeof EN_CATALOG]).toBeTypeOf("string");
+    }
+  });
+
+  /**
+   * The copy was split out of one paragraph, and it is load-bearing — it once
+   * shipped claiming masking meant "nothing is sent", which was false. Every
+   * claim of the original has to survive the re-chunking, so the ones a
+   * reword is most tempted to soften are pinned by content, not by count.
+   */
+  it("still makes every claim the single paragraph made", () => {
+    const body = SECRET_GUARD_LIMITATION_KEYS.map(
+      (key) => EN_CATALOG[key as keyof typeof EN_CATALOG],
+    ).join(" ");
+
+    expect(body).toContain("This is a pattern check, not a guarantee.");
+    expect(body).toContain("will miss a secret that does not look like one");
+    expect(body).toContain("sometimes flag things that are not secrets");
+    expect(body).toContain("is never masked in part");
+    expect(body).toContain("falls back to the confirm dialog");
+    expect(body).toContain("It only checks text FixLang is about to send");
+    expect(body).toContain("It cannot un-send.");
+    expect(body).toContain("saved to your local history on this machine");
+    expect(body).toContain("Inline autocomplete cannot ask you anything");
+    expect(body).toContain("a credential you are part-way through typing");
   });
 });
