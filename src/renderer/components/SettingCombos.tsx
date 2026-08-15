@@ -294,6 +294,27 @@ export const SettingCombos: React.FC = () => {
     tabButtonsRef.current.delete(comboId);
   };
 
+  /**
+   * Set when a rename ends by KEYBOARD (Enter/Escape), naming the tab that
+   * should take focus back. A rename ended by clicking elsewhere leaves it
+   * null: the user has already chosen where focus goes, and yanking it back
+   * to the tab would fight them.
+   */
+  const restoreFocusComboIdRef = useRef<string | null>(null);
+
+  /**
+   * Returns focus to the tab once the editor has actually unmounted. Doing it
+   * inside the commit handler instead would focus the button while the input
+   * is still mounted, and the resulting `blur` would re-enter the commit.
+   */
+  useEffect(() => {
+    if (renamingComboId !== null) return;
+    const comboId = restoreFocusComboIdRef.current;
+    if (comboId === null) return;
+    restoreFocusComboIdRef.current = null;
+    tabButtonsRef.current.get(comboId)?.focus();
+  }, [renamingComboId]);
+
   const beginRenameCombo = (combo: ComboPreset): void => {
     renameCancelledRef.current = false;
     setRenameDraft(combo.name);
@@ -316,11 +337,13 @@ export const SettingCombos: React.FC = () => {
   ): void => {
     if (event.key === "Enter") {
       event.preventDefault();
+      restoreFocusComboIdRef.current = comboId;
       commitRenameCombo(comboId);
       return;
     }
     if (event.key === "Escape") {
       event.preventDefault();
+      restoreFocusComboIdRef.current = comboId;
       renameCancelledRef.current = true;
       setRenamingComboId(null);
     }
@@ -590,27 +613,6 @@ export const SettingCombos: React.FC = () => {
               {comboTabs.map((tab, tabIndex) => {
                 const isActive = tab.comboId === activeCombo.id;
 
-                // A rename replaces its own tab button rather than opening a
-                // dialog, so arrow keys edit the text instead of switching
-                // tabs while the field has focus.
-                if (tab.comboId === renamingComboId) {
-                  return (
-                    <Input
-                      key={tab.comboId}
-                      ref={focusRenameInput}
-                      type="text"
-                      value={renameDraft}
-                      aria-label={t("settings.correction.combos.renameLabel")}
-                      onChange={(event) => setRenameDraft(event.target.value)}
-                      onKeyDown={(event) =>
-                        handleRenameKeyDown(tab.comboId, event)
-                      }
-                      onBlur={() => commitRenameCombo(tab.comboId)}
-                      className="h-9 w-40 py-0"
-                    />
-                  );
-                }
-
                 return (
                   <Button
                     key={tab.comboId}
@@ -651,6 +653,27 @@ export const SettingCombos: React.FC = () => {
                 );
               })}
             </div>
+
+            {/* The rename editor sits OUTSIDE the tablist on purpose. Swapping
+                it in for the tab button left the tablist with no selected,
+                tabbable tab and pointed the panel's `aria-labelledby` at an id
+                that no longer existed. Here the tab keeps its semantics and
+                its focus target while the name is edited, and arrow keys still
+                edit text rather than switching tabs because focus is on an
+                input outside the roving strip. */}
+            {renamingComboId !== null && (
+              <Input
+                ref={focusRenameInput}
+                type="text"
+                value={renameDraft}
+                aria-label={t("settings.correction.combos.renameLabel")}
+                onChange={(event) => setRenameDraft(event.target.value)}
+                onKeyDown={(event) => handleRenameKeyDown(renamingComboId, event)}
+                onBlur={() => commitRenameCombo(renamingComboId)}
+                className="mb-2 h-9 w-60 py-0"
+              />
+            )}
+
             <p className="mb-3 text-xs text-muted-foreground">
               {t("settings.correction.combos.renameHint")}
             </p>

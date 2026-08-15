@@ -272,20 +272,26 @@ export const SettingSecurity = () => {
 
   const { guardSettings, secretSettings } = state;
 
+  // Both numeric handlers edit from `currentGuardSettings()` for the same
+  // reason the deny-list ones do: a scalar edit made while an app resolution
+  // is still pending must carry that pending deny-list forward, or persisting
+  // the whole object here would erase the app the user just blocked.
   const handleClipboardAgeChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
+    const previous = currentGuardSettings();
     const raw = Number(event.target.value);
     const clipboardMaxAgeSeconds = Number.isFinite(raw)
       ? Math.max(0, Math.floor(raw))
-      : guardSettings.clipboardMaxAgeSeconds;
-    void persistGuardSettings({ ...guardSettings, clipboardMaxAgeSeconds }, guardSettings);
+      : previous.clipboardMaxAgeSeconds;
+    void persistGuardSettings({ ...previous, clipboardMaxAgeSeconds }, previous);
   };
 
   const handleSelectionSizeChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
+    const previous = currentGuardSettings();
     const raw = Number(event.target.value);
     const maxSelectionChars = Number.isFinite(raw)
       ? Math.max(0, Math.floor(raw))
-      : guardSettings.maxSelectionChars;
-    void persistGuardSettings({ ...guardSettings, maxSelectionChars }, guardSettings);
+      : previous.maxSelectionChars;
+    void persistGuardSettings({ ...previous, maxSelectionChars }, previous);
   };
 
   const canAddBundleId = normalizeBundleId(newBundleId) !== null;
@@ -363,17 +369,24 @@ export const SettingSecurity = () => {
   /**
    * `File.path` is gone in Electron 43, so the path comes from
    * `webUtils.getPathForFile` behind the preload bridge, which returns `null`
-   * for anything that is not an `.app`. A drop that yields no `.app` at all is
-   * REPORTED rather than ignored: a user who drags a document here has to
-   * learn that nothing happened and why.
+   * for anything that is not an `.app`.
+   *
+   * A drop is ALL-OR-NOTHING, matching `resolveAppBundleIds` in main: if any
+   * dropped item fails to resolve to an `.app` path, the whole drop is
+   * refused. Filtering the unresolvable ones out instead would block a
+   * SUBSET of what was dropped and report success — and the item that
+   * silently vanished could well be the app the user actually meant to
+   * block, which they would only discover by not being protected by it.
    */
   const handleAppDrop = (event: React.DragEvent<HTMLElement>): void => {
     event.preventDefault();
     setIsDropTarget(false);
-    const paths = [...event.dataTransfer.files]
+    const files = [...event.dataTransfer.files];
+    const paths = files
       .map((file) => window.electronAPI.getAppBundlePathForFile(file))
       .filter((path): path is string => path !== null);
-    if (paths.length === 0) {
+    // A shorter list than was dropped means something did not resolve.
+    if (files.length === 0 || paths.length !== files.length) {
       setStatus(plainStatus("security.deniedApps.dropInvalid"));
       return;
     }
@@ -421,7 +434,10 @@ export const SettingSecurity = () => {
   const handleRestoreDefaults = (): void => {
     void (async () => {
       const [guardResult, secretResult] = await Promise.all([
-        persistGuardResult(defaultGuardSettings(), guardSettings),
+        // Rolls back to the pending list, not this render's, so a failed
+        // restore during an in-flight app resolution restores what was
+        // actually there rather than reviving a superseded deny-list.
+        persistGuardResult(defaultGuardSettings(), currentGuardSettings()),
         persistSecretResult({ ...DEFAULT_SECRET_GUARD_SETTINGS }, secretSettings),
       ]);
 

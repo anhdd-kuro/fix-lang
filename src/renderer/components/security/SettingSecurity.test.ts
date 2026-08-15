@@ -536,6 +536,27 @@ describe("SettingSecurity", () => {
     expect(container.textContent).toContain("Only .app bundles can be added this way.");
   });
 
+  /**
+   * A drop is all-or-nothing, matching `resolveAppBundleIds` in main. Blocking
+   * only the resolvable half and reporting success would hide that something
+   * was ignored — and the item that vanished could be the app the user meant
+   * to block, which they would discover only by not being protected by it.
+   */
+  it("refuses the whole drop when one item is not an .app, rather than blocking the rest", async () => {
+    await render({
+      getAppBundlePathForFile: vi
+        .fn()
+        .mockReturnValueOnce("/Applications/Slack.app")
+        .mockReturnValueOnce(null),
+    });
+
+    await dropFilesOnBlockedApps([{}, {}]);
+
+    expect(api.resolveAppBundleIds).not.toHaveBeenCalled();
+    expect(api.setSelectionGuards).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Only .app bundles can be added this way.");
+  });
+
   it("sizes the secret-guard mode switch to its options rather than the panel width", async () => {
     await render();
 
