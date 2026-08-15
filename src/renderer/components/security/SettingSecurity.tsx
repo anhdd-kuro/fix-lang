@@ -122,12 +122,72 @@ export const SettingSecurity = () => {
    */
   const latestGuardSettingsRef = useRef<SelectionGuardSettings | null>(null);
 
+  /** Secret-guard counterpart of `latestGuardSettingsRef`, for the same reason. */
+  const latestSecretSettingsRef = useRef<SecretGuardSettings | null>(null);
+
   /**
-   * Monotonic id for guard writes. Only the newest write may roll back — see
-   * `rollback` inside `persistGuardResult` for the state divergence this
-   * prevents.
+   * Monotonic ids for writes to each store, used to discard the result of a
+   * superseded reconcile — see `reconcileGuardFromStore`.
    */
   const guardWriteRevisionRef = useRef(0);
+  const secretWriteRevisionRef = useRef(0);
+
+  /**
+   * Monotonic id for whoever currently owns `saveStatus`. Completions are not
+   * ordered, so without this an older success can erase a newer failure's
+   * message — the live region would announce "Saved." for a write that failed.
+   * Each user-initiated mutation claims the status and only reports if it
+   * still holds it when its promise settles.
+   */
+  const statusRevisionRef = useRef(0);
+
+  const claimStatus = (): (() => boolean) => {
+    const revision = ++statusRevisionRef.current;
+    return () => statusRevisionRef.current === revision;
+  };
+
+  /**
+   * Re-reads the authoritative store after a failed write instead of rewinding
+   * to the `previous` this write happened to capture.
+   *
+   * Rewinding cannot be made correct with a latest-writer check alone. Two
+   * failures in inverse order are enough: W1 installs A over S0 and stays
+   * pending; W2 installs B and fails FIRST, rewinding to its own `previous`
+   * (A); W1 then fails but is superseded, so its rewind is skipped. The panel
+   * sits at A while the store never left S0 — claiming an app is blocked when
+   * it is not, and seeding the next edit with that phantom. Only the store
+   * knows what actually persisted, so on failure we ask it.
+   *
+   * The revision check discards a reconcile whose answer arrived after a newer
+   * write already installed its own optimistic state.
+   */
+  const reconcileGuardFromStore = async (revision: number): Promise<void> => {
+    try {
+      const stored = await window.electronAPI.getSelectionGuards();
+      if (guardWriteRevisionRef.current !== revision) return;
+      latestGuardSettingsRef.current = stored;
+      setState((current) =>
+        current.status === "ready" ? { ...current, guardSettings: stored } : current,
+      );
+    } catch {
+      // The write error is already being reported; a failed re-read must not
+      // replace it with a second, less useful message.
+    }
+  };
+
+  /** Secret-guard counterpart of `reconcileGuardFromStore` — see its doc comment. */
+  const reconcileSecretFromStore = async (revision: number): Promise<void> => {
+    try {
+      const stored = await window.electronAPI.getSecretGuardSettings();
+      if (secretWriteRevisionRef.current !== revision) return;
+      latestSecretSettingsRef.current = stored;
+      setState((current) =>
+        current.status === "ready" ? { ...current, secretSettings: stored } : current,
+      );
+    } catch {
+      // See above.
+    }
+  };
 
   const clearSaveStatusTimeout = (): void => {
     if (saveStatusTimeoutRef.current !== null) {
@@ -158,6 +218,7 @@ export const SettingSecurity = () => {
         ]);
         if (!cancelled) {
           latestGuardSettingsRef.current = guardSettings;
+          latestSecretSettingsRef.current = secretSettings;
           setState({ status: "ready", guardSettings, secretSettings, recentApps });
         }
       } catch {
@@ -188,39 +249,21 @@ export const SettingSecurity = () => {
    */
   const persistGuardResult = async (
     next: SelectionGuardSettings,
-    previous: SelectionGuardSettings,
   ): Promise<PersistResult> => {
     const revision = ++guardWriteRevisionRef.current;
     latestGuardSettingsRef.current = next;
     setState((current) => (current.status === "ready" ? { ...current, guardSettings: next } : current));
 
-    /**
-     * Undoes the optimistic install — but ONLY while this write is still the
-     * newest one. A superseded write that rolls back would drag the UI and the
-     * ref back to ITS pre-state, discarding a later write that already
-     * succeeded: W1 (S0→A) fails after W2 (A→B) succeeds, and an unguarded
-     * rollback leaves the panel showing S0 while the store holds B — with the
-     * next edit then built from S0 and overwriting B for real. The failure is
-     * still REPORTED either way; only the state rewind is conditional.
-     */
-    const rollback = (): void => {
-      if (guardWriteRevisionRef.current !== revision) return;
-      latestGuardSettingsRef.current = previous;
-      setState((current) =>
-        current.status === "ready" ? { ...current, guardSettings: previous } : current,
-      );
-    };
-
     try {
       const result = await window.electronAPI.setSelectionGuards(next);
       if (result.success) return { success: true };
-      rollback();
+      await reconcileGuardFromStore(revision);
       return {
         success: false,
         error: result.error ? wrappedError(result.error) : plainStatus("security.saveError"),
       };
     } catch {
-      rollback();
+      await reconcileGuardFromStore(revision);
       return { success: false, error: plainStatus("security.saveError") };
     }
   };
@@ -228,32 +271,29 @@ export const SettingSecurity = () => {
   /** Secret-guard-store counterpart of `persistGuardResult` — see its doc comment. */
   const persistSecretResult = async (
     next: SecretGuardSettings,
-    previous: SecretGuardSettings,
   ): Promise<PersistResult> => {
+    const revision = ++secretWriteRevisionRef.current;
+    latestSecretSettingsRef.current = next;
     setState((current) => (current.status === "ready" ? { ...current, secretSettings: next } : current));
+
     try {
       const result = await window.electronAPI.setSecretGuardSettings(next);
       if (result.success) return { success: true };
-      setState((current) =>
-        current.status === "ready" ? { ...current, secretSettings: previous } : current,
-      );
+      await reconcileSecretFromStore(revision);
       return {
         success: false,
         error: result.error ? wrappedError(result.error) : plainStatus("security.saveError"),
       };
     } catch {
-      setState((current) =>
-        current.status === "ready" ? { ...current, secretSettings: previous } : current,
-      );
+      await reconcileSecretFromStore(revision);
       return { success: false, error: plainStatus("security.saveError") };
     }
   };
 
-  const persistGuardSettings = async (
-    next: SelectionGuardSettings,
-    previous: SelectionGuardSettings,
-  ): Promise<void> => {
-    const result = await persistGuardResult(next, previous);
+  const persistGuardSettings = async (next: SelectionGuardSettings): Promise<void> => {
+    const ownsStatus = claimStatus();
+    const result = await persistGuardResult(next);
+    if (!ownsStatus()) return;
     if (result.success) {
       flashSaved();
     } else {
@@ -261,11 +301,10 @@ export const SettingSecurity = () => {
     }
   };
 
-  const persistSecretSettings = async (
-    next: SecretGuardSettings,
-    previous: SecretGuardSettings,
-  ): Promise<void> => {
-    const result = await persistSecretResult(next, previous);
+  const persistSecretSettings = async (next: SecretGuardSettings): Promise<void> => {
+    const ownsStatus = claimStatus();
+    const result = await persistSecretResult(next);
+    if (!ownsStatus()) return;
     if (result.success) {
       flashSaved();
     } else {
@@ -301,7 +340,7 @@ export const SettingSecurity = () => {
     const clipboardMaxAgeSeconds = Number.isFinite(raw)
       ? Math.max(0, Math.floor(raw))
       : previous.clipboardMaxAgeSeconds;
-    void persistGuardSettings({ ...previous, clipboardMaxAgeSeconds }, previous);
+    void persistGuardSettings({ ...previous, clipboardMaxAgeSeconds });
   };
 
   const handleSelectionSizeChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
@@ -310,7 +349,7 @@ export const SettingSecurity = () => {
     const maxSelectionChars = Number.isFinite(raw)
       ? Math.max(0, Math.floor(raw))
       : previous.maxSelectionChars;
-    void persistGuardSettings({ ...previous, maxSelectionChars }, previous);
+    void persistGuardSettings({ ...previous, maxSelectionChars });
   };
 
   const canAddBundleId = normalizeBundleId(newBundleId) !== null;
@@ -323,6 +362,10 @@ export const SettingSecurity = () => {
    */
   const currentGuardSettings = (): SelectionGuardSettings =>
     latestGuardSettingsRef.current ?? guardSettings;
+
+  /** Secret-guard counterpart of `currentGuardSettings` — same staleness rule. */
+  const currentSecretSettings = (): SecretGuardSettings =>
+    latestSecretSettingsRef.current ?? secretSettings;
 
   /**
    * The ONE path by which bundle ids are added, whatever their source: the
@@ -338,7 +381,7 @@ export const SettingSecurity = () => {
 
     if (droppedForCapacity === 0) {
       if (next === previous) return;
-      void persistGuardSettings(next, previous);
+      void persistGuardSettings(next);
       return;
     }
 
@@ -358,7 +401,7 @@ export const SettingSecurity = () => {
     // "these did not fit" would leave the user believing the rest were saved.
     void (async () => {
       setStatus(capacityStatus);
-      const result = await persistGuardResult(next, previous);
+      const result = await persistGuardResult(next);
       if (!result.success) setStatus(result.error);
     })();
   };
@@ -375,7 +418,7 @@ export const SettingSecurity = () => {
     const previous = currentGuardSettings();
     const next = withoutDeniedBundleId(previous, bundleId);
     if (next === previous) return;
-    void persistGuardSettings(next, previous);
+    void persistGuardSettings(next);
   };
 
   const handleChooseApps = (): void => {
@@ -442,15 +485,15 @@ export const SettingSecurity = () => {
     const previous = currentGuardSettings();
     const next = withoutDeniedBundleId(previous, chip.app.bundleId);
     if (next === previous) return;
-    void persistGuardSettings(next, previous);
+    void persistGuardSettings(next);
   };
 
   const handleModeChange = (mode: SecretGuardMode): void => {
-    void persistSecretSettings({ ...secretSettings, mode }, secretSettings);
+    void persistSecretSettings({ ...currentSecretSettings(), mode });
   };
 
   const handleHighEntropyChange = (highEntropyRule: boolean): void => {
-    void persistSecretSettings({ ...secretSettings, highEntropyRule }, secretSettings);
+    void persistSecretSettings({ ...currentSecretSettings(), highEntropyRule });
   };
 
   /**
@@ -468,8 +511,8 @@ export const SettingSecurity = () => {
         // Rolls back to the pending list, not this render's, so a failed
         // restore during an in-flight app resolution restores what was
         // actually there rather than reviving a superseded deny-list.
-        persistGuardResult(defaultGuardSettings(), currentGuardSettings()),
-        persistSecretResult({ ...DEFAULT_SECRET_GUARD_SETTINGS }, secretSettings),
+        persistGuardResult(defaultGuardSettings()),
+        persistSecretResult({ ...DEFAULT_SECRET_GUARD_SETTINGS }),
       ]);
 
       if (guardResult.success && secretResult.success) {

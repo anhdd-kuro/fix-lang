@@ -611,6 +611,146 @@ describe("SettingSecurity", () => {
   });
 
   /**
+   * TWO failures in inverse order. A latest-writer rewind is not enough here:
+   * W1 installs A over S0 and stays pending; W2 installs B and fails FIRST,
+   * rewinding to its own `previous` (A); W1 then fails but is superseded, so
+   * its rewind is skipped — leaving the panel at A while the store never left
+   * S0. Reconciling from the store instead is what makes the outcome S0.
+   */
+  it("shows what the store actually holds when two writes fail in inverse order", async () => {
+    const firstWrite = deferred<{ success: boolean }>();
+    const setSelectionGuards = vi
+      .fn()
+      .mockImplementationOnce(() => firstWrite.promise)
+      .mockResolvedValue({ success: false });
+
+    await render({
+      setSelectionGuards,
+      chooseDeniedApps: vi
+        .fn()
+        .mockResolvedValue({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] }),
+    });
+
+    // W1: block Slack. Pending.
+    await act(async () => {
+      clickButtonLabelledSync("Choose app…");
+    });
+    // W2: remove the pre-existing app. Fails immediately.
+    const removeButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove com.1password.1password from the blocked list"]',
+    );
+    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    await act(async () => {
+      removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForUi();
+    // Only now does W1 fail too.
+    await act(async () => {
+      firstWrite.resolve({ success: false });
+    });
+    await waitForUi();
+    await waitForUi();
+
+    // Nothing persisted, so the panel must match the store: 1Password still
+    // blocked, Slack never added. A phantom would show the inverse.
+    const text = container.textContent ?? "";
+    expect(text).toContain("com.1password.1password");
+    expect(text).not.toContain("com.tinyspeck.slackmacgap");
+  });
+
+  /**
+   * The secret-guard store is the other half of this panel and had no ref or
+   * revision at all: an older failed mode change would unconditionally restore
+   * its own pre-state over a newer successfully-persisted setting, so the UI
+   * would claim protection that is not actually on.
+   *
+   * CHARACTERIZATION ONLY — unlike its deny-list siblings above, this case
+   * still passes against the pre-fix implementation, so it pins the intended
+   * behaviour rather than proving the fix. Reproducing the divergence needs
+   * the two writes to interleave inside a single React commit, which this
+   * `act`-per-click harness serializes away. Do not read a green run here as
+   * evidence that ordered secret-guard writes are covered.
+   */
+  it("does not let a failed secret-guard write undo a newer successful one", async () => {
+    const firstWrite = deferred<{ success: boolean }>();
+    const setSecretGuardSettings = vi
+      .fn()
+      .mockImplementationOnce(() => firstWrite.promise)
+      .mockResolvedValue({ success: true });
+
+    await render({
+      setSecretGuardSettings,
+      // The store as it stands after W2 lands — what a reconcile should find.
+      getSecretGuardSettings: vi
+        .fn()
+        .mockResolvedValue({ ...DEFAULT_SECRET_GUARD_SETTINGS, mode: "mask" }),
+    });
+
+    // Two mode changes rather than the mode+entropy pair the report used: the
+    // high-entropy control is a CONTROLLED checkbox whose onChange a dispatched
+    // click does not reach, and a test that silently makes no second write
+    // would assert nothing. The defect exercised is identical.
+    await act(async () => {
+      clickButtonLabelledSync("Off"); // W1, pending
+    });
+    await clickButtonLabelled("Mask and restore"); // W2, succeeds
+    expect(setSecretGuardSettings).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      firstWrite.resolve({ success: false }); // W1 fails last
+    });
+    await waitForUi();
+    await waitForUi();
+
+    // W2's persisted mode must survive. A stale restore would put the control
+    // back on "Confirm before sending" — protection the store does not have.
+    const pressed = [...container.querySelectorAll('[role="group"] button')].find(
+      (button) => button.getAttribute("aria-pressed") === "true",
+    );
+    expect(pressed?.textContent).toBe("Mask and restore");
+  });
+
+  /**
+   * Completions are not ordered. An older success finishing last must not
+   * overwrite a newer failure's message with "Saved." — the live region would
+   * then announce success for a write that did not happen.
+   */
+  it("does not let an older success overwrite a newer failure's status", async () => {
+    const firstWrite = deferred<{ success: boolean }>();
+    const setSelectionGuards = vi
+      .fn()
+      .mockImplementationOnce(() => firstWrite.promise)
+      .mockResolvedValue({ success: false });
+
+    await render({
+      setSelectionGuards,
+      chooseDeniedApps: vi
+        .fn()
+        .mockResolvedValue({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] }),
+    });
+
+    await act(async () => {
+      clickButtonLabelledSync("Choose app…");
+    });
+    const removeButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove com.1password.1password from the blocked list"]',
+    );
+    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    await act(async () => {
+      removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForUi();
+    // The OLDER write now succeeds, after the newer one already failed.
+    await act(async () => {
+      firstWrite.resolve({ success: true });
+    });
+    await waitForUi();
+    await waitForUi();
+
+    expect(container.textContent).not.toContain("Saved.");
+  });
+
+  /**
    * The capacity warning may only stand if the partial write actually landed.
    * Reporting solely "these did not fit" after a failed write would leave the
    * user believing the ones that DID fit were saved.
