@@ -78,6 +78,16 @@ type LoadState =
  */
 type PersistResult = { success: true } | { success: false; error: StatusDescriptor };
 
+/**
+ * `derivesFromBase: false` marks a write whose payload does not read the
+ * current settings at all — only Restore defaults. Ordinary writes must refuse
+ * when the store cannot be read, because they persist the WHOLE object and
+ * would otherwise carry a rejected value into it. Restore has nothing to carry,
+ * so gating it on a readable store would disable the one control whose job is
+ * to escape a store the panel can no longer read.
+ */
+type WriteOptions = { readonly derivesFromBase?: boolean };
+
 const defaultGuardSettings = (): SelectionGuardSettings => ({
   clipboardMaxAgeSeconds: DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
   maxSelectionChars: DEFAULT_MAX_SELECTION_CHARS,
@@ -107,18 +117,14 @@ export const SettingSecurity = () => {
   const saveStatusTimeoutRef = useRef<number | null>(null); // `window.setTimeout` returns a number, not Node's `Timeout`.
 
   /**
-   * The latest guard settings, tracked synchronously alongside `state`.
+   * The latest settings each store is believed to hold, tracked synchronously
+   * alongside `state` because React state is not readable synchronously.
    *
-   * Every deny-list write persists the WHOLE settings object, and the two
-   * app-picking paths are async: a drop resolves through main, and the native
-   * chooser can sit open for as long as the user browses. Two of those
-   * overlapping — two quick drops, or a drop while the chooser is open — would
-   * each close over the `guardSettings` captured at their own render and send
-   * a whole-object replacement, so the later completion would silently erase
-   * the earlier one's additions. React's state is not readable synchronously
-   * to fix that, but this ref is: `persistGuardResult` moves it the moment a
-   * write starts (and back on rollback), so a second resolution merges onto
-   * the first one's list instead of the stale one.
+   * Every write persists the WHOLE settings object, so a write whose payload
+   * was built from a stale copy silently erases whatever landed in between.
+   * These refs are the base each queued write builds on — see `runGuardWrite`
+   * for why the base is read when the write RUNS rather than when the user
+   * acted.
    */
   const latestGuardSettingsRef = useRef<SelectionGuardSettings | null>(null);
 
@@ -126,11 +132,29 @@ export const SettingSecurity = () => {
   const latestSecretSettingsRef = useRef<SecretGuardSettings | null>(null);
 
   /**
-   * Monotonic ids for writes to each store, used to discard the result of a
-   * superseded reconcile — see `reconcileGuardFromStore`.
+   * Whether the matching `latest*SettingsRef` is still believed to match the
+   * store. Cleared the moment a write fails, and restored only by a
+   * successful re-read. A write refuses to run on an untrusted base rather
+   * than persisting a whole object assembled around a value the store
+   * rejected — see `reconcileGuardFromStore`.
    */
-  const guardWriteRevisionRef = useRef(0);
-  const secretWriteRevisionRef = useRef(0);
+  const guardBaseTrustedRef = useRef(true);
+  const secretBaseTrustedRef = useRef(true);
+
+  /**
+   * Serializes writes to each store: one in flight at a time, next one starts
+   * only after the previous has settled AND recovered.
+   *
+   * Concurrency here was never a feature — it is what made a failed write
+   * unrecoverable. While two writes overlap, no rewind target is trustworthy
+   * (it may be the other writer's optimistic state), and a failure's recovery
+   * races the next write's payload. Queuing removes the overlap instead of
+   * trying to referee it, which is why there is no longer a write revision to
+   * compare: a reconcile can no longer be superseded, because nothing else is
+   * running while it happens.
+   */
+  const guardWriteChainRef = useRef<Promise<unknown>>(Promise.resolve());
+  const secretWriteChainRef = useRef<Promise<unknown>>(Promise.resolve());
 
   /**
    * Monotonic id for whoever currently owns `saveStatus`. Completions are not
@@ -148,44 +172,50 @@ export const SettingSecurity = () => {
 
   /**
    * Re-reads the authoritative store after a failed write instead of rewinding
-   * to the `previous` this write happened to capture.
+   * to whatever `previous` that write happened to capture.
    *
-   * Rewinding cannot be made correct with a latest-writer check alone. Two
-   * failures in inverse order are enough: W1 installs A over S0 and stays
-   * pending; W2 installs B and fails FIRST, rewinding to its own `previous`
-   * (A); W1 then fails but is superseded, so its rewind is skipped. The panel
-   * sits at A while the store never left S0 — claiming an app is blocked when
-   * it is not, and seeding the next edit with that phantom. Only the store
-   * knows what actually persisted, so on failure we ask it.
+   * No rewind target computed by a writer can be trusted: it may itself be
+   * another writer's optimistic state, so rewinding to it re-installs a value
+   * the store never held. Only the store knows what actually persisted, so on
+   * failure we ask it.
    *
-   * The revision check discards a reconcile whose answer arrived after a newer
-   * write already installed its own optimistic state.
+   * Returns the settings on success and `null` when the re-read ITSELF fails.
+   * That case is the one that must not be swallowed: the panel is then showing
+   * a value the store rejected and has no way to learn the real one, so trust
+   * stays revoked and the next write refuses rather than persisting a whole
+   * object built around that phantom.
    */
-  const reconcileGuardFromStore = async (revision: number): Promise<void> => {
+  const reconcileGuardFromStore = async (): Promise<SelectionGuardSettings | null> => {
     try {
       const stored = await window.electronAPI.getSelectionGuards();
-      if (guardWriteRevisionRef.current !== revision) return;
       latestGuardSettingsRef.current = stored;
+      guardBaseTrustedRef.current = true;
       setState((current) =>
         current.status === "ready" ? { ...current, guardSettings: stored } : current,
       );
+      return stored;
     } catch {
       // The write error is already being reported; a failed re-read must not
-      // replace it with a second, less useful message.
+      // replace it with a second, less useful message — but it must not be
+      // mistaken for a recovery either.
+      guardBaseTrustedRef.current = false;
+      return null;
     }
   };
 
   /** Secret-guard counterpart of `reconcileGuardFromStore` — see its doc comment. */
-  const reconcileSecretFromStore = async (revision: number): Promise<void> => {
+  const reconcileSecretFromStore = async (): Promise<SecretGuardSettings | null> => {
     try {
       const stored = await window.electronAPI.getSecretGuardSettings();
-      if (secretWriteRevisionRef.current !== revision) return;
       latestSecretSettingsRef.current = stored;
+      secretBaseTrustedRef.current = true;
       setState((current) =>
         current.status === "ready" ? { ...current, secretSettings: stored } : current,
       );
+      return stored;
     } catch {
-      // See above.
+      secretBaseTrustedRef.current = false;
+      return null;
     }
   };
 
@@ -239,79 +269,6 @@ export const SettingSecurity = () => {
     saveStatusTimeoutRef.current = window.setTimeout(() => setStatus(null), 2000);
   };
 
-  /**
-   * Writes the selection-guard store and reports the outcome instead of
-   * touching `saveStatus` itself. `persistGuardSettings` (below) is the only
-   * single-write caller and still flashes/sets status right away; when both
-   * stores are written together (`handleRestoreDefaults`), the caller waits
-   * for both `PersistResult`s before deriving one status, so a fast success
-   * can never overwrite a slower failure's message.
-   */
-  const persistGuardResult = async (
-    next: SelectionGuardSettings,
-  ): Promise<PersistResult> => {
-    const revision = ++guardWriteRevisionRef.current;
-    latestGuardSettingsRef.current = next;
-    setState((current) => (current.status === "ready" ? { ...current, guardSettings: next } : current));
-
-    try {
-      const result = await window.electronAPI.setSelectionGuards(next);
-      if (result.success) return { success: true };
-      await reconcileGuardFromStore(revision);
-      return {
-        success: false,
-        error: result.error ? wrappedError(result.error) : plainStatus("security.saveError"),
-      };
-    } catch {
-      await reconcileGuardFromStore(revision);
-      return { success: false, error: plainStatus("security.saveError") };
-    }
-  };
-
-  /** Secret-guard-store counterpart of `persistGuardResult` — see its doc comment. */
-  const persistSecretResult = async (
-    next: SecretGuardSettings,
-  ): Promise<PersistResult> => {
-    const revision = ++secretWriteRevisionRef.current;
-    latestSecretSettingsRef.current = next;
-    setState((current) => (current.status === "ready" ? { ...current, secretSettings: next } : current));
-
-    try {
-      const result = await window.electronAPI.setSecretGuardSettings(next);
-      if (result.success) return { success: true };
-      await reconcileSecretFromStore(revision);
-      return {
-        success: false,
-        error: result.error ? wrappedError(result.error) : plainStatus("security.saveError"),
-      };
-    } catch {
-      await reconcileSecretFromStore(revision);
-      return { success: false, error: plainStatus("security.saveError") };
-    }
-  };
-
-  const persistGuardSettings = async (next: SelectionGuardSettings): Promise<void> => {
-    const ownsStatus = claimStatus();
-    const result = await persistGuardResult(next);
-    if (!ownsStatus()) return;
-    if (result.success) {
-      flashSaved();
-    } else {
-      setStatus(result.error);
-    }
-  };
-
-  const persistSecretSettings = async (next: SecretGuardSettings): Promise<void> => {
-    const ownsStatus = claimStatus();
-    const result = await persistSecretResult(next);
-    if (!ownsStatus()) return;
-    if (result.success) {
-      flashSaved();
-    } else {
-      setStatus(result.error);
-    }
-  };
-
   const view = useMemo(
     () =>
       state.status === "ready"
@@ -330,42 +287,185 @@ export const SettingSecurity = () => {
 
   const { guardSettings, secretSettings } = state;
 
-  // Both numeric handlers edit from `currentGuardSettings()` for the same
-  // reason the deny-list ones do: a scalar edit made while an app resolution
-  // is still pending must carry that pending deny-list forward, or persisting
-  // the whole object here would erase the app the user just blocked.
+  /**
+   * Runs one selection-guard write, queued behind every earlier one.
+   *
+   * `update` receives the base settings and is called when this write's turn
+   * comes, NOT when the user acted. That is the whole point: by then every
+   * earlier write has settled and, if it failed, has already reconciled — so
+   * the base is what the store holds rather than a value some other writer
+   * optimistically installed and may yet have rejected. Returning `null` from
+   * `update` means "nothing to do" and skips the write entirely.
+   *
+   * Resolves to `null` for a skipped write, so callers can tell "no change was
+   * needed" apart from "the change was saved".
+   */
+  const runGuardWrite = (
+    update: (base: SelectionGuardSettings) => SelectionGuardSettings | null,
+    options: WriteOptions = {},
+  ): Promise<PersistResult | null> => {
+    const task = guardWriteChainRef.current.then(async (): Promise<PersistResult | null> => {
+      // An untrusted base means an earlier failure's re-read also failed. Try
+      // once more rather than persisting a whole object built around a value
+      // the store already rejected; if that read fails too, refuse the write.
+      const base = guardBaseTrustedRef.current
+        ? latestGuardSettingsRef.current ?? guardSettings
+        : await reconcileGuardFromStore();
+      if (base === null && options.derivesFromBase !== false) {
+        return { success: false, error: plainStatus("security.saveError") };
+      }
+
+      // A pure updater over plain objects should not throw, but if one ever
+      // does, the queue must report it rather than reject this task — the
+      // callers are fire-and-forget, so a rejection would surface as an
+      // unhandled one AND leave the claimed status line silent.
+      let next: SelectionGuardSettings | null;
+      try {
+        next = update(base ?? defaultGuardSettings());
+      } catch {
+        return { success: false, error: plainStatus("security.saveError") };
+      }
+      if (next === null) return null;
+
+      latestGuardSettingsRef.current = next;
+      setState((current) =>
+        current.status === "ready" ? { ...current, guardSettings: next } : current,
+      );
+
+      try {
+        const result = await window.electronAPI.setSelectionGuards(next);
+        if (result.success) return { success: true };
+        guardBaseTrustedRef.current = false;
+        await reconcileGuardFromStore();
+        return {
+          success: false,
+          error: result.error ? wrappedError(result.error) : plainStatus("security.saveError"),
+        };
+      } catch {
+        guardBaseTrustedRef.current = false;
+        await reconcileGuardFromStore();
+        return { success: false, error: plainStatus("security.saveError") };
+      }
+    });
+    // The chain must never reject, or one thrown write would wedge the queue
+    // shut for the rest of the session.
+    guardWriteChainRef.current = task.then(
+      () => undefined,
+      () => undefined,
+    );
+    return task;
+  };
+
+  /** Secret-guard-store counterpart of `runGuardWrite` — see its doc comment. */
+  const runSecretWrite = (
+    update: (base: SecretGuardSettings) => SecretGuardSettings | null,
+    options: WriteOptions = {},
+  ): Promise<PersistResult | null> => {
+    const task = secretWriteChainRef.current.then(async (): Promise<PersistResult | null> => {
+      const base = secretBaseTrustedRef.current
+        ? latestSecretSettingsRef.current ?? secretSettings
+        : await reconcileSecretFromStore();
+      if (base === null && options.derivesFromBase !== false) {
+        return { success: false, error: plainStatus("security.saveError") };
+      }
+
+      let next: SecretGuardSettings | null;
+      try {
+        next = update(base ?? DEFAULT_SECRET_GUARD_SETTINGS);
+      } catch {
+        return { success: false, error: plainStatus("security.saveError") };
+      }
+      if (next === null) return null;
+
+      latestSecretSettingsRef.current = next;
+      setState((current) =>
+        current.status === "ready" ? { ...current, secretSettings: next } : current,
+      );
+
+      try {
+        const result = await window.electronAPI.setSecretGuardSettings(next);
+        if (result.success) return { success: true };
+        secretBaseTrustedRef.current = false;
+        await reconcileSecretFromStore();
+        return {
+          success: false,
+          error: result.error ? wrappedError(result.error) : plainStatus("security.saveError"),
+        };
+      } catch {
+        secretBaseTrustedRef.current = false;
+        await reconcileSecretFromStore();
+        return { success: false, error: plainStatus("security.saveError") };
+      }
+    });
+    secretWriteChainRef.current = task.then(
+      () => undefined,
+      () => undefined,
+    );
+    return task;
+  };
+
+  /**
+   * Every ordinary single-store mutation. Claims the status at the user's
+   * action and reports only if it still owns it when the write settles, so a
+   * slower earlier write can never overwrite a newer one's message.
+   */
+  const persistGuardUpdate = (
+    update: (base: SelectionGuardSettings) => SelectionGuardSettings | null,
+  ): void => {
+    const ownsStatus = claimStatus();
+    void (async () => {
+      const result = await runGuardWrite(update);
+      if (result === null || !ownsStatus()) return;
+      if (result.success) {
+        flashSaved();
+      } else {
+        setStatus(result.error);
+      }
+    })();
+  };
+
+  /** Secret-guard counterpart of `persistGuardUpdate`. */
+  const persistSecretUpdate = (
+    update: (base: SecretGuardSettings) => SecretGuardSettings | null,
+  ): void => {
+    const ownsStatus = claimStatus();
+    void (async () => {
+      const result = await runSecretWrite(update);
+      if (result === null || !ownsStatus()) return;
+      if (result.success) {
+        flashSaved();
+      } else {
+        setStatus(result.error);
+      }
+    })();
+  };
+
+  // Both numeric handlers rebuild from the base they are given rather than a
+  // captured snapshot, for the same reason the deny-list ones do: a scalar
+  // edit made while an app resolution is still pending must carry that
+  // deny-list forward, or persisting the whole object here would erase the app
+  // the user just blocked.
   const handleClipboardAgeChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
-    const previous = currentGuardSettings();
     const raw = Number(event.target.value);
-    const clipboardMaxAgeSeconds = Number.isFinite(raw)
-      ? Math.max(0, Math.floor(raw))
-      : previous.clipboardMaxAgeSeconds;
-    void persistGuardSettings({ ...previous, clipboardMaxAgeSeconds });
+    persistGuardUpdate((base) => ({
+      ...base,
+      clipboardMaxAgeSeconds: Number.isFinite(raw)
+        ? Math.max(0, Math.floor(raw))
+        : base.clipboardMaxAgeSeconds,
+    }));
   };
 
   const handleSelectionSizeChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
-    const previous = currentGuardSettings();
     const raw = Number(event.target.value);
-    const maxSelectionChars = Number.isFinite(raw)
-      ? Math.max(0, Math.floor(raw))
-      : previous.maxSelectionChars;
-    void persistGuardSettings({ ...previous, maxSelectionChars });
+    persistGuardUpdate((base) => ({
+      ...base,
+      maxSelectionChars: Number.isFinite(raw)
+        ? Math.max(0, Math.floor(raw))
+        : base.maxSelectionChars,
+    }));
   };
 
   const canAddBundleId = normalizeBundleId(newBundleId) !== null;
-
-  /**
-   * The base for every deny-list edit. Reads the ref rather than this render's
-   * `guardSettings` so an edit made while an app resolution is still in flight
-   * builds on that pending list instead of replacing it — see the ref's doc
-   * comment. Falls back to render state only before the first load settles.
-   */
-  const currentGuardSettings = (): SelectionGuardSettings =>
-    latestGuardSettingsRef.current ?? guardSettings;
-
-  /** Secret-guard counterpart of `currentGuardSettings` — same staleness rule. */
-  const currentSecretSettings = (): SecretGuardSettings =>
-    latestSecretSettingsRef.current ?? secretSettings;
 
   /**
    * The ONE path by which bundle ids are added, whatever their source: the
@@ -374,64 +474,87 @@ export const SettingSecurity = () => {
    * (canonical form, no duplicates, the `MAX_DENIED_BUNDLE_IDS` cap) and the
    * capacity feedback are decided in exactly one place — a single-id add that
    * silently did nothing at the cap is how "Add" came to look broken.
+   *
+   * The capacity count is whatever the write's own base produced, so it
+   * describes the list the user actually has rather than one guessed before
+   * the queue drained. It is reported only once that partial write lands: on
+   * failure, saying only "these did not fit" would leave the user believing
+   * the rest were saved.
+   *
+   * Resolves to whether a change was persisted, which is what tells the typed
+   * add whether to clear its field.
    */
-  const addDeniedBundleIds = (bundleIds: readonly string[]): void => {
-    const previous = currentGuardSettings();
-    const { settings: next, droppedForCapacity } = withDeniedBundleIds(previous, bundleIds);
+  const addDeniedBundleIds = (bundleIds: readonly string[]): Promise<boolean> => {
+    const ownsStatus = claimStatus();
+    let droppedForCapacity = 0;
 
-    if (droppedForCapacity === 0) {
-      if (next === previous) return;
-      void persistGuardSettings(next);
-      return;
-    }
+    return (async () => {
+      const result = await runGuardWrite((base) => {
+        const addition = withDeniedBundleIds(base, bundleIds);
+        droppedForCapacity = addition.droppedForCapacity;
+        return addition.settings === base ? null : addition.settings;
+      });
 
-    const capacityStatus = plainStatus("security.deniedApps.capacityReached", {
-      dropped: droppedForCapacity,
-      max: MAX_DENIED_BUNDLE_IDS,
-    });
+      const capacityStatus =
+        droppedForCapacity > 0
+          ? plainStatus("security.deniedApps.capacityReached", {
+              dropped: droppedForCapacity,
+              max: MAX_DENIED_BUNDLE_IDS,
+            })
+          : null;
 
-    // Nothing fitted — there is no write to make, so the cap IS the outcome.
-    if (next === previous) {
-      setStatus(capacityStatus);
-      return;
-    }
+      if (!ownsStatus()) return result?.success === true;
 
-    // Some fitted. The capacity warning may only stand if that partial write
-    // actually landed: on failure the state rolls back, and reporting solely
-    // "these did not fit" would leave the user believing the rest were saved.
-    void (async () => {
-      setStatus(capacityStatus);
-      const result = await persistGuardResult(next);
-      if (!result.success) setStatus(result.error);
+      // Nothing fitted — there was no write to make, so the cap IS the outcome.
+      if (result === null) {
+        if (capacityStatus) setStatus(capacityStatus);
+        return false;
+      }
+      if (!result.success) {
+        setStatus(result.error);
+        return false;
+      }
+      if (capacityStatus) {
+        setStatus(capacityStatus);
+      } else {
+        flashSaved();
+      }
+      return true;
     })();
   };
 
   const handleAddDeniedApp = (): void => {
-    const before = currentGuardSettings();
-    addDeniedBundleIds([newBundleId]);
-    // Clears only when the id actually landed, so a rejected entry stays in
-    // the field for the user to see rather than vanishing.
-    if (currentGuardSettings() !== before) setNewBundleId("");
+    const submitted = newBundleId;
+    void (async () => {
+      if (!(await addDeniedBundleIds([submitted]))) return;
+      // Clears only once the id actually landed, so a rejected entry stays in
+      // the field for the user to see rather than vanishing — and only if the
+      // field still holds it, so typing during the write is not wiped.
+      setNewBundleId((current) => (current === submitted ? "" : current));
+    })();
   };
 
   const handleRemoveDeniedApp = (bundleId: string): void => {
-    const previous = currentGuardSettings();
-    const next = withoutDeniedBundleId(previous, bundleId);
-    if (next === previous) return;
-    void persistGuardSettings(next);
+    persistGuardUpdate((base) => {
+      const next = withoutDeniedBundleId(base, bundleId);
+      return next === base ? null : next;
+    });
   };
 
   const handleChooseApps = (): void => {
+    const ownsStatus = claimStatus();
     void (async () => {
       try {
         const result = await window.electronAPI.chooseDeniedApps();
         if (!result.success) {
-          setStatus(wrappedError(result.error));
+          if (ownsStatus()) setStatus(wrappedError(result.error));
           return;
         }
-        addDeniedBundleIds(result.bundleIds);
+        // Re-claims the status itself: the dialog closing is a newer user
+        // action than anything that happened while it sat open.
+        await addDeniedBundleIds(result.bundleIds);
       } catch {
-        setStatus(plainStatus("security.deniedApps.dropError"));
+        if (ownsStatus()) setStatus(plainStatus("security.deniedApps.dropError"));
       }
     })();
   };
@@ -451,6 +574,7 @@ export const SettingSecurity = () => {
   const handleAppDrop = (event: React.DragEvent<HTMLElement>): void => {
     event.preventDefault();
     setIsDropTarget(false);
+    const ownsStatus = claimStatus();
     const files = [...event.dataTransfer.files];
     const paths = files
       .map((file) => window.electronAPI.getAppBundlePathForFile(file))
@@ -464,67 +588,73 @@ export const SettingSecurity = () => {
       try {
         const result = await window.electronAPI.resolveAppBundleIds(paths);
         if (!result.success) {
-          setStatus(wrappedError(result.error));
+          if (ownsStatus()) setStatus(wrappedError(result.error));
           return;
         }
-        addDeniedBundleIds(result.bundleIds);
+        await addDeniedBundleIds(result.bundleIds);
       } catch {
-        setStatus(plainStatus("security.deniedApps.dropError"));
+        if (ownsStatus()) setStatus(plainStatus("security.deniedApps.dropError"));
       }
     })();
   };
 
   const handleToggleRecentApp = (chip: RecentAppChip): void => {
-    if (chip.app.bundleId === null) return;
+    const { bundleId } = chip.app;
+    if (bundleId === null) return;
     // Blocking goes through the shared add path so a chip clicked at the cap
     // explains itself instead of looking dead; unblocking has no cap to hit.
     if (!chip.blocked) {
-      addDeniedBundleIds([chip.app.bundleId]);
+      void addDeniedBundleIds([bundleId]);
       return;
     }
-    const previous = currentGuardSettings();
-    const next = withoutDeniedBundleId(previous, chip.app.bundleId);
-    if (next === previous) return;
-    void persistGuardSettings(next);
+    persistGuardUpdate((base) => {
+      const next = withoutDeniedBundleId(base, bundleId);
+      return next === base ? null : next;
+    });
   };
 
   const handleModeChange = (mode: SecretGuardMode): void => {
-    void persistSecretSettings({ ...currentSecretSettings(), mode });
+    persistSecretUpdate((base) => ({ ...base, mode }));
   };
 
   const handleHighEntropyChange = (highEntropyRule: boolean): void => {
-    void persistSecretSettings({ ...currentSecretSettings(), highEntropyRule });
+    persistSecretUpdate((base) => ({ ...base, highEntropyRule }));
   };
 
   /**
-   * Fires both restore writes concurrently — concurrency is not the defect,
-   * an unsequenced shared write is. `Promise.all` waits for BOTH
-   * `PersistResult`s before touching `saveStatus`, so the derived status
-   * depends only on which write(s) failed, never on which one happened to
-   * settle last. A failure always wins over a success: restoring is not
-   * "done" if either store silently reverted, and "Saved." must never be
-   * shown while one guard is actually still off.
+   * Fires both restore writes concurrently — they target different stores, so
+   * nothing is shared for them to race over; each still queues behind that
+   * store's own pending writes. `Promise.all` waits for BOTH `PersistResult`s
+   * before touching `saveStatus`, so the derived status depends only on which
+   * write(s) failed, never on which one happened to settle last. A failure
+   * always wins over a success: restoring is not "done" if either store
+   * silently reverted, and "Saved." must never be shown while one guard is
+   * actually still off.
+   *
+   * `derivesFromBase: false` because restore ignores the current settings
+   * entirely — see `WriteOptions`. That also means neither write can resolve
+   * to "nothing to do".
    */
   const handleRestoreDefaults = (): void => {
+    const ownsStatus = claimStatus();
     void (async () => {
       const [guardResult, secretResult] = await Promise.all([
-        // Rolls back to the pending list, not this render's, so a failed
-        // restore during an in-flight app resolution restores what was
-        // actually there rather than reviving a superseded deny-list.
-        persistGuardResult(defaultGuardSettings()),
-        persistSecretResult({ ...DEFAULT_SECRET_GUARD_SETTINGS }),
+        runGuardWrite(() => defaultGuardSettings(), { derivesFromBase: false }),
+        runSecretWrite(() => ({ ...DEFAULT_SECRET_GUARD_SETTINGS }), { derivesFromBase: false }),
       ]);
 
-      if (guardResult.success && secretResult.success) {
+      if (!ownsStatus()) return;
+
+      if (guardResult?.success === true && secretResult?.success === true) {
         flashSaved();
         return;
       }
-      if (!guardResult.success && !secretResult.success) {
+      if (guardResult?.success !== true && secretResult?.success !== true) {
         setStatus(plainStatus("security.saveError"));
         return;
       }
       setStatus(
-        guardResult.success
+        guardResult?.success === true
           ? plainStatus("security.restorePartial.secretFailed")
           : plainStatus("security.restorePartial.guardFailed"),
       );

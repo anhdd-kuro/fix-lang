@@ -14,6 +14,11 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
+  DEFAULT_DENIED_BUNDLE_IDS,
+  DEFAULT_MAX_SELECTION_CHARS,
+} from "~/features/guards/shared/guardSettings";
 import { DEFAULT_SECRET_GUARD_SETTINGS } from "~/features/secretGuard/shared/secretGuardSettings";
 import { SettingSecurity } from "./SettingSecurity";
 import { I18nProvider } from "../../i18n/I18nProvider";
@@ -659,55 +664,190 @@ describe("SettingSecurity", () => {
   });
 
   /**
-   * The secret-guard store is the other half of this panel and had no ref or
-   * revision at all: an older failed mode change would unconditionally restore
-   * its own pre-state over a newer successfully-persisted setting, so the UI
-   * would claim protection that is not actually on.
-   *
-   * CHARACTERIZATION ONLY — unlike its deny-list siblings above, this case
-   * still passes against the pre-fix implementation, so it pins the intended
-   * behaviour rather than proving the fix. Reproducing the divergence needs
-   * the two writes to interleave inside a single React commit, which this
-   * `act`-per-click harness serializes away. Do not read a green run here as
-   * evidence that ordered secret-guard writes are covered.
+   * `.click()` rather than a dispatched `MouseEvent`: only the former runs the
+   * activation behaviour that flips `checked`, and React reads `target.checked`
+   * to synthesise a checkbox's `onChange`. A dispatched event leaves the box
+   * unchanged, React dedupes it, and the write under test silently never
+   * happens — which a test asserting only the final state reports as a pass.
    */
-  it("does not let a failed secret-guard write undo a newer successful one", async () => {
+  const toggleHighEntropy = async (): Promise<void> => {
+    const box = [...container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].at(0);
+    if (!box) throw new Error("Expected the high-entropy checkbox");
+    await act(async () => {
+      box.click();
+    });
+  };
+
+  /** React's `onChange` for a text/number field is the native `input` event. */
+  const typeIntoNumberField = async (id: string, value: string): Promise<void> => {
+    const field = container.querySelector<HTMLInputElement>(`#${id}`);
+    if (!field) throw new Error(`Expected the ${id} field`);
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    await act(async () => {
+      setValue?.call(field, value);
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  };
+
+  /**
+   * The write queue's reason to exist. Every write persists the WHOLE settings
+   * object, so a second write that builds on a REJECTED first one carries the
+   * rejection into the store and makes it real.
+   *
+   * W1 removes a blocked app and fails; W2 edits an unrelated scalar. If W2's
+   * payload is assembled from W1's optimistic value, W2 succeeds and persists
+   * the removal the store had refused — the app the user believes is blocked
+   * is now genuinely unblocked, by a write that reported success.
+   */
+  it("does not carry a rejected deny-list change into the next write's payload", async () => {
+    const firstWrite = deferred<{ success: boolean }>();
+    const setSelectionGuards = vi
+      .fn()
+      .mockImplementationOnce(() => firstWrite.promise)
+      .mockResolvedValue({ success: true });
+
+    await render({ setSelectionGuards });
+
+    const removeButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove com.1password.1password from the blocked list"]',
+    );
+    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    await act(async () => {
+      removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    // W2 is issued while W1 is still pending — the exact overlap the queue
+    // exists to prevent, so it must not have reached the store yet.
+    await typeIntoNumberField("security-selection-size", "1234");
+    expect(setSelectionGuards).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      firstWrite.resolve({ success: false });
+    });
+    await waitForUi();
+    await waitForUi();
+    await waitForUi();
+
+    expect(setSelectionGuards).toHaveBeenCalledTimes(2);
+    const secondPayload = setSelectionGuards.mock.calls[1]?.[0] as SelectionGuardSettings;
+    expect(secondPayload.maxSelectionChars).toBe(1234);
+    // The rejected removal must NOT be along for the ride.
+    expect(secondPayload.deniedBundleIds).toEqual(["com.1password.1password"]);
+  });
+
+  /** The secret-guard store is the other half of this panel — same contract. */
+  it("does not carry a rejected secret-guard change into the next write's payload", async () => {
     const firstWrite = deferred<{ success: boolean }>();
     const setSecretGuardSettings = vi
       .fn()
       .mockImplementationOnce(() => firstWrite.promise)
       .mockResolvedValue({ success: true });
+    const stored = { mode: "confirm" as const, highEntropyRule: false };
 
     await render({
       setSecretGuardSettings,
-      // The store as it stands after W2 lands — what a reconcile should find.
-      getSecretGuardSettings: vi
-        .fn()
-        .mockResolvedValue({ ...DEFAULT_SECRET_GUARD_SETTINGS, mode: "mask" }),
+      getSecretGuardSettings: vi.fn().mockResolvedValue(stored),
     });
 
-    // Two mode changes rather than the mode+entropy pair the report used: the
-    // high-entropy control is a CONTROLLED checkbox whose onChange a dispatched
-    // click does not reach, and a test that silently makes no second write
-    // would assert nothing. The defect exercised is identical.
-    await act(async () => {
-      clickButtonLabelledSync("Off"); // W1, pending
+    await toggleHighEntropy(); // W1: highEntropyRule -> true, pending
+    expect(setSecretGuardSettings).toHaveBeenCalledTimes(1);
+    expect(setSecretGuardSettings.mock.calls[0]?.[0]).toEqual({
+      mode: "confirm",
+      highEntropyRule: true,
     });
-    await clickButtonLabelled("Mask and restore"); // W2, succeeds
+
+    await clickButtonLabelled("Mask and restore"); // W2, queued behind W1
+    expect(setSecretGuardSettings).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      firstWrite.resolve({ success: false });
+    });
+    await waitForUi();
+    await waitForUi();
+    await waitForUi();
+
     expect(setSecretGuardSettings).toHaveBeenCalledTimes(2);
+    // `highEntropyRule` must come from the store, not from W1's rejection.
+    expect(setSecretGuardSettings.mock.calls[1]?.[0]).toEqual({
+      mode: "mask",
+      highEntropyRule: false,
+    });
+  });
 
+  /**
+   * When the re-read after a failed write ALSO fails, the panel is showing a
+   * value the store rejected and has no way to learn the real one. Persisting
+   * a whole object assembled around that phantom would make it real, so the
+   * next write must refuse rather than guess.
+   */
+  it("refuses the next write when the post-failure re-read also fails", async () => {
+    const setSelectionGuards = vi.fn().mockResolvedValue({ success: false });
+    const getSelectionGuards = vi
+      .fn()
+      .mockResolvedValueOnce(defaultGuardSettings()) // initial load
+      .mockRejectedValue(new Error("store unreadable"));
+
+    await render({ setSelectionGuards, getSelectionGuards });
+
+    const removeButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove com.1password.1password from the blocked list"]',
+    );
+    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
     await act(async () => {
-      firstWrite.resolve({ success: false }); // W1 fails last
+      removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForUi();
+    await waitForUi();
+    expect(setSelectionGuards).toHaveBeenCalledTimes(1);
+
+    await typeIntoNumberField("security-selection-size", "1234");
+    await waitForUi();
+    await waitForUi();
+    await waitForUi();
+
+    // One more re-read attempt is allowed; a second WRITE is not.
+    expect(setSelectionGuards).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("Couldn't save");
+  });
+
+  /**
+   * The refusal above must not extend to Restore defaults. Restore does not
+   * read the current settings, so it has no rejected value to carry into the
+   * store — and it is precisely the control a user reaches for when the panel
+   * has wedged. Gating it on a readable store would disable the only way out.
+   */
+  it("still restores defaults when the store cannot be read", async () => {
+    const setSelectionGuards = vi
+      .fn()
+      .mockResolvedValueOnce({ success: false }) // wedges the base
+      .mockResolvedValue({ success: true });
+    const getSelectionGuards = vi
+      .fn()
+      .mockResolvedValueOnce(defaultGuardSettings()) // initial load
+      .mockRejectedValue(new Error("store unreadable"));
+
+    await render({ setSelectionGuards, getSelectionGuards });
+
+    const removeButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove com.1password.1password from the blocked list"]',
+    );
+    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    await act(async () => {
+      removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     await waitForUi();
     await waitForUi();
 
-    // W2's persisted mode must survive. A stale restore would put the control
-    // back on "Confirm before sending" — protection the store does not have.
-    const pressed = [...container.querySelectorAll('[role="group"] button')].find(
-      (button) => button.getAttribute("aria-pressed") === "true",
-    );
-    expect(pressed?.textContent).toBe("Mask and restore");
+    await clickButtonLabelled("Restore defaults");
+    await waitForUi();
+    await waitForUi();
+
+    expect(setSelectionGuards).toHaveBeenCalledTimes(2);
+    expect(setSelectionGuards.mock.calls[1]?.[0]).toEqual({
+      clipboardMaxAgeSeconds: DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
+      maxSelectionChars: DEFAULT_MAX_SELECTION_CHARS,
+      deniedBundleIds: [...DEFAULT_DENIED_BUNDLE_IDS],
+    });
   });
 
   /**
@@ -748,6 +888,44 @@ describe("SettingSecurity", () => {
     await waitForUi();
 
     expect(container.textContent).not.toContain("Saved.");
+  });
+
+  /**
+   * Status ownership has to cover EVERY mutation, not just the two ordinary
+   * persistence wrappers. Restore writes both stores, so it can still be
+   * in flight long after a later edit has finished and reported; when it
+   * finally lands it must not narrate over that newer outcome.
+   */
+  it("does not let a still-pending restore overwrite a newer edit's status", async () => {
+    const secretWrite = deferred<{ success: boolean }>();
+    await render({
+      setSecretGuardSettings: vi.fn().mockImplementation(() => secretWrite.promise),
+    });
+
+    await act(async () => {
+      clickButtonLabelledSync("Restore defaults");
+    });
+    await waitForUi();
+
+    // A newer edit finishes while the restore's secret write is still open.
+    const removeButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove com.1password.1password from the blocked list"]',
+    );
+    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    await act(async () => {
+      removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForUi();
+    await waitForUi();
+    expect(container.textContent).toContain("Saved.");
+
+    await act(async () => {
+      secretWrite.resolve({ success: false });
+    });
+    await waitForUi();
+    await waitForUi();
+
+    expect(container.textContent).not.toContain("Restore only partly worked");
   });
 
   /**
