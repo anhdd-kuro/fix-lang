@@ -848,6 +848,111 @@ describe("SettingSecurity", () => {
       maxSelectionChars: DEFAULT_MAX_SELECTION_CHARS,
       deniedBundleIds: [...DEFAULT_DENIED_BUNDLE_IDS],
     });
+
+    // A successful setter is authoritative on its own: the store now holds
+    // what the panel shows, so the next ordinary edit must go through rather
+    // than being refused for want of a read that still is not possible.
+    await typeIntoNumberField("security-selection-size", "4321");
+    await waitForUi();
+    await waitForUi();
+
+    expect(setSelectionGuards).toHaveBeenCalledTimes(3);
+    expect((setSelectionGuards.mock.calls[2]?.[0] as SelectionGuardSettings).maxSelectionChars).toBe(
+      4321,
+    );
+  });
+
+  /**
+   * A drop resolves through main, which can take a while. When it finally
+   * lands it is an OLD action finishing late — it must report under the claim
+   * taken when the files were dropped, not seize ownership afresh, or it will
+   * narrate "Saved." over a failure the user caused in the meantime.
+   */
+  it("does not let a slow drop's success overwrite a newer edit's failure", async () => {
+    const resolution = deferred<{ success: boolean; bundleIds: string[] }>();
+    const setSelectionGuards = vi
+      .fn()
+      .mockResolvedValueOnce({ success: false }) // the newer edit
+      .mockResolvedValue({ success: true }); // the drop's add, landing later
+
+    await render({
+      setSelectionGuards,
+      getAppBundlePathForFile: vi.fn().mockReturnValue("/Applications/Slack.app"),
+      resolveAppBundleIds: vi.fn().mockImplementation(() => resolution.promise),
+    });
+
+    await dropFilesOnBlockedApps([{ name: "Slack.app" }]);
+
+    // Newer edit fails while the drop is still resolving.
+    const removeButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove com.1password.1password from the blocked list"]',
+    );
+    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    await act(async () => {
+      removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForUi();
+    await waitForUi();
+    expect(container.textContent).toContain("Couldn't save");
+
+    await act(async () => {
+      resolution.resolve({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] });
+    });
+    await waitForUi();
+    await waitForUi();
+    await waitForUi();
+
+    // The add still happens — only its narration is outranked.
+    expect(setSelectionGuards).toHaveBeenCalledTimes(2);
+    expect(container.textContent).not.toContain("Saved.");
+    expect(container.textContent).toContain("Couldn't save");
+  });
+
+  /**
+   * The native chooser is the same shape of hazard as the drop above, and for
+   * a sharper reason: `dialog.showOpenDialog` is called with no parent window
+   * (`src/features/guards/main/guards.ts`), so it is NOT modal — the panel
+   * stays editable for as long as the dialog sits open. A pick made minutes
+   * later is still an older action than an edit made in between.
+   */
+  it("does not let a slow app chooser's success overwrite a newer edit's failure", async () => {
+    const picked = deferred<{ success: boolean; bundleIds: string[] }>();
+    const setSelectionGuards = vi
+      .fn()
+      .mockResolvedValueOnce({ success: false }) // the newer edit
+      .mockResolvedValue({ success: true }); // the chooser's add, landing later
+
+    await render({
+      setSelectionGuards,
+      chooseDeniedApps: vi.fn().mockImplementation(() => picked.promise),
+    });
+
+    await act(async () => {
+      clickButtonLabelledSync("Choose app…");
+    });
+    await waitForUi();
+
+    const removeButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove com.1password.1password from the blocked list"]',
+    );
+    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    await act(async () => {
+      removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForUi();
+    await waitForUi();
+    expect(container.textContent).toContain("Couldn't save");
+
+    await act(async () => {
+      picked.resolve({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] });
+    });
+    await waitForUi();
+    await waitForUi();
+    await waitForUi();
+
+    expect(setSelectionGuards).toHaveBeenCalledTimes(2);
+    expect(container.textContent).not.toContain("Saved.");
+    expect(container.textContent).toContain("Couldn't save");
   });
 
   /**

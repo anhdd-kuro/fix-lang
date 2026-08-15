@@ -334,7 +334,15 @@ export const SettingSecurity = () => {
 
       try {
         const result = await window.electronAPI.setSelectionGuards(next);
-        if (result.success) return { success: true };
+        if (result.success) {
+          // A successful setter is itself authoritative: the store now holds
+          // `next`, which is what the ref holds. Trust revoked by an earlier
+          // failure is therefore earned back here, without a read — otherwise
+          // Restore defaults could succeed against an unreadable store and
+          // still leave every subsequent edit refused.
+          guardBaseTrustedRef.current = true;
+          return { success: true };
+        }
         guardBaseTrustedRef.current = false;
         await reconcileGuardFromStore();
         return {
@@ -384,7 +392,11 @@ export const SettingSecurity = () => {
 
       try {
         const result = await window.electronAPI.setSecretGuardSettings(next);
-        if (result.success) return { success: true };
+        if (result.success) {
+          // See `runGuardWrite` — a successful setter re-earns trust.
+          secretBaseTrustedRef.current = true;
+          return { success: true };
+        }
         secretBaseTrustedRef.current = false;
         await reconcileSecretFromStore();
         return {
@@ -483,9 +495,19 @@ export const SettingSecurity = () => {
    *
    * Resolves to whether a change was persisted, which is what tells the typed
    * add whether to clear its field.
+   *
+   * `ownsStatus` is always the claim taken at the USER'S action, never one
+   * minted here. Both async sources — a drop resolving through main and the
+   * native chooser — can land long after the user has moved on, and an old
+   * action finishing late must not become the newest status owner and narrate
+   * over an edit made in the meantime. The chooser is no exception: its
+   * `showOpenDialog` call passes no parent window (`guards.ts`), so the dialog
+   * is not modal and the panel stays fully editable while it sits open.
    */
-  const addDeniedBundleIds = (bundleIds: readonly string[]): Promise<boolean> => {
-    const ownsStatus = claimStatus();
+  const addDeniedBundleIds = (
+    bundleIds: readonly string[],
+    ownsStatus: () => boolean,
+  ): Promise<boolean> => {
     let droppedForCapacity = 0;
 
     return (async () => {
@@ -525,8 +547,9 @@ export const SettingSecurity = () => {
 
   const handleAddDeniedApp = (): void => {
     const submitted = newBundleId;
+    const ownsStatus = claimStatus();
     void (async () => {
-      if (!(await addDeniedBundleIds([submitted]))) return;
+      if (!(await addDeniedBundleIds([submitted], ownsStatus))) return;
       // Clears only once the id actually landed, so a rejected entry stays in
       // the field for the user to see rather than vanishing — and only if the
       // field still holds it, so typing during the write is not wiped.
@@ -550,9 +573,11 @@ export const SettingSecurity = () => {
           if (ownsStatus()) setStatus(wrappedError(result.error));
           return;
         }
-        // Re-claims the status itself: the dialog closing is a newer user
-        // action than anything that happened while it sat open.
-        await addDeniedBundleIds(result.bundleIds);
+        // Keeps the claim taken when the button was clicked. The dialog is
+        // NOT modal to this window, so the user can edit the panel while it is
+        // open — a pick made minutes later is still an older action than those
+        // edits, and must not overwrite what they reported.
+        await addDeniedBundleIds(result.bundleIds, ownsStatus);
       } catch {
         if (ownsStatus()) setStatus(plainStatus("security.deniedApps.dropError"));
       }
@@ -591,7 +616,10 @@ export const SettingSecurity = () => {
           if (ownsStatus()) setStatus(wrappedError(result.error));
           return;
         }
-        await addDeniedBundleIds(result.bundleIds);
+        // Keeps the claim taken when the files were dropped: resolving through
+        // main can take a while, and this add must not outrank an edit the
+        // user made while it was in flight.
+        await addDeniedBundleIds(result.bundleIds, ownsStatus);
       } catch {
         if (ownsStatus()) setStatus(plainStatus("security.deniedApps.dropError"));
       }
@@ -604,7 +632,7 @@ export const SettingSecurity = () => {
     // Blocking goes through the shared add path so a chip clicked at the cap
     // explains itself instead of looking dead; unblocking has no cap to hit.
     if (!chip.blocked) {
-      void addDeniedBundleIds([bundleId]);
+      void addDeniedBundleIds([bundleId], claimStatus());
       return;
     }
     persistGuardUpdate((base) => {
