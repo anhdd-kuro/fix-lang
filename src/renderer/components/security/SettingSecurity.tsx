@@ -46,7 +46,6 @@ import { DEFAULT_SECRET_GUARD_SETTINGS, SECRET_GUARD_MODES } from "~/features/se
 import {
   SECRET_GUARD_LIMITATION_KEYS,
   resolveSecurityView,
-  withDeniedBundleId,
   withDeniedBundleIds,
   withoutDeniedBundleId,
   type RecentAppChip,
@@ -123,6 +122,13 @@ export const SettingSecurity = () => {
    */
   const latestGuardSettingsRef = useRef<SelectionGuardSettings | null>(null);
 
+  /**
+   * Monotonic id for guard writes. Only the newest write may roll back — see
+   * `rollback` inside `persistGuardResult` for the state divergence this
+   * prevents.
+   */
+  const guardWriteRevisionRef = useRef(0);
+
   const clearSaveStatusTimeout = (): void => {
     if (saveStatusTimeoutRef.current !== null) {
       window.clearTimeout(saveStatusTimeoutRef.current);
@@ -184,24 +190,37 @@ export const SettingSecurity = () => {
     next: SelectionGuardSettings,
     previous: SelectionGuardSettings,
   ): Promise<PersistResult> => {
+    const revision = ++guardWriteRevisionRef.current;
     latestGuardSettingsRef.current = next;
     setState((current) => (current.status === "ready" ? { ...current, guardSettings: next } : current));
-    try {
-      const result = await window.electronAPI.setSelectionGuards(next);
-      if (result.success) return { success: true };
+
+    /**
+     * Undoes the optimistic install — but ONLY while this write is still the
+     * newest one. A superseded write that rolls back would drag the UI and the
+     * ref back to ITS pre-state, discarding a later write that already
+     * succeeded: W1 (S0→A) fails after W2 (A→B) succeeds, and an unguarded
+     * rollback leaves the panel showing S0 while the store holds B — with the
+     * next edit then built from S0 and overwriting B for real. The failure is
+     * still REPORTED either way; only the state rewind is conditional.
+     */
+    const rollback = (): void => {
+      if (guardWriteRevisionRef.current !== revision) return;
       latestGuardSettingsRef.current = previous;
       setState((current) =>
         current.status === "ready" ? { ...current, guardSettings: previous } : current,
       );
+    };
+
+    try {
+      const result = await window.electronAPI.setSelectionGuards(next);
+      if (result.success) return { success: true };
+      rollback();
       return {
         success: false,
         error: result.error ? wrappedError(result.error) : plainStatus("security.saveError"),
       };
     } catch {
-      latestGuardSettingsRef.current = previous;
-      setState((current) =>
-        current.status === "ready" ? { ...current, guardSettings: previous } : current,
-      );
+      rollback();
       return { success: false, error: plainStatus("security.saveError") };
     }
   };
@@ -305,48 +324,56 @@ export const SettingSecurity = () => {
   const currentGuardSettings = (): SelectionGuardSettings =>
     latestGuardSettingsRef.current ?? guardSettings;
 
-  const handleAddDeniedApp = (): void => {
-    const previous = currentGuardSettings();
-    const next = withDeniedBundleId(previous, newBundleId);
-    if (next === previous) return;
-    setNewBundleId("");
-    void persistGuardSettings(next, previous);
-  };
-
-  const handleRemoveDeniedApp = (bundleId: string): void => {
-    const previous = currentGuardSettings();
-    const next = withoutDeniedBundleId(previous, bundleId);
-    if (next === previous) return;
-    void persistGuardSettings(next, previous);
-  };
-
   /**
-   * The one place resolved bundle ids reach the store, shared by the file
-   * dialog and the drop zone. Goes through `withDeniedBundleIds` so ids read
-   * off disk obey the same deny-list invariants (canonical form, no
-   * duplicates, bounded count) as ones the user typed, and skips the write
-   * entirely when nothing changed — dropping an app that is already blocked
-   * should not flash "Saved.".
+   * The ONE path by which bundle ids are added, whatever their source: the
+   * text field, a recent-app chip, the file dialog, or a drop. Routing all
+   * four through `withDeniedBundleIds` means the deny-list invariants
+   * (canonical form, no duplicates, the `MAX_DENIED_BUNDLE_IDS` cap) and the
+   * capacity feedback are decided in exactly one place — a single-id add that
+   * silently did nothing at the cap is how "Add" came to look broken.
    */
   const addDeniedBundleIds = (bundleIds: readonly string[]): void => {
     const previous = currentGuardSettings();
     const { settings: next, droppedForCapacity } = withDeniedBundleIds(previous, bundleIds);
 
-    // Reported even when some ids DID fit: a picker selection that half-worked
-    // must not read as a plain success, or the user believes they blocked apps
-    // that are still allowed.
-    if (droppedForCapacity > 0) {
-      setStatus(
-        plainStatus("security.deniedApps.capacityReached", {
-          dropped: droppedForCapacity,
-          max: MAX_DENIED_BUNDLE_IDS,
-        }),
-      );
+    if (droppedForCapacity === 0) {
       if (next === previous) return;
-      void persistGuardResult(next, previous);
+      void persistGuardSettings(next, previous);
       return;
     }
 
+    const capacityStatus = plainStatus("security.deniedApps.capacityReached", {
+      dropped: droppedForCapacity,
+      max: MAX_DENIED_BUNDLE_IDS,
+    });
+
+    // Nothing fitted — there is no write to make, so the cap IS the outcome.
+    if (next === previous) {
+      setStatus(capacityStatus);
+      return;
+    }
+
+    // Some fitted. The capacity warning may only stand if that partial write
+    // actually landed: on failure the state rolls back, and reporting solely
+    // "these did not fit" would leave the user believing the rest were saved.
+    void (async () => {
+      setStatus(capacityStatus);
+      const result = await persistGuardResult(next, previous);
+      if (!result.success) setStatus(result.error);
+    })();
+  };
+
+  const handleAddDeniedApp = (): void => {
+    const before = currentGuardSettings();
+    addDeniedBundleIds([newBundleId]);
+    // Clears only when the id actually landed, so a rejected entry stays in
+    // the field for the user to see rather than vanishing.
+    if (currentGuardSettings() !== before) setNewBundleId("");
+  };
+
+  const handleRemoveDeniedApp = (bundleId: string): void => {
+    const previous = currentGuardSettings();
+    const next = withoutDeniedBundleId(previous, bundleId);
     if (next === previous) return;
     void persistGuardSettings(next, previous);
   };
@@ -406,10 +433,14 @@ export const SettingSecurity = () => {
 
   const handleToggleRecentApp = (chip: RecentAppChip): void => {
     if (chip.app.bundleId === null) return;
+    // Blocking goes through the shared add path so a chip clicked at the cap
+    // explains itself instead of looking dead; unblocking has no cap to hit.
+    if (!chip.blocked) {
+      addDeniedBundleIds([chip.app.bundleId]);
+      return;
+    }
     const previous = currentGuardSettings();
-    const next = chip.blocked
-      ? withoutDeniedBundleId(previous, chip.app.bundleId)
-      : withDeniedBundleId(previous, chip.app.bundleId);
+    const next = withoutDeniedBundleId(previous, chip.app.bundleId);
     if (next === previous) return;
     void persistGuardSettings(next, previous);
   };

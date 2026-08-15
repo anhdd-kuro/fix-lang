@@ -557,6 +557,116 @@ describe("SettingSecurity", () => {
     expect(container.textContent).toContain("Only .app bundles can be added this way.");
   });
 
+  /**
+   * Each write optimistically installs its own `next`. An OLDER write that
+   * fails after a NEWER one succeeded must not rewind to its own pre-state:
+   * that would leave the panel showing S0 while the store holds B, and the
+   * next edit — built from the rewound state — would overwrite B for real.
+   * No response reordering is needed to reach this; W1 simply loses.
+   */
+  it("does not let a superseded failed write roll back a newer successful one", async () => {
+    const firstWrite = deferred<{ success: boolean }>();
+    const setSelectionGuards = vi
+      .fn()
+      .mockImplementationOnce(() => firstWrite.promise)
+      .mockResolvedValue({ success: true });
+
+    await render({
+      setSelectionGuards,
+      // Must actually add something, or W1 makes no write and the deferred
+      // promise would be consumed by W2 instead.
+      chooseDeniedApps: vi
+        .fn()
+        .mockResolvedValue({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] }),
+    });
+
+    // W1: block an app via the chooser. Left in flight.
+    await act(async () => {
+      clickButtonLabelledSync("Choose app…");
+    });
+
+    // W2: a newer write that succeeds — remove the pre-existing denied app.
+    const removeButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove com.1password.1password from the blocked list"]',
+    );
+    if (!removeButton) throw new Error("Expected the remove-from-deny-list button");
+    await act(async () => {
+      removeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForUi();
+
+    // Only now does the older write fail.
+    await act(async () => {
+      firstWrite.resolve({ success: false });
+    });
+    await waitForUi();
+
+    // The removal stuck in the store, so it must still be gone from the panel.
+    // An unguarded rollback would resurrect the chip here.
+    expect(
+      container.querySelector(
+        '[aria-label="Remove com.1password.1password from the blocked list"]',
+      ),
+    ).toBeNull();
+  });
+
+  /**
+   * The capacity warning may only stand if the partial write actually landed.
+   * Reporting solely "these did not fit" after a failed write would leave the
+   * user believing the ones that DID fit were saved.
+   */
+  it("reports the write failure, not just the overflow, when a partial add fails", async () => {
+    const full = Array.from({ length: 199 }, (_unused, index) => `com.example.app${String(index)}`);
+    await render({
+      getSelectionGuards: vi
+        .fn()
+        .mockResolvedValue({ ...defaultGuardSettings(), deniedBundleIds: full }),
+      setSelectionGuards: vi.fn().mockResolvedValue({ success: false }),
+      chooseDeniedApps: vi.fn().mockResolvedValue({
+        success: true,
+        bundleIds: ["com.tinyspeck.slackmacgap", "com.figma.desktop"],
+      }),
+    });
+
+    await clickButtonLabelled("Choose app…");
+
+    expect(container.textContent).toContain("Couldn't save");
+  });
+
+  /**
+   * `withDeniedBundleId` returning the same reference at the cap made every
+   * single-id add look like a generic no-op: the control stayed enabled and
+   * nothing was said, so Add and the recent-app chips appeared broken.
+   */
+  it("explains the limit when a typed add cannot fit", async () => {
+    const full = Array.from({ length: 200 }, (_unused, index) => `com.example.app${String(index)}`);
+    await render({
+      getSelectionGuards: vi
+        .fn()
+        .mockResolvedValue({ ...defaultGuardSettings(), deniedBundleIds: full }),
+    });
+
+    const input = container.querySelector<HTMLInputElement>(
+      'input[aria-label="Block an app"]',
+    );
+    if (!input) throw new Error("Expected the bundle-id input");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value",
+      )?.set?.call(input, "com.tinyspeck.slackmacgap");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await clickButtonLabelled("Block an app");
+
+    expect(api.setSelectionGuards).not.toHaveBeenCalled();
+    // The exact sentence, not just "full" — the limitations copy below also
+    // contains the word "full", which would match no matter what happened.
+    expect(container.textContent).toContain("The blocked-apps list is full at 200");
+    // The rejected id stays in the field rather than vanishing.
+    expect(input.value).toBe("com.tinyspeck.slackmacgap");
+  });
+
   it("sizes the secret-guard mode switch to its options rather than the panel width", async () => {
     await render();
 
