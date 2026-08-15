@@ -453,14 +453,30 @@ describe("SettingAutocomplete", () => {
     );
   });
 
+  /**
+   * The privacy statement is four separate points rather than one paragraph,
+   * so each is pinned by its own key. Every claim must survive the split —
+   * checking only that "some privacy text is on screen" would let a
+   * re-chunking quietly drop one of them.
+   */
   it("states the privacy position honestly, recommending a local provider", async () => {
     await mount(baseElectronAPI());
 
-    const privacyHint = tEn("settings.autocomplete.privacy.hint");
-    expect(container.textContent).toContain(privacyHint);
-    expect(privacyHint).toContain("Ollama");
-    expect(privacyHint).toContain("LM Studio");
-    expect(privacyHint).toContain("nothing leaves this machine");
+    const localProvider = tEn("settings.autocomplete.privacy.localProvider");
+    expect(container.textContent).toContain(localProvider);
+    expect(localProvider).toContain("Ollama");
+    expect(localProvider).toContain("LM Studio");
+    expect(localProvider).toContain("nothing leaves this machine");
+  });
+
+  it("still states what metadata rides along with every suggestion", async () => {
+    await mount(baseElectronAPI());
+
+    const metadata = tEn("settings.autocomplete.privacy.metadata");
+    expect(container.textContent).toContain(metadata);
+    expect(metadata).toContain("your macOS system language");
+    expect(metadata).toContain("your five most recent transforms");
+    expect(metadata).toContain("never the text of those transforms");
   });
 
   /**
@@ -476,7 +492,7 @@ describe("SettingAutocomplete", () => {
   it("warns that in-progress, unsent text is what gets transmitted, in both locales", async () => {
     await mount(baseElectronAPI());
 
-    const privacyHintEn = tEn("settings.autocomplete.privacy.hint");
+    const privacyHintEn = tEn("settings.autocomplete.privacy.typing");
     expect(container.textContent).toContain(privacyHintEn);
     expect(privacyHintEn).toContain("the text you're typing");
     expect(privacyHintEn).toContain("before you send it anywhere");
@@ -486,7 +502,7 @@ describe("SettingAutocomplete", () => {
 
     // Japanese is a real translation here, not an English fallback, so the
     // warning has to be pinned there too or JA users can quietly lose it.
-    const privacyHintJa = tJa("settings.autocomplete.privacy.hint");
+    const privacyHintJa = tJa("settings.autocomplete.privacy.typing");
     expect(privacyHintJa).not.toBe(privacyHintEn);
     expect(privacyHintJa).toContain("まだどこにも送信していない");
     expect(privacyHintJa).toContain("入力中のテキスト");
@@ -507,14 +523,14 @@ describe("SettingAutocomplete", () => {
   it("says the attached Ask context is sent with suggestions too, in both locales", async () => {
     await mount(baseElectronAPI());
 
-    const privacyHintEn = tEn("settings.autocomplete.privacy.hint");
+    const privacyHintEn = tEn("settings.autocomplete.privacy.askContext");
     expect(container.textContent).toContain(privacyHintEn);
     expect(privacyHintEn).toContain("When Ask AI has context attached");
     expect(privacyHintEn).toContain("from your clipboard");
     expect(privacyHintEn).toContain("sent with every suggestion too");
     expect(privacyHintEn).toContain("before you submit anything");
 
-    const privacyHintJa = tJa("settings.autocomplete.privacy.hint");
+    const privacyHintJa = tJa("settings.autocomplete.privacy.askContext");
     expect(privacyHintJa).toContain("コンテキスト");
     expect(privacyHintJa).toContain("クリップボード");
     expect(privacyHintJa).toContain("送信ボタンを押す前に");

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   COMBO_MAX_STEPS,
   COMBO_MIN_STEPS,
@@ -9,9 +9,12 @@ import { Checkbox } from "./Checkbox";
 import {
   addComboStep,
   buildComboStepPresetLookup,
+  buildComboTabs,
   canAddComboStep,
   collectComboErrors,
   comboStepNeedsInlineInput,
+  comboTabIndexAfterMove,
+  comboTabMoveForKey,
   createComboDraft,
   createComboStep,
   createInitialComboSteps,
@@ -19,8 +22,10 @@ import {
   mapComboErrorsToFieldMessages,
   moveComboStep,
   nextComboDraftName,
+  reconcileSelectedComboId,
   removeComboStep,
   reorderComboStepById,
+  selectedComboIdAfterRemoval,
   setComboStepInlineInput,
   setComboStepPreset,
   type ComboStepDirection,
@@ -115,6 +120,17 @@ export const SettingCombos: React.FC = () => {
   const [comboGlobalDefaultModelRef, setComboGlobalDefaultModelRef] =
     useState<string>("");
   const [stepDrag, setStepDrag] = useState<ComboStepDragState | null>(null);
+  // Selection is tracked by combo ID, never by index: a delete or a reorder
+  // would silently move an index onto a different combo.
+  const [selectedComboId, setSelectedComboId] = useState<string | null>(null);
+  // Inline tab rename. `renameDraft` is user data, not a `t()` result, so it
+  // is safe in `useState` — unlike `status`, which stays a descriptor.
+  const [renamingComboId, setRenamingComboId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  // Escape must revert, but tearing down the input can also fire blur, which
+  // commits. This flag is what makes those two paths mutually exclusive.
+  const renameCancelledRef = useRef(false);
+  const tabButtonsRef = useRef(new Map<string, HTMLButtonElement>());
 
   // `t` changes identity on a locale switch, so it must stay in the deps or
   // the rows keep the previous language.
@@ -159,6 +175,18 @@ export const SettingCombos: React.FC = () => {
     [combos, correctionSettings.presets],
   );
 
+  // Tab strip descriptors. Labels carry no `t` dependency — a `Label` stays
+  // locale-free until `tl()` resolves it during render.
+  const comboTabs = useMemo(
+    () => buildComboTabs(combos, comboErrorsById),
+    [combos, comboErrorsById],
+  );
+
+  // Only ever the combo that still exists: a stale id must never render a
+  // blank panel, even in the render between a mutation and its reconcile.
+  const activeCombo =
+    combos.find((combo) => combo.id === selectedComboId) ?? combos[0] ?? null;
+
   // Cost/provider transparency inputs — a preset-model lookup and a price map,
   // both derived once per settings/model change rather than rebuilt per row.
   const comboEstimatePresetsById = useMemo(
@@ -182,6 +210,12 @@ export const SettingCombos: React.FC = () => {
         window.electronAPI.getSelectedModel?.() ?? Promise.resolve(""),
       ]);
       setCorrectionSettings(settings);
+      // A reload can drop the selected combo (profile switch, an edit saved
+      // from another window). Reconcile rather than let a stale id render an
+      // empty tab body.
+      setSelectedComboId((current) =>
+        reconcileSelectedComboId(settings.combos ?? [], current),
+      );
       if (modelsResult?.success && modelsResult.models) {
         setComboEstimateModels(modelsResult.models);
       }
@@ -189,6 +223,7 @@ export const SettingCombos: React.FC = () => {
     } catch (error) {
       console.error("Failed to load combos:", error);
       setCorrectionSettings(EMPTY_SETTINGS);
+      setSelectedComboId(null);
     } finally {
       setIsLoading(false);
     }
@@ -233,18 +268,98 @@ export const SettingCombos: React.FC = () => {
 
   const handleAddCombo = (): void => {
     const name = nextComboDraftName(combos);
-    const steps = createInitialComboSteps(correctionSettings.presets, () =>
-      crypto.randomUUID(),
+    const steps = createInitialComboSteps(
+      correctionSettings.presets.map((preset) => preset.id),
+      () => crypto.randomUUID(),
     );
     const draft = createComboDraft(crypto.randomUUID(), name, steps);
 
     updateCombos((currentCombos) => [...currentCombos, draft]);
+    setSelectedComboId(draft.id);
   };
 
   const handleRemoveCombo = (comboId: string): void => {
+    // Resolved against the list as it stands BEFORE the removal, so a deleted
+    // selected tab lands on a neighbour instead of snapping back to the first.
+    setSelectedComboId((current) =>
+      selectedComboIdAfterRemoval(combos, comboId, current),
+    );
     updateCombos((currentCombos) =>
       currentCombos.filter((combo) => combo.id !== comboId),
     );
+    setRenamingComboId((current) => (current === comboId ? null : current));
+    setStepDrag((current) =>
+      current !== null && current.comboId === comboId ? null : current,
+    );
+    tabButtonsRef.current.delete(comboId);
+  };
+
+  const beginRenameCombo = (combo: ComboPreset): void => {
+    renameCancelledRef.current = false;
+    setRenameDraft(combo.name);
+    setRenamingComboId(combo.id);
+  };
+
+  /** Commits through the SAME `updateCombo` path as the Name field — one source of truth. */
+  const commitRenameCombo = (comboId: string): void => {
+    setRenamingComboId(null);
+    if (renameCancelledRef.current) {
+      renameCancelledRef.current = false;
+      return;
+    }
+    updateCombo(comboId, { name: renameDraft });
+  };
+
+  const handleRenameKeyDown = (
+    comboId: string,
+    event: React.KeyboardEvent<HTMLInputElement>,
+  ): void => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      commitRenameCombo(comboId);
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      renameCancelledRef.current = true;
+      setRenamingComboId(null);
+    }
+  };
+
+  // Stable identity so React only runs it on mount/unmount — an inline ref
+  // callback re-runs every render and would re-select the text on each keystroke.
+  const focusRenameInput = useCallback((node: HTMLInputElement | null) => {
+    if (node === null) return;
+    node.focus();
+    node.select();
+  }, []);
+
+  const registerTabButton = (
+    comboId: string,
+    node: HTMLButtonElement | null,
+  ): void => {
+    if (node === null) {
+      tabButtonsRef.current.delete(comboId);
+      return;
+    }
+    tabButtonsRef.current.set(comboId, node);
+  };
+
+  /** Roving focus: Left/Right wrap around the strip, Home/End jump to its ends. */
+  const handleTabKeyDown = (
+    tabIndex: number,
+    event: React.KeyboardEvent<HTMLButtonElement>,
+  ): void => {
+    const move = comboTabMoveForKey(event.key);
+    if (move === null) return;
+
+    event.preventDefault();
+    const nextTab =
+      comboTabs[comboTabIndexAfterMove(tabIndex, comboTabs.length, move)];
+    if (nextTab === undefined) return;
+
+    setSelectedComboId(nextTab.comboId);
+    tabButtonsRef.current.get(nextTab.comboId)?.focus();
   };
 
   const handleMoveComboStep = (
@@ -458,13 +573,94 @@ export const SettingCombos: React.FC = () => {
           </Button>
         </div>
 
-        {combos.length === 0 ? (
+        {activeCombo === null ? (
           <p className="text-sm text-muted-foreground">
             {t("settings.correction.combos.empty")}
           </p>
         ) : (
-          <ul className="flex flex-col gap-4">
-            {combos.map((combo) => {
+          <>
+            {/* One tab per combo. An invalid combo on a hidden tab still
+                blocks Save, so its tab carries an error marker — otherwise the
+                Save-blocked banner would point at errors nobody can see. */}
+            <div
+              role="tablist"
+              aria-label={t("settings.correction.combos.tabsAriaLabel")}
+              className="mb-2 flex flex-wrap items-center gap-2"
+            >
+              {comboTabs.map((tab, tabIndex) => {
+                const isActive = tab.comboId === activeCombo.id;
+
+                // A rename replaces its own tab button rather than opening a
+                // dialog, so arrow keys edit the text instead of switching
+                // tabs while the field has focus.
+                if (tab.comboId === renamingComboId) {
+                  return (
+                    <Input
+                      key={tab.comboId}
+                      ref={focusRenameInput}
+                      type="text"
+                      value={renameDraft}
+                      aria-label={t("settings.correction.combos.renameLabel")}
+                      onChange={(event) => setRenameDraft(event.target.value)}
+                      onKeyDown={(event) =>
+                        handleRenameKeyDown(tab.comboId, event)
+                      }
+                      onBlur={() => commitRenameCombo(tab.comboId)}
+                      className="h-9 w-40 py-0"
+                    />
+                  );
+                }
+
+                return (
+                  <Button
+                    key={tab.comboId}
+                    ref={(node) => registerTabButton(tab.comboId, node)}
+                    type="button"
+                    variant={isActive ? "primary" : "ghost"}
+                    role="tab"
+                    id={`combo-tab-${tab.comboId}`}
+                    aria-selected={isActive}
+                    aria-controls={`combo-panel-${tab.comboId}`}
+                    tabIndex={isActive ? 0 : -1}
+                    onClick={() => setSelectedComboId(tab.comboId)}
+                    onDoubleClick={() => {
+                      const combo = combos.find(
+                        (candidate) => candidate.id === tab.comboId,
+                      );
+                      if (combo) beginRenameCombo(combo);
+                    }}
+                    onKeyDown={(event) => handleTabKeyDown(tabIndex, event)}
+                    className={`flex h-9 items-center gap-1.5 rounded-md px-3 py-0 text-xs font-semibold ${
+                      isActive
+                        ? "shadow"
+                        : "border border-card-control-border text-card-foreground hover:bg-secondary"
+                    }`}
+                  >
+                    <span className="whitespace-nowrap">{tl(tab.label)}</span>
+                    {tab.hasErrors && (
+                      <>
+                        <span aria-hidden="true" className="text-destructive">
+                          {"⚠"}
+                        </span>
+                        <span className="sr-only">
+                          {t("settings.correction.combos.tabHasErrors")}
+                        </span>
+                      </>
+                    )}
+                  </Button>
+                );
+              })}
+            </div>
+            <p className="mb-3 text-xs text-muted-foreground">
+              {t("settings.correction.combos.renameHint")}
+            </p>
+
+            {/* Exactly one panel is mounted — the selected combo's. Every
+                other combo is still validated by `comboErrorsById`, so an
+                unmounted one can (and must) keep blocking Save. */}
+            {combos
+              .filter((combo) => combo.id === activeCombo.id)
+              .map((combo) => {
               const fieldMessages = mapComboErrorsToFieldMessages(
                 comboErrorsById.get(combo.id) ?? [],
                 combo,
@@ -502,8 +698,12 @@ export const SettingCombos: React.FC = () => {
               })();
 
               return (
-                <li
+                <div
                   key={combo.id}
+                  id={`combo-panel-${combo.id}`}
+                  role="tabpanel"
+                  aria-labelledby={`combo-tab-${combo.id}`}
+                  tabIndex={0}
                   className="rounded-lg border border-card-control-border bg-background/40 p-3"
                 >
                   <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
@@ -588,7 +788,7 @@ export const SettingCombos: React.FC = () => {
                       >
                         {t("settings.correction.outputMode.label")}
                       </label>
-                      <SearchableSelect<PresetOutputModeOption>
+                      <SearchableSelect<ComboOutputModeOption>
                         id={`combo-${combo.id}-output-mode-control`}
                         inputId={`combo-${combo.id}-output-mode`}
                         className="w-full text-sm"
@@ -685,7 +885,7 @@ export const SettingCombos: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="mt-4">
+                  <div className="mt-4 flex flex-col">
                     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                       <h4 className="text-sm font-semibold text-foreground">
                         {t("settings.correction.combos.stepsHeading")}
@@ -849,15 +1049,15 @@ export const SettingCombos: React.FC = () => {
                       variant="outline"
                       onClick={() => handleAddComboStep(combo)}
                       disabled={!canAddComboStep(combo.steps)}
-                      className="mt-2 rounded-md border border-card-control-border px-3 py-2 text-xs font-semibold text-card-foreground transition-colors hover:border-ring hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
+                      className="mt-2 w-fit self-start rounded-md border border-card-control-border px-3 py-2 text-xs font-semibold text-card-foreground transition-colors hover:border-ring hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
                     >
                       {t("settings.correction.combos.addStep")}
                     </Button>
                   </div>
-                </li>
+                </div>
               );
-            })}
-          </ul>
+              })}
+          </>
         )}
       </div>
 

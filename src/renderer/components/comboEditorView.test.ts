@@ -13,11 +13,15 @@ import {
 import {
   addComboStep,
   buildComboStepPresetLookup,
+  buildComboTabs,
   canAddComboStep,
   canMoveComboStep,
   collectComboErrors,
   comboErrorMessage,
   comboStepNeedsInlineInput,
+  comboTabIndexAfterMove,
+  comboTabLabel,
+  comboTabMoveForKey,
   createComboDraft,
   createComboStep,
   createInitialComboSteps,
@@ -25,11 +29,14 @@ import {
   mapComboErrorsToFieldMessages,
   moveComboStep,
   nextComboDraftName,
+  reconcileSelectedComboId,
   removeComboStep,
   reorderComboStep,
   reorderComboStepById,
+  selectedComboIdAfterRemoval,
   setComboStepInlineInput,
   setComboStepPreset,
+  type ComboErrorsById,
 } from "./comboEditorView";
 import type {
   ComboPreset,
@@ -597,5 +604,185 @@ describe("collectComboErrors / hasBlockingComboErrors", () => {
     const errors = collectComboErrors([saved, draft], PRESETS);
 
     expect(errors.get("combo-2")?.map((e) => e.code)).toEqual(["name-duplicate"]);
+  });
+});
+
+describe("comboTabLabel", () => {
+  it("renders a named combo verbatim, as user data rather than a translation key", () => {
+    expect(comboTabLabel("Polish and Translate", 0)).toEqual({
+      kind: "text",
+      text: "Polish and Translate",
+    });
+  });
+
+  it("falls back to a numbered label using the combo's 1-based position", () => {
+    expect(comboTabLabel("", 2)).toEqual({
+      kind: "message",
+      message: {
+        key: "settings.correction.combos.tabFallbackName",
+        params: { number: 3 },
+      },
+    });
+  });
+
+  it("treats a whitespace-only name as unnamed", () => {
+    // `validateCombo` trims before rejecting an empty name, so the tab strip
+    // must agree — a tab reading as blank is not a usable label.
+    expect(comboTabLabel("   ", 0)).toEqual({
+      kind: "message",
+      message: {
+        key: "settings.correction.combos.tabFallbackName",
+        params: { number: 1 },
+      },
+    });
+  });
+
+  it("keeps a name's own surrounding whitespace in the displayed text", () => {
+    expect(comboTabLabel(" Spaced ", 0)).toEqual({
+      kind: "text",
+      text: " Spaced ",
+    });
+  });
+});
+
+describe("buildComboTabs", () => {
+  const noErrors: ComboErrorsById = new Map();
+
+  it("emits one descriptor per combo, in the persisted order", () => {
+    const tabs = buildComboTabs(
+      [
+        { id: "combo-a", name: "Alpha" },
+        { id: "combo-b", name: "" },
+      ],
+      noErrors,
+    );
+
+    expect(tabs.map((tab) => tab.comboId)).toEqual(["combo-a", "combo-b"]);
+    expect(tabs[1].label).toEqual({
+      kind: "message",
+      message: {
+        key: "settings.correction.combos.tabFallbackName",
+        params: { number: 2 },
+      },
+    });
+  });
+
+  it("marks the tabs whose combos are invalid, so a hidden blocker stays findable", () => {
+    const errorsById: ComboErrorsById = new Map([
+      ["combo-b", [{ code: "name-empty", message: "" }]],
+    ]);
+
+    const tabs = buildComboTabs(
+      [
+        { id: "combo-a", name: "Alpha" },
+        { id: "combo-b", name: "" },
+      ],
+      errorsById,
+    );
+
+    expect(tabs.map((tab) => tab.hasErrors)).toEqual([false, true]);
+  });
+});
+
+describe("reconcileSelectedComboId", () => {
+  const combos = [{ id: "combo-a", name: "A" }, { id: "combo-b", name: "B" }];
+
+  it("keeps a selection that still exists after a reload", () => {
+    expect(reconcileSelectedComboId(combos, "combo-b")).toBe("combo-b");
+  });
+
+  it("falls back to the first combo when the selected id vanished", () => {
+    // `loadSettings` re-runs on every settings-updated broadcast; a stale id
+    // would otherwise render an empty tab body.
+    expect(reconcileSelectedComboId(combos, "combo-gone")).toBe("combo-a");
+  });
+
+  it("selects the first combo when nothing was selected yet", () => {
+    expect(reconcileSelectedComboId(combos, null)).toBe("combo-a");
+  });
+
+  it("reports no selection for a profile with no combos", () => {
+    expect(reconcileSelectedComboId([], "combo-a")).toBeNull();
+  });
+});
+
+describe("selectedComboIdAfterRemoval", () => {
+  const combos = [
+    { id: "combo-a", name: "A" },
+    { id: "combo-b", name: "B" },
+    { id: "combo-c", name: "C" },
+  ];
+
+  it("moves to the right-hand neighbour when the selected combo is deleted", () => {
+    expect(selectedComboIdAfterRemoval(combos, "combo-b", "combo-b")).toBe(
+      "combo-c",
+    );
+  });
+
+  it("moves to the new last combo when the deleted one was rightmost", () => {
+    expect(selectedComboIdAfterRemoval(combos, "combo-c", "combo-c")).toBe(
+      "combo-b",
+    );
+  });
+
+  it("leaves the selection alone when a different combo is deleted", () => {
+    // Selection is tracked by id, so deleting an earlier combo must not shift
+    // the selection onto whatever moved into that index.
+    expect(selectedComboIdAfterRemoval(combos, "combo-a", "combo-c")).toBe(
+      "combo-c",
+    );
+  });
+
+  it("reports no selection once the last remaining combo is deleted", () => {
+    expect(
+      selectedComboIdAfterRemoval([{ id: "combo-a", name: "A" }], "combo-a", "combo-a"),
+    ).toBeNull();
+  });
+
+  it("reconciles a selection that was already stale", () => {
+    expect(selectedComboIdAfterRemoval(combos, "combo-b", "combo-gone")).toBe(
+      "combo-a",
+    );
+  });
+
+  it("falls back to the first combo when the removed id is not in the list", () => {
+    expect(selectedComboIdAfterRemoval(combos, "combo-gone", null)).toBe(
+      "combo-a",
+    );
+  });
+});
+
+describe("comboTabMoveForKey / comboTabIndexAfterMove", () => {
+  it("maps only the roving-focus keys", () => {
+    expect(comboTabMoveForKey("ArrowLeft")).toBe("previous");
+    expect(comboTabMoveForKey("ArrowRight")).toBe("next");
+    expect(comboTabMoveForKey("Home")).toBe("first");
+    expect(comboTabMoveForKey("End")).toBe("last");
+    expect(comboTabMoveForKey("ArrowDown")).toBeNull();
+    expect(comboTabMoveForKey("a")).toBeNull();
+  });
+
+  it("wraps around both ends", () => {
+    expect(comboTabIndexAfterMove(0, 3, "previous")).toBe(2);
+    expect(comboTabIndexAfterMove(2, 3, "next")).toBe(0);
+  });
+
+  it("steps to the adjacent tab", () => {
+    expect(comboTabIndexAfterMove(1, 3, "previous")).toBe(0);
+    expect(comboTabIndexAfterMove(1, 3, "next")).toBe(2);
+  });
+
+  it("jumps to either end", () => {
+    expect(comboTabIndexAfterMove(1, 3, "first")).toBe(0);
+    expect(comboTabIndexAfterMove(1, 3, "last")).toBe(2);
+  });
+
+  it("treats an out-of-range current index as the first tab", () => {
+    expect(comboTabIndexAfterMove(9, 3, "next")).toBe(1);
+    expect(comboTabIndexAfterMove(-1, 3, "previous")).toBe(2);
+  });
+
+  it("reports -1 for an empty strip rather than an index nothing can render", () => {
+    expect(comboTabIndexAfterMove(0, 0, "next")).toBe(-1);
   });
 });

@@ -9,6 +9,13 @@
  * (`SecurityStatsPanel.tsx`), which reads the persisted logs and never writes
  * either store.
  *
+ * The deny-list has three ways in: a typed bundle id, the native `.app`
+ * picker (`chooseDeniedApps`), and a drop of `.app` bundles onto the Blocked
+ * apps section. The last two only ever hand PATHS to main, which re-validates
+ * them and reads `CFBundleIdentifier` itself — this panel never learns a path
+ * except through `getAppBundlePathForFile` (Electron 43 removed `File.path`),
+ * and never derives a bundle id from a filename.
+ *
  * All derivation — the age/size guard's "running" vs. "disabled" hint, the
  * deny-list's empty states, the secret guard's mask hint, and the
  * `isBundleIdDenied`-derived chip state — lives in `securityView.ts`, which
@@ -36,8 +43,10 @@ import {
 } from "~/features/guards/shared/guardSettings";
 import { DEFAULT_SECRET_GUARD_SETTINGS, SECRET_GUARD_MODES } from "~/features/secretGuard/shared/secretGuardSettings";
 import {
+  SECRET_GUARD_LIMITATION_KEYS,
   resolveSecurityView,
   withDeniedBundleId,
+  withDeniedBundleIds,
   withoutDeniedBundleId,
   type RecentAppChip,
 } from "./securityView";
@@ -83,6 +92,7 @@ export const SettingSecurity = () => {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [saveStatus, setSaveStatus] = useState<StatusDescriptor | null>(null);
   const [newBundleId, setNewBundleId] = useState("");
+  const [isDropTarget, setIsDropTarget] = useState(false);
 
   /**
    * The only path that may hold a pending `flashSaved` timeout — a ref
@@ -272,6 +282,66 @@ export const SettingSecurity = () => {
     void persistGuardSettings(next, guardSettings);
   };
 
+  /**
+   * The one place resolved bundle ids reach the store, shared by the file
+   * dialog and the drop zone. Goes through `withDeniedBundleIds` so ids read
+   * off disk obey the same deny-list invariants (canonical form, no
+   * duplicates, bounded count) as ones the user typed, and skips the write
+   * entirely when nothing changed — dropping an app that is already blocked
+   * should not flash "Saved.".
+   */
+  const addDeniedBundleIds = (bundleIds: readonly string[]): void => {
+    const next = withDeniedBundleIds(guardSettings, bundleIds);
+    if (next === guardSettings) return;
+    void persistGuardSettings(next, guardSettings);
+  };
+
+  const handleChooseApps = (): void => {
+    void (async () => {
+      try {
+        const result = await window.electronAPI.chooseDeniedApps();
+        if (!result.success) {
+          setStatus(wrappedError(result.error));
+          return;
+        }
+        addDeniedBundleIds(result.bundleIds);
+      } catch {
+        setStatus(plainStatus("security.deniedApps.dropError"));
+      }
+    })();
+  };
+
+  /**
+   * `File.path` is gone in Electron 43, so the path comes from
+   * `webUtils.getPathForFile` behind the preload bridge, which returns `null`
+   * for anything that is not an `.app`. A drop that yields no `.app` at all is
+   * REPORTED rather than ignored: a user who drags a document here has to
+   * learn that nothing happened and why.
+   */
+  const handleAppDrop = (event: React.DragEvent<HTMLElement>): void => {
+    event.preventDefault();
+    setIsDropTarget(false);
+    const paths = [...event.dataTransfer.files]
+      .map((file) => window.electronAPI.getAppBundlePathForFile(file))
+      .filter((path): path is string => path !== null);
+    if (paths.length === 0) {
+      setStatus(plainStatus("security.deniedApps.dropInvalid"));
+      return;
+    }
+    void (async () => {
+      try {
+        const result = await window.electronAPI.resolveAppBundleIds(paths);
+        if (!result.success) {
+          setStatus(wrappedError(result.error));
+          return;
+        }
+        addDeniedBundleIds(result.bundleIds);
+      } catch {
+        setStatus(plainStatus("security.deniedApps.dropError"));
+      }
+    })();
+  };
+
   const handleToggleRecentApp = (chip: RecentAppChip): void => {
     if (chip.app.bundleId === null) return;
     const next = chip.blocked
@@ -323,8 +393,29 @@ export const SettingSecurity = () => {
 
   return (
     <div className="mx-auto flex h-full min-h-0 w-full flex-col gap-6 pb-8">
-      {/* 1. Blocked apps */}
-      <section className="flex flex-col gap-3 rounded-lg border border-card-control-border bg-card p-4">
+      {/* 1. Blocked apps — also the drop target for `.app` bundles. The whole
+          section accepts the drop (not a narrow strip) so aiming is forgiving;
+          the Choose app button is the keyboard-reachable equivalent, since a
+          drag-and-drop cannot be performed from the keyboard at all. */}
+      <section
+        className={`flex flex-col gap-3 rounded-lg border bg-card p-4 transition-colors ${
+          isDropTarget
+            ? "border-primary bg-primary/10"
+            : "border-card-control-border"
+        }`}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setIsDropTarget(true);
+        }}
+        // `dragleave` bubbles from every child, so dragging across the chips
+        // and inputs inside this section would strobe the highlight off and on.
+        // Only a leave that actually exits the section counts.
+        onDragLeave={(event) => {
+          if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+          setIsDropTarget(false);
+        }}
+        onDrop={handleAppDrop}
+      >
         <h2 className="text-base font-semibold text-foreground">
           {t("security.deniedApps.title")}
         </h2>
@@ -354,19 +445,33 @@ export const SettingSecurity = () => {
           </div>
         )}
 
-        <div className="flex items-center gap-2">
+        {/* Wraps rather than squeezing: two buttons beside the field leave it
+            unusably narrow in the settings modal's narrower column. */}
+        <div className="flex flex-wrap items-center gap-2">
           <Input
             type="text"
             value={newBundleId}
             onChange={(event) => setNewBundleId(event.target.value)}
             placeholder={t("security.deniedApps.addPlaceholder")}
             aria-label={t("security.deniedApps.addLabel")}
-            className="flex-1"
+            className="min-w-48 flex-1"
           />
           <Button type="button" variant="secondary" disabled={!canAddBundleId} onClick={handleAddDeniedApp} className="shrink-0 rounded px-3 py-2 text-sm font-semibold">
             {t("security.deniedApps.addLabel")}
           </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleChooseApps}
+            className="shrink-0 rounded px-3 py-2 text-sm font-semibold"
+          >
+            {t("security.deniedApps.chooseLabel")}
+          </Button>
         </div>
+
+        <p className={`text-sm ${isDropTarget ? "text-primary" : "text-muted-foreground"}`}>
+          {t("security.deniedApps.dropHint")}
+        </p>
 
         <div className="flex flex-col gap-2">
           <h3 className="text-sm font-medium text-card-foreground">
@@ -455,10 +560,17 @@ export const SettingSecurity = () => {
 
         <div className="flex flex-col gap-1">
           <span className="text-sm text-card-foreground">{t("security.secretGuard.mode.label")}</span>
+          {/* `SegmentedControl` is a flex row; in this `flex-col` parent it
+              would stretch to the panel width and leave the three options
+              floating in a bar of empty background. `self-start` sizes it to
+              its options instead — fixed at the call site, since the stretched
+              form is what other consumers (the equal-width language picker)
+              actually want. */}
           <SegmentedControl
             value={view.secretGuard.mode}
             onChange={handleModeChange}
             ariaLabel={t("security.secretGuard.mode.label")}
+            className="self-start"
             options={SECRET_GUARD_MODES.map((mode) => ({
               value: mode,
               label: t(`security.secretGuard.mode.${mode}`),
@@ -477,13 +589,20 @@ export const SettingSecurity = () => {
         />
         <p className="text-sm text-muted-foreground">{t("security.secretGuard.highEntropy.hint")}</p>
 
-        <div className="flex flex-col gap-1 rounded-md bg-background/60 p-3">
+        {/* One bullet per claim rather than one paragraph: this copy is
+            load-bearing (it once shipped saying masking meant "nothing is
+            sent", which was false), and a wall of text is the form in which a
+            reader skips it. The order comes from
+            `SECRET_GUARD_LIMITATION_KEYS`, not from this file. */}
+        <div className="flex flex-col gap-2 rounded-md bg-background/60 p-3">
           <h3 className="text-sm font-semibold text-card-foreground">
             {t("security.secretGuard.limitations.title")}
           </h3>
-          <p className="text-sm text-muted-foreground">
-            {t("security.secretGuard.limitations.body")}
-          </p>
+          <ul className="flex list-disc flex-col gap-1.5 pl-5 text-sm text-muted-foreground">
+            {SECRET_GUARD_LIMITATION_KEYS.map((key) => (
+              <li key={key}>{t(key)}</li>
+            ))}
+          </ul>
         </div>
       </section>
 

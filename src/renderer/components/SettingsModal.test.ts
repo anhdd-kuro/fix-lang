@@ -245,7 +245,7 @@ describe("SettingsModal", () => {
     ).toContain(tEn("settings.autocomplete.model.label"));
     expect(panel.querySelector("#model-select")).toBeTruthy();
 
-    expect(panel.textContent).toContain(tEn("settings.autocomplete.privacy.hint"));
+    expect(panel.textContent).toContain(tEn("settings.autocomplete.privacy.typing"));
     expect(api.getAutocompleteSettings).toHaveBeenCalled();
     expect(api.getAutocompleteUsage).toHaveBeenCalled();
   });

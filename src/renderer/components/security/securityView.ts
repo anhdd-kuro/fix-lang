@@ -25,6 +25,7 @@ import {
 } from "~/features/guards/shared/guardSettings";
 import { plainStatus, type StatusDescriptor } from "../statusDescriptor";
 import type { SelectionGuardSettings } from "~/features/guards/shared/guardSettings";
+import type { MessageKey } from "~/features/i18n/shared/message";
 import type { SecretGuardSettings } from "~/features/secretGuard/shared/secretGuardSettings";
 import type { ActiveApp } from "~/main/accessibility/activeApp";
 
@@ -119,6 +120,25 @@ const resolveSecretGuardView = (
     settings.mode === "mask" ? plainStatus("security.secretGuard.maskHint") : null,
 });
 
+/**
+ * The "What this can and can't do" points, in the order they are shown.
+ *
+ * One key per claim, rather than one paragraph holding all five: the panel
+ * renders them as a list, and a reader who skips the block entirely should
+ * still be able to see how many separate limitations there are. The ORDER is
+ * meaning-bearing — what the check is (a pattern match), then the surprising
+ * mask behaviour, then its scope, then that it cannot be undone, then the one
+ * path that cannot ask at all — so it lives here beside the rest of the
+ * derivation instead of being re-listed at each call site.
+ */
+export const SECRET_GUARD_LIMITATION_KEYS: readonly MessageKey[] = [
+  "security.secretGuard.limitations.patternCheck",
+  "security.secretGuard.limitations.partialMask",
+  "security.secretGuard.limitations.scope",
+  "security.secretGuard.limitations.noUndo",
+  "security.secretGuard.limitations.autocomplete",
+];
+
 /** Assembles the full pure view from the two loaded settings objects plus the recent-apps MRU. */
 export const resolveSecurityView = (
   guardSettings: SelectionGuardSettings,
@@ -150,6 +170,23 @@ export const withDeniedBundleId = (
     deniedBundleIds: [...settings.deniedBundleIds, normalized],
   };
 };
+
+/**
+ * Adds several bundle ids in one immutable step — the shape a file-dialog
+ * multi-selection or a multi-file drop arrives in. Folds `withDeniedBundleId`,
+ * so duplicates, non-canonical casing and invalid entries are handled by the
+ * same single rule, and returns the SAME settings reference when nothing was
+ * added (every id was invalid or already denied), which is what lets the
+ * caller skip a pointless store write.
+ */
+export const withDeniedBundleIds = (
+  settings: SelectionGuardSettings,
+  rawBundleIds: readonly string[],
+): SelectionGuardSettings =>
+  rawBundleIds.reduce<SelectionGuardSettings>(
+    (current, rawBundleId) => withDeniedBundleId(current, rawBundleId),
+    settings,
+  );
 
 /**
  * Removes a bundle id from the deny-list, immutably. A no-op when the id is

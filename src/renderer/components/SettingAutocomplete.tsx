@@ -22,6 +22,7 @@ import type {
   AutocompleteDayRollup,
   AutocompleteUsageSnapshot,
 } from "~/features/autocomplete/shared/autocompleteWire";
+import type { MessageKey } from "~/features/i18n/shared/message";
 
 /**
  * @file SettingAutocomplete.tsx
@@ -47,6 +48,19 @@ import type {
  * caption below the picker states it plainly rather than trusting the
  * generic copy to carry a meaning it was not written for.
  */
+
+/**
+ * The privacy statement's points, in the order they are shown — what
+ * autocomplete sends, what else it carries, and only then the local-provider
+ * recommendation. The reassuring point comes last on purpose: it must not be
+ * able to stand in for the warnings above it.
+ */
+const PRIVACY_HINT_KEYS: readonly MessageKey[] = [
+  "settings.autocomplete.privacy.typing",
+  "settings.autocomplete.privacy.askContext",
+  "settings.autocomplete.privacy.metadata",
+  "settings.autocomplete.privacy.localProvider",
+];
 
 const DEFAULT_SETTINGS: AutocompleteSettings = {
   enabled: false,
@@ -306,9 +320,19 @@ export const SettingAutocomplete: React.FC = () => {
         </p>
       </div>
 
-      <p className="mt-3 rounded-md border border-card-control-border bg-background/40 p-3 text-xs text-muted-foreground">
-        {t("settings.autocomplete.privacy.hint")}
-      </p>
+      {/* The privacy statement is the one thing on this tab a user must not
+          skim past, so it is a list of discrete claims at body scale — the
+          same treatment as Security's "What this can and can't do" — rather
+          than a `text-xs` paragraph competing with the caption below the cap
+          input. The order is deliberate: what is sent, what else rides along,
+          what metadata it carries, and only then the recommendation. */}
+      <div className="mt-3 rounded-md border border-card-control-border bg-background/40 p-3">
+        <ul className="flex list-disc flex-col gap-1.5 pl-5 text-sm text-muted-foreground">
+          {PRIVACY_HINT_KEYS.map((key) => (
+            <li key={key}>{t(key)}</li>
+          ))}
+        </ul>
+      </div>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <div className="rounded-md border border-card-control-border bg-background/40 p-3">

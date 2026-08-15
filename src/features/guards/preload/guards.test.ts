@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MAX_APP_BUNDLE_PATHS } from "~/features/guards/shared/appBundleIds";
 import {
   DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
   DEFAULT_DENIED_BUNDLE_IDS,
@@ -8,9 +9,12 @@ import {
 } from "~/features/guards/shared/guardSettings";
 import { selectionGuardsFeature } from "./guards";
 
-const electronMocks = vi.hoisted(() => ({ invoke: vi.fn() }));
+const electronMocks = vi.hoisted(() => ({ invoke: vi.fn(), getPathForFile: vi.fn() }));
 
-vi.mock("electron", () => ({ ipcRenderer: electronMocks }));
+vi.mock("electron", () => ({
+  ipcRenderer: { invoke: electronMocks.invoke },
+  webUtils: { getPathForFile: electronMocks.getPathForFile },
+}));
 
 const validSettings = {
   clipboardMaxAgeSeconds: 5,
@@ -193,6 +197,100 @@ describe("selectionGuardsFeature preload boundary", () => {
       const result = await selectionGuardsFeature.getRecentActiveApps();
 
       expect(result).toEqual([]);
+    });
+  });
+
+  describe("getAppBundlePathForFile", () => {
+    /**
+     * `File.path` is gone in Electron 43, and `webUtils` only exists on this
+     * side of the bridge — so the renderer must never learn the path any other
+     * way than through this function.
+     */
+    it("returns the path webUtils reports for an .app bundle", () => {
+      electronMocks.getPathForFile.mockReturnValue("/Applications/Slack.app");
+
+      expect(selectionGuardsFeature.getAppBundlePathForFile({})).toBe(
+        "/Applications/Slack.app",
+      );
+    });
+
+    it("returns null for a dropped file that is not an .app bundle", () => {
+      electronMocks.getPathForFile.mockReturnValue("/Users/me/notes.txt");
+
+      expect(selectionGuardsFeature.getAppBundlePathForFile({})).toBeNull();
+    });
+
+    // `instanceof File` cannot be the guard (the object crosses contexts), so
+    // a non-File argument surfaces as a throw out of `webUtils` — which must
+    // read as "not an app", never as an unhandled renderer exception.
+    it("returns null instead of throwing when webUtils rejects the argument", () => {
+      electronMocks.getPathForFile.mockImplementation(() => {
+        throw new TypeError("not a File");
+      });
+
+      expect(selectionGuardsFeature.getAppBundlePathForFile("nonsense")).toBeNull();
+    });
+  });
+
+  describe("resolveAppBundleIds", () => {
+    it("invokes resolve-app-bundle-ids and returns a valid reply", async () => {
+      const reply = { success: true, bundleIds: ["com.tinyspeck.slackmacgap"] };
+      electronMocks.invoke.mockResolvedValue(reply);
+
+      const result = await selectionGuardsFeature.resolveAppBundleIds([
+        "/Applications/Slack.app",
+      ]);
+
+      expect(electronMocks.invoke).toHaveBeenCalledWith("resolve-app-bundle-ids", [
+        "/Applications/Slack.app",
+      ]);
+      expect(result).toEqual(reply);
+    });
+
+    it.each([
+      ["a relative path", ["Applications/Slack.app"]],
+      ["a non-.app path", ["/Users/me/notes.txt"]],
+      ["a non-string entry", [42] as unknown as string[]],
+      ["a non-array payload", "/Applications/Slack.app" as unknown as string[]],
+      [
+        "more paths than the deny-list can hold",
+        Array.from({ length: MAX_APP_BUNDLE_PATHS + 1 }, () => "/Applications/Slack.app"),
+      ],
+    ])("rejects %s without invoking main", async (_label, payload) => {
+      const result = await selectionGuardsFeature.resolveAppBundleIds(payload);
+
+      expect(electronMocks.invoke).not.toHaveBeenCalled();
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects a malformed main-process reply rather than returning half of it", async () => {
+      electronMocks.invoke.mockResolvedValue({ success: true, bundleIds: [1] });
+
+      const result = await selectionGuardsFeature.resolveAppBundleIds([
+        "/Applications/Slack.app",
+      ]);
+
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe("chooseDeniedApps", () => {
+    it("invokes choose-denied-apps and returns a valid reply", async () => {
+      const reply = { success: true, bundleIds: ["com.tinyspeck.slackmacgap"] };
+      electronMocks.invoke.mockResolvedValue(reply);
+
+      const result = await selectionGuardsFeature.chooseDeniedApps();
+
+      expect(electronMocks.invoke).toHaveBeenCalledWith("choose-denied-apps");
+      expect(result).toEqual(reply);
+    });
+
+    it("rejects a malformed main-process reply", async () => {
+      electronMocks.invoke.mockResolvedValue({ success: true });
+
+      const result = await selectionGuardsFeature.chooseDeniedApps();
+
+      expect(result.success).toBe(false);
     });
   });
 });

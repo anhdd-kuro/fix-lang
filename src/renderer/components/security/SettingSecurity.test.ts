@@ -61,6 +61,9 @@ describe("SettingSecurity", () => {
       getRecentActiveApps: vi.fn().mockResolvedValue([]),
       getSecretGuardSettings: vi.fn().mockResolvedValue(DEFAULT_SECRET_GUARD_SETTINGS),
       setSecretGuardSettings: vi.fn().mockResolvedValue({ success: true }),
+      chooseDeniedApps: vi.fn().mockResolvedValue({ success: true, bundleIds: [] }),
+      resolveAppBundleIds: vi.fn().mockResolvedValue({ success: true, bundleIds: [] }),
+      getAppBundlePathForFile: vi.fn().mockReturnValue(null),
       getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
       setLocale: vi.fn().mockResolvedValue({ success: true }),
       onLocaleChanged: vi.fn((callback: (locale: Locale) => void) => {
@@ -392,6 +395,118 @@ describe("SettingSecurity", () => {
     expect(container.textContent).toContain(
       "the secret guard settings failed to save and were left unchanged",
     );
+  });
+
+  const clickButtonLabelled = async (label: string): Promise<void> => {
+    const button = [...container.querySelectorAll("button")].find(
+      (candidate) => candidate.textContent === label,
+    );
+    if (!button) throw new Error(`Expected a "${label}" button`);
+    await act(async () => {
+      button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await waitForUi();
+    await waitForUi();
+  };
+
+  /** A drop carrying `files`, which jsdom's `Event` does not model on its own. */
+  const dropFilesOnBlockedApps = async (files: readonly unknown[]): Promise<void> => {
+    const section = container.querySelector("section");
+    if (!section) throw new Error("Expected the blocked-apps section");
+    const dropEvent = new Event("drop", { bubbles: true });
+    Object.defineProperty(dropEvent, "dataTransfer", { value: { files } });
+    await act(async () => {
+      section.dispatchEvent(dropEvent);
+    });
+    await waitForUi();
+    await waitForUi();
+  };
+
+  it("adds the bundle ids picked in the native app chooser", async () => {
+    await render({
+      chooseDeniedApps: vi
+        .fn()
+        .mockResolvedValue({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] }),
+    });
+
+    await clickButtonLabelled("Choose app…");
+
+    expect(api.chooseDeniedApps).toHaveBeenCalled();
+    expect(api.setSelectionGuards).toHaveBeenCalledWith({
+      ...defaultGuardSettings(),
+      deniedBundleIds: ["com.1password.1password", "com.tinyspeck.slackmacgap"],
+    });
+  });
+
+  // Cancelling the dialog is a success with no ids: nothing to write, and
+  // nothing to tell the user about.
+  it("writes nothing when the app chooser is cancelled", async () => {
+    await render();
+
+    await clickButtonLabelled("Choose app…");
+
+    expect(api.setSelectionGuards).not.toHaveBeenCalled();
+  });
+
+  it("reports the failure from main instead of silently adding nothing", async () => {
+    await render({
+      chooseDeniedApps: vi.fn().mockResolvedValue({
+        success: false,
+        error: { kind: "message", message: { key: "security.deniedApps.dropError" } },
+      }),
+    });
+
+    await clickButtonLabelled("Choose app…");
+
+    expect(api.setSelectionGuards).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Couldn't read the bundle ID of that app.");
+  });
+
+  it("resolves dropped .app bundles through main and blocks them", async () => {
+    await render({
+      getAppBundlePathForFile: vi.fn().mockReturnValue("/Applications/Slack.app"),
+      resolveAppBundleIds: vi
+        .fn()
+        .mockResolvedValue({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] }),
+    });
+
+    await dropFilesOnBlockedApps([{}]);
+
+    expect(api.resolveAppBundleIds).toHaveBeenCalledWith(["/Applications/Slack.app"]);
+    expect(api.setSelectionGuards).toHaveBeenCalledWith({
+      ...defaultGuardSettings(),
+      deniedBundleIds: ["com.1password.1password", "com.tinyspeck.slackmacgap"],
+    });
+  });
+
+  /**
+   * `File.path` is gone in Electron 43, so a path the preload bridge cannot
+   * resolve to an `.app` yields `null`. Dropping a document must SAY so —
+   * "nothing happened" is indistinguishable from a broken feature.
+   */
+  it("tells the user when a drop carried no .app bundle, instead of doing nothing", async () => {
+    await render();
+
+    await dropFilesOnBlockedApps([{}]);
+
+    expect(api.resolveAppBundleIds).not.toHaveBeenCalled();
+    expect(api.setSelectionGuards).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Only .app bundles can be added this way.");
+  });
+
+  it("sizes the secret-guard mode switch to its options rather than the panel width", async () => {
+    await render();
+
+    const modeSwitch = container.querySelector('[role="group"][aria-label="Mode"]');
+    expect(modeSwitch?.className).toContain("self-start");
+  });
+
+  it("renders the limitations as separate points, not one paragraph", async () => {
+    await render();
+
+    const points = [...container.querySelectorAll("li")].map((item) => item.textContent);
+    expect(points).toContain("It cannot un-send. Text you send is saved to your local history on this machine, including when you choose Send anyway.");
+    expect(points.length).toBeGreaterThanOrEqual(5);
   });
 
   it("survives a language switch — no resolved string frozen into state", async () => {
