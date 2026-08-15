@@ -8,6 +8,7 @@
  * `statusDescriptor.ts`).
  */
 import { describe, expect, it } from "vitest";
+import { MAX_DENIED_BUNDLE_IDS } from "~/features/guards/shared/guardSettings";
 import { EN_CATALOG } from "~/features/i18n/shared/locales";
 import { DEFAULT_SECRET_GUARD_SETTINGS } from "~/features/secretGuard/shared/secretGuardSettings";
 import {
@@ -211,7 +212,11 @@ describe("withDeniedBundleIds", () => {
       " Com.Slack.Slack ",
       "com.figma.Desktop",
     ]);
-    expect(next.deniedBundleIds).toEqual(["com.slack.slack", "com.figma.desktop"]);
+    expect(next.settings.deniedBundleIds).toEqual([
+      "com.slack.slack",
+      "com.figma.desktop",
+    ]);
+    expect(next.droppedForCapacity).toBe(0);
   });
 
   it("adds a duplicate within the same batch only once", () => {
@@ -219,7 +224,7 @@ describe("withDeniedBundleIds", () => {
       "com.slack.slack",
       "COM.SLACK.SLACK",
     ]);
-    expect(next.deniedBundleIds).toEqual(["com.slack.slack"]);
+    expect(next.settings.deniedBundleIds).toEqual(["com.slack.slack"]);
   });
 
   /**
@@ -229,12 +234,12 @@ describe("withDeniedBundleIds", () => {
    */
   it("returns the SAME reference when every id was already denied", () => {
     const settings = guardSettings({ deniedBundleIds: ["com.slack.slack"] });
-    expect(withDeniedBundleIds(settings, [" com.slack.slack "])).toBe(settings);
+    expect(withDeniedBundleIds(settings, [" com.slack.slack "]).settings).toBe(settings);
   });
 
   it("returns the SAME reference for an empty batch", () => {
     const settings = guardSettings();
-    expect(withDeniedBundleIds(settings, [])).toBe(settings);
+    expect(withDeniedBundleIds(settings, []).settings).toBe(settings);
   });
 
   it("keeps the valid ids when the batch also holds an invalid one", () => {
@@ -242,7 +247,51 @@ describe("withDeniedBundleIds", () => {
       "   ",
       "com.slack.slack",
     ]);
-    expect(next.deniedBundleIds).toEqual(["com.slack.slack"]);
+    expect(next.settings.deniedBundleIds).toEqual(["com.slack.slack"]);
+    // An invalid id is not a capacity problem, and must not be reported as one.
+    expect(next.droppedForCapacity).toBe(0);
+  });
+
+  /**
+   * `set-selection-guards` rejects an over-cap payload as MALFORMED and fails
+   * the whole write, so an unbounded renderer-side append does not persist the
+   * first `MAX_DENIED_BUNDLE_IDS` and drop the rest — it persists nothing.
+   */
+  it("stops at MAX_DENIED_BUNDLE_IDS and counts what did not fit", () => {
+    const full = Array.from({ length: MAX_DENIED_BUNDLE_IDS }, (_unused, index) =>
+      `com.example.app${String(index)}`,
+    );
+    const next = withDeniedBundleIds(guardSettings({ deniedBundleIds: full }), [
+      "com.slack.slack",
+      "com.figma.desktop",
+    ]);
+    expect(next.settings.deniedBundleIds).toHaveLength(MAX_DENIED_BUNDLE_IDS);
+    expect(next.droppedForCapacity).toBe(2);
+  });
+
+  it("fills the remaining capacity and counts only the overflow", () => {
+    const nearlyFull = Array.from(
+      { length: MAX_DENIED_BUNDLE_IDS - 1 },
+      (_unused, index) => `com.example.app${String(index)}`,
+    );
+    const next = withDeniedBundleIds(guardSettings({ deniedBundleIds: nearlyFull }), [
+      "com.slack.slack",
+      "com.figma.desktop",
+    ]);
+    expect(next.settings.deniedBundleIds).toHaveLength(MAX_DENIED_BUNDLE_IDS);
+    expect(next.settings.deniedBundleIds).toContain("com.slack.slack");
+    expect(next.droppedForCapacity).toBe(1);
+  });
+
+  /** An already-denied id needs no capacity, so a full list still accepts it as a no-op. */
+  it("does not count an already-denied id as dropped when the list is full", () => {
+    const full = Array.from({ length: MAX_DENIED_BUNDLE_IDS }, (_unused, index) =>
+      `com.example.app${String(index)}`,
+    );
+    const settings = guardSettings({ deniedBundleIds: full });
+    const next = withDeniedBundleIds(settings, ["com.example.app0"]);
+    expect(next.settings).toBe(settings);
+    expect(next.droppedForCapacity).toBe(0);
   });
 
   it("never mutates the settings passed in", () => {

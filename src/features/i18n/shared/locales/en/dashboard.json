@@ -175,6 +175,7 @@
   "security.clipboardAge.title": "Stale clipboard",
   "security.deniedApps.addLabel": "Block an app",
   "security.deniedApps.addPlaceholder": "Bundle ID, e.g. com.1password.1password",
+  "security.deniedApps.capacityReached": "The blocked-apps list is full at {max}, so {dropped} could not be added.",
   "security.deniedApps.chooseLabel": "Choose app…",
   "security.deniedApps.description": "Transforms are refused while one of these apps is frontmost. The selection is still copied and restored — it just never reaches a provider.",
   "security.deniedApps.dropError": "Couldn't read the bundle ID of that app.",

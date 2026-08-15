@@ -39,6 +39,7 @@ import {
   DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
   DEFAULT_DENIED_BUNDLE_IDS,
   DEFAULT_MAX_SELECTION_CHARS,
+  MAX_DENIED_BUNDLE_IDS,
   normalizeBundleId,
 } from "~/features/guards/shared/guardSettings";
 import { DEFAULT_SECRET_GUARD_SETTINGS, SECRET_GUARD_MODES } from "~/features/secretGuard/shared/secretGuardSettings";
@@ -106,6 +107,22 @@ export const SettingSecurity = () => {
    */
   const saveStatusTimeoutRef = useRef<number | null>(null); // `window.setTimeout` returns a number, not Node's `Timeout`.
 
+  /**
+   * The latest guard settings, tracked synchronously alongside `state`.
+   *
+   * Every deny-list write persists the WHOLE settings object, and the two
+   * app-picking paths are async: a drop resolves through main, and the native
+   * chooser can sit open for as long as the user browses. Two of those
+   * overlapping — two quick drops, or a drop while the chooser is open — would
+   * each close over the `guardSettings` captured at their own render and send
+   * a whole-object replacement, so the later completion would silently erase
+   * the earlier one's additions. React's state is not readable synchronously
+   * to fix that, but this ref is: `persistGuardResult` moves it the moment a
+   * write starts (and back on rollback), so a second resolution merges onto
+   * the first one's list instead of the stale one.
+   */
+  const latestGuardSettingsRef = useRef<SelectionGuardSettings | null>(null);
+
   const clearSaveStatusTimeout = (): void => {
     if (saveStatusTimeoutRef.current !== null) {
       window.clearTimeout(saveStatusTimeoutRef.current);
@@ -134,6 +151,7 @@ export const SettingSecurity = () => {
           window.electronAPI.getRecentActiveApps(),
         ]);
         if (!cancelled) {
+          latestGuardSettingsRef.current = guardSettings;
           setState({ status: "ready", guardSettings, secretSettings, recentApps });
         }
       } catch {
@@ -166,10 +184,12 @@ export const SettingSecurity = () => {
     next: SelectionGuardSettings,
     previous: SelectionGuardSettings,
   ): Promise<PersistResult> => {
+    latestGuardSettingsRef.current = next;
     setState((current) => (current.status === "ready" ? { ...current, guardSettings: next } : current));
     try {
       const result = await window.electronAPI.setSelectionGuards(next);
       if (result.success) return { success: true };
+      latestGuardSettingsRef.current = previous;
       setState((current) =>
         current.status === "ready" ? { ...current, guardSettings: previous } : current,
       );
@@ -178,6 +198,7 @@ export const SettingSecurity = () => {
         error: result.error ? wrappedError(result.error) : plainStatus("security.saveError"),
       };
     } catch {
+      latestGuardSettingsRef.current = previous;
       setState((current) =>
         current.status === "ready" ? { ...current, guardSettings: previous } : current,
       );
@@ -269,17 +290,28 @@ export const SettingSecurity = () => {
 
   const canAddBundleId = normalizeBundleId(newBundleId) !== null;
 
+  /**
+   * The base for every deny-list edit. Reads the ref rather than this render's
+   * `guardSettings` so an edit made while an app resolution is still in flight
+   * builds on that pending list instead of replacing it — see the ref's doc
+   * comment. Falls back to render state only before the first load settles.
+   */
+  const currentGuardSettings = (): SelectionGuardSettings =>
+    latestGuardSettingsRef.current ?? guardSettings;
+
   const handleAddDeniedApp = (): void => {
-    const next = withDeniedBundleId(guardSettings, newBundleId);
-    if (next === guardSettings) return;
+    const previous = currentGuardSettings();
+    const next = withDeniedBundleId(previous, newBundleId);
+    if (next === previous) return;
     setNewBundleId("");
-    void persistGuardSettings(next, guardSettings);
+    void persistGuardSettings(next, previous);
   };
 
   const handleRemoveDeniedApp = (bundleId: string): void => {
-    const next = withoutDeniedBundleId(guardSettings, bundleId);
-    if (next === guardSettings) return;
-    void persistGuardSettings(next, guardSettings);
+    const previous = currentGuardSettings();
+    const next = withoutDeniedBundleId(previous, bundleId);
+    if (next === previous) return;
+    void persistGuardSettings(next, previous);
   };
 
   /**
@@ -291,9 +323,26 @@ export const SettingSecurity = () => {
    * should not flash "Saved.".
    */
   const addDeniedBundleIds = (bundleIds: readonly string[]): void => {
-    const next = withDeniedBundleIds(guardSettings, bundleIds);
-    if (next === guardSettings) return;
-    void persistGuardSettings(next, guardSettings);
+    const previous = currentGuardSettings();
+    const { settings: next, droppedForCapacity } = withDeniedBundleIds(previous, bundleIds);
+
+    // Reported even when some ids DID fit: a picker selection that half-worked
+    // must not read as a plain success, or the user believes they blocked apps
+    // that are still allowed.
+    if (droppedForCapacity > 0) {
+      setStatus(
+        plainStatus("security.deniedApps.capacityReached", {
+          dropped: droppedForCapacity,
+          max: MAX_DENIED_BUNDLE_IDS,
+        }),
+      );
+      if (next === previous) return;
+      void persistGuardResult(next, previous);
+      return;
+    }
+
+    if (next === previous) return;
+    void persistGuardSettings(next, previous);
   };
 
   const handleChooseApps = (): void => {
@@ -344,11 +393,12 @@ export const SettingSecurity = () => {
 
   const handleToggleRecentApp = (chip: RecentAppChip): void => {
     if (chip.app.bundleId === null) return;
+    const previous = currentGuardSettings();
     const next = chip.blocked
-      ? withoutDeniedBundleId(guardSettings, chip.app.bundleId)
-      : withDeniedBundleId(guardSettings, chip.app.bundleId);
-    if (next === guardSettings) return;
-    void persistGuardSettings(next, guardSettings);
+      ? withoutDeniedBundleId(previous, chip.app.bundleId)
+      : withDeniedBundleId(previous, chip.app.bundleId);
+    if (next === previous) return;
+    void persistGuardSettings(next, previous);
   };
 
   const handleModeChange = (mode: SecretGuardMode): void => {

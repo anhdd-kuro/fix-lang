@@ -397,13 +397,18 @@ describe("SettingSecurity", () => {
     );
   });
 
-  const clickButtonLabelled = async (label: string): Promise<void> => {
+  /** Fires the click WITHOUT flushing, so a still-pending handler stays pending. */
+  const clickButtonLabelledSync = (label: string): void => {
     const button = [...container.querySelectorAll("button")].find(
       (candidate) => candidate.textContent === label,
     );
     if (!button) throw new Error(`Expected a "${label}" button`);
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  };
+
+  const clickButtonLabelled = async (label: string): Promise<void> => {
     await act(async () => {
-      button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      clickButtonLabelledSync(label);
     });
     await waitForUi();
     await waitForUi();
@@ -446,6 +451,43 @@ describe("SettingSecurity", () => {
     await clickButtonLabelled("Choose app…");
 
     expect(api.setSelectionGuards).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Every deny-list write replaces the WHOLE settings object, and both
+   * app-picking paths are async. Two overlapping resolutions that each build
+   * on the settings captured at their own render would make the later write
+   * erase the earlier one's app — the user blocks two apps and ends up with
+   * one, with a "Saved." flash claiming otherwise. The second write must
+   * therefore carry BOTH ids.
+   */
+  it("merges a second app resolution onto the first instead of erasing it", async () => {
+    let resolveFirst: ((value: unknown) => void) | null = null;
+    const chooseDeniedApps = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockResolvedValue({ success: true, bundleIds: ["com.figma.Desktop"] });
+
+    await render({ chooseDeniedApps });
+
+    // First pick is still in flight when the second one starts and settles.
+    await act(async () => {
+      clickButtonLabelledSync("Choose app…");
+    });
+    await clickButtonLabelled("Choose app…");
+    await act(async () => {
+      resolveFirst?.({ success: true, bundleIds: ["com.tinyspeck.slackmacgap"] });
+    });
+    await waitForUi();
+
+    const written = api.setSelectionGuards.mock.calls.at(-1)?.[0] as SelectionGuardSettings;
+    expect(written.deniedBundleIds).toContain("com.figma.desktop");
+    expect(written.deniedBundleIds).toContain("com.tinyspeck.slackmacgap");
   });
 
   it("reports the failure from main instead of silently adding nothing", async () => {

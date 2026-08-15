@@ -170,6 +170,7 @@
   "security.clipboardAge.title": "古いクリップボード",
   "security.deniedApps.addLabel": "アプリをブロック",
   "security.deniedApps.addPlaceholder": "バンドルID（例: com.1password.1password）",
+  "security.deniedApps.capacityReached": "ブロックするアプリの上限 {max} に達しているため、{dropped} 件を追加できませんでした。",
   "security.deniedApps.chooseLabel": "アプリを選択…",
   "security.deniedApps.description": "これらのアプリが最前面にある間は変換が拒否されます。選択範囲はコピーされてから元に戻されるだけで、プロバイダーには送られません。",
   "security.deniedApps.dropError": "そのアプリのバンドルIDを読み取れませんでした。",
