@@ -183,6 +183,16 @@ export const parseCaskVersion = (
  */
 export type ActiveCaskChannel = "stable" | "beta" | "both";
 
+/**
+ * Deliberately not a member of {@link HomebrewUpgrader}: this is the primitive
+ * a caller composes with {@link findBrewBinary} — `detectActiveCaskChannel(
+ * findBrewBinary(fileExists))` — to learn which token to bind BEFORE
+ * constructing the upgrader. Neither growing the interface to expose this
+ * (and the `brewBinary` this module resolves internally) nor resolving the
+ * channel entirely outside it has been decided yet; both functions are
+ * exported top-level today so either shape stays reachable without this
+ * module pre-empting that call.
+ */
 export const detectActiveCaskChannel = (
   brewBinary: string,
   directoryExists: FileProbe = isDirectory,
@@ -482,7 +492,19 @@ export type HomebrewUpgrader = Readonly<{
    * including for a cask token this module does not recognize.
    */
   downloadUpdate: (caskToken?: string) => Promise<void>;
-  /** Bytes cached for that version so far; null when nothing is cached yet. */
+  /**
+   * Bytes cached for that version so far; null when nothing is cached yet.
+   *
+   * `caskToken` only gates validation here (an unrecognized token still
+   * returns null) — the lookup itself is `matchCachedDownload`, which keys
+   * purely on `version`. Homebrew names a cached DMG
+   * `<digest>--FixLang-<version>-arm64.dmg` with no channel marker in the
+   * basename, and that is safe only because a stable version string and a
+   * beta one are never equal (betas always carry a `-beta.N` suffix). If a
+   * caller ever threads the wrong (but still valid) token for a version that
+   * collided across channels, this would attribute cached bytes to the wrong
+   * channel with nothing here to catch it.
+   */
   getDownloadedBytes: (version: string, caskToken?: string) => number | null;
   /**
    * Launches the detached upgrade helper. Throws when it cannot start,
@@ -513,8 +535,17 @@ export const createHomebrewUpgrader = (
   const boundCaskToken: CaskToken = options.caskToken ?? STABLE_CASK_TOKEN;
 
   const brewBinary = options.isInstalledApp ? findBrewBinary(fileExists) : null;
-  const canInstall =
-    brewBinary !== null && directoryExists(caskroomRoot(brewBinary, boundCaskToken));
+  // Routed through `caskroomPath` (which calls `isCaskToken` first) rather
+  // than the raw `caskroomRoot` — `boundCaskToken`'s `CaskToken` type is only
+  // a compile-time promise, and a value that reaches here already cast (a
+  // persisted marker, a renderer channel choice) is not guaranteed to satisfy
+  // it. An unrecognized token must be refused here exactly like every other
+  // accessor below, not walked straight into `path.join`: `caskroomRoot`
+  // normalizes something like "../../../../Applications" to "/Applications"
+  // and would report `canInstall` off of whatever happens to live there.
+  const boundCaskroomPath =
+    brewBinary !== null ? caskroomPath(brewBinary, boundCaskToken) : null;
+  const canInstall = boundCaskroomPath !== null && directoryExists(boundCaskroomPath);
 
   return Object.freeze({
     canInstall,
@@ -561,7 +592,19 @@ export const createHomebrewUpgrader = (
       appPath: string | null = null,
       caskToken: string = boundCaskToken,
     ): void => {
-      if (!canInstall || brewBinary === null) {
+      if (brewBinary === null) {
+        throw new Error("FixLang was not installed with the Homebrew cask");
+      }
+      // `canInstall` only answers for the BOUND token. A per-call override
+      // must be checked against ITS OWN Caskroom entry — otherwise a
+      // beta-bound upgrader's stale (and true) `canInstall` could wave
+      // through a request to upgrade the stable token with no stable
+      // Caskroom entry at all. That would spawn the detached helper anyway;
+      // `buildUpgradeScript`'s `upgrade --cask ... || exit 1` then fails
+      // AFTER the app has already quit, on a path that never reaches the
+      // reopen command.
+      const targetCaskroomPath = caskroomPath(brewBinary, caskToken);
+      if (targetCaskroomPath === null || !directoryExists(targetCaskroomPath)) {
         throw new Error("FixLang was not installed with the Homebrew cask");
       }
       startDetached(

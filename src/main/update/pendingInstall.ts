@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { isCaskToken, type CaskToken } from "./homebrew";
 
 /**
  * The Homebrew upgrade finishes after the app has already quit, so the only
@@ -14,8 +15,13 @@ import path from "node:path";
  * lands a version LOWER than the one running — so the token, never the
  * version's direction, is what tells reconcile which Caskroom the install
  * actually landed in.
+ *
+ * Imported from `./homebrew` rather than redeclared: that module's
+ * `KNOWN_CASK_TOKENS` is the one runtime allow-list, so a third channel token
+ * added there is automatically recognized here too, instead of silently
+ * coercing back to stable on read until this file is also edited.
  */
-export type CaskToken = "fixlang" | "fixlang@beta";
+export type { CaskToken };
 
 /**
  * Every marker defaults to this token — including one written before the
@@ -92,11 +98,13 @@ const parseStartedAt = (value: unknown): number =>
  * rather than rejecting the whole marker — a real marker on a user's disk
  * predates this field entirely, and a marker must never fail to parse over
  * one field going unrecognized.
+ *
+ * Delegates to `./homebrew`'s `isCaskToken` instead of re-spelling the two
+ * literals here, so this file's runtime allow-list can never drift from the
+ * one it imports its `CaskToken` type from.
  */
 const parseCaskToken = (value: unknown): CaskToken =>
-  value === "fixlang" || value === "fixlang@beta"
-    ? value
-    : STABLE_CASK_TOKEN;
+  typeof value === "string" && isCaskToken(value) ? value : STABLE_CASK_TOKEN;
 
 /** Parses the marker defensively; a corrupt file must never break startup. */
 export const parsePendingInstall = (raw: string): PendingInstall | null => {

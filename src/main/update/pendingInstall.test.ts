@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { isCaskToken } from "./homebrew";
 import {
   createPendingInstallStore,
   parsePendingInstall,
@@ -143,6 +144,30 @@ describe("pending install marker", () => {
       });
 
       expect(parsePendingInstall(raw)?.caskToken).toBe("fixlang");
+    },
+  );
+
+  /**
+   * REGRESSION: `CaskToken` and its runtime allow-list used to be redeclared
+   * independently here from `./homebrew`'s `KNOWN_CASK_TOKENS` — a third
+   * channel token added there without a matching edit here would silently
+   * coerce back to stable on read. Parsing is now driven entirely by
+   * `./homebrew`'s own `isCaskToken`, so this asserts that exact equivalence
+   * for a spread of tokens — known, unknown, and edge-shaped — rather than
+   * re-testing only the two literals this file used to hardcode.
+   */
+  it.each(["fixlang", "fixlang@beta", "fixlang@nightly", "FIXLANG", ""])(
+    "accepts a cask token if and only if homebrew.ts's isCaskToken accepts it: %s",
+    (caskToken) => {
+      const raw = JSON.stringify({
+        fromVersion: "0.3.2",
+        toVersion: "0.3.3",
+        startedAt: 1_000,
+        caskToken,
+      });
+
+      const expected = isCaskToken(caskToken) ? caskToken : "fixlang";
+      expect(parsePendingInstall(raw)?.caskToken).toBe(expected);
     },
   );
 });

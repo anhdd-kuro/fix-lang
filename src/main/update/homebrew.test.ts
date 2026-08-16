@@ -18,6 +18,36 @@ import {
   type CaskToken,
 } from "./homebrew";
 
+/**
+ * Real `node:child_process` exports are frozen ESM bindings — `vi.spyOn`
+ * cannot redefine them in place — so guarding against a rogue subprocess call
+ * needs a module mock instead. `execSync`/`execFileSync` are included even
+ * though `homebrew.ts` does not import them today: the mock replaces the
+ * whole module, so a future direct call to either would hit `undefined`
+ * (not a real subprocess) and throw, exactly like the two spied calls below.
+ * `vi.mock` is hoisted above every import in this file regardless of where
+ * it is written, so placing it after the imports (for import-order lint)
+ * does not change when it takes effect.
+ */
+const {
+  childProcessExecFileMock,
+  childProcessSpawnMock,
+  childProcessExecSyncMock,
+  childProcessExecFileSyncMock,
+} = vi.hoisted(() => ({
+  childProcessExecFileMock: vi.fn(),
+  childProcessSpawnMock: vi.fn(),
+  childProcessExecSyncMock: vi.fn(),
+  childProcessExecFileSyncMock: vi.fn(),
+}));
+
+vi.mock("node:child_process", () => ({
+  execFile: childProcessExecFileMock,
+  spawn: childProcessSpawnMock,
+  execSync: childProcessExecSyncMock,
+  execFileSync: childProcessExecFileSyncMock,
+}));
+
 const caskInfoJson = (version: string, token: string = STABLE_CASK_TOKEN): string =>
   JSON.stringify({ casks: [{ token, version }] });
 
@@ -188,6 +218,23 @@ describe("cask version parsing", () => {
     JSON.stringify({ formulae: [] }),
   ])("returns null for unusable brew output", (stdout) => {
     expect(parseCaskVersion(stdout)).toBeNull();
+  });
+
+  /**
+   * REGRESSION: the "refuses to parse against an unknown token" test above
+   * feeds `parseCaskVersion` a payload shaped for the STABLE token while
+   * asking about "fixlang-nightly" — `cask.token === caskToken` never matches
+   * there, so the function returns null whether or not the `isCaskToken`
+   * guard runs at all. That test was observed passing IDENTICALLY with the
+   * guard deleted, so it pins nothing. This one shapes the payload's own
+   * token to match the unrecognized token being asked about: without the
+   * guard, `parsed.casks.find(...)` would succeed and return "9.9.9" instead
+   * of null.
+   */
+  it("refuses a version even when the payload's own entry matches the unrecognized token", () => {
+    expect(
+      parseCaskVersion(caskInfoJson("9.9.9", "fixlang-nightly"), "fixlang-nightly"),
+    ).toBeNull();
   });
 });
 
@@ -636,6 +683,30 @@ describe("active channel detection", () => {
       "/opt/homebrew/Caskroom/fixlang@beta",
     );
   });
+
+  /**
+   * REGRESSION: the previous test only counts calls to the injected
+   * `directoryExists` probe; it never checks that nothing ELSE ran. A rogue
+   * `execSync`/`execFile`/`spawn` call added straight into
+   * `detectActiveCaskChannel` (bypassing the injected probe entirely) was
+   * observed leaving the whole suite green. These spies wrap the REAL
+   * `node:child_process` module object — the same one `homebrew.ts` imports
+   * from — so they catch a future direct call even to an export this module
+   * does not use today.
+   */
+  it("never shells out — no child_process call of any kind decides the answer", () => {
+    childProcessExecFileMock.mockClear();
+    childProcessSpawnMock.mockClear();
+    childProcessExecSyncMock.mockClear();
+    childProcessExecFileSyncMock.mockClear();
+
+    detectActiveCaskChannel("/opt/homebrew/bin/brew", () => true);
+
+    expect(childProcessExecFileMock).not.toHaveBeenCalled();
+    expect(childProcessSpawnMock).not.toHaveBeenCalled();
+    expect(childProcessExecSyncMock).not.toHaveBeenCalled();
+    expect(childProcessExecFileSyncMock).not.toHaveBeenCalled();
+  });
 });
 
 
@@ -791,5 +862,54 @@ describe("channel switch script", () => {
     );
     expect(revertUninstallIdx).toBeGreaterThanOrEqual(0);
     expect(revertRestoreIdx).toBeGreaterThan(revertUninstallIdx);
+  });
+});
+
+describe("canInstall validates the bound cask token", () => {
+  /**
+   * REGRESSION: `canInstall` was computed straight from `caskroomRoot`,
+   * which — unlike every other accessor in this module — never calls
+   * `isCaskToken` first. `caskroomRoot("/opt/homebrew/bin/brew",
+   * "../../../../Applications")` normalizes (via `path.join`) to
+   * "/Applications", so an upgrader constructed with an unrecognized token
+   * probed a directory entirely outside the Caskroom and could report
+   * `canInstall === true` off of it. This test was observed failing
+   * (canInstall === true) against the unmodified code.
+   */
+  it("never derives canInstall from an unrecognized token's raw, un-validated path", () => {
+    const { instance } = upgrader({
+      caskToken: "../../../../Applications",
+      directories: ["/Applications"],
+    });
+
+    expect(instance.canInstall).toBe(false);
+  });
+});
+
+describe("startUpgrade validates the token it is actually about to run, not just the bound one", () => {
+  /**
+   * REGRESSION: `startUpgrade`'s guard was `!canInstall`, where `canInstall`
+   * is fixed at construction time for the upgrader's BOUND token. A per-call
+   * `caskToken` override let a caller ask this beta-bound upgrader (whose
+   * `canInstall` is true because the beta Caskroom exists) to run an upgrade
+   * for the STABLE token instead — with no stable Caskroom entry at all. The
+   * guard let it through, so the detached helper spawned and ran
+   * `brew upgrade --cask fixlang || exit 1` against an uninstalled cask
+   * AFTER the app had already quit; that failure path in
+   * `buildUpgradeScript` exits before ever reaching the reopen command,
+   * leaving the user with no running app. This test was observed failing —
+   * `startDetached` was called and nothing threw — against the unmodified
+   * code.
+   */
+  it("refuses a per-call token override the bound token's canInstall can't vouch for", () => {
+    const { instance, startDetached } = upgrader({
+      caskToken: BETA_CASK_TOKEN,
+      directories: ["/opt/homebrew/Caskroom/fixlang@beta"],
+    });
+
+    expect(() => instance.startUpgrade(null, STABLE_CASK_TOKEN)).toThrow(
+      "FixLang was not installed with the Homebrew cask",
+    );
+    expect(startDetached).not.toHaveBeenCalled();
   });
 });
