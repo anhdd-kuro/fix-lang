@@ -970,20 +970,35 @@ export const apiStoreSchema = {
                       outputMode: { type: "string" },
                       markdownOutput: { type: "boolean" },
                       /**
-                       * Bare on purpose, and it must STAY bare: no `enum`, no
-                       * `properties`, no `required` entry, no
-                       * `additionalProperties`, no `default`. Which keys are
-                       * legal and which values each one admits is registry
-                       * DATA, and it changes every time a preset declares a
-                       * new option — so a schema constraint here would be
-                       * wrong for exactly the stored configs written by an
-                       * older or newer build. With `clearInvalidConfig: true`
-                       * that is not a rejected field, it is a wipe of every
-                       * profile, preset and key reference. Validity is decided
-                       * in code by `sanitizePresetOptions`, which drops the
-                       * unrecognized key and keeps the rest.
+                       * EMPTY on purpose — not even `{ type: "object" }`, and
+                       * it must stay empty. Under `clearInvalidConfig: true`
+                       * every keyword here is a constraint a stored value can
+                       * FAIL, and a failure is not a rejected field: `conf`
+                       * deletes the config file, taking every profile, preset,
+                       * hotkey and encrypted key slot with it.
+                       *
+                       * `type` is such a keyword. `extraOptions` holds string
+                       * values and is hand-editable, so `"extraOptions":
+                       * "ultra"` in place of `{"cavemanMode":"ultra"}` is the
+                       * obvious wrong edit — and `{ type: "object" }` answers
+                       * it by wiping the store. Same for a value written as
+                       * `null` or as an array.
+                       *
+                       * An `enum`, `properties`, `required` or
+                       * `additionalProperties` would be worse still: which
+                       * keys are legal and which values each admits is
+                       * registry DATA that grows with every preset option, so
+                       * any of them would also wipe a config written by a
+                       * NEWER build. The node earns its place as documentation
+                       * only; validity is decided in code by
+                       * `sanitizePresetOptions`, which is already total over
+                       * `unknown` and rejects every non-object input.
+                       *
+                       * Pinned by the real-`Conf` hand-edit round trip in
+                       * `apiStore.test.ts` — a test asserting the ABSENCE of an
+                       * `enum` does not cover this, and did not.
                        */
-                      extraOptions: { type: "object" },
+                      extraOptions: {},
                     },
                     required: ["id", "name", "hotkey", "systemPrompt", "model"],
                   },

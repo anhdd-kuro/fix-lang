@@ -73,6 +73,7 @@ import {
   DEFAULT_STRUCTURED_TEXT_PRESET_ID,
 } from "~/prompts/correction";
 import type {
+  CorrectionPreset,
   CorrectionSettings,
   Model,
   Profile,
@@ -840,16 +841,23 @@ describe("apiStoreSchema — settingsCorrect default carries all eight built-in 
     ]);
   });
 
-  it("declares extraOptions as a bare object node, optional and unconstrained", () => {
+  it("declares extraOptions as a wholly EMPTY node — not even a type", () => {
     // `extraOptions` holds per-preset option values whose validity is decided
-    // in code by `sanitizePresetOptions`. Anything narrower than
-    // `{ type: "object" }` — an `enum`, a `properties`/`required` pair, an
-    // `additionalProperties: false` — turns ONE hand-edited or legacy value
-    // into a `clearInvalidConfig` wipe of every profile, preset and key
-    // reference.
-    expect(presetItemSchema.properties.extraOptions).toEqual({
-      type: "object",
-    });
+    // in code by `sanitizePresetOptions`. EVERY keyword here is a constraint a
+    // stored value can fail, and under `clearInvalidConfig: true` a failure
+    // wipes every profile, preset and key reference — so `type` is no safer
+    // than an `enum`, a `properties`/`required` pair or an
+    // `additionalProperties: false`. This assertion is the shape pin; the
+    // behavioural proof is the real-`Conf` hand-edit round trip further down,
+    // because a shape assertion alone is what let `{ type: "object" }` ship.
+    expect(presetItemSchema.properties.extraOptions).toEqual({});
+    // `toEqual({})` alone passes for `{ type: undefined }`; this is the pin
+    // that the node carries no keyword whatsoever.
+    expect(
+      Object.keys(
+        presetItemSchema.properties.extraOptions as Record<string, unknown>,
+      ),
+    ).toEqual([]);
     expect(presetItemSchema.required).not.toContain("extraOptions");
     expect(presetItemSchema.required).toEqual([
       "id",
@@ -868,15 +876,22 @@ describe("apiStoreSchema — settingsCorrect default carries all eight built-in 
       new URL("./apiStore.ts", import.meta.url),
       "utf8",
     );
-    const nodeIndex = source.indexOf("extraOptions: { type: \"object\" }");
+    const nodeIndex = source.indexOf("extraOptions: {}");
     expect(nodeIndex).toBeGreaterThan(-1);
 
-    const precedingComment = source.slice(
-      Math.max(0, nodeIndex - 1200),
-      nodeIndex,
-    );
+    // Bounded by the previous property rather than a character count, so
+    // growing or shrinking the comment cannot silently move it out of view.
+    const commentStart = source.lastIndexOf("markdownOutput:", nodeIndex);
+    expect(commentStart).toBeGreaterThan(-1);
+    const precedingComment = source.slice(commentStart, nodeIndex);
+
     expect(precedingComment).toContain("clearInvalidConfig");
     expect(precedingComment).toContain("sanitizePresetOptions");
+    // The reason the node is EMPTY rather than merely un-enumerated. Without
+    // this, the comment could be reverted to the old "bare `{ type: object }`"
+    // wording that read as safe while wiping the store.
+    expect(precedingComment).toContain("EMPTY");
+    expect(precedingComment).toContain("`type`");
   });
 
   it("declares NO enum anywhere under the presets item schema", () => {
@@ -1045,15 +1060,34 @@ describe("apiStoreSchema — settingsCorrect default carries all eight built-in 
 // `c01b069336463d60ffc19394ee80990c859730724bbe9286221301260071eeac`
 // byte-for-byte.
 //
-// The only stored value this node can now reject is an `extraOptions` that is
-// not an object at all — a key no existing profile has, and one only this
-// codebase writes. Anything narrower would be actively dangerous: the set of
-// legal keys and values is registry DATA that grows with every preset option,
-// so an `enum` or a `properties` block would fail validation on a config
-// written by a NEWER build, and `clearInvalidConfig: true` would answer that by
-// wiping every profile, preset and key reference. Per-key validity is enforced
-// in code by `sanitizePresetOptions`, which drops the unrecognized key and
-// keeps the rest.
+// Updated again to EMPTY the `extraOptions` node — `{ type: "object" }` became
+// `{}`. This one RELAXES the schema, the only direction that is safe under
+// `clearInvalidConfig: true`: it removes a constraint, so every config that
+// validated before still validates, and three that did not now do too.
+// `type` was itself a validation — a hand-edited `"extraOptions": "ultra"`
+// (or `null`, or `["ultra"]`) failed it, and `conf` answers a failed
+// validation by deleting the config file. That is not a dropped field, it is
+// every profile, preset, hotkey and encrypted key slot gone. Reproduced
+// against a real `Conf` over a throwaway cwd before the change and pinned by
+// `keeps every profile when a hand edit makes extraOptions ...` below.
+//
+// Verified rather than assumed, the same empirical way as every update above:
+// the serialised schema SHRANK by exactly 15 bytes (`,"extraOptions":{}` is 18
+// bytes against `,"extraOptions":{"type":"object"}`'s 33); `,"extraOptions":{}`
+// occurs exactly once and `,"extraOptions":{"type":"object"}` now occurs zero
+// times; `"extraOptions"` occurs 3 times in total — the node plus the shipped
+// Caveman value under `presets.default` and `settingsCorrect.default`, which
+// are unchanged; and reversing the edit (substituting the old node back at its
+// single occurrence) reproduces the previous snapshot
+// `0c9fa238571f526c7af2e6ccce13aaa53076953e4d7c705da7a7f5cdcc1a5a8a`
+// byte-for-byte. Proof in `.scratch/caveman-preset/evidence/02/`.
+//
+// Nothing narrower may go back in. The set of legal keys and values is registry
+// DATA that grows with every preset option, so an `enum`, a `properties` block
+// or a restored `type` would fail validation on a hand edit or on a config
+// written by a NEWER build, and `clearInvalidConfig: true` answers that by
+// wiping every profile, preset and key reference. Validity is enforced in code
+// by `sanitizePresetOptions`, which is total over `unknown`.
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
@@ -1062,7 +1096,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "0c9fa238571f526c7af2e6ccce13aaa53076953e4d7c705da7a7f5cdcc1a5a8a",
+      "8e09160c37339332200b62472015dd86749fac54336823b0f6b1f2dbc3ac6d69",
     );
   });
 });
@@ -1685,6 +1719,103 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
       fs.rmSync(cwd, { recursive: true, force: true });
     }
   });
+
+  // The CONTAINER type is itself a validation, and `clearInvalidConfig: true`
+  // answers a failed validation by deleting the config file. `extraOptions`
+  // holds string values and is advertised as hand-editable, so writing
+  // `"extraOptions": "ultra"` instead of `{"cavemanMode": "ultra"}` is the
+  // most natural wrong edit there is — and under a `{ type: "object" }` node it
+  // costs the user every profile, preset, hotkey and encrypted key slot.
+  //
+  // This is the regression check for that node, and it has to be a REAL `Conf`
+  // round trip driven by a real HAND EDIT of the file: the app itself never
+  // writes a non-object here, so `store.set()` is the wrong verb — it throws
+  // synchronously and never reaches the validate-on-read path that does the
+  // damage. Asserting the absence of an `enum` on the node is what let this
+  // through the first time; `type` is the keyword that fires.
+  it.each([
+    ["a string", "ultra"],
+    ["null", null],
+    ["an array", ["ultra"]],
+  ])(
+    "keeps every profile when a hand edit makes extraOptions %s",
+    async (_label, garbage) => {
+      const { default: Conf } = await import("conf");
+      const fs = await import("node:fs");
+      const os = await import("node:os");
+      const path = await import("node:path");
+      const cwd = fs.mkdtempSync(
+        path.join(os.tmpdir(), "fixlang-apistore-options-shape-"),
+      );
+
+      try {
+        const openStore = (): InstanceType<typeof Conf<{ profiles: Profile[] }>> =>
+          new Conf<{ profiles: Profile[] }>({
+            cwd,
+            configName: "config",
+            clearInvalidConfig: true,
+            schema: apiStoreSchema,
+          });
+
+        const profile = buildProfile({
+          settings: buildSettings({
+            settingsCorrect: {
+              selectedPresetId: DEFAULT_CAVEMAN_PRESET_ID,
+              presets: [
+                {
+                  id: DEFAULT_CAVEMAN_PRESET_ID,
+                  name: "Caveman",
+                  hotkey: "Control+Shift+C",
+                  systemPrompt: "Compress it.",
+                  model: "",
+                  isBuiltIn: true,
+                  extraOptions: { cavemanMode: "ultra" },
+                },
+              ],
+            },
+          }),
+        });
+
+        const seeded = openStore();
+        seeded.set("profiles", [profile]);
+        seeded.set("currentProfileId", profile.id);
+
+        // The hand edit: replace the option OBJECT with a bare value, exactly
+        // as a user reaching for `"extraOptions": "ultra"` would.
+        const configPath = path.join(cwd, "config.json");
+        const onDisk = JSON.parse(fs.readFileSync(configPath, "utf8")) as {
+          profiles: { settings: { settingsCorrect: CorrectionSettings } }[];
+        };
+        const editedPreset =
+          onDisk.profiles[0].settings.settingsCorrect.presets[0];
+        expect(editedPreset.extraOptions).toEqual({ cavemanMode: "ultra" });
+        editedPreset.extraOptions =
+          garbage as unknown as CorrectionPreset["extraOptions"];
+        fs.writeFileSync(configPath, JSON.stringify(onDisk, null, "\t"));
+
+        // Reopening is what a relaunch does, and it is where
+        // `clearInvalidConfig` decides whether to delete the whole file.
+        const reopened = openStore();
+        const readBack = reopened.get("profiles", []);
+
+        expect(readBack).toHaveLength(1);
+        expect(readBack[0].id).toBe(profile.id);
+        // Not just the count: the sibling state a wipe would take with it.
+        expect(reopened.get("currentProfileId")).toBe(profile.id);
+        expect(readBack[0].settings.settingsCorrect.presets[0].hotkey).toBe(
+          "Control+Shift+C",
+        );
+        // Narrowed in code instead — the garbage never reaches a consumer.
+        expect(
+          normalizeCorrectionSettings(
+            readBack[0].settings.settingsCorrect,
+          ).presets.find((preset) => preset.id === DEFAULT_CAVEMAN_PRESET_ID),
+        ).not.toHaveProperty("extraOptions");
+      } finally {
+        fs.rmSync(cwd, { recursive: true, force: true });
+      }
+    },
+  );
 
   it("keeps a profile whose stored extraOptions is unrecognized instead of wiping every profile", async () => {
     // The same enum trap, one node over. Legal option keys and values are
