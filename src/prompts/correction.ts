@@ -145,12 +145,25 @@ export const DEFAULT_CAVEMAN_PRESET_PROMPT = cavemanMarkdown.trim();
  * Standalone instruction fragments for each Caveman intensity level. A later
  * card composes one of these onto `DEFAULT_CAVEMAN_PRESET_PROMPT` at request
  * time — nothing in this file assembles them together.
+ *
+ * COMPOSITION ORDER — this is a contract, not a preference. Exactly ONE
+ * directive is APPENDED AFTER `DEFAULT_CAVEMAN_PRESET_PROMPT`, as the final
+ * line of the system prompt, with the text to compress arriving separately as
+ * the user message. The base prompt states that its instructions end with the
+ * intensity level line and that everything after that line is input to
+ * compress, so prepending a directive would put it on the input side of that
+ * boundary. Never place a directive before the base prompt, and never append
+ * two of them.
+ *
+ * The levels are cumulative: `full` keeps doing what `lite` does and cuts
+ * further, `ultra` keeps doing what `full` does and cuts further still, so each
+ * directive is self-sufficient on its own and only one is ever sent.
  */
 export const DEFAULT_CAVEMAN_LITE_DIRECTIVE = `\
-Lite level: keep articles and full sentences intact. Drop only filler words and hedging. Stay professional but tight.`;
+Lite level: keep every article and write full grammatical sentences. Drop only filler words, hedging, and pleasantries. Do not swap words for shorter synonyms, and do not shorten any term. Stay professional but tight.`;
 
 export const DEFAULT_CAVEMAN_FULL_DIRECTIVE = `\
-Full level: drop articles. Sentence fragments are fine. Use short synonyms in place of long phrases. Classic caveman compression.`;
+Full level: drop articles. Sentence fragments are fine. Use short synonyms in place of long phrases. Keep general technical terms spelled out in full — shortening them belongs to the ultra level. Classic caveman compression.`;
 
 export const DEFAULT_CAVEMAN_ULTRA_DIRECTIVE = `\
-Ultra level: abbreviate common technical terms (DB, auth, config, req, res, fn, impl). Strip conjunctions. Use arrows (→) to show cause and effect. Use one word wherever one word says enough.`;
+Ultra level: drop articles and write fragments, then compress further. Shorten general technical terms, using only the short forms the input's own language conventionally uses — in English, DB, auth, config, req, res, fn, impl. When a term has no established short form in the input's language, leave it as written rather than substituting an English abbreviation, and never shorten an identifier in any language. Strip conjunctions. Use arrows (→) to show cause and effect. Use one word wherever one word says enough.`;
