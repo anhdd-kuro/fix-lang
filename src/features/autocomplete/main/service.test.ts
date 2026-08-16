@@ -270,6 +270,246 @@ describe("requestAutocompleteSuggestion", () => {
     });
   });
 
+  describe("system-wide scope", () => {
+    const withScope = (scope: Record<string, unknown>, model = "openai::gpt-4o-mini"): void => {
+      getProfileSettingMock.mockImplementation((key: string) => {
+        if (key === "settingsAutocomplete") {
+          return { enabled: true, model, dailyCostCapUsd, ...scope };
+        }
+        if (key === "settingsCorrect") return { presets: [], selectedPresetId: "" };
+        if (key === "providerEndpoints") return providerEndpoints;
+        return undefined;
+      });
+    };
+
+    const fromApp = (bundleId: string | undefined, overrides: Record<string, unknown> = {}) =>
+      ask({ surface: "system", appBundleId: bundleId, ...overrides });
+
+    it("leaves FixLang's own window untouched by the strictest scope setting", async () => {
+      withScope({ scopeMode: "allowlist", scopedApps: [], cloudScopeConsent: "" });
+
+      expect((await ask()).suggestion).toBe(" over the lazy dog.");
+      expect(makeAIRequestMock).toHaveBeenCalledOnce();
+    });
+
+    it("refuses an unlisted app in allowlist mode", async () => {
+      withScope({ scopeMode: "allowlist", scopedApps: ["com.apple.mail"] });
+
+      expect((await fromApp("com.apple.notes")).suggestion).toBeNull();
+      expect(makeAIRequestMock).not.toHaveBeenCalled();
+    });
+
+    it("serves a listed app in allowlist mode", async () => {
+      withScope({
+        scopeMode: "allowlist",
+        scopedApps: ["com.apple.mail"],
+        cloudScopeConsent: "openai",
+      });
+
+      expect((await fromApp("com.apple.mail")).suggestion).toBe(" over the lazy dog.");
+    });
+
+    it("refuses a listed app in denylist mode, and serves the rest", async () => {
+      withScope({
+        scopeMode: "denylist",
+        scopedApps: ["com.apple.mail"],
+        cloudScopeConsent: "openai",
+      });
+
+      expect((await fromApp("com.apple.mail")).suggestion).toBeNull();
+      expect(makeAIRequestMock).not.toHaveBeenCalled();
+
+      expect((await fromApp("com.apple.notes")).suggestion).toBe(" over the lazy dog.");
+    });
+
+    it("refuses a system surface that reported no app at all", async () => {
+      withScope({ scopeMode: "denylist", scopedApps: [], cloudScopeConsent: "openai" });
+
+      expect((await fromApp(undefined)).suggestion).toBeNull();
+      expect(makeAIRequestMock).not.toHaveBeenCalled();
+    });
+
+    it("refuses rather than throwing when the scope list is unreadable", async () => {
+      expect((await fromApp("com.apple.notes")).suggestion).toBeNull();
+      expect(makeAIRequestMock).not.toHaveBeenCalled();
+    });
+
+    it("refuses an unreadable list in denylist mode too, where empty would mean everywhere", async () => {
+      withScope({ scopeMode: "denylist", cloudScopeConsent: "openai" });
+
+      expect((await fromApp("com.apple.notes")).suggestion).toBeNull();
+      expect(makeAIRequestMock).not.toHaveBeenCalled();
+    });
+
+    it("refuses a denied app even when the suggestion is already cached", async () => {
+      withScope({
+        scopeMode: "denylist",
+        scopedApps: [],
+        cloudScopeConsent: "openai",
+      });
+
+      const warm = await fromApp("com.apple.notes");
+      expect(warm.suggestion).toBe(" over the lazy dog.");
+      expect(makeAIRequestMock).toHaveBeenCalledOnce();
+
+      withScope({
+        scopeMode: "denylist",
+        scopedApps: ["com.apple.notes"],
+        cloudScopeConsent: "openai",
+      });
+
+      const denied = await fromApp("com.apple.notes");
+
+      expect(denied.suggestion).toBeNull();
+      expect(makeAIRequestMock).toHaveBeenCalledOnce();
+    });
+
+    describe("cloud consent", () => {
+      it("serves a local provider everywhere with no consent stored", async () => {
+        withScope(
+          { scopeMode: "denylist", scopedApps: [], cloudScopeConsent: "" },
+          "ollama::llama3",
+        );
+
+        expect((await fromApp("com.apple.notes")).suggestion).toBe(" over the lazy dog.");
+      });
+
+      it("refuses a cloud provider everywhere with no consent stored", async () => {
+        withScope({ scopeMode: "denylist", scopedApps: [], cloudScopeConsent: "" });
+
+        expect((await fromApp("com.apple.notes")).suggestion).toBeNull();
+        expect(makeAIRequestMock).not.toHaveBeenCalled();
+      });
+
+      it("serves a cloud provider everywhere once consented", async () => {
+        withScope({ scopeMode: "denylist", scopedApps: [], cloudScopeConsent: "openai" });
+
+        expect((await fromApp("com.apple.notes")).suggestion).toBe(" over the lazy dog.");
+      });
+
+      it("re-gates when the model moves to a different provider", async () => {
+        withScope(
+          { scopeMode: "denylist", scopedApps: [], cloudScopeConsent: "ollama" },
+          "openai::gpt-4o-mini",
+        );
+
+        expect((await fromApp("com.apple.notes")).suggestion).toBeNull();
+        expect(makeAIRequestMock).not.toHaveBeenCalled();
+      });
+
+      it("gates allowlist mode too — naming an app is not consent to a destination", async () => {
+        withScope({
+          scopeMode: "allowlist",
+          scopedApps: ["com.apple.notes"],
+          cloudScopeConsent: "",
+        });
+
+        expect((await fromApp("com.apple.notes")).suggestion).toBeNull();
+        expect(makeAIRequestMock).not.toHaveBeenCalled();
+      });
+
+      it("serves an allowlisted app once its provider is consented to", async () => {
+        withScope({
+          scopeMode: "allowlist",
+          scopedApps: ["com.apple.notes"],
+          cloudScopeConsent: "openai",
+        });
+
+        expect((await fromApp("com.apple.notes")).suggestion).toBe(" over the lazy dog.");
+      });
+    });
+
+    describe("what it says about itself", () => {
+      const scopeLines = (): LogContext[] =>
+        [...loggerMock.debug.mock.calls, ...loggerMock.warn.mock.calls]
+          .map((call) => call[2] as LogContext)
+          .filter((context) =>
+            [
+              "app-not-allowed",
+              "app-excluded",
+              "app-unidentified",
+              "scope-unreadable",
+              "cloud-consent-missing",
+            ].includes(String(context.reason)),
+          );
+
+      it("names the app and the mode on an allowlist refusal", async () => {
+        withScope({ scopeMode: "allowlist", scopedApps: [] });
+
+        await fromApp("com.apple.notes");
+
+        expect(scopeLines()[0]).toMatchObject({
+          reason: "app-not-allowed",
+          bundleId: "com.apple.notes",
+          scopeMode: "allowlist",
+        });
+      });
+
+      it("names the app and the mode on a denylist refusal", async () => {
+        withScope({
+          scopeMode: "denylist",
+          scopedApps: ["com.apple.notes"],
+          cloudScopeConsent: "openai",
+        });
+
+        await fromApp("com.apple.notes");
+
+        expect(scopeLines()[0]).toMatchObject({
+          reason: "app-excluded",
+          bundleId: "com.apple.notes",
+          scopeMode: "denylist",
+        });
+      });
+
+      it("warns when the surface reported no app", async () => {
+        withScope({ scopeMode: "denylist", scopedApps: [], cloudScopeConsent: "openai" });
+
+        await fromApp(undefined);
+
+        expect(loggerMock.warn).toHaveBeenCalled();
+        expect(scopeLines()[0]).toMatchObject({ reason: "app-unidentified", bundleId: null });
+      });
+
+      it("warns about a missing cloud consent, naming both providers", async () => {
+        withScope(
+          { scopeMode: "denylist", scopedApps: [], cloudScopeConsent: "ollama" },
+          "openai::gpt-4o-mini",
+        );
+
+        await fromApp("com.apple.notes");
+
+        expect(loggerMock.warn).toHaveBeenCalled();
+        expect(scopeLines()[0]).toMatchObject({
+          reason: "cloud-consent-missing",
+          provider: "openai",
+          consentedProvider: "ollama",
+        });
+      });
+
+      it("emits only context keys that survive the real redactor", async () => {
+        withScope({ scopeMode: "allowlist", scopedApps: [] });
+
+        await fromApp("com.apple.notes");
+
+        const context = scopeLines()[0] ?? {};
+        expect(redactLogContext(context)).toEqual(context);
+        expect(Object.keys(context).length).toBeGreaterThan(1);
+      });
+
+      it("carries no typed text on any scope refusal", async () => {
+        withScope(
+          { scopeMode: "denylist", scopedApps: [], cloudScopeConsent: "ollama" },
+          "openai::gpt-4o-mini",
+        );
+
+        await fromApp("com.apple.notes");
+
+        const serialized = JSON.stringify(scopeLines());
+        expect(serialized).not.toContain(LONG_PREFIX);
+      });
+    });
+  });
+
   describe("model resolution", () => {
     it("uses the stored ref when set", async () => {
       await ask();

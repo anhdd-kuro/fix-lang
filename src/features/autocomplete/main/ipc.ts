@@ -54,6 +54,9 @@ const toAutocompleteRequest = (raw: unknown, sessionId: string): AutocompleteReq
   // The prompt is built OUTSIDE the service's try, so a non-string suffix
   // throws out of `ipcMain.handle` rather than returning "no suggestion".
   const suffix = typeof record.suffix === "string" ? record.suffix : undefined;
+  // `surface`/`appBundleId` are absent from the wire type, so there is nothing
+  // to read here and nothing to validate wrong later. Omitting them leaves
+  // `surface` at `"own"`, correct for every request reaching this channel.
   return { requestId, prefix, suffix, sessionId };
 };
 

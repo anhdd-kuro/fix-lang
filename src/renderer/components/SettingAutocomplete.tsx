@@ -62,10 +62,14 @@ const PRIVACY_HINT_KEYS: readonly MessageKey[] = [
   "settings.autocomplete.privacy.localProvider",
 ];
 
+/** Closed readings: this renders before IPC replies, and must not flash a lie. */
 const DEFAULT_SETTINGS: AutocompleteSettings = {
   enabled: false,
   model: AUTOCOMPLETE_INHERIT_ASK_MODEL,
   dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+  scopeMode: "allowlist",
+  scopedApps: [],
+  cloudScopeConsent: "",
 };
 
 const emptyRollup = (): AutocompleteDayRollup => ({

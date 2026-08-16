@@ -4,6 +4,7 @@
  */
 import Store from "electron-store";
 import { DEFAULT_LANGUAGE, resolveDefaultModel } from "~/const";
+import { DEFAULT_EXCLUDED_BUNDLE_IDS } from "~/features/autocomplete/shared/autocompleteScope";
 import {
   AUTOCOMPLETE_INHERIT_ASK_MODEL,
   DEFAULT_DAILY_COST_CAP_USD,
@@ -990,15 +991,27 @@ export const apiStoreSchema = {
                 // `normalizeDailyCostCapUsd`, not fail validation and wipe the
                 // whole config.
                 dailyCostCapUsd: { type: "number", default: DEFAULT_DAILY_COST_CAP_USD },
+                // Bare types, no `enum`/`items` — see the note at the top of
+                // this node. `normalizeAutocompleteSettings` decides validity.
+                scopeMode: { type: "string", default: "allowlist" },
+                scopedApps: { type: "array" },
+                cloudScopeConsent: { type: "string", default: "" },
               },
               // Belt and braces for the whole-node-absent case only.
               // `useDefaults` injects an *object* default, so a stored object
               // missing just `enabled` never receives it — that case is carried
               // by `normalizeAutocompleteSettings`, which is the load-bearing one.
+              //
+              // `scopedApps` is empty here, not seeded: seeding lives in
+              // `normalizeScopedApps`, and ajv hands out object defaults by
+              // reference, so a shared mutable array does not belong in a schema.
               default: {
                 enabled: false,
                 model: "",
                 dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+                scopeMode: "allowlist" as const,
+                scopedApps: [],
+                cloudScopeConsent: "",
               },
             },
           },
@@ -1548,10 +1561,15 @@ const buildDefaultProfileSettings = (): SettingsStore =>
       autoCopy: false,
       model: "",
     },
+    // Spelled out, not left to the normalizer: the blanket cast below already
+    // fails for an unrelated reason, so a field missing here would be invisible.
     settingsAutocomplete: {
       enabled: false,
       model: AUTOCOMPLETE_INHERIT_ASK_MODEL,
       dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+      scopeMode: "allowlist",
+      scopedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
+      cloudScopeConsent: "",
     },
   }) as SettingsStore;
 

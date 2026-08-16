@@ -1,6 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_EXCLUDED_BUNDLE_IDS } from "~/features/autocomplete/shared/autocompleteScope";
 import { DEFAULT_DAILY_COST_CAP_USD } from "~/features/autocomplete/shared/autocompleteSettings";
 import { registerAutocompleteSettingsHandlers } from "./settings";
+
+const NORMALIZED_SCOPE_DEFAULTS = {
+  scopeMode: "allowlist" as const,
+  scopedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
+  cloudScopeConsent: "",
+};
+
+const VALID_SCOPE_PAYLOAD = {
+  scopeMode: "allowlist" as const,
+  scopedApps: [] as string[],
+  cloudScopeConsent: "",
+};
 
 const { electronMocks, apiStoreMocks } = vi.hoisted(() => ({
   electronMocks: { handle: vi.fn() },
@@ -43,6 +56,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
         enabled: false,
         model: "openai::gpt-5",
         dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+        ...NORMALIZED_SCOPE_DEFAULTS,
       });
     });
 
@@ -57,6 +71,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
         enabled: false,
         model: "",
         dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+        ...NORMALIZED_SCOPE_DEFAULTS,
       });
     });
 
@@ -73,6 +88,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
         enabled: false,
         model: "openai::gpt-5",
         dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+        ...NORMALIZED_SCOPE_DEFAULTS,
       });
     });
 
@@ -88,6 +104,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
         enabled: false,
         model: "",
         dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+        ...NORMALIZED_SCOPE_DEFAULTS,
       });
     });
 
@@ -100,6 +117,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
         enabled: false,
         model: "",
         dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+        ...NORMALIZED_SCOPE_DEFAULTS,
       });
     });
   });
@@ -112,11 +130,17 @@ describe("registerAutocompleteSettingsHandlers", () => {
         enabled: true,
         model: "ollama::llama3",
         dailyCostCapUsd: 2.5,
+        ...VALID_SCOPE_PAYLOAD,
       });
 
       expect(apiStoreMocks.updateProfileSetting).toHaveBeenCalledWith(
         "settingsAutocomplete",
-        { enabled: true, model: "ollama::llama3", dailyCostCapUsd: 2.5 },
+        {
+          enabled: true,
+          model: "ollama::llama3",
+          dailyCostCapUsd: 2.5,
+          ...VALID_SCOPE_PAYLOAD,
+        },
       );
       expect(result).toEqual({ success: true });
     });
@@ -131,6 +155,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
         enabled: true,
         model: "",
         dailyCostCapUsd: 5,
+        ...VALID_SCOPE_PAYLOAD,
       });
 
       expect(result).toEqual({ success: false, error: "write failed" });
@@ -242,6 +267,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
         enabled: true,
         model: "",
         dailyCostCapUsd: 5,
+        ...VALID_SCOPE_PAYLOAD,
       });
 
       expect(result).toEqual({ success: false, error: "disk full" });

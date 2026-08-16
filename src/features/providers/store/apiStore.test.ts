@@ -489,6 +489,9 @@ describe("the profile-bound variants write to the id they are handed, not the ac
               enabled: true,
               model: "openai::gpt-4o",
               dailyCostCapUsd: 5,
+              scopeMode: "allowlist",
+              scopedApps: [],
+              cloudScopeConsent: "",
             },
           }),
         }),
@@ -517,6 +520,9 @@ describe("the profile-bound variants write to the id they are handed, not the ac
               enabled: true,
               model: "openrouter::llama",
               dailyCostCapUsd: 5,
+              scopeMode: "allowlist",
+              scopedApps: [],
+              cloudScopeConsent: "",
             },
           }),
         }),
@@ -979,6 +985,12 @@ describe("apiStoreSchema — settingsCorrect default carries all seven built-in 
 // previous one byte-for-byte — back to the pre-Combo snapshot
 // `b35973f5513e0daf8214f962864565f591e508e35c9d83ede1b23e1cb8df9fb8`. So no
 // constraint, no `enum`, no `required` entry and no other property moved.
+//
+// Updated again for autocomplete's scope fields: +196 bytes, each insertion
+// occurring once, stripping both reproduces
+// `e4ef031251d8341ccbea3975a8aa12c00e159b5dbac92ea60c07349f22c47dec`. The new
+// bare-type constraints are `clearInvalidConfig`-safe because no installed
+// profile can already hold these three keys at the wrong type.
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
@@ -987,7 +999,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "e4ef031251d8341ccbea3975a8aa12c00e159b5dbac92ea60c07349f22c47dec",
+      "a15401e0f6fd6c1c69a6449e1d0c7d625a1a38595fb7733094ff1daf2053ff42",
     );
   });
 });
@@ -1215,6 +1227,9 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
           enabled: false,
           model: "openai::gpt-4o",
           dailyCostCapUsd: 2.5,
+          scopeMode: "allowlist",
+          scopedApps: [],
+          cloudScopeConsent: "",
         },
       }),
     });

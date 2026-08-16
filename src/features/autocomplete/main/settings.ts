@@ -13,37 +13,13 @@
  */
 import { ipcMain } from "electron";
 import {
+  isAutocompleteSettingsShape as isAutocompleteSettings,
   normalizeAutocompleteSettings,
-  type AutocompleteSettings,
 } from "~/features/autocomplete/shared/autocompleteSettings";
 import {
   getProfileSetting,
   updateProfileSetting,
 } from "~/features/providers/store/apiStore";
-
-/**
- * Field-by-field check, mirroring `~/features/ask/preload/ask.ts`: the shape
- * is small enough that widening any field to `unknown` would just move the
- * failure from "rejected here" to "coerced into defaults downstream".
- */
-const isAutocompleteSettings = (
-  value: unknown,
-): value is AutocompleteSettings => {
-  if (typeof value !== "object" || value === null) return false;
-  const record = value as Record<string, unknown>;
-  return (
-    typeof record.enabled === "boolean" &&
-    typeof record.model === "string" &&
-    // Finite only. `NaN` and `Infinity` are both `number`, and either one
-    // reaching the cap comparison in `service.ts` decides the day's budget by
-    // accident: `estimatedCostUsd >= NaN` is always false (no cap at all),
-    // `>= Infinity` always false too. The range itself is CLAMPED rather than
-    // rejected — see `normalizeDailyCostCapUsd` — so a slider that overshoots
-    // is corrected, not refused.
-    typeof record.dailyCostCapUsd === "number" &&
-    Number.isFinite(record.dailyCostCapUsd)
-  );
-};
 
 export const registerAutocompleteSettingsHandlers = (): void => {
   ipcMain.handle("get-autocomplete-settings", async () => {

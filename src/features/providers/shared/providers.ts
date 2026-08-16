@@ -54,6 +54,22 @@ export const PROVIDER_LOG_LABELS: Readonly<Record<ProviderId, string>> = Object.
   lmstudio: "LM Studio",
 });
 
+/**
+ * Runs on the user's machine, so a request leaves nothing and costs nothing.
+ * A `Record`, not a `Set`, so a new provider id fails to compile until answered.
+ */
+export const PROVIDER_IS_LOCAL: Readonly<Record<ProviderId, boolean>> = Object.freeze({
+  openai: false,
+  openrouter: false,
+  bedrock: false,
+  ollama: true,
+  lmstudio: true,
+});
+
+/** `null` (a bare model id) reads as NOT local — the asymmetric-risk direction. */
+export const isLocalProvider = (provider: ProviderId | null | undefined): boolean =>
+  provider != null && PROVIDER_IS_LOCAL[provider];
+
 export const PROVIDER_REQUIRES_API_KEY: Readonly<Record<ProviderId, boolean>> = Object.freeze({
   openai: true,
   openrouter: true,

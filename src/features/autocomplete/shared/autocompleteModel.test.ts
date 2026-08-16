@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveAutocompleteModelRef } from "./autocompleteModel";
+import { DEFAULT_EXCLUDED_BUNDLE_IDS } from "./autocompleteScope";
 import {
   DEFAULT_DAILY_COST_CAP_USD,
   MAX_DAILY_COST_CAP_USD,
@@ -101,6 +102,53 @@ describe("normalizeAutocompleteSettings", () => {
       enabled: false,
       model: "",
       dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+      scopeMode: "allowlist",
+      scopedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
+      cloudScopeConsent: "",
+    });
+  });
+
+  describe("scope fields fail closed", () => {
+    it.each([
+      ["undefined", undefined],
+      ["null", null],
+      ["a number", 42],
+      ["an unknown mode", "everywhere"],
+      ["an empty string", ""],
+      ["an object", { mode: "denylist" }],
+    ])("reads %s as allowlist, never denylist", (_description, scopeMode) => {
+      expect(normalizeAutocompleteSettings({ scopeMode }).scopeMode).toBe("allowlist");
+    });
+
+    it("keeps a stored denylist", () => {
+      expect(normalizeAutocompleteSettings({ scopeMode: "denylist" }).scopeMode).toBe("denylist");
+    });
+
+    it.each([
+      ["a number", 42],
+      ["null", null],
+      ["an object", { provider: "openai" }],
+    ])("reads %s as no consent at all", (_description, cloudScopeConsent) => {
+      expect(normalizeAutocompleteSettings({ cloudScopeConsent }).cloudScopeConsent).toBe("");
+    });
+
+    it("trims a stored consent so a padded id cannot fail to match its provider", () => {
+      expect(
+        normalizeAutocompleteSettings({ cloudScopeConsent: "  openai " }).cloudScopeConsent,
+      ).toBe("openai");
+    });
+
+    it("seeds an absent list but leaves a cleared one cleared", () => {
+      expect(normalizeAutocompleteSettings({}).scopedApps).toEqual([
+        ...DEFAULT_EXCLUDED_BUNDLE_IDS,
+      ]);
+      expect(normalizeAutocompleteSettings({ scopedApps: [] }).scopedApps).toEqual([]);
+    });
+
+    it("reads a non-array list as empty rather than seeding from junk", () => {
+      expect(normalizeAutocompleteSettings({ scopedApps: "com.apple.mail" }).scopedApps).toEqual(
+        [],
+      );
     });
   });
 
