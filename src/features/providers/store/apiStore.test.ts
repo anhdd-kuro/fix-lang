@@ -5,6 +5,7 @@
  * network; electron-store is replaced with a stateful in-memory mock so
  * get/set round-trip within a test.
  */
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 // Stateful mock of electron-store: get/set operate over an in-memory object
 // so seeded profiles/currentProfileId are readable by the real apiStore.ts
@@ -838,6 +839,45 @@ describe("apiStoreSchema — settingsCorrect default carries all seven built-in 
     ]);
   });
 
+  it("declares extraOptions as a bare object node, optional and unconstrained", () => {
+    // `extraOptions` holds per-preset option values whose validity is decided
+    // in code by `sanitizePresetOptions`. Anything narrower than
+    // `{ type: "object" }` — an `enum`, a `properties`/`required` pair, an
+    // `additionalProperties: false` — turns ONE hand-edited or legacy value
+    // into a `clearInvalidConfig` wipe of every profile, preset and key
+    // reference.
+    expect(presetItemSchema.properties.extraOptions).toEqual({
+      type: "object",
+    });
+    expect(presetItemSchema.required).not.toContain("extraOptions");
+    expect(presetItemSchema.required).toEqual([
+      "id",
+      "name",
+      "hotkey",
+      "systemPrompt",
+      "model",
+    ]);
+  });
+
+  it("spells the clearInvalidConfig reason out beside the extraOptions node", () => {
+    // The node's safety is a property of the SOURCE, not the object: a future
+    // edit that tightens it will read the comment first only if the comment is
+    // still there. Pinning it here is what makes deleting it a test failure.
+    const source = readFileSync(
+      new URL("./apiStore.ts", import.meta.url),
+      "utf8",
+    );
+    const nodeIndex = source.indexOf("extraOptions: { type: \"object\" }");
+    expect(nodeIndex).toBeGreaterThan(-1);
+
+    const precedingComment = source.slice(
+      Math.max(0, nodeIndex - 1200),
+      nodeIndex,
+    );
+    expect(precedingComment).toContain("clearInvalidConfig");
+    expect(precedingComment).toContain("sanitizePresetOptions");
+  });
+
   it("declares NO enum anywhere under the presets item schema", () => {
     // `apiStore` is built with `clearInvalidConfig: true`: one stored value
     // failing enum validation wipes every profile, preset and key reference.
@@ -979,6 +1019,29 @@ describe("apiStoreSchema — settingsCorrect default carries all seven built-in 
 // previous one byte-for-byte — back to the pre-Combo snapshot
 // `b35973f5513e0daf8214f962864565f591e508e35c9d83ede1b23e1cb8df9fb8`. So no
 // constraint, no `enum`, no `required` entry and no other property moved.
+//
+// Updated again for the preset option registry's `extraOptions` node. ONE
+// optional property was added under `settingsCorrect.presets.items.properties`,
+// as a bare `{ type: "object" }` — no `enum`, no `properties`, no
+// `additionalProperties`, no `default`, and NOT added to `required`. The two
+// `default` nodes did not move at all: no built-in declares an option, so
+// `getDefaultCorrectionSettings()` still serialises byte-for-byte as before.
+// Verified rather than assumed, the same empirical way as every update above:
+// the serialised schema grew by exactly 33 bytes,
+// `,"extraOptions":{"type":"object"}` (33) occurs exactly once, and deleting
+// just that substring reproduces the previous snapshot
+// `e4ef031251d8341ccbea3975a8aa12c00e159b5dbac92ea60c07349f22c47dec`
+// byte-for-byte.
+//
+// The only stored value this node can now reject is an `extraOptions` that is
+// not an object at all — a key no existing profile has, and one only this
+// codebase writes. Anything narrower would be actively dangerous: the set of
+// legal keys and values is registry DATA that grows with every preset option,
+// so an `enum` or a `properties` block would fail validation on a config
+// written by a NEWER build, and `clearInvalidConfig: true` would answer that by
+// wiping every profile, preset and key reference. Per-key validity is enforced
+// in code by `sanitizePresetOptions`, which drops the unrecognized key and
+// keeps the rest.
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
@@ -987,7 +1050,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "e4ef031251d8341ccbea3975a8aa12c00e159b5dbac92ea60c07349f22c47dec",
+      "c01b069336463d60ffc19394ee80990c859730724bbe9286221301260071eeac",
     );
   });
 });
@@ -1605,6 +1668,70 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
           readBack[0].settings.settingsCorrect,
         ).combos?.map((combo) => combo.id),
       ).toEqual([DEFAULT_PERFECT_PROMPT_COMBO_ID]);
+    } finally {
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps a profile whose stored extraOptions is unrecognized instead of wiping every profile", async () => {
+    // The same enum trap, one node over. Legal option keys and values are
+    // registry DATA, so a config written by a NEWER build carries keys this
+    // build has never heard of. Under an `enum` or a `properties` block that is
+    // a validation failure, and `clearInvalidConfig: true` answers a validation
+    // failure by dropping every profile, preset and key reference. It must
+    // survive the engine and be narrowed in code by `sanitizePresetOptions`.
+    const { default: Conf } = await import("conf");
+    const fs = await import("node:fs");
+    const os = await import("node:os");
+    const path = await import("node:path");
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "fixlang-apistore-options-"));
+
+    try {
+      const realStore = new Conf<{ profiles: Profile[] }>({
+        cwd,
+        configName: "config",
+        clearInvalidConfig: true,
+        schema: apiStoreSchema,
+      });
+
+      const profile = buildProfile({
+        settings: buildSettings({
+          settingsCorrect: {
+            selectedPresetId: "correction",
+            presets: [
+              {
+                id: "correction",
+                name: "Correction",
+                hotkey: "Control+Shift+F",
+                systemPrompt: "Fix it.",
+                model: "",
+                isBuiltIn: true,
+                extraOptions: {
+                  optionFromAFutureBuild: "some-value",
+                  cavemanMode: "banana",
+                },
+              },
+            ],
+          },
+        }),
+      });
+
+      realStore.set("profiles", [profile]);
+      const readBack = realStore.get("profiles", []);
+
+      expect(readBack).toHaveLength(1);
+      expect(readBack[0].settings.settingsCorrect.presets[0].extraOptions).toEqual({
+        optionFromAFutureBuild: "some-value",
+        cavemanMode: "banana",
+      });
+      // The code-level funnel is what removes it: `correction` declares no
+      // options, so the normalized preset carries no key at all.
+      const normalized = normalizeCorrectionSettings(
+        readBack[0].settings.settingsCorrect,
+      );
+      expect(
+        normalized.presets.find((preset) => preset.id === "correction"),
+      ).not.toHaveProperty("extraOptions");
     } finally {
       fs.rmSync(cwd, { recursive: true, force: true });
     }

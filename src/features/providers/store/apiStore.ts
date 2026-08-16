@@ -13,6 +13,9 @@ import {
 // Runtime import, but no cycle: `comboValidation` takes only TYPES from this
 // module (`ComboPreset`, `CorrectionPreset`), which are erased.
 import { COMBO_CANCEL_ACCELERATOR } from "~/features/correction/shared/comboValidation";
+// Runtime import, but no cycle: `presetOptions` is pure data plus pure
+// functions and imports only `~/prompts/correction`.
+import { sanitizePresetOptions } from "~/features/correction/shared/presetOptions";
 import {
   DEFAULT_REASONING_EFFORT,
   sanitizeReasoningEffort,
@@ -127,6 +130,19 @@ export type CorrectionPreset = {
   outputMode?: "inherit" | "paste" | "popup";
   /** Render the result as GFM markdown rather than plain text. */
   markdownOutput?: boolean;
+  /**
+   * Options this preset declares for itself, keyed by option key. Which keys
+   * and which values are legal is DATA, held by the option registry in
+   * `~/features/correction/shared/presetOptions` — not by this type, not by
+   * the schema, and not by the Settings renderer. A preset that declares no
+   * options carries no key at all here.
+   *
+   * Values are opaque strings on purpose: they survive a hand edit, a profile
+   * export and the bare `{ type: "object" }` schema node without per-type
+   * handling, and `sanitizePresetOptions` is what turns them back into
+   * something meaningful.
+   */
+  extraOptions?: Record<string, string>;
 };
 
 const sanitizePresetOutputMode = (
@@ -716,6 +732,14 @@ export const normalizeCorrectionSettings = (
     const markdownOutput =
       sanitizeBoolean(rawCandidate.markdownOutput) ?? fallback?.markdownOutput;
 
+    // No `?? fallback?.extraOptions`, unlike the two above: which options exist
+    // is keyed off the preset ID inside the sanitizer, so a stored value that
+    // was dropped was dropped because the registry does not recognize it — and
+    // the built-in's own value would be just as unrecognized. Absent means
+    // "use the registry default", which `resolvePresetOptionValue` supplies at
+    // read time, so nothing has to be materialized here.
+    const extraOptions = sanitizePresetOptions(id, rawCandidate.extraOptions);
+
     return [
       {
         preset: {
@@ -736,6 +760,7 @@ export const normalizeCorrectionSettings = (
           ...(requiresInput !== undefined ? { requiresInput } : {}),
           ...(outputMode !== undefined ? { outputMode } : {}),
           ...(markdownOutput !== undefined ? { markdownOutput } : {}),
+          ...(extraOptions !== undefined ? { extraOptions } : {}),
         } satisfies CorrectionPreset,
         // A missing or non-string `hotkey` above inherits the built-in default.
         // That injected value is not the user's choice, so it neither counts as
@@ -921,6 +946,21 @@ export const apiStoreSchema = {
                        */
                       outputMode: { type: "string" },
                       markdownOutput: { type: "boolean" },
+                      /**
+                       * Bare on purpose, and it must STAY bare: no `enum`, no
+                       * `properties`, no `required` entry, no
+                       * `additionalProperties`, no `default`. Which keys are
+                       * legal and which values each one admits is registry
+                       * DATA, and it changes every time a preset declares a
+                       * new option — so a schema constraint here would be
+                       * wrong for exactly the stored configs written by an
+                       * older or newer build. With `clearInvalidConfig: true`
+                       * that is not a rejected field, it is a wipe of every
+                       * profile, preset and key reference. Validity is decided
+                       * in code by `sanitizePresetOptions`, which drops the
+                       * unrecognized key and keeps the rest.
+                       */
+                      extraOptions: { type: "object" },
                     },
                     required: ["id", "name", "hotkey", "systemPrompt", "model"],
                   },

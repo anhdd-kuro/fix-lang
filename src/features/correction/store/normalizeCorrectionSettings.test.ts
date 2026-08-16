@@ -2164,3 +2164,80 @@ describe("normalizeCorrectionSettings — the built-in Perfect prompt combo", ()
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Tests: extraOptions stays absent from every existing built-in
+// ---------------------------------------------------------------------------
+
+describe("normalizeCorrectionSettings — no existing built-in emits an extraOptions key", () => {
+  // `extraOptions` is opt-in per preset, declared in the option registry. None
+  // of the seven presets that shipped before it declares an option, so the key
+  // must be ABSENT rather than `{}` or `undefined`: an emitted key would widen
+  // every stored preset row, move the profile-export bytes, and make a preset
+  // that has no options indistinguishable from one whose options were all
+  // dropped as invalid.
+  const BUILT_IN_IDS = [
+    "correction",
+    "summarize",
+    "prompt-optimization",
+    DEFAULT_TRANSLATE_PRESET_ID,
+    DEFAULT_BUSINESS_WRITING_PRESET_ID,
+    DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+    DEFAULT_ASK_PRESET_ID,
+  ];
+
+  it("getDefaultCorrectionSettings emits no extraOptions on any built-in", () => {
+    for (const preset of getDefaultCorrectionSettings().presets) {
+      expect(preset).not.toHaveProperty("extraOptions");
+    }
+  });
+
+  it("a fresh normalize emits no extraOptions on any built-in", () => {
+    const normalized = normalizeCorrectionSettings(undefined);
+
+    expect(normalized.presets.map((preset) => preset.id)).toEqual(BUILT_IN_IDS);
+    for (const preset of normalized.presets) {
+      expect(preset).not.toHaveProperty("extraOptions");
+    }
+  });
+
+  it("drops an extraOptions blob stored against a built-in that declares none", () => {
+    const normalized = normalizeCorrectionSettings({
+      presets: BUILT_IN_IDS.map((id) => ({
+        id,
+        name: id,
+        hotkey: "",
+        systemPrompt: "stored prompt",
+        model: "",
+        isBuiltIn: true,
+        extraOptions: { cavemanMode: "ultra", anything: "at all" },
+      })),
+      selectedPresetId: "correction",
+    });
+
+    for (const preset of normalized.presets) {
+      expect(preset).not.toHaveProperty("extraOptions");
+    }
+  });
+
+  it("drops a non-object extraOptions on a custom preset too", () => {
+    const normalized = normalizeCorrectionSettings({
+      presets: [
+        {
+          id: "my-custom",
+          name: "Custom",
+          hotkey: "",
+          systemPrompt: "stored prompt",
+          model: "",
+          isBuiltIn: false,
+          extraOptions: "cavemanMode=ultra",
+        },
+      ],
+      selectedPresetId: "my-custom",
+    });
+
+    const custom = normalized.presets.find((preset) => preset.id === "my-custom");
+    expect(custom).toBeDefined();
+    expect(custom).not.toHaveProperty("extraOptions");
+  });
+});
