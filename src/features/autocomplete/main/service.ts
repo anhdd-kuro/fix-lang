@@ -62,6 +62,7 @@ import {
 import { resolveAutocompleteModelRef } from "~/features/autocomplete/shared/autocompleteModel";
 import {
   decideAppScope,
+  normalizeBundleId,
   requiresCloudScopeConsent,
 } from "~/features/autocomplete/shared/autocompleteScope";
 import { normalizeDailyCostCapUsd } from "~/features/autocomplete/shared/autocompleteSettings";
@@ -214,9 +215,14 @@ export type AutocompleteRequest = AutocompleteSuggestRequest & {
    * them — they decide whether another app's text may be sent to a provider.
    * Only a main-process driver sets them, by calling this function directly;
    * `autocomplete-suggest` is an `ipcMain.handle` channel a renderer reaches.
-   * Absent reads as `"own"`.
+   *
+   * REQUIRED, not optional-defaulting-to-`"own"`. `"own"` bypasses BOTH the
+   * app-scope gate and the cloud-consent gate and, by design, logs nothing when
+   * it does — so a system-wide caller that omitted the field would upload every
+   * keystroke from every app with no error, no failing test, and no log line.
+   * Requiring it makes each new call site state its surface or fail to compile.
    */
-  surface?: AutocompleteSurfaceKind;
+  surface: AutocompleteSurfaceKind;
   appBundleId?: string;
 };
 
@@ -884,14 +890,7 @@ const countDispatch = (now: Date): boolean => {
 export const requestAutocompleteSuggestion = async (
   request: AutocompleteRequest,
 ): Promise<AutocompleteResult> => {
-  const {
-    requestId,
-    sessionId,
-    prefix,
-    suffix = "",
-    surface = "own",
-    appBundleId,
-  } = request;
+  const { requestId, sessionId, prefix, suffix = "", surface, appBundleId } = request;
   /**
    * ONE instant for everything this request records. Reading the clock again
    * when the response came back booked a request dispatched at 23:59:59.9 and
@@ -941,7 +940,11 @@ export const requestAutocompleteSuggestion = async (
   });
   if (!appScope.permitted) {
     logSkip(appScope.reason, startedAt, {
-      bundleId: appBundleId ?? null,
+      // The NORMALIZED id, which is what the gate compared — and what is safe to
+      // write. `appBundleId` is another process's self-report, so raw it is
+      // unbounded, control-character-bearing text landing in an exportable
+      // JSONL file that this feature otherwise keeps to lengths and counts.
+      bundleId: normalizeBundleId(appBundleId ?? null),
       scopeMode: settings.scopeMode,
     });
     return none(requestId);

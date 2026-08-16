@@ -21,8 +21,8 @@ describe("normalizeBundleId", () => {
     expect(normalizeBundleId("  com.apple.mail \n")).toBe("com.apple.mail");
   });
 
-  it("strips control characters", () => {
-    expect(normalizeBundleId("com.apple.mail")).toBe("com.apple.mail");
+  it("rejects a control character rather than stripping it onto a listed id", () => {
+    expect(normalizeBundleId("com.apple\u0007.mail")).toBeNull();
   });
 
   it.each([
@@ -32,7 +32,7 @@ describe("normalizeBundleId", () => {
     ["an object", { id: "com.apple.mail" }],
     ["an empty string", ""],
     ["whitespace only", "   "],
-    ["control characters only", ""],
+    ["control characters only", "\u0001\u0002"],
   ])("rejects %s", (_description, raw) => {
     expect(normalizeBundleId(raw)).toBeNull();
   });
@@ -245,9 +245,14 @@ describe("requiresCloudScopeConsent", () => {
     ).toBe(false);
   });
 
-  it("takes no scopeMode, so the old allowlist exemption cannot be reintroduced", () => {
-    expect("scopeMode" in cloudEverywhere).toBe(false);
-    expect(requiresCloudScopeConsent({ ...cloudEverywhere, cloudScopeConsent: "" })).toBe(true);
+  it("still gates when a scopeMode rides along, so the old allowlist exemption cannot return", () => {
+    const withAllowlist = {
+      ...cloudEverywhere,
+      cloudScopeConsent: "",
+      scopeMode: "allowlist" as const,
+    };
+
+    expect(requiresCloudScopeConsent(withAllowlist)).toBe(true);
   });
 });
 

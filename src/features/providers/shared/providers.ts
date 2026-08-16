@@ -61,6 +61,7 @@ export const PROVIDER_LOG_LABELS: Readonly<Record<ProviderId, string>> = Object.
 export const PROVIDER_IS_LOCAL: Readonly<Record<ProviderId, boolean>> = Object.freeze({
   openai: false,
   openrouter: false,
+  anthropic: false,
   bedrock: false,
   ollama: true,
   lmstudio: true,

@@ -12,7 +12,21 @@
  * before any text crosses a process boundary. Nothing here can turn that off,
  * and it is not redundant in `allowlist` mode — one allowlisted browser holds
  * both a compose box and a password field.
+ *
+ * Bundle-id canonicalisation, its length cap, and the list cap are IMPORTED from
+ * the selection guards rather than restated. Two normalizers for one identifier
+ * is two answers to "does this app match the list", and the copy that used to
+ * live here was the weaker one: it STRIPPED control characters where the guards'
+ * rejects them, so an id carrying a U+0001 between `com.apple` and `.mail`
+ * collapsed onto a listed `com.apple.mail` and inherited its permission.
  */
+import {
+  DEFAULT_DENIED_BUNDLE_IDS,
+  MAX_DENIED_BUNDLE_IDS,
+  normalizeBundleId,
+} from "~/features/guards/shared/guardSettings";
+
+export { MAX_BUNDLE_ID_LENGTH, normalizeBundleId } from "~/features/guards/shared/guardSettings";
 
 /** `own` is FixLang's own window, never scoped. `system` reads a foreign app. */
 export const AUTOCOMPLETE_SURFACE_KINDS = ["own", "system"] as const;
@@ -32,35 +46,21 @@ const SCOPE_MODES = new Set<string>(AUTOCOMPLETE_SCOPE_MODES);
 export const isAutocompleteScopeMode = (value: unknown): value is AutocompleteScopeMode =>
   typeof value === "string" && SCOPE_MODES.has(value);
 
-/** Over-length ids are dropped, not truncated — a truncation still prefix-matches. */
-export const MAX_BUNDLE_ID_LENGTH = 128;
-export const MAX_SCOPED_APPS = 200;
-
-/**
- * Lower-cased because macOS bundle ids are case-insensitive, so a list entry
- * that failed to match on a capital would be a guard that silently does nothing.
- * Control characters are stripped for the reason `parseActiveApp` strips them
- * from the same source: another process's self-reported identity, bound for a
- * log line.
- */
-export const normalizeBundleId = (raw: unknown): string | null => {
-  if (typeof raw !== "string") return null;
-  // eslint-disable-next-line no-control-regex -- stripping C0/C1 controls is the point
-  const stripped = raw.replace(/[\x00-\x1f\x7f-\x9f]/g, "").trim();
-  if (!stripped || stripped.length > MAX_BUNDLE_ID_LENGTH) return null;
-  return stripped.toLowerCase();
-};
+/** Same bound as the deny-list: both are one user-editable list of bundle ids. */
+export const MAX_SCOPED_APPS = MAX_DENIED_BUNDLE_IDS;
 
 /**
  * Seeds an absent list. Not enforced by the gate — these are editable, and
  * editable means removable; a list the user can see but not change claims a
  * control that is not there.
+ *
+ * Extends the send-guard deny-list rather than restating it, so an app blocked
+ * from transforms cannot be silently readable by autocomplete. The additions are
+ * password managers the guards list does not name plus System Settings.
  */
 export const DEFAULT_EXCLUDED_BUNDLE_IDS: readonly string[] = [
-  "com.1password.1password",
+  ...DEFAULT_DENIED_BUNDLE_IDS,
   "com.1password.1password7",
-  "com.agilebits.onepassword7",
-  "com.apple.keychainaccess",
   "com.bitwarden.desktop",
   "com.lastpass.lastpassmacdesktop",
   "in.sinew.enpass-desktop",

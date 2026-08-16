@@ -154,5 +154,24 @@ describe("autocompleteSettings preload boundary", () => {
         expect(result).toEqual({ success: false });
       },
     );
+
+    // Every fixture above omits all three scope fields, so each is rejected for
+    // two reasons at once and none of them would notice a weakened scope check.
+    // These vary ONE scope field against an otherwise-valid payload.
+    it.each([
+      ["an unknown scopeMode", { scopeMode: "everywhere", scopedApps: [], cloudScopeConsent: "" }],
+      ["a non-array scopedApps", { scopeMode: "allowlist", scopedApps: "com.apple.mail", cloudScopeConsent: "" }],
+      ["a non-string cloudScopeConsent", { scopeMode: "allowlist", scopedApps: [], cloudScopeConsent: true }],
+    ])("rejects %s in an otherwise-valid payload", async (_description, scope) => {
+      const result = await autocompleteSettingsFeature.setAutocompleteSettings({
+        enabled: true,
+        model: "ollama::llama3",
+        dailyCostCapUsd: 5,
+        ...scope,
+      } as unknown as AutocompleteSettings);
+
+      expect(electronMocks.invoke).not.toHaveBeenCalled();
+      expect(result).toEqual({ success: false });
+    });
   });
 });

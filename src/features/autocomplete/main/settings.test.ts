@@ -258,6 +258,29 @@ describe("registerAutocompleteSettingsHandlers", () => {
       },
     );
 
+    // Every fixture above omits all three scope fields, so each is rejected for
+    // two reasons at once and none of them would notice a weakened scope check.
+    // These vary ONE scope field against an otherwise-valid payload.
+    it.each([
+      ["an unknown scopeMode", { ...VALID_SCOPE_PAYLOAD, scopeMode: "everywhere" }],
+      ["a non-string scopeMode", { ...VALID_SCOPE_PAYLOAD, scopeMode: 42 }],
+      ["a non-array scopedApps", { ...VALID_SCOPE_PAYLOAD, scopedApps: "com.apple.mail" }],
+      ["a non-string cloudScopeConsent", { ...VALID_SCOPE_PAYLOAD, cloudScopeConsent: true }],
+    ])("rejects %s in an otherwise-valid payload", async (_description, scope) => {
+      const result = await getHandler("set-autocomplete-settings")(undefined, {
+        enabled: true,
+        model: "ollama::llama3",
+        dailyCostCapUsd: 5,
+        ...scope,
+      });
+
+      expect(apiStoreMocks.updateProfileSetting).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        success: false,
+        error: "Malformed autocomplete settings",
+      });
+    });
+
     it("catches an updateProfileSetting throw and reports it instead of rejecting the promise", async () => {
       apiStoreMocks.updateProfileSetting.mockImplementation(() => {
         throw new Error("disk full");

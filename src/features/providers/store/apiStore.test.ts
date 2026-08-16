@@ -35,6 +35,8 @@ vi.mock("electron", () => ({
 }));
 // Imports (after mocks) — the real implementation under test.
 import { resolveDefaultModel, resolveDefaultOpenAIModel } from "~/const";
+import { DEFAULT_EXCLUDED_BUNDLE_IDS } from "~/features/autocomplete/shared/autocompleteScope";
+import { normalizeAutocompleteSettings } from "~/features/autocomplete/shared/autocompleteSettings";
 import { migrateProfileForModelRefs } from "~/features/profiles/store/profileMigration";
 import { modelRefForModel } from "~/features/providers/shared/modelRef";
 import {
@@ -991,6 +993,18 @@ describe("apiStoreSchema — settingsCorrect default carries all seven built-in 
 // `e4ef031251d8341ccbea3975a8aa12c00e159b5dbac92ea60c07349f22c47dec`. The new
 // bare-type constraints are `clearInvalidConfig`-safe because no installed
 // profile can already hold these three keys at the wrong type.
+//
+// Updated once more to SEED `scopedApps` in `settingsAutocomplete`'s whole-node
+// default instead of leaving it `[]`. NO constraint changed — only a default
+// value, and a default cannot reject a stored value, so the
+// `clearInvalidConfig` risk is unchanged. `[]` there meant "the user cleared the
+// exclusion list" to `normalizeScopedApps` (which seeds only from `undefined`),
+// so a profile missing the whole node got an empty list and, in `denylist` mode,
+// no password-manager exclusions at all. Verified the same empirical way: +282
+// bytes, the anchor `"scopedApps":<seeded list>,` occurs exactly once, and
+// replacing it with `"scopedApps":[],` reproduces the previous snapshot
+// `a15401e0f6fd6c1c69a6449e1d0c7d625a1a38595fb7733094ff1daf2053ff42`
+// byte-for-byte.
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
@@ -999,8 +1013,27 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "a15401e0f6fd6c1c69a6449e1d0c7d625a1a38595fb7733094ff1daf2053ff42",
+      "490c7d5d2841ae467b4c123ce06d82a4e7d4b231535ef9960069a06272c589d0",
     );
+  });
+
+  /**
+   * The ajv default and `normalizeScopedApps` have to agree on what "absent"
+   * means, and only one of them can say it. `normalizeScopedApps` seeds the
+   * shipped exclusions from `undefined` and treats `[]` as "the user cleared
+   * the list", so an ajv default carrying `scopedApps: []` silently hands a
+   * whole-node-absent profile an empty exclusion list — and in `denylist` mode
+   * that is 1Password and Keychain Access readable, with nothing on screen.
+   */
+  it("seeds the exclusions in the node default, matching what the normalizer would", () => {
+    const fallback = apiStoreSchema.profiles.items.properties.settings.properties
+      .settingsAutocomplete.default;
+
+    expect(fallback.scopedApps).toEqual([...DEFAULT_EXCLUDED_BUNDLE_IDS]);
+    // `[]` here would survive the normalizer unchanged — it reads as "cleared".
+    expect(normalizeAutocompleteSettings(fallback).scopedApps).toEqual([
+      ...DEFAULT_EXCLUDED_BUNDLE_IDS,
+    ]);
   });
 });
 

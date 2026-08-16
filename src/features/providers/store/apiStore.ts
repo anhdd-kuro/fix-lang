@@ -1002,15 +1002,21 @@ export const apiStoreSchema = {
               // missing just `enabled` never receives it — that case is carried
               // by `normalizeAutocompleteSettings`, which is the load-bearing one.
               //
-              // `scopedApps` is empty here, not seeded: seeding lives in
-              // `normalizeScopedApps`, and ajv hands out object defaults by
-              // reference, so a shared mutable array does not belong in a schema.
+              // `scopedApps` SEEDS here, and must keep agreeing with
+              // `normalizeScopedApps`, which seeds the shipped exclusions from
+              // `undefined` and treats `[]` as "the user cleared the list".
+              // Writing `[]` here would hand a whole-node-absent profile an
+              // empty exclusion list, so switching it to `denylist` would read
+              // 1Password and Keychain Access with nothing wrong on screen.
+              // Sharing this one array across injections is safe because every
+              // read goes through `getProfileSetting`, which re-normalizes into
+              // a fresh array before any caller sees it.
               default: {
                 enabled: false,
                 model: "",
                 dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
                 scopeMode: "allowlist" as const,
-                scopedApps: [],
+                scopedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
                 cloudScopeConsent: "",
               },
             },

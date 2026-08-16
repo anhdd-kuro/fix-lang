@@ -214,6 +214,7 @@ describe("requestAutocompleteSuggestion", () => {
       requestId: 1,
       sessionId: "window-1",
       prefix: LONG_PREFIX,
+      surface: "own",
       ...overrides,
     });
 
@@ -935,6 +936,7 @@ describe("requestAutocompleteSuggestion", () => {
         requestId: index,
         sessionId,
         prefix: `${LONG_PREFIX} ${index}`,
+        surface: "own",
       });
 
     const rateLimitedLines = (): LogContext[] =>
@@ -1719,7 +1721,12 @@ describe("requestAutocompleteSuggestion", () => {
     it("evicts the oldest entry once the bound is passed", async () => {
       const stepMs = 130;
       const askFor = (prefix: string) =>
-        requestAutocompleteSuggestion({ requestId: 1, sessionId: "window-1", prefix });
+        requestAutocompleteSuggestion({
+          requestId: 1,
+          sessionId: "window-1",
+          prefix,
+          surface: "own",
+        });
 
       vi.useFakeTimers({ toFake: ["Date"] });
       try {

@@ -18,6 +18,7 @@
  * provider a ref belongs to.
  */
 import { parseModelRef, resolveModelRef } from "~/features/providers/shared/modelRef";
+import { isLocalProvider } from "~/features/providers/shared/providers";
 import { getApiKey } from "~/features/providers/store/apiKeyStore";
 import { getCurrentProfileId } from "~/features/providers/store/apiStore";
 import { getProfileSecret } from "~/features/providers/store/profileSecretStore";
@@ -27,9 +28,6 @@ import { logger } from "~/main/logging/logService";
 import type { Model, ProviderId } from "~/features/providers/shared/providers";
 
 const LOG_SCOPE = "prewarm.connection";
-
-/** Loopback providers gain nothing from a TCP/TLS prewarm. */
-const LOCAL_PROVIDERS: ReadonlySet<ProviderId> = new Set(["ollama", "lmstudio"]);
 
 /**
  * How long a successful prewarm suppresses the next one for that provider.
@@ -160,7 +158,10 @@ export const prewarmProviderConnection = (modelRef: string): void => {
   try {
     if (!modelRef) return;
     const provider = resolveProviderForModelRef(modelRef, getCachedModels());
-    if (provider === null || LOCAL_PROVIDERS.has(provider)) return;
+    // Loopback providers gain nothing from a TCP/TLS prewarm. Asks the shared
+    // table rather than a local set, so one new provider cannot be local here
+    // and remote to the autocomplete scope gate.
+    if (provider === null || isLocalProvider(provider)) return;
 
     const warm = WARM_BY_PROVIDER[provider];
     if (!warm) return;
