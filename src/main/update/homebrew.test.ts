@@ -1,23 +1,29 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  BETA_CASK_TOKEN,
   BREW_BINARY_CANDIDATES,
   buildUpgradeScript,
   caskroomPath,
   caskVersionPath,
+  detectActiveCaskChannel,
   downloadsCacheDir,
+  isCaskToken,
   matchCachedDownload,
   createHomebrewUpgrader,
   findBrewBinary,
   parseCaskVersion,
+  STABLE_CASK_TOKEN,
   type BrewRunner,
+  type CaskToken,
 } from "./homebrew";
 
-const caskInfoJson = (version: string): string =>
-  JSON.stringify({ casks: [{ token: "fixlang", version }] });
+const caskInfoJson = (version: string, token: string = STABLE_CASK_TOKEN): string =>
+  JSON.stringify({ casks: [{ token, version }] });
 
 const upgrader = (
   overrides: Partial<{
     isInstalledApp: boolean;
+    caskToken: string;
     files: readonly string[];
     directories: readonly string[];
     cacheEntries: readonly string[];
@@ -40,6 +46,12 @@ const upgrader = (
     instance: createHomebrewUpgrader({
       isInstalledApp: overrides.isInstalledApp ?? true,
       logFilePath: "/tmp/userData/logs/homebrew-update.log",
+      // Overrides come in as `string` so a test can hand this a token the
+      // module does not recognize; the cast just satisfies the option's
+      // narrower `CaskToken` type — the runtime guard is what is on trial.
+      ...(overrides.caskToken === undefined
+        ? {}
+        : { caskToken: overrides.caskToken as CaskToken }),
       fileExists: (candidate) => files.has(candidate),
       directoryExists: (candidate) => directories.has(candidate),
       cacheDir: "/cache/downloads",
@@ -387,5 +399,240 @@ describe("Homebrew upgrader", () => {
       "FixLang was not installed with the Homebrew cask",
     );
     expect(startDetached).not.toHaveBeenCalled();
+  });
+});
+
+describe("cask tokens", () => {
+  it("recognizes only the two published tokens", () => {
+    expect(isCaskToken(STABLE_CASK_TOKEN)).toBe(true);
+    expect(isCaskToken(BETA_CASK_TOKEN)).toBe(true);
+    expect(isCaskToken("fixlang-nightly")).toBe(false);
+    expect(isCaskToken("")).toBe(false);
+  });
+});
+
+describe("token-parameterised Caskroom paths", () => {
+  it("derives the beta Caskroom entry from an explicit token", () => {
+    expect(caskroomPath("/opt/homebrew/bin/brew", BETA_CASK_TOKEN)).toBe(
+      "/opt/homebrew/Caskroom/fixlang@beta",
+    );
+  });
+
+  it("refuses a token that is not one of the two known constants", () => {
+    expect(caskroomPath("/opt/homebrew/bin/brew", "fixlang-nightly")).toBeNull();
+  });
+
+  it("derives a beta version directory from an explicit token", () => {
+    expect(
+      caskVersionPath("/opt/homebrew/bin/brew", "0.33.0-beta.1", BETA_CASK_TOKEN),
+    ).toBe("/opt/homebrew/Caskroom/fixlang@beta/0.33.0-beta.1");
+  });
+
+  it("refuses an unknown token before building a version path", () => {
+    expect(
+      caskVersionPath("/opt/homebrew/bin/brew", "0.4.0", "fixlang-nightly"),
+    ).toBeNull();
+  });
+
+  it("reads the beta cask's version from `brew info` output for an explicit token", () => {
+    expect(
+      parseCaskVersion(caskInfoJson("0.33.0-beta.1", BETA_CASK_TOKEN), BETA_CASK_TOKEN),
+    ).toBe("0.33.0-beta.1");
+  });
+
+  it("refuses to parse against an unknown token", () => {
+    expect(parseCaskVersion(caskInfoJson("0.2.0"), "fixlang-nightly")).toBeNull();
+  });
+
+  it("refuses to build an upgrade script for an unknown token", () => {
+    expect(() =>
+      buildUpgradeScript("/opt/homebrew/bin/brew", null, "fixlang-nightly"),
+    ).toThrow();
+  });
+});
+
+describe("beta channel probing", () => {
+  /**
+   * REGRESSION: before the token became an explicit argument, every probe in
+   * this file was hard-coded to the stable Caskroom entry, so a beta-token
+   * upgrader silently reported the install as un-upgradeable instead of
+   * erroring — this is the named failure mode from the card, and this test
+   * was seen failing (canInstall === false) against the unmodified code.
+   */
+  it("probes the beta Caskroom (not the stable one) when configured for the beta channel", () => {
+    const { instance } = upgrader({
+      caskToken: BETA_CASK_TOKEN,
+      directories: ["/opt/homebrew/Caskroom/fixlang@beta"],
+    });
+
+    expect(instance.canInstall).toBe(true);
+  });
+
+  it("stays disabled for the beta channel when only the stable cask is staged", () => {
+    const { instance } = upgrader({
+      caskToken: BETA_CASK_TOKEN,
+      directories: ["/opt/homebrew/Caskroom/fixlang"],
+    });
+
+    expect(instance.canInstall).toBe(false);
+  });
+
+  /**
+   * REGRESSION: `readInstallableVersion` used to hard-code `--cask fixlang`
+   * regardless of which cask the upgrader was created for, so a beta-channel
+   * upgrader would silently ask brew about the STABLE cask and could report a
+   * stable version as "installable" for a beta check. This test was seen
+   * failing (argv contained "fixlang", not "fixlang@beta") against the
+   * unmodified code.
+   */
+  it("passes the beta token, not the stable one, in the `brew info` argv", async () => {
+    const { instance, runBrew } = upgrader({
+      caskToken: BETA_CASK_TOKEN,
+      directories: ["/opt/homebrew/Caskroom/fixlang@beta"],
+      runBrew: () => Promise.resolve(caskInfoJson("0.33.0-beta.1", BETA_CASK_TOKEN)),
+    });
+
+    await expect(instance.getInstallableVersion()).resolves.toBe("0.33.0-beta.1");
+
+    expect(runBrew.mock.calls.map(([, args]) => [...args])).toEqual([
+      ["update", "--quiet"],
+      ["info", "--cask", "fixlang@beta", "--json=v2"],
+    ]);
+  });
+
+  it("passes the beta token in the `brew fetch` argv", async () => {
+    const { instance, runBrew } = upgrader({
+      caskToken: BETA_CASK_TOKEN,
+      directories: ["/opt/homebrew/Caskroom/fixlang@beta"],
+    });
+
+    await instance.downloadUpdate();
+
+    expect(runBrew.mock.calls.map(([, args]) => [...args])).toEqual([
+      ["fetch", "--cask", "fixlang@beta"],
+    ]);
+  });
+
+  it("sees a version staged under the beta Caskroom", () => {
+    const { instance } = upgrader({
+      caskToken: BETA_CASK_TOKEN,
+      directories: [
+        "/opt/homebrew/Caskroom/fixlang@beta",
+        "/opt/homebrew/Caskroom/fixlang@beta/0.33.0-beta.1",
+      ],
+    });
+
+    expect(instance.isVersionInstalled("0.33.0-beta.1")).toBe(true);
+    expect(instance.isVersionInstalled("0.32.0")).toBe(false);
+  });
+
+  it("passes the beta token in the upgrade script's argv when starting the upgrade", () => {
+    const { instance, startDetached } = upgrader({
+      caskToken: BETA_CASK_TOKEN,
+      directories: ["/opt/homebrew/Caskroom/fixlang@beta"],
+    });
+
+    instance.startUpgrade();
+
+    expect(startDetached).toHaveBeenCalledWith(
+      buildUpgradeScript("/opt/homebrew/bin/brew", null, BETA_CASK_TOKEN),
+      "/tmp/userData/logs/homebrew-update.log",
+    );
+  });
+});
+
+describe("refuses an unknown cask token before it reaches a path or an argv", () => {
+  it("never asks brew anything for an unrecognized token", async () => {
+    const { instance, runBrew } = upgrader();
+
+    await expect(
+      instance.getInstallableVersion(true, "fixlang-nightly"),
+    ).resolves.toBeNull();
+    expect(runBrew).not.toHaveBeenCalled();
+  });
+
+  it("never checks the filesystem for an unrecognized token", () => {
+    const directoryExists = vi.fn(() => true);
+    const { instance } = (() => {
+      const startDetached = vi.fn();
+      const runBrew = vi.fn<BrewRunner>(() => Promise.resolve(caskInfoJson("0.2.0")));
+      return {
+        instance: createHomebrewUpgrader({
+          isInstalledApp: true,
+          logFilePath: "/tmp/userData/logs/homebrew-update.log",
+          fileExists: () => true,
+          directoryExists,
+          startDetached,
+          runBrew,
+        }),
+      };
+    })();
+    directoryExists.mockClear();
+
+    expect(instance.isVersionInstalled("0.4.0", "fixlang-nightly")).toBe(false);
+    expect(directoryExists).not.toHaveBeenCalled();
+  });
+
+  it("never runs `brew fetch` for an unrecognized token", async () => {
+    const { instance, runBrew } = upgrader();
+
+    await expect(instance.downloadUpdate("fixlang-nightly")).rejects.toThrow();
+    expect(runBrew).not.toHaveBeenCalled();
+  });
+
+  it("never inspects the download cache for an unrecognized token", () => {
+    const { instance } = upgrader({
+      cacheEntries: ["abc123--FixLang-0.4.6-arm64.dmg"],
+      fileSizes: { "/cache/downloads/abc123--FixLang-0.4.6-arm64.dmg": 128 },
+    });
+
+    expect(instance.getDownloadedBytes("0.4.6", "fixlang-nightly")).toBeNull();
+  });
+
+  it("never starts the detached helper for an unrecognized token", () => {
+    const { instance, startDetached } = upgrader();
+
+    expect(() => instance.startUpgrade(null, "fixlang-nightly")).toThrow();
+    expect(startDetached).not.toHaveBeenCalled();
+  });
+});
+
+describe("active channel detection", () => {
+  it("reports stable when only the stable Caskroom entry exists", () => {
+    const directoryExists = (candidate: string): boolean =>
+      candidate === "/opt/homebrew/Caskroom/fixlang";
+
+    expect(detectActiveCaskChannel("/opt/homebrew/bin/brew", directoryExists)).toBe(
+      "stable",
+    );
+  });
+
+  it("reports beta when only the beta Caskroom entry exists", () => {
+    const directoryExists = (candidate: string): boolean =>
+      candidate === "/opt/homebrew/Caskroom/fixlang@beta";
+
+    expect(detectActiveCaskChannel("/opt/homebrew/bin/brew", directoryExists)).toBe(
+      "beta",
+    );
+  });
+
+  it("reports both when stable and beta are both staged", () => {
+    expect(detectActiveCaskChannel("/opt/homebrew/bin/brew", () => true)).toBe("both");
+  });
+
+  it("reports neither as null", () => {
+    expect(detectActiveCaskChannel("/opt/homebrew/bin/brew", () => false)).toBeNull();
+  });
+
+  it("never spawns a subprocess — only the two directory probes decide the answer", () => {
+    const directoryExists = vi.fn(() => false);
+
+    detectActiveCaskChannel("/opt/homebrew/bin/brew", directoryExists);
+
+    expect(directoryExists).toHaveBeenCalledTimes(2);
+    expect(directoryExists).toHaveBeenCalledWith("/opt/homebrew/Caskroom/fixlang");
+    expect(directoryExists).toHaveBeenCalledWith(
+      "/opt/homebrew/Caskroom/fixlang@beta",
+    );
   });
 });

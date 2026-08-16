@@ -16,8 +16,32 @@ export const BREW_BINARY_CANDIDATES = Object.freeze([
   "/usr/local/bin/brew",
 ] as const);
 
-/** Cask token published by `anhdd-kuro/homebrew-tap`. */
-export const CASK_TOKEN = "fixlang";
+/** Stable-channel cask token published by `anhdd-kuro/homebrew-tap`. */
+export const STABLE_CASK_TOKEN = "fixlang";
+/**
+ * Pre-release cask token — a sibling Homebrew cask, not a variant of the
+ * stable one. Homebrew has no other mechanism for release channels.
+ */
+export const BETA_CASK_TOKEN = "fixlang@beta";
+/** Kept for callers that only ever meant the stable channel. */
+export const CASK_TOKEN = STABLE_CASK_TOKEN;
+
+export type CaskToken = typeof STABLE_CASK_TOKEN | typeof BETA_CASK_TOKEN;
+
+const KNOWN_CASK_TOKENS: ReadonlySet<string> = new Set([
+  STABLE_CASK_TOKEN,
+  BETA_CASK_TOKEN,
+]);
+
+/**
+ * Homebrew only ever has these two casks. A pending marker, a renderer
+ * channel choice, or brew's own JSON output can all hand this module an
+ * arbitrary string, and any of them reaching `path.join` or an argv unchecked
+ * would either read the wrong Caskroom or hand Homebrew a token it has never
+ * heard of — refuse it here, once, before any path or argv is built.
+ */
+export const isCaskToken = (value: string): value is CaskToken =>
+  KNOWN_CASK_TOKENS.has(value);
 
 const BUNDLE_ID = "com.fixlang.app";
 const PROCESS_NAME = "FixLang";
@@ -88,9 +112,19 @@ export const findBrewBinary = (
 ): string | null =>
   BREW_BINARY_CANDIDATES.find((candidate) => fileExists(candidate)) ?? null;
 
-/** Caskroom entry Homebrew creates for an installed cask. */
-export const caskroomPath = (brewBinary: string): string =>
-  path.join(path.dirname(path.dirname(brewBinary)), "Caskroom", CASK_TOKEN);
+/** Caskroom root for a known token; callers must have validated it already. */
+const caskroomRoot = (brewBinary: string, caskToken: CaskToken): string =>
+  path.join(path.dirname(path.dirname(brewBinary)), "Caskroom", caskToken);
+
+/**
+ * Caskroom entry Homebrew creates for an installed cask. Null for a token
+ * this module does not recognize — never built into a path.
+ */
+export const caskroomPath = (
+  brewBinary: string,
+  caskToken: string = STABLE_CASK_TOKEN,
+): string | null =>
+  isCaskToken(caskToken) ? caskroomRoot(brewBinary, caskToken) : null;
 
 /** Rejects anything that could escape the Caskroom directory. */
 const SAFE_VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+_-]*$/;
@@ -103,16 +137,25 @@ const SAFE_VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+_-]*$/;
 export const caskVersionPath = (
   brewBinary: string,
   version: string,
-): string | null =>
-  SAFE_VERSION_PATTERN.test(version) && !version.includes("..")
-    ? path.join(caskroomPath(brewBinary), version)
+  caskToken: string = STABLE_CASK_TOKEN,
+): string | null => {
+  const root = caskroomPath(brewBinary, caskToken);
+  if (root === null) return null;
+  return SAFE_VERSION_PATTERN.test(version) && !version.includes("..")
+    ? path.join(root, version)
     : null;
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** Cask version from `brew info --json=v2`, or null for unusable output. */
-export const parseCaskVersion = (stdout: string): string | null => {
+export const parseCaskVersion = (
+  stdout: string,
+  caskToken: string = STABLE_CASK_TOKEN,
+): string | null => {
+  if (!isCaskToken(caskToken)) return null;
+
   let parsed: unknown;
   try {
     parsed = JSON.parse(stdout);
@@ -124,12 +167,35 @@ export const parseCaskVersion = (stdout: string): string | null => {
   }
 
   const cask = parsed.casks.find(
-    (entry) => isRecord(entry) && entry.token === CASK_TOKEN,
+    (entry) => isRecord(entry) && entry.token === caskToken,
   );
   if (!isRecord(cask) || typeof cask.version !== "string") {
     return null;
   }
   return cask.version;
+};
+
+/**
+ * Which cask token(s) Homebrew has actually staged, read straight from the
+ * Caskroom — two directory probes, no subprocess. Cheap enough to run on
+ * every launch, unlike asking `brew info` which needs the tap clone to be
+ * current to answer honestly.
+ */
+export type ActiveCaskChannel = "stable" | "beta" | "both";
+
+export const detectActiveCaskChannel = (
+  brewBinary: string,
+  directoryExists: FileProbe = isDirectory,
+): ActiveCaskChannel | null => {
+  const stableInstalled = directoryExists(
+    caskroomRoot(brewBinary, STABLE_CASK_TOKEN),
+  );
+  const betaInstalled = directoryExists(caskroomRoot(brewBinary, BETA_CASK_TOKEN));
+
+  if (stableInstalled && betaInstalled) return "both";
+  if (betaInstalled) return "beta";
+  if (stableInstalled) return "stable";
+  return null;
 };
 
 const runBrewCommand: BrewRunner = async (brewBinary, args, timeoutMs) => {
@@ -185,7 +251,12 @@ const readInstallableVersion = async (
   brewBinary: string,
   runBrew: BrewRunner,
   refreshTap: boolean,
+  caskToken: string,
 ): Promise<string | null> => {
+  // Refused before either brew call: neither a stale tap nor a wasted
+  // subprocess is worth spending on a token Homebrew has no cask for.
+  if (!isCaskToken(caskToken)) return null;
+
   if (refreshTap) {
     try {
       await runBrew(brewBinary, ["update", "--quiet"]);
@@ -195,7 +266,8 @@ const readInstallableVersion = async (
   }
   try {
     return parseCaskVersion(
-      await runBrew(brewBinary, ["info", "--cask", CASK_TOKEN, "--json=v2"]),
+      await runBrew(brewBinary, ["info", "--cask", caskToken, "--json=v2"]),
+      caskToken,
     );
   } catch {
     return null;
@@ -244,8 +316,14 @@ const buildReopenCommand = (appPath: string | null): string =>
 export const buildUpgradeScript = (
   brewBinary: string,
   appPath: string | null = null,
-): string =>
-  [
+  caskToken: string = STABLE_CASK_TOKEN,
+): string => {
+  // Refused before it ever becomes argv text handed to `/bin/sh`.
+  if (!isCaskToken(caskToken)) {
+    throw new Error(`Refusing to build an upgrade script for an unknown cask token: ${caskToken}`);
+  }
+
+  return [
     "set -u",
     "export NONINTERACTIVE=1",
     "export HOMEBREW_NO_ENV_HINTS=1",
@@ -262,9 +340,10 @@ export const buildUpgradeScript = (
     // DMG is already in the download cache. Everything slow happens while the
     // app is still running, so this window stays a few seconds instead of a
     // minute — which is how long the user is staring at a vanished app.
-    `"${brewBinary}" upgrade --cask ${CASK_TOKEN} || exit 1`,
+    `"${brewBinary}" upgrade --cask ${caskToken} || exit 1`,
     buildReopenCommand(appPath),
   ].join("\n");
+};
 
 const runDetached: DetachedRunner = (script, logFilePath) => {
   mkdirSync(path.dirname(logFilePath), { recursive: true });
@@ -287,6 +366,8 @@ export type HomebrewUpgraderOptions = Readonly<{
   /** True only for a packaged app launched from a standard Applications folder. */
   isInstalledApp: boolean;
   logFilePath: string;
+  /** Which cask this upgrader manages; defaults to the stable channel. */
+  caskToken?: CaskToken;
   fileExists?: FileProbe;
   directoryExists?: FileProbe;
   listDirectory?: DirectoryLister;
@@ -305,25 +386,33 @@ export type HomebrewUpgrader = Readonly<{
    * `refreshTap` runs `brew update` first. That is a git fetch across every
    * tap, so routine checks read the local clone as-is and only pay for a
    * refresh when something suggests it went stale.
+   *
+   * `caskToken` defaults to the token this upgrader was created for; an
+   * unrecognized override resolves to null without asking brew anything.
    */
-  getInstallableVersion: (refreshTap?: boolean) => Promise<string | null>;
+  getInstallableVersion: (
+    refreshTap?: boolean,
+    caskToken?: string,
+  ) => Promise<string | null>;
   /** True once Homebrew has staged that version in the Caskroom. */
-  isVersionInstalled: (version: string) => boolean;
+  isVersionInstalled: (version: string, caskToken?: string) => boolean;
   /**
    * Downloads the DMG without touching the installed bundle, so the slow part
-   * of an upgrade happens while the app is still running. Rejects on failure.
+   * of an upgrade happens while the app is still running. Rejects on failure,
+   * including for a cask token this module does not recognize.
    */
-  downloadUpdate: () => Promise<void>;
+  downloadUpdate: (caskToken?: string) => Promise<void>;
   /** Bytes cached for that version so far; null when nothing is cached yet. */
-  getDownloadedBytes: (version: string) => number | null;
+  getDownloadedBytes: (version: string, caskToken?: string) => number | null;
   /**
-   * Launches the detached upgrade helper. Throws when it cannot start.
+   * Launches the detached upgrade helper. Throws when it cannot start,
+   * including for a cask token this module does not recognize.
    *
    * `appPath` is the `.app` root to reopen once Homebrew is done — the bundle
    * it replaced. Omit it only when the path is unknown; the helper then falls
    * back to the bundle id, which can resolve to a different copy of FixLang.
    */
-  startUpgrade: (appPath?: string | null) => void;
+  startUpgrade: (appPath?: string | null, caskToken?: string) => void;
 }>;
 
 /**
@@ -341,44 +430,62 @@ export const createHomebrewUpgrader = (
   const cacheDir = options.cacheDir ?? downloadsCacheDir();
   const startDetached = options.startDetached ?? runDetached;
   const runBrew = options.runBrew ?? runBrewCommand;
+  const boundCaskToken: CaskToken = options.caskToken ?? STABLE_CASK_TOKEN;
 
   const brewBinary = options.isInstalledApp ? findBrewBinary(fileExists) : null;
   const canInstall =
-    brewBinary !== null && directoryExists(caskroomPath(brewBinary));
+    brewBinary !== null && directoryExists(caskroomRoot(brewBinary, boundCaskToken));
 
   return Object.freeze({
     canInstall,
-    getInstallableVersion: (refreshTap = true): Promise<string | null> =>
+    getInstallableVersion: (
+      refreshTap = true,
+      caskToken: string = boundCaskToken,
+    ): Promise<string | null> =>
       canInstall && brewBinary !== null
-        ? readInstallableVersion(brewBinary, runBrew, refreshTap)
+        ? readInstallableVersion(brewBinary, runBrew, refreshTap, caskToken)
         : Promise.resolve(null),
-    isVersionInstalled: (version: string): boolean => {
+    isVersionInstalled: (
+      version: string,
+      caskToken: string = boundCaskToken,
+    ): boolean => {
       if (brewBinary === null) return false;
-      const versionPath = caskVersionPath(brewBinary, version);
+      const versionPath = caskVersionPath(brewBinary, version, caskToken);
       return versionPath !== null && directoryExists(versionPath);
     },
-    downloadUpdate: async (): Promise<void> => {
+    downloadUpdate: async (caskToken: string = boundCaskToken): Promise<void> => {
       if (!canInstall || brewBinary === null) {
         throw new Error("FixLang was not installed with the Homebrew cask");
+      }
+      // Refused before the argv is built, same as every other probe here.
+      if (!isCaskToken(caskToken)) {
+        throw new Error(`Refusing to fetch an unknown cask token: ${caskToken}`);
       }
       // `fetch` only fills the download cache — the installed bundle is
       // untouched, so this is safe to run with the app still open.
       await runBrew(
         brewBinary,
-        ["fetch", "--cask", CASK_TOKEN],
+        ["fetch", "--cask", caskToken],
         BREW_FETCH_TIMEOUT_MS,
       );
     },
-    getDownloadedBytes: (version: string): number | null => {
+    getDownloadedBytes: (
+      version: string,
+      caskToken: string = boundCaskToken,
+    ): number | null => {
+      if (!isCaskToken(caskToken)) return null;
       const entry = matchCachedDownload(listDirectory(cacheDir), version);
       return entry === null ? null : fileSize(path.join(cacheDir, entry));
     },
-    startUpgrade: (appPath: string | null = null): void => {
+    startUpgrade: (
+      appPath: string | null = null,
+      caskToken: string = boundCaskToken,
+    ): void => {
       if (!canInstall || brewBinary === null) {
         throw new Error("FixLang was not installed with the Homebrew cask");
       }
       startDetached(
-        buildUpgradeScript(brewBinary, appPath),
+        buildUpgradeScript(brewBinary, appPath, caskToken),
         options.logFilePath,
       );
     },
