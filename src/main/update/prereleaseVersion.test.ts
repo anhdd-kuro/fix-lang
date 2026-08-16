@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   comparePrereleaseOrder,
+  compareVersionOrder,
   parsePrereleaseVersion,
   type OrderableVersion,
 } from "./prereleaseVersion";
@@ -19,6 +20,16 @@ describe("parsePrereleaseVersion", () => {
       minor: 2,
       patch: 3,
       beta: 9,
+    });
+  });
+
+  it("parses a beta identifier of zero (0 is a legal, non-falsy beta)", () => {
+    expect(parsePrereleaseVersion("1.2.3-beta.0")).toEqual({
+      raw: "1.2.3-beta.0",
+      major: 1,
+      minor: 2,
+      patch: 3,
+      beta: 0,
     });
   });
 
@@ -51,6 +62,17 @@ describe("comparePrereleaseOrder", () => {
     ).toBeGreaterThan(0);
     expect(
       comparePrereleaseOrder(betaVersion as OrderableVersion, stable(1, 2, 3)),
+    ).toBeLessThan(0);
+  });
+
+  it("ranks a stable version above a beta.0 pre-release (beta: 0 is not undefined)", () => {
+    const betaZero = parsePrereleaseVersion("1.2.3-beta.0");
+    expect(betaZero).not.toBeNull();
+    expect(
+      comparePrereleaseOrder(stable(1, 2, 3), betaZero as OrderableVersion),
+    ).toBeGreaterThan(0);
+    expect(
+      comparePrereleaseOrder(betaZero as OrderableVersion, stable(1, 2, 3)),
     ).toBeLessThan(0);
   });
 
@@ -134,5 +156,16 @@ describe("comparePrereleaseOrder", () => {
         second as OrderableVersion,
       ),
     ).toBe(0);
+  });
+});
+
+describe("compareVersionOrder (alias)", () => {
+  it("is the exact same function as comparePrereleaseOrder, discoverable under a version-agnostic name", () => {
+    expect(compareVersionOrder).toBe(comparePrereleaseOrder);
+  });
+
+  it("orders two stable versions numerically, matching its documented stable-vs-stable use in updateService.ts", () => {
+    expect(compareVersionOrder(stable(1, 2, 10), stable(1, 2, 9))).toBeGreaterThan(0);
+    expect(compareVersionOrder(stable(1, 2, 9), stable(1, 2, 10))).toBeLessThan(0);
   });
 });

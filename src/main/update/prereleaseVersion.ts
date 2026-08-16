@@ -9,6 +9,14 @@
  * shape, not by import: both satisfy `OrderableVersion` below, so a later
  * card can compare one of each without either module knowing about the
  * other's type.
+ *
+ * Despite the filename, `comparePrereleaseOrder` below is the repository's
+ * only version comparator and is also used for plain stable-vs-stable
+ * comparisons in `updateService.ts`. If you are about to compare two stable
+ * versions elsewhere and searched for `compareVersion`/`compareStable` first,
+ * this is that function — see the `compareVersionOrder` alias export at the
+ * bottom of this file, and do not write a second/third comparator (a naive
+ * string compare misorders `1.2.10` before `1.2.9`).
  */
 
 export type OrderableVersion = Readonly<{
@@ -71,3 +79,12 @@ export const comparePrereleaseOrder = (
   if (right.beta === undefined) return -1;
   return left.beta - right.beta;
 };
+
+/**
+ * Alias for {@link comparePrereleaseOrder} under a version-agnostic name, so a
+ * grep for `compareVersion` finds the repo's one and only version comparator
+ * instead of coming up empty. Use this (or `comparePrereleaseOrder` directly
+ * — they are the same function) for stable-vs-stable comparisons too; do not
+ * write a new comparator for that case.
+ */
+export const compareVersionOrder = comparePrereleaseOrder;
