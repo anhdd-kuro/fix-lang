@@ -176,6 +176,13 @@ export const SettingUpdates = () => {
   const { t, tm } = useI18n();
   const [state, setState] = useState<UpdateState>(initialState);
   const [actionPending, setActionPending] = useState(false);
+  // The stable twin of `channelActionPending` below, and carved out of
+  // `actionPending` for the same reason. `actionPending` covers EVERY stable
+  // request — Check, Download, Install, Restart — but only `installUpdate`
+  // claims main's shared `installing` flag, which is the single thing the
+  // pre-release section has to wait out. Reading the broad flag froze the
+  // pre-release Check button for the length of an ordinary stable check.
+  const [installActionPending, setInstallActionPending] = useState(false);
   // Locale-free descriptor for the ONE error message the mount effect below
   // can produce (`getUpdateState()` rejecting before any live event arrives).
   // Kept as separate state from `state.message` (also a `Message` descriptor
@@ -301,6 +308,13 @@ export const SettingUpdates = () => {
   const run = async (
     request: () => Promise<unknown>,
     failureMessage: Message,
+    /**
+     * True for the one stable request that claims main's shared `installing`
+     * flag. Mirrors `runPrerelease`'s `isChannelOperation` exactly, and exists
+     * for the same reason: the broad pending flag cannot tell the pre-release
+     * section which stable action is running, and only this one blocks it.
+     */
+    isInstallRequest = false,
   ) => {
     if (actionPending) return;
 
@@ -317,6 +331,7 @@ export const SettingUpdates = () => {
     };
 
     setActionPending(true);
+    if (isInstallRequest) setInstallActionPending(true);
     try {
       const result = await request();
       if (
@@ -332,6 +347,7 @@ export const SettingUpdates = () => {
       reportFailure();
     } finally {
       setActionPending(false);
+      if (isInstallRequest) setInstallActionPending(false);
     }
   };
 
@@ -422,12 +438,18 @@ export const SettingUpdates = () => {
   // absent because a stable check claims `checking`, never `installing`, and a
   // channel op needs no term of its own because it already sets
   // `prereleaseActionPending` on its way through `runPrerelease`.
+  //
+  // For the same reason the stable term is `installActionPending` and not the
+  // broad `actionPending`: that flag is claimed by a stable Check too, and its
+  // window COINCIDES with the `checking` phase this list excludes on purpose —
+  // the promise only resolves once main clears `checking` — so the broad flag
+  // silently reinstates the very freeze the exclusion prevents.
   const prereleaseIsBusy =
     prereleaseActionPending ||
     prereleaseState.phase === "checking" ||
     prereleaseState.phase === "downloading" ||
     prereleaseState.phase === "installing" ||
-    actionPending ||
+    installActionPending ||
     state.phase === "downloading" ||
     state.phase === "installing";
   // Homebrew owns the app from here on; nothing in this section may re-arm.
@@ -649,6 +671,10 @@ export const SettingUpdates = () => {
                   void run(
                     () => updateApi().installUpdate(),
                     msg("settings.updates.installFailed"),
+                    // The only stable request that claims main's shared
+                    // `installing` flag, so the only one the pre-release
+                    // section has to be held shut for.
+                    true,
                   )
                 }
                 disabled={isBusy}

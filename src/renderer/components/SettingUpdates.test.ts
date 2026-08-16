@@ -75,6 +75,34 @@ type UpdateApi = {
   onLocaleChanged: ReturnType<typeof vi.fn>;
 };
 
+/**
+ * Every member an older preload — one built before the pre-release channel
+ * existed — does not expose. Spelled once, `keyof`-checked, and asserted
+ * absent by the compatibility test below, so the set can never drift from
+ * whatever a prose comment claims it is.
+ */
+const PRERELEASE_BRIDGE_MEMBERS = [
+  "getPrereleaseState",
+  "checkForPrerelease",
+  "switchToPrerelease",
+  "revertToStable",
+  "onPrereleaseStateChanged",
+] as const satisfies readonly (keyof UpdateApi)[];
+
+type PrereleaseBridgeMember = (typeof PRERELEASE_BRIDGE_MEMBERS)[number];
+
+/**
+ * A bridge that genuinely lacks those members, which no honest type can
+ * express for a value the component reads as a full `UpdateApi`. The `Omit`
+ * parameter is what keeps the unavoidable cast from suppressing the type
+ * checker wholesale: the REMAINING members are still checked, so a typo or a
+ * newly-required stable method fails to compile here rather than silently
+ * widening what this test pretends an old preload looked like.
+ */
+const legacyPreloadApi = (
+  api: Omit<UpdateApi, PrereleaseBridgeMember>,
+): UpdateApi => api as UpdateApi;
+
 const readyState = (phase: UpdateState["phase"] = "idle"): UpdateState => ({
   phase,
   currentVersion: "0.1.0",
@@ -1623,6 +1651,65 @@ describe("SettingUpdates", () => {
     ).toBe(true);
   });
 
+  it("keeps the pre-release Check button live during a stable CHECK", async () => {
+    // The narrow half of the rule above. A stable check claims main's
+    // `checking` flag and NEVER `installing`, and `checkForPrerelease` bails
+    // only on `installing` — so a pre-release check pressed here would have
+    // succeeded outright. Freezing on the shared `actionPending` flag (which
+    // `run()` sets for every stable action, check and download included)
+    // reintroduces exactly the freeze the excluded `state.phase === "checking"`
+    // term exists to avoid: the two windows coincide, because the stable
+    // check's promise only resolves once main clears `checking`.
+    await render(readyState("idle"), prereleaseReady("idle"));
+    let resolveCheck: (() => void) | undefined;
+    api.checkForUpdates.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveCheck = resolve;
+      }),
+    );
+
+    await click(buttonNamed(container, tEn("settings.updates.checkButton")));
+
+    const prereleaseCheck = buttonNamed(
+      prereleaseSection(),
+      tEn("settings.updates.prerelease.checkButton"),
+    );
+    expect(prereleaseCheck.disabled).toBe(false);
+    // Not merely enabled: a spinner here would claim a pre-release check is
+    // running when none was ever started.
+    expect(prereleaseCheck.querySelector("svg")).toBeNull();
+    await click(prereleaseCheck);
+    expect(api.checkForPrerelease).toHaveBeenCalledTimes(1);
+
+    resolveCheck?.();
+    await waitForUi();
+  });
+
+  it("disables the pre-release Check button while the stable flow is DOWNLOADING", async () => {
+    // The phase term on its own, with no stable request in flight: main
+    // publishes `downloading` and holds `installing` for the whole fetch,
+    // which outlives any one renderer promise. Rendered straight into the
+    // phase so nothing but that disjunct can be what shuts the button.
+    await render(
+      {
+        ...readyState("downloading"),
+        availableVersion: "0.2.0",
+        canInstall: true,
+        downloadedBytes: 1_000,
+        totalBytes: 4_000,
+      },
+      prereleaseReady("idle"),
+    );
+
+    const check = buttonNamed(
+      prereleaseSection(),
+      tEn("settings.updates.prerelease.checkButton"),
+    );
+    expect(check.disabled).toBe(true);
+    await click(check);
+    expect(api.checkForPrerelease).not.toHaveBeenCalled();
+  });
+
   it("disables the pre-release Check button while a channel op is in flight", async () => {
     await render(
       readyState("up-to-date"),
@@ -1695,25 +1782,34 @@ describe("SettingUpdates", () => {
     // mounts inside the About tab, where a throwing effect would tear down
     // the user guide alongside it.
     unsubscribe = vi.fn();
-    await renderWithApi({
-      getUpdateState: vi.fn().mockResolvedValue(readyState("up-to-date")),
-      checkForUpdates: vi.fn().mockResolvedValue(undefined),
-      openUpdateRelease: vi.fn().mockResolvedValue(undefined),
-      installUpdate: vi.fn().mockResolvedValue({ success: true }),
-      restartForUpdate: vi.fn().mockResolvedValue({ success: true }),
-      openExternalLink: vi.fn().mockResolvedValue({ success: true }),
-      onUpdateStateChanged: vi.fn((listener: (next: UpdateState) => void) => {
-        updateListener = listener;
-        return unsubscribe;
-      }),
-      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
-      setLocale: vi.fn().mockResolvedValue({ success: true }),
-      onLocaleChanged: vi.fn().mockReturnValue(vi.fn()),
-      // The four remaining `UpdateApi` members are the point of this test:
-      // an old preload exposes none of them, so they are absent rather than
+    await renderWithApi(
+      // The five `PRERELEASE_BRIDGE_MEMBERS` are the point of this test: an
+      // old preload exposes none of them, so they are absent rather than
       // mocked. `checkForPrerelease`/`switchToPrerelease`/`revertToStable`
       // are never reachable without a rendered control to press.
-    } as unknown as UpdateApi);
+      legacyPreloadApi({
+        getUpdateState: vi.fn().mockResolvedValue(readyState("up-to-date")),
+        checkForUpdates: vi.fn().mockResolvedValue(undefined),
+        openUpdateRelease: vi.fn().mockResolvedValue(undefined),
+        installUpdate: vi.fn().mockResolvedValue({ success: true }),
+        restartForUpdate: vi.fn().mockResolvedValue({ success: true }),
+        openExternalLink: vi.fn().mockResolvedValue({ success: true }),
+        onUpdateStateChanged: vi.fn((listener: (next: UpdateState) => void) => {
+          updateListener = listener;
+          return unsubscribe;
+        }),
+        getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+        setLocale: vi.fn().mockResolvedValue({ success: true }),
+        onLocaleChanged: vi.fn().mockReturnValue(vi.fn()),
+      }),
+    );
+
+    // The absence is the fixture, so it is asserted rather than described: a
+    // stray member would make the component take the live path and the test
+    // would stop covering the compatibility branch at all.
+    for (const member of PRERELEASE_BRIDGE_MEMBERS) {
+      expect(member in api).toBe(false);
+    }
 
     const section = prereleaseSection();
     expect(section.textContent).toContain(
