@@ -5,8 +5,14 @@ on:
     branches: ["beta/**"]
 
 concurrency:
+  # Never cancel: this job creates a tag, then a draft release, then uploads two
+  # immutable assets. A cancellation between any two of those leaves remote state
+  # only a human can clear (the next run refuses on "delete the tag before
+  # recutting" or "partial immutable asset set"). Stable uses false for the same
+  # reason; a second push waits and then no-ops on "already has a public
+  # prerelease".
   group: fixlang-prerelease-${{ github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -19,6 +25,7 @@ jobs:
       contents: write
     outputs:
       release_tag: ${{ steps.resolve.outputs.release_tag }}
+      release_sha: ${{ github.sha }}
       should_publish: ${{ steps.resolve.outputs.should_publish }}
     steps:
       - name: Check out branch history
@@ -89,17 +96,32 @@ jobs:
   release:
     name: Build and publish unsigned macOS prerelease
     needs: prepare
+    # The trust anchor. release.yml only ever publishes from main, and additionally
+    # requires the tag commit to be an ancestor of main; a beta is by definition not
+    # on main, so that check cannot be ported. Publication is instead gated on the
+    # `prerelease` GitHub Environment, whose required-reviewers rule is what keeps a
+    # push to beta/anything from putting unreviewed code on the public release feed.
+    # Like .github/release-tag-ruleset.json, the file only declares the gate — the
+    # protection rule itself must be configured in repository settings, and an
+    # environment with no rules approves everything.
+    environment: prerelease
     if: needs.prepare.outputs.should_publish == 'true'
     runs-on: macos-14
     permissions:
       contents: write
     env:
       RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+      RELEASE_SHA: ${{ needs.prepare.outputs.release_sha }}
     steps:
-      - name: Check out the release tag
+      # Check out the resolved commit, not the tag. Beta tags are excluded from the
+      # update protection in .github/release-tag-ruleset.json so a beta can be recut,
+      # which also means the tag can be retargeted between prepare and this job; the
+      # version-string guard below would not notice, because a retargeted commit keeps
+      # the same package.json version.
+      - name: Check out the release commit
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ needs.prepare.outputs.release_tag }}
+          ref: ${{ needs.prepare.outputs.release_sha }}
           persist-credentials: false
 
       - name: Set up Bun
@@ -152,7 +174,14 @@ jobs:
           package_version="$(bun -e 'console.log((await Bun.file("package.json").json()).version)')"
           artifact_name="FixLang-${package_version}-arm64.dmg"
           artifact_path="release/${artifact_name}"
-          test -s "release/FixLang-${package_version}-arm64.dmg"
+          # A bare `test -s` fails with an exit code and nothing else, and this is
+          # the step that would first show electron-builder mangling "-beta.N" in the
+          # DMG basename. Print what was actually built before failing.
+          if ! test -s "release/FixLang-${package_version}-arm64.dmg"; then
+            echo "Expected ${artifact_path}; release/ contains:" >&2
+            ls -la release/ >&2
+            exit 1
+          fi
           hdiutil verify "release/FixLang-${package_version}-arm64.dmg"
 
           mount_path="$(mktemp -d)"
@@ -208,10 +237,15 @@ jobs:
               exit 1
             fi
           else
+            # --notes is prepended to --generate-notes output. The commit is the only
+            # provenance a beta keeps: its tag stays movable and deletable by design
+            # (see .github/release-tag-ruleset.json), so the release body has to name
+            # the commit the DMG was actually built from.
             gh release create "${RELEASE_TAG}" \
               --draft \
               --prerelease \
               --generate-notes \
+              --notes "Built from commit ${RELEASE_SHA}." \
               --title "FixLang ${RELEASE_TAG}"
           fi
 
@@ -278,6 +312,14 @@ jobs:
             shasum -a 256 -c SHA256SUMS.txt
           )
 
+      # --prerelease is repeated here, on the call that actually makes the release
+      # public, and it is load-bearing twice over. The in-app stable check reads
+      # /releases/latest, which never returns a prerelease; and the Homebrew tap's
+      # sync ignores drafts and prereleases when it picks what to write into the
+      # stable cask (docs/superpowers/specs/2026-07-22-homebrew-distribution-design.md).
+      # Drop the flag and this beta becomes an ordinary release: the tap renders it
+      # into Casks/fixlang.rb and every stable user's next `brew upgrade` moves them
+      # onto it.
       - name: Publish completed prerelease
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
