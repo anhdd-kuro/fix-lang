@@ -551,8 +551,11 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
 ];
 
 /**
- * Ships one combo: Correction, then Context-Aware Structured Text, then Prompt
- * optimization — clean the text, give it structure, then turn it into a prompt.
+ * Ships one combo: Correction, then Prompt optimization, then Caveman — clean
+ * the text, turn it into a prompt, then compress that prompt. Profiles that
+ * still store the previous chain (Correction → Context-Aware Structured Text →
+ * Prompt optimization) are moved onto this one by
+ * `upgradeLegacyPerfectPromptCombo`, but only when they never edited it.
  *
  * **It ships with NO hotkey, and that is the point.** Every other built-in
  * binding is one AI call; this one is three, on whatever models those presets
@@ -578,16 +581,73 @@ const makeDefaultCombos = (): ComboPreset[] => [
       },
       {
         id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-2`,
-        presetId: DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+        presetId: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
       },
       {
         id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-3`,
-        presetId: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+        presetId: DEFAULT_CAVEMAN_PRESET_ID,
       },
     ],
     schemaVersion: 1,
   },
 ];
+
+/**
+ * The chain the built-in Perfect prompt combo shipped with before the
+ * resequencing above: Correction, Context-Aware Structured Text, Prompt
+ * optimization. Kept as its own table rather than read off an old default,
+ * because it is history — it must not move again when the current default does.
+ */
+const LEGACY_PERFECT_PROMPT_STEP_PRESET_IDS: readonly string[] = [
+  DEFAULT_CORRECTION_PRESET_ID,
+  DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+  DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+];
+
+/**
+ * True only for the legacy triple as shipped: same length, same preset ids, in
+ * the same order, and no step carrying an `inlineInput` the built-in never had.
+ * Every one of those clauses is load-bearing, because the caller REWRITES
+ * PERSISTED USER DATA on a true — a length-only or first-step-only test happily
+ * matches a chain the user reordered or swapped a preset into, and replaces it.
+ *
+ * Step ids are deliberately NOT part of the signature: they are materialized by
+ * `sanitizeComboStep` when absent (`step-N`) and are not something the Combos UI
+ * asks the user to choose, so matching on them would just deny the upgrade to
+ * profiles that lost or never stored them, while catching no user edit that the
+ * preset-id sequence does not already catch.
+ */
+const isUntouchedLegacyPerfectPromptChain = (steps: ComboStep[]): boolean =>
+  steps.length === LEGACY_PERFECT_PROMPT_STEP_PRESET_IDS.length &&
+  steps.every(
+    (step, index) =>
+      step.presetId === LEGACY_PERFECT_PROMPT_STEP_PRESET_IDS[index] &&
+      step.inlineInput === undefined,
+  );
+
+/**
+ * Read-time resequencing of the built-in Perfect prompt combo, for users whose
+ * profile already stores it — `withDefaultCombos` lets the stored entry win, so
+ * without this the new order would only ever reach fresh installs.
+ *
+ * Narrow on purpose: it fires only on the built-in's own id AND only on the
+ * untouched legacy chain, and it changes the STEP LIST only. `name`, `hotkey`,
+ * `outputMode`, `markdownOutput` and everything else ride through verbatim,
+ * because a user who renamed the row or bound a chord to it has made a decision
+ * that a step resequencing has no business revisiting.
+ */
+const upgradeLegacyPerfectPromptCombo = (combo: ComboPreset): ComboPreset => {
+  if (combo.id !== DEFAULT_PERFECT_PROMPT_COMBO_ID) return combo;
+  if (!isUntouchedLegacyPerfectPromptChain(combo.steps)) return combo;
+
+  const resequenced = makeDefaultCombos().find(
+    (defaultCombo) => defaultCombo.id === DEFAULT_PERFECT_PROMPT_COMBO_ID,
+  );
+  // Steps come from the default itself, so an upgraded profile and a fresh
+  // install are indistinguishable — and the result no longer matches the legacy
+  // signature, which is what makes a second normalize a no-op.
+  return resequenced ? { ...combo, steps: resequenced.steps } : combo;
+};
 
 export const getDefaultCorrectionSettings = (): CorrectionSettings => ({
   presets: makeDefaultCorrectionPresets(),
@@ -671,7 +731,13 @@ export const normalizeCorrectionSettings = (
   const raw = value as Partial<CorrectionSettings> & LegacyCorrectionSettings;
 
   const storedCombos = sanitizeCombos(raw.combos);
-  const combos = withDefaultCombos(storedCombos);
+  // Upgrade before the merge, not after: `withDefaultCombos` lets a stored
+  // entry win outright, so a stored Perfect prompt that never sees the
+  // resequencing here would keep the old chain forever. Steps only — the
+  // hotkey claims below still read the STORED combos, unchanged.
+  const combos = withDefaultCombos(
+    storedCombos.map(upgradeLegacyPerfectPromptCombo),
+  );
 
   // `registerCorrectionShortcut` walks `presets` before `combos` through one
   // shared `registeredShortcuts` set, so a default hotkey materialized here onto

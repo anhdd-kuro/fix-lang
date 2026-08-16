@@ -42,6 +42,9 @@ import {
   DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
   DEFAULT_CAVEMAN_PRESET_ID,
   DEFAULT_CAVEMAN_PRESET_PROMPT,
+  DEFAULT_CORRECTION_PRESET_ID,
+  DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+  DEFAULT_SUMMARIZE_PRESET_ID,
   DEFAULT_STRUCTURED_TEXT_PRESET_ID,
   DEFAULT_STRUCTURED_TEXT_PRESET_PROMPT,
   DEFAULT_TRANSLATE_PRESET_ID,
@@ -2297,10 +2300,22 @@ describe("normalizeCorrectionSettings — the built-in Perfect prompt combo", ()
     // `combos: []`, which is a real value, so the store default never runs
     // against it and the combo would otherwise only reach fresh installs.
     expect(comboFor([])?.steps.map((step) => step.presetId)).toEqual([
-      "correction",
-      "structured-text",
-      "prompt-optimization",
+      DEFAULT_CORRECTION_PRESET_ID,
+      DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+      DEFAULT_CAVEMAN_PRESET_ID,
     ]);
+  });
+
+  it("keeps its id, name and empty hotkey while the step list moves", () => {
+    // The resequencing is a change of STEPS only. The id is what
+    // `withDefaultCombos` matches a stored entry on, the name is what the
+    // Combos tab shows, and the empty hotkey is the deliberate no-accelerator
+    // stance — none of the three may drift with the steps.
+    const combo = comboFor([]);
+
+    expect(combo?.id).toBe(DEFAULT_PERFECT_PROMPT_COMBO_ID);
+    expect(combo?.name).toBe("Perfect prompt");
+    expect(combo?.hotkey).toBe("");
   });
 
   it("ships with no hotkey, so it cannot outrank a binding the user already holds", () => {
@@ -2385,6 +2400,231 @@ describe("normalizeCorrectionSettings — the built-in Perfect prompt combo", ()
     for (const step of comboFor()?.steps ?? []) {
       expect(presetsById.get(step.presetId)?.requiresInput ?? false).toBe(false);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: the signature-gated Perfect prompt resequencing upgrade
+// ---------------------------------------------------------------------------
+
+describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrade", () => {
+  // The exact chain the built-in shipped with before the resequencing, step
+  // ids included. Anything that is not THIS, in THIS order, is a chain the
+  // user is responsible for and must survive a read untouched.
+  const legacyTriple = () => [
+    {
+      id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-1`,
+      presetId: DEFAULT_CORRECTION_PRESET_ID,
+    },
+    {
+      id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-2`,
+      presetId: DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+    },
+    {
+      id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-3`,
+      presetId: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+    },
+  ];
+
+  const storedPerfectPrompt = (
+    overrides: Record<string, unknown> = {},
+  ): Record<string, unknown> => ({
+    id: DEFAULT_PERFECT_PROMPT_COMBO_ID,
+    name: "Perfect prompt",
+    hotkey: "",
+    steps: legacyTriple(),
+    schemaVersion: 1,
+    ...overrides,
+  });
+
+  const readBack = (stored: Record<string, unknown>) =>
+    combosOf(
+      normalizeCorrectionSettings({
+        presets: [storedCorrection],
+        selectedPresetId: "correction",
+        combos: [stored],
+      }),
+    ).find((combo) => combo.id === DEFAULT_PERFECT_PROMPT_COMBO_ID);
+
+  // -- Criterion 3: every other shape is left exactly as stored. ------------
+  //
+  // This is the whole risk of the card. The upgrade rewrites PERSISTED USER
+  // DATA, so a matcher looser than the full ordered signature silently
+  // replaces a chain the user built. Each case below is one step away from
+  // the legacy triple in a different direction; a matcher that only counts
+  // steps, or only looks at the first one, rewrites all three.
+  const untouchedShapes: readonly (readonly [
+    string,
+    readonly Record<string, string>[],
+  ])[] = [
+    [
+      "the legacy triple REORDERED",
+      [legacyTriple()[1], legacyTriple()[0], legacyTriple()[2]],
+    ],
+    [
+      "the legacy triple SHORTENED by one step",
+      [legacyTriple()[0], legacyTriple()[2]],
+    ],
+    [
+      "the legacy triple with ONE preset swapped",
+      [
+        legacyTriple()[0],
+        { ...legacyTriple()[1], presetId: DEFAULT_SUMMARIZE_PRESET_ID },
+        legacyTriple()[2],
+      ],
+    ],
+  ];
+
+  for (const [label, steps] of untouchedShapes) {
+    it(`leaves ${label} byte-identical`, () => {
+      const stored = storedPerfectPrompt({ steps: [...steps] });
+
+      const readBackCombo = readBack(stored);
+
+      expect(readBackCombo).toEqual({
+        id: DEFAULT_PERFECT_PROMPT_COMBO_ID,
+        name: "Perfect prompt",
+        hotkey: "",
+        steps: [...steps],
+        schemaVersion: 1,
+      });
+      expect(JSON.stringify(readBackCombo?.steps)).toBe(JSON.stringify(steps));
+    });
+  }
+
+  it("leaves the legacy triple alone once an extra step is appended", () => {
+    const steps = [
+      ...legacyTriple(),
+      { id: "mine", presetId: DEFAULT_TRANSLATE_PRESET_ID },
+    ];
+
+    expect(readBack(storedPerfectPrompt({ steps }))?.steps).toEqual(steps);
+  });
+
+  it("leaves a legacy-shaped chain alone once a step carries an inline input", () => {
+    // `inlineInput` is free text the model receives — the built-in never had
+    // one, so its presence is by definition the user's own edit.
+    const steps = legacyTriple().map((step, index) =>
+      index === 1 ? { ...step, inlineInput: "Use bullet points." } : step,
+    );
+
+    expect(readBack(storedPerfectPrompt({ steps }))?.steps).toEqual(steps);
+  });
+
+  it("leaves the legacy triple alone when it is stored under another combo id", () => {
+    const upgraded = combosOf(
+      normalizeCorrectionSettings({
+        presets: [storedCorrection],
+        selectedPresetId: "correction",
+        combos: [
+          storedPerfectPrompt({ id: "combo-1", name: "My own chain" }),
+        ],
+      }),
+    ).find((combo) => combo.id === "combo-1");
+
+    expect(upgraded?.steps).toEqual(legacyTriple());
+  });
+
+  // -- Criterion 2: the untouched legacy chain moves to the new sequence. ---
+
+  it("upgrades a stored combo still sitting on the untouched legacy triple", () => {
+    expect(
+      readBack(storedPerfectPrompt())?.steps.map((step) => step.presetId),
+    ).toEqual([
+      DEFAULT_CORRECTION_PRESET_ID,
+      DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+      DEFAULT_CAVEMAN_PRESET_ID,
+    ]);
+  });
+
+  it("carries the stored name, hotkey, outputMode and markdownOutput through verbatim", () => {
+    // Only the step list changes. A user may have renamed the row and bound a
+    // chord to it; rewriting either would be the upgrade taking a decision the
+    // user already made.
+    const upgraded = readBack(
+      storedPerfectPrompt({
+        name: "My renamed chain",
+        hotkey: "Control+Shift+K",
+        outputMode: "popup",
+        markdownOutput: true,
+      }),
+    );
+
+    expect(upgraded).toEqual({
+      id: DEFAULT_PERFECT_PROMPT_COMBO_ID,
+      name: "My renamed chain",
+      hotkey: "Control+Shift+K",
+      outputMode: "popup",
+      markdownOutput: true,
+      steps: [
+        {
+          id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-1`,
+          presetId: DEFAULT_CORRECTION_PRESET_ID,
+        },
+        {
+          id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-2`,
+          presetId: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+        },
+        {
+          id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-3`,
+          presetId: DEFAULT_CAVEMAN_PRESET_ID,
+        },
+      ],
+      schemaVersion: 1,
+    });
+  });
+
+  it("emits the same steps whether the combo was upgraded or materialized fresh", () => {
+    const upgraded = readBack(storedPerfectPrompt());
+    const materialized = combosOf(
+      normalizeCorrectionSettings({
+        presets: [storedCorrection],
+        selectedPresetId: "correction",
+        combos: [],
+      }),
+    ).find((combo) => combo.id === DEFAULT_PERFECT_PROMPT_COMBO_ID);
+
+    expect(upgraded?.steps).toEqual(materialized?.steps);
+  });
+
+  it("does not let the upgraded combo's stored hotkey stop guarding the Caveman default", () => {
+    // The `5fb449d` guard reads STORED combo hotkeys. The upgrade rewrites
+    // steps only, so a stored chord must still blank the materialized
+    // default that would otherwise outrank it.
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [storedPerfectPrompt({ hotkey: "Control+Shift+C" })],
+    });
+
+    expect(hotkeyOf(result, DEFAULT_CAVEMAN_PRESET_ID)).toBe("");
+  });
+
+  // -- Criterion 4: normalizing twice is a fixed point. ---------------------
+
+  it("is a fixed point — normalizing the upgraded result again changes nothing", () => {
+    const once = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [storedPerfectPrompt({ name: "Mine", hotkey: "Control+Shift+K" })],
+    });
+    const twice = normalizeCorrectionSettings(once);
+
+    expect(twice).toEqual(once);
+  });
+
+  it("is a fixed point for an untouched other-shape chain too", () => {
+    const stored = storedPerfectPrompt({
+      steps: [legacyTriple()[1], legacyTriple()[0], legacyTriple()[2]],
+    });
+    const once = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [stored],
+    });
+    const twice = normalizeCorrectionSettings(once);
+
+    expect(twice).toEqual(once);
   });
 });
 

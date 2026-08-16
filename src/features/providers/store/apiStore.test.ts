@@ -1118,6 +1118,40 @@ describe("apiStoreSchema — settingsCorrect default carries all eight built-in 
 //     zero bytes to the schema
 //
 // Proof in `.scratch/caveman-preset/evidence/03/schema-hash-delta-proof.json`.
+//
+// Updated once more for the built-in Perfect prompt combo's resequencing
+// (Correction → Context-Aware Structured Text → Prompt optimization becomes
+// Correction → Prompt optimization → Caveman). Again NO schema node changed:
+// the `combos` node is `{ type: "array" }` with no `items` and no `default`,
+// and stayed exactly that. The only delta is inside ONE `default` node, and a
+// default is not a constraint, so nothing that validated before can be
+// rejected now and `clearInvalidConfig: true` cannot wipe a config over it.
+//
+// ONE occurrence, not two, unlike every preset-shaped update above: the
+// defaults embed combos only through `settingsCorrect.default`
+// (`getDefaultCorrectionSettings()`). `presets.default` is
+// `makeDefaultCorrectionPresets()`, which carries no combos at all. Confirmed
+// empirically rather than reasoned — the legacy step list occurs exactly once.
+//
+// Verified the same empirical way as every update above, in an isolated
+// `git worktree add --detach` at HEAD carrying only this card's `apiStore.ts`
+// (the shared tree held another agent's live renderer edits — see
+// `.scratch/caveman-preset/evidence/02/schema-hash-contamination-note.md`):
+//
+//   - the serialised schema SHRANK from 74756 to 74748 bytes: -8, which is the
+//     step list going from 180 to 172 bytes at its single occurrence
+//     (step 2's `structured-text` → `prompt-optimization` is +4, then step 3's
+//     `prompt-optimization` → `caveman` is -12)
+//   - the legacy step list occurs 1× before and 0× after; the resequenced one
+//     0× before and 1× after
+//   - `"structured-text"` occurs 3× before and 2× after; `"caveman"` 2× before
+//     and 3× after
+//   - substituting the new step list back to the old one at that single
+//     occurrence reproduces the previous snapshot
+//     `9a174450a26ef45fbfdaf03ac173458bb7793b292af2eaff5cb6d61be32d4cf9`
+//     byte-for-byte (74756 bytes again), so no other byte of the schema moved
+//
+// Proof in `.scratch/caveman-preset/evidence/05/schema-hash-delta-proof.json`.
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
@@ -1126,7 +1160,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "9a174450a26ef45fbfdaf03ac173458bb7793b292af2eaff5cb6d61be32d4cf9",
+      "7de267d3b16f1a5916aa6562aa6d3ed8ac39b8f640e28327830b34336c121ed1",
     );
   });
 });
