@@ -35,6 +35,7 @@ describe("pending install marker", () => {
       toVersion: "0.3.3",
       startedAt: 1_000,
       appPath: "/Applications/FixLang.app",
+      caskToken: "fixlang",
     });
 
     expect(store.read()).toEqual({
@@ -42,7 +43,22 @@ describe("pending install marker", () => {
       toVersion: "0.3.3",
       startedAt: 1_000,
       appPath: "/Applications/FixLang.app",
+      caskToken: "fixlang",
     });
+  });
+
+  it("round-trips a pre-release cask token", () => {
+    const store = createPendingInstallStore(markerPath());
+
+    store.write({
+      fromVersion: "1.9.5",
+      toVersion: "2.0.0-beta.1",
+      startedAt: 1_000,
+      appPath: "/Applications/FixLang.app",
+      caskToken: "fixlang@beta",
+    });
+
+    expect(store.read()?.caskToken).toBe("fixlang@beta");
   });
 
   it("reads nothing when no update is pending", () => {
@@ -56,6 +72,7 @@ describe("pending install marker", () => {
       toVersion: "0.3.3",
       startedAt: 1_000,
       appPath: "/Applications/FixLang.app",
+      caskToken: "fixlang",
     });
 
     store.clear();
@@ -72,6 +89,7 @@ describe("pending install marker", () => {
       toVersion: "0.3.3",
       startedAt: 1_000,
       appPath: "/Applications/FixLang.app",
+      caskToken: "fixlang",
     });
     writeFileSync(filePath, "{ not json", "utf8");
 
@@ -85,6 +103,7 @@ describe("pending install marker", () => {
       toVersion: "0.3.3",
       startedAt: 1_000,
       appPath: "/Applications/FixLang.app",
+      caskToken: "fixlang",
     });
 
     expect(readFileSync(filePath, "utf8").endsWith("}\n")).toBe(true);
@@ -100,6 +119,32 @@ describe("pending install marker", () => {
   ])("rejects malformed marker content: %s", (raw) => {
     expect(parsePendingInstall(raw)).toBeNull();
   });
+
+  it("defaults a marker written before the cask token field existed to the stable token", () => {
+    // Real markers on disk today have no caskToken key at all.
+    const legacyRaw = JSON.stringify({
+      fromVersion: "0.3.2",
+      toVersion: "0.3.3",
+      startedAt: 1_000,
+      appPath: "/Applications/FixLang.app",
+    });
+
+    expect(parsePendingInstall(legacyRaw)?.caskToken).toBe("fixlang");
+  });
+
+  it.each(["FIXLANG", "fixlang@stable", "", 42, null, {}])(
+    "falls back to the stable token for a corrupt cask token value: %s",
+    (caskToken) => {
+      const raw = JSON.stringify({
+        fromVersion: "0.3.2",
+        toVersion: "0.3.3",
+        startedAt: 1_000,
+        caskToken,
+      });
+
+      expect(parsePendingInstall(raw)?.caskToken).toBe("fixlang");
+    },
+  );
 });
 
 describe("pending install reconciliation", () => {
@@ -111,6 +156,7 @@ describe("pending install reconciliation", () => {
     toVersion: "0.3.3",
     startedAt: STARTED_AT,
     appPath: INSTALLED_PATH,
+    caskToken: "fixlang" as const,
   };
   const context = (
     overrides: Partial<{
@@ -263,6 +309,7 @@ describe("pending install reconciliation", () => {
         toVersion: "0.3.3",
         startedAt: 0,
         appPath: "",
+        caskToken: "fixlang",
       });
     },
   );
@@ -282,4 +329,56 @@ describe("pending install reconciliation", () => {
       ).toBe("");
     },
   );
+
+  /**
+   * The failure this guards: a revert lands a version LOWER than the one
+   * running, under a DIFFERENT cask token than the one currently installed.
+   * Nothing about "the target is newer" may be baked into reconcile — only
+   * the recorded token and version equalities decide the outcome. If the
+   * token were silently dropped or defaulted wrong, a successful revert (or
+   * a switch onto the pre-release channel) would read exactly like a failed
+   * upgrade: the marker gets cleared, an error shows, and the install button
+   * re-arms onto a second `brew` operation that dies on the first one's
+   * download lock.
+   */
+  it("reconciles a revert to a LOWER version under the pre-release token correctly", () => {
+    const revertMarker = parsePendingInstall(
+      JSON.stringify({
+        fromVersion: "2.0.0-beta.3",
+        toVersion: "1.9.5",
+        startedAt: STARTED_AT,
+        appPath: INSTALLED_PATH,
+        caskToken: "fixlang@beta",
+      }),
+    );
+    expect(revertMarker?.caskToken).toBe("fixlang@beta");
+    if (revertMarker === null) throw new Error("marker failed to parse");
+
+    // Helper still working: the old, higher version is still what is running.
+    expect(
+      reconcilePendingInstall(
+        revertMarker,
+        "2.0.0-beta.3",
+        context({ isTargetInstalled: false }),
+      ),
+    ).toBe("in-progress");
+
+    // Homebrew staged the lower target under its own token's Caskroom.
+    expect(
+      reconcilePendingInstall(
+        revertMarker,
+        "2.0.0-beta.3",
+        context({ isTargetInstalled: true }),
+      ),
+    ).toBe("restart-required");
+
+    // App relaunched into the reverted, lower version.
+    expect(
+      reconcilePendingInstall(
+        revertMarker,
+        "1.9.5",
+        context({ isTargetInstalled: true }),
+      ),
+    ).toBe("installed");
+  });
 });

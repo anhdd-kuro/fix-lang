@@ -6,6 +6,25 @@ import path from "node:path";
  * way to report its outcome is a marker written before quitting and read on
  * the next launch. A silent no-op update is worse than a loud failure.
  */
+
+/**
+ * The cask token Homebrew installed the target under. `fixlang` is the
+ * published stable tap entry; `fixlang@beta` is the pre-release channel. A
+ * channel switch can move in either direction and a revert specifically
+ * lands a version LOWER than the one running — so the token, never the
+ * version's direction, is what tells reconcile which Caskroom the install
+ * actually landed in.
+ */
+export type CaskToken = "fixlang" | "fixlang@beta";
+
+/**
+ * Every marker defaults to this token — including one written before the
+ * field existed. That default is also the correct answer for those markers,
+ * not just a safe placeholder: every upgrade before pre-release existed was
+ * stable-to-stable.
+ */
+export const STABLE_CASK_TOKEN: CaskToken = "fixlang";
+
 export type PendingInstall = Readonly<{
   fromVersion: string;
   toVersion: string;
@@ -18,6 +37,8 @@ export type PendingInstall = Readonly<{
    * different copy of the app opened instead".
    */
   appPath: string;
+  /** See {@link CaskToken}. */
+  caskToken: CaskToken;
 }>;
 
 export type PendingInstallStore = Readonly<{
@@ -37,7 +58,13 @@ export type InstallOutcome =
 export type ReconcileContext = Readonly<{
   /** Epoch ms at reconcile time. */
   now: number;
-  /** True once the Caskroom holds the target version, i.e. Homebrew finished. */
+  /**
+   * True once the Caskroom holds the target version, i.e. Homebrew finished.
+   * The caller must resolve this against `pending.caskToken`'s own Caskroom
+   * — not always the stable one — or a successful install under a different
+   * token (a pre-release switch, or a revert back to stable) never shows up
+   * here and reads as a stalled, then failed, upgrade instead.
+   */
   isTargetInstalled: boolean;
   /** `.app` root of the process doing the reconcile; null when unknown. */
   runningAppPath: string | null;
@@ -60,6 +87,17 @@ const parseStartedAt = (value: unknown): number =>
     ? value
     : 0;
 
+/**
+ * Missing, corrupt, or foreign token values fall back to the stable token
+ * rather than rejecting the whole marker — a real marker on a user's disk
+ * predates this field entirely, and a marker must never fail to parse over
+ * one field going unrecognized.
+ */
+const parseCaskToken = (value: unknown): CaskToken =>
+  value === "fixlang" || value === "fixlang@beta"
+    ? value
+    : STABLE_CASK_TOKEN;
+
 /** Parses the marker defensively; a corrupt file must never break startup. */
 export const parsePendingInstall = (raw: string): PendingInstall | null => {
   try {
@@ -78,6 +116,7 @@ export const parsePendingInstall = (raw: string): PendingInstall | null => {
       toVersion: value.toVersion,
       startedAt: parseStartedAt(value.startedAt),
       appPath: typeof value.appPath === "string" ? value.appPath : "",
+      caskToken: parseCaskToken(value.caskToken),
     });
   } catch {
     return null;
@@ -96,9 +135,16 @@ export const parsePendingInstall = (raw: string): PendingInstall | null => {
  *
  * Nor is a *changed* version proof of success. When a second copy of FixLang
  * shares the bundle id, `open -b` can reopen that copy instead of the upgraded
- * one, and a bare "version differs from before" test reports a downgrade as a
- * completed update. Bundle path is the reliable identity: the target one is
- * the path Homebrew replaced, and anything else is a different app.
+ * one, and a bare "version differs from before" test reports an unrelated
+ * version change as a completed update. Bundle path is the reliable identity:
+ * the target one is the path Homebrew replaced, and anything else is a
+ * different app.
+ *
+ * Nothing here may assume the target version is the *newer* one: a revert
+ * lands a version strictly lower than the one running, under a different
+ * cask token, and it must reconcile exactly as correctly as an upgrade does.
+ * Every check below is an equality or a token/path comparison, never an
+ * ordering — direction is not information this function has.
  */
 export const reconcilePendingInstall = (
   pending: PendingInstall | null,
@@ -118,8 +164,9 @@ export const reconcilePendingInstall = (
     return "wrong-bundle";
   }
 
-  // Same bundle, version moved anyway: the user upgraded past the target by
-  // hand between the click and this launch. Still an update.
+  // Same bundle, version moved anyway: the user changed the installed
+  // version by hand between the click and this launch, in either direction.
+  // Still an update.
   if (currentVersion !== pending.fromVersion) return "installed";
 
   // The bundle is already replaced; only this stale process is still old.
