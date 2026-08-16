@@ -2313,7 +2313,11 @@ describe("normalizeCorrectionSettings — preconditions the hotkey guard rests o
     // So this asserts the reason that mutation is currently harmless. Ship a
     // built-in combo with a real hotkey and this fails, which is the signal to
     // write the direct test that is finally possible at that point.
-    const defaultCombos = getDefaultCorrectionSettings().combos;
+    // `combos` is optional on the settings type, so coalesce rather than
+    // assert non-null: an absent list then fails the length check below on
+    // its own terms instead of throwing a TypeError that reads like a bug in
+    // the test rather than a change in the defaults.
+    const defaultCombos = getDefaultCorrectionSettings().combos ?? [];
 
     expect(defaultCombos.length).toBeGreaterThan(0);
     expect(
