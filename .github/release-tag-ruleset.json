@@ -11,7 +11,7 @@
   ],
   "conditions": {
     "ref_name": {
-      "exclude": [],
+      "exclude": ["refs/tags/v*-beta.*"],
       "include": ["refs/tags/v*"]
     }
   },

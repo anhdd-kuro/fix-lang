@@ -1,0 +1,284 @@
+name: Prerelease FixLang
+
+on:
+  push:
+    branches: ["beta/**"]
+
+concurrency:
+  group: fixlang-prerelease-${{ github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Resolve prerelease version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release_tag: ${{ steps.resolve.outputs.release_tag }}
+      should_publish: ${{ steps.resolve.outputs.should_publish }}
+    steps:
+      - name: Check out branch history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve prerelease version and tag
+        id: resolve
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          beta_version_pattern='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-beta\.(0|[1-9][0-9]*)$'
+          package_version="$(node -p "require('./package.json').version")"
+          if ! [[ "${package_version}" =~ ${beta_version_pattern} ]]; then
+            echo "package.json version must be a pre-release semantic version (for example, 0.3.0-beta.1)." >&2
+            exit 1
+          fi
+          if ! node -e '
+            const version = process.argv[1];
+            const [release, prerelease] = version.split("-beta.");
+            const components = [...release.split("."), prerelease];
+            process.exit(components.map(Number).every(Number.isSafeInteger) ? 0 : 1);
+          ' "${package_version}"; then
+            echo "package.json version components must be safe integers." >&2
+            exit 1
+          fi
+
+          release_tag="v${package_version}"
+          echo "release_tag=${release_tag}" >> "${GITHUB_OUTPUT}"
+
+          release_is_public() {
+            local tag="$1"
+            local is_draft
+            if is_draft="$(gh release view "${tag}" --json isDraft --jq '.isDraft' 2>/dev/null)"; then
+              [ "${is_draft}" != "true" ]
+            else
+              return 1
+            fi
+          }
+
+          if release_is_public "${release_tag}"; then
+            echo "Version ${package_version} already has a public prerelease; skipping publication."
+            echo "should_publish=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          if git show-ref --verify --quiet "refs/tags/${release_tag}"; then
+            tag_commit="$(git rev-parse "${release_tag}^{commit}")"
+            if [ "${tag_commit}" != "${GITHUB_SHA}" ]; then
+              echo "Existing tag ${release_tag} points at a different commit; delete the tag before recutting this beta." >&2
+              exit 1
+            fi
+            echo "Tag ${release_tag} already points at ${GITHUB_SHA}; resuming publication."
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+              -f "ref=refs/tags/${release_tag}" \
+              -f "sha=${GITHUB_SHA}" >/dev/null
+            echo "Created ${release_tag} at ${GITHUB_SHA}."
+          fi
+
+          echo "should_publish=true" >> "${GITHUB_OUTPUT}"
+
+  release:
+    name: Build and publish unsigned macOS prerelease
+    needs: prepare
+    if: needs.prepare.outputs.should_publish == 'true'
+    runs-on: macos-14
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.prepare.outputs.release_tag }}
+          persist-credentials: false
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.3.14"
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+
+      - name: Verify release tag matches package version
+        shell: bash
+        run: |
+          package_version="$(bun -e 'console.log((await Bun.file("package.json").json()).version)')"
+          expected_tag="v${package_version}"
+          if [ "${RELEASE_TAG}" != "${expected_tag}" ]; then
+            echo "Release tag ${RELEASE_TAG} must match ${expected_tag}." >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Test
+        run: bun run test
+
+      - name: Check i18n catalog
+        run: bun run i18n:check
+
+      - name: Build renderer and processes
+        run: bun run build
+
+      - name: Check bundle externals
+        run: bun run check:bundle
+
+      - name: Build unsigned arm64 DMG
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: bunx electron-builder --mac --arm64 --publish never
+
+      - name: Validate unsigned arm64 artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_version="$(bun -e 'console.log((await Bun.file("package.json").json()).version)')"
+          artifact_name="FixLang-${package_version}-arm64.dmg"
+          artifact_path="release/${artifact_name}"
+          test -s "release/FixLang-${package_version}-arm64.dmg"
+          hdiutil verify "release/FixLang-${package_version}-arm64.dmg"
+
+          mount_path="$(mktemp -d)"
+          cleanup() {
+            hdiutil detach "${mount_path}" -quiet >/dev/null 2>&1 || true
+            rmdir "${mount_path}" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          hdiutil attach "${artifact_path}" -nobrowse -readonly -noverify -mountpoint "${mount_path}" >/dev/null
+          app_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "${mount_path}/FixLang.app/Contents/Info.plist")"
+          if [ "${app_version}" != "${package_version}" ]; then
+            echo "DMG contains FixLang ${app_version}, expected ${package_version}." >&2
+            exit 1
+          fi
+
+          # build.files excludes node_modules from app.asar on the premise that
+          # electron-vite inlines every runtime dependency into out/ (see
+          # check:bundle above). Assert the packed artifact actually matches
+          # that premise: no node_modules made it in, and the renderer output
+          # (whose absence would ship a white-screen app) did.
+          asar_path="${mount_path}/FixLang.app/Contents/Resources/app.asar"
+          test -s "${asar_path}"
+          # Scoped name, and declared in devDependencies, on purpose. The bare
+          # `asar` bin is only hoisted here transitively via electron-builder;
+          # if that ever stops, `bunx asar` silently fetches the *deprecated*
+          # standalone `asar` package from the registry instead of the
+          # @electron/asar this repo actually pins.
+          asar_entries="$(bunx @electron/asar list "${asar_path}")"
+          if grep -q '/node_modules/' <<< "${asar_entries}"; then
+            echo "app.asar contains node_modules entries; build.files must exclude them." >&2
+            exit 1
+          fi
+          if ! grep -q '^/out/renderer/' <<< "${asar_entries}"; then
+            echo "app.asar is missing out/renderer; the packaged app would show a white screen." >&2
+            exit 1
+          fi
+
+          (
+            cd release
+            shasum -a 256 "${artifact_name}" > SHA256SUMS.txt
+          )
+          test -s release/SHA256SUMS.txt
+          grep -Fq "${artifact_name}" release/SHA256SUMS.txt
+
+      - name: Create or resume draft prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if release_is_draft="$(gh release view "${RELEASE_TAG}" --json isDraft --jq '.isDraft' 2>/dev/null)"; then
+            if [ "${release_is_draft}" != "true" ]; then
+              echo "Prerelease ${RELEASE_TAG} is already public; refusing to replace its assets." >&2
+              exit 1
+            fi
+          else
+            gh release create "${RELEASE_TAG}" \
+              --draft \
+              --prerelease \
+              --generate-notes \
+              --title "FixLang ${RELEASE_TAG}"
+          fi
+
+      - name: Upload validated release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          package_version="$(bun -e 'console.log((await Bun.file("package.json").json()).version)')"
+          artifact_name="FixLang-${package_version}-arm64.dmg"
+          remote_assets="$(gh release view "${RELEASE_TAG}" --json assets --jq '.assets[].name')"
+          expected_count=0
+          for expected_asset in "${artifact_name}" SHA256SUMS.txt; do
+            if grep -Fxq "${expected_asset}" <<< "${remote_assets}"; then
+              expected_count=$((expected_count + 1))
+            fi
+          done
+
+          if [ "${expected_count}" -eq 0 ]; then
+            gh release upload "${RELEASE_TAG}" \
+              "release/FixLang-${package_version}-arm64.dmg" \
+              release/SHA256SUMS.txt
+          elif [ "${expected_count}" -eq 2 ]; then
+            echo "Draft ${RELEASE_TAG} already has the validated immutable assets; resuming publication."
+          else
+            echo "Draft ${RELEASE_TAG} has a partial immutable asset set; delete the draft before retrying." >&2
+            exit 1
+          fi
+
+      - name: Verify uploaded release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          package_version="$(bun -e 'console.log((await Bun.file("package.json").json()).version)')"
+          artifact_name="FixLang-${package_version}-arm64.dmg"
+          remote_assets="$(gh release view "${RELEASE_TAG}" --json assets --jq '.assets[].name')"
+          remote_asset_count="$(grep -cve '^$' <<< "${remote_assets}")"
+          if [ "${remote_asset_count}" -ne 2 ]; then
+            echo "Draft prerelease must contain exactly the DMG and SHA256SUMS.txt, found ${remote_asset_count} assets." >&2
+            exit 1
+          fi
+
+          for expected_asset in "${artifact_name}" SHA256SUMS.txt; do
+            if ! grep -Fxq "${expected_asset}" <<< "${remote_assets}"; then
+              echo "Draft prerelease is missing ${expected_asset}." >&2
+              exit 1
+            fi
+          done
+
+          download_path="$(mktemp -d)"
+          cleanup() {
+            rm -rf "${download_path}"
+          }
+          trap cleanup EXIT
+          gh release download "${RELEASE_TAG}" \
+            --pattern "${artifact_name}" \
+            --pattern SHA256SUMS.txt \
+            --dir "${download_path}"
+          (
+            cd "${download_path}"
+            shasum -a 256 -c SHA256SUMS.txt
+          )
+
+      - name: Publish completed prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${RELEASE_TAG}" --draft=false --prerelease
