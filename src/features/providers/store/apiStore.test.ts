@@ -1152,6 +1152,46 @@ describe("apiStoreSchema — settingsCorrect default carries all eight built-in 
 //     byte-for-byte (74756 bytes again), so no other byte of the schema moved
 //
 // Proof in `.scratch/caveman-preset/evidence/05/schema-hash-delta-proof.json`.
+//
+// Updated once more when the resequencing became ONE-SHOT: `ComboPreset`
+// widened from `schemaVersion: 1` to `1 | 2`, and `makeDefaultCombos()` now
+// ships the built-in already at `2`.
+//
+// The widening does NOT reach the schema, and that is the whole safety
+// argument. There is no per-combo schema to widen: `combos` is
+// `{ type: "array" }` — no `items`, no `default` — before and after, verified
+// object-identically, so nothing an old build reads can be REJECTED for
+// carrying a `2` it does not know. Stripping every `default` node from both
+// serialisations makes them byte-identical, which is the direct proof that no
+// schema NODE moved at all. A `default` cannot reject a stored value, so
+// `clearInvalidConfig: true` has nothing to wipe over, and a downgrade to a
+// build that predates version 2 reads `schemaVersion: 2` through
+// `sanitizeCombo` (code, not schema), which simply clamps it — the old build
+// would re-offer the resequencing, which is exactly the old behaviour, not a
+// data loss.
+//
+// The delta is ONE character inside `settingsCorrect.default`, measured in an
+// isolated `git worktree add --detach` at HEAD carrying only this card's
+// `apiStore.ts` (the shared tree holds other agents' live edits — see
+// `.scratch/caveman-preset/evidence/02/schema-hash-contamination-note.md`).
+// The probe reproduced the previous snapshot
+// `7de267d3b16f1a5916aa6562aa6d3ed8ac39b8f640e28327830b34336c121ed1`
+// from an untouched checkout first, which is what makes its post-change number
+// trustworthy:
+//
+//   - the serialised schema is 74748 bytes BOTH before and after — a 0-byte
+//     delta, because `1` and `2` are the same width
+//   - `"schemaVersion"` occurs exactly ONCE in the whole serialisation, at
+//     index 73241, inside `settingsCorrect.default.combos[0]`. `"…":1` goes
+//     1× → 0× and `"…":2` goes 0× → 1×
+//   - `settingsCorrect.properties` is byte-identical before and after; only
+//     `settingsCorrect.default` differs
+//   - substituting that single `2` back to `1` reproduces
+//     `7de267d3b16f1a5916aa6562aa6d3ed8ac39b8f640e28327830b34336c121ed1`
+//     byte-for-byte, so no other byte of the schema moved
+//
+// Proof in `.scratch/caveman-preset/evidence/05-fix/schema-hash-delta-proof.json`
+// and `.../schema-node-analysis.txt`.
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
@@ -1160,7 +1200,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "7de267d3b16f1a5916aa6562aa6d3ed8ac39b8f640e28327830b34336c121ed1",
+      "b78c6b4141412b66cc6cc23ddf8faa464df6373ac5a6cf28bd70f2dd7e44f860",
     );
   });
 });

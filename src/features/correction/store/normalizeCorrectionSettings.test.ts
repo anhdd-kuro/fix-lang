@@ -2532,6 +2532,18 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
       [legacyTriple()[0], legacyTriple()[2]],
     ],
     [
+      // The SHORTENED case above removes the MIDDLE step, so the by-index
+      // preset comparison already rejects it and the `steps.length ===` clause
+      // never gets a say. A strict PREFIX is what actually exercises the
+      // length clause: every step it does have matches the legacy chain at its
+      // own index, so `steps.every(...)` is vacuously true over the two of them
+      // and only the length check stands between this chain and a rewrite.
+      // Two steps is legal config — `COMBO_MIN_STEPS` is 2 — so this is a chain
+      // a user can really be sitting on.
+      "a strict PREFIX of the legacy triple",
+      [legacyTriple()[0], legacyTriple()[1]],
+    ],
+    [
       "the legacy triple with ONE preset swapped",
       [
         legacyTriple()[0],
@@ -2552,7 +2564,11 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
         name: "Perfect prompt",
         hotkey: "",
         steps: [...steps],
-        schemaVersion: 1,
+        // STEPS are byte-identical; the version marker is not part of that
+        // promise. It is stamped on every stored Perfect prompt, matched or
+        // not, so that a later rebuild-to-legacy of THIS combo is recognized
+        // as the user's own chain rather than a stale default.
+        schemaVersion: 2,
       });
       expect(JSON.stringify(readBackCombo?.steps)).toBe(JSON.stringify(steps));
     });
@@ -2567,15 +2583,24 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
     expect(readBack(storedPerfectPrompt({ steps }))?.steps).toEqual(steps);
   });
 
-  it("leaves a legacy-shaped chain alone once a step carries an inline input", () => {
-    // `inlineInput` is free text the model receives — the built-in never had
-    // one, so its presence is by definition the user's own edit.
-    const steps = legacyTriple().map((step, index) =>
-      index === 1 ? { ...step, inlineInput: "Use bullet points." } : step,
-    );
+  // `inlineInput` is free text the model receives — the built-in never had one,
+  // so its presence at ANY index is by definition the user's own edit. Pinning
+  // only the middle step would let a guard narrowed to `index === 1` pass.
+  for (const [label, inlineIndex] of [
+    ["the FIRST", 0],
+    ["the MIDDLE", 1],
+    ["the LAST", 2],
+  ] as const) {
+    it(`leaves a legacy-shaped chain alone once ${label} step carries an inline input`, () => {
+      const steps = legacyTriple().map((step, index) =>
+        index === inlineIndex
+          ? { ...step, inlineInput: "Use bullet points." }
+          : step,
+      );
 
-    expect(readBack(storedPerfectPrompt({ steps }))?.steps).toEqual(steps);
-  });
+      expect(readBack(storedPerfectPrompt({ steps }))?.steps).toEqual(steps);
+    });
+  }
 
   it("leaves the legacy triple alone when it is stored under another combo id", () => {
     const upgraded = combosOf(
@@ -2636,7 +2661,7 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
           presetId: DEFAULT_CAVEMAN_PRESET_ID,
         },
       ],
-      schemaVersion: 1,
+      schemaVersion: 2,
     });
   });
 
@@ -2691,6 +2716,149 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
     const twice = normalizeCorrectionSettings(once);
 
     expect(twice).toEqual(once);
+  });
+
+  // -- The migration is ONE-SHOT, gated on `schemaVersion`. -----------------
+  //
+  // `normalizeCorrectionSettings` runs on the WRITE path as well as the read
+  // path: `updateProfileSetting("settingsCorrect", …)` is the only way the
+  // Combos tab saves. The step predicate is shape-only, so on its own it cannot
+  // tell "stale default nobody ever touched" from "the old chain, rebuilt on
+  // purpose by someone who preferred it" — and it would rewrite the second one
+  // BEFORE IT IS EVER PERSISTED, with no error and no notification, on every
+  // save forever. `schemaVersion` is what ends that: `1` means the combo has
+  // never been offered the resequencing, `2` means it has, and `2` is stamped
+  // on the way through whether or not the steps matched.
+
+  it("marks a stored Perfect prompt as resequenced even when its steps did not match", () => {
+    // Stamping only the matches would leave an edited combo at `1` forever, so
+    // a user who later rebuilt the legacy chain would be rewritten after all —
+    // the same data loss by a longer route.
+    const edited = readBack(
+      storedPerfectPrompt({
+        steps: [legacyTriple()[1], legacyTriple()[0], legacyTriple()[2]],
+      }),
+    );
+
+    expect(edited?.schemaVersion).toBe(2);
+  });
+
+  it("leaves a deliberately rebuilt legacy chain untouched once the combo is marked", () => {
+    // THE regression this marker exists for: a user on the new default who
+    // rebuilds the old order because they preferred it, and saves.
+    const rebuilt = readBack(
+      storedPerfectPrompt({ steps: legacyTriple(), schemaVersion: 2 }),
+    );
+
+    expect(rebuilt).toEqual({
+      id: DEFAULT_PERFECT_PROMPT_COMBO_ID,
+      name: "Perfect prompt",
+      hotkey: "",
+      steps: legacyTriple(),
+      schemaVersion: 2,
+    });
+  });
+
+  it("still leaves that rebuilt chain untouched on a second pass", () => {
+    // The write path re-normalizes on every save, so surviving once is not
+    // enough — it has to survive indefinitely.
+    const once = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [storedPerfectPrompt({ steps: legacyTriple(), schemaVersion: 2 })],
+    });
+    const twice = normalizeCorrectionSettings(once);
+
+    expect(combosOf(twice)[0]?.steps).toEqual(legacyTriple());
+    expect(twice).toEqual(once);
+  });
+
+  it("ships the built-in already marked, so a fresh install is never a migration candidate", () => {
+    const materialized = combosOf(
+      normalizeCorrectionSettings({
+        presets: [storedCorrection],
+        selectedPresetId: "correction",
+        combos: [],
+      }),
+    ).find((combo) => combo.id === DEFAULT_PERFECT_PROMPT_COMBO_ID);
+
+    expect(materialized?.schemaVersion).toBe(2);
+  });
+
+  it("treats an absent schemaVersion as a migration candidate", () => {
+    // A combo written before versioning has no marker at all. That is exactly
+    // the population the resequencing is for, so absent must read as `1` and
+    // NOT as "already handled".
+    const { schemaVersion: _unversioned, ...withoutVersion } =
+      storedPerfectPrompt();
+
+    expect(
+      readBack(withoutVersion)?.steps.map((step) => step.presetId),
+    ).toEqual([
+      DEFAULT_CORRECTION_PRESET_ID,
+      DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+      DEFAULT_CAVEMAN_PRESET_ID,
+    ]);
+  });
+
+  it("preserves a stored schemaVersion 2 on a combo that is not the built-in", () => {
+    // `sanitizeCombo` is where the marker survives the round trip. Clamping it
+    // back to `1` there would silently re-arm the migration on the next read.
+    const mine = combosOf(
+      normalizeCorrectionSettings({
+        presets: [storedCorrection],
+        selectedPresetId: "correction",
+        combos: [
+          storedPerfectPrompt({
+            id: "combo-1",
+            name: "My own chain",
+            schemaVersion: 2,
+          }),
+        ],
+      }),
+    ).find((combo) => combo.id === "combo-1");
+
+    expect(mine?.schemaVersion).toBe(2);
+  });
+
+  it("recognizes the legacy chain by the literal preset ids that shipped", () => {
+    // Spelled out rather than assembled from `DEFAULT_*_PRESET_ID`: these three
+    // strings are what is sitting in users' persisted config right now, and the
+    // migration table has to keep describing THEM even if a constant is later
+    // repointed at a different preset.
+    const stored = storedPerfectPrompt({
+      steps: [
+        { id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-1`, presetId: "correction" },
+        {
+          id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-2`,
+          presetId: "structured-text",
+        },
+        {
+          id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-3`,
+          presetId: "prompt-optimization",
+        },
+      ],
+    });
+
+    expect(readBack(stored)?.steps.map((step) => step.presetId)).toEqual([
+      "correction",
+      "prompt-optimization",
+      "caveman",
+    ]);
+  });
+
+  it("falls back to 1 for a schemaVersion the union does not admit", () => {
+    // An unrecognized marker must not cost the user the combo, and must not be
+    // mistaken for "already resequenced" either.
+    expect(
+      readBack(storedPerfectPrompt({ schemaVersion: 99 }))?.steps.map(
+        (step) => step.presetId,
+      ),
+    ).toEqual([
+      DEFAULT_CORRECTION_PRESET_ID,
+      DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+      DEFAULT_CAVEMAN_PRESET_ID,
+    ]);
   });
 });
 

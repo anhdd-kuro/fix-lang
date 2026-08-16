@@ -181,8 +181,30 @@ export type ComboPreset = {
   outputMode?: "inherit" | "paste" | "popup";
   /** Applies to the FINAL step's output only. */
   markdownOutput?: boolean;
-  schemaVersion: 1;
+  /**
+   * One-shot migration marker, NOT a description of the field layout — every
+   * version below shares the same shape.
+   *
+   * - `1` — written before the Perfect prompt resequencing, or by a build that
+   *   predates versioning at all (absent reads as `1`). The built-in combo at
+   *   this version has never been offered the Caveman chain.
+   * - `2` — has been through `applyPerfectPromptResequencing`. Its steps are
+   *   whatever they are now BY THE USER'S CONSENT, so the resequencing must
+   *   never fire on it again.
+   *
+   * The distinction exists because the resequencing predicate is shape-only and
+   * therefore cannot tell "stale default nobody touched" from "the old chain,
+   * deliberately rebuilt". Without the marker a user who rebuilds the legacy
+   * chain has it silently rewritten on every save, forever.
+   */
+  schemaVersion: ComboSchemaVersion;
 };
+
+/** See `ComboPreset.schemaVersion`. */
+export type ComboSchemaVersion = 1 | 2;
+
+/** Written to every combo that has been through the resequencing migration. */
+const COMBO_SCHEMA_VERSION_RESEQUENCED = 2;
 
 export type CorrectionSettings = {
   presets: CorrectionPreset[];
@@ -239,6 +261,11 @@ const sanitizeComboStep = (
   };
 };
 
+const sanitizeComboSchemaVersion = (raw: unknown): ComboSchemaVersion =>
+  raw === COMBO_SCHEMA_VERSION_RESEQUENCED
+    ? COMBO_SCHEMA_VERSION_RESEQUENCED
+    : 1;
+
 const sanitizeCombo = (raw: unknown): ComboPreset | null => {
   if (!raw || typeof raw !== "object") return null;
 
@@ -271,10 +298,13 @@ const sanitizeCombo = (raw: unknown): ComboPreset | null => {
     steps,
     ...(outputMode !== undefined ? { outputMode } : {}),
     ...(markdownOutput !== undefined ? { markdownOutput } : {}),
-    // Lazy upgrade on read. `1` is the only version the union admits today, so
-    // an absent or unrecognized value normalizes rather than costing the user
-    // the combo; a future version 2 branches here.
-    schemaVersion: 1,
+    // A stored `2` MUST survive: it is the record that this combo has already
+    // been offered the resequencing, and downgrading it here would re-arm the
+    // migration and rewrite a chain the user rebuilt on purpose. Absent or
+    // unrecognized falls to `1` — "written before versioning" is exactly the
+    // state that still needs the migration — rather than costing the user the
+    // whole combo.
+    schemaVersion: sanitizeComboSchemaVersion(candidate.schemaVersion),
   };
 };
 
@@ -555,7 +585,7 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
  * the text, turn it into a prompt, then compress that prompt. Profiles that
  * still store the previous chain (Correction → Context-Aware Structured Text →
  * Prompt optimization) are moved onto this one by
- * `upgradeLegacyPerfectPromptCombo`, but only when they never edited it.
+ * `applyPerfectPromptResequencing`, once, and only when they never edited it.
  *
  * **It ships with NO hotkey, and that is the point.** Every other built-in
  * binding is one AI call; this one is three, on whatever models those presets
@@ -588,20 +618,31 @@ const makeDefaultCombos = (): ComboPreset[] => [
         presetId: DEFAULT_CAVEMAN_PRESET_ID,
       },
     ],
-    schemaVersion: 1,
+    // A fresh install is never a migration candidate: it already ships the
+    // resequenced chain, so marking it `1` would invite the migration to fire
+    // on a combo that has nothing to migrate.
+    schemaVersion: COMBO_SCHEMA_VERSION_RESEQUENCED,
   },
 ];
 
 /**
  * The chain the built-in Perfect prompt combo shipped with before the
  * resequencing above: Correction, Context-Aware Structured Text, Prompt
- * optimization. Kept as its own table rather than read off an old default,
- * because it is history — it must not move again when the current default does.
+ * optimization. It is history — it must not move again when the current default
+ * does.
+ *
+ * Spelled as STRING LITERALS rather than the `DEFAULT_*_PRESET_ID` constants on
+ * purpose. Those constants describe what the app ships TODAY and are free to be
+ * repointed; these three strings are what is sitting in users' persisted config
+ * files right now and can never change. Building this table out of live
+ * constants would let a repoint silently redefine "history" as a chain that
+ * never shipped, which both misses the configs that need migrating and matches
+ * ones that do not.
  */
 const LEGACY_PERFECT_PROMPT_STEP_PRESET_IDS: readonly string[] = [
-  DEFAULT_CORRECTION_PRESET_ID,
-  DEFAULT_STRUCTURED_TEXT_PRESET_ID,
-  DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+  "correction",
+  "structured-text",
+  "prompt-optimization",
 ];
 
 /**
@@ -626,27 +667,42 @@ const isUntouchedLegacyPerfectPromptChain = (steps: ComboStep[]): boolean =>
   );
 
 /**
- * Read-time resequencing of the built-in Perfect prompt combo, for users whose
+ * ONE-SHOT resequencing of the built-in Perfect prompt combo, for users whose
  * profile already stores it — `withDefaultCombos` lets the stored entry win, so
  * without this the new order would only ever reach fresh installs.
  *
- * Narrow on purpose: it fires only on the built-in's own id AND only on the
- * untouched legacy chain, and it changes the STEP LIST only. `name`, `hotkey`,
- * `outputMode`, `markdownOutput` and everything else ride through verbatim,
- * because a user who renamed the row or bound a chord to it has made a decision
- * that a step resequencing has no business revisiting.
+ * One-shot is the whole design, because `normalizeCorrectionSettings` runs on
+ * the WRITE path too (`updateProfileSetting("settingsCorrect", …)`, which is
+ * how the Combos tab saves). A shape-only predicate re-run on every save cannot
+ * tell a stale default from a chain the user deliberately rebuilt, so it would
+ * rewrite the latter before it is ever persisted, silently, forever.
+ * `schemaVersion` is the marker that ends it:
+ *
+ *  - steps are rewritten only at `schemaVersion: 1` AND on the untouched legacy
+ *    signature — everything else rides through verbatim, because a user who
+ *    reordered the chain, renamed the row or bound a chord to it has made a
+ *    decision a step resequencing has no business revisiting;
+ *  - the marker is stamped on EVERY stored Perfect prompt regardless of whether
+ *    its steps matched. Stamping only the matches would leave an edited combo
+ *    at `1` forever, and a later rebuild-to-legacy would then be rewritten —
+ *    the same bug by a longer route.
  */
-const upgradeLegacyPerfectPromptCombo = (combo: ComboPreset): ComboPreset => {
+const applyPerfectPromptResequencing = (combo: ComboPreset): ComboPreset => {
   if (combo.id !== DEFAULT_PERFECT_PROMPT_COMBO_ID) return combo;
-  if (!isUntouchedLegacyPerfectPromptChain(combo.steps)) return combo;
+
+  const marked: ComboPreset = {
+    ...combo,
+    schemaVersion: COMBO_SCHEMA_VERSION_RESEQUENCED,
+  };
+  if (combo.schemaVersion === COMBO_SCHEMA_VERSION_RESEQUENCED) return marked;
+  if (!isUntouchedLegacyPerfectPromptChain(combo.steps)) return marked;
 
   const resequenced = makeDefaultCombos().find(
     (defaultCombo) => defaultCombo.id === DEFAULT_PERFECT_PROMPT_COMBO_ID,
   );
   // Steps come from the default itself, so an upgraded profile and a fresh
-  // install are indistinguishable — and the result no longer matches the legacy
-  // signature, which is what makes a second normalize a no-op.
-  return resequenced ? { ...combo, steps: resequenced.steps } : combo;
+  // install are indistinguishable.
+  return resequenced ? { ...marked, steps: resequenced.steps } : marked;
 };
 
 export const getDefaultCorrectionSettings = (): CorrectionSettings => ({
@@ -731,12 +787,18 @@ export const normalizeCorrectionSettings = (
   const raw = value as Partial<CorrectionSettings> & LegacyCorrectionSettings;
 
   const storedCombos = sanitizeCombos(raw.combos);
-  // Upgrade before the merge, not after: `withDefaultCombos` lets a stored
-  // entry win outright, so a stored Perfect prompt that never sees the
-  // resequencing here would keep the old chain forever. Steps only — the
-  // hotkey claims below still read the STORED combos, unchanged.
+  // Before the merge or after it is EQUIVALENT, not a correctness choice:
+  // `withDefaultCombos` returns the stored entry BY REFERENCE when the id
+  // matches, so a post-merge map would reach the same object, and the
+  // materialized default it would additionally see is already at the
+  // resequenced version and passes through untouched. Before is chosen so the
+  // function only ever receives stored data — which is what it rewrites — and
+  // so the marker cannot be read off a default that was never persisted.
+  //
+  // Either way this touches steps and `schemaVersion` only: the hotkey claims
+  // below read `storedCombos`, whose hotkeys are unchanged.
   const combos = withDefaultCombos(
-    storedCombos.map(upgradeLegacyPerfectPromptCombo),
+    storedCombos.map(applyPerfectPromptResequencing),
   );
 
   // `registerCorrectionShortcut` walks `presets` before `combos` through one
