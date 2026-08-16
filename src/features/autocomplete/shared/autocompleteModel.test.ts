@@ -103,7 +103,8 @@ describe("normalizeAutocompleteSettings", () => {
       model: "",
       dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
       scopeMode: "allowlist",
-      allowedApps: [],      excludedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
+      allowedApps: [],
+      excludedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
       cloudScopeConsent: "",
     });
   });
@@ -142,7 +143,9 @@ describe("normalizeAutocompleteSettings", () => {
       expect(normalizeAutocompleteSettings({}).excludedApps).toEqual([
         ...DEFAULT_EXCLUDED_BUNDLE_IDS,
       ]);
-      expect(normalizeAutocompleteSettings({ allowedApps: [], excludedApps: [] }).excludedApps).toEqual([]);
+      expect(
+        normalizeAutocompleteSettings({ allowedApps: [], excludedApps: [] }).excludedApps,
+      ).toEqual([]);
     });
 
     /**

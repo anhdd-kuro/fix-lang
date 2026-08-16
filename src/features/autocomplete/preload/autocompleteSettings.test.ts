@@ -161,6 +161,11 @@ describe("autocompleteSettings preload boundary", () => {
     it.each([
       ["an unknown scopeMode", { scopeMode: "everywhere", allowedApps: [], excludedApps: [], cloudScopeConsent: "" }],
       ["a non-array excludedApps", { scopeMode: "allowlist", allowedApps: [], excludedApps: "com.apple.mail", cloudScopeConsent: "" }],
+      // The array-shape check and the ELEMENT-type check are two conditions;
+      // a fixture that is simply the wrong type passes the first and exercises
+      // neither `.every`, so each list needs a well-shaped array of junk too.
+      ["a non-string element in allowedApps", { scopeMode: "allowlist", allowedApps: [42], excludedApps: [], cloudScopeConsent: "" }],
+      ["a non-string element in excludedApps", { scopeMode: "allowlist", allowedApps: [], excludedApps: [null], cloudScopeConsent: "" }],
       ["a non-string cloudScopeConsent", { scopeMode: "allowlist", allowedApps: [], excludedApps: [], cloudScopeConsent: true }],
     ])("rejects %s in an otherwise-valid payload", async (_description, scope) => {
       const result = await autocompleteSettingsFeature.setAutocompleteSettings({

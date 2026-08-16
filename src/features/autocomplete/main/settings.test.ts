@@ -11,7 +11,8 @@ const NORMALIZED_SCOPE_DEFAULTS = {
 
 const VALID_SCOPE_PAYLOAD = {
   scopeMode: "allowlist" as const,
-  allowedApps: [],  excludedApps: [] as string[],
+  allowedApps: [] as string[],
+  excludedApps: [] as string[],
   cloudScopeConsent: "",
 };
 
@@ -265,6 +266,11 @@ describe("registerAutocompleteSettingsHandlers", () => {
       ["an unknown scopeMode", { ...VALID_SCOPE_PAYLOAD, scopeMode: "everywhere" }],
       ["a non-string scopeMode", { ...VALID_SCOPE_PAYLOAD, scopeMode: 42 }],
       ["a non-array excludedApps", { ...VALID_SCOPE_PAYLOAD, allowedApps: [], excludedApps: "com.apple.mail" }],
+      // The array-shape check and the ELEMENT-type check are two conditions;
+      // a fixture that is simply the wrong type passes the first and exercises
+      // neither `.every`, so each list needs a well-shaped array of junk too.
+      ["a non-string element in allowedApps", { ...VALID_SCOPE_PAYLOAD, allowedApps: [42] }],
+      ["a non-string element in excludedApps", { ...VALID_SCOPE_PAYLOAD, excludedApps: [null] }],
       ["a non-string cloudScopeConsent", { ...VALID_SCOPE_PAYLOAD, cloudScopeConsent: true }],
     ])("rejects %s in an otherwise-valid payload", async (_description, scope) => {
       const result = await getHandler("set-autocomplete-settings")(undefined, {
