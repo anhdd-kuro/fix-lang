@@ -51,15 +51,15 @@ export const registerUpdateHandlers = (service: UpdateService): void => {
   });
 
   service.subscribe(broadcastState);
+  registerPrereleaseHandlers(service);
 };
 
 /**
- * The pre-release surface `UpdateService` will grow to satisfy (see the
- * "Service: pre-release check and channel detection" and "Service: switch,
- * revert, confirm, marker, logging" cards). Declared narrowly here — rather
- * than importing it from that not-yet-written service — so this handler
- * registration can be built and tested against the exact shape it needs;
- * any concrete service that satisfies this interface can be passed in.
+ * The pre-release half of `UpdateService`, named separately so the pre-release
+ * registrar below states exactly what it touches. `UpdateService`
+ * (`src/main/update/updateService.ts`) declares every member of this type, so
+ * the service already passed to `registerUpdateHandlers` satisfies it — there
+ * is no second service to construct and no second call site to remember.
  */
 export type PrereleaseUpdateService = {
   getPrereleaseState(): PrereleaseState;
@@ -80,13 +80,21 @@ const broadcastPrereleaseState = (state: PrereleaseState): void => {
 };
 
 /**
- * Registers the pre-release (beta channel) IPC surface on its own channel
- * set, broadcasting on `updates:prerelease-state` rather than `updates:state`
- * — kept fully separate from `registerUpdateHandlers` so the tray, which
- * only ever calls `installUpdate`/`checkForUpdates` against the stable
- * `UpdateState`, never has to subscribe to fields it doesn't use.
+ * Registers the pre-release (beta channel) IPC surface on its own channel set,
+ * broadcasting on `updates:prerelease-state` rather than `updates:state` — the
+ * tray only ever calls `installUpdate`/`checkForUpdates` against the stable
+ * `UpdateState` and never has to subscribe to fields it doesn't use.
+ *
+ * Deliberately NOT exported and NOT a second entry point for `src/main`: as an
+ * exported registrar it had zero call sites, so every one of these channels was
+ * unregistered at runtime and Settings -> Updates rejected on mount with
+ * "No handler registered for 'updates:prerelease:get-state'". Nothing caught
+ * it — the preload suite mocks `ipcRenderer.invoke`, which resolves whether or
+ * not a handler exists. Registering from inside `registerUpdateHandlers` means
+ * the separation is in the channel names, where it matters, rather than in a
+ * second call site somebody has to remember to make.
  */
-export const registerPrereleaseUpdateHandlers = (
+const registerPrereleaseHandlers = (
   service: PrereleaseUpdateService,
 ): void => {
   ipcMain.handle("updates:prerelease:get-state", () =>
