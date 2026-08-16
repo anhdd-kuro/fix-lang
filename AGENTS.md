@@ -246,7 +246,7 @@ new Notification({
   - Spawn fresh sub-agent to review the changes before committing.
   - Run linting and testing to verify changes.
   - Update AGENTS.md instructions if needed.
-- Use clear, descriptive function and variable names so the code is understandable without additional explanation. Prioritize readability through meaningful naming, straightforward structure, and small, focused functions. Avoid comments unless they explain non-obvious intent, constraints, or decisions that cannot be expressed clearly in the code itself.
+- Use clear, descriptive function and variable names so the code is understandable without additional explanation. Prioritize readability through meaningful naming, straightforward structure, and small, focused functions.
 
 ⚠️ Ask first:
 
@@ -258,6 +258,7 @@ new Notification({
 - Reintroduce pnpm or bypass preload IPC validation.
 - Use `any` without a why-comment.
 - Bump TypeScript to 7.x until ESLint support lands.
+- Comments to code unless they explain non-obvious intent, constraints, or decisions that cannot be expressed clearly in the code itself.
 
 ## CI
 
