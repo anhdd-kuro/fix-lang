@@ -32,6 +32,29 @@ type UpdateState = {
   totalBytes?: number;
 };
 
+// Mirrors `~/features/update/shared/prerelease`'s `PrereleaseState`, declared
+// locally for the same reason `UpdateState` above is: these are the values a
+// mocked bridge hands the component, not the component's own imports.
+type PrereleaseState = {
+  phase:
+    | "unsupported"
+    | "idle"
+    | "checking"
+    | "up-to-date"
+    | "available"
+    | "downloading"
+    | "installing"
+    | "restart-required"
+    | "error";
+  activeChannel: "stable" | "beta" | "both";
+  offeredVersion?: string;
+  releaseNotes?: string;
+  message?: Message;
+  canSwitch?: boolean;
+  downloadedBytes?: number;
+  totalBytes?: number;
+};
+
 type UpdateApi = {
   getUpdateState: ReturnType<typeof vi.fn>;
   checkForUpdates: ReturnType<typeof vi.fn>;
@@ -40,6 +63,11 @@ type UpdateApi = {
   restartForUpdate: ReturnType<typeof vi.fn>;
   onUpdateStateChanged: ReturnType<typeof vi.fn>;
   openExternalLink: ReturnType<typeof vi.fn>;
+  getPrereleaseState: ReturnType<typeof vi.fn>;
+  checkForPrerelease: ReturnType<typeof vi.fn>;
+  switchToPrerelease: ReturnType<typeof vi.fn>;
+  revertToStable: ReturnType<typeof vi.fn>;
+  onPrereleaseStateChanged: ReturnType<typeof vi.fn>;
   // `SettingUpdates` renders inside `<I18nProvider>`, which reads these off
   // `window.electronAPI` on mount (see `localeState.ts`'s `LocaleBridge`).
   getLocale: ReturnType<typeof vi.fn>;
@@ -51,6 +79,34 @@ const readyState = (phase: UpdateState["phase"] = "idle"): UpdateState => ({
   phase,
   currentVersion: "0.1.0",
 });
+
+/** A Homebrew stable install with the pre-release channel available to it. */
+const prereleaseReady = (
+  phase: PrereleaseState["phase"] = "idle",
+  extra: Partial<PrereleaseState> = {},
+): PrereleaseState => ({
+  phase,
+  activeChannel: "stable",
+  canSwitch: true,
+  ...extra,
+});
+
+const BETA_VERSION = "0.3.0-beta.1";
+
+const QUARANTINE_COMMAND =
+  'xattr -dr com.apple.quarantine "/Applications/FixLang.app"';
+
+/** Occurrences of the quarantine command in rendered text (the static "How to update" reference always holds one). */
+const quarantineCommandCount = (text: string): number =>
+  text.split(QUARANTINE_COMMAND).length - 1;
+
+const STABLE_CASK_TOKEN = "fixlang";
+const BETA_CASK_TOKEN = "fixlang@beta";
+const BOTH_CASKS_PARAMS = {
+  stableToken: STABLE_CASK_TOKEN,
+  betaToken: BETA_CASK_TOKEN,
+  fixCommand: `brew uninstall --cask ${BETA_CASK_TOKEN}`,
+};
 
 const waitForUi = async () => {
   await act(async () => {
@@ -65,7 +121,7 @@ const click = async (element: Element) => {
 };
 
 const buttonNamed = (
-  container: HTMLElement,
+  container: ParentNode,
   label: string,
 ): HTMLButtonElement => {
   const button = [...container.querySelectorAll("button")].find(
@@ -76,6 +132,14 @@ const buttonNamed = (
   }
   return button;
 };
+
+const maybeButtonNamed = (
+  container: ParentNode,
+  label: string,
+): HTMLButtonElement | undefined =>
+  [...container.querySelectorAll("button")].find(
+    (candidate) => candidate.textContent === label,
+  );
 
 const updateActionLabels = [
   tEn("settings.updates.installNow"),
@@ -133,9 +197,21 @@ describe("SettingUpdates", () => {
   let container: HTMLDivElement;
   let root: Root;
   let updateListener: ((state: UpdateState) => void) | undefined;
+  let prereleaseListener: ((state: PrereleaseState) => void) | undefined;
   let localeListener: ((locale: "en" | "ja") => void) | undefined;
   let unsubscribe: ReturnType<typeof vi.fn>;
   let api: UpdateApi;
+
+  /** The pre-release section's own subtree — never the whole panel. */
+  const prereleaseSection = (): HTMLElement => {
+    const section = container.querySelector<HTMLElement>(
+      'section[aria-labelledby="prerelease-updates-heading"]',
+    );
+    if (!section) {
+      throw new Error("Expected the pre-release section to be rendered");
+    }
+    return section;
+  };
 
   const renderWithApi = async (customApi: UpdateApi) => {
     api = customApi;
@@ -160,7 +236,29 @@ describe("SettingUpdates", () => {
     await waitForUi();
   };
 
-  const render = async (state: UpdateState) => {
+  /**
+   * The five pre-release bridge methods, captured the same way the stable
+   * ones are. Split out so the three call sites below all get a bridge that
+   * behaves like the real preload rather than a partial one.
+   */
+  const prereleaseBridge = (state: PrereleaseState) => ({
+    getPrereleaseState: vi.fn().mockResolvedValue(state),
+    checkForPrerelease: vi.fn().mockResolvedValue(state),
+    switchToPrerelease: vi.fn().mockResolvedValue({ success: true }),
+    revertToStable: vi.fn().mockResolvedValue({ success: true }),
+    onPrereleaseStateChanged: vi.fn(
+      (listener: (next: PrereleaseState) => void) => {
+        prereleaseListener = listener;
+        return vi.fn();
+      },
+    ),
+  });
+
+  const renderInLocale = async (
+    locale: "en" | "ja",
+    state: UpdateState,
+    prerelease: PrereleaseState,
+  ) => {
     unsubscribe = vi.fn();
     await renderWithApi({
       getUpdateState: vi.fn().mockResolvedValue(state),
@@ -173,11 +271,21 @@ describe("SettingUpdates", () => {
         updateListener = listener;
         return unsubscribe;
       }),
-      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+      ...prereleaseBridge(prerelease),
+      getLocale: vi.fn().mockResolvedValue({ locale }),
       setLocale: vi.fn().mockResolvedValue({ success: true }),
       onLocaleChanged: vi.fn().mockReturnValue(vi.fn()),
     });
   };
+
+  const render = async (
+    state: UpdateState,
+    prerelease: PrereleaseState = {
+      phase: "unsupported",
+      activeChannel: "stable",
+      canSwitch: false,
+    },
+  ) => renderInLocale("en", state, prerelease);
 
   afterEach(async () => {
     if (root) {
@@ -187,6 +295,7 @@ describe("SettingUpdates", () => {
     }
     container?.remove();
     updateListener = undefined;
+    prereleaseListener = undefined;
     localeListener = undefined;
     vi.restoreAllMocks();
   });
@@ -886,6 +995,11 @@ describe("SettingUpdates", () => {
         updateListener = listener;
         return vi.fn();
       }),
+      ...prereleaseBridge({
+        phase: "unsupported",
+        activeChannel: "stable",
+        canSwitch: false,
+      }),
       getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
       setLocale: vi.fn().mockResolvedValue({ success: true }),
       onLocaleChanged: vi.fn((callback: (locale: "en" | "ja") => void) => {
@@ -932,6 +1046,11 @@ describe("SettingUpdates", () => {
         updateListener = listener;
         return vi.fn();
       }),
+      ...prereleaseBridge({
+        phase: "unsupported",
+        activeChannel: "stable",
+        canSwitch: false,
+      }),
       getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
       setLocale: vi.fn().mockResolvedValue({ success: true }),
       onLocaleChanged: vi.fn((callback: (locale: "en" | "ja") => void) => {
@@ -977,5 +1096,513 @@ describe("SettingUpdates", () => {
       jaExpected,
     );
     expect(jaExpected).not.toBe(enExpected);
+  });
+
+  // -------------------------------------------------------------------------
+  // Pre-release channel — a second, independent flow rendered below the
+  // stable one. Everything below asserts against the RENDERED subtree
+  // (`prereleaseSection()`), never against the component's internals: this
+  // harness has previously reported green while making zero writes.
+  // -------------------------------------------------------------------------
+
+  it("renders the pre-release section below the stable flow, boxed off, with its own check button and result line", async () => {
+    await render(readyState("up-to-date"), prereleaseReady("idle"));
+
+    const section = prereleaseSection();
+    const stableHeading = container.querySelector("#app-updates-heading");
+    expect(stableHeading).not.toBeNull();
+    // Below, not merely elsewhere: the stable flow must still be the first
+    // thing the user reads in this panel.
+    expect(
+      (stableHeading as Element).compareDocumentPosition(section) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // Visually distinct: its own bordered, tinted box rather than another
+    // paragraph in the stable flow's own run of controls.
+    expect(section.className).toContain("border");
+    expect(section.className).toContain("rounded");
+    expect(section.className).toContain("bg-secondary/40");
+    expect(section.textContent).toContain(
+      tEn("settings.updates.prerelease.title"),
+    );
+
+    // Its OWN check button — a different control from the stable one, not a
+    // second rendering of it.
+    const prereleaseCheck = buttonNamed(
+      section,
+      tEn("settings.updates.prerelease.checkButton"),
+    );
+    const stableCheck = buttonNamed(
+      container,
+      tEn("settings.updates.checkButton"),
+    );
+    expect(prereleaseCheck).not.toBe(stableCheck);
+    expect(section.contains(stableCheck)).toBe(false);
+    expectPrimaryStyles(prereleaseCheck);
+
+    // Its own result line, inside its own box.
+    expect(section.textContent).toContain(
+      tEn("settings.updates.prerelease.idleDescription"),
+    );
+  });
+
+  it("leaves the stable flow's status text untouched across a pre-release check", async () => {
+    await render(readyState("up-to-date"), prereleaseReady("idle"));
+
+    const stableStatusBefore =
+      container.querySelector('[role="status"]')?.textContent;
+    expect(stableStatusBefore).toContain(tEn("settings.updates.upToDate"));
+
+    await click(
+      buttonNamed(
+        prereleaseSection(),
+        tEn("settings.updates.prerelease.checkButton"),
+      ),
+    );
+    // A pre-release check never reaches the stable API.
+    expect(api.checkForPrerelease).toHaveBeenCalledTimes(1);
+    expect(api.checkForUpdates).not.toHaveBeenCalled();
+
+    // ...nor does the answer it produces, arriving on the separate broadcast
+    // channel, rewrite a word of the section above.
+    await act(async () => {
+      prereleaseListener?.(
+        prereleaseReady("available", {
+          offeredVersion: BETA_VERSION,
+        }),
+      );
+    });
+
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(
+      stableStatusBefore,
+    );
+    expect(prereleaseSection().textContent).toContain(
+      tEn("settings.updates.prerelease.available", {
+        version: `v${BETA_VERSION}`,
+      }),
+    );
+  });
+
+  it.each([
+    {
+      phase: "unsupported",
+      state: {
+        phase: "unsupported",
+        activeChannel: "stable",
+        canSwitch: false,
+      },
+      expected: tEn("settings.updates.prerelease.unsupported"),
+    },
+    {
+      phase: "idle",
+      state: prereleaseReady("idle"),
+      expected: tEn("settings.updates.prerelease.idleDescription"),
+    },
+    {
+      phase: "checking",
+      state: prereleaseReady("checking"),
+      expected: tEn("settings.updates.prerelease.checking"),
+    },
+    {
+      phase: "up-to-date",
+      state: prereleaseReady("up-to-date"),
+      expected: tEn("settings.updates.prerelease.upToDate"),
+    },
+    {
+      phase: "available",
+      state: prereleaseReady("available", { offeredVersion: BETA_VERSION }),
+      expected: tEn("settings.updates.prerelease.available", {
+        version: `v${BETA_VERSION}`,
+      }),
+    },
+    {
+      phase: "installing",
+      state: prereleaseReady("installing", { offeredVersion: BETA_VERSION }),
+      expected: tEn("settings.updates.prerelease.switchDescription"),
+    },
+    {
+      phase: "restart-required",
+      state: prereleaseReady("restart-required", {
+        offeredVersion: BETA_VERSION,
+      }),
+      expected: tEn("settings.updates.restartRequiredMessage", {
+        targetVersion: `v${BETA_VERSION}`,
+      }),
+    },
+    {
+      phase: "error",
+      state: prereleaseReady("error"),
+      expected: tEn("settings.updates.prerelease.genericError"),
+    },
+  ] satisfies {
+    phase: PrereleaseState["phase"];
+    state: PrereleaseState;
+    expected: string;
+  }[])("renders the $phase pre-release phase", async ({ state, expected }) => {
+    await render(readyState(), state);
+
+    expect(prereleaseSection().textContent).toContain(expected);
+  });
+
+  it("renders pre-release download progress with its own bytes and bar", async () => {
+    await render(
+      readyState(),
+      prereleaseReady("downloading", {
+        offeredVersion: BETA_VERSION,
+        downloadedBytes: 30 * 1024 * 1024,
+        totalBytes: 120 * 1024 * 1024,
+      }),
+    );
+
+    const section = prereleaseSection();
+    const progress = section.querySelector('[role="progressbar"]');
+    expect(progress?.getAttribute("aria-valuenow")).toBe("25");
+    expect(section.querySelector('[role="status"] .text-primary')?.textContent).toBe(
+      tEn("settings.updates.downloadingSize", {
+        downloaded: "30.0 MB",
+        total: "120.0 MB",
+      }),
+    );
+    // Homebrew owns the app from here; nothing in this section may re-arm.
+    expect(
+      maybeButtonNamed(
+        section,
+        tEn("settings.updates.prerelease.checkButton"),
+      ),
+    ).toBeUndefined();
+    expect(
+      maybeButtonNamed(
+        section,
+        tEn("settings.updates.prerelease.switchButton"),
+      ),
+    ).toBeUndefined();
+  });
+
+  it("switches to the pre-release through the switch API — the confirm lives in main", async () => {
+    await render(
+      readyState("up-to-date"),
+      prereleaseReady("available", { offeredVersion: BETA_VERSION }),
+    );
+
+    const section = prereleaseSection();
+    expect(section.textContent).toContain(
+      tEn("settings.updates.prerelease.switchDescription"),
+    );
+    const switchButton = buttonNamed(
+      section,
+      tEn("settings.updates.prerelease.switchButton"),
+    );
+    expect(switchButton.type).toBe("button");
+    expectPrimaryStyles(switchButton);
+
+    await click(switchButton);
+
+    // No dialog is asserted here on purpose: the confirm is a native
+    // `dialog.showMessageBox` owned by main, so the renderer's whole
+    // contract is "the call was made".
+    expect(api.switchToPrerelease).toHaveBeenCalledTimes(1);
+    expect(api.revertToStable).not.toHaveBeenCalled();
+    expect(api.installUpdate).not.toHaveBeenCalled();
+  });
+
+  it("reverts to stable through the revert API from a beta install", async () => {
+    await render(
+      readyState("up-to-date"),
+      prereleaseReady("idle", { activeChannel: "beta" }),
+    );
+
+    const section = prereleaseSection();
+    expect(section.textContent).toContain(
+      tEn("settings.updates.prerelease.channelBetaNote"),
+    );
+    expect(section.textContent).toContain(
+      tEn("settings.updates.prerelease.revertDescription"),
+    );
+    const revert = buttonNamed(
+      section,
+      tEn("settings.updates.prerelease.revertButton"),
+    );
+    expectOutlineStyles(revert);
+
+    await click(revert);
+
+    expect(api.revertToStable).toHaveBeenCalledTimes(1);
+    expect(api.switchToPrerelease).not.toHaveBeenCalled();
+  });
+
+  it("reports a declined switch confirm without turning the section red", async () => {
+    await render(
+      readyState("up-to-date"),
+      prereleaseReady("available", { offeredVersion: BETA_VERSION }),
+    );
+    // A declined confirm is a complete no-op in main — nothing published — so
+    // the returned descriptor is the only trace the user can be shown.
+    api.switchToPrerelease.mockResolvedValueOnce({
+      success: false,
+      error: msg("settings.updates.prerelease.switchCancelledMessage"),
+    });
+
+    await click(
+      buttonNamed(
+        prereleaseSection(),
+        tEn("settings.updates.prerelease.switchButton"),
+      ),
+    );
+
+    const section = prereleaseSection();
+    expect(section.textContent).toContain(
+      tEn("settings.updates.prerelease.switchCancelledMessage"),
+    );
+    expect(section.querySelector('[role="alert"]')).toBeNull();
+    // The offer survives a decline: the user can still press Switch again.
+    expect(
+      maybeButtonNamed(
+        section,
+        tEn("settings.updates.prerelease.switchButton"),
+      ),
+    ).toBeDefined();
+  });
+
+  it("names both cask tokens when a dead switch left them installed at once", async () => {
+    await render(readyState("up-to-date"), {
+      phase: "error",
+      activeChannel: "both",
+      canSwitch: false,
+      message: msg(
+        "settings.updates.prerelease.bothCasksMessage",
+        BOTH_CASKS_PARAMS,
+      ),
+    });
+
+    const section = prereleaseSection();
+    const alert = section.querySelector('[role="alert"]');
+    expect(alert?.textContent).toBe(
+      tEn("settings.updates.prerelease.bothCasksMessage", BOTH_CASKS_PARAMS),
+    );
+    // The explanation is useless unless it names the two tokens and the exact
+    // command that removes one of them.
+    expect(alert?.textContent).toContain(STABLE_CASK_TOKEN);
+    expect(alert?.textContent).toContain(BETA_CASK_TOKEN);
+    expect(alert?.textContent).toContain(BOTH_CASKS_PARAMS.fixCommand);
+    // Ambiguous: neither one-click direction may be offered.
+    expect(
+      maybeButtonNamed(
+        section,
+        tEn("settings.updates.prerelease.switchButton"),
+      ),
+    ).toBeUndefined();
+    expect(
+      maybeButtonNamed(
+        section,
+        tEn("settings.updates.prerelease.revertButton"),
+      ),
+    ).toBeUndefined();
+  });
+
+  it("offers a GitHub download link instead of a one-click switch on a manual install", async () => {
+    await render(
+      readyState("up-to-date"),
+      prereleaseReady("available", {
+        canSwitch: false,
+        offeredVersion: BETA_VERSION,
+      }),
+    );
+
+    const section = prereleaseSection();
+    expect(section.textContent).toContain(
+      tEn("settings.updates.prerelease.manualSwitchInstructions"),
+    );
+    expect(
+      maybeButtonNamed(
+        section,
+        tEn("settings.updates.prerelease.switchButton"),
+      ),
+    ).toBeUndefined();
+
+    const link = section.querySelector("a[href]");
+    expect(link?.textContent).toBe(tEn("settings.updates.downloadButton"));
+    await click(link as Element);
+    expect(api.openExternalLink).toHaveBeenCalledWith(
+      "https://github.com/anhdd-kuro/fix-lang/releases",
+    );
+  });
+
+  it("offers a beta install the GitHub link rather than a switch it cannot run", async () => {
+    // `switchToPrerelease` refuses unless `activeChannel` is exactly
+    // `"stable"`, so a newer beta offered to a beta install has no one-click
+    // path — showing the button anyway would only produce a refusal.
+    await render(
+      readyState("up-to-date"),
+      prereleaseReady("available", {
+        activeChannel: "beta",
+        offeredVersion: BETA_VERSION,
+      }),
+    );
+
+    const section = prereleaseSection();
+    expect(section.textContent).toContain(
+      tEn("settings.updates.prerelease.betaChannelUpgradeHint"),
+    );
+    expect(section.textContent).not.toContain(
+      tEn("settings.updates.prerelease.manualSwitchInstructions"),
+    );
+    expect(
+      maybeButtonNamed(
+        section,
+        tEn("settings.updates.prerelease.switchButton"),
+      ),
+    ).toBeUndefined();
+    expect(section.querySelector("a[href]")?.textContent).toBe(
+      tEn("settings.updates.downloadButton"),
+    );
+    // Reverting stays available — it is the way back out of that build.
+    expect(
+      maybeButtonNamed(
+        section,
+        tEn("settings.updates.prerelease.revertButton"),
+      ),
+    ).toBeDefined();
+  });
+
+  it("sends a beta install to Revert rather than to a manual DMG install", async () => {
+    // `canInstall` is false on a beta install (no stable cask is staged, so
+    // `brew upgrade` would refuse the token) — but this user is on Homebrew,
+    // and the DMG instructions would send them to replace their own bundle.
+    await render(
+      {
+        ...readyState("available"),
+        availableVersion: "0.2.0",
+        canInstall: false,
+      },
+      prereleaseReady("idle", { activeChannel: "beta" }),
+    );
+
+    expect(container.textContent).toContain(
+      tEn("settings.updates.prerelease.stableBlockedByBeta"),
+    );
+    expect(container.textContent).not.toContain(
+      tEn("settings.updates.installInstructions"),
+    );
+    // The static "How to update" reference at the bottom keeps its own copy
+    // of the quarantine command, so this counts rather than excludes: the
+    // offer's own DMG block must not add a second one.
+    expect(quarantineCommandCount(container.textContent ?? "")).toBe(1);
+    // The route the copy points at has to actually be on screen.
+    expect(
+      maybeButtonNamed(
+        prereleaseSection(),
+        tEn("settings.updates.prerelease.revertButton"),
+      ),
+    ).toBeDefined();
+  });
+
+  it("freezes the stable Install button while a channel switch confirm is open", async () => {
+    await render(
+      {
+        ...readyState("available"),
+        availableVersion: "0.2.0",
+        canInstall: true,
+      },
+      prereleaseReady("available", { offeredVersion: BETA_VERSION }),
+    );
+    // Main claims its SHARED `installing` flag before awaiting the confirm,
+    // and that dialog has no parent window — so this panel stays on screen,
+    // still reading `available` / `canInstall: true`, for as long as the
+    // dialog is up.
+    let resolveSwitch: ((result: { success: boolean }) => void) | undefined;
+    api.switchToPrerelease.mockReturnValueOnce(
+      new Promise<{ success: boolean }>((resolve) => {
+        resolveSwitch = resolve;
+      }),
+    );
+
+    await click(
+      buttonNamed(
+        prereleaseSection(),
+        tEn("settings.updates.prerelease.switchButton"),
+      ),
+    );
+
+    const install = buttonNamed(container, tEn("settings.updates.installNow"));
+    expect(install.disabled).toBe(true);
+    await click(install);
+    // Without this, `installUpdate()` resolves `{ success: true }`, publishes
+    // nothing, and the app quits into a channel switch the stable section
+    // never mentioned.
+    expect(api.installUpdate).not.toHaveBeenCalled();
+    expect(
+      buttonNamed(container, tEn("settings.updates.checkButton")).disabled,
+    ).toBe(true);
+
+    resolveSwitch?.({ success: true });
+    await waitForUi();
+  });
+
+  it("keeps the stable Install button live during a pre-release CHECK", async () => {
+    // The other half of the rule above: a check never claims main's
+    // `installing` flag, so freezing the stable section for one would be a
+    // regression of its own.
+    await render(
+      {
+        ...readyState("available"),
+        availableVersion: "0.2.0",
+        canInstall: true,
+      },
+      prereleaseReady("idle"),
+    );
+    let resolveCheck: (() => void) | undefined;
+    api.checkForPrerelease.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveCheck = resolve;
+      }),
+    );
+
+    await click(
+      buttonNamed(
+        prereleaseSection(),
+        tEn("settings.updates.prerelease.checkButton"),
+      ),
+    );
+
+    expect(
+      buttonNamed(container, tEn("settings.updates.installNow")).disabled,
+    ).toBe(false);
+
+    resolveCheck?.();
+    await waitForUi();
+  });
+
+  it("renders the pre-release section in Japanese, derived from the JA catalog", async () => {
+    await renderInLocale(
+      "ja",
+      readyState("up-to-date"),
+      prereleaseReady("available", { offeredVersion: BETA_VERSION }),
+    );
+
+    const section = prereleaseSection();
+    for (const key of [
+      "settings.updates.prerelease.title",
+      "settings.updates.prerelease.switchDescription",
+      "settings.updates.prerelease.switchButton",
+      "settings.updates.prerelease.checkButton",
+    ] as const) {
+      const jaExpected = tJa(key);
+      expect(section.textContent).toContain(jaExpected);
+      // Proves the JA catalog is actually being read rather than falling
+      // back to English — a byte-identical "translation" would pass a
+      // contains-check against either catalog.
+      expect(jaExpected).not.toBe(tEn(key));
+    }
+
+    const availableParams = { version: `v${BETA_VERSION}` };
+    expect(section.textContent).toContain(
+      tJa("settings.updates.prerelease.available", availableParams),
+    );
+    expect(
+      tJa("settings.updates.prerelease.available", availableParams),
+    ).not.toBe(tEn("settings.updates.prerelease.available", availableParams));
+    expect(
+      buttonNamed(section, tJa("settings.updates.prerelease.switchButton")),
+    ).toBeDefined();
   });
 });

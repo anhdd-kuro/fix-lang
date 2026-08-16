@@ -1,15 +1,25 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { msg, type Message } from "~/features/i18n/shared/message";
+import { isMessage, msg, type Message } from "~/features/i18n/shared/message";
 import { Button } from "./Button";
 import CopyButton from "./CopyButton";
 import { Spinner } from "./Spinner";
 import { useI18n } from "../i18n/useI18n";
+import type { PrereleaseState } from "~/features/update/shared/prerelease";
 import type { UpdateState } from "~/features/update/shared/update";
 
 /** Author GitHub profile — opened from the About tab header icon. */
 const GITHUB_PROFILE_URL = "https://github.com/anhdd-kuro";
+
+/**
+ * Where the manual "Download from GitHub" link in the pre-release section
+ * points. `PrereleaseState` carries no per-release URL the way the stable
+ * flow's `openUpdateRelease()` does (main's `releaseUrl` is scoped to the
+ * stable channel only), so a manual pre-release install always lands on the
+ * releases index rather than a specific tag.
+ */
+const GITHUB_RELEASES_URL = "https://github.com/anhdd-kuro/fix-lang/releases";
 
 /**
  * Compact Octocat mark used as the About-tab profile link.
@@ -134,6 +144,16 @@ const initialState: UpdateState = {
   currentVersion: "",
 };
 
+/**
+ * Mirrors `initialState` above, but for the SEPARATE pre-release flow — see
+ * `PrereleaseState`'s doc comment for why this never shares a field, a
+ * broadcast channel, or a piece of local state with the stable flow.
+ */
+const initialPrereleaseState: PrereleaseState = {
+  phase: "unsupported",
+  activeChannel: "stable",
+};
+
 const updateApi = () => window.electronAPI;
 
 const BYTES_PER_MEGABYTE = 1024 * 1024;
@@ -166,6 +186,28 @@ export const SettingUpdates = () => {
   // or a later `run()` failure) so it can never shadow newer information.
   const [mountLoadError, setMountLoadError] = useState<Message | null>(null);
 
+  // SECOND, independent piece of state — see `PrereleaseState`'s doc comment
+  // for why a pre-release check must never write into `state`/`setState`
+  // above. Its own `actionPending` and `mountLoadError` mirror the stable
+  // ones one-for-one, for the same reasons.
+  const [prereleaseState, setPrereleaseState] = useState<PrereleaseState>(
+    initialPrereleaseState,
+  );
+  const [prereleaseActionPending, setPrereleaseActionPending] = useState(false);
+  const [prereleaseMountLoadError, setPrereleaseMountLoadError] =
+    useState<Message | null>(null);
+  // Only a switch or a revert — never a pre-release check — so the stable
+  // section's `isBusy` below can freeze exactly while main holds its shared
+  // `installing` flag, and not a moment longer.
+  const [channelActionPending, setChannelActionPending] = useState(false);
+  // A refusal main REPORTED BACK instead of publishing. A declined confirm is
+  // a complete no-op in the service (nothing published, nothing written,
+  // nothing quit), so this is the ONLY place the user can be told the switch
+  // was cancelled. Neutral rather than an alert: every message that reaches
+  // here describes an action that simply never started.
+  const [prereleaseActionNotice, setPrereleaseActionNotice] =
+    useState<Message | null>(null);
+
   useEffect(() => {
     const api = updateApi();
     let mounted = true;
@@ -194,6 +236,59 @@ export const SettingUpdates = () => {
         if (mounted && !receivedLiveState) {
           setMountLoadError(msg("settings.updates.loadFailed"));
           setState((current) => ({ ...current, phase: "error" }));
+        }
+      });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    const api = updateApi();
+    // Optional-called the same way the rest of the renderer reaches newer
+    // bridge methods (see `App.tsx`'s `onOpenDashboardTab?.()`): this
+    // component also mounts inside the About tab, and a throwing effect
+    // there would tear down the user guide alongside it. A bridge that
+    // cannot answer leaves the section on `unsupported`, which is exactly
+    // what a build without the pre-release channel should show.
+    if (
+      typeof api.onPrereleaseStateChanged !== "function" ||
+      typeof api.getPrereleaseState !== "function"
+    ) {
+      return;
+    }
+
+    let mounted = true;
+    let receivedLivePrereleaseState = false;
+
+    // Same "subscribe before fetch" discipline as the stable effect above,
+    // applied to the separate `updates:prerelease-state` channel.
+    const unsubscribe = api.onPrereleaseStateChanged((next) => {
+      receivedLivePrereleaseState = true;
+      if (mounted) {
+        setPrereleaseActionPending(false);
+        setPrereleaseMountLoadError(null);
+        setPrereleaseActionNotice(null);
+        setPrereleaseState(next);
+      }
+    });
+
+    void api
+      .getPrereleaseState()
+      .then((next) => {
+        if (mounted && !receivedLivePrereleaseState) {
+          setPrereleaseMountLoadError(null);
+          setPrereleaseState(next);
+        }
+      })
+      .catch(() => {
+        if (mounted && !receivedLivePrereleaseState) {
+          setPrereleaseMountLoadError(
+            msg("settings.updates.prerelease.genericError"),
+          );
+          setPrereleaseState((current) => ({ ...current, phase: "error" }));
         }
       });
 
@@ -240,11 +335,67 @@ export const SettingUpdates = () => {
     }
   };
 
+  /**
+   * The pre-release twin of `run()`. Two differences, both load-bearing:
+   *
+   * - a resolved `{ success: false }` carries a `Message` that only exists on
+   *   that result (a declined confirm publishes nothing at all), so the
+   *   descriptor is shown rather than discarded in favour of a bound one;
+   * - `isChannelOperation` marks the two requests — switch and revert — that
+   *   claim main's shared `installing` flag, which is what `isBusy` below
+   *   needs and a plain pre-release check must not trigger.
+   */
+  const runPrerelease = async (
+    request: () => Promise<unknown>,
+    failureMessage: Message,
+    isChannelOperation: boolean,
+  ) => {
+    if (prereleaseActionPending) return;
+
+    setPrereleaseActionPending(true);
+    setPrereleaseActionNotice(null);
+    if (isChannelOperation) setChannelActionPending(true);
+    try {
+      const result = await request();
+      if (
+        typeof result === "object" &&
+        result !== null &&
+        "success" in result &&
+        result.success === false
+      ) {
+        const reported =
+          "error" in result && isMessage(result.error) ? result.error : null;
+        setPrereleaseActionNotice(reported ?? failureMessage);
+      }
+    } catch {
+      // The bridge itself broke — no descriptor came back to prefer.
+      setPrereleaseMountLoadError(null);
+      setPrereleaseState((current) => ({
+        ...current,
+        phase: "error",
+        message: failureMessage,
+      }));
+    } finally {
+      setPrereleaseActionPending(false);
+      if (isChannelOperation) setChannelActionPending(false);
+    }
+  };
+
   const isBusy =
     actionPending ||
     state.phase === "checking" ||
     state.phase === "downloading" ||
-    state.phase === "installing";
+    state.phase === "installing" ||
+    // A channel switch claims main's SHARED `installing` flag before its
+    // confirm dialog awaits, while `UpdateState` still reads
+    // `phase: "available"`, `canInstall: true` — and that dialog has no
+    // parent window, so this panel stays clickable behind it. Without these
+    // three terms the user can press Install, watch `installUpdate()` resolve
+    // `{ success: true }`, publish nothing, and then have the app quit into a
+    // channel switch the stable section never mentioned.
+    channelActionPending ||
+    prereleaseState.phase === "downloading" ||
+    prereleaseState.phase === "installing";
   const latestVersion = displayVersion(state.availableVersion);
   const downloadedBytes = state.downloadedBytes ?? 0;
   // Absent when the release metadata carried no usable asset size; the bar
@@ -257,6 +408,46 @@ export const SettingUpdates = () => {
     downloadTotal === null
       ? null
       : Math.min(100, Math.round((downloadedBytes / downloadTotal) * 100));
+
+  const prereleaseIsBusy =
+    prereleaseActionPending ||
+    prereleaseState.phase === "checking" ||
+    prereleaseState.phase === "downloading" ||
+    prereleaseState.phase === "installing";
+  // Homebrew owns the app from here on; nothing in this section may re-arm.
+  const prereleaseWorking =
+    prereleaseState.phase === "downloading" ||
+    prereleaseState.phase === "installing" ||
+    prereleaseState.phase === "restart-required";
+  const prereleaseVersion = displayVersion(prereleaseState.offeredVersion);
+  const prereleaseDownloadedBytes = prereleaseState.downloadedBytes ?? 0;
+  const prereleaseDownloadTotal =
+    prereleaseState.totalBytes !== undefined && prereleaseState.totalBytes > 0
+      ? prereleaseState.totalBytes
+      : null;
+  const prereleaseDownloadPercent =
+    prereleaseDownloadTotal === null
+      ? null
+      : Math.min(
+          100,
+          Math.round(
+            (prereleaseDownloadedBytes / prereleaseDownloadTotal) * 100,
+          ),
+        );
+  // Exactly `switchToPrerelease`'s own precondition, so the button is offered
+  // only when pressing it can succeed rather than bounce off a refusal.
+  const canSwitchToPrerelease =
+    prereleaseState.phase === "available" &&
+    prereleaseState.canSwitch === true &&
+    prereleaseState.activeChannel === "stable";
+  // Likewise `revertToStable`'s. Offered in every settled phase, not just an
+  // offer: getting off a misbehaving beta is the whole point of the button.
+  const canRevertToStable =
+    prereleaseState.canSwitch === true &&
+    prereleaseState.activeChannel === "beta" &&
+    !prereleaseWorking;
+  const showPrereleaseCheck =
+    prereleaseState.phase !== "unsupported" && !prereleaseWorking;
 
   return (
     <section aria-labelledby="app-updates-heading">
@@ -412,6 +603,16 @@ export const SettingUpdates = () => {
           {state.canInstall ? (
             <p className="mt-1 text-sm text-muted-foreground">
               {t("settings.updates.canInstallDescription")}
+            </p>
+          ) : prereleaseState.activeChannel === "beta" ? (
+            // `canInstall` is false on a beta install for a Homebrew-specific
+            // reason: the stable cask is not staged, so `brew upgrade` would
+            // refuse the token outright. Falling through to the DMG branch
+            // below would tell a Homebrew user to replace their bundle by
+            // hand; their actual route back to stable is the Revert button in
+            // the Pre-release section right below this one.
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t("settings.updates.prerelease.stableBlockedByBeta")}
             </p>
           ) : (
             <>
@@ -642,6 +843,268 @@ export const SettingUpdates = () => {
           </div>
         </>
       )}
+
+      {/* A SECOND, self-contained flow below the stable one, boxed off so the
+          two never read as one control group: its own state, its own check
+          button, its own result line. A pre-release check must never rewrite
+          a word of the section above. */}
+      <section
+        aria-labelledby="prerelease-updates-heading"
+        className="mt-4 rounded border border-control-border bg-secondary/40 p-3"
+      >
+        <h3
+          id="prerelease-updates-heading"
+          className="text-base font-medium text-card-foreground"
+        >
+          {t("settings.updates.prerelease.title")}
+        </h3>
+
+        {prereleaseState.activeChannel === "beta" && (
+          <p className="mt-1 text-sm text-primary">
+            {t("settings.updates.prerelease.channelBetaNote")}
+          </p>
+        )}
+
+        {prereleaseState.phase === "unsupported" && (
+          <p
+            className="mt-1 text-sm text-muted-foreground"
+            role="status"
+            aria-live="polite"
+          >
+            {t("settings.updates.prerelease.unsupported")}
+          </p>
+        )}
+
+        {prereleaseState.phase === "idle" && (
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("settings.updates.prerelease.idleDescription")}
+          </p>
+        )}
+
+        {prereleaseState.phase === "checking" && (
+          <p
+            className="mt-1 text-sm text-muted-foreground"
+            role="status"
+            aria-live="polite"
+          >
+            <Spinner className="mr-2 inline size-4 align-[-2px]" />
+            {t("settings.updates.prerelease.checking")}
+          </p>
+        )}
+
+        {prereleaseState.phase === "up-to-date" && (
+          <p
+            className="mt-1 text-sm text-success"
+            role="status"
+            aria-live="polite"
+          >
+            {t("settings.updates.prerelease.upToDate")}
+          </p>
+        )}
+
+        {prereleaseState.phase === "available" && (
+          <>
+            <p
+              className="mt-1 text-sm text-success"
+              role="status"
+              aria-live="polite"
+            >
+              {t("settings.updates.prerelease.available", {
+                version: prereleaseVersion,
+              })}
+            </p>
+            {prereleaseState.releaseNotes && (
+              <ReleaseNotes notes={prereleaseState.releaseNotes} />
+            )}
+            <p className="mt-1 text-sm text-muted-foreground">
+              {canSwitchToPrerelease
+                ? t("settings.updates.prerelease.switchDescription")
+                : prereleaseState.activeChannel === "beta"
+                  ? t("settings.updates.prerelease.betaChannelUpgradeHint")
+                  : t("settings.updates.prerelease.manualSwitchInstructions")}
+            </p>
+            {/* No one-click path exists here — a manual DMG install has no
+                cask to switch, and the service refuses a beta -> beta switch
+                — so this is a plain link to the releases index rather than a
+                button that would only report a refusal. */}
+            {!canSwitchToPrerelease && (
+              <a
+                href={GITHUB_RELEASES_URL}
+                onClick={(event) => {
+                  event.preventDefault();
+                  void window.electronAPI.openExternalLink(GITHUB_RELEASES_URL);
+                }}
+                className="mt-2 inline-block text-sm text-primary underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {t("settings.updates.downloadButton")}
+              </a>
+            )}
+          </>
+        )}
+
+        {prereleaseState.phase === "downloading" && (
+          <div className="mt-1">
+            <p
+              className="text-sm text-muted-foreground"
+              role="status"
+              aria-live="polite"
+            >
+              <Spinner className="mr-2 inline size-4 align-[-2px]" />
+              {prereleaseDownloadTotal === null ? (
+                t("settings.updates.downloadingUnknownSize", {
+                  version: prereleaseVersion,
+                })
+              ) : (
+                <>
+                  {t("settings.updates.downloadingDescriptionPrefix", {
+                    version: prereleaseVersion,
+                  })}
+                  <span className="text-primary">
+                    {t("settings.updates.downloadingSize", {
+                      downloaded: formatMegabytes(prereleaseDownloadedBytes),
+                      total: formatMegabytes(prereleaseDownloadTotal),
+                    })}
+                  </span>
+                  {t("settings.updates.downloadingDescriptionSuffix")}
+                </>
+              )}
+            </p>
+            <div
+              role="progressbar"
+              aria-label={t("settings.updates.downloadProgressLabel")}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              {...(prereleaseDownloadPercent === null
+                ? {}
+                : { "aria-valuenow": prereleaseDownloadPercent })}
+              className="mt-2 h-1.5 w-full overflow-hidden rounded bg-secondary"
+            >
+              <div
+                className="h-full rounded bg-primary transition-[width] duration-300"
+                style={{ width: `${prereleaseDownloadPercent ?? 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {prereleaseState.phase === "installing" && (
+          <p
+            className="mt-1 text-sm text-muted-foreground"
+            role="status"
+            aria-live="polite"
+          >
+            <Spinner className="mr-2 inline size-4 align-[-2px]" />
+            {prereleaseState.message
+              ? tm(prereleaseState.message)
+              : t("settings.updates.prerelease.switchDescription")}
+          </p>
+        )}
+
+        {/* The Restart button deliberately lives in the stable section only:
+            the service publishes `restart-required` to BOTH states and
+            `restartForUpdate` is gated on the stable phase, so a second
+            button here would be a duplicate of the one already on screen. */}
+        {prereleaseState.phase === "restart-required" && (
+          <p
+            className="mt-1 text-sm text-success"
+            role="status"
+            aria-live="polite"
+          >
+            {prereleaseState.message
+              ? tm(prereleaseState.message)
+              : t("settings.updates.restartRequiredMessage", {
+                  targetVersion: prereleaseVersion,
+                })}
+          </p>
+        )}
+
+        {prereleaseState.phase === "error" && (
+          <p className="mt-1 text-sm text-destructive" role="alert">
+            {prereleaseMountLoadError
+              ? tm(prereleaseMountLoadError)
+              : prereleaseState.message
+                ? tm(prereleaseState.message)
+                : t("settings.updates.prerelease.genericError")}
+          </p>
+        )}
+
+        {canRevertToStable && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            {t("settings.updates.prerelease.revertDescription")}
+          </p>
+        )}
+
+        {(canSwitchToPrerelease || showPrereleaseCheck || canRevertToStable) && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {canSwitchToPrerelease && (
+              <Button
+                onClick={() =>
+                  void runPrerelease(
+                    () => updateApi().switchToPrerelease(),
+                    msg("settings.updates.prerelease.switchErrorMessage"),
+                    true,
+                  )
+                }
+                disabled={prereleaseIsBusy}
+                className="rounded px-3 py-1.5 text-base"
+              >
+                {/* The spinner marks the button that was actually pressed —
+                    every control here shares one disabled flag, so spinning
+                    on that would point at the wrong action. */}
+                {channelActionPending && (
+                  <Spinner className="mr-2 inline size-4 align-[-2px]" />
+                )}
+                {t("settings.updates.prerelease.switchButton")}
+              </Button>
+            )}
+            {showPrereleaseCheck && (
+              <Button
+                variant={canSwitchToPrerelease ? "outline" : "primary"}
+                onClick={() =>
+                  void runPrerelease(
+                    () => updateApi().checkForPrerelease(),
+                    msg("settings.updates.prerelease.genericError"),
+                    false,
+                  )
+                }
+                disabled={prereleaseIsBusy}
+                className="rounded px-3 py-1.5 text-base"
+              >
+                {prereleaseIsBusy && !channelActionPending && (
+                  <Spinner className="mr-2 inline size-4 align-[-2px]" />
+                )}
+                {t("settings.updates.prerelease.checkButton")}
+              </Button>
+            )}
+            {canRevertToStable && (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  void runPrerelease(
+                    () => updateApi().revertToStable(),
+                    msg("settings.updates.prerelease.revertErrorMessage"),
+                    true,
+                  )
+                }
+                disabled={prereleaseIsBusy}
+                className="rounded px-3 py-1.5 text-base text-foreground"
+              >
+                {t("settings.updates.prerelease.revertButton")}
+              </Button>
+            )}
+          </div>
+        )}
+
+        {prereleaseActionNotice && (
+          <p
+            className="mt-2 text-sm text-muted-foreground"
+            role="status"
+            aria-live="polite"
+          >
+            {tm(prereleaseActionNotice)}
+          </p>
+        )}
+      </section>
 
       <div className="mt-4">
         <h3 className="text-base font-medium text-card-foreground">
