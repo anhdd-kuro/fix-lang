@@ -3,6 +3,11 @@ import {
   parsePrereleaseVersion,
   type PrereleaseVersion,
 } from "./prereleaseVersion";
+import {
+  expectedDmgSize,
+  isRecord,
+  normalizeReleaseNotes,
+} from "./releaseAsset";
 
 const GITHUB_LATEST_RELEASE_URL =
   "https://api.github.com/repos/anhdd-kuro/fix-lang/releases/latest";
@@ -19,19 +24,26 @@ const GITHUB_RELEASE_LIST_URL =
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
+/** GitHub's page-size ceiling; also this source's per-request growth bound. */
+const RELEASE_LIST_PAGE_SIZE = 100;
+
 /**
- * Mirrors `updateService.ts`'s `RELEASE_NOTES_MAX_LENGTH`. Duplicated rather
- * than imported: `updateService.ts` already imports `GitHubReleaseSource`
- * from this file, so importing back would cycle. The two stay in sync by
- * being the same literal, not by sharing a symbol — same reasoning as
- * `prereleaseVersion.ts`'s `OrderableVersion` interoperating with
- * `updateService.ts`'s `StableVersion` by shape rather than by import.
+ * Caps total pagination work. This repo ships roughly 30 releases in 15
+ * days, so a single unpaged page of GitHub's default 30 lets a beta two to
+ * three weeks old fall off page one entirely. Three pages of 100 covers
+ * roughly five months of releases at that cadence — comfortably past any
+ * beta still worth offering — while a hard page cap keeps a misbehaving or
+ * malicious `Link` header from turning this into unbounded fetch/parse work
+ * on the main process's event loop (the same process that owns the app's
+ * global hotkeys).
  */
-const RELEASE_NOTES_MAX_LENGTH = 12_000;
+const RELEASE_LIST_MAX_PAGES = 3;
 
 type GitHubResponse = Readonly<{
   ok: boolean;
   status: number;
+  /** Absent in test doubles that don't model pagination; treated as "no next page". */
+  headers?: Readonly<{ get: (name: string) => string | null }>;
   json: () => Promise<unknown>;
 }>;
 
@@ -62,34 +74,14 @@ export type GitHubReleaseSource = Readonly<{
   getLatestPrerelease: () => Promise<PrereleaseCandidate | null>;
 }>;
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-/** Size of the expected, fully uploaded DMG asset, or null when absent. */
-const expectedDmgSize = (
-  assets: unknown,
-  version: PrereleaseVersion,
-): number | null => {
-  if (!Array.isArray(assets)) return null;
-  const expectedName = `FixLang-${version.raw}-arm64.dmg`;
-
-  const asset = assets.find(
-    (candidate) =>
-      isRecord(candidate) &&
-      candidate.name === expectedName &&
-      candidate.state === "uploaded" &&
-      typeof candidate.size === "number" &&
-      Number.isSafeInteger(candidate.size) &&
-      candidate.size > 0,
-  );
-  return isRecord(asset) && typeof asset.size === "number" ? asset.size : null;
-};
-
-const normalizeReleaseNotes = (raw: string | undefined): string | undefined => {
-  const trimmed = raw?.trim();
-  return trimmed && trimmed.length > 0
-    ? trimmed.slice(0, RELEASE_NOTES_MAX_LENGTH)
-    : undefined;
+/** Follows GitHub's `Link` header to the next page's URL, or null past the last page. */
+const nextPageUrl = (linkHeader: string | null): string | null => {
+  if (!linkHeader) return null;
+  for (const part of linkHeader.split(",")) {
+    const match = /<([^>]+)>\s*;\s*rel="next"/.exec(part.trim());
+    if (match) return match[1];
+  }
+  return null;
 };
 
 /**
@@ -157,17 +149,26 @@ export const createGitHubReleaseSource = (
   },
 
   getLatestPrerelease: async (): Promise<PrereleaseCandidate | null> => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let winner: PrereleaseCandidate | null = null;
+    let url: string | null =
+      `${GITHUB_RELEASE_LIST_URL}?per_page=${RELEASE_LIST_PAGE_SIZE}`;
 
-    try {
-      const response = await fetchLatest(GITHUB_RELEASE_LIST_URL, {
-        headers: {
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-        },
-        signal: controller.signal,
-      });
+    for (let page = 0; page < RELEASE_LIST_MAX_PAGES && url; page += 1) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      let response: GitHubResponse;
+
+      try {
+        response = await fetchLatest(url, {
+          headers: {
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+          },
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
 
       if (!response.ok) {
         throw new Error(
@@ -182,7 +183,6 @@ export const createGitHubReleaseSource = (
         throw new Error("GitHub release list response was not an array");
       }
 
-      let winner: PrereleaseCandidate | null = null;
       for (const item of payload) {
         const candidate = validatePrereleaseItem(item);
         if (!candidate) continue;
@@ -193,9 +193,10 @@ export const createGitHubReleaseSource = (
           winner = candidate;
         }
       }
-      return winner;
-    } finally {
-      clearTimeout(timeout);
+
+      url = nextPageUrl(response.headers?.get("link") ?? null);
     }
+
+    return winner;
   },
 });
