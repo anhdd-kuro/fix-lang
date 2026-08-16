@@ -43,7 +43,11 @@ Four guards that each look optional and are not.
 
 A preset declares its own settings through `src/features/correction/shared/presetOptions.ts`. `presetOptionDefinitions(presetId)` returns what that preset declares (`[]` for the seven that declare nothing), values persist on `CorrectionPreset.extraOptions` (`Record<string, string>`), and `withPresetOptions(systemPrompt, preset)` appends the chosen choice's `promptFragment`. Caveman uses it for lite/full/ultra.
 
-Settings renders whatever the registry returns — `presetOptionDefinitions(activePreset.id).length > 0` gates the block and the JSX maps over definitions. **No preset id appears in that JSX.** A new option is a registry entry plus two catalog keys; touching `SettingCorrection.tsx` means the abstraction leaked.
+Settings renders whatever the registry returns — `presetOptionDefinitions(activePreset.id).length > 0` gates the block and the JSX maps over definitions. **No preset id appears in that JSX.** A new option is a registry entry plus its catalog keys — `labelKey`, `hintKey`, and one `labelKey` per choice, in every locale, so two choices costs four keys per locale and Caveman's three costs five. Touching `SettingCorrection.tsx` means the abstraction leaked.
+
+The generality is pinned by a source guard in `SettingCorrection.test.ts`, not by behaviour: with exactly one preset id in the registry, reading the registry and hardcoding `activePreset.id === "caveman"` are indistinguishable to every behavioural test — the substitution was made and the whole suite stayed green.
+
+**Ask AI was deliberately NOT migrated onto this.** `requiresInput` and `markdownOutput` look like the registry's first customers and are not: they stay first-class `CorrectionPreset` fields. `extraOptions` values are opaque strings that only ever reach a `promptFragment` appended to the system prompt — they change what the model is told. `requiresInput` changes CONTROL FLOW: it routes the hotkey to `showAskInputWindow()` instead of the selection grab, and `markdownOutput` picks the renderer. Pushing behavioural switches through a bag of strings means every reader must know which keys are inert text and which reroute the app, which is exactly the interface rewrite this registry exists to avoid. Rule: if it changes what the model is TOLD, it is an option; if it changes what the app DOES, it is a field.
 
 Four traps:
 
