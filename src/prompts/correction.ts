@@ -1,5 +1,6 @@
 import askMarkdown from "./ask.md?raw";
 import businessWritingMarkdown from "./business-writing.md?raw";
+import cavemanMarkdown from "./caveman.md?raw";
 import enhancePromptMarkdown from "./enhance-prompt.md?raw";
 import structuredTextMarkdown from "./structured-text.md?raw";
 import strategicCompactSkillMarkdown from "./summarize.md?raw";
@@ -102,6 +103,7 @@ export const DEFAULT_TRANSLATE_PRESET_ID = "translate";
 export const DEFAULT_BUSINESS_WRITING_PRESET_ID = "business-writing";
 export const DEFAULT_STRUCTURED_TEXT_PRESET_ID = "structured-text";
 export const DEFAULT_ASK_PRESET_ID = "ask";
+export const DEFAULT_CAVEMAN_PRESET_ID = "caveman";
 
 /**
  * The one built-in combo. Lives beside the preset ids because it is addressed
@@ -136,3 +138,19 @@ export const DEFAULT_STRUCTURED_TEXT_PRESET_PROMPT =
   structuredTextMarkdown.trim();
 
 export const DEFAULT_ASK_PRESET_PROMPT = askMarkdown.trim();
+
+export const DEFAULT_CAVEMAN_PRESET_PROMPT = cavemanMarkdown.trim();
+
+/**
+ * Standalone instruction fragments for each Caveman intensity level. A later
+ * card composes one of these onto `DEFAULT_CAVEMAN_PRESET_PROMPT` at request
+ * time — nothing in this file assembles them together.
+ */
+export const DEFAULT_CAVEMAN_LITE_DIRECTIVE = `\
+Lite level: keep articles and full sentences intact. Drop only filler words and hedging. Stay professional but tight.`;
+
+export const DEFAULT_CAVEMAN_FULL_DIRECTIVE = `\
+Full level: drop articles. Sentence fragments are fine. Use short synonyms in place of long phrases. Classic caveman compression.`;
+
+export const DEFAULT_CAVEMAN_ULTRA_DIRECTIVE = `\
+Ultra level: abbreviate common technical terms (DB, auth, config, req, res, fn, impl). Strip conjunctions. Use arrows (→) to show cause and effect. Use one word wherever one word says enough.`;
