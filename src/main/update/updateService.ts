@@ -474,6 +474,37 @@ export const createUpdateService = (
   };
 
   /**
+   * Whether an install or a channel operation claimed the app while a check
+   * was awaiting GitHub. Read at the moment of PUBLISHING, not only at entry.
+   *
+   * Both checks already refuse to START while `installing` is held, and that
+   * is only half of the exclusion: a check already in flight when the
+   * operation begins used to publish its stale answer straight over the live
+   * one. A revert mid-download had its byte progress and spinner replaced by
+   * "a beta is available" while Homebrew was in fact fetching the stable DMG,
+   * and a check landing inside the quit delay made that stale offer the LAST
+   * state the renderer ever saw — verbatim the failure `checkForPrerelease`'s
+   * entry guard says it prevents. The stable side had the mirror image: a
+   * switch started during a check republished `available` with a live Install
+   * button on an app that was already quitting.
+   *
+   * The operation owns both states from the moment it claims the flag, so the
+   * check abandons its answer rather than the operation refusing to start.
+   * Refusing would fail a Revert press for as long as a GitHub scan runs (10 s
+   * per request, up to three of them) — a worse trade for the one direction
+   * that exists to rescue a user from a bad build. This is the SAME single
+   * in-flight flag read a second time; nothing here arbitrates with a second.
+   */
+  const inFlightOperationOwnsState = (): boolean => {
+    if (!installing) return false;
+    options.onLog?.(
+      "info",
+      "Discarding a stale update check: an install or channel operation claimed the app while it was in flight",
+    );
+    return true;
+  };
+
+  /**
    * The bundle is new but this process is not; only a restart fixes that.
    *
    * A channel operation gets this in BOTH states, and that is deliberate:
@@ -522,10 +553,15 @@ export const createUpdateService = (
    */
   const publishIncomplete = (
     channelOperation: ChannelOperation | null = null,
+    /**
+     * Overridden by a rollback, where the default is simply untrue: the
+     * version DID change, onto the channel the operation was leaving.
+     */
+    logMessage = "Homebrew update did not change the app version",
   ): void => {
     installing = false;
     options.pendingInstall?.clear();
-    options.onLog?.("warn", "Homebrew update did not change the app version");
+    options.onLog?.("warn", logMessage);
     if (channelOperation !== null) {
       publishPrerelease({
         phase: "error",
@@ -603,12 +639,15 @@ export const createUpdateService = (
 
     const outcome = reconcilePendingInstall(pending, currentVersion, {
       now: now(),
-      // Resolved against the marker's OWN token, not the upgrader's bound
-      // one — see `watchBackgroundUpgrade`'s doc comment for why that
-      // omission was a routed defect.
-      isTargetInstalled:
-        options.upgrader?.isVersionInstalled(pending.toVersion, pending.caskToken) ??
-        false,
+      // The RESOLVER, never the pre-resolved boolean. A boolean records
+      // neither which version nor which token this side probed, so the
+      // marker's-own-token contract could only be stated in prose — and it
+      // already shipped broken once that way (see `watchBackgroundUpgrade`).
+      // Handing over the probe itself lets reconcile aim it at
+      // `pending.caskToken`, and lets a rollback onto the source channel be
+      // read off the Caskroom rather than guessed from a version's shape.
+      isVersionInstalled: (version, caskToken) =>
+        options.upgrader?.isVersionInstalled(version, caskToken) ?? false,
       runningAppPath: appPath,
     });
     if (outcome === "none") return;
@@ -688,6 +727,21 @@ export const createUpdateService = (
         availableVersion: pending.toVersion,
         message: wrongBundleMessage(pending.toVersion, pending.appPath),
       });
+      return;
+    }
+
+    if (outcome === "rolled-back") {
+      // The helper could not install the target cask and put the source one
+      // back, normally at that channel's CURRENT version rather than the one
+      // the user had. So the version moved while the operation failed — a
+      // user who asked to leave the pre-release channel is still on it, under
+      // a build they never chose. The state it publishes is the same
+      // unfinished-operation error (a rollback is not a completed update
+      // either), but the log line must say which of the two happened.
+      publishIncomplete(
+        channelOperation,
+        `Channel ${channelOperation ?? "operation"} rolled back: now running ${currentVersion} on the cask it started from`,
+      );
       return;
     }
 
@@ -928,6 +982,12 @@ export const createUpdateService = (
         // lets `reconcilePendingInstall` resolve a revert (a version LOWER
         // than the one running) against the right Caskroom.
         caskToken: targetToken,
+        // The SOURCE token, recorded rather than inferred. Without it
+        // reconcile recovers the source channel from `fromVersion`'s shape,
+        // which is a guess about which cask published that version — and the
+        // answer decides whether a rolled-back operation reports as a
+        // rollback or as a completed update.
+        fromCaskToken: currentToken,
       });
     } catch (error) {
       // The switch still runs; only the outcome report is lost.
@@ -983,31 +1043,49 @@ export const createUpdateService = (
   };
 
   /**
-   * Confirms the exact offered version BEFORE anything else runs — no
-   * download, no marker write, no quit — so a declined dialog is a complete
-   * no-op: nothing published, nothing written, nothing quit. `installing` is
-   * still claimed before the confirm await (mirroring `installUpdate`'s own
-   * "claimed before the first await" discipline) so a second click cannot
-   * start a second switch while the dialog is on screen; a decline rolls it
-   * back rather than leaving it stuck.
+   * Claims the shared in-flight flag for a channel operation and guarantees it
+   * is released unless the operation actually handed off to the helper.
+   *
+   * The claim used to be a bare assignment released by an explicit
+   * `installing = false` on each early return, so any collaborator that THREW
+   * between the two left the flag stuck `true` for the lifetime of the
+   * process: every update path a silent no-op, with `installUpdate` still
+   * answering `{success: true}` on each press, until the user quit and
+   * reopened FixLang. That is unreachable through today's wiring only because
+   * the defences sit in OTHER files — `index.ts` catches the confirm dialog,
+   * `homebrew.ts`'s `isDirectory` swallows `statSync` — so either of them
+   * changing would re-arm it here with nothing near the invariant to catch it.
+   *
+   * Released on failure, KEPT on success: a handed-off operation is quitting
+   * the app, and every button must stay inert until it does.
+   *
+   * The explicit releases inside the wrapped bodies stay rather than being
+   * replaced by this. They run BEFORE their failure state is published, so a
+   * listener reacting to that state already sees the app as idle; this is the
+   * guarantee for the paths that never reach one.
    */
-  const switchToPrerelease = async (): Promise<UpdateActionResult> => {
-    if (!prereleaseState.canSwitch || !options.upgrader) {
-      return { success: false, error: SWITCH_ERROR_MESSAGE };
-    }
-    if (installing) {
-      return { success: false, error: SWITCH_ERROR_MESSAGE };
-    }
-    if (
-      prereleaseState.phase !== "available" ||
-      prereleaseState.offeredVersion === undefined ||
-      prereleaseState.activeChannel !== "stable"
-    ) {
-      return { success: false, error: SWITCH_ERROR_MESSAGE };
-    }
-
-    const targetVersion = prereleaseState.offeredVersion;
+  const withInstallingClaim = async (
+    operation: () => Promise<UpdateActionResult>,
+  ): Promise<UpdateActionResult> => {
     installing = true;
+    let handedOff = false;
+    try {
+      const result = await operation();
+      handedOff = result.success;
+      return result;
+    } finally {
+      if (!handedOff) installing = false;
+    }
+  };
+
+  /**
+   * Everything a switch does once `installing` is claimed. Split out purely so
+   * the claim and its release are one `withInstallingClaim` call rather than a
+   * bare assignment paired with a release on every exit.
+   */
+  const runPrereleaseSwitch = async (
+    targetVersion: string,
+  ): Promise<UpdateActionResult> => {
     const confirmed = (await options.confirmPrereleaseSwitch?.(targetVersion)) ?? false;
     if (!confirmed) {
       installing = false;
@@ -1052,23 +1130,38 @@ export const createUpdateService = (
   };
 
   /**
-   * No confirm, ever: reverting to stable is the safe direction, and it is
-   * exactly what a user reaches for when a pre-release build is misbehaving.
+   * Confirms the exact offered version BEFORE anything else runs — no
+   * download, no marker write, no quit — so a declined dialog is a complete
+   * no-op: nothing published, nothing written, nothing quit. `installing` is
+   * still claimed before the confirm await (mirroring `installUpdate`'s own
+   * "claimed before the first await" discipline) so a second click cannot
+   * start a second switch while the dialog is on screen; a decline rolls it
+   * back rather than leaving it stuck, and so now does a rejection.
    */
-  const revertToStable = async (): Promise<UpdateActionResult> => {
+  const switchToPrerelease = async (): Promise<UpdateActionResult> => {
     if (!prereleaseState.canSwitch || !options.upgrader) {
-      return { success: false, error: REVERT_ERROR_MESSAGE };
+      return { success: false, error: SWITCH_ERROR_MESSAGE };
     }
     if (installing) {
-      return { success: false, error: REVERT_ERROR_MESSAGE };
+      return { success: false, error: SWITCH_ERROR_MESSAGE };
     }
-    if (prereleaseState.activeChannel !== "beta") {
-      return { success: false, error: REVERT_ERROR_MESSAGE };
+    if (
+      prereleaseState.phase !== "available" ||
+      prereleaseState.offeredVersion === undefined ||
+      prereleaseState.activeChannel !== "stable"
+    ) {
+      return { success: false, error: SWITCH_ERROR_MESSAGE };
     }
 
-    // Claimed before this await too — the tap probe is slow enough that a
-    // second click would otherwise start a second revert.
-    installing = true;
+    const targetVersion = prereleaseState.offeredVersion;
+    return withInstallingClaim(() => runPrereleaseSwitch(targetVersion));
+  };
+
+  /**
+   * Everything a revert does once `installing` is claimed — same split as
+   * `runPrereleaseSwitch`, for the same reason.
+   */
+  const runRevertToStable = async (): Promise<UpdateActionResult> => {
     const targetVersion = await probeInstallableVersion(true, STABLE_CASK_TOKEN);
     if (targetVersion === null) {
       installing = false;
@@ -1097,6 +1190,27 @@ export const createUpdateService = (
       { currentToken: BETA_CASK_TOKEN, targetToken: STABLE_CASK_TOKEN, targetVersion },
       REVERT_ERROR_MESSAGE,
     );
+  };
+
+  /**
+   * No confirm, ever: reverting to stable is the safe direction, and it is
+   * exactly what a user reaches for when a pre-release build is misbehaving.
+   *
+   * The claim happens before the tap probe — that probe is slow enough that a
+   * second click would otherwise start a second revert.
+   */
+  const revertToStable = async (): Promise<UpdateActionResult> => {
+    if (!prereleaseState.canSwitch || !options.upgrader) {
+      return { success: false, error: REVERT_ERROR_MESSAGE };
+    }
+    if (installing) {
+      return { success: false, error: REVERT_ERROR_MESSAGE };
+    }
+    if (prereleaseState.activeChannel !== "beta") {
+      return { success: false, error: REVERT_ERROR_MESSAGE };
+    }
+
+    return withInstallingClaim(runRevertToStable);
   };
 
   return {
@@ -1134,6 +1248,11 @@ export const createUpdateService = (
             ? await probeInstallableVersion(true)
             : cached,
         );
+
+        // Second read of the same flag — see `inFlightOperationOwnsState`.
+        // Everything below publishes, and by now the app may already be
+        // quitting into an install or a channel operation that owns this state.
+        if (inFlightOperationOwnsState()) return;
 
         // For a cask install Homebrew has the only answer that matters: it is
         // what the button runs. GitHub is the fallback for manual installs,
@@ -1184,6 +1303,17 @@ export const createUpdateService = (
               }),
         });
       } catch (error) {
+        // A failed check must not overwrite a live operation either: an
+        // `error` published over `downloading` is as wrong as an `available`
+        // one, and it would clear caches that operation is still reading.
+        //
+        // UNREACHABLE TODAY, and deliberately kept: the only throw above that
+        // follows an `await` is "No usable update source", which sits AFTER
+        // the guard, and the other one is synchronous with entry. Any `await`
+        // added ahead of a throw re-arms this immediately — which is exactly
+        // how the entry-only guard this whole change fixes came to be wrong.
+        // Its pre-release twin below IS live and IS pinned by a test.
+        if (inFlightOperationOwnsState()) return;
         releaseUrl = null;
         availableDmgSize = null;
         fail(error);
@@ -1280,9 +1410,16 @@ export const createUpdateService = (
       });
 
       try {
-        // Explicit, same reasoning as `probeInstallableVersion`'s doc
-        // comment: the ordinary flow always upgrades the STABLE cask.
-        options.upgrader.startUpgrade(appPath, STABLE_CASK_TOKEN);
+        // No token override, because the two calls above have none either:
+        // `downloadWithProgress` fetches, and reads cached bytes, with the
+        // token this upgrader was BOUND to. `index.ts` binds that to the cask
+        // actually staged, so a hard-coded stable literal here fetched one
+        // cask and then asked `startUpgrade` for a different one — and
+        // `homebrew.ts` re-validates a per-call override against its own
+        // Caskroom entry and throws when it is missing. Unreachable while
+        // `canInstall` above stays false on a beta install, which is exactly
+        // why it must not be spelled as a literal that only looks right.
+        options.upgrader.startUpgrade(appPath);
       } catch (error) {
         installing = false;
         options.onLog?.(
@@ -1409,6 +1546,11 @@ export const createUpdateService = (
         // error here rather than collapse into the same `null` a genuine
         // "nothing published" produces and read as up-to-date.
         const candidate = await options.releaseSource.getLatestPrerelease();
+        // Second read of the same flag — see `inFlightOperationOwnsState`.
+        // The entry guard above only stops a check that STARTS during a
+        // switch or a revert; this one stops the check that was already
+        // waiting on GitHub when the operation began.
+        if (inFlightOperationOwnsState()) return prereleaseState;
         if (
           candidate !== null &&
           comparePrereleaseOrder(candidate.version, current) > 0
@@ -1432,6 +1574,10 @@ export const createUpdateService = (
           "warn",
           `Pre-release check failed (${safeErrorName(error)})`,
         );
+        // Logged first, published second: the failure is worth recording even
+        // when an operation has taken this state over and the message is
+        // dropped.
+        if (inFlightOperationOwnsState()) return prereleaseState;
         publishPrerelease({
           phase: "error",
           activeChannel,

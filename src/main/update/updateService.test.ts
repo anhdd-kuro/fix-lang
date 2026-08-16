@@ -118,7 +118,12 @@ const createService = (
     if (overrides.activeChannel !== undefined) return overrides.activeChannel;
     return overrides.canInstall ? "stable" : null;
   });
-  const startUpgrade = vi.fn(overrides.startUpgrade);
+  // Typed with the REAL `HomebrewUpgrader` signatures, not the zero-argument
+  // shape the fixtures happen to pass: the cask token these two are called
+  // with is part of the contract, and a mock that cannot see it cannot pin it.
+  const startUpgrade = vi.fn<
+    (appPath?: string | null, caskToken?: string) => void
+  >(overrides.startUpgrade);
   const getInstallableVersion = vi.fn<() => Promise<string | null>>(() =>
     Promise.resolve(
       overrides.installableVersion === undefined
@@ -134,7 +139,7 @@ const createService = (
         version,
       ),
   );
-  const downloadUpdate = vi.fn<() => Promise<void>>(
+  const downloadUpdate = vi.fn<(caskToken?: string) => Promise<void>>(
     overrides.downloadUpdate ?? (() => Promise.resolve()),
   );
   const getDownloadedBytes = vi.fn<(version: string) => number | null>(
@@ -412,8 +417,11 @@ describe("Homebrew one-click install", () => {
 
     expect(startUpgrade).toHaveBeenCalledTimes(1);
     // The helper reopens this exact bundle instead of resolving the bundle id,
-    // which can point at another copy of FixLang.
-    expect(startUpgrade).toHaveBeenCalledWith(INSTALLED_APP_PATH, STABLE_CASK_TOKEN);
+    // which can point at another copy of FixLang. No token argument: the
+    // upgrader's own bound token is the one this flow downloaded with, and
+    // overriding it with a literal is what "hands the helper the same cask
+    // token it downloaded with" exists to prevent.
+    expect(startUpgrade).toHaveBeenCalledWith(INSTALLED_APP_PATH);
     expect(pendingInstall.write).toHaveBeenCalledWith({
       fromVersion: "0.1.0",
       toVersion: "0.2.0",
@@ -985,6 +993,26 @@ describe("downloading before quitting", () => {
     return harness;
   };
 
+  /**
+   * `downloadUpdate` and `getDownloadedBytes` are called with no token, so
+   * they use whichever cask the upgrader was bound to; `startUpgrade` used to
+   * override that with a hard-coded stable literal. `homebrew.ts` validates a
+   * per-call override against ITS OWN Caskroom entry and throws when it is
+   * absent, so a beta-bound upgrader would have fetched one cask and then
+   * failed to upgrade a different one. Whatever token this flow uses, it must
+   * be the SAME one end to end — `undefined` on both sides means "the
+   * upgrader's own bound token", which is the only honest answer here.
+   */
+  it("hands the helper the same cask token it downloaded with", async () => {
+    const { service, startUpgrade, downloadUpdate } = await ready();
+
+    await expect(service.installUpdate()).resolves.toEqual({ success: true });
+
+    const downloadToken = downloadUpdate.mock.calls[0]?.[0];
+    const upgradeToken = startUpgrade.mock.calls[0]?.[1];
+    expect(upgradeToken).toBe(downloadToken);
+  });
+
   it("downloads first and only then hands over to the helper", async () => {
     const order: string[] = [];
     const { service, startUpgrade, quitApp } = await ready({
@@ -1124,7 +1152,9 @@ describe("restarting into an installed update", () => {
    * that older copy comes up reporting a completed update.
    */
   describe("when a different copy of FixLang reopened", () => {
-    const strayLaunch = (onLog?: ReturnType<typeof vi.fn>) =>
+    const strayLaunch = (
+      onLog?: (level: "info" | "warn" | "error", message: string) => void,
+    ) =>
       createService({
         canInstall: true,
         currentVersion: "0.1.5",
@@ -1462,6 +1492,65 @@ describe("reconciling a marker against its OWN cask token", () => {
     expect(pendingInstall.clear).toHaveBeenCalledTimes(1);
     expect(cancelPoll).toHaveBeenCalledTimes(1);
   });
+
+  /**
+   * `reconcilePendingInstall` accepts either a Caskroom RESOLVER or a
+   * pre-resolved boolean, and the boolean discards the very thing the
+   * contract is about — it records neither which version nor which token the
+   * caller probed, so "did the version land on the target channel" can only
+   * fall back to the version's SHAPE. Passing the resolver lets the Caskroom
+   * answer instead, which is what survives a channel publishing a version
+   * whose shape belongs to the other one.
+   */
+  it("reads the Caskroom, not the version's shape, to tell a landed switch from a rollback", () => {
+    const { service, pendingInstall } = createService({
+      canInstall: true,
+      // Stable-shaped, but staged under the BETA token: the switch landed.
+      currentVersion: "0.2.0",
+      betaInstalledVersions: ["0.2.0"],
+      pending: {
+        fromVersion: "0.1.0",
+        toVersion: "0.2.0-beta.1",
+        startedAt: STALE,
+        appPath: INSTALLED_APP_PATH,
+        caskToken: BETA_CASK_TOKEN,
+      },
+    });
+
+    // With only a boolean to go on, the shape fallback reads "0.2.0" as
+    // stable, calls the switch rolled back, and reports an error into the
+    // Pre-release section for an operation that actually worked.
+    expect(service.getPrereleaseState().phase).toBe("up-to-date");
+    expect(service.getState()).toMatchObject({ phase: "up-to-date" });
+    expect(pendingInstall.clear).toHaveBeenCalledTimes(1);
+  });
+
+  it("names a rollback as a rollback in the log rather than an unchanged version", () => {
+    const onLog = vi.fn();
+    createService({
+      canInstall: true,
+      onLog,
+      // Moved onto the channel the revert was LEAVING: the helper failed and
+      // reinstalled the beta cask at its current version.
+      currentVersion: "0.3.0-beta.4",
+      pending: {
+        fromVersion: "0.2.0-beta.1",
+        toVersion: "0.1.9",
+        startedAt: STALE,
+        appPath: INSTALLED_APP_PATH,
+        caskToken: STABLE_CASK_TOKEN,
+      },
+    });
+
+    // "did not change the app version" is false here — it changed, just onto
+    // the wrong channel, which is the one thing a reader must not be told
+    // wrongly when diagnosing a stuck pre-release install.
+    const logged = onLog.mock.calls.map(([, message]) => String(message));
+    expect(logged).toContainEqual(expect.stringContaining("rolled back"));
+    expect(logged).not.toContainEqual(
+      expect.stringContaining("did not change the app version"),
+    );
+  });
 });
 
 /**
@@ -1569,6 +1658,10 @@ describe("switching to a pre-release build", () => {
       startedAt: NOW,
       appPath: INSTALLED_APP_PATH,
       caskToken: BETA_CASK_TOKEN,
+      // Recorded rather than inferred: reconcile recovers the source channel
+      // from `fromVersion`'s shape when this is absent, which is a guess
+      // about which cask published that version.
+      fromCaskToken: STABLE_CASK_TOKEN,
     });
     const logText = JSON.stringify(onLog.mock.calls);
     expect(logText).toContain(STABLE_CASK_TOKEN);
@@ -1706,6 +1799,7 @@ describe("reverting to stable", () => {
       startedAt: NOW,
       appPath: INSTALLED_APP_PATH,
       caskToken: STABLE_CASK_TOKEN,
+      fromCaskToken: BETA_CASK_TOKEN,
     });
   });
 
@@ -1838,6 +1932,200 @@ describe("mutual exclusion between a stable install and a channel switch", () =>
     expect(result).toEqual({ success: true });
     expect(startUpgrade).not.toHaveBeenCalled();
     expect(quitApp).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The entry guards above only stop a check that STARTS during a channel
+ * operation. A check already awaiting GitHub when the operation begins used
+ * to publish its stale answer straight over the live one, in both directions
+ * and on both states — the same single `installing` flag, read a second time
+ * at the moment of publishing rather than only at entry.
+ */
+describe("a check already in flight when a channel operation starts", () => {
+  /** Beta install with a stable version to fall back to, ready to revert. */
+  const readyToRevert = (
+    overrides: Parameters<typeof createService>[0] = {},
+  ): ReturnType<typeof createService> & {
+    resolveCandidate: (candidate: PrereleaseCandidate | null) => void;
+  } => {
+    let resolveCandidate: ((candidate: PrereleaseCandidate | null) => void) | undefined;
+    const harness = createService({
+      canInstall: true,
+      activeChannel: "beta",
+      currentVersion: "0.2.0-beta.1",
+      installableVersion: "0.1.9",
+      getLatestPrerelease: () =>
+        new Promise<PrereleaseCandidate | null>((resolve) => {
+          resolveCandidate = resolve;
+        }),
+      ...overrides,
+    });
+    return {
+      ...harness,
+      resolveCandidate: (candidate) => resolveCandidate?.(candidate),
+    };
+  };
+
+  it("drops a stale pre-release answer rather than wiping a revert's live download progress", async () => {
+    const { service, resolveCandidate } = readyToRevert({
+      // Never resolves: the revert owns the state for the rest of the test.
+      downloadUpdate: () => new Promise<void>(() => undefined),
+    });
+
+    const checking = service.checkForPrerelease();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(service.getPrereleaseState().phase).toBe("checking");
+
+    void service.revertToStable();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(service.getPrereleaseState().phase).toBe("downloading");
+
+    resolveCandidate(prereleaseCandidate("0.3.0-beta.9"));
+    await checking;
+
+    // Unfixed this reads `{phase: "available", offeredVersion:
+    // "0.3.0-beta.9"}` — byte progress and spinner gone, a beta announced,
+    // while Homebrew is in fact fetching the stable DMG.
+    expect(service.getPrereleaseState()).toMatchObject({
+      phase: "downloading",
+      offeredVersion: "0.1.9",
+    });
+  });
+
+  it("drops a stale pre-release answer that lands inside the quit delay", async () => {
+    const phases: string[] = [];
+    const { service, quitApp, resolveCandidate } = readyToRevert();
+    service.subscribeToPrereleaseState((next) => phases.push(next.phase));
+
+    const checking = service.checkForPrerelease();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(await service.revertToStable()).toEqual({ success: true });
+    expect(quitApp).toHaveBeenCalledTimes(1);
+
+    resolveCandidate(prereleaseCandidate("0.3.0-beta.9"));
+    await checking;
+
+    // Unfixed the sequence ends `[…, "installing", "available"]`, so the
+    // stale offer is the LAST thing the renderer sees before the app quits.
+    expect(phases).toEqual(["checking", "downloading", "installing"]);
+    expect(service.getPrereleaseState()).toMatchObject({
+      phase: "installing",
+      offeredVersion: "0.1.9",
+    });
+  });
+
+  /**
+   * A check that FAILS is just as capable of overwriting a live operation as
+   * one that succeeds: an `error` published over `downloading` replaces the
+   * progress bar with "could not check", on an app that is downloading
+   * perfectly well.
+   */
+  it("drops a stale pre-release failure rather than erroring over a live revert", async () => {
+    let rejectCandidate: ((reason: Error) => void) | undefined;
+    const { service } = readyToRevert({
+      getLatestPrerelease: () =>
+        new Promise<PrereleaseCandidate | null>((_resolve, reject) => {
+          rejectCandidate = reject;
+        }),
+      downloadUpdate: () => new Promise<void>(() => undefined),
+    });
+
+    const checking = service.checkForPrerelease();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    void service.revertToStable();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(service.getPrereleaseState().phase).toBe("downloading");
+
+    rejectCandidate?.(new Error("GitHub said 403"));
+    await checking;
+
+    expect(service.getPrereleaseState()).toMatchObject({
+      phase: "downloading",
+      offeredVersion: "0.1.9",
+    });
+  });
+
+  it("drops a stale stable answer rather than re-arming Install on a quitting app", async () => {
+    let resolveRelease: ((release: unknown) => void) | undefined;
+    const candidate = prereleaseCandidate("0.2.0-beta.3");
+    const { service, quitApp } = createService({
+      canInstall: true,
+      activeChannel: "stable",
+      getLatestPrerelease: () => Promise.resolve(candidate),
+      getLatestRelease: () =>
+        new Promise<unknown>((resolve) => {
+          resolveRelease = resolve;
+        }),
+    });
+    await service.checkForPrerelease();
+
+    const checking = service.checkForUpdates();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(service.getState().phase).toBe("checking");
+
+    expect(await service.switchToPrerelease()).toEqual({ success: true });
+    expect(quitApp).toHaveBeenCalledTimes(1);
+
+    resolveRelease?.(stableRelease());
+    await checking;
+
+    // Unfixed the ordinary Updates section flips to "0.2.0 is available"
+    // with a live Install button, on an app that is quitting into a switch.
+    expect(service.getState()).toMatchObject({
+      phase: "checking",
+      canInstall: true,
+    });
+    expect(service.getState()).not.toMatchObject({ phase: "available" });
+  });
+});
+
+/**
+ * The claim used to be a bare assignment released by an explicit statement on
+ * each early return, so a collaborator that THREW between the two left the
+ * flag stuck `true` for the lifetime of the process: every update path a
+ * silent no-op, with `installUpdate` still answering `{success: true}`.
+ * Unreachable through today's wiring only because the defences live in other
+ * files (`index.ts` catches the dialog, `homebrew.ts` swallows `statSync`).
+ */
+describe("releasing the in-flight claim when a collaborator throws", () => {
+  it("does not strand the flag when the confirm dialog rejects", async () => {
+    const candidate = prereleaseCandidate("0.2.0-beta.3");
+    const { service, releaseSource } = createService({
+      canInstall: true,
+      activeChannel: "stable",
+      getLatestPrerelease: () => Promise.resolve(candidate),
+      confirmPrereleaseSwitch: () => Promise.reject(new Error("dialog blew up")),
+    });
+    await service.checkForPrerelease();
+    releaseSource.getLatestPrerelease.mockClear();
+
+    await expect(service.switchToPrerelease()).rejects.toThrow("dialog blew up");
+
+    // A stranded flag turns every guarded path into a silent no-op: the
+    // check returns its old state without ever asking GitHub.
+    await service.checkForPrerelease();
+    expect(releaseSource.getLatestPrerelease).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not strand the flag when the Caskroom probe throws mid-revert", async () => {
+    const { service, detectActiveCaskChannel, startChannelSwitch } = createService({
+      canInstall: true,
+      activeChannel: "beta",
+      currentVersion: "0.2.0-beta.1",
+      installableVersion: "0.1.9",
+    });
+    detectActiveCaskChannel.mockImplementationOnce(() => {
+      throw new Error("Caskroom unreadable");
+    });
+
+    await expect(service.revertToStable()).rejects.toThrow("Caskroom unreadable");
+
+    // The Caskroom is readable again; a second press must be able to run.
+    expect(await service.revertToStable()).toEqual({ success: true });
+    expect(startChannelSwitch).toHaveBeenCalledTimes(1);
   });
 });
 
