@@ -6,10 +6,12 @@ import { mainT } from "~/main/i18n";
 import { logger } from "~/main/logging/logService";
 import { createGitHubReleaseSource } from "./githubReleaseSource";
 import {
+  BETA_CASK_TOKEN,
   buildChannelSwitchScript,
   createHomebrewUpgrader,
   detectActiveCaskChannel,
   findBrewBinary,
+  STABLE_CASK_TOKEN,
   type ActiveCaskChannel,
   type CaskToken,
 } from "./homebrew";
@@ -94,6 +96,26 @@ export const initializeUpdateService = (): UpdateService => {
     );
   };
 
+  /**
+   * The upgrader is bound to the token that is ACTUALLY staged, not to the
+   * stable default.
+   *
+   * `createHomebrewUpgrader`'s `canInstall` is a probe of the BOUND token's
+   * Caskroom, and `getInstallableVersion`/`downloadUpdate` both gate on it
+   * regardless of the per-call token they are handed. A genuine beta install
+   * has no `Caskroom/fixlang` entry, so a stable-bound upgrader reported
+   * `canInstall: false` there — and `revertToStable`, whose whole population
+   * is beta users, got `null` from its stable probe (resolved, never thrown,
+   * so nothing was even logged) and a `downloadUpdate` that threw. `canSwitch`
+   * reads the Caskroom rather than that flag, so the Revert button was live
+   * and failed every single time.
+   *
+   * Read once at startup: the only way the active channel changes is a switch
+   * or a revert, and both quit the app.
+   */
+  const boundCaskToken: CaskToken =
+    probeActiveCaskChannel() === "beta" ? BETA_CASK_TOKEN : STABLE_CASK_TOKEN;
+
   // One dialog at a time, same discipline as `secretGuardDialog.ts`'s
   // `confirmSecretSend`: a reentrant call while one is already on screen
   // fails CLOSED (refuses) rather than stacking a second modal.
@@ -144,6 +166,7 @@ export const initializeUpdateService = (): UpdateService => {
     upgrader: createHomebrewUpgrader({
       isInstalledApp,
       logFilePath: path.join(userDataPath, "logs", "homebrew-update.log"),
+      caskToken: boundCaskToken,
     }),
     pendingInstall: createPendingInstallStore(
       path.join(userDataPath, "pending-update.json"),

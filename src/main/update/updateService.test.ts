@@ -1450,7 +1450,10 @@ describe("reconciling a marker against its OWN cask token", () => {
       });
 
     tickPoll();
-    expect(service.getState().phase).toBe("installing");
+    // Observed on the PRE-RELEASE state: this marker was written by a channel
+    // switch, and that is the state such an operation reports into. What this
+    // test pins is the token the poll probes, not which state it lands on.
+    expect(service.getPrereleaseState().phase).toBe("installing");
 
     betaInstalledVersions.add("0.2.0-beta.2");
     tickPoll();
@@ -1586,6 +1589,90 @@ describe("switching to a pre-release build", () => {
     expect(confirmPrereleaseSwitch).not.toHaveBeenCalled();
     expect(startChannelSwitch).not.toHaveBeenCalled();
   });
+
+  /**
+   * The tap-lag gate CLAUDE.md marks never-delete, for the channel a switch
+   * actually installs. GitHub publishes a beta before the tap syncs
+   * `fixlang@beta` (cron, up to six hours), and the stable flow's own gate
+   * cannot cover this path: it reads `state.availableVersion`, which is
+   * always a stable version, and probes the stable token.
+   */
+  it("refuses to quit for a beta the pre-release tap cannot install yet", async () => {
+    const {
+      service,
+      getInstallableVersion,
+      downloadUpdate,
+      startChannelSwitch,
+      quitApp,
+    } = await readyToSwitch({ installableVersion: "0.2.0-beta.1" });
+
+    const result = await service.switchToPrerelease();
+
+    expect(result.success).toBe(false);
+    expect(getInstallableVersion).toHaveBeenCalledWith(true, BETA_CASK_TOKEN);
+    expect(downloadUpdate).not.toHaveBeenCalled();
+    expect(startChannelSwitch).not.toHaveBeenCalled();
+    expect(quitApp).not.toHaveBeenCalled();
+    expect(service.getPrereleaseState()).toMatchObject({
+      phase: "error",
+      message: msg("settings.updates.tapBehindMessage", {
+        targetVersion: "0.2.0-beta.3",
+        offeredVersion: "0.2.0-beta.1",
+      }),
+    });
+  });
+
+  /**
+   * `activeChannel` is a CACHED display value and FixLang stays open for
+   * days. A user who changes channel in a terminal leaves the panel
+   * describing a cask that is no longer staged; committing that stale token
+   * to the helper uninstalls a cask that is not installed, and the helper
+   * exits without reopening the app it already quit.
+   */
+  it("refuses a switch when the live Caskroom no longer matches the offered channel", async () => {
+    const harness = await readyToSwitch();
+    harness.detectActiveCaskChannel.mockReturnValue("both");
+
+    const result = await harness.service.switchToPrerelease();
+
+    expect(result.success).toBe(false);
+    expect(harness.downloadUpdate).not.toHaveBeenCalled();
+    expect(harness.startChannelSwitch).not.toHaveBeenCalled();
+    expect(harness.quitApp).not.toHaveBeenCalled();
+    expect(harness.pendingInstall.write).not.toHaveBeenCalled();
+    // The refusal republishes what was actually probed, so the badge stops
+    // claiming a channel the user is no longer on.
+    expect(harness.service.getPrereleaseState()).toMatchObject({
+      phase: "error",
+      activeChannel: "both",
+      canSwitch: false,
+    });
+  });
+
+  /**
+   * The stable check's `installing` guard exists because "a check would
+   * overwrite the state with `available` and re-arm a button that must stay
+   * inert" — the pre-release copy dropped it, so a check during a switch
+   * wipes the live download progress and can publish `available` moments
+   * before `quitApp` fires.
+   */
+  it("refuses a pre-release check while a switch is downloading", async () => {
+    const { service, releaseSource } = await readyToSwitch({
+      downloadedBytes: 512,
+      // Never resolves: the switch owns the state for the whole test.
+      downloadUpdate: () => new Promise<void>(() => undefined),
+    });
+    releaseSource.getLatestPrerelease.mockClear();
+
+    void service.switchToPrerelease();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(service.getPrereleaseState().phase).toBe("downloading");
+
+    const state = await service.checkForPrerelease();
+
+    expect(state.phase).toBe("downloading");
+    expect(releaseSource.getLatestPrerelease).not.toHaveBeenCalled();
+  });
 });
 
 describe("reverting to stable", () => {
@@ -1647,6 +1734,61 @@ describe("reverting to stable", () => {
     expect(result.success).toBe(false);
     expect(startChannelSwitch).not.toHaveBeenCalled();
   });
+
+  /**
+   * `getInstallableVersion` resolves null rather than throwing when brew
+   * cannot be asked, so `probeInstallableVersion`'s catch never runs: the
+   * refusal used to publish nothing and log nothing, leaving a dead button
+   * with no trace of why.
+   */
+  it("says on screen and in the log why a revert could not start", async () => {
+    const onLog = vi.fn();
+    const { service } = createService({
+      canInstall: true,
+      activeChannel: "beta",
+      currentVersion: "0.2.0-beta.1",
+      installableVersion: null,
+      onLog,
+    });
+
+    await service.revertToStable();
+
+    expect(service.getPrereleaseState()).toMatchObject({
+      phase: "error",
+      message: msg("settings.updates.prerelease.revertErrorMessage"),
+    });
+    expect(onLog).toHaveBeenCalledWith("warn", expect.stringContaining("revert"));
+  });
+
+  /**
+   * The f1 failure in the revert direction: the panel has been open for days
+   * showing `beta` while the user ran `brew uninstall --cask fixlang@beta &&
+   * brew install --cask fixlang` in a terminal. Committing the cached token
+   * makes the helper quit the app, uninstall a cask that is not installed,
+   * and exit on `|| exit 1` — after the download already succeeded, so
+   * nothing on screen hints at what went wrong.
+   */
+  it("refuses when the beta cask is gone by the time the button is pressed", async () => {
+    const harness = createService({
+      canInstall: true,
+      activeChannel: "beta",
+      currentVersion: "0.2.0-beta.1",
+      installableVersion: "0.1.9",
+    });
+    harness.detectActiveCaskChannel.mockReturnValue("stable");
+
+    const result = await harness.service.revertToStable();
+
+    expect(result.success).toBe(false);
+    expect(harness.startChannelSwitch).not.toHaveBeenCalled();
+    expect(harness.downloadUpdate).not.toHaveBeenCalled();
+    expect(harness.pendingInstall.write).not.toHaveBeenCalled();
+    expect(harness.quitApp).not.toHaveBeenCalled();
+    expect(harness.service.getPrereleaseState()).toMatchObject({
+      phase: "error",
+      activeChannel: "stable",
+    });
+  });
 });
 
 /**
@@ -1696,5 +1838,173 @@ describe("mutual exclusion between a stable install and a channel switch", () =>
     expect(result).toEqual({ success: true });
     expect(startUpgrade).not.toHaveBeenCalled();
     expect(quitApp).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * A channel operation's outcome belongs to the section whose button the user
+ * pressed. Reporting it through `UpdateState` puts a revert's failure in the
+ * ordinary Updates section, worded for an update ("Homebrew did not finish
+ * the last update"), while the Pre-release section sits at `idle` with both
+ * its buttons inert for up to the whole grace window and nothing on screen
+ * explaining why.
+ *
+ * `caskToken` alone cannot route this: a revert targets the STABLE token
+ * too, so its marker is token-identical to an ordinary stable upgrade. The
+ * version it came FROM is what gives it away.
+ */
+describe("reporting a channel operation through the pre-release state", () => {
+  const STALE = NOW - UPGRADE_GRACE_MS;
+  const switchMarker = (startedAt: number) =>
+    ({
+      fromVersion: "0.1.0",
+      toVersion: "0.2.0-beta.3",
+      startedAt,
+      appPath: INSTALLED_APP_PATH,
+      caskToken: BETA_CASK_TOKEN,
+    }) as const;
+  /** Target token is STABLE — identical to an ordinary upgrade's marker. */
+  const revertMarker = (startedAt: number) =>
+    ({
+      fromVersion: "0.2.0-beta.3",
+      toVersion: "0.1.9",
+      startedAt,
+      appPath: INSTALLED_APP_PATH,
+      caskToken: STABLE_CASK_TOKEN,
+    }) as const;
+
+  it("reports a stalled revert in the pre-release section, worded for a revert", () => {
+    const { service, pendingInstall } = createService({
+      canInstall: true,
+      currentVersion: "0.2.0-beta.3",
+      pending: revertMarker(STALE),
+    });
+
+    expect(service.getPrereleaseState()).toMatchObject({
+      phase: "error",
+      message: msg("settings.updates.prerelease.revertErrorMessage"),
+    });
+    expect(service.getState().phase).not.toBe("error");
+    expect(service.getState().message).not.toEqual(
+      msg("settings.updates.installIncompleteMessage"),
+    );
+    expect(pendingInstall.clear).toHaveBeenCalled();
+  });
+
+  it("reports a stalled switch in the pre-release section, worded for a switch", () => {
+    const { service } = createService({
+      canInstall: true,
+      currentVersion: "0.1.0",
+      pending: switchMarker(STALE),
+    });
+
+    expect(service.getPrereleaseState()).toMatchObject({
+      phase: "error",
+      message: msg("settings.updates.prerelease.switchErrorMessage"),
+    });
+    expect(service.getState().phase).not.toBe("error");
+  });
+
+  it("shows a still-running switch in the pre-release section rather than the ordinary one", () => {
+    const { service } = createService({
+      canInstall: true,
+      currentVersion: "0.1.0",
+      pending: switchMarker(NOW - 10_000),
+    });
+
+    expect(service.getPrereleaseState()).toMatchObject({
+      phase: "installing",
+      offeredVersion: "0.2.0-beta.3",
+      message: msg("settings.updates.backgroundInstallMessage", {
+        targetVersion: "0.2.0-beta.3",
+      }),
+    });
+    expect(service.getState().phase).toBe("idle");
+  });
+
+  it("also reports a switch that finished in the background through the pre-release state", () => {
+    const { service, betaInstalledVersions, tickPoll } = createService({
+      canInstall: true,
+      currentVersion: "0.1.0",
+      pending: switchMarker(NOW - 10_000),
+    });
+
+    betaInstalledVersions.add("0.2.0-beta.3");
+    tickPoll();
+
+    expect(service.getPrereleaseState()).toMatchObject({
+      phase: "restart-required",
+      offeredVersion: "0.2.0-beta.3",
+    });
+  });
+
+  /**
+   * `restart-required` is the one outcome that carries an ACTION rather than
+   * a report, and `restartForUpdate` is gated on `UpdateState.phase`. Routing
+   * it away from that state would leave a user with the new build installed,
+   * a Restart button that answers with an error, and no way out but quitting
+   * by hand — so it is published to both states.
+   */
+  it("keeps the restart action reachable after a completed channel switch", () => {
+    const { service, relaunchApp } = createService({
+      canInstall: true,
+      currentVersion: "0.1.0",
+      pending: switchMarker(NOW - 10_000),
+      betaInstalledVersions: ["0.2.0-beta.3"],
+    });
+
+    expect(service.getPrereleaseState().phase).toBe("restart-required");
+    expect(service.getState().phase).toBe("restart-required");
+
+    expect(service.restartForUpdate()).toEqual({ success: true });
+    expect(relaunchApp).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves an ordinary stable update reporting through the ordinary section", () => {
+    const { service } = createService({
+      canInstall: true,
+      currentVersion: "0.1.0",
+      pending: {
+        fromVersion: "0.1.0",
+        toVersion: "0.2.0",
+        startedAt: STALE,
+        appPath: INSTALLED_APP_PATH,
+        caskToken: STABLE_CASK_TOKEN,
+      },
+    });
+
+    expect(service.getState()).toMatchObject({
+      phase: "error",
+      message: msg("settings.updates.installIncompleteMessage"),
+    });
+    expect(service.getPrereleaseState().phase).toBe("idle");
+  });
+});
+
+/**
+ * The ordinary flow upgrades the STABLE cask in place and only that. A beta
+ * install has no stable Caskroom entry, so `startUpgrade` refuses one after
+ * the button was already offered. That population reverts instead.
+ */
+describe("the ordinary install flow on a beta install", () => {
+  it("does not offer one-click install, and asks brew nothing", async () => {
+    const { service, getInstallableVersion, startUpgrade } = createService({
+      canInstall: true,
+      activeChannel: "beta",
+      currentVersion: "0.2.0-beta.1",
+    });
+
+    await service.checkForUpdates();
+
+    expect(service.getState()).toMatchObject({
+      phase: "available",
+      canInstall: false,
+    });
+    expect(getInstallableVersion).not.toHaveBeenCalled();
+
+    const result = await service.installUpdate();
+
+    expect(result.success).toBe(false);
+    expect(startUpgrade).not.toHaveBeenCalled();
   });
 });
