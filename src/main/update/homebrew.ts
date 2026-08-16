@@ -345,6 +345,86 @@ export const buildUpgradeScript = (
   ].join("\n");
 };
 
+/**
+ * A channel switch is not an upgrade: the two cask tokens conflict on the
+ * same `/Applications/FixLang.app` path, and Homebrew cask has no downgrade.
+ * The only path from one token to the other is uninstall-then-install, and
+ * the order below is the entire correctness story:
+ *
+ * - Installing before uninstalling fails outright — the bundle path is
+ *   already occupied by the current token's cask.
+ * - Uninstalling after installing would delete the NEWLY installed app,
+ *   because cask uninstall removes artifacts by path, not by identity.
+ *
+ * Between the uninstall and the install there is a window with no app at all
+ * in `/Applications`. One retry absorbs a transient failure there (a flaky
+ * mirror, a momentary disk hiccup); if that also fails, the ORIGINAL token is
+ * reinstalled so a failed switch leaves the user where they started rather
+ * than with nothing.
+ */
+export const buildChannelSwitchScript = (
+  brewBinary: string,
+  currentToken: string,
+  targetToken: string,
+  appPath: string | null = null,
+): string => {
+  // Refused before either becomes argv text handed to `/bin/sh`.
+  if (!isCaskToken(currentToken)) {
+    throw new Error(
+      `Refusing to build a channel-switch script for an unknown current cask token: ${currentToken}`,
+    );
+  }
+  if (!isCaskToken(targetToken)) {
+    throw new Error(
+      `Refusing to build a channel-switch script for an unknown target cask token: ${targetToken}`,
+    );
+  }
+  if (currentToken === targetToken) {
+    throw new Error(
+      "Refusing to build a channel-switch script that switches a cask token to itself",
+    );
+  }
+
+  const reopen = buildReopenCommand(appPath);
+
+  return [
+    "set -u",
+    "export NONINTERACTIVE=1",
+    "export HOMEBREW_NO_ENV_HINTS=1",
+    "waited=0",
+    `while /usr/bin/pgrep -x ${PROCESS_NAME} >/dev/null 2>&1; do`,
+    `  if [ "$waited" -ge ${QUIT_TIMEOUT_SECONDS} ]; then`,
+    `    echo "FixLang did not quit within ${QUIT_TIMEOUT_SECONDS}s; channel switch aborted." >&2`,
+    "    exit 1",
+    "  fi",
+    "  /bin/sleep 1",
+    "  waited=$((waited + 1))",
+    "done",
+    // Fills the download cache for the TARGET token only — the currently
+    // installed cask is untouched, so a failed fetch leaves the user exactly
+    // where they started, no uninstall has happened yet.
+    `"${brewBinary}" fetch --cask ${targetToken} || exit 1`,
+    // The bundle path only frees up once the CURRENT token's cask is gone —
+    // installing first would fail outright with "already exists".
+    `"${brewBinary}" uninstall --cask ${currentToken} || exit 1`,
+    // No app exists in /Applications between this line and a successful
+    // install below. One retry covers a transient failure without
+    // immediately giving up on the switch.
+    `if ! "${brewBinary}" install --cask ${targetToken}; then`,
+    `  if ! "${brewBinary}" install --cask ${targetToken}; then`,
+    `    echo "Failed to install ${targetToken} after a retry; restoring ${currentToken}." >&2`,
+    // Restore the ORIGINAL token, never the target: naming the target here
+    // would just retry the thing that already failed twice, and would leave
+    // the user on neither channel if it fails a third time.
+    `    "${brewBinary}" install --cask ${currentToken}`,
+    `    ${reopen}`,
+    "    exit 1",
+    "  fi",
+    "fi",
+    reopen,
+  ].join("\n");
+};
+
 const runDetached: DetachedRunner = (script, logFilePath) => {
   mkdirSync(path.dirname(logFilePath), { recursive: true });
   const logFd = openSync(logFilePath, "a");

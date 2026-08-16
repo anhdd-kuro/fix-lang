@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   BETA_CASK_TOKEN,
   BREW_BINARY_CANDIDATES,
+  buildChannelSwitchScript,
   buildUpgradeScript,
   caskroomPath,
   caskVersionPath,
@@ -634,5 +635,161 @@ describe("active channel detection", () => {
     expect(directoryExists).toHaveBeenCalledWith(
       "/opt/homebrew/Caskroom/fixlang@beta",
     );
+  });
+});
+
+
+describe("channel switch script", () => {
+  const escapeRegExp = (value: string): string =>
+    value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  const BREW = "/opt/homebrew/bin/brew";
+
+  /**
+   * Index of `"<brew>" <verb> --cask <token>`, anchored on both ends: the
+   * quoted brew path in front rules out "install" matching inside
+   * "uninstall" (the same substring problem in the other direction), and the
+   * trailing negative lookahead rules out the stable token ("fixlang")
+   * matching inside the beta token's command ("fixlang@beta") — while still
+   * allowing the token to be followed by `;`, a quote, or whitespace, since
+   * the retry/restore commands sit inside `if ! "..." install ...; then`.
+   */
+  const indexOfCaskCommand = (
+    script: string,
+    verb: string,
+    token: string,
+    fromIndex = 0,
+  ): number => {
+    const pattern = new RegExp(
+      `"${escapeRegExp(BREW)}" ${verb} --cask ${escapeRegExp(token)}(?![A-Za-z0-9@])`,
+      "g",
+    );
+    pattern.lastIndex = fromIndex;
+    const match = pattern.exec(script);
+    return match ? match.index : -1;
+  };
+
+  const script = buildChannelSwitchScript(
+    "/opt/homebrew/bin/brew",
+    STABLE_CASK_TOKEN,
+    BETA_CASK_TOKEN,
+  );
+
+  const pgrepIdx = script.indexOf("/usr/bin/pgrep -x FixLang");
+  const fetchIdx = indexOfCaskCommand(script, "fetch", BETA_CASK_TOKEN);
+  const uninstallIdx = indexOfCaskCommand(script, "uninstall", STABLE_CASK_TOKEN);
+  const firstInstallIdx = indexOfCaskCommand(script, "install", BETA_CASK_TOKEN);
+  const secondInstallIdx =
+    firstInstallIdx === -1
+      ? -1
+      : indexOfCaskCommand(script, "install", BETA_CASK_TOKEN, firstInstallIdx + 1);
+  const restoreSearchStart = Math.max(uninstallIdx, secondInstallIdx) + 1;
+  const restoreIdx = indexOfCaskCommand(
+    script,
+    "install",
+    STABLE_CASK_TOKEN,
+    restoreSearchStart,
+  );
+  const reopenIdx = script.lastIndexOf("/usr/bin/open -b com.fixlang.app");
+
+  it("waits for the app to exit before touching either cask", () => {
+    expect(pgrepIdx).toBeGreaterThanOrEqual(0);
+    expect(pgrepIdx).toBeLessThan(fetchIdx);
+  });
+
+  /**
+   * REGRESSION: fetch must fill the download cache while the CURRENT cask is
+   * still installed. An uninstall emitted before the fetch was observed
+   * failing here against a deliberately broken builder before this landed.
+   */
+  it("fetches the target cask before uninstalling the current one", () => {
+    expect(fetchIdx).toBeGreaterThanOrEqual(0);
+    expect(uninstallIdx).toBeGreaterThanOrEqual(0);
+    expect(fetchIdx).toBeLessThan(uninstallIdx);
+  });
+
+  /**
+   * REGRESSION: the target's bundle path only frees up once the current
+   * token's cask is gone. An install emitted before the uninstall was
+   * observed failing here against a deliberately broken builder before this
+   * landed.
+   */
+  it("uninstalls the current cask before installing the target", () => {
+    expect(uninstallIdx).toBeGreaterThanOrEqual(0);
+    expect(firstInstallIdx).toBeGreaterThanOrEqual(0);
+    expect(uninstallIdx).toBeLessThan(firstInstallIdx);
+  });
+
+  it("retries the target install exactly once before giving up on it", () => {
+    expect(firstInstallIdx).toBeGreaterThanOrEqual(0);
+    expect(secondInstallIdx).toBeGreaterThan(firstInstallIdx);
+  });
+
+  /**
+   * REGRESSION: a missing restore-original step was observed failing here
+   * against a deliberately broken builder before this landed — a failed
+   * switch must leave the user where they started, not with nothing.
+   */
+  it("restores the ORIGINAL token — not the target — after both install attempts fail", () => {
+    expect(restoreIdx).toBeGreaterThanOrEqual(0);
+    expect(restoreIdx).toBeGreaterThan(secondInstallIdx);
+  });
+
+  it("reopens the app after the restore step", () => {
+    expect(reopenIdx).toBeGreaterThan(restoreIdx);
+  });
+
+  it("never emits --zap or --force", () => {
+    expect(script).not.toContain("--zap");
+    expect(script).not.toContain("--force");
+  });
+
+  it("refuses to build a script naming an unknown current or target token", () => {
+    expect(() =>
+      buildChannelSwitchScript(
+        "/opt/homebrew/bin/brew",
+        "fixlang-nightly",
+        BETA_CASK_TOKEN,
+      ),
+    ).toThrow();
+    expect(() =>
+      buildChannelSwitchScript(
+        "/opt/homebrew/bin/brew",
+        STABLE_CASK_TOKEN,
+        "fixlang-nightly",
+      ),
+    ).toThrow();
+  });
+
+  it("refuses to switch a token to itself", () => {
+    expect(() =>
+      buildChannelSwitchScript(
+        "/opt/homebrew/bin/brew",
+        STABLE_CASK_TOKEN,
+        STABLE_CASK_TOKEN,
+      ),
+    ).toThrow();
+  });
+
+  /**
+   * The restore step must name whichever token was ORIGINAL for that
+   * particular switch — proven here with the tokens reversed, so this is not
+   * an artifact of one token happening to be the default.
+   */
+  it("names the correct original token when the switch direction is reversed", () => {
+    const revert = buildChannelSwitchScript(
+      "/opt/homebrew/bin/brew",
+      BETA_CASK_TOKEN,
+      STABLE_CASK_TOKEN,
+    );
+    const revertUninstallIdx = indexOfCaskCommand(revert, "uninstall", BETA_CASK_TOKEN);
+    const revertRestoreIdx = indexOfCaskCommand(
+      revert,
+      "install",
+      BETA_CASK_TOKEN,
+      revertUninstallIdx + 1,
+    );
+    expect(revertUninstallIdx).toBeGreaterThanOrEqual(0);
+    expect(revertRestoreIdx).toBeGreaterThan(revertUninstallIdx);
   });
 });
