@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { CAVEMAN_MODE_OPTION_KEY } from "~/features/correction/shared/presetOptions";
+import {
+  CAVEMAN_MODE_OPTION_KEY,
+  presetOptionDefinitions,
+  resolvePresetOptionValue,
+} from "~/features/correction/shared/presetOptions";
 import { msg, messageLabel, type Message } from "~/features/i18n/shared/message";
 import {
   DEFAULT_ASK_PRESET_ID,
@@ -32,6 +36,7 @@ import { Input, Textarea } from "./Input";
 import { ModelSelect } from "./ModelSelect";
 import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
 import { SearchableSelect } from "./SearchableSelect";
+import { Select } from "./Select";
 import {
   plainStatus,
   wrappedError,
@@ -329,6 +334,32 @@ export const SettingCorrection: React.FC = () => {
     }));
   };
 
+  /**
+   * Writes one declared option without going through `updatePreset`: the merged
+   * `extraOptions` has to be built from the preset held in state WHEN THE WRITE
+   * RUNS, not from the render snapshot this handler closed over. A preset that
+   * declares two options would otherwise lose the first edit to the second —
+   * the whole-object clobber described in the fixlang-settings-writes skill,
+   * one nesting level down.
+   */
+  const updatePresetOption = (
+    presetId: string,
+    optionKey: string,
+    value: string,
+  ) => {
+    setCorrectionSettings((current) => ({
+      ...current,
+      presets: current.presets.map((preset) =>
+        preset.id === presetId
+          ? {
+              ...preset,
+              extraOptions: { ...preset.extraOptions, [optionKey]: value },
+            }
+          : preset,
+      ),
+    }));
+  };
+
   const handleAddPreset = () => {
     const nextPreset = makeCustomPreset(correctionSettings.presets.length + 1);
 
@@ -406,6 +437,7 @@ export const SettingCorrection: React.FC = () => {
       requiresInput: defaultPreset.requiresInput,
       outputMode: defaultPreset.outputMode,
       markdownOutput: defaultPreset.markdownOutput,
+      extraOptions: defaultPreset.extraOptions,
     });
     setStatus(null);
     setStatusIsError(false);
@@ -485,6 +517,10 @@ export const SettingCorrection: React.FC = () => {
       </div>
     );
   }
+
+  // A frozen registry lookup, so it is read here rather than memoized above the
+  // two early returns.
+  const activePresetOptions = presetOptionDefinitions(activePreset.id);
 
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-6">
@@ -742,6 +778,53 @@ export const SettingCorrection: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/*
+            Preset-scoped options, rendered from what the preset DECLARES in
+            `presetOptions.ts` — never from its id. A preset that declares
+            nothing renders nothing here, and a future preset that declares an
+            option gets its control with no change to this file.
+          */}
+          {activePresetOptions.length > 0 && (
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              {activePresetOptions.map((option) => {
+                const fieldId = `preset-option-${option.key}`;
+
+                return (
+                  <div key={option.key} className="flex flex-col gap-2">
+                    <label
+                      htmlFor={fieldId}
+                      className="text-sm text-card-foreground"
+                    >
+                      {t(option.labelKey)}
+                    </label>
+                    <Select
+                      id={fieldId}
+                      name={fieldId}
+                      value={resolvePresetOptionValue(activePreset, option.key)}
+                      onChange={(event) =>
+                        updatePresetOption(
+                          activePreset.id,
+                          option.key,
+                          event.target.value,
+                        )
+                      }
+                      className="w-full"
+                    >
+                      {option.choices.map((choice) => (
+                        <option key={choice.value} value={choice.value}>
+                          {t(choice.labelKey)}
+                        </option>
+                      ))}
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {t(option.hintKey)}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div className="mt-4 flex flex-col gap-2">
             <label

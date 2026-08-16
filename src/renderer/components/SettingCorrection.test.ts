@@ -1,9 +1,11 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { CAVEMAN_MODE_OPTION_KEY } from "~/features/correction/shared/presetOptions";
 import { createTranslator } from "~/features/i18n/shared/translate";
 import {
   DEFAULT_ASK_PRESET_ID,
+  DEFAULT_CAVEMAN_PRESET_ID,
   DEFAULT_CORRECTION_PRESET_ID,
 } from "~/prompts/correction";
 import { SettingCorrection } from "./SettingCorrection";
@@ -487,5 +489,277 @@ describe("SettingCorrection output-mode and markdown controls", () => {
     );
     expect(markdownInput()).not.toBeNull();
     expect(markdownInput()?.checked).toBe(true);
+  });
+});
+
+/**
+ * The registry-driven option block. Every assertion about a write inspects the
+ * PAYLOAD handed to `setCorrectSettings`, never the click and never the call
+ * count alone: this harness reports green on an interaction that performed no
+ * write at all (see the fixlang-settings-writes skill).
+ */
+describe("SettingCorrection preset-scoped options", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  afterEach(async () => {
+    if (root) {
+      await act(async () => {
+        root.unmount();
+      });
+    }
+    container?.remove();
+    vi.restoreAllMocks();
+  });
+
+  const correctionPreset = {
+    id: DEFAULT_CORRECTION_PRESET_ID,
+    name: "Correction",
+    hotkey: "Control+Shift+F",
+    systemPrompt: "Fix the text.",
+    model: "",
+    isBuiltIn: true,
+  };
+
+  const cavemanPreset = {
+    id: DEFAULT_CAVEMAN_PRESET_ID,
+    name: "Caveman",
+    hotkey: "Control+Shift+C",
+    systemPrompt: "Compress the text.",
+    model: "",
+    isBuiltIn: true,
+    extraOptions: { [CAVEMAN_MODE_OPTION_KEY]: "full" },
+  };
+
+  const mount = async () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(I18nProvider, null, createElement(SettingCorrection)),
+      );
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  };
+
+  const optionSelect = (optionKey: string) =>
+    container.querySelector<HTMLSelectElement>(
+      `select#preset-option-${optionKey}`,
+    );
+
+  const requireOptionSelect = (optionKey: string): HTMLSelectElement => {
+    const select = optionSelect(optionKey);
+    if (!select) {
+      throw new Error(`Expected the "${optionKey}" option control`);
+    }
+    return select;
+  };
+
+  /**
+   * Assign through the prototype setter, not `select.value = …`: React installs
+   * its own value setter on the element, and writing through that one can leave
+   * React believing nothing changed, so the `onChange` handler never runs and
+   * the test still passes on a zero-write interaction.
+   */
+  const chooseSelectValue = async (
+    select: HTMLSelectElement,
+    value: string,
+  ) => {
+    const nativeSetter = Object.getOwnPropertyDescriptor(
+      HTMLSelectElement.prototype,
+      "value",
+    )?.set;
+    if (!nativeSetter) {
+      throw new Error("Expected HTMLSelectElement.prototype to own `value`");
+    }
+    await act(async () => {
+      nativeSetter.call(select, value);
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  };
+
+  const submit = async () => {
+    const form = container.querySelector("form");
+    await act(async () => {
+      form?.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  };
+
+  const selectPreset = async (name: string) => {
+    const button = [...container.querySelectorAll("button")].find((candidate) =>
+      candidate.textContent?.includes(name),
+    );
+    await act(async () => {
+      button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+  };
+
+  const resetBuiltIn = async () => {
+    const button = [...container.querySelectorAll("button")].find(
+      (candidate) =>
+        candidate.textContent === tEn("settings.correction.resetBuiltIn"),
+    );
+    await act(async () => {
+      button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+  };
+
+  it("renders no option control for a preset that declares none, and the declared choices for one that does", async () => {
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: baseElectronAPI({
+        getCorrectSettings: vi.fn().mockResolvedValue({
+          presets: [correctionPreset, cavemanPreset],
+          selectedPresetId: DEFAULT_CORRECTION_PRESET_ID,
+        }),
+        setCorrectSettings: vi.fn().mockResolvedValue({ success: true }),
+      }),
+    });
+
+    await mount();
+
+    expect(optionSelect(CAVEMAN_MODE_OPTION_KEY)).toBeNull();
+    expect(container.textContent).not.toContain(
+      tEn("settings.correction.option.cavemanMode.label"),
+    );
+
+    await selectPreset("Caveman");
+
+    const select = requireOptionSelect(CAVEMAN_MODE_OPTION_KEY);
+    expect(
+      container.querySelector<HTMLLabelElement>(
+        `label[for="preset-option-${CAVEMAN_MODE_OPTION_KEY}"]`,
+      )?.textContent,
+    ).toBe(tEn("settings.correction.option.cavemanMode.label"));
+    expect([...select.options].map((option) => option.value)).toEqual([
+      "lite",
+      "full",
+      "ultra",
+    ]);
+    expect([...select.options].map((option) => option.textContent)).toEqual([
+      tEn("settings.correction.option.cavemanMode.lite"),
+      tEn("settings.correction.option.cavemanMode.full"),
+      tEn("settings.correction.option.cavemanMode.ultra"),
+    ]);
+    expect(select.value).toBe("full");
+    expect(container.textContent).toContain(
+      tEn("settings.correction.option.cavemanMode.hint"),
+    );
+  });
+
+  it("carries a changed option value into the saved payload", async () => {
+    const setCorrectSettings = vi.fn().mockResolvedValue({ success: true });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: baseElectronAPI({
+        getCorrectSettings: vi.fn().mockResolvedValue({
+          presets: [cavemanPreset],
+          selectedPresetId: DEFAULT_CAVEMAN_PRESET_ID,
+        }),
+        setCorrectSettings,
+      }),
+    });
+
+    await mount();
+
+    await chooseSelectValue(requireOptionSelect(CAVEMAN_MODE_OPTION_KEY), "ultra");
+    expect(requireOptionSelect(CAVEMAN_MODE_OPTION_KEY).value).toBe("ultra");
+
+    await submit();
+
+    expect(setCorrectSettings).toHaveBeenCalledTimes(1);
+    expect(setCorrectSettings.mock.calls[0][0]).toMatchObject({
+      presets: [
+        expect.objectContaining({
+          id: DEFAULT_CAVEMAN_PRESET_ID,
+          extraOptions: { [CAVEMAN_MODE_OPTION_KEY]: "ultra" },
+        }),
+      ],
+    });
+  });
+
+  it("restores the built-in option value on Reset to default", async () => {
+    const setCorrectSettings = vi.fn().mockResolvedValue({ success: true });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: baseElectronAPI({
+        getCorrectSettings: vi.fn().mockResolvedValue({
+          presets: [
+            {
+              ...cavemanPreset,
+              extraOptions: { [CAVEMAN_MODE_OPTION_KEY]: "ultra" },
+            },
+          ],
+          selectedPresetId: DEFAULT_CAVEMAN_PRESET_ID,
+        }),
+        setCorrectSettings,
+      }),
+    });
+
+    await mount();
+
+    expect(requireOptionSelect(CAVEMAN_MODE_OPTION_KEY).value).toBe("ultra");
+
+    await resetBuiltIn();
+
+    expect(requireOptionSelect(CAVEMAN_MODE_OPTION_KEY).value).toBe("full");
+
+    await submit();
+
+    expect(setCorrectSettings).toHaveBeenCalledTimes(1);
+    expect(setCorrectSettings.mock.calls[0][0]).toMatchObject({
+      presets: [
+        expect.objectContaining({
+          id: DEFAULT_CAVEMAN_PRESET_ID,
+          extraOptions: { [CAVEMAN_MODE_OPTION_KEY]: "full" },
+        }),
+      ],
+    });
+  });
+
+  /**
+   * NOT covered by the test above, and the reason `extraOptions` is named in
+   * `handleResetBuiltIn`'s explicit key list: Caveman's built-in default HAS an
+   * `extraOptions`, so the plain `...defaultPreset` spread already restores it
+   * and that test stays green with the explicit key removed. Only a preset
+   * whose built-in default OMITS the key exposes the leftover surviving Reset.
+   */
+  it("clears an extraOptions blob the built-in default does not declare", async () => {
+    const setCorrectSettings = vi.fn().mockResolvedValue({ success: true });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: baseElectronAPI({
+        getCorrectSettings: vi.fn().mockResolvedValue({
+          presets: [
+            { ...correctionPreset, extraOptions: { strayOption: "leftover" } },
+          ],
+          selectedPresetId: DEFAULT_CORRECTION_PRESET_ID,
+        }),
+        setCorrectSettings,
+      }),
+    });
+
+    await mount();
+
+    await resetBuiltIn();
+    await submit();
+
+    expect(setCorrectSettings).toHaveBeenCalledTimes(1);
+    expect(setCorrectSettings.mock.calls[0][0]).toMatchObject({
+      presets: [
+        expect.objectContaining({
+          id: DEFAULT_CORRECTION_PRESET_ID,
+          extraOptions: undefined,
+        }),
+      ],
+    });
   });
 });
