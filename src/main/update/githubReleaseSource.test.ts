@@ -1,5 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { logger } from "~/main/logging/logService";
 import { createGitHubReleaseSource } from "./githubReleaseSource";
+import { RELEASE_NOTES_TRUNCATION_MARKER } from "./releaseAsset";
+
+/** Mirrors `REQUEST_TIMEOUT_MS`, which the module keeps private. */
+const REQUEST_TIMEOUT_MS = 10_000;
+
+const RELEASE_LIST_URL =
+  "https://api.github.com/repos/anhdd-kuro/fix-lang/releases";
 
 /**
  * A release-list entry that passes every validation check.
@@ -53,7 +61,40 @@ const listResponse = (payload: unknown, linkHeader: string | null = null) => ({
   json: vi.fn().mockResolvedValue(payload),
 });
 
+const failedResponse = (status: number) => ({
+  ok: false,
+  status,
+  headers: { get: vi.fn().mockReturnValue(null) },
+  json: vi.fn(),
+});
+
+/**
+ * Headers arrive, then the body never does — a captive portal, a proxy that
+ * stalls after the status line, a dropped tether. `json()` settles only when
+ * the request's abort signal fires, so a timer that was cleared before the
+ * body read leaves the returned promise pending forever.
+ */
+const stalledBodyResponse = (
+  signal: AbortSignal,
+  linkHeader: string | null = null,
+) => ({
+  ok: true,
+  status: 200,
+  headers: { get: vi.fn().mockReturnValue(linkHeader) },
+  json: () =>
+    new Promise<never>((_resolve, reject) => {
+      signal.addEventListener("abort", () =>
+        reject(new Error("body read aborted")),
+      );
+    }),
+});
+
 describe("GitHub release source", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
   describe("getLatestRelease (stable)", () => {
     it("requests the public latest-release endpoint with fixed headers", async () => {
       const payload = { tag_name: "v0.2.0" };
@@ -262,6 +303,221 @@ describe("GitHub release source", () => {
       expect(fetchLatest).toHaveBeenCalledTimes(3);
     });
 
+    /**
+     * The timeout has to survive `fetch` resolving, or a stalled body hangs
+     * the returned promise forever: `checkForPrerelease`'s
+     * `finally { prereleaseChecking = false }` never runs, its re-entrancy
+     * guard latches, and the panel is stuck on `checking` with a dead button
+     * until the app restarts. A timer that covers page 1 but not page 2 is
+     * the same bug with a smaller window, so both are pinned.
+     */
+    it.each([
+      ["the first page", 1],
+      ["a later page", 2],
+    ])(
+      "keeps the request timeout armed across the body read on %s",
+      async (_label, stalledPage) => {
+        vi.useFakeTimers();
+        let call = 0;
+        const source = createGitHubReleaseSource((_url, init) => {
+          call += 1;
+          return Promise.resolve(
+            call < stalledPage
+              ? listResponse(
+                  [validPrereleaseItem("v1.0.0-beta.1", { draft: true })],
+                  `<${RELEASE_LIST_URL}?per_page=100&page=2>; rel="next"`,
+                )
+              : stalledBodyResponse(init.signal),
+          );
+        });
+
+        const pending = source.getLatestPrerelease();
+        const rejection = expect(pending).rejects.toThrow("body read aborted");
+
+        await vi.advanceTimersByTimeAsync(0);
+        expect(call).toBe(stalledPage);
+
+        await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS);
+        await rejection;
+      },
+    );
+
+    /**
+     * The `Link` target is response data, so it is untrusted: following it
+     * anywhere would let a header redirect the scan to a foreign host whose
+     * payload is then shown as FixLang's own release list. The page cap
+     * bounds how many requests are made, never where they go.
+     */
+    it.each([
+      ["another host", "https://evil.example.com/steal"],
+      ["another scheme", "file:///etc/passwd"],
+      ["a javascript: URL", "javascript:alert(1)"],
+      ["another repo on api.github.com", `${RELEASE_LIST_URL}-other`],
+      ["an unparseable URL", "not a url at all"],
+    ])(
+      "refuses to follow a Link header pointing at %s",
+      async (_label, target) => {
+        const warn = vi.spyOn(logger, "warn").mockReturnValue(undefined as never);
+        const fetchLatest = vi
+          .fn()
+          .mockResolvedValueOnce(
+            listResponse(
+              [validPrereleaseItem("v0.9.0-beta.1")],
+              `<${target}>; rel="next"`,
+            ),
+          )
+          .mockResolvedValueOnce(
+            listResponse([validPrereleaseItem("v9.9.9-beta.9")]),
+          );
+        const source = createGitHubReleaseSource(fetchLatest);
+
+        const result = await source.getLatestPrerelease();
+
+        expect(fetchLatest).toHaveBeenCalledTimes(1);
+        expect(result?.version.raw).toBe("0.9.0-beta.1");
+        expect(warn).toHaveBeenCalledWith(
+          "update.prereleaseScan",
+          expect.stringContaining("Link header"),
+        );
+      },
+    );
+
+    it("returns the beta already validated on page 1 when a later page fails", async () => {
+      const fetchLatest = vi
+        .fn()
+        .mockResolvedValueOnce(
+          listResponse(
+            [validPrereleaseItem("v0.5.0-beta.1")],
+            `<${RELEASE_LIST_URL}?per_page=100&page=2>; rel="next"`,
+          ),
+        )
+        .mockResolvedValueOnce(failedResponse(403));
+      const source = createGitHubReleaseSource(fetchLatest);
+
+      const result = await source.getLatestPrerelease();
+
+      expect(result?.version.raw).toBe("0.5.0-beta.1");
+      expect(fetchLatest).toHaveBeenCalledTimes(2);
+    });
+
+    it("returns the page-1 beta when a later page is not even an array", async () => {
+      const source = createGitHubReleaseSource(
+        vi
+          .fn()
+          .mockResolvedValueOnce(
+            listResponse(
+              [validPrereleaseItem("v0.5.0-beta.1")],
+              `<${RELEASE_LIST_URL}?per_page=100&page=2>; rel="next"`,
+            ),
+          )
+          .mockResolvedValueOnce(listResponse({ message: "Not Found" })),
+      );
+
+      const result = await source.getLatestPrerelease();
+      expect(result?.version.raw).toBe("0.5.0-beta.1");
+    });
+
+    /**
+     * A page can fail by throwing as well as by status — a rejected fetch, an
+     * unparseable body, or the request timeout f10 restored. Those must reach
+     * the same winner-preserving fallback, or the timeout fix would itself
+     * become a way to discard a validated beta.
+     */
+    it.each([
+      ["the request rejects", () => Promise.reject(new Error("network down"))],
+      [
+        "the body cannot be parsed",
+        () =>
+          Promise.resolve({
+            ok: true,
+            status: 200,
+            headers: { get: vi.fn().mockReturnValue(null) },
+            json: vi.fn().mockRejectedValue(new SyntaxError("bad json")),
+          }),
+      ],
+    ])(
+      "returns the page-1 beta when %s on a later page",
+      async (_label, secondPage) => {
+        const source = createGitHubReleaseSource(
+          vi
+            .fn()
+            .mockResolvedValueOnce(
+              listResponse(
+                [validPrereleaseItem("v0.5.0-beta.1")],
+                `<${RELEASE_LIST_URL}?per_page=100&page=2>; rel="next"`,
+              ),
+            )
+            .mockImplementationOnce(secondPage),
+        );
+
+        const result = await source.getLatestPrerelease();
+        expect(result?.version.raw).toBe("0.5.0-beta.1");
+      },
+    );
+
+    it("propagates the original error when a page throws and no beta was found", async () => {
+      const source = createGitHubReleaseSource(
+        vi.fn().mockRejectedValue(new SyntaxError("bad json")),
+      );
+
+      await expect(source.getLatestPrerelease()).rejects.toThrow(SyntaxError);
+    });
+
+    it("still rejects when a later page fails and no beta was found yet", async () => {
+      const source = createGitHubReleaseSource(
+        vi
+          .fn()
+          .mockResolvedValueOnce(
+            listResponse(
+              [validPrereleaseItem("v1.0.0-beta.1", { draft: true })],
+              `<${RELEASE_LIST_URL}?per_page=100&page=2>; rel="next"`,
+            ),
+          )
+          .mockResolvedValueOnce(failedResponse(403)),
+      );
+
+      await expect(source.getLatestPrerelease()).rejects.toThrow(
+        "GitHub release list request failed (403)",
+      );
+    });
+
+    it("warns when the page budget cut the scan short instead of truncating silently", async () => {
+      const warn = vi.spyOn(logger, "warn").mockReturnValue(undefined as never);
+      const nextPage = () =>
+        listResponse(
+          [validPrereleaseItem("v1.0.0-beta.1", { draft: true })],
+          `<${RELEASE_LIST_URL}?per_page=100&page=9>; rel="next"`,
+        );
+      const source = createGitHubReleaseSource(
+        vi
+          .fn()
+          .mockResolvedValueOnce(nextPage())
+          .mockResolvedValueOnce(nextPage())
+          .mockResolvedValueOnce(nextPage()),
+      );
+
+      await expect(source.getLatestPrerelease()).resolves.toBeNull();
+
+      expect(warn).toHaveBeenCalledWith(
+        "update.prereleaseScan",
+        expect.stringContaining("page budget"),
+        expect.objectContaining({ pages: 3, foundBeta: false }),
+      );
+    });
+
+    it("does not warn about the page budget when the list was read to its end", async () => {
+      const warn = vi.spyOn(logger, "warn").mockReturnValue(undefined as never);
+      const source = createGitHubReleaseSource(
+        vi
+          .fn()
+          .mockResolvedValue(listResponse([validPrereleaseItem("v1.0.0-beta.1")])),
+      );
+
+      await source.getLatestPrerelease();
+
+      expect(warn).not.toHaveBeenCalled();
+    });
+
     it("resolves null when every item is dropped", async () => {
       const source = createGitHubReleaseSource(
         vi
@@ -274,7 +530,7 @@ describe("GitHub release source", () => {
       await expect(source.getLatestPrerelease()).resolves.toBeNull();
     });
 
-    it("trims and truncates release notes exactly as the stable path does", async () => {
+    it("trims and truncates release notes through the shared release-asset leaf", async () => {
       const longNotes = "x".repeat(12_050);
       const source = createGitHubReleaseSource(
         vi.fn().mockResolvedValue(
@@ -285,8 +541,11 @@ describe("GitHub release source", () => {
       );
 
       const result = await source.getLatestPrerelease();
-      expect(result?.releaseNotes).toHaveLength(12_000);
-      expect(result?.releaseNotes).toBe(longNotes.slice(0, 12_000));
+      // 12_000 kept units plus the truncation marker; see releaseAsset.test.ts
+      // for the boundary, surrogate-pair and code-fence rules themselves.
+      expect(result?.releaseNotes).toBe(
+        `${longNotes.slice(0, 12_000)}${RELEASE_NOTES_TRUNCATION_MARKER}`,
+      );
     });
 
     it("normalizes an empty or whitespace-only body to undefined notes", async () => {

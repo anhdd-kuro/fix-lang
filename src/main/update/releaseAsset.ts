@@ -21,16 +21,66 @@
 
 export const RELEASE_NOTES_MAX_LENGTH = 12_000;
 
+/**
+ * Appended whenever notes were cut, so the reader can tell "the release said
+ * this much" from "we stopped here". Language-neutral on purpose: this leaf
+ * is dependency-free and has no access to the renderer's `t()`.
+ */
+export const RELEASE_NOTES_TRUNCATION_MARKER = "\n\n…";
+
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * Cuts at `maxLength` UTF-16 code units, then backs off one unit when that
+ * landed between the halves of a surrogate pair. `String.prototype.slice`
+ * counts code units, so an astral character straddling the limit otherwise
+ * leaves a lone high surrogate — `isWellFormed()` false, and a replacement
+ * glyph in the About panel. Backing off keeps the byte bound the limit
+ * exists for, which slicing by code point would not.
+ */
+const sliceWithoutSplittingSurrogatePair = (
+  text: string,
+  maxLength: number,
+): string => {
+  const cut = text.slice(0, maxLength);
+  const lastUnit = cut.charCodeAt(cut.length - 1);
+  const endsOnLoneHighSurrogate = lastUnit >= 0xd800 && lastUnit <= 0xdbff;
+  return endsOnLoneHighSurrogate ? cut.slice(0, -1) : cut;
+};
+
+/**
+ * The fence token left unclosed by a cut, or null when every fence is
+ * balanced. Release notes are rendered through `ReactMarkdown` + `remarkGfm`,
+ * so a cut landing inside a ``` block turns the rest of the update panel into
+ * one code block; closing the fence keeps the damage inside the truncated
+ * notes. Matches CommonMark's rule that a closing fence uses the same
+ * character and is at least as long as the opener.
+ */
+const danglingCodeFence = (text: string): string | null => {
+  let open: string | null = null;
+  for (const line of text.split("\n")) {
+    const fence = /^ {0,3}(`{3,}|~{3,})/.exec(line)?.[1];
+    if (!fence) continue;
+    if (open === null) open = fence;
+    else if (fence[0] === open[0] && fence.length >= open.length) open = null;
+  }
+  return open;
+};
 
 export const normalizeReleaseNotes = (
   raw: string | undefined,
 ): string | undefined => {
   const trimmed = raw?.trim();
-  return trimmed && trimmed.length > 0
-    ? trimmed.slice(0, RELEASE_NOTES_MAX_LENGTH)
-    : undefined;
+  if (!trimmed || trimmed.length === 0) return undefined;
+  if (trimmed.length <= RELEASE_NOTES_MAX_LENGTH) return trimmed;
+
+  const cut = sliceWithoutSplittingSurrogatePair(
+    trimmed,
+    RELEASE_NOTES_MAX_LENGTH,
+  );
+  const unclosedFence = danglingCodeFence(cut);
+  return `${cut}${unclosedFence ? `\n${unclosedFence}` : ""}${RELEASE_NOTES_TRUNCATION_MARKER}`;
 };
 
 /**
