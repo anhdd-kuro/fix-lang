@@ -1,6 +1,6 @@
 ---
 name: fixlang-presets
-description: "Use when editing transform presets, reasoning effort, per-preset output mode, the Ask AI flow, or the source-app context block. Examples: \"add a preset field\", \"why does this preset ignore the popup setting\", \"retire a reasoning effort value\", \"change the Metadata context prompt\". Covers src/features/providers/store/apiStore.ts, src/features/correction/shared/reasoningEffort.ts, src/main/ai.request/transform-context.ts, src/main/keybindings/askFlow.ts, src/renderer/components/MarkdownView.tsx."
+description: "Use when editing transform presets, preset-scoped options (extraOptions), reasoning effort, per-preset output mode, the Ask AI flow, the Caveman intensity levels, or the source-app context block. Examples: \"add a preset field\", \"give a preset its own setting\", \"why does this preset ignore the popup setting\", \"retire a reasoning effort value\", \"change the Metadata context prompt\". Covers src/features/providers/store/apiStore.ts, src/features/correction/shared/presetOptions.ts, src/features/correction/shared/reasoningEffort.ts, src/prompts/caveman.md, src/main/ai.request/transform-context.ts, src/main/keybindings/askFlow.ts, src/renderer/components/MarkdownView.tsx."
 ---
 
 # FixLang — Preset, Reasoning, Ask AI Gotchas
@@ -38,6 +38,27 @@ Four guards that each look optional and are not.
 3. **The selection is never markdown.** Only the answer goes through `MarkdownView`; the popup's selection and question blocks render as plain text on purpose. Routing the selection through the markdown renderer would let copied content drive the renderer. Same boundary in the preload: `isAskResultPayload` must gain a branch for every field the shared `AskResultPayload` type grows — widening the type and leaving the guard behind sent a non-string `input` into a string-typed prop as a render crash instead of a boundary rejection.
 
 4. **The answer is model-controlled markdown.** `MarkdownView.tsx` sets `img: () => null` — an `<img>` fetches its URL on mount with no click, i.e. a read receipt, or exfiltration once an injected answer encodes the selection into the path. Links route through `openExternalLink`, never `target="_blank"`: that would get Electron's default window-open behaviour — an unmanaged app-owned window outside the result-window cap, with a preload attached.
+
+## Preset-scoped options live in a registry, not in the UI
+
+A preset declares its own settings through `src/features/correction/shared/presetOptions.ts`. `presetOptionDefinitions(presetId)` returns what that preset declares (`[]` for the seven that declare nothing), values persist on `CorrectionPreset.extraOptions` (`Record<string, string>`), and `withPresetOptions(systemPrompt, preset)` appends the chosen choice's `promptFragment`. Caveman uses it for lite/full/ultra.
+
+Settings renders whatever the registry returns — `presetOptionDefinitions(activePreset.id).length > 0` gates the block and the JSX maps over definitions. **No preset id appears in that JSX.** A new option is a registry entry plus two catalog keys; touching `SettingCorrection.tsx` means the abstraction leaked.
+
+Four traps:
+
+1. **The schema node must stay `{}`.** `extraOptions` in `apiStoreSchema` is a bare `{}`, NOT `{ type: "object" }`. Under `clearInvalidConfig: true` a value failing validation wipes the ENTIRE config — every profile, preset, hotkey and encrypted key slot — so any node that can reject is a config-wiper, and a stored `"extraOptions": "ultra"` written by a newer build is exactly that. Validity is enforced in code by `sanitizePresetOptions`, which is total over `unknown`. Relaxing the node is the only safe direction to move it.
+2. **Registry lookup is a `Map`, and values read via `Object.getOwnPropertyDescriptor`.** An object literal answers `"__proto__"` / `"constructor"` / `"toString"` with inherited junk; a descriptor read plus `"value" in descriptor` never invokes an accessor, so there is no TOCTOU between the check and the read. `sanitizePresetOptions` returns `undefined`, never `{}`, when nothing survives.
+3. **Write the merged blob INSIDE the state updater.** Every `Setting*.tsx` persists the whole settings object (see [Settings writes](../fixlang-settings-writes/SKILL.md)). Building merged `extraOptions` from the render snapshot a handler closed over loses the first edit when a preset declares two options. `updatePresetOption` merges inside `setCorrectionSettings`.
+4. **`handleResetBuiltIn` enumerates keys EXPLICITLY** — `extraOptions` must be in that list. Note the obvious test for this is unfalsifiable: Caveman's default HAS `extraOptions`, so the plain `...defaultPreset` spread restores it and the test passes with the key reverted. Pin it with a preset carrying a stray blob the default does not declare.
+
+## The Caveman instruction boundary is drawn by MESSAGE ROLE, not position
+
+`src/prompts/caveman.md` must never claim its instructions "end" at some line, or that anything following is text to compress. Three wrappers append after it — `withPresetOptions`, then the source-app `# Metadata context` block, then per-press user metadata — so a positional claim relabels the app's own metadata as content for exactly this preset.
+
+The claim is also unnecessary: `buildCorrectionUserPrompt` sends the text to transform as a SEPARATE USER MESSAGE, so nothing trailing the preset's instructions in the system prompt is ever input, under any nesting. The wrapper stays INNERMOST — a chosen option is part of what the preset instructs, not ambient metadata — which keeps Caveman's `# Metadata context` block trailing like the other seven's. Moving it outermost to "fix" the boundary would make this the only preset whose metadata block is non-trailing, and would not fix anything.
+
+Levels are pinned by a **stance table** (`defaultPresetPrompts.test.ts`), not marker lists: per (compression move, level) it records `instructs` / `withholds`. Marker lists were tried three times and each patch left a new hole — copy-pasting lite's body into full, keeping only the `"Full level:"` label, left all 38 tests green. The stance table makes cumulativity free (ultra restating "drop articles" is same-stance, never compared) while still catching ultra carrying full's disclaimer (opposite stance).
 
 ## Source-app context block
 
