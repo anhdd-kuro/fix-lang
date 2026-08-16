@@ -47,6 +47,17 @@ const startDetachedHelper = (script: string, logFilePath: string): void => {
 
 let updateService: UpdateService | null = null;
 
+/**
+ * The pure half of "bind the upgrader to the token that is ACTUALLY staged" —
+ * see the call site's doc comment in {@link initializeUpdateService} for the
+ * full story of why this must not collapse to `STABLE_CASK_TOKEN`
+ * unconditionally. Exported so the choice itself is unit-testable without
+ * standing up Electron's `app`/`dialog` singletons.
+ */
+export const chooseBoundCaskToken = (
+  activeChannel: ActiveCaskChannel | null,
+): CaskToken => (activeChannel === "beta" ? BETA_CASK_TOKEN : STABLE_CASK_TOKEN);
+
 /** Initializes the singleton only after Electron's app lifecycle is ready. */
 export const initializeUpdateService = (): UpdateService => {
   if (updateService !== null) {
@@ -113,8 +124,7 @@ export const initializeUpdateService = (): UpdateService => {
    * Read once at startup: the only way the active channel changes is a switch
    * or a revert, and both quit the app.
    */
-  const boundCaskToken: CaskToken =
-    probeActiveCaskChannel() === "beta" ? BETA_CASK_TOKEN : STABLE_CASK_TOKEN;
+  const boundCaskToken: CaskToken = chooseBoundCaskToken(probeActiveCaskChannel());
 
   // One dialog at a time, same discipline as `secretGuardDialog.ts`'s
   // `confirmSecretSend`: a reentrant call while one is already on screen
