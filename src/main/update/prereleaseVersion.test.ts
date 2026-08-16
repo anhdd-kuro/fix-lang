@@ -92,6 +92,33 @@ describe("comparePrereleaseOrder", () => {
     ).toBeLessThan(0);
   });
 
+  it("orders the major component numerically, not lexically", () => {
+    expect(
+      comparePrereleaseOrder(stable(10, 0, 0), stable(9, 0, 0)),
+    ).toBeGreaterThan(0);
+    expect(
+      comparePrereleaseOrder(stable(9, 0, 0), stable(10, 0, 0)),
+    ).toBeLessThan(0);
+  });
+
+  it("orders the minor component numerically, not lexically", () => {
+    expect(
+      comparePrereleaseOrder(stable(1, 10, 0), stable(1, 9, 0)),
+    ).toBeGreaterThan(0);
+    expect(
+      comparePrereleaseOrder(stable(1, 9, 0), stable(1, 10, 0)),
+    ).toBeLessThan(0);
+  });
+
+  it("orders the patch component numerically, not lexically", () => {
+    expect(
+      comparePrereleaseOrder(stable(1, 0, 10), stable(1, 0, 9)),
+    ).toBeGreaterThan(0);
+    expect(
+      comparePrereleaseOrder(stable(1, 0, 9), stable(1, 0, 10)),
+    ).toBeLessThan(0);
+  });
+
   it("treats two equal stable triples as equal", () => {
     expect(comparePrereleaseOrder(stable(1, 2, 3), stable(1, 2, 3))).toBe(0);
   });
