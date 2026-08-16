@@ -72,7 +72,7 @@ import {
   isLoopbackHost,
   resolveLmStudioEndpoint,
 } from "~/features/providers/shared/lmstudioEndpoint";
-import { parseModelRef } from "~/features/providers/shared/modelRef";
+import { parseModelRef, resolveProviderForModelRef } from "~/features/providers/shared/modelRef";
 import { resolveOllamaEndpoint } from "~/features/providers/shared/ollamaEndpoint";
 import { isLocalProvider } from "~/features/providers/shared/providers";
 import {
@@ -905,11 +905,35 @@ const countDispatch = (now: Date): boolean => {
  */
 const isLoopbackDestination = (provider: ProviderId | null): boolean => {
   if (provider === null || !isLocalProvider(provider)) return false;
-  const endpoint =
-    provider === "ollama"
-      ? resolveOllamaEndpoint(getProviderEndpoint("ollama"))
-      : resolveLmStudioEndpoint(getProviderEndpoint("lmstudio"));
-  return isLoopbackHost(endpoint.host);
+  try {
+    const endpoint =
+      provider === "ollama"
+        ? resolveOllamaEndpoint(getProviderEndpoint("ollama"))
+        : resolveLmStudioEndpoint(getProviderEndpoint("lmstudio"));
+    return isLoopbackHost(endpoint.host);
+  } catch {
+    // An unreadable endpoint is an unknown destination, and unknown is not
+    // loopback — the answer that asks for consent rather than skipping it.
+    return false;
+  }
+};
+
+/**
+ * The provider the consent gate must ask about, resolved like `makeAIRequest`
+ * resolves it so a legacy BARE id is not permanently unconsentable.
+ *
+ * Never throws. This runs behind an `ipcMain.handle` whose contract is "no
+ * ghost text, never a rejected invoke", and the model cache is disk-backed. On
+ * failure it falls back to the ref's own prefix, which is still trustworthy;
+ * a bare id then yields `null`, which the gate treats as the cautious case.
+ */
+const resolveProviderForConsent = async (modelRef: string): Promise<ProviderId | null> => {
+  try {
+    const { getCachedModels } = await import("~/main/ai.request/shared");
+    return resolveProviderForModelRef(modelRef, getCachedModels());
+  } catch {
+    return parseModelRef(modelRef).provider;
+  }
 };
 
 export const requestAutocompleteSuggestion = async (
@@ -1044,7 +1068,13 @@ export const requestAutocompleteSuggestion = async (
   // the cache, for the reason given at the app-scope gate: a cache hit is free,
   // and "free" is not an answer to "may this app's text go to this company".
   //
-  const provider = parseModelRef(modelRef).provider;
+  // Resolved the way `makeAIRequest` resolves it, not by `parseModelRef` alone.
+  // A legacy BARE id (`"llama3"`) has no prefix, so `parseModelRef` yields
+  // `null` while the request path still routes it through `PROVIDER_ORDER` — a
+  // null provider can never match a stored consent, so the gate would refuse
+  // that ref forever, including bare Ollama models that need no consent at all.
+  // Still falls back to `null` when nothing resolves, which stays closed.
+  const provider = await resolveProviderForConsent(modelRef);
   if (
     requiresCloudScopeConsent({
       surface,

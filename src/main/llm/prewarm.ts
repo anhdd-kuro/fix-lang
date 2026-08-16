@@ -13,11 +13,11 @@
  * therefore logged at debug only, never warn/error.
  *
  * Routing reuses the exact same logic `makeAIRequest` (`ai.request/shared.ts`)
- * uses: `resolveModelRef`/`parseModelRef` from `~/features/providers/shared/modelRef`, over the
- * same cached model list (`getCachedModels`). Nothing here re-derives which
- * provider a ref belongs to.
+ * uses: `resolveProviderForModelRef` from `~/features/providers/shared/modelRef`,
+ * over the same cached model list (`getCachedModels`). Nothing here re-derives
+ * which provider a ref belongs to.
  */
-import { parseModelRef, resolveModelRef } from "~/features/providers/shared/modelRef";
+import { resolveProviderForModelRef } from "~/features/providers/shared/modelRef";
 import { isLocalProvider } from "~/features/providers/shared/providers";
 import { getApiKey } from "~/features/providers/store/apiKeyStore";
 import { getCurrentProfileId } from "~/features/providers/store/apiStore";
@@ -25,7 +25,7 @@ import { getProfileSecret } from "~/features/providers/store/profileSecretStore"
 import { getCachedModels } from "~/main/ai.request/shared";
 import { keepAliveFetch } from "~/main/llm/httpKeepAlive";
 import { logger } from "~/main/logging/logService";
-import type { Model, ProviderId } from "~/features/providers/shared/providers";
+import type { ProviderId } from "~/features/providers/shared/providers";
 
 const LOG_SCOPE = "prewarm.connection";
 
@@ -49,23 +49,6 @@ const PREWARM_TTL_MS = 60 * 1000;
  * transient error disable prewarming for the whole window.
  */
 const lastPrewarmAt = new Map<ProviderId, number>();
-
-/**
- * Resolves the ref exactly like `makeAIRequest` does: a prefixed ref
- * (`"openai::gpt-4o"`) checks only its own provider against the cached model
- * list; a bare id scans `PROVIDER_ORDER`. Falls back to the ref's own prefix
- * (when it has one) when no cached model matches yet — an unpopulated or
- * stale model cache must not silently disable prewarming a provider the ref
- * already names explicitly.
- */
-export const resolveProviderForModelRef = (
-  modelRef: string,
-  models: readonly Model[],
-): ProviderId | null => {
-  const resolved = resolveModelRef(modelRef, models);
-  if (resolved) return resolved.provider;
-  return parseModelRef(modelRef).provider;
-};
 
 /**
  * Establishes the connection with a cheap, non-billable, non-side-effectful

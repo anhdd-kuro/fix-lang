@@ -145,10 +145,40 @@ describe("normalizeAutocompleteSettings", () => {
       expect(normalizeAutocompleteSettings({ allowedApps: [], excludedApps: [] }).excludedApps).toEqual([]);
     });
 
-    it("reads a non-array list as empty rather than seeding from junk", () => {
-      expect(normalizeAutocompleteSettings({ allowedApps: [], excludedApps: "com.apple.mail" }).excludedApps).toEqual(
-        [],
-      );
+    /**
+     * Emptying just the corrupt field is the FAIL-OPEN answer, and was the bug:
+     * an empty exclusion list under a surviving `denylist` permits every app.
+     * `decideAppScope` cannot catch it either, because normalization runs first
+     * and the junk is already gone by the time the gate looks.
+     */
+    it("closes the whole scope when a stored list is corrupt", () => {
+      const settings = normalizeAutocompleteSettings({
+        scopeMode: "denylist",
+        allowedApps: [],
+        excludedApps: "com.apple.mail",
+      });
+
+      expect(settings.scopeMode).toBe("allowlist");
+      expect(settings.allowedApps).toEqual([]);
+      expect(settings.excludedApps).toEqual([...DEFAULT_EXCLUDED_BUNDLE_IDS]);
+    });
+
+    it("closes on a corrupt allow list too, not only the exclusions", () => {
+      const settings = normalizeAutocompleteSettings({
+        scopeMode: "denylist",
+        allowedApps: "com.apple.mail",
+        excludedApps: [],
+      });
+
+      expect(settings.scopeMode).toBe("allowlist");
+      expect(settings.allowedApps).toEqual([]);
+    });
+
+    it("leaves an absent list alone — absent is ordinary, not corruption", () => {
+      const settings = normalizeAutocompleteSettings({ scopeMode: "denylist" });
+
+      expect(settings.scopeMode).toBe("denylist");
+      expect(settings.excludedApps).toEqual([...DEFAULT_EXCLUDED_BUNDLE_IDS]);
     });
   });
 

@@ -1693,9 +1693,17 @@ export const toExportableProfile = (profile: Profile): Profile => {
       },
       // The ref is per-machine model state; `enabled` is a genuine preference
       // and travels with the profile.
+      //
+      // `cloudScopeConsent` does NOT travel. It records that THIS user agreed to
+      // send keystrokes from other apps to a named provider — an act of consent
+      // by one person, not a portable preference. This same function sanitizes
+      // IMPORTS, so carrying it would let a shared profile pre-consent its
+      // recipient: they connect the named provider and system-wide dispatch
+      // skips the gate for a decision they never made.
       settingsAutocomplete: {
         ...normalizeAutocompleteSettings(settings.settingsAutocomplete),
         model: AUTOCOMPLETE_INHERIT_ASK_MODEL,
+        cloudScopeConsent: "",
       },
     },
   } as Profile;

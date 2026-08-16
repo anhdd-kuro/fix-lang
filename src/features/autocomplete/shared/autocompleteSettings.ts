@@ -5,7 +5,9 @@
  * Electron-free — shared by main, preload, and renderer.
  */
 import {
+  DEFAULT_EXCLUDED_BUNDLE_IDS,
   isAutocompleteScopeMode,
+  isCorruptAppList,
   normalizeAllowedApps,
   normalizeExcludedApps,
   type AutocompleteScopeMode,
@@ -148,9 +150,22 @@ export const normalizeAutocompleteSettings = (raw: unknown): AutocompleteSetting
     enabled: value.enabled === true,
     model: typeof value.model === "string" ? value.model.trim() : AUTOCOMPLETE_INHERIT_ASK_MODEL,
     dailyCostCapUsd: normalizeDailyCostCapUsd(value.dailyCostCapUsd),
-    scopeMode: isAutocompleteScopeMode(value.scopeMode) ? value.scopeMode : "allowlist",
-    allowedApps: normalizeAllowedApps(value.allowedApps),
-    excludedApps: normalizeExcludedApps(value.excludedApps),
+    // A stored-but-corrupt list closes the WHOLE scope, not just its own field.
+    // Normalizing `excludedApps: "junk"` to `[]` while keeping a valid
+    // `scopeMode: "denylist"` is an empty deny-list, which permits every app —
+    // corruption widening access is the one outcome this must never have.
+    // `allowlist` + empty `allowedApps` permits nothing.
+    ...(isCorruptAppList(value.allowedApps) || isCorruptAppList(value.excludedApps)
+      ? {
+          scopeMode: "allowlist" as const,
+          allowedApps: [],
+          excludedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
+        }
+      : {
+          scopeMode: isAutocompleteScopeMode(value.scopeMode) ? value.scopeMode : "allowlist",
+          allowedApps: normalizeAllowedApps(value.allowedApps),
+          excludedApps: normalizeExcludedApps(value.excludedApps),
+        }),
     cloudScopeConsent:
       typeof value.cloudScopeConsent === "string" ? value.cloudScopeConsent.trim() : "",
   };

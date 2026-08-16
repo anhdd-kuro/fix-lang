@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS } from "~/features/autocomplete/shared/autocompleteDiagnostics";
 import { DEFAULT_EXCLUDED_BUNDLE_IDS } from "~/features/autocomplete/shared/autocompleteScope";
-import { DEFAULT_DAILY_COST_CAP_USD } from "~/features/autocomplete/shared/autocompleteSettings";
+import {
+  DEFAULT_DAILY_COST_CAP_USD,
+  normalizeAutocompleteSettings,
+} from "~/features/autocomplete/shared/autocompleteSettings";
 import { redactLogContext } from "~/features/logs/shared/logging";
 import { GHOST_TEXT_DEBOUNCE_MS } from "~/renderer/hooks/useGhostText";
 import {
@@ -347,6 +350,42 @@ describe("requestAutocompleteSuggestion", () => {
 
       expect((await fromApp("com.1password.1password")).suggestion).toBeNull();
       expect(makeAIRequestMock).not.toHaveBeenCalled();
+    });
+
+    /**
+     * The one that cannot be caught by `decideAppScope` alone: normalization
+     * runs FIRST, so by the time the gate sees the settings the junk has
+     * already become `[]` — and an empty EXCLUSION list under `denylist`
+     * permits every app. Corruption must never widen access.
+     */
+    it("closes the whole scope when a stored list is corrupt, rather than emptying it", async () => {
+      // Through the REAL normalizer, because that is what `getProfileSetting`
+      // does in production — injecting raw junk here would only exercise
+      // `decideAppScope`'s defensive branch, which production never reaches.
+      const { scopeMode, allowedApps, excludedApps } = normalizeAutocompleteSettings({
+        scopeMode: "denylist",
+        excludedApps: "not an array",
+      });
+      withScope({ scopeMode, allowedApps, excludedApps, cloudScopeConsent: "openai" });
+
+      expect((await fromApp("com.1password.1password")).suggestion).toBeNull();
+      expect((await fromApp("com.apple.notes")).suggestion).toBeNull();
+      expect(makeAIRequestMock).not.toHaveBeenCalled();
+    });
+
+    /**
+     * A legacy BARE id has no provider prefix. Gating on `parseModelRef` alone
+     * yields `null`, which can never match a stored consent, so the ref would
+     * be refused forever — including bare Ollama models needing no consent.
+     */
+    it("resolves a bare local model id and serves it without consent", async () => {
+      getCachedModelsMock.mockReturnValue([
+        { id: "llama3", name: "Llama 3", created: 0, local: { path: "" }, provider: "ollama" },
+      ]);
+      providerEndpoints = { ollama: { host: "127.0.0.1", port: 11434 } };
+      withScope({ scopeMode: "denylist", cloudScopeConsent: "" }, "llama3");
+
+      expect((await fromApp("com.apple.notes")).suggestion).toBe(" over the lazy dog.");
     });
 
     it("refuses a system surface that reported no app at all", async () => {

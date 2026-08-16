@@ -103,3 +103,19 @@ export const resolveModelRef = (
 
   return null;
 };
+
+/**
+ * Which provider a ref will actually be billed to, resolved the way
+ * `makeAIRequest` resolves it: a prefixed ref names its own provider, a legacy
+ * BARE id is matched against the cached models in `PROVIDER_ORDER`, and a ref
+ * nothing matches falls back to its own prefix (or `null`).
+ *
+ * The fallback matters for callers that gate on the answer: an unpopulated
+ * model cache must not turn a ref that plainly names a provider into "unknown".
+ * `null` means genuinely unresolvable and callers should treat it as the
+ * cautious case.
+ */
+export const resolveProviderForModelRef = (
+  modelRef: string,
+  models: readonly Model[],
+): ProviderId | null => resolveModelRef(modelRef, models)?.provider ?? parseModelRef(modelRef).provider;

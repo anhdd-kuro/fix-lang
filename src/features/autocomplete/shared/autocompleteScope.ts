@@ -68,6 +68,18 @@ export const DEFAULT_EXCLUDED_BUNDLE_IDS: readonly string[] = [
   "com.apple.systempreferences",
 ];
 
+/**
+ * A list that was STORED but is not a list.
+ *
+ * Absent is ordinary (a profile predating the feature). A present non-array is
+ * corruption — a hand-edited config, a bad import — and the two must not
+ * normalize to the same `[]`, because an empty EXCLUSION list under `denylist`
+ * permits every app. `decideAppScope`'s own `scope-unreadable` branch cannot
+ * catch this: normalization runs first and has already replaced the junk.
+ */
+export const isCorruptAppList = (raw: unknown): boolean =>
+  raw !== undefined && !Array.isArray(raw);
+
 const normalizeBundleIdList = (raw: unknown): string[] => {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();

@@ -1262,9 +1262,10 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
           enabled: false,
           model: "openai::gpt-4o",
           dailyCostCapUsd: 2.5,
-          scopeMode: "allowlist",
-          allowedApps: [],          excludedApps: [],
-          cloudScopeConsent: "",
+          scopeMode: "denylist",
+          allowedApps: ["com.apple.mail"],
+          excludedApps: ["com.1password.1password"],
+          cloudScopeConsent: "openai",
         },
       }),
     });
@@ -1289,6 +1290,28 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
     // So is the spend cap: it names no provider, account or machine, and an
     // export that reset it would hand the recipient a budget they never chose.
     expect(result.settings.settingsAutocomplete.dailyCostCapUsd).toBe(2.5);
+  });
+
+  /**
+   * `cloudScopeConsent` records that ONE person agreed to send keystrokes from
+   * other apps to a named provider. It is not a portable preference, and this
+   * same function sanitizes IMPORTS — so a shared profile carrying it would
+   * pre-consent its recipient to a decision they never made.
+   */
+  it("clears cloudScopeConsent on export", () => {
+    const result = toExportableProfile(exportableFixture());
+
+    expect(result.settings.settingsAutocomplete.cloudScopeConsent).toBe("");
+    // The app lists are the user's own configuration and do travel.
+    expect(result.settings.settingsAutocomplete.excludedApps).toEqual([
+      "com.1password.1password",
+    ]);
+  });
+
+  it("clears cloudScopeConsent on import, so a shared profile cannot pre-consent", () => {
+    const result = sanitizeImportedProfile(exportableFixture());
+
+    expect(result.settings.settingsAutocomplete.cloudScopeConsent).toBe("");
   });
 
   it("keeps every non-model setting, so an export is still a usable profile", () => {
@@ -1351,7 +1374,13 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
         },
         settingsPromptGen: { ...secretsOnly.settings.settingsPromptGen, model: "" },
         settingsSummarize: { ...secretsOnly.settings.settingsSummarize, model: "" },
-        settingsAutocomplete: { ...secretsOnly.settings.settingsAutocomplete, model: "" },
+        settingsAutocomplete: {
+          ...secretsOnly.settings.settingsAutocomplete,
+          model: "",
+          // One person's consent to upload other apps' keystrokes, not a
+          // portable setting — and this function also sanitizes imports.
+          cloudScopeConsent: "",
+        },
       },
     };
     expect(exportable).toEqual(blanked);
