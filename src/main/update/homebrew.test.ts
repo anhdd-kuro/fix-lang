@@ -145,6 +145,85 @@ const runHelperScript = (
 const APP_PATH = "/Applications/FixLang.app";
 const REOPENED = `open -a ${APP_PATH}`;
 
+/**
+ * The one thing `runHelperScript` cannot express: a signal arriving while a
+ * brew step is still in flight.
+ *
+ * It has to be asynchronous and it has to outlive the shell, because the whole
+ * defect is that the shell dies first and the `brew` child does not — so the
+ * trace only becomes conclusive once the ORPHANED child has finished. The brew
+ * stub therefore brackets its work with a start and a done line, the signal is
+ * sent the moment the start line appears (polled, never a fixed sleep, so a
+ * loaded CI box cannot make this flaky), and the trace is read only after the
+ * done line lands.
+ */
+const runHelperScriptAndSignal = async (
+  buildScript: (brewBinary: string) => string,
+  signal: NodeJS.Signals,
+): Promise<{ readonly trace: readonly string[]; readonly stderr: string }> => {
+  const { spawn: realSpawn } = await vi.importActual<typeof NodeChildProcess>(
+    "node:child_process",
+  );
+  const directory = mkdtempSync(path.join(tmpdir(), "fixlang-signal-"));
+  const tracePath = path.join(directory, "trace.log");
+
+  const writeStub = (name: string, body: string): string => {
+    const file = path.join(directory, name);
+    writeFileSync(file, `#!/bin/sh\n${body}\n`, { mode: 0o755 });
+    return file;
+  };
+
+  const brewStub = writeStub(
+    "brew",
+    [
+      'echo "brew-start $1 $3" >> "$TRACE"',
+      // Long enough that a reopen racing it is unmistakable in the trace, and
+      // deliberately NOT killed by the signal aimed at the shell — that gap is
+      // the defect.
+      "sleep 2",
+      'echo "brew-done $1 $3" >> "$TRACE"',
+    ].join("\n"),
+  );
+  const script = buildScript(brewStub)
+    .replaceAll("/usr/bin/open", writeStub("open", 'echo "open $1 $2" >> "$TRACE"'))
+    .replaceAll("/usr/bin/pgrep", writeStub("pgrep", "exit 1"))
+    .replaceAll("/bin/sleep", writeStub("sleep", "exit 0"));
+
+  const readTrace = (): readonly string[] =>
+    existsSync(tracePath)
+      ? readFileSync(tracePath, "utf8")
+          .split("\n")
+          .filter((line) => line.length > 0)
+      : [];
+
+  const waitForTraceLine = async (prefix: string): Promise<void> => {
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      if (readTrace().some((line) => line.startsWith(prefix))) return;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    throw new Error(`Timed out waiting for "${prefix}" in ${readTrace().join(" | ")}`);
+  };
+
+  const child = realSpawn("/bin/sh", ["-c", script], {
+    env: { ...process.env, TRACE: tracePath },
+  });
+  let stderr = "";
+  child.stderr?.on("data", (chunk: Buffer) => {
+    stderr += chunk.toString();
+  });
+  const exited = new Promise<void>((resolve) => child.on("close", () => resolve()));
+
+  await waitForTraceLine("brew-start");
+  child.kill(signal);
+  await exited;
+  // The shell is gone; the brew child it was waiting on is not. Only once that
+  // orphan reports done is "did anything reopen the app while Homebrew was
+  // still writing the bundle" an answerable question.
+  await waitForTraceLine("brew-done");
+
+  return { trace: readTrace(), stderr };
+};
+
 const caskInfoJson = (version: string, token: string = STABLE_CASK_TOKEN): string =>
   JSON.stringify({ casks: [{ token, version }] });
 
@@ -310,6 +389,121 @@ describe("upgrade script", () => {
       trace: ["brew upgrade fixlang", REOPENED],
       status: 0,
     });
+  });
+});
+
+/**
+ * REGRESSION: "every exit path reopens the app" was implemented as a single
+ * `trap ... EXIT`, and an EXIT trap fires when the shell dies from a signal
+ * too. A signal aimed at the helper shell does not reach the `brew` child it
+ * is waiting on, so the shell died, ran the trap, and reopened FixLang while
+ * the orphaned Homebrew was STILL replacing the bundle — observed by
+ * execution at reopen T+1s against `brew-done` at T+4s, on both builders, for
+ * TERM and HUP. It is the one exit where the reopen is the harm rather than
+ * the repair: it is exactly the mid-replacement launch the wait loop above
+ * exists to prevent, and inside the channel switch's no-app window it fell
+ * through to `open -b <bundle id>` and started a copy Homebrew then wrote
+ * over. The script this replaced (before the trap existed) reopened nothing
+ * here.
+ *
+ * These execute rather than index the text, because "the EXIT trap also
+ * covers signals" is a property of `/bin/sh`, not of the string.
+ *
+ * Note on shells: `runDetached` hands this text to macOS `/bin/sh` (bash),
+ * which is the only place this Homebrew helper ever runs. Under a `sh` that
+ * does not run EXIT traps for fatal signals at all these assertions hold
+ * trivially rather than failing — the mutation that proves they bite has to
+ * be run on macOS.
+ */
+describe("a signal that kills the helper shell must not reopen the app", () => {
+  it.each<NodeJS.Signals>(["SIGTERM", "SIGHUP"])(
+    "leaves FixLang closed when %s arrives mid-upgrade",
+    async (signal) => {
+      const { trace, stderr } = await runHelperScriptAndSignal(
+        (brew) => buildUpgradeScript(brew, APP_PATH),
+        signal,
+      );
+
+      expect(trace.filter((line) => line.startsWith("open"))).toEqual([]);
+      expect(trace).toContain("brew-done upgrade fixlang");
+      // The log is the only channel left, so the exit that leaves the app
+      // closed has to say it did.
+      expect(stderr).toContain("leaving FixLang closed");
+    },
+  );
+
+  /**
+   * The switch is the worse half: between the uninstall and the install there
+   * is no bundle at the recorded path, so the reopen fell through to the
+   * bundle id and LaunchServices started whatever other FixLang it could find
+   * — which `brew install` then overwrote seconds later.
+   */
+  it("leaves FixLang closed when a signal arrives mid-switch", async () => {
+    const { trace } = await runHelperScriptAndSignal(
+      (brew) =>
+        buildChannelSwitchScript(brew, STABLE_CASK_TOKEN, BETA_CASK_TOKEN, APP_PATH),
+      "SIGTERM",
+    );
+
+    expect(trace.filter((line) => line.startsWith("open"))).toEqual([]);
+  });
+
+  /**
+   * The counterpart, so "does not reopen on a signal" cannot be satisfied by
+   * a script that stopped reopening at all: the same builders, unsignalled,
+   * still reopen exactly once. Kept next to the tests above because that is
+   * the pair that has to stay true together.
+   */
+  it("still reopens exactly once when no signal arrives", () => {
+    expect(
+      runHelperScript((brew) => buildUpgradeScript(brew, APP_PATH)).trace,
+    ).toEqual(["brew upgrade fixlang", REOPENED]);
+    expect(
+      runHelperScript(
+        (brew) =>
+          buildChannelSwitchScript(brew, STABLE_CASK_TOKEN, BETA_CASK_TOKEN, APP_PATH),
+        ["install:fixlang@beta"],
+      ).trace.filter((line) => line.startsWith("open")),
+    ).toEqual([REOPENED]);
+  });
+});
+
+/**
+ * `quitTimeoutMessage` was the one `HelperScriptParts` field with no boundary
+ * check: `brewBinary`, `appPath` and both cask tokens are all refused at the
+ * builder, while the message was interpolated raw into `echo "..."` — a shape
+ * that runs command substitution like any other double-quoted shell string
+ * (verified by executing the emitted line form with `$(...)` substituted: the
+ * substitution ran). Latent, because the builder is module-private and both
+ * call sites pass a literal built from a numeric constant; pinned anyway,
+ * because "it is a literal today" is exactly the assumption that expires the
+ * day the message comes from a catalog or a profile.
+ */
+describe("every message the helper echoes is inert shell text", () => {
+  const messageLines = (script: string): readonly string[] =>
+    script.split("\n").filter((line) => line.trimStart().startsWith('echo "'));
+
+  it.each([
+    ["upgrade", buildUpgradeScript("/opt/homebrew/bin/brew", APP_PATH)],
+    [
+      "channel switch",
+      buildChannelSwitchScript(
+        "/opt/homebrew/bin/brew",
+        STABLE_CASK_TOKEN,
+        BETA_CASK_TOKEN,
+        APP_PATH,
+      ),
+    ],
+  ])("emits no expansion inside an echoed %s message", (_label, script) => {
+    const lines = messageLines(script);
+
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) {
+      // Everything between the opening and closing quote of `echo "..."`.
+      const body = line.slice(line.indexOf('echo "') + 6, line.lastIndexOf('"'));
+      expect(body).not.toMatch(/[`$\\]/);
+      expect([...body].every((character) => character >= " ")).toBe(true);
+    }
   });
 });
 
@@ -926,6 +1120,7 @@ describe("channel switch script", () => {
     restoreSearchStart,
   );
   const trapIdx = script.indexOf("trap reopen_fixlang EXIT");
+  const signalTrapIdx = script.indexOf("trap abort_without_reopen ");
   const waitLoopEndIdx = script.indexOf("\ndone\n");
 
   const switchScript = (brew: string): string =>
@@ -1017,10 +1212,19 @@ describe("channel switch script", () => {
   it("arms the reopen for every exit path the moment the app is gone", () => {
     expect(trapIdx).toBeGreaterThan(waitLoopEndIdx);
     expect(trapIdx).toBeLessThan(fetchIdx);
-    expect(script.match(/^trap /gm)).toHaveLength(1);
-    // The trap names a function, never inline text: a bundle path holding a
+    // Two traps and no more: the EXIT reopen, and the signal abort that is
+    // its single deliberate exception. Both are armed in the same place and
+    // neither is ever disarmed from the script body — `trap - EXIT` appears
+    // only inside the signal handler, where suppressing the reopen IS the
+    // behaviour.
+    expect(script.match(/^trap /gm)).toHaveLength(2);
+    expect(script.match(/^ *trap - EXIT$/gm)).toHaveLength(1);
+    expect(signalTrapIdx).toBeGreaterThan(trapIdx);
+    expect(signalTrapIdx).toBeLessThan(fetchIdx);
+    // Both traps name a function, never inline text: a bundle path holding a
     // quote would otherwise escape the trap's own quoting.
     expect(script).toContain("reopen_fixlang() {");
+    expect(script).toContain("abort_without_reopen() {");
   });
 
   /**
@@ -1080,8 +1284,17 @@ describe("channel switch script", () => {
    * "on the channel they did not ask for" beats "none", and the target's DMG
    * is the one still guaranteed to be in the download cache.
    */
-  it("falls back to the target when the restore itself fails", () => {
-    const { trace, status } = runHelperScript(switchScript, [
+  /**
+   * REGRESSION: this last-resort install SUCCEEDING was reported as a total
+   * failure — exit 1, and a log whose final app-authored line was still
+   * "Failed to restore fixlang; trying fixlang@beta once more." The user was
+   * on the channel they asked for, and success differed from "nothing is
+   * installed" only by the ABSENCE of a further line. The committed version
+   * of this test asserted `trace.at(-2)` and `status === 1` and never looked
+   * at stderr, so it could not see the difference either.
+   */
+  it("reports the channel it landed on when the restore fails but the target installs", () => {
+    const { trace, status, stderr } = runHelperScript(switchScript, [
       "install:fixlang@beta#1",
       "install:fixlang@beta#2",
       "install:fixlang",
@@ -1089,6 +1302,20 @@ describe("channel switch script", () => {
 
     expect(trace.at(-2)).toBe("brew install fixlang@beta");
     expect(trace.at(-1)).toBe(REOPENED);
+    expect(stderr).toContain("FixLang is on the fixlang@beta channel");
+    // The switch landed on the requested channel, so it is not a failure.
+    expect(status).toBe(0);
+  });
+
+  /**
+   * The neighbouring outcome, for the same reason: a rollback that WORKS is
+   * still a failed switch, and it has to say which of the two happened rather
+   * than leave the reader to infer it from which line came last.
+   */
+  it("says the switch did not happen when the rollback succeeds", () => {
+    const { status, stderr } = runHelperScript(switchScript, ["install:fixlang@beta"]);
+
+    expect(stderr).toContain("Restored fixlang; the switch to fixlang@beta did not happen.");
     expect(status).toBe(1);
   });
 
@@ -1105,7 +1332,33 @@ describe("channel switch script", () => {
     ]);
 
     expect(stderr).toContain("Failed to restore fixlang");
-    expect(stderr).toContain("brew install --cask fixlang");
+    expect(stderr).toContain("Recover with: brew install --cask fixlang@beta");
+    expect(status).toBe(1);
+  });
+
+  /**
+   * REGRESSION: the recovery line named `currentToken`, so on a REVERT it
+   * handed a user who had just asked to leave the pre-release — and who now
+   * had no app at all — `brew install --cask fixlang@beta` as their one
+   * instruction. The channel they asked for was never named.
+   *
+   * The revert direction was previously index-checked only, never executed,
+   * and the assertion that would have caught this
+   * (`toContain("brew install --cask fixlang")`) passes on the revert script
+   * regardless, because it is a PREFIX of `...fixlang@beta`. So this asserts
+   * the two tokens apart rather than matching a prefix: the requested token
+   * must be named and the abandoned one must not.
+   */
+  it("names the REQUESTED channel in the recovery line, in both directions", () => {
+    const revertScript = (brew: string): string =>
+      buildChannelSwitchScript(brew, BETA_CASK_TOKEN, STABLE_CASK_TOKEN, APP_PATH);
+    const { stderr, status } = runHelperScript(revertScript, [
+      "install:fixlang",
+      "install:fixlang@beta",
+    ]);
+
+    expect(stderr).toContain("Recover with: brew install --cask fixlang\n");
+    expect(stderr).not.toContain("Recover with: brew install --cask fixlang@beta");
     expect(status).toBe(1);
   });
 

@@ -294,19 +294,21 @@ const readInstallableVersion = async (
  * process with no terminal.
  */
 /**
- * Only an absolute path, with nothing that could end the shell string it is
- * interpolated into. The script is text handed to `/bin/sh`, so every value
- * that reaches it is checked at the boundary instead of trusted by
- * provenance — including the ones that come from this process rather than
- * from any input.
+ * Nothing that could end, or reach outside, the double-quoted shell string the
+ * value is interpolated into. The script is text handed to `/bin/sh`, so every
+ * value that reaches it is checked at the boundary instead of trusted by
+ * provenance — including the ones that come from this process rather than from
+ * any input.
+ *
+ * Quoting handles spaces; these characters would escape the quotes. Control
+ * characters are rejected by the printable test rather than by a regex, so
+ * nothing rests on how a control escape happens to be spelled.
  */
+const isSafeDoubleQuotedText = (candidate: string): boolean =>
+  !/["`$\\]/.test(candidate) && [...candidate].every((character) => character >= " ");
+
 const isSafeShellPath = (candidate: string): boolean =>
-  candidate.startsWith("/") &&
-  // Quoting handles spaces; these characters would escape the quotes. Control
-  // characters are rejected by the printable test below rather than by a
-  // regex, so nothing rests on how a control escape happens to be spelled.
-  !/["`$\\]/.test(candidate) &&
-  [...candidate].every((character) => character >= " ");
+  candidate.startsWith("/") && isSafeDoubleQuotedText(candidate);
 
 const isSafeBundlePath = (candidate: string): boolean =>
   isSafeShellPath(candidate) && candidate.endsWith(".app");
@@ -334,6 +336,40 @@ const buildReopenCommand = (appPath: string | null): string =>
  */
 const REOPEN_FUNCTION_NAME = "reopen_fixlang";
 
+/**
+ * The one exit the EXIT trap must NOT reopen through.
+ *
+ * A signal kills the helper shell, but it does not kill the `brew` child the
+ * shell was waiting on — that child keeps running, orphaned, and finishes
+ * replacing `/Applications/FixLang.app` seconds later. Reopening on the way
+ * out therefore launches the app into the middle of the bundle swap, which is
+ * exactly the corruption the wait loop above exists to prevent; inside the
+ * channel switch's no-app window it is worse still, because the reopen falls
+ * through to the bundle id and LaunchServices starts some other copy that brew
+ * then overwrites underneath.
+ *
+ * So the signal handler disarms the EXIT trap before exiting. Leaving the app
+ * closed after a signal is the same outcome the user got before any trap
+ * existed, and it is the one the machine can recover from: the bundle ends up
+ * whole and one double-click away.
+ *
+ * Spelled as a function for the same reason the reopen is — `trap` takes
+ * quoted shell text, so a bare word is the only argument shape with no quoting
+ * of its own to get wrong.
+ */
+const SIGNAL_ABORT_FUNCTION_NAME = "abort_without_reopen";
+
+/** POSIX-named, so `/bin/sh` needs no signal-number table to agree with us. */
+const ABORTING_SIGNALS = "HUP INT TERM";
+
+/**
+ * The helper log is the only channel left once the app has quit, so the one
+ * exit that leaves FixLang closed has to say so — otherwise the user meets a
+ * missing app and a log that stops mid-sentence.
+ */
+const SIGNAL_ABORT_MESSAGE =
+  "Interrupted while Homebrew was working; leaving FixLang closed because its bundle may be half-replaced. Reopen it once Homebrew has finished.";
+
 type HelperScriptParts = {
   readonly brewBinary: string;
   readonly appPath: string | null;
@@ -354,8 +390,9 @@ type HelperScriptParts = {
  * screen, so an abort that skips the reopen strands them — and a builder that
  * spells the reopen at the end of the success path invites exactly that
  * mistake once per author. `trap` states the invariant once, structurally:
- * after the app has quit, EVERY exit path reopens it, including one nobody
- * anticipated.
+ * after the app has quit, every exit path the shell can *choose* reopens it,
+ * including one nobody anticipated — with the single deliberate exception the
+ * shell does not choose, {@link SIGNAL_ABORT_FUNCTION_NAME}.
  */
 const buildHelperScript = ({
   brewBinary,
@@ -372,6 +409,17 @@ const buildHelperScript = ({
       `Refusing to build a helper script around an unsafe brew path: ${brewBinary}`,
     );
   }
+  // The message lands inside `echo "..."`, which runs command substitution and
+  // expands variables exactly like every other double-quoted string in this
+  // text. Today both call sites pass a literal built from a numeric constant,
+  // so this refuses nothing — which is the point of checking it here rather
+  // than trusting that the day it comes from a catalog or a profile somebody
+  // remembers to look.
+  if (!isSafeDoubleQuotedText(quitTimeoutMessage)) {
+    throw new Error(
+      `Refusing to build a helper script around an unsafe quit-timeout message: ${quitTimeoutMessage}`,
+    );
+  }
 
   return [
     "set -u",
@@ -379,6 +427,13 @@ const buildHelperScript = ({
     "export HOMEBREW_NO_ENV_HINTS=1",
     `${REOPEN_FUNCTION_NAME}() {`,
     `  ${buildReopenCommand(appPath)}`,
+    "}",
+    `${SIGNAL_ABORT_FUNCTION_NAME}() {`,
+    // Disarm before exiting, or this handler's own `exit` runs the EXIT trap
+    // and reopens the app anyway — the whole point of the handler.
+    "  trap - EXIT",
+    `  echo "${SIGNAL_ABORT_MESSAGE}" >&2`,
+    "  exit 1",
     "}",
     "waited=0",
     `while /usr/bin/pgrep -x ${PROCESS_NAME} >/dev/null 2>&1; do`,
@@ -395,6 +450,11 @@ const buildHelperScript = ({
     // makes "then reopen it" true of every exit below, rather than of only
     // the paths whose author remembered.
     `trap ${REOPEN_FUNCTION_NAME} EXIT`,
+    // Armed together with it, and only here: below this line there is a brew
+    // child that outlives a signal to the shell, so the one exit that must
+    // NOT reopen becomes possible at exactly the same line as the ones that
+    // must. Above it, a signal already reopens nothing — no trap is set yet.
+    `trap ${SIGNAL_ABORT_FUNCTION_NAME} ${ABORTING_SIGNALS}`,
     ...steps,
   ].join("\n");
 };
@@ -452,6 +512,12 @@ export const buildUpgradeScript = (
  * the one `brew install` line that gets the user back. The reopen itself is
  * a `trap` installed by {@link buildHelperScript}, so it is not something
  * this ladder has to remember at each rung.
+ *
+ * The helper log is the only report the user ever sees, so every rung that
+ * ends the script names its own outcome rather than leaving it to be inferred
+ * from which line came last. That includes the good surprise: when the
+ * rollback fails and the last-resort install then works, the user is on the
+ * channel they asked for, and the script says so and exits 0.
  */
 export const buildChannelSwitchScript = (
   brewBinary: string,
@@ -513,16 +579,33 @@ export const buildChannelSwitchScript = (
       // Restore the ORIGINAL token, never the target, in THIS position:
       // naming the target here would just retry the thing that already failed
       // twice while the user is still on neither channel.
-      `    if ! "${brewBinary}" install --cask ${currentToken}; then`,
+      `    if "${brewBinary}" install --cask ${currentToken}; then`,
+      // The rollback worked, so the switch itself did not: the user is back on
+      // the channel they started from, which is a failed switch and says so.
+      `      echo "Restored ${currentToken}; the switch to ${targetToken} did not happen." >&2`,
+      "      exit 1",
+      "    fi",
       // Once the rollback itself has failed the choice is no longer "the
       // channel they asked for" versus "the one they had" — it is "some
       // FixLang" versus "none". The target gets one last attempt in the only
       // position where it is the sole remaining candidate, and its own DMG is
       // already cached from the fetch above.
-      `      echo "Failed to restore ${currentToken}; trying ${targetToken} once more." >&2`,
-      `      "${brewBinary}" install --cask ${targetToken} || echo "FixLang is no longer installed. Recover with: brew install --cask ${currentToken}" >&2`,
+      `    echo "Failed to restore ${currentToken}; trying ${targetToken} once more." >&2`,
+      `    if ! "${brewBinary}" install --cask ${targetToken}; then`,
+      // Nothing is installed and nothing is left running to report through, so
+      // this line is the whole of the user's recovery. It names the TARGET:
+      // that is the channel they asked for, its DMG is the one still cached,
+      // and on a revert naming the current token would hand somebody who just
+      // asked to leave the pre-release the pre-release as their only
+      // instruction.
+      `      echo "FixLang is no longer installed. Recover with: brew install --cask ${targetToken}" >&2`,
+      "      exit 1",
       "    fi",
-      "    exit 1",
+      // The last resort landed. The user IS on the channel they asked for, so
+      // this exits 0 like any other successful switch — an outcome that is
+      // reported only by the ABSENCE of a further line is one nobody reads
+      // correctly.
+      `    echo "Restoring ${currentToken} failed, but ${targetToken} installed on the last attempt; FixLang is on the ${targetToken} channel." >&2`,
       "  fi",
       "fi",
     ],
