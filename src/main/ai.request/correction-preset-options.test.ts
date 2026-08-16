@@ -248,8 +248,15 @@ describe("fixGrammar — empty input early return", () => {
 // ---------------------------------------------------------------------------
 // Tests: fixGrammar composes the preset's declared options onto the system
 // prompt. `withPresetOptions` is the INNERMOST wrapper, so the directive lands
-// directly after the preset's own instructions and BEFORE the source-app and
-// user-metadata blocks — whose `# Metadata context` section stays trailing.
+// directly after the preset's own instructions, and the ambient blocks — the
+// source-app `# Metadata context` section and the per-press user metadata —
+// trail it, exactly as they do for the other seven presets.
+//
+// The directive being LAST is not the contract and must not be asserted here.
+// The text to transform is sent as a separate user message
+// (`buildCorrectionUserPrompt`), so nothing that trails the directive in the
+// system prompt is input; the prompt asset draws the instruction/input boundary
+// by message role. See the COMPOSITION ORDER note in `src/prompts/correction.ts`.
 // ---------------------------------------------------------------------------
 
 describe("fixGrammar — Caveman intensity composed into the system prompt", () => {
@@ -322,7 +329,7 @@ describe("fixGrammar — Caveman intensity composed into the system prompt", () 
     );
   });
 
-  it("keeps the directive ahead of the source-app and metadata blocks", async () => {
+  it("seats the directive directly after the base prompt, ambient blocks trailing", async () => {
     setupCaveman({ cavemanMode: "ultra" });
 
     await fixGrammar("some text", undefined, {
@@ -331,10 +338,17 @@ describe("fixGrammar — Caveman intensity composed into the system prompt", () 
     });
 
     const systemPrompt = systemPromptOfLastCall();
-    expect(systemPrompt.startsWith(CAVEMAN_BASE_PROMPT)).toBe(true);
-    expect(systemPrompt.indexOf(DEFAULT_CAVEMAN_ULTRA_DIRECTIVE)).toBeLessThan(
-      systemPrompt.indexOf("# Metadata context"),
-    );
+    // The contract: base prompt, then exactly one directive, with nothing
+    // wedged between them. `startsWith(base)` plus an index comparison would
+    // pass with an extra block spliced in the middle, which is the arrangement
+    // the base prompt is written against.
+    expect(
+      systemPrompt.startsWith(
+        `${CAVEMAN_BASE_PROMPT}\n\n${DEFAULT_CAVEMAN_ULTRA_DIRECTIVE}`,
+      ),
+    ).toBe(true);
+    // Ambient context trails the directive, in wrapper order. This is NOT a
+    // claim that the directive is the final line — it deliberately is not.
     expect(systemPrompt.indexOf("# Metadata context")).toBeLessThan(
       systemPrompt.indexOf("App locale: en"),
     );

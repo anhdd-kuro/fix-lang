@@ -2,6 +2,17 @@
  * @file correction-app-context.test.ts
  * @description Tests for the frontmost-app context block that `fixGrammar`
  * appends to the preset's system prompt. Pure unit tests — no Electron, no network.
+ *
+ * THIS FILE IS THE END-TO-END COMPOSITION GUARD. It drives `fixGrammar` and
+ * reads the system prompt actually handed to `makeAIRequest`, so it is what
+ * catches a new or reordered system-prompt wrapper (`withPresetOptions`,
+ * `withUserMetadata`, anything added later) disturbing the trailing context
+ * blocks. Do not weaken or delete an assertion here on the grounds that
+ * `transform-context.test.ts` covers it: that file unit-tests
+ * `buildActiveAppContextBlock`/`withActiveAppContext` in isolation and never
+ * calls `fixGrammar`, so it stays fully green against a wrapper that corrupts
+ * every composed prompt — proven by mutation, not assumed. The two files have
+ * different scopes and only this one is probative about composition.
  */
 // ---------------------------------------------------------------------------
 // Mocks — must be hoisted before imports

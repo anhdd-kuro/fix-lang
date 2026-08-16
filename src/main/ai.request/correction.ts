@@ -171,10 +171,15 @@ export const fixGrammar = async (
       // innermost one lands nearest the preset prompt and the outermost one
       // ends the string. `withPresetOptions` is innermost because a chosen
       // option is part of what the preset instructs, not ambient metadata
-      // about the press. Wrapping it any further out would move the two
-      // metadata blocks off the end of the prompt, and their relative
-      // positions are byte-pinned by `transform-context.test.ts` and
-      // `correction-app-context.test.ts` — which must keep passing unmodified.
+      // about the press. Wrapping it any further out would make the preset
+      // that declares options the only one whose `# Metadata context` block is
+      // not trailing, special-casing it against the other seven for no gain:
+      // the text to transform is sent as a SEPARATE USER MESSAGE by
+      // `buildCorrectionUserPrompt`, so nothing trailing a preset's own
+      // instructions in the system prompt is input, whatever a prompt asset
+      // may claim about position. `correction-app-context.test.ts` is the
+      // end-to-end guard on this composition — it drives `fixGrammar` itself,
+      // which is what makes it probative here.
       systemPrompt: withUserMetadata(
         withActiveAppContext(
           withPresetOptions(preset.systemPrompt, preset),

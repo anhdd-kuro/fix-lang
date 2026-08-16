@@ -147,13 +147,23 @@ export const DEFAULT_CAVEMAN_PRESET_PROMPT = cavemanMarkdown.trim();
  * time — nothing in this file assembles them together.
  *
  * COMPOSITION ORDER — this is a contract, not a preference. Exactly ONE
- * directive is APPENDED AFTER `DEFAULT_CAVEMAN_PRESET_PROMPT`, as the final
- * line of the system prompt, with the text to compress arriving separately as
- * the user message. The base prompt states that its instructions end with the
- * intensity level line and that everything after that line is input to
- * compress, so prepending a directive would put it on the input side of that
- * boundary. Never place a directive before the base prompt, and never append
- * two of them.
+ * directive is APPENDED AFTER `DEFAULT_CAVEMAN_PRESET_PROMPT`. Never place a
+ * directive before the base prompt, and never append two of them: the base
+ * prompt is written to be level-agnostic, so a directive ahead of it reads as
+ * a claim the instructions then talk past, and two directives are two
+ * intensities arguing.
+ *
+ * "After the base prompt" is the whole of the contract — the directive is NOT
+ * required to be the last line of the system prompt, and demanding that was a
+ * defect, not a stricter rule. Ambient context blocks legitimately follow it:
+ * `fixGrammar` appends the source-app `# Metadata context` block and the
+ * per-press user metadata outside `withPresetOptions`, exactly as it does for
+ * the other seven presets. That is harmless because the text to compress never
+ * appears in the system prompt at all — `buildCorrectionUserPrompt` sends it as
+ * a separate user message — so nothing trailing the directive is input, and the
+ * base prompt draws the instruction/input boundary by message role rather than
+ * by position. Reinstating a "final line" requirement would re-declare the
+ * app's own metadata blocks as text for the model to compress.
  *
  * The levels are cumulative: `full` keeps doing what `lite` does and cuts
  * further, `ultra` keeps doing what `full` does and cuts further still, so each
