@@ -2285,6 +2285,68 @@ describe("normalizeCorrectionSettings — materialized built-in never steals a s
   });
 });
 
+/**
+ * Tripwires for two branches of the anti-theft guard that no behavioural test
+ * can currently reach, because the built-in tables happen not to produce the
+ * inputs that would reach them. Mutation testing found both: sabotage either
+ * one and the whole suite stays green.
+ *
+ * Neither is a latent bug — the guard is written correctly. The problem is
+ * that its correctness is currently unfalsifiable, so a future edit could
+ * quietly undo it. Rather than add a test seam to production code for a case
+ * nothing can reach, or fabricate a test whose input the app cannot actually
+ * produce, these pin the PRECONDITIONS the untestable branches rest on. Each
+ * goes red at exactly the moment its branch becomes reachable, which is the
+ * moment a real test for it becomes writable — and lands that failure on the
+ * person making that change, who is the one able to write it.
+ */
+describe("normalizeCorrectionSettings — preconditions the hotkey guard rests on", () => {
+  it("ships no built-in default combo carrying a hotkey", () => {
+    // `hotkeysClaimedByStoredCombos` is built from `storedCombos` (pre-merge)
+    // rather than the `withDefaultCombos` output, so that a DEFAULT combo can
+    // never blank a DEFAULT preset's hotkey — a stored-vs-materialized guard
+    // must not fire materialized-vs-materialized. Mutating that source to the
+    // merged `combos` list leaves every other test green, because the only
+    // built-in combo ships `hotkey: ""` and the `length > 0` filter drops it,
+    // making the two lists identical in every case the suite exercises.
+    //
+    // So this asserts the reason that mutation is currently harmless. Ship a
+    // built-in combo with a real hotkey and this fails, which is the signal to
+    // write the direct test that is finally possible at that point.
+    const defaultCombos = getDefaultCorrectionSettings().combos;
+
+    expect(defaultCombos.length).toBeGreaterThan(0);
+    expect(
+      defaultCombos.filter((combo) => combo.hotkey.trim().length > 0),
+    ).toEqual([]);
+  });
+
+  it("ships only canonical built-in default preset hotkeys, needing no trim", () => {
+    // The guard compares `preset.hotkey.trim()` against the claim set. The
+    // combo side of that comparison is exercised (a whitespace-only combo
+    // hotkey is no claim), but the PRESET side is not: dropping `.trim()`
+    // there leaves the suite green.
+    //
+    // It cannot be exercised behaviourally today. The guard runs only on
+    // default-sourced hotkeys — a stored hotkey is returned untouched — and
+    // every hotkey in the defaults table is already canonical, whether it
+    // arrives by materialization or by the `?? fallback?.hotkey` inheritance
+    // read. There is no input to `normalizeCorrectionSettings` that reaches
+    // that branch with whitespace, so a test feeding one would be asserting
+    // against a state the app cannot produce.
+    //
+    // This pins the property that makes it unreachable instead. Add a default
+    // hotkey with incidental whitespace and this fails, exposing that the
+    // preset-side trim now matters and is unproven.
+    const defaultHotkeys = getDefaultCorrectionSettings().presets.map(
+      (preset) => preset.hotkey,
+    );
+
+    expect(defaultHotkeys.length).toBe(8);
+    expect(defaultHotkeys).toEqual(defaultHotkeys.map((h) => h.trim()));
+  });
+});
+
 describe("normalizeCorrectionSettings — the built-in Perfect prompt combo", () => {
   const comboFor = (stored?: unknown) =>
     combosOf(
