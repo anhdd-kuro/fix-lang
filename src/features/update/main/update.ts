@@ -1,5 +1,6 @@
 import { BrowserWindow, ipcMain, shell } from "electron";
 import { msg } from "~/features/i18n/shared/message";
+import type { PrereleaseState } from "~/features/update/shared/prerelease";
 import type {
   InstallUpdateResult,
   OpenUpdateReleaseResult,
@@ -50,4 +51,56 @@ export const registerUpdateHandlers = (service: UpdateService): void => {
   });
 
   service.subscribe(broadcastState);
+};
+
+/**
+ * The pre-release surface `UpdateService` will grow to satisfy (see the
+ * "Service: pre-release check and channel detection" and "Service: switch,
+ * revert, confirm, marker, logging" cards). Declared narrowly here — rather
+ * than importing it from that not-yet-written service — so this handler
+ * registration can be built and tested against the exact shape it needs;
+ * any concrete service that satisfies this interface can be passed in.
+ */
+export type PrereleaseUpdateService = {
+  getPrereleaseState(): PrereleaseState;
+  checkForPrerelease(): Promise<PrereleaseState>;
+  switchToPrerelease(): Promise<UpdateActionResult>;
+  revertToStable(): Promise<UpdateActionResult>;
+  subscribeToPrereleaseState(
+    listener: (state: PrereleaseState) => void,
+  ): () => void;
+};
+
+const broadcastPrereleaseState = (state: PrereleaseState): void => {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) {
+      window.webContents.send("updates:prerelease-state", state);
+    }
+  }
+};
+
+/**
+ * Registers the pre-release (beta channel) IPC surface on its own channel
+ * set, broadcasting on `updates:prerelease-state` rather than `updates:state`
+ * — kept fully separate from `registerUpdateHandlers` so the tray, which
+ * only ever calls `installUpdate`/`checkForUpdates` against the stable
+ * `UpdateState`, never has to subscribe to fields it doesn't use.
+ */
+export const registerPrereleaseUpdateHandlers = (
+  service: PrereleaseUpdateService,
+): void => {
+  ipcMain.handle("updates:prerelease:get-state", () =>
+    service.getPrereleaseState(),
+  );
+  ipcMain.handle("updates:prerelease:check", () => service.checkForPrerelease());
+  // Input-free like `updates:install`: the offered version and target
+  // channel are both decided in main, never by the renderer.
+  ipcMain.handle("updates:prerelease:switch", () =>
+    service.switchToPrerelease(),
+  );
+  // Also input-free — reverting always targets the latest stable release,
+  // decided in main, and needs no confirm.
+  ipcMain.handle("updates:prerelease:revert", () => service.revertToStable());
+
+  service.subscribeToPrereleaseState(broadcastPrereleaseState);
 };
