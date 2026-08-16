@@ -1,6 +1,12 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { isCaskToken, type CaskToken } from "./homebrew";
+import {
+  BETA_CASK_TOKEN,
+  isCaskToken,
+  STABLE_CASK_TOKEN,
+  type CaskToken,
+} from "./homebrew";
+import { parsePrereleaseVersion } from "./prereleaseVersion";
 
 /**
  * The Homebrew upgrade finishes after the app has already quit, so the only
@@ -28,8 +34,15 @@ export type { CaskToken };
  * field existed. That default is also the correct answer for those markers,
  * not just a safe placeholder: every upgrade before pre-release existed was
  * stable-to-stable.
+ *
+ * Re-exported from `./homebrew` rather than re-spelled: the literal is the
+ * dangerous half. A `: CaskToken` annotation catches an outright rename, but
+ * not a third channel token being added while `"fixlang"` stays in
+ * `KNOWN_CASK_TOKENS` for legacy markers — `homebrew.ts` would move its
+ * stable token forward while this module's MIGRATION DEFAULT still pointed at
+ * the legacy string, with no type error and no test failure.
  */
-export const STABLE_CASK_TOKEN: CaskToken = "fixlang";
+export { STABLE_CASK_TOKEN };
 
 export type PendingInstall = Readonly<{
   fromVersion: string;
@@ -43,8 +56,23 @@ export type PendingInstall = Readonly<{
    * different copy of the app opened instead".
    */
   appPath: string;
-  /** See {@link CaskToken}. */
+  /**
+   * The token the operation targeted — for a revert that is the STABLE one,
+   * so this field alone never says which channel the app came from. See
+   * {@link CaskToken}.
+   */
   caskToken: CaskToken;
+  /**
+   * The token the app was installed under when the operation started, i.e.
+   * the cask a failed channel switch reinstalls when it rolls back. Optional
+   * because markers written before this field exist on disk, and because the
+   * writer that fills it in is not this module's to change; when it is
+   * absent, {@link sourceCaskToken} recovers the same answer from
+   * `fromVersion`. Without it (or that fallback) the marker cannot express
+   * "the switch rolled back onto the source channel", and reconcile has no
+   * choice but to read the rollback's moved version as a completed update.
+   */
+  fromCaskToken?: CaskToken;
 }>;
 
 export type PendingInstallStore = Readonly<{
@@ -59,22 +87,60 @@ export type InstallOutcome =
   | "restart-required"
   | "wrong-bundle"
   | "in-progress"
+  /**
+   * A channel switch or revert that ended back on the channel it started
+   * from: the install failed and the helper reinstalled the source cask,
+   * normally at that channel's CURRENT version rather than the one the user
+   * had. The version therefore moved without the operation succeeding, which
+   * is the one state "the version moved, so it worked" gets exactly backwards
+   * — a user who asked to leave the pre-release channel is still on it, under
+   * a build they never chose. Reports as an unfinished operation, never as an
+   * update.
+   */
+  | "rolled-back"
   | "failed";
 
-export type ReconcileContext = Readonly<{
+type VersionInstalledResolver = (
+  version: string,
+  caskToken: CaskToken,
+) => boolean;
+
+type ReconcileContextBase = Readonly<{
   /** Epoch ms at reconcile time. */
   now: number;
-  /**
-   * True once the Caskroom holds the target version, i.e. Homebrew finished.
-   * The caller must resolve this against `pending.caskToken`'s own Caskroom
-   * — not always the stable one — or a successful install under a different
-   * token (a pre-release switch, or a revert back to stable) never shows up
-   * here and reads as a stalled, then failed, upgrade instead.
-   */
-  isTargetInstalled: boolean;
   /** `.app` root of the process doing the reconcile; null when unknown. */
   runningAppPath: string | null;
 }>;
+
+/**
+ * Exactly one of two ways to answer "what does the Caskroom hold" — either
+ * form satisfies the type, neither may be omitted.
+ *
+ * `isVersionInstalled` is the one to pass. A pre-resolved `isTargetInstalled`
+ * boolean discards the very thing the contract is about: reconcile needs the
+ * probe aimed at `pending.caskToken`'s own Caskroom — not always the stable
+ * one — and a boolean records neither which version nor which token the
+ * caller used. That omission has already shipped once (see
+ * `updateService.ts`'s `watchBackgroundUpgrade` doc comment), because a
+ * boolean can only be described in prose, never checked. The resolver makes
+ * reconcile pass the token itself, so getting it wrong stops being possible,
+ * and it is also what lets a rollback onto the source channel be detected
+ * from the Caskroom rather than inferred from the version's shape.
+ *
+ * The boolean member remains only so existing callers keep compiling; drop it
+ * from this union once every call site passes the resolver.
+ */
+export type ReconcileContext = ReconcileContextBase &
+  (
+    | Readonly<{
+        isVersionInstalled: VersionInstalledResolver;
+        isTargetInstalled?: boolean;
+      }>
+    | Readonly<{
+        isVersionInstalled?: undefined;
+        isTargetInstalled: boolean;
+      }>
+  );
 
 /**
  * How long the detached helper may still be working before an unchanged
@@ -106,6 +172,16 @@ const parseStartedAt = (value: unknown): number =>
 const parseCaskToken = (value: unknown): CaskToken =>
   typeof value === "string" && isCaskToken(value) ? value : STABLE_CASK_TOKEN;
 
+/**
+ * The source token, unlike the target one, has no safe default: guessing
+ * "stable" for a marker that omitted it would assert the app started on the
+ * stable channel, and a wrong answer there is what turns a rolled-back revert
+ * into a reported success. Absent stays absent, and reconcile falls back to
+ * the version it started from instead.
+ */
+const parseOptionalCaskToken = (value: unknown): CaskToken | undefined =>
+  typeof value === "string" && isCaskToken(value) ? value : undefined;
+
 /** Parses the marker defensively; a corrupt file must never break startup. */
 export const parsePendingInstall = (raw: string): PendingInstall | null => {
   try {
@@ -125,11 +201,48 @@ export const parsePendingInstall = (raw: string): PendingInstall | null => {
       startedAt: parseStartedAt(value.startedAt),
       appPath: typeof value.appPath === "string" ? value.appPath : "",
       caskToken: parseCaskToken(value.caskToken),
+      fromCaskToken: parseOptionalCaskToken(value.fromCaskToken),
     });
   } catch {
     return null;
   }
 };
+
+/**
+ * Which channel's cask publishes a given version. FixLang's beta channel is
+ * the only publisher of `X.Y.Z-beta.N` builds and the stable channel is the
+ * only publisher of plain triples, so a version names its own channel — the
+ * same rule `updateService.ts`'s `pendingChannelOperation` relies on to tell
+ * a revert from an ordinary stable upgrade.
+ */
+const caskTokenForVersion = (version: string): CaskToken =>
+  parsePrereleaseVersion(version) === null ? STABLE_CASK_TOKEN : BETA_CASK_TOKEN;
+
+/**
+ * The channel the operation started on. Recorded explicitly when the writer
+ * fills in `fromCaskToken`; recovered from `fromVersion` otherwise, which is
+ * exact for every marker that matters here — only a beta build can start a
+ * revert, and only a stable one a switch.
+ */
+const sourceCaskToken = (pending: PendingInstall): CaskToken =>
+  pending.fromCaskToken ?? caskTokenForVersion(pending.fromVersion);
+
+/**
+ * Whether the running version is where the operation was trying to put it.
+ *
+ * The Caskroom probe is the real evidence and wins when the caller supplies
+ * one: it survives a channel publishing a version whose shape belongs to the
+ * other one. The shape comparison is the fallback for callers that still pass
+ * only the pre-resolved boolean, and it is what makes a rolled-back switch
+ * detectable today rather than after every call site is migrated.
+ */
+const landedOnTargetChannel = (
+  currentVersion: string,
+  pending: PendingInstall,
+  context: ReconcileContext,
+): boolean =>
+  context.isVersionInstalled?.(currentVersion, pending.caskToken) === true ||
+  caskTokenForVersion(currentVersion) === pending.caskToken;
 
 /**
  * Decides what the previous run's marker means for this launch.
@@ -153,6 +266,14 @@ export const parsePendingInstall = (raw: string): PendingInstall | null => {
  * cask token, and it must reconcile exactly as correctly as an upgrade does.
  * Every check below is an equality or a token/path comparison, never an
  * ordering — direction is not information this function has.
+ *
+ * Nor is a version that moved onto the *source* channel any kind of success.
+ * A failed channel switch rolls back by reinstalling the cask it came from,
+ * which lands that channel's current version — normally not the one the user
+ * had, since a newer beta is the ordinary case for someone on that channel.
+ * That moved version used to read as "updated by hand, still an update",
+ * which is how a revert that left the user on the pre-release channel got
+ * reported as a completed one with its marker cleared.
  */
 export const reconcilePendingInstall = (
   pending: PendingInstall | null,
@@ -160,10 +281,13 @@ export const reconcilePendingInstall = (
   context: ReconcileContext,
 ): InstallOutcome => {
   if (pending === null) return "none";
-  if (currentVersion === pending.toVersion) return "installed";
 
-  // Running from somewhere else entirely — a stray build with the same bundle
-  // id won the `open` race. Never report that as an update.
+  // Bundle identity first, version second: a revert targets a version the
+  // user was running until recently, so a leftover copy at exactly that
+  // version is an ordinary thing to find on disk — an upgrade's target never
+  // existed on the machine before. Testing the version first would answer
+  // "installed" for that stray copy and throw away the mismatch this exists
+  // to catch.
   if (
     pending.appPath.length > 0 &&
     context.runningAppPath !== null &&
@@ -172,13 +296,35 @@ export const reconcilePendingInstall = (
     return "wrong-bundle";
   }
 
+  if (currentVersion === pending.toVersion) return "installed";
+
+  // The version moved, but onto the channel the operation was leaving: the
+  // install failed and the helper reinstalled the source cask. Guarded on the
+  // version having moved at all, because while the helper is still working
+  // the source cask is legitimately the installed one — calling that a
+  // rollback would clear the marker mid-flight and re-arm the button into the
+  // running helper's download lock.
+  if (
+    sourceCaskToken(pending) !== pending.caskToken &&
+    currentVersion !== pending.fromVersion &&
+    !landedOnTargetChannel(currentVersion, pending, context)
+  ) {
+    return "rolled-back";
+  }
+
   // Same bundle, version moved anyway: the user changed the installed
   // version by hand between the click and this launch, in either direction.
   // Still an update.
   if (currentVersion !== pending.fromVersion) return "installed";
 
   // The bundle is already replaced; only this stale process is still old.
-  if (context.isTargetInstalled) return "restart-required";
+  // Resolved through the caller's own probe when there is one, so the token
+  // comes from the marker rather than from whatever channel the caller
+  // happens to be bound to.
+  const isTargetInstalled =
+    context.isVersionInstalled?.(pending.toVersion, pending.caskToken) ??
+    context.isTargetInstalled === true;
+  if (isTargetInstalled) return "restart-required";
   return context.now - pending.startedAt < UPGRADE_GRACE_MS
     ? "in-progress"
     : "failed";

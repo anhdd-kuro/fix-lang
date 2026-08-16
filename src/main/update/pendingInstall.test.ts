@@ -1,13 +1,21 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
-import { isCaskToken } from "./homebrew";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  BETA_CASK_TOKEN,
+  isCaskToken,
+  STABLE_CASK_TOKEN as HOMEBREW_STABLE_CASK_TOKEN,
+} from "./homebrew";
 import {
   createPendingInstallStore,
   parsePendingInstall,
   reconcilePendingInstall,
+  STABLE_CASK_TOKEN,
   UPGRADE_GRACE_MS,
+  type CaskToken,
+  type PendingInstall,
+  type ReconcileContext,
 } from "./pendingInstall";
 
 const temporaryDirectories: string[] = [];
@@ -130,8 +138,80 @@ describe("pending install marker", () => {
       appPath: "/Applications/FixLang.app",
     });
 
-    expect(parsePendingInstall(legacyRaw)?.caskToken).toBe("fixlang");
+    // Asserted against the imported constant, never a re-spelled literal:
+    // the migration default has to BE homebrew's stable token, and a literal
+    // here would keep passing after that token moved on.
+    expect(parsePendingInstall(legacyRaw)?.caskToken).toBe(
+      HOMEBREW_STABLE_CASK_TOKEN,
+    );
   });
+
+  /**
+   * REGRESSION: `STABLE_CASK_TOKEN` used to be re-declared here with the
+   * literal spelled a second time. A `: CaskToken` annotation catches an
+   * outright rename, but not the dangerous shape — adding a channel token
+   * while `"fixlang"` stays in `KNOWN_CASK_TOKENS` for legacy markers, so
+   * `homebrew.ts` moves its stable token forward while this module's
+   * MIGRATION DEFAULT still points at the legacy string, with no type error
+   * and no test failure. Mocking that move is the only way to see it.
+   */
+  it("takes its stable token from homebrew rather than re-spelling the literal", async () => {
+    const movedStableToken = "fixlang@moved";
+    vi.resetModules();
+    vi.doMock("./homebrew", () => ({
+      STABLE_CASK_TOKEN: movedStableToken,
+      BETA_CASK_TOKEN,
+      isCaskToken: (value: string): boolean =>
+        value === movedStableToken || value === BETA_CASK_TOKEN,
+    }));
+
+    try {
+      const freshModule = await import("./pendingInstall");
+
+      expect(freshModule.STABLE_CASK_TOKEN).toBe(movedStableToken);
+      expect(
+        freshModule.parsePendingInstall(
+          JSON.stringify({ fromVersion: "0.3.2", toVersion: "0.3.3" }),
+        )?.caskToken,
+      ).toBe(movedStableToken);
+    } finally {
+      vi.doUnmock("./homebrew");
+      vi.resetModules();
+    }
+  });
+
+  it("re-exports the same stable token constant homebrew declares", () => {
+    expect(STABLE_CASK_TOKEN).toBe(HOMEBREW_STABLE_CASK_TOKEN);
+  });
+
+  it("round-trips the source cask token a channel switch started from", () => {
+    const store = createPendingInstallStore(markerPath());
+
+    store.write({
+      fromVersion: "2.0.0-beta.3",
+      toVersion: "1.9.5",
+      startedAt: 1_000,
+      appPath: "/Applications/FixLang.app",
+      caskToken: "fixlang",
+      fromCaskToken: "fixlang@beta",
+    });
+
+    expect(store.read()?.fromCaskToken).toBe("fixlang@beta");
+  });
+
+  it.each([undefined, "FIXLANG", "", 42, null, {}])(
+    "leaves the source cask token absent rather than guessing when it is unusable: %s",
+    (fromCaskToken) => {
+      const raw = JSON.stringify({
+        fromVersion: "0.3.2",
+        toVersion: "0.3.3",
+        startedAt: 1_000,
+        fromCaskToken,
+      });
+
+      expect(parsePendingInstall(raw)?.fromCaskToken).toBeUndefined();
+    },
+  );
 
   it.each(["FIXLANG", "fixlang@stable", "", 42, null, {}])(
     "falls back to the stable token for a corrupt cask token value: %s",
@@ -188,15 +268,43 @@ describe("pending install reconciliation", () => {
       now: number;
       isTargetInstalled: boolean;
       runningAppPath: string | null;
+      isVersionInstalled: (version: string, caskToken: CaskToken) => boolean;
     }> = {},
-  ) => ({
-    now: overrides.now ?? STARTED_AT + 1_000,
-    isTargetInstalled: overrides.isTargetInstalled ?? false,
-    runningAppPath:
-      overrides.runningAppPath === undefined
-        ? INSTALLED_PATH
-        : overrides.runningAppPath,
-  });
+  ): ReconcileContext => {
+    const base = {
+      now: overrides.now ?? STARTED_AT + 1_000,
+      isTargetInstalled: overrides.isTargetInstalled ?? false,
+      runningAppPath:
+        overrides.runningAppPath === undefined
+          ? INSTALLED_PATH
+          : overrides.runningAppPath,
+    };
+
+    return overrides.isVersionInstalled === undefined
+      ? base
+      : { ...base, isVersionInstalled: overrides.isVersionInstalled };
+  };
+
+  /** A revert: beta build, stable target — and so the STABLE token, which is
+   * what production writes for this direction. */
+  const revertMarker: PendingInstall = {
+    fromVersion: "2.0.0-beta.3",
+    toVersion: "1.9.5",
+    startedAt: STARTED_AT,
+    appPath: INSTALLED_PATH,
+    caskToken: "fixlang",
+    fromCaskToken: "fixlang@beta",
+  };
+
+  /** A switch onto the pre-release channel: the opposite direction. */
+  const switchMarker: PendingInstall = {
+    fromVersion: "1.9.5",
+    toVersion: "2.0.0-beta.1",
+    startedAt: STARTED_AT,
+    appPath: INSTALLED_PATH,
+    caskToken: "fixlang@beta",
+    fromCaskToken: "fixlang",
+  };
 
   it("reports nothing when no update was started", () => {
     expect(reconcilePendingInstall(null, "0.3.2", context())).toBe("none");
@@ -268,15 +376,36 @@ describe("pending install reconciliation", () => {
     ).toBe("wrong-bundle");
   });
 
-  it("accepts the target version from whatever bundle reports it", () => {
-    // Already the version that was asked for: nothing to warn about.
+  /**
+   * REGRESSION: version equality used to be tested BEFORE bundle identity, so
+   * a stray bundle that happened to report the target version was announced
+   * as a completed install and the path mismatch was discarded. The revert
+   * direction is what makes that ordering unsafe: a revert targets a version
+   * the user was running until recently, so a leftover copy at exactly that
+   * version (a manual DMG install, say) is an ordinary thing to find on disk
+   * — where an upgrade's target had never existed on the machine before.
+   * Bundle identity is the reliable test and has to come first.
+   */
+  it("refuses to call a stray bundle an update even when it reports the target version", () => {
     expect(
       reconcilePendingInstall(
         marker,
         "0.3.3",
         context({ runningAppPath: STRAY_PATH }),
       ),
-    ).toBe("installed");
+    ).toBe("wrong-bundle");
+  });
+
+  it("refuses a stray bundle sitting at the version a revert targeted", () => {
+    // Install and rollback both failed, /Applications is empty, and the
+    // helper's `open -b` resolved a leftover copy at exactly `toVersion`.
+    expect(
+      reconcilePendingInstall(
+        revertMarker,
+        "1.9.5",
+        context({ runningAppPath: STRAY_PATH }),
+      ),
+    ).toBe("wrong-bundle");
   });
 
   it("treats a version beyond the target as installed, not as a wrong bundle", () => {
@@ -367,22 +496,29 @@ describe("pending install reconciliation", () => {
    * download lock.
    */
   it("reconciles a revert to a LOWER version under the pre-release token correctly", () => {
-    const revertMarker = parsePendingInstall(
+    // Parsed from JSON, not hand-built, so the marker under test is exactly
+    // the shape production writes: `caskToken` is the TARGET token, which for
+    // a revert is the STABLE one (`updateService.ts` writes
+    // `caskToken: targetToken`), and the beta channel is named only by
+    // `fromCaskToken`.
+    const parsed = parsePendingInstall(
       JSON.stringify({
         fromVersion: "2.0.0-beta.3",
         toVersion: "1.9.5",
         startedAt: STARTED_AT,
         appPath: INSTALLED_PATH,
-        caskToken: "fixlang@beta",
+        caskToken: "fixlang",
+        fromCaskToken: "fixlang@beta",
       }),
     );
-    expect(revertMarker?.caskToken).toBe("fixlang@beta");
-    if (revertMarker === null) throw new Error("marker failed to parse");
+    expect(parsed?.caskToken).toBe("fixlang");
+    expect(parsed?.fromCaskToken).toBe("fixlang@beta");
+    if (parsed === null) throw new Error("marker failed to parse");
 
     // Helper still working: the old, higher version is still what is running.
     expect(
       reconcilePendingInstall(
-        revertMarker,
+        parsed,
         "2.0.0-beta.3",
         context({ isTargetInstalled: false }),
       ),
@@ -391,7 +527,7 @@ describe("pending install reconciliation", () => {
     // Homebrew staged the lower target under its own token's Caskroom.
     expect(
       reconcilePendingInstall(
-        revertMarker,
+        parsed,
         "2.0.0-beta.3",
         context({ isTargetInstalled: true }),
       ),
@@ -400,10 +536,129 @@ describe("pending install reconciliation", () => {
     // App relaunched into the reverted, lower version.
     expect(
       reconcilePendingInstall(
-        revertMarker,
+        parsed,
         "1.9.5",
         context({ isTargetInstalled: true }),
       ),
     ).toBe("installed");
+  });
+
+  /**
+   * The contract `ReconcileContext` used to state in prose only: the staged
+   * target is resolved against the MARKER's token, not the caller's bound
+   * (stable) one. A pre-resolved boolean cannot be asserted — it records
+   * neither which version nor which token was probed — so this pins the pair
+   * the resolver is actually called with.
+   */
+  it("probes the staged target against the marker's own cask token", () => {
+    const probed: (readonly [string, CaskToken])[] = [];
+
+    reconcilePendingInstall(
+      switchMarker,
+      switchMarker.fromVersion,
+      context({
+        isVersionInstalled: (version, caskToken) => {
+          probed.push([version, caskToken] as const);
+          return false;
+        },
+      }),
+    );
+
+    expect(probed).toContainEqual([
+      switchMarker.toVersion,
+      switchMarker.caskToken,
+    ]);
+  });
+
+  it("prefers the resolver over the pre-resolved boolean when both are supplied", () => {
+    expect(
+      reconcilePendingInstall(
+        switchMarker,
+        switchMarker.fromVersion,
+        context({ isTargetInstalled: false, isVersionInstalled: () => true }),
+      ),
+    ).toBe("restart-required");
+  });
+
+  /**
+   * The failure this guards: a channel switch whose install fails rolls back
+   * by reinstalling the SOURCE cask, which installs the tap's CURRENT version
+   * of that channel — normally not the one the user had. The version has
+   * therefore moved, the trap reopens the same bundle path, and the old
+   * "version moved anyway, still an update" branch announced a failed
+   * operation as a completed one. The user asked to leave the pre-release
+   * channel, is still on it under a build they never chose, and clearing the
+   * marker destroyed the only record of it.
+   */
+  it("refuses to call a revert that rolled back onto the pre-release channel an update", () => {
+    expect(
+      reconcilePendingInstall(revertMarker, "2.0.0-beta.4", context()),
+    ).toBe("rolled-back");
+  });
+
+  it("refuses to call a switch that rolled back onto a different stable version an update", () => {
+    expect(reconcilePendingInstall(switchMarker, "1.9.7", context())).toBe(
+      "rolled-back",
+    );
+  });
+
+  it("detects the rollback from the Caskroom when the resolver is supplied", () => {
+    expect(
+      reconcilePendingInstall(
+        revertMarker,
+        "2.0.0-beta.4",
+        context({
+          isVersionInstalled: (version, caskToken) =>
+            version === "2.0.0-beta.4" && caskToken === "fixlang@beta",
+        }),
+      ),
+    ).toBe("rolled-back");
+  });
+
+  it("detects the rollback on a marker written before the source token was recorded", () => {
+    // `fromCaskToken` is absent on markers written by the first shipped
+    // version of the channel switch; only a beta build can start a revert, so
+    // the source channel is still recoverable from `fromVersion`.
+    const { fromCaskToken: _omitted, ...withoutSourceToken } = revertMarker;
+
+    expect(
+      reconcilePendingInstall(withoutSourceToken, "2.0.0-beta.4", context()),
+    ).toBe("rolled-back");
+  });
+
+  /**
+   * The mirror risk of the rollback check: while the helper is still working,
+   * the SOURCE cask is legitimately the one installed, and calling that a
+   * rollback would clear the marker and re-arm the button into the running
+   * helper's download lock — the exact failure the grace window exists to
+   * prevent. An unmoved version is never a rollback.
+   */
+  it("keeps waiting on an in-flight switch instead of reading the source cask as a rollback", () => {
+    expect(
+      reconcilePendingInstall(
+        switchMarker,
+        switchMarker.fromVersion,
+        context({
+          isVersionInstalled: (version, caskToken) =>
+            version === "1.9.5" && caskToken === "fixlang",
+        }),
+      ),
+    ).toBe("in-progress");
+  });
+
+  it("still accepts a switch that landed a newer build of the target channel", () => {
+    // The tap moved between the click and the launch: beta.2 rather than the
+    // beta.1 that was targeted, but the target CHANNEL is where it landed.
+    expect(
+      reconcilePendingInstall(switchMarker, "2.0.0-beta.2", context()),
+    ).toBe("installed");
+  });
+
+  it("still accepts a hand-moved version on an ordinary stable upgrade", () => {
+    // No channel operation at all: the pre-existing "version moved anyway"
+    // behaviour has to survive the rollback check untouched.
+    expect(reconcilePendingInstall(marker, "0.4.0", context())).toBe(
+      "installed",
+    );
   });
 });
