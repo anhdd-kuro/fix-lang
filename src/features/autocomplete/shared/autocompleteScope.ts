@@ -69,16 +69,39 @@ export const DEFAULT_EXCLUDED_BUNDLE_IDS: readonly string[] = [
 ];
 
 /**
- * A list that was STORED but is not a list.
+ * A list that was STORED but cannot be honoured EXACTLY as stored.
  *
- * Absent is ordinary (a profile predating the feature). A present non-array is
- * corruption — a hand-edited config, a bad import — and the two must not
- * normalize to the same `[]`, because an empty EXCLUSION list under `denylist`
- * permits every app. `decideAppScope`'s own `scope-unreadable` branch cannot
- * catch this: normalization runs first and has already replaced the junk.
+ * Absent is ordinary (a profile predating the feature). Anything else that
+ * cannot be reproduced entry-for-entry is corruption — a hand-edited config, a
+ * bad import, another writer — and must not normalize to the same `[]`, because
+ * an empty EXCLUSION list under `denylist` permits every app.
+ *
+ * Shape alone is not enough, and that was the bug: `[null]` IS an array, so a
+ * shape-only check passed it, the junk was dropped, and `denylist` + `[]` read
+ * as "exclude nothing". Silent DROPPING and silent TRUNCATION are the same
+ * failure wearing different clothes — a real `com.1password.1password` sitting
+ * past `MAX_SCOPED_APPS` disappears just as completely as a `null` does, and
+ * with a perfectly well-formed list.
+ *
+ * So: any entry the canonicaliser refuses, or more distinct ids than the cap can
+ * hold, condemns the whole list. Duplicates do NOT — `["com.apple.mail",
+ * "Com.Apple.Mail"]` loses no meaning by collapsing, which is why this counts
+ * DISTINCT ids rather than comparing raw length.
+ *
+ * `decideAppScope`'s own `scope-unreadable` branch cannot catch any of it:
+ * normalization runs first and has already replaced the junk.
  */
-export const isCorruptAppList = (raw: unknown): boolean =>
-  raw !== undefined && !Array.isArray(raw);
+export const isUnusableAppList = (raw: unknown): boolean => {
+  if (raw === undefined) return false;
+  if (!Array.isArray(raw)) return true;
+  const seen = new Set<string>();
+  for (const entry of raw) {
+    const bundleId = normalizeBundleId(entry);
+    if (!bundleId) return true;
+    seen.add(bundleId);
+  }
+  return seen.size > MAX_SCOPED_APPS;
+};
 
 const normalizeBundleIdList = (raw: unknown): string[] => {
   if (!Array.isArray(raw)) return [];
@@ -94,16 +117,24 @@ const normalizeBundleIdList = (raw: unknown): string[] => {
 /**
  * Absent seeds NOTHING. This list is consulted only in `allowlist` mode, which
  * is the fail-closed mode: starting it populated would be starting it open.
+ *
+ * An unusable list yields `[]` — closed for this list's meaning. The caller
+ * still has to force `scopeMode`, because a closed ALLOW list under `denylist`
+ * decides nothing.
  */
-export const normalizeAllowedApps = (raw: unknown): string[] => normalizeBundleIdList(raw);
+export const normalizeAllowedApps = (raw: unknown): string[] =>
+  isUnusableAppList(raw) ? [] : normalizeBundleIdList(raw);
 
 /**
  * Absent means "never stored a list" and seeds the defaults; `[]` means the user
  * cleared it and stays cleared. Collapsing the two would resurrect every default
  * the user removed on the next write.
+ *
+ * An unusable list re-seeds rather than clearing: for the EXCLUSIONS, closed
+ * means "the shipped credential apps are back", never "exclude nothing".
  */
 export const normalizeExcludedApps = (raw: unknown): string[] => {
-  if (raw === undefined) return [...DEFAULT_EXCLUDED_BUNDLE_IDS];
+  if (raw === undefined || isUnusableAppList(raw)) return [...DEFAULT_EXCLUDED_BUNDLE_IDS];
   return normalizeBundleIdList(raw);
 };
 
@@ -155,10 +186,13 @@ export const decideAppScope = (input: {
   return PERMITTED;
 };
 
-/** Unresolvable providers get the cautious default: a bare id is rarely local. */
-export const defaultScopeModeForProvider = (
-  isLocalProvider: boolean,
-): AutocompleteScopeMode => (isLocalProvider ? "denylist" : "allowlist");
+/*
+ * No `defaultScopeModeForProvider(isLocalProvider)` helper here on purpose:
+ * keying a default on provider identity would repeat the bug
+ * `destinationIsLoopback` exists to fix — a remotely hosted Ollama is not
+ * local. When the system surface lands, derive the default from the
+ * RESOLVED DESTINATION instead, with a real caller in the same change.
+ */
 
 /**
  * Independent of `scopeMode` on purpose. Scope decides which apps are read;

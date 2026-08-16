@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { resolveAutocompleteModelRef } from "./autocompleteModel";
-import { DEFAULT_EXCLUDED_BUNDLE_IDS } from "./autocompleteScope";
+import {
+  DEFAULT_EXCLUDED_BUNDLE_IDS,
+  MAX_SCOPED_APPS,
+  decideAppScope,
+} from "./autocompleteScope";
 import {
   DEFAULT_DAILY_COST_CAP_USD,
   MAX_DAILY_COST_CAP_USD,
@@ -182,6 +186,47 @@ describe("normalizeAutocompleteSettings", () => {
 
       expect(settings.scopeMode).toBe("denylist");
       expect(settings.excludedApps).toEqual([...DEFAULT_EXCLUDED_BUNDLE_IDS]);
+    });
+
+    /**
+     * Composed normalizer -> decision, because that composition is where the
+     * fail-open lived and neither half shows it alone: the normalizer looks
+     * merely lenient, the gate looks correct, and only together do they permit
+     * a password manager. A well-formed array of junk is the case a shape-only
+     * corruption check waves through.
+     */
+    describe("a list that survives its shape check but loses entries", () => {
+      const permits = (raw: unknown, bundleId: string): boolean => {
+        const settings = normalizeAutocompleteSettings(raw);
+        return decideAppScope({
+          surface: "system",
+          bundleId,
+          scopeMode: settings.scopeMode,
+          allowedApps: settings.allowedApps,
+          excludedApps: settings.excludedApps,
+        }).permitted;
+      };
+
+      it.each([
+        ["a null entry", [null]],
+        ["a numeric entry", [42]],
+        ["an empty-string entry", [""]],
+        ["an overlong entry", ["x".repeat(500)]],
+        ["a control character", ["com.apple.mail"]],
+      ])("never permits an excluded app because of %s", (_description, excludedApps) => {
+        expect(permits({ scopeMode: "denylist", allowedApps: [], excludedApps }, "com.1password.1password")).toBe(false);
+      });
+
+      // The subtlest one: every entry is valid and the list is well formed, but
+      // a real exclusion sits past the cap and used to be truncated away.
+      it("never permits an exclusion that was pushed past the cap", () => {
+        const overCap = [
+          ...Array.from({ length: MAX_SCOPED_APPS }, (_v, i) => `com.example.app${i}`),
+          "com.1password.1password",
+        ];
+
+        expect(permits({ scopeMode: "denylist", allowedApps: [], excludedApps: overCap }, "com.1password.1password")).toBe(false);
+      });
     });
   });
 

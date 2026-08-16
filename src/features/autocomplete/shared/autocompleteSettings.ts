@@ -7,7 +7,7 @@
 import {
   DEFAULT_EXCLUDED_BUNDLE_IDS,
   isAutocompleteScopeMode,
-  isCorruptAppList,
+  isUnusableAppList,
   normalizeAllowedApps,
   normalizeExcludedApps,
   type AutocompleteScopeMode,
@@ -90,10 +90,16 @@ export const isAutocompleteSettingsShape = (
     // Rejected, not coerced: a sender disagreeing with us about the modes must
     // not silently store `allowlist` behind a UI that says otherwise.
     isAutocompleteScopeMode(record.scopeMode) &&
+    // `isUnusableAppList` and not merely `Array.isArray` + `every(string)`: a
+    // sender must not be able to launder a list the STORE would have rejected
+    // through the IPC boundary. `["", " ", "x".repeat(500)]` is every-entry-a-
+    // string and still normalizes to `[]`, which under `denylist` excludes
+    // nothing. Absent is not a valid payload here — unlike the store, where it
+    // means "predates the feature" — so the presence check stays.
     Array.isArray(record.allowedApps) &&
-    record.allowedApps.every((entry) => typeof entry === "string") &&
+    !isUnusableAppList(record.allowedApps) &&
     Array.isArray(record.excludedApps) &&
-    record.excludedApps.every((entry) => typeof entry === "string") &&
+    !isUnusableAppList(record.excludedApps) &&
     typeof record.cloudScopeConsent === "string"
   );
 };
@@ -150,12 +156,12 @@ export const normalizeAutocompleteSettings = (raw: unknown): AutocompleteSetting
     enabled: value.enabled === true,
     model: typeof value.model === "string" ? value.model.trim() : AUTOCOMPLETE_INHERIT_ASK_MODEL,
     dailyCostCapUsd: normalizeDailyCostCapUsd(value.dailyCostCapUsd),
-    // A stored-but-corrupt list closes the WHOLE scope, not just its own field.
+    // A stored-but-unusable list closes the WHOLE scope, not just its own field.
     // Normalizing `excludedApps: "junk"` to `[]` while keeping a valid
     // `scopeMode: "denylist"` is an empty deny-list, which permits every app —
     // corruption widening access is the one outcome this must never have.
     // `allowlist` + empty `allowedApps` permits nothing.
-    ...(isCorruptAppList(value.allowedApps) || isCorruptAppList(value.excludedApps)
+    ...(isUnusableAppList(value.allowedApps) || isUnusableAppList(value.excludedApps)
       ? {
           scopeMode: "allowlist" as const,
           allowedApps: [],

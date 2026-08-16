@@ -32,6 +32,7 @@
   "settings.autocomplete.enabled.label": "オートコンプリートを有効にする",
   "settings.autocomplete.heading": "オートコンプリート",
   "settings.autocomplete.hint": "Ask入力ウィンドウで入力中に、インラインで補完候補を提案します。",
+  "settings.autocomplete.loadError": "オートコンプリートの設定を読み込めなかったため、現在は変更できません。設定を開き直してください。",
   "settings.autocomplete.loading": "オートコンプリートの設定を読み込み中…",
   "settings.autocomplete.model.description": "インライン補完の生成に使用するモデルです。",
   "settings.autocomplete.model.label": "オートコンプリートのモデル",

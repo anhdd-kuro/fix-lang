@@ -964,23 +964,16 @@ export const requestAutocompleteSuggestion = async (
     return none(requestId);
   }
 
-  // ABOVE THE CACHE, and above everything that costs anything. The secret-guard
-  // gate below is the only other refusal in this function that sits above the
-  // cache, and it is above it for the same reason: the others ask "is this worth
-  // paying for", where a cache hit is free and so is exempt; these two ask
-  // "may this text be involved at all", where a hit is not exempt from anything.
+  // ABOVE THE CACHE, same reason as the secret-guard gate below: those ask "is
+  // this worth paying for" (a cache hit is free, so exempt); this asks "may
+  // this text be involved at all" (a hit isn't exempt from that). Serving a
+  // cached suggestion into a denied app would still expose text that app's
+  // cache entry was built from.
   //
-  // Serving a cached suggestion into a denied app would paint ghost text in a
-  // place the user has said it may not appear, having already sent that app's
-  // text to a provider once to fill the cache. The fact that the SECOND one was
-  // free is not the question being asked.
-  //
-  // First, not merely above the cache, because it is also the cheapest gate here
-  // — a set lookup against settings already in hand, with no clock, no store
-  // read and no model resolution — and because a request from an app that may
-  // not be autocompleted should not walk any counter on its way to being
-  // refused.
-  // `getProfileSetting` returns these already normalized, so no re-check here.
+  // Placed FIRST because it is also the cheapest check here — a set lookup
+  // against settings already in hand, no clock, no store read, no model
+  // resolution — so a disallowed app's request doesn't walk any counter before
+  // being refused. `getProfileSetting` returns these already normalized.
   const appScope = decideAppScope({
     surface,
     bundleId: appBundleId ?? null,
@@ -1074,7 +1067,11 @@ export const requestAutocompleteSuggestion = async (
   // null provider can never match a stored consent, so the gate would refuse
   // that ref forever, including bare Ollama models that need no consent at all.
   // Still falls back to `null` when nothing resolves, which stays closed.
-  const provider = await resolveProviderForConsent(modelRef);
+  // Gated on the surface first: `own` can never require consent, and resolving
+  // the provider costs a dynamic import plus two synchronous profile-store reads
+  // on a path that runs per keystroke. The check below would reach the same
+  // answer — this only declines to pay for it.
+  const provider = surface === "system" ? await resolveProviderForConsent(modelRef) : null;
   if (
     requiresCloudScopeConsent({
       surface,

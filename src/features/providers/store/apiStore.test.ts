@@ -1020,8 +1020,8 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
   });
 
   /**
-   * The ajv default and `normalizeScopedApps` have to agree on what "absent"
-   * means, and only one of them can say it. `normalizeScopedApps` seeds the
+   * The ajv default and `normalizeExcludedApps` have to agree on what "absent"
+   * means, and only one of them can say it. `normalizeExcludedApps` seeds the
    * shipped exclusions from `undefined` and treats `[]` as "the user cleared
    * the list", so an ajv default carrying `allowedApps: [],excludedApps: []` silently hands a
    * whole-node-absent profile an empty exclusion list — and in `denylist` mode

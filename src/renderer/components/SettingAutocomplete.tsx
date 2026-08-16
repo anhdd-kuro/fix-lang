@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   AUTOCOMPLETE_INHERIT_ASK_MODEL,
-  DEFAULT_DAILY_COST_CAP_USD,
   MAX_DAILY_COST_CAP_USD,
+  normalizeAutocompleteSettings,
   normalizeDailyCostCapUsd,
   type AutocompleteSettings,
 } from "~/features/autocomplete/shared/autocompleteSettings";
@@ -62,16 +62,16 @@ const PRIVACY_HINT_KEYS: readonly MessageKey[] = [
   "settings.autocomplete.privacy.localProvider",
 ];
 
-/** Closed readings: this renders before IPC replies, and must not flash a lie. */
-const DEFAULT_SETTINGS: AutocompleteSettings = {
-  enabled: false,
-  model: AUTOCOMPLETE_INHERIT_ASK_MODEL,
-  dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
-  scopeMode: "allowlist",
-  allowedApps: [],
-  excludedApps: [],
-  cloudScopeConsent: "",
-};
+/**
+ * Closed readings: this renders before IPC replies, and must not flash a lie.
+ *
+ * Derived from the shared normalizer rather than written out here, because a
+ * hand-written copy drifted: it had `excludedApps: []` where the seed is the
+ * shipped credential apps. Every control persists the WHOLE object, so a failed
+ * read followed by an unrelated toggle wrote that empty list back and erased the
+ * password-manager exclusions for good.
+ */
+const DEFAULT_SETTINGS: AutocompleteSettings = normalizeAutocompleteSettings({});
 
 const emptyRollup = (): AutocompleteDayRollup => ({
   date: "",
@@ -125,6 +125,12 @@ export const SettingAutocomplete: React.FC = () => {
    */
   const [capDraft, setCapDraft] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  /**
+   * False until a read actually returns. Writes send the WHOLE object, so
+   * writing on top of the fallback would persist defaults the user never chose
+   * — including an exclusion list narrower than what is stored.
+   */
+  const [settingsAreAuthoritative, setSettingsAreAuthoritative] = useState(false);
   const [status, setStatus] = useState<StatusDescriptor | null>(null);
   const [statusIsError, setStatusIsError] = useState(false);
 
@@ -132,9 +138,11 @@ export const SettingAutocomplete: React.FC = () => {
     try {
       const stored = await window.electronAPI.getAutocompleteSettings();
       setSettings(stored);
+      setSettingsAreAuthoritative(true);
     } catch (error) {
       console.error("Failed to load autocomplete settings:", error);
       setSettings(DEFAULT_SETTINGS);
+      setSettingsAreAuthoritative(false);
     }
   }, []);
 
@@ -192,6 +200,14 @@ export const SettingAutocomplete: React.FC = () => {
    * actually persisted.
    */
   const persist = async (previous: AutocompleteSettings, next: AutocompleteSettings) => {
+    // Refuse rather than clobber. `next` is spread from whatever is in state,
+    // so on top of the fallback it carries defaults for every field the user
+    // never touched — the erasure this guard exists for is silent otherwise.
+    if (!settingsAreAuthoritative) {
+      setStatusIsError(true);
+      setStatus(plainStatus("settings.autocomplete.loadError"));
+      return;
+    }
     setSettings(next);
     try {
       const result = await window.electronAPI.setAutocompleteSettings(next);

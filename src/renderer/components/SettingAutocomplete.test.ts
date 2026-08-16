@@ -20,6 +20,8 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_EXCLUDED_BUNDLE_IDS } from "~/features/autocomplete/shared/autocompleteScope";
+import { normalizeAutocompleteSettings } from "~/features/autocomplete/shared/autocompleteSettings";
 import { createTranslator } from "~/features/i18n/shared/translate";
 import { SettingAutocomplete } from "./SettingAutocomplete";
 import { I18nProvider } from "../i18n/I18nProvider";
@@ -183,6 +185,46 @@ describe("SettingAutocomplete", () => {
       dailyCostCapUsd: 5,
     });
     expect(checkbox()?.checked).toBe(false);
+  });
+
+  /**
+   * A failed READ must not be able to become a destructive WRITE.
+   *
+   * Every control here persists the whole settings object, so after a rejected
+   * load the fallback in state is what a later unrelated toggle would send. The
+   * fallback used to carry `excludedApps: []` against a seeded store, so
+   * flipping the checkbox silently erased the shipped password-manager
+   * exclusions — a scope change from an action that has nothing to do with
+   * scope, through UI that shows no scope controls at all.
+   *
+   * Asserting the write never happens, not merely that the click occurred:
+   * a dispatched click on a controlled checkbox can make zero writes and still
+   * look green.
+   */
+  it("refuses to write after a failed load, so the seeded exclusions survive", async () => {
+    const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
+    await mount(
+      baseElectronAPI({
+        getAutocompleteSettings: vi.fn().mockRejectedValue(new Error("ipc down")),
+        setAutocompleteSettings,
+      }),
+    );
+
+    const input = checkbox();
+    if (!input) throw new Error("autocomplete checkbox not rendered");
+
+    await clickCheckbox(input);
+    await settleUi();
+
+    expect(setAutocompleteSettings).not.toHaveBeenCalled();
+  });
+
+  // The guard above is only half the fix: if the fallback itself were still
+  // `[]`, any future writable path would reintroduce the erasure.
+  it("falls back to the shared seed, never to an empty exclusion list", () => {
+    expect(normalizeAutocompleteSettings({}).excludedApps).toEqual([
+      ...DEFAULT_EXCLUDED_BUNDLE_IDS,
+    ]);
   });
 
   const capField = (): HTMLInputElement | null =>

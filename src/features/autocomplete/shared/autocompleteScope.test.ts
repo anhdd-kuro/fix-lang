@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_EXCLUDED_BUNDLE_IDS,
   decideAppScope,
-  defaultScopeModeForProvider,
   isAutocompleteScopeMode,
   isAutocompleteSurfaceKind,
   MAX_BUNDLE_ID_LENGTH,
@@ -65,24 +64,47 @@ describe("normalizeExcludedApps", () => {
     ).toEqual(["com.apple.mail"]);
   });
 
-  it("drops unusable entries without discarding the usable ones beside them", () => {
-    expect(normalizeExcludedApps(["com.apple.mail", 42, null, "", "com.apple.notes"])).toEqual([
-      "com.apple.mail",
-      "com.apple.notes",
-    ]);
-  });
-
+  /**
+   * These previously asserted DROPPING and TRUNCATION as correct, which is what
+   * let the fail-open through: for the exclusions, every entry that quietly
+   * disappears is an app that quietly becomes readable. Re-seeding is the only
+   * safe answer, because "I could not read your exclusions" must never resolve
+   * to "you had none".
+   */
   it.each([
-    ["a string", "com.apple.mail"],
-    ["an object", { 0: "com.apple.mail" }],
-  ])("reads %s as an empty list rather than seeding from junk", (_description, raw) => {
-    expect(normalizeExcludedApps(raw)).toEqual([]);
+    ["a non-string entry", ["com.apple.mail", 42]],
+    ["a null entry", [null]],
+    ["an empty-string entry", ["com.apple.mail", ""]],
+    ["a whitespace-only entry", ["com.apple.mail", "   "]],
+    ["an overlong entry", ["com.apple.mail", "x".repeat(500)]],
+    ["a control character", ["com.apple.mail"]],
+    ["a string instead of a list", "com.apple.mail"],
+    ["an object instead of a list", { 0: "com.apple.mail" }],
+  ])("re-seeds rather than silently dropping %s", (_description, raw) => {
+    expect(normalizeExcludedApps(raw)).toEqual([...DEFAULT_EXCLUDED_BUNDLE_IDS]);
   });
 
-  it("caps the stored list length", () => {
-    const huge = Array.from({ length: MAX_SCOPED_APPS + 50 }, (_v, i) => `com.example.app${i}`);
+  it("re-seeds an over-cap list instead of truncating a real exclusion out of it", () => {
+    const overCap = [
+      ...Array.from({ length: MAX_SCOPED_APPS }, (_v, i) => `com.example.app${i}`),
+      "com.1password.1password",
+    ];
 
-    expect(normalizeExcludedApps(huge)).toHaveLength(MAX_SCOPED_APPS);
+    expect(normalizeExcludedApps(overCap)).toEqual([...DEFAULT_EXCLUDED_BUNDLE_IDS]);
+  });
+
+  it("keeps a list that exactly fills the cap — the bound is a limit, not a fault", () => {
+    const exact = Array.from({ length: MAX_SCOPED_APPS }, (_v, i) => `com.example.app${i}`);
+
+    expect(normalizeExcludedApps(exact)).toHaveLength(MAX_SCOPED_APPS);
+  });
+
+  // Duplicates collapse without losing meaning, so they must not read as
+  // corruption — otherwise re-saving a list the UI itself produced re-seeds it.
+  it("does not treat duplicates as corruption even when they exceed the cap", () => {
+    const dupes = Array.from({ length: MAX_SCOPED_APPS + 50 }, () => "com.apple.mail");
+
+    expect(normalizeExcludedApps(dupes)).toEqual(["com.apple.mail"]);
   });
 });
 
@@ -258,16 +280,6 @@ describe("normalizeAllowedApps", () => {
     expect(normalizeAllowedApps(["Com.Apple.Mail", " com.apple.mail "])).toEqual([
       "com.apple.mail",
     ]);
-  });
-});
-
-describe("defaultScopeModeForProvider", () => {
-  it("gives a local provider the zero-configuration denylist", () => {
-    expect(defaultScopeModeForProvider(true)).toBe("denylist");
-  });
-
-  it("gives everything else the allowlist", () => {
-    expect(defaultScopeModeForProvider(false)).toBe("allowlist");
   });
 });
 

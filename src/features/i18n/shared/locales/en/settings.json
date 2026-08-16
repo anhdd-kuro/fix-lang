@@ -32,6 +32,7 @@
   "settings.autocomplete.enabled.label": "Enable autocomplete",
   "settings.autocomplete.heading": "Autocomplete",
   "settings.autocomplete.hint": "Suggests inline completions as you type in the Ask input window.",
+  "settings.autocomplete.loadError": "Couldn't read your autocomplete settings, so they can't be changed right now. Reopen Settings to try again.",
   "settings.autocomplete.loading": "Loading autocomplete settings…",
   "settings.autocomplete.model.description": "Model used to generate inline suggestions.",
   "settings.autocomplete.model.label": "Autocomplete model",
