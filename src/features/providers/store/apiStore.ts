@@ -670,7 +670,33 @@ export const normalizeCorrectionSettings = (
 
   const raw = value as Partial<CorrectionSettings> & LegacyCorrectionSettings;
 
-  const combos = withDefaultCombos(sanitizeCombos(raw.combos));
+  const storedCombos = sanitizeCombos(raw.combos);
+  const combos = withDefaultCombos(storedCombos);
+
+  // `registerCorrectionShortcut` walks `presets` before `combos` through one
+  // shared `registeredShortcuts` set, so a default hotkey materialized here onto
+  // a chord a stored combo holds outranks that combo, which is then dropped with
+  // nothing but a warn — the user presses their own chord and gets a single
+  // transform on the profile's global default model instead of their chain.
+  // Same trap as the stored-preset claim set below, same remedy: the
+  // materialized default gives its hotkey up.
+  //
+  // Claims come from STORED combos only, and only from ones the sanitizer kept:
+  // a dropped combo registers nothing, and a DEFAULT combo colliding with a
+  // DEFAULT preset is the pairwise-uniqueness question the built-in tables own,
+  // not a stored-vs-materialized theft. A combo's own hotkey is never rewritten
+  // in either direction — that stays the pre-save `validateHotkeys` gate's job.
+  const hotkeysClaimedByStoredCombos = new Set(
+    storedCombos
+      .map((combo) => combo.hotkey.trim())
+      .filter((hotkey) => hotkey.length > 0),
+  );
+  const withoutComboStolenHotkey = (
+    preset: CorrectionPreset,
+  ): CorrectionPreset =>
+    hotkeysClaimedByStoredCombos.has(preset.hotkey.trim())
+      ? { ...preset, hotkey: "" }
+      : withoutReservedHotkey(preset);
 
   const storedHadTranslatePreset =
     Array.isArray(raw.presets) &&
@@ -697,7 +723,7 @@ export const normalizeCorrectionSettings = (
     return {
       presets: applyLegacyTranslateMigration(
         [migratedCorrectionPreset, ...defaults.presets.slice(1)].map(
-          withoutReservedHotkey,
+          withoutComboStolenHotkey,
         ),
         legacyTranslate,
         false,
@@ -800,11 +826,12 @@ export const normalizeCorrectionSettings = (
   // ever emits canonical `Control+Shift+X`. Pinned by the "does NOT case-fold"
   // test in normalizeCorrectionSettings.test.ts.
   //
-  // Claims come from STORED presets only, so this defends stored-vs-materialized
-  // and nothing else. Two DEFAULTS sharing one accelerator is invisible here and
-  // would just let the earlier one win in `registerCorrectionShortcut`: the
-  // built-in default hotkeys must stay pairwise-unique, which is pinned by the
-  // "hotkeys distinct from every other default" test, not by this function.
+  // Claims come from STORED presets and (above) STORED combos only, so this
+  // defends stored-vs-materialized and nothing else. Two DEFAULTS sharing one
+  // accelerator is invisible here and would just let the earlier one win in
+  // `registerCorrectionShortcut`: the built-in default hotkeys must stay
+  // pairwise-unique, which is pinned by the "hotkeys distinct from every other
+  // default" test, not by this function.
   const hotkeysClaimedByStoredPresets = new Set(
     normalizedEntries
       .filter((entry) => entry.hotkeyWasStored)
@@ -812,7 +839,7 @@ export const normalizeCorrectionSettings = (
       .filter((hotkey) => hotkey.length > 0),
   );
 
-  // Built-in defaults are emitted ahead of custom presets, and
+  // Built-in defaults are emitted ahead of custom presets and of combos, and
   // `registerCorrectionShortcut` registers in array order (first wins). So a
   // default hotkey materialized here — because the built-in was absent from the
   // stored config, or because its stored entry carried no `hotkey` field — would
@@ -820,10 +847,14 @@ export const normalizeCorrectionSettings = (
   // up the default instead; a STORED hotkey is the user's explicit choice and is
   // never rewritten, not even when two stored presets collide with each other
   // (that stays the pre-save `validateHotkeys` gate's job).
+  //
+  // Three rungs, widest claim first: stored presets, then stored combos, then
+  // the reserved app accelerators. Every rung blanks only a default-sourced
+  // hotkey; nothing a user stored is touched by any of them.
   const withoutStolenHotkey = (preset: CorrectionPreset): CorrectionPreset =>
     hotkeysClaimedByStoredPresets.has(preset.hotkey.trim())
       ? { ...preset, hotkey: "" }
-      : withoutReservedHotkey(preset);
+      : withoutComboStolenHotkey(preset);
 
   const normalizedPresets = normalizedEntries.map((entry) =>
     entry.hotkeyWasStored ? entry.preset : withoutStolenHotkey(entry.preset),

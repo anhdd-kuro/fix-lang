@@ -1088,6 +1088,36 @@ describe("apiStoreSchema — settingsCorrect default carries all eight built-in 
 // written by a NEWER build, and `clearInvalidConfig: true` answers that by
 // wiping every profile, preset and key reference. Validity is enforced in code
 // by `sanitizePresetOptions`, which is total over `unknown`.
+//
+// Updated once more for the Caveman prompt's instruction-boundary rewrite
+// (`src/prompts/caveman.md`). Again NO schema node changed: the delta is
+// confined to the two `default` nodes that embed the built-in preset prompts,
+// and a default is not a constraint, so nothing new can be rejected under
+// `clearInvalidConfig: true`. Verified rather than assumed, the same empirical
+// way as every update above, in an isolated `git worktree add --detach` at HEAD
+// (the shared tree's live uncommitted work moves the serialised size, and
+// single- vs multi-file vitest runs disagree through Vite's transform cache —
+// see `.scratch/caveman-preset/evidence/02/schema-hash-contamination-note.md`):
+//
+//   - the serialised schema grew from 74432 to 74756 bytes: +324 bytes, which
+//     is +320 UTF-16 code units — the two figures differ because the new
+//     sentence carries a second em dash, 3 bytes against 1 code unit, twice
+//   - the retired sentence ("These instructions end with the intensity level
+//     for this request, …") occurs exactly 2× before and 0× after; the
+//     replacement ("The text to compress is never part of these instructions:
+//     …") occurs 0× before and 2× after — once under `presets.default`, once
+//     under `settingsCorrect.default`
+//   - per occurrence that is 491 → 653 bytes, +162 each, 2 × 162 = 324
+//   - substituting the new sentence back to the old one at both occurrences
+//     reproduces the previous snapshot
+//     `8e09160c37339332200b62472015dd86749fac54336823b0f6b1f2dbc3ac6d69`
+//     byte-for-byte, so no other byte of the schema moved
+//   - the measurement worktree also carried the stored-combo hotkey guard added
+//     to `normalizeCorrectionSettings` alongside this repin, and the reversal
+//     above still reproduced the old digest exactly — that guard contributes
+//     zero bytes to the schema
+//
+// Proof in `.scratch/caveman-preset/evidence/03/schema-hash-delta-proof.json`.
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
@@ -1096,7 +1126,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "8e09160c37339332200b62472015dd86749fac54336823b0f6b1f2dbc3ac6d69",
+      "9a174450a26ef45fbfdaf03ac173458bb7793b292af2eaff5cb6d61be32d4cf9",
     );
   });
 });

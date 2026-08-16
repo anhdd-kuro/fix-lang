@@ -2038,12 +2038,15 @@ describe("normalizeCorrectionSettings — combo outputMode / markdownOutput / sc
 });
 
 /**
- * Adding a combo must never silently rewrite a hotkey — its own or anyone
- * else's. Every accelerator in the app shares one registration space, and
- * resolving a collision across presets, combos, `promptGen`, `profileSwitch`
- * and the reserved cancel chord is the pre-save `validateHotkeys` gate's job.
- * A relinquish rule here would resolve a subset of that space differently and
- * without telling the user.
+ * A combo's OWN hotkey is never rewritten — not onto a stored preset's chord,
+ * not onto a reserved app binding, not onto the cancel chord. Every accelerator
+ * in the app shares one registration space, and resolving a collision between
+ * two things the user explicitly chose is the pre-save `validateHotkeys` gate's
+ * job; a relinquish rule here would resolve a subset of that space differently
+ * and without telling the user.
+ *
+ * The one asymmetry is the next describe: a built-in default hotkey being
+ * MATERIALIZED was never chosen by anyone, so it yields.
  */
 describe("normalizeCorrectionSettings — combo hotkeys pass through untouched", () => {
   const comboHotkeyWith = (
@@ -2067,7 +2070,8 @@ describe("normalizeCorrectionSettings — combo hotkeys pass through untouched",
   });
 
   it("keeps a hotkey a materialized built-in default also carries", () => {
-    // And leaves that default alone too: neither side is rewritten here.
+    // The combo side of the asymmetry: the materialized default gives its
+    // hotkey up (asserted in the next describe), the combo keeps its own.
     const result = normalizeCorrectionSettings({
       presets: [storedCorrection],
       selectedPresetId: "correction",
@@ -2075,9 +2079,6 @@ describe("normalizeCorrectionSettings — combo hotkeys pass through untouched",
     });
 
     expect(storedCombosOf(result)[0].hotkey).toBe("Control+Shift+B");
-    expect(hotkeyOf(result, DEFAULT_BUSINESS_WRITING_PRESET_ID)).toBe(
-      "Control+Shift+B",
-    );
   });
 
   it("keeps a hotkey a stored preset also claims", () => {
@@ -2116,7 +2117,7 @@ describe("normalizeCorrectionSettings — combo hotkeys pass through untouched",
     expect(storedCombosOf(result)[0].hotkey).toBe("");
   });
 
-  it("leaves all eight preset defaults intact whatever a combo holds", () => {
+  it("leaves all eight preset defaults intact when the combo holds a free accelerator", () => {
     const result = normalizeCorrectionSettings({
       presets: [storedCorrection],
       selectedPresetId: "correction",
@@ -2133,6 +2134,151 @@ describe("normalizeCorrectionSettings — combo hotkeys pass through untouched",
       "Control+Shift+A",
       "Control+Shift+C",
     ]);
+  });
+});
+
+/**
+ * The other half of the anti-theft guard. The stored-PRESET half is asserted
+ * far above; this is the stored-COMBO half, and the two exist for one reason:
+ * `registerCorrectionShortcut` walks `presets` before `combos` through a single
+ * `registeredShortcuts` set, so a preset materialized onto a chord a combo
+ * holds wins the registration and the combo is dropped with nothing but a
+ * `logger.warn`. The user then presses their own chord and gets one Caveman
+ * transform on the profile's global default model — possibly a different
+ * provider than the combo's steps resolved to — instead of their chain.
+ *
+ * `validateHotkeys` cannot catch it: it is renderer-only and runs at
+ * capture/save, never against an already-stored profile. Every existing user
+ * upgrading into the Caveman build materializes `Control+Shift+C` exactly once,
+ * on next launch, with no save in sight.
+ *
+ * Scope is deliberately narrow, and the tests below pin both edges: only a
+ * MATERIALIZED built-in yields. A stored preset's explicit hotkey and a combo's
+ * own hotkey are both the user's choice and are never rewritten here.
+ */
+describe("normalizeCorrectionSettings — materialized built-in never steals a stored combo's hotkey", () => {
+  it("blanks Caveman when a stored combo already claims Control+Shift+C", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [storedCombo({ hotkey: "Control+Shift+C" })],
+    });
+
+    expect(hotkeyOf(result, DEFAULT_CAVEMAN_PRESET_ID)).toBe("");
+    expect(storedCombosOf(result)[0].hotkey).toBe("Control+Shift+C");
+  });
+
+  it("still materializes Caveman itself when its hotkey is given up to a combo", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [storedCombo({ hotkey: "Control+Shift+C" })],
+    });
+
+    const caveman = result.presets.find(
+      (p) => p.id === DEFAULT_CAVEMAN_PRESET_ID,
+    );
+
+    expect(caveman).toBeDefined();
+    expect(caveman?.isBuiltIn).toBe(true);
+    expect(caveman?.systemPrompt).toBe(DEFAULT_CAVEMAN_PRESET_PROMPT);
+    expect(caveman?.extraOptions).toEqual({ cavemanMode: "full" });
+  });
+
+  it("blanks only the colliding default, leaving the other seven alone", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [storedCombo({ hotkey: "Control+Shift+C" })],
+    });
+
+    expect(result.presets.map((preset) => preset.hotkey)).toEqual([
+      "Control+Shift+F",
+      "Control+Shift+S",
+      "Control+Shift+D",
+      "Control+Shift+T",
+      "Control+Shift+B",
+      "Control+Shift+R",
+      "Control+Shift+A",
+      "",
+    ]);
+  });
+
+  it("blanks a hotkey INHERITED by a stored built-in that carries no hotkey field", () => {
+    // The second materialization shape: the preset row is stored, but its
+    // `hotkey` was injected by the `?? fallback?.hotkey` read. Not a claim, so
+    // it yields the same way an absent preset does.
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection, { ...storedSummarize, hotkey: undefined }],
+      selectedPresetId: "correction",
+      combos: [storedCombo({ hotkey: "Control+Shift+S" })],
+    });
+
+    expect(hotkeyOf(result, "summarize")).toBe("");
+    expect(storedCombosOf(result)[0].hotkey).toBe("Control+Shift+S");
+  });
+
+  it("yields through the no-presets-array legacy path too", () => {
+    const result = normalizeCorrectionSettings({
+      userInput: "Legacy.",
+      combos: [storedCombo({ hotkey: "Control+Shift+C" })],
+    });
+
+    expect(hotkeyOf(result, DEFAULT_CAVEMAN_PRESET_ID)).toBe("");
+    expect(storedCombosOf(result)[0].hotkey).toBe("Control+Shift+C");
+  });
+
+  it("does NOT rewrite a stored preset's hotkey that a combo also holds", () => {
+    // The boundary: widening the claim set must not start resolving
+    // stored-vs-stored collisions, which stay `validateHotkeys`' pre-save job.
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection, storedCustom("mine", "Control+Shift+C")],
+      selectedPresetId: "correction",
+      combos: [storedCombo({ hotkey: "Control+Shift+C" })],
+    });
+
+    expect(hotkeyOf(result, "mine")).toBe("Control+Shift+C");
+    expect(storedCombosOf(result)[0].hotkey).toBe("Control+Shift+C");
+    // Caveman was already yielding to the stored preset before combos joined
+    // the claim set; adding the combo changes nothing about that.
+    expect(hotkeyOf(result, DEFAULT_CAVEMAN_PRESET_ID)).toBe("");
+  });
+
+  it("treats a blank or whitespace-only combo hotkey as no claim", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [
+        storedCombo({ id: "combo-blank", hotkey: "" }),
+        storedCombo({ id: "combo-spaces", hotkey: "   " }),
+      ],
+    });
+
+    expect(hotkeyOf(result, DEFAULT_CAVEMAN_PRESET_ID)).toBe("Control+Shift+C");
+  });
+
+  it("does not treat a DROPPED malformed combo's hotkey as a claim", () => {
+    // A combo the sanitizer refuses never reaches `registerCorrectionShortcut`,
+    // so it holds nothing and must not cost a built-in its default.
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [storedCombo({ hotkey: "Control+Shift+C", steps: "nope" })],
+    });
+
+    expect(hotkeyOf(result, DEFAULT_CAVEMAN_PRESET_ID)).toBe("Control+Shift+C");
+  });
+
+  it("is idempotent — normalizing the result again changes nothing", () => {
+    const once = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [storedCombo({ hotkey: "Control+Shift+C" })],
+    });
+    const twice = normalizeCorrectionSettings(once);
+
+    expect(twice).toEqual(once);
+    expect(hotkeyOf(twice, DEFAULT_CAVEMAN_PRESET_ID)).toBe("");
   });
 });
 
