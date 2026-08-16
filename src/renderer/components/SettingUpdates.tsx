@@ -409,11 +409,27 @@ export const SettingUpdates = () => {
       ? null
       : Math.min(100, Math.round((downloadedBytes / downloadTotal) * 100));
 
+  // The INVERSE of `isBusy`'s channel terms, and the half the stable flow
+  // cannot signal for itself. `checkForPrerelease` bails on the SAME shared
+  // `installing` flag a switch claims, but — unlike `switchToPrerelease` and
+  // `revertToStable` — it returns the UNCHANGED `PrereleaseState` with no
+  // `success` field, and `runPrerelease` only recognises `{ success: false }`.
+  // So a check pressed during a stable install is dropped in silence: no
+  // spinner, no notice, no error. These three terms are what keeps the button
+  // from looking alive while it cannot act.
+  //
+  // Deliberately NOT symmetric with `isBusy`: `state.phase === "checking"` is
+  // absent because a stable check claims `checking`, never `installing`, and a
+  // channel op needs no term of its own because it already sets
+  // `prereleaseActionPending` on its way through `runPrerelease`.
   const prereleaseIsBusy =
     prereleaseActionPending ||
     prereleaseState.phase === "checking" ||
     prereleaseState.phase === "downloading" ||
-    prereleaseState.phase === "installing";
+    prereleaseState.phase === "installing" ||
+    actionPending ||
+    state.phase === "downloading" ||
+    state.phase === "installing";
   // Homebrew owns the app from here on; nothing in this section may re-arm.
   const prereleaseWorking =
     prereleaseState.phase === "downloading" ||
@@ -1089,6 +1105,15 @@ export const SettingUpdates = () => {
                 disabled={prereleaseIsBusy}
                 className="rounded px-3 py-1.5 text-base text-foreground"
               >
+                {/* Same rule as the Switch button above — the spinner marks
+                    the control that was pressed, and `runPrerelease` claims
+                    `channelActionPending` for a revert too. The flag cannot
+                    point at the wrong button here: Switch needs
+                    `activeChannel === "stable"` and Revert needs `"beta"`, so
+                    the two are never on screen at once. */}
+                {channelActionPending && (
+                  <Spinner className="mr-2 inline size-4 align-[-2px]" />
+                )}
                 {t("settings.updates.prerelease.revertButton")}
               </Button>
             )}

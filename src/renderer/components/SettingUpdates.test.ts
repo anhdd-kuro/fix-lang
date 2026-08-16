@@ -1572,6 +1572,165 @@ describe("SettingUpdates", () => {
     await waitForUi();
   });
 
+  it("disables the pre-release Check button while the stable flow is busy", async () => {
+    // The INVERSE of the two rules above, and the one the stable flow cannot
+    // signal for itself: `checkForPrerelease` bails on main's shared
+    // `installing` flag, and unlike `switchToPrerelease`/`revertToStable` it
+    // returns the UNCHANGED `PrereleaseState` with no `success` field — so
+    // `runPrerelease`, which only recognises `{ success: false }`, surfaces
+    // nothing at all. A live button here round-trips into silence.
+    await render(
+      {
+        ...readyState("available"),
+        availableVersion: "0.2.0",
+        canInstall: true,
+      },
+      prereleaseReady("idle"),
+    );
+    let resolveInstall: (() => void) | undefined;
+    api.installUpdate.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveInstall = resolve;
+      }),
+    );
+
+    await click(buttonNamed(container, tEn("settings.updates.installNow")));
+
+    const pendingCheck = buttonNamed(
+      prereleaseSection(),
+      tEn("settings.updates.prerelease.checkButton"),
+    );
+    expect(pendingCheck.disabled).toBe(true);
+    await click(pendingCheck);
+    expect(api.checkForPrerelease).not.toHaveBeenCalled();
+
+    resolveInstall?.();
+    await waitForUi();
+
+    // ...and once main publishes the phase, on the phase alone: the state
+    // event clears `actionPending`, so this is not the click's own latch.
+    await act(async () => {
+      updateListener?.({
+        ...readyState("installing"),
+        availableVersion: "0.2.0",
+      });
+    });
+    expect(
+      buttonNamed(
+        prereleaseSection(),
+        tEn("settings.updates.prerelease.checkButton"),
+      ).disabled,
+    ).toBe(true);
+  });
+
+  it("disables the pre-release Check button while a channel op is in flight", async () => {
+    await render(
+      readyState("up-to-date"),
+      prereleaseReady("available", { offeredVersion: BETA_VERSION }),
+    );
+    let resolveSwitch: ((result: { success: boolean }) => void) | undefined;
+    api.switchToPrerelease.mockReturnValueOnce(
+      new Promise<{ success: boolean }>((resolve) => {
+        resolveSwitch = resolve;
+      }),
+    );
+
+    await click(
+      buttonNamed(
+        prereleaseSection(),
+        tEn("settings.updates.prerelease.switchButton"),
+      ),
+    );
+
+    // A switch claims the same `installing` flag the check bails on, and the
+    // confirm dialog it awaits leaves this panel clickable behind it.
+    const check = buttonNamed(
+      prereleaseSection(),
+      tEn("settings.updates.prerelease.checkButton"),
+    );
+    expect(check.disabled).toBe(true);
+    await click(check);
+    expect(api.checkForPrerelease).not.toHaveBeenCalled();
+
+    resolveSwitch?.({ success: true });
+    await waitForUi();
+  });
+
+  it("spins the Revert button while the revert it started is in flight", async () => {
+    await render(
+      readyState("up-to-date"),
+      prereleaseReady("idle", { activeChannel: "beta" }),
+    );
+    let resolveRevert: ((result: { success: boolean }) => void) | undefined;
+    api.revertToStable.mockReturnValueOnce(
+      new Promise<{ success: boolean }>((resolve) => {
+        resolveRevert = resolve;
+      }),
+    );
+
+    const revert = buttonNamed(
+      prereleaseSection(),
+      tEn("settings.updates.prerelease.revertButton"),
+    );
+    expect(revert.querySelector("svg")).toBeNull();
+
+    await click(revert);
+
+    // A revert fetches from Homebrew before anything is published, so without
+    // a spinner the only feedback is a button that went grey.
+    expect(
+      buttonNamed(
+        prereleaseSection(),
+        tEn("settings.updates.prerelease.revertButton"),
+      ).querySelector("svg"),
+    ).not.toBeNull();
+
+    resolveRevert?.({ success: true });
+    await waitForUi();
+  });
+
+  it("leaves the pre-release section unsupported on a preload without the channel bridge", async () => {
+    // The compatibility path the effect's early return exists for: an older
+    // preload exposes neither pre-release method, and this component also
+    // mounts inside the About tab, where a throwing effect would tear down
+    // the user guide alongside it.
+    unsubscribe = vi.fn();
+    await renderWithApi({
+      getUpdateState: vi.fn().mockResolvedValue(readyState("up-to-date")),
+      checkForUpdates: vi.fn().mockResolvedValue(undefined),
+      openUpdateRelease: vi.fn().mockResolvedValue(undefined),
+      installUpdate: vi.fn().mockResolvedValue({ success: true }),
+      restartForUpdate: vi.fn().mockResolvedValue({ success: true }),
+      openExternalLink: vi.fn().mockResolvedValue({ success: true }),
+      onUpdateStateChanged: vi.fn((listener: (next: UpdateState) => void) => {
+        updateListener = listener;
+        return unsubscribe;
+      }),
+      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+      setLocale: vi.fn().mockResolvedValue({ success: true }),
+      onLocaleChanged: vi.fn().mockReturnValue(vi.fn()),
+      // The four remaining `UpdateApi` members are the point of this test:
+      // an old preload exposes none of them, so they are absent rather than
+      // mocked. `checkForPrerelease`/`switchToPrerelease`/`revertToStable`
+      // are never reachable without a rendered control to press.
+    } as unknown as UpdateApi);
+
+    const section = prereleaseSection();
+    expect(section.textContent).toContain(
+      tEn("settings.updates.prerelease.unsupported"),
+    );
+    // Not a half-live section: no control the bridge could not service.
+    for (const label of [
+      tEn("settings.updates.prerelease.checkButton"),
+      tEn("settings.updates.prerelease.switchButton"),
+      tEn("settings.updates.prerelease.revertButton"),
+    ] as const) {
+      expect(maybeButtonNamed(section, label)).toBeUndefined();
+    }
+    // The stable flow above it is untouched by the missing bridge.
+    expect(container.textContent).toContain(tEn("settings.updates.upToDate"));
+  });
+
   it("renders the pre-release section in Japanese, derived from the JA catalog", async () => {
     await renderInLocale(
       "ja",
