@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -684,6 +686,126 @@ describe("SettingCorrection preset-scoped options", () => {
         }),
       ],
     });
+  });
+
+  it("writes the option onto the preset that declares it, not the first preset", async () => {
+    // Every other test here mounts a SINGLE-preset fixture, which cannot tell
+    // `preset.id === presetId` from `index === 0` — routing the write to
+    // `presets[0]` passes all of them. A real profile ships eight built-ins,
+    // so writing a preset-option edit onto the wrong preset is the regression
+    // that actually reaches users. Caveman is deliberately NOT first here.
+    const setCorrectSettings = vi.fn().mockResolvedValue({ success: true });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: baseElectronAPI({
+        getCorrectSettings: vi.fn().mockResolvedValue({
+          presets: [correctionPreset, cavemanPreset],
+          selectedPresetId: DEFAULT_CAVEMAN_PRESET_ID,
+        }),
+        setCorrectSettings,
+      }),
+    });
+
+    await mount();
+
+    await chooseSelectValue(
+      requireOptionSelect(CAVEMAN_MODE_OPTION_KEY),
+      "ultra",
+    );
+
+    await submit();
+
+    const payload = setCorrectSettings.mock.calls[0][0];
+    const caveman = payload.presets.find(
+      (preset: { id: string }) => preset.id === DEFAULT_CAVEMAN_PRESET_ID,
+    );
+    const correction = payload.presets.find(
+      (preset: { id: string }) => preset.id === DEFAULT_CORRECTION_PRESET_ID,
+    );
+
+    expect(caveman?.extraOptions).toEqual({
+      [CAVEMAN_MODE_OPTION_KEY]: "ultra",
+    });
+    expect(correction?.extraOptions).toBeUndefined();
+  });
+
+  it("merges into extraOptions rather than replacing it", async () => {
+    // `updatePresetOption` spreads the existing `extraOptions` before writing
+    // the changed key. Replacing the spread with a bare overwrite passes every
+    // other test, because Caveman declares exactly ONE option today and no
+    // other fixture carries a second key — so merge and overwrite are
+    // observationally identical everywhere else.
+    //
+    // A second DECLARED option would be the faithful fixture, but the registry
+    // has only one. An unrelated stored key stands in for it: the store's
+    // `sanitizePresetOptions` would drop such a key on its own way in, so this
+    // asserts the COMPONENT's merge semantics specifically, which is where the
+    // data loss would occur once any preset declares two options.
+    const setCorrectSettings = vi.fn().mockResolvedValue({ success: true });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: baseElectronAPI({
+        getCorrectSettings: vi.fn().mockResolvedValue({
+          presets: [
+            {
+              ...cavemanPreset,
+              extraOptions: {
+                [CAVEMAN_MODE_OPTION_KEY]: "lite",
+                unrelatedOption: "must survive",
+              },
+            },
+          ],
+          selectedPresetId: DEFAULT_CAVEMAN_PRESET_ID,
+        }),
+        setCorrectSettings,
+      }),
+    });
+
+    await mount();
+
+    await chooseSelectValue(
+      requireOptionSelect(CAVEMAN_MODE_OPTION_KEY),
+      "ultra",
+    );
+
+    await submit();
+
+    const payload = setCorrectSettings.mock.calls[0][0];
+
+    expect(payload.presets[0].extraOptions).toEqual({
+      [CAVEMAN_MODE_OPTION_KEY]: "ultra",
+      unrelatedOption: "must survive",
+    });
+  });
+
+  it("gates the option block on the registry, never on a preset id", async () => {
+    // The card's central claim is that a future preset declaring an option
+    // renders with ZERO changes to this file. Nothing behavioural can pin that
+    // today: the registry declares exactly one preset id, so reading the
+    // registry and hardcoding `activePreset.id === "caveman"` are
+    // indistinguishable to every test above — the substitution was made and
+    // the whole suite stayed green.
+    //
+    // A source guard, in the style of `ButtonSourceGuard` and the
+    // `profileChange` broadcast guard. HONEST LIMIT: this pins the
+    // id-comparison SHAPE, which is the substitution that actually happened,
+    // not every conceivable way to reintroduce a per-preset branch. The
+    // component legitimately names Caveman in `makeBuiltInPresetDefaults()` —
+    // a defaults table must know its defaults — so a whole-file ban on the id
+    // would be wrong and is deliberately not what this asserts.
+    // Resolved from `process.cwd()`, matching `ButtonSourceGuard.test.ts`:
+    // under the jsdom environment `import.meta.url` is not a file: URL, so
+    // handing it to `readFile` throws "The URL must be of scheme file".
+    const source = await readFile(
+      path.join(
+        process.cwd(),
+        "src/renderer/components/SettingCorrection.tsx",
+      ),
+      "utf8",
+    );
+
+    expect(source).toContain("presetOptionDefinitions(activePreset.id)");
+    expect(source).not.toMatch(/activePreset\.id\s*===/);
   });
 
   it("restores the built-in option value on Reset to default", async () => {
