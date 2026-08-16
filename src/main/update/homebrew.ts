@@ -294,19 +294,22 @@ const readInstallableVersion = async (
  * process with no terminal.
  */
 /**
- * Only an absolute `.app` path, with nothing that could end the shell string
- * it is interpolated into. The value comes from `app.getPath("exe")` rather
- * than from any input, but the script is still text handed to `/bin/sh`, so it
- * is checked at the boundary instead of trusted by provenance.
+ * Only an absolute path, with nothing that could end the shell string it is
+ * interpolated into. The script is text handed to `/bin/sh`, so every value
+ * that reaches it is checked at the boundary instead of trusted by
+ * provenance — including the ones that come from this process rather than
+ * from any input.
  */
-const isSafeBundlePath = (candidate: string): boolean =>
+const isSafeShellPath = (candidate: string): boolean =>
   candidate.startsWith("/") &&
-  candidate.endsWith(".app") &&
   // Quoting handles spaces; these characters would escape the quotes. Control
   // characters are rejected by the printable test below rather than by a
   // regex, so nothing rests on how a control escape happens to be spelled.
   !/["`$\\]/.test(candidate) &&
   [...candidate].every((character) => character >= " ");
+
+const isSafeBundlePath = (candidate: string): boolean =>
+  isSafeShellPath(candidate) && candidate.endsWith(".app");
 
 /**
  * How the helper brings FixLang back.
@@ -323,6 +326,79 @@ const buildReopenCommand = (appPath: string | null): string =>
     ? `/usr/bin/open -a "${appPath}" || /usr/bin/open -b ${BUNDLE_ID}`
     : `/usr/bin/open -b ${BUNDLE_ID} || /usr/bin/open -a ${PROCESS_NAME}`;
 
+/**
+ * The reopen has to be reachable from a trap, and a trap body is quoted shell
+ * text — so spelling the command inside the trap would make the trap the one
+ * place a bundle path's own quoting could escape. A function makes the trap
+ * argument a single bare word instead.
+ */
+const REOPEN_FUNCTION_NAME = "reopen_fixlang";
+
+type HelperScriptParts = {
+  readonly brewBinary: string;
+  readonly appPath: string | null;
+  readonly quitTimeoutMessage: string;
+  /** The brew verbs, and only those — everything else is identical. */
+  readonly steps: readonly string[];
+};
+
+/**
+ * Every helper this module builds runs detached, after the app has quit, and
+ * shares the same three obligations around whatever brew verbs it carries:
+ * run Homebrew non-interactively, refuse to touch the bundle while FixLang is
+ * still running, and bring the app back afterwards.
+ *
+ * The third one is the reason this is a shared function rather than two
+ * similar string literals. `... || exit 1` reads like a safe abort, but every
+ * line below the wait loop executes with the user's app already gone from the
+ * screen, so an abort that skips the reopen strands them — and a builder that
+ * spells the reopen at the end of the success path invites exactly that
+ * mistake once per author. `trap` states the invariant once, structurally:
+ * after the app has quit, EVERY exit path reopens it, including one nobody
+ * anticipated.
+ */
+const buildHelperScript = ({
+  brewBinary,
+  appPath,
+  quitTimeoutMessage,
+  steps,
+}: HelperScriptParts): string => {
+  // Refused before it ever becomes argv text handed to `/bin/sh`. The tokens
+  // and the bundle path are both checked at this boundary; the brew path is
+  // no different for coming from a filesystem probe, and the helper it lands
+  // in is detached and already allowed to uninstall an application.
+  if (!isSafeShellPath(brewBinary)) {
+    throw new Error(
+      `Refusing to build a helper script around an unsafe brew path: ${brewBinary}`,
+    );
+  }
+
+  return [
+    "set -u",
+    "export NONINTERACTIVE=1",
+    "export HOMEBREW_NO_ENV_HINTS=1",
+    `${REOPEN_FUNCTION_NAME}() {`,
+    `  ${buildReopenCommand(appPath)}`,
+    "}",
+    "waited=0",
+    `while /usr/bin/pgrep -x ${PROCESS_NAME} >/dev/null 2>&1; do`,
+    `  if [ "$waited" -ge ${QUIT_TIMEOUT_SECONDS} ]; then`,
+    `    echo "${quitTimeoutMessage}" >&2`,
+    // Deliberately no reopen: this abort fires BECAUSE the app never quit,
+    // so there is nothing to bring back.
+    "    exit 1",
+    "  fi",
+    "  /bin/sleep 1",
+    "  waited=$((waited + 1))",
+    "done",
+    // Past this line the app is gone from the user's screen. The trap is what
+    // makes "then reopen it" true of every exit below, rather than of only
+    // the paths whose author remembered.
+    `trap ${REOPEN_FUNCTION_NAME} EXIT`,
+    ...steps,
+  ].join("\n");
+};
+
 export const buildUpgradeScript = (
   brewBinary: string,
   appPath: string | null = null,
@@ -333,26 +409,21 @@ export const buildUpgradeScript = (
     throw new Error(`Refusing to build an upgrade script for an unknown cask token: ${caskToken}`);
   }
 
-  return [
-    "set -u",
-    "export NONINTERACTIVE=1",
-    "export HOMEBREW_NO_ENV_HINTS=1",
-    "waited=0",
-    `while /usr/bin/pgrep -x ${PROCESS_NAME} >/dev/null 2>&1; do`,
-    `  if [ "$waited" -ge ${QUIT_TIMEOUT_SECONDS} ]; then`,
-    `    echo "FixLang did not quit within ${QUIT_TIMEOUT_SECONDS}s; upgrade aborted." >&2`,
-    "    exit 1",
-    "  fi",
-    "  /bin/sleep 1",
-    "  waited=$((waited + 1))",
-    "done",
-    // No `brew update` here: the tap probe refreshed it moments ago, and the
-    // DMG is already in the download cache. Everything slow happens while the
-    // app is still running, so this window stays a few seconds instead of a
-    // minute — which is how long the user is staring at a vanished app.
-    `"${brewBinary}" upgrade --cask ${caskToken} || exit 1`,
-    buildReopenCommand(appPath),
-  ].join("\n");
+  return buildHelperScript({
+    brewBinary,
+    appPath,
+    quitTimeoutMessage: `FixLang did not quit within ${QUIT_TIMEOUT_SECONDS}s; upgrade aborted.`,
+    steps: [
+      // No `brew update` here: the tap probe refreshed it moments ago, and the
+      // DMG is already in the download cache. Everything slow happens while the
+      // app is still running, so this window stays a few seconds instead of a
+      // minute — which is how long the user is staring at a vanished app.
+      //
+      // A failed upgrade still reaches the trap, so the app the helper made
+      // quit comes back on the version it was already running.
+      `"${brewBinary}" upgrade --cask ${caskToken} || exit 1`,
+    ],
+  });
 };
 
 /**
@@ -371,6 +442,16 @@ export const buildUpgradeScript = (
  * mirror, a momentary disk hiccup); if that also fails, the ORIGINAL token is
  * reinstalled so a failed switch leaves the user where they started rather
  * than with nothing.
+ *
+ * Every step that can fail *after* that window opens ends by putting some
+ * FixLang back, because a helper that aborts here aborts with the user's app
+ * already gone from the screen and nothing left running to report through:
+ * a failed uninstall reinstalls the current token, a failed restore falls
+ * back to the target (at that point the choice is "some FixLang" versus
+ * "none", not "which channel"), and a failure of that last attempt writes
+ * the one `brew install` line that gets the user back. The reopen itself is
+ * a `trap` installed by {@link buildHelperScript}, so it is not something
+ * this ladder has to remember at each rung.
  */
 export const buildChannelSwitchScript = (
   brewBinary: string,
@@ -395,44 +476,57 @@ export const buildChannelSwitchScript = (
     );
   }
 
-  const reopen = buildReopenCommand(appPath);
-
-  return [
-    "set -u",
-    "export NONINTERACTIVE=1",
-    "export HOMEBREW_NO_ENV_HINTS=1",
-    "waited=0",
-    `while /usr/bin/pgrep -x ${PROCESS_NAME} >/dev/null 2>&1; do`,
-    `  if [ "$waited" -ge ${QUIT_TIMEOUT_SECONDS} ]; then`,
-    `    echo "FixLang did not quit within ${QUIT_TIMEOUT_SECONDS}s; channel switch aborted." >&2`,
-    "    exit 1",
-    "  fi",
-    "  /bin/sleep 1",
-    "  waited=$((waited + 1))",
-    "done",
-    // Fills the download cache for the TARGET token only — the currently
-    // installed cask is untouched, so a failed fetch leaves the user exactly
-    // where they started, no uninstall has happened yet.
-    `"${brewBinary}" fetch --cask ${targetToken} || exit 1`,
-    // The bundle path only frees up once the CURRENT token's cask is gone —
-    // installing first would fail outright with "already exists".
-    `"${brewBinary}" uninstall --cask ${currentToken} || exit 1`,
-    // No app exists in /Applications between this line and a successful
-    // install below. One retry covers a transient failure without
-    // immediately giving up on the switch.
-    `if ! "${brewBinary}" install --cask ${targetToken}; then`,
-    `  if ! "${brewBinary}" install --cask ${targetToken}; then`,
-    `    echo "Failed to install ${targetToken} after a retry; restoring ${currentToken}." >&2`,
-    // Restore the ORIGINAL token, never the target: naming the target here
-    // would just retry the thing that already failed twice, and would leave
-    // the user on neither channel if it fails a third time.
-    `    "${brewBinary}" install --cask ${currentToken}`,
-    `    ${reopen}`,
-    "    exit 1",
-    "  fi",
-    "fi",
-    reopen,
-  ].join("\n");
+  return buildHelperScript({
+    brewBinary,
+    appPath,
+    quitTimeoutMessage: `FixLang did not quit within ${QUIT_TIMEOUT_SECONDS}s; channel switch aborted.`,
+    steps: [
+      // Fills the download cache for the TARGET while the current cask is
+      // still installed, so a failed fetch leaves the user exactly where they
+      // started — no uninstall has happened yet, and the trap brings the app
+      // back.
+      `"${brewBinary}" fetch --cask ${targetToken} || exit 1`,
+      // ...and for the ORIGINAL too, because the rollback below is the one
+      // step that only ever runs when something has already gone wrong.
+      // Staging it here makes the restore cache-only, so a switch that fails
+      // BECAUSE the network died can still put the user back. Best effort on
+      // purpose: a rollback download that is no longer reachable must not
+      // block a switch that would otherwise work.
+      `"${brewBinary}" fetch --cask ${currentToken} || echo "Could not pre-stage the ${currentToken} download; restoring it after a failed switch may need the network." >&2`,
+      // The bundle path only frees up once the CURRENT token's cask is gone —
+      // installing first would fail outright with "already exists".
+      `if ! "${brewBinary}" uninstall --cask ${currentToken}; then`,
+      // Not a bare abort: a cask uninstall that fails partway can already
+      // have deleted the bundle, so the honest recovery is to put back the
+      // cask the user asked us to leave alone rather than to walk away from
+      // an empty /Applications.
+      `  echo "Failed to uninstall ${currentToken}; abandoning the switch to ${targetToken}." >&2`,
+      `  "${brewBinary}" install --cask ${currentToken} || echo "Could not reinstall ${currentToken}. If FixLang is missing, recover with: brew install --cask ${currentToken}" >&2`,
+      "  exit 1",
+      "fi",
+      // No app exists in /Applications between this line and a successful
+      // install below. One retry covers a transient failure without
+      // immediately giving up on the switch.
+      `if ! "${brewBinary}" install --cask ${targetToken}; then`,
+      `  if ! "${brewBinary}" install --cask ${targetToken}; then`,
+      `    echo "Failed to install ${targetToken} after a retry; restoring ${currentToken}." >&2`,
+      // Restore the ORIGINAL token, never the target, in THIS position:
+      // naming the target here would just retry the thing that already failed
+      // twice while the user is still on neither channel.
+      `    if ! "${brewBinary}" install --cask ${currentToken}; then`,
+      // Once the rollback itself has failed the choice is no longer "the
+      // channel they asked for" versus "the one they had" — it is "some
+      // FixLang" versus "none". The target gets one last attempt in the only
+      // position where it is the sole remaining candidate, and its own DMG is
+      // already cached from the fetch above.
+      `      echo "Failed to restore ${currentToken}; trying ${targetToken} once more." >&2`,
+      `      "${brewBinary}" install --cask ${targetToken} || echo "FixLang is no longer installed. Recover with: brew install --cask ${currentToken}" >&2`,
+      "    fi",
+      "    exit 1",
+      "  fi",
+      "fi",
+    ],
+  });
 };
 
 const runDetached: DetachedRunner = (script, logFilePath) => {
@@ -599,10 +693,11 @@ export const createHomebrewUpgrader = (
       // must be checked against ITS OWN Caskroom entry — otherwise a
       // beta-bound upgrader's stale (and true) `canInstall` could wave
       // through a request to upgrade the stable token with no stable
-      // Caskroom entry at all. That would spawn the detached helper anyway;
-      // `buildUpgradeScript`'s `upgrade --cask ... || exit 1` then fails
-      // AFTER the app has already quit, on a path that never reaches the
-      // reopen command.
+      // Caskroom entry at all. That would spawn the detached helper anyway,
+      // and `buildUpgradeScript`'s `upgrade --cask ... || exit 1` would then
+      // fail AFTER the app has already quit. The helper's EXIT trap now
+      // reopens the app on that path, but the user would still have watched
+      // their app vanish for an upgrade that could never have run.
       const targetCaskroomPath = caskroomPath(brewBinary, caskToken);
       if (targetCaskroomPath === null || !directoryExists(targetCaskroomPath)) {
         throw new Error("FixLang was not installed with the Homebrew cask");
