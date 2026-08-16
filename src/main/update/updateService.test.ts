@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { msg } from "~/features/i18n/shared/message";
-import { BETA_CASK_TOKEN, STABLE_CASK_TOKEN, type ActiveCaskChannel } from "./homebrew";
+import {
+  BETA_CASK_TOKEN,
+  STABLE_CASK_TOKEN,
+  type ActiveCaskChannel,
+  type CaskToken,
+} from "./homebrew";
 import { UPGRADE_GRACE_MS } from "./pendingInstall";
 import { parsePrereleaseVersion } from "./prereleaseVersion";
 import { createUpdateService } from "./updateService";
@@ -62,8 +67,10 @@ const createService = (
     startUpgrade: () => void;
     /** Version the tap can install; null models a brew that cannot be asked. */
     installableVersion: string | null;
-    /** Versions already staged in the Caskroom. */
+    /** Versions already staged in the Caskroom under the stable token. */
     installedVersions: readonly string[];
+    /** Versions already staged in the Caskroom under the beta token. */
+    betaInstalledVersions: readonly string[];
     /** Bytes reported as cached while the download is polled. */
     downloadedBytes: number | null;
     downloadUpdate: () => Promise<void>;
@@ -78,8 +85,21 @@ const createService = (
     now: () => number;
     getLatestRelease: () => Promise<unknown>;
     getLatestPrerelease: () => Promise<PrereleaseCandidate | null>;
-    /** Which cask token(s) the Caskroom probe reports; undefined models no collaborator wired. */
+    /**
+     * Which cask token(s) the Caskroom probe reports; undefined models no
+     * collaborator wired. When no explicit value is given, defaults to
+     * `"stable"` for a cask-capable fixture (`canInstall: true`) and `null`
+     * otherwise — the realistic correlation: a build with no cask install at
+     * all also has nothing staged in its Caskroom.
+     */
     activeChannel: ActiveCaskChannel | null;
+    /** Resolves `true` unless overridden — most fixtures want the happy path. */
+    confirmPrereleaseSwitch: (targetVersion: string) => Promise<boolean>;
+    startChannelSwitch: (
+      currentToken: CaskToken,
+      targetToken: CaskToken,
+      appPath: string | null,
+    ) => void;
     onLog: (level: "info" | "warn" | "error", message: string) => void;
   }> = {},
 ) => {
@@ -94,9 +114,10 @@ const createService = (
       .fn<() => Promise<PrereleaseCandidate | null>>()
       .mockImplementation(overrides.getLatestPrerelease ?? (() => Promise.resolve(null))),
   };
-  const detectActiveCaskChannel = vi.fn<() => ActiveCaskChannel | null>(() =>
-    overrides.activeChannel === undefined ? "stable" : overrides.activeChannel,
-  );
+  const detectActiveCaskChannel = vi.fn<() => ActiveCaskChannel | null>(() => {
+    if (overrides.activeChannel !== undefined) return overrides.activeChannel;
+    return overrides.canInstall ? "stable" : null;
+  });
   const startUpgrade = vi.fn(overrides.startUpgrade);
   const getInstallableVersion = vi.fn<() => Promise<string | null>>(() =>
     Promise.resolve(
@@ -106,8 +127,12 @@ const createService = (
     ),
   );
   const installedVersions = new Set(overrides.installedVersions ?? []);
-  const isVersionInstalled = vi.fn((version: string) =>
-    installedVersions.has(version),
+  const betaInstalledVersions = new Set(overrides.betaInstalledVersions ?? []);
+  const isVersionInstalled = vi.fn(
+    (version: string, caskToken: string = STABLE_CASK_TOKEN) =>
+      (caskToken === BETA_CASK_TOKEN ? betaInstalledVersions : installedVersions).has(
+        version,
+      ),
   );
   const downloadUpdate = vi.fn<() => Promise<void>>(
     overrides.downloadUpdate ?? (() => Promise.resolve()),
@@ -122,6 +147,10 @@ const createService = (
   };
   const quitApp = vi.fn();
   const relaunchApp = vi.fn();
+  const confirmPrereleaseSwitch = vi.fn<(targetVersion: string) => Promise<boolean>>(
+    overrides.confirmPrereleaseSwitch ?? (() => Promise.resolve(true)),
+  );
+  const startChannelSwitch = vi.fn(overrides.startChannelSwitch);
   // Collected instead of timed: tests drive the poll by hand.
   const polls: (() => void)[] = [];
   const cancelPoll = vi.fn();
@@ -151,6 +180,8 @@ const createService = (
       return cancelPoll;
     },
     detectActiveCaskChannel,
+    confirmPrereleaseSwitch,
+    startChannelSwitch,
   });
 
   return {
@@ -163,10 +194,13 @@ const createService = (
     downloadUpdate,
     getDownloadedBytes,
     installedVersions,
+    betaInstalledVersions,
     pendingInstall,
     quitApp,
     relaunchApp,
     cancelPoll,
+    confirmPrereleaseSwitch,
+    startChannelSwitch,
     /** Runs every scheduled poll once, as the real interval would. */
     tickPoll: () => {
       for (const run of [...polls]) run();
@@ -379,12 +413,13 @@ describe("Homebrew one-click install", () => {
     expect(startUpgrade).toHaveBeenCalledTimes(1);
     // The helper reopens this exact bundle instead of resolving the bundle id,
     // which can point at another copy of FixLang.
-    expect(startUpgrade).toHaveBeenCalledWith(INSTALLED_APP_PATH);
+    expect(startUpgrade).toHaveBeenCalledWith(INSTALLED_APP_PATH, STABLE_CASK_TOKEN);
     expect(pendingInstall.write).toHaveBeenCalledWith({
       fromVersion: "0.1.0",
       toVersion: "0.2.0",
       startedAt: NOW,
       appPath: INSTALLED_APP_PATH,
+      caskToken: STABLE_CASK_TOKEN,
     });
     expect(quitApp).toHaveBeenCalledTimes(1);
     expect(service.getState()).toMatchObject({
@@ -568,7 +603,7 @@ describe("checking against Homebrew rather than GitHub", () => {
 
     // A cheap local read answered it; `brew update` is a git fetch across
     // every tap and must not run on a routine check.
-    expect(getInstallableVersion.mock.calls).toEqual([[false]]);
+    expect(getInstallableVersion.mock.calls).toEqual([[false, STABLE_CASK_TOKEN]]);
   });
 
   it("pays for one tap refresh when the clone looks stale", async () => {
@@ -580,7 +615,10 @@ describe("checking against Homebrew rather than GitHub", () => {
 
     await service.checkForUpdates();
 
-    expect(getInstallableVersion.mock.calls).toEqual([[false], [true]]);
+    expect(getInstallableVersion.mock.calls).toEqual([
+      [false, STABLE_CASK_TOKEN],
+      [true, STABLE_CASK_TOKEN],
+    ]);
   });
 
   it("falls back to GitHub when brew cannot answer", async () => {
@@ -1308,5 +1346,355 @@ describe("pre-release channel discovery", () => {
 
     expect(phases).toEqual(["checking", "up-to-date"]);
     expect(Object.isFrozen(service.getPrereleaseState())).toBe(true);
+  });
+
+  /**
+   * Routed defect (card 06, Architecture lens): `canSwitch` used to be
+   * `canInstall`, a flag scoped to whichever token `upgrader` is bound to —
+   * always the stable cask. A genuine beta install has NO stable Caskroom
+   * entry, so `canInstall` reads false for exactly the population the
+   * revert button exists to serve.
+   */
+  it("keeps canSwitch true for a genuine beta install even with no stable Caskroom entry", async () => {
+    const { service } = createService({
+      canInstall: false,
+      activeChannel: "beta",
+    });
+
+    const result = await service.checkForPrerelease();
+
+    expect(result).toMatchObject({ activeChannel: "beta", canSwitch: true });
+  });
+
+  it("keeps canSwitch false when the Caskroom cannot be read at all, even on a display default of stable", async () => {
+    const { service } = createService({
+      canInstall: true,
+      activeChannel: null,
+    });
+
+    const result = await service.checkForPrerelease();
+
+    // Display still says "stable" — the correct reading for a manual DMG
+    // install — but nothing here proved a cask is actually staged.
+    expect(result).toMatchObject({ activeChannel: "stable", canSwitch: false });
+  });
+
+  /**
+   * Routed defect (card 06 review): the pre-release source THROWS on a
+   * failed request but resolves `null` when nothing qualifies; the old code
+   * routed both through a tolerant wrapper that swallowed the throw into the
+   * same `null`, so a 403 or an offline abort published as "up-to-date" —
+   * silently, with no error surfaced anywhere.
+   */
+  it("reports an error rather than up-to-date when the pre-release request itself fails", async () => {
+    const onLog = vi.fn();
+    const { service } = createService({
+      canInstall: true,
+      onLog,
+      getLatestPrerelease: () =>
+        Promise.reject(new Error("GitHub release list request failed (403)")),
+    });
+
+    const result = await service.checkForPrerelease();
+
+    expect(result).toMatchObject({
+      phase: "error",
+      message: msg("settings.updates.checkErrorMessage"),
+    });
+    expect(result.phase).not.toBe("up-to-date");
+  });
+});
+
+/**
+ * Routed defect (card 02 review, routed to this card): `reconcileLastInstall`
+ * and `watchBackgroundUpgrade` used to call `isVersionInstalled` WITHOUT
+ * `pending.caskToken`, so both always probed the upgrader's BOUND channel
+ * (stable) instead of the channel the marker actually targeted. A successful
+ * beta install (or a revert) never registered, and after the grace window a
+ * genuinely correct install reported `failed`.
+ */
+describe("reconciling a marker against its OWN cask token", () => {
+  const STALE = NOW - UPGRADE_GRACE_MS;
+  const betaPending = (startedAt: number) =>
+    ({
+      fromVersion: "0.2.0-beta.1",
+      toVersion: "0.2.0-beta.2",
+      startedAt,
+      appPath: INSTALLED_APP_PATH,
+      caskToken: BETA_CASK_TOKEN,
+    }) as const;
+
+  it("recognizes a completed beta install even though the stable Caskroom has nothing", () => {
+    const { service, pendingInstall } = createService({
+      canInstall: true,
+      currentVersion: "0.2.0-beta.1",
+      pending: betaPending(STALE),
+      // The stable Caskroom probe (the old, unfixed lookup) would find
+      // nothing here — only the beta one has the target version.
+      betaInstalledVersions: ["0.2.0-beta.2"],
+    });
+
+    expect(service.getState()).toMatchObject({
+      phase: "restart-required",
+      availableVersion: "0.2.0-beta.2",
+    });
+    expect(pendingInstall.clear).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps polling the marker's own token while a channel switch is still running", () => {
+    const { service, betaInstalledVersions, tickPoll, pendingInstall, cancelPoll } =
+      createService({
+        canInstall: true,
+        currentVersion: "0.2.0-beta.1",
+        pending: betaPending(NOW - 10_000),
+      });
+
+    tickPoll();
+    expect(service.getState().phase).toBe("installing");
+
+    betaInstalledVersions.add("0.2.0-beta.2");
+    tickPoll();
+
+    expect(service.getState().phase).toBe("restart-required");
+    expect(pendingInstall.clear).toHaveBeenCalledTimes(1);
+    expect(cancelPoll).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * The riskiest path in this feature: a channel switch replaces the running
+ * cask token, with a real window where nothing is installed at all. Every
+ * assertion here is externally observable — the confirm call, the published
+ * phases, the marker, the log lines, the quit — never internal structure.
+ */
+describe("switching to a pre-release build", () => {
+  const readyToSwitch = async (
+    overrides: Parameters<typeof createService>[0] = {},
+  ) => {
+    const candidate = prereleaseCandidate("0.2.0-beta.3", { dmgSize: 2_048 });
+    const harness = createService({
+      canInstall: true,
+      activeChannel: "stable",
+      getLatestPrerelease: () => Promise.resolve(candidate),
+      ...overrides,
+    });
+    await harness.service.checkForPrerelease();
+    return harness;
+  };
+
+  it("confirms the exact offered version exactly once, before any download, marker write, or quit", async () => {
+    const order: string[] = [];
+    const confirmPrereleaseSwitch = vi.fn(async (targetVersion: string) => {
+      order.push(`confirm:${targetVersion}`);
+      return true;
+    });
+    const { service, downloadUpdate, pendingInstall, quitApp } = await readyToSwitch({
+      confirmPrereleaseSwitch,
+    });
+    downloadUpdate.mockImplementation(() => {
+      order.push("download");
+      return Promise.resolve();
+    });
+    pendingInstall.write.mockImplementation(() => order.push("marker"));
+    quitApp.mockImplementation(() => order.push("quit"));
+
+    const result = await service.switchToPrerelease();
+
+    expect(result).toEqual({ success: true });
+    expect(confirmPrereleaseSwitch).toHaveBeenCalledTimes(1);
+    expect(confirmPrereleaseSwitch).toHaveBeenCalledWith("0.2.0-beta.3");
+    expect(order).toEqual(["confirm:0.2.0-beta.3", "download", "marker", "quit"]);
+  });
+
+  it("leaves state, the marker, and quitApp completely untouched when the user declines", async () => {
+    const { service, pendingInstall, quitApp, downloadUpdate, startChannelSwitch } =
+      await readyToSwitch({
+        confirmPrereleaseSwitch: () => Promise.resolve(false),
+      });
+    const before = service.getPrereleaseState();
+
+    const result = await service.switchToPrerelease();
+
+    expect(result).toEqual({ success: false, error: expect.anything() });
+    expect(service.getPrereleaseState()).toEqual(before);
+    expect(pendingInstall.write).not.toHaveBeenCalled();
+    expect(quitApp).not.toHaveBeenCalled();
+    expect(downloadUpdate).not.toHaveBeenCalled();
+    expect(startChannelSwitch).not.toHaveBeenCalled();
+  });
+
+  it("publishes downloading with byte progress, then installing, and completes the download before quitting", async () => {
+    const phases: string[] = [];
+    let resolveDownload: (() => void) | undefined;
+    const { service, tickPoll, quitApp } = await readyToSwitch({
+      downloadedBytes: 512,
+      downloadUpdate: () =>
+        new Promise<void>((resolve) => {
+          resolveDownload = resolve;
+        }),
+    });
+    service.subscribeToPrereleaseState((s) => phases.push(s.phase));
+
+    const switching = service.switchToPrerelease();
+    // Let the confirm's microtask settle so the download poll is registered.
+    await new Promise((resolve) => setImmediate(resolve));
+    tickPoll();
+
+    expect(service.getPrereleaseState()).toMatchObject({
+      phase: "downloading",
+      downloadedBytes: 512,
+      totalBytes: 2_048,
+    });
+    expect(quitApp).not.toHaveBeenCalled();
+
+    resolveDownload?.();
+    await switching;
+
+    expect(phases).toContain("installing");
+    expect(quitApp).toHaveBeenCalledTimes(1);
+  });
+
+  it("writes the marker with the target cask token and logs both tokens and the version without a path", async () => {
+    const onLog = vi.fn();
+    const { service, pendingInstall } = await readyToSwitch({ onLog });
+
+    await service.switchToPrerelease();
+
+    expect(pendingInstall.write).toHaveBeenCalledWith({
+      fromVersion: "0.1.0",
+      toVersion: "0.2.0-beta.3",
+      startedAt: NOW,
+      appPath: INSTALLED_APP_PATH,
+      caskToken: BETA_CASK_TOKEN,
+    });
+    const logText = JSON.stringify(onLog.mock.calls);
+    expect(logText).toContain(STABLE_CASK_TOKEN);
+    expect(logText).toContain(BETA_CASK_TOKEN);
+    expect(logText).toContain("0.2.0-beta.3");
+    expect(logText).not.toContain(INSTALLED_APP_PATH);
+  });
+
+  it("refuses when nothing has been offered yet", async () => {
+    const { service, confirmPrereleaseSwitch, startChannelSwitch } = createService({
+      canInstall: true,
+      activeChannel: "stable",
+    });
+
+    const result = await service.switchToPrerelease();
+
+    expect(result.success).toBe(false);
+    expect(confirmPrereleaseSwitch).not.toHaveBeenCalled();
+    expect(startChannelSwitch).not.toHaveBeenCalled();
+  });
+});
+
+describe("reverting to stable", () => {
+  it("never calls the confirm dialog", async () => {
+    const { service, confirmPrereleaseSwitch } = createService({
+      canInstall: true,
+      activeChannel: "beta",
+      currentVersion: "0.2.0-beta.1",
+      installableVersion: "0.1.9",
+    });
+
+    await service.revertToStable();
+
+    expect(confirmPrereleaseSwitch).not.toHaveBeenCalled();
+  });
+
+  it("writes the marker with the stable cask token, sourced from the beta token", async () => {
+    const { service, pendingInstall } = createService({
+      canInstall: true,
+      activeChannel: "beta",
+      currentVersion: "0.2.0-beta.1",
+      installableVersion: "0.1.9",
+    });
+
+    const result = await service.revertToStable();
+
+    expect(result).toEqual({ success: true });
+    expect(pendingInstall.write).toHaveBeenCalledWith({
+      fromVersion: "0.2.0-beta.1",
+      toVersion: "0.1.9",
+      startedAt: NOW,
+      appPath: INSTALLED_APP_PATH,
+      caskToken: STABLE_CASK_TOKEN,
+    });
+  });
+
+  it("refuses when the current channel is not beta", async () => {
+    const { service, startChannelSwitch } = createService({
+      canInstall: true,
+      activeChannel: "stable",
+    });
+
+    const result = await service.revertToStable();
+
+    expect(result.success).toBe(false);
+    expect(startChannelSwitch).not.toHaveBeenCalled();
+  });
+
+  it("refuses when Homebrew cannot say what stable version it would install", async () => {
+    const { service, startChannelSwitch } = createService({
+      canInstall: true,
+      activeChannel: "beta",
+      currentVersion: "0.2.0-beta.1",
+      installableVersion: null,
+    });
+
+    const result = await service.revertToStable();
+
+    expect(result.success).toBe(false);
+    expect(startChannelSwitch).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The mutual-exclusion criterion exists to prevent a specific silent
+ * failure: two in-flight paths each pass their own tests while a SECOND flag
+ * would let them run concurrently. Both directions share the exact same
+ * `installing` flag the stable flow has always used — no second flag.
+ */
+describe("mutual exclusion between a stable install and a channel switch", () => {
+  it("refuses a channel switch while a stable install is in flight, with no brew work", async () => {
+    const candidate = prereleaseCandidate("0.2.0-beta.1");
+    const { service, downloadUpdate, startChannelSwitch, confirmPrereleaseSwitch } =
+      createService({
+        canInstall: true,
+        activeChannel: "stable",
+        getLatestPrerelease: () => Promise.resolve(candidate),
+      });
+    await service.checkForUpdates();
+    await service.checkForPrerelease();
+    void service.installUpdate();
+
+    const result = await service.switchToPrerelease();
+
+    expect(result.success).toBe(false);
+    expect(confirmPrereleaseSwitch).not.toHaveBeenCalled();
+    expect(downloadUpdate).not.toHaveBeenCalledWith(BETA_CASK_TOKEN);
+    expect(startChannelSwitch).not.toHaveBeenCalled();
+  });
+
+  it("returns early from installUpdate while a channel switch is in flight", async () => {
+    const candidate = prereleaseCandidate("0.2.0-beta.1");
+    const { service, startUpgrade, quitApp } = createService({
+      canInstall: true,
+      activeChannel: "stable",
+      getLatestPrerelease: () => Promise.resolve(candidate),
+      // Never resolves: keeps `installing` claimed for the whole test.
+      confirmPrereleaseSwitch: () => new Promise<boolean>(() => undefined),
+    });
+    await service.checkForUpdates();
+    await service.checkForPrerelease();
+    void service.switchToPrerelease();
+
+    const result = await service.installUpdate();
+
+    // Same semantics as two concurrent stable installs: the second call
+    // reports success because the first one already owns the in-flight work.
+    expect(result).toEqual({ success: true });
+    expect(startUpgrade).not.toHaveBeenCalled();
+    expect(quitApp).not.toHaveBeenCalled();
   });
 });

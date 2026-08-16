@@ -3,6 +3,7 @@ import {
   BETA_CASK_TOKEN,
   STABLE_CASK_TOKEN,
   type ActiveCaskChannel,
+  type CaskToken,
   type HomebrewUpgrader,
 } from "./homebrew";
 import {
@@ -15,7 +16,7 @@ import {
   parsePrereleaseVersion,
   type PrereleaseVersion,
 } from "./prereleaseVersion";
-import type { GitHubReleaseSource, PrereleaseCandidate } from "./githubReleaseSource";
+import type { GitHubReleaseSource } from "./githubReleaseSource";
 import type { PrereleaseState } from "~/features/update/shared/prerelease";
 import type {
   InstallUpdateResult,
@@ -32,9 +33,7 @@ export type UpdateService = {
   subscribe: (listener: (state: UpdateState) => void) => () => void;
   /**
    * A SECOND, independently-published state — see `PrereleaseState`'s doc
-   * comment. Discovery only: `switchToPrerelease`/`revertToStable` (the
-   * actions `PrereleaseUpdateService` in
-   * `~/features/update/main/update.ts` also needs) are added by a later card.
+   * comment.
    */
   getPrereleaseState: () => PrereleaseState;
   /**
@@ -42,6 +41,19 @@ export type UpdateService = {
    * `checkForUpdates` must never reach it — see that method's doc comment.
    */
   checkForPrerelease: () => Promise<PrereleaseState>;
+  /**
+   * Confirms the exact offered version with the user, downloads it with the
+   * app still running, then hands off to the detached channel-switch helper
+   * and quits — same shape as `installUpdate`, but stable -> beta and gated
+   * by a confirm. See `UpdateServiceOptions.confirmPrereleaseSwitch`.
+   */
+  switchToPrerelease: () => Promise<UpdateActionResult>;
+  /**
+   * Same mechanics in the other direction (beta -> stable) with no confirm —
+   * reverting is the safe direction, reached for exactly when a pre-release
+   * build is misbehaving.
+   */
+  revertToStable: () => Promise<UpdateActionResult>;
   subscribeToPrereleaseState: (
     listener: (state: PrereleaseState) => void,
   ) => () => void;
@@ -78,16 +90,36 @@ type UpdateServiceOptions = {
   /**
    * Which cask token(s) are actually staged in the Caskroom right now — two
    * cheap directory probes, no subprocess (`homebrew.ts`'s
-   * `detectActiveCaskChannel`). Absent here on purpose: that function needs
-   * a resolved `brewBinary` that `HomebrewUpgrader` computes internally and
-   * never exposes, so wiring a real implementation means resolving the
-   * binary path outside this module and passing the bound function in —
-   * `src/main/update/index.ts` is out of this card's scope, so that wiring
-   * is left to the card that adds the switch/revert actions. Undefined (and
-   * a null result) both resolve to `"stable"`, the correct default for every
-   * install this app has ever shipped.
+   * `detectActiveCaskChannel`, composed with `findBrewBinary` in
+   * `index.ts`). A `null` result (or this collaborator being entirely
+   * absent) means "could not be determined" — `"stable"` for DISPLAY (the
+   * correct default for every install this app shipped before pre-release
+   * existed), but never for `canSwitch`: see `detectChannel` below.
    */
   detectActiveCaskChannel?: () => ActiveCaskChannel | null;
+  /**
+   * Confirms a channel switch with the user before anything else happens —
+   * a native dialog in production (`index.ts`, the AWAITED
+   * `dialog.showMessageBox`, never the sync form). Injected here so it is
+   * testable without Electron. Absent, or a resolved `false`, refuses the
+   * switch with none of its side effects run: no download, no marker write,
+   * no quit. Never called by `revertToStable` — reverting needs no confirm.
+   */
+  confirmPrereleaseSwitch?: (targetVersion: string) => Promise<boolean>;
+  /**
+   * Starts the detached channel-switch helper — wraps
+   * `buildChannelSwitchScript` the same way `HomebrewUpgrader.startUpgrade`
+   * wraps `buildUpgradeScript`. Not a `HomebrewUpgrader` method: that type is
+   * bound to a single token for its whole lifetime, but a switch needs a
+   * (current, target) PAIR decided per call — stable -> beta for a switch,
+   * beta -> stable for a revert — so it is injected here instead. Throws
+   * when it cannot start, mirroring `startUpgrade`'s contract.
+   */
+  startChannelSwitch?: (
+    currentToken: CaskToken,
+    targetToken: CaskToken,
+    appPath: string | null,
+  ) => void;
 };
 
 type StableVersion = Readonly<{
@@ -117,6 +149,18 @@ const INSTALL_INCOMPLETE_MESSAGE: Message = msg(
 );
 const RESTART_ERROR_MESSAGE: Message = msg("settings.updates.restartErrorMessage");
 const DOWNLOAD_ERROR_MESSAGE: Message = msg("settings.updates.downloadErrorMessage");
+
+// New keys for card 10's catalogs — the pre-release section never writes
+// into the stable flow's result line, so it gets its own wording rather than
+// reusing `INSTALL_ERROR_MESSAGE`/`DOWNLOAD_ERROR_MESSAGE` above.
+const SWITCH_ERROR_MESSAGE: Message = msg("settings.updates.prerelease.switchErrorMessage");
+const SWITCH_CANCELLED_MESSAGE: Message = msg(
+  "settings.updates.prerelease.switchCancelledMessage",
+);
+const REVERT_ERROR_MESSAGE: Message = msg("settings.updates.prerelease.revertErrorMessage");
+const PRERELEASE_DOWNLOAD_ERROR_MESSAGE: Message = msg(
+  "settings.updates.prerelease.downloadErrorMessage",
+);
 
 /** How often a background upgrade is re-checked while the app is reopened. */
 const UPGRADE_POLL_INTERVAL_MS = 15_000;
@@ -314,6 +358,8 @@ export const createUpdateService = (
   let releaseUrl: string | null = null;
   /** Denominator for download progress; only known after a successful check. */
   let availableDmgSize: number | null = null;
+  /** Same role as `availableDmgSize`, for the pre-release channel's offer. */
+  let availablePrereleaseDmgSize: number | null = null;
   const appPath = options.appPath ?? null;
   /**
    * Bundle a restart must open instead of re-executing this one. Set only when
@@ -346,22 +392,43 @@ export const createUpdateService = (
   let prereleaseChecking = false;
   const prereleaseListeners = new Set<(state: PrereleaseState) => void>();
 
-  const withCanSwitch = (
-    next: Omit<PrereleaseState, "canSwitch">,
-  ): PrereleaseState => freezePrereleaseState({ ...next, canSwitch: canInstall });
+  /**
+   * Raw Caskroom detection, deliberately never collapsed the same way
+   * `activeChannel`'s DISPLAY value is. `canSwitch` used to be `canInstall`
+   * — a flag scoped to whichever token `upgrader` happens to be bound to,
+   * which is always the STABLE cask (see `probeInstallableVersion`'s doc
+   * comment) — so a genuine beta install, which has no stable Caskroom entry
+   * at all, saw its revert button permanently dead. `canSwitch` is instead
+   * true whenever the probe resolved to exactly one real token: `null`
+   * (undetectable — no collaborator wired, or neither token staged, e.g. a
+   * manual DMG install) and `"both"` (ambiguous) both refuse; `"stable"` and
+   * `"beta"` both allow, regardless of which one.
+   */
+  const detectChannel = (): Pick<PrereleaseState, "activeChannel" | "canSwitch"> => {
+    const raw = options.detectActiveCaskChannel?.() ?? null;
+    return {
+      // Undetected still defaults to "stable" for DISPLAY — the correct
+      // reading for every install this app shipped before pre-release
+      // existed — but that default never leaks into `canSwitch` above.
+      activeChannel: raw ?? "stable",
+      canSwitch: raw !== null && raw !== "both",
+    };
+  };
 
-  let prereleaseState = withCanSwitch({
-    phase: supported ? "idle" : "unsupported",
-    // Never probed on an unsupported build: nothing here can ever switch or
-    // revert, so a Caskroom read at construction would just be wasted work.
-    activeChannel: supported
-      ? (options.detectActiveCaskChannel?.() ?? "stable")
-      : "stable",
-    ...(supported ? {} : { message: msg("settings.updates.unsupported") }),
-  });
+  let prereleaseState: PrereleaseState = supported
+    ? freezePrereleaseState({ phase: "idle", ...detectChannel() })
+    : freezePrereleaseState({
+        // Never probed on an unsupported build: nothing here can ever switch
+        // or revert, so a Caskroom read at construction would just be
+        // wasted work.
+        phase: "unsupported",
+        activeChannel: "stable",
+        canSwitch: false,
+        message: msg("settings.updates.unsupported"),
+      });
 
-  const publishPrerelease = (next: Omit<PrereleaseState, "canSwitch">): void => {
-    prereleaseState = withCanSwitch(next);
+  const publishPrerelease = (next: PrereleaseState): void => {
+    prereleaseState = freezePrereleaseState(next);
     for (const listener of prereleaseListeners) listener(prereleaseState);
   };
 
@@ -401,9 +468,18 @@ export const createUpdateService = (
     targetVersion: string,
     /** Measured from when the helper started, not from this launch. */
     deadline: number,
+    /**
+     * The marker's own token — routed defect: this used to omit it and
+     * always probe the upgrader's BOUND channel (stable), so a successful
+     * beta install (or a revert) never registered here and, after the grace
+     * window, a genuinely correct install reported `failed`.
+     * `pendingInstall.ts`'s `ReconcileContext.isTargetInstalled` doc comment
+     * states this contract verbatim.
+     */
+    caskToken: CaskToken,
   ): void => {
     const stop = schedulePoll(() => {
-      if (options.upgrader?.isVersionInstalled(targetVersion) === true) {
+      if (options.upgrader?.isVersionInstalled(targetVersion, caskToken) === true) {
         stop();
         options.pendingInstall?.clear();
         publishRestartRequired(targetVersion);
@@ -435,8 +511,12 @@ export const createUpdateService = (
 
     const outcome = reconcilePendingInstall(pending, currentVersion, {
       now: now(),
+      // Resolved against the marker's OWN token, not the upgrader's bound
+      // one — see `watchBackgroundUpgrade`'s doc comment for why that
+      // omission was a routed defect.
       isTargetInstalled:
-        options.upgrader?.isVersionInstalled(pending.toVersion) ?? false,
+        options.upgrader?.isVersionInstalled(pending.toVersion, pending.caskToken) ??
+        false,
       runningAppPath: appPath,
     });
     if (outcome === "none") return;
@@ -453,6 +533,7 @@ export const createUpdateService = (
       watchBackgroundUpgrade(
         pending.toVersion,
         pending.startedAt + UPGRADE_GRACE_MS,
+        pending.caskToken,
       );
       return;
     }
@@ -561,29 +642,25 @@ export const createUpdateService = (
   };
 
   /**
-   * Never rejects, same discipline as `readLatestRelease`. Only ever called
-   * from `checkForPrerelease` — `getLatestPrerelease` hits the release-*list*
-   * endpoint, which an ordinary check must not pay for on every press (a
-   * shared, unauthenticated GitHub rate limit per address).
+   * Never rejects: a broken probe must not strand the install flow.
+   *
+   * `caskToken` defaults to STABLE explicitly — not merely because `upgrader`
+   * (below) happens to be bound to it. This is the routed "silently
+   * stable-only" gate: `checkForUpdates`/`installUpdate` must always target
+   * the stable cask regardless of what token `upgrader` is ever bound to, so
+   * a future rebind (e.g. for the pre-release flow) cannot silently steer
+   * the ordinary update flow onto the wrong cask. `revertToStable` passes
+   * this same explicit `STABLE_CASK_TOKEN` to probe what stable version it
+   * would land on; the pre-release flow otherwise never calls this at all.
    */
-  const readLatestPrerelease = async (): Promise<PrereleaseCandidate | null> => {
-    try {
-      return await options.releaseSource.getLatestPrerelease();
-    } catch (error) {
-      options.onLog?.(
-        "warn",
-        `Could not read the latest GitHub pre-release (${safeErrorName(error)})`,
-      );
-      return null;
-    }
-  };
-
-  /** Never rejects: a broken probe must not strand the install flow. */
   const probeInstallableVersion = async (
     refreshTap = true,
+    caskToken: CaskToken = STABLE_CASK_TOKEN,
   ): Promise<string | null> => {
     try {
-      return (await options.upgrader?.getInstallableVersion(refreshTap)) ?? null;
+      return (
+        (await options.upgrader?.getInstallableVersion(refreshTap, caskToken)) ?? null
+      );
     } catch (error) {
       options.onLog?.(
         "warn",
@@ -601,6 +678,208 @@ export const createUpdateService = (
       currentVersion,
       message: UPDATE_ERROR_MESSAGE,
     });
+  };
+
+  type ChannelSwitchParams = Readonly<{
+    currentToken: CaskToken;
+    targetToken: CaskToken;
+    targetVersion: string;
+  }>;
+
+  /**
+   * Shared tail of `switchToPrerelease`/`revertToStable`, run only after each
+   * has resolved its own precondition (and, for a switch only, its confirm).
+   * Order mirrors `installUpdate`'s stable path exactly and IS the whole
+   * correctness story for the "no app installed" window: download with the
+   * app still running and visible progress, THEN hand off to the detached
+   * helper and quit — never the reverse, which would leave the user staring
+   * at a vanished app for as long as the download takes.
+   *
+   * `activeChannel`/`canSwitch` are carried forward from the state already
+   * published by the caller rather than re-probed here: this is a directory
+   * probe that could be affected by the very switch in flight, and flipping
+   * mid-operation would be a live badge lying about something the user
+   * cannot act on until the switch resolves anyway.
+   */
+  const runChannelSwitch = async (
+    { currentToken, targetToken, targetVersion }: ChannelSwitchParams,
+    helperErrorMessage: Message,
+  ): Promise<UpdateActionResult> => {
+    const { activeChannel, canSwitch } = prereleaseState;
+    const totalBytes =
+      targetToken === BETA_CASK_TOKEN ? (availablePrereleaseDmgSize ?? undefined) : undefined;
+
+    installing = true;
+    publishPrerelease({
+      phase: "downloading",
+      activeChannel,
+      canSwitch,
+      offeredVersion: targetVersion,
+      downloadedBytes: 0,
+      totalBytes,
+    });
+
+    const publishProgress = (): void => {
+      const downloadedBytes =
+        options.upgrader?.getDownloadedBytes(targetVersion, targetToken) ?? null;
+      if (downloadedBytes === null) return;
+      publishPrerelease({
+        phase: "downloading",
+        activeChannel,
+        canSwitch,
+        offeredVersion: targetVersion,
+        downloadedBytes,
+        totalBytes,
+      });
+    };
+
+    const stopPoll = schedulePoll(publishProgress, DOWNLOAD_POLL_INTERVAL_MS);
+    let downloaded = false;
+    try {
+      await options.upgrader?.downloadUpdate(targetToken);
+      downloaded = true;
+    } catch (error) {
+      options.onLog?.(
+        "warn",
+        `Could not download ${targetToken} (${safeErrorName(error)})`,
+      );
+    } finally {
+      stopPoll();
+    }
+
+    if (!downloaded) {
+      installing = false;
+      publishPrerelease({
+        phase: "error",
+        activeChannel,
+        canSwitch,
+        message: PRERELEASE_DOWNLOAD_ERROR_MESSAGE,
+      });
+      return { success: false, error: PRERELEASE_DOWNLOAD_ERROR_MESSAGE };
+    }
+
+    // Everything left is a local file move inside the detached helper, so
+    // the app is only away for a few seconds — same discipline as the
+    // stable flow's own "installing" phase.
+    publishPrerelease({
+      phase: "installing",
+      activeChannel,
+      canSwitch,
+      offeredVersion: targetVersion,
+    });
+
+    try {
+      options.startChannelSwitch?.(currentToken, targetToken, appPath);
+    } catch (error) {
+      installing = false;
+      options.onLog?.(
+        "error",
+        `Channel switch helper could not start (${safeErrorName(error)})`,
+      );
+      publishPrerelease({
+        phase: "error",
+        activeChannel,
+        canSwitch,
+        message: helperErrorMessage,
+      });
+      return { success: false, error: helperErrorMessage };
+    }
+
+    try {
+      options.pendingInstall?.write({
+        fromVersion: currentVersion,
+        toVersion: targetVersion,
+        startedAt: now(),
+        appPath: appPath ?? "",
+        // The TARGET token, never the bound upgrader's own — this is what
+        // lets `reconcilePendingInstall` resolve a revert (a version LOWER
+        // than the one running) against the right Caskroom.
+        caskToken: targetToken,
+      });
+    } catch (error) {
+      // The switch still runs; only the outcome report is lost.
+      options.onLog?.(
+        "warn",
+        `Could not record the pending channel switch (${safeErrorName(error)})`,
+      );
+    }
+
+    // Names both tokens and the version, never a path — matches the "leaks
+    // no path" criterion for this log line.
+    options.onLog?.(
+      "info",
+      `Channel switch from ${currentToken} to ${targetToken} started, targeting ${targetVersion}`,
+    );
+    options.quitApp?.();
+    return { success: true };
+  };
+
+  /**
+   * Confirms the exact offered version BEFORE anything else runs — no
+   * download, no marker write, no quit — so a declined dialog is a complete
+   * no-op: nothing published, nothing written, nothing quit. `installing` is
+   * still claimed before the confirm await (mirroring `installUpdate`'s own
+   * "claimed before the first await" discipline) so a second click cannot
+   * start a second switch while the dialog is on screen; a decline rolls it
+   * back rather than leaving it stuck.
+   */
+  const switchToPrerelease = async (): Promise<UpdateActionResult> => {
+    if (!prereleaseState.canSwitch || !options.upgrader) {
+      return { success: false, error: SWITCH_ERROR_MESSAGE };
+    }
+    if (installing) {
+      return { success: false, error: SWITCH_ERROR_MESSAGE };
+    }
+    if (
+      prereleaseState.phase !== "available" ||
+      prereleaseState.offeredVersion === undefined ||
+      prereleaseState.activeChannel !== "stable"
+    ) {
+      return { success: false, error: SWITCH_ERROR_MESSAGE };
+    }
+
+    const targetVersion = prereleaseState.offeredVersion;
+    installing = true;
+    const confirmed = (await options.confirmPrereleaseSwitch?.(targetVersion)) ?? false;
+    if (!confirmed) {
+      installing = false;
+      return { success: false, error: SWITCH_CANCELLED_MESSAGE };
+    }
+
+    return runChannelSwitch(
+      { currentToken: STABLE_CASK_TOKEN, targetToken: BETA_CASK_TOKEN, targetVersion },
+      SWITCH_ERROR_MESSAGE,
+    );
+  };
+
+  /**
+   * No confirm, ever: reverting to stable is the safe direction, and it is
+   * exactly what a user reaches for when a pre-release build is misbehaving.
+   */
+  const revertToStable = async (): Promise<UpdateActionResult> => {
+    if (!prereleaseState.canSwitch || !options.upgrader) {
+      return { success: false, error: REVERT_ERROR_MESSAGE };
+    }
+    if (installing) {
+      return { success: false, error: REVERT_ERROR_MESSAGE };
+    }
+    if (prereleaseState.activeChannel !== "beta") {
+      return { success: false, error: REVERT_ERROR_MESSAGE };
+    }
+
+    // Claimed before this await too — the tap probe is slow enough that a
+    // second click would otherwise start a second revert.
+    installing = true;
+    const targetVersion = await probeInstallableVersion(true, STABLE_CASK_TOKEN);
+    if (targetVersion === null) {
+      installing = false;
+      return { success: false, error: REVERT_ERROR_MESSAGE };
+    }
+
+    return runChannelSwitch(
+      { currentToken: BETA_CASK_TOKEN, targetToken: STABLE_CASK_TOKEN, targetVersion },
+      REVERT_ERROR_MESSAGE,
+    );
   };
 
   return {
@@ -763,7 +1042,9 @@ export const createUpdateService = (
       });
 
       try {
-        options.upgrader.startUpgrade(appPath);
+        // Explicit, same reasoning as `probeInstallableVersion`'s doc
+        // comment: the ordinary flow always upgrades the STABLE cask.
+        options.upgrader.startUpgrade(appPath, STABLE_CASK_TOKEN);
       } catch (error) {
         installing = false;
         options.onLog?.(
@@ -786,8 +1067,13 @@ export const createUpdateService = (
           // Stamped so the next launch can tell "still working" from "failed".
           startedAt: now(),
           // Recorded so the next launch can tell "the upgrade landed" from
-          // "some other copy of FixLang opened instead".
-          appPath,
+          // "some other copy of FixLang opened instead". `PendingInstall`
+          // requires a string; `appPath` is `string | null` here.
+          appPath: appPath ?? "",
+          // Routed defect: this used to be omitted entirely, even though
+          // `caskToken` became a required field. Always stable here — the
+          // ordinary flow only ever upgrades the stable cask.
+          caskToken: STABLE_CASK_TOKEN,
         });
       } catch (error) {
         // The upgrade still runs; only the outcome report is lost.
@@ -848,7 +1134,7 @@ export const createUpdateService = (
       if (!supported || prereleaseChecking) return prereleaseState;
 
       prereleaseChecking = true;
-      const activeChannel = options.detectActiveCaskChannel?.() ?? "stable";
+      const { activeChannel, canSwitch } = detectChannel();
 
       // Both tokens staged at once means a previous channel switch died
       // mid-flight — installed the target, never got to uninstall the
@@ -860,32 +1146,43 @@ export const createUpdateService = (
         publishPrerelease({
           phase: "error",
           activeChannel,
+          canSwitch,
           message: bothCasksInstalledMessage(),
         });
         return prereleaseState;
       }
 
-      publishPrerelease({ phase: "checking", activeChannel });
+      publishPrerelease({ phase: "checking", activeChannel, canSwitch });
 
       try {
         const current = parseCurrentVersion(currentVersion);
         if (!current) throw new Error("Invalid installed version");
 
-        const candidate = await readLatestPrerelease();
+        // Called directly — NOT through a tolerant wrapper like
+        // `readLatestRelease` above. The stable check can afford to swallow
+        // a GitHub failure into "nothing new" because Homebrew answers
+        // independently; the pre-release channel has no second source, so a
+        // request failure (a 403, an offline abort) must surface as an
+        // error here rather than collapse into the same `null` a genuine
+        // "nothing published" produces and read as up-to-date.
+        const candidate = await options.releaseSource.getLatestPrerelease();
         if (
           candidate !== null &&
           comparePrereleaseOrder(candidate.version, current) > 0
         ) {
+          availablePrereleaseDmgSize = candidate.dmgSize;
           publishPrerelease({
             phase: "available",
             activeChannel,
+            canSwitch,
             offeredVersion: candidate.version.raw,
             releaseNotes: candidate.releaseNotes,
           });
           return prereleaseState;
         }
 
-        publishPrerelease({ phase: "up-to-date", activeChannel });
+        availablePrereleaseDmgSize = null;
+        publishPrerelease({ phase: "up-to-date", activeChannel, canSwitch });
         return prereleaseState;
       } catch (error) {
         options.onLog?.(
@@ -895,6 +1192,7 @@ export const createUpdateService = (
         publishPrerelease({
           phase: "error",
           activeChannel,
+          canSwitch,
           message: UPDATE_ERROR_MESSAGE,
         });
         return prereleaseState;
@@ -902,6 +1200,10 @@ export const createUpdateService = (
         prereleaseChecking = false;
       }
     },
+
+    switchToPrerelease,
+
+    revertToStable,
 
     subscribeToPrereleaseState: (listener) => {
       prereleaseListeners.add(listener);

@@ -1,16 +1,47 @@
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync } from "node:fs";
 import path from "node:path";
-import { app } from "electron";
+import { app, dialog } from "electron";
+import { mainT } from "~/main/i18n";
 import { logger } from "~/main/logging/logService";
 import { createGitHubReleaseSource } from "./githubReleaseSource";
-import { createHomebrewUpgrader } from "./homebrew";
+import {
+  buildChannelSwitchScript,
+  createHomebrewUpgrader,
+  detectActiveCaskChannel,
+  findBrewBinary,
+  type ActiveCaskChannel,
+  type CaskToken,
+} from "./homebrew";
 import { appBundlePath, shouldCheckForUpdatesOnLaunch } from "./installationPath";
 import { createPendingInstallStore } from "./pendingInstall";
 import { createUpdateService, type UpdateService } from "./updateService";
 
 /** Gives the renderer time to render the installing state before the quit. */
 const QUIT_FOR_UPGRADE_DELAY_MS = 600;
+
+/**
+ * Same detached-process pattern `homebrew.ts` uses for the ordinary upgrade
+ * helper (`spawn("/bin/sh", ["-c", script], { detached: true, ... })`), but
+ * that module exports no runner for it — only the pure `buildUpgradeScript`/
+ * `buildChannelSwitchScript` text builders are public. Duplicated here rather
+ * than widening `homebrew.ts`'s surface for a card that owns neither file.
+ */
+const startDetachedHelper = (script: string, logFilePath: string): void => {
+  mkdirSync(path.dirname(logFilePath), { recursive: true });
+  const logFd = openSync(logFilePath, "a");
+  try {
+    const child = spawn("/bin/sh", ["-c", script], {
+      detached: true,
+      stdio: ["ignore", logFd, logFd],
+    });
+    // Detach fully: the helper must outlive the app it is replacing.
+    child.unref();
+  } finally {
+    // The child keeps its own duplicated descriptor.
+    closeSync(logFd);
+  }
+};
 
 let updateService: UpdateService | null = null;
 
@@ -22,6 +53,87 @@ export const initializeUpdateService = (): UpdateService => {
 
   const userDataPath = app.getPath("userData");
   const runningAppPath = appBundlePath(app.getPath("exe"));
+  // The same rule as launch checks: only a real installed app can be
+  // upgraded in place by the cask. Shared by the upgrader below AND by
+  // `brewBinary` here — resolving `findBrewBinary` for a dev/unpacked build
+  // would trust whatever happens to be on the MAINTAINER's machine, not this
+  // running instance, which is exactly the hazard `isInstalledApp` already
+  // guards for `createHomebrewUpgrader`.
+  const isInstalledApp =
+    app.isPackaged &&
+    shouldCheckForUpdatesOnLaunch(app.getPath("exe"), app.getPath("home"));
+  const brewBinary = isInstalledApp ? findBrewBinary() : null;
+
+  /**
+   * Wires `detectActiveCaskChannel` (a pure Caskroom probe) with the
+   * `brewBinary` it needs but never exposes — the composition `homebrew.ts`'s
+   * own doc comment on `detectActiveCaskChannel` calls out as this module's
+   * job. `null` when brew cannot be resolved at all; the service already
+   * treats that as "undetectable" rather than "stable", per
+   * `UpdateServiceOptions.detectActiveCaskChannel`'s doc comment.
+   */
+  const probeActiveCaskChannel = (): ActiveCaskChannel | null =>
+    brewBinary === null ? null : detectActiveCaskChannel(brewBinary);
+
+  /**
+   * Starts the detached channel-switch helper. Not a `HomebrewUpgrader`
+   * method — see `UpdateServiceOptions.startChannelSwitch`'s doc comment for
+   * why the (current, target) token pair is decided per call instead.
+   */
+  const startPrereleaseChannelSwitch = (
+    currentToken: CaskToken,
+    targetToken: CaskToken,
+    targetAppPath: string | null,
+  ): void => {
+    if (brewBinary === null) {
+      throw new Error("FixLang was not installed with the Homebrew cask");
+    }
+    startDetachedHelper(
+      buildChannelSwitchScript(brewBinary, currentToken, targetToken, targetAppPath),
+      path.join(userDataPath, "logs", "homebrew-channel-switch.log"),
+    );
+  };
+
+  // One dialog at a time, same discipline as `secretGuardDialog.ts`'s
+  // `confirmSecretSend`: a reentrant call while one is already on screen
+  // fails CLOSED (refuses) rather than stacking a second modal.
+  let prereleaseConfirmInFlight = false;
+
+  /**
+   * The ONLY confirm this feature ever shows, and the ONLY place a switch to
+   * the pre-release channel can be approved — the service itself never
+   * fabricates consent. Uses the AWAITED `dialog.showMessageBox`; the sync
+   * form has frozen main behind stacked modals in this codebase before (see
+   * `secretGuardDialog.ts`'s file doc).
+   */
+  const confirmPrereleaseSwitch = async (targetVersion: string): Promise<boolean> => {
+    if (prereleaseConfirmInFlight) return false;
+    prereleaseConfirmInFlight = true;
+    try {
+      const CANCEL_INDEX = 0;
+      const SWITCH_INDEX = 1;
+      const { response } = await dialog.showMessageBox({
+        type: "warning",
+        buttons: [
+          mainT("settings.updates.prerelease.confirm.cancel"),
+          mainT("settings.updates.prerelease.confirm.switch"),
+        ],
+        defaultId: CANCEL_INDEX,
+        cancelId: CANCEL_INDEX,
+        title: mainT("settings.updates.prerelease.confirm.title"),
+        message: mainT("settings.updates.prerelease.confirm.message", {
+          targetVersion,
+        }),
+        detail: mainT("settings.updates.prerelease.confirm.detail"),
+      });
+      return response === SWITCH_INDEX;
+    } catch {
+      // A dialog that failed to open was never answered, so it is not consent.
+      return false;
+    } finally {
+      prereleaseConfirmInFlight = false;
+    }
+  };
 
   updateService = createUpdateService({
     releaseSource: createGitHubReleaseSource(),
@@ -30,17 +142,16 @@ export const initializeUpdateService = (): UpdateService => {
     arch: process.arch,
     getCurrentVersion: () => app.getVersion(),
     upgrader: createHomebrewUpgrader({
-      // The same rule as launch checks: only a real installed app can be
-      // upgraded in place by the cask.
-      isInstalledApp:
-        app.isPackaged &&
-        shouldCheckForUpdatesOnLaunch(app.getPath("exe"), app.getPath("home")),
+      isInstalledApp,
       logFilePath: path.join(userDataPath, "logs", "homebrew-update.log"),
     }),
     pendingInstall: createPendingInstallStore(
       path.join(userDataPath, "pending-update.json"),
     ),
     appPath: runningAppPath,
+    detectActiveCaskChannel: probeActiveCaskChannel,
+    confirmPrereleaseSwitch,
+    startChannelSwitch: startPrereleaseChannelSwitch,
     quitApp: () => {
       setTimeout(() => {
         app.quit();
