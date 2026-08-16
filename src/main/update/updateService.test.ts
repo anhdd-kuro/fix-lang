@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { msg } from "~/features/i18n/shared/message";
+import { BETA_CASK_TOKEN, STABLE_CASK_TOKEN, type ActiveCaskChannel } from "./homebrew";
 import { UPGRADE_GRACE_MS } from "./pendingInstall";
+import { parsePrereleaseVersion } from "./prereleaseVersion";
 import { createUpdateService } from "./updateService";
+import type { PrereleaseCandidate } from "./githubReleaseSource";
 
 /** Fixed clock so marker ages are exact rather than wall-clock dependent. */
 const NOW = 1_700_000_000_000;
@@ -29,6 +32,26 @@ const stableRelease = (
   ...overrides,
 });
 
+/**
+ * `getLatestPrerelease` is already validated by `githubReleaseSource.ts` by
+ * the time `updateService.ts` ever sees it — the fake mirrors that contract
+ * by handing back an already-shaped `PrereleaseCandidate` instead of raw
+ * GitHub JSON.
+ */
+const prereleaseCandidate = (
+  raw = "0.2.0-beta.1",
+  overrides: Partial<Pick<PrereleaseCandidate, "releaseNotes" | "dmgSize">> = {},
+): PrereleaseCandidate => {
+  const version = parsePrereleaseVersion(raw);
+  if (!version) throw new Error(`invalid test fixture version: ${raw}`);
+  return {
+    version,
+    dmgSize: 1,
+    releaseNotes: "Beta release notes.",
+    ...overrides,
+  };
+};
+
 const createService = (
   overrides: Partial<{
     isPackaged: boolean;
@@ -49,10 +72,14 @@ const createService = (
       toVersion: string;
       startedAt: number;
       appPath: string;
+      caskToken: "fixlang" | "fixlang@beta";
     } | null;
     appPath: string | null;
     now: () => number;
     getLatestRelease: () => Promise<unknown>;
+    getLatestPrerelease: () => Promise<PrereleaseCandidate | null>;
+    /** Which cask token(s) the Caskroom probe reports; undefined models no collaborator wired. */
+    activeChannel: ActiveCaskChannel | null;
     onLog: (level: "info" | "warn" | "error", message: string) => void;
   }> = {},
 ) => {
@@ -63,7 +90,13 @@ const createService = (
         overrides.getLatestRelease ??
           (() => Promise.resolve(stableRelease())),
       ),
+    getLatestPrerelease: vi
+      .fn<() => Promise<PrereleaseCandidate | null>>()
+      .mockImplementation(overrides.getLatestPrerelease ?? (() => Promise.resolve(null))),
   };
+  const detectActiveCaskChannel = vi.fn<() => ActiveCaskChannel | null>(() =>
+    overrides.activeChannel === undefined ? "stable" : overrides.activeChannel,
+  );
   const startUpgrade = vi.fn(overrides.startUpgrade);
   const getInstallableVersion = vi.fn<() => Promise<string | null>>(() =>
     Promise.resolve(
@@ -117,11 +150,13 @@ const createService = (
       polls.push(run);
       return cancelPoll;
     },
+    detectActiveCaskChannel,
   });
 
   return {
     service,
     releaseSource,
+    detectActiveCaskChannel,
     startUpgrade,
     getInstallableVersion,
     isVersionInstalled,
@@ -732,12 +767,14 @@ describe("Homebrew tap lag", () => {
 describe("pending Homebrew update reconciliation", () => {
   const STALE = NOW - UPGRADE_GRACE_MS;
   const FRESH = NOW - 10_000;
-  const marker = (startedAt: number) => ({
-    fromVersion: "0.1.0",
-    toVersion: "0.2.0",
-    startedAt,
-    appPath: INSTALLED_APP_PATH,
-  });
+  const marker = (startedAt: number) =>
+    ({
+      fromVersion: "0.1.0",
+      toVersion: "0.2.0",
+      startedAt,
+      appPath: INSTALLED_APP_PATH,
+      caskToken: STABLE_CASK_TOKEN,
+    }) as const;
 
   it("reports a completed upgrade on the next launch", () => {
     const { service, pendingInstall } = createService({
@@ -797,7 +834,8 @@ describe("reopening during a background upgrade", () => {
     toVersion: "0.2.0",
     startedAt: NOW - 10_000,
     appPath: INSTALLED_APP_PATH,
-  };
+    caskToken: STABLE_CASK_TOKEN,
+  } as const;
 
   it("says the upgrade is still running instead of calling it failed", () => {
     const { service, pendingInstall } = createService({
@@ -1032,6 +1070,7 @@ describe("restarting into an installed update", () => {
         toVersion: "0.2.0",
         startedAt: NOW,
         appPath: INSTALLED_APP_PATH,
+        caskToken: STABLE_CASK_TOKEN,
       },
       installedVersions: ["0.2.0"],
     });
@@ -1057,6 +1096,7 @@ describe("restarting into an installed update", () => {
           toVersion: "0.2.0",
           startedAt: NOW,
           appPath: INSTALLED_APP_PATH,
+          caskToken: STABLE_CASK_TOKEN,
         },
         installedVersions: ["0.2.0"],
         ...(onLog ? { onLog } : {}),
@@ -1114,4 +1154,159 @@ describe("restarting into an installed update", () => {
       expect(relaunchApp).not.toHaveBeenCalled();
     },
   );
+});
+
+/**
+ * A SECOND, independently-published state (`getPrereleaseState`/
+ * `checkForPrerelease`/`subscribeToPrereleaseState`) sitting on the same
+ * service, discovery-only for this card: no switch, no revert, no confirm,
+ * no marker writes.
+ */
+describe("pre-release channel discovery", () => {
+  it("starts idle with the stable channel assumed until checked", () => {
+    const { service } = createService();
+
+    expect(service.getPrereleaseState()).toMatchObject({
+      phase: "idle",
+      activeChannel: "stable",
+      canSwitch: false,
+    });
+  });
+
+  it("never calls the pre-release source from the ordinary update check", async () => {
+    const { service, releaseSource } = createService();
+
+    await service.checkForUpdates();
+
+    expect(releaseSource.getLatestPrerelease).not.toHaveBeenCalled();
+  });
+
+  it("refuses to guess which cask is live when both are staged, and starts no brew subprocess", async () => {
+    const { service, startUpgrade, downloadUpdate, getInstallableVersion, releaseSource } =
+      createService({ canInstall: true, activeChannel: "both" });
+
+    const result = await service.checkForPrerelease();
+
+    expect(result).toMatchObject({
+      phase: "error",
+      activeChannel: "both",
+      message: msg("settings.updates.prerelease.bothCasksMessage", {
+        stableToken: STABLE_CASK_TOKEN,
+        betaToken: BETA_CASK_TOKEN,
+        fixCommand: `brew uninstall --cask ${BETA_CASK_TOKEN}`,
+      }),
+    });
+    expect(startUpgrade).not.toHaveBeenCalled();
+    expect(downloadUpdate).not.toHaveBeenCalled();
+    expect(getInstallableVersion).not.toHaveBeenCalled();
+    // The conflict is decided from the two directory probes alone.
+    expect(releaseSource.getLatestPrerelease).not.toHaveBeenCalled();
+  });
+
+  it("offers a beta without one-click for a manual DMG install, same as the ordinary flow", async () => {
+    const candidate = prereleaseCandidate("0.2.0-beta.1", {
+      releaseNotes: "Beta release notes.",
+    });
+    const { service } = createService({
+      canInstall: false,
+      currentVersion: "0.1.0",
+      getLatestPrerelease: () => Promise.resolve(candidate),
+    });
+
+    const result = await service.checkForPrerelease();
+
+    expect(result).toMatchObject({
+      phase: "available",
+      activeChannel: "stable",
+      offeredVersion: "0.2.0-beta.1",
+      releaseNotes: "Beta release notes.",
+      canSwitch: false,
+    });
+  });
+
+  it("offers a stable release over the running beta through the unchanged stable flow", async () => {
+    const { service, releaseSource } = createService({
+      currentVersion: "0.33.0-beta.2",
+      getLatestRelease: () => Promise.resolve(stableRelease("v0.33.0")),
+    });
+
+    await service.checkForUpdates();
+
+    expect(service.getState()).toMatchObject({
+      phase: "available",
+      currentVersion: "0.33.0-beta.2",
+      availableVersion: "0.33.0",
+    });
+    expect(releaseSource.getLatestPrerelease).not.toHaveBeenCalled();
+  });
+
+  it("reports up-to-date when no newer beta is published", async () => {
+    const { service } = createService({
+      canInstall: true,
+      currentVersion: "0.2.0-beta.1",
+      getLatestPrerelease: () => Promise.resolve(null),
+    });
+
+    const result = await service.checkForPrerelease();
+
+    expect(result).toMatchObject({ phase: "up-to-date", activeChannel: "stable" });
+    expect(result.offeredVersion).toBeUndefined();
+  });
+
+  it("offers a newer beta over a beta already running", async () => {
+    const candidate = prereleaseCandidate("0.2.0-beta.2");
+    const { service } = createService({
+      canInstall: true,
+      currentVersion: "0.2.0-beta.1",
+      getLatestPrerelease: () => Promise.resolve(candidate),
+    });
+
+    const result = await service.checkForPrerelease();
+
+    expect(result).toMatchObject({
+      phase: "available",
+      offeredVersion: "0.2.0-beta.2",
+      canSwitch: true,
+    });
+  });
+
+  it("prevents a duplicate pre-release check while one is active", async () => {
+    let resolveCandidate: ((candidate: PrereleaseCandidate | null) => void) | undefined;
+    const pending = new Promise<PrereleaseCandidate | null>((resolve) => {
+      resolveCandidate = resolve;
+    });
+    const { service, releaseSource } = createService({
+      canInstall: true,
+      getLatestPrerelease: () => pending,
+    });
+
+    const first = service.checkForPrerelease();
+    const second = service.checkForPrerelease();
+    expect(releaseSource.getLatestPrerelease).toHaveBeenCalledTimes(1);
+
+    resolveCandidate?.(null);
+    await Promise.all([first, second]);
+  });
+
+  it("stays unsupported and never probes the Caskroom on an unsupported build", async () => {
+    const { service, detectActiveCaskChannel } = createService({ isPackaged: false });
+
+    expect(service.getPrereleaseState().phase).toBe("unsupported");
+    const result = await service.checkForPrerelease();
+
+    expect(result.phase).toBe("unsupported");
+    expect(detectActiveCaskChannel).not.toHaveBeenCalled();
+  });
+
+  it("notifies pre-release subscribers with immutable snapshots", async () => {
+    const { service } = createService({ canInstall: true });
+    const phases: string[] = [];
+    const unsubscribe = service.subscribeToPrereleaseState((s) => phases.push(s.phase));
+
+    await service.checkForPrerelease();
+    unsubscribe();
+
+    expect(phases).toEqual(["checking", "up-to-date"]);
+    expect(Object.isFrozen(service.getPrereleaseState())).toBe(true);
+  });
 });

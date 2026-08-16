@@ -1,11 +1,22 @@
 import { msg, type Message } from "~/features/i18n/shared/message";
 import {
+  BETA_CASK_TOKEN,
+  STABLE_CASK_TOKEN,
+  type ActiveCaskChannel,
+  type HomebrewUpgrader,
+} from "./homebrew";
+import {
   reconcilePendingInstall,
   UPGRADE_GRACE_MS,
   type PendingInstallStore,
 } from "./pendingInstall";
-import type { GitHubReleaseSource } from "./githubReleaseSource";
-import type { HomebrewUpgrader } from "./homebrew";
+import {
+  comparePrereleaseOrder,
+  parsePrereleaseVersion,
+  type PrereleaseVersion,
+} from "./prereleaseVersion";
+import type { GitHubReleaseSource, PrereleaseCandidate } from "./githubReleaseSource";
+import type { PrereleaseState } from "~/features/update/shared/prerelease";
 import type {
   InstallUpdateResult,
   UpdateActionResult,
@@ -19,6 +30,21 @@ export type UpdateService = {
   restartForUpdate: () => UpdateActionResult;
   getReleaseUrl: () => string | null;
   subscribe: (listener: (state: UpdateState) => void) => () => void;
+  /**
+   * A SECOND, independently-published state — see `PrereleaseState`'s doc
+   * comment. Discovery only: `switchToPrerelease`/`revertToStable` (the
+   * actions `PrereleaseUpdateService` in
+   * `~/features/update/main/update.ts` also needs) are added by a later card.
+   */
+  getPrereleaseState: () => PrereleaseState;
+  /**
+   * The ONLY place `releaseSource.getLatestPrerelease` is ever called.
+   * `checkForUpdates` must never reach it — see that method's doc comment.
+   */
+  checkForPrerelease: () => Promise<PrereleaseState>;
+  subscribeToPrereleaseState: (
+    listener: (state: PrereleaseState) => void,
+  ) => () => void;
 };
 
 type UpdateServiceOptions = {
@@ -49,6 +75,19 @@ type UpdateServiceOptions = {
   now?: () => number;
   /** Injectable repeating timer; returns its own cancel function. */
   schedulePoll?: (run: () => void, intervalMs: number) => () => void;
+  /**
+   * Which cask token(s) are actually staged in the Caskroom right now — two
+   * cheap directory probes, no subprocess (`homebrew.ts`'s
+   * `detectActiveCaskChannel`). Absent here on purpose: that function needs
+   * a resolved `brewBinary` that `HomebrewUpgrader` computes internally and
+   * never exposes, so wiring a real implementation means resolving the
+   * binary path outside this module and passing the bound function in —
+   * `src/main/update/index.ts` is out of this card's scope, so that wiring
+   * is left to the card that adds the switch/revert actions. Undefined (and
+   * a null result) both resolve to `"stable"`, the correct default for every
+   * install this app has ever shipped.
+   */
+  detectActiveCaskChannel?: () => ActiveCaskChannel | null;
 };
 
 type StableVersion = Readonly<{
@@ -139,6 +178,23 @@ const tapBehindMessage = (target: string, offered: string): Message =>
  */
 const tapPendingMessage = (published: string): Message =>
   msg("settings.updates.tapPendingMessage", { publishedVersion: published });
+
+/**
+ * Both cask tokens staged at once only happens when a previous channel
+ * switch died mid-flight — it installed the target and never got to
+ * uninstall the source. Guessing which one is "really" active risks
+ * uninstalling the app bundle that is still running, so this refuses to
+ * pick a side and names the exact fix instead. New key for card 10's
+ * catalogs: `settings.updates.prerelease.bothCasksMessage`.
+ */
+const BOTH_CASKS_FIX_COMMAND = `brew uninstall --cask ${BETA_CASK_TOKEN}`;
+const bothCasksInstalledMessage = (): Message =>
+  msg("settings.updates.prerelease.bothCasksMessage", {
+    stableToken: STABLE_CASK_TOKEN,
+    betaToken: BETA_CASK_TOKEN,
+    fixCommand: BOTH_CASKS_FIX_COMMAND,
+  });
+
 const RELEASES_URL = "https://github.com/anhdd-kuro/fix-lang/releases";
 const STABLE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
@@ -163,12 +219,17 @@ const parseStableVersion = (value: unknown): StableVersion | null => {
   return Object.freeze({ raw: value, major, minor, patch });
 };
 
-const compareVersions = (left: StableVersion, right: StableVersion): number => {
-  for (const part of ["major", "minor", "patch"] as const) {
-    if (left[part] !== right[part]) return left[part] - right[part];
-  }
-  return 0;
-};
+/**
+ * The installed version parses as either grammar: a stable `X.Y.Z`, or —
+ * once a user is on the pre-release channel — `X.Y.Z-beta.N`. Both shapes
+ * satisfy `OrderableVersion` structurally (see `prereleaseVersion.ts`), so
+ * `comparePrereleaseOrder` below can rank a stable release against a
+ * beta-current without either module knowing about the other's type.
+ */
+const parseCurrentVersion = (
+  value: string,
+): StableVersion | PrereleaseVersion | null =>
+  parseStableVersion(value) ?? parsePrereleaseVersion(value);
 
 const normalizeReleaseNotes = (raw: string | undefined): string | undefined => {
   const trimmed = raw?.trim();
@@ -229,6 +290,9 @@ const safeErrorName = (error: unknown): string => {
 const freezeState = (state: UpdateState): UpdateState =>
   Object.freeze({ ...state });
 
+const freezePrereleaseState = (state: PrereleaseState): PrereleaseState =>
+  Object.freeze({ ...state });
+
 /**
  * Owns release state plus the Homebrew-only install action. GitHub metadata is
  * untrusted until validated; the release URL is derived locally rather than
@@ -272,6 +336,33 @@ export const createUpdateService = (
   const publish = (next: Omit<UpdateState, "canInstall">): void => {
     state = withCanInstall(next);
     for (const listener of listeners) listener(state);
+  };
+
+  /**
+   * SECOND, independent state — see `PrereleaseState`'s doc comment for why
+   * this never shares a field, a broadcast channel, or a listener set with
+   * `state`/`publish` above.
+   */
+  let prereleaseChecking = false;
+  const prereleaseListeners = new Set<(state: PrereleaseState) => void>();
+
+  const withCanSwitch = (
+    next: Omit<PrereleaseState, "canSwitch">,
+  ): PrereleaseState => freezePrereleaseState({ ...next, canSwitch: canInstall });
+
+  let prereleaseState = withCanSwitch({
+    phase: supported ? "idle" : "unsupported",
+    // Never probed on an unsupported build: nothing here can ever switch or
+    // revert, so a Caskroom read at construction would just be wasted work.
+    activeChannel: supported
+      ? (options.detectActiveCaskChannel?.() ?? "stable")
+      : "stable",
+    ...(supported ? {} : { message: msg("settings.updates.unsupported") }),
+  });
+
+  const publishPrerelease = (next: Omit<PrereleaseState, "canSwitch">): void => {
+    prereleaseState = withCanSwitch(next);
+    for (const listener of prereleaseListeners) listener(prereleaseState);
   };
 
   /** The bundle is new but this process is not; only a restart fixes that. */
@@ -453,7 +544,7 @@ export const createUpdateService = (
     current: StableVersion,
   ): boolean => {
     const parsed = parseStableVersion(candidate);
-    return parsed !== null && compareVersions(parsed, current) > 0;
+    return parsed !== null && comparePrereleaseOrder(parsed, current) > 0;
   };
 
   /** Never rejects: GitHub is optional once Homebrew can answer. */
@@ -464,6 +555,24 @@ export const createUpdateService = (
       options.onLog?.(
         "warn",
         `Could not read the latest GitHub release (${safeErrorName(error)})`,
+      );
+      return null;
+    }
+  };
+
+  /**
+   * Never rejects, same discipline as `readLatestRelease`. Only ever called
+   * from `checkForPrerelease` — `getLatestPrerelease` hits the release-*list*
+   * endpoint, which an ordinary check must not pay for on every press (a
+   * shared, unauthenticated GitHub rate limit per address).
+   */
+  const readLatestPrerelease = async (): Promise<PrereleaseCandidate | null> => {
+    try {
+      return await options.releaseSource.getLatestPrerelease();
+    } catch (error) {
+      options.onLog?.(
+        "warn",
+        `Could not read the latest GitHub pre-release (${safeErrorName(error)})`,
       );
       return null;
     }
@@ -507,7 +616,7 @@ export const createUpdateService = (
       checking = true;
       publish({ phase: "checking", currentVersion });
       try {
-        const current = parseStableVersion(currentVersion);
+        const current = parseCurrentVersion(currentVersion);
         if (!current) throw new Error("Invalid installed version");
 
         // GitHub is asked in parallel because it is the only source of release
@@ -521,7 +630,7 @@ export const createUpdateService = (
         ]);
 
         const newerOnGitHub =
-          release !== null && compareVersions(release.version, current) > 0;
+          release !== null && comparePrereleaseOrder(release.version, current) > 0;
         // The clone can lag a release that already exists. Pay for one refresh
         // only when GitHub says there is something to look for.
         const installable = parseStableVersion(
@@ -539,13 +648,13 @@ export const createUpdateService = (
           throw new Error("No usable update source");
         }
 
-        if (compareVersions(target, current) > 0) {
+        if (comparePrereleaseOrder(target, current) > 0) {
           releaseUrl = `${RELEASES_URL}/tag/v${target.raw}`;
           // Only attach notes and a download size when GitHub is describing
           // the very version being offered; otherwise they belong to a
           // different release and would misreport both.
           const describesTarget =
-            release !== null && compareVersions(release.version, target) === 0;
+            release !== null && comparePrereleaseOrder(release.version, target) === 0;
           availableDmgSize = describesTarget ? release.dmgSize : null;
           publish({
             phase: "available",
@@ -620,7 +729,7 @@ export const createUpdateService = (
       const offered = parseStableVersion(await probeInstallableVersion());
       const target = parseStableVersion(targetVersion);
       // A null probe means brew could not be asked, not that it is behind.
-      if (offered && target && compareVersions(offered, target) < 0) {
+      if (offered && target && comparePrereleaseOrder(offered, target) < 0) {
         installing = false;
         options.onLog?.(
           "warn",
@@ -724,6 +833,79 @@ export const createUpdateService = (
     subscribe: (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+
+    getPrereleaseState: () => prereleaseState,
+
+    /**
+     * Discovers what beta is offered and which cask token(s) are actually
+     * installed. Never touched by `checkForUpdates` — this is the only path
+     * that calls `releaseSource.getLatestPrerelease`, so an ordinary check
+     * keeps costing one GitHub request, not two, against a rate limit shared
+     * per address.
+     */
+    checkForPrerelease: async (): Promise<PrereleaseState> => {
+      if (!supported || prereleaseChecking) return prereleaseState;
+
+      prereleaseChecking = true;
+      const activeChannel = options.detectActiveCaskChannel?.() ?? "stable";
+
+      // Both tokens staged at once means a previous channel switch died
+      // mid-flight — installed the target, never got to uninstall the
+      // source. Guessing which one is "really" active risks uninstalling
+      // the app bundle that is still running, so this refuses instead of
+      // picking a side, and never starts brew to find out more.
+      if (activeChannel === "both") {
+        prereleaseChecking = false;
+        publishPrerelease({
+          phase: "error",
+          activeChannel,
+          message: bothCasksInstalledMessage(),
+        });
+        return prereleaseState;
+      }
+
+      publishPrerelease({ phase: "checking", activeChannel });
+
+      try {
+        const current = parseCurrentVersion(currentVersion);
+        if (!current) throw new Error("Invalid installed version");
+
+        const candidate = await readLatestPrerelease();
+        if (
+          candidate !== null &&
+          comparePrereleaseOrder(candidate.version, current) > 0
+        ) {
+          publishPrerelease({
+            phase: "available",
+            activeChannel,
+            offeredVersion: candidate.version.raw,
+            releaseNotes: candidate.releaseNotes,
+          });
+          return prereleaseState;
+        }
+
+        publishPrerelease({ phase: "up-to-date", activeChannel });
+        return prereleaseState;
+      } catch (error) {
+        options.onLog?.(
+          "warn",
+          `Pre-release check failed (${safeErrorName(error)})`,
+        );
+        publishPrerelease({
+          phase: "error",
+          activeChannel,
+          message: UPDATE_ERROR_MESSAGE,
+        });
+        return prereleaseState;
+      } finally {
+        prereleaseChecking = false;
+      }
+    },
+
+    subscribeToPrereleaseState: (listener) => {
+      prereleaseListeners.add(listener);
+      return () => prereleaseListeners.delete(listener);
     },
   };
 };
