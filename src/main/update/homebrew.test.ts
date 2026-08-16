@@ -1492,3 +1492,81 @@ describe("startUpgrade validates the token it is actually about to run, not just
     expect(startDetached).not.toHaveBeenCalled();
   });
 });
+
+describe("per-call token pins its own accessor, never the bound token's", () => {
+  /**
+   * REGRESSION (re-review f8): every prior beta test called
+   * `isVersionInstalled` with no per-call argument, so it only ever proved
+   * bound == per-call. A mutant that resolves `caskVersionPath` against
+   * `boundCaskToken` while still validating the passed-in `caskToken` left
+   * the whole suite green. `updateService.ts:569`/`:610` (`pending.caskToken`)
+   * calls this with a per-call token that legitimately differs from the
+   * bound one whenever the app reopens mid channel-switch, so an unpinned
+   * accessor here reports a successful switch as failed.
+   */
+  it("checks the per-call token's own Caskroom entry, not the bound token's", () => {
+    const { instance } = upgrader({
+      caskToken: BETA_CASK_TOKEN,
+      directories: [
+        "/opt/homebrew/Caskroom/fixlang",
+        "/opt/homebrew/Caskroom/fixlang/0.32.0",
+      ],
+    });
+
+    expect(instance.isVersionInstalled("0.32.0", STABLE_CASK_TOKEN)).toBe(true);
+    expect(instance.isVersionInstalled("0.32.0", BETA_CASK_TOKEN)).toBe(false);
+  });
+
+  /**
+   * REGRESSION (re-review f9): the existing beta `brew fetch` test binds
+   * beta and calls `downloadUpdate()` with no argument, so it only proves
+   * bound == per-call. A mutant that fetches `boundCaskToken` instead of the
+   * passed-in `caskToken` left the whole suite green. The real call site
+   * (`updateService.ts:872`) always passes the TARGET token on a channel
+   * switch or revert — by definition the other token from the bound one —
+   * so an unpinned fetch here silently loses the "download while the app is
+   * alive" guarantee.
+   */
+  it("passes the per-call token to `brew fetch`, not the bound token's", async () => {
+    const { instance, runBrew } = upgrader({
+      caskToken: BETA_CASK_TOKEN,
+      directories: ["/opt/homebrew/Caskroom/fixlang@beta"],
+    });
+
+    await instance.downloadUpdate(STABLE_CASK_TOKEN);
+
+    expect(runBrew.mock.calls.map(([, args]) => [...args])).toEqual([
+      ["fetch", "--cask", STABLE_CASK_TOKEN],
+    ]);
+  });
+
+  /**
+   * REGRESSION (re-review f10): nothing pins the token that reaches the
+   * emitted upgrade script itself. A mutant that builds the script around
+   * `boundCaskToken` instead of the passed-in `caskToken` left the whole
+   * suite green — the existing beta test calls `startUpgrade()` with no
+   * argument, and the only differing-token test (`startUpgrade validates
+   * the token it is actually about to run`) asserts a throw, so the emit
+   * line is never reached with a per-call token that is valid, staged, and
+   * different from the bound one. Rated minor only because `index.ts:117`
+   * currently never binds a upgrader whose bound token disagrees with a
+   * staged, differing per-call token — this test pins the invariant anyway
+   * so a future change to that wiring cannot regress it silently.
+   */
+  it("passes the per-call token to the emitted script, not the bound token's", () => {
+    const { instance, startDetached } = upgrader({
+      caskToken: BETA_CASK_TOKEN,
+      directories: [
+        "/opt/homebrew/Caskroom/fixlang@beta",
+        "/opt/homebrew/Caskroom/fixlang",
+      ],
+    });
+
+    instance.startUpgrade(null, STABLE_CASK_TOKEN);
+
+    expect(startDetached).toHaveBeenCalledWith(
+      buildUpgradeScript("/opt/homebrew/bin/brew", null, STABLE_CASK_TOKEN),
+      "/tmp/userData/logs/homebrew-update.log",
+    );
+  });
+});
