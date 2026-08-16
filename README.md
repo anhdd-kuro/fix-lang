@@ -124,6 +124,40 @@ If you disconnect a provider, only the presets and settings that were using it g
   instead of failing silently; details are in
   `~/Library/Application Support/fix-lang/logs/homebrew-update.log`.
 
+### Pre-release builds and reverting
+
+- The **About** tab has a **Pre-release** section below the ordinary update flow,
+  with its own check button and its own result line. Nothing about it runs on a
+  routine update check — you only see a pre-release build when you ask for one,
+  and the normal update flow never offers you one by accident.
+- **Trying a pre-release** shows the version and its release notes first, then
+  asks you to confirm a dialog naming that exact version. Pre-release builds are
+  less tested than releases, and settings written by one may not be readable
+  again after you go back to stable — the dialog says so. Cancelling does nothing
+  at all.
+- **Going back is one button and asks for no confirmation.** *Revert to stable*
+  installs the current stable release even though it is an *older* version than
+  the pre-release you are running — that is the point. Escaping a build that
+  misbehaves should be fast.
+- **Your data survives both directions.** Settings, profiles, presets, hotkeys,
+  API keys, and history are untouched by a channel switch.
+- Homebrew has no way to downgrade a cask, so FixLang publishes the pre-release
+  stream as a second cask (`fixlang@beta`) and a switch uninstalls one and
+  installs the other. The download happens while the app is still running; there
+  is a brief window during the swap where FixLang is not in `/Applications`. If
+  the install fails, it is retried once and then the build you started from is
+  reinstalled, so a failed switch leaves you where you were. If even that fails,
+  the recovery command is written to
+  `~/Library/Application Support/fix-lang/logs/homebrew-update.log`.
+- While a pre-release build is installed, newer pre-releases are offered in that
+  section and a newer *stable* release is still offered as an ordinary update, so
+  you are never stranded.
+- **Manual DMG installs** see the pre-release version and its notes with a
+  **Download from GitHub** link instead of a one-click button, exactly as they do
+  for ordinary updates. If you have somehow forced both casks to be installed at
+  once, FixLang refuses to switch and names both tokens plus the command that
+  resolves it, rather than guessing which copy to remove.
+
 ## Installation
 
 ### From release
@@ -200,6 +234,18 @@ To remove it:
 
 ```bash
 brew uninstall --cask fixlang
+```
+
+The tap also carries a pre-release cask, `anhdd-kuro/tap/fixlang@beta`, which
+tracks pre-release builds. The two casks declare a conflict with each other, so
+Homebrew installs at most one of them. You do not need to run either token by
+hand: use the **Pre-release** section of the About tab, which switches between
+them for you and can put you back on stable in one click. If you do install the
+beta token yourself, uninstall the stable one first:
+
+```bash
+brew uninstall --cask fixlang
+brew install --cask anhdd-kuro/tap/fixlang@beta
 ```
 
 Homebrew may ask you to review and trust this third-party cask. You can approve
@@ -352,6 +398,35 @@ The protected `v*` tag ruleset allows new tag creation by the repository
 deleted. The workflow independently validates every release tag against `main`
 and `package.json`. Keep the repository public: the in-app check reads public
 GitHub Releases.
+
+### Publishing a pre-release
+
+Pre-releases are cut from a `beta/**` branch, never from `main`. Set that
+branch's `package.json` version to `X.Y.Z-beta.N` — that exact grammar, nothing
+else is accepted — and push:
+
+```bash
+git switch -c beta/0.33.0
+# set version to 0.33.0-beta.1 in package.json
+git commit -am "chore(prerelease): 0.33.0-beta.1"
+git push -u origin beta/0.33.0
+```
+
+`.github/workflows/prerelease.yml` runs the same gates as a stable release —
+lint, tests, i18n catalog, build, bundle externals, and the same mount-and-inspect
+DMG validation — and publishes the result as a GitHub pre-release. A build users
+can install is never less verified than a release.
+
+The stable release workflow is untouched by this. Never merge a `-beta.N` version
+back into `main`: the main branch's manifest stays plain stable, which is what
+keeps the monotonic-version guard working. The tag ruleset excludes
+`v*-beta.*` from update and deletion protection, so a botched pre-release tag can
+be deleted and recut; stable `v*` tags keep their full protection.
+
+The publish job declares `environment: prerelease`. Create a GitHub environment
+of that name with required reviewers in repository settings — without it, that
+declaration enforces nothing and any push to a `beta/**` branch publishes
+straight to the public release feed.
 
 ## Security
 
