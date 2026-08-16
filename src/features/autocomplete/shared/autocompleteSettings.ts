@@ -6,7 +6,8 @@
  */
 import {
   isAutocompleteScopeMode,
-  normalizeScopedApps,
+  normalizeAllowedApps,
+  normalizeExcludedApps,
   type AutocompleteScopeMode,
 } from "~/features/autocomplete/shared/autocompleteScope";
 
@@ -44,8 +45,23 @@ export type AutocompleteSettings = {
    */
   dailyCostCapUsd: number;
   scopeMode: AutocompleteScopeMode;
-  /** Lower-cased bundle ids; `scopeMode` decides whether they allow or refuse. */
-  scopedApps: string[];
+  /**
+   * Lower-cased bundle ids autocomplete may read, consulted in `allowlist` mode
+   * only. Defaults to EMPTY: `allowlist` is the fail-closed mode and must start
+   * closed.
+   */
+  allowedApps: string[];
+  /**
+   * Lower-cased bundle ids autocomplete must never read, consulted in BOTH
+   * modes. Seeded with password managers and Keychain Access.
+   *
+   * Deliberately a second list rather than one `scopedApps` whose meaning flips
+   * with `scopeMode`. One list cannot carry both meanings: seeded with the
+   * password managers it reads as "run ONLY in 1Password" the moment the mode is
+   * `allowlist` — which is the default — and a user switching modes would have
+   * their allow-list silently reinterpreted as a deny-list.
+   */
+  excludedApps: string[];
   /** Provider id consented to for system-wide reach, or `""`. Never a boolean. */
   cloudScopeConsent: string;
 };
@@ -72,8 +88,10 @@ export const isAutocompleteSettingsShape = (
     // Rejected, not coerced: a sender disagreeing with us about the modes must
     // not silently store `allowlist` behind a UI that says otherwise.
     isAutocompleteScopeMode(record.scopeMode) &&
-    Array.isArray(record.scopedApps) &&
-    record.scopedApps.every((entry) => typeof entry === "string") &&
+    Array.isArray(record.allowedApps) &&
+    record.allowedApps.every((entry) => typeof entry === "string") &&
+    Array.isArray(record.excludedApps) &&
+    record.excludedApps.every((entry) => typeof entry === "string") &&
     typeof record.cloudScopeConsent === "string"
   );
 };
@@ -131,7 +149,8 @@ export const normalizeAutocompleteSettings = (raw: unknown): AutocompleteSetting
     model: typeof value.model === "string" ? value.model.trim() : AUTOCOMPLETE_INHERIT_ASK_MODEL,
     dailyCostCapUsd: normalizeDailyCostCapUsd(value.dailyCostCapUsd),
     scopeMode: isAutocompleteScopeMode(value.scopeMode) ? value.scopeMode : "allowlist",
-    scopedApps: normalizeScopedApps(value.scopedApps),
+    allowedApps: normalizeAllowedApps(value.allowedApps),
+    excludedApps: normalizeExcludedApps(value.excludedApps),
     cloudScopeConsent:
       typeof value.cloudScopeConsent === "string" ? value.cloudScopeConsent.trim() : "",
   };

@@ -5,13 +5,13 @@ import { registerAutocompleteSettingsHandlers } from "./settings";
 
 const NORMALIZED_SCOPE_DEFAULTS = {
   scopeMode: "allowlist" as const,
-  scopedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
+  allowedApps: [],  excludedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
   cloudScopeConsent: "",
 };
 
 const VALID_SCOPE_PAYLOAD = {
   scopeMode: "allowlist" as const,
-  scopedApps: [] as string[],
+  allowedApps: [],  excludedApps: [] as string[],
   cloudScopeConsent: "",
 };
 
@@ -264,7 +264,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
     it.each([
       ["an unknown scopeMode", { ...VALID_SCOPE_PAYLOAD, scopeMode: "everywhere" }],
       ["a non-string scopeMode", { ...VALID_SCOPE_PAYLOAD, scopeMode: 42 }],
-      ["a non-array scopedApps", { ...VALID_SCOPE_PAYLOAD, scopedApps: "com.apple.mail" }],
+      ["a non-array excludedApps", { ...VALID_SCOPE_PAYLOAD, allowedApps: [], excludedApps: "com.apple.mail" }],
       ["a non-string cloudScopeConsent", { ...VALID_SCOPE_PAYLOAD, cloudScopeConsent: true }],
     ])("rejects %s in an otherwise-valid payload", async (_description, scope) => {
       const result = await getHandler("set-autocomplete-settings")(undefined, {

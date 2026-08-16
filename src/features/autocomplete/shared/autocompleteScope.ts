@@ -50,9 +50,8 @@ export const isAutocompleteScopeMode = (value: unknown): value is AutocompleteSc
 export const MAX_SCOPED_APPS = MAX_DENIED_BUNDLE_IDS;
 
 /**
- * Seeds an absent list. Not enforced by the gate — these are editable, and
- * editable means removable; a list the user can see but not change claims a
- * control that is not there.
+ * Seeds an absent EXCLUSION list. Editable, therefore removable — a list the
+ * user can see but not change claims a control that is not there.
  *
  * Extends the send-guard deny-list rather than restating it, so an app blocked
  * from transforms cannot be silently readable by autocomplete. The additions are
@@ -69,13 +68,7 @@ export const DEFAULT_EXCLUDED_BUNDLE_IDS: readonly string[] = [
   "com.apple.systempreferences",
 ];
 
-/**
- * Absent means "never stored a list" and seeds the defaults; `[]` means the user
- * cleared it and stays cleared. Collapsing the two would resurrect every default
- * the user removed on the next write.
- */
-export const normalizeScopedApps = (raw: unknown): string[] => {
-  if (raw === undefined) return [...DEFAULT_EXCLUDED_BUNDLE_IDS];
+const normalizeBundleIdList = (raw: unknown): string[] => {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
   for (const entry of raw) {
@@ -84,6 +77,22 @@ export const normalizeScopedApps = (raw: unknown): string[] => {
     if (seen.size >= MAX_SCOPED_APPS) break;
   }
   return [...seen];
+};
+
+/**
+ * Absent seeds NOTHING. This list is consulted only in `allowlist` mode, which
+ * is the fail-closed mode: starting it populated would be starting it open.
+ */
+export const normalizeAllowedApps = (raw: unknown): string[] => normalizeBundleIdList(raw);
+
+/**
+ * Absent means "never stored a list" and seeds the defaults; `[]` means the user
+ * cleared it and stays cleared. Collapsing the two would resurrect every default
+ * the user removed on the next write.
+ */
+export const normalizeExcludedApps = (raw: unknown): string[] => {
+  if (raw === undefined) return [...DEFAULT_EXCLUDED_BUNDLE_IDS];
+  return normalizeBundleIdList(raw);
 };
 
 export type AutocompleteScopeRefusal =
@@ -102,8 +111,9 @@ export const decideAppScope = (input: {
   surface: AutocompleteSurfaceKind;
   bundleId: string | null;
   scopeMode: AutocompleteScopeMode;
-  /** Typed, but sourced from a JSON store — see the `Array.isArray` guard below. */
-  scopedApps: readonly string[];
+  /** Typed, but sourced from a JSON store — see the `Array.isArray` guards below. */
+  allowedApps: readonly string[];
+  excludedApps: readonly string[];
 }): AutocompleteScopeDecision => {
   if (input.surface === "own") return PERMITTED;
 
@@ -111,18 +121,26 @@ export const decideAppScope = (input: {
   const bundleId = normalizeBundleId(input.bundleId);
   if (!bundleId) return { permitted: false, reason: "app-unidentified" };
 
-  // Refuses rather than falling back to `[]`, which is closed in `allowlist`
-  // mode but wide open in `denylist` mode. Also keeps a malformed store from
+  // Refuses rather than falling back to `[]`, which is closed for the allow-list
+  // but wide open for the exclusions. Also keeps a malformed store from
   // throwing: this runs behind an `ipcMain.handle` that must never reject.
-  if (!Array.isArray(input.scopedApps)) {
+  if (!Array.isArray(input.allowedApps) || !Array.isArray(input.excludedApps)) {
     return { permitted: false, reason: "scope-unreadable" };
   }
 
-  const listed = input.scopedApps.includes(bundleId);
-  if (input.scopeMode === "allowlist") {
-    return listed ? PERMITTED : { permitted: false, reason: "app-not-allowed" };
+  // Exclusions bite in BOTH modes. A password manager must not become readable
+  // because the user allow-listed it, and `allowlist` is the DEFAULT mode — so
+  // an exclusion that only applied to `denylist` would be off by default.
+  if (input.excludedApps.includes(bundleId)) {
+    return { permitted: false, reason: "app-excluded" };
   }
-  return listed ? { permitted: false, reason: "app-excluded" } : PERMITTED;
+
+  if (input.scopeMode === "allowlist") {
+    return input.allowedApps.includes(bundleId)
+      ? PERMITTED
+      : { permitted: false, reason: "app-not-allowed" };
+  }
+  return PERMITTED;
 };
 
 /** Unresolvable providers get the cautious default: a bare id is rarely local. */
@@ -132,20 +150,26 @@ export const defaultScopeModeForProvider = (
 
 /**
  * Independent of `scopeMode` on purpose. Scope decides which apps are read;
- * consent decides which company receives them. Naming Mail while on Ollama says
- * nothing about OpenAI, so exempting `allowlist` mode would let a later model
- * change begin uploading Mail silently.
+ * consent decides who receives them. Naming Mail while on Ollama says nothing
+ * about OpenAI, so exempting `allowlist` mode would let a later model change
+ * begin uploading Mail silently.
  *
  * Consent is stored as a provider id rather than a boolean so that changing
  * provider re-gates by construction. A null provider can never match one.
+ *
+ * `destinationIsLoopback`, NOT "is this a local provider". Ollama and LM Studio
+ * take a configurable host and the sanitizer accepts any hostname, so provider
+ * identity does not say where the bytes go — a "local" provider pointed at a LAN
+ * or public host is a remote destination and must be gated like one. The caller
+ * resolves this from the configured endpoint via `isLoopbackHost`.
  */
 export const requiresCloudScopeConsent = (input: {
   surface: AutocompleteSurfaceKind;
-  isLocalProvider: boolean;
+  destinationIsLoopback: boolean;
   providerId: string | null;
   cloudScopeConsent: string;
 }): boolean => {
   if (input.surface === "own") return false;
-  if (input.isLocalProvider) return false;
+  if (input.destinationIsLoopback) return false;
   return input.providerId === null || input.cloudScopeConsent !== input.providerId;
 };

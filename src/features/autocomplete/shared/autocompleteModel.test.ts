@@ -103,7 +103,7 @@ describe("normalizeAutocompleteSettings", () => {
       model: "",
       dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
       scopeMode: "allowlist",
-      scopedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
+      allowedApps: [],      excludedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
       cloudScopeConsent: "",
     });
   });
@@ -139,14 +139,14 @@ describe("normalizeAutocompleteSettings", () => {
     });
 
     it("seeds an absent list but leaves a cleared one cleared", () => {
-      expect(normalizeAutocompleteSettings({}).scopedApps).toEqual([
+      expect(normalizeAutocompleteSettings({}).excludedApps).toEqual([
         ...DEFAULT_EXCLUDED_BUNDLE_IDS,
       ]);
-      expect(normalizeAutocompleteSettings({ scopedApps: [] }).scopedApps).toEqual([]);
+      expect(normalizeAutocompleteSettings({ allowedApps: [], excludedApps: [] }).excludedApps).toEqual([]);
     });
 
     it("reads a non-array list as empty rather than seeding from junk", () => {
-      expect(normalizeAutocompleteSettings({ scopedApps: "com.apple.mail" }).scopedApps).toEqual(
+      expect(normalizeAutocompleteSettings({ allowedApps: [], excludedApps: "com.apple.mail" }).excludedApps).toEqual(
         [],
       );
     });

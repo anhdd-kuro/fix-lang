@@ -994,7 +994,8 @@ export const apiStoreSchema = {
                 // Bare types, no `enum`/`items` — see the note at the top of
                 // this node. `normalizeAutocompleteSettings` decides validity.
                 scopeMode: { type: "string", default: "allowlist" },
-                scopedApps: { type: "array" },
+                allowedApps: { type: "array" },
+                excludedApps: { type: "array" },
                 cloudScopeConsent: { type: "string", default: "" },
               },
               // Belt and braces for the whole-node-absent case only.
@@ -1002,12 +1003,12 @@ export const apiStoreSchema = {
               // missing just `enabled` never receives it — that case is carried
               // by `normalizeAutocompleteSettings`, which is the load-bearing one.
               //
-              // `scopedApps` SEEDS here, and must keep agreeing with
-              // `normalizeScopedApps`, which seeds the shipped exclusions from
-              // `undefined` and treats `[]` as "the user cleared the list".
-              // Writing `[]` here would hand a whole-node-absent profile an
-              // empty exclusion list, so switching it to `denylist` would read
-              // 1Password and Keychain Access with nothing wrong on screen.
+              // `excludedApps` SEEDS here and must keep agreeing with
+              // `normalizeExcludedApps`, which seeds from `undefined` and reads
+              // `[]` as "the user cleared the list". Writing `[]` would hand a
+              // whole-node-absent profile no password-manager exclusions at all.
+              // `allowedApps` starts EMPTY for the opposite reason: it is the
+              // fail-closed mode's list, and a seeded allow-list starts open.
               // Sharing this one array across injections is safe because every
               // read goes through `getProfileSetting`, which re-normalizes into
               // a fresh array before any caller sees it.
@@ -1016,7 +1017,8 @@ export const apiStoreSchema = {
                 model: "",
                 dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
                 scopeMode: "allowlist" as const,
-                scopedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
+                allowedApps: [],
+                excludedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
                 cloudScopeConsent: "",
               },
             },
@@ -1574,7 +1576,8 @@ const buildDefaultProfileSettings = (): SettingsStore =>
       model: AUTOCOMPLETE_INHERIT_ASK_MODEL,
       dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
       scopeMode: "allowlist",
-      scopedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
+      allowedApps: [],
+      excludedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
       cloudScopeConsent: "",
     },
   }) as SettingsStore;

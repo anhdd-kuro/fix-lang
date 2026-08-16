@@ -68,7 +68,8 @@ const DEFAULT_SETTINGS: AutocompleteSettings = {
   model: AUTOCOMPLETE_INHERIT_ASK_MODEL,
   dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
   scopeMode: "allowlist",
-  scopedApps: [],
+  allowedApps: [],
+  excludedApps: [],
   cloudScopeConsent: "",
 };
 

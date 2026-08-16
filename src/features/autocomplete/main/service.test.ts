@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS } from "~/features/autocomplete/shared/autocompleteDiagnostics";
+import { DEFAULT_EXCLUDED_BUNDLE_IDS } from "~/features/autocomplete/shared/autocompleteScope";
 import { DEFAULT_DAILY_COST_CAP_USD } from "~/features/autocomplete/shared/autocompleteSettings";
 import { redactLogContext } from "~/features/logs/shared/logging";
 import { GHOST_TEXT_DEBOUNCE_MS } from "~/renderer/hooks/useGhostText";
@@ -36,6 +37,7 @@ const {
   getProfileSettingMock,
   getDefaultModelIdMock,
   getCurrentProfileIdMock,
+  getProviderEndpointMock,
   usageStoreMock,
   getSecretGuardSettingsMock,
   loggerMock,
@@ -48,6 +50,7 @@ const {
   getProfileSettingMock: vi.fn(),
   getDefaultModelIdMock: vi.fn(),
   getCurrentProfileIdMock: vi.fn(),
+  getProviderEndpointMock: vi.fn(),
   usageStoreMock: {
     recordDispatch: vi.fn(),
     recordUsage: vi.fn(),
@@ -73,6 +76,7 @@ vi.mock("~/features/providers/store/apiStore", () => ({
   getProfileSetting: getProfileSettingMock,
   getDefaultModelId: getDefaultModelIdMock,
   getCurrentProfileId: getCurrentProfileIdMock,
+  getProviderEndpoint: getProviderEndpointMock,
 }));
 vi.mock("~/features/autocomplete/store/autocompleteUsageStore", () => ({
   autocompleteUsageStore: usageStoreMock,
@@ -173,6 +177,7 @@ describe("requestAutocompleteSuggestion", () => {
     resetAutocompleteState();
     currentProfileId = "profile-a";
     providerEndpoints = {};
+    getProviderEndpointMock.mockImplementation((provider: string) => providerEndpoints[provider]);
     getProfileSettingMock.mockImplementation((key: string) => {
       if (key === "settingsAutocomplete") {
         return { enabled: true, model: "openai::gpt-4o-mini", dailyCostCapUsd };
@@ -275,7 +280,7 @@ describe("requestAutocompleteSuggestion", () => {
     const withScope = (scope: Record<string, unknown>, model = "openai::gpt-4o-mini"): void => {
       getProfileSettingMock.mockImplementation((key: string) => {
         if (key === "settingsAutocomplete") {
-          return { enabled: true, model, dailyCostCapUsd, ...scope };
+          return { enabled: true, model, dailyCostCapUsd, allowedApps: [], excludedApps: [], ...scope };
         }
         if (key === "settingsCorrect") return { presets: [], selectedPresetId: "" };
         if (key === "providerEndpoints") return providerEndpoints;
@@ -287,14 +292,14 @@ describe("requestAutocompleteSuggestion", () => {
       ask({ surface: "system", appBundleId: bundleId, ...overrides });
 
     it("leaves FixLang's own window untouched by the strictest scope setting", async () => {
-      withScope({ scopeMode: "allowlist", scopedApps: [], cloudScopeConsent: "" });
+      withScope({ scopeMode: "allowlist", excludedApps: [], cloudScopeConsent: "" });
 
       expect((await ask()).suggestion).toBe(" over the lazy dog.");
       expect(makeAIRequestMock).toHaveBeenCalledOnce();
     });
 
     it("refuses an unlisted app in allowlist mode", async () => {
-      withScope({ scopeMode: "allowlist", scopedApps: ["com.apple.mail"] });
+      withScope({ scopeMode: "allowlist", allowedApps: ["com.apple.mail"] });
 
       expect((await fromApp("com.apple.notes")).suggestion).toBeNull();
       expect(makeAIRequestMock).not.toHaveBeenCalled();
@@ -303,7 +308,7 @@ describe("requestAutocompleteSuggestion", () => {
     it("serves a listed app in allowlist mode", async () => {
       withScope({
         scopeMode: "allowlist",
-        scopedApps: ["com.apple.mail"],
+        allowedApps: ["com.apple.mail"],
         cloudScopeConsent: "openai",
       });
 
@@ -313,7 +318,7 @@ describe("requestAutocompleteSuggestion", () => {
     it("refuses a listed app in denylist mode, and serves the rest", async () => {
       withScope({
         scopeMode: "denylist",
-        scopedApps: ["com.apple.mail"],
+        excludedApps: ["com.apple.mail"],
         cloudScopeConsent: "openai",
       });
 
@@ -323,8 +328,29 @@ describe("requestAutocompleteSuggestion", () => {
       expect((await fromApp("com.apple.notes")).suggestion).toBe(" over the lazy dog.");
     });
 
+    /**
+     * The shipped exclusions are password managers. Carried on one list whose
+     * meaning flips with `scopeMode`, they would read as "run ONLY in
+     * 1Password" under `allowlist` — which is the DEFAULT for an upgraded
+     * profile. They must refuse in either mode instead.
+     */
+    it.each([
+      ["allowlist", "allowlist" as const],
+      ["denylist", "denylist" as const],
+    ])("refuses a shipped-excluded app in %s mode", async (_description, scopeMode) => {
+      withScope({
+        scopeMode,
+        allowedApps: ["com.1password.1password"],
+        excludedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
+        cloudScopeConsent: "openai",
+      });
+
+      expect((await fromApp("com.1password.1password")).suggestion).toBeNull();
+      expect(makeAIRequestMock).not.toHaveBeenCalled();
+    });
+
     it("refuses a system surface that reported no app at all", async () => {
-      withScope({ scopeMode: "denylist", scopedApps: [], cloudScopeConsent: "openai" });
+      withScope({ scopeMode: "denylist", excludedApps: [], cloudScopeConsent: "openai" });
 
       expect((await fromApp(undefined)).suggestion).toBeNull();
       expect(makeAIRequestMock).not.toHaveBeenCalled();
@@ -336,7 +362,11 @@ describe("requestAutocompleteSuggestion", () => {
     });
 
     it("refuses an unreadable list in denylist mode too, where empty would mean everywhere", async () => {
-      withScope({ scopeMode: "denylist", cloudScopeConsent: "openai" });
+      withScope({
+        scopeMode: "denylist",
+        cloudScopeConsent: "openai",
+        excludedApps: undefined,
+      });
 
       expect((await fromApp("com.apple.notes")).suggestion).toBeNull();
       expect(makeAIRequestMock).not.toHaveBeenCalled();
@@ -345,7 +375,7 @@ describe("requestAutocompleteSuggestion", () => {
     it("refuses a denied app even when the suggestion is already cached", async () => {
       withScope({
         scopeMode: "denylist",
-        scopedApps: [],
+        excludedApps: [],
         cloudScopeConsent: "openai",
       });
 
@@ -355,7 +385,7 @@ describe("requestAutocompleteSuggestion", () => {
 
       withScope({
         scopeMode: "denylist",
-        scopedApps: ["com.apple.notes"],
+        excludedApps: ["com.apple.notes"],
         cloudScopeConsent: "openai",
       });
 
@@ -368,7 +398,7 @@ describe("requestAutocompleteSuggestion", () => {
     describe("cloud consent", () => {
       it("serves a local provider everywhere with no consent stored", async () => {
         withScope(
-          { scopeMode: "denylist", scopedApps: [], cloudScopeConsent: "" },
+          { scopeMode: "denylist", excludedApps: [], cloudScopeConsent: "" },
           "ollama::llama3",
         );
 
@@ -376,21 +406,21 @@ describe("requestAutocompleteSuggestion", () => {
       });
 
       it("refuses a cloud provider everywhere with no consent stored", async () => {
-        withScope({ scopeMode: "denylist", scopedApps: [], cloudScopeConsent: "" });
+        withScope({ scopeMode: "denylist", excludedApps: [], cloudScopeConsent: "" });
 
         expect((await fromApp("com.apple.notes")).suggestion).toBeNull();
         expect(makeAIRequestMock).not.toHaveBeenCalled();
       });
 
       it("serves a cloud provider everywhere once consented", async () => {
-        withScope({ scopeMode: "denylist", scopedApps: [], cloudScopeConsent: "openai" });
+        withScope({ scopeMode: "denylist", excludedApps: [], cloudScopeConsent: "openai" });
 
         expect((await fromApp("com.apple.notes")).suggestion).toBe(" over the lazy dog.");
       });
 
       it("re-gates when the model moves to a different provider", async () => {
         withScope(
-          { scopeMode: "denylist", scopedApps: [], cloudScopeConsent: "ollama" },
+          { scopeMode: "denylist", excludedApps: [], cloudScopeConsent: "ollama" },
           "openai::gpt-4o-mini",
         );
 
@@ -401,7 +431,7 @@ describe("requestAutocompleteSuggestion", () => {
       it("gates allowlist mode too — naming an app is not consent to a destination", async () => {
         withScope({
           scopeMode: "allowlist",
-          scopedApps: ["com.apple.notes"],
+          excludedApps: ["com.apple.notes"],
           cloudScopeConsent: "",
         });
 
@@ -409,10 +439,37 @@ describe("requestAutocompleteSuggestion", () => {
         expect(makeAIRequestMock).not.toHaveBeenCalled();
       });
 
+      /**
+       * "Ollama" names a protocol, not a destination. Both local providers take
+       * a configurable host and the sanitizer accepts any hostname, so a
+       * provider-identity check would wave a LAN or public host through the
+       * consent gate entirely.
+       */
+      it("refuses a local provider pointed at a LAN host with no consent stored", async () => {
+        providerEndpoints = { ollama: { host: "192.168.1.50", port: 11434 } };
+        withScope(
+          { scopeMode: "denylist", cloudScopeConsent: "" },
+          "ollama::llama3",
+        );
+
+        expect((await fromApp("com.apple.notes")).suggestion).toBeNull();
+        expect(makeAIRequestMock).not.toHaveBeenCalled();
+      });
+
+      it("serves a local provider on an explicit loopback host", async () => {
+        providerEndpoints = { ollama: { host: "127.0.0.1", port: 11434 } };
+        withScope(
+          { scopeMode: "denylist", cloudScopeConsent: "" },
+          "ollama::llama3",
+        );
+
+        expect((await fromApp("com.apple.notes")).suggestion).toBe(" over the lazy dog.");
+      });
+
       it("serves an allowlisted app once its provider is consented to", async () => {
         withScope({
           scopeMode: "allowlist",
-          scopedApps: ["com.apple.notes"],
+          allowedApps: ["com.apple.notes"],
           cloudScopeConsent: "openai",
         });
 
@@ -435,7 +492,7 @@ describe("requestAutocompleteSuggestion", () => {
           );
 
       it("names the app and the mode on an allowlist refusal", async () => {
-        withScope({ scopeMode: "allowlist", scopedApps: [] });
+        withScope({ scopeMode: "allowlist", excludedApps: [] });
 
         await fromApp("com.apple.notes");
 
@@ -449,7 +506,7 @@ describe("requestAutocompleteSuggestion", () => {
       it("names the app and the mode on a denylist refusal", async () => {
         withScope({
           scopeMode: "denylist",
-          scopedApps: ["com.apple.notes"],
+          excludedApps: ["com.apple.notes"],
           cloudScopeConsent: "openai",
         });
 
@@ -463,7 +520,7 @@ describe("requestAutocompleteSuggestion", () => {
       });
 
       it("warns when the surface reported no app", async () => {
-        withScope({ scopeMode: "denylist", scopedApps: [], cloudScopeConsent: "openai" });
+        withScope({ scopeMode: "denylist", excludedApps: [], cloudScopeConsent: "openai" });
 
         await fromApp(undefined);
 
@@ -473,7 +530,7 @@ describe("requestAutocompleteSuggestion", () => {
 
       it("warns about a missing cloud consent, naming both providers", async () => {
         withScope(
-          { scopeMode: "denylist", scopedApps: [], cloudScopeConsent: "ollama" },
+          { scopeMode: "denylist", excludedApps: [], cloudScopeConsent: "ollama" },
           "openai::gpt-4o-mini",
         );
 
@@ -488,7 +545,7 @@ describe("requestAutocompleteSuggestion", () => {
       });
 
       it("emits only context keys that survive the real redactor", async () => {
-        withScope({ scopeMode: "allowlist", scopedApps: [] });
+        withScope({ scopeMode: "allowlist", excludedApps: [] });
 
         await fromApp("com.apple.notes");
 
@@ -499,7 +556,7 @@ describe("requestAutocompleteSuggestion", () => {
 
       it("carries no typed text on any scope refusal", async () => {
         withScope(
-          { scopeMode: "denylist", scopedApps: [], cloudScopeConsent: "ollama" },
+          { scopeMode: "denylist", excludedApps: [], cloudScopeConsent: "ollama" },
           "openai::gpt-4o-mini",
         );
 

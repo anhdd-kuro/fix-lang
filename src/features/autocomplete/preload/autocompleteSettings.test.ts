@@ -5,7 +5,7 @@ import type { AutocompleteSettings } from "~/features/autocomplete/shared/autoco
 
 const NORMALIZED_SCOPE_DEFAULTS = {
   scopeMode: "allowlist" as const,
-  scopedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
+  allowedApps: [],  excludedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
   cloudScopeConsent: "",
 };
 
@@ -29,7 +29,7 @@ describe("autocompleteSettings preload boundary", () => {
         model: "openai::gpt-5",
         dailyCostCapUsd: 5,
         scopeMode: "denylist",
-        scopedApps: ["com.apple.mail"],
+        allowedApps: [],        excludedApps: ["com.apple.mail"],
         cloudScopeConsent: "openai",
       });
 
@@ -43,7 +43,7 @@ describe("autocompleteSettings preload boundary", () => {
         model: "openai::gpt-5",
         dailyCostCapUsd: 5,
         scopeMode: "denylist",
-        scopedApps: ["com.apple.mail"],
+        allowedApps: [],        excludedApps: ["com.apple.mail"],
         cloudScopeConsent: "openai",
       });
     });
@@ -92,7 +92,7 @@ describe("autocompleteSettings preload boundary", () => {
         model: "ollama::llama3",
         dailyCostCapUsd: 5,
         scopeMode: "denylist",
-        scopedApps: ["com.apple.mail"],
+        allowedApps: [],        excludedApps: ["com.apple.mail"],
         cloudScopeConsent: "",
       });
 
@@ -103,7 +103,7 @@ describe("autocompleteSettings preload boundary", () => {
           model: "ollama::llama3",
           dailyCostCapUsd: 5,
           scopeMode: "denylist",
-          scopedApps: ["com.apple.mail"],
+          allowedApps: [],          excludedApps: ["com.apple.mail"],
           cloudScopeConsent: "",
         },
       );
@@ -121,7 +121,7 @@ describe("autocompleteSettings preload boundary", () => {
         model: "",
         dailyCostCapUsd: 5,
         scopeMode: "allowlist",
-        scopedApps: [],
+        allowedApps: [],        excludedApps: [],
         cloudScopeConsent: "",
       });
 
@@ -159,9 +159,9 @@ describe("autocompleteSettings preload boundary", () => {
     // two reasons at once and none of them would notice a weakened scope check.
     // These vary ONE scope field against an otherwise-valid payload.
     it.each([
-      ["an unknown scopeMode", { scopeMode: "everywhere", scopedApps: [], cloudScopeConsent: "" }],
-      ["a non-array scopedApps", { scopeMode: "allowlist", scopedApps: "com.apple.mail", cloudScopeConsent: "" }],
-      ["a non-string cloudScopeConsent", { scopeMode: "allowlist", scopedApps: [], cloudScopeConsent: true }],
+      ["an unknown scopeMode", { scopeMode: "everywhere", allowedApps: [], excludedApps: [], cloudScopeConsent: "" }],
+      ["a non-array excludedApps", { scopeMode: "allowlist", allowedApps: [], excludedApps: "com.apple.mail", cloudScopeConsent: "" }],
+      ["a non-string cloudScopeConsent", { scopeMode: "allowlist", allowedApps: [], excludedApps: [], cloudScopeConsent: true }],
     ])("rejects %s in an otherwise-valid payload", async (_description, scope) => {
       const result = await autocompleteSettingsFeature.setAutocompleteSettings({
         enabled: true,

@@ -68,12 +68,18 @@ import {
 import { normalizeDailyCostCapUsd } from "~/features/autocomplete/shared/autocompleteSettings";
 import { MIN_PREFIX_CHARS } from "~/features/autocomplete/shared/autocompleteWire";
 import { autocompleteUsageStore } from "~/features/autocomplete/store/autocompleteUsageStore";
+import {
+  isLoopbackHost,
+  resolveLmStudioEndpoint,
+} from "~/features/providers/shared/lmstudioEndpoint";
 import { parseModelRef } from "~/features/providers/shared/modelRef";
+import { resolveOllamaEndpoint } from "~/features/providers/shared/ollamaEndpoint";
 import { isLocalProvider } from "~/features/providers/shared/providers";
 import {
   getCurrentProfileId,
   getDefaultModelId,
   getProfileSetting,
+  getProviderEndpoint,
 } from "~/features/providers/store/apiStore";
 import { isFullyMaskable, scanForSecrets } from "~/features/secretGuard/shared/detectSecrets";
 import { redactSecretsIrreversibly } from "~/features/secretGuard/shared/maskSecrets";
@@ -887,6 +893,25 @@ const countDispatch = (now: Date): boolean => {
   }
 };
 
+/**
+ * Whether the request this ref would produce stays on the machine.
+ *
+ * Reads the SAME endpoint the request path reads (`getProviderEndpoint` through
+ * the same resolvers used by `llm/providers/{ollama,lmstudio}/request.ts`), so
+ * the gate cannot answer about one host while the request goes to another.
+ * Provider identity alone is not enough: both local providers take a
+ * configurable host and the sanitizer accepts any hostname, so "Ollama" may
+ * mean a LAN box or a public server.
+ */
+const isLoopbackDestination = (provider: ProviderId | null): boolean => {
+  if (provider === null || !isLocalProvider(provider)) return false;
+  const endpoint =
+    provider === "ollama"
+      ? resolveOllamaEndpoint(getProviderEndpoint("ollama"))
+      : resolveLmStudioEndpoint(getProviderEndpoint("lmstudio"));
+  return isLoopbackHost(endpoint.host);
+};
+
 export const requestAutocompleteSuggestion = async (
   request: AutocompleteRequest,
 ): Promise<AutocompleteResult> => {
@@ -936,7 +961,8 @@ export const requestAutocompleteSuggestion = async (
     surface,
     bundleId: appBundleId ?? null,
     scopeMode: settings.scopeMode,
-    scopedApps: settings.scopedApps,
+    allowedApps: settings.allowedApps,
+    excludedApps: settings.excludedApps,
   });
   if (!appScope.permitted) {
     logSkip(appScope.reason, startedAt, {
@@ -1022,7 +1048,7 @@ export const requestAutocompleteSuggestion = async (
   if (
     requiresCloudScopeConsent({
       surface,
-      isLocalProvider: isLocalProvider(provider),
+      destinationIsLoopback: isLoopbackDestination(provider),
       providerId: provider,
       cloudScopeConsent: settings.cloudScopeConsent,
     })

@@ -8,7 +8,8 @@ import {
   MAX_BUNDLE_ID_LENGTH,
   MAX_SCOPED_APPS,
   normalizeBundleId,
-  normalizeScopedApps,
+  normalizeAllowedApps,
+  normalizeExcludedApps,
   requiresCloudScopeConsent,
 } from "./autocompleteScope";
 
@@ -43,29 +44,29 @@ describe("normalizeBundleId", () => {
   });
 });
 
-describe("normalizeScopedApps", () => {
+describe("normalizeExcludedApps", () => {
   it("seeds the shipped exclusions for an absent list", () => {
-    expect(normalizeScopedApps(undefined)).toEqual([...DEFAULT_EXCLUDED_BUNDLE_IDS]);
+    expect(normalizeExcludedApps(undefined)).toEqual([...DEFAULT_EXCLUDED_BUNDLE_IDS]);
   });
 
   it("leaves a cleared list cleared rather than reseeding it", () => {
-    expect(normalizeScopedApps([])).toEqual([]);
+    expect(normalizeExcludedApps([])).toEqual([]);
   });
 
   it("returns a fresh array, so a mutated result cannot corrupt later seeds", () => {
-    normalizeScopedApps(undefined).push("com.example.mutated");
+    normalizeExcludedApps(undefined).push("com.example.mutated");
 
-    expect(normalizeScopedApps(undefined)).toEqual([...DEFAULT_EXCLUDED_BUNDLE_IDS]);
+    expect(normalizeExcludedApps(undefined)).toEqual([...DEFAULT_EXCLUDED_BUNDLE_IDS]);
   });
 
   it("normalizes and deduplicates entries", () => {
     expect(
-      normalizeScopedApps(["Com.Apple.Mail", "com.apple.mail", " com.apple.mail "]),
+      normalizeExcludedApps(["Com.Apple.Mail", "com.apple.mail", " com.apple.mail "]),
     ).toEqual(["com.apple.mail"]);
   });
 
   it("drops unusable entries without discarding the usable ones beside them", () => {
-    expect(normalizeScopedApps(["com.apple.mail", 42, null, "", "com.apple.notes"])).toEqual([
+    expect(normalizeExcludedApps(["com.apple.mail", 42, null, "", "com.apple.notes"])).toEqual([
       "com.apple.mail",
       "com.apple.notes",
     ]);
@@ -75,18 +76,22 @@ describe("normalizeScopedApps", () => {
     ["a string", "com.apple.mail"],
     ["an object", { 0: "com.apple.mail" }],
   ])("reads %s as an empty list rather than seeding from junk", (_description, raw) => {
-    expect(normalizeScopedApps(raw)).toEqual([]);
+    expect(normalizeExcludedApps(raw)).toEqual([]);
   });
 
   it("caps the stored list length", () => {
     const huge = Array.from({ length: MAX_SCOPED_APPS + 50 }, (_v, i) => `com.example.app${i}`);
 
-    expect(normalizeScopedApps(huge)).toHaveLength(MAX_SCOPED_APPS);
+    expect(normalizeExcludedApps(huge)).toHaveLength(MAX_SCOPED_APPS);
   });
 });
 
 describe("decideAppScope", () => {
-  const base = { scopeMode: "denylist" as const, scopedApps: [] as string[] };
+  const base = {
+    scopeMode: "denylist" as const,
+    allowedApps: [] as string[],
+    excludedApps: [] as string[],
+  };
 
   it("permits FixLang's own window without consulting the list", () => {
     expect(
@@ -94,7 +99,8 @@ describe("decideAppScope", () => {
         surface: "own",
         bundleId: null,
         scopeMode: "allowlist",
-        scopedApps: [],
+        allowedApps: [],
+        excludedApps: [],
       }),
     ).toEqual({ permitted: true });
   });
@@ -122,30 +128,43 @@ describe("decideAppScope", () => {
         surface: "system",
         bundleId: "com.apple.mail",
         scopeMode,
-        scopedApps: undefined as unknown as readonly string[],
+        allowedApps: undefined as unknown as readonly string[],
+        excludedApps: [],
+      }),
+    ).toEqual({ permitted: false, reason: "scope-unreadable" });
+
+    expect(
+      decideAppScope({
+        surface: "system",
+        bundleId: "com.apple.mail",
+        scopeMode,
+        allowedApps: [],
+        excludedApps: undefined as unknown as readonly string[],
       }),
     ).toEqual({ permitted: false, reason: "scope-unreadable" });
   });
 
   describe("allowlist mode", () => {
-    it("permits a listed app", () => {
+    it("permits an allowed app", () => {
       expect(
         decideAppScope({
+          ...base,
           surface: "system",
           bundleId: "com.apple.mail",
           scopeMode: "allowlist",
-          scopedApps: ["com.apple.mail"],
+          allowedApps: ["com.apple.mail"],
         }),
       ).toEqual({ permitted: true });
     });
 
-    it("refuses an unlisted app", () => {
+    it("refuses an app that is not on the allow list", () => {
       expect(
         decideAppScope({
+          ...base,
           surface: "system",
           bundleId: "com.apple.notes",
           scopeMode: "allowlist",
-          scopedApps: ["com.apple.mail"],
+          allowedApps: ["com.apple.mail"],
         }),
       ).toEqual({ permitted: false, reason: "app-not-allowed" });
     });
@@ -153,44 +172,92 @@ describe("decideAppScope", () => {
     it("matches case-insensitively against a normalized list", () => {
       expect(
         decideAppScope({
+          ...base,
           surface: "system",
           bundleId: "COM.APPLE.MAIL",
           scopeMode: "allowlist",
-          scopedApps: ["com.apple.mail"],
+          allowedApps: ["com.apple.mail"],
         }),
       ).toEqual({ permitted: true });
+    });
+
+    it("refuses nothing by default, because the allow list starts empty", () => {
+      expect(
+        decideAppScope({ ...base, surface: "system", bundleId: "com.apple.mail", scopeMode: "allowlist" }),
+      ).toEqual({ permitted: false, reason: "app-not-allowed" });
     });
   });
 
   describe("denylist mode", () => {
-    it("permits an unlisted app", () => {
+    it("permits an app that is not excluded", () => {
       expect(
         decideAppScope({
+          ...base,
           surface: "system",
           bundleId: "com.apple.notes",
           scopeMode: "denylist",
-          scopedApps: ["com.apple.mail"],
+          excludedApps: ["com.apple.mail"],
         }),
       ).toEqual({ permitted: true });
     });
 
-    it("refuses a listed app", () => {
+    it("refuses an excluded app", () => {
       expect(
         decideAppScope({
+          ...base,
           surface: "system",
           bundleId: "com.apple.mail",
           scopeMode: "denylist",
-          scopedApps: ["com.apple.mail"],
+          excludedApps: ["com.apple.mail"],
         }),
       ).toEqual({ permitted: false, reason: "app-excluded" });
     });
   });
 
-  it("gives the two modes opposite answers for the same input", () => {
-    const input = { surface: "system" as const, bundleId: "com.apple.mail", scopedApps: [] };
+  /**
+   * The bug this split exists for. One `scopedApps` list seeded with the
+   * password managers reads as "run ONLY in 1Password" the moment the mode is
+   * `allowlist` — and `allowlist` is the DEFAULT for an upgraded profile.
+   */
+  it.each([
+    ["allowlist", "allowlist" as const],
+    ["denylist", "denylist" as const],
+  ])("refuses an excluded app in %s mode, not just denylist", (_description, scopeMode) => {
+    expect(
+      decideAppScope({
+        surface: "system",
+        bundleId: "com.1password.1password",
+        scopeMode,
+        // Allow-listed AND excluded: the exclusion has to win, or allow-listing
+        // a password manager would make it readable.
+        allowedApps: ["com.1password.1password"],
+        excludedApps: ["com.1password.1password"],
+      }),
+    ).toEqual({ permitted: false, reason: "app-excluded" });
+  });
+
+  it("gives the two modes opposite answers for the same unlisted app", () => {
+    const input = {
+      surface: "system" as const,
+      bundleId: "com.apple.mail",
+      allowedApps: [],
+      excludedApps: [],
+    };
 
     expect(decideAppScope({ ...input, scopeMode: "denylist" }).permitted).toBe(true);
     expect(decideAppScope({ ...input, scopeMode: "allowlist" }).permitted).toBe(false);
+  });
+});
+
+describe("normalizeAllowedApps", () => {
+  it("seeds NOTHING for an absent list, because allowlist is the closed mode", () => {
+    expect(normalizeAllowedApps(undefined)).toEqual([]);
+  });
+
+  it("normalizes and deduplicates entries like the exclusion list does", () => {
+    expect(normalizeAllowedApps(["Com.Apple.Mail", " com.apple.mail "])).toEqual([
+      "com.apple.mail",
+    ]);
   });
 });
 
@@ -207,7 +274,7 @@ describe("defaultScopeModeForProvider", () => {
 describe("requiresCloudScopeConsent", () => {
   const cloudEverywhere = {
     surface: "system" as const,
-    isLocalProvider: false,
+    destinationIsLoopback: false,
     providerId: "openai",
     cloudScopeConsent: "openai",
   };
@@ -234,11 +301,11 @@ describe("requiresCloudScopeConsent", () => {
     ).toBe(false);
   });
 
-  it("does not apply to a local provider", () => {
+  it("does not apply to a loopback destination", () => {
     expect(
       requiresCloudScopeConsent({
         ...cloudEverywhere,
-        isLocalProvider: true,
+        destinationIsLoopback: true,
         providerId: "ollama",
         cloudScopeConsent: "",
       }),

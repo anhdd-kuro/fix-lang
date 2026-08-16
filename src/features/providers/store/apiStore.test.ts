@@ -492,7 +492,7 @@ describe("the profile-bound variants write to the id they are handed, not the ac
               model: "openai::gpt-4o",
               dailyCostCapUsd: 5,
               scopeMode: "allowlist",
-              scopedApps: [],
+              allowedApps: [],              excludedApps: [],
               cloudScopeConsent: "",
             },
           }),
@@ -523,7 +523,7 @@ describe("the profile-bound variants write to the id they are handed, not the ac
               model: "openrouter::llama",
               dailyCostCapUsd: 5,
               scopeMode: "allowlist",
-              scopedApps: [],
+              allowedApps: [],              excludedApps: [],
               cloudScopeConsent: "",
             },
           }),
@@ -994,16 +994,18 @@ describe("apiStoreSchema — settingsCorrect default carries all seven built-in 
 // bare-type constraints are `clearInvalidConfig`-safe because no installed
 // profile can already hold these three keys at the wrong type.
 //
-// Updated once more to SEED `scopedApps` in `settingsAutocomplete`'s whole-node
-// default instead of leaving it `[]`. NO constraint changed — only a default
-// value, and a default cannot reject a stored value, so the
-// `clearInvalidConfig` risk is unchanged. `[]` there meant "the user cleared the
-// exclusion list" to `normalizeScopedApps` (which seeds only from `undefined`),
-// so a profile missing the whole node got an empty list and, in `denylist` mode,
-// no password-manager exclusions at all. Verified the same empirical way: +282
-// bytes, the anchor `"scopedApps":<seeded list>,` occurs exactly once, and
-// replacing it with `"scopedApps":[],` reproduces the previous snapshot
-// `a15401e0f6fd6c1c69a6449e1d0c7d625a1a38595fb7733094ff1daf2053ff42`
+// Updated once more to SEED `excludedApps` in `settingsAutocomplete`'s
+// whole-node default, and to SPLIT the old dual-meaning `scopedApps` into
+// `allowedApps` + `excludedApps`. Still no new constraint — two bare-type
+// leaves replace one, and only default VALUES changed, so the
+// `clearInvalidConfig` risk is unchanged. The split is the fix for a real
+// inversion: one list seeded with password managers reads as "run ONLY in
+// 1Password" the moment the mode is `allowlist`, which is the default. Verified
+// the same empirical way: the two-leaf form occurs exactly once, the
+// `"allowedApps":[],"excludedApps":<seeded list>` default occurs exactly once,
+// and collapsing both back to the single `scopedApps` form reproduces the
+// previous snapshot
+// `490c7d5d2841ae467b4c123ce06d82a4e7d4b231535ef9960069a06272c589d0`
 // byte-for-byte.
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
@@ -1013,7 +1015,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "490c7d5d2841ae467b4c123ce06d82a4e7d4b231535ef9960069a06272c589d0",
+      "2b14e5b23af27c6321d1e7f17e6e6f1164c3b37a6d6e6245d29caa663b1b9239",
     );
   });
 
@@ -1021,7 +1023,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
    * The ajv default and `normalizeScopedApps` have to agree on what "absent"
    * means, and only one of them can say it. `normalizeScopedApps` seeds the
    * shipped exclusions from `undefined` and treats `[]` as "the user cleared
-   * the list", so an ajv default carrying `scopedApps: []` silently hands a
+   * the list", so an ajv default carrying `allowedApps: [],excludedApps: []` silently hands a
    * whole-node-absent profile an empty exclusion list — and in `denylist` mode
    * that is 1Password and Keychain Access readable, with nothing on screen.
    */
@@ -1029,9 +1031,9 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
     const fallback = apiStoreSchema.profiles.items.properties.settings.properties
       .settingsAutocomplete.default;
 
-    expect(fallback.scopedApps).toEqual([...DEFAULT_EXCLUDED_BUNDLE_IDS]);
+    expect(fallback.excludedApps).toEqual([...DEFAULT_EXCLUDED_BUNDLE_IDS]);
     // `[]` here would survive the normalizer unchanged — it reads as "cleared".
-    expect(normalizeAutocompleteSettings(fallback).scopedApps).toEqual([
+    expect(normalizeAutocompleteSettings(fallback).excludedApps).toEqual([
       ...DEFAULT_EXCLUDED_BUNDLE_IDS,
     ]);
   });
@@ -1261,7 +1263,7 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
           model: "openai::gpt-4o",
           dailyCostCapUsd: 2.5,
           scopeMode: "allowlist",
-          scopedApps: [],
+          allowedApps: [],          excludedApps: [],
           cloudScopeConsent: "",
         },
       }),
