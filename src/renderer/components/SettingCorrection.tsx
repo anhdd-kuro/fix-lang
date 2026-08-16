@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { CAVEMAN_MODE_OPTION_KEY } from "~/features/correction/shared/presetOptions";
 import { msg, messageLabel, type Message } from "~/features/i18n/shared/message";
 import {
   DEFAULT_ASK_PRESET_ID,
   DEFAULT_ASK_PRESET_PROMPT,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
+  DEFAULT_CAVEMAN_PRESET_ID,
+  DEFAULT_CAVEMAN_PRESET_PROMPT,
   DEFAULT_CORRECTION_PRESET_ID,
   DEFAULT_CUSTOM_PROMPT,
   DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
@@ -176,6 +179,17 @@ export const makeBuiltInPresetDefaults = (): Record<
     requiresInput: true,
     outputMode: "popup",
     markdownOutput: true,
+  },
+  [DEFAULT_CAVEMAN_PRESET_ID]: {
+    id: DEFAULT_CAVEMAN_PRESET_ID,
+    name: "Caveman",
+    hotkey: "Control+Shift+C",
+    systemPrompt: DEFAULT_CAVEMAN_PRESET_PROMPT,
+    model: "", // empty = inherit the global default model
+    isBuiltIn: true,
+    // Field-for-field parity with `makeDefaultCorrectionPresets()`; the drift
+    // guard in `builtInPresetDefaults.test.ts` fails the moment these disagree.
+    extraOptions: { [CAVEMAN_MODE_OPTION_KEY]: "full" },
   },
 });
 

@@ -57,6 +57,12 @@ import {
   normalizeCorrectionSettings,
 } from "~/features/providers/store/apiStore";
 import { DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID } from "~/prompts";
+import {
+  DEFAULT_CAVEMAN_FULL_DIRECTIVE,
+  DEFAULT_CAVEMAN_LITE_DIRECTIVE,
+  DEFAULT_CAVEMAN_PRESET_ID,
+  DEFAULT_CAVEMAN_ULTRA_DIRECTIVE,
+} from "~/prompts/correction";
 import { effectiveModelRef, fixGrammar } from "./correction";
 import { makeAIRequest } from "./shared";
 import type { Mock } from "vitest";
@@ -236,6 +242,123 @@ describe("fixGrammar — empty input early return", () => {
       presetId: "test-preset-1",
       presetName: "Test Preset",
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: fixGrammar composes the preset's declared options onto the system
+// prompt. `withPresetOptions` is the INNERMOST wrapper, so the directive lands
+// directly after the preset's own instructions and BEFORE the source-app and
+// user-metadata blocks — whose `# Metadata context` section stays trailing.
+// ---------------------------------------------------------------------------
+
+describe("fixGrammar — Caveman intensity composed into the system prompt", () => {
+  const CAVEMAN_BASE_PROMPT = "Compress the text.";
+
+  // Hardcoded, not read back out of the registry: an expectation recomputed
+  // the way the implementation computes it would move in lockstep with a
+  // mutated fragment and never catch the regression. The three literals below
+  // are the ones `src/prompts/correction.ts` exports for each level.
+  const DIRECTIVE_BY_MODE: Record<string, string> = {
+    lite: DEFAULT_CAVEMAN_LITE_DIRECTIVE,
+    full: DEFAULT_CAVEMAN_FULL_DIRECTIVE,
+    ultra: DEFAULT_CAVEMAN_ULTRA_DIRECTIVE,
+  };
+
+  const setupCaveman = (extraOptions?: Record<string, string>) => {
+    setupMockSettings(
+      makePreset({
+        id: DEFAULT_CAVEMAN_PRESET_ID,
+        name: "Caveman",
+        systemPrompt: CAVEMAN_BASE_PROMPT,
+        ...(extraOptions ? { extraOptions } : {}),
+      }),
+    );
+  };
+
+  const systemPromptOfLastCall = (): string =>
+    (makeAIRequest as Mock).mock.calls[0][0].systemPrompt;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each(["lite", "full", "ultra"])(
+    "appends the %s directive, and only that one",
+    async (mode) => {
+      setupCaveman({ cavemanMode: mode });
+
+      await fixGrammar("some text");
+
+      const systemPrompt = systemPromptOfLastCall();
+      expect(systemPrompt).toBe(
+        `${CAVEMAN_BASE_PROMPT}\n\n${DIRECTIVE_BY_MODE[mode]}`,
+      );
+
+      for (const [otherMode, directive] of Object.entries(DIRECTIVE_BY_MODE)) {
+        if (otherMode === mode) continue;
+        expect(systemPrompt).not.toContain(directive);
+      }
+    },
+  );
+
+  it("falls back to the registry default when the preset stores no option", async () => {
+    setupCaveman();
+
+    await fixGrammar("some text");
+
+    expect(systemPromptOfLastCall()).toBe(
+      `${CAVEMAN_BASE_PROMPT}\n\n${DEFAULT_CAVEMAN_FULL_DIRECTIVE}`,
+    );
+  });
+
+  it("falls back to the registry default when the stored value is unrecognized", async () => {
+    setupCaveman({ cavemanMode: "supersonic" });
+
+    await fixGrammar("some text");
+
+    expect(systemPromptOfLastCall()).toBe(
+      `${CAVEMAN_BASE_PROMPT}\n\n${DEFAULT_CAVEMAN_FULL_DIRECTIVE}`,
+    );
+  });
+
+  it("keeps the directive ahead of the source-app and metadata blocks", async () => {
+    setupCaveman({ cavemanMode: "ultra" });
+
+    await fixGrammar("some text", undefined, {
+      activeAppName: "Slack",
+      userMetadata: "App locale: en",
+    });
+
+    const systemPrompt = systemPromptOfLastCall();
+    expect(systemPrompt.startsWith(CAVEMAN_BASE_PROMPT)).toBe(true);
+    expect(systemPrompt.indexOf(DEFAULT_CAVEMAN_ULTRA_DIRECTIVE)).toBeLessThan(
+      systemPrompt.indexOf("# Metadata context"),
+    );
+    expect(systemPrompt.indexOf("# Metadata context")).toBeLessThan(
+      systemPrompt.indexOf("App locale: en"),
+    );
+  });
+
+  it("leaves a preset that declares no options byte-identical", async () => {
+    setupMockSettings(makePreset({ systemPrompt: "Fix grammar." }));
+
+    await fixGrammar("some text");
+
+    expect(systemPromptOfLastCall()).toBe("Fix grammar.");
+  });
+
+  it("ignores a cavemanMode stored against a preset that never declared it", async () => {
+    setupMockSettings(
+      makePreset({
+        systemPrompt: "Fix grammar.",
+        extraOptions: { cavemanMode: "ultra" },
+      }),
+    );
+
+    await fixGrammar("some text");
+
+    expect(systemPromptOfLastCall()).toBe("Fix grammar.");
   });
 });
 

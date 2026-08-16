@@ -40,6 +40,8 @@ import {
   DEFAULT_ASK_PRESET_PROMPT,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
+  DEFAULT_CAVEMAN_PRESET_ID,
+  DEFAULT_CAVEMAN_PRESET_PROMPT,
   DEFAULT_STRUCTURED_TEXT_PRESET_ID,
   DEFAULT_STRUCTURED_TEXT_PRESET_PROMPT,
   DEFAULT_TRANSLATE_PRESET_ID,
@@ -239,10 +241,10 @@ describe("normalizeCorrectionSettings — Translate built-in preset injection", 
   });
 });
 
-describe("getDefaultCorrectionSettings — returns 7 built-in presets including Business Writing, Structured Text and Ask AI", () => {
-  it("returns exactly 7 presets", () => {
+describe("getDefaultCorrectionSettings — returns 8 built-in presets including Business Writing, Structured Text, Ask AI and Caveman", () => {
+  it("returns exactly 8 presets", () => {
     const defaults = getDefaultCorrectionSettings();
-    expect(defaults.presets).toHaveLength(7);
+    expect(defaults.presets).toHaveLength(8);
   });
 
   it("includes the Translate preset with isBuiltIn: true", () => {
@@ -256,7 +258,7 @@ describe("getDefaultCorrectionSettings — returns 7 built-in presets including 
     expect(translatePreset?.hotkey).toBe("Control+Shift+T");
   });
 
-  it("includes correction, summarize, prompt-optimization, translate, business-writing, structured-text, ask in order", () => {
+  it("includes correction, summarize, prompt-optimization, translate, business-writing, structured-text, ask, caveman in order", () => {
     const defaults = getDefaultCorrectionSettings();
     const ids = defaults.presets.map((p) => p.id);
 
@@ -268,14 +270,49 @@ describe("getDefaultCorrectionSettings — returns 7 built-in presets including 
       DEFAULT_BUSINESS_WRITING_PRESET_ID,
       DEFAULT_STRUCTURED_TEXT_PRESET_ID,
       DEFAULT_ASK_PRESET_ID,
+      DEFAULT_CAVEMAN_PRESET_ID,
     ]);
   });
 
-  it("includes Ask AI last, with the exact field values", () => {
+  // Caveman is APPENDED after Ask rather than slotted in, so every index a
+  // stored profile or a test already relies on stays put.
+  it("includes Caveman last, with the exact field values", () => {
+    const defaults = getDefaultCorrectionSettings();
+    const caveman = defaults.presets.find(
+      (p) => p.id === DEFAULT_CAVEMAN_PRESET_ID,
+    );
+
+    expect(defaults.presets.at(-1)?.id).toBe(DEFAULT_CAVEMAN_PRESET_ID);
+    expect(caveman).toEqual({
+      id: DEFAULT_CAVEMAN_PRESET_ID,
+      name: "Caveman",
+      hotkey: "Control+Shift+C",
+      systemPrompt: DEFAULT_CAVEMAN_PRESET_PROMPT,
+      model: "",
+      isBuiltIn: true,
+      extraOptions: { cavemanMode: "full" },
+    });
+  });
+
+  // The literal above is an equality, so it already pins absence — but these
+  // four have each been added to a built-in by a later card at some point, and
+  // a reader deleting one field from the literal would silently drop the guard.
+  it("gives Caveman no reasoning, requiresInput, outputMode or markdownOutput", () => {
+    const caveman = getDefaultCorrectionSettings().presets.find(
+      (p) => p.id === DEFAULT_CAVEMAN_PRESET_ID,
+    );
+
+    expect(caveman).not.toHaveProperty("reasoning");
+    expect(caveman).not.toHaveProperty("requiresInput");
+    expect(caveman).not.toHaveProperty("outputMode");
+    expect(caveman).not.toHaveProperty("markdownOutput");
+  });
+
+  it("includes Ask AI second-to-last, with the exact field values", () => {
     const defaults = getDefaultCorrectionSettings();
     const ask = defaults.presets.find((p) => p.id === DEFAULT_ASK_PRESET_ID);
 
-    expect(defaults.presets.at(-1)?.id).toBe(DEFAULT_ASK_PRESET_ID);
+    expect(defaults.presets.at(-2)?.id).toBe(DEFAULT_ASK_PRESET_ID);
     expect(ask).toEqual({
       id: DEFAULT_ASK_PRESET_ID,
       name: "Ask AI",
@@ -344,7 +381,7 @@ describe("getDefaultCorrectionSettings — returns 7 built-in presets including 
     expect(structuredText).not.toHaveProperty("reasoning");
   });
 
-  it("keeps Business Writing and Structured Text hotkeys distinct from every other default and app hotkey", () => {
+  it("keeps Business Writing, Structured Text and Caveman hotkeys distinct from every other default and app hotkey", () => {
     const defaults = getDefaultCorrectionSettings();
     const hotkeys = defaults.presets.map((p) => p.hotkey);
 
@@ -353,18 +390,21 @@ describe("getDefaultCorrectionSettings — returns 7 built-in presets including 
     expect(hotkeys).toContain("Control+Shift+B");
     expect(hotkeys).toContain("Control+Shift+R");
     expect(hotkeys).toContain("Control+Shift+A");
-    // Distinct from the static app hotkeys (promptGen/profileSwitch) and devtools.
+    expect(hotkeys).toContain("Control+Shift+C");
+    // Distinct from the static app hotkeys (promptGen/profileSwitch), the
+    // statically reserved combo-cancel chord, and devtools.
     expect(hotkeys).not.toContain("Control+Shift+G");
     expect(hotkeys).not.toContain("Control+Shift+P");
+    expect(hotkeys).not.toContain(COMBO_CANCEL_ACCELERATOR);
     expect(hotkeys).not.toContain("F12");
   });
 });
 
 describe("normalizeCorrectionSettings — legacy path (no presets array)", () => {
-  it("returns all 7 built-in presets when input has no presets array", () => {
+  it("returns all 8 built-in presets when input has no presets array", () => {
     // Simulates a very old profile that predates the preset system (no presets key at all)
     const result = normalizeCorrectionSettings({});
-    expect(result.presets).toHaveLength(7);
+    expect(result.presets).toHaveLength(8);
     const ids = result.presets.map((p) => p.id);
     expect(ids).toContain("correction");
     expect(ids).toContain("summarize");
@@ -375,9 +415,9 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
     expect(ids).toContain(DEFAULT_ASK_PRESET_ID);
   });
 
-  it("returns all 7 built-in presets when input is null", () => {
+  it("returns all 8 built-in presets when input is null", () => {
     const result = normalizeCorrectionSettings(null);
-    expect(result.presets).toHaveLength(7);
+    expect(result.presets).toHaveLength(8);
     expect(
       result.presets.find((p) => p.id === DEFAULT_TRANSLATE_PRESET_ID),
     ).toBeDefined();
@@ -392,9 +432,9 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
     ).toBeDefined();
   });
 
-  it("returns all 7 built-in presets when input is undefined", () => {
+  it("returns all 8 built-in presets when input is undefined", () => {
     const result = normalizeCorrectionSettings(undefined);
-    expect(result.presets).toHaveLength(7);
+    expect(result.presets).toHaveLength(8);
     expect(
       result.presets.find((p) => p.id === DEFAULT_TRANSLATE_PRESET_ID),
     ).toBeDefined();
@@ -409,7 +449,7 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
     ).toBeDefined();
   });
 
-  it("returns all 7 built-in presets when input is an empty object ({})", () => {
+  it("returns all 8 built-in presets when input is an empty object ({})", () => {
     const result = normalizeCorrectionSettings({});
     expect(
       result.presets.find((p) => p.id === DEFAULT_BUSINESS_WRITING_PRESET_ID)
@@ -430,7 +470,7 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
     expect(correctionPreset?.systemPrompt).toContain("Custom prompt text");
   });
 
-  it("includes all 7 built-in presets in order including business-writing, structured-text and ask at positions 4, 5 and 6", () => {
+  it("includes all 8 built-in presets in order including business-writing, structured-text, ask and caveman at positions 4, 5, 6 and 7", () => {
     const result = normalizeCorrectionSettings({});
     const ids = result.presets.map((p) => p.id);
     expect(ids[0]).toBe("correction");
@@ -440,6 +480,7 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
     expect(ids[4]).toBe(DEFAULT_BUSINESS_WRITING_PRESET_ID);
     expect(ids[5]).toBe(DEFAULT_STRUCTURED_TEXT_PRESET_ID);
     expect(ids[6]).toBe(DEFAULT_ASK_PRESET_ID);
+    expect(ids[7]).toBe(DEFAULT_CAVEMAN_PRESET_ID);
   });
 });
 
@@ -506,7 +547,7 @@ describe("normalizeCorrectionSettings — Business Writing / Structured Text bui
       DEFAULT_STRUCTURED_TEXT_PRESET_PROMPT,
     );
 
-    expect(result.presets).toHaveLength(7);
+    expect(result.presets).toHaveLength(8);
   });
 
   it("migrates missing reasoning only on the two Low-default built-ins", () => {
@@ -547,7 +588,7 @@ describe("normalizeCorrectionSettings — Business Writing / Structured Text bui
     ).not.toHaveProperty("reasoning");
   });
 
-  it("preserves custom presets, does not duplicate the new built-ins, and sorts customs after all seven built-ins", () => {
+  it("preserves custom presets, does not duplicate the new built-ins, and sorts customs after all eight built-ins", () => {
     const result = normalizeCorrectionSettings({
       presets: [
         ...storedFourWithoutNewBuiltIns.presets,
@@ -572,6 +613,7 @@ describe("normalizeCorrectionSettings — Business Writing / Structured Text bui
       DEFAULT_BUSINESS_WRITING_PRESET_ID,
       DEFAULT_STRUCTURED_TEXT_PRESET_ID,
       DEFAULT_ASK_PRESET_ID,
+      DEFAULT_CAVEMAN_PRESET_ID,
       "custom-999",
     ]);
     expect(result.presets.filter((p) => p.id === "custom-999")).toHaveLength(1);
@@ -882,6 +924,39 @@ describe("normalizeCorrectionSettings — materialized built-in never steals a s
     expect(hotkeyOf(result, "custom-r")).toBe("Control+Shift+R");
   });
 
+  // The upgrade path unique to adding Caveman: `Control+Shift+C` was free
+  // among the built-in defaults, the app bindings and the reserved combo-cancel
+  // chord — but a user upgrading into this build may already have bound it to a
+  // preset of their own. Built-in defaults are emitted ahead of custom presets
+  // and `registerCorrectionShortcut` registers in array order, so a Caveman
+  // materialized onto that chord would silently outrank the user's binding and
+  // leave their preset unreachable with nothing logged.
+  it("blanks Caveman when a stored custom preset already claims Control+Shift+C", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection, storedCustom("custom-c", "Control+Shift+C")],
+      selectedPresetId: "correction",
+    });
+
+    expect(hotkeyOf(result, "custom-c")).toBe("Control+Shift+C");
+    expect(hotkeyOf(result, DEFAULT_CAVEMAN_PRESET_ID)).toBe("");
+  });
+
+  it("still materializes Caveman itself when its hotkey is given up", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection, storedCustom("custom-c", "Control+Shift+C")],
+      selectedPresetId: "correction",
+    });
+
+    const caveman = result.presets.find(
+      (p) => p.id === DEFAULT_CAVEMAN_PRESET_ID,
+    );
+
+    expect(caveman).toBeDefined();
+    expect(caveman?.isBuiltIn).toBe(true);
+    expect(caveman?.systemPrompt).toBe(DEFAULT_CAVEMAN_PRESET_PROMPT);
+    expect(caveman?.extraOptions).toEqual({ cavemanMode: "full" });
+  });
+
   it("blanks a materialized built-in when the claimer is another stored built-in", () => {
     const result = normalizeCorrectionSettings({
       presets: [
@@ -915,8 +990,8 @@ describe("normalizeCorrectionSettings — materialized built-in never steals a s
     expect(translate?.systemPrompt).toBe(
       DEFAULT_TRANSLATE_PRESET_PROMPT.trim(),
     );
-    // 7 built-ins + the one stored custom preset — blanking drops no preset.
-    expect(result.presets).toHaveLength(8);
+    // 8 built-ins + the one stored custom preset — blanking drops no preset.
+    expect(result.presets).toHaveLength(9);
   });
 
   it("matches claims trimmed-exact — surrounding whitespace still collides", () => {
@@ -1275,7 +1350,7 @@ describe("normalizeCorrectionSettings — a materialized default gives up a rese
     expect(hotkeyOf(result, DEFAULT_BUSINESS_WRITING_PRESET_ID)).toBe("");
   });
 
-  it("leaves all seven defaults intact under the DEFAULT app bindings", () => {
+  it("leaves all eight defaults intact under the DEFAULT app bindings", () => {
     // Ctrl+Shift+G / Ctrl+Shift+P collide with nothing, so an over-broad guard
     // that blanked hotkeys unconditionally would fail here.
     const result = normalizeCorrectionSettings(
@@ -1292,6 +1367,7 @@ describe("normalizeCorrectionSettings — a materialized default gives up a rese
       "Control+Shift+B",
       "Control+Shift+R",
       "Control+Shift+A",
+      "Control+Shift+C",
     ]);
   });
 
@@ -2040,7 +2116,7 @@ describe("normalizeCorrectionSettings — combo hotkeys pass through untouched",
     expect(storedCombosOf(result)[0].hotkey).toBe("");
   });
 
-  it("leaves all seven preset defaults intact whatever a combo holds", () => {
+  it("leaves all eight preset defaults intact whatever a combo holds", () => {
     const result = normalizeCorrectionSettings({
       presets: [storedCorrection],
       selectedPresetId: "correction",
@@ -2055,6 +2131,7 @@ describe("normalizeCorrectionSettings — combo hotkeys pass through untouched",
       "Control+Shift+B",
       "Control+Shift+R",
       "Control+Shift+A",
+      "Control+Shift+C",
     ]);
   });
 });
@@ -2169,14 +2246,15 @@ describe("normalizeCorrectionSettings — the built-in Perfect prompt combo", ()
 // Tests: extraOptions stays absent from every existing built-in
 // ---------------------------------------------------------------------------
 
-describe("normalizeCorrectionSettings — no existing built-in emits an extraOptions key", () => {
+describe("normalizeCorrectionSettings — no built-in but Caveman emits an extraOptions key", () => {
   // `extraOptions` is opt-in per preset, declared in the option registry. None
   // of the seven presets that shipped before it declares an option, so the key
   // must be ABSENT rather than `{}` or `undefined`: an emitted key would widen
   // every stored preset row, move the profile-export bytes, and make a preset
   // that has no options indistinguishable from one whose options were all
-  // dropped as invalid.
-  const BUILT_IN_IDS = [
+  // dropped as invalid. Caveman is the one built-in that DOES declare an
+  // option, so it is held to the opposite assertion below.
+  const OPTIONLESS_BUILT_IN_IDS = [
     "correction",
     "summarize",
     "prompt-optimization",
@@ -2186,24 +2264,64 @@ describe("normalizeCorrectionSettings — no existing built-in emits an extraOpt
     DEFAULT_ASK_PRESET_ID,
   ];
 
-  it("getDefaultCorrectionSettings emits no extraOptions on any built-in", () => {
+  const ALL_BUILT_IN_IDS = [
+    ...OPTIONLESS_BUILT_IN_IDS,
+    DEFAULT_CAVEMAN_PRESET_ID,
+  ];
+
+  it("getDefaultCorrectionSettings emits no extraOptions on any optionless built-in", () => {
     for (const preset of getDefaultCorrectionSettings().presets) {
+      if (preset.id === DEFAULT_CAVEMAN_PRESET_ID) continue;
       expect(preset).not.toHaveProperty("extraOptions");
     }
   });
 
-  it("a fresh normalize emits no extraOptions on any built-in", () => {
+  it("a fresh normalize emits no extraOptions on any optionless built-in", () => {
     const normalized = normalizeCorrectionSettings(undefined);
 
-    expect(normalized.presets.map((preset) => preset.id)).toEqual(BUILT_IN_IDS);
+    expect(normalized.presets.map((preset) => preset.id)).toEqual(
+      ALL_BUILT_IN_IDS,
+    );
     for (const preset of normalized.presets) {
+      if (preset.id === DEFAULT_CAVEMAN_PRESET_ID) continue;
       expect(preset).not.toHaveProperty("extraOptions");
     }
+  });
+
+  it("carries Caveman's declared option through a fresh normalize", () => {
+    const normalized = normalizeCorrectionSettings(undefined);
+    const caveman = normalized.presets.find(
+      (preset) => preset.id === DEFAULT_CAVEMAN_PRESET_ID,
+    );
+
+    expect(caveman?.extraOptions).toEqual({ cavemanMode: "full" });
+  });
+
+  it("keeps a stored Caveman intensity the user chose", () => {
+    const normalized = normalizeCorrectionSettings({
+      presets: [
+        {
+          id: DEFAULT_CAVEMAN_PRESET_ID,
+          name: "Caveman",
+          hotkey: "Control+Shift+C",
+          systemPrompt: "stored prompt",
+          model: "",
+          isBuiltIn: true,
+          extraOptions: { cavemanMode: "ultra" },
+        },
+      ],
+      selectedPresetId: DEFAULT_CAVEMAN_PRESET_ID,
+    });
+    const caveman = normalized.presets.find(
+      (preset) => preset.id === DEFAULT_CAVEMAN_PRESET_ID,
+    );
+
+    expect(caveman?.extraOptions).toEqual({ cavemanMode: "ultra" });
   });
 
   it("drops an extraOptions blob stored against a built-in that declares none", () => {
     const normalized = normalizeCorrectionSettings({
-      presets: BUILT_IN_IDS.map((id) => ({
+      presets: OPTIONLESS_BUILT_IN_IDS.map((id) => ({
         id,
         name: id,
         hotkey: "",
@@ -2216,6 +2334,7 @@ describe("normalizeCorrectionSettings — no existing built-in emits an extraOpt
     });
 
     for (const preset of normalized.presets) {
+      if (preset.id === DEFAULT_CAVEMAN_PRESET_ID) continue;
       expect(preset).not.toHaveProperty("extraOptions");
     }
   });

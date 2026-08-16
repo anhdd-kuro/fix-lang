@@ -15,7 +15,10 @@ import {
 import { COMBO_CANCEL_ACCELERATOR } from "~/features/correction/shared/comboValidation";
 // Runtime import, but no cycle: `presetOptions` is pure data plus pure
 // functions and imports only `~/prompts/correction`.
-import { sanitizePresetOptions } from "~/features/correction/shared/presetOptions";
+import {
+  CAVEMAN_MODE_OPTION_KEY,
+  sanitizePresetOptions,
+} from "~/features/correction/shared/presetOptions";
 import {
   DEFAULT_REASONING_EFFORT,
   sanitizeReasoningEffort,
@@ -45,6 +48,8 @@ import {
   DEFAULT_ASK_PRESET_PROMPT,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
+  DEFAULT_CAVEMAN_PRESET_ID,
+  DEFAULT_CAVEMAN_PRESET_PROMPT,
   DEFAULT_CORRECTION_PRESET_ID,
   DEFAULT_CUSTOM_PROMPT,
   DEFAULT_PERFECT_PROMPT_COMBO_ID,
@@ -524,6 +529,24 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     requiresInput: true,
     outputMode: "popup",
     markdownOutput: true,
+  },
+  {
+    // APPENDED, never inserted: every index into this array that a stored
+    // profile, a combo step or a test already relies on stays where it was.
+    id: DEFAULT_CAVEMAN_PRESET_ID,
+    name: "Caveman",
+    // `Control+Shift+C` is free against the seven defaults above, both app
+    // bindings in `DEFAULT_KEY_BINDINGS`, `COMBO_CANCEL_ACCELERATOR` and
+    // devtools' F12. A USER may still hold it, and this default gives way
+    // rather than stealing it — see `withoutStolenHotkey` below.
+    hotkey: "Control+Shift+C",
+    systemPrompt: DEFAULT_CAVEMAN_PRESET_PROMPT,
+    model: INHERIT_GLOBAL_MODEL,
+    isBuiltIn: true,
+    // The one built-in that declares a preset option. Materialized here rather
+    // than left to `resolvePresetOptionValue`'s default so the value the user
+    // will see in Settings is the value stored in their profile from day one.
+    extraOptions: { [CAVEMAN_MODE_OPTION_KEY]: "full" },
   },
 ];
 

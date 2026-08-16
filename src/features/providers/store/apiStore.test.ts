@@ -69,6 +69,7 @@ import { DEFAULT_PERFECT_PROMPT_COMBO_ID } from "~/prompts";
 import {
   DEFAULT_ASK_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
+  DEFAULT_CAVEMAN_PRESET_ID,
   DEFAULT_STRUCTURED_TEXT_PRESET_ID,
 } from "~/prompts/correction";
 import type {
@@ -756,7 +757,7 @@ describe("apiStoreSchema — model defaults are the inherit sentinel", () => {
   });
 });
 
-describe("apiStoreSchema — settingsCorrect default carries all seven built-in presets", () => {
+describe("apiStoreSchema — settingsCorrect default carries all eight built-in presets", () => {
   const settingsCorrectSchema = (
     apiStoreSchema.profiles.items.properties.settings as {
       properties: {
@@ -778,12 +779,12 @@ describe("apiStoreSchema — settingsCorrect default carries all seven built-in 
 
   const presetItemSchema = settingsCorrectSchema.properties.presets.items;
 
-  it("the presets array-item schema default carries 7 presets", () => {
-    expect(settingsCorrectSchema.properties.presets.default).toHaveLength(7);
+  it("the presets array-item schema default carries 8 presets", () => {
+    expect(settingsCorrectSchema.properties.presets.default).toHaveLength(8);
   });
 
-  it("the settingsCorrect object default also carries 7 presets", () => {
-    expect(settingsCorrectSchema.default.presets).toHaveLength(7);
+  it("the settingsCorrect object default also carries 8 presets", () => {
+    expect(settingsCorrectSchema.default.presets).toHaveLength(8);
   });
 
   it("both schema default nodes equal getDefaultCorrectionSettings().presets field-for-field", () => {
@@ -1033,6 +1034,17 @@ describe("apiStoreSchema — settingsCorrect default carries all seven built-in 
 // `e4ef031251d8341ccbea3975a8aa12c00e159b5dbac92ea60c07349f22c47dec`
 // byte-for-byte.
 //
+// Updated once more for the Caveman built-in. NO schema node changed at all
+// this time: the only delta is the two `default` nodes, which now carry an
+// eighth preset. A default is not a constraint, so nothing new can be
+// rejected. Verified rather than assumed, the same empirical way as every
+// update above: the serialised schema grew by exactly 4532 bytes, the
+// serialised Caveman preset object (2266 bytes, comma included) occurs exactly
+// twice — once under `presets.default`, once under `settingsCorrect.default` —
+// and deleting both occurrences reproduces the previous snapshot
+// `c01b069336463d60ffc19394ee80990c859730724bbe9286221301260071eeac`
+// byte-for-byte.
+//
 // The only stored value this node can now reject is an `extraOptions` that is
 // not an object at all — a key no existing profile has, and one only this
 // codebase writes. Anything narrower would be actively dangerous: the set of
@@ -1050,7 +1062,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "c01b069336463d60ffc19394ee80990c859730724bbe9286221301260071eeac",
+      "0c9fa238571f526c7af2e6ccce13aaa53076953e4d7c705da7a7f5cdcc1a5a8a",
     );
   });
 });
@@ -1193,23 +1205,24 @@ describe("resetCurrentProfileSettings — preserves apiKey, models and enabledPr
   });
 });
 
-describe("createProfile — yields all 7 built-in presets", () => {
+describe("createProfile — yields all 8 built-in presets", () => {
   beforeEach(() => {
     apiStore.set("profiles", []);
     apiStore.set("currentProfileId", "");
   });
 
-  it("creates a profile whose settingsCorrect.presets equals the default 7 built-ins", () => {
+  it("creates a profile whose settingsCorrect.presets equals the default 8 built-ins", () => {
     const profile = createProfile("New Profile");
 
     expect(profile.settings.settingsCorrect.presets).toEqual(
       getDefaultCorrectionSettings().presets,
     );
-    expect(profile.settings.settingsCorrect.presets).toHaveLength(7);
+    expect(profile.settings.settingsCorrect.presets).toHaveLength(8);
     const ids = profile.settings.settingsCorrect.presets.map((p) => p.id);
     expect(ids).toContain(DEFAULT_BUSINESS_WRITING_PRESET_ID);
     expect(ids).toContain(DEFAULT_STRUCTURED_TEXT_PRESET_ID);
     expect(ids).toContain(DEFAULT_ASK_PRESET_ID);
+    expect(ids).toContain(DEFAULT_CAVEMAN_PRESET_ID);
   });
 });
 
