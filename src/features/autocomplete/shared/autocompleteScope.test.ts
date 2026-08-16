@@ -5,7 +5,9 @@ import {
   isAutocompleteScopeMode,
   isAutocompleteSurfaceKind,
   MAX_BUNDLE_ID_LENGTH,
+  MAX_RAW_APP_LIST_ENTRIES,
   MAX_SCOPED_APPS,
+  isUnusableAppList,
   normalizeBundleId,
   normalizeAllowedApps,
   normalizeExcludedApps,
@@ -97,6 +99,55 @@ describe("normalizeExcludedApps", () => {
     const exact = Array.from({ length: MAX_SCOPED_APPS }, (_v, i) => `com.example.app${i}`);
 
     expect(normalizeExcludedApps(exact)).toHaveLength(MAX_SCOPED_APPS);
+  });
+
+  /**
+   * Both bounds must refuse EARLY, not after walking the whole input: this runs
+   * on a store file, an import, and the IPC boundary, so the size of the answer
+   * must not be set by the size of the attacker's array.
+   *
+   * Asserted by counting canonicalisations rather than by timing, which would be
+   * a flaky proxy for the same thing.
+   */
+  it("refuses an over-long raw list without inspecting a single entry", () => {
+    // Counting index reads, not elapsed time: a timing assertion would be a
+    // flaky proxy for the same claim. All-duplicate on purpose — it collapses
+    // to ONE distinct id, so the distinct cap can never refuse it and only the
+    // raw bound can. That also makes this observable: before the raw bound
+    // existed, this exact input normalized happily to `["com.apple.mail"]`.
+    let reads = 0;
+    const huge: unknown[] = new Array(MAX_RAW_APP_LIST_ENTRIES + 1);
+    for (let index = 0; index < huge.length; index += 1) {
+      Object.defineProperty(huge, index, {
+        configurable: true,
+        enumerable: true,
+        get: () => {
+          reads += 1;
+          return "com.apple.mail";
+        },
+      });
+    }
+
+    expect(isUnusableAppList(huge)).toBe(true);
+    expect(reads).toBe(0);
+  });
+
+  it("stops at the distinct cap instead of walking the rest of the list", () => {
+    let reads = 0;
+    const overDistinct: unknown[] = new Array(MAX_SCOPED_APPS + 500);
+    for (let index = 0; index < overDistinct.length; index += 1) {
+      Object.defineProperty(overDistinct, index, {
+        configurable: true,
+        enumerable: true,
+        get: () => {
+          reads += 1;
+          return `com.example.app${index}`;
+        },
+      });
+    }
+
+    expect(isUnusableAppList(overDistinct)).toBe(true);
+    expect(reads).toBe(MAX_SCOPED_APPS + 1);
   });
 
   // Duplicates collapse without losing meaning, so they must not read as

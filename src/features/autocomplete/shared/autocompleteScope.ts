@@ -50,6 +50,14 @@ export const isAutocompleteScopeMode = (value: unknown): value is AutocompleteSc
 export const MAX_SCOPED_APPS = MAX_DENIED_BUNDLE_IDS;
 
 /**
+ * Raw entries read before giving up. Distinct from `MAX_SCOPED_APPS` because
+ * duplicates collapse: a list may legitimately carry more raw entries than
+ * distinct ids, so bounding only the distinct count still lets an all-duplicate
+ * array of any size be normalized in full first.
+ */
+export const MAX_RAW_APP_LIST_ENTRIES = MAX_SCOPED_APPS * 10;
+
+/**
  * Seeds an absent EXCLUSION list. Editable, therefore removable — a list the
  * user can see but not change claims a control that is not there.
  *
@@ -94,13 +102,19 @@ export const DEFAULT_EXCLUDED_BUNDLE_IDS: readonly string[] = [
 export const isUnusableAppList = (raw: unknown): boolean => {
   if (raw === undefined) return false;
   if (!Array.isArray(raw)) return true;
+  // Bounded before it is inspected. Both bounds refuse rather than truncate, so
+  // neither can drop an exclusion silently — but they must refuse EARLY: this
+  // runs on untrusted input from a store file, an import, or the IPC boundary,
+  // and a million-entry array is answerable without normalizing a million ids.
+  if (raw.length > MAX_RAW_APP_LIST_ENTRIES) return true;
   const seen = new Set<string>();
   for (const entry of raw) {
     const bundleId = normalizeBundleId(entry);
     if (!bundleId) return true;
     seen.add(bundleId);
+    if (seen.size > MAX_SCOPED_APPS) return true;
   }
-  return seen.size > MAX_SCOPED_APPS;
+  return false;
 };
 
 const normalizeBundleIdList = (raw: unknown): string[] => {
