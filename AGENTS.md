@@ -4,7 +4,7 @@
 
 Local macOS menu-bar app: fixes grammar and improves writing on selected text via AI (OpenAI, OpenRouter, Anthropic, AWS Bedrock, Ollama, LM Studio). Electron + React + TypeScript, runs on **bun**.
 
-Current release: **v0.33.0**.
+Current release: **v0.34.0**.
 
 ## Main Features
 
@@ -81,7 +81,17 @@ fix-lang/
 │   │   ├── update/         — Homebrew probe/fetch/upgrade + pending-update marker
 │   │   ├── profileChange.ts — single funnel for profile activation
 │   │   └── webViewWindows/ — main, promptGen, overlay, tray, askInput/askResult, error popup
-│   ├── renderer/           — React UI (MainWindow dashboard, TrayWindow, …)
+│   ├── renderer/           — React UI
+│   │   ├── components/     — SHARED UI primitives + the dashboard panels. Look here BEFORE
+│   │   │                     writing any control: Button, Select, SearchableSelect,
+│   │   │                     MultiSelect, Checkbox, Input, Dialog, HotkeyInput, ModelSelect,
+│   │   │                     ReasoningEffortSlider, CopyButton, MarkdownView, ChatTranscript,
+│   │   │                     …; sub-dirs about/, security/, usage/ hold that tab's screens
+│   │   ├── hooks/          — shared renderer hooks
+│   │   ├── i18n/           — I18nProvider, useI18n
+│   │   ├── analytics/, appearance/, themes/ — dashboard sections + generated theme tokens
+│   │   └── MainWindow/, TrayWindow/, AskInputWindow/, AskResultWindow/,
+│   │       CorrectionResultWindow/, PromptGenWindow/ — one root per BrowserWindow
 │   ├── preload/            — re-exports ~/features/preload; exposeInMainWorld entry
 │   └── prompts/            — bundled AI prompt assets (build-time)
 ├── scripts/                — bun CLIs: check-bundle-externals, i18n-check, theme gen
@@ -237,6 +247,7 @@ new Notification({
 ✅ Always:
 
 - Work in the work tree if the user does not ask for a new branch or directly mention a branch name.
+- Always try to use shared components first — check `src/renderer/components/` before writing a new control, and prefer the one its siblings in the same panel already use. A hand-rolled control silently opts out of the theme tokens, i18n, and focus/keyboard behaviour the shared one carries, and the drift is invisible until a theme or locale changes. Extend the shared component when it does not fit; fork it only with a why-comment.
 - Keep prompts bundled locally from `src/prompts/` — no runtime fetch.
 - Store SQLite/JSONL under `app.getPath("userData")` — never inside the signed bundle.
 - Use async I/O only in the main process.
