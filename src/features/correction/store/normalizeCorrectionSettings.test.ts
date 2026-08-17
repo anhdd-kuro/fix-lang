@@ -40,6 +40,11 @@ import {
   DEFAULT_ASK_PRESET_PROMPT,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
+  DEFAULT_CAVEMAN_PRESET_ID,
+  DEFAULT_CAVEMAN_PRESET_PROMPT,
+  DEFAULT_CORRECTION_PRESET_ID,
+  DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+  DEFAULT_SUMMARIZE_PRESET_ID,
   DEFAULT_STRUCTURED_TEXT_PRESET_ID,
   DEFAULT_STRUCTURED_TEXT_PRESET_PROMPT,
   DEFAULT_TRANSLATE_PRESET_ID,
@@ -239,10 +244,10 @@ describe("normalizeCorrectionSettings — Translate built-in preset injection", 
   });
 });
 
-describe("getDefaultCorrectionSettings — returns 7 built-in presets including Business Writing, Structured Text and Ask AI", () => {
-  it("returns exactly 7 presets", () => {
+describe("getDefaultCorrectionSettings — returns 8 built-in presets including Business Writing, Structured Text, Ask AI and Caveman", () => {
+  it("returns exactly 8 presets", () => {
     const defaults = getDefaultCorrectionSettings();
-    expect(defaults.presets).toHaveLength(7);
+    expect(defaults.presets).toHaveLength(8);
   });
 
   it("includes the Translate preset with isBuiltIn: true", () => {
@@ -256,7 +261,7 @@ describe("getDefaultCorrectionSettings — returns 7 built-in presets including 
     expect(translatePreset?.hotkey).toBe("Control+Shift+T");
   });
 
-  it("includes correction, summarize, prompt-optimization, translate, business-writing, structured-text, ask in order", () => {
+  it("includes correction, summarize, prompt-optimization, translate, business-writing, structured-text, ask, caveman in order", () => {
     const defaults = getDefaultCorrectionSettings();
     const ids = defaults.presets.map((p) => p.id);
 
@@ -268,14 +273,49 @@ describe("getDefaultCorrectionSettings — returns 7 built-in presets including 
       DEFAULT_BUSINESS_WRITING_PRESET_ID,
       DEFAULT_STRUCTURED_TEXT_PRESET_ID,
       DEFAULT_ASK_PRESET_ID,
+      DEFAULT_CAVEMAN_PRESET_ID,
     ]);
   });
 
-  it("includes Ask AI last, with the exact field values", () => {
+  // Caveman is APPENDED after Ask rather than slotted in, so every index a
+  // stored profile or a test already relies on stays put.
+  it("includes Caveman last, with the exact field values", () => {
+    const defaults = getDefaultCorrectionSettings();
+    const caveman = defaults.presets.find(
+      (p) => p.id === DEFAULT_CAVEMAN_PRESET_ID,
+    );
+
+    expect(defaults.presets.at(-1)?.id).toBe(DEFAULT_CAVEMAN_PRESET_ID);
+    expect(caveman).toEqual({
+      id: DEFAULT_CAVEMAN_PRESET_ID,
+      name: "Caveman",
+      hotkey: "Control+Shift+C",
+      systemPrompt: DEFAULT_CAVEMAN_PRESET_PROMPT,
+      model: "",
+      isBuiltIn: true,
+      extraOptions: { cavemanMode: "full" },
+    });
+  });
+
+  // The literal above is an equality, so it already pins absence — but these
+  // four have each been added to a built-in by a later card at some point, and
+  // a reader deleting one field from the literal would silently drop the guard.
+  it("gives Caveman no reasoning, requiresInput, outputMode or markdownOutput", () => {
+    const caveman = getDefaultCorrectionSettings().presets.find(
+      (p) => p.id === DEFAULT_CAVEMAN_PRESET_ID,
+    );
+
+    expect(caveman).not.toHaveProperty("reasoning");
+    expect(caveman).not.toHaveProperty("requiresInput");
+    expect(caveman).not.toHaveProperty("outputMode");
+    expect(caveman).not.toHaveProperty("markdownOutput");
+  });
+
+  it("includes Ask AI second-to-last, with the exact field values", () => {
     const defaults = getDefaultCorrectionSettings();
     const ask = defaults.presets.find((p) => p.id === DEFAULT_ASK_PRESET_ID);
 
-    expect(defaults.presets.at(-1)?.id).toBe(DEFAULT_ASK_PRESET_ID);
+    expect(defaults.presets.at(-2)?.id).toBe(DEFAULT_ASK_PRESET_ID);
     expect(ask).toEqual({
       id: DEFAULT_ASK_PRESET_ID,
       name: "Ask AI",
@@ -344,7 +384,7 @@ describe("getDefaultCorrectionSettings — returns 7 built-in presets including 
     expect(structuredText).not.toHaveProperty("reasoning");
   });
 
-  it("keeps Business Writing and Structured Text hotkeys distinct from every other default and app hotkey", () => {
+  it("keeps Business Writing, Structured Text and Caveman hotkeys distinct from every other default and app hotkey", () => {
     const defaults = getDefaultCorrectionSettings();
     const hotkeys = defaults.presets.map((p) => p.hotkey);
 
@@ -353,18 +393,21 @@ describe("getDefaultCorrectionSettings — returns 7 built-in presets including 
     expect(hotkeys).toContain("Control+Shift+B");
     expect(hotkeys).toContain("Control+Shift+R");
     expect(hotkeys).toContain("Control+Shift+A");
-    // Distinct from the static app hotkeys (promptGen/profileSwitch) and devtools.
+    expect(hotkeys).toContain("Control+Shift+C");
+    // Distinct from the static app hotkeys (promptGen/profileSwitch), the
+    // statically reserved combo-cancel chord, and devtools.
     expect(hotkeys).not.toContain("Control+Shift+G");
     expect(hotkeys).not.toContain("Control+Shift+P");
+    expect(hotkeys).not.toContain(COMBO_CANCEL_ACCELERATOR);
     expect(hotkeys).not.toContain("F12");
   });
 });
 
 describe("normalizeCorrectionSettings — legacy path (no presets array)", () => {
-  it("returns all 7 built-in presets when input has no presets array", () => {
+  it("returns all 8 built-in presets when input has no presets array", () => {
     // Simulates a very old profile that predates the preset system (no presets key at all)
     const result = normalizeCorrectionSettings({});
-    expect(result.presets).toHaveLength(7);
+    expect(result.presets).toHaveLength(8);
     const ids = result.presets.map((p) => p.id);
     expect(ids).toContain("correction");
     expect(ids).toContain("summarize");
@@ -375,9 +418,9 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
     expect(ids).toContain(DEFAULT_ASK_PRESET_ID);
   });
 
-  it("returns all 7 built-in presets when input is null", () => {
+  it("returns all 8 built-in presets when input is null", () => {
     const result = normalizeCorrectionSettings(null);
-    expect(result.presets).toHaveLength(7);
+    expect(result.presets).toHaveLength(8);
     expect(
       result.presets.find((p) => p.id === DEFAULT_TRANSLATE_PRESET_ID),
     ).toBeDefined();
@@ -392,9 +435,9 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
     ).toBeDefined();
   });
 
-  it("returns all 7 built-in presets when input is undefined", () => {
+  it("returns all 8 built-in presets when input is undefined", () => {
     const result = normalizeCorrectionSettings(undefined);
-    expect(result.presets).toHaveLength(7);
+    expect(result.presets).toHaveLength(8);
     expect(
       result.presets.find((p) => p.id === DEFAULT_TRANSLATE_PRESET_ID),
     ).toBeDefined();
@@ -409,7 +452,7 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
     ).toBeDefined();
   });
 
-  it("returns all 7 built-in presets when input is an empty object ({})", () => {
+  it("returns all 8 built-in presets when input is an empty object ({})", () => {
     const result = normalizeCorrectionSettings({});
     expect(
       result.presets.find((p) => p.id === DEFAULT_BUSINESS_WRITING_PRESET_ID)
@@ -430,7 +473,7 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
     expect(correctionPreset?.systemPrompt).toContain("Custom prompt text");
   });
 
-  it("includes all 7 built-in presets in order including business-writing, structured-text and ask at positions 4, 5 and 6", () => {
+  it("includes all 8 built-in presets in order including business-writing, structured-text, ask and caveman at positions 4, 5, 6 and 7", () => {
     const result = normalizeCorrectionSettings({});
     const ids = result.presets.map((p) => p.id);
     expect(ids[0]).toBe("correction");
@@ -440,6 +483,7 @@ describe("normalizeCorrectionSettings — legacy path (no presets array)", () =>
     expect(ids[4]).toBe(DEFAULT_BUSINESS_WRITING_PRESET_ID);
     expect(ids[5]).toBe(DEFAULT_STRUCTURED_TEXT_PRESET_ID);
     expect(ids[6]).toBe(DEFAULT_ASK_PRESET_ID);
+    expect(ids[7]).toBe(DEFAULT_CAVEMAN_PRESET_ID);
   });
 });
 
@@ -506,7 +550,7 @@ describe("normalizeCorrectionSettings — Business Writing / Structured Text bui
       DEFAULT_STRUCTURED_TEXT_PRESET_PROMPT,
     );
 
-    expect(result.presets).toHaveLength(7);
+    expect(result.presets).toHaveLength(8);
   });
 
   it("migrates missing reasoning only on the two Low-default built-ins", () => {
@@ -547,7 +591,7 @@ describe("normalizeCorrectionSettings — Business Writing / Structured Text bui
     ).not.toHaveProperty("reasoning");
   });
 
-  it("preserves custom presets, does not duplicate the new built-ins, and sorts customs after all seven built-ins", () => {
+  it("preserves custom presets, does not duplicate the new built-ins, and sorts customs after all eight built-ins", () => {
     const result = normalizeCorrectionSettings({
       presets: [
         ...storedFourWithoutNewBuiltIns.presets,
@@ -572,6 +616,7 @@ describe("normalizeCorrectionSettings — Business Writing / Structured Text bui
       DEFAULT_BUSINESS_WRITING_PRESET_ID,
       DEFAULT_STRUCTURED_TEXT_PRESET_ID,
       DEFAULT_ASK_PRESET_ID,
+      DEFAULT_CAVEMAN_PRESET_ID,
       "custom-999",
     ]);
     expect(result.presets.filter((p) => p.id === "custom-999")).toHaveLength(1);
@@ -882,6 +927,39 @@ describe("normalizeCorrectionSettings — materialized built-in never steals a s
     expect(hotkeyOf(result, "custom-r")).toBe("Control+Shift+R");
   });
 
+  // The upgrade path unique to adding Caveman: `Control+Shift+C` was free
+  // among the built-in defaults, the app bindings and the reserved combo-cancel
+  // chord — but a user upgrading into this build may already have bound it to a
+  // preset of their own. Built-in defaults are emitted ahead of custom presets
+  // and `registerCorrectionShortcut` registers in array order, so a Caveman
+  // materialized onto that chord would silently outrank the user's binding and
+  // leave their preset unreachable with nothing logged.
+  it("blanks Caveman when a stored custom preset already claims Control+Shift+C", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection, storedCustom("custom-c", "Control+Shift+C")],
+      selectedPresetId: "correction",
+    });
+
+    expect(hotkeyOf(result, "custom-c")).toBe("Control+Shift+C");
+    expect(hotkeyOf(result, DEFAULT_CAVEMAN_PRESET_ID)).toBe("");
+  });
+
+  it("still materializes Caveman itself when its hotkey is given up", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection, storedCustom("custom-c", "Control+Shift+C")],
+      selectedPresetId: "correction",
+    });
+
+    const caveman = result.presets.find(
+      (p) => p.id === DEFAULT_CAVEMAN_PRESET_ID,
+    );
+
+    expect(caveman).toBeDefined();
+    expect(caveman?.isBuiltIn).toBe(true);
+    expect(caveman?.systemPrompt).toBe(DEFAULT_CAVEMAN_PRESET_PROMPT);
+    expect(caveman?.extraOptions).toEqual({ cavemanMode: "full" });
+  });
+
   it("blanks a materialized built-in when the claimer is another stored built-in", () => {
     const result = normalizeCorrectionSettings({
       presets: [
@@ -915,8 +993,8 @@ describe("normalizeCorrectionSettings — materialized built-in never steals a s
     expect(translate?.systemPrompt).toBe(
       DEFAULT_TRANSLATE_PRESET_PROMPT.trim(),
     );
-    // 7 built-ins + the one stored custom preset — blanking drops no preset.
-    expect(result.presets).toHaveLength(8);
+    // 8 built-ins + the one stored custom preset — blanking drops no preset.
+    expect(result.presets).toHaveLength(9);
   });
 
   it("matches claims trimmed-exact — surrounding whitespace still collides", () => {
@@ -1275,7 +1353,7 @@ describe("normalizeCorrectionSettings — a materialized default gives up a rese
     expect(hotkeyOf(result, DEFAULT_BUSINESS_WRITING_PRESET_ID)).toBe("");
   });
 
-  it("leaves all seven defaults intact under the DEFAULT app bindings", () => {
+  it("leaves all eight defaults intact under the DEFAULT app bindings", () => {
     // Ctrl+Shift+G / Ctrl+Shift+P collide with nothing, so an over-broad guard
     // that blanked hotkeys unconditionally would fail here.
     const result = normalizeCorrectionSettings(
@@ -1292,6 +1370,7 @@ describe("normalizeCorrectionSettings — a materialized default gives up a rese
       "Control+Shift+B",
       "Control+Shift+R",
       "Control+Shift+A",
+      "Control+Shift+C",
     ]);
   });
 
@@ -1962,12 +2041,15 @@ describe("normalizeCorrectionSettings — combo outputMode / markdownOutput / sc
 });
 
 /**
- * Adding a combo must never silently rewrite a hotkey — its own or anyone
- * else's. Every accelerator in the app shares one registration space, and
- * resolving a collision across presets, combos, `promptGen`, `profileSwitch`
- * and the reserved cancel chord is the pre-save `validateHotkeys` gate's job.
- * A relinquish rule here would resolve a subset of that space differently and
- * without telling the user.
+ * A combo's OWN hotkey is never rewritten — not onto a stored preset's chord,
+ * not onto a reserved app binding, not onto the cancel chord. Every accelerator
+ * in the app shares one registration space, and resolving a collision between
+ * two things the user explicitly chose is the pre-save `validateHotkeys` gate's
+ * job; a relinquish rule here would resolve a subset of that space differently
+ * and without telling the user.
+ *
+ * The one asymmetry is the next describe: a built-in default hotkey being
+ * MATERIALIZED was never chosen by anyone, so it yields.
  */
 describe("normalizeCorrectionSettings — combo hotkeys pass through untouched", () => {
   const comboHotkeyWith = (
@@ -1991,7 +2073,8 @@ describe("normalizeCorrectionSettings — combo hotkeys pass through untouched",
   });
 
   it("keeps a hotkey a materialized built-in default also carries", () => {
-    // And leaves that default alone too: neither side is rewritten here.
+    // The combo side of the asymmetry: the materialized default gives its
+    // hotkey up (asserted in the next describe), the combo keeps its own.
     const result = normalizeCorrectionSettings({
       presets: [storedCorrection],
       selectedPresetId: "correction",
@@ -1999,9 +2082,6 @@ describe("normalizeCorrectionSettings — combo hotkeys pass through untouched",
     });
 
     expect(storedCombosOf(result)[0].hotkey).toBe("Control+Shift+B");
-    expect(hotkeyOf(result, DEFAULT_BUSINESS_WRITING_PRESET_ID)).toBe(
-      "Control+Shift+B",
-    );
   });
 
   it("keeps a hotkey a stored preset also claims", () => {
@@ -2040,7 +2120,7 @@ describe("normalizeCorrectionSettings — combo hotkeys pass through untouched",
     expect(storedCombosOf(result)[0].hotkey).toBe("");
   });
 
-  it("leaves all seven preset defaults intact whatever a combo holds", () => {
+  it("leaves all eight preset defaults intact when the combo holds a free accelerator", () => {
     const result = normalizeCorrectionSettings({
       presets: [storedCorrection],
       selectedPresetId: "correction",
@@ -2055,7 +2135,219 @@ describe("normalizeCorrectionSettings — combo hotkeys pass through untouched",
       "Control+Shift+B",
       "Control+Shift+R",
       "Control+Shift+A",
+      "Control+Shift+C",
     ]);
+  });
+});
+
+/**
+ * The other half of the anti-theft guard. The stored-PRESET half is asserted
+ * far above; this is the stored-COMBO half, and the two exist for one reason:
+ * `registerCorrectionShortcut` walks `presets` before `combos` through a single
+ * `registeredShortcuts` set, so a preset materialized onto a chord a combo
+ * holds wins the registration and the combo is dropped with nothing but a
+ * `logger.warn`. The user then presses their own chord and gets one Caveman
+ * transform on the profile's global default model — possibly a different
+ * provider than the combo's steps resolved to — instead of their chain.
+ *
+ * `validateHotkeys` cannot catch it: it is renderer-only and runs at
+ * capture/save, never against an already-stored profile. Every existing user
+ * upgrading into the Caveman build materializes `Control+Shift+C` exactly once,
+ * on next launch, with no save in sight.
+ *
+ * Scope is deliberately narrow, and the tests below pin both edges: only a
+ * MATERIALIZED built-in yields. A stored preset's explicit hotkey and a combo's
+ * own hotkey are both the user's choice and are never rewritten here.
+ */
+describe("normalizeCorrectionSettings — materialized built-in never steals a stored combo's hotkey", () => {
+  it("blanks Caveman when a stored combo already claims Control+Shift+C", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [storedCombo({ hotkey: "Control+Shift+C" })],
+    });
+
+    expect(hotkeyOf(result, DEFAULT_CAVEMAN_PRESET_ID)).toBe("");
+    expect(storedCombosOf(result)[0].hotkey).toBe("Control+Shift+C");
+  });
+
+  it("still materializes Caveman itself when its hotkey is given up to a combo", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [storedCombo({ hotkey: "Control+Shift+C" })],
+    });
+
+    const caveman = result.presets.find(
+      (p) => p.id === DEFAULT_CAVEMAN_PRESET_ID,
+    );
+
+    expect(caveman).toBeDefined();
+    expect(caveman?.isBuiltIn).toBe(true);
+    expect(caveman?.systemPrompt).toBe(DEFAULT_CAVEMAN_PRESET_PROMPT);
+    expect(caveman?.extraOptions).toEqual({ cavemanMode: "full" });
+  });
+
+  it("blanks only the colliding default, leaving the other seven alone", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [storedCombo({ hotkey: "Control+Shift+C" })],
+    });
+
+    expect(result.presets.map((preset) => preset.hotkey)).toEqual([
+      "Control+Shift+F",
+      "Control+Shift+S",
+      "Control+Shift+D",
+      "Control+Shift+T",
+      "Control+Shift+B",
+      "Control+Shift+R",
+      "Control+Shift+A",
+      "",
+    ]);
+  });
+
+  it("blanks a hotkey INHERITED by a stored built-in that carries no hotkey field", () => {
+    // The second materialization shape: the preset row is stored, but its
+    // `hotkey` was injected by the `?? fallback?.hotkey` read. Not a claim, so
+    // it yields the same way an absent preset does.
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection, { ...storedSummarize, hotkey: undefined }],
+      selectedPresetId: "correction",
+      combos: [storedCombo({ hotkey: "Control+Shift+S" })],
+    });
+
+    expect(hotkeyOf(result, "summarize")).toBe("");
+    expect(storedCombosOf(result)[0].hotkey).toBe("Control+Shift+S");
+  });
+
+  it("yields through the no-presets-array legacy path too", () => {
+    const result = normalizeCorrectionSettings({
+      userInput: "Legacy.",
+      combos: [storedCombo({ hotkey: "Control+Shift+C" })],
+    });
+
+    expect(hotkeyOf(result, DEFAULT_CAVEMAN_PRESET_ID)).toBe("");
+    expect(storedCombosOf(result)[0].hotkey).toBe("Control+Shift+C");
+  });
+
+  it("does NOT rewrite a stored preset's hotkey that a combo also holds", () => {
+    // The boundary: widening the claim set must not start resolving
+    // stored-vs-stored collisions, which stay `validateHotkeys`' pre-save job.
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection, storedCustom("mine", "Control+Shift+C")],
+      selectedPresetId: "correction",
+      combos: [storedCombo({ hotkey: "Control+Shift+C" })],
+    });
+
+    expect(hotkeyOf(result, "mine")).toBe("Control+Shift+C");
+    expect(storedCombosOf(result)[0].hotkey).toBe("Control+Shift+C");
+    // Caveman was already yielding to the stored preset before combos joined
+    // the claim set; adding the combo changes nothing about that.
+    expect(hotkeyOf(result, DEFAULT_CAVEMAN_PRESET_ID)).toBe("");
+  });
+
+  it("treats a blank or whitespace-only combo hotkey as no claim", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [
+        storedCombo({ id: "combo-blank", hotkey: "" }),
+        storedCombo({ id: "combo-spaces", hotkey: "   " }),
+      ],
+    });
+
+    expect(hotkeyOf(result, DEFAULT_CAVEMAN_PRESET_ID)).toBe("Control+Shift+C");
+  });
+
+  it("does not treat a DROPPED malformed combo's hotkey as a claim", () => {
+    // A combo the sanitizer refuses never reaches `registerCorrectionShortcut`,
+    // so it holds nothing and must not cost a built-in its default.
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [storedCombo({ hotkey: "Control+Shift+C", steps: "nope" })],
+    });
+
+    expect(hotkeyOf(result, DEFAULT_CAVEMAN_PRESET_ID)).toBe("Control+Shift+C");
+  });
+
+  it("is idempotent — normalizing the result again changes nothing", () => {
+    const once = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [storedCombo({ hotkey: "Control+Shift+C" })],
+    });
+    const twice = normalizeCorrectionSettings(once);
+
+    expect(twice).toEqual(once);
+    expect(hotkeyOf(twice, DEFAULT_CAVEMAN_PRESET_ID)).toBe("");
+  });
+});
+
+/**
+ * Tripwires for two branches of the anti-theft guard that no behavioural test
+ * can currently reach, because the built-in tables happen not to produce the
+ * inputs that would reach them. Mutation testing found both: sabotage either
+ * one and the whole suite stays green.
+ *
+ * Neither is a latent bug — the guard is written correctly. The problem is
+ * that its correctness is currently unfalsifiable, so a future edit could
+ * quietly undo it. Rather than add a test seam to production code for a case
+ * nothing can reach, or fabricate a test whose input the app cannot actually
+ * produce, these pin the PRECONDITIONS the untestable branches rest on. Each
+ * goes red at exactly the moment its branch becomes reachable, which is the
+ * moment a real test for it becomes writable — and lands that failure on the
+ * person making that change, who is the one able to write it.
+ */
+describe("normalizeCorrectionSettings — preconditions the hotkey guard rests on", () => {
+  it("ships no built-in default combo carrying a hotkey", () => {
+    // `hotkeysClaimedByStoredCombos` is built from `storedCombos` (pre-merge)
+    // rather than the `withDefaultCombos` output, so that a DEFAULT combo can
+    // never blank a DEFAULT preset's hotkey — a stored-vs-materialized guard
+    // must not fire materialized-vs-materialized. Mutating that source to the
+    // merged `combos` list leaves every other test green, because the only
+    // built-in combo ships `hotkey: ""` and the `length > 0` filter drops it,
+    // making the two lists identical in every case the suite exercises.
+    //
+    // So this asserts the reason that mutation is currently harmless. Ship a
+    // built-in combo with a real hotkey and this fails, which is the signal to
+    // write the direct test that is finally possible at that point.
+    // `combos` is optional on the settings type, so coalesce rather than
+    // assert non-null: an absent list then fails the length check below on
+    // its own terms instead of throwing a TypeError that reads like a bug in
+    // the test rather than a change in the defaults.
+    const defaultCombos = getDefaultCorrectionSettings().combos ?? [];
+
+    expect(defaultCombos.length).toBeGreaterThan(0);
+    expect(
+      defaultCombos.filter((combo) => combo.hotkey.trim().length > 0),
+    ).toEqual([]);
+  });
+
+  it("ships only canonical built-in default preset hotkeys, needing no trim", () => {
+    // The guard compares `preset.hotkey.trim()` against the claim set. The
+    // combo side of that comparison is exercised (a whitespace-only combo
+    // hotkey is no claim), but the PRESET side is not: dropping `.trim()`
+    // there leaves the suite green.
+    //
+    // It cannot be exercised behaviourally today. The guard runs only on
+    // default-sourced hotkeys — a stored hotkey is returned untouched — and
+    // every hotkey in the defaults table is already canonical, whether it
+    // arrives by materialization or by the `?? fallback?.hotkey` inheritance
+    // read. There is no input to `normalizeCorrectionSettings` that reaches
+    // that branch with whitespace, so a test feeding one would be asserting
+    // against a state the app cannot produce.
+    //
+    // This pins the property that makes it unreachable instead. Add a default
+    // hotkey with incidental whitespace and this fails, exposing that the
+    // preset-side trim now matters and is unproven.
+    const defaultHotkeys = getDefaultCorrectionSettings().presets.map(
+      (preset) => preset.hotkey,
+    );
+
+    expect(defaultHotkeys.length).toBe(8);
+    expect(defaultHotkeys).toEqual(defaultHotkeys.map((h) => h.trim()));
   });
 });
 
@@ -2074,10 +2366,22 @@ describe("normalizeCorrectionSettings — the built-in Perfect prompt combo", ()
     // `combos: []`, which is a real value, so the store default never runs
     // against it and the combo would otherwise only reach fresh installs.
     expect(comboFor([])?.steps.map((step) => step.presetId)).toEqual([
-      "correction",
-      "structured-text",
-      "prompt-optimization",
+      DEFAULT_CORRECTION_PRESET_ID,
+      DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+      DEFAULT_CAVEMAN_PRESET_ID,
     ]);
+  });
+
+  it("keeps its id, name and empty hotkey while the step list moves", () => {
+    // The resequencing is a change of STEPS only. The id is what
+    // `withDefaultCombos` matches a stored entry on, the name is what the
+    // Combos tab shows, and the empty hotkey is the deliberate no-accelerator
+    // stance — none of the three may drift with the steps.
+    const combo = comboFor([]);
+
+    expect(combo?.id).toBe(DEFAULT_PERFECT_PROMPT_COMBO_ID);
+    expect(combo?.name).toBe("Perfect prompt");
+    expect(combo?.hotkey).toBe("");
   });
 
   it("ships with no hotkey, so it cannot outrank a binding the user already holds", () => {
@@ -2162,5 +2466,517 @@ describe("normalizeCorrectionSettings — the built-in Perfect prompt combo", ()
     for (const step of comboFor()?.steps ?? []) {
       expect(presetsById.get(step.presetId)?.requiresInput ?? false).toBe(false);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: the signature-gated Perfect prompt resequencing upgrade
+// ---------------------------------------------------------------------------
+
+describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrade", () => {
+  // The exact chain the built-in shipped with before the resequencing, step
+  // ids included. Anything that is not THIS, in THIS order, is a chain the
+  // user is responsible for and must survive a read untouched.
+  const legacyTriple = () => [
+    {
+      id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-1`,
+      presetId: DEFAULT_CORRECTION_PRESET_ID,
+    },
+    {
+      id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-2`,
+      presetId: DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+    },
+    {
+      id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-3`,
+      presetId: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+    },
+  ];
+
+  const storedPerfectPrompt = (
+    overrides: Record<string, unknown> = {},
+  ): Record<string, unknown> => ({
+    id: DEFAULT_PERFECT_PROMPT_COMBO_ID,
+    name: "Perfect prompt",
+    hotkey: "",
+    steps: legacyTriple(),
+    schemaVersion: 1,
+    ...overrides,
+  });
+
+  const readBack = (stored: Record<string, unknown>) =>
+    combosOf(
+      normalizeCorrectionSettings({
+        presets: [storedCorrection],
+        selectedPresetId: "correction",
+        combos: [stored],
+      }),
+    ).find((combo) => combo.id === DEFAULT_PERFECT_PROMPT_COMBO_ID);
+
+  // -- Criterion 3: every other shape is left exactly as stored. ------------
+  //
+  // This is the whole risk of the card. The upgrade rewrites PERSISTED USER
+  // DATA, so a matcher looser than the full ordered signature silently
+  // replaces a chain the user built. Each case below is one step away from
+  // the legacy triple in a different direction; a matcher that only counts
+  // steps, or only looks at the first one, rewrites all three.
+  const untouchedShapes: readonly (readonly [
+    string,
+    readonly Record<string, string>[],
+  ])[] = [
+    [
+      "the legacy triple REORDERED",
+      [legacyTriple()[1], legacyTriple()[0], legacyTriple()[2]],
+    ],
+    [
+      "the legacy triple SHORTENED by one step",
+      [legacyTriple()[0], legacyTriple()[2]],
+    ],
+    [
+      // The SHORTENED case above removes the MIDDLE step, so the by-index
+      // preset comparison already rejects it and the `steps.length ===` clause
+      // never gets a say. A strict PREFIX is what actually exercises the
+      // length clause: every step it does have matches the legacy chain at its
+      // own index, so `steps.every(...)` is vacuously true over the two of them
+      // and only the length check stands between this chain and a rewrite.
+      // Two steps is legal config — `COMBO_MIN_STEPS` is 2 — so this is a chain
+      // a user can really be sitting on.
+      "a strict PREFIX of the legacy triple",
+      [legacyTriple()[0], legacyTriple()[1]],
+    ],
+    [
+      "the legacy triple with ONE preset swapped",
+      [
+        legacyTriple()[0],
+        { ...legacyTriple()[1], presetId: DEFAULT_SUMMARIZE_PRESET_ID },
+        legacyTriple()[2],
+      ],
+    ],
+  ];
+
+  for (const [label, steps] of untouchedShapes) {
+    it(`leaves ${label} byte-identical`, () => {
+      const stored = storedPerfectPrompt({ steps: [...steps] });
+
+      const readBackCombo = readBack(stored);
+
+      expect(readBackCombo).toEqual({
+        id: DEFAULT_PERFECT_PROMPT_COMBO_ID,
+        name: "Perfect prompt",
+        hotkey: "",
+        steps: [...steps],
+        // STEPS are byte-identical; the version marker is not part of that
+        // promise. It is stamped on every stored Perfect prompt, matched or
+        // not, so that a later rebuild-to-legacy of THIS combo is recognized
+        // as the user's own chain rather than a stale default.
+        schemaVersion: 2,
+      });
+      expect(JSON.stringify(readBackCombo?.steps)).toBe(JSON.stringify(steps));
+    });
+  }
+
+  it("leaves the legacy triple alone once an extra step is appended", () => {
+    const steps = [
+      ...legacyTriple(),
+      { id: "mine", presetId: DEFAULT_TRANSLATE_PRESET_ID },
+    ];
+
+    expect(readBack(storedPerfectPrompt({ steps }))?.steps).toEqual(steps);
+  });
+
+  // `inlineInput` is free text the model receives — the built-in never had one,
+  // so its presence at ANY index is by definition the user's own edit. Pinning
+  // only the middle step would let a guard narrowed to `index === 1` pass.
+  for (const [label, inlineIndex] of [
+    ["the FIRST", 0],
+    ["the MIDDLE", 1],
+    ["the LAST", 2],
+  ] as const) {
+    it(`leaves a legacy-shaped chain alone once ${label} step carries an inline input`, () => {
+      const steps = legacyTriple().map((step, index) =>
+        index === inlineIndex
+          ? { ...step, inlineInput: "Use bullet points." }
+          : step,
+      );
+
+      expect(readBack(storedPerfectPrompt({ steps }))?.steps).toEqual(steps);
+    });
+  }
+
+  it("leaves the legacy triple alone when it is stored under another combo id", () => {
+    const upgraded = combosOf(
+      normalizeCorrectionSettings({
+        presets: [storedCorrection],
+        selectedPresetId: "correction",
+        combos: [
+          storedPerfectPrompt({ id: "combo-1", name: "My own chain" }),
+        ],
+      }),
+    ).find((combo) => combo.id === "combo-1");
+
+    expect(upgraded?.steps).toEqual(legacyTriple());
+  });
+
+  // -- Criterion 2: the untouched legacy chain moves to the new sequence. ---
+
+  it("upgrades a stored combo still sitting on the untouched legacy triple", () => {
+    expect(
+      readBack(storedPerfectPrompt())?.steps.map((step) => step.presetId),
+    ).toEqual([
+      DEFAULT_CORRECTION_PRESET_ID,
+      DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+      DEFAULT_CAVEMAN_PRESET_ID,
+    ]);
+  });
+
+  it("carries the stored name, hotkey, outputMode and markdownOutput through verbatim", () => {
+    // Only the step list changes. A user may have renamed the row and bound a
+    // chord to it; rewriting either would be the upgrade taking a decision the
+    // user already made.
+    const upgraded = readBack(
+      storedPerfectPrompt({
+        name: "My renamed chain",
+        hotkey: "Control+Shift+K",
+        outputMode: "popup",
+        markdownOutput: true,
+      }),
+    );
+
+    expect(upgraded).toEqual({
+      id: DEFAULT_PERFECT_PROMPT_COMBO_ID,
+      name: "My renamed chain",
+      hotkey: "Control+Shift+K",
+      outputMode: "popup",
+      markdownOutput: true,
+      steps: [
+        {
+          id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-1`,
+          presetId: DEFAULT_CORRECTION_PRESET_ID,
+        },
+        {
+          id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-2`,
+          presetId: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+        },
+        {
+          id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-3`,
+          presetId: DEFAULT_CAVEMAN_PRESET_ID,
+        },
+      ],
+      schemaVersion: 2,
+    });
+  });
+
+  it("emits the same steps whether the combo was upgraded or materialized fresh", () => {
+    const upgraded = readBack(storedPerfectPrompt());
+    const materialized = combosOf(
+      normalizeCorrectionSettings({
+        presets: [storedCorrection],
+        selectedPresetId: "correction",
+        combos: [],
+      }),
+    ).find((combo) => combo.id === DEFAULT_PERFECT_PROMPT_COMBO_ID);
+
+    expect(upgraded?.steps).toEqual(materialized?.steps);
+  });
+
+  it("does not let the upgraded combo's stored hotkey stop guarding the Caveman default", () => {
+    // The `5fb449d` guard reads STORED combo hotkeys. The upgrade rewrites
+    // steps only, so a stored chord must still blank the materialized
+    // default that would otherwise outrank it.
+    const result = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [storedPerfectPrompt({ hotkey: "Control+Shift+C" })],
+    });
+
+    expect(hotkeyOf(result, DEFAULT_CAVEMAN_PRESET_ID)).toBe("");
+  });
+
+  // -- Criterion 4: normalizing twice is a fixed point. ---------------------
+
+  it("is a fixed point — normalizing the upgraded result again changes nothing", () => {
+    const once = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [storedPerfectPrompt({ name: "Mine", hotkey: "Control+Shift+K" })],
+    });
+    const twice = normalizeCorrectionSettings(once);
+
+    expect(twice).toEqual(once);
+  });
+
+  it("is a fixed point for an untouched other-shape chain too", () => {
+    const stored = storedPerfectPrompt({
+      steps: [legacyTriple()[1], legacyTriple()[0], legacyTriple()[2]],
+    });
+    const once = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [stored],
+    });
+    const twice = normalizeCorrectionSettings(once);
+
+    expect(twice).toEqual(once);
+  });
+
+  // -- The migration is ONE-SHOT, gated on `schemaVersion`. -----------------
+  //
+  // `normalizeCorrectionSettings` runs on the WRITE path as well as the read
+  // path: `updateProfileSetting("settingsCorrect", …)` is the only way the
+  // Combos tab saves. The step predicate is shape-only, so on its own it cannot
+  // tell "stale default nobody ever touched" from "the old chain, rebuilt on
+  // purpose by someone who preferred it" — and it would rewrite the second one
+  // BEFORE IT IS EVER PERSISTED, with no error and no notification, on every
+  // save forever. `schemaVersion` is what ends that: `1` means the combo has
+  // never been offered the resequencing, `2` means it has, and `2` is stamped
+  // on the way through whether or not the steps matched.
+
+  it("marks a stored Perfect prompt as resequenced even when its steps did not match", () => {
+    // Stamping only the matches would leave an edited combo at `1` forever, so
+    // a user who later rebuilt the legacy chain would be rewritten after all —
+    // the same data loss by a longer route.
+    const edited = readBack(
+      storedPerfectPrompt({
+        steps: [legacyTriple()[1], legacyTriple()[0], legacyTriple()[2]],
+      }),
+    );
+
+    expect(edited?.schemaVersion).toBe(2);
+  });
+
+  it("leaves a deliberately rebuilt legacy chain untouched once the combo is marked", () => {
+    // THE regression this marker exists for: a user on the new default who
+    // rebuilds the old order because they preferred it, and saves.
+    const rebuilt = readBack(
+      storedPerfectPrompt({ steps: legacyTriple(), schemaVersion: 2 }),
+    );
+
+    expect(rebuilt).toEqual({
+      id: DEFAULT_PERFECT_PROMPT_COMBO_ID,
+      name: "Perfect prompt",
+      hotkey: "",
+      steps: legacyTriple(),
+      schemaVersion: 2,
+    });
+  });
+
+  it("still leaves that rebuilt chain untouched on a second pass", () => {
+    // The write path re-normalizes on every save, so surviving once is not
+    // enough — it has to survive indefinitely.
+    const once = normalizeCorrectionSettings({
+      presets: [storedCorrection],
+      selectedPresetId: "correction",
+      combos: [storedPerfectPrompt({ steps: legacyTriple(), schemaVersion: 2 })],
+    });
+    const twice = normalizeCorrectionSettings(once);
+
+    expect(combosOf(twice)[0]?.steps).toEqual(legacyTriple());
+    expect(twice).toEqual(once);
+  });
+
+  it("ships the built-in already marked, so a fresh install is never a migration candidate", () => {
+    const materialized = combosOf(
+      normalizeCorrectionSettings({
+        presets: [storedCorrection],
+        selectedPresetId: "correction",
+        combos: [],
+      }),
+    ).find((combo) => combo.id === DEFAULT_PERFECT_PROMPT_COMBO_ID);
+
+    expect(materialized?.schemaVersion).toBe(2);
+  });
+
+  it("treats an absent schemaVersion as a migration candidate", () => {
+    // A combo written before versioning has no marker at all. That is exactly
+    // the population the resequencing is for, so absent must read as `1` and
+    // NOT as "already handled".
+    const { schemaVersion: _unversioned, ...withoutVersion } =
+      storedPerfectPrompt();
+
+    expect(
+      readBack(withoutVersion)?.steps.map((step) => step.presetId),
+    ).toEqual([
+      DEFAULT_CORRECTION_PRESET_ID,
+      DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+      DEFAULT_CAVEMAN_PRESET_ID,
+    ]);
+  });
+
+  it("preserves a stored schemaVersion 2 on a combo that is not the built-in", () => {
+    // `sanitizeCombo` is where the marker survives the round trip. Clamping it
+    // back to `1` there would silently re-arm the migration on the next read.
+    const mine = combosOf(
+      normalizeCorrectionSettings({
+        presets: [storedCorrection],
+        selectedPresetId: "correction",
+        combos: [
+          storedPerfectPrompt({
+            id: "combo-1",
+            name: "My own chain",
+            schemaVersion: 2,
+          }),
+        ],
+      }),
+    ).find((combo) => combo.id === "combo-1");
+
+    expect(mine?.schemaVersion).toBe(2);
+  });
+
+  it("recognizes the legacy chain by the literal preset ids that shipped", () => {
+    // Spelled out rather than assembled from `DEFAULT_*_PRESET_ID`: these three
+    // strings are what is sitting in users' persisted config right now, and the
+    // migration table has to keep describing THEM even if a constant is later
+    // repointed at a different preset.
+    const stored = storedPerfectPrompt({
+      steps: [
+        { id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-1`, presetId: "correction" },
+        {
+          id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-2`,
+          presetId: "structured-text",
+        },
+        {
+          id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-3`,
+          presetId: "prompt-optimization",
+        },
+      ],
+    });
+
+    expect(readBack(stored)?.steps.map((step) => step.presetId)).toEqual([
+      "correction",
+      "prompt-optimization",
+      "caveman",
+    ]);
+  });
+
+  it("falls back to 1 for a schemaVersion the union does not admit", () => {
+    // An unrecognized marker must not cost the user the combo, and must not be
+    // mistaken for "already resequenced" either.
+    expect(
+      readBack(storedPerfectPrompt({ schemaVersion: 99 }))?.steps.map(
+        (step) => step.presetId,
+      ),
+    ).toEqual([
+      DEFAULT_CORRECTION_PRESET_ID,
+      DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+      DEFAULT_CAVEMAN_PRESET_ID,
+    ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: extraOptions stays absent from every existing built-in
+// ---------------------------------------------------------------------------
+
+describe("normalizeCorrectionSettings — no built-in but Caveman emits an extraOptions key", () => {
+  // `extraOptions` is opt-in per preset, declared in the option registry. None
+  // of the seven presets that shipped before it declares an option, so the key
+  // must be ABSENT rather than `{}` or `undefined`: an emitted key would widen
+  // every stored preset row, move the profile-export bytes, and make a preset
+  // that has no options indistinguishable from one whose options were all
+  // dropped as invalid. Caveman is the one built-in that DOES declare an
+  // option, so it is held to the opposite assertion below.
+  const OPTIONLESS_BUILT_IN_IDS = [
+    "correction",
+    "summarize",
+    "prompt-optimization",
+    DEFAULT_TRANSLATE_PRESET_ID,
+    DEFAULT_BUSINESS_WRITING_PRESET_ID,
+    DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+    DEFAULT_ASK_PRESET_ID,
+  ];
+
+  const ALL_BUILT_IN_IDS = [
+    ...OPTIONLESS_BUILT_IN_IDS,
+    DEFAULT_CAVEMAN_PRESET_ID,
+  ];
+
+  it("getDefaultCorrectionSettings emits no extraOptions on any optionless built-in", () => {
+    for (const preset of getDefaultCorrectionSettings().presets) {
+      if (preset.id === DEFAULT_CAVEMAN_PRESET_ID) continue;
+      expect(preset).not.toHaveProperty("extraOptions");
+    }
+  });
+
+  it("a fresh normalize emits no extraOptions on any optionless built-in", () => {
+    const normalized = normalizeCorrectionSettings(undefined);
+
+    expect(normalized.presets.map((preset) => preset.id)).toEqual(
+      ALL_BUILT_IN_IDS,
+    );
+    for (const preset of normalized.presets) {
+      if (preset.id === DEFAULT_CAVEMAN_PRESET_ID) continue;
+      expect(preset).not.toHaveProperty("extraOptions");
+    }
+  });
+
+  it("carries Caveman's declared option through a fresh normalize", () => {
+    const normalized = normalizeCorrectionSettings(undefined);
+    const caveman = normalized.presets.find(
+      (preset) => preset.id === DEFAULT_CAVEMAN_PRESET_ID,
+    );
+
+    expect(caveman?.extraOptions).toEqual({ cavemanMode: "full" });
+  });
+
+  it("keeps a stored Caveman intensity the user chose", () => {
+    const normalized = normalizeCorrectionSettings({
+      presets: [
+        {
+          id: DEFAULT_CAVEMAN_PRESET_ID,
+          name: "Caveman",
+          hotkey: "Control+Shift+C",
+          systemPrompt: "stored prompt",
+          model: "",
+          isBuiltIn: true,
+          extraOptions: { cavemanMode: "ultra" },
+        },
+      ],
+      selectedPresetId: DEFAULT_CAVEMAN_PRESET_ID,
+    });
+    const caveman = normalized.presets.find(
+      (preset) => preset.id === DEFAULT_CAVEMAN_PRESET_ID,
+    );
+
+    expect(caveman?.extraOptions).toEqual({ cavemanMode: "ultra" });
+  });
+
+  it("drops an extraOptions blob stored against a built-in that declares none", () => {
+    const normalized = normalizeCorrectionSettings({
+      presets: OPTIONLESS_BUILT_IN_IDS.map((id) => ({
+        id,
+        name: id,
+        hotkey: "",
+        systemPrompt: "stored prompt",
+        model: "",
+        isBuiltIn: true,
+        extraOptions: { cavemanMode: "ultra", anything: "at all" },
+      })),
+      selectedPresetId: "correction",
+    });
+
+    for (const preset of normalized.presets) {
+      if (preset.id === DEFAULT_CAVEMAN_PRESET_ID) continue;
+      expect(preset).not.toHaveProperty("extraOptions");
+    }
+  });
+
+  it("drops a non-object extraOptions on a custom preset too", () => {
+    const normalized = normalizeCorrectionSettings({
+      presets: [
+        {
+          id: "my-custom",
+          name: "Custom",
+          hotkey: "",
+          systemPrompt: "stored prompt",
+          model: "",
+          isBuiltIn: false,
+          extraOptions: "cavemanMode=ultra",
+        },
+      ],
+      selectedPresetId: "my-custom",
+    });
+
+    const custom = normalized.presets.find((preset) => preset.id === "my-custom");
+    expect(custom).toBeDefined();
+    expect(custom).not.toHaveProperty("extraOptions");
   });
 });
