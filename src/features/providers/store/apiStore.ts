@@ -13,6 +13,12 @@ import {
 // Runtime import, but no cycle: `comboValidation` takes only TYPES from this
 // module (`ComboPreset`, `CorrectionPreset`), which are erased.
 import { COMBO_CANCEL_ACCELERATOR } from "~/features/correction/shared/comboValidation";
+// Runtime import, but no cycle: `presetOptions` is pure data plus pure
+// functions and imports only `~/prompts/correction`.
+import {
+  CAVEMAN_MODE_OPTION_KEY,
+  sanitizePresetOptions,
+} from "~/features/correction/shared/presetOptions";
 import {
   DEFAULT_REASONING_EFFORT,
   sanitizeReasoningEffort,
@@ -42,6 +48,8 @@ import {
   DEFAULT_ASK_PRESET_PROMPT,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
+  DEFAULT_CAVEMAN_PRESET_ID,
+  DEFAULT_CAVEMAN_PRESET_PROMPT,
   DEFAULT_CORRECTION_PRESET_ID,
   DEFAULT_CUSTOM_PROMPT,
   DEFAULT_PERFECT_PROMPT_COMBO_ID,
@@ -127,6 +135,19 @@ export type CorrectionPreset = {
   outputMode?: "inherit" | "paste" | "popup";
   /** Render the result as GFM markdown rather than plain text. */
   markdownOutput?: boolean;
+  /**
+   * Options this preset declares for itself, keyed by option key. Which keys
+   * and which values are legal is DATA, held by the option registry in
+   * `~/features/correction/shared/presetOptions` — not by this type, not by
+   * the schema, and not by the Settings renderer. A preset that declares no
+   * options carries no key at all here.
+   *
+   * Values are opaque strings on purpose: they survive a hand edit, a profile
+   * export and the bare `{ type: "object" }` schema node without per-type
+   * handling, and `sanitizePresetOptions` is what turns them back into
+   * something meaningful.
+   */
+  extraOptions?: Record<string, string>;
 };
 
 const sanitizePresetOutputMode = (
@@ -160,8 +181,30 @@ export type ComboPreset = {
   outputMode?: "inherit" | "paste" | "popup";
   /** Applies to the FINAL step's output only. */
   markdownOutput?: boolean;
-  schemaVersion: 1;
+  /**
+   * One-shot migration marker, NOT a description of the field layout — every
+   * version below shares the same shape.
+   *
+   * - `1` — written before the Perfect prompt resequencing, or by a build that
+   *   predates versioning at all (absent reads as `1`). The built-in combo at
+   *   this version has never been offered the Caveman chain.
+   * - `2` — has been through `applyPerfectPromptResequencing`. Its steps are
+   *   whatever they are now BY THE USER'S CONSENT, so the resequencing must
+   *   never fire on it again.
+   *
+   * The distinction exists because the resequencing predicate is shape-only and
+   * therefore cannot tell "stale default nobody touched" from "the old chain,
+   * deliberately rebuilt". Without the marker a user who rebuilds the legacy
+   * chain has it silently rewritten on every save, forever.
+   */
+  schemaVersion: ComboSchemaVersion;
 };
+
+/** See `ComboPreset.schemaVersion`. */
+export type ComboSchemaVersion = 1 | 2;
+
+/** Written to every combo that has been through the resequencing migration. */
+const COMBO_SCHEMA_VERSION_RESEQUENCED = 2;
 
 export type CorrectionSettings = {
   presets: CorrectionPreset[];
@@ -218,6 +261,11 @@ const sanitizeComboStep = (
   };
 };
 
+const sanitizeComboSchemaVersion = (raw: unknown): ComboSchemaVersion =>
+  raw === COMBO_SCHEMA_VERSION_RESEQUENCED
+    ? COMBO_SCHEMA_VERSION_RESEQUENCED
+    : 1;
+
 const sanitizeCombo = (raw: unknown): ComboPreset | null => {
   if (!raw || typeof raw !== "object") return null;
 
@@ -250,10 +298,13 @@ const sanitizeCombo = (raw: unknown): ComboPreset | null => {
     steps,
     ...(outputMode !== undefined ? { outputMode } : {}),
     ...(markdownOutput !== undefined ? { markdownOutput } : {}),
-    // Lazy upgrade on read. `1` is the only version the union admits today, so
-    // an absent or unrecognized value normalizes rather than costing the user
-    // the combo; a future version 2 branches here.
-    schemaVersion: 1,
+    // A stored `2` MUST survive: it is the record that this combo has already
+    // been offered the resequencing, and downgrading it here would re-arm the
+    // migration and rewrite a chain the user rebuilt on purpose. Absent or
+    // unrecognized falls to `1` — "written before versioning" is exactly the
+    // state that still needs the migration — rather than costing the user the
+    // whole combo.
+    schemaVersion: sanitizeComboSchemaVersion(candidate.schemaVersion),
   };
 };
 
@@ -509,11 +560,32 @@ const makeDefaultCorrectionPresets = (): CorrectionPreset[] => [
     outputMode: "popup",
     markdownOutput: true,
   },
+  {
+    // APPENDED, never inserted: every index into this array that a stored
+    // profile, a combo step or a test already relies on stays where it was.
+    id: DEFAULT_CAVEMAN_PRESET_ID,
+    name: "Caveman",
+    // `Control+Shift+C` is free against the seven defaults above, both app
+    // bindings in `DEFAULT_KEY_BINDINGS`, `COMBO_CANCEL_ACCELERATOR` and
+    // devtools' F12. A USER may still hold it, and this default gives way
+    // rather than stealing it — see `withoutStolenHotkey` below.
+    hotkey: "Control+Shift+C",
+    systemPrompt: DEFAULT_CAVEMAN_PRESET_PROMPT,
+    model: INHERIT_GLOBAL_MODEL,
+    isBuiltIn: true,
+    // The one built-in that declares a preset option. Materialized here rather
+    // than left to `resolvePresetOptionValue`'s default so the value the user
+    // will see in Settings is the value stored in their profile from day one.
+    extraOptions: { [CAVEMAN_MODE_OPTION_KEY]: "full" },
+  },
 ];
 
 /**
- * Ships one combo: Correction, then Context-Aware Structured Text, then Prompt
- * optimization — clean the text, give it structure, then turn it into a prompt.
+ * Ships one combo: Correction, then Prompt optimization, then Caveman — clean
+ * the text, turn it into a prompt, then compress that prompt. Profiles that
+ * still store the previous chain (Correction → Context-Aware Structured Text →
+ * Prompt optimization) are moved onto this one by
+ * `applyPerfectPromptResequencing`, once, and only when they never edited it.
  *
  * **It ships with NO hotkey, and that is the point.** Every other built-in
  * binding is one AI call; this one is three, on whatever models those presets
@@ -539,16 +611,99 @@ const makeDefaultCombos = (): ComboPreset[] => [
       },
       {
         id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-2`,
-        presetId: DEFAULT_STRUCTURED_TEXT_PRESET_ID,
+        presetId: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
       },
       {
         id: `${DEFAULT_PERFECT_PROMPT_COMBO_ID}-step-3`,
-        presetId: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+        presetId: DEFAULT_CAVEMAN_PRESET_ID,
       },
     ],
-    schemaVersion: 1,
+    // A fresh install is never a migration candidate: it already ships the
+    // resequenced chain, so marking it `1` would invite the migration to fire
+    // on a combo that has nothing to migrate.
+    schemaVersion: COMBO_SCHEMA_VERSION_RESEQUENCED,
   },
 ];
+
+/**
+ * The chain the built-in Perfect prompt combo shipped with before the
+ * resequencing above: Correction, Context-Aware Structured Text, Prompt
+ * optimization. It is history — it must not move again when the current default
+ * does.
+ *
+ * Spelled as STRING LITERALS rather than the `DEFAULT_*_PRESET_ID` constants on
+ * purpose. Those constants describe what the app ships TODAY and are free to be
+ * repointed; these three strings are what is sitting in users' persisted config
+ * files right now and can never change. Building this table out of live
+ * constants would let a repoint silently redefine "history" as a chain that
+ * never shipped, which both misses the configs that need migrating and matches
+ * ones that do not.
+ */
+const LEGACY_PERFECT_PROMPT_STEP_PRESET_IDS: readonly string[] = [
+  "correction",
+  "structured-text",
+  "prompt-optimization",
+];
+
+/**
+ * True only for the legacy triple as shipped: same length, same preset ids, in
+ * the same order, and no step carrying an `inlineInput` the built-in never had.
+ * Every one of those clauses is load-bearing, because the caller REWRITES
+ * PERSISTED USER DATA on a true — a length-only or first-step-only test happily
+ * matches a chain the user reordered or swapped a preset into, and replaces it.
+ *
+ * Step ids are deliberately NOT part of the signature: they are materialized by
+ * `sanitizeComboStep` when absent (`step-N`) and are not something the Combos UI
+ * asks the user to choose, so matching on them would just deny the upgrade to
+ * profiles that lost or never stored them, while catching no user edit that the
+ * preset-id sequence does not already catch.
+ */
+const isUntouchedLegacyPerfectPromptChain = (steps: ComboStep[]): boolean =>
+  steps.length === LEGACY_PERFECT_PROMPT_STEP_PRESET_IDS.length &&
+  steps.every(
+    (step, index) =>
+      step.presetId === LEGACY_PERFECT_PROMPT_STEP_PRESET_IDS[index] &&
+      step.inlineInput === undefined,
+  );
+
+/**
+ * ONE-SHOT resequencing of the built-in Perfect prompt combo, for users whose
+ * profile already stores it — `withDefaultCombos` lets the stored entry win, so
+ * without this the new order would only ever reach fresh installs.
+ *
+ * One-shot is the whole design, because `normalizeCorrectionSettings` runs on
+ * the WRITE path too (`updateProfileSetting("settingsCorrect", …)`, which is
+ * how the Combos tab saves). A shape-only predicate re-run on every save cannot
+ * tell a stale default from a chain the user deliberately rebuilt, so it would
+ * rewrite the latter before it is ever persisted, silently, forever.
+ * `schemaVersion` is the marker that ends it:
+ *
+ *  - steps are rewritten only at `schemaVersion: 1` AND on the untouched legacy
+ *    signature — everything else rides through verbatim, because a user who
+ *    reordered the chain, renamed the row or bound a chord to it has made a
+ *    decision a step resequencing has no business revisiting;
+ *  - the marker is stamped on EVERY stored Perfect prompt regardless of whether
+ *    its steps matched. Stamping only the matches would leave an edited combo
+ *    at `1` forever, and a later rebuild-to-legacy would then be rewritten —
+ *    the same bug by a longer route.
+ */
+const applyPerfectPromptResequencing = (combo: ComboPreset): ComboPreset => {
+  if (combo.id !== DEFAULT_PERFECT_PROMPT_COMBO_ID) return combo;
+
+  const marked: ComboPreset = {
+    ...combo,
+    schemaVersion: COMBO_SCHEMA_VERSION_RESEQUENCED,
+  };
+  if (combo.schemaVersion === COMBO_SCHEMA_VERSION_RESEQUENCED) return marked;
+  if (!isUntouchedLegacyPerfectPromptChain(combo.steps)) return marked;
+
+  const resequenced = makeDefaultCombos().find(
+    (defaultCombo) => defaultCombo.id === DEFAULT_PERFECT_PROMPT_COMBO_ID,
+  );
+  // Steps come from the default itself, so an upgraded profile and a fresh
+  // install are indistinguishable.
+  return resequenced ? { ...marked, steps: resequenced.steps } : marked;
+};
 
 export const getDefaultCorrectionSettings = (): CorrectionSettings => ({
   presets: makeDefaultCorrectionPresets(),
@@ -631,7 +786,45 @@ export const normalizeCorrectionSettings = (
 
   const raw = value as Partial<CorrectionSettings> & LegacyCorrectionSettings;
 
-  const combos = withDefaultCombos(sanitizeCombos(raw.combos));
+  const storedCombos = sanitizeCombos(raw.combos);
+  // Before the merge or after it is EQUIVALENT, not a correctness choice:
+  // `withDefaultCombos` returns the stored entry BY REFERENCE when the id
+  // matches, so a post-merge map would reach the same object, and the
+  // materialized default it would additionally see is already at the
+  // resequenced version and passes through untouched. Before is chosen so the
+  // function only ever receives stored data — which is what it rewrites — and
+  // so the marker cannot be read off a default that was never persisted.
+  //
+  // Either way this touches steps and `schemaVersion` only: the hotkey claims
+  // below read `storedCombos`, whose hotkeys are unchanged.
+  const combos = withDefaultCombos(
+    storedCombos.map(applyPerfectPromptResequencing),
+  );
+
+  // `registerCorrectionShortcut` walks `presets` before `combos` through one
+  // shared `registeredShortcuts` set, so a default hotkey materialized here onto
+  // a chord a stored combo holds outranks that combo, which is then dropped with
+  // nothing but a warn — the user presses their own chord and gets a single
+  // transform on the profile's global default model instead of their chain.
+  // Same trap as the stored-preset claim set below, same remedy: the
+  // materialized default gives its hotkey up.
+  //
+  // Claims come from STORED combos only, and only from ones the sanitizer kept:
+  // a dropped combo registers nothing, and a DEFAULT combo colliding with a
+  // DEFAULT preset is the pairwise-uniqueness question the built-in tables own,
+  // not a stored-vs-materialized theft. A combo's own hotkey is never rewritten
+  // in either direction — that stays the pre-save `validateHotkeys` gate's job.
+  const hotkeysClaimedByStoredCombos = new Set(
+    storedCombos
+      .map((combo) => combo.hotkey.trim())
+      .filter((hotkey) => hotkey.length > 0),
+  );
+  const withoutComboStolenHotkey = (
+    preset: CorrectionPreset,
+  ): CorrectionPreset =>
+    hotkeysClaimedByStoredCombos.has(preset.hotkey.trim())
+      ? { ...preset, hotkey: "" }
+      : withoutReservedHotkey(preset);
 
   const storedHadTranslatePreset =
     Array.isArray(raw.presets) &&
@@ -658,7 +851,7 @@ export const normalizeCorrectionSettings = (
     return {
       presets: applyLegacyTranslateMigration(
         [migratedCorrectionPreset, ...defaults.presets.slice(1)].map(
-          withoutReservedHotkey,
+          withoutComboStolenHotkey,
         ),
         legacyTranslate,
         false,
@@ -716,6 +909,14 @@ export const normalizeCorrectionSettings = (
     const markdownOutput =
       sanitizeBoolean(rawCandidate.markdownOutput) ?? fallback?.markdownOutput;
 
+    // No `?? fallback?.extraOptions`, unlike the two above: which options exist
+    // is keyed off the preset ID inside the sanitizer, so a stored value that
+    // was dropped was dropped because the registry does not recognize it — and
+    // the built-in's own value would be just as unrecognized. Absent means
+    // "use the registry default", which `resolvePresetOptionValue` supplies at
+    // read time, so nothing has to be materialized here.
+    const extraOptions = sanitizePresetOptions(id, rawCandidate.extraOptions);
+
     return [
       {
         preset: {
@@ -736,6 +937,7 @@ export const normalizeCorrectionSettings = (
           ...(requiresInput !== undefined ? { requiresInput } : {}),
           ...(outputMode !== undefined ? { outputMode } : {}),
           ...(markdownOutput !== undefined ? { markdownOutput } : {}),
+          ...(extraOptions !== undefined ? { extraOptions } : {}),
         } satisfies CorrectionPreset,
         // A missing or non-string `hotkey` above inherits the built-in default.
         // That injected value is not the user's choice, so it neither counts as
@@ -752,11 +954,12 @@ export const normalizeCorrectionSettings = (
   // ever emits canonical `Control+Shift+X`. Pinned by the "does NOT case-fold"
   // test in normalizeCorrectionSettings.test.ts.
   //
-  // Claims come from STORED presets only, so this defends stored-vs-materialized
-  // and nothing else. Two DEFAULTS sharing one accelerator is invisible here and
-  // would just let the earlier one win in `registerCorrectionShortcut`: the
-  // built-in default hotkeys must stay pairwise-unique, which is pinned by the
-  // "hotkeys distinct from every other default" test, not by this function.
+  // Claims come from STORED presets and (above) STORED combos only, so this
+  // defends stored-vs-materialized and nothing else. Two DEFAULTS sharing one
+  // accelerator is invisible here and would just let the earlier one win in
+  // `registerCorrectionShortcut`: the built-in default hotkeys must stay
+  // pairwise-unique, which is pinned by the "hotkeys distinct from every other
+  // default" test, not by this function.
   const hotkeysClaimedByStoredPresets = new Set(
     normalizedEntries
       .filter((entry) => entry.hotkeyWasStored)
@@ -764,7 +967,7 @@ export const normalizeCorrectionSettings = (
       .filter((hotkey) => hotkey.length > 0),
   );
 
-  // Built-in defaults are emitted ahead of custom presets, and
+  // Built-in defaults are emitted ahead of custom presets and of combos, and
   // `registerCorrectionShortcut` registers in array order (first wins). So a
   // default hotkey materialized here — because the built-in was absent from the
   // stored config, or because its stored entry carried no `hotkey` field — would
@@ -772,10 +975,14 @@ export const normalizeCorrectionSettings = (
   // up the default instead; a STORED hotkey is the user's explicit choice and is
   // never rewritten, not even when two stored presets collide with each other
   // (that stays the pre-save `validateHotkeys` gate's job).
+  //
+  // Three rungs, widest claim first: stored presets, then stored combos, then
+  // the reserved app accelerators. Every rung blanks only a default-sourced
+  // hotkey; nothing a user stored is touched by any of them.
   const withoutStolenHotkey = (preset: CorrectionPreset): CorrectionPreset =>
     hotkeysClaimedByStoredPresets.has(preset.hotkey.trim())
       ? { ...preset, hotkey: "" }
-      : withoutReservedHotkey(preset);
+      : withoutComboStolenHotkey(preset);
 
   const normalizedPresets = normalizedEntries.map((entry) =>
     entry.hotkeyWasStored ? entry.preset : withoutStolenHotkey(entry.preset),
@@ -921,6 +1128,36 @@ export const apiStoreSchema = {
                        */
                       outputMode: { type: "string" },
                       markdownOutput: { type: "boolean" },
+                      /**
+                       * EMPTY on purpose — not even `{ type: "object" }`, and
+                       * it must stay empty. Under `clearInvalidConfig: true`
+                       * every keyword here is a constraint a stored value can
+                       * FAIL, and a failure is not a rejected field: `conf`
+                       * deletes the config file, taking every profile, preset,
+                       * hotkey and encrypted key slot with it.
+                       *
+                       * `type` is such a keyword. `extraOptions` holds string
+                       * values and is hand-editable, so `"extraOptions":
+                       * "ultra"` in place of `{"cavemanMode":"ultra"}` is the
+                       * obvious wrong edit — and `{ type: "object" }` answers
+                       * it by wiping the store. Same for a value written as
+                       * `null` or as an array.
+                       *
+                       * An `enum`, `properties`, `required` or
+                       * `additionalProperties` would be worse still: which
+                       * keys are legal and which values each admits is
+                       * registry DATA that grows with every preset option, so
+                       * any of them would also wipe a config written by a
+                       * NEWER build. The node earns its place as documentation
+                       * only; validity is decided in code by
+                       * `sanitizePresetOptions`, which is already total over
+                       * `unknown` and rejects every non-object input.
+                       *
+                       * Pinned by the real-`Conf` hand-edit round trip in
+                       * `apiStore.test.ts` — a test asserting the ABSENCE of an
+                       * `enum` does not cover this, and did not.
+                       */
+                      extraOptions: {},
                     },
                     required: ["id", "name", "hotkey", "systemPrompt", "model"],
                   },

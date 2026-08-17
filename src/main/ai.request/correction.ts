@@ -1,3 +1,4 @@
+import { withPresetOptions } from "~/features/correction/shared/presetOptions";
 import { resolveReasoningEffort } from "~/features/correction/shared/reasoningEffort";
 import { serializeHistorySession } from "~/features/history/shared/historySession";
 import { estimateTextTokens } from "~/features/history/store/historyStore";
@@ -163,9 +164,25 @@ export const fixGrammar = async (
     const response = await makeAIRequest({
       // Source-app context goes on the system prompt, not the user prompt:
       // metadata beside the text to transform is easy to mistake for content.
+      //
+      // NESTING ORDER, innermost first: the preset's own instructions, then
+      // its declared options, then the source-app `# Metadata context` block,
+      // then the per-press user metadata. All three wrappers APPEND, so the
+      // innermost one lands nearest the preset prompt and the outermost one
+      // ends the string. `withPresetOptions` is innermost because a chosen
+      // option is part of what the preset instructs, not ambient metadata
+      // about the press. Wrapping it any further out would make the preset
+      // that declares options the only one whose `# Metadata context` block is
+      // not trailing, special-casing it against the other seven for no gain:
+      // the text to transform is sent as a SEPARATE USER MESSAGE by
+      // `buildCorrectionUserPrompt`, so nothing trailing a preset's own
+      // instructions in the system prompt is input, whatever a prompt asset
+      // may claim about position. `correction-app-context.test.ts` is the
+      // end-to-end guard on this composition — it drives `fixGrammar` itself,
+      // which is what makes it probative here.
       systemPrompt: withUserMetadata(
         withActiveAppContext(
-          preset.systemPrompt,
+          withPresetOptions(preset.systemPrompt, preset),
           context,
           appContextPolicyForPreset(preset.id),
         ),

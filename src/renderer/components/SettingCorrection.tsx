@@ -1,10 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
+import {
+  CAVEMAN_MODE_OPTION_KEY,
+  presetOptionDefinitions,
+  resolvePresetOptionValue,
+  withPresetOptions,
+} from "~/features/correction/shared/presetOptions";
 import { msg, messageLabel, type Message } from "~/features/i18n/shared/message";
 import {
   DEFAULT_ASK_PRESET_ID,
   DEFAULT_ASK_PRESET_PROMPT,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
+  DEFAULT_CAVEMAN_PRESET_ID,
+  DEFAULT_CAVEMAN_PRESET_PROMPT,
   DEFAULT_CORRECTION_PRESET_ID,
   DEFAULT_CUSTOM_PROMPT,
   DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
@@ -29,6 +37,7 @@ import { Input, Textarea } from "./Input";
 import { ModelSelect } from "./ModelSelect";
 import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
 import { SearchableSelect } from "./SearchableSelect";
+import { Select } from "./Select";
 import {
   plainStatus,
   wrappedError,
@@ -177,6 +186,17 @@ export const makeBuiltInPresetDefaults = (): Record<
     outputMode: "popup",
     markdownOutput: true,
   },
+  [DEFAULT_CAVEMAN_PRESET_ID]: {
+    id: DEFAULT_CAVEMAN_PRESET_ID,
+    name: "Caveman",
+    hotkey: "Control+Shift+C",
+    systemPrompt: DEFAULT_CAVEMAN_PRESET_PROMPT,
+    model: "", // empty = inherit the global default model
+    isBuiltIn: true,
+    // Field-for-field parity with `makeDefaultCorrectionPresets()`; the drift
+    // guard in `builtInPresetDefaults.test.ts` fails the moment these disagree.
+    extraOptions: { [CAVEMAN_MODE_OPTION_KEY]: "full" },
+  },
 });
 
 const buildDefaultSettings = (): CorrectionSettings => ({
@@ -315,6 +335,32 @@ export const SettingCorrection: React.FC = () => {
     }));
   };
 
+  /**
+   * Writes one declared option without going through `updatePreset`: the merged
+   * `extraOptions` has to be built from the preset held in state WHEN THE WRITE
+   * RUNS, not from the render snapshot this handler closed over. A preset that
+   * declares two options would otherwise lose the first edit to the second —
+   * the whole-object clobber described in the fixlang-settings-writes skill,
+   * one nesting level down.
+   */
+  const updatePresetOption = (
+    presetId: string,
+    optionKey: string,
+    value: string,
+  ) => {
+    setCorrectionSettings((current) => ({
+      ...current,
+      presets: current.presets.map((preset) =>
+        preset.id === presetId
+          ? {
+              ...preset,
+              extraOptions: { ...preset.extraOptions, [optionKey]: value },
+            }
+          : preset,
+      ),
+    }));
+  };
+
   const handleAddPreset = () => {
     const nextPreset = makeCustomPreset(correctionSettings.presets.length + 1);
 
@@ -332,12 +378,24 @@ export const SettingCorrection: React.FC = () => {
       return;
     }
 
+    // `PRESET_OPTION_DEFINITIONS` is keyed by BUILT-IN preset id, so a
+    // duplicate's fresh `custom-*` id declares no options: the Settings
+    // control that lets the original preset choose e.g. Caveman's intensity
+    // would silently disappear, and the directive it used to inject would
+    // never reach the model even though the copied prompt text still refers
+    // to it. Baking the resolved fragments into `systemPrompt` up front makes
+    // the duplicate a self-contained plain custom preset — the same shape
+    // every other custom preset already is — instead of teaching the
+    // registry to follow a lineage that does not exist yet.
+    const { extraOptions: _extraOptions, ...activePresetWithoutOptions } =
+      activePreset;
     const duplicatedPreset: CorrectionPreset = {
-      ...activePreset,
+      ...activePresetWithoutOptions,
       id: `custom-${Date.now()}`,
       name: `${activePreset.name} Copy`,
       hotkey: "",
       isBuiltIn: false,
+      systemPrompt: withPresetOptions(activePreset.systemPrompt, activePreset),
     };
 
     setCorrectionSettings((current) => ({
@@ -392,6 +450,7 @@ export const SettingCorrection: React.FC = () => {
       requiresInput: defaultPreset.requiresInput,
       outputMode: defaultPreset.outputMode,
       markdownOutput: defaultPreset.markdownOutput,
+      extraOptions: defaultPreset.extraOptions,
     });
     setStatus(null);
     setStatusIsError(false);
@@ -471,6 +530,10 @@ export const SettingCorrection: React.FC = () => {
       </div>
     );
   }
+
+  // A frozen registry lookup, so it is read here rather than memoized above the
+  // two early returns.
+  const activePresetOptions = presetOptionDefinitions(activePreset.id);
 
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-6">
@@ -728,6 +791,53 @@ export const SettingCorrection: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/*
+            Preset-scoped options, rendered from what the preset DECLARES in
+            `presetOptions.ts` — never from its id. A preset that declares
+            nothing renders nothing here, and a future preset that declares an
+            option gets its control with no change to this file.
+          */}
+          {activePresetOptions.length > 0 && (
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              {activePresetOptions.map((option) => {
+                const fieldId = `preset-option-${option.key}`;
+
+                return (
+                  <div key={option.key} className="flex flex-col gap-2">
+                    <label
+                      htmlFor={fieldId}
+                      className="text-sm text-card-foreground"
+                    >
+                      {t(option.labelKey)}
+                    </label>
+                    <Select
+                      id={fieldId}
+                      name={fieldId}
+                      value={resolvePresetOptionValue(activePreset, option.key)}
+                      onChange={(event) =>
+                        updatePresetOption(
+                          activePreset.id,
+                          option.key,
+                          event.target.value,
+                        )
+                      }
+                      className="w-full"
+                    >
+                      {option.choices.map((choice) => (
+                        <option key={choice.value} value={choice.value}>
+                          {t(choice.labelKey)}
+                        </option>
+                      ))}
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {t(option.hintKey)}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div className="mt-4 flex flex-col gap-2">
             <label

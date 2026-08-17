@@ -4,7 +4,7 @@
 
 Local macOS menu-bar app: fixes grammar and improves writing on selected text via AI (OpenAI, OpenRouter, Anthropic, AWS Bedrock, Ollama, LM Studio). Electron + React + TypeScript, runs on **bun**.
 
-Current release: **v0.32.0**.
+Current release: **v0.33.0**.
 
 ## Main Features
 
@@ -13,8 +13,9 @@ What the user gets. Implementation traps live under [Known Gotchas](#known-gotch
 - **Writing transforms**
   - **Transform** — select text in any app, press a preset hotkey, get a rewrite back via Direct paste or Show popup (global default, overridable per preset).
   - **Selection read** — every hotkey (including Ask AI) reads selection the same way, with clipboard fallback when the copy produces nothing; Ask labels clipboard-sourced context as From clipboard.
-  - **Presets** — seven built-ins (Correction, Summarize, Prompt optimization, Translate, Business Writing, Context-Aware Structured Text, Ask AI) plus custom ones; each has its own hotkey, model, system prompt, reasoning effort, and output mode.
-  - **Combos** — one hotkey runs 2–5 presets in sequence and delivers only the last step; includes a built-in Perfect prompt combo (no default hotkey) and a Combos Settings tab.
+  - **Presets** — eight built-ins (Correction, Summarize, Prompt optimization, Translate, Business Writing, Context-Aware Structured Text, Ask AI, Caveman) plus custom ones; each has its own hotkey, model, system prompt, reasoning effort, and output mode.
+  - **Preset-scoped options** — a preset can declare its own settings through the registry in `src/features/correction/shared/presetOptions.ts`, persisted on `CorrectionPreset.extraOptions` and composed into the system prompt by `withPresetOptions`. Caveman uses it for its three intensity levels (lite/full/ultra). Settings renders whatever a preset declares with no per-preset UI code, so a new option needs a registry entry and its localized strings — a label, a hint, and one label per choice, in each locale (five keys per locale for Caveman's three levels) — not an interface change.
+  - **Combos** — one hotkey runs 2–5 presets in sequence and delivers only the last step; includes a built-in Perfect prompt combo, Correction → Prompt optimization → Caveman (no default hotkey), and a Combos Settings tab.
   - **Source-app context** — frontmost app name shapes tone (and markup for Context-Aware Structured Text); dropped when unreadable or when FixLang is frontmost.
   - **Hotkeys** — remappable preset, PromptGen, and profile-switch bindings; conflicts refused before save.
 - **Ask & autocomplete**
