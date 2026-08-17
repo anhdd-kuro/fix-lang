@@ -150,6 +150,7 @@ import {
 import {
   DEFAULT_ASK_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
+  DEFAULT_CAVEMAN_PRESET_ID,
   DEFAULT_CORRECTION_PRESET_ID,
   DEFAULT_STRUCTURED_TEXT_PRESET_ID,
 } from "~/prompts/correction";
@@ -371,6 +372,82 @@ describe("correction preset hotkeys — a materialized built-in never outranks a
     await expect(
       presetIdBehindHandler(structuredTextCall?.[1] as () => Promise<void>),
     ).resolves.toBe(DEFAULT_STRUCTURED_TEXT_PRESET_ID);
+  });
+});
+
+/**
+ * The default-list assertions above (`"attempts no registration at all..."`,
+ * `"still registers every built-in default..."`) derive their EXPECTED
+ * shortcut list from `getDefaultCorrectionSettings()` — the very same factory
+ * that produces the ACTUAL list — so they prove Caveman's hotkey shows up in
+ * both lists together, never that its registered handler actually runs
+ * Caveman. This test drives the full normalize → register → callback route
+ * instead: starting from a profile stored BEFORE Caveman existed (no
+ * `caveman` entry at all), it forces `normalizeCorrectionSettings` to
+ * materialize the built-in default itself, finds the handler registered on
+ * that default's `Control+Shift+C`, invokes it, and asserts the request that
+ * comes out the other side is really Caveman's.
+ */
+describe("correction preset hotkeys — Caveman runs end-to-end from a pre-Caveman stored profile", () => {
+  const CAVEMAN_HOTKEY = "Control+Shift+C";
+
+  // No `caveman` id anywhere in here — exactly what a profile saved before
+  // this preset shipped looks like on disk.
+  const PRE_CAVEMAN_STORED_PROFILE = {
+    presets: [storedBuiltIn("correction", "Correction", "Control+Shift+F")],
+    selectedPresetId: "correction",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetHotkeyThrottleForTests();
+    (globalShortcut.register as Mock).mockReturnValue(true);
+    mocks.keyBindings = {
+      promptGen: "Control+Alt+P",
+      profileSwitch: "Control+Alt+O",
+    };
+  });
+
+  it("registers the materialized Caveman default on Control+Shift+C and its callback runs fixGrammar as Caveman, then delivers the result", async () => {
+    const calls = registerFrom(PRE_CAVEMAN_STORED_PROFILE);
+
+    const cavemanCall = calls.find(([shortcut]) => shortcut === CAVEMAN_HOTKEY);
+    // Fails loudly (not merely as an unmatched later assertion) if a future
+    // change to the default hotkey or the materialization order drops this
+    // registration — mirrors the `askCall`/`comboCall` idiom used everywhere
+    // else in this file rather than inventing a new harness.
+    expect(cavemanCall).toBeDefined();
+
+    // `registerFrom` overwrites `fixGrammar`'s resolved value as part of
+    // registering, so the Caveman-flavored reply is set AFTER that call, same
+    // as the lock-busy combo test above does for its own `fixGrammar` mock.
+    (fixGrammar as Mock).mockResolvedValue(
+      fixGrammarResult({ correctedText: "ug fix words good", presetName: "Caveman" }),
+    );
+
+    await expect(
+      presetIdBehindHandler(cavemanCall?.[1] as () => Promise<void>),
+    ).resolves.toBe(DEFAULT_CAVEMAN_PRESET_ID);
+
+    // The presetId that actually reached `fixGrammar`, not merely the one
+    // logged at the top of the handler — a callback wired to the wrong
+    // preset would still log the right `presetId` at "Hotkey triggered" but
+    // fail here.
+    expect(fixGrammar).toHaveBeenCalledWith(
+      "some selected text",
+      DEFAULT_CAVEMAN_PRESET_ID,
+      expect.objectContaining({
+        userMetadata: "App locale: en\nSystem language: en-US",
+      }),
+    );
+
+    // Delivered through the normal single-preset path (global mode mocked to
+    // "popup" for this whole file; Caveman carries no per-preset outputMode).
+    expect(showCorrectionResultWindow).toHaveBeenCalledWith({
+      presetName: "Caveman",
+      text: "ug fix words good",
+    });
+    expect(pasteText).not.toHaveBeenCalled();
   });
 });
 

@@ -4,7 +4,7 @@
 
 Local macOS menu-bar app: fixes grammar and improves writing on selected text via AI (OpenAI, OpenRouter, Anthropic, AWS Bedrock, Ollama, LM Studio). Electron + React + TypeScript, runs on **bun**.
 
-Current release: **v0.32.0**.
+Current release: **v0.33.0**.
 
 ## Main Features
 
@@ -13,8 +13,9 @@ What the user gets. Implementation traps live under [Known Gotchas](#known-gotch
 - **Writing transforms**
   - **Transform** — select text in any app, press a preset hotkey, get a rewrite back via Direct paste or Show popup (global default, overridable per preset).
   - **Selection read** — every hotkey (including Ask AI) reads selection the same way, with clipboard fallback when the copy produces nothing; Ask labels clipboard-sourced context as From clipboard.
-  - **Presets** — seven built-ins (Correction, Summarize, Prompt optimization, Translate, Business Writing, Context-Aware Structured Text, Ask AI) plus custom ones; each has its own hotkey, model, system prompt, reasoning effort, and output mode.
-  - **Combos** — one hotkey runs 2–5 presets in sequence and delivers only the last step; includes a built-in Perfect prompt combo (no default hotkey) and a Combos Settings tab.
+  - **Presets** — eight built-ins (Correction, Summarize, Prompt optimization, Translate, Business Writing, Context-Aware Structured Text, Ask AI, Caveman) plus custom ones; each has its own hotkey, model, system prompt, reasoning effort, and output mode.
+  - **Preset-scoped options** — a preset can declare its own settings through the registry in `src/features/correction/shared/presetOptions.ts`, persisted on `CorrectionPreset.extraOptions` and composed into the system prompt by `withPresetOptions`. Caveman uses it for its three intensity levels (lite/full/ultra). Settings renders whatever a preset declares with no per-preset UI code, so a new option needs a registry entry and its localized strings — a label, a hint, and one label per choice, in each locale (five keys per locale for Caveman's three levels) — not an interface change.
+  - **Combos** — one hotkey runs 2–5 presets in sequence and delivers only the last step; includes a built-in Perfect prompt combo, Correction → Prompt optimization → Caveman (no default hotkey), and a Combos Settings tab.
   - **Source-app context** — frontmost app name shapes tone (and markup for Context-Aware Structured Text); dropped when unreadable or when FixLang is frontmost.
   - **Hotkeys** — remappable preset, PromptGen, and profile-switch bindings; conflicts refused before save.
 - **Ask & autocomplete**
@@ -291,7 +292,7 @@ Project-specific traps under `.claude/skills/fixlang/`:
 
 - [Hotkeys](.claude/skills/fixlang/fixlang-hotkeys/SKILL.md) — preset hotkey reload on profile switch (silent failures) + pre-save conflict validation + frontmost-app read must precede the overlay spinner.
 - [Presets](.claude/skills/fixlang/fixlang-presets/SKILL.md) — retired reasoning efforts must MAP, not vanish; per-preset `outputMode` must be resolved on BOTH delivery paths; Ask AI's optional selection and its markdown answer are both untrusted; the `# Metadata context` block's default wording is byte-pinned.
-- [Provider credentials](.claude/skills/fixlang/fixlang-provider-credentials/SKILL.md) — capability registry is the only dispatch table (and its `import()`s must stay lazy); secret slots are per profile + provider + kind; a foreign-shaped key is refused at both write chokepoints; log the key's shape, never its value; per-provider cost honesty rules; a new provider's slot in `PROVIDER_ORDER` reroutes bare ids and is a billing decision.
+- [Providers](.claude/skills/fixlang/fixlang-provider/SKILL.md) — nine-step recipe for adding a provider (which tables the compiler forces, which files need nothing, which test fixtures always break), then the invariants: capability registry is the only dispatch table (and its `import()`s must stay lazy); secret slots are per profile + provider + kind; a foreign-shaped key is refused at both write chokepoints; log the key's shape, never its value; per-provider cost honesty rules; a new provider's slot in `PROVIDER_ORDER` reroutes bare ids and is a billing decision.
 - [Usage & analytics](.claude/skills/fixlang/fixlang-usage-analytics/SKILL.md) — OpenAI's MONEY RULE (tokens per model, dollars per line item/project, never per-model dollars or a balance); split Spend card so one failed half cannot blank the other; tray siblings keyed by `profileId` need distinct key prefixes or a duplicate card survives.
 - [i18n](.claude/skills/fixlang/fixlang-i18n/SKILL.md) — JSON values widen to `string` (params not type-checked); tests must be `.test.ts` (no RTL); aggregations return descriptors; memoized callbacks over `t` or formatters must list them in deps; `date-fns` needs explicit `{ locale }`; main process uses `mainT()`, not `useI18n()`.
 - [Prompt bundling](.claude/skills/fixlang/fixlang-prompt-bundling/SKILL.md) — prompts bundle at build time from `src/prompts/`, not `~/.agents/`; rebuild + reinstall to apply.

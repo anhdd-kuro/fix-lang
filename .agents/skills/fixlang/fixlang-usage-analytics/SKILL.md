@@ -45,4 +45,4 @@ A project absent from `projectCosts.projects` renders "no spend", never `$0.00` 
 
 Dashboard tabs live in `MainWindow/dashboardTabs.ts` (overview, history, models, usage, logs, about). Overview and Models share the All/30d/7d range via `RANGE_AWARE_TABS` in `MainWindow/App.tsx` — a new range-aware tab must be listed there or its pills silently do nothing.
 
-Overview's Total-tokens card carries an N/A-aware estimated cost hint (`overviewCostView.ts`): partial coverage renders "Est. $X · N of M priced" rather than pretending unpriced transforms cost nothing. Same honesty rule as `ai.request/cost.ts` — see [Provider credentials](../fixlang-provider-credentials/SKILL.md).
+Overview's Total-tokens card carries an N/A-aware estimated cost hint (`overviewCostView.ts`): partial coverage renders "Est. $X · N of M priced" rather than pretending unpriced transforms cost nothing. Same honesty rule as `ai.request/cost.ts` — see [Providers](../fixlang-provider/SKILL.md).

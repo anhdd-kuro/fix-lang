@@ -5,6 +5,7 @@
  * network; electron-store is replaced with a stateful in-memory mock so
  * get/set round-trip within a test.
  */
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 // Stateful mock of electron-store: get/set operate over an in-memory object
 // so seeded profiles/currentProfileId are readable by the real apiStore.ts
@@ -70,9 +71,11 @@ import { DEFAULT_PERFECT_PROMPT_COMBO_ID } from "~/prompts";
 import {
   DEFAULT_ASK_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
+  DEFAULT_CAVEMAN_PRESET_ID,
   DEFAULT_STRUCTURED_TEXT_PRESET_ID,
 } from "~/prompts/correction";
 import type {
+  CorrectionPreset,
   CorrectionSettings,
   Model,
   Profile,
@@ -763,7 +766,7 @@ describe("apiStoreSchema — model defaults are the inherit sentinel", () => {
   });
 });
 
-describe("apiStoreSchema — settingsCorrect default carries all seven built-in presets", () => {
+describe("apiStoreSchema — settingsCorrect default carries all eight built-in presets", () => {
   const settingsCorrectSchema = (
     apiStoreSchema.profiles.items.properties.settings as {
       properties: {
@@ -785,12 +788,12 @@ describe("apiStoreSchema — settingsCorrect default carries all seven built-in 
 
   const presetItemSchema = settingsCorrectSchema.properties.presets.items;
 
-  it("the presets array-item schema default carries 7 presets", () => {
-    expect(settingsCorrectSchema.properties.presets.default).toHaveLength(7);
+  it("the presets array-item schema default carries 8 presets", () => {
+    expect(settingsCorrectSchema.properties.presets.default).toHaveLength(8);
   });
 
-  it("the settingsCorrect object default also carries 7 presets", () => {
-    expect(settingsCorrectSchema.default.presets).toHaveLength(7);
+  it("the settingsCorrect object default also carries 8 presets", () => {
+    expect(settingsCorrectSchema.default.presets).toHaveLength(8);
   });
 
   it("both schema default nodes equal getDefaultCorrectionSettings().presets field-for-field", () => {
@@ -844,6 +847,59 @@ describe("apiStoreSchema — settingsCorrect default carries all seven built-in 
       "systemPrompt",
       "model",
     ]);
+  });
+
+  it("declares extraOptions as a wholly EMPTY node — not even a type", () => {
+    // `extraOptions` holds per-preset option values whose validity is decided
+    // in code by `sanitizePresetOptions`. EVERY keyword here is a constraint a
+    // stored value can fail, and under `clearInvalidConfig: true` a failure
+    // wipes every profile, preset and key reference — so `type` is no safer
+    // than an `enum`, a `properties`/`required` pair or an
+    // `additionalProperties: false`. This assertion is the shape pin; the
+    // behavioural proof is the real-`Conf` hand-edit round trip further down,
+    // because a shape assertion alone is what let `{ type: "object" }` ship.
+    expect(presetItemSchema.properties.extraOptions).toEqual({});
+    // `toEqual({})` alone passes for `{ type: undefined }`; this is the pin
+    // that the node carries no keyword whatsoever.
+    expect(
+      Object.keys(
+        presetItemSchema.properties.extraOptions as Record<string, unknown>,
+      ),
+    ).toEqual([]);
+    expect(presetItemSchema.required).not.toContain("extraOptions");
+    expect(presetItemSchema.required).toEqual([
+      "id",
+      "name",
+      "hotkey",
+      "systemPrompt",
+      "model",
+    ]);
+  });
+
+  it("spells the clearInvalidConfig reason out beside the extraOptions node", () => {
+    // The node's safety is a property of the SOURCE, not the object: a future
+    // edit that tightens it will read the comment first only if the comment is
+    // still there. Pinning it here is what makes deleting it a test failure.
+    const source = readFileSync(
+      new URL("./apiStore.ts", import.meta.url),
+      "utf8",
+    );
+    const nodeIndex = source.indexOf("extraOptions: {}");
+    expect(nodeIndex).toBeGreaterThan(-1);
+
+    // Bounded by the previous property rather than a character count, so
+    // growing or shrinking the comment cannot silently move it out of view.
+    const commentStart = source.lastIndexOf("markdownOutput:", nodeIndex);
+    expect(commentStart).toBeGreaterThan(-1);
+    const precedingComment = source.slice(commentStart, nodeIndex);
+
+    expect(precedingComment).toContain("clearInvalidConfig");
+    expect(precedingComment).toContain("sanitizePresetOptions");
+    // The reason the node is EMPTY rather than merely un-enumerated. Without
+    // this, the comment could be reverted to the old "bare `{ type: object }`"
+    // wording that read as safe while wiping the store.
+    expect(precedingComment).toContain("EMPTY");
+    expect(precedingComment).toContain("`type`");
   });
 
   it("declares NO enum anywhere under the presets item schema", () => {
@@ -988,25 +1044,190 @@ describe("apiStoreSchema — settingsCorrect default carries all seven built-in 
 // `b35973f5513e0daf8214f962864565f591e508e35c9d83ede1b23e1cb8df9fb8`. So no
 // constraint, no `enum`, no `required` entry and no other property moved.
 //
-// Updated again for autocomplete's scope fields: +196 bytes, each insertion
-// occurring once, stripping both reproduces
-// `e4ef031251d8341ccbea3975a8aa12c00e159b5dbac92ea60c07349f22c47dec`. The new
-// bare-type constraints are `clearInvalidConfig`-safe because no installed
-// profile can already hold these three keys at the wrong type.
-//
-// Updated once more to SEED `excludedApps` in `settingsAutocomplete`'s
-// whole-node default, and to SPLIT the old dual-meaning `scopedApps` into
-// `allowedApps` + `excludedApps`. Still no new constraint — two bare-type
-// leaves replace one, and only default VALUES changed, so the
-// `clearInvalidConfig` risk is unchanged. The split is the fix for a real
-// inversion: one list seeded with password managers reads as "run ONLY in
-// 1Password" the moment the mode is `allowlist`, which is the default. Verified
-// the same empirical way: the two-leaf form occurs exactly once, the
-// `"allowedApps":[],"excludedApps":<seeded list>` default occurs exactly once,
-// and collapsing both back to the single `scopedApps` form reproduces the
-// previous snapshot
-// `490c7d5d2841ae467b4c123ce06d82a4e7d4b231535ef9960069a06272c589d0`
+// Updated again for the preset option registry's `extraOptions` node. ONE
+// optional property was added under `settingsCorrect.presets.items.properties`,
+// as a bare `{ type: "object" }` — no `enum`, no `properties`, no
+// `additionalProperties`, no `default`, and NOT added to `required`. The two
+// `default` nodes did not move at all: no built-in declares an option, so
+// `getDefaultCorrectionSettings()` still serialises byte-for-byte as before.
+// Verified rather than assumed, the same empirical way as every update above:
+// the serialised schema grew by exactly 33 bytes,
+// `,"extraOptions":{"type":"object"}` (33) occurs exactly once, and deleting
+// just that substring reproduces the previous snapshot
+// `e4ef031251d8341ccbea3975a8aa12c00e159b5dbac92ea60c07349f22c47dec`
 // byte-for-byte.
+//
+// Updated once more for the Caveman built-in. NO schema node changed at all
+// this time: the only delta is the two `default` nodes, which now carry an
+// eighth preset. A default is not a constraint, so nothing new can be
+// rejected. Verified rather than assumed, the same empirical way as every
+// update above: the serialised schema grew by exactly 4532 bytes, the
+// serialised Caveman preset object (2266 bytes, comma included) occurs exactly
+// twice — once under `presets.default`, once under `settingsCorrect.default` —
+// and deleting both occurrences reproduces the previous snapshot
+// `c01b069336463d60ffc19394ee80990c859730724bbe9286221301260071eeac`
+// byte-for-byte.
+//
+// Updated again to EMPTY the `extraOptions` node — `{ type: "object" }` became
+// `{}`. This one RELAXES the schema, the only direction that is safe under
+// `clearInvalidConfig: true`: it removes a constraint, so every config that
+// validated before still validates, and three that did not now do too.
+// `type` was itself a validation — a hand-edited `"extraOptions": "ultra"`
+// (or `null`, or `["ultra"]`) failed it, and `conf` answers a failed
+// validation by deleting the config file. That is not a dropped field, it is
+// every profile, preset, hotkey and encrypted key slot gone. Reproduced
+// against a real `Conf` over a throwaway cwd before the change and pinned by
+// `keeps every profile when a hand edit makes extraOptions ...` below.
+//
+// Verified rather than assumed, the same empirical way as every update above:
+// the serialised schema SHRANK by exactly 15 bytes (`,"extraOptions":{}` is 18
+// bytes against `,"extraOptions":{"type":"object"}`'s 33); `,"extraOptions":{}`
+// occurs exactly once and `,"extraOptions":{"type":"object"}` now occurs zero
+// times; `"extraOptions"` occurs 3 times in total — the node plus the shipped
+// Caveman value under `presets.default` and `settingsCorrect.default`, which
+// are unchanged; and reversing the edit (substituting the old node back at its
+// single occurrence) reproduces the previous snapshot
+// `0c9fa238571f526c7af2e6ccce13aaa53076953e4d7c705da7a7f5cdcc1a5a8a`
+// byte-for-byte. Proof in `.scratch/caveman-preset/evidence/02/`.
+//
+// Nothing narrower may go back in. The set of legal keys and values is registry
+// DATA that grows with every preset option, so an `enum`, a `properties` block
+// or a restored `type` would fail validation on a hand edit or on a config
+// written by a NEWER build, and `clearInvalidConfig: true` answers that by
+// wiping every profile, preset and key reference. Validity is enforced in code
+// by `sanitizePresetOptions`, which is total over `unknown`.
+//
+// Updated once more for the Caveman prompt's instruction-boundary rewrite
+// (`src/prompts/caveman.md`). Again NO schema node changed: the delta is
+// confined to the two `default` nodes that embed the built-in preset prompts,
+// and a default is not a constraint, so nothing new can be rejected under
+// `clearInvalidConfig: true`. Verified rather than assumed, the same empirical
+// way as every update above, in an isolated `git worktree add --detach` at HEAD
+// (the shared tree's live uncommitted work moves the serialised size, and
+// single- vs multi-file vitest runs disagree through Vite's transform cache —
+// see `.scratch/caveman-preset/evidence/02/schema-hash-contamination-note.md`):
+//
+//   - the serialised schema grew from 74432 to 74756 bytes: +324 bytes, which
+//     is +320 UTF-16 code units — the two figures differ because the new
+//     sentence carries a second em dash, 3 bytes against 1 code unit, twice
+//   - the retired sentence ("These instructions end with the intensity level
+//     for this request, …") occurs exactly 2× before and 0× after; the
+//     replacement ("The text to compress is never part of these instructions:
+//     …") occurs 0× before and 2× after — once under `presets.default`, once
+//     under `settingsCorrect.default`
+//   - per occurrence that is 491 → 653 bytes, +162 each, 2 × 162 = 324
+//   - substituting the new sentence back to the old one at both occurrences
+//     reproduces the previous snapshot
+//     `8e09160c37339332200b62472015dd86749fac54336823b0f6b1f2dbc3ac6d69`
+//     byte-for-byte, so no other byte of the schema moved
+//   - the measurement worktree also carried the stored-combo hotkey guard added
+//     to `normalizeCorrectionSettings` alongside this repin, and the reversal
+//     above still reproduced the old digest exactly — that guard contributes
+//     zero bytes to the schema
+//
+// Proof in `.scratch/caveman-preset/evidence/03/schema-hash-delta-proof.json`.
+//
+// Updated once more for the built-in Perfect prompt combo's resequencing
+// (Correction → Context-Aware Structured Text → Prompt optimization becomes
+// Correction → Prompt optimization → Caveman). Again NO schema node changed:
+// the `combos` node is `{ type: "array" }` with no `items` and no `default`,
+// and stayed exactly that. The only delta is inside ONE `default` node, and a
+// default is not a constraint, so nothing that validated before can be
+// rejected now and `clearInvalidConfig: true` cannot wipe a config over it.
+//
+// ONE occurrence, not two, unlike every preset-shaped update above: the
+// defaults embed combos only through `settingsCorrect.default`
+// (`getDefaultCorrectionSettings()`). `presets.default` is
+// `makeDefaultCorrectionPresets()`, which carries no combos at all. Confirmed
+// empirically rather than reasoned — the legacy step list occurs exactly once.
+//
+// Verified the same empirical way as every update above, in an isolated
+// `git worktree add --detach` at HEAD carrying only this card's `apiStore.ts`
+// (the shared tree held another agent's live renderer edits — see
+// `.scratch/caveman-preset/evidence/02/schema-hash-contamination-note.md`):
+//
+//   - the serialised schema SHRANK from 74756 to 74748 bytes: -8, which is the
+//     step list going from 180 to 172 bytes at its single occurrence
+//     (step 2's `structured-text` → `prompt-optimization` is +4, then step 3's
+//     `prompt-optimization` → `caveman` is -12)
+//   - the legacy step list occurs 1× before and 0× after; the resequenced one
+//     0× before and 1× after
+//   - `"structured-text"` occurs 3× before and 2× after; `"caveman"` 2× before
+//     and 3× after
+//   - substituting the new step list back to the old one at that single
+//     occurrence reproduces the previous snapshot
+//     `9a174450a26ef45fbfdaf03ac173458bb7793b292af2eaff5cb6d61be32d4cf9`
+//     byte-for-byte (74756 bytes again), so no other byte of the schema moved
+//
+// Proof in `.scratch/caveman-preset/evidence/05/schema-hash-delta-proof.json`.
+//
+// Updated once more when the resequencing became ONE-SHOT: `ComboPreset`
+// widened from `schemaVersion: 1` to `1 | 2`, and `makeDefaultCombos()` now
+// ships the built-in already at `2`.
+//
+// The widening does NOT reach the schema, and that is the whole safety
+// argument. There is no per-combo schema to widen: `combos` is
+// `{ type: "array" }` — no `items`, no `default` — before and after, verified
+// object-identically, so nothing an old build reads can be REJECTED for
+// carrying a `2` it does not know. Stripping every `default` node from both
+// serialisations makes them byte-identical, which is the direct proof that no
+// schema NODE moved at all. A `default` cannot reject a stored value, so
+// `clearInvalidConfig: true` has nothing to wipe over, and a downgrade to a
+// build that predates version 2 reads `schemaVersion: 2` through
+// `sanitizeCombo` (code, not schema), which simply clamps it — the old build
+// would re-offer the resequencing, which is exactly the old behaviour, not a
+// data loss.
+//
+// The delta is ONE character inside `settingsCorrect.default`, measured in an
+// isolated `git worktree add --detach` at HEAD carrying only this card's
+// `apiStore.ts` (the shared tree holds other agents' live edits — see
+// `.scratch/caveman-preset/evidence/02/schema-hash-contamination-note.md`).
+// The probe reproduced the previous snapshot
+// `7de267d3b16f1a5916aa6562aa6d3ed8ac39b8f640e28327830b34336c121ed1`
+// from an untouched checkout first, which is what makes its post-change number
+// trustworthy:
+//
+//   - the serialised schema is 74748 bytes BOTH before and after — a 0-byte
+//     delta, because `1` and `2` are the same width
+//   - `"schemaVersion"` occurs exactly ONCE in the whole serialisation, at
+//     index 73241, inside `settingsCorrect.default.combos[0]`. `"…":1` goes
+//     1× → 0× and `"…":2` goes 0× → 1×
+//   - `settingsCorrect.properties` is byte-identical before and after; only
+//     `settingsCorrect.default` differs
+//   - substituting that single `2` back to `1` reproduces
+//     `7de267d3b16f1a5916aa6562aa6d3ed8ac39b8f640e28327830b34336c121ed1`
+//     byte-for-byte, so no other byte of the schema moved
+//
+// Proof in `.scratch/caveman-preset/evidence/05-fix/schema-hash-delta-proof.json`
+// and `.../schema-node-analysis.txt`.
+//
+// Updated for autocomplete's scope fields, merged on top of everything above.
+// Four bare-type leaves join `settingsAutocomplete.properties` — `scopeMode`,
+// `allowedApps`, `excludedApps`, `cloudScopeConsent` — and the whole-node
+// `default` gains the same four, with `excludedApps` SEEDED from
+// `DEFAULT_EXCLUDED_BUNDLE_IDS` while `allowedApps` starts EMPTY. That asymmetry
+// is the point: the exclusions are the fail-closed list and must ship populated,
+// whereas a seeded allow-list would start the fail-closed mode open. The seed is
+// also why the default cannot be written as `[]` — it has to keep agreeing with
+// `normalizeExcludedApps`, which reads `[]` as "the user cleared it".
+//
+// No `enum`, no `items`, no `required` entry, so `clearInvalidConfig` still has
+// nothing to wipe over: no installed profile can hold these four keys at the
+// wrong type, because no shipped build has ever written them.
+//
+// Derived, not assumed, and derived against the MERGED schema rather than
+// either parent — this branch and `main` both edited this node's neighbourhood,
+// so a hash carried over from either side would be wrong:
+//
+//   - the merged serialisation is 74860 bytes and hashes to
+//     `ce4fae55c446a983e36dd8c25e078481d3f37b89dbbe6d62817cd661ba09d6a5`
+//   - the properties insertion (166 bytes) occurs exactly ONCE, and the default
+//     insertion (364 bytes) exactly ONCE
+//   - deleting just those two substrings leaves 74330 bytes — 74860 − 166 − 364,
+//     so nothing else moved — and reproduces `main`'s snapshot
+//     `b78c6b4141412b66cc6cc23ddf8faa464df6373ac5a6cf28bd70f2dd7e44f860`
+//     byte-for-byte, which is what proves the merge preserved `extraOptions`
+//     and the `schemaVersion` bump intact.
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
@@ -1015,7 +1236,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "2b14e5b23af27c6321d1e7f17e6e6f1164c3b37a6d6e6245d29caa663b1b9239",
+      "ce4fae55c446a983e36dd8c25e078481d3f37b89dbbe6d62817cd661ba09d6a5",
     );
   });
 
@@ -1177,23 +1398,24 @@ describe("resetCurrentProfileSettings — preserves apiKey, models and enabledPr
   });
 });
 
-describe("createProfile — yields all 7 built-in presets", () => {
+describe("createProfile — yields all 8 built-in presets", () => {
   beforeEach(() => {
     apiStore.set("profiles", []);
     apiStore.set("currentProfileId", "");
   });
 
-  it("creates a profile whose settingsCorrect.presets equals the default 7 built-ins", () => {
+  it("creates a profile whose settingsCorrect.presets equals the default 8 built-ins", () => {
     const profile = createProfile("New Profile");
 
     expect(profile.settings.settingsCorrect.presets).toEqual(
       getDefaultCorrectionSettings().presets,
     );
-    expect(profile.settings.settingsCorrect.presets).toHaveLength(7);
+    expect(profile.settings.settingsCorrect.presets).toHaveLength(8);
     const ids = profile.settings.settingsCorrect.presets.map((p) => p.id);
     expect(ids).toContain(DEFAULT_BUSINESS_WRITING_PRESET_ID);
     expect(ids).toContain(DEFAULT_STRUCTURED_TEXT_PRESET_ID);
     expect(ids).toContain(DEFAULT_ASK_PRESET_ID);
+    expect(ids).toContain(DEFAULT_CAVEMAN_PRESET_ID);
   });
 });
 
@@ -1684,6 +1906,167 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
           readBack[0].settings.settingsCorrect,
         ).combos?.map((combo) => combo.id),
       ).toEqual([DEFAULT_PERFECT_PROMPT_COMBO_ID]);
+    } finally {
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  // The CONTAINER type is itself a validation, and `clearInvalidConfig: true`
+  // answers a failed validation by deleting the config file. `extraOptions`
+  // holds string values and is advertised as hand-editable, so writing
+  // `"extraOptions": "ultra"` instead of `{"cavemanMode": "ultra"}` is the
+  // most natural wrong edit there is — and under a `{ type: "object" }` node it
+  // costs the user every profile, preset, hotkey and encrypted key slot.
+  //
+  // This is the regression check for that node, and it has to be a REAL `Conf`
+  // round trip driven by a real HAND EDIT of the file: the app itself never
+  // writes a non-object here, so `store.set()` is the wrong verb — it throws
+  // synchronously and never reaches the validate-on-read path that does the
+  // damage. Asserting the absence of an `enum` on the node is what let this
+  // through the first time; `type` is the keyword that fires.
+  it.each([
+    ["a string", "ultra"],
+    ["null", null],
+    ["an array", ["ultra"]],
+  ])(
+    "keeps every profile when a hand edit makes extraOptions %s",
+    async (_label, garbage) => {
+      const { default: Conf } = await import("conf");
+      const fs = await import("node:fs");
+      const os = await import("node:os");
+      const path = await import("node:path");
+      const cwd = fs.mkdtempSync(
+        path.join(os.tmpdir(), "fixlang-apistore-options-shape-"),
+      );
+
+      try {
+        const openStore = (): InstanceType<typeof Conf<{ profiles: Profile[] }>> =>
+          new Conf<{ profiles: Profile[] }>({
+            cwd,
+            configName: "config",
+            clearInvalidConfig: true,
+            schema: apiStoreSchema,
+          });
+
+        const profile = buildProfile({
+          settings: buildSettings({
+            settingsCorrect: {
+              selectedPresetId: DEFAULT_CAVEMAN_PRESET_ID,
+              presets: [
+                {
+                  id: DEFAULT_CAVEMAN_PRESET_ID,
+                  name: "Caveman",
+                  hotkey: "Control+Shift+C",
+                  systemPrompt: "Compress it.",
+                  model: "",
+                  isBuiltIn: true,
+                  extraOptions: { cavemanMode: "ultra" },
+                },
+              ],
+            },
+          }),
+        });
+
+        const seeded = openStore();
+        seeded.set("profiles", [profile]);
+        seeded.set("currentProfileId", profile.id);
+
+        // The hand edit: replace the option OBJECT with a bare value, exactly
+        // as a user reaching for `"extraOptions": "ultra"` would.
+        const configPath = path.join(cwd, "config.json");
+        const onDisk = JSON.parse(fs.readFileSync(configPath, "utf8")) as {
+          profiles: { settings: { settingsCorrect: CorrectionSettings } }[];
+        };
+        const editedPreset =
+          onDisk.profiles[0].settings.settingsCorrect.presets[0];
+        expect(editedPreset.extraOptions).toEqual({ cavemanMode: "ultra" });
+        editedPreset.extraOptions =
+          garbage as unknown as CorrectionPreset["extraOptions"];
+        fs.writeFileSync(configPath, JSON.stringify(onDisk, null, "\t"));
+
+        // Reopening is what a relaunch does, and it is where
+        // `clearInvalidConfig` decides whether to delete the whole file.
+        const reopened = openStore();
+        const readBack = reopened.get("profiles", []);
+
+        expect(readBack).toHaveLength(1);
+        expect(readBack[0].id).toBe(profile.id);
+        // Not just the count: the sibling state a wipe would take with it.
+        expect(reopened.get("currentProfileId")).toBe(profile.id);
+        expect(readBack[0].settings.settingsCorrect.presets[0].hotkey).toBe(
+          "Control+Shift+C",
+        );
+        // Narrowed in code instead — the garbage never reaches a consumer.
+        expect(
+          normalizeCorrectionSettings(
+            readBack[0].settings.settingsCorrect,
+          ).presets.find((preset) => preset.id === DEFAULT_CAVEMAN_PRESET_ID),
+        ).not.toHaveProperty("extraOptions");
+      } finally {
+        fs.rmSync(cwd, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it("keeps a profile whose stored extraOptions is unrecognized instead of wiping every profile", async () => {
+    // The same enum trap, one node over. Legal option keys and values are
+    // registry DATA, so a config written by a NEWER build carries keys this
+    // build has never heard of. Under an `enum` or a `properties` block that is
+    // a validation failure, and `clearInvalidConfig: true` answers a validation
+    // failure by dropping every profile, preset and key reference. It must
+    // survive the engine and be narrowed in code by `sanitizePresetOptions`.
+    const { default: Conf } = await import("conf");
+    const fs = await import("node:fs");
+    const os = await import("node:os");
+    const path = await import("node:path");
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "fixlang-apistore-options-"));
+
+    try {
+      const realStore = new Conf<{ profiles: Profile[] }>({
+        cwd,
+        configName: "config",
+        clearInvalidConfig: true,
+        schema: apiStoreSchema,
+      });
+
+      const profile = buildProfile({
+        settings: buildSettings({
+          settingsCorrect: {
+            selectedPresetId: "correction",
+            presets: [
+              {
+                id: "correction",
+                name: "Correction",
+                hotkey: "Control+Shift+F",
+                systemPrompt: "Fix it.",
+                model: "",
+                isBuiltIn: true,
+                extraOptions: {
+                  optionFromAFutureBuild: "some-value",
+                  cavemanMode: "banana",
+                },
+              },
+            ],
+          },
+        }),
+      });
+
+      realStore.set("profiles", [profile]);
+      const readBack = realStore.get("profiles", []);
+
+      expect(readBack).toHaveLength(1);
+      expect(readBack[0].settings.settingsCorrect.presets[0].extraOptions).toEqual({
+        optionFromAFutureBuild: "some-value",
+        cavemanMode: "banana",
+      });
+      // The code-level funnel is what removes it: `correction` declares no
+      // options, so the normalized preset carries no key at all.
+      const normalized = normalizeCorrectionSettings(
+        readBack[0].settings.settingsCorrect,
+      );
+      expect(
+        normalized.presets.find((preset) => preset.id === "correction"),
+      ).not.toHaveProperty("extraOptions");
     } finally {
       fs.rmSync(cwd, { recursive: true, force: true });
     }
