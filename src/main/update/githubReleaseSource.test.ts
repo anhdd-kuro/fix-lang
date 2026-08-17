@@ -283,6 +283,68 @@ describe("GitHub release source", () => {
       );
     });
 
+    /**
+     * GitHub may describe a `next` page by repository ID rather than echoing
+     * the `/repos/<owner>/<repo>/releases` path that was requested. Matching
+     * only the requested spelling treated that legitimate link as hostile,
+     * which stopped the scan at page one and reported "no beta" while one sat
+     * on a later page.
+     */
+    it("follows a next link that names the collection by repository ID", async () => {
+      const page1 = listResponse(
+        [validPrereleaseItem("v1.0.0-beta.1", { draft: true })],
+        '<https://api.github.com/repositories/123456789/releases?per_page=100&page=2>; rel="next"',
+      );
+      const page2 = listResponse([validPrereleaseItem("v0.9.0-beta.1")]);
+      const fetchLatest = vi
+        .fn()
+        .mockResolvedValueOnce(page1)
+        .mockResolvedValueOnce(page2);
+      const source = createGitHubReleaseSource(fetchLatest);
+
+      const result = await source.getLatestPrerelease();
+
+      expect(result?.version.raw).toBe("0.9.0-beta.1");
+      expect(fetchLatest).toHaveBeenCalledTimes(2);
+      // Followed by PAGE NUMBER only: the request is rebuilt from this
+      // module's own constant, so the by-ID path is never fetched.
+      expect(fetchLatest).toHaveBeenNthCalledWith(
+        2,
+        `${RELEASE_LIST_URL}?per_page=100&page=2`,
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    });
+
+    /**
+     * The widened match above accepts a repository ID this module cannot check
+     * against its own repo. That is only safe because a matched link decides
+     * whether to keep paging and never where the request goes — so a header
+     * naming a FOREIGN repository still cannot move the scan off this endpoint.
+     */
+    it("rebuilds the next request from its own constant, not the header's path", async () => {
+      const page1 = listResponse(
+        [validPrereleaseItem("v1.0.0-beta.1", { draft: true })],
+        '<https://api.github.com/repositories/999999999/releases?per_page=5&page=3>; rel="next"',
+      );
+      const fetchLatest = vi
+        .fn()
+        .mockResolvedValueOnce(page1)
+        .mockResolvedValueOnce(listResponse([]));
+      const source = createGitHubReleaseSource(fetchLatest);
+
+      await source.getLatestPrerelease();
+
+      expect(fetchLatest).toHaveBeenNthCalledWith(
+        2,
+        `${RELEASE_LIST_URL}?per_page=100&page=3`,
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+      for (const [url] of fetchLatest.mock.calls) {
+        expect(url).toContain("/repos/anhdd-kuro/fix-lang/releases");
+        expect(url).not.toContain("/repositories/");
+      }
+    });
+
     it("stops paging at the page budget even if the Link header keeps offering a next page", async () => {
       const alwaysNextPage = () =>
         listResponse(

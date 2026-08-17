@@ -103,19 +103,64 @@ export type GitHubReleaseSource = Readonly<{
 const isReleaseListUrl = (candidate: string): boolean => {
   try {
     const parsed = new URL(candidate);
-    return `${parsed.origin}${parsed.pathname}` === GITHUB_RELEASE_LIST_URL;
+    if (`${parsed.origin}${parsed.pathname}` === GITHUB_RELEASE_LIST_URL) {
+      return true;
+    }
+    /**
+     * GitHub's other spelling of the same collection. A paginated response may
+     * describe its own `next` link by repository ID —
+     * `/repositories/<id>/releases` — rather than echoing the
+     * `/repos/<owner>/<repo>/releases` path that was requested. Matching only
+     * the requested spelling made a legitimate `next` look hostile, stopping
+     * the scan at page one and reporting "no beta" while one sat on a later
+     * page.
+     *
+     * `<id>` is NOT checked against this repository, because nothing here
+     * knows its numeric ID — and it does not need to. Per `nextPageUrl`, a
+     * matched link only decides whether to KEEP PAGING, never where the
+     * request goes, so a header naming a foreign repository ID cannot
+     * redirect the scan.
+     */
+    return (
+      parsed.origin === new URL(GITHUB_RELEASE_LIST_URL).origin &&
+      /^\/repositories\/\d+\/releases$/.test(parsed.pathname)
+    );
   } catch {
     return false;
   }
 };
 
-/** Follows GitHub's `Link` header to the next page's URL, or null past the last page. */
+/**
+ * The next page's number, or null when the target is not this collection or
+ * carries no usable `page`. Deliberately a NUMBER rather than a URL — see
+ * `nextPageUrl`.
+ */
+const nextPageNumber = (candidate: string): number | null => {
+  if (!isReleaseListUrl(candidate)) return null;
+  const raw = new URL(candidate).searchParams.get("page");
+  if (raw === null || !/^\d+$/.test(raw)) return null;
+  const page = Number(raw);
+  return Number.isSafeInteger(page) && page > 1 ? page : null;
+};
+
+/**
+ * The next page's URL, or null past the last page.
+ *
+ * Rebuilt from this module's own constant using nothing from the header but a
+ * validated page NUMBER, so no request URL is ever composed out of response
+ * data. That is what lets `isReleaseListUrl` accept GitHub's by-ID spelling
+ * without knowing this repository's ID: the widened match can only let the
+ * scan continue, and every continuation goes to the endpoint spelled out here.
+ */
 const nextPageUrl = (linkHeader: string | null): string | null => {
   if (!linkHeader) return null;
   for (const part of linkHeader.split(",")) {
     const match = /<([^>]+)>\s*;\s*rel="next"/.exec(part.trim());
     if (!match) continue;
-    if (isReleaseListUrl(match[1])) return match[1];
+    const page = nextPageNumber(match[1]);
+    if (page !== null) {
+      return `${GITHUB_RELEASE_LIST_URL}?per_page=${RELEASE_LIST_PAGE_SIZE}&page=${page}`;
+    }
     logger.warn(
       LOG_SCOPE,
       "Ignored a release-list Link header pointing away from the release-list endpoint",

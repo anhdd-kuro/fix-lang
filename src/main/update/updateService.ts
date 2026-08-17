@@ -414,13 +414,26 @@ export const createUpdateService = (
    * stable release is `revertToStable`, which uninstalls the beta token
    * rather than upgrading a cask that was never installed.
    *
+   * `"both"` is refused for the same reason the pre-release flow refuses it:
+   * with both tokens staged, ownership of `/Applications/FixLang.app` is
+   * ambiguous, and `brew upgrade --cask fixlang` would act on a bundle the
+   * beta cask also claims. Letting the ordinary button through there was the
+   * asymmetry — the switch and revert paths both refuse `"both"` and say so,
+   * while this one proceeded and would fail only AFTER the app had quit.
+   *
+   * Requiring exactly `"stable"` costs nothing for an undetectable channel:
+   * `canInstall` already needs the BOUND token's Caskroom to exist, and the
+   * probe returns `null` only when brew itself could not be resolved — the
+   * same condition that makes `upgrader.canInstall` false. So `null` here is
+   * unreachable while this expression's earlier terms hold.
+   *
    * Probed only once a cask install exists at all, so an unsupported build
    * still never touches the Caskroom.
    */
   const canInstall =
     supported &&
     (options.upgrader?.canInstall ?? false) &&
-    (options.detectActiveCaskChannel?.() ?? null) !== "beta";
+    (options.detectActiveCaskChannel?.() ?? null) === "stable";
   const listeners = new Set<(state: UpdateState) => void>();
   const now = options.now ?? Date.now;
   const schedulePoll = options.schedulePoll ?? defaultSchedulePoll;

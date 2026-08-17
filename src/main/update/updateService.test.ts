@@ -1367,6 +1367,32 @@ describe("pre-release channel discovery", () => {
     expect(releaseSource.getLatestPrerelease).not.toHaveBeenCalled();
   });
 
+  /**
+   * The switch and revert paths both refuse `"both"` and say why, so the
+   * ORDINARY Update button refusing it too is what makes the three
+   * consistent. It used to proceed: `canInstall` excluded only `"beta"`, so
+   * with both tokens staged the button ran `brew upgrade --cask fixlang`
+   * against a bundle the beta cask also claims — and because the app quits
+   * before brew acts, the failure landed after there was any UI left to
+   * report it.
+   */
+  it("withholds one-click from the ordinary flow while both casks are staged", async () => {
+    const { service, startUpgrade, downloadUpdate } = createService({
+      canInstall: true,
+      activeChannel: "both",
+      currentVersion: "0.1.0",
+      installableVersion: "0.2.0",
+    });
+
+    expect(service.getState().canInstall).toBe(false);
+
+    const result = await service.installUpdate();
+
+    expect(result.success).toBe(false);
+    expect(startUpgrade).not.toHaveBeenCalled();
+    expect(downloadUpdate).not.toHaveBeenCalled();
+  });
+
   it("offers a beta without one-click for a manual DMG install, same as the ordinary flow", async () => {
     const candidate = prereleaseCandidate("0.2.0-beta.1", {
       releaseNotes: "Beta release notes.",
