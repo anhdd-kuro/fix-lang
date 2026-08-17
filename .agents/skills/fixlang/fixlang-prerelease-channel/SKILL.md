@@ -5,8 +5,34 @@ description: "Use when touching the pre-release channel or the revert-to-stable 
 
 # FixLang — Pre-release channel & revert traps
 
-Read [Release + Homebrew](../fixlang-release-homebrew/SKILL.md) first — everything
-there still applies. This file is only the part the **second** cask token adds.
+## Before your first edit (both of these are silent)
+
+- **`bun run test` + `bun run lint` is NOT a typecheck.** `lint` is ESLint-only
+  and there is no typecheck script; a type error surfaces first at
+  `bun run build`. An ES2024 `isWellFormed()` call passed **both** vitest and
+  eslint here while failing `tsc --noEmit` (TS2550). Run `bunx tsc --noEmit`.
+  Also: `bun run test`, never `bun test`.
+- **Never `bunx prettier --write` on these files.** There is no prettier config,
+  and `eslint.config.js` uses `eslint-config-prettier`, which *disables*
+  formatting rules rather than enforcing them — so prettier reformats against
+  its own defaults, wholesale, and buries the real diff. This is the one trap in
+  the feature with no detector and no recovery once it is in a commit.
+
+Read [Release + Homebrew](../fixlang-release-homebrew/SKILL.md) first. This file is
+only the part the **second** cask token adds — including two things that file owns
+and this one only points at:
+
+- **Concurrency.** Every Homebrew-driven operation in the app — stable install,
+  switch, revert — arbitrates on the **one** `installing` flag. A new one does not
+  get its own boolean. See "One in-flight flag" there.
+- **Release notes are untrusted input on both channels**, normalized by one shared
+  function. See "Untrusted release notes" there.
+
+**Do not read "everything there still applies" as covering the cask token.** That
+file predates the second token and still says `fixlang` where the code now takes a
+token parameter; TRAP 4 below is what actually applies. Wherever the two disagree
+about a token, this file wins — the certification above is about mechanism, not
+about which cask a path names.
 
 Two tokens, one at a time: `STABLE_CASK_TOKEN = "fixlang"`, `BETA_CASK_TOKEN =
 "fixlang@beta"` (`src/main/update/homebrew.ts`). Casks declare `conflicts_with`
@@ -61,10 +87,25 @@ wait for FixLang to exit  →  fetch target  →  uninstall CURRENT token
   for `apiStore` that is every profile, preset and key reference. SQLite history
   is the safe one (additive guarded `ALTER TABLE`). Consequence for anyone
   shipping a beta: a stored-shape change in a beta is a one-way door for users
-  who revert, and **the switch confirm dialog says nothing about it** — its
-  `settings.updates.prerelease.confirm.detail` is quit/download/reopen mechanics
-  only. Docs that credit the dialog with a compatibility warning are wrong; this
-  was a real docs defect, twice.
+  who revert.
+- **The confirm dialog is the ONE place that one-way door is disclosed, and the
+  catalog value is the source of truth for its wording.**
+  `settings.updates.prerelease.confirm.configWarning` is appended to
+  `confirm.detail` by `buildPrereleaseConfirmDetail` (`src/main/update/index.ts`);
+  `index.test.ts` pins that it is appended in both locales. Two rules, and this
+  feature has already made each mistake once:
+  - **Do not trim or delete that string.** No test asserts its *content* — only
+    that the key is appended — so cutting the risk sentence out of the catalog
+    value keeps the entire suite green. It is long because it is a disclosure,
+    not because someone pasted twice. (Routed follow-up: a test pinning the
+    content does not exist yet.)
+  - **Do not restate its wording in prose, here or in `AGENTS.md`.** The catalog
+    key owns the words; `README.md` carries the single user-facing retelling.
+    An earlier revision of THIS file asserted the dialog "says nothing about it"
+    and told the next agent that any doc crediting it with a compatibility
+    warning was a known recurring defect — true when written, false from the
+    commit that shipped the warning, and by then an instruction to revert the one
+    doc that was correct. Three prose copies of one sentence is what bought that.
 - Download happens **while the app is alive** (`brew fetch`), same as the stable
   path, so the no-app window is a local file move, not a multi-minute download.
 - **The uninstall window is real and was accepted knowingly.** Between uninstall
@@ -165,6 +206,14 @@ returning an **array**, with its own item-by-item validator
 - **Pre-release discovery is NOT part of the routine check.** It runs only on the
   explicit button press, so ordinary users never pay a second unauthenticated
   GitHub request per check (the rate limit is shared per address).
+- **The notes and asset fields this endpoint returns are the SAME untrusted input
+  the stable path takes**, and they go through the same
+  `src/main/update/releaseAsset.ts` — **one** definition of
+  `normalizeReleaseNotes`, imported by both channels, not a beta-path copy. Do
+  not re-fork it "for stable": the bidi strip and the truncation rules live there
+  and both channels depend on them. Rules and rendering traps:
+  [Release + Homebrew](../fixlang-release-homebrew/SKILL.md) → "Untrusted release
+  notes".
 
 ## TRAP 6 — the marker must tell a ROLLBACK apart from a success
 
@@ -218,16 +267,30 @@ way, and both look like tidying:
   published state being unparseable and hard-refuses; only a null `offered`
   proceeds. Do not fold them into `if (offered && target)`.
 
-## TRAP 8 — the dev loop does not typecheck, and prettier will eat the file
+## TRAP 8 — the pre-release IPC surface is a second state, and preload tests cannot see it
 
-- **`bun run lint` is ESLint-only and there is NO typecheck script.** A type
-  error surfaces first at `bun run build`. An ES2024 `isWellFormed()` call passed
-  **both** vitest and eslint while failing `tsc --noEmit` (TS2550). Run
-  `bunx tsc --noEmit` before calling anything in this area done.
-- **Do not run `bunx prettier --write` on these files.** There is no prettier
-  config, formatting is not lint-enforced, and it reformats them wholesale —
-  burying the real diff.
-- `bun run test`, never `bun test`.
+`registerUpdateHandlers` (`src/features/update/main/update.ts`) registers the
+stable channels **and** four pre-release invokes
+(`updates:prerelease:{get-state,check,switch,revert}`) plus a broadcast on
+`updates:prerelease-state` the tray deliberately never subscribes to. The
+renderer-facing shape is `PrereleaseState` with its own validator
+(`src/features/update/shared/prerelease.ts`) — a **second** state next to
+`UpdateState`, not an extension of it.
+
+- **A green preload test does not mean a handler exists.** The pre-release
+  registrar shipped as an exported function with **zero call sites**: every
+  channel was unregistered at runtime and Settings → Updates rejected on mount,
+  while the preload suite stayed green because it mocks `ipcRenderer.invoke`,
+  **and a mocked invoke resolves whether or not anything is listening**. It is
+  now private and registered from inside `registerUpdateHandlers` — `src/main`'s
+  single entry point — precisely so there is no second call site to forget.
+- Assert channel names as **literals** in the test, not by importing them from
+  the module under test; imported names agree with any typo they were meant to
+  catch.
+
+(The dev-loop traps that used to live here — no typecheck, no prettier — are now
+in "Before your first edit" at the top, because they apply before you open any
+of these files.)
 
 ## Known limitations — accepted, not oversights
 
@@ -239,7 +302,11 @@ way, and both look like tidying:
   silently absent for them. Not fixable in the renderer — the pair is ambiguous by
   construction. The correct fix is an `"unknown"` member on
   `PrereleaseActiveChannel` (`src/features/update/shared/prerelease.ts`), which
-  reopens the state/validator/panel work.
+  reopens the state/validator/panel work. **This one has a user-facing half**:
+  such a user can still install `fixlang@beta` by hand and then find no Revert
+  button. `README.md` → "Pre-release builds and reverting" carries the caveat and
+  the manual exit command; if this limitation is ever fixed or widened, that
+  README caveat moves with it.
 - **`release.yml`'s `v*.*.*` tag trigger also matches beta tags.** GitHub forbids
   `tags` and `tags-ignore` in the same `on.push`, and narrowing the stable glob
   would break the byte-frozen stable path. Cost is alarm fatigue only: the run
@@ -247,12 +314,6 @@ way, and both look like tidying:
   practice it rarely fires at all, because the beta tag is created via `gh api`
   under `GITHUB_TOKEN` and GitHub does not fire workflows for refs pushed with
   that token.
-- **`normalizeReleaseNotes` exists twice and the copies have DIVERGED.** The
-  shared leaf `src/main/update/releaseAsset.ts` backs off a split surrogate pair,
-  closes an open code fence and appends a truncation marker. The still-private
-  copy at `updateService.ts:304` does none of that. Deliberate and visible rather
-  than discovered: whoever migrates `updateService.ts` to the leaf inherits the
-  fix.
 - The `open -b` / one-bundle-id hazards from
   [Release + Homebrew](../fixlang-release-homebrew/SKILL.md) TRAP 0-A and 0b
   apply to channel switching **unchanged** — Homebrew tracks tokens and artifact
@@ -277,7 +338,23 @@ everything silently.
 Until that is configured, **any write-holder can publish an unreviewed public
 prerelease by pushing to `beta/anything`.** Mitigated in code, open in practice.
 
+**Owner and closing condition.** This item is stated in four places on purpose —
+`README.md` → "Publishing a pre-release" is where the repository owner can act,
+and the agent-facing copies (here, `AGENTS.md`, and the comment at
+`prerelease.yml`'s `release` job) exist so no agent assumes the gate works.
+`README.md` owns the status. **When the environment is created with required
+reviewers, edit all four in the same commit** — this heading, the `AGENTS.md`
+Pre-release trigger bullet, the README section, and the workflow comment — and
+say who reviews, not merely that a gate exists. A survivor of a partial edit
+reads as "the publish path is unreviewed" and will block a beta cut.
+
 ## Cutting a beta
+
+The step-by-step runbook, including the git commands, is `README.md` →
+"Publishing a pre-release" — that is the copy a human maintainer will find, so
+put procedure changes there, not here. **`README.md` carries the ordering
+constraint below too; if you change it, change both.** What follows is the part
+that only matters to someone reading the code.
 
 1. Branch `beta/<something>` off `main`.
 2. Set `package.json` version to `X.Y.Z-beta.N`. **Never merge that value back to
@@ -305,6 +382,9 @@ cask token exists.
       ORIGINAL token, and contains neither `--zap` nor `--force`
 - [ ] `trap - EXIT` still present in `abort_without_reopen`
 - [ ] Marker routing consults `fromVersion`, not the token alone
+- [ ] **No new in-flight boolean.** A new Homebrew-driven action arbitrates on
+      the existing `installing` claim — see [Release +
+      Homebrew](../fixlang-release-homebrew/SKILL.md) → "One in-flight flag"
 - [ ] `bunx tsc --noEmit` clean (lint will not tell you)
 - [ ] `bun run i18n:check` green — every new key needs a REAL Japanese
       translation; a byte-identical copy of the English is rejected
