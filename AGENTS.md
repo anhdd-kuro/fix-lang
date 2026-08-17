@@ -4,7 +4,7 @@
 
 Local macOS menu-bar app: fixes grammar and improves writing on selected text via AI (OpenAI, OpenRouter, Anthropic, AWS Bedrock, Ollama, LM Studio). Electron + React + TypeScript, runs on **bun**.
 
-Current release: **v0.33.0**.
+Current release: **v0.34.0**.
 
 ## Main Features
 
@@ -81,7 +81,17 @@ fix-lang/
 │   │   ├── update/         — Homebrew probe/fetch/upgrade + pending-update marker
 │   │   ├── profileChange.ts — single funnel for profile activation
 │   │   └── webViewWindows/ — main, promptGen, overlay, tray, askInput/askResult, error popup
-│   ├── renderer/           — React UI (MainWindow dashboard, TrayWindow, …)
+│   ├── renderer/           — React UI
+│   │   ├── components/     — SHARED UI primitives + the dashboard panels. Look here BEFORE
+│   │   │                     writing any control: Button, Select, SearchableSelect,
+│   │   │                     MultiSelect, Checkbox, Input, Dialog, HotkeyInput, ModelSelect,
+│   │   │                     ReasoningEffortSlider, CopyButton, MarkdownView, ChatTranscript,
+│   │   │                     …; sub-dirs about/, security/, usage/ hold that tab's screens
+│   │   ├── hooks/          — shared renderer hooks
+│   │   ├── i18n/           — I18nProvider, useI18n
+│   │   ├── analytics/, appearance/, themes/ — dashboard sections + generated theme tokens
+│   │   └── MainWindow/, TrayWindow/, AskInputWindow/, AskResultWindow/,
+│   │       CorrectionResultWindow/, PromptGenWindow/ — one root per BrowserWindow
 │   ├── preload/            — re-exports ~/features/preload; exposeInMainWorld entry
 │   └── prompts/            — bundled AI prompt assets (build-time)
 ├── scripts/                — bun CLIs: check-bundle-externals, i18n-check, theme gen
@@ -236,18 +246,19 @@ new Notification({
 
 ✅ Always:
 
-- Work in the work tree if the user does not ask for a new branch or directly mention a branch name.
-- Keep prompts bundled locally from `src/prompts/` — no runtime fetch.
-- Store SQLite/JSONL under `app.getPath("userData")` — never inside the signed bundle.
-- Use async I/O only in the main process.
-- Consider spawning sub-agents to avoid flooding the main agent context window.
-- Write gotchas in caveman style.
-- Anything unclear after exploring — use batch-grill-me before guessing.
-- Before declaring tasks done:
-  - Spawn fresh sub-agent to review the changes before committing.
-  - Run linting and testing to verify changes.
-  - Update AGENTS.md instructions if needed.
-- Use clear, descriptive function and variable names so the code is understandable without additional explanation. Prioritize readability through meaningful naming, straightforward structure, and small, focused functions.
+- Work in work tree unless user requests new branch or names branch.
+- Use shared components first: inspect `src/renderer/components/`; prefer control already used by same-panel siblings. Hand-rolled controls bypass theme tokens, i18n, and focus/keyboard behavior, with drift appearing on theme/locale changes. Extend shared component when needed; fork only with why-comment.
+- Bundle prompts locally from `src/prompts/`; no runtime fetch.
+- Store SQLite/JSONL under `app.getPath("userData")`; never signed bundle.
+- Use async I/O only in main process.
+- Consider sub-agents to reduce main-agent context load.
+- Write gotchas caveman-style.
+- If unclear after exploring, use batch-grill-me before guessing.
+- Before declaring done:
+  - Spawn fresh sub-agent to review changes before committing.
+  - Run linting and tests.
+  - Update AGENTS.md when needed.
+- Use clear, descriptive function/variable names. Prefer readable meaningful naming, straightforward structure, and small focused functions. Avoid comments unless explaining non-obvious intent, constraints, or decisions not expressible clearly in code.
 
 ⚠️ Ask first:
 
@@ -255,11 +266,10 @@ new Notification({
 
 🚫 Never:
 
-- Commit secrets, `.env`, `node_modules`, `out/`, `release/`, `coverage/`, or agent scratch space (`.scratch/`, `.claude/settings.local.json`) — all gitignored.
+- Commit secrets, `.env`, `node_modules`, `out/`, `release/`, `coverage/`, or agent scratch space (`.scratch/`, `.claude/settings.local.json`)—all gitignored.
 - Reintroduce pnpm or bypass preload IPC validation.
-- Use `any` without a why-comment.
+- Use `any` without why-comment.
 - Bump TypeScript to 7.x until ESLint support lands.
-- Comments to code unless they explain non-obvious intent, constraints, or decisions that cannot be expressed clearly in the code itself.
 
 ## CI
 

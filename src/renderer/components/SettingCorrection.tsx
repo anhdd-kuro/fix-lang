@@ -37,7 +37,6 @@ import { Input, Textarea } from "./Input";
 import { ModelSelect } from "./ModelSelect";
 import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
 import { SearchableSelect } from "./SearchableSelect";
-import { Select } from "./Select";
 import {
   plainStatus,
   wrappedError,
@@ -53,6 +52,7 @@ import type {
 
 type PresetOutputMode = NonNullable<CorrectionPreset["outputMode"]>;
 type PresetOutputModeOption = { value: PresetOutputMode; label: string };
+type PresetOptionChoice = { value: string; label: string };
 
 const PRESET_OUTPUT_MODE_FIELD_ID = "preset-output-mode";
 const PRESET_OUTPUT_MODE_CONTROL_ID = "preset-output-mode-control";
@@ -802,6 +802,21 @@ export const SettingCorrection: React.FC = () => {
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               {activePresetOptions.map((option) => {
                 const fieldId = `preset-option-${option.key}`;
+                const controlId = `preset-option-${option.key}-control`;
+                const choiceOptions: PresetOptionChoice[] = option.choices.map(
+                  (choice) => ({
+                    value: choice.value,
+                    label: t(choice.labelKey),
+                  }),
+                );
+                const resolvedValue = resolvePresetOptionValue(
+                  activePreset,
+                  option.key,
+                );
+                const selectedChoiceOption =
+                  choiceOptions.find(
+                    (choiceOption) => choiceOption.value === resolvedValue,
+                  ) ?? null;
 
                 return (
                   <div key={option.key} className="flex flex-col gap-2">
@@ -811,25 +826,23 @@ export const SettingCorrection: React.FC = () => {
                     >
                       {t(option.labelKey)}
                     </label>
-                    <Select
-                      id={fieldId}
-                      name={fieldId}
-                      value={resolvePresetOptionValue(activePreset, option.key)}
-                      onChange={(event) =>
-                        updatePresetOption(
-                          activePreset.id,
-                          option.key,
-                          event.target.value,
-                        )
-                      }
-                      className="w-full"
-                    >
-                      {option.choices.map((choice) => (
-                        <option key={choice.value} value={choice.value}>
-                          {t(choice.labelKey)}
-                        </option>
-                      ))}
-                    </Select>
+                    <SearchableSelect<PresetOptionChoice>
+                      id={controlId}
+                      inputId={fieldId}
+                      className="w-full text-sm"
+                      value={selectedChoiceOption}
+                      options={choiceOptions}
+                      noOptionsMessage={t("common.select.noOptions")}
+                      onChange={(choiceOption) => {
+                        if (choiceOption) {
+                          updatePresetOption(
+                            activePreset.id,
+                            option.key,
+                            choiceOption.value,
+                          );
+                        }
+                      }}
+                    />
                     <p className="text-xs text-muted-foreground">
                       {t(option.hintKey)}
                     </p>

@@ -550,41 +550,29 @@ describe("SettingCorrection preset-scoped options", () => {
     });
   };
 
-  const optionSelect = (optionKey: string) =>
-    container.querySelector<HTMLSelectElement>(
-      `select#preset-option-${optionKey}`,
+  /**
+   * The per-preset option control is a react-select combobox (the same
+   * control `<ModelSelect>` and the output-mode select use), not a native
+   * `<select>`: there is no `.value` to set, so it is driven and read the
+   * same way `chooseOption`/`outputModeControlText` do above.
+   */
+  const optionInput = (optionKey: string) =>
+    container.querySelector<HTMLInputElement>(
+      `input#preset-option-${optionKey}`,
     );
 
-  const requireOptionSelect = (optionKey: string): HTMLSelectElement => {
-    const select = optionSelect(optionKey);
-    if (!select) {
+  const requireOptionInput = (optionKey: string): HTMLInputElement => {
+    const input = optionInput(optionKey);
+    if (!input) {
       throw new Error(`Expected the "${optionKey}" option control`);
     }
-    return select;
+    return input;
   };
 
-  /**
-   * Assign through the prototype setter, not `select.value = …`: React installs
-   * its own value setter on the element, and writing through that one can leave
-   * React believing nothing changed, so the `onChange` handler never runs and
-   * the test still passes on a zero-write interaction.
-   */
-  const chooseSelectValue = async (
-    select: HTMLSelectElement,
-    value: string,
-  ) => {
-    const nativeSetter = Object.getOwnPropertyDescriptor(
-      HTMLSelectElement.prototype,
-      "value",
-    )?.set;
-    if (!nativeSetter) {
-      throw new Error("Expected HTMLSelectElement.prototype to own `value`");
-    }
-    await act(async () => {
-      nativeSetter.call(select, value);
-      select.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-  };
+  /** The closed control's own text: the selected choice's label. */
+  const optionControlText = (optionKey: string): string =>
+    container.querySelector(`#preset-option-${optionKey}-control`)
+      ?.textContent ?? "";
 
   const submit = async () => {
     const form = container.querySelector("form");
@@ -640,30 +628,37 @@ describe("SettingCorrection preset-scoped options", () => {
 
     await mount();
 
-    expect(optionSelect(CAVEMAN_MODE_OPTION_KEY)).toBeNull();
+    expect(optionInput(CAVEMAN_MODE_OPTION_KEY)).toBeNull();
     expect(container.textContent).not.toContain(
       tEn("settings.correction.option.cavemanMode.label"),
     );
 
     await selectPreset("Caveman");
 
-    const select = requireOptionSelect(CAVEMAN_MODE_OPTION_KEY);
+    const input = requireOptionInput(CAVEMAN_MODE_OPTION_KEY);
     expect(
       container.querySelector<HTMLLabelElement>(
         `label[for="preset-option-${CAVEMAN_MODE_OPTION_KEY}"]`,
       )?.textContent,
     ).toBe(tEn("settings.correction.option.cavemanMode.label"));
-    expect([...select.options].map((option) => option.value)).toEqual([
-      "lite",
-      "full",
-      "ultra",
-    ]);
-    expect([...select.options].map((option) => option.textContent)).toEqual([
+
+    await act(async () => {
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+      );
+    });
+    expect(
+      [...container.querySelectorAll('[role="option"]')].map(
+        (option) => option.textContent,
+      ),
+    ).toEqual([
       tEn("settings.correction.option.cavemanMode.lite"),
       tEn("settings.correction.option.cavemanMode.full"),
       tEn("settings.correction.option.cavemanMode.ultra"),
     ]);
-    expect(select.value).toBe("full");
+    expect(optionControlText(CAVEMAN_MODE_OPTION_KEY)).toContain(
+      tEn("settings.correction.option.cavemanMode.full"),
+    );
     expect(container.textContent).toContain(
       tEn("settings.correction.option.cavemanMode.hint"),
     );
@@ -684,8 +679,14 @@ describe("SettingCorrection preset-scoped options", () => {
 
     await mount();
 
-    await chooseSelectValue(requireOptionSelect(CAVEMAN_MODE_OPTION_KEY), "ultra");
-    expect(requireOptionSelect(CAVEMAN_MODE_OPTION_KEY).value).toBe("ultra");
+    await chooseOption(
+      container,
+      requireOptionInput(CAVEMAN_MODE_OPTION_KEY),
+      tEn("settings.correction.option.cavemanMode.ultra"),
+    );
+    expect(optionControlText(CAVEMAN_MODE_OPTION_KEY)).toContain(
+      tEn("settings.correction.option.cavemanMode.ultra"),
+    );
 
     await submit();
 
@@ -720,9 +721,10 @@ describe("SettingCorrection preset-scoped options", () => {
 
     await mount();
 
-    await chooseSelectValue(
-      requireOptionSelect(CAVEMAN_MODE_OPTION_KEY),
-      "ultra",
+    await chooseOption(
+      container,
+      requireOptionInput(CAVEMAN_MODE_OPTION_KEY),
+      tEn("settings.correction.option.cavemanMode.ultra"),
     );
 
     await submit();
@@ -775,9 +777,10 @@ describe("SettingCorrection preset-scoped options", () => {
 
     await mount();
 
-    await chooseSelectValue(
-      requireOptionSelect(CAVEMAN_MODE_OPTION_KEY),
-      "ultra",
+    await chooseOption(
+      container,
+      requireOptionInput(CAVEMAN_MODE_OPTION_KEY),
+      tEn("settings.correction.option.cavemanMode.ultra"),
     );
 
     await submit();
@@ -840,11 +843,15 @@ describe("SettingCorrection preset-scoped options", () => {
 
     await mount();
 
-    expect(requireOptionSelect(CAVEMAN_MODE_OPTION_KEY).value).toBe("ultra");
+    expect(optionControlText(CAVEMAN_MODE_OPTION_KEY)).toContain(
+      tEn("settings.correction.option.cavemanMode.ultra"),
+    );
 
     await resetBuiltIn();
 
-    expect(requireOptionSelect(CAVEMAN_MODE_OPTION_KEY).value).toBe("full");
+    expect(optionControlText(CAVEMAN_MODE_OPTION_KEY)).toContain(
+      tEn("settings.correction.option.cavemanMode.full"),
+    );
 
     await submit();
 

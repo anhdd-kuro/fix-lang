@@ -2017,7 +2017,7 @@ const consumerContractRows = [
     "SITE-7ddd61f39a4603c1-01",
     "LIVE-7ddd61f39a4603c1",
     "src/renderer/components/SettingCorrection.tsx",
-    865,
+    878,
     9,
   ],
     [
@@ -2385,7 +2385,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "8ab10fb0fd50ecd653f3eb9a4e2a9da019eb5e7c5de900d16027d5baadaf74d0";
+  "f367190ce422be1fe5e83612bba632010276d24d09049fb44cca3824311f026e";
 
 const compareConsumers = (
   left: ButtonConsumer,
