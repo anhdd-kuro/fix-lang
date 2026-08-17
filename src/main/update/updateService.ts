@@ -18,6 +18,7 @@ import {
   type OrderableVersion,
   type PrereleaseVersion,
 } from "./prereleaseVersion";
+import { normalizeReleaseNotes } from "./releaseAsset";
 import type { GitHubReleaseSource } from "./githubReleaseSource";
 import type {
   PrereleaseChannel,
@@ -141,7 +142,6 @@ type ValidatedRelease = Readonly<{
   dmgSize: number;
 }>;
 
-const RELEASE_NOTES_MAX_LENGTH = 12_000;
 // These are locale-free descriptors, not prose — the strings underneath
 // live in `settings.updates.*` (en/ja), and the renderer resolves them via
 // `tm()` so an already-open Settings panel updates on a locale switch
@@ -337,13 +337,6 @@ const parseCurrentVersion = (
   value: string,
 ): StableVersion | PrereleaseVersion | null =>
   parseStableVersion(value) ?? parsePrereleaseVersion(value);
-
-const normalizeReleaseNotes = (raw: string | undefined): string | undefined => {
-  const trimmed = raw?.trim();
-  return trimmed && trimmed.length > 0
-    ? trimmed.slice(0, RELEASE_NOTES_MAX_LENGTH)
-    : undefined;
-};
 
 /** Size of the expected, fully uploaded DMG asset, or null when absent. */
 const expectedDmgSize = (

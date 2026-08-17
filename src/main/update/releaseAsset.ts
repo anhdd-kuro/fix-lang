@@ -12,11 +12,16 @@
  * `index.ts` (a third file) that imports the factory as a value. Nothing
  * stopped either module from importing a shared leaf.
  *
- * `updateService.ts` still carries its own copies of `RELEASE_NOTES_MAX_LENGTH`,
- * `isRecord`, `normalizeReleaseNotes`, and its own `expectedDmgSize` as of
- * this writing — migrating that file is out of this module's scope (it
- * belongs to whichever card owns `updateService.ts`) and is called out
- * separately so that migration can happen without re-deriving any of this.
+ * `normalizeReleaseNotes` is now imported by BOTH paths — that migration
+ * mattered more than the others, because the stable path is the one every
+ * user hits on every routine check, so leaving it on an un-hardened copy put
+ * the hardening on the rarer surface only. Do not re-fork it: the truncation
+ * rules below are what the shared `<ReleaseNotes>` component is rendered
+ * against.
+ *
+ * `updateService.ts` still carries its own `isRecord` and its own
+ * `expectedDmgSize` — both are shape checks with no security-relevant
+ * divergence, so they are left alone rather than churned.
  */
 
 export const RELEASE_NOTES_MAX_LENGTH = 12_000;

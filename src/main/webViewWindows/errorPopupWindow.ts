@@ -1,6 +1,7 @@
 import { app, BrowserWindow, screen } from "electron";
 import { appearanceStore } from "~/features/appearance/store/appearanceStore";
 import { themeStore } from "~/features/theme/store/themeStore";
+import { applyExternalNavigationGuard } from "./externalNavigationGuard";
 import errorPopupHtml from "./overlay.html?asset";
 import { applyStandaloneTypography } from "./syncStandaloneTypography";
 import {
@@ -135,6 +136,7 @@ export const createErrorPopupWindow = (): BrowserWindow => {
     },
   });
   errorPopupWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  applyExternalNavigationGuard(errorPopupWindow);
   // Unlike the spinner overlay, the error popup must accept clicks on Close.
   errorPopupWindow.setIgnoreMouseEvents(false);
   errorPopupWindow.loadFile(errorPopupHtml);

@@ -8,11 +8,17 @@ import {
 } from "./homebrew";
 import { UPGRADE_GRACE_MS } from "./pendingInstall";
 import { parsePrereleaseVersion } from "./prereleaseVersion";
+import {
+  RELEASE_NOTES_MAX_LENGTH,
+  RELEASE_NOTES_TRUNCATION_MARKER,
+} from "./releaseAsset";
 import { createUpdateService } from "./updateService";
 import type { PrereleaseCandidate } from "./githubReleaseSource";
 
 /** Fixed clock so marker ages are exact rather than wall-clock dependent. */
 const NOW = 1_700_000_000_000;
+/** A high surrogate with no low surrogate after it — a cut astral character. */
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])/;
 const INSTALLED_APP_PATH = "/Applications/FixLang.app";
 /** Same bundle id, different copy — a forgotten `pack:mac` build. */
 const STRAY_APP_PATH = "/Users/dev/fix-lang/release/mac-arm64/FixLang.app";
@@ -339,8 +345,55 @@ describe("unsigned GitHub update service", () => {
 
     await service.checkForUpdates();
 
-    expect(service.getState().releaseNotes).toHaveLength(12_000);
-    expect(service.getState().releaseNotes?.startsWith("<strong>")).toBe(true);
+    const notes = service.getState().releaseNotes;
+    expect(notes?.startsWith("<strong>")).toBe(true);
+    expect(notes?.slice(0, RELEASE_NOTES_MAX_LENGTH)).toHaveLength(12_000);
+    expect(notes?.slice(RELEASE_NOTES_MAX_LENGTH)).toBe(
+      RELEASE_NOTES_TRUNCATION_MARKER,
+    );
+  });
+
+  /**
+   * The stable channel is the path every existing user hits on every routine
+   * check, and it used to run a second, un-hardened `normalizeReleaseNotes`
+   * that lived inside `updateService.ts` while the pre-release path used the
+   * hardened one in `releaseAsset.ts`. These three pin the hardening on the
+   * STABLE path specifically; each fails against the old plain
+   * `trim().slice(0, 12_000)`.
+   */
+  describe("truncating stable release notes", () => {
+    const notesFor = async (body: string): Promise<string | undefined> => {
+      const { service } = createService({
+        getLatestRelease: () =>
+          Promise.resolve(stableRelease("v0.2.0", { body })),
+      });
+      await service.checkForUpdates();
+      return service.getState().releaseNotes;
+    };
+
+    it("marks cut notes so the reader can tell truncation from the real end", async () => {
+      const notes = await notesFor("a".repeat(13_000));
+
+      expect(notes?.endsWith(RELEASE_NOTES_TRUNCATION_MARKER)).toBe(true);
+    });
+
+    it("never leaves a lone surrogate when the cut lands inside an astral character", async () => {
+      // The emoji straddles the 12,000th UTF-16 code unit.
+      const notes = await notesFor(
+        `${"a".repeat(RELEASE_NOTES_MAX_LENGTH - 1)}😀${"b".repeat(2_000)}`,
+      );
+
+      expect(notes).toBeDefined();
+      expect(LONE_SURROGATE.test(notes ?? "")).toBe(false);
+    });
+
+    it("closes a code fence the cut left open", async () => {
+      const notes = await notesFor(`\`\`\`js\n${"a".repeat(13_000)}\n\`\`\``);
+
+      expect(notes?.endsWith(`\n\`\`\`${RELEASE_NOTES_TRUNCATION_MARKER}`)).toBe(
+        true,
+      );
+    });
   });
 
   it("prevents duplicate checks while the first request is active", async () => {
