@@ -23,6 +23,28 @@ const INSTALLED_APP_PATH = "/Applications/FixLang.app";
 /** Same bundle id, different copy — a forgotten `pack:mac` build. */
 const STRAY_APP_PATH = "/Users/dev/fix-lang/release/mac-arm64/FixLang.app";
 
+/**
+ * Every absolute-path SHAPE a macOS log line could leak, rather than any one
+ * path string. The distinction is the whole point: an assertion that forbids
+ * one literal forbids exactly that literal, and a later edit interpolating
+ * the Homebrew cache, a Caskroom entry, `userData`, or a home directory into
+ * the same line passes it untouched.
+ *
+ * `Applications` is deliberately on the list. The one path the criterion
+ * permits is replaced with a placeholder BEFORE this runs, so anything still
+ * matching afterwards is a SECOND, unvetted path — not the sanctioned one.
+ */
+const ABSOLUTE_PATH_SHAPE =
+  /\/(Applications|Users|Library|Volumes|System|Network|opt|usr|bin|sbin|etc|var|tmp|private|home)\//;
+
+/**
+ * Blanks the one path the "leaks no path" criterion allows — the app bundle
+ * path already logged elsewhere in this service — so the shape check above
+ * can be applied without failing against correct code.
+ */
+const withoutTheAllowedAppBundlePath = (text: string): string =>
+  text.split(INSTALLED_APP_PATH).join("<app-bundle-path>");
+
 const stableRelease = (
   tagName = "v0.2.0",
   overrides: Record<string, unknown> = {},
@@ -392,6 +414,24 @@ describe("unsigned GitHub update service", () => {
 
       expect(notes?.endsWith(`\n\`\`\`${RELEASE_NOTES_TRUNCATION_MARKER}`)).toBe(
         true,
+      );
+    });
+
+    /**
+     * The hardening lives in the ONE `normalizeReleaseNotes` both channels
+     * import, so this test exists to keep that true from the STABLE side —
+     * the path every user hits on every routine check. `releaseAsset.test.ts`
+     * pins the stripping itself; this pins that the stable flow still runs
+     * the notes through it, which a re-fork of the helper would silently
+     * undo.
+     */
+    it("strips bidi overrides that would make a link label read as another URL", async () => {
+      const notes = await notesFor(
+        "[https://github.com/anhdd-kuro/\u202Egnal-xif\u202C](https://evil.example/phish)",
+      );
+
+      expect(notes).toBe(
+        "[https://github.com/anhdd-kuro/gnal-xif](https://evil.example/phish)",
       );
     });
   });
@@ -1723,7 +1763,18 @@ describe("switching to a pre-release build", () => {
     expect(logText).toContain(STABLE_CASK_TOKEN);
     expect(logText).toContain(BETA_CASK_TOKEN);
     expect(logText).toContain("0.2.0-beta.3");
+    // Stricter than the criterion asks: this switch logs no path at all, not
+    // even the permitted one. Kept as its own line so a future edit that
+    // starts logging the app bundle path here has to say so deliberately.
     expect(logText).not.toContain(INSTALLED_APP_PATH);
+    // The criterion's actual negative — "no path BEYOND the app bundle path".
+    // Asserted as a shape after placeholdering the permitted path, because
+    // the single-literal form this replaced forbade one string and let every
+    // other path through: a Homebrew cache directory appended to this same
+    // line left the whole suite green.
+    expect(withoutTheAllowedAppBundlePath(logText)).not.toMatch(
+      ABSOLUTE_PATH_SHAPE,
+    );
   });
 
   it("refuses when nothing has been offered yet", async () => {
@@ -1937,6 +1988,117 @@ describe("reverting to stable", () => {
     expect(harness.service.getPrereleaseState()).toMatchObject({
       phase: "error",
       activeChannel: "stable",
+    });
+  });
+});
+
+/**
+ * Both cask tokens staged at once — the state a partially-failed switch
+ * leaves behind: target installed, source never uninstalled. The check's own
+ * refusal is pinned in "pre-release channel discovery"; what was NOT pinned
+ * is the ENTRY GUARD on the two actions once that check has run.
+ *
+ * Two things were missing rather than one. `revertToStable` had never been
+ * exercised with an ambiguous channel at all — every wrong-channel revert
+ * test uses `"stable"` — so "switch and revert both refuse" was proven for
+ * the switch only. And the switch's own `"both"` test flips the probe AFTER
+ * a successful check, so `canSwitch` is still true there and a `brew info`
+ * has already run; the refusal it pins is the late one, not the entry guard.
+ *
+ * Revert is the action a user reaches for at exactly this moment, and it is
+ * the one that deliberately asks no confirmation. Committing to either token
+ * here hands the helper a `brew uninstall --cask` that removes artifacts by
+ * PATH, and both tokens ship the same `/Applications/FixLang.app`.
+ */
+describe("both cask tokens staged at check time", () => {
+  const bothStaged = async (): Promise<ReturnType<typeof createService>> => {
+    const harness = createService({
+      canInstall: true,
+      activeChannel: "both",
+      currentVersion: "0.2.0-beta.1",
+      installableVersion: "0.1.9",
+      getLatestPrerelease: () =>
+        Promise.resolve(prereleaseCandidate("0.2.0-beta.3")),
+    });
+    // The ambiguity is present BEFORE the button is pressed, so `canSwitch`
+    // is already false at the entry guard. Flipping the probe after a
+    // successful check — what the existing switch test does — is a different
+    // scenario that reaches a later refusal, with brew already asked.
+    await harness.service.checkForPrerelease();
+    return harness;
+  };
+
+  const bothCasksMessage = msg("settings.updates.prerelease.bothCasksMessage", {
+    stableToken: STABLE_CASK_TOKEN,
+    betaToken: BETA_CASK_TOKEN,
+    fixCommand: `brew uninstall --cask ${BETA_CASK_TOKEN}`,
+  });
+
+  /**
+   * Every collaborator that runs, or starts, a `brew` process. Asserted as
+   * "not called at all" rather than "not called with the wrong token": the
+   * criterion is that an ambiguous install is decided from the two directory
+   * probes alone, so any brew work here is already the wrong answer.
+   */
+  const expectNoBrewWork = (
+    harness: ReturnType<typeof createService>,
+  ): void => {
+    expect(harness.getInstallableVersion).not.toHaveBeenCalled(); // brew info
+    expect(harness.downloadUpdate).not.toHaveBeenCalled(); // brew fetch
+    expect(harness.startUpgrade).not.toHaveBeenCalled(); // brew upgrade
+    expect(harness.startChannelSwitch).not.toHaveBeenCalled(); // switch helper
+    expect(harness.quitApp).not.toHaveBeenCalled();
+    expect(harness.pendingInstall.write).not.toHaveBeenCalled();
+  };
+
+  it("refuses a switch, with no brew work and the descriptor left standing", async () => {
+    const harness = await bothStaged();
+
+    const result = await harness.service.switchToPrerelease();
+
+    expect(result.success).toBe(false);
+    expect(harness.confirmPrereleaseSwitch).not.toHaveBeenCalled();
+    expectNoBrewWork(harness);
+    expect(harness.service.getPrereleaseState()).toMatchObject({
+      phase: "error",
+      activeChannel: "both",
+      canSwitch: false,
+      message: bothCasksMessage,
+    });
+  });
+
+  it("refuses a revert, with no brew work and the descriptor left standing", async () => {
+    const harness = await bothStaged();
+
+    const result = await harness.service.revertToStable();
+
+    expect(result.success).toBe(false);
+    expectNoBrewWork(harness);
+    expect(harness.service.getPrereleaseState()).toMatchObject({
+      phase: "error",
+      activeChannel: "both",
+      canSwitch: false,
+      message: bothCasksMessage,
+    });
+  });
+
+  /**
+   * Pressing one button must not arm the other. Both refusals are entry
+   * guards that publish nothing, so the ambiguity — and the sentence telling
+   * the user how to clear it — has to survive both presses intact.
+   */
+  it("still refuses after the other action has already been refused", async () => {
+    const harness = await bothStaged();
+
+    const switched = await harness.service.switchToPrerelease();
+    const reverted = await harness.service.revertToStable();
+
+    expect([switched.success, reverted.success]).toEqual([false, false]);
+    expectNoBrewWork(harness);
+    expect(harness.service.getPrereleaseState()).toMatchObject({
+      activeChannel: "both",
+      canSwitch: false,
+      message: bothCasksMessage,
     });
   });
 });

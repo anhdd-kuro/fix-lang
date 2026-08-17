@@ -73,10 +73,33 @@ const danglingCodeFence = (text: string): string | null => {
   return open;
 };
 
+/**
+ * Unicode characters that change how text is DISPLAYED without changing the
+ * string itself — the explicit embeddings and overrides (U+202A–U+202E), the
+ * isolates (U+2066–U+2069), and the implicit marks (U+200E, U+200F, U+061C).
+ *
+ * They matter here because release notes are attacker-influenceable text
+ * rendered next to an install button, through a markdown link renderer whose
+ * visible label is already independent of its href. An override lets the
+ * label a careful reader inspects differ from the label the string contains,
+ * which removes the last way to notice a mismatched link by looking at it.
+ *
+ * Deliberately NOT a general "invisible character" sweep: zero-width joiners
+ * and variation selectors carry real meaning in emoji and in Indic scripts,
+ * and stripping them would corrupt legitimate notes. Only characters whose
+ * sole effect is reordering are listed. The implicit marks are included
+ * because FixLang ships English and Japanese, neither of which needs them for
+ * correct display, so their only remaining use here is spoofing.
+ */
+const BIDI_CONTROL_CHARACTERS = /[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
+
 export const normalizeReleaseNotes = (
   raw: string | undefined,
 ): string | undefined => {
-  const trimmed = raw?.trim();
+  // Stripped BEFORE the length test, so the limit is measured on the text the
+  // reader will actually see and a note padded with controls cannot be pushed
+  // over the cut by characters that render as nothing.
+  const trimmed = raw?.replace(BIDI_CONTROL_CHARACTERS, "").trim();
   if (!trimmed || trimmed.length === 0) return undefined;
   if (trimmed.length <= RELEASE_NOTES_MAX_LENGTH) return trimmed;
 

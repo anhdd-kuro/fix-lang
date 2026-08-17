@@ -107,6 +107,89 @@ describe("release asset helpers", () => {
       const notes = "```js\ncode\n```";
       expect(normalizeReleaseNotes(notes)).toBe(notes);
     });
+
+    /**
+     * Release notes are attacker-influenceable text rendered next to an
+     * install button, and the panel next to it renders markdown links whose
+     * visible text is independent of their href. A bidi override reorders the
+     * DISPLAYED text without changing the logical string, so it is the second
+     * half of that deception: the label a careful reader inspects is not the
+     * label the string contains.
+     */
+    describe("bidirectional control characters", () => {
+      // Spelled as escapes, never as literals: these characters are invisible
+      // in an editor, so a literal in a test file is unreviewable and one
+      // careless paste away from being silently deleted.
+      it.each([
+        ["LEFT-TO-RIGHT EMBEDDING", "\u202A"],
+        ["RIGHT-TO-LEFT EMBEDDING", "\u202B"],
+        ["POP DIRECTIONAL FORMATTING", "\u202C"],
+        ["LEFT-TO-RIGHT OVERRIDE", "\u202D"],
+        ["RIGHT-TO-LEFT OVERRIDE", "\u202E"],
+        ["LEFT-TO-RIGHT ISOLATE", "\u2066"],
+        ["RIGHT-TO-LEFT ISOLATE", "\u2067"],
+        ["FIRST STRONG ISOLATE", "\u2068"],
+        ["POP DIRECTIONAL ISOLATE", "\u2069"],
+        ["LEFT-TO-RIGHT MARK", "\u200E"],
+        ["RIGHT-TO-LEFT MARK", "\u200F"],
+        ["ARABIC LETTER MARK", "\u061C"],
+      ])("strips %s", (_label, control) => {
+        expect(normalizeReleaseNotes(`Fixed${control} the updater.`)).toBe(
+          "Fixed the updater.",
+        );
+      });
+
+      /**
+       * The canonical Trojan-Source shape: the visible reading of the link
+       * label is reversed away from the string that is actually there.
+       */
+      it("removes an override that would make a link label read as another URL", () => {
+        const spoofed =
+          "[https://github.com/anhdd-kuro/\u202Egnal-xif\u202C](https://evil.example/phish)";
+
+        expect(normalizeReleaseNotes(spoofed)).toBe(
+          "[https://github.com/anhdd-kuro/gnal-xif](https://evil.example/phish)",
+        );
+      });
+
+      it("normalizes notes made of nothing but control characters to undefined", () => {
+        expect(normalizeReleaseNotes("\u202E\u2069\u200F  \n")).toBeUndefined();
+      });
+
+      /**
+       * The whole risk of this fix is over-stripping. FixLang ships Japanese,
+       * and a normalizer that mangled real release notes would be a worse bug
+       * than the spoof it prevents — so real CJK, kana, full-width
+       * punctuation, emoji and markdown structure are pinned byte for byte.
+       *
+       * The family emoji is load-bearing, not decoration: it is three code
+       * points joined by ZERO WIDTH JOINERs. A "strip every invisible
+       * character" sweep — the obvious over-reach here — shatters it into
+       * three separate glyphs, and this is the assertion that says so.
+       */
+      it("leaves Japanese release notes byte-identical", () => {
+        const japanese = [
+          "## 更新内容",
+          "",
+          "- プレリリースチャンネルを追加しました（ベータ版）。",
+          "- 「元に戻す」ボタンで安定版へ戻せます。",
+          "- 設定・プロファイル・APIキー・履歴はそのまま残ります 🎉",
+          "- ご家族でお使いの方へ: 👨‍👩‍👧 の表示も変わりません。",
+          "",
+          "詳しくは README を参照してください。",
+        ].join("\n");
+
+        expect(normalizeReleaseNotes(japanese)).toBe(japanese);
+      });
+
+      it("leaves the length limit measured on the stripped text", () => {
+        const notes = `${"\u202E".repeat(50)}${"z".repeat(RELEASE_NOTES_MAX_LENGTH)}`;
+
+        expect(normalizeReleaseNotes(notes)).toBe(
+          "z".repeat(RELEASE_NOTES_MAX_LENGTH),
+        );
+      });
+    });
   });
 
   describe("isRecord", () => {
