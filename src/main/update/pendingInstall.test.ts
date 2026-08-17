@@ -615,6 +615,43 @@ describe("pending install reconciliation", () => {
     ).toBe("rolled-back");
   });
 
+  /**
+   * The mirror of the test above, and the case the shape comparison gets
+   * exactly backwards: the pre-release cask is holding a build whose version
+   * string has NO `-beta.N` suffix — the tap's beta entry tracking a build cut
+   * from a release branch — so the shape says "this is a stable version, the
+   * revert landed" while the Caskroom says the stable cask holds nothing and
+   * the beta one is still staged.
+   *
+   * A disjunct lets the shape win here, because an OR can only ever flip the
+   * probe's `false` up to `true`. That is the one direction that turns a
+   * rollback into a reported success: the user who pressed Revert is still on
+   * the pre-release channel, on a build they never chose, and the marker that
+   * was the only record of it is cleared. The probe is the evidence; the shape
+   * is a guess, and it only gets a vote when no probe was supplied.
+   */
+  it("lets the Caskroom overrule a rolled-back version whose shape belongs to the target channel", () => {
+    const rolledBackOntoBeta: PendingInstall = {
+      fromVersion: "0.2.0-beta.1",
+      toVersion: "0.1.9",
+      startedAt: STARTED_AT,
+      appPath: INSTALLED_PATH,
+      caskToken: "fixlang",
+      fromCaskToken: "fixlang@beta",
+    };
+
+    expect(
+      reconcilePendingInstall(
+        rolledBackOntoBeta,
+        "0.3.0",
+        context({
+          isVersionInstalled: (version, caskToken) =>
+            version === "0.3.0" && caskToken === "fixlang@beta",
+        }),
+      ),
+    ).toBe("rolled-back");
+  });
+
   it("detects the rollback on a marker written before the source token was recorded", () => {
     // `fromCaskToken` is absent on markers written by the first shipped
     // version of the channel switch; only a beta build can start a revert, so

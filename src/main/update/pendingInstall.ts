@@ -230,19 +230,29 @@ const sourceCaskToken = (pending: PendingInstall): CaskToken =>
 /**
  * Whether the running version is where the operation was trying to put it.
  *
- * The Caskroom probe is the real evidence and wins when the caller supplies
- * one: it survives a channel publishing a version whose shape belongs to the
- * other one. The shape comparison is the fallback for callers that still pass
- * only the pre-resolved boolean, and it is what makes a rolled-back switch
- * detectable today rather than after every call site is migrated.
+ * A PRECEDENCE, never a disjunct. The Caskroom probe is the real evidence and
+ * is the whole answer whenever the caller supplies one; the shape comparison
+ * is the fallback for callers that still pass only the pre-resolved boolean,
+ * and it is what makes a rolled-back switch detectable for them at all.
+ *
+ * The two must not be OR'd, however honest that reads. An OR can only ever
+ * flip the probe's `false` up to `true`, so the shape overrules the probe in
+ * exactly one direction: when the Caskroom says the target cask does NOT hold
+ * the running version and the version string merely looks like that channel's,
+ * the guess wins. That is the direction that turns a rollback into a reported
+ * success — a revert that rolled back onto the pre-release cask, which is
+ * holding a build with no `-beta.N` in its version, reads as a completed
+ * update, clears the marker, and leaves both panels saying up-to-date while
+ * the user is still on the channel they asked to leave.
  */
 const landedOnTargetChannel = (
   currentVersion: string,
   pending: PendingInstall,
   context: ReconcileContext,
 ): boolean =>
-  context.isVersionInstalled?.(currentVersion, pending.caskToken) === true ||
-  caskTokenForVersion(currentVersion) === pending.caskToken;
+  context.isVersionInstalled === undefined
+    ? caskTokenForVersion(currentVersion) === pending.caskToken
+    : context.isVersionInstalled(currentVersion, pending.caskToken);
 
 /**
  * Decides what the previous run's marker means for this launch.
