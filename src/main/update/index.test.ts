@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import { BETA_CASK_TOKEN, STABLE_CASK_TOKEN } from "./homebrew";
 
 /**
@@ -23,7 +24,9 @@ vi.mock("electron-store", () => {
   return { default: MockStore };
 });
 
-const { chooseBoundCaskToken } = await import("./index");
+const { buildPrereleaseConfirmDetail, chooseBoundCaskToken } = await import(
+  "./index"
+);
 
 /**
  * Pins the ONE line `initializeUpdateService` uses to bind its Homebrew
@@ -51,5 +54,46 @@ describe("chooseBoundCaskToken", () => {
 
   it("binds the STABLE token when the active channel is undetectable (null)", () => {
     expect(chooseBoundCaskToken(null)).toBe(STABLE_CASK_TOKEN);
+  });
+});
+
+/**
+ * The switch confirm is the ONE place the user consents to running a beta, and
+ * the risk it has to state is not the quit/download/reopen mechanics: both
+ * channels share one `userData`, `apiStore` runs `clearInvalidConfig: true`
+ * (see its own comment: one value failing schema validation "wipes the ENTIRE
+ * config — every profile, preset, and key reference"), and migrations are
+ * forward-only behind a `configVersion` gate. So a beta writing a value this
+ * stable release rejects can cost the whole configuration on the way back, and
+ * reverting does not undo it.
+ *
+ * Expected copy is derived through the real translator rather than restated,
+ * so a catalog reword cannot silently drop the warning.
+ */
+describe("buildPrereleaseConfirmDetail", () => {
+  const tEn = createTranslator("en");
+  const tJa = createTranslator("ja");
+
+  it("states the config risk alongside the mechanics, in English", () => {
+    const detail = buildPrereleaseConfirmDetail(tEn);
+
+    expect(detail).toContain(
+      tEn("settings.updates.prerelease.confirm.detail"),
+    );
+    expect(detail).toContain(
+      tEn("settings.updates.prerelease.confirm.configWarning"),
+    );
+  });
+
+  it("states the config risk in Japanese, translated rather than copied", () => {
+    const detail = buildPrereleaseConfirmDetail(tJa);
+    const warningJa = tJa("settings.updates.prerelease.confirm.configWarning");
+
+    expect(detail).toContain(tJa("settings.updates.prerelease.confirm.detail"));
+    expect(detail).toContain(warningJa);
+    // An English fallback would make these identical.
+    expect(warningJa).not.toBe(
+      tEn("settings.updates.prerelease.confirm.configWarning"),
+    );
   });
 });

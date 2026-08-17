@@ -300,6 +300,7 @@
   "settings.updates.prerelease.checkButton": "プレリリースを確認",
   "settings.updates.prerelease.checking": "プレリリースを確認中…",
   "settings.updates.prerelease.confirm.cancel": "キャンセル",
+  "settings.updates.prerelease.confirm.configWarning": "プレリリース版が、この安定版では読み込めない設定を書き込むことがあります。必ず起こるわけではありませんが、その場合は次に安定版を起動した時点で、保存済みの設定がすべて破棄されます（プロファイル、プリセット、APIキーの参照を含みます）。安定版に戻しても復元されません。ローカルの履歴は影響を受けません。控えを残したい場合は、先にプロファイルを書き出してください。",
   "settings.updates.prerelease.confirm.detail": "FixLangは一度終了し、Homebrewでプレリリースビルドをダウンロードしてから、インストール後に自動的に再度開きます。安定版に戻す場合はこのパネルからいつでも実行でき、その方向への操作に確認は不要です。",
   "settings.updates.prerelease.confirm.message": "プレリリース v{targetVersion} に切り替えますか？",
   "settings.updates.prerelease.confirm.switch": "切り替える",

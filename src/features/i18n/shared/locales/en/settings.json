@@ -304,6 +304,7 @@
   "settings.updates.prerelease.checkButton": "Check for pre-release",
   "settings.updates.prerelease.checking": "Checking for a pre-release…",
   "settings.updates.prerelease.confirm.cancel": "Cancel",
+  "settings.updates.prerelease.confirm.configWarning": "A pre-release can write settings this stable release cannot read back. It may not happen, but if it does, FixLang discards the whole stored configuration on the next stable launch — every profile, preset and API key reference — and reverting does not bring it back. Local history is unaffected. Export your profiles first if you want a copy.",
   "settings.updates.prerelease.confirm.detail": "FixLang quits, downloads the pre-release build with Homebrew, and reopens once it is installed. Revert to stable any time from this panel — no confirmation is needed for that direction.",
   "settings.updates.prerelease.confirm.message": "Switch to pre-release v{targetVersion}?",
   "settings.updates.prerelease.confirm.switch": "Switch",

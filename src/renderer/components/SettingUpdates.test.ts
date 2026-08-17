@@ -880,6 +880,124 @@ describe("SettingUpdates", () => {
     expect(api.openExternalLink).toHaveBeenCalledWith("https://example.com");
   });
 
+  it("shows the host a release-notes link actually opens when its label claims another", async () => {
+    // Link text and href are INDEPENDENT attacker-controlled inputs in a
+    // release body. A label spelling the project's own repository while the
+    // href points elsewhere sends the user to an attacker page from the one
+    // panel that primes them to download and run a macOS binary.
+    await render({
+      ...readyState("available"),
+      availableVersion: "0.3.0",
+      releaseNotes:
+        "[https://github.com/anhdd-kuro/fix-lang](https://evil.example.com/phish)",
+    });
+
+    const link = container.querySelector<HTMLAnchorElement>(
+      "a[href='https://evil.example.com/phish']",
+    );
+    expect(link).not.toBeNull();
+    // The visible label must never name a host other than the one a click
+    // opens — otherwise the only true statement on screen is the href, which
+    // the user cannot see.
+    expect(link?.textContent).not.toContain("github.com");
+    expect(link?.textContent).toContain("evil.example.com");
+
+    await click(link as Element);
+    expect(api.openExternalLink).toHaveBeenCalledWith(
+      "https://evil.example.com/phish",
+    );
+  });
+
+  it("sees through markup wrapped around a mismatched link label", async () => {
+    // The label is the attacker's too, so it can be bold, italic or code —
+    // which splits it into element children rather than one text node. A
+    // check that only understands a bare string is bypassed by two asterisks.
+    await render({
+      ...readyState("available"),
+      availableVersion: "0.3.0",
+      releaseNotes: [
+        "[**https://github.com/anhdd-kuro/fix-lang**](https://evil.example.com/bold)",
+        "and [//github.com/anhdd-kuro/fix-lang](https://evil.example.com/scheme-relative)",
+      ].join(" "),
+    });
+
+    const labelOf = (href: string): string | undefined =>
+      container.querySelector<HTMLAnchorElement>(`a[href='${href}']`)
+        ?.textContent ?? undefined;
+
+    expect(labelOf("https://evil.example.com/bold")).toBe(
+      "https://evil.example.com/bold",
+    );
+    expect(labelOf("https://evil.example.com/scheme-relative")).toBe(
+      "https://evil.example.com/scheme-relative",
+    );
+  });
+
+  it("counts a different path on the same host as a different destination", async () => {
+    // github.com is a trusted HOST that anyone can publish a repository and a
+    // release binary on, so "same host" is not the same destination.
+    await render({
+      ...readyState("available"),
+      availableVersion: "0.3.0",
+      releaseNotes:
+        "[https://github.com/anhdd-kuro/fix-lang/releases](https://github.com/attacker/fix-lang/releases)",
+    });
+
+    expect(
+      container.querySelector<HTMLAnchorElement>(
+        "a[href='https://github.com/attacker/fix-lang/releases']",
+      )?.textContent,
+    ).toBe("https://github.com/attacker/fix-lang/releases");
+  });
+
+  it("counts a swapped port as a different destination", async () => {
+    // Same hostname, attacker-chosen port: `github.com:8080` is not GitHub.
+    await render({
+      ...readyState("available"),
+      availableVersion: "0.3.0",
+      releaseNotes:
+        "[https://github.com/anhdd-kuro/fix-lang](https://github.com:8080/anhdd-kuro/fix-lang)",
+    });
+
+    expect(
+      container.querySelector<HTMLAnchorElement>(
+        "a[href='https://github.com:8080/anhdd-kuro/fix-lang']",
+      )?.textContent,
+    ).toBe("https://github.com:8080/anhdd-kuro/fix-lang");
+  });
+
+  it("leaves ordinary release-notes links and autolinks exactly as written", async () => {
+    // The common case, and the one a heavy-handed defence would mangle:
+    // prose labels, and GFM autolinks whose label IS the href.
+    await render({
+      ...readyState("available"),
+      availableVersion: "0.3.0",
+      releaseNotes: [
+        "See [the full changelog](https://github.com/anhdd-kuro/fix-lang/releases)",
+        "and [README.md](https://github.com/anhdd-kuro/fix-lang/blob/main/README.md),",
+        "or https://github.com/anhdd-kuro/fix-lang/pull/12",
+        "and [github.com/anhdd-kuro/fix-lang](https://github.com/anhdd-kuro/fix-lang).",
+      ].join(" "),
+    });
+
+    const labelOf = (href: string): string | undefined =>
+      container.querySelector<HTMLAnchorElement>(`a[href='${href}']`)
+        ?.textContent ?? undefined;
+
+    expect(labelOf("https://github.com/anhdd-kuro/fix-lang/releases")).toBe(
+      "the full changelog",
+    );
+    expect(
+      labelOf("https://github.com/anhdd-kuro/fix-lang/blob/main/README.md"),
+    ).toBe("README.md");
+    expect(labelOf("https://github.com/anhdd-kuro/fix-lang/pull/12")).toBe(
+      "https://github.com/anhdd-kuro/fix-lang/pull/12",
+    );
+    expect(labelOf("https://github.com/anhdd-kuro/fix-lang")).toBe(
+      "github.com/anhdd-kuro/fix-lang",
+    );
+  });
+
   it("lets the user retry and open the release page after an error", async () => {
     await render({
       ...readyState("error"),
@@ -1502,6 +1620,108 @@ describe("SettingUpdates", () => {
     ].filter((node) => node.textContent === expected);
     expect(announcing).toHaveLength(1);
     expect(announcing[0]?.getAttribute("role")).toBe("alert");
+  });
+
+  it("keeps the no-confirm Revert button off an unsupported pre-release state", async () => {
+    // Revert is the one channel action that deliberately asks nothing, so its
+    // arming predicate is the whole gate in front of an uninstall-then-install
+    // that launches a detached Homebrew helper and quits the app. Not a
+    // combination main publishes today — that is exactly why it must fail safe
+    // rather than rely on main never publishing it.
+    await render(readyState("up-to-date"), {
+      phase: "unsupported",
+      activeChannel: "beta",
+      canSwitch: true,
+    });
+
+    expect(
+      maybeButtonNamed(
+        prereleaseSection(),
+        tEn("settings.updates.prerelease.revertButton"),
+      ),
+    ).toBeUndefined();
+    expect(api.revertToStable).not.toHaveBeenCalled();
+  });
+
+  it("still announces a channel-op failure the phase box does not render", async () => {
+    // The other half of the ownership rule: suppression is only correct when
+    // the published phase ACTUALLY renders the descriptor. `message` is a
+    // plain optional field on a flat state, so a phase that carries one
+    // without rendering it must not silence the notice too — the sentence
+    // would then appear nowhere at all.
+    await render(
+      readyState("up-to-date"),
+      prereleaseReady("idle", { activeChannel: "beta" }),
+    );
+    const revertError = msg("settings.updates.prerelease.revertErrorMessage");
+    api.revertToStable.mockImplementationOnce(async () => {
+      prereleaseListener?.({
+        phase: "up-to-date",
+        activeChannel: "beta",
+        canSwitch: true,
+        message: revertError,
+      });
+      return { success: false, error: revertError };
+    });
+
+    await click(
+      buttonNamed(
+        prereleaseSection(),
+        tEn("settings.updates.prerelease.revertButton"),
+      ),
+    );
+    await waitForUi();
+
+    const expected = tEn("settings.updates.prerelease.revertErrorMessage");
+    const announcing = [
+      ...prereleaseSection().querySelectorAll('[role="alert"], [role="status"]'),
+    ].filter((node) => node.textContent === expected);
+    expect(announcing).toHaveLength(1);
+    expect(announcing[0]?.getAttribute("role")).toBe("status");
+  });
+
+  it("pins which pre-release phases render main's descriptor themselves", async () => {
+    // The set the ownership rule above is derived from. Pushed through the
+    // LIVE component one phase at a time, so adding a `tm(message)` to a phase
+    // — or dropping one — fails here instead of silently desynchronising the
+    // suppression rule from what is on screen.
+    const messageRenderingPhases = new Set<PrereleaseState["phase"]>([
+      "error",
+      "installing",
+      "restart-required",
+    ]);
+    const allPhases: PrereleaseState["phase"][] = [
+      "unsupported",
+      "idle",
+      "checking",
+      "up-to-date",
+      "available",
+      "downloading",
+      "installing",
+      "restart-required",
+      "error",
+    ];
+    await render(
+      readyState("up-to-date"),
+      prereleaseReady("idle", { activeChannel: "beta" }),
+    );
+    const carried = msg("settings.updates.prerelease.revertErrorMessage");
+    const expected = tEn("settings.updates.prerelease.revertErrorMessage");
+
+    for (const phase of allPhases) {
+      await act(async () => {
+        prereleaseListener?.({
+          phase,
+          activeChannel: "beta",
+          canSwitch: true,
+          message: carried,
+        });
+      });
+      expect({
+        phase,
+        rendered: prereleaseSection().textContent?.includes(expected) ?? false,
+      }).toEqual({ phase, rendered: messageRenderingPhases.has(phase) });
+    }
   });
 
   it("names both cask tokens when a dead switch left them installed at once", async () => {

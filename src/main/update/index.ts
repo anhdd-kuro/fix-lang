@@ -18,6 +18,7 @@ import {
 import { appBundlePath, shouldCheckForUpdatesOnLaunch } from "./installationPath";
 import { createPendingInstallStore } from "./pendingInstall";
 import { createUpdateService, type UpdateService } from "./updateService";
+import type { TKey } from "~/features/i18n/shared/translate";
 
 /** Gives the renderer time to render the installing state before the quit. */
 const QUIT_FOR_UPGRADE_DELAY_MS = 600;
@@ -57,6 +58,32 @@ let updateService: UpdateService | null = null;
 export const chooseBoundCaskToken = (
   activeChannel: ActiveCaskChannel | null,
 ): CaskToken => (activeChannel === "beta" ? BETA_CASK_TOKEN : STABLE_CASK_TOKEN);
+
+/**
+ * The `detail` body of the switch confirm: the quit/download/reopen mechanics,
+ * then the risk those mechanics hide.
+ *
+ * Both channels share ONE `userData`. `apiStore` is constructed with
+ * `clearInvalidConfig: true`, and its own comment spells out the consequence —
+ * a single value failing schema validation "wipes the ENTIRE config — every
+ * profile, preset, and key reference" (which is why `guardStore.ts` exists as
+ * a separate store at all). Migrations run forward only, behind a
+ * `configVersion` gate with no inverse. So a beta that writes a value this
+ * stable release rejects, or bumps `configVersion` past it, can cost the whole
+ * configuration on the way BACK — and revert, the direction this feature calls
+ * safe, is exactly where that lands. It is *no guarantee*, not *will always
+ * happen*: it takes the beta actually writing such a value. The copy says that
+ * much and no more.
+ *
+ * Takes the translator rather than reaching for `mainT` so the copy is
+ * testable in both shipped languages without standing up Electron.
+ */
+export const buildPrereleaseConfirmDetail = (
+  translate: (key: TKey) => string,
+): string =>
+  `${translate("settings.updates.prerelease.confirm.detail")}\n\n${translate(
+    "settings.updates.prerelease.confirm.configWarning",
+  )}`;
 
 /** Initializes the singleton only after Electron's app lifecycle is ready. */
 export const initializeUpdateService = (): UpdateService => {
@@ -156,7 +183,7 @@ export const initializeUpdateService = (): UpdateService => {
         message: mainT("settings.updates.prerelease.confirm.message", {
           targetVersion,
         }),
-        detail: mainT("settings.updates.prerelease.confirm.detail"),
+        detail: buildPrereleaseConfirmDetail(mainT),
       });
       return response === SWITCH_INDEX;
     } catch {

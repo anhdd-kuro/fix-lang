@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  isValidElement,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { isMessage, msg, type Message } from "~/features/i18n/shared/message";
@@ -58,6 +64,99 @@ const CommandBlock = ({ command }: { command: string }) => {
 };
 
 /**
+ * The `http(s)` URL a value actually opens, normalised by `URL` (lowercased
+ * scheme and host, default port dropped), or null when it is not such a URL.
+ *
+ * The whole URL, not just the host: `github.com` is a trusted HOST that
+ * anyone can publish a repository and a release binary on, so a label reading
+ * `github.com/anhdd-kuro/fix-lang` over an href pointing at
+ * `github.com/attacker/fix-lang` is the same deception one level down.
+ * Comparing whole URLs is free of false positives here because only a label
+ * that already looks like a URL is ever compared — prose never reaches it.
+ */
+const normalizedHttpUrl = (value: string): string | null => {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? url.href
+      : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Whether a link's visible label is itself CLAIMING a destination, which is
+ * the only case where replacing it can be right. Four shapes qualify: an
+ * explicit `http(s)://`, a scheme-relative `//host/…`, a `www.` prefix, and a
+ * host followed by a path separator (`github.com/anhdd-kuro/fix-lang`).
+ *
+ * The path separator is what keeps ordinary prose out of this: a label like
+ * `README.md` or `v0.32.0` has the same dot-separated shape as a bare host,
+ * and rewriting those would mangle the common case for no security gain. The
+ * accepted residual gap is a bare host with no path and no scheme
+ * (`github.com`), which stays as written.
+ */
+const claimsADestination = (label: string): boolean =>
+  /^https?:\/\//i.test(label) ||
+  /^\/\/[a-z0-9-]+(\.[a-z0-9-]+)+(\/|$)/i.test(label) ||
+  /^www\.[^\s/]+/i.test(label) ||
+  /^[a-z0-9-]+(\.[a-z0-9-]+)+\/\S*$/i.test(label);
+
+/** The destination a label claims, for the shapes {@link claimsADestination} accepts. */
+const claimedUrl = (label: string): string | null => {
+  if (/^https?:\/\//i.test(label)) return normalizedHttpUrl(label);
+  return normalizedHttpUrl(
+    label.startsWith("//") ? `https:${label}` : `https://${label}`,
+  );
+};
+
+/**
+ * The text a link DISPLAYS, or null when it displays anything that is not
+ * text. Recursive on purpose: the label is attacker-chosen too, so a URL can
+ * be wrapped in emphasis or a code span — `[**https://github.com/x**](…)` —
+ * which arrives as element children rather than one string. A check that
+ * understood only a bare string would be bypassed by two asterisks.
+ */
+const plainTextLabel = (children: ReactNode): string | null => {
+  if (typeof children === "string") return children;
+  if (typeof children === "number") return String(children);
+  if (Array.isArray(children)) {
+    const parts = children.map(plainTextLabel);
+    return parts.includes(null) ? null : parts.join("");
+  }
+  if (isValidElement<{ children?: ReactNode }>(children)) {
+    const nested = children.props.children;
+    return nested === undefined ? null : plainTextLabel(nested);
+  }
+  return null;
+};
+
+/**
+ * What a release-notes link should DISPLAY. A markdown author picks the label
+ * and the href independently, and this panel dispatches the href — so
+ * `[https://github.com/anhdd-kuro/fix-lang](https://evil.example.com/phish)`
+ * shows the project's own repository and opens somewhere else on a plain left
+ * click, in the one place a user is primed to download and run an unsigned
+ * macOS binary.
+ *
+ * When (and only when) the label claims a destination and the href opens a
+ * DIFFERENT one, the href is displayed instead, so what is on screen and what
+ * a click does can no longer disagree. Prose labels and GFM autolinks — the
+ * common case by far — are returned untouched.
+ */
+const displayedLinkLabel = (
+  children: ReactNode,
+  href: string | undefined,
+): ReactNode => {
+  const label = plainTextLabel(children);
+  if (label === null || !href) return children;
+  const target = normalizedHttpUrl(href);
+  if (target === null || !claimsADestination(label)) return children;
+  return claimedUrl(label) === target ? children : href;
+};
+
+/**
  * Compact markdown component overrides so GitHub release notes fit the
  * About panel and match its muted styling. No raw HTML is enabled —
  * react-markdown escapes it by default, which keeps untrusted release-note
@@ -107,6 +206,9 @@ const releaseNotesComponents: Components = {
   a: ({ href, children }) => (
     <a
       href={href}
+      // The destination is also reachable on hover, for every link — the
+      // click dispatches `href`, so `href` is the only honest tooltip.
+      title={href}
       onClick={(e) => {
         e.preventDefault();
         if (href && /^https?:\/\//i.test(href)) {
@@ -115,7 +217,7 @@ const releaseNotesComponents: Components = {
       }}
       className="text-primary underline hover:no-underline"
     >
-      {children}
+      {displayedLinkLabel(children, href)}
     </a>
   ),
   // Release notes are untrusted GitHub content; never auto-load remote
@@ -138,6 +240,24 @@ const ReleaseNotes = ({ notes }: { notes: string }) => (
     </ReactMarkdown>
   </div>
 );
+
+/**
+ * The pre-release phases whose own JSX below renders `prereleaseState.message`.
+ * A renderer fact, not a promise main makes: `PrereleaseState` is flat, so any
+ * phase MAY carry a descriptor, and main's initial `unsupported` state already
+ * carries one this section never shows. Anything reasoning about "the user can
+ * already see that sentence" has to ask this, and the test that walks all nine
+ * phases through the live component is what keeps the set honest.
+ */
+const MESSAGE_RENDERING_PRERELEASE_PHASES = new Set<PrereleaseState["phase"]>([
+  "error",
+  "installing",
+  "restart-required",
+]);
+
+const phaseRendersPrereleaseMessage = (
+  phase: PrereleaseState["phase"],
+): boolean => MESSAGE_RENDERING_PRERELEASE_PHASES.has(phase);
 
 const initialState: UpdateState = {
   phase: "unsupported",
@@ -451,7 +571,16 @@ export const SettingUpdates = () => {
         // the render-old closure: main's broadcast lands before this
         // resolution, so the ref already holds whatever it published.
         const notice = reported ?? failureMessage;
-        if (!isSameMessage(notice, prereleaseStateRef.current.message)) {
+        // Suppress ONLY when the published phase actually puts that descriptor
+        // on screen. `message` is a plain optional field on a flat state, so a
+        // phase can carry one it never renders (main's initial `unsupported`
+        // state does exactly that today) — suppressing against those would
+        // leave the sentence nowhere at all, the same silent no-op the notice
+        // exists to prevent.
+        const alreadyOnScreen =
+          phaseRendersPrereleaseMessage(prereleaseStateRef.current.phase) &&
+          isSameMessage(notice, prereleaseStateRef.current.message);
+        if (!alreadyOnScreen) {
           setPrereleaseActionNotice(notice);
         }
       }
@@ -571,7 +700,16 @@ export const SettingUpdates = () => {
     prereleaseState.activeChannel === "stable";
   // Likewise `revertToStable`'s. Offered in every settled phase, not just an
   // offer: getting off a misbehaving beta is the whole point of the button.
+  //
+  // `unsupported` is excluded for the same reason `showPrereleaseCheck` below
+  // excludes it, and it matters MORE here: this is the one channel action that
+  // deliberately asks no confirmation, so its predicate is the whole gate in
+  // front of a detached Homebrew uninstall-then-install and an app quit. No
+  // main-process code publishes `unsupported` alongside `activeChannel: "beta",
+  // canSwitch: true` today — `isPrereleaseState` never cross-validates the
+  // three, so nothing but this line makes that stay true.
   const canRevertToStable =
+    prereleaseState.phase !== "unsupported" &&
     prereleaseState.canSwitch === true &&
     prereleaseState.activeChannel === "beta" &&
     !prereleaseWorking;
