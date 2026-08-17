@@ -80,6 +80,8 @@ const createService = (
       startedAt: number;
       appPath: string;
       caskToken: "fixlang" | "fixlang@beta";
+      /** The token the operation STARTED on; absent for pre-field markers. */
+      fromCaskToken?: "fixlang" | "fixlang@beta";
     } | null;
     appPath: string | null;
     now: () => number;
@@ -142,9 +144,12 @@ const createService = (
   const downloadUpdate = vi.fn<(caskToken?: string) => Promise<void>>(
     overrides.downloadUpdate ?? (() => Promise.resolve()),
   );
-  const getDownloadedBytes = vi.fn<(version: string) => number | null>(
-    () => overrides.downloadedBytes ?? null,
-  );
+  // Typed with the REAL signature for the same reason `startUpgrade` is: the
+  // cask token this flow reads cached bytes for is part of the contract, and a
+  // mock blind to it cannot pin which cask the ordinary flow named.
+  const getDownloadedBytes = vi.fn<
+    (version: string, caskToken?: string) => number | null
+  >(() => overrides.downloadedBytes ?? null);
   const pendingInstall = {
     read: vi.fn(() => overrides.pending ?? null),
     write: vi.fn(),
@@ -417,11 +422,11 @@ describe("Homebrew one-click install", () => {
 
     expect(startUpgrade).toHaveBeenCalledTimes(1);
     // The helper reopens this exact bundle instead of resolving the bundle id,
-    // which can point at another copy of FixLang. No token argument: the
-    // upgrader's own bound token is the one this flow downloaded with, and
-    // overriding it with a literal is what "hands the helper the same cask
-    // token it downloaded with" exists to prevent.
-    expect(startUpgrade).toHaveBeenCalledWith(INSTALLED_APP_PATH);
+    // which can point at another copy of FixLang. The token is named rather
+    // than inherited from the upgrader's binding — the ordinary flow says
+    // "stable" at every step, which is what makes it agree with the marker
+    // written just below.
+    expect(startUpgrade).toHaveBeenCalledWith(INSTALLED_APP_PATH, STABLE_CASK_TOKEN);
     expect(pendingInstall.write).toHaveBeenCalledWith({
       fromVersion: "0.1.0",
       toVersion: "0.2.0",
@@ -994,14 +999,12 @@ describe("downloading before quitting", () => {
   };
 
   /**
-   * `downloadUpdate` and `getDownloadedBytes` are called with no token, so
-   * they use whichever cask the upgrader was bound to; `startUpgrade` used to
-   * override that with a hard-coded stable literal. `homebrew.ts` validates a
-   * per-call override against ITS OWN Caskroom entry and throws when it is
-   * absent, so a beta-bound upgrader would have fetched one cask and then
-   * failed to upgrade a different one. Whatever token this flow uses, it must
-   * be the SAME one end to end — `undefined` on both sides means "the
-   * upgrader's own bound token", which is the only honest answer here.
+   * `homebrew.ts` validates a per-call token against ITS OWN Caskroom entry
+   * and throws when it is absent, so fetching one cask and then asking
+   * `startUpgrade` for a different one fails after the download already
+   * succeeded. Whatever token this flow uses, it must be the SAME one end to
+   * end — this pins the agreement itself, and the sibling test below pins
+   * which token that is.
    */
   it("hands the helper the same cask token it downloaded with", async () => {
     const { service, startUpgrade, downloadUpdate } = await ready();
@@ -2294,5 +2297,215 @@ describe("the ordinary install flow on a beta install", () => {
 
     expect(result.success).toBe(false);
     expect(startUpgrade).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The in-flight claim's real boundary is the HAND-OFF, not the returned
+ * result. Once the detached helper is spawned the app is committed: releasing
+ * the flag after that point re-arms a button whose second press starts a
+ * SECOND helper, and two helpers racing to uninstall and reinstall the same
+ * two casks is strictly worse than the stranded flag the claim replaced.
+ */
+describe("claiming the app for the whole hand-off, not just the return value", () => {
+  it("keeps the claim once the channel-switch helper is spawned, even if a later step throws", async () => {
+    const { service, startChannelSwitch, quitApp } = createService({
+      canInstall: true,
+      activeChannel: "beta",
+      currentVersion: "0.2.0-beta.1",
+      installableVersion: "0.1.9",
+      onLog: (_level, message) => {
+        // The last statement before `quitApp`, and the first unguarded one
+        // after the helper has already been started.
+        if (message.startsWith("Channel switch from")) {
+          throw new Error("log sink blew up");
+        }
+      },
+    });
+
+    await expect(service.revertToStable()).rejects.toThrow("log sink blew up");
+
+    expect(startChannelSwitch).toHaveBeenCalledTimes(1);
+    expect(quitApp).not.toHaveBeenCalled();
+
+    // The helper owns the casks from here. A second press must be refused.
+    await expect(service.revertToStable()).resolves.toEqual({
+      success: false,
+      error: msg("settings.updates.prerelease.revertErrorMessage"),
+    });
+    expect(startChannelSwitch).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not strand the claim when a state listener throws mid-install", async () => {
+    const { service, startUpgrade } = createService({ canInstall: true });
+    await service.checkForUpdates();
+    let thrown = false;
+    service.subscribe((next) => {
+      if (next.phase === "downloading" && !thrown) {
+        thrown = true;
+        throw new Error("listener blew up");
+      }
+    });
+
+    await expect(service.installUpdate()).rejects.toThrow("listener blew up");
+    expect(startUpgrade).not.toHaveBeenCalled();
+
+    // A stranded flag freezes the check too, so the panel can never get back
+    // to `available` — and every later press answers a lying `{success:true}`
+    // with the upgrade never started.
+    await service.checkForUpdates();
+    expect(service.getState().phase).toBe("available");
+    await expect(service.installUpdate()).resolves.toEqual({ success: true });
+    expect(startUpgrade).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * One doctrine per flow. The ordinary update flow names the STABLE cask at
+ * every Homebrew call it makes and in the marker it writes — it never rides
+ * whichever token `upgrader` happens to be bound to. Mixing the two is only
+ * invisible while `canInstall` stays false on a beta install; the moment that
+ * is relaxed, a mixed flow gates on one cask's version and upgrades another's.
+ */
+describe("the ordinary flow names one cask end to end", () => {
+  it("passes the stable token to every Homebrew call and records it in the marker", async () => {
+    let finishDownload: (() => void) | undefined;
+    const { service, downloadUpdate, getDownloadedBytes, startUpgrade, pendingInstall, tickPoll } =
+      createService({
+        canInstall: true,
+        downloadedBytes: 512,
+        downloadUpdate: () =>
+          new Promise<void>((resolve) => {
+            finishDownload = resolve;
+          }),
+      });
+    await service.checkForUpdates();
+
+    const install = service.installUpdate();
+    // Let the tap probe settle so the download poll is registered.
+    await new Promise((resolve) => setImmediate(resolve));
+    tickPoll();
+    finishDownload?.();
+    await expect(install).resolves.toEqual({ success: true });
+
+    expect(downloadUpdate).toHaveBeenCalledWith(STABLE_CASK_TOKEN);
+    expect(getDownloadedBytes).toHaveBeenCalledWith("0.2.0", STABLE_CASK_TOKEN);
+    expect(startUpgrade).toHaveBeenCalledWith(INSTALLED_APP_PATH, STABLE_CASK_TOKEN);
+    expect(pendingInstall.write).toHaveBeenCalledWith(
+      expect.objectContaining({ caskToken: STABLE_CASK_TOKEN }),
+    );
+  });
+});
+
+/**
+ * The marker records the token the operation STARTED on precisely so this
+ * question stops being a guess about a version string's shape. A channel that
+ * publishes a version belonging to the other channel's grammar is the whole
+ * reason the field exists.
+ */
+describe("routing a marker by its recorded source token", () => {
+  const STALE = NOW - UPGRADE_GRACE_MS;
+
+  it("reports a revert whose beta build carried a stable-shaped version in the pre-release section", () => {
+    const { service } = createService({
+      canInstall: true,
+      // Staged under the beta cask, but with no `-beta.N` in its version, so
+      // `fromVersion`'s shape says "stable" and only `fromCaskToken` knows.
+      currentVersion: "0.3.0",
+      pending: {
+        fromVersion: "0.3.0",
+        toVersion: "0.1.9",
+        startedAt: STALE,
+        appPath: INSTALLED_APP_PATH,
+        caskToken: STABLE_CASK_TOKEN,
+        fromCaskToken: BETA_CASK_TOKEN,
+      },
+    });
+
+    expect(service.getPrereleaseState()).toMatchObject({
+      phase: "error",
+      message: msg("settings.updates.prerelease.revertErrorMessage"),
+    });
+    expect(service.getState().message).not.toEqual(
+      msg("settings.updates.installIncompleteMessage"),
+    );
+  });
+});
+
+/**
+ * A rollback and a helper that never started are DIFFERENT outcomes, and card
+ * 04 created the `rolled-back` variant to end exactly that conflation. Telling
+ * them apart only in the log leaves the user — who is still on the channel
+ * they asked to leave, under a build they never chose — reading the same
+ * sentence as someone whose operation never began.
+ */
+describe("telling the user a channel operation rolled back", () => {
+  const STALE = NOW - UPGRADE_GRACE_MS;
+
+  it("words a rolled-back revert differently from a revert that never started", () => {
+    const rolledBack = createService({
+      canInstall: true,
+      // The helper failed and reinstalled the beta cask at its own current
+      // version, so the version moved while the revert did not happen.
+      currentVersion: "0.3.0-beta.4",
+      pending: {
+        fromVersion: "0.2.0-beta.1",
+        toVersion: "0.1.9",
+        startedAt: STALE,
+        appPath: INSTALLED_APP_PATH,
+        caskToken: STABLE_CASK_TOKEN,
+        fromCaskToken: BETA_CASK_TOKEN,
+      },
+    });
+    const neverStarted = createService({
+      canInstall: true,
+      currentVersion: "0.2.0-beta.1",
+      pending: {
+        fromVersion: "0.2.0-beta.1",
+        toVersion: "0.1.9",
+        startedAt: STALE,
+        appPath: INSTALLED_APP_PATH,
+        caskToken: STABLE_CASK_TOKEN,
+        fromCaskToken: BETA_CASK_TOKEN,
+      },
+    });
+
+    expect(rolledBack.service.getPrereleaseState()).toMatchObject({
+      phase: "error",
+      message: msg("settings.updates.prerelease.revertRolledBackMessage", {
+        currentVersion: "0.3.0-beta.4",
+      }),
+    });
+    expect(neverStarted.service.getPrereleaseState()).toMatchObject({
+      phase: "error",
+      message: msg("settings.updates.prerelease.revertErrorMessage"),
+    });
+    expect(rolledBack.service.getPrereleaseState().message).not.toEqual(
+      neverStarted.service.getPrereleaseState().message,
+    );
+  });
+
+  it("words a rolled-back switch for the switch it was", () => {
+    const { service } = createService({
+      canInstall: true,
+      // Rolled back onto the stable cask, which moved the user to stable's
+      // current version rather than the one they pressed the button on.
+      currentVersion: "0.3.0",
+      pending: {
+        fromVersion: "0.1.0",
+        toVersion: "0.2.0-beta.3",
+        startedAt: STALE,
+        appPath: INSTALLED_APP_PATH,
+        caskToken: BETA_CASK_TOKEN,
+        fromCaskToken: STABLE_CASK_TOKEN,
+      },
+    });
+
+    expect(service.getPrereleaseState()).toMatchObject({
+      phase: "error",
+      message: msg("settings.updates.prerelease.switchRolledBackMessage", {
+        currentVersion: "0.3.0",
+      }),
+    });
   });
 });
