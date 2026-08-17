@@ -1,11 +1,98 @@
 ---
 name: fixlang-presets
-description: "Use when editing transform presets, preset-scoped options (extraOptions), reasoning effort, per-preset output mode, the Ask AI flow, the Caveman intensity levels, or the source-app context block. Examples: \"add a preset field\", \"give a preset its own setting\", \"why does this preset ignore the popup setting\", \"retire a reasoning effort value\", \"change the Metadata context prompt\". Covers src/features/providers/store/apiStore.ts, src/features/correction/shared/presetOptions.ts, src/features/correction/shared/reasoningEffort.ts, src/prompts/caveman.md, src/main/ai.request/transform-context.ts, src/main/keybindings/askFlow.ts, src/renderer/components/MarkdownView.tsx."
+description: "Use when adding or editing a transform preset, a preset-scoped option (extraOptions), a built-in combo, reasoning effort, per-preset output mode, the Ask AI flow, the Caveman intensity levels, or the source-app context block. Carries the file-by-file recipes so the exploration step can be skipped. Examples: \"add a new preset\", \"add a preset field\", \"give a preset its own setting\", \"change the built-in combo\", \"why does this preset ignore the popup setting\", \"retire a reasoning effort value\". Covers src/prompts/correction.ts, src/features/providers/store/apiStore.ts, src/features/correction/shared/presetOptions.ts, src/features/correction/shared/reasoningEffort.ts, src/renderer/components/SettingCorrection.tsx, src/main/ai.request/transform-context.ts, src/main/keybindings/askFlow.ts, src/renderer/components/MarkdownView.tsx."
 ---
 
-# FixLang — Preset, Reasoning, Ask AI Gotchas
+# FixLang — Presets: Recipes and Gotchas
 
 Code: `src/features/providers/store/apiStore.ts` (`CorrectionPreset`), `src/features/correction/shared/reasoningEffort.ts`, `src/main/ai.request/transform-context.ts`, `src/main/keybindings/{correction,askFlow}.ts`, `src/main/webViewWindows/{askInputWindow,askResultWindow}.ts`, `src/main/profileChange.ts`, `src/renderer/components/MarkdownView.tsx`.
+
+Part 1 is the recipes — what to touch, in order. Part 2 is why each step is shaped the way it is. Read the recipe, then read the trap it points at BEFORE writing that step.
+
+---
+
+# Part 1 — Recipes
+
+## Recipe A — Add a built-in preset
+
+Ground truth: adding Caveman touched **22 files**. The eight below are the ones you author; the rest are tests and docs that follow mechanically (step 7).
+
+**1. `src/prompts/<name>.md`** — the system prompt. Bundled at BUILD time via `?raw`, never fetched (see [Prompt bundling](../fixlang-prompt-bundling/SKILL.md)). Draw the instruction/input boundary by MESSAGE ROLE — never write "everything after this line is the text to transform" (trap: [Caveman instruction boundary](#the-caveman-instruction-boundary-is-drawn-by-message-role-not-position)).
+
+**2. `src/prompts/correction.ts`** — three additions:
+```ts
+import xMarkdown from "./x.md?raw";
+export const DEFAULT_X_PRESET_ID = "x";              // stored in user config FOREVER
+export const DEFAULT_X_PRESET_PROMPT = xMarkdown.trim();
+```
+The id string is persisted user data. Choose it once; renaming it orphans every stored profile that references it.
+
+**3. `src/features/providers/store/apiStore.ts` → `makeDefaultCorrectionPresets()`** — **APPEND**, never insert. Stored profiles, combo steps and tests index into this array.
+```ts
+{
+  id: DEFAULT_X_PRESET_ID,
+  name: "X",                        // NOT translated — it is stored data, not UI copy
+  hotkey: "Control+Shift+?",
+  systemPrompt: DEFAULT_X_PRESET_PROMPT,
+  model: INHERIT_GLOBAL_MODEL,
+  isBuiltIn: true,
+  // optional: reasoning, outputMode, requiresInput, markdownOutput, extraOptions
+}
+```
+
+**4. Pick the hotkey against four lists, not one.** Free vs. the other built-in defaults, `DEFAULT_KEY_BINDINGS`, `COMBO_CANCEL_ACCELERATOR`, and devtools' `F12`. A materialized default must also GIVE WAY to a hotkey the user already stored — that is the three-rung `withoutStolenHotkey` chain (stored presets → stored combos → reserved accelerators), each rung blanking only a default-sourced hotkey. See [Hotkeys](../fixlang-hotkeys/SKILL.md).
+
+**5. `src/renderer/components/SettingCorrection.tsx` → `makeBuiltInPresetDefaults()`** — a FIELD-FOR-FIELD parity copy of the step-3 record, powering "Reset built-in". Note `model: ""` here where the store uses `INHERIT_GLOBAL_MODEL` — same meaning, two spellings. `builtInPresetDefaults.test.ts` is the drift guard and fails the moment the two disagree.
+
+**6. Delivery needs nothing** — an ordinary preset rides the existing hotkey → `fixGrammar` → deliver route with no new code. You only write code here if the preset changes CONTROL FLOW (`requiresInput`, `markdownOutput` — see [the rule](#preset-scoped-options-live-in-a-registry-not-in-the-ui)).
+
+**7. Tests that break mechanically — budget for all five:**
+- `src/prompts/defaultPresetPrompts.test.ts` — prompt-content invariants.
+- `src/renderer/components/builtInPresetDefaults.test.ts` — the parity guard from step 5.
+- `src/features/providers/store/apiStore.test.ts` — **the byte-pinned `sha256` of `apiStoreSchema`**. Preset defaults are serialized into `settingsCorrect.default`, so ANY default prompt or combo edit moves it. Recompute from the failure output, then PROVE the delta: substitute the old value back and confirm the previous digest reproduces byte-for-byte. It moved 5× on the Caveman branch.
+- `src/features/correction/store/normalizeCorrectionSettings.test.ts` — materialization and hotkey-theft behavior.
+- `src/renderer/components/ButtonSourceGuard.test.ts` — only if you shifted JSX lines in `SettingCorrection.tsx`. Pure line shift: same `LIVE-*` ids, same columns, one constant delta, then repin `consumerContractSha256` to what the test reports.
+
+**8. Docs:** `README.md` — the built-in preset list with hotkeys is one inline bullet (`README.md:10`), plus the custom-preset bullet below it — and `AGENTS.md` (Main Features → Presets). `CLAUDE.md` is a SYMLINK to `AGENTS.md` and `.claude/skills` symlinks to `.agents/skills` — the Edit tool refuses to write through a symlink, so edit the real path.
+
+**Add a registrar regression, not just a default-list assertion.** The default-list tests derive their expected hotkey list from the same factory that produces the actual one, so they are near-tautological. Drive the real route in `src/main/keybindings/correction-preset-hotkeys.test.ts`: start from a stored profile that PREDATES the preset, register, find the registered accelerator, invoke its callback, and assert on the `presetId` that reached `fixGrammar` — not on the logged `presetId`, which stays correct even when the callback is wired to the wrong preset.
+
+## Recipe B — Give a preset its own option
+
+Only for options that change what the model is TOLD. If it changes what the app DOES, it is a `CorrectionPreset` field instead — [the rule](#preset-scoped-options-live-in-a-registry-not-in-the-ui).
+
+1. **`src/features/correction/shared/presetOptions.ts`** — add a `PresetPromptOptionDefinition` (key, `labelKey`, `hintKey`, `defaultValue`, `choices[]` each with `value` / `promptFragment` / `labelKey`) and register it in `PRESET_OPTION_DEFINITIONS` under the preset id.
+2. **Prompt fragments** live in `src/prompts/correction.ts` as exported consts, beside the base prompt.
+3. **i18n** — `2 + N` keys per locale (label, hint, one per choice), in BOTH `en/settings.json` and `ja/settings.json`. Three choices = five keys per locale.
+4. **Materialize the default** onto the built-in preset record in `apiStore.ts` (`extraOptions: { [KEY]: "value" }`), so day one matches what Settings shows. It must EQUAL the registry's `defaultValue`; `presetOptions.test.ts` pins them equal.
+5. **Add nothing to `SettingCorrection.tsx`.** The block is registry-driven and a source guard fails on any `activePreset.id ===` in it.
+6. Repin the schema `sha256` (Recipe A step 7).
+
+## Recipe C — Change the built-in combo
+
+`makeDefaultCombos()` in `apiStore.ts`. Reordering an EXISTING shipped combo is a migration, not an edit:
+
+- Migrate only an **untouched** legacy chain — match length, preset ids, order, and no `inlineInput`.
+- Spell the legacy ids as **string literals**, never the `DEFAULT_*_PRESET_ID` constants. Constants describe what ships today and may be repointed; the literals are what sits in users' config files and can never change.
+- Gate it with `ComboPreset.schemaVersion` so it fires **once**. `normalizeCorrectionSettings` runs on the WRITE path too, so an ungated migration rewrites a deliberately rebuilt chain on every save, forever.
+- Fresh defaults ship at the POST-migration version — a new install is not a migration candidate.
+- `sanitizeCombo` must PRESERVE a stored newer version; absent/invalid falls back to the oldest.
+
+## Verify before you call it done
+
+```bash
+bun run test        # NOT `bun test`
+bun run lint
+bun run i18n:check
+bunx tsc --noEmit
+```
+There is **no tsc gate** in this repo and ~90 pre-existing errors, so a green suite proves nothing about types — filter to the files you touched rather than comparing totals. Known baseline noise: 2 failures in `bundleExternals.test.ts` ("path containing spaces"), 2 lint warnings (one in `LogsPanel.tsx`, one in `compatibility.ts`).
+
+**Sabotage every new assertion and watch it go red.** Several tests on this branch passed while asserting nothing. Restore by re-editing — never `git checkout --`.
+
+---
+
+# Part 2 — Gotchas
 
 ## Retired reasoning efforts must MAP, never disappear
 
