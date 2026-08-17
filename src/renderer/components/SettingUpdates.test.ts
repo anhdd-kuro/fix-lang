@@ -880,122 +880,217 @@ describe("SettingUpdates", () => {
     expect(api.openExternalLink).toHaveBeenCalledWith("https://example.com");
   });
 
-  it("shows the host a release-notes link actually opens when its label claims another", async () => {
-    // Link text and href are INDEPENDENT attacker-controlled inputs in a
-    // release body. A label spelling the project's own repository while the
-    // href points elsewhere sends the user to an attacker page from the one
-    // panel that primes them to download and run a macOS binary.
-    await render({
-      ...readyState("available"),
-      availableVersion: "0.3.0",
-      releaseNotes:
-        "[https://github.com/anhdd-kuro/fix-lang](https://evil.example.com/phish)",
-    });
-
+  const linkTo = (href: string): HTMLAnchorElement => {
     const link = container.querySelector<HTMLAnchorElement>(
-      "a[href='https://evil.example.com/phish']",
+      `a[href='${href}']`,
     );
-    expect(link).not.toBeNull();
-    // The visible label must never name a host other than the one a click
-    // opens — otherwise the only true statement on screen is the href, which
-    // the user cannot see.
-    expect(link?.textContent).not.toContain("github.com");
-    expect(link?.textContent).toContain("evil.example.com");
+    if (!link) {
+      throw new Error(`Expected a release-notes link to ${href}`);
+    }
+    return link;
+  };
 
-    await click(link as Element);
-    expect(api.openExternalLink).toHaveBeenCalledWith(
-      "https://evil.example.com/phish",
-    );
-  });
+  /**
+   * Every decoration a reviewer used to walk straight past the PREVIOUS
+   * defence, which asked whether the LABEL looked like a URL and disclosed the
+   * destination only when it did. Each row wears a label that reads as the
+   * project's own repository over an href that goes somewhere else; the label
+   * is attacker-chosen, so no list of these can ever be complete — which is
+   * the whole reason the component stopped reading the label at all.
+   *
+   * `[name, label markdown, href slug]`. The href is always
+   * `https://evil.example.com/<slug>`, so a passing row proves BOTH halves:
+   * the annotation names `evil.example.com`, and the label — which contains
+   * `github.com` and the href does not — survived intact.
+   */
+  const TRUSTED_LOOKING = "https://github.com/anhdd-kuro/fix-lang";
+  const DECORATED_LABELS: readonly (readonly [string, string, string])[] = [
+    ["undecorated", TRUSTED_LOOKING, "plain"],
+    // Escaped, never pasted: these three render as nothing at all, so a
+    // literal would be invisible to the next reader of this file — and to
+    // `no-irregular-whitespace` two of them are an error, not a fixture.
+    ["zero-width space prefix", `\u200B${TRUSTED_LOOKING}`, "zwsp"],
+    ["soft hyphen prefix", `\u00AD${TRUSTED_LOOKING}`, "shy"],
+    ["ASCII space prefix", ` ${TRUSTED_LOOKING}`, "space"],
+    ["no-break space prefix", `\u00A0${TRUSTED_LOOKING}`, "nbsp"],
+    ["wrapping quotes", `"${TRUSTED_LOOKING}"`, "quotes"],
+    ["wrapping parentheses", `(${TRUSTED_LOOKING})`, "parens"],
+    ["bullet prefix", `• ${TRUSTED_LOOKING}`, "bullet"],
+    ["tab prefix", `\t${TRUSTED_LOOKING}`, "tab"],
+    ["space before bold", ` **${TRUSTED_LOOKING}**`, "bold"],
+    ["trailing hard break", `${TRUSTED_LOOKING}  \nand more`, "break"],
+    [
+      "image in the label",
+      `![](https://example.com/pixel.png)${TRUSTED_LOOKING}`,
+      "image",
+    ],
+    [
+      "division slash for the scheme separator",
+      "https:∕∕github.com/anhdd-kuro/fix-lang",
+      "slash",
+    ],
+    ["bare host, no path", "github.com", "bare"],
+  ];
 
-  it("sees through markup wrapped around a mismatched link label", async () => {
-    // The label is the attacker's too, so it can be bold, italic or code —
-    // which splits it into element children rather than one text node. A
-    // check that only understands a bare string is bypassed by two asterisks.
+  it.each(DECORATED_LABELS)(
+    "names the host a click opens whatever the label wears (%s)",
+    async (_name, label, slug) => {
+      // Link text and href are INDEPENDENT attacker-controlled inputs in a
+      // release body. A label spelling the project's own repository while the
+      // href points elsewhere sends the user to an attacker page from the one
+      // panel that primes them to download and run a macOS binary.
+      const href = `https://evil.example.com/${slug}`;
+      await render({
+        ...readyState("available"),
+        availableVersion: "0.3.0",
+        releaseNotes: `[${label}](${href})`,
+      });
+
+      const link = linkTo(href);
+      // Additive, never substitutive: the author's own label is still there.
+      expect(link.textContent).toContain("github.com");
+      // And so is the one host the click actually reaches.
+      expect(link.textContent).toContain(" (evil.example.com)");
+      expect(link.title).toBe(href);
+    },
+  );
+
+  it("names the real host when userinfo makes the href itself read as GitHub", async () => {
+    // `https://github.com@evil.example.com/…` is a URL whose AUTHORITY is
+    // evil.example.com — `github.com` is a username. Displaying the raw href
+    // would put that lie on screen with the app's own authority, which is why
+    // the annotation is parsed (`URL.host`) rather than echoed.
+    const href = "https://github.com@evil.example.com/dl/FixLang.dmg";
     await render({
       ...readyState("available"),
       availableVersion: "0.3.0",
-      releaseNotes: [
-        "[**https://github.com/anhdd-kuro/fix-lang**](https://evil.example.com/bold)",
-        "and [//github.com/anhdd-kuro/fix-lang](https://evil.example.com/scheme-relative)",
-      ].join(" "),
+      releaseNotes: `[${TRUSTED_LOOKING}](${href})`,
     });
 
-    const labelOf = (href: string): string | undefined =>
-      container.querySelector<HTMLAnchorElement>(`a[href='${href}']`)
-        ?.textContent ?? undefined;
+    const link = linkTo(href);
+    expect(link.textContent).toContain(" (evil.example.com)");
+    expect(link.textContent).not.toContain("github.com@");
 
-    expect(labelOf("https://evil.example.com/bold")).toBe(
-      "https://evil.example.com/bold",
-    );
-    expect(labelOf("https://evil.example.com/scheme-relative")).toBe(
-      "https://evil.example.com/scheme-relative",
-    );
+    await click(link);
+    expect(api.openExternalLink).toHaveBeenCalledWith(href);
   });
 
-  it("counts a different path on the same host as a different destination", async () => {
-    // github.com is a trusted HOST that anyone can publish a repository and a
-    // release binary on, so "same host" is not the same destination.
+  it("counts a swapped port as part of the destination", async () => {
+    // Same hostname, attacker-chosen port: `github.com:8080` is not the host
+    // a reader means by "github.com", so the annotation keeps the port.
+    const href = "https://github.com:8080/anhdd-kuro/fix-lang";
     await render({
       ...readyState("available"),
       availableVersion: "0.3.0",
-      releaseNotes:
-        "[https://github.com/anhdd-kuro/fix-lang/releases](https://github.com/attacker/fix-lang/releases)",
+      releaseNotes: `[${TRUSTED_LOOKING}](${href})`,
     });
 
-    expect(
-      container.querySelector<HTMLAnchorElement>(
-        "a[href='https://github.com/attacker/fix-lang/releases']",
-      )?.textContent,
-    ).toBe("https://github.com/attacker/fix-lang/releases");
+    expect(linkTo(href).textContent).toContain(" (github.com:8080)");
   });
 
-  it("counts a swapped port as a different destination", async () => {
-    // Same hostname, attacker-chosen port: `github.com:8080` is not GitHub.
+  it("states its own limit: a same-host path swap is only in the tooltip", async () => {
+    // The annotation names the HOST, so `github.com/attacker/…` under a
+    // `github.com/anhdd-kuro/…` label is NOT disclosed in the visible text.
+    // Pinned deliberately rather than left to a comment: the alternative —
+    // rendering the whole attacker-chosen URL — is the defect this replaced.
+    const href = "https://github.com/attacker/fix-lang/releases";
     await render({
       ...readyState("available"),
       availableVersion: "0.3.0",
-      releaseNotes:
-        "[https://github.com/anhdd-kuro/fix-lang](https://github.com:8080/anhdd-kuro/fix-lang)",
+      releaseNotes: `[${TRUSTED_LOOKING}/releases](${href})`,
     });
 
-    expect(
-      container.querySelector<HTMLAnchorElement>(
-        "a[href='https://github.com:8080/anhdd-kuro/fix-lang']",
-      )?.textContent,
-    ).toBe("https://github.com:8080/anhdd-kuro/fix-lang");
+    const link = linkTo(href);
+    expect(link.textContent).toBe(`${TRUSTED_LOOKING}/releases (github.com)`);
+    expect(link.title).toBe(href);
   });
 
-  it("leaves ordinary release-notes links and autolinks exactly as written", async () => {
-    // The common case, and the one a heavy-handed defence would mangle:
-    // prose labels, and GFM autolinks whose label IS the href.
+  it("keeps a code-span label rendered as code", async () => {
+    // The f22 regression: a defence that REPLACES the label throws away the
+    // children tree, and with it every code span, emphasis and inline mark an
+    // honest maintainer wrote.
+    const href = "https://github.com/anhdd-kuro/fix-lang/blob/main/README.md";
     await render({
       ...readyState("available"),
       availableVersion: "0.3.0",
-      releaseNotes: [
-        "See [the full changelog](https://github.com/anhdd-kuro/fix-lang/releases)",
-        "and [README.md](https://github.com/anhdd-kuro/fix-lang/blob/main/README.md),",
-        "or https://github.com/anhdd-kuro/fix-lang/pull/12",
-        "and [github.com/anhdd-kuro/fix-lang](https://github.com/anhdd-kuro/fix-lang).",
-      ].join(" "),
+      releaseNotes: `[\`github.com/anhdd-kuro/fix-lang\`](${href})`,
     });
 
-    const labelOf = (href: string): string | undefined =>
-      container.querySelector<HTMLAnchorElement>(`a[href='${href}']`)
-        ?.textContent ?? undefined;
-
-    expect(labelOf("https://github.com/anhdd-kuro/fix-lang/releases")).toBe(
-      "the full changelog",
-    );
-    expect(
-      labelOf("https://github.com/anhdd-kuro/fix-lang/blob/main/README.md"),
-    ).toBe("README.md");
-    expect(labelOf("https://github.com/anhdd-kuro/fix-lang/pull/12")).toBe(
-      "https://github.com/anhdd-kuro/fix-lang/pull/12",
-    );
-    expect(labelOf("https://github.com/anhdd-kuro/fix-lang")).toBe(
+    const link = linkTo(href);
+    expect(link.querySelector("code")?.textContent).toBe(
       "github.com/anhdd-kuro/fix-lang",
     );
+    expect(link.textContent).toBe("github.com/anhdd-kuro/fix-lang (github.com)");
+  });
+
+  it("leaves a link that differs from its label only cosmetically alone", async () => {
+    // Fragment, query, trailing slash and www-vs-non-www are the shapes an
+    // honest maintainer writes and a whole-URL comparison rewrites.
+    await render({
+      ...readyState("available"),
+      availableVersion: "0.3.0",
+      releaseNotes: [
+        `[${TRUSTED_LOOKING}](${TRUSTED_LOOKING}#install)`,
+        `[${TRUSTED_LOOKING}](${TRUSTED_LOOKING}?tab=readme)`,
+        `[${TRUSTED_LOOKING}](${TRUSTED_LOOKING}/)`,
+        `[www.github.com/anhdd-kuro/fix-lang](${TRUSTED_LOOKING})`,
+      ].join(" "),
+    });
+
+    expect(linkTo(`${TRUSTED_LOOKING}#install`).textContent).toBe(
+      `${TRUSTED_LOOKING} (github.com)`,
+    );
+    expect(linkTo(`${TRUSTED_LOOKING}?tab=readme`).textContent).toBe(
+      `${TRUSTED_LOOKING} (github.com)`,
+    );
+    expect(linkTo(`${TRUSTED_LOOKING}/`).textContent).toBe(
+      `${TRUSTED_LOOKING} (github.com)`,
+    );
+    expect(linkTo(TRUSTED_LOOKING).textContent).toBe(
+      "www.github.com/anhdd-kuro/fix-lang (github.com)",
+    );
+  });
+
+  it("leaves ordinary release-notes labels and autolinks as written", async () => {
+    // The common case: prose labels, and GFM autolinks whose label IS the
+    // href. Each still gains the host, because an annotation only some links
+    // carry would teach the user that its ABSENCE means safe.
+    await render({
+      ...readyState("available"),
+      availableVersion: "0.3.0",
+      releaseNotes: [
+        `See [the full changelog](${TRUSTED_LOOKING}/releases)`,
+        `and [README.md](${TRUSTED_LOOKING}/blob/main/README.md),`,
+        `or ${TRUSTED_LOOKING}/pull/12.`,
+      ].join(" "),
+    });
+
+    expect(linkTo(`${TRUSTED_LOOKING}/releases`).textContent).toBe(
+      "the full changelog (github.com)",
+    );
+    expect(linkTo(`${TRUSTED_LOOKING}/blob/main/README.md`).textContent).toBe(
+      "README.md (github.com)",
+    );
+    expect(linkTo(`${TRUSTED_LOOKING}/pull/12`).textContent).toBe(
+      `${TRUSTED_LOOKING}/pull/12 (github.com)`,
+    );
+  });
+
+  it("annotates nothing for a link a click cannot dispatch", async () => {
+    // `mailto:` survives react-markdown's scheme allowlist but the click
+    // handler dispatches only `http(s)`, so there is no destination to
+    // disclose — and the annotation must not imply one.
+    await render({
+      ...readyState("available"),
+      availableVersion: "0.3.0",
+      releaseNotes: "[support@example.com](mailto:support@example.com)",
+    });
+
+    const link = linkTo("mailto:support@example.com");
+    expect(link.textContent).toBe("support@example.com");
+
+    await click(link);
+    expect(api.openExternalLink).not.toHaveBeenCalled();
   });
 
   it("lets the user retry and open the release page after an error", async () => {

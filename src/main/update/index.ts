@@ -63,17 +63,28 @@ export const chooseBoundCaskToken = (
  * The `detail` body of the switch confirm: the quit/download/reopen mechanics,
  * then the risk those mechanics hide.
  *
- * Both channels share ONE `userData`. `apiStore` is constructed with
- * `clearInvalidConfig: true`, and its own comment spells out the consequence —
- * a single value failing schema validation "wipes the ENTIRE config — every
- * profile, preset, and key reference" (which is why `guardStore.ts` exists as
- * a separate store at all). Migrations run forward only, behind a
- * `configVersion` gate with no inverse. So a beta that writes a value this
- * stable release rejects, or bumps `configVersion` past it, can cost the whole
- * configuration on the way BACK — and revert, the direction this feature calls
- * safe, is exactly where that lands. It is *no guarantee*, not *will always
- * happen*: it takes the beta actually writing such a value. The copy says that
- * much and no more.
+ * Both channels share ONE `userData`, and a beta can leave two DIFFERENT kinds
+ * of damage there — kept distinct here because a previous version of this
+ * comment merged them and invented a wipe vector that does not exist:
+ *
+ * 1. WIPE — the only path to one FOR THIS DATA, not the only store in the app
+ *    built this way (eight others set the same flag over far smaller values):
+ *    `apiStore` is constructed with
+ *    `clearInvalidConfig: true` (`apiStore.ts`), and its own comment spells out
+ *    the consequence — a single value failing schema validation "wipes the
+ *    ENTIRE config — every profile, preset, and key reference" (which is why
+ *    `guardStore.ts` exists as a separate store at all). A beta that writes a
+ *    value this stable release's schema rejects lands exactly there.
+ * 2. NOT a wipe: `configVersion` is `{ type: "number", default: 0 }`, so any
+ *    number a beta writes passes validation, and the migration gate reads
+ *    `configVersion >= 1` (`migrateStoredProfilesForModelRefs`). A beta that
+ *    bumps it forward makes stable SKIP that migration and leaves profiles
+ *    unmigrated — bad, but neither a validation failure nor a reset.
+ *
+ * Migrations run forward only, with no inverse, so neither is undone by going
+ * back. Revert, the direction this feature calls safe, is where they land. It
+ * is *no guarantee*, not *will always happen*: it takes the beta actually
+ * writing such a value. The copy says that much and no more.
  *
  * Takes the translator rather than reaching for `mainT` so the copy is
  * testable in both shipped languages without standing up Electron.

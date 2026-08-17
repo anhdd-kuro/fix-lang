@@ -1,10 +1,4 @@
-import {
-  isValidElement,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { isMessage, msg, type Message } from "~/features/i18n/shared/message";
@@ -64,96 +58,49 @@ const CommandBlock = ({ command }: { command: string }) => {
 };
 
 /**
- * The `http(s)` URL a value actually opens, normalised by `URL` (lowercased
- * scheme and host, default port dropped), or null when it is not such a URL.
+ * The host a click on this link would actually reach, or null when a click
+ * reaches nothing (the handler below dispatches `http(s)` only, so a `mailto:`
+ * or a relative href is inert and has no destination to disclose).
  *
- * The whole URL, not just the host: `github.com` is a trusted HOST that
- * anyone can publish a repository and a release binary on, so a label reading
- * `github.com/anhdd-kuro/fix-lang` over an href pointing at
- * `github.com/attacker/fix-lang` is the same deception one level down.
- * Comparing whole URLs is free of false positives here because only a label
- * that already looks like a URL is ever compared — prose never reaches it.
- */
-const normalizedHttpUrl = (value: string): string | null => {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:"
-      ? url.href
-      : null;
-  } catch {
-    return null;
-  }
-};
-
-/**
- * Whether a link's visible label is itself CLAIMING a destination, which is
- * the only case where replacing it can be right. Four shapes qualify: an
- * explicit `http(s)://`, a scheme-relative `//host/…`, a `www.` prefix, and a
- * host followed by a path separator (`github.com/anhdd-kuro/fix-lang`).
- *
- * The path separator is what keeps ordinary prose out of this: a label like
- * `README.md` or `v0.32.0` has the same dot-separated shape as a bare host,
- * and rewriting those would mangle the common case for no security gain. The
- * accepted residual gap is a bare host with no path and no scheme
- * (`github.com`), which stays as written.
- */
-const claimsADestination = (label: string): boolean =>
-  /^https?:\/\//i.test(label) ||
-  /^\/\/[a-z0-9-]+(\.[a-z0-9-]+)+(\/|$)/i.test(label) ||
-  /^www\.[^\s/]+/i.test(label) ||
-  /^[a-z0-9-]+(\.[a-z0-9-]+)+\/\S*$/i.test(label);
-
-/** The destination a label claims, for the shapes {@link claimsADestination} accepts. */
-const claimedUrl = (label: string): string | null => {
-  if (/^https?:\/\//i.test(label)) return normalizedHttpUrl(label);
-  return normalizedHttpUrl(
-    label.startsWith("//") ? `https:${label}` : `https://${label}`,
-  );
-};
-
-/**
- * The text a link DISPLAYS, or null when it displays anything that is not
- * text. Recursive on purpose: the label is attacker-chosen too, so a URL can
- * be wrapped in emphasis or a code span — `[**https://github.com/x**](…)` —
- * which arrives as element children rather than one string. A check that
- * understood only a bare string would be bypassed by two asterisks.
- */
-const plainTextLabel = (children: ReactNode): string | null => {
-  if (typeof children === "string") return children;
-  if (typeof children === "number") return String(children);
-  if (Array.isArray(children)) {
-    const parts = children.map(plainTextLabel);
-    return parts.includes(null) ? null : parts.join("");
-  }
-  if (isValidElement<{ children?: ReactNode }>(children)) {
-    const nested = children.props.children;
-    return nested === undefined ? null : plainTextLabel(nested);
-  }
-  return null;
-};
-
-/**
- * What a release-notes link should DISPLAY. A markdown author picks the label
- * and the href independently, and this panel dispatches the href — so
+ * A markdown author picks the label and the href independently, and this panel
+ * dispatches the href — so
  * `[https://github.com/anhdd-kuro/fix-lang](https://evil.example.com/phish)`
  * shows the project's own repository and opens somewhere else on a plain left
  * click, in the one place a user is primed to download and run an unsigned
- * macOS binary.
+ * macOS binary. The label is fully attacker-chosen, so NOTHING here reads it:
+ * an earlier attempt asked whether the label "looked like a URL" before
+ * disclosing the destination, and a single leading zero-width space — or a
+ * space, a quote, a bullet, an image — put the attack straight back. Any
+ * allow-list of label shapes loses that game; this one is not played.
  *
- * When (and only when) the label claims a destination and the href opens a
- * DIFFERENT one, the href is displayed instead, so what is on screen and what
- * a click does can no longer disagree. Prose labels and GFM autolinks — the
- * common case by far — are returned untouched.
+ * `URL.host`, not the raw href and not `hostname`:
+ * - Raw href is attacker-chosen text. `https://github.com@evil.example.com/…`
+ *   is a URL whose authority is `evil.example.com` and whose `github.com` is a
+ *   USERNAME; echoing it verbatim would print that lie with the app's own
+ *   authority. Parsing collapses it to the authority that actually resolves.
+ * - `host` keeps a non-default port, which `hostname` drops — `github.com:8080`
+ *   is not the host a reader means by "github.com".
+ * - Shown whole, never elided: the deceptive half of `github.com.evil.example.com`
+ *   is the END, so an ellipsis would hide precisely what this exists to show.
+ *
+ * RESIDUAL GAPS, stated rather than implied:
+ * 1. This names the host, not the path. `github.com/attacker/fix-lang` under a
+ *    `github.com/anhdd-kuro/fix-lang` label annotates as `(github.com)` and is
+ *    NOT disclosed in the visible text; only `title` carries the whole URL.
+ *    Rendering the whole URL is the attacker-controlled-text problem above.
+ * 2. It names a host; it does not judge one. `URL` applies IDNA ToASCII, so a
+ *    mixed-script homograph surfaces as visible `xn--` punycode, but an ASCII
+ *    look-alike (`githulb.com`, `github-releases.com`) still reads plausibly.
  */
-const displayedLinkLabel = (
-  children: ReactNode,
-  href: string | undefined,
-): ReactNode => {
-  const label = plainTextLabel(children);
-  if (label === null || !href) return children;
-  const target = normalizedHttpUrl(href);
-  if (target === null || !claimsADestination(label)) return children;
-  return claimedUrl(label) === target ? children : href;
+const dispatchedLinkHost = (href: string | undefined): string | null => {
+  if (!href) return null;
+  try {
+    const url = new URL(href);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.host || null;
+  } catch {
+    return null;
+  }
 };
 
 /**
@@ -203,23 +150,36 @@ const releaseNotesComponents: Components = {
     <strong className="font-semibold text-card-foreground">{children}</strong>
   ),
   em: ({ children }) => <em className="italic">{children}</em>,
-  a: ({ href, children }) => (
-    <a
-      href={href}
-      // The destination is also reachable on hover, for every link — the
-      // click dispatches `href`, so `href` is the only honest tooltip.
-      title={href}
-      onClick={(e) => {
-        e.preventDefault();
-        if (href && /^https?:\/\//i.test(href)) {
-          void window.electronAPI.openExternalLink(href);
-        }
-      }}
-      className="text-primary underline hover:no-underline"
-    >
-      {displayedLinkLabel(children, href)}
-    </a>
-  ),
+  a: ({ href, children }) => {
+    // One parse decides BOTH what a click dispatches and what the annotation
+    // names, so the two can never describe different URLs.
+    const host = dispatchedLinkHost(href);
+    return (
+      <a
+        href={href}
+        // The whole destination is also reachable on hover, for every link —
+        // the click dispatches `href`, so `href` is the only honest tooltip.
+        title={href}
+        onClick={(e) => {
+          e.preventDefault();
+          if (host !== null && href) {
+            void window.electronAPI.openExternalLink(href);
+          }
+        }}
+        className="text-primary underline hover:no-underline"
+      >
+        {/* The author's own label, always, exactly as written: emphasis, code
+            spans and inline marks all survive because nothing replaces them.
+            The disclosure below is ADDITIVE, which is what makes it safe to
+            apply to every link — a link that carried no annotation would
+            teach the reader that its absence means "trusted". */}
+        {children}
+        {host !== null && (
+          <span className="font-mono text-xs text-muted-foreground">{` (${host})`}</span>
+        )}
+      </a>
+    );
+  },
   // Release notes are untrusted GitHub content; never auto-load remote
   // images (would leak the user's IP / act as a tracking pixel).
   img: () => null,
