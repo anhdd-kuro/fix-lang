@@ -3,7 +3,14 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { msg, type Message } from "~/features/i18n/shared/message";
 import { createTranslator } from "~/features/i18n/shared/translate";
-import { SettingUpdates } from "./SettingUpdates";
+// The component's OWN answer to "which phases render main's descriptor", not
+// a second copy of the list: the previous test restated the three phases
+// locally and therefore pinned only the JSX against its own restatement,
+// leaving the source set free to drift in either direction with nothing red.
+import {
+  phaseRendersPrereleaseMessage,
+  SettingUpdates,
+} from "./SettingUpdates";
 import { I18nProvider } from "../i18n/I18nProvider";
 
 // Expected copy is derived through the real translator kernel — never
@@ -228,6 +235,8 @@ describe("SettingUpdates", () => {
   let prereleaseListener: ((state: PrereleaseState) => void) | undefined;
   let localeListener: ((locale: "en" | "ja") => void) | undefined;
   let unsubscribe: ReturnType<typeof vi.fn>;
+  /** The pre-release channel's own teardown, captured so unmount can assert it. */
+  let prereleaseUnsubscribe: ReturnType<typeof vi.fn>;
   let api: UpdateApi;
 
   /** The pre-release section's own subtree — never the whole panel. */
@@ -269,18 +278,21 @@ describe("SettingUpdates", () => {
    * ones are. Split out so the three call sites below all get a bridge that
    * behaves like the real preload rather than a partial one.
    */
-  const prereleaseBridge = (state: PrereleaseState) => ({
-    getPrereleaseState: vi.fn().mockResolvedValue(state),
-    checkForPrerelease: vi.fn().mockResolvedValue(state),
-    switchToPrerelease: vi.fn().mockResolvedValue({ success: true }),
-    revertToStable: vi.fn().mockResolvedValue({ success: true }),
-    onPrereleaseStateChanged: vi.fn(
-      (listener: (next: PrereleaseState) => void) => {
-        prereleaseListener = listener;
-        return vi.fn();
-      },
-    ),
-  });
+  const prereleaseBridge = (state: PrereleaseState) => {
+    prereleaseUnsubscribe = vi.fn();
+    return {
+      getPrereleaseState: vi.fn().mockResolvedValue(state),
+      checkForPrerelease: vi.fn().mockResolvedValue(state),
+      switchToPrerelease: vi.fn().mockResolvedValue({ success: true }),
+      revertToStable: vi.fn().mockResolvedValue({ success: true }),
+      onPrereleaseStateChanged: vi.fn(
+        (listener: (next: PrereleaseState) => void) => {
+          prereleaseListener = listener;
+          return prereleaseUnsubscribe;
+        },
+      ),
+    };
+  };
 
   const renderInLocale = async (
     locale: "en" | "ja",
@@ -880,14 +892,27 @@ describe("SettingUpdates", () => {
     expect(api.openExternalLink).toHaveBeenCalledWith("https://example.com");
   });
 
-  const linkTo = (href: string): HTMLAnchorElement => {
-    const link = container.querySelector<HTMLAnchorElement>(
-      `a[href='${href}']`,
-    );
+  const linkIn = (scope: HTMLElement, href: string): HTMLAnchorElement => {
+    const link = scope.querySelector<HTMLAnchorElement>(`a[href='${href}']`);
     if (!link) {
       throw new Error(`Expected a release-notes link to ${href}`);
     }
     return link;
+  };
+
+  const linkTo = (href: string): HTMLAnchorElement => linkIn(container, href);
+
+  /**
+   * A click that can be CANCELLED, unlike the shared `click` helper's — the
+   * whole point of the handler's `preventDefault()` is that the default
+   * navigation never happens, and an uncancelable event cannot observe that.
+   */
+  const clickCancelable = async (element: Element): Promise<MouseEvent> => {
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+    await act(async () => {
+      element.dispatchEvent(event);
+    });
+    return event;
   };
 
   /**
@@ -932,26 +957,121 @@ describe("SettingUpdates", () => {
     ["bare host, no path", "github.com", "bare"],
   ];
 
-  it.each(DECORATED_LABELS)(
-    "names the host a click opens whatever the label wears (%s)",
-    async (_name, label, slug) => {
+  /**
+   * THE TWO PANES THAT RENDER RELEASE NOTES. Every table below runs against
+   * both, and that is the whole point of the shape rather than a convenience:
+   * this file used to pin all twenty bypass rows on the stable pane alone, so
+   * replacing the pre-release pane's `<ReleaseNotes>` with a bare
+   * `<ReactMarkdown>` — dropping the host annotation, the click routing and
+   * the image suppression in one edit — left the entire suite byte-identical
+   * to baseline. Deleting that pane's notes outright was equally invisible.
+   *
+   * The unprotected pane was the WORSE one: its notes are read by a user
+   * deciding whether to install an unsigned beta, in the panel that primes
+   * them to do it.
+   *
+   * A third pane that renders release notes belongs in this array, never in a
+   * copy of these assertions — two copies are how the two panes drifted apart
+   * the first time.
+   */
+  const NOTES_PANES = [
+    {
+      name: "stable",
+      show: async (notes: string) => {
+        await render({
+          ...readyState("available"),
+          availableVersion: "0.3.0",
+          releaseNotes: notes,
+        });
+      },
+      scope: (): HTMLElement => container,
+    },
+    {
+      name: "pre-release",
+      show: async (notes: string) => {
+        await render(
+          readyState("up-to-date"),
+          prereleaseReady("available", {
+            offeredVersion: BETA_VERSION,
+            releaseNotes: notes,
+          }),
+        );
+      },
+      scope: (): HTMLElement => prereleaseSection(),
+    },
+  ] as const;
+
+  type NotesPane = (typeof NOTES_PANES)[number];
+
+  /** `[paneName, rowName, pane, label, hrefSlug]` — the pane name leads so the test title names it. */
+  const NOTES_PANE_LABEL_ROWS: readonly (readonly [
+    string,
+    string,
+    NotesPane,
+    string,
+    string,
+  ])[] = NOTES_PANES.flatMap((pane) =>
+    DECORATED_LABELS.map(
+      ([name, label, slug]) => [pane.name, name, pane, label, slug] as const,
+    ),
+  );
+
+  const EACH_NOTES_PANE: readonly (readonly [string, NotesPane])[] =
+    NOTES_PANES.map((pane) => [pane.name, pane] as const);
+
+  it.each(NOTES_PANE_LABEL_ROWS)(
+    "names the host a click opens whatever the label wears (%s pane, %s)",
+    async (_paneName, _rowName, pane, label, slug) => {
       // Link text and href are INDEPENDENT attacker-controlled inputs in a
       // release body. A label spelling the project's own repository while the
       // href points elsewhere sends the user to an attacker page from the one
       // panel that primes them to download and run a macOS binary.
       const href = `https://evil.example.com/${slug}`;
-      await render({
-        ...readyState("available"),
-        availableVersion: "0.3.0",
-        releaseNotes: `[${label}](${href})`,
-      });
+      await pane.show(`[${label}](${href})`);
 
-      const link = linkTo(href);
+      const link = linkIn(pane.scope(), href);
       // Additive, never substitutive: the author's own label is still there.
       expect(link.textContent).toContain("github.com");
       // And so is the one host the click actually reaches.
       expect(link.textContent).toContain(" (evil.example.com)");
       expect(link.title).toBe(href);
+    },
+  );
+
+  it.each(EACH_NOTES_PANE)(
+    "routes a release-notes link through the external-link bridge rather than navigating (%s pane)",
+    async (_paneName, pane) => {
+      const href = "https://evil.example.com/dl/FixLang.dmg";
+      await pane.show(`[${TRUSTED_LOOKING}](${href})`);
+
+      const event = await clickCancelable(linkIn(pane.scope(), href));
+
+      expect(api.openExternalLink).toHaveBeenCalledWith(href);
+      // The renderer half of a two-layer defence whose main half is the
+      // window's `will-navigate` guard. Without `preventDefault()` the click
+      // ALSO navigates — the user gets the page twice, once in a browser and
+      // once in the window that carries the preload.
+      expect(event.defaultPrevented).toBe(true);
+    },
+  );
+
+  it.each(EACH_NOTES_PANE)(
+    "never auto-loads a remote image from release notes (%s pane)",
+    async (_paneName, pane) => {
+      // Release notes are untrusted remote content. A rendered `<img>` fetches
+      // whatever host the notes name the moment the panel opens: a read
+      // receipt plus the IP of every user who looks at About -> Updates, with
+      // no click involved, from an app whose stated purpose is that user data
+      // stays local. The bypass table above already renders a fixture with an
+      // image in it and asserted nothing about the element.
+      await pane.show(
+        "![release banner](https://evil.example.com/px.png?u=1)\n\nWhat changed",
+      );
+
+      const scope = pane.scope();
+      expect(scope.querySelector("img")).toBeNull();
+      // Not vacuous: the notes really did render, the image alone did not.
+      expect(scope.textContent).toContain("What changed");
     },
   );
 
@@ -1076,22 +1196,21 @@ describe("SettingUpdates", () => {
     );
   });
 
-  it("annotates nothing for a link a click cannot dispatch", async () => {
-    // `mailto:` survives react-markdown's scheme allowlist but the click
-    // handler dispatches only `http(s)`, so there is no destination to
-    // disclose — and the annotation must not imply one.
-    await render({
-      ...readyState("available"),
-      availableVersion: "0.3.0",
-      releaseNotes: "[support@example.com](mailto:support@example.com)",
-    });
+  it.each(EACH_NOTES_PANE)(
+    "annotates nothing for a link a click cannot dispatch (%s pane)",
+    async (_paneName, pane) => {
+      // `mailto:` survives react-markdown's scheme allowlist but the click
+      // handler dispatches only `http(s)`, so there is no destination to
+      // disclose — and the annotation must not imply one.
+      await pane.show("[support@example.com](mailto:support@example.com)");
 
-    const link = linkTo("mailto:support@example.com");
-    expect(link.textContent).toBe("support@example.com");
+      const link = linkIn(pane.scope(), "mailto:support@example.com");
+      expect(link.textContent).toBe("support@example.com");
 
-    await click(link);
-    expect(api.openExternalLink).not.toHaveBeenCalled();
-  });
+      await click(link);
+      expect(api.openExternalLink).not.toHaveBeenCalled();
+    },
+  );
 
   it("lets the user retry and open the release page after an error", async () => {
     await render({
@@ -1717,26 +1836,61 @@ describe("SettingUpdates", () => {
     expect(announcing[0]?.getAttribute("role")).toBe("alert");
   });
 
-  it("keeps the no-confirm Revert button off an unsupported pre-release state", async () => {
-    // Revert is the one channel action that deliberately asks nothing, so its
-    // arming predicate is the whole gate in front of an uninstall-then-install
-    // that launches a detached Homebrew helper and quits the app. Not a
-    // combination main publishes today — that is exactly why it must fail safe
-    // rather than rely on main never publishing it.
-    await render(readyState("up-to-date"), {
-      phase: "unsupported",
-      activeChannel: "beta",
-      canSwitch: true,
-    });
+  /**
+   * Revert is the one channel action that deliberately asks NOTHING, so
+   * `canRevertToStable` is the whole gate in front of a detached Homebrew
+   * uninstall-then-install and an app quit. One row per term, each holding the
+   * other three satisfied, so no term can be dropped without a red test.
+   *
+   * Written as a table rather than one test because only the `unsupported`
+   * term ever had one: the three it was added alongside were each droppable in
+   * silence, and the worst of them — `activeChannel === "beta"` — arms that
+   * unconfirmed subprocess for every ordinary stable user the moment they
+   * press Check.
+   *
+   * None of these are combinations main publishes today. That is the point:
+   * the predicate must fail safe rather than rely on main never producing one.
+   */
+  const REVERT_REFUSALS: readonly (readonly [string, PrereleaseState])[] = [
+    [
+      "an unsupported state that claims a beta channel",
+      { phase: "unsupported", activeChannel: "beta", canSwitch: true },
+    ],
+    [
+      "an ordinary stable install that has only checked for a beta",
+      prereleaseReady("available", { offeredVersion: BETA_VERSION }),
+    ],
+    [
+      "a beta install Homebrew cannot switch",
+      prereleaseReady("up-to-date", {
+        activeChannel: "beta",
+        canSwitch: false,
+      }),
+    ],
+    [
+      "a beta install Homebrew is already installing over",
+      prereleaseReady("installing", { activeChannel: "beta" }),
+    ],
+    [
+      "a beta install waiting on the restart Homebrew staged",
+      prereleaseReady("restart-required", { activeChannel: "beta" }),
+    ],
+  ];
 
-    expect(
-      maybeButtonNamed(
-        prereleaseSection(),
-        tEn("settings.updates.prerelease.revertButton"),
-      ),
-    ).toBeUndefined();
-    expect(api.revertToStable).not.toHaveBeenCalled();
-  });
+  it.each(REVERT_REFUSALS)(
+    "keeps the no-confirm Revert button off %s",
+    async (_name, prerelease) => {
+      await render(readyState("up-to-date"), prerelease);
+
+      expect(
+        maybeButtonNamed(
+          prereleaseSection(),
+          tEn("settings.updates.prerelease.revertButton"),
+        ),
+      ).toBeUndefined();
+      expect(api.revertToStable).not.toHaveBeenCalled();
+    },
+  );
 
   it("still announces a channel-op failure the phase box does not render", async () => {
     // The other half of the ownership rule: suppression is only correct when
@@ -1780,11 +1934,13 @@ describe("SettingUpdates", () => {
     // LIVE component one phase at a time, so adding a `tm(message)` to a phase
     // — or dropping one — fails here instead of silently desynchronising the
     // suppression rule from what is on screen.
-    const messageRenderingPhases = new Set<PrereleaseState["phase"]>([
-      "error",
-      "installing",
-      "restart-required",
-    ]);
+    //
+    // The expectation comes from the component's OWN predicate, imported, not
+    // from a list restated here. A local copy pins "the JSX matches this
+    // file's opinion" and never "the JSX matches the source set", which is
+    // what let `installing` and `restart-required` be deleted from that set
+    // with the whole suite green — leaving the suppression rule claiming a
+    // sentence is on screen that nothing renders.
     const allPhases: PrereleaseState["phase"][] = [
       "unsupported",
       "idle",
@@ -1815,7 +1971,7 @@ describe("SettingUpdates", () => {
       expect({
         phase,
         rendered: prereleaseSection().textContent?.includes(expected) ?? false,
-      }).toEqual({ phase, rendered: messageRenderingPhases.has(phase) });
+      }).toEqual({ phase, rendered: phaseRendersPrereleaseMessage(phase) });
     }
   });
 
@@ -2231,6 +2387,338 @@ describe("SettingUpdates", () => {
 
     resolveRevert?.({ success: true });
     await waitForUi();
+  });
+
+  it("keeps the pre-release Check button shut for the length of its own check", async () => {
+    // The section's OWN busy term, as opposed to the five it borrows from the
+    // stable flow — every one of those arrived with a regression test and this
+    // one did not. `onPrereleaseStateChanged` CLEARS the pending flag the
+    // instant main broadcasts `checking`, so from that moment until the result
+    // lands the phase is the only thing holding the button shut. Each extra
+    // press is another unauthenticated GitHub release-LIST request, against a
+    // 60/hour budget, on the endpoint the check deliberately pages.
+    await render(readyState("up-to-date"), prereleaseReady("idle"));
+    let resolveCheck: ((next: PrereleaseState) => void) | undefined;
+    api.checkForPrerelease.mockReturnValueOnce(
+      new Promise<PrereleaseState>((resolve) => {
+        resolveCheck = resolve;
+      }),
+    );
+
+    await click(
+      buttonNamed(
+        prereleaseSection(),
+        tEn("settings.updates.prerelease.checkButton"),
+      ),
+    );
+    // Before main answers, the pending flag is what spins.
+    expect(
+      buttonNamed(
+        prereleaseSection(),
+        tEn("settings.updates.prerelease.checkButton"),
+      ).querySelector("svg"),
+    ).not.toBeNull();
+
+    await act(async () => {
+      prereleaseListener?.(prereleaseReady("checking"));
+    });
+
+    const check = buttonNamed(
+      prereleaseSection(),
+      tEn("settings.updates.prerelease.checkButton"),
+    );
+    expect(check.disabled).toBe(true);
+    // ...and after it answers, the phase is what spins. Both halves, because
+    // a spinner that stops mid-check reads as a check that finished.
+    expect(check.querySelector("svg")).not.toBeNull();
+    await click(check);
+    expect(api.checkForPrerelease).toHaveBeenCalledTimes(1);
+
+    resolveCheck?.(prereleaseReady("up-to-date"));
+    await waitForUi();
+  });
+
+  it.each([
+    [
+      "downloading",
+      prereleaseReady("downloading", {
+        offeredVersion: BETA_VERSION,
+        downloadedBytes: 1_000,
+        totalBytes: 4_000,
+      }),
+    ],
+    ["installing", prereleaseReady("installing", { offeredVersion: BETA_VERSION })],
+  ] satisfies (readonly [string, PrereleaseState])[])(
+    "freezes the stable Install button while a channel switch is %s",
+    async (_phase, prerelease) => {
+      // The half of `isBusy` that `channelActionPending` cannot cover: that
+      // flag only lives while THIS renderer's own invoke is outstanding. Main
+      // published `downloading`/`installing` on the pre-release channel and
+      // this renderer never started it — the app relaunched mid-switch and read
+      // the phase from `getPrereleaseState()`, or another window pressed
+      // Switch. The stable section still reads `available` + `canInstall`, and
+      // a press here starts a second brew operation into the first one's
+      // download lock — the documented way to make the button look dead.
+      await render(
+        {
+          ...readyState("available"),
+          availableVersion: "0.2.0",
+          canInstall: true,
+        },
+        prerelease,
+      );
+
+      const install = buttonNamed(container, tEn("settings.updates.installNow"));
+      expect(install.disabled).toBe(true);
+      await click(install);
+      expect(api.installUpdate).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    {
+      action: "switch",
+      prerelease: prereleaseReady("available", {
+        offeredVersion: BETA_VERSION,
+      }),
+      button: "settings.updates.prerelease.switchButton",
+      bridge: "switchToPrerelease",
+      expected: "settings.updates.prerelease.switchErrorMessage",
+    },
+    {
+      action: "revert",
+      prerelease: prereleaseReady("idle", { activeChannel: "beta" }),
+      button: "settings.updates.prerelease.revertButton",
+      bridge: "revertToStable",
+      expected: "settings.updates.prerelease.revertErrorMessage",
+    },
+  ] as const)(
+    "surfaces a broken $action bridge instead of swallowing it",
+    async ({ prerelease, button, bridge, expected }) => {
+      // `runPrerelease`'s catch, which nothing exercised. The Switch and Revert
+      // buttons live on `available`/`idle`, and NEITHER phase renders
+      // `prereleaseState.message` — so without the catch moving the section to
+      // `error`, the descriptor lands on a phase that shows it nowhere and the
+      // notice is never set on this path either. The user presses the button,
+      // the spinner stops, and nothing at all changes on screen.
+      //
+      // These are also the only two paths that reach the component's own bound
+      // descriptors: every other failure prefers main's, so `switchErrorMessage`
+      // and `revertErrorMessage` render here or nowhere.
+      await render(readyState("up-to-date"), prerelease);
+      api[bridge].mockRejectedValueOnce(new Error("bridge is gone"));
+
+      await click(buttonNamed(prereleaseSection(), tEn(button)));
+      await waitForUi();
+
+      expect(
+        prereleaseSection().querySelector('[role="alert"]')?.textContent,
+      ).toBe(tEn(expected));
+    },
+  );
+
+  it.each([
+    {
+      case: "the phase box is showing a different sentence",
+      published: msg("settings.updates.prerelease.downloadErrorMessage"),
+      reported: msg("settings.updates.prerelease.revertErrorMessage"),
+    },
+    {
+      case: "the phase box is showing the generic fallback with no descriptor",
+      published: undefined,
+      reported: msg("settings.updates.prerelease.revertErrorMessage"),
+    },
+    {
+      case: "the two sentences share a key but not their params",
+      published: msg(
+        "settings.updates.prerelease.bothCasksMessage",
+        BOTH_CASKS_PARAMS,
+      ),
+      reported: msg("settings.updates.prerelease.bothCasksMessage", {
+        ...BOTH_CASKS_PARAMS,
+        betaToken: "fixlang@beta-2",
+      }),
+    },
+  ])(
+    "still announces a channel-op failure when $case",
+    async ({ published, reported }) => {
+      // The MESSAGE half of the ownership rule — `isSameMessage` — which no
+      // test decided: every suppression case above turns on the PHASE half
+      // alone, so both degenerate forms of the helper (including a bare
+      // `return true`) passed the whole suite. `return true` suppresses every
+      // notice, and the specific reason a channel op refused is the only trace
+      // of a refusal main deliberately does not publish.
+      await render(
+        readyState("up-to-date"),
+        prereleaseReady("idle", { activeChannel: "beta" }),
+      );
+      api.revertToStable.mockImplementationOnce(async () => {
+        prereleaseListener?.({
+          phase: "error",
+          activeChannel: "beta",
+          canSwitch: true,
+          ...(published === undefined ? {} : { message: published }),
+        });
+        return { success: false, error: reported };
+      });
+
+      await click(
+        buttonNamed(
+          prereleaseSection(),
+          tEn("settings.updates.prerelease.revertButton"),
+        ),
+      );
+      await waitForUi();
+
+      const announced = tEn(reported.key, reported.params);
+      const notice = [
+        ...prereleaseSection().querySelectorAll('[role="status"]'),
+      ].find((node) => node.textContent === announced);
+      expect(notice).toBeDefined();
+    },
+  );
+
+  it("spins the Switch button, and only that button, while its switch is in flight", async () => {
+    await render(
+      readyState("up-to-date"),
+      prereleaseReady("available", { offeredVersion: BETA_VERSION }),
+    );
+    let resolveSwitch: ((result: { success: boolean }) => void) | undefined;
+    api.switchToPrerelease.mockReturnValueOnce(
+      new Promise<{ success: boolean }>((resolve) => {
+        resolveSwitch = resolve;
+      }),
+    );
+
+    await click(
+      buttonNamed(
+        prereleaseSection(),
+        tEn("settings.updates.prerelease.switchButton"),
+      ),
+    );
+
+    const section = prereleaseSection();
+    // A switch waits on a native confirm main owns, so without a spinner the
+    // only feedback is a button that went grey.
+    expect(
+      buttonNamed(
+        section,
+        tEn("settings.updates.prerelease.switchButton"),
+      ).querySelector("svg"),
+    ).not.toBeNull();
+    // Every control here shares one disabled flag, so a second spinner would
+    // stop the spinner naming which control was actually pressed.
+    expect(
+      buttonNamed(
+        section,
+        tEn("settings.updates.prerelease.checkButton"),
+      ).querySelector("svg"),
+    ).toBeNull();
+
+    resolveSwitch?.({ success: true });
+    await waitForUi();
+  });
+
+  it("does not let a late pre-release snapshot overwrite a newer channel event", async () => {
+    // The "subscribe before fetch" discipline, on the pre-release channel this
+    // time. The stable effect carries this test and its two siblings; the
+    // effect written as its deliberate mirror inherited none of them, so a
+    // reorder there would drop the first state update and leave the section
+    // reading `idle` during a live channel operation — re-arming Switch and
+    // Check over a Homebrew run that has already started.
+    let resolveInitial: ((state: PrereleaseState) => void) | undefined;
+    const initial = new Promise<PrereleaseState>((resolve) => {
+      resolveInitial = resolve;
+    });
+
+    await render(readyState("up-to-date"), prereleaseReady("idle"));
+    api.getPrereleaseState.mockReturnValueOnce(initial);
+
+    await act(async () => {
+      root.unmount();
+    });
+
+    container.remove();
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(I18nProvider, null, createElement(SettingUpdates)),
+      );
+    });
+    await waitForUi();
+    await waitForUi();
+
+    await act(async () => {
+      prereleaseListener?.(
+        prereleaseReady("available", { offeredVersion: BETA_VERSION }),
+      );
+      resolveInitial?.(prereleaseReady("idle"));
+      await initial;
+    });
+
+    const section = prereleaseSection();
+    expect(section.textContent).toContain(
+      tEn("settings.updates.prerelease.available", {
+        version: `v${BETA_VERSION}`,
+      }),
+    );
+    expect(section.textContent).not.toContain(
+      tEn("settings.updates.prerelease.idleDescription"),
+    );
+  });
+
+  it("reports a pre-release bridge that fails at mount rather than reading as unsupported", async () => {
+    // `getPrereleaseState()` rejecting — a broken preload, an IPC handler that
+    // threw — used to leave the section sitting on `unsupported` with no error
+    // anywhere, so the user read "pre-release updates are not available on
+    // this install" when what actually happened is that the bridge failed.
+    // They have no way to tell those apart and no reason to retry.
+    unsubscribe = vi.fn();
+    await renderWithApi({
+      getUpdateState: vi.fn().mockResolvedValue(readyState("up-to-date")),
+      checkForUpdates: vi.fn().mockResolvedValue(undefined),
+      openUpdateRelease: vi.fn().mockResolvedValue(undefined),
+      installUpdate: vi.fn().mockResolvedValue({ success: true }),
+      restartForUpdate: vi.fn().mockResolvedValue({ success: true }),
+      openExternalLink: vi.fn().mockResolvedValue({ success: true }),
+      onUpdateStateChanged: vi.fn((listener: (next: UpdateState) => void) => {
+        updateListener = listener;
+        return unsubscribe;
+      }),
+      ...prereleaseBridge(prereleaseReady("idle")),
+      getPrereleaseState: vi.fn().mockRejectedValue(new Error("bridge is gone")),
+      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+      setLocale: vi.fn().mockResolvedValue({ success: true }),
+      onLocaleChanged: vi.fn().mockReturnValue(vi.fn()),
+    });
+
+    const section = prereleaseSection();
+    expect(section.querySelector('[role="alert"]')?.textContent).toBe(
+      tEn("settings.updates.prerelease.genericError"),
+    );
+    expect(section.textContent).not.toContain(
+      tEn("settings.updates.prerelease.unsupported"),
+    );
+    // The stable flow beside it is untouched by the pre-release bridge failing.
+    expect(container.textContent).toContain(tEn("settings.updates.upToDate"));
+  });
+
+  it("unsubscribes from the pre-release channel on unmount", async () => {
+    // Its own channel, its own teardown: this component also mounts inside the
+    // About tab, so a listener left behind writes into an unmounted tree every
+    // time main publishes a channel state.
+    await render(readyState("up-to-date"), prereleaseReady("idle"));
+
+    expect(api.onPrereleaseStateChanged).toHaveBeenCalledTimes(1);
+    expect(prereleaseUnsubscribe).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.unmount();
+    });
+
+    expect(prereleaseUnsubscribe).toHaveBeenCalledTimes(1);
   });
 
   it("leaves the pre-release section unsupported on a preload without the channel bridge", async () => {

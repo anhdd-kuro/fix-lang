@@ -215,7 +215,7 @@ const MESSAGE_RENDERING_PRERELEASE_PHASES = new Set<PrereleaseState["phase"]>([
   "restart-required",
 ]);
 
-const phaseRendersPrereleaseMessage = (
+export const phaseRendersPrereleaseMessage = (
   phase: PrereleaseState["phase"],
 ): boolean => MESSAGE_RENDERING_PRERELEASE_PHASES.has(phase);
 
