@@ -14,7 +14,8 @@ type FindingKind =
   | "native JSX alias"
   | "namespaced native JSX"
   | 'createElement("button")'
-  | "PrimaryButton";
+  | "PrimaryButton"
+  | "foreign Button module";
 
 type Finding = {
   file: string;
@@ -91,8 +92,57 @@ const sourceFileFor = (fileName: string, source: string): ts.SourceFile =>
 const lineOf = (sourceFile: ts.SourceFile, node: ts.Node): number =>
   sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
 
-const isButtonModule = (moduleName: string): boolean =>
-  /(?:^|\/)Button(?:\.tsx?)?$/.test(moduleName);
+const buttonLeafModule = buttonLeafPath.replace(/\.tsx$/, "");
+
+const toPosixPath = (value: string): string => value.replaceAll("\\", "/");
+
+const isRendererSourcePath = (file: string): boolean =>
+  toPosixPath(file).startsWith("src/renderer/");
+
+const hasButtonModuleName = (moduleName: string): boolean =>
+  /(?:^|\/)Button(?:\.tsx?)?$/.test(toPosixPath(moduleName));
+
+// A module merely *named* Button is not the sanctioned leaf. The scanner only ever reads
+// files under src/renderer, so a Button-named module outside that root has its own source
+// unread: matching it by basename alone would accept `<button {...props} />` living in, say,
+// src/features/ui/shared/Button.tsx as a legitimate consumer of the design-system Button.
+const resolvesToButtonLeaf = (
+  moduleName: string,
+  importerFile: string,
+): boolean => {
+  const specifier = toPosixPath(moduleName);
+  // `~/*` maps to `./src/*` (tsconfig paths, applied by vite-tsconfig-paths) and is this
+  // repo's canonical import form, so `~/renderer/components/Button` is the leaf itself.
+  const resolved = specifier.startsWith("~/")
+    ? `src/${specifier.slice("~/".length)}`
+    : specifier.startsWith(".")
+      ? path.posix.normalize(
+          path.posix.join(
+            path.posix.dirname(toPosixPath(importerFile)),
+            specifier,
+          ),
+        )
+      : null;
+  return (
+    resolved !== null && resolved.replace(/\.tsx?$/, "") === buttonLeafModule
+  );
+};
+
+// Real renderer sources must resolve to the leaf. Synthetic fixture paths used by this
+// file's unit tests are not part of the tree and cannot resolve to anything, so they keep
+// the basename rule; every path the renderer scan feeds in is a real renderer source.
+const isButtonModule = (moduleName: string, importerFile: string): boolean =>
+  isRendererSourcePath(importerFile)
+    ? resolvesToButtonLeaf(moduleName, importerFile)
+    : hasButtonModuleName(moduleName);
+
+const importsForeignButtonModule = (
+  moduleName: string,
+  importerFile: string,
+): boolean =>
+  isRendererSourcePath(importerFile) &&
+  hasButtonModuleName(moduleName) &&
+  !resolvesToButtonLeaf(moduleName, importerFile);
 
 const isPrimaryButtonModule = (moduleName: string): boolean => {
   const baseName = path.posix.basename(moduleName.replaceAll("\\", "/"));
@@ -362,7 +412,7 @@ const buildLexicalAliasResolver = (
           null,
           moduleName === "react"
             ? "react-namespace"
-            : isButtonModule(moduleName)
+            : isButtonModule(moduleName, sourceFile.fileName)
               ? "button-component"
               : isPrimaryButtonModule(moduleName)
                 ? "primary-button-component"
@@ -378,7 +428,7 @@ const buildLexicalAliasResolver = (
           null,
           moduleName === "react"
             ? "react-namespace"
-            : isButtonModule(moduleName)
+            : isButtonModule(moduleName, sourceFile.fileName)
               ? "button-namespace"
               : isPrimaryButtonModule(moduleName)
                 ? "primary-button-namespace"
@@ -394,7 +444,8 @@ const buildLexicalAliasResolver = (
             null,
             moduleName === "react" && importedName === "createElement"
               ? "create-element"
-              : isButtonModule(moduleName) && importedName === "Button"
+              : isButtonModule(moduleName, sourceFile.fileName) &&
+                  importedName === "Button"
                 ? "button-component"
                 : isPrimaryButtonModule(moduleName) &&
                     importedName === "PrimaryButton"
@@ -1381,6 +1432,18 @@ const scanSource = (file: string, source: string): SourceScanResult => {
         `export from ${statement.moduleSpecifier.text}`,
       );
     }
+    if (
+      ts.isExportDeclaration(statement) &&
+      statement.moduleSpecifier &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      importsForeignButtonModule(statement.moduleSpecifier.text, file)
+    ) {
+      addFinding(
+        statement,
+        "foreign Button module",
+        `export from ${statement.moduleSpecifier.text}`,
+      );
+    }
     if (!ts.isImportDeclaration(statement)) {
       continue;
     }
@@ -1390,6 +1453,13 @@ const scanSource = (file: string, source: string): SourceScanResult => {
       : "";
     if (isPrimaryButtonModule(moduleName)) {
       addFinding(statement, "PrimaryButton", `import from ${moduleName}`);
+    }
+    if (importsForeignButtonModule(moduleName, file)) {
+      addFinding(
+        statement,
+        "foreign Button module",
+        `import from ${moduleName}`,
+      );
     }
     if (!statement.importClause) {
       continue;
@@ -2398,18 +2468,91 @@ const consumerContractRows = [
   ],
 ] as const;
 
-const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
-  ([id, stableId, semanticId, file, line, column]) => ({
-    column,
-    file,
-    id,
-    line,
-    semanticId,
-    stableId,
-  }),
-);
+type ConsumerContractRow = readonly [
+  id: string,
+  stableId: string,
+  semanticId: string,
+  file: string,
+  line: number,
+  column: number,
+];
+
+// The single reviewed count. Every assertion and title below reads it, so bumping the
+// inventory is one deliberate edit instead of a seven-site search-and-replace across a file
+// where the count's digits also appear in row ids (`BTN-109`), line numbers and hashes — and
+// a stray hit inside a SITE- id is the one that used to be silent.
+const EXPECTED_CONSUMER_COUNT = 109;
+
+// The one place a row tuple becomes a consumer object. The regeneration block below reuses
+// it, so the emitted sha256 is computed over the same key order the assertion hashes —
+// JSON.stringify is key-order sensitive, and a second hand-written mapping drifted from
+// this one before.
+const toChecklistConsumer = ([
+  id,
+  stableId,
+  semanticId,
+  file,
+  line,
+  column,
+]: ConsumerContractRow): ChecklistConsumer => ({
+  column,
+  file,
+  id,
+  line,
+  semanticId,
+  stableId,
+});
+
+const expectedButtonConsumers: ChecklistConsumer[] =
+  consumerContractRows.map(toChecklistConsumer);
 const consumerContractSha256 =
   "9c9db085307f271c5b93a79aaa25d02e6c0d13ce46f43ac5f1ef0deb6fc43f48";
+
+// A row's stableId normally mirrors its own semanticId: SITE-<hash>-01 for LIVE-<hash>.
+// It diverges only where a site was edited in place, moving its identity hash while staying
+// the same button, and the previous stableId was carried by hand so the site keeps one
+// lineage across history. Every such carry is listed here, so the binding is reviewed data
+// rather than an unverifiable claim in a commit message: the pairs below are the complete
+// set of rows whose stableId is not derivable from the row itself.
+const carriedStableIdentities: readonly (readonly [string, string])[] = [
+  ["SITE-f817bc24bfff4be1-01", "LIVE-264ac29656e00cd9"],
+  ["SITE-b1fefcea3824a139-01", "LIVE-6a59bc31fcc6d246"],
+  ["SITE-fd75f166a3e391cd-01", "LIVE-0ec083a0c6614349"],
+  ["SITE-0aee59564402ec3a-01", "LIVE-6a491ec61d9d725b"],
+  ["SITE-5c07a3dcdb7ff819-01", "LIVE-81d3f6b70313cfa7"],
+  ["SITE-43414753ace2ab81-01", "LIVE-da3e264ff5bff86c"],
+  ["SITE-cfd38745f41c80f2-01", "LIVE-0d366a2b4a3aa757"],
+  ["SITE-2b5e02b82b63d6af-01", "LIVE-1a247b82dcc22868"],
+  ["SITE-e1569fb1897b6372-01", "LIVE-a3ccf02b8ad14fce"],
+];
+
+const carriedStableIdBySemanticId = new Map(
+  carriedStableIdentities.map(([stableId, semanticId]) => [
+    semanticId,
+    stableId,
+  ]),
+);
+
+// stableId is the only durable identity in this file and the sha256 cannot protect it — the
+// sanctioned regeneration step is "copy the Received: value", so the seal is redefined at
+// exactly the moment the artifact changes. This rule can't be: it binds every stableId to
+// its own row's semanticId, which the live scan pins to a coordinate.
+//
+// The -NN suffix is the occurrence of that semanticId in the inventory, not decoration. Two
+// byte-identical Buttons inside one component hash the same (semanticIdentityFor never sees
+// line or column), so the suffix is what keeps their stableIds distinct — without it, the
+// legitimate repin that first introduces such a pair has no satisfying assignment at all.
+const deriveStableIds = (semanticIds: readonly string[]): string[] => {
+  const occurrences = new Map<string, number>();
+  return semanticIds.map((semanticId) => {
+    const occurrence = (occurrences.get(semanticId) ?? 0) + 1;
+    occurrences.set(semanticId, occurrence);
+    const carried = carriedStableIdBySemanticId.get(semanticId);
+    return carried !== undefined && occurrence === 1
+      ? carried
+      : `SITE-${semanticId.replace(/^LIVE-/, "")}-${String(occurrence).padStart(2, "0")}`;
+  });
+};
 
 const compareConsumers = (
   left: ButtonConsumer,
@@ -2763,6 +2906,69 @@ describe("renderer Button source guard", () => {
     });
   });
 
+  it("counts a renderer import that resolves to the sanctioned Button leaf", () => {
+    // Both spellings of the same file: the relative one every consumer uses today, and the
+    // `~/` path alias that is this repo's canonical form and would otherwise read as foreign.
+    for (const moduleName of ["../Button", "~/renderer/components/Button"]) {
+      const result = scanSource(
+        "src/renderer/components/probe/Fixture.tsx",
+        [
+          `import { Button } from "${moduleName}";`,
+          "const Example = () => <Button />;",
+        ].join("\n"),
+      );
+
+      expect(result.findings).toEqual([]);
+      expect(result.buttonConsumers).toHaveLength(1);
+    }
+  });
+
+  it("rejects a renderer re-export of a Button module outside the sanctioned leaf", () => {
+    const result = scanSource(
+      "src/renderer/components/probe/Fixture.tsx",
+      ['export { Button } from "~/features/ui/shared/Button";'].join("\n"),
+    );
+
+    expect(result.findings).toEqual([
+      {
+        file: "src/renderer/components/probe/Fixture.tsx",
+        line: 1,
+        kind: "foreign Button module",
+        detail: "export from ~/features/ui/shared/Button",
+      },
+    ]);
+  });
+
+  it("rejects a renderer import of a Button module outside the sanctioned leaf", () => {
+    // The scanner reads only src/renderer, so a Button-named module anywhere else never has
+    // its own source inspected. Accepting it by basename would let `<button {...props} />`
+    // ship from src/features/ui/shared/Button.tsx behind a repointed import, with the whole
+    // inventory still reporting green.
+    for (const moduleName of [
+      "~/features/ui/shared/Button",
+      "../../../features/ui/shared/Button",
+      "@acme/design-system/Button",
+    ]) {
+      const result = scanSource(
+        "src/renderer/components/probe/Fixture.tsx",
+        [
+          `import { Button } from "${moduleName}";`,
+          "const Example = () => <Button />;",
+        ].join("\n"),
+      );
+
+      expect(result.findings).toEqual([
+        {
+          file: "src/renderer/components/probe/Fixture.tsx",
+          line: 1,
+          kind: "foreign Button module",
+          detail: `import from ${moduleName}`,
+        },
+      ]);
+      expect(result.buttonConsumers).toEqual([]);
+    }
+  });
+
   it("rejects dynamic import and CommonJS require PrimaryButton paths", () => {
     const result = scanSource(
       "fixture.tsx",
@@ -2921,74 +3127,94 @@ describe("renderer Button source guard", () => {
       'variant="primary" type="submit" onClick={save} aria-label="Save" disabled={busy} className="h-8"',
       'variant="primary" type="button" onClick={save} aria-label="Save" disabled={ready} className="h-8"',
       'variant="primary" type="button" onClick={save} aria-label="Save" disabled={busy} className="w-8"',
+      // An attribute the contract knows nothing about, merely appended. This is the claim the
+      // deleted 109x mutation test made against every live site; semanticIdentityFor puts the
+      // whole attribute list into the fingerprint, so one fixture settles it for all of them.
+      'variant="primary" type="button" onClick={save} aria-label="Save" disabled={busy} className="h-8" data-probe="1"',
     ]) {
       expect(scanConsumer(mutation)).not.toEqual(baseline);
     }
   });
 
-  it("changes every one of the 109 live identities under a stable-coordinate mutation", async () => {
-    const sourceByFile = new Map<string, string>();
-    let mutatedIdentityCount = 0;
+  // The 109x stable-coordinate mutation test that used to sit here was deleted. Its byte-offset
+  // anchor (`source.slice(offset, …) === "<Button"`) is implied by the live-vs-pinned equality
+  // below: a pinned coordinate that named no real Button site would be missing from the live
+  // scan and the inventory equality would already be red. Its other claim — an injected
+  // attribute moves the identity hash — is proved on a fixture in the test above and cannot
+  // fail, since semanticIdentityFor hashes the whole attribute list. What it did do was go red,
+  // loudly and for a stale reason, on every line-shifting edit to any of the 37 renderer files
+  // holding a pinned Button, which trained reviewers to wave this guard's failures through.
+  // What it alone caught: the literal text `<Button` at a pinned coordinate, so a Button
+  // re-bound locally (`import { Button as Btn }`, or `<ButtonNs.Button …>`) at an unchanged
+  // coordinate with unchanged props is now invisible. That is a rename of the sanctioned
+  // component, not a substitution of it, and the ~1200-line alias resolver above exists
+  // precisely to accept such re-bindings as legitimate consumers.
 
-    for (const expected of expectedButtonConsumers) {
-      let source = sourceByFile.get(expected.file);
-      if (!source) {
-        source = await readFile(
-          path.join(repositoryRoot, expected.file),
-          "utf8",
-        );
-        sourceByFile.set(expected.file, source);
-      }
-      const lines = source.split("\n");
-      const precedingLines = lines.slice(0, expected.line - 1);
-      const offset =
-        precedingLines.reduce((total, line) => total + line.length + 1, 0) +
-        expected.column -
-        1;
-      expect(source.slice(offset, offset + "<Button".length)).toBe("<Button");
-
-      const mutatedSource =
-        source.slice(0, offset + "<Button".length) +
-        ` data-card08-mutation="${expected.id}"` +
-        source.slice(offset + "<Button".length);
-      const mutatedConsumer = scanSource(
-        expected.file,
-        mutatedSource,
-      ).buttonConsumers.find(
-        ({ column, file, line }) =>
-          file === expected.file &&
-          line === expected.line &&
-          column === expected.column,
-      );
-
-      expect(mutatedConsumer).toBeDefined();
-      expect(mutatedConsumer?.semanticId).not.toBe(expected.semanticId);
-      mutatedIdentityCount += 1;
-    }
-
-    expect(mutatedIdentityCount).toBe(109);
-  });
-
-  it("allows the shared native leaf and the exact 109-consumer migration inventory", async () => {
+  it(`allows the shared native leaf and the exact ${EXPECTED_CONSUMER_COUNT}-consumer migration inventory`, async () => {
     const result = await scanRenderer();
     const locations = expectedButtonConsumers.map(
       ({ file, line, column }) => `${file}:${line}:${column}`,
     );
 
-    expect(expectedButtonConsumers).toHaveLength(109);
+    expect(expectedButtonConsumers).toHaveLength(EXPECTED_CONSUMER_COUNT);
     expect(sha256(JSON.stringify(expectedButtonConsumers))).toBe(
       consumerContractSha256,
     );
     expect(expectedButtonConsumers.map(({ id }) => id)).toEqual(
       Array.from(
-        { length: 109 },
+        { length: EXPECTED_CONSUMER_COUNT },
         (_, index) => `BTN-${String(index + 1).padStart(3, "0")}`,
       ),
     );
     expect(
       new Set(expectedButtonConsumers.map(({ stableId }) => stableId)).size,
-    ).toBe(109);
-    expect(new Set(locations).size).toBe(109);
+    ).toBe(EXPECTED_CONSUMER_COUNT);
+    expect(new Set(locations).size).toBe(EXPECTED_CONSUMER_COUNT);
+    // BTN-NNN is positional, so row order IS the label-to-button binding. Nothing else here
+    // pins it: the live comparison below re-sorts both sides, the id sequence is invariant
+    // under any permutation, and the sha256 is regenerated from whatever order the file
+    // holds. A repin that sorts with Array.sort()'s ASCII rule instead of compareConsumers'
+    // localeCompare reshuffles all rows, reassigns every label, and is otherwise green.
+    expect(expectedButtonConsumers).toEqual(
+      [...expectedButtonConsumers].sort(compareConsumers),
+    );
+    // Binds each stableId to its own row's semanticId, which the live comparison below binds
+    // to a coordinate. Without this the whole SITE- column can be rotated onto the wrong
+    // buttons, or one character of one hash flipped, and every assertion still passes once
+    // the sha256 is refreshed the way the regeneration procedure instructs.
+    expect(expectedButtonConsumers.map(({ stableId }) => stableId)).toEqual(
+      deriveStableIds(
+        expectedButtonConsumers.map(({ semanticId }) => semanticId),
+      ),
+    );
+    // A carried entry whose semanticId is no longer in the inventory is a stale exemption.
+    // It does not stay harmless: an edit that puts a site back to a previous state re-derives
+    // the identity it names, and the dead entry silently adopts that row.
+    expect(
+      carriedStableIdentities
+        .map(([, semanticId]) => semanticId)
+        .filter(
+          (semanticId) =>
+            !expectedButtonConsumers.some(
+              (consumer) => consumer.semanticId === semanticId,
+            ),
+        ),
+    ).toEqual([]);
+    // A carry always names a RETIRED identity — the hash the site used to have. One naming an
+    // identity some row still has is not a carry, it is the escape hatch being used to bless a
+    // stableId that belongs to a different button; that is the shape a cross-wired repin takes
+    // when the mirror rule above rejects it and the obvious next move is to exempt the rows.
+    expect(
+      carriedStableIdentities
+        .map(([stableId]) => stableId)
+        .filter((stableId) =>
+          expectedButtonConsumers.some(
+            ({ semanticId }) =>
+              semanticId.replace(/^LIVE-/, "") ===
+              stableId.replace(/^SITE-/, "").replace(/-\d+$/, ""),
+          ),
+        ),
+    ).toEqual([]);
     expect(result.findings).toEqual([]);
     expect(result.sourceFiles.filter(isPrimaryButtonModule)).toEqual([]);
     expect(result.nativeLeaves).toHaveLength(1);
@@ -3009,37 +3235,108 @@ describe("renderer Button source guard", () => {
     );
   });
 
+  // REGENERATION PROCEDURE — the whole of it, in the repository, because the file it rewrites
+  // is 3000 lines of pinned data and the previous version of this block emitted an artifact
+  // that could not be pasted in (wrong key order, so its sha never matched) and that minted
+  // fresh SITE- ids (so every carried lineage was silently dropped).
+  //
+  //   1. `REGEN_BUTTON_CONTRACT=1 bun run test src/renderer/components/ButtonSourceGuard.test.ts`
+  //   2. Read `.scratch/button-contract.json`. `reconciliation` lists what actually changed:
+  //      `added` and `dropped` coordinates, and `identityChanges` — sites at an unchanged
+  //      coordinate whose semanticId moved. Every entry must be explained by the diff you just
+  //      made. An unexplained `dropped` + `added` pair is a button that moved, not two events.
+  //   3. For each `identityChanges` entry that is still the same button, add
+  //      `[<old stableId>, <new semanticId>]` to `carriedStableIdentities` above — that, not a
+  //      commit message, is what carries the site's history. If that site was carried before,
+  //      DELETE its old entry: the entry it supersedes now names a semanticId no site has, and
+  //      the test says so rather than letting a dead exemption sit there waiting to adopt a row.
+  //   4. **Regenerate again.** `rowsSource` is built from `carriedStableIdentities` as it stood
+  //      when the run started, so the artifact from step 1 still carries the derived stableId
+  //      for anything you exempted in step 3. Pasting it produces a stableId mismatch, not a
+  //      sha mismatch, and the failure diff invites you to delete the carry you just added.
+  //   5. Paste `rowsSource` over `consumerContractRows` and `sha256` over
+  //      `consumerContractSha256`. Do NOT search-and-replace the count: edit
+  //      EXPECTED_CONSUMER_COUNT, the one place it lives.
+  //   6. Re-run the test. Nothing is ever copied out of `Received:` — not the sha, which is how
+  //      the seal was hollowed out before, and not a stableId, which would reassign a lineage.
+  //      A mismatch of either means the paste or step 3 is wrong; fix it and regenerate.
   if (process.env.REGEN_BUTTON_CONTRACT === "1") {
     it("regenerates consumer contract artifact", async () => {
       const { writeFile, mkdir } = await import("node:fs/promises");
       const result = await scanRenderer();
       const sorted = [...result.buttonConsumers].sort(compareConsumers);
-      const rows = sorted.map((consumer, index) => {
-        const hash = consumer.semanticId.replace(/^LIVE-/, "");
-        return [
-          `BTN-${String(index + 1).padStart(3, "0")}`,
-          `SITE-${hash}-01`,
-          consumer.semanticId,
-          consumer.file,
-          consumer.line,
-          consumer.column,
-        ];
-      });
-      const consumers = rows.map(
-        ([id, stableId, semanticId, file, line, column]) => ({
-          id,
-          stableId,
-          semanticId,
-          file,
-          line,
-          column,
-        }),
+      const stableIds = deriveStableIds(
+        sorted.map(({ semanticId }) => semanticId),
       );
+      const rows: ConsumerContractRow[] = sorted.map((consumer, index) => [
+        `BTN-${String(index + 1).padStart(3, "0")}`,
+        stableIds[index],
+        consumer.semanticId,
+        consumer.file,
+        consumer.line,
+        consumer.column,
+      ]);
+      const locationOf = ({ file, line, column }: ButtonConsumer): string =>
+        `${file}:${line}:${column}`;
+      const liveByLocation = new Map(
+        sorted.map((consumer) => [locationOf(consumer), consumer]),
+      );
+      const pinnedByLocation = new Map(
+        expectedButtonConsumers.map((consumer) => [
+          locationOf(consumer),
+          consumer,
+        ]),
+      );
+      const reconciliation = {
+        added: [...liveByLocation.keys()].filter(
+          (location) => !pinnedByLocation.has(location),
+        ),
+        dropped: [...pinnedByLocation.keys()].filter(
+          (location) => !liveByLocation.has(location),
+        ),
+        identityChanges: [...pinnedByLocation.entries()]
+          .filter(
+            ([location, pinned]) =>
+              liveByLocation.get(location) !== undefined &&
+              liveByLocation.get(location)?.semanticId !== pinned.semanticId,
+          )
+          .map(([location, pinned]) => ({
+            location,
+            id: pinned.id,
+            stableId: pinned.stableId,
+            was: pinned.semanticId,
+            now: liveByLocation.get(location)?.semanticId,
+          })),
+      };
+      const rowsSource = [
+        "const consumerContractRows = [",
+        ...rows.map(([id, stableId, semanticId, file, line, column]) =>
+          [
+            "  [",
+            `    "${id}",`,
+            `    "${stableId}",`,
+            `    "${semanticId}",`,
+            `    "${file}",`,
+            `    ${line},`,
+            `    ${column},`,
+            "  ],",
+          ].join("\n"),
+        ),
+        "] as const;",
+      ].join("\n");
+
       await mkdir(".scratch", { recursive: true });
       await writeFile(
         ".scratch/button-contract.json",
         JSON.stringify(
-          { rows, sha256: sha256(JSON.stringify(consumers)) },
+          {
+            count: rows.length,
+            reconciliation,
+            rows,
+            rowsSource,
+            // Hashed through the same mapping the assertion uses, so a drop-in paste agrees.
+            sha256: sha256(JSON.stringify(rows.map(toChecklistConsumer))),
+          },
           null,
           2,
         ),
