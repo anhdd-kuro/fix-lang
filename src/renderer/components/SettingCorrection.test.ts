@@ -7,7 +7,9 @@ import { CAVEMAN_MODE_OPTION_KEY } from "~/features/correction/shared/presetOpti
 import { createTranslator } from "~/features/i18n/shared/translate";
 import {
   DEFAULT_ASK_PRESET_ID,
+  DEFAULT_CAVEMAN_FULL_DIRECTIVE,
   DEFAULT_CAVEMAN_PRESET_ID,
+  DEFAULT_CAVEMAN_ULTRA_DIRECTIVE,
   DEFAULT_CORRECTION_PRESET_ID,
 } from "~/prompts/correction";
 import { SettingCorrection } from "./SettingCorrection";
@@ -614,6 +616,16 @@ describe("SettingCorrection preset-scoped options", () => {
     });
   };
 
+  const duplicatePreset = async () => {
+    const button = [...container.querySelectorAll("button")].find(
+      (candidate) =>
+        candidate.textContent === tEn("settings.correction.duplicate"),
+    );
+    await act(async () => {
+      button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+  };
+
   it("renders no option control for a preset that declares none, and the declared choices for one that does", async () => {
     Object.defineProperty(window, "electronAPI", {
       configurable: true,
@@ -883,5 +895,114 @@ describe("SettingCorrection preset-scoped options", () => {
         }),
       ],
     });
+  });
+
+  /**
+   * `PRESET_OPTION_DEFINITIONS` is keyed by BUILT-IN preset id, so a
+   * duplicate's fresh `custom-*` id declares no options: the intensity
+   * control that produced this directive would render nothing for the copy,
+   * and `withPresetOptions` would hand the raw prompt to the model with no
+   * directive appended at all — even though `src/prompts/caveman.md` tells the
+   * model an intensity level is coming. Duplicating must therefore bake the
+   * ACTIVE choice's fragment into the copy's own `systemPrompt` and must not
+   * carry `extraOptions` forward, since nothing will ever read it again.
+   */
+  it("duplicating Caveman at a non-default level bakes that level's directive into the copy and drops extraOptions", async () => {
+    const setCorrectSettings = vi.fn().mockResolvedValue({ success: true });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: baseElectronAPI({
+        getCorrectSettings: vi.fn().mockResolvedValue({
+          presets: [
+            {
+              ...cavemanPreset,
+              extraOptions: { [CAVEMAN_MODE_OPTION_KEY]: "ultra" },
+            },
+          ],
+          selectedPresetId: DEFAULT_CAVEMAN_PRESET_ID,
+        }),
+        setCorrectSettings,
+      }),
+    });
+
+    await mount();
+    await duplicatePreset();
+    await submit();
+
+    expect(setCorrectSettings).toHaveBeenCalledTimes(1);
+    const payload = setCorrectSettings.mock.calls[0][0];
+    expect(payload.presets).toHaveLength(2);
+    const duplicate = payload.presets[1];
+
+    expect(duplicate.systemPrompt).toContain(
+      DEFAULT_CAVEMAN_ULTRA_DIRECTIVE.trim(),
+    );
+    expect(duplicate.systemPrompt).not.toContain(
+      DEFAULT_CAVEMAN_FULL_DIRECTIVE.trim(),
+    );
+    expect(duplicate.extraOptions).toBeUndefined();
+  });
+
+  /**
+   * Not covered by the test above: Caveman's declared DEFAULT is "full", so a
+   * duplicate made while sitting on the default level must still bake that
+   * default's directive into the copy rather than silently going
+   * level-less. `resolvePresetOptionValue` falling back to the definition's
+   * default is exactly the code path this pins.
+   */
+  it("duplicating Caveman at the default level still bakes the default directive into the copy", async () => {
+    const setCorrectSettings = vi.fn().mockResolvedValue({ success: true });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: baseElectronAPI({
+        getCorrectSettings: vi.fn().mockResolvedValue({
+          presets: [cavemanPreset], // extraOptions: { cavemanMode: "full" }
+          selectedPresetId: DEFAULT_CAVEMAN_PRESET_ID,
+        }),
+        setCorrectSettings,
+      }),
+    });
+
+    await mount();
+    await duplicatePreset();
+    await submit();
+
+    const payload = setCorrectSettings.mock.calls[0][0];
+    const duplicate = payload.presets[1];
+
+    expect(duplicate.systemPrompt).toContain(
+      DEFAULT_CAVEMAN_FULL_DIRECTIVE.trim(),
+    );
+    expect(duplicate.extraOptions).toBeUndefined();
+  });
+
+  /**
+   * `withPresetOptions` returns the SAME string (not merely an equal one) for
+   * a preset that declares no options, so every non-Caveman preset must
+   * duplicate byte-for-byte — no trailing separator, no accidental
+   * `extraOptions` key appearing where none existed before.
+   */
+  it("duplicating a preset with no declared options leaves systemPrompt byte-identical and adds no extraOptions", async () => {
+    const setCorrectSettings = vi.fn().mockResolvedValue({ success: true });
+    Object.defineProperty(window, "electronAPI", {
+      configurable: true,
+      value: baseElectronAPI({
+        getCorrectSettings: vi.fn().mockResolvedValue({
+          presets: [correctionPreset],
+          selectedPresetId: DEFAULT_CORRECTION_PRESET_ID,
+        }),
+        setCorrectSettings,
+      }),
+    });
+
+    await mount();
+    await duplicatePreset();
+    await submit();
+
+    const payload = setCorrectSettings.mock.calls[0][0];
+    const duplicate = payload.presets[1];
+
+    expect(duplicate.systemPrompt).toBe(correctionPreset.systemPrompt);
+    expect(Object.hasOwn(duplicate, "extraOptions")).toBe(false);
   });
 });

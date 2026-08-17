@@ -3,6 +3,7 @@ import {
   CAVEMAN_MODE_OPTION_KEY,
   presetOptionDefinitions,
   resolvePresetOptionValue,
+  withPresetOptions,
 } from "~/features/correction/shared/presetOptions";
 import { msg, messageLabel, type Message } from "~/features/i18n/shared/message";
 import {
@@ -377,12 +378,24 @@ export const SettingCorrection: React.FC = () => {
       return;
     }
 
+    // `PRESET_OPTION_DEFINITIONS` is keyed by BUILT-IN preset id, so a
+    // duplicate's fresh `custom-*` id declares no options: the Settings
+    // control that lets the original preset choose e.g. Caveman's intensity
+    // would silently disappear, and the directive it used to inject would
+    // never reach the model even though the copied prompt text still refers
+    // to it. Baking the resolved fragments into `systemPrompt` up front makes
+    // the duplicate a self-contained plain custom preset — the same shape
+    // every other custom preset already is — instead of teaching the
+    // registry to follow a lineage that does not exist yet.
+    const { extraOptions: _extraOptions, ...activePresetWithoutOptions } =
+      activePreset;
     const duplicatedPreset: CorrectionPreset = {
-      ...activePreset,
+      ...activePresetWithoutOptions,
       id: `custom-${Date.now()}`,
       name: `${activePreset.name} Copy`,
       hotkey: "",
       isBuiltIn: false,
+      systemPrompt: withPresetOptions(activePreset.systemPrompt, activePreset),
     };
 
     setCorrectionSettings((current) => ({
