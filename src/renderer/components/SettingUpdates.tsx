@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { isMessage, msg, type Message } from "~/features/i18n/shared/message";
@@ -169,6 +169,30 @@ const displayVersion = (version: string | undefined): string =>
   version?.startsWith("v") ? version : `v${version ?? ""}`;
 
 /**
+ * Whether two descriptors would render the identical sentence — the test the
+ * pre-release ownership rule (see `runPrerelease`) is stated in terms of.
+ *
+ * Shallow over `params` by contract: `MessageParams` values are `string |
+ * number` only, so there is nothing deeper to walk. An absent descriptor on
+ * either side is never "the same": a section showing nothing has not already
+ * said what the notice is about to say.
+ */
+const isSameMessage = (
+  left: Message | undefined,
+  right: Message | undefined,
+): boolean => {
+  if (left === undefined || right === undefined) return false;
+  if (left.key !== right.key) return false;
+  const leftParams = left.params ?? {};
+  const rightParams = right.params ?? {};
+  const leftKeys = Object.keys(leftParams);
+  return (
+    leftKeys.length === Object.keys(rightParams).length &&
+    leftKeys.every((key) => leftParams[key] === rightParams[key])
+  );
+};
+
+/**
  * App-update controls for Settings → General. The main process validates
  * GitHub metadata; this component only renders safe state and opens releases.
  */
@@ -214,6 +238,22 @@ export const SettingUpdates = () => {
   // here describes an action that simply never started.
   const [prereleaseActionNotice, setPrereleaseActionNotice] =
     useState<Message | null>(null);
+  /**
+   * The LIVE `PrereleaseState`, which the closure variable above is not: main
+   * publishes its failure from inside the IPC handler and returns the same
+   * descriptor when the invoke reply resolves, so the async tail of
+   * `runPrerelease` runs against a render-old snapshot and cannot tell whether
+   * the box beside it is already showing what it is about to repeat.
+   *
+   * Written by `applyPrereleaseState` rather than during render on purpose:
+   * React has not necessarily re-rendered between the broadcast and the
+   * resolution, so a render-time assignment would still be one state behind.
+   */
+  const prereleaseStateRef = useRef(prereleaseState);
+  const applyPrereleaseState = (next: PrereleaseState): void => {
+    prereleaseStateRef.current = next;
+    setPrereleaseState(next);
+  };
 
   useEffect(() => {
     const api = updateApi();
@@ -278,7 +318,7 @@ export const SettingUpdates = () => {
         setPrereleaseActionPending(false);
         setPrereleaseMountLoadError(null);
         setPrereleaseActionNotice(null);
-        setPrereleaseState(next);
+        applyPrereleaseState(next);
       }
     });
 
@@ -287,7 +327,7 @@ export const SettingUpdates = () => {
       .then((next) => {
         if (mounted && !receivedLivePrereleaseState) {
           setPrereleaseMountLoadError(null);
-          setPrereleaseState(next);
+          applyPrereleaseState(next);
         }
       })
       .catch(() => {
@@ -295,7 +335,10 @@ export const SettingUpdates = () => {
           setPrereleaseMountLoadError(
             msg("settings.updates.prerelease.genericError"),
           );
-          setPrereleaseState((current) => ({ ...current, phase: "error" }));
+          applyPrereleaseState({
+            ...prereleaseStateRef.current,
+            phase: "error",
+          });
         }
       });
 
@@ -321,12 +364,21 @@ export const SettingUpdates = () => {
     // Shared by both failure paths below (a rejected request and a
     // resolved-but-`success: false` result) so a translation key never has to
     // be smuggled through as an `Error` message just to reach one handler.
-    const reportFailure = () => {
+    //
+    // `reported` is main's own descriptor and is preferred whenever there is
+    // one — the same rule `runPrerelease` follows below, and for the same
+    // reason. Every `installUpdate` failure names WHICH failure it was (the
+    // tap is behind, the download died, the helper would not start), publishes
+    // that `Message`, and returns it alongside; the broadcast lands first and
+    // this runs second, so a call-site-bound generic here overwrites the
+    // specific answer with a wrong noun. The bound message is the fallback for
+    // a REJECTED request, where no descriptor came back to prefer.
+    const reportFailure = (reported: Message | null) => {
       setMountLoadError(null);
       setState((current) => ({
         ...current,
         phase: "error",
-        message: failureMessage,
+        message: reported ?? failureMessage,
       }));
     };
 
@@ -340,11 +392,13 @@ export const SettingUpdates = () => {
         "success" in result &&
         result.success === false
       ) {
-        reportFailure();
+        reportFailure(
+          "error" in result && isMessage(result.error) ? result.error : null,
+        );
         return;
       }
     } catch {
-      reportFailure();
+      reportFailure(null);
     } finally {
       setActionPending(false);
       if (isInstallRequest) setInstallActionPending(false);
@@ -352,14 +406,26 @@ export const SettingUpdates = () => {
   };
 
   /**
-   * The pre-release twin of `run()`. Two differences, both load-bearing:
+   * The pre-release twin of `run()`. Both prefer main's returned descriptor
+   * over the call-site-bound one; the differences left are where the message
+   * lands and which flag the request claims:
    *
-   * - a resolved `{ success: false }` carries a `Message` that only exists on
-   *   that result (a declined confirm publishes nothing at all), so the
-   *   descriptor is shown rather than discarded in favour of a bound one;
+   * - the stable flow has ONE place to render a failure, so `run()` writes
+   *   main's descriptor into `state.message`. This section has two — the
+   *   phase box and `prereleaseActionNotice` — so it needs the ownership rule
+   *   spelled out below;
    * - `isChannelOperation` marks the two requests — switch and revert — that
    *   claim main's shared `installing` flag, which is what `isBusy` below
    *   needs and a plain pre-release check must not trigger.
+   *
+   * OWNERSHIP RULE for a channel-op failure message: whichever channel main
+   * used owns it. A descriptor main PUBLISHED is already on screen in the
+   * phase box, so the notice must stay silent — otherwise one sentence sits
+   * in an `alert` and a `status` at once and a screen reader announces it
+   * twice. The notice carries only what main reported back WITHOUT
+   * publishing: the early guards (a declined confirm, `canSwitch` false,
+   * `installing` held, a phase mismatch) are no-ops in the service, so a
+   * returned descriptor is the sole trace of them that can ever be shown.
    */
   const runPrerelease = async (
     request: () => Promise<unknown>,
@@ -381,16 +447,22 @@ export const SettingUpdates = () => {
       ) {
         const reported =
           "error" in result && isMessage(result.error) ? result.error : null;
-        setPrereleaseActionNotice(reported ?? failureMessage);
+        // The ownership rule in action. Compared against the LIVE state, not
+        // the render-old closure: main's broadcast lands before this
+        // resolution, so the ref already holds whatever it published.
+        const notice = reported ?? failureMessage;
+        if (!isSameMessage(notice, prereleaseStateRef.current.message)) {
+          setPrereleaseActionNotice(notice);
+        }
       }
     } catch {
       // The bridge itself broke — no descriptor came back to prefer.
       setPrereleaseMountLoadError(null);
-      setPrereleaseState((current) => ({
-        ...current,
+      applyPrereleaseState({
+        ...prereleaseStateRef.current,
         phase: "error",
         message: failureMessage,
-      }));
+      });
     } finally {
       setPrereleaseActionPending(false);
       if (isChannelOperation) setChannelActionPending(false);
@@ -444,6 +516,15 @@ export const SettingUpdates = () => {
   // window COINCIDES with the `checking` phase this list excludes on purpose —
   // the promise only resolves once main clears `checking` — so the broad flag
   // silently reinstates the very freeze the exclusion prevents.
+  //
+  // `restart-required` is the term that is easiest to miss and the worst to
+  // omit. `publishRestartRequired` claims `installing` and NOTHING clears it —
+  // the bundle on disk is already the new one, so there is nothing left to
+  // finish — which makes the refusal permanent rather than momentary. It is
+  // also reached on the ordinary success path: a stable update that lands
+  // after the app quits leaves the next launch in `restart-required` with the
+  // pre-release state untouched at `idle`, so without this term the button
+  // RE-ARMS at exactly the transition that makes it useless.
   const prereleaseIsBusy =
     prereleaseActionPending ||
     prereleaseState.phase === "checking" ||
@@ -451,7 +532,17 @@ export const SettingUpdates = () => {
     prereleaseState.phase === "installing" ||
     installActionPending ||
     state.phase === "downloading" ||
-    state.phase === "installing";
+    state.phase === "installing" ||
+    state.phase === "restart-required";
+  // What the SPINNER means, which is not what `prereleaseIsBusy` means. The
+  // busy flag is mostly borrowed stable-flow terms, and one of them —
+  // `restart-required` — never clears, so spinning on it would park a
+  // permanent spinner on a button with nothing running behind it. Only work
+  // this section started spins: the pending flag covers the window before
+  // main answers, and the `checking` phase covers the window after, because
+  // the state broadcast clears the pending flag on its way in.
+  const prereleaseCheckRunning =
+    prereleaseActionPending || prereleaseState.phase === "checking";
   // Homebrew owns the app from here on; nothing in this section may re-arm.
   const prereleaseWorking =
     prereleaseState.phase === "downloading" ||
@@ -1112,7 +1203,7 @@ export const SettingUpdates = () => {
                 disabled={prereleaseIsBusy}
                 className="rounded px-3 py-1.5 text-base"
               >
-                {prereleaseIsBusy && !channelActionPending && (
+                {prereleaseCheckRunning && !channelActionPending && (
                   <Spinner className="mr-2 inline size-4 align-[-2px]" />
                 )}
                 {t("settings.updates.prerelease.checkButton")}

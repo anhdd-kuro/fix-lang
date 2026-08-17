@@ -131,16 +131,25 @@ If you disconnect a provider, only the presets and settings that were using it g
   routine update check — you only see a pre-release build when you ask for one,
   and the normal update flow never offers you one by accident.
 - **Trying a pre-release** shows the version and its release notes first, then
-  asks you to confirm a dialog naming that exact version. Pre-release builds are
-  less tested than releases, and settings written by one may not be readable
-  again after you go back to stable — the dialog says so. Cancelling does nothing
-  at all.
+  asks you to confirm a dialog naming that exact version. Cancelling does nothing
+  at all. The dialog describes the mechanics only — that FixLang quits,
+  downloads with Homebrew and reopens, and that reverting needs no confirmation.
+  It does not warn you about anything else, so read the data notes below before
+  you switch.
 - **Going back is one button and asks for no confirmation.** *Revert to stable*
   installs the current stable release even though it is an *older* version than
   the pre-release you are running — that is the point. Escaping a build that
   misbehaves should be fast.
-- **Your data survives both directions.** Settings, profiles, presets, hotkeys,
-  API keys, and history are untouched by a channel switch.
+- **The switch itself never touches your data.** Settings, profiles, presets,
+  hotkeys, API keys, and history all live in
+  `~/Library/Application Support/fix-lang/`, outside either app bundle, and
+  neither direction removes or rewrites them.
+- **Pre-releases are less tested, and both channels share that one data
+  directory.** FixLang's stored config only ever migrates *forward* — there is
+  no downgrade path — so a pre-release that changes the shape of something it
+  stores can leave the stable build unable to read it on the way back. Nothing
+  in the app warns you at the moment you switch; if a way back matters to you,
+  export your profiles from **Settings → Profiles** before switching.
 - Homebrew has no way to downgrade a cask, so FixLang publishes the pre-release
   stream as a second cask (`fixlang@beta`) and a switch uninstalls one and
   installs the other. The download happens while the app is still running; there
@@ -148,7 +157,9 @@ If you disconnect a provider, only the presets and settings that were using it g
   the install fails, it is retried once and then the build you started from is
   reinstalled, so a failed switch leaves you where you were. If even that fails,
   the recovery command is written to
-  `~/Library/Application Support/fix-lang/logs/homebrew-update.log`.
+  `~/Library/Application Support/fix-lang/logs/homebrew-channel-switch.log` —
+  a separate file from the ordinary update's `homebrew-update.log`, because at
+  that point there may be no FixLang left to report through.
 - While a pre-release build is installed, newer pre-releases are offered in that
   section and a newer *stable* release is still offered as an ordinary update, so
   you are never stranded.

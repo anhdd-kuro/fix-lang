@@ -52,12 +52,29 @@ wait for FixLang to exit  →  fetch target  →  uninstall CURRENT token
   cask uninstall leaves `userData` alone — that property is what makes a channel
   switch non-destructive. There is a test asserting neither string appears
   anywhere in the emitted script.
+- **"`userData` is untouched" is NOT "a beta's writes are readable again on
+  stable."** Both channels share one `userData`, and nothing there is
+  version-tagged: stored config only migrates FORWARD (`configVersion` in
+  `apiStore.ts` gates one-shot migrations and has no inverse), and every
+  `electron-store` in this app is constructed with `clearInvalidConfig: true`,
+  so one value failing an OLDER build's ajv schema wipes that whole store file —
+  for `apiStore` that is every profile, preset and key reference. SQLite history
+  is the safe one (additive guarded `ALTER TABLE`). Consequence for anyone
+  shipping a beta: a stored-shape change in a beta is a one-way door for users
+  who revert, and **the switch confirm dialog says nothing about it** — its
+  `settings.updates.prerelease.confirm.detail` is quit/download/reopen mechanics
+  only. Docs that credit the dialog with a compatibility warning are wrong; this
+  was a real docs defect, twice.
 - Download happens **while the app is alive** (`brew fetch`), same as the stable
   path, so the no-app window is a local file move, not a multi-minute download.
 - **The uninstall window is real and was accepted knowingly.** Between uninstall
   and install there is no app. If the restore also fails, there is no running app
-  left to report through — helper log + notification are the only channels. This
-  is the worst failure mode in the feature; treat it as such in review.
+  left to report through — helper log + notification are the only channels. The
+  log is `userData/logs/homebrew-channel-switch.log`, a **different file** from
+  the ordinary upgrade's `homebrew-update.log` (`index.ts:96-107` vs
+  `index.ts:176-178`); docs that send the user to the wrong one strand them at
+  the exact moment the recovery command is the only thing they have. This is the
+  worst failure mode in the feature; treat it as such in review.
 
 ## TRAP 3 — the helper's `trap` is load-bearing in three separate ways
 
@@ -87,9 +104,16 @@ CI runner, because dash never runs `EXIT` traps for fatal signals. **A green
 Linux run is not proof.** Said so in the test's doc comment; do not "simplify" it
 away on the strength of CI.
 
-Quoting is verified against 15 hostile `appPath` values (backtick, `$()`, `${}`,
-backslash, newline, tab, quote, leading dash all fall back to the bundle id;
-space, `'`, `*`, `;`, `&&`, `|` each arrive as one inert argv).
+Quoting is verified by test against 17 `appPath` values in
+`homebrew.test.ts`. **11 rejected** — relative path, bare `"`, a `"`+`;`
+breakout, `$()`, `${}`, backtick, backslash, newline, tab, leading dash, missing
+`.app` suffix — fall back to the bundle id. **6 accepted** — space, `'`, `*`,
+`;`, `&&`, `|` — each arrive as one inert argv, asserted as the whole quoted
+token (`open -a "<path>"`) rather than a bare substring, because a regression
+that dropped the quotes would still satisfy `toContain(appPath)` while letting
+those characters reach `/bin/sh` as syntax. Every one of those cases was seen
+red against a deliberately broken `isSafeDoubleQuotedText` / `isSafeShellPath` /
+reopen-command before being trusted.
 
 ## TRAP 4 — every Caskroom path and brew argv must carry an EXPLICIT token
 
@@ -178,10 +202,21 @@ comparator is the failure mode to avoid, which is why
 `compareVersionOrder` is exported as a discoverable alias — a grep for
 `compareVersion` now finds the real one instead of spawning a rival.
 
-Live consequence: **the tap-lag gate parses both sides with `parseStableVersion`,
-which returns `null` for any beta**, and it is written `if (offered && target)`,
-so a null **disables the gate silently**. CLAUDE.md marks that gate never-delete;
-know that on the beta channel it is not doing its job.
+**The never-delete tap-lag gate must NOT reach for `parseStableVersion`.**
+`runInstallUpdate` parses both `offered` and `target` with `parseCurrentVersion`
+(`parseStableVersion(v) ?? parsePrereleaseVersion(v)`), and says why in code at
+`updateService.ts:1350-1354`: "that this state only ever carries a stable string
+is an emergent property of `checkForUpdates`, enforced nowhere near this gate."
+The gate therefore works on **both** channels today. Two things keep it that
+way, and both look like tidying:
+
+- Swapping either side to the module-private `parseStableVersion` returns `null`
+  for `X.Y.Z-beta.N`, and a null `offered` means "brew declined to answer" →
+  proceed. That would silently disable the gate for exactly the population
+  running betas, and nothing in the suite would go red.
+- The two nulls are **not** one falsy check. A null `target` is our own
+  published state being unparseable and hard-refuses; only a null `offered`
+  proceeds. Do not fold them into `if (offered && target)`.
 
 ## TRAP 8 — the dev loop does not typecheck, and prettier will eat the file
 

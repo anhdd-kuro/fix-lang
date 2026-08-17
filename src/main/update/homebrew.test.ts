@@ -345,24 +345,46 @@ describe("upgrade script", () => {
     expect(pinned.indexOf("open -a")).toBeLessThan(pinned.indexOf("open -b"));
   });
 
-  it("quotes a path containing spaces rather than rejecting it", () => {
-    expect(
-      buildUpgradeScript("/opt/homebrew/bin/brew", "/Applications/Fix Lang.app"),
-    ).toContain('/usr/bin/open -a "/Applications/Fix Lang.app"');
+  /**
+   * The accepted half of the quoting contract. These characters are all
+   * shell-significant OUTSIDE quotes and inert inside a double-quoted string,
+   * so the correct behaviour is to keep the path (rejecting them would send a
+   * user with a legitimately odd bundle path down the `open -b` route that
+   * TRAP 3 exists to avoid) and hand `open -a` exactly one argv.
+   *
+   * Asserted as the full quoted token, not `toContain(appPath)`: a regression
+   * that dropped the quotes would still satisfy a bare substring check while
+   * letting `;`, `&&`, `|` and `*` reach `/bin/sh` as syntax.
+   */
+  it.each([
+    "/Applications/Fix Lang.app",
+    "/Applications/Fix'Lang.app",
+    "/Applications/Fix*Lang.app",
+    "/Applications/Fix;Lang.app",
+    "/Applications/Fix&&Lang.app",
+    "/Applications/Fix|Lang.app",
+  ])("quotes rather than rejects a shell-inert path: %s", (appPath) => {
+    const quoted = buildUpgradeScript("/opt/homebrew/bin/brew", appPath);
+
+    expect(quoted).toContain(`/usr/bin/open -a "${appPath}"`);
   });
 
   it.each([
-    'relative/FixLang.app',
+    "relative/FixLang.app",
     '/Applications/FixLang.app"; rm -rf /tmp/x; echo ".app',
+    '/Applications/Fix"Lang.app',
     "/Applications/$(whoami).app",
+    "/Applications/${HOME}.app",
     "/Applications/`id`.app",
     "/Applications/Fix\\Lang.app",
     "/Applications/Fix\nLang.app",
+    "/Applications/Fix\tLang.app",
+    "-rf/Applications/FixLang.app",
     "/Applications/FixLang",
   ])("falls back to the bundle id for an unsafe path: %s", (appPath) => {
     const fallback = buildUpgradeScript("/opt/homebrew/bin/brew", appPath);
 
-    expect(fallback).not.toContain("open -a \"");
+    expect(fallback).not.toContain('open -a "');
     expect(fallback).toContain("/usr/bin/open -b com.fixlang.app");
   });
 

@@ -1063,11 +1063,29 @@ describe("SettingUpdates", () => {
   });
 
   it("re-resolves a parameterized service-reported error (e.g. Homebrew tap lag) in Japanese after a locale switch", async () => {
+    const tapBehindParams = { targetVersion: "0.2.0", offeredVersion: "0.1.0" };
+    const tapBehind = msg("settings.updates.tapBehindMessage", tapBehindParams);
     await renderWithApi({
-      getUpdateState: vi.fn().mockResolvedValue(readyState()),
+      getUpdateState: vi.fn().mockResolvedValue({
+        ...readyState("available"),
+        availableVersion: "0.2.0",
+        canInstall: true,
+      }),
       checkForUpdates: vi.fn().mockResolvedValue(undefined),
       openUpdateRelease: vi.fn().mockResolvedValue(undefined),
-      installUpdate: vi.fn().mockResolvedValue({ success: true }),
+      // Drives the WHOLE production sequence, not just its broadcast half:
+      // main publishes the descriptor from inside the handler and returns the
+      // same one when the invoke reply resolves. Asserting on a bare
+      // broadcast would stay green even if the resolved result overwrote it.
+      installUpdate: vi.fn().mockImplementation(async () => {
+        updateListener?.({
+          phase: "error",
+          currentVersion: "0.1.0",
+          availableVersion: "0.2.0",
+          message: tapBehind,
+        });
+        return { success: false, error: tapBehind };
+      }),
       restartForUpdate: vi.fn().mockResolvedValue({ success: true }),
       openExternalLink: vi.fn().mockResolvedValue({ success: true }),
       onUpdateStateChanged: vi.fn((listener: (next: UpdateState) => void) => {
@@ -1087,19 +1105,9 @@ describe("SettingUpdates", () => {
       }),
     });
 
-    await act(async () => {
-      updateListener?.({
-        phase: "error",
-        currentVersion: "0.1.0",
-        availableVersion: "0.2.0",
-        message: msg("settings.updates.tapBehindMessage", {
-          targetVersion: "0.2.0",
-          offeredVersion: "0.1.0",
-        }),
-      });
-    });
+    await click(buttonNamed(container, tEn("settings.updates.installNow")));
+    await waitForUi();
 
-    const tapBehindParams = { targetVersion: "0.2.0", offeredVersion: "0.1.0" };
     const enExpected = tEn(
       "settings.updates.tapBehindMessage",
       tapBehindParams,
@@ -1124,6 +1132,70 @@ describe("SettingUpdates", () => {
       jaExpected,
     );
     expect(jaExpected).not.toBe(enExpected);
+  });
+
+  it("keeps main's specific install-failure descriptor instead of the bound generic", async () => {
+    // The sequence PRODUCTION always takes, which the locale test above only
+    // half-drives: every `installUpdate` failure publishes its own `Message`
+    // via `webContents.send` INSIDE the handler and then returns that same
+    // descriptor as `{ success: false, error }` when the handler's promise
+    // resolves. The send is issued first and both travel the same pipe, so
+    // the broadcast lands first and the resolved result lands second — the
+    // mock below reproduces exactly that order.
+    //
+    // Without the fix, `run()`'s call-site-bound `installFailed` overwrites
+    // the tap-lag descriptor the whole lagging-tap gate exists to deliver.
+    await render(
+      {
+        ...readyState("available"),
+        availableVersion: "0.2.0",
+        canInstall: true,
+      },
+      prereleaseReady("idle"),
+    );
+    const tapBehindParams = { targetVersion: "0.2.0", offeredVersion: "0.1.0" };
+    const tapBehind = msg("settings.updates.tapBehindMessage", tapBehindParams);
+    api.installUpdate.mockImplementationOnce(async () => {
+      updateListener?.({
+        phase: "error",
+        currentVersion: "0.1.0",
+        availableVersion: "0.2.0",
+        message: tapBehind,
+      });
+      return { success: false, error: tapBehind };
+    });
+
+    await click(buttonNamed(container, tEn("settings.updates.installNow")));
+    await waitForUi();
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      tEn("settings.updates.tapBehindMessage", tapBehindParams),
+    );
+    expect(container.textContent).not.toContain(
+      tEn("settings.updates.installFailed"),
+    );
+  });
+
+  it("falls back to the bound message when the install bridge itself breaks", async () => {
+    // The other half of the rule: a REJECTED request carries no descriptor to
+    // prefer, so the call-site-bound generic is all there is — and it must
+    // still be shown rather than left blank.
+    await render(
+      {
+        ...readyState("available"),
+        availableVersion: "0.2.0",
+        canInstall: true,
+      },
+      prereleaseReady("idle"),
+    );
+    api.installUpdate.mockRejectedValueOnce(new Error("bridge is gone"));
+
+    await click(buttonNamed(container, tEn("settings.updates.installNow")));
+    await waitForUi();
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      tEn("settings.updates.installFailed"),
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -1389,6 +1461,47 @@ describe("SettingUpdates", () => {
         tEn("settings.updates.prerelease.switchButton"),
       ),
     ).toBeDefined();
+  });
+
+  it("announces a published channel-op failure once, in the error region only", async () => {
+    // The ownership rule: a descriptor main PUBLISHED belongs to the phase
+    // box; the notice carries only what main reported back WITHOUT
+    // publishing. Every channel-op failure that reaches a `publishPrerelease`
+    // also returns the identical `Message`, so setting the notice from it
+    // renders one sentence in two live regions — an `alert` and a `status` —
+    // and a screen reader announces it twice.
+    await render(
+      readyState("up-to-date"),
+      prereleaseReady("idle", { activeChannel: "beta" }),
+    );
+    const downloadError = msg(
+      "settings.updates.prerelease.downloadErrorMessage",
+    );
+    api.revertToStable.mockImplementationOnce(async () => {
+      prereleaseListener?.({
+        phase: "error",
+        activeChannel: "beta",
+        canSwitch: true,
+        message: downloadError,
+      });
+      return { success: false, error: downloadError };
+    });
+
+    await click(
+      buttonNamed(
+        prereleaseSection(),
+        tEn("settings.updates.prerelease.revertButton"),
+      ),
+    );
+    await waitForUi();
+
+    const expected = tEn("settings.updates.prerelease.downloadErrorMessage");
+    const section = prereleaseSection();
+    const announcing = [
+      ...section.querySelectorAll('[role="alert"], [role="status"]'),
+    ].filter((node) => node.textContent === expected);
+    expect(announcing).toHaveLength(1);
+    expect(announcing[0]?.getAttribute("role")).toBe("alert");
   });
 
   it("names both cask tokens when a dead switch left them installed at once", async () => {
@@ -1741,6 +1854,35 @@ describe("SettingUpdates", () => {
 
     resolveSwitch?.({ success: true });
     await waitForUi();
+  });
+
+  it("disables the pre-release Check button once the stable flow reaches restart-required", async () => {
+    // The phase the OTHER busy terms all miss, and the only one that is
+    // PERMANENT: `publishRestartRequired` sets main's shared `installing`
+    // flag and nothing ever clears it, so `checkForPrerelease` refuses for
+    // the rest of the session — and refuses by returning the UNCHANGED
+    // state with no `success` field, which `runPrerelease` cannot see. A
+    // live button here is a control that does nothing at all, forever.
+    //
+    // Reached on the nominal success path: an ordinary stable in-app update
+    // finishes after the app quits, the user reopens, and
+    // `reconcileLastInstall` publishes `restart-required` with no channel
+    // operation — so `PrereleaseState` is still the constructor's `idle`.
+    await render(
+      { ...readyState("restart-required"), availableVersion: "0.2.0" },
+      prereleaseReady("idle"),
+    );
+
+    const check = buttonNamed(
+      prereleaseSection(),
+      tEn("settings.updates.prerelease.checkButton"),
+    );
+    expect(check.disabled).toBe(true);
+    // Disabled, but NOT spinning: `restart-required` never clears, so a
+    // spinner here would claim a pre-release check is running forever.
+    expect(check.querySelector("svg")).toBeNull();
+    await click(check);
+    expect(api.checkForPrerelease).not.toHaveBeenCalled();
   });
 
   it("spins the Revert button while the revert it started is in flight", async () => {
