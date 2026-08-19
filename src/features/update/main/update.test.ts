@@ -1,32 +1,14 @@
 /**
  * @file update.test.ts
  * @description IPC wiring tests for the update handlers, stable and
- * pre-release. Three things are pinned here, none of which any other suite in
- * the repo can see:
+ * pre-release. Two construction rules hold the value here:
  *
- * 1. Registration HAPPENS. `registerPrereleaseUpdateHandlers` shipped as an
- *    exported registrar with zero call sites, so all four pre-release channels
- *    were unregistered at runtime and Settings -> Updates rejected on mount
- *    with "No handler registered for 'updates:prerelease:get-state'". The
- *    preload suite could not see it: it mocks `ipcRenderer.invoke`, and a
- *    mocked invoke resolves whether or not a handler exists. So everything
- *    below registers through `registerUpdateHandlers` — `src/main`'s only
- *    entry point — rather than by calling the pre-release registrar directly,
- *    which would pass just as happily with nothing wired up.
- * 2. Channel NAMES. They are the entire contract: main sends on a string,
- *    preload listens on a string, and nothing in between type-checks them
- *    against each other. A typo makes the matching button silently do nothing.
- *    Every name is written out as a literal below rather than imported from
+ * 1. Everything registers through `registerUpdateHandlers` — `src/main`'s only
+ *    entry point — never by calling the pre-release registrar directly, which
+ *    would pass just as happily with nothing wired up at runtime.
+ * 2. Every channel name is written out as a literal rather than imported from
  *    the module under test, which would make these assertions agree with any
  *    typo they were meant to catch.
- * 3. SEPARATION. Pre-release state broadcasts on `updates:prerelease-state`
- *    and never on `updates:state`, and the tray references neither the
- *    pre-release channel nor the pre-release bridge.
- *
- * Electron is mocked at the seam the other main-process IPC suites use (see
- * `src/features/i18n/main/locale.test.ts`): `ipcMain.handle` records
- * registrations, `BrowserWindow.getAllWindows` returns fake windows whose
- * `webContents.send` is a spy.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -70,13 +52,9 @@ const prereleaseState: PrereleaseState = {
 };
 
 /**
- * Typed as the real `UpdateService` with no cast, which is the point: the one
- * service `src/main/index.ts` already passes carries the pre-release surface
- * too, so wiring the pre-release channels needs no second service and no
- * second call site. If `UpdateService` ever stops declaring those five
- * members, this object stops type-checking here and the internal
- * `registerPrereleaseHandlers(service)` call stops type-checking in
- * `update.ts` — rather than the channels quietly going unregistered again.
+ * Typed as the real `UpdateService` with no cast, so dropping any pre-release
+ * member from that interface breaks type-checking here instead of letting the
+ * channels quietly go unregistered.
  */
 const buildService = () => {
   const stableListeners: ((state: UpdateState) => void)[] = [];
@@ -116,10 +94,6 @@ describe("registerUpdateHandlers wires every update channel", () => {
     registerUpdateHandlers(service);
   });
 
-  // The zero-call-site regression in one assertion: with the pre-release
-  // registration detached from this entry point, the four `prerelease` names
-  // vanish from this list and every pre-release button becomes a rejected
-  // invoke in the renderer.
   it("registers exactly these nine channels, by name", () => {
     expect([...handlers.keys()].sort()).toEqual([
       "updates:check",
@@ -147,8 +121,8 @@ describe("registerUpdateHandlers wires every update channel", () => {
       handlers.get("updates:prerelease:check")?.({}),
     ).resolves.toEqual(prereleaseState);
     expect(service.checkForPrerelease).toHaveBeenCalledTimes(1);
-    // A pre-release check that also ran the stable check would republish the
-    // stable state as a side effect of opening the beta section.
+    // A stable check here would republish stable state just for opening the
+    // beta section.
     expect(service.checkForUpdates).not.toHaveBeenCalled();
   });
 
@@ -168,8 +142,7 @@ describe("registerUpdateHandlers wires every update channel", () => {
     expect(service.switchToPrerelease).not.toHaveBeenCalled();
   });
 
-  // Switch and revert take no renderer input, so a renderer message cannot
-  // choose which channel the machine gets moved to.
+  // No renderer message may choose which channel the machine gets moved to.
   it("passes no renderer-supplied argument to the switch and revert actions", async () => {
     await handlers.get("updates:prerelease:switch")?.({}, "beta", {
       evil: true,
@@ -236,10 +209,8 @@ describe("the two states broadcast on their own channels", () => {
       "updates:prerelease-state",
       prereleaseState,
     );
-    // The whole point of the second channel: a pre-release payload that also
-    // (or instead) rode `updates:state` would reach every window already
-    // listening to the stable channel, where `isUpdateState` would either
-    // reject it or, worse, accept it as a stable update.
+    // An exact channel list, because a payload that ALSO rode `updates:state`
+    // could be accepted there as a stable update.
     expect(sentChannels()).toEqual([
       "updates:prerelease-state",
       "updates:prerelease-state",
@@ -265,12 +236,8 @@ describe("the two states broadcast on their own channels", () => {
 });
 
 /**
- * The receive half of the separation. Card criterion 3 says the tray never
- * subscribes to the pre-release channel; `TrayToolbar.test.ts` cannot notice a
- * breach of that (it declares its own local `UpdateState` and never mentions
- * the pre-release bridge), so it is checked here by reading the tray's own
- * sources. A structural scan is the honest shape for a "this code does not
- * exist anywhere over there" claim.
+ * `TrayToolbar.test.ts` cannot notice a breach of this (it declares its own
+ * local `UpdateState`), so the claim is checked by scanning the tray's sources.
  */
 describe("the tray never subscribes to the pre-release channel", () => {
   const trayDirectory = fileURLToPath(
@@ -284,8 +251,7 @@ describe("the tray never subscribes to the pre-release channel", () => {
     .filter((entry) => entry.isFile() && /\.tsx?$/.test(entry.name))
     .map((entry) => `${entry.parentPath}/${entry.name}`);
 
-  // Without these two, the scan below would pass just as happily against an
-  // empty directory listing or a misresolved path.
+  // Without this, the scan below passes against an empty directory listing.
   it("reads the real tray sources", () => {
     expect(traySources.length).toBeGreaterThanOrEqual(5);
     expect(

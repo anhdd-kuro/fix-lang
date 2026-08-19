@@ -9,21 +9,14 @@ import { useI18n } from "../i18n/useI18n";
 import type { PrereleaseState } from "~/features/update/shared/prerelease";
 import type { UpdateState } from "~/features/update/shared/update";
 
-/** Author GitHub profile — opened from the About tab header icon. */
 const GITHUB_PROFILE_URL = "https://github.com/anhdd-kuro";
 
 /**
- * Where the manual "Download from GitHub" link in the pre-release section
- * points. `PrereleaseState` carries no per-release URL the way the stable
- * flow's `openUpdateRelease()` does (main's `releaseUrl` is scoped to the
- * stable channel only), so a manual pre-release install always lands on the
- * releases index rather than a specific tag.
+ * `PrereleaseState` carries no per-release URL (main's `releaseUrl` is scoped
+ * to the stable channel), so a manual beta install lands on the index.
  */
 const GITHUB_RELEASES_URL = "https://github.com/anhdd-kuro/fix-lang/releases";
 
-/**
- * Compact Octocat mark used as the About-tab profile link.
- */
 const GitHubProfileIcon = ({ className }: { className?: string }) => (
   <svg
     viewBox="0 0 16 16"
@@ -35,11 +28,6 @@ const GitHubProfileIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-/**
- * A shell command shown as a copyable code block. The command text is the
- * single source of truth for both the display and the clipboard value, so the
- * user always copies exactly what they see.
- */
 const CommandBlock = ({ command }: { command: string }) => {
   const { t } = useI18n();
   return (
@@ -58,39 +46,17 @@ const CommandBlock = ({ command }: { command: string }) => {
 };
 
 /**
- * The host a click on this link would actually reach, or null when a click
- * reaches nothing (the handler below dispatches `http(s)` only, so a `mailto:`
- * or a relative href is inert and has no destination to disclose).
+ * The host a click would actually reach, or null when the click is inert (only
+ * `http(s)` is dispatched below). The markdown label is attacker-chosen, so
+ * NOTHING here reads it — every allow-list of "URL-looking" labels loses to a
+ * leading zero-width space. `host`, not the raw href and not `hostname`:
+ * `https://github.com@evil.example.com/…` has `github.com` as a USERNAME, and
+ * a non-default port is part of the host a reader means. Shown whole, since
+ * the deceptive half of `github.com.evil.example.com` is the end.
  *
- * A markdown author picks the label and the href independently, and this panel
- * dispatches the href — so
- * `[https://github.com/anhdd-kuro/fix-lang](https://evil.example.com/phish)`
- * shows the project's own repository and opens somewhere else on a plain left
- * click, in the one place a user is primed to download and run an unsigned
- * macOS binary. The label is fully attacker-chosen, so NOTHING here reads it:
- * an earlier attempt asked whether the label "looked like a URL" before
- * disclosing the destination, and a single leading zero-width space — or a
- * space, a quote, a bullet, an image — put the attack straight back. Any
- * allow-list of label shapes loses that game; this one is not played.
- *
- * `URL.host`, not the raw href and not `hostname`:
- * - Raw href is attacker-chosen text. `https://github.com@evil.example.com/…`
- *   is a URL whose authority is `evil.example.com` and whose `github.com` is a
- *   USERNAME; echoing it verbatim would print that lie with the app's own
- *   authority. Parsing collapses it to the authority that actually resolves.
- * - `host` keeps a non-default port, which `hostname` drops — `github.com:8080`
- *   is not the host a reader means by "github.com".
- * - Shown whole, never elided: the deceptive half of `github.com.evil.example.com`
- *   is the END, so an ellipsis would hide precisely what this exists to show.
- *
- * RESIDUAL GAPS, stated rather than implied:
- * 1. This names the host, not the path. `github.com/attacker/fix-lang` under a
- *    `github.com/anhdd-kuro/fix-lang` label annotates as `(github.com)` and is
- *    NOT disclosed in the visible text; only `title` carries the whole URL.
- *    Rendering the whole URL is the attacker-controlled-text problem above.
- * 2. It names a host; it does not judge one. `URL` applies IDNA ToASCII, so a
- *    mixed-script homograph surfaces as visible `xn--` punycode, but an ASCII
- *    look-alike (`githulb.com`, `github-releases.com`) still reads plausibly.
+ * RESIDUAL GAPS: a same-host path swap (`github.com/attacker/fix-lang` under
+ * an `anhdd-kuro/fix-lang` label) is disclosed only in `title`, and `URL`
+ * punycodes mixed-script homographs but not ASCII look-alikes (`githulb.com`).
  */
 const dispatchedLinkHost = (href: string | undefined): string | null => {
   if (!href) return null;
@@ -104,10 +70,8 @@ const dispatchedLinkHost = (href: string | undefined): string | null => {
 };
 
 /**
- * Compact markdown component overrides so GitHub release notes fit the
- * About panel and match its muted styling. No raw HTML is enabled —
- * react-markdown escapes it by default, which keeps untrusted release-note
- * content XSS-safe.
+ * Compact markdown overrides for GitHub release notes. No raw HTML is enabled;
+ * react-markdown escapes it by default, which keeps untrusted notes XSS-safe.
  */
 const releaseNotesComponents: Components = {
   h1: ({ children }) => (
@@ -151,14 +115,11 @@ const releaseNotesComponents: Components = {
   ),
   em: ({ children }) => <em className="italic">{children}</em>,
   a: ({ href, children }) => {
-    // One parse decides BOTH what a click dispatches and what the annotation
-    // names, so the two can never describe different URLs.
     const host = dispatchedLinkHost(href);
     return (
       <a
         href={href}
-        // The whole destination is also reachable on hover, for every link —
-        // the click dispatches `href`, so `href` is the only honest tooltip.
+        // The click dispatches `href`, so `href` is the only honest tooltip.
         title={href}
         onClick={(e) => {
           e.preventDefault();
@@ -168,11 +129,8 @@ const releaseNotesComponents: Components = {
         }}
         className="text-primary underline hover:no-underline"
       >
-        {/* The author's own label, always, exactly as written: emphasis, code
-            spans and inline marks all survive because nothing replaces them.
-            The disclosure below is ADDITIVE, which is what makes it safe to
-            apply to every link — a link that carried no annotation would
-            teach the reader that its absence means "trusted". */}
+        {/* The annotation is ADDITIVE and unconditional: nothing rewrites the
+            author's label, and no link may read as "trusted" by lacking one. */}
         {children}
         {host !== null && (
           <span className="font-mono text-xs text-muted-foreground">{` (${host})`}</span>
@@ -180,16 +138,10 @@ const releaseNotesComponents: Components = {
       </a>
     );
   },
-  // Release notes are untrusted GitHub content; never auto-load remote
-  // images (would leak the user's IP / act as a tracking pixel).
+  // Untrusted content — a remote image would be a tracking pixel.
   img: () => null,
 };
 
-/**
- * GitHub release notes. Shown both for an offered update and for a release
- * Homebrew has not synced yet — in either case the user is deciding whether
- * they want that version.
- */
 const ReleaseNotes = ({ notes }: { notes: string }) => (
   <div className="mt-1 text-sm text-muted-foreground">
     <ReactMarkdown
@@ -202,12 +154,9 @@ const ReleaseNotes = ({ notes }: { notes: string }) => (
 );
 
 /**
- * The pre-release phases whose own JSX below renders `prereleaseState.message`.
- * A renderer fact, not a promise main makes: `PrereleaseState` is flat, so any
- * phase MAY carry a descriptor, and main's initial `unsupported` state already
- * carries one this section never shows. Anything reasoning about "the user can
- * already see that sentence" has to ask this, and the test that walks all nine
- * phases through the live component is what keeps the set honest.
+ * `PrereleaseState` is flat, so any phase MAY carry a descriptor and main's
+ * initial `unsupported` carries one this section never shows. These are the
+ * phases whose JSX actually renders it.
  */
 const MESSAGE_RENDERING_PRERELEASE_PHASES = new Set<PrereleaseState["phase"]>([
   "error",
@@ -224,11 +173,7 @@ const initialState: UpdateState = {
   currentVersion: "",
 };
 
-/**
- * Mirrors `initialState` above, but for the SEPARATE pre-release flow — see
- * `PrereleaseState`'s doc comment for why this never shares a field, a
- * broadcast channel, or a piece of local state with the stable flow.
- */
+/** Separate flow: shares no field, broadcast channel, or state with stable. */
 const initialPrereleaseState: PrereleaseState = {
   phase: "unsupported",
   activeChannel: "stable",
@@ -238,10 +183,7 @@ const updateApi = () => window.electronAPI;
 
 const BYTES_PER_MEGABYTE = 1024 * 1024;
 
-/**
- * Passed to `t()` as a pre-formatted string: it already carries a unit and one
- * decimal, and `t()` would otherwise re-format the bare number.
- */
+/** Pre-formatted for `t()`, which would otherwise re-format a bare number. */
 const formatMegabytes = (bytes: number): string =>
   `${(bytes / BYTES_PER_MEGABYTE).toFixed(1)} MB`;
 
@@ -249,13 +191,8 @@ const displayVersion = (version: string | undefined): string =>
   version?.startsWith("v") ? version : `v${version ?? ""}`;
 
 /**
- * Whether two descriptors would render the identical sentence — the test the
- * pre-release ownership rule (see `runPrerelease`) is stated in terms of.
- *
- * Shallow over `params` by contract: `MessageParams` values are `string |
- * number` only, so there is nothing deeper to walk. An absent descriptor on
- * either side is never "the same": a section showing nothing has not already
- * said what the notice is about to say.
+ * Shallow over `params` by contract — `MessageParams` values are `string |
+ * number`. An absent descriptor on either side is never "the same".
  */
 const isSameMessage = (
   left: Message | undefined,
@@ -272,62 +209,38 @@ const isSameMessage = (
   );
 };
 
-/**
- * App-update controls for Settings → General. The main process validates
- * GitHub metadata; this component only renders safe state and opens releases.
- */
+/** Main validates GitHub metadata; this only renders state and opens links. */
 export const SettingUpdates = () => {
   const { t, tm } = useI18n();
   const [state, setState] = useState<UpdateState>(initialState);
   const [actionPending, setActionPending] = useState(false);
-  // The stable twin of `channelActionPending` below, and carved out of
-  // `actionPending` for the same reason. `actionPending` covers EVERY stable
-  // request — Check, Download, Install, Restart — but only `installUpdate`
-  // claims main's shared `installing` flag, which is the single thing the
-  // pre-release section has to wait out. Reading the broad flag froze the
-  // pre-release Check button for the length of an ordinary stable check.
+  // Narrower than `actionPending` on purpose: only `installUpdate` claims
+  // main's shared `installing` flag, and only that flag blocks pre-release.
   const [installActionPending, setInstallActionPending] = useState(false);
-  // Locale-free descriptor for the ONE error message the mount effect below
-  // can produce (`getUpdateState()` rejecting before any live event arrives).
-  // Kept as separate state from `state.message` (also a `Message` descriptor
-  // on the shared `UpdateState` type from `~/features/update/shared/update`, but one only
-  // ever set by `run()` below or a live broadcast) so a mount-time IPC
-  // failure is never confused with a service-reported error state. Cleared
-  // whenever fresher state arrives (a live broadcast, the initial snapshot,
-  // or a later `run()` failure) so it can never shadow newer information.
+  // Only the mount-time `getUpdateState()` rejection, kept out of
+  // `state.message` so it is never read as a service-reported error.
   const [mountLoadError, setMountLoadError] = useState<Message | null>(null);
 
-  // SECOND, independent piece of state — see `PrereleaseState`'s doc comment
-  // for why a pre-release check must never write into `state`/`setState`
-  // above. Its own `actionPending` and `mountLoadError` mirror the stable
-  // ones one-for-one, for the same reasons.
+  // A pre-release check must never write into `state` above; its own pending
+  // and mount-error state mirror the stable ones one-for-one.
   const [prereleaseState, setPrereleaseState] = useState<PrereleaseState>(
     initialPrereleaseState,
   );
   const [prereleaseActionPending, setPrereleaseActionPending] = useState(false);
   const [prereleaseMountLoadError, setPrereleaseMountLoadError] =
     useState<Message | null>(null);
-  // Only a switch or a revert — never a pre-release check — so the stable
-  // section's `isBusy` below can freeze exactly while main holds its shared
-  // `installing` flag, and not a moment longer.
+  // Switch or revert only — never a check — so `isBusy` freezes exactly while
+  // main holds its shared `installing` flag.
   const [channelActionPending, setChannelActionPending] = useState(false);
   // A refusal main REPORTED BACK instead of publishing. A declined confirm is
-  // a complete no-op in the service (nothing published, nothing written,
-  // nothing quit), so this is the ONLY place the user can be told the switch
-  // was cancelled. Neutral rather than an alert: every message that reaches
-  // here describes an action that simply never started.
+  // a no-op in the service, so this is the only place it can be surfaced.
   const [prereleaseActionNotice, setPrereleaseActionNotice] =
     useState<Message | null>(null);
   /**
-   * The LIVE `PrereleaseState`, which the closure variable above is not: main
-   * publishes its failure from inside the IPC handler and returns the same
-   * descriptor when the invoke reply resolves, so the async tail of
-   * `runPrerelease` runs against a render-old snapshot and cannot tell whether
-   * the box beside it is already showing what it is about to repeat.
-   *
-   * Written by `applyPrereleaseState` rather than during render on purpose:
-   * React has not necessarily re-rendered between the broadcast and the
-   * resolution, so a render-time assignment would still be one state behind.
+   * The LIVE state the closure variable is not: main publishes its failure and
+   * returns the same descriptor, so `runPrerelease`'s async tail would compare
+   * against a render-old snapshot. Written on apply, not during render, since
+   * React need not have re-rendered between broadcast and resolution.
    */
   const prereleaseStateRef = useRef(prereleaseState);
   const applyPrereleaseState = (next: PrereleaseState): void => {
@@ -340,8 +253,7 @@ export const SettingUpdates = () => {
     let mounted = true;
     let receivedLiveState = false;
 
-    // Subscribe before requesting the snapshot so a newer event cannot be
-    // overwritten if the initial IPC response arrives later.
+    // Subscribe before fetching so a late snapshot cannot overwrite a newer event.
     const unsubscribe = api.onUpdateStateChanged((next) => {
       receivedLiveState = true;
       if (mounted) {
@@ -374,12 +286,8 @@ export const SettingUpdates = () => {
 
   useEffect(() => {
     const api = updateApi();
-    // Optional-called the same way the rest of the renderer reaches newer
-    // bridge methods (see `App.tsx`'s `onOpenDashboardTab?.()`): this
-    // component also mounts inside the About tab, and a throwing effect
-    // there would tear down the user guide alongside it. A bridge that
-    // cannot answer leaves the section on `unsupported`, which is exactly
-    // what a build without the pre-release channel should show.
+    // This also mounts inside the About tab, where a throwing effect would tear
+    // down the user guide; an unanswerable bridge leaves it on `unsupported`.
     if (
       typeof api.onPrereleaseStateChanged !== "function" ||
       typeof api.getPrereleaseState !== "function"
@@ -390,8 +298,6 @@ export const SettingUpdates = () => {
     let mounted = true;
     let receivedLivePrereleaseState = false;
 
-    // Same "subscribe before fetch" discipline as the stable effect above,
-    // applied to the separate `updates:prerelease-state` channel.
     const unsubscribe = api.onPrereleaseStateChanged((next) => {
       receivedLivePrereleaseState = true;
       if (mounted) {
@@ -431,28 +337,14 @@ export const SettingUpdates = () => {
   const run = async (
     request: () => Promise<unknown>,
     failureMessage: Message,
-    /**
-     * True for the one stable request that claims main's shared `installing`
-     * flag. Mirrors `runPrerelease`'s `isChannelOperation` exactly, and exists
-     * for the same reason: the broad pending flag cannot tell the pre-release
-     * section which stable action is running, and only this one blocks it.
-     */
+    /** True for the one stable request that claims main's `installing` flag. */
     isInstallRequest = false,
   ) => {
     if (actionPending) return;
 
-    // Shared by both failure paths below (a rejected request and a
-    // resolved-but-`success: false` result) so a translation key never has to
-    // be smuggled through as an `Error` message just to reach one handler.
-    //
-    // `reported` is main's own descriptor and is preferred whenever there is
-    // one — the same rule `runPrerelease` follows below, and for the same
-    // reason. Every `installUpdate` failure names WHICH failure it was (the
-    // tap is behind, the download died, the helper would not start), publishes
-    // that `Message`, and returns it alongside; the broadcast lands first and
-    // this runs second, so a call-site-bound generic here overwrites the
-    // specific answer with a wrong noun. The bound message is the fallback for
-    // a REJECTED request, where no descriptor came back to prefer.
+    // Main's own descriptor wins: it names WHICH failure it was, and this runs
+    // after its broadcast, so a bound generic here would overwrite the answer.
+    // The bound message is the fallback for a rejected request only.
     const reportFailure = (reported: Message | null) => {
       setMountLoadError(null);
       setState((current) => ({
@@ -486,26 +378,12 @@ export const SettingUpdates = () => {
   };
 
   /**
-   * The pre-release twin of `run()`. Both prefer main's returned descriptor
-   * over the call-site-bound one; the differences left are where the message
-   * lands and which flag the request claims:
-   *
-   * - the stable flow has ONE place to render a failure, so `run()` writes
-   *   main's descriptor into `state.message`. This section has two — the
-   *   phase box and `prereleaseActionNotice` — so it needs the ownership rule
-   *   spelled out below;
-   * - `isChannelOperation` marks the two requests — switch and revert — that
-   *   claim main's shared `installing` flag, which is what `isBusy` below
-   *   needs and a plain pre-release check must not trigger.
-   *
-   * OWNERSHIP RULE for a channel-op failure message: whichever channel main
-   * used owns it. A descriptor main PUBLISHED is already on screen in the
-   * phase box, so the notice must stay silent — otherwise one sentence sits
-   * in an `alert` and a `status` at once and a screen reader announces it
-   * twice. The notice carries only what main reported back WITHOUT
-   * publishing: the early guards (a declined confirm, `canSwitch` false,
-   * `installing` held, a phase mismatch) are no-ops in the service, so a
-   * returned descriptor is the sole trace of them that can ever be shown.
+   * Pre-release twin of `run()`, with two places a failure could land instead
+   * of one. OWNERSHIP RULE: a descriptor main PUBLISHED is already in the
+   * phase box, so the notice stays silent rather than have a screen reader
+   * announce one sentence twice; the notice carries only what main returned
+   * WITHOUT publishing (declined confirm, `canSwitch` false, `installing`
+   * held, phase mismatch), which is those guards' sole visible trace.
    */
   const runPrerelease = async (
     request: () => Promise<unknown>,
@@ -527,16 +405,9 @@ export const SettingUpdates = () => {
       ) {
         const reported =
           "error" in result && isMessage(result.error) ? result.error : null;
-        // The ownership rule in action. Compared against the LIVE state, not
-        // the render-old closure: main's broadcast lands before this
-        // resolution, so the ref already holds whatever it published.
         const notice = reported ?? failureMessage;
-        // Suppress ONLY when the published phase actually puts that descriptor
-        // on screen. `message` is a plain optional field on a flat state, so a
-        // phase can carry one it never renders (main's initial `unsupported`
-        // state does exactly that today) — suppressing against those would
-        // leave the sentence nowhere at all, the same silent no-op the notice
-        // exists to prevent.
+        // A phase can carry a `message` it never renders, so matching on the
+        // descriptor alone would leave the sentence nowhere at all.
         const alreadyOnScreen =
           phaseRendersPrereleaseMessage(prereleaseStateRef.current.phase) &&
           isSameMessage(notice, prereleaseStateRef.current.message);
@@ -563,20 +434,16 @@ export const SettingUpdates = () => {
     state.phase === "checking" ||
     state.phase === "downloading" ||
     state.phase === "installing" ||
-    // A channel switch claims main's SHARED `installing` flag before its
-    // confirm dialog awaits, while `UpdateState` still reads
-    // `phase: "available"`, `canInstall: true` — and that dialog has no
-    // parent window, so this panel stays clickable behind it. Without these
-    // three terms the user can press Install, watch `installUpdate()` resolve
-    // `{ success: true }`, publish nothing, and then have the app quit into a
-    // channel switch the stable section never mentioned.
+    // A channel switch holds main's shared `installing` flag while
+    // `UpdateState` still reads `available`/`canInstall`, and its confirm has
+    // no parent window — so Install stays pressable and quits the app into a
+    // switch this section never mentioned.
     channelActionPending ||
     prereleaseState.phase === "downloading" ||
     prereleaseState.phase === "installing";
   const latestVersion = displayVersion(state.availableVersion);
   const downloadedBytes = state.downloadedBytes ?? 0;
-  // Absent when the release metadata carried no usable asset size; the bar
-  // then runs indeterminate rather than inventing a denominator.
+  // Null rather than an invented denominator; the bar runs indeterminate.
   const downloadTotal =
     state.totalBytes !== undefined && state.totalBytes > 0
       ? state.totalBytes
@@ -586,34 +453,11 @@ export const SettingUpdates = () => {
       ? null
       : Math.min(100, Math.round((downloadedBytes / downloadTotal) * 100));
 
-  // The INVERSE of `isBusy`'s channel terms, and the half the stable flow
-  // cannot signal for itself. `checkForPrerelease` bails on the SAME shared
-  // `installing` flag a switch claims, but — unlike `switchToPrerelease` and
-  // `revertToStable` — it returns the UNCHANGED `PrereleaseState` with no
-  // `success` field, and `runPrerelease` only recognises `{ success: false }`.
-  // So a check pressed during a stable install is dropped in silence: no
-  // spinner, no notice, no error. These three terms are what keeps the button
-  // from looking alive while it cannot act.
-  //
-  // Deliberately NOT symmetric with `isBusy`: `state.phase === "checking"` is
-  // absent because a stable check claims `checking`, never `installing`, and a
-  // channel op needs no term of its own because it already sets
-  // `prereleaseActionPending` on its way through `runPrerelease`.
-  //
-  // For the same reason the stable term is `installActionPending` and not the
-  // broad `actionPending`: that flag is claimed by a stable Check too, and its
-  // window COINCIDES with the `checking` phase this list excludes on purpose —
-  // the promise only resolves once main clears `checking` — so the broad flag
-  // silently reinstates the very freeze the exclusion prevents.
-  //
-  // `restart-required` is the term that is easiest to miss and the worst to
-  // omit. `publishRestartRequired` claims `installing` and NOTHING clears it —
-  // the bundle on disk is already the new one, so there is nothing left to
-  // finish — which makes the refusal permanent rather than momentary. It is
-  // also reached on the ordinary success path: a stable update that lands
-  // after the app quits leaves the next launch in `restart-required` with the
-  // pre-release state untouched at `idle`, so without this term the button
-  // RE-ARMS at exactly the transition that makes it useless.
+  // The renderer cannot observe main's shared `installing` flag, so these
+  // terms PREDICT which stable phases hold it: `checkForPrerelease` bails on
+  // that flag but returns unchanged state with no `success` field, so a check
+  // pressed then is dropped in total silence. `restart-required` is in the
+  // list because the flag it claimed is never cleared.
   const prereleaseIsBusy =
     prereleaseActionPending ||
     prereleaseState.phase === "checking" ||
@@ -623,13 +467,8 @@ export const SettingUpdates = () => {
     state.phase === "downloading" ||
     state.phase === "installing" ||
     state.phase === "restart-required";
-  // What the SPINNER means, which is not what `prereleaseIsBusy` means. The
-  // busy flag is mostly borrowed stable-flow terms, and one of them —
-  // `restart-required` — never clears, so spinning on it would park a
-  // permanent spinner on a button with nothing running behind it. Only work
-  // this section started spins: the pending flag covers the window before
-  // main answers, and the `checking` phase covers the window after, because
-  // the state broadcast clears the pending flag on its way in.
+  // Only work this section started spins — `restart-required` never clears, so
+  // spinning on `prereleaseIsBusy` would park a permanent spinner.
   const prereleaseCheckRunning =
     prereleaseActionPending || prereleaseState.phase === "checking";
   // Homebrew owns the app from here on; nothing in this section may re-arm.
@@ -658,16 +497,9 @@ export const SettingUpdates = () => {
     prereleaseState.phase === "available" &&
     prereleaseState.canSwitch === true &&
     prereleaseState.activeChannel === "stable";
-  // Likewise `revertToStable`'s. Offered in every settled phase, not just an
-  // offer: getting off a misbehaving beta is the whole point of the button.
-  //
-  // `unsupported` is excluded for the same reason `showPrereleaseCheck` below
-  // excludes it, and it matters MORE here: this is the one channel action that
-  // deliberately asks no confirmation, so its predicate is the whole gate in
-  // front of a detached Homebrew uninstall-then-install and an app quit. No
-  // main-process code publishes `unsupported` alongside `activeChannel: "beta",
-  // canSwitch: true` today — `isPrereleaseState` never cross-validates the
-  // three, so nothing but this line makes that stay true.
+  // Likewise `revertToStable`'s, in every settled phase — getting off a
+  // misbehaving beta is the point. Revert asks no confirmation, so this
+  // predicate is the whole gate in front of the switch and the app quit.
   const canRevertToStable =
     prereleaseState.phase !== "unsupported" &&
     prereleaseState.canSwitch === true &&
@@ -764,9 +596,8 @@ export const SettingUpdates = () => {
           >
             {t("settings.updates.upToDate")}
           </p>
-          {/* A release exists that Homebrew cannot install yet. Reported here
-              rather than as an offer, because the button would have nothing
-              to do. */}
+          {/* A release Homebrew cannot install yet: not an offer, because the
+              Install button would have nothing to do. */}
           {state.message && (
             <p className="mt-1 text-sm text-muted-foreground">
               {tm(state.message)}
@@ -791,10 +622,8 @@ export const SettingUpdates = () => {
               )}
               {t("settings.updates.checkButton")}
             </Button>
-            {/* Only alongside the tap-pending notice: main has pointed the
-                release URL at that published tag, and the message itself tells
-                the user the DMG is the way to get it now. Without a message
-                there is nothing newer on GitHub to open. */}
+            {/* Only with the tap-pending notice, whose release URL main has
+                pointed at the published tag; without it, nothing to open. */}
             {state.message && (
               <Button
                 variant="outline"
@@ -832,12 +661,8 @@ export const SettingUpdates = () => {
               {t("settings.updates.canInstallDescription")}
             </p>
           ) : prereleaseState.activeChannel === "beta" ? (
-            // `canInstall` is false on a beta install for a Homebrew-specific
-            // reason: the stable cask is not staged, so `brew upgrade` would
-            // refuse the token outright. Falling through to the DMG branch
-            // below would tell a Homebrew user to replace their bundle by
-            // hand; their actual route back to stable is the Revert button in
-            // the Pre-release section right below this one.
+            // On a beta install the stable cask is not staged, so `brew upgrade`
+            // refuses the token; the route back is Revert, not a manual DMG.
             <p className="mt-1 text-sm text-muted-foreground">
               {t("settings.updates.prerelease.stableBlockedByBeta")}
             </p>
@@ -917,9 +742,7 @@ export const SettingUpdates = () => {
             >
               {t("settings.updates.viewReleases")}
             </Button>
-            {/* Still offered here: a newer release can land while this panel
-                sits on an older "available" result, and re-checking is also
-                the way out of a stale offer after a manual install. */}
+            {/* The way out of a stale offer after a manual install. */}
             <Button
               variant="outline"
               onClick={() =>
@@ -964,8 +787,7 @@ export const SettingUpdates = () => {
               </>
             )}
           </p>
-          {/* Indeterminate until the release asset size is known, so the bar
-              never implies precision the byte counts do not have. */}
+          {/* Indeterminate until the asset size is known. */}
           <div
             role="progressbar"
             aria-label={t("settings.updates.downloadProgressLabel")}
@@ -991,9 +813,8 @@ export const SettingUpdates = () => {
           aria-live="polite"
         >
           <Spinner className="mr-2 inline size-4 align-[-2px]" />
-          {/* Reopened mid-upgrade: main sends the "still working" text so the
-              default "quits and reopens" copy cannot contradict what is
-              actually happening. */}
+          {/* Reopened mid-upgrade: main's text overrides the default "quits
+              and reopens" copy, which would contradict what is happening. */}
           {state.message
             ? tm(state.message)
             : t("settings.updates.installingDescription", {
@@ -1075,10 +896,7 @@ export const SettingUpdates = () => {
         </>
       )}
 
-      {/* A SECOND, self-contained flow below the stable one, boxed off so the
-          two never read as one control group: its own state, its own check
-          button, its own result line. A pre-release check must never rewrite
-          a word of the section above. */}
+      {/* Boxed off so the two flows never read as one control group. */}
       <section
         aria-labelledby="prerelease-updates-heading"
         className="mt-4 rounded border border-control-border bg-secondary/40 p-3"
@@ -1154,10 +972,9 @@ export const SettingUpdates = () => {
                   ? t("settings.updates.prerelease.betaChannelUpgradeHint")
                   : t("settings.updates.prerelease.manualSwitchInstructions")}
             </p>
-            {/* No one-click path exists here — a manual DMG install has no
-                cask to switch, and the service refuses a beta -> beta switch
-                — so this is a plain link to the releases index rather than a
-                button that would only report a refusal. */}
+            {/* No one-click path exists: a manual DMG install has no cask to
+                switch and the service refuses beta -> beta, so a button here
+                could only report a refusal. */}
             {!canSwitchToPrerelease && (
               <a
                 href={GITHUB_RELEASES_URL}
@@ -1231,10 +1048,8 @@ export const SettingUpdates = () => {
           </p>
         )}
 
-        {/* The Restart button deliberately lives in the stable section only:
-            the service publishes `restart-required` to BOTH states and
-            `restartForUpdate` is gated on the stable phase, so a second
-            button here would be a duplicate of the one already on screen. */}
+        {/* No Restart button: the service publishes `restart-required` to both
+            states, so the stable section's button is already on screen. */}
         {prereleaseState.phase === "restart-required" && (
           <p
             className="mt-1 text-sm text-success"
@@ -1359,10 +1174,8 @@ export const SettingUpdates = () => {
         </p>
         <CommandBlock command="brew update && brew upgrade --cask fixlang" />
 
-        {/* Two independent sentences bracket the literal Homebrew output
-            (never translated — it's what the user's terminal actually shows)
-            instead of interpolating it mid-sentence, so JA word order isn't
-            forced to match the EN clause order. */}
+        {/* Two sentences bracket the untranslated Homebrew output rather than
+            interpolate it, so JA word order need not follow EN's. */}
         <p className="mt-2 text-sm text-muted-foreground">
           {t("settings.updates.tapMissingIntro")}
         </p>

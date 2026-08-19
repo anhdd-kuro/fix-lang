@@ -3,11 +3,9 @@ import { createTranslator } from "~/features/i18n/shared/translate";
 import { BETA_CASK_TOKEN, STABLE_CASK_TOKEN } from "./homebrew";
 
 /**
- * `./index` pulls in `~/main/i18n` -> `~/features/i18n/store/localeStore`,
- * which constructs an `electron-store` `Store` at MODULE LOAD time
- * (`Please specify the projectName option` outside a real Electron `app`).
- * Same replacement `localeStore.test.ts` uses — an in-memory stand-in, never
- * touched by these tests since `chooseBoundCaskToken` never calls `mainT`.
+ * `./index` pulls in `~/main/i18n` -> `localeStore`, which constructs an
+ * `electron-store` at MODULE LOAD time and throws outside a real Electron
+ * `app`. Same in-memory stand-in `localeStore.test.ts` uses.
  */
 vi.mock("electron-store", () => {
   class MockStore {
@@ -15,7 +13,7 @@ vi.mock("electron-store", () => {
       return defaultValue;
     }
     set(): void {
-      // No-op: chooseBoundCaskToken never reads or writes through the store.
+      // No-op: nothing here reads or writes through the store.
     }
     store = {};
     onDidChange = vi.fn();
@@ -29,15 +27,9 @@ const { buildPrereleaseConfirmDetail, chooseBoundCaskToken } = await import(
 );
 
 /**
- * Pins the ONE line `initializeUpdateService` uses to bind its Homebrew
- * upgrader — see index.ts:127 / `chooseBoundCaskToken`'s doc comment.
- *
- * Collapsing this back to an unconditional `STABLE_CASK_TOKEN` (the
- * pre-fix line f8 exists to remove) must fail this file: on a beta
- * install, `createHomebrewUpgrader`'s `canInstall` probes the STABLE
- * Caskroom entry, which does not exist, so every beta user gets a live
- * Revert button that fails every time with no CI signal anywhere else in
- * the repo.
+ * Collapsing this to an unconditional `STABLE_CASK_TOKEN` must fail here: on a
+ * beta install `canInstall` would probe a STABLE Caskroom entry that does not
+ * exist, and nothing else in the repo would catch the dead Revert button.
  */
 describe("chooseBoundCaskToken", () => {
   it("binds the BETA token when the active Caskroom channel is beta", () => {
@@ -58,17 +50,9 @@ describe("chooseBoundCaskToken", () => {
 });
 
 /**
- * The switch confirm is the ONE place the user consents to running a beta, and
- * the risk it has to state is not the quit/download/reopen mechanics: both
- * channels share one `userData`, `apiStore` runs `clearInvalidConfig: true`
- * (see its own comment: one value failing schema validation "wipes the ENTIRE
- * config — every profile, preset, and key reference"), and migrations are
- * forward-only behind a `configVersion` gate. So a beta writing a value this
- * stable release rejects can cost the whole configuration on the way back, and
- * reverting does not undo it.
- *
- * Expected copy is derived through the real translator rather than restated,
- * so a catalog reword cannot silently drop the warning.
+ * Expected copy is derived through the real translator rather than restated, so
+ * a catalog reword cannot silently drop the config-loss warning — the only
+ * place the user is told a beta can write config this stable release rejects.
  */
 describe("buildPrereleaseConfirmDetail", () => {
   const tEn = createTranslator("en");

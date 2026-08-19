@@ -10,21 +10,10 @@ const RELEASE_LIST_URL =
   "https://api.github.com/repos/anhdd-kuro/fix-lang/releases";
 
 /**
- * A release-list entry that passes every validation check.
- *
- * `overrides` patches top-level release fields (tag_name, draft,
- * prerelease, body, or a fully-replaced assets array). `assetOverrides`
- * patches only the single DMG asset's own fields (state, size) while
- * keeping its `name` in sync with whatever tag this item ends up carrying.
- *
- * That name/tag sync matters: an earlier version of this fixture built
- * `assets` from the `tagName` argument before `overrides` was spread, so a
- * case overriding `tag_name` (or the asset's `state`/`size` via a full
- * `assets` replacement naming a *different* tag) got dropped by the
- * name-match branch regardless of which rule it claimed to pin. Deriving
- * the expected name from the item's *final* tag_name, and only ever
- * patching individual asset fields rather than replacing the array,
- * keeps each drop-rule test isolated to the one rule it names.
+ * A release-list entry that passes every check. `overrides` patches release
+ * fields; `assetOverrides` patches the DMG asset's fields. The asset name comes
+ * from the item's FINAL tag_name, so a case overriding `tag_name` is dropped by
+ * the rule it pins rather than by the name-match branch.
  */
 const validPrereleaseItem = (
   tagName: string,
@@ -69,10 +58,8 @@ const failedResponse = (status: number) => ({
 });
 
 /**
- * Headers arrive, then the body never does — a captive portal, a proxy that
- * stalls after the status line, a dropped tether. `json()` settles only when
- * the request's abort signal fires, so a timer that was cleared before the
- * body read leaves the returned promise pending forever.
+ * Headers arrive, the body never does. `json()` settles only when the abort
+ * signal fires, so a timer cleared before the body read hangs forever.
  */
 const stalledBodyResponse = (
   signal: AbortSignal,
@@ -283,13 +270,6 @@ describe("GitHub release source", () => {
       );
     });
 
-    /**
-     * GitHub may describe a `next` page by repository ID rather than echoing
-     * the `/repos/<owner>/<repo>/releases` path that was requested. Matching
-     * only the requested spelling treated that legitimate link as hostile,
-     * which stopped the scan at page one and reported "no beta" while one sat
-     * on a later page.
-     */
     it("follows a next link that names the collection by repository ID", async () => {
       const page1 = listResponse(
         [validPrereleaseItem("v1.0.0-beta.1", { draft: true })],
@@ -306,8 +286,8 @@ describe("GitHub release source", () => {
 
       expect(result?.version.raw).toBe("0.9.0-beta.1");
       expect(fetchLatest).toHaveBeenCalledTimes(2);
-      // Followed by PAGE NUMBER only: the request is rebuilt from this
-      // module's own constant, so the by-ID path is never fetched.
+      // Only the page NUMBER is taken from the header; the by-ID path is never
+      // fetched.
       expect(fetchLatest).toHaveBeenNthCalledWith(
         2,
         `${RELEASE_LIST_URL}?per_page=100&page=2`,
@@ -315,12 +295,8 @@ describe("GitHub release source", () => {
       );
     });
 
-    /**
-     * The widened match above accepts a repository ID this module cannot check
-     * against its own repo. That is only safe because a matched link decides
-     * whether to keep paging and never where the request goes — so a header
-     * naming a FOREIGN repository still cannot move the scan off this endpoint.
-     */
+    // Accepting an unverifiable repository ID above is only safe because a
+    // matched link decides whether to keep paging, never where the request goes.
     it("rebuilds the next request from its own constant, not the header's path", async () => {
       const page1 = listResponse(
         [validPrereleaseItem("v1.0.0-beta.1", { draft: true })],
@@ -365,14 +341,8 @@ describe("GitHub release source", () => {
       expect(fetchLatest).toHaveBeenCalledTimes(3);
     });
 
-    /**
-     * The timeout has to survive `fetch` resolving, or a stalled body hangs
-     * the returned promise forever: `checkForPrerelease`'s
-     * `finally { prereleaseChecking = false }` never runs, its re-entrancy
-     * guard latches, and the panel is stuck on `checking` with a dead button
-     * until the app restarts. A timer that covers page 1 but not page 2 is
-     * the same bug with a smaller window, so both are pinned.
-     */
+    // A stalled body hangs the promise, latching `checkForPrerelease`'s
+    // re-entrancy guard on `checking`; a timer covering only page 1 is the same.
     it.each([
       ["the first page", 1],
       ["a later page", 2],
@@ -404,12 +374,8 @@ describe("GitHub release source", () => {
       },
     );
 
-    /**
-     * The `Link` target is response data, so it is untrusted: following it
-     * anywhere would let a header redirect the scan to a foreign host whose
-     * payload is then shown as FixLang's own release list. The page cap
-     * bounds how many requests are made, never where they go.
-     */
+    // The `Link` target is untrusted response data. The page cap bounds how many
+    // requests are made, never where they go — that is this block's job.
     it.each([
       ["another host", "https://evil.example.com/steal"],
       ["another scheme", "file:///etc/passwd"],
@@ -479,12 +445,8 @@ describe("GitHub release source", () => {
       expect(result?.version.raw).toBe("0.5.0-beta.1");
     });
 
-    /**
-     * A page can fail by throwing as well as by status — a rejected fetch, an
-     * unparseable body, or the request timeout f10 restored. Those must reach
-     * the same winner-preserving fallback, or the timeout fix would itself
-     * become a way to discard a validated beta.
-     */
+    // A throwing page must reach the same winner-preserving fallback a failed
+    // status does, or the timeout becomes a way to discard a validated beta.
     it.each([
       ["the request rejects", () => Promise.reject(new Error("network down"))],
       [
@@ -603,8 +565,7 @@ describe("GitHub release source", () => {
       );
 
       const result = await source.getLatestPrerelease();
-      // 12_000 kept units plus the truncation marker; see releaseAsset.test.ts
-      // for the boundary, surrogate-pair and code-fence rules themselves.
+      // The boundary, surrogate-pair and fence rules live in releaseAsset.test.ts.
       expect(result?.releaseNotes).toBe(
         `${longNotes.slice(0, 12_000)}${RELEASE_NOTES_TRUNCATION_MARKER}`,
       );

@@ -22,17 +22,9 @@ import {
 } from "./homebrew";
 import type * as NodeChildProcess from "node:child_process";
 
-/**
- * Real `node:child_process` exports are frozen ESM bindings — `vi.spyOn`
- * cannot redefine them in place — so guarding against a rogue subprocess call
- * needs a module mock instead. `execSync`/`execFileSync` are included even
- * though `homebrew.ts` does not import them today: the mock replaces the
- * whole module, so a future direct call to either would hit `undefined`
- * (not a real subprocess) and throw, exactly like the two spied calls below.
- * `vi.mock` is hoisted above every import in this file regardless of where
- * it is written, so placing it after the imports (for import-order lint)
- * does not change when it takes effect.
- */
+// Frozen ESM bindings cannot be redefined by `vi.spyOn`, so a rogue-subprocess
+// guard needs a whole-module mock. `execSync`/`execFileSync` are mocked though
+// unused today, so a future direct call throws instead of spawning anything.
 const {
   childProcessExecFileMock,
   childProcessSpawnMock,
@@ -52,19 +44,11 @@ vi.mock("node:child_process", () => ({
   execFileSync: childProcessExecFileSyncMock,
 }));
 
-/**
- * The helpers this module builds are shell scripts, and the thing that went
- * wrong in them was REACHABILITY: `... || exit 1` aborts after the app has
- * already quit, so the restore and the reopen below it never run. No index
- * comparison over the emitted text can catch that — the strings are all
- * present and in the right order; it is control flow that skips them. So
- * these tests execute the real emitted script under `/bin/sh` against stub
- * `brew`/`open`/`pgrep`/`sleep` binaries and read back the trace of what
- * actually ran, with each brew step forced to fail in turn.
- *
- * `node:child_process` is module-mocked above, so `spawnSync` comes from the
- * real module explicitly.
- */
+// These tests EXECUTE the emitted script under `/bin/sh` against stub
+// `brew`/`open`/`pgrep`/`sleep` binaries, because the defect they pin is
+// reachability: `... || exit 1` skips the restore and reopen below it while every
+// string stays present and correctly ordered in the text. `node:child_process` is
+// module-mocked above, so `spawnSync` comes from the real module explicitly.
 const { spawnSync: realSpawnSync } =
   await vi.importActual<typeof NodeChildProcess>("node:child_process");
 
@@ -76,9 +60,8 @@ type HelperScriptRun = {
 };
 
 /**
- * @param failSteps `<verb>:<token>` fails every time; `<verb>:<token>#<n>`
- *   fails only the nth call, which is how "first install fails, retry
- *   succeeds" is expressed.
+ * @param failSteps `<verb>:<token>` fails every time; `<verb>:<token>#<n>` fails
+ *   only the nth call.
  */
 const runHelperScript = (
   buildScript: (brewBinary: string) => string,
@@ -113,9 +96,8 @@ const runHelperScript = (
       "exit 0",
     ].join("\n"),
   );
-  // `open`, `pgrep` and `sleep` are absolute paths in the emitted text on
-  // purpose (never resolved from PATH), so stubbing them means rewriting
-  // those exact literals. brew is a parameter, so it needs no rewriting.
+  // `open`, `pgrep` and `sleep` are absolute paths in the emitted text (never
+  // resolved from PATH), so stubbing them means rewriting those literals.
   const script = buildScript(brewStub)
     .replaceAll("/usr/bin/open", writeStub("open", 'echo "open $1 $2" >> "$TRACE"'))
     .replaceAll("/usr/bin/pgrep", writeStub("pgrep", "exit 1"))
@@ -145,18 +127,10 @@ const runHelperScript = (
 const APP_PATH = "/Applications/FixLang.app";
 const REOPENED = `open -a ${APP_PATH}`;
 
-/**
- * The one thing `runHelperScript` cannot express: a signal arriving while a
- * brew step is still in flight.
- *
- * It has to be asynchronous and it has to outlive the shell, because the whole
- * defect is that the shell dies first and the `brew` child does not — so the
- * trace only becomes conclusive once the ORPHANED child has finished. The brew
- * stub therefore brackets its work with a start and a done line, the signal is
- * sent the moment the start line appears (polled, never a fixed sleep, so a
- * loaded CI box cannot make this flaky), and the trace is read only after the
- * done line lands.
- */
+// The one case `runHelperScript` cannot express: a signal arriving while a brew
+// step is in flight. It must outlive the shell, because the defect is that the
+// shell dies and the `brew` child does not — hence start/done lines around the
+// stub's work and a trace read only after the done line lands.
 const runHelperScriptAndSignal = async (
   buildScript: (brewBinary: string) => string,
   signal: NodeJS.Signals,
@@ -177,9 +151,8 @@ const runHelperScriptAndSignal = async (
     "brew",
     [
       'echo "brew-start $1 $3" >> "$TRACE"',
-      // Long enough that a reopen racing it is unmistakable in the trace, and
-      // deliberately NOT killed by the signal aimed at the shell — that gap is
-      // the defect.
+      // Long enough that a reopen racing it is unmistakable, and deliberately NOT
+      // killed by the signal aimed at the shell — that gap is the defect.
       "sleep 2",
       'echo "brew-done $1 $3" >> "$TRACE"',
     ].join("\n"),
@@ -216,9 +189,7 @@ const runHelperScriptAndSignal = async (
   await waitForTraceLine("brew-start");
   child.kill(signal);
   await exited;
-  // The shell is gone; the brew child it was waiting on is not. Only once that
-  // orphan reports done is "did anything reopen the app while Homebrew was
-  // still writing the bundle" an answerable question.
+  // The shell is gone; the brew child it was waiting on is not.
   await waitForTraceLine("brew-done");
 
   return { trace: readTrace(), stderr };
@@ -253,9 +224,8 @@ const upgrader = (
     instance: createHomebrewUpgrader({
       isInstalledApp: overrides.isInstalledApp ?? true,
       logFilePath: "/tmp/userData/logs/homebrew-update.log",
-      // Overrides come in as `string` so a test can hand this a token the
-      // module does not recognize; the cast just satisfies the option's
-      // narrower `CaskToken` type — the runtime guard is what is on trial.
+      // Overrides arrive as `string` so a test can pass an unrecognized token;
+      // the cast only satisfies the option's narrower type.
       ...(overrides.caskToken === undefined
         ? {}
         : { caskToken: overrides.caskToken as CaskToken }),
@@ -329,11 +299,8 @@ describe("upgrade script", () => {
     expect(script).not.toMatch(/xattr|sudo|quarantine/);
   });
 
-  /**
-   * `open -b` resolves a bundle id, and a stray build in a checkout carries
-   * the same one — so it can reopen an older copy of the app right after a
-   * successful upgrade. The replaced path is the only unambiguous target.
-   */
+  // `open -b` resolves a bundle id, and a stray build in a checkout carries the
+  // same one, so the replaced path is the only unambiguous target.
   it("reopens the exact bundle Homebrew replaced when the path is known", () => {
     const pinned = buildUpgradeScript(
       "/opt/homebrew/bin/brew",
@@ -345,17 +312,9 @@ describe("upgrade script", () => {
     expect(pinned.indexOf("open -a")).toBeLessThan(pinned.indexOf("open -b"));
   });
 
-  /**
-   * The accepted half of the quoting contract. These characters are all
-   * shell-significant OUTSIDE quotes and inert inside a double-quoted string,
-   * so the correct behaviour is to keep the path (rejecting them would send a
-   * user with a legitimately odd bundle path down the `open -b` route that
-   * TRAP 3 exists to avoid) and hand `open -a` exactly one argv.
-   *
-   * Asserted as the full quoted token, not `toContain(appPath)`: a regression
-   * that dropped the quotes would still satisfy a bare substring check while
-   * letting `;`, `&&`, `|` and `*` reach `/bin/sh` as syntax.
-   */
+  // Inert inside double quotes, so the path is KEPT rather than rejected, which
+  // would send an odd bundle path down the `open -b` route. Asserted as the whole
+  // quoted token: a dropped quote still satisfies a bare substring check.
   it.each([
     "/Applications/Fix Lang.app",
     "/Applications/Fix'Lang.app",
@@ -388,14 +347,8 @@ describe("upgrade script", () => {
     expect(fallback).toContain("/usr/bin/open -b com.fixlang.app");
   });
 
-  /**
-   * REGRESSION: `upgrade --cask ... || exit 1` aborts AFTER the wait loop has
-   * confirmed the app is gone, so a failed upgrade used to leave the user
-   * with no running app and no explanation — the same shape the channel
-   * switch then re-authored three more times. Executing the script proves
-   * the reopen is reachable; no index comparison over the text can, because
-   * the reopen string is present either way.
-   */
+  // `upgrade --cask ... || exit 1` aborts after the wait loop confirmed the app
+  // is gone. Executed, because the reopen string is in the text either way.
   it("reopens the app even when the upgrade itself fails", () => {
     const { trace, status } = runHelperScript(
       (brew) => buildUpgradeScript(brew, APP_PATH),
@@ -414,29 +367,13 @@ describe("upgrade script", () => {
   });
 });
 
-/**
- * REGRESSION: "every exit path reopens the app" was implemented as a single
- * `trap ... EXIT`, and an EXIT trap fires when the shell dies from a signal
- * too. A signal aimed at the helper shell does not reach the `brew` child it
- * is waiting on, so the shell died, ran the trap, and reopened FixLang while
- * the orphaned Homebrew was STILL replacing the bundle — observed by
- * execution at reopen T+1s against `brew-done` at T+4s, on both builders, for
- * TERM and HUP. It is the one exit where the reopen is the harm rather than
- * the repair: it is exactly the mid-replacement launch the wait loop above
- * exists to prevent, and inside the channel switch's no-app window it fell
- * through to `open -b <bundle id>` and started a copy Homebrew then wrote
- * over. The script this replaced (before the trap existed) reopened nothing
- * here.
- *
- * These execute rather than index the text, because "the EXIT trap also
- * covers signals" is a property of `/bin/sh`, not of the string.
- *
- * Note on shells: `runDetached` hands this text to macOS `/bin/sh` (bash),
- * which is the only place this Homebrew helper ever runs. Under a `sh` that
- * does not run EXIT traps for fatal signals at all these assertions hold
- * trivially rather than failing — the mutation that proves they bite has to
- * be run on macOS.
- */
+// An EXIT trap fires when the shell dies from a signal too, and that signal never
+// reaches the `brew` child — so the trap reopened FixLang while the orphaned
+// Homebrew was still replacing the bundle. Executed rather than indexed, because
+// that is a property of `/bin/sh`, not of the string.
+//
+// LIMIT: under a `sh` that runs no EXIT traps for fatal signals these hold
+// trivially rather than failing; the proving mutation must run on macOS.
 describe("a signal that kills the helper shell must not reopen the app", () => {
   it.each<NodeJS.Signals>(["SIGTERM", "SIGHUP"])(
     "leaves FixLang closed when %s arrives mid-upgrade",
@@ -448,18 +385,13 @@ describe("a signal that kills the helper shell must not reopen the app", () => {
 
       expect(trace.filter((line) => line.startsWith("open"))).toEqual([]);
       expect(trace).toContain("brew-done upgrade fixlang");
-      // The log is the only channel left, so the exit that leaves the app
-      // closed has to say it did.
+      // The log is the only channel left, so this exit has to say so.
       expect(stderr).toContain("leaving FixLang closed");
     },
   );
 
-  /**
-   * The switch is the worse half: between the uninstall and the install there
-   * is no bundle at the recorded path, so the reopen fell through to the
-   * bundle id and LaunchServices started whatever other FixLang it could find
-   * — which `brew install` then overwrote seconds later.
-   */
+  // Between the uninstall and the install there is no bundle at the recorded
+  // path, so a reopen falls through to the id and starts some other FixLang.
   it("leaves FixLang closed when a signal arrives mid-switch", async () => {
     const { trace } = await runHelperScriptAndSignal(
       (brew) =>
@@ -470,12 +402,7 @@ describe("a signal that kills the helper shell must not reopen the app", () => {
     expect(trace.filter((line) => line.startsWith("open"))).toEqual([]);
   });
 
-  /**
-   * The counterpart, so "does not reopen on a signal" cannot be satisfied by
-   * a script that stopped reopening at all: the same builders, unsignalled,
-   * still reopen exactly once. Kept next to the tests above because that is
-   * the pair that has to stay true together.
-   */
+  // So "does not reopen on a signal" cannot pass for a script that never reopens.
   it("still reopens exactly once when no signal arrives", () => {
     expect(
       runHelperScript((brew) => buildUpgradeScript(brew, APP_PATH)).trace,
@@ -490,17 +417,9 @@ describe("a signal that kills the helper shell must not reopen the app", () => {
   });
 });
 
-/**
- * `quitTimeoutMessage` was the one `HelperScriptParts` field with no boundary
- * check: `brewBinary`, `appPath` and both cask tokens are all refused at the
- * builder, while the message was interpolated raw into `echo "..."` — a shape
- * that runs command substitution like any other double-quoted shell string
- * (verified by executing the emitted line form with `$(...)` substituted: the
- * substitution ran). Latent, because the builder is module-private and both
- * call sites pass a literal built from a numeric constant; pinned anyway,
- * because "it is a literal today" is exactly the assumption that expires the
- * day the message comes from a catalog or a profile.
- */
+// `quitTimeoutMessage` is the one `HelperScriptParts` field with no boundary
+// check, interpolated raw into `echo "..."` where command substitution runs.
+// Latent while both call sites pass a literal built from a numeric constant.
 describe("every message the helper echoes is inert shell text", () => {
   const messageLines = (script: string): readonly string[] =>
     script.split("\n").filter((line) => line.trimStart().startsWith('echo "'));
@@ -529,15 +448,9 @@ describe("every message the helper echoes is inert shell text", () => {
   });
 });
 
-/**
- * Tokens and the bundle path are both refused at this boundary rather than
- * trusted by provenance; the brew path was the one value that was not, even
- * though it lands in the same `/bin/sh` text inside a detached helper that is
- * already allowed to uninstall an application. Not reachable from today's
- * callers (`findBrewBinary` returns one of two constants) — the point is that
- * a caller resolving brew from `HOMEBREW_PREFIX` or `which` cannot make it
- * reachable later.
- */
+// The brew path lands in the same `/bin/sh` text as the tokens and bundle path,
+// inside a helper already allowed to uninstall an application. Unreachable today;
+// the point is that a caller resolving brew from `which` cannot make it reachable.
 describe("refuses an unsafe brew path before it reaches the shell text", () => {
   it.each([
     "opt/homebrew/bin/brew",
@@ -589,17 +502,9 @@ describe("cask version parsing", () => {
     expect(parseCaskVersion(stdout)).toBeNull();
   });
 
-  /**
-   * REGRESSION: the "refuses to parse against an unknown token" test above
-   * feeds `parseCaskVersion` a payload shaped for the STABLE token while
-   * asking about "fixlang-nightly" — `cask.token === caskToken` never matches
-   * there, so the function returns null whether or not the `isCaskToken`
-   * guard runs at all. That test was observed passing IDENTICALLY with the
-   * guard deleted, so it pins nothing. This one shapes the payload's own
-   * token to match the unrecognized token being asked about: without the
-   * guard, `parsed.casks.find(...)` would succeed and return "9.9.9" instead
-   * of null.
-   */
+  // The unknown-token test above feeds a payload shaped for the STABLE token, so
+  // it returns null with or without the `isCaskToken` guard. Here the payload's
+  // own token matches, so without the guard `find` succeeds and returns "9.9.9".
   it("refuses a version even when the payload's own entry matches the unrecognized token", () => {
     expect(
       parseCaskVersion(caskInfoJson("9.9.9", "fixlang-nightly"), "fixlang-nightly"),
@@ -869,13 +774,6 @@ describe("token-parameterised Caskroom paths", () => {
 });
 
 describe("beta channel probing", () => {
-  /**
-   * REGRESSION: before the token became an explicit argument, every probe in
-   * this file was hard-coded to the stable Caskroom entry, so a beta-token
-   * upgrader silently reported the install as un-upgradeable instead of
-   * erroring — this is the named failure mode from the card, and this test
-   * was seen failing (canInstall === false) against the unmodified code.
-   */
   it("probes the beta Caskroom (not the stable one) when configured for the beta channel", () => {
     const { instance } = upgrader({
       caskToken: BETA_CASK_TOKEN,
@@ -894,14 +792,6 @@ describe("beta channel probing", () => {
     expect(instance.canInstall).toBe(false);
   });
 
-  /**
-   * REGRESSION: `readInstallableVersion` used to hard-code `--cask fixlang`
-   * regardless of which cask the upgrader was created for, so a beta-channel
-   * upgrader would silently ask brew about the STABLE cask and could report a
-   * stable version as "installable" for a beta check. This test was seen
-   * failing (argv contained "fixlang", not "fixlang@beta") against the
-   * unmodified code.
-   */
   it("passes the beta token, not the stable one, in the `brew info` argv", async () => {
     const { instance, runBrew } = upgrader({
       caskToken: BETA_CASK_TOKEN,
@@ -1053,16 +943,8 @@ describe("active channel detection", () => {
     );
   });
 
-  /**
-   * REGRESSION: the previous test only counts calls to the injected
-   * `directoryExists` probe; it never checks that nothing ELSE ran. A rogue
-   * `execSync`/`execFile`/`spawn` call added straight into
-   * `detectActiveCaskChannel` (bypassing the injected probe entirely) was
-   * observed leaving the whole suite green. These spies wrap the REAL
-   * `node:child_process` module object — the same one `homebrew.ts` imports
-   * from — so they catch a future direct call even to an export this module
-   * does not use today.
-   */
+  // The previous test only counts calls to the injected probe. These spies wrap
+  // the REAL module `homebrew.ts` imports from, so a call bypassing it is caught.
   it("never shells out — no child_process call of any kind decides the answer", () => {
     childProcessExecFileMock.mockClear();
     childProcessSpawnMock.mockClear();
@@ -1085,15 +967,9 @@ describe("channel switch script", () => {
 
   const BREW = "/opt/homebrew/bin/brew";
 
-  /**
-   * Index of `"<brew>" <verb> --cask <token>`, anchored on both ends: the
-   * quoted brew path in front rules out "install" matching inside
-   * "uninstall" (the same substring problem in the other direction), and the
-   * trailing negative lookahead rules out the stable token ("fixlang")
-   * matching inside the beta token's command ("fixlang@beta") — while still
-   * allowing the token to be followed by `;`, a quote, or whitespace, since
-   * the retry/restore commands sit inside `if ! "..." install ...; then`.
-   */
+  // Anchored on both ends: the quoted brew path rules out "install" matching
+  // inside "uninstall", and the trailing lookahead rules out "fixlang" matching
+  // inside "fixlang@beta", while still allowing `;`, a quote or whitespace.
   const caskCommandPattern = (verb: string, token: string): RegExp =>
     new RegExp(
       `"${escapeRegExp(BREW)}" ${verb} --cask ${escapeRegExp(token)}(?![A-Za-z0-9@])`,
@@ -1153,40 +1029,23 @@ describe("channel switch script", () => {
     expect(pgrepIdx).toBeLessThan(fetchIdx);
   });
 
-  /**
-   * REGRESSION: fetch must fill the download cache while the CURRENT cask is
-   * still installed. An uninstall emitted before the fetch was observed
-   * failing here against a deliberately broken builder before this landed.
-   */
+  // The fetch must fill the download cache while the CURRENT cask is installed.
   it("fetches the target cask before uninstalling the current one", () => {
     expect(fetchIdx).toBeGreaterThanOrEqual(0);
     expect(uninstallIdx).toBeGreaterThanOrEqual(0);
     expect(fetchIdx).toBeLessThan(uninstallIdx);
   });
 
-  /**
-   * REGRESSION: the target's bundle path only frees up once the current
-   * token's cask is gone. An install emitted before the uninstall was
-   * observed failing here against a deliberately broken builder before this
-   * landed.
-   */
+  // The target's bundle path only frees up once the current cask is gone.
   it("uninstalls the current cask before installing the target", () => {
     expect(uninstallIdx).toBeGreaterThanOrEqual(0);
     expect(firstInstallIdx).toBeGreaterThanOrEqual(0);
     expect(uninstallIdx).toBeLessThan(firstInstallIdx);
   });
 
-  /**
-   * REGRESSION: this test used to assert only that the second install came
-   * after the first, which is true of any number of attempts — inserting a
-   * THIRD attempt into the retry ladder left the whole file green. "Exactly
-   * once" is an upper bound, so it has to be asserted as a count: an
-   * unbounded ladder would stretch the window in which the user has no app
-   * installed, which is the failure this whole design is shaped around.
-   * Counted before the restore because the last-resort attempt AFTER a failed
-   * restore is not a retry of the switch — by then it is the only remaining
-   * way to leave the user with any app at all.
-   */
+  // "Exactly once" is an upper bound, so it has to be a COUNT: ordering alone
+  // holds for any number of attempts, each stretching the no-app window. Counted
+  // before the restore, whose last-resort attempt is not a retry of the switch.
   it("retries the target install exactly once before giving up on it", () => {
     expect(firstInstallIdx).toBeGreaterThanOrEqual(0);
     expect(secondInstallIdx).toBeGreaterThan(firstInstallIdx);
@@ -1211,34 +1070,20 @@ describe("channel switch script", () => {
     expect(attemptsAfterRestore).toHaveLength(1);
   });
 
-  /**
-   * REGRESSION: a missing restore-original step was observed failing here
-   * against a deliberately broken builder before this landed — a failed
-   * switch must leave the user where they started, not with nothing.
-   */
+  // A failed switch must leave the user where they started, not with nothing.
   it("restores the ORIGINAL token — not the target — after both install attempts fail", () => {
     expect(restoreIdx).toBeGreaterThanOrEqual(0);
     expect(restoreIdx).toBeGreaterThan(secondInstallIdx);
   });
 
-  /**
-   * REGRESSION: the test that used to sit here read
-   * `lastIndexOf("/usr/bin/open -b com.fixlang.app") > restoreIdx`, which
-   * always resolved to the trailing success-path reopen and so was true no
-   * matter what the restore branch contained — deleting the reopen from that
-   * branch left the whole file green. The reopen is now a single EXIT trap
-   * armed the moment the wait loop confirms the app is gone, which is the
-   * invariant stated once instead of per branch: below this line the app is
-   * off the user's screen, so every exit brings it back.
-   */
+  // One EXIT trap armed the moment the app is gone, so the invariant is stated
+  // once instead of per branch. A `lastIndexOf(reopen) > restoreIdx` check
+  // resolves to the success-path reopen and holds whatever the branch contains.
   it("arms the reopen for every exit path the moment the app is gone", () => {
     expect(trapIdx).toBeGreaterThan(waitLoopEndIdx);
     expect(trapIdx).toBeLessThan(fetchIdx);
-    // Two traps and no more: the EXIT reopen, and the signal abort that is
-    // its single deliberate exception. Both are armed in the same place and
-    // neither is ever disarmed from the script body — `trap - EXIT` appears
-    // only inside the signal handler, where suppressing the reopen IS the
-    // behaviour.
+    // Two traps and no more: the EXIT reopen and the signal abort that is its one
+    // deliberate exception. `trap - EXIT` appears only in the signal handler.
     expect(script.match(/^trap /gm)).toHaveLength(2);
     expect(script.match(/^ *trap - EXIT$/gm)).toHaveLength(1);
     expect(signalTrapIdx).toBeGreaterThan(trapIdx);
@@ -1249,29 +1094,16 @@ describe("channel switch script", () => {
     expect(script).toContain("abort_without_reopen() {");
   });
 
-  /**
-   * The tests below execute the emitted script rather than index it, because
-   * the defect they pin is reachability: every string was already present and
-   * correctly ordered while the control flow skipped straight past it.
-   */
   it("reopens the app it made quit when the target fetch fails", () => {
     const { trace, status } = runHelperScript(switchScript, ["fetch:fixlang@beta"]);
 
-    // Nothing was uninstalled, so the user is exactly where they started —
-    // which includes still running the app.
+    // Nothing was uninstalled, so the user is still running the app.
     expect(trace).toEqual(["brew fetch fixlang@beta", REOPENED]);
     expect(status).toBe(1);
   });
 
-  /**
-   * REGRESSION: `uninstall --cask <current> || exit 1` was the worst outcome
-   * this feature can produce — a cask uninstall that fails partway can
-   * already have removed the bundle, and the abort reached neither the
-   * restore nor the reopen, so the user was left with no app in
-   * /Applications and no indication why. Observed by executing the previous
-   * script with the uninstall forced to fail: the trace ended at
-   * `brew uninstall fixlang`.
-   */
+  // A cask uninstall that fails partway can already have removed the bundle, so
+  // an abort here leaves no app in /Applications and no indication why.
   it("reinstalls the current cask and reopens when the uninstall fails", () => {
     const { trace, status, stderr } = runHelperScript(switchScript, ["uninstall:fixlang"]);
 
@@ -1301,20 +1133,9 @@ describe("channel switch script", () => {
     expect(status).toBe(1);
   });
 
-  /**
-   * Once the rollback itself has failed the user has NO app; at that point
-   * "on the channel they did not ask for" beats "none", and the target's DMG
-   * is the one still guaranteed to be in the download cache.
-   */
-  /**
-   * REGRESSION: this last-resort install SUCCEEDING was reported as a total
-   * failure — exit 1, and a log whose final app-authored line was still
-   * "Failed to restore fixlang; trying fixlang@beta once more." The user was
-   * on the channel they asked for, and success differed from "nothing is
-   * installed" only by the ABSENCE of a further line. The committed version
-   * of this test asserted `trace.at(-2)` and `status === 1` and never looked
-   * at stderr, so it could not see the difference either.
-   */
+  // With the rollback itself failed the user has NO app, so the wrong channel
+  // beats none, and the target's DMG is the one still cached. Asserted on stderr
+  // and status: success used to differ from failure only by an ABSENT log line.
   it("reports the channel it landed on when the restore fails but the target installs", () => {
     const { trace, status, stderr } = runHelperScript(switchScript, [
       "install:fixlang@beta#1",
@@ -1329,11 +1150,8 @@ describe("channel switch script", () => {
     expect(status).toBe(0);
   });
 
-  /**
-   * The neighbouring outcome, for the same reason: a rollback that WORKS is
-   * still a failed switch, and it has to say which of the two happened rather
-   * than leave the reader to infer it from which line came last.
-   */
+  // A rollback that WORKS is still a failed switch, and has to say which of the
+  // two happened rather than leave it inferred from which line came last.
   it("says the switch did not happen when the rollback succeeds", () => {
     const { status, stderr } = runHelperScript(switchScript, ["install:fixlang@beta"]);
 
@@ -1341,12 +1159,7 @@ describe("channel switch script", () => {
     expect(status).toBe(1);
   });
 
-  /**
-   * REGRESSION: the restore was the only brew call in either builder with no
-   * status check. When it failed, the log's last app-authored line still read
-   * "restoring fixlang" — and there is no app left running to report through,
-   * so the helper log is the only channel there is.
-   */
+  // No app is left running to report through, so the log is the only channel.
   it("names the one command that recovers the machine when nothing installs", () => {
     const { stderr, status } = runHelperScript(switchScript, [
       "install:fixlang@beta",
@@ -1358,19 +1171,9 @@ describe("channel switch script", () => {
     expect(status).toBe(1);
   });
 
-  /**
-   * REGRESSION: the recovery line named `currentToken`, so on a REVERT it
-   * handed a user who had just asked to leave the pre-release — and who now
-   * had no app at all — `brew install --cask fixlang@beta` as their one
-   * instruction. The channel they asked for was never named.
-   *
-   * The revert direction was previously index-checked only, never executed,
-   * and the assertion that would have caught this
-   * (`toContain("brew install --cask fixlang")`) passes on the revert script
-   * regardless, because it is a PREFIX of `...fixlang@beta`. So this asserts
-   * the two tokens apart rather than matching a prefix: the requested token
-   * must be named and the abandoned one must not.
-   */
+  // Asserts the two tokens APART, never a prefix match: `toContain("--cask
+  // fixlang")` passes on either script. The line used to name `currentToken`, so a
+  // revert handed a user with no app `brew install --cask fixlang@beta`.
   it("names the REQUESTED channel in the recovery line, in both directions", () => {
     const revertScript = (brew: string): string =>
       buildChannelSwitchScript(brew, BETA_CASK_TOKEN, STABLE_CASK_TOKEN, APP_PATH);
@@ -1443,11 +1246,7 @@ describe("channel switch script", () => {
     ).toThrow();
   });
 
-  /**
-   * The restore step must name whichever token was ORIGINAL for that
-   * particular switch — proven here with the tokens reversed, so this is not
-   * an artifact of one token happening to be the default.
-   */
+  // Tokens reversed, so this is not an artifact of one token being the default.
   it("names the correct original token when the switch direction is reversed", () => {
     const revert = buildChannelSwitchScript(
       "/opt/homebrew/bin/brew",
@@ -1467,16 +1266,8 @@ describe("channel switch script", () => {
 });
 
 describe("canInstall validates the bound cask token", () => {
-  /**
-   * REGRESSION: `canInstall` was computed straight from `caskroomRoot`,
-   * which — unlike every other accessor in this module — never calls
-   * `isCaskToken` first. `caskroomRoot("/opt/homebrew/bin/brew",
-   * "../../../../Applications")` normalizes (via `path.join`) to
-   * "/Applications", so an upgrader constructed with an unrecognized token
-   * probed a directory entirely outside the Caskroom and could report
-   * `canInstall === true` off of it. This test was observed failing
-   * (canInstall === true) against the unmodified code.
-   */
+  // `caskroomRoot(brew, "../../../../Applications")` normalizes to
+  // "/Applications", so an unvalidated token probes outside the Caskroom entirely.
   it("never derives canInstall from an unrecognized token's raw, un-validated path", () => {
     const { instance } = upgrader({
       caskToken: "../../../../Applications",
@@ -1488,20 +1279,9 @@ describe("canInstall validates the bound cask token", () => {
 });
 
 describe("startUpgrade validates the token it is actually about to run, not just the bound one", () => {
-  /**
-   * REGRESSION: `startUpgrade`'s guard was `!canInstall`, where `canInstall`
-   * is fixed at construction time for the upgrader's BOUND token. A per-call
-   * `caskToken` override let a caller ask this beta-bound upgrader (whose
-   * `canInstall` is true because the beta Caskroom exists) to run an upgrade
-   * for the STABLE token instead — with no stable Caskroom entry at all. The
-   * guard let it through, so the detached helper spawned and ran
-   * `brew upgrade --cask fixlang || exit 1` against an uninstalled cask
-   * AFTER the app had already quit; that failure path in
-   * `buildUpgradeScript` exits before ever reaching the reopen command,
-   * leaving the user with no running app. This test was observed failing —
-   * `startDetached` was called and nothing threw — against the unmodified
-   * code.
-   */
+  // `canInstall` is fixed at construction for the BOUND token, so a `!canInstall`
+  // guard lets a per-call override upgrade a token with no Caskroom entry — after
+  // the app has quit, on the failure path that never reaches the reopen.
   it("refuses a per-call token override the bound token's canInstall can't vouch for", () => {
     const { instance, startDetached } = upgrader({
       caskToken: BETA_CASK_TOKEN,
@@ -1516,16 +1296,9 @@ describe("startUpgrade validates the token it is actually about to run, not just
 });
 
 describe("per-call token pins its own accessor, never the bound token's", () => {
-  /**
-   * REGRESSION (re-review f8): every prior beta test called
-   * `isVersionInstalled` with no per-call argument, so it only ever proved
-   * bound == per-call. A mutant that resolves `caskVersionPath` against
-   * `boundCaskToken` while still validating the passed-in `caskToken` left
-   * the whole suite green. `updateService.ts:569`/`:610` (`pending.caskToken`)
-   * calls this with a per-call token that legitimately differs from the
-   * bound one whenever the app reopens mid channel-switch, so an unpinned
-   * accessor here reports a successful switch as failed.
-   */
+  // Every other beta test omits the per-call argument, so it only proves bound ==
+  // per-call. `updateService.ts` passes `pending.caskToken`, which legitimately
+  // differs from the bound token whenever the app reopens mid switch.
   it("checks the per-call token's own Caskroom entry, not the bound token's", () => {
     const { instance } = upgrader({
       caskToken: BETA_CASK_TOKEN,
@@ -1539,16 +1312,8 @@ describe("per-call token pins its own accessor, never the bound token's", () => 
     expect(instance.isVersionInstalled("0.32.0", BETA_CASK_TOKEN)).toBe(false);
   });
 
-  /**
-   * REGRESSION (re-review f9): the existing beta `brew fetch` test binds
-   * beta and calls `downloadUpdate()` with no argument, so it only proves
-   * bound == per-call. A mutant that fetches `boundCaskToken` instead of the
-   * passed-in `caskToken` left the whole suite green. The real call site
-   * (`updateService.ts:872`) always passes the TARGET token on a channel
-   * switch or revert — by definition the other token from the bound one —
-   * so an unpinned fetch here silently loses the "download while the app is
-   * alive" guarantee.
-   */
+  // The beta `brew fetch` test passes no argument, so it only proves bound ==
+  // per-call. The real call site always passes the TARGET token on a switch.
   it("passes the per-call token to `brew fetch`, not the bound token's", async () => {
     const { instance, runBrew } = upgrader({
       caskToken: BETA_CASK_TOKEN,
@@ -1562,19 +1327,8 @@ describe("per-call token pins its own accessor, never the bound token's", () => 
     ]);
   });
 
-  /**
-   * REGRESSION (re-review f10): nothing pins the token that reaches the
-   * emitted upgrade script itself. A mutant that builds the script around
-   * `boundCaskToken` instead of the passed-in `caskToken` left the whole
-   * suite green — the existing beta test calls `startUpgrade()` with no
-   * argument, and the only differing-token test (`startUpgrade validates
-   * the token it is actually about to run`) asserts a throw, so the emit
-   * line is never reached with a per-call token that is valid, staged, and
-   * different from the bound one. Rated minor only because `index.ts:117`
-   * currently never binds a upgrader whose bound token disagrees with a
-   * staged, differing per-call token — this test pins the invariant anyway
-   * so a future change to that wiring cannot regress it silently.
-   */
+  // Nothing else pins the token that reaches the emitted script: the beta test
+  // passes no argument, and the differing-token test above asserts a throw.
   it("passes the per-call token to the emitted script, not the bound token's", () => {
     const { instance, startDetached } = upgrader({
       caskToken: BETA_CASK_TOKEN,

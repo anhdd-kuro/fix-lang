@@ -50,14 +50,11 @@ const shellLines = (step: string): string[] =>
     .map((line) => line.trim())
     .filter((line) => line.length > 0 && !line.startsWith("#"));
 
-// What a step actually executes. Matching against the raw text would accept a
-// commented-out copy of a line as proof the line still runs.
+// What a step actually executes: raw text would accept a commented-out line.
 const executedShell = (step: string): string => shellLines(step).join("\n");
 
-// A version this repository may publish from *some* branch: stable on main, or
-// X.Y.Z-beta.N on a beta/* branch. Stable-only on main is not this file's job —
-// release.yml's stable_version_pattern refuses a prerelease version before it
-// creates any tag, and that guard is pinned below.
+// A version publishable from *some* branch: stable, or X.Y.Z-beta.N from beta/*.
+// Stable-only-on-main is release.yml's stable_version_pattern, pinned below.
 const RELEASE_VERSION =
   /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-beta\.(0|[1-9][0-9]*))?$/;
 
@@ -66,11 +63,6 @@ describe("unsigned GitHub Releases distribution", () => {
     const packageJson = readPackageJson();
     const build = buildConfiguration(packageJson);
 
-    // Stable OR X.Y.Z-beta.N. prerelease.yml runs `bun run test` as a publish gate
-    // from a beta/* branch, and it creates the tag first: a strict-stable assertion
-    // here fails that gate on every beta, leaving a dangling tag whose deletion is
-    // manual. The invariant "main never carries a prerelease version" survives in
-    // release.yml's stable_version_pattern, which refuses before any tag is cut.
     expect(packageJson.version).toMatch(RELEASE_VERSION);
     expect(packageJson.dependencies).not.toHaveProperty("electron-updater");
     // Prevent repository-based publish inference from embedding app-update.yml.
@@ -144,8 +136,7 @@ describe("unsigned GitHub Releases distribution", () => {
     expect(workflow).toContain("shasum -a 256");
     expect(workflow).toContain("gh release upload");
     expect(workflow).toContain("--draft=false");
-    // The stable feed is what every user's update check and the Homebrew tap read.
-    // A --prerelease anywhere in this workflow would take genuine releases off it.
+    // A --prerelease here takes genuine releases off the stable feed.
     expect(workflow).not.toContain("--prerelease");
     expect(workflow).not.toContain("--clobber");
     expect(workflow).not.toContain("MAC_CSC_");
@@ -159,9 +150,7 @@ describe("unsigned GitHub Releases distribution", () => {
     expect(validateStep).toContain('test -s "release/FixLang-${package_version}-arm64.dmg"');
     expect(validateStep).toContain('hdiutil verify "release/FixLang-${package_version}-arm64.dmg"');
     expect(validateStep).toContain('CFBundleShortVersionString');
-    // app.asar ships no node_modules and must ship out/renderer; without these the
-    // stable DMG can be a MODULE_NOT_FOUND or white-screen app. Pinned here as well
-    // as in the prerelease workflow so neither copy can lose the guard alone.
+    // Without these the DMG can be a MODULE_NOT_FOUND or white-screen app.
     expect(executedShell(validateStep)).toContain("bunx @electron/asar list");
     expect(executedShell(validateStep)).toContain("/node_modules/");
     expect(executedShell(validateStep)).toContain("^/out/renderer/");
@@ -294,17 +283,12 @@ describe("unsigned GitHub Releases distribution", () => {
     const workflow = readFileSync(fullPath, "utf8");
     expect(workflow).toMatch(/branches:\s*\[\s*['"]beta\/\*\*['"]\s*\]/);
     expect(workflow).toContain("contents: write");
-    // Tag creation, draft creation and two immutable asset uploads are one
-    // non-atomic remote sequence. Cancelling between any two of them wedges the
-    // channel until a human deletes the tag or the draft, so a second push must
-    // queue behind the first, exactly as the stable workflow does.
+    // Tag, draft and two immutable uploads are one non-atomic remote sequence:
+    // cancelling mid-way wedges the channel until a human deletes the tag.
     expect(workflow).toContain("group: fixlang-prerelease-");
     expect(workflow).toContain("cancel-in-progress: false");
     expect(workflow).not.toContain("cancel-in-progress: true");
-    // The review anchor, and it has to sit on the job that publishes: an
-    // `environment` on prepare gates nothing. Stable is bounded by "only publishes
-    // from main"; a beta branch has no such bound, so publication hangs on an
-    // Environment whose required-reviewers rule is configured in repository settings.
+    // The review anchor must sit on the publishing job: on prepare it gates nothing.
     const prepareJob = workflowJob(workflow, "prepare");
     const releaseJob = workflowJob(workflow, "release");
     expect(releaseJob).toMatch(/^\s{4}environment: prerelease$/m);
@@ -350,9 +334,7 @@ describe("unsigned GitHub Releases distribution", () => {
     expect(validateStep).toContain("CFBundleShortVersionString");
     expect(executedShell(validateStep)).toContain("/node_modules/");
     expect(executedShell(validateStep)).toContain("^/out/renderer/");
-    // R6 discovery signal: if electron-builder ever mangles "-beta.N" in the DMG
-    // basename, this step is where it surfaces, and a bare `test -s` reports only
-    // an exit code.
+    // A bare `test -s` reports only an exit code, so a mangled "-beta.N" hides.
     expect(validateStep).toContain("ls -la release/");
     expect(executedShell(draftStep)).toContain("--prerelease");
     expect(draftStep).toContain("refusing to replace its assets");
@@ -360,11 +342,8 @@ describe("unsigned GitHub Releases distribution", () => {
       workflow.indexOf("Create or resume draft prerelease"),
     );
 
-    // Drift guard. Roughly 185 lines here are a verbatim copy of release.yml, and a
-    // beta tester runs the least-tested build with the hardest recovery path, so the
-    // beta artifact may never be validated more weakly than the stable one: every
-    // line the stable validation runs must also run here. Extra lines (diagnostics)
-    // are allowed; dropped ones are not.
+    // Drift guard: the beta artifact may never be validated more weakly than the
+    // stable one. Extra diagnostic lines are allowed; dropped ones are not.
     const stableWorkflow = readProjectFile(".github/workflows/release.yml");
     const stableValidateStep = workflowStep(
       stableWorkflow,
@@ -378,9 +357,7 @@ describe("unsigned GitHub Releases distribution", () => {
       ).toContain(line);
     }
 
-    // Gates run before anything is built, packaged or published, and they run in the
-    // job that publishes. Presence alone is satisfied by a job that packages first
-    // and lints afterwards, or by gates parked in a job nothing waits on.
+    // Positions, not presence: presence passes for gates parked after packaging.
     const positionOf = (needle: string): number => {
       const index = releaseJob.indexOf(needle);
       expect(
@@ -396,8 +373,6 @@ describe("unsigned GitHub Releases distribution", () => {
     expect(positionOf("run: bun run lint")).toBeLessThan(buildIndex);
     expect(positionOf("run: bun run test")).toBeLessThan(buildIndex);
     expect(positionOf("run: bun run i18n:check")).toBeLessThan(buildIndex);
-    // check:bundle scans the built output, so it comes after build and before the
-    // DMG that would otherwise ship the unresolvable dependency.
     expect(buildIndex).toBeLessThan(positionOf("run: bun run check:bundle"));
     expect(positionOf("run: bun run check:bundle")).toBeLessThan(packageIndex);
     expect(packageIndex).toBeLessThan(
@@ -407,10 +382,7 @@ describe("unsigned GitHub Releases distribution", () => {
       positionOf("- name: Publish completed prerelease"),
     );
 
-    // The call that actually makes the release public. --prerelease appearing
-    // anywhere in the file is satisfied by the draft step alone; dropping it here
-    // publishes a beta as an ordinary release, which the Homebrew tap then syncs
-    // into the stable cask.
+    // Asserted on the publishing call: a file-wide match is satisfied by the draft.
     const publishStep = executedShell(
       workflowStep(workflow, "Publish completed prerelease"),
     );
@@ -429,13 +401,9 @@ describe("unsigned GitHub Releases distribution", () => {
       ),
     ).toBe(true);
 
-    // Beta tags are excluded from the ruleset's update protection, so the tag can be
-    // retargeted between jobs and after publication. The build input is the commit
-    // prepare resolved, and the release body records it.
     const checkoutStep = workflowStep(workflow, "Check out the release commit");
-    // The output has to come from prepare: `needs.prepare.outputs.release_sha`
-    // resolves to the empty string if it is declared anywhere else, and checkout
-    // with an empty ref silently falls back to the branch head.
+    // Beta tags can be retargeted, so the build input is prepare's commit. Declared
+    // anywhere else the output is empty, and checkout then takes the branch head.
     expect(prepareJob).toContain("release_sha: ${{ github.sha }}");
     expect(checkoutStep).toContain("ref: ${{ needs.prepare.outputs.release_sha }}");
     expect(checkoutStep).not.toContain("needs.prepare.outputs.release_tag");
@@ -488,8 +456,7 @@ describe("unsigned GitHub Releases distribution", () => {
     expect(betaTag.test("v0.32.0-beta.1")).toBe(true);
     expect(betaTag.test("0.32.0-beta.1")).toBe(false);
 
-    // The version shape package.json is allowed to carry, on any branch. Widening it
-    // to accept betas must not widen it to accept anything else.
+    // Widening this to accept betas must not widen it to accept anything else.
     expect(RELEASE_VERSION.test("0.32.0")).toBe(true);
     expect(RELEASE_VERSION.test("0.32.0-beta.1")).toBe(true);
     expect(RELEASE_VERSION.test("0.32.0-beta.0")).toBe(true);

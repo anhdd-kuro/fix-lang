@@ -1,25 +1,11 @@
 /**
- * @file externalNavigationGuard.ts
- * @description The one place a URL may leave a FixLang window, and the one
- * policy that decides whether it may.
- *
- * Every window in this app renders text it did not author: GitHub release
- * notes in the About panel, model output in the Ask AI result window, the
- * user's own selection in the Ask input window. The renderer routes clicked
- * links through the `open-external-link` bridge — but a React `onClick` is
- * bound to `click`, and a MIDDLE click fires `auxclick`, never `click`. That
- * click reaches Electron with no handler having run, and Electron's default
- * for an unhandled window-open is to ALLOW it: the target loads in a new
- * app-owned `BrowserWindow` with no address bar, so the user has no surface
- * on which to notice that the link text and the href disagreed. A plain
- * navigation nobody called `preventDefault()` on is worse still — it replaces
- * the app's own UI, inside the window that carries the preload.
- *
- * So: deny every window-open, block every top-level navigation away from the
- * loaded page, and hand the URL to `openExternalUrl` — the same scheme check
- * and the same `shell.openExternal` the IPC bridge uses, so there is exactly
- * one answer to "may this open, and where". Nothing in this app calls
- * `window.open` or uses `target="_blank"`, so denying costs no real behaviour.
+ * The one place a URL may leave a FixLang window. These windows render text
+ * they did not author (release notes, model output), and a link's React
+ * `onClick` is bound to `click` — a MIDDLE click fires `auxclick`, so no
+ * handler runs and Electron's default for an unhandled window-open is to
+ * ALLOW it into a chrome-less app-owned window with no address bar. So: deny
+ * every window-open, preventDefault every cross-document navigation, and
+ * delegate to `openExternalUrl`.
  */
 import { shell } from "electron";
 import type { BrowserWindow } from "electron";
@@ -32,11 +18,8 @@ export type OpenExternalResult = Readonly<{
 const UNSUPPORTED_SCHEME_ERROR = "Unsupported URL scheme";
 
 /**
- * Opens `url` in the user's real browser, where its true destination is
- * visible in an address bar, or refuses it. Only `http:`/`https:` pass —
- * `file:`, `javascript:` and `data:` reach `shell.openExternal` as a handoff
- * to whatever the OS has registered for them, which is not a thing a release
- * note or a model answer gets to decide.
+ * http/https only: `shell.openExternal` would otherwise hand `file:`,
+ * `javascript:` or `data:` to whatever the OS registered for them.
  */
 export const openExternalUrl = async (
   url: string,
@@ -62,11 +45,9 @@ export const openExternalUrl = async (
 };
 
 /**
- * Same document, different fragment or query — a reload, or the error popup's
- * `#dismiss` anchor. Chromium runs no navigation throttle for a same-document
- * navigation, so Electron should not emit `will-navigate` for one at all; this
- * says so explicitly rather than resting on that, because getting it wrong
- * would silently break a Close button.
+ * A reload, or the error popup's `#dismiss` anchor. Electron should not emit
+ * `will-navigate` for a same-document navigation at all, but a Close button
+ * rests on this rather than on that.
  */
 const isSamePage = (target: string, current: string): boolean => {
   try {
@@ -82,11 +63,7 @@ const isSamePage = (target: string, current: string): boolean => {
   }
 };
 
-/**
- * Installs the deny-and-delegate policy on `win`. Called by every window
- * factory in this directory; `externalNavigationGuard.test.ts` fails if a
- * factory is added without it.
- */
+/** Every factory in this directory must install this; its test enforces that. */
 export const applyExternalNavigationGuard = (win: BrowserWindow): void => {
   win.webContents.setWindowOpenHandler(({ url }) => {
     void openExternalUrl(url);

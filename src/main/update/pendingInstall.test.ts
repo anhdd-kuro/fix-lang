@@ -138,23 +138,14 @@ describe("pending install marker", () => {
       appPath: "/Applications/FixLang.app",
     });
 
-    // Asserted against the imported constant, never a re-spelled literal:
-    // the migration default has to BE homebrew's stable token, and a literal
-    // here would keep passing after that token moved on.
+    // Imported constant, not a literal: a literal keeps passing after it moves.
     expect(parsePendingInstall(legacyRaw)?.caskToken).toBe(
       HOMEBREW_STABLE_CASK_TOKEN,
     );
   });
 
-  /**
-   * REGRESSION: `STABLE_CASK_TOKEN` used to be re-declared here with the
-   * literal spelled a second time. A `: CaskToken` annotation catches an
-   * outright rename, but not the dangerous shape — adding a channel token
-   * while `"fixlang"` stays in `KNOWN_CASK_TOKENS` for legacy markers, so
-   * `homebrew.ts` moves its stable token forward while this module's
-   * MIGRATION DEFAULT still points at the legacy string, with no type error
-   * and no test failure. Mocking that move is the only way to see it.
-   */
+  // Mocking the token's move is the only way to see a migration default left on
+  // the legacy string, which stays valid for old markers.
   it("takes its stable token from homebrew rather than re-spelling the literal", async () => {
     const movedStableToken = "fixlang@moved";
     vi.resetModules();
@@ -227,15 +218,8 @@ describe("pending install marker", () => {
     },
   );
 
-  /**
-   * REGRESSION: `CaskToken` and its runtime allow-list used to be redeclared
-   * independently here from `./homebrew`'s `KNOWN_CASK_TOKENS` — a third
-   * channel token added there without a matching edit here would silently
-   * coerce back to stable on read. Parsing is now driven entirely by
-   * `./homebrew`'s own `isCaskToken`, so this asserts that exact equivalence
-   * for a spread of tokens — known, unknown, and edge-shaped — rather than
-   * re-testing only the two literals this file used to hardcode.
-   */
+  // Equivalence with `./homebrew`'s `isCaskToken`: a third channel token added
+  // there but not here would silently coerce back to stable on read.
   it.each(["fixlang", "fixlang@beta", "fixlang@nightly", "FIXLANG", ""])(
     "accepts a cask token if and only if homebrew.ts's isCaskToken accepts it: %s",
     (caskToken) => {
@@ -285,8 +269,7 @@ describe("pending install reconciliation", () => {
       : { ...base, isVersionInstalled: overrides.isVersionInstalled };
   };
 
-  /** A revert: beta build, stable target — and so the STABLE token, which is
-   * what production writes for this direction. */
+  /** A revert: beta build, stable target — and so the STABLE token. */
   const revertMarker: PendingInstall = {
     fromVersion: "2.0.0-beta.3",
     toVersion: "1.9.5",
@@ -349,11 +332,7 @@ describe("pending install reconciliation", () => {
     ).toBe("restart-required");
   });
 
-  /**
-   * The bug this guards: `open -b <bundle id>` after an upgrade can launch a
-   * stray build that shares the id, and a "version changed" test then reports
-   * that downgrade as a completed update.
-   */
+  // `open -b <bundle id>` can launch a stray build that shares the id.
   it("refuses to call a different bundle an update, even at another version", () => {
     expect(
       reconcilePendingInstall(
@@ -365,8 +344,8 @@ describe("pending install reconciliation", () => {
   });
 
   it("still reports wrong-bundle once Homebrew staged the target", () => {
-    // A restart is the remedy either way, but only this outcome knows the
-    // restart has to open another path instead of re-executing this one.
+    // Restart is the remedy either way; only this outcome knows it must open
+    // another path.
     expect(
       reconcilePendingInstall(
         marker,
@@ -376,16 +355,8 @@ describe("pending install reconciliation", () => {
     ).toBe("wrong-bundle");
   });
 
-  /**
-   * REGRESSION: version equality used to be tested BEFORE bundle identity, so
-   * a stray bundle that happened to report the target version was announced
-   * as a completed install and the path mismatch was discarded. The revert
-   * direction is what makes that ordering unsafe: a revert targets a version
-   * the user was running until recently, so a leftover copy at exactly that
-   * version (a manual DMG install, say) is an ordinary thing to find on disk
-   * — where an upgrade's target had never existed on the machine before.
-   * Bundle identity is the reliable test and has to come first.
-   */
+  // Identity must be tested BEFORE version equality: a revert targets a version
+  // the user just ran, so a leftover copy at it is ordinary.
   it("refuses to call a stray bundle an update even when it reports the target version", () => {
     expect(
       reconcilePendingInstall(
@@ -397,8 +368,7 @@ describe("pending install reconciliation", () => {
   });
 
   it("refuses a stray bundle sitting at the version a revert targeted", () => {
-    // Install and rollback both failed, /Applications is empty, and the
-    // helper's `open -b` resolved a leftover copy at exactly `toVersion`.
+    // Install and rollback both failed, and `open -b` found a copy at `toVersion`.
     expect(
       reconcilePendingInstall(
         revertMarker,
@@ -485,22 +455,13 @@ describe("pending install reconciliation", () => {
   );
 
   /**
-   * The failure this guards: a revert lands a version LOWER than the one
-   * running, under a DIFFERENT cask token than the one currently installed.
-   * Nothing about "the target is newer" may be baked into reconcile — only
-   * the recorded token and version equalities decide the outcome. If the
-   * token were silently dropped or defaulted wrong, a successful revert (or
-   * a switch onto the pre-release channel) would read exactly like a failed
-   * upgrade: the marker gets cleared, an error shows, and the install button
-   * re-arms onto a second `brew` operation that dies on the first one's
-   * download lock.
+   * Nothing about "the target is newer" may be baked into reconcile — only the
+   * recorded token and version equalities decide, or a successful revert reads
+   * exactly like a failed upgrade and re-arms the install button.
    */
   it("reconciles a revert to a LOWER version under the pre-release token correctly", () => {
-    // Parsed from JSON, not hand-built, so the marker under test is exactly
-    // the shape production writes: `caskToken` is the TARGET token, which for
-    // a revert is the STABLE one (`updateService.ts` writes
-    // `caskToken: targetToken`), and the beta channel is named only by
-    // `fromCaskToken`.
+    // Parsed from JSON, so the marker is exactly the shape production writes:
+    // `caskToken` is the TARGET token, and beta appears only in `fromCaskToken`.
     const parsed = parsePendingInstall(
       JSON.stringify({
         fromVersion: "2.0.0-beta.3",
@@ -515,7 +476,6 @@ describe("pending install reconciliation", () => {
     expect(parsed?.fromCaskToken).toBe("fixlang@beta");
     if (parsed === null) throw new Error("marker failed to parse");
 
-    // Helper still working: the old, higher version is still what is running.
     expect(
       reconcilePendingInstall(
         parsed,
@@ -533,7 +493,6 @@ describe("pending install reconciliation", () => {
       ),
     ).toBe("restart-required");
 
-    // App relaunched into the reverted, lower version.
     expect(
       reconcilePendingInstall(
         parsed,
@@ -543,13 +502,8 @@ describe("pending install reconciliation", () => {
     ).toBe("installed");
   });
 
-  /**
-   * The contract `ReconcileContext` used to state in prose only: the staged
-   * target is resolved against the MARKER's token, not the caller's bound
-   * (stable) one. A pre-resolved boolean cannot be asserted — it records
-   * neither which version nor which token was probed — so this pins the pair
-   * the resolver is actually called with.
-   */
+  // Asserted as the pair the resolver is CALLED with: a pre-resolved boolean
+  // records neither the version nor the token that was probed.
   it("probes the staged target against the marker's own cask token", () => {
     const probed: (readonly [string, CaskToken])[] = [];
 
@@ -580,16 +534,8 @@ describe("pending install reconciliation", () => {
     ).toBe("restart-required");
   });
 
-  /**
-   * The failure this guards: a channel switch whose install fails rolls back
-   * by reinstalling the SOURCE cask, which installs the tap's CURRENT version
-   * of that channel — normally not the one the user had. The version has
-   * therefore moved, the trap reopens the same bundle path, and the old
-   * "version moved anyway, still an update" branch announced a failed
-   * operation as a completed one. The user asked to leave the pre-release
-   * channel, is still on it under a build they never chose, and clearing the
-   * marker destroyed the only record of it.
-   */
+  // A rollback reinstalls the SOURCE cask at the tap's current version, so the
+  // version moves and a bare "version moved anyway" branch calls it a success.
   it("refuses to call a revert that rolled back onto the pre-release channel an update", () => {
     expect(
       reconcilePendingInstall(revertMarker, "2.0.0-beta.4", context()),
@@ -615,21 +561,9 @@ describe("pending install reconciliation", () => {
     ).toBe("rolled-back");
   });
 
-  /**
-   * The mirror of the test above, and the case the shape comparison gets
-   * exactly backwards: the pre-release cask is holding a build whose version
-   * string has NO `-beta.N` suffix — the tap's beta entry tracking a build cut
-   * from a release branch — so the shape says "this is a stable version, the
-   * revert landed" while the Caskroom says the stable cask holds nothing and
-   * the beta one is still staged.
-   *
-   * A disjunct lets the shape win here, because an OR can only ever flip the
-   * probe's `false` up to `true`. That is the one direction that turns a
-   * rollback into a reported success: the user who pressed Revert is still on
-   * the pre-release channel, on a build they never chose, and the marker that
-   * was the only record of it is cleared. The probe is the evidence; the shape
-   * is a guess, and it only gets a vote when no probe was supplied.
-   */
+  // A beta cask can hold a version with NO `-beta.N` suffix, so the shape says
+  // "the revert landed" while the Caskroom says otherwise. The probe must
+  // overrule it: OR-ing them only flips `false` up to `true`.
   it("lets the Caskroom overrule a rolled-back version whose shape belongs to the target channel", () => {
     const rolledBackOntoBeta: PendingInstall = {
       fromVersion: "0.2.0-beta.1",
@@ -653,9 +587,8 @@ describe("pending install reconciliation", () => {
   });
 
   it("detects the rollback on a marker written before the source token was recorded", () => {
-    // `fromCaskToken` is absent on markers written by the first shipped
-    // version of the channel switch; only a beta build can start a revert, so
-    // the source channel is still recoverable from `fromVersion`.
+    // `fromCaskToken` is absent on the first shipped switch's markers, and only a
+    // beta build can start a revert, so `fromVersion` still names the channel.
     const { fromCaskToken: _omitted, ...withoutSourceToken } = revertMarker;
 
     expect(
@@ -663,13 +596,8 @@ describe("pending install reconciliation", () => {
     ).toBe("rolled-back");
   });
 
-  /**
-   * The mirror risk of the rollback check: while the helper is still working,
-   * the SOURCE cask is legitimately the one installed, and calling that a
-   * rollback would clear the marker and re-arm the button into the running
-   * helper's download lock — the exact failure the grace window exists to
-   * prevent. An unmoved version is never a rollback.
-   */
+  // While the helper works the SOURCE cask is legitimately the installed one, so
+  // an unmoved version is never a rollback.
   it("keeps waiting on an in-flight switch instead of reading the source cask as a rollback", () => {
     expect(
       reconcilePendingInstall(
@@ -684,16 +612,14 @@ describe("pending install reconciliation", () => {
   });
 
   it("still accepts a switch that landed a newer build of the target channel", () => {
-    // The tap moved between the click and the launch: beta.2 rather than the
-    // beta.1 that was targeted, but the target CHANNEL is where it landed.
+    // The tap moved between click and launch; the target CHANNEL still matches.
     expect(
       reconcilePendingInstall(switchMarker, "2.0.0-beta.2", context()),
     ).toBe("installed");
   });
 
   it("still accepts a hand-moved version on an ordinary stable upgrade", () => {
-    // No channel operation at all: the pre-existing "version moved anyway"
-    // behaviour has to survive the rollback check untouched.
+    // No channel operation: the "version moved anyway" path survives untouched.
     expect(reconcilePendingInstall(marker, "0.4.0", context())).toBe(
       "installed",
     );

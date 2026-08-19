@@ -10,12 +10,9 @@ import {
 
 const GRINNING_FACE = "\u{1F600}";
 
-/**
- * What `String.prototype.isWellFormed()` would answer, spelled out because
- * that method is ES2024 and this project targets ES2022 — calling it is a
- * `tsc` error even though vitest, which strips types rather than checking
- * them, would run it happily.
- */
+// What `isWellFormed()` would answer, hand-rolled because that method is ES2024
+// while this project targets ES2022: calling it is a `tsc` error, and vitest
+// strips types rather than checking them, so it would run happily.
 const hasLoneSurrogate = (text: string): boolean =>
   /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(
     text,
@@ -44,15 +41,11 @@ describe("release asset helpers", () => {
       );
     });
 
-    /**
-     * Release notes are attacker-influenceable text rendered next to an
-     * install button. `slice` counts UTF-16 code units, so an astral
-     * character straddling the limit used to leave a lone high surrogate:
-     * `isWellFormed()` false, and a replacement glyph in the About panel.
-     */
+    // `slice` counts UTF-16 code units, so an astral character straddling the
+    // limit leaves a lone high surrogate: a replacement glyph in the panel.
     it("never cuts between the halves of a surrogate pair", () => {
-      // One leading unit makes every pair straddle an odd offset, so the
-      // limit lands mid-pair.
+      // One leading unit puts every pair on an odd offset, so the cut lands
+      // mid-pair.
       const notes = `a${GRINNING_FACE.repeat(6_100)}`;
       const truncated = normalizeReleaseNotes(notes) ?? "";
       const body = truncated.slice(
@@ -74,10 +67,7 @@ describe("release asset helpers", () => {
       );
     });
 
-    /**
-     * Notes render through `ReactMarkdown` + `remarkGfm`, so a cut landing
-     * inside a fence turns the rest of the update panel into one code block.
-     */
+    // A cut inside a fence turns the rest of the rendered panel into one block.
     it.each([
       ["backtick", "```"],
       ["tilde", "~~~"],
@@ -108,18 +98,10 @@ describe("release asset helpers", () => {
       expect(normalizeReleaseNotes(notes)).toBe(notes);
     });
 
-    /**
-     * Release notes are attacker-influenceable text rendered next to an
-     * install button, and the panel next to it renders markdown links whose
-     * visible text is independent of their href. A bidi override reorders the
-     * DISPLAYED text without changing the logical string, so it is the second
-     * half of that deception: the label a careful reader inspects is not the
-     * label the string contains.
-     */
+    // A bidi override reorders the DISPLAYED text without changing the logical
+    // string: the link label a reader inspects is not the one it contains.
     describe("bidirectional control characters", () => {
-      // Spelled as escapes, never as literals: these characters are invisible
-      // in an editor, so a literal in a test file is unreviewable and one
-      // careless paste away from being silently deleted.
+      // Escapes, never literals: invisible in an editor, so unreviewable.
       it.each([
         ["LEFT-TO-RIGHT EMBEDDING", "\u202A"],
         ["RIGHT-TO-LEFT EMBEDDING", "\u202B"],
@@ -139,10 +121,6 @@ describe("release asset helpers", () => {
         );
       });
 
-      /**
-       * The canonical Trojan-Source shape: the visible reading of the link
-       * label is reversed away from the string that is actually there.
-       */
       it("removes an override that would make a link label read as another URL", () => {
         const spoofed =
           "[https://github.com/anhdd-kuro/\u202Egnal-xif\u202C](https://evil.example/phish)";
@@ -156,17 +134,8 @@ describe("release asset helpers", () => {
         expect(normalizeReleaseNotes("\u202E\u2069\u200F  \n")).toBeUndefined();
       });
 
-      /**
-       * The whole risk of this fix is over-stripping. FixLang ships Japanese,
-       * and a normalizer that mangled real release notes would be a worse bug
-       * than the spoof it prevents — so real CJK, kana, full-width
-       * punctuation, emoji and markdown structure are pinned byte for byte.
-       *
-       * The family emoji is load-bearing, not decoration: it is three code
-       * points joined by ZERO WIDTH JOINERs. A "strip every invisible
-       * character" sweep — the obvious over-reach here — shatters it into
-       * three separate glyphs, and this is the assertion that says so.
-       */
+      // The family emoji is load-bearing: three code points joined by ZERO
+      // WIDTH JOINERs, which a "strip every invisible character" sweep breaks.
       it("leaves Japanese release notes byte-identical", () => {
         const japanese = [
           "## 更新内容",

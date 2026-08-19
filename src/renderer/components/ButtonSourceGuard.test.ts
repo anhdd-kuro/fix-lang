@@ -102,17 +102,16 @@ const isRendererSourcePath = (file: string): boolean =>
 const hasButtonModuleName = (moduleName: string): boolean =>
   /(?:^|\/)Button(?:\.tsx?)?$/.test(toPosixPath(moduleName));
 
-// A module merely *named* Button is not the sanctioned leaf. The scanner only ever reads
-// files under src/renderer, so a Button-named module outside that root has its own source
-// unread: matching it by basename alone would accept `<button {...props} />` living in, say,
-// src/features/ui/shared/Button.tsx as a legitimate consumer of the design-system Button.
+// A module merely *named* Button is not the sanctioned leaf: the scanner reads only files
+// under src/renderer, so basename matching would accept `<button {...props} />` from an
+// unread src/features/ui/shared/Button.tsx as a consumer of the design-system Button.
 const resolvesToButtonLeaf = (
   moduleName: string,
   importerFile: string,
 ): boolean => {
   const specifier = toPosixPath(moduleName);
-  // `~/*` maps to `./src/*` (tsconfig paths, applied by vite-tsconfig-paths) and is this
-  // repo's canonical import form, so `~/renderer/components/Button` is the leaf itself.
+  // `~/*` maps to `./src/*` (tsconfig paths, via vite-tsconfig-paths) and is this repo's
+  // canonical import form, so `~/renderer/components/Button` is the leaf itself.
   const resolved = specifier.startsWith("~/")
     ? `src/${specifier.slice("~/".length)}`
     : specifier.startsWith(".")
@@ -128,9 +127,8 @@ const resolvesToButtonLeaf = (
   );
 };
 
-// Real renderer sources must resolve to the leaf. Synthetic fixture paths used by this
-// file's unit tests are not part of the tree and cannot resolve to anything, so they keep
-// the basename rule; every path the renderer scan feeds in is a real renderer source.
+// Real renderer sources must resolve to the leaf. This file's synthetic fixture paths are
+// not in the tree and resolve to nothing, so they keep the basename rule.
 const isButtonModule = (moduleName: string, importerFile: string): boolean =>
   isRendererSourcePath(importerFile)
     ? resolvesToButtonLeaf(moduleName, importerFile)
@@ -2255,7 +2253,7 @@ const consumerContractRows = [
     "SITE-f63727c376cb5050-01",
     "LIVE-f63727c376cb5050",
     "src/renderer/components/SettingUpdates.tsx",
-    726,
+    558,
     11,
   ],
   [
@@ -2263,7 +2261,7 @@ const consumerContractRows = [
     "SITE-31d2760b23787e23-01",
     "LIVE-31d2760b23787e23",
     "src/renderer/components/SettingUpdates.tsx",
-    751,
+    583,
     11,
   ],
   [
@@ -2271,7 +2269,7 @@ const consumerContractRows = [
     "SITE-91ba4b4f640490e2-01",
     "LIVE-91ba4b4f640490e2",
     "src/renderer/components/SettingUpdates.tsx",
-    779,
+    610,
     13,
   ],
   [
@@ -2279,7 +2277,7 @@ const consumerContractRows = [
     "SITE-663c55705a5cc3f0-01",
     "LIVE-663c55705a5cc3f0",
     "src/renderer/components/SettingUpdates.tsx",
-    799,
+    628,
     15,
   ],
   [
@@ -2287,7 +2285,7 @@ const consumerContractRows = [
     "SITE-43414753ace2ab81-01",
     "LIVE-da3e264ff5bff86c",
     "src/renderer/components/SettingUpdates.tsx",
-    858,
+    683,
     15,
   ],
   [
@@ -2295,7 +2293,7 @@ const consumerContractRows = [
     "SITE-ad68949b3a58f46b-01",
     "LIVE-ad68949b3a58f46b",
     "src/renderer/components/SettingUpdates.tsx",
-    879,
+    704,
     15,
   ],
   [
@@ -2303,7 +2301,7 @@ const consumerContractRows = [
     "SITE-c11f9621b2e3d72c-01",
     "LIVE-c11f9621b2e3d72c",
     "src/renderer/components/SettingUpdates.tsx",
-    894,
+    719,
     15,
   ],
   [
@@ -2311,7 +2309,7 @@ const consumerContractRows = [
     "SITE-f4ccea28d324b33f-01",
     "LIVE-f4ccea28d324b33f",
     "src/renderer/components/SettingUpdates.tsx",
-    907,
+    732,
     13,
   ],
   [
@@ -2319,7 +2317,7 @@ const consumerContractRows = [
     "SITE-fbcd67d29270d287-01",
     "LIVE-fbcd67d29270d287",
     "src/renderer/components/SettingUpdates.tsx",
-    923,
+    746,
     13,
   ],
   [
@@ -2327,7 +2325,7 @@ const consumerContractRows = [
     "SITE-bfa98039be039f30-01",
     "LIVE-bfa98039be039f30",
     "src/renderer/components/SettingUpdates.tsx",
-    1019,
+    840,
     13,
   ],
   [
@@ -2335,7 +2333,7 @@ const consumerContractRows = [
     "SITE-5815552ee2096fa5-01",
     "LIVE-5815552ee2096fa5",
     "src/renderer/components/SettingUpdates.tsx",
-    1048,
+    869,
     13,
   ],
   [
@@ -2343,7 +2341,7 @@ const consumerContractRows = [
     "SITE-8d81c1044d88aa9b-01",
     "LIVE-8d81c1044d88aa9b",
     "src/renderer/components/SettingUpdates.tsx",
-    1060,
+    881,
     13,
   ],
   [
@@ -2351,7 +2349,7 @@ const consumerContractRows = [
     "SITE-cfd38745f41c80f2-01",
     "LIVE-0d366a2b4a3aa757",
     "src/renderer/components/SettingUpdates.tsx",
-    1271,
+    1086,
     15,
   ],
   [
@@ -2359,7 +2357,7 @@ const consumerContractRows = [
     "SITE-2b5e02b82b63d6af-01",
     "LIVE-1a247b82dcc22868",
     "src/renderer/components/SettingUpdates.tsx",
-    1292,
+    1107,
     15,
   ],
   [
@@ -2367,7 +2365,7 @@ const consumerContractRows = [
     "SITE-e1569fb1897b6372-01",
     "LIVE-a3ccf02b8ad14fce",
     "src/renderer/components/SettingUpdates.tsx",
-    1311,
+    1126,
     15,
   ],
   [
@@ -2477,16 +2475,12 @@ type ConsumerContractRow = readonly [
   column: number,
 ];
 
-// The single reviewed count. Every assertion and title below reads it, so bumping the
-// inventory is one deliberate edit instead of a seven-site search-and-replace across a file
-// where the count's digits also appear in row ids (`BTN-109`), line numbers and hashes — and
-// a stray hit inside a SITE- id is the one that used to be silent.
+// The single reviewed count, read by every assertion and title below. Its digits also
+// appear in row ids, line numbers and hashes, so a search-and-replace hits them silently.
 const EXPECTED_CONSUMER_COUNT = 109;
 
-// The one place a row tuple becomes a consumer object. The regeneration block below reuses
-// it, so the emitted sha256 is computed over the same key order the assertion hashes —
-// JSON.stringify is key-order sensitive, and a second hand-written mapping drifted from
-// this one before.
+// The one place a row tuple becomes a consumer object. The regeneration block reuses it so
+// the emitted sha256 hashes the same key order — JSON.stringify is key-order sensitive.
 const toChecklistConsumer = ([
   id,
   stableId,
@@ -2506,14 +2500,11 @@ const toChecklistConsumer = ([
 const expectedButtonConsumers: ChecklistConsumer[] =
   consumerContractRows.map(toChecklistConsumer);
 const consumerContractSha256 =
-  "b0b8c660a131d4255255e23287e3e77fb86841989d6916d3fa886eb5e3d98762";
+  "419a3ff53fb2cc8897e16e8ed5dc9bfd4d3e5d819cf8ed6ccde431d80b75db8c";
 
-// A row's stableId normally mirrors its own semanticId: SITE-<hash>-01 for LIVE-<hash>.
-// It diverges only where a site was edited in place, moving its identity hash while staying
-// the same button, and the previous stableId was carried by hand so the site keeps one
-// lineage across history. Every such carry is listed here, so the binding is reviewed data
-// rather than an unverifiable claim in a commit message: the pairs below are the complete
-// set of rows whose stableId is not derivable from the row itself.
+// A row's stableId mirrors its own semanticId (SITE-<hash>-01 for LIVE-<hash>), diverging
+// only where a site was edited in place: the carry keeps one lineage across the moved hash.
+// These pairs are the complete set of rows whose stableId is not derivable from the row.
 const carriedStableIdentities: readonly (readonly [string, string])[] = [
   ["SITE-f817bc24bfff4be1-01", "LIVE-264ac29656e00cd9"],
   ["SITE-b1fefcea3824a139-01", "LIVE-6a59bc31fcc6d246"],
@@ -2533,15 +2524,13 @@ const carriedStableIdBySemanticId = new Map(
   ]),
 );
 
-// stableId is the only durable identity in this file and the sha256 cannot protect it — the
-// sanctioned regeneration step is "copy the Received: value", so the seal is redefined at
-// exactly the moment the artifact changes. This rule can't be: it binds every stableId to
-// its own row's semanticId, which the live scan pins to a coordinate.
+// stableId is the only durable identity here and the sha256 cannot protect it: regeneration
+// replaces the sha, so the seal is redefined exactly when the artifact changes. This rule
+// binds every stableId to its own row's semanticId, which the live scan pins to a coordinate.
 //
-// The -NN suffix is the occurrence of that semanticId in the inventory, not decoration. Two
-// byte-identical Buttons inside one component hash the same (semanticIdentityFor never sees
-// line or column), so the suffix is what keeps their stableIds distinct — without it, the
-// legitimate repin that first introduces such a pair has no satisfying assignment at all.
+// The -NN suffix is the occurrence of that semanticId, not decoration: two byte-identical
+// Buttons in one component hash the same (semanticIdentityFor sees neither line nor column),
+// so the suffix is what keeps their stableIds distinct.
 const deriveStableIds = (semanticIds: readonly string[]): string[] => {
   const occurrences = new Map<string, number>();
   return semanticIds.map((semanticId) => {
@@ -2907,8 +2896,7 @@ describe("renderer Button source guard", () => {
   });
 
   it("counts a renderer import that resolves to the sanctioned Button leaf", () => {
-    // Both spellings of the same file: the relative one every consumer uses today, and the
-    // `~/` path alias that is this repo's canonical form and would otherwise read as foreign.
+    // Both spellings: the relative one consumers use, and the canonical `~/` alias.
     for (const moduleName of ["../Button", "~/renderer/components/Button"]) {
       const result = scanSource(
         "src/renderer/components/probe/Fixture.tsx",
@@ -2940,10 +2928,8 @@ describe("renderer Button source guard", () => {
   });
 
   it("rejects a renderer import of a Button module outside the sanctioned leaf", () => {
-    // The scanner reads only src/renderer, so a Button-named module anywhere else never has
-    // its own source inspected. Accepting it by basename would let `<button {...props} />`
-    // ship from src/features/ui/shared/Button.tsx behind a repointed import, with the whole
-    // inventory still reporting green.
+    // The scanner reads only src/renderer, so a Button-named module elsewhere is never
+    // inspected: by basename, `<button {...props} />` ships behind a repointed import.
     for (const moduleName of [
       "~/features/ui/shared/Button",
       "../../../features/ui/shared/Button",
@@ -3127,28 +3113,20 @@ describe("renderer Button source guard", () => {
       'variant="primary" type="submit" onClick={save} aria-label="Save" disabled={busy} className="h-8"',
       'variant="primary" type="button" onClick={save} aria-label="Save" disabled={ready} className="h-8"',
       'variant="primary" type="button" onClick={save} aria-label="Save" disabled={busy} className="w-8"',
-      // An attribute the contract knows nothing about, merely appended. This is the claim the
-      // deleted 109x mutation test made against every live site; semanticIdentityFor puts the
-      // whole attribute list into the fingerprint, so one fixture settles it for all of them.
+      // An attribute the contract knows nothing about, merely appended. semanticIdentityFor
+      // fingerprints the whole attribute list, so one fixture settles it for every site.
       'variant="primary" type="button" onClick={save} aria-label="Save" disabled={busy} className="h-8" data-probe="1"',
     ]) {
       expect(scanConsumer(mutation)).not.toEqual(baseline);
     }
   });
 
-  // The 109x stable-coordinate mutation test that used to sit here was deleted. Its byte-offset
-  // anchor (`source.slice(offset, …) === "<Button"`) is implied by the live-vs-pinned equality
-  // below: a pinned coordinate that named no real Button site would be missing from the live
-  // scan and the inventory equality would already be red. Its other claim — an injected
-  // attribute moves the identity hash — is proved on a fixture in the test above and cannot
-  // fail, since semanticIdentityFor hashes the whole attribute list. What it did do was go red,
-  // loudly and for a stale reason, on every line-shifting edit to any of the 37 renderer files
-  // holding a pinned Button, which trained reviewers to wave this guard's failures through.
-  // What it alone caught: the literal text `<Button` at a pinned coordinate, so a Button
-  // re-bound locally (`import { Button as Btn }`, or `<ButtonNs.Button …>`) at an unchanged
-  // coordinate with unchanged props is now invisible. That is a rename of the sanctioned
-  // component, not a substitution of it, and the ~1200-line alias resolver above exists
-  // precisely to accept such re-bindings as legitimate consumers.
+  // STATED GAP, in place of a byte-offset mutation test: nothing now asserts the literal text
+  // `<Button` at a pinned coordinate, so a Button re-bound locally (`import { Button as Btn }`,
+  // `<ButtonNs.Button …>`) at an unchanged coordinate with unchanged props is invisible. That
+  // is a rename of the sanctioned component, which the alias resolver above accepts anyway.
+  // Its other two claims are covered: a coordinate naming no real site is missing from the live
+  // scan below, and an injected attribute moves the hash by the fixture above.
 
   it(`allows the shared native leaf and the exact ${EXPECTED_CONSUMER_COUNT}-consumer migration inventory`, async () => {
     const result = await scanRenderer();
@@ -3170,26 +3148,22 @@ describe("renderer Button source guard", () => {
       new Set(expectedButtonConsumers.map(({ stableId }) => stableId)).size,
     ).toBe(EXPECTED_CONSUMER_COUNT);
     expect(new Set(locations).size).toBe(EXPECTED_CONSUMER_COUNT);
-    // BTN-NNN is positional, so row order IS the label-to-button binding. Nothing else here
-    // pins it: the live comparison below re-sorts both sides, the id sequence is invariant
-    // under any permutation, and the sha256 is regenerated from whatever order the file
-    // holds. A repin that sorts with Array.sort()'s ASCII rule instead of compareConsumers'
-    // localeCompare reshuffles all rows, reassigns every label, and is otherwise green.
+    // BTN-NNN is positional, so row ORDER is the label-to-button binding and nothing else
+    // pins it: the live comparison re-sorts both sides and the sha256 is regenerated from
+    // whatever order the file holds, so a repin sorted by ASCII is otherwise green.
     expect(expectedButtonConsumers).toEqual(
       [...expectedButtonConsumers].sort(compareConsumers),
     );
-    // Binds each stableId to its own row's semanticId, which the live comparison below binds
-    // to a coordinate. Without this the whole SITE- column can be rotated onto the wrong
-    // buttons, or one character of one hash flipped, and every assertion still passes once
-    // the sha256 is refreshed the way the regeneration procedure instructs.
+    // Binds each stableId to its own row's semanticId, which the live comparison binds to a
+    // coordinate. Without it the SITE- column can be rotated onto the wrong buttons and stay
+    // green once the sha256 is refreshed.
     expect(expectedButtonConsumers.map(({ stableId }) => stableId)).toEqual(
       deriveStableIds(
         expectedButtonConsumers.map(({ semanticId }) => semanticId),
       ),
     );
-    // A carried entry whose semanticId is no longer in the inventory is a stale exemption.
-    // It does not stay harmless: an edit that puts a site back to a previous state re-derives
-    // the identity it names, and the dead entry silently adopts that row.
+    // A carried entry whose semanticId left the inventory is a stale exemption, and not a
+    // harmless one: an edit restoring a previous state re-derives it and the entry adopts it.
     expect(
       carriedStableIdentities
         .map(([, semanticId]) => semanticId)
@@ -3200,10 +3174,8 @@ describe("renderer Button source guard", () => {
             ),
         ),
     ).toEqual([]);
-    // A carry always names a RETIRED identity — the hash the site used to have. One naming an
-    // identity some row still has is not a carry, it is the escape hatch being used to bless a
-    // stableId that belongs to a different button; that is the shape a cross-wired repin takes
-    // when the mirror rule above rejects it and the obvious next move is to exempt the rows.
+    // A carry always names a RETIRED identity. One naming an identity some row still has is
+    // the escape hatch blessing a stableId that belongs to a different button.
     expect(
       carriedStableIdentities
         .map(([stableId]) => stableId)
@@ -3235,31 +3207,28 @@ describe("renderer Button source guard", () => {
     );
   });
 
-  // REGENERATION PROCEDURE — the whole of it, in the repository, because the file it rewrites
-  // is 3000 lines of pinned data and the previous version of this block emitted an artifact
-  // that could not be pasted in (wrong key order, so its sha never matched) and that minted
-  // fresh SITE- ids (so every carried lineage was silently dropped).
+  // REGENERATION PROCEDURE — kept here in full, and the only correct copy, because the file
+  // it rewrites is 3000 lines of pinned data.
   //
   //   1. `REGEN_BUTTON_CONTRACT=1 bun run test src/renderer/components/ButtonSourceGuard.test.ts`
-  //   2. Read `.scratch/button-contract.json`. `reconciliation` lists what actually changed:
-  //      `added` and `dropped` coordinates, and `identityChanges` — sites at an unchanged
-  //      coordinate whose semanticId moved. Every entry must be explained by the diff you just
-  //      made. An unexplained `dropped` + `added` pair is a button that moved, not two events.
+  //   2. Read `.scratch/button-contract.json`. `reconciliation` lists what changed: `added`
+  //      and `dropped` coordinates, and `identityChanges` — sites at an unchanged coordinate
+  //      whose semanticId moved. Every entry must be explained by the diff you just made; an
+  //      unexplained `dropped` + `added` pair is one button that moved, not two events.
   //   3. For each `identityChanges` entry that is still the same button, add
   //      `[<old stableId>, <new semanticId>]` to `carriedStableIdentities` above — that, not a
-  //      commit message, is what carries the site's history. If that site was carried before,
-  //      DELETE its old entry: the entry it supersedes now names a semanticId no site has, and
-  //      the test says so rather than letting a dead exemption sit there waiting to adopt a row.
+  //      commit message, carries the site's history. If that site was carried before, DELETE
+  //      its old entry: it now names a semanticId no site has, and a dead exemption waits to
+  //      adopt a row.
   //   4. **Regenerate again.** `rowsSource` is built from `carriedStableIdentities` as it stood
-  //      when the run started, so the artifact from step 1 still carries the derived stableId
-  //      for anything you exempted in step 3. Pasting it produces a stableId mismatch, not a
-  //      sha mismatch, and the failure diff invites you to delete the carry you just added.
+  //      when the run started, so step 1's artifact still carries the derived stableId for
+  //      anything you exempted in step 3; pasting it fails on the stableId, not the sha.
   //   5. Paste `rowsSource` over `consumerContractRows` and `sha256` over
   //      `consumerContractSha256`. Do NOT search-and-replace the count: edit
   //      EXPECTED_CONSUMER_COUNT, the one place it lives.
-  //   6. Re-run the test. Nothing is ever copied out of `Received:` — not the sha, which is how
-  //      the seal was hollowed out before, and not a stableId, which would reassign a lineage.
-  //      A mismatch of either means the paste or step 3 is wrong; fix it and regenerate.
+  //   6. Re-run the test. Nothing is ever copied out of `Received:` — not the sha, which
+  //      hollows out the seal, and not a stableId, which reassigns a lineage. A mismatch of
+  //      either means the paste or step 3 is wrong; fix it and regenerate.
   if (process.env.REGEN_BUTTON_CONTRACT === "1") {
     it("regenerates consumer contract artifact", async () => {
       const { writeFile, mkdir } = await import("node:fs/promises");

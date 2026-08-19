@@ -3,19 +3,16 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { msg, type Message } from "~/features/i18n/shared/message";
 import { createTranslator } from "~/features/i18n/shared/translate";
-// The component's OWN answer to "which phases render main's descriptor", not
-// a second copy of the list: the previous test restated the three phases
-// locally and therefore pinned only the JSX against its own restatement,
-// leaving the source set free to drift in either direction with nothing red.
+// The component's OWN predicate; a local restatement would pin the JSX only
+// against this file's opinion.
 import {
   phaseRendersPrereleaseMessage,
   SettingUpdates,
 } from "./SettingUpdates";
 import { I18nProvider } from "../i18n/I18nProvider";
 
-// Expected copy is derived through the real translator kernel — never
-// hand-restated — so a catalog reword can't silently break this file, and an
-// English-fallback regression still fails a test that asserts JA text.
+// Expected copy is derived through the real translator kernel, never
+// hand-restated, so an English-fallback regression still fails a JA assertion.
 const tEn = createTranslator("en");
 const tJa = createTranslator("ja");
 
@@ -39,9 +36,8 @@ type UpdateState = {
   totalBytes?: number;
 };
 
-// Mirrors `~/features/update/shared/prerelease`'s `PrereleaseState`, declared
-// locally for the same reason `UpdateState` above is: these are the values a
-// mocked bridge hands the component, not the component's own imports.
+// Declared locally because these are the values a mocked bridge hands the
+// component, not the component's own imports.
 type PrereleaseState = {
   phase:
     | "unsupported"
@@ -75,18 +71,15 @@ type UpdateApi = {
   switchToPrerelease: ReturnType<typeof vi.fn>;
   revertToStable: ReturnType<typeof vi.fn>;
   onPrereleaseStateChanged: ReturnType<typeof vi.fn>;
-  // `SettingUpdates` renders inside `<I18nProvider>`, which reads these off
-  // `window.electronAPI` on mount (see `localeState.ts`'s `LocaleBridge`).
+  // `<I18nProvider>` reads these off `window.electronAPI` on mount.
   getLocale: ReturnType<typeof vi.fn>;
   setLocale: ReturnType<typeof vi.fn>;
   onLocaleChanged: ReturnType<typeof vi.fn>;
 };
 
 /**
- * Every member an older preload — one built before the pre-release channel
- * existed — does not expose. Spelled once, `keyof`-checked, and asserted
- * absent by the compatibility test below, so the set can never drift from
- * whatever a prose comment claims it is.
+ * Every member an older preload does not expose. `keyof`-checked and asserted
+ * absent below, so the set cannot drift from what a prose comment claims.
  */
 const PRERELEASE_BRIDGE_MEMBERS = [
   "getPrereleaseState",
@@ -99,12 +92,9 @@ const PRERELEASE_BRIDGE_MEMBERS = [
 type PrereleaseBridgeMember = (typeof PRERELEASE_BRIDGE_MEMBERS)[number];
 
 /**
- * A bridge that genuinely lacks those members, which no honest type can
- * express for a value the component reads as a full `UpdateApi`. The `Omit`
- * parameter is what keeps the unavoidable cast from suppressing the type
- * checker wholesale: the REMAINING members are still checked, so a typo or a
- * newly-required stable method fails to compile here rather than silently
- * widening what this test pretends an old preload looked like.
+ * A bridge genuinely lacking those members, which no honest type can express.
+ * The `Omit` keeps the cast from suppressing the checker wholesale: the
+ * REMAINING members are still checked.
  */
 const legacyPreloadApi = (
   api: Omit<UpdateApi, PrereleaseBridgeMember>,
@@ -115,7 +105,6 @@ const readyState = (phase: UpdateState["phase"] = "idle"): UpdateState => ({
   currentVersion: "0.1.0",
 });
 
-/** A Homebrew stable install with the pre-release channel available to it. */
 const prereleaseReady = (
   phase: PrereleaseState["phase"] = "idle",
   extra: Partial<PrereleaseState> = {},
@@ -235,11 +224,9 @@ describe("SettingUpdates", () => {
   let prereleaseListener: ((state: PrereleaseState) => void) | undefined;
   let localeListener: ((locale: "en" | "ja") => void) | undefined;
   let unsubscribe: ReturnType<typeof vi.fn>;
-  /** The pre-release channel's own teardown, captured so unmount can assert it. */
   let prereleaseUnsubscribe: ReturnType<typeof vi.fn>;
   let api: UpdateApi;
 
-  /** The pre-release section's own subtree — never the whole panel. */
   const prereleaseSection = (): HTMLElement => {
     const section = container.querySelector<HTMLElement>(
       'section[aria-labelledby="prerelease-updates-heading"]',
@@ -265,19 +252,13 @@ describe("SettingUpdates", () => {
         createElement(I18nProvider, null, createElement(SettingUpdates)),
       );
     });
-    // `<I18nProvider>` resolves its initial locale via an async `getLocale()`
-    // call before rendering children (it renders null until "ready" — see
-    // `I18nProvider.tsx` — to avoid an EN -> JA flash), so this needs an extra
-    // tick beyond the single `waitForUi()` the update-state fetch itself uses.
+    // `<I18nProvider>` renders null until an async `getLocale()` resolves (to
+    // avoid an EN -> JA flash), so this needs a tick beyond `waitForUi()`.
     await waitForUi();
     await waitForUi();
   };
 
-  /**
-   * The five pre-release bridge methods, captured the same way the stable
-   * ones are. Split out so the three call sites below all get a bridge that
-   * behaves like the real preload rather than a partial one.
-   */
+  /** Captured so all three call sites get a full-preload-shaped bridge. */
   const prereleaseBridge = (state: PrereleaseState) => {
     prereleaseUnsubscribe = vi.fn();
     return {
@@ -534,11 +515,9 @@ describe("SettingUpdates", () => {
     expect(container.querySelector('[role="status"]')?.textContent).toContain(
       tEn("settings.updates.upToDate"),
     );
-    // The check button stays available so the user can re-check on demand.
     expectPrimaryStyles(
       buttonNamed(container, tEn("settings.updates.checkButton")),
     );
-    // Nothing newer exists, so there is no release page worth opening.
     expect(
       [...container.querySelectorAll("button")].find(
         (button) =>
@@ -559,7 +538,6 @@ describe("SettingUpdates", () => {
     expect(container.textContent).toContain(
       tEn("settings.updates.tapPendingMessage", { publishedVersion: "0.2.0" }),
     );
-    // What the release changed, escaped the same way an offer's notes are.
     expect(container.textContent).toContain("as context");
     expect(container.innerHTML).toContain("&lt;strong&gt;");
 
@@ -570,7 +548,6 @@ describe("SettingUpdates", () => {
     expect(download.type).toBe("button");
     expectOutlineStyles(download);
     await click(download);
-    // Main already aimed the release URL at that tag; the renderer just asks.
     expect(api.openUpdateRelease).toHaveBeenCalledTimes(1);
   });
 
@@ -653,8 +630,6 @@ describe("SettingUpdates", () => {
       "&lt;strong&gt;Safer updater&lt;/strong&gt;",
     );
 
-    // `installInstructions` is a longer prose string; assert the whole
-    // catalog value rather than a hand-picked prefix.
     expect(container.textContent).toContain(
       tEn("settings.updates.installInstructions"),
     );
@@ -686,8 +661,7 @@ describe("SettingUpdates", () => {
     expect(container.textContent).toContain(
       tEn("settings.updates.canInstallDescription"),
     );
-    // The manual replace-the-bundle instructions belong to the DMG path only;
-    // the static "How to update" reference below still documents them.
+    // DMG-path only; the static "How to update" reference keeps its own copy.
     expect(container.textContent).not.toContain(
       tEn("settings.updates.installInstructions"),
     );
@@ -730,9 +704,8 @@ describe("SettingUpdates", () => {
       availableVersion: "0.2.0",
       canInstall: true,
     });
-    // `run()` never reads this `error` descriptor — it always sets
-    // `state.message` from its own bound failure message (see below) — but
-    // the mock still needs the shape `installUpdate()` actually resolves to.
+    // `run()` never reads this `error`, but the mock still needs the shape
+    // `installUpdate()` actually resolves to.
     api.installUpdate.mockResolvedValueOnce({
       success: false,
       error: msg("settings.updates.installErrorMessage"),
@@ -902,11 +875,7 @@ describe("SettingUpdates", () => {
 
   const linkTo = (href: string): HTMLAnchorElement => linkIn(container, href);
 
-  /**
-   * A click that can be CANCELLED, unlike the shared `click` helper's — the
-   * whole point of the handler's `preventDefault()` is that the default
-   * navigation never happens, and an uncancelable event cannot observe that.
-   */
+  /** Cancelable, unlike the shared `click`: `preventDefault()` is the point. */
   const clickCancelable = async (element: Element): Promise<MouseEvent> => {
     const event = new MouseEvent("click", { bubbles: true, cancelable: true });
     await act(async () => {
@@ -916,24 +885,17 @@ describe("SettingUpdates", () => {
   };
 
   /**
-   * Every decoration a reviewer used to walk straight past the PREVIOUS
-   * defence, which asked whether the LABEL looked like a URL and disclosed the
-   * destination only when it did. Each row wears a label that reads as the
-   * project's own repository over an href that goes somewhere else; the label
-   * is attacker-chosen, so no list of these can ever be complete — which is
-   * the whole reason the component stopped reading the label at all.
-   *
-   * `[name, label markdown, href slug]`. The href is always
-   * `https://evil.example.com/<slug>`, so a passing row proves BOTH halves:
-   * the annotation names `evil.example.com`, and the label — which contains
-   * `github.com` and the href does not — survived intact.
+   * `[name, label markdown, href slug]`, the href always
+   * `https://evil.example.com/<slug>`, so a passing row proves BOTH halves: the
+   * annotation names `evil.example.com`, and the `github.com` label — which the
+   * href never contains — survived intact. No list of decorated labels can be
+   * complete, which is why the component reads no part of one.
    */
   const TRUSTED_LOOKING = "https://github.com/anhdd-kuro/fix-lang";
   const DECORATED_LABELS: readonly (readonly [string, string, string])[] = [
     ["undecorated", TRUSTED_LOOKING, "plain"],
-    // Escaped, never pasted: these three render as nothing at all, so a
-    // literal would be invisible to the next reader of this file — and to
-    // `no-irregular-whitespace` two of them are an error, not a fixture.
+    // Escaped, never pasted: these render as nothing at all, and two of them
+    // are a `no-irregular-whitespace` error rather than a fixture.
     ["zero-width space prefix", `\u200B${TRUSTED_LOOKING}`, "zwsp"],
     ["soft hyphen prefix", `\u00AD${TRUSTED_LOOKING}`, "shy"],
     ["ASCII space prefix", ` ${TRUSTED_LOOKING}`, "space"],
@@ -959,20 +921,9 @@ describe("SettingUpdates", () => {
 
   /**
    * THE TWO PANES THAT RENDER RELEASE NOTES. Every table below runs against
-   * both, and that is the whole point of the shape rather than a convenience:
-   * this file used to pin all twenty bypass rows on the stable pane alone, so
-   * replacing the pre-release pane's `<ReleaseNotes>` with a bare
-   * `<ReactMarkdown>` — dropping the host annotation, the click routing and
-   * the image suppression in one edit — left the entire suite byte-identical
-   * to baseline. Deleting that pane's notes outright was equally invisible.
-   *
-   * The unprotected pane was the WORSE one: its notes are read by a user
-   * deciding whether to install an unsigned beta, in the panel that primes
-   * them to do it.
-   *
-   * A third pane that renders release notes belongs in this array, never in a
-   * copy of these assertions — two copies are how the two panes drifted apart
-   * the first time.
+   * both: pinning one alone leaves the other free to lose the host annotation,
+   * the click routing and the image suppression with nothing red. A third pane
+   * belongs in this array, never in a copy of these assertions.
    */
   const NOTES_PANES = [
     {
@@ -1022,17 +973,11 @@ describe("SettingUpdates", () => {
   it.each(NOTES_PANE_LABEL_ROWS)(
     "names the host a click opens whatever the label wears (%s pane, %s)",
     async (_paneName, _rowName, pane, label, slug) => {
-      // Link text and href are INDEPENDENT attacker-controlled inputs in a
-      // release body. A label spelling the project's own repository while the
-      // href points elsewhere sends the user to an attacker page from the one
-      // panel that primes them to download and run a macOS binary.
       const href = `https://evil.example.com/${slug}`;
       await pane.show(`[${label}](${href})`);
 
       const link = linkIn(pane.scope(), href);
-      // Additive, never substitutive: the author's own label is still there.
       expect(link.textContent).toContain("github.com");
-      // And so is the one host the click actually reaches.
       expect(link.textContent).toContain(" (evil.example.com)");
       expect(link.title).toBe(href);
     },
@@ -1047,10 +992,8 @@ describe("SettingUpdates", () => {
       const event = await clickCancelable(linkIn(pane.scope(), href));
 
       expect(api.openExternalLink).toHaveBeenCalledWith(href);
-      // The renderer half of a two-layer defence whose main half is the
-      // window's `will-navigate` guard. Without `preventDefault()` the click
-      // ALSO navigates — the user gets the page twice, once in a browser and
-      // once in the window that carries the preload.
+      // Renderer half of a two-layer defence (main's `will-navigate` guard is the
+      // other): without `preventDefault()` the click ALSO navigates, in-window.
       expect(event.defaultPrevented).toBe(true);
     },
   );
@@ -1058,12 +1001,8 @@ describe("SettingUpdates", () => {
   it.each(EACH_NOTES_PANE)(
     "never auto-loads a remote image from release notes (%s pane)",
     async (_paneName, pane) => {
-      // Release notes are untrusted remote content. A rendered `<img>` fetches
-      // whatever host the notes name the moment the panel opens: a read
-      // receipt plus the IP of every user who looks at About -> Updates, with
-      // no click involved, from an app whose stated purpose is that user data
-      // stays local. The bypass table above already renders a fixture with an
-      // image in it and asserted nothing about the element.
+      // Untrusted remote content: a rendered `<img>` is a read receipt plus
+      // the IP of everyone who opens About -> Updates, with no click involved.
       await pane.show(
         "![release banner](https://evil.example.com/px.png?u=1)\n\nWhat changed",
       );
@@ -1076,10 +1015,8 @@ describe("SettingUpdates", () => {
   );
 
   it("names the real host when userinfo makes the href itself read as GitHub", async () => {
-    // `https://github.com@evil.example.com/…` is a URL whose AUTHORITY is
-    // evil.example.com — `github.com` is a username. Displaying the raw href
-    // would put that lie on screen with the app's own authority, which is why
-    // the annotation is parsed (`URL.host`) rather than echoed.
+    // `https://github.com@evil.example.com/…` has evil.example.com as its
+    // AUTHORITY and `github.com` as a USERNAME, so the host is parsed, not echoed.
     const href = "https://github.com@evil.example.com/dl/FixLang.dmg";
     await render({
       ...readyState("available"),
@@ -1096,8 +1033,7 @@ describe("SettingUpdates", () => {
   });
 
   it("counts a swapped port as part of the destination", async () => {
-    // Same hostname, attacker-chosen port: `github.com:8080` is not the host
-    // a reader means by "github.com", so the annotation keeps the port.
+    // `github.com:8080` is not the host a reader means, so the port stays.
     const href = "https://github.com:8080/anhdd-kuro/fix-lang";
     await render({
       ...readyState("available"),
@@ -1109,10 +1045,8 @@ describe("SettingUpdates", () => {
   });
 
   it("states its own limit: a same-host path swap is only in the tooltip", async () => {
-    // The annotation names the HOST, so `github.com/attacker/…` under a
-    // `github.com/anhdd-kuro/…` label is NOT disclosed in the visible text.
-    // Pinned deliberately rather than left to a comment: the alternative —
-    // rendering the whole attacker-chosen URL — is the defect this replaced.
+    // STATED LIMIT, pinned rather than left to a comment: the annotation names
+    // the HOST, so a same-host path swap is not in the visible text.
     const href = "https://github.com/attacker/fix-lang/releases";
     await render({
       ...readyState("available"),
@@ -1126,9 +1060,7 @@ describe("SettingUpdates", () => {
   });
 
   it("keeps a code-span label rendered as code", async () => {
-    // The f22 regression: a defence that REPLACES the label throws away the
-    // children tree, and with it every code span, emphasis and inline mark an
-    // honest maintainer wrote.
+    // A defence that REPLACES the label throws the children tree away with it.
     const href = "https://github.com/anhdd-kuro/fix-lang/blob/main/README.md";
     await render({
       ...readyState("available"),
@@ -1144,8 +1076,6 @@ describe("SettingUpdates", () => {
   });
 
   it("leaves a link that differs from its label only cosmetically alone", async () => {
-    // Fragment, query, trailing slash and www-vs-non-www are the shapes an
-    // honest maintainer writes and a whole-URL comparison rewrites.
     await render({
       ...readyState("available"),
       availableVersion: "0.3.0",
@@ -1172,9 +1102,7 @@ describe("SettingUpdates", () => {
   });
 
   it("leaves ordinary release-notes labels and autolinks as written", async () => {
-    // The common case: prose labels, and GFM autolinks whose label IS the
-    // href. Each still gains the host, because an annotation only some links
-    // carry would teach the user that its ABSENCE means safe.
+    // An annotation only some links carry teaches that its ABSENCE means safe.
     await render({
       ...readyState("available"),
       availableVersion: "0.3.0",
@@ -1199,9 +1127,8 @@ describe("SettingUpdates", () => {
   it.each(EACH_NOTES_PANE)(
     "annotates nothing for a link a click cannot dispatch (%s pane)",
     async (_paneName, pane) => {
-      // `mailto:` survives react-markdown's scheme allowlist but the click
-      // handler dispatches only `http(s)`, so there is no destination to
-      // disclose — and the annotation must not imply one.
+      // `mailto:` survives react-markdown's scheme allowlist but the handler
+      // dispatches only `http(s)`, so no destination exists to imply.
       await pane.show("[support@example.com](mailto:support@example.com)");
 
       const link = linkIn(pane.scope(), "mailto:support@example.com");
@@ -1380,17 +1307,13 @@ describe("SettingUpdates", () => {
     });
     await waitForUi();
 
-    // Prove the locale actually changed: JA text matches the JA-derived
-    // expectation and differs from the EN one (this is the exact regression
-    // this file used to hide — a JA catalog reword failed here even though
-    // the component itself was correct).
+    // Differs from the EN expectation, so an English fallback still fails.
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(
       jaExpected,
     );
     expect(jaExpected).not.toBe(enExpected);
-    // The locale switch must not re-run `getUpdateState()` — the mount
-    // effect's dependency array stays `[]` because it no longer resolves
-    // `t()` itself.
+    // The locale switch must not re-run `getUpdateState()`; the mount effect's
+    // dependency array stays `[]` because it no longer resolves `t()` itself.
     expect(getUpdateState).toHaveBeenCalledTimes(1);
   });
 
@@ -1405,10 +1328,8 @@ describe("SettingUpdates", () => {
       }),
       checkForUpdates: vi.fn().mockResolvedValue(undefined),
       openUpdateRelease: vi.fn().mockResolvedValue(undefined),
-      // Drives the WHOLE production sequence, not just its broadcast half:
-      // main publishes the descriptor from inside the handler and returns the
-      // same one when the invoke reply resolves. Asserting on a bare
-      // broadcast would stay green even if the resolved result overwrote it.
+      // The whole production sequence: main publishes the descriptor from
+      // inside the handler AND returns it when the invoke reply resolves.
       installUpdate: vi.fn().mockImplementation(async () => {
         updateListener?.({
           phase: "error",
@@ -1458,8 +1379,6 @@ describe("SettingUpdates", () => {
     });
     await waitForUi();
 
-    // Prove the locale actually changed (see the loadFailed test above for
-    // why both the positive and the "differs from EN" assertion matter).
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(
       jaExpected,
     );
@@ -1467,16 +1386,9 @@ describe("SettingUpdates", () => {
   });
 
   it("keeps main's specific install-failure descriptor instead of the bound generic", async () => {
-    // The sequence PRODUCTION always takes, which the locale test above only
-    // half-drives: every `installUpdate` failure publishes its own `Message`
-    // via `webContents.send` INSIDE the handler and then returns that same
-    // descriptor as `{ success: false, error }` when the handler's promise
-    // resolves. The send is issued first and both travel the same pipe, so
-    // the broadcast lands first and the resolved result lands second — the
-    // mock below reproduces exactly that order.
-    //
-    // Without the fix, `run()`'s call-site-bound `installFailed` overwrites
-    // the tap-lag descriptor the whole lagging-tap gate exists to deliver.
+    // Production order, reproduced exactly: the handler sends its `Message`
+    // before returning the same descriptor, so the broadcast lands first — and
+    // a bound `installFailed` would overwrite the tap-lag descriptor.
     await render(
       {
         ...readyState("available"),
@@ -1509,9 +1421,8 @@ describe("SettingUpdates", () => {
   });
 
   it("falls back to the bound message when the install bridge itself breaks", async () => {
-    // The other half of the rule: a REJECTED request carries no descriptor to
-    // prefer, so the call-site-bound generic is all there is — and it must
-    // still be shown rather than left blank.
+    // A REJECTED request carries no descriptor, so the bound generic is all
+    // there is — and must still be shown rather than left blank.
     await render(
       {
         ...readyState("available"),
@@ -1530,12 +1441,9 @@ describe("SettingUpdates", () => {
     );
   });
 
-  // -------------------------------------------------------------------------
-  // Pre-release channel — a second, independent flow rendered below the
-  // stable one. Everything below asserts against the RENDERED subtree
-  // (`prereleaseSection()`), never against the component's internals: this
-  // harness has previously reported green while making zero writes.
-  // -------------------------------------------------------------------------
+  // Pre-release channel. Everything below asserts against the RENDERED subtree
+  // (`prereleaseSection()`), never the component's internals: this harness can
+  // report green while making zero writes.
 
   it("renders the pre-release section below the stable flow, boxed off, with its own check button and result line", async () => {
     await render(readyState("up-to-date"), prereleaseReady("idle"));
@@ -1543,14 +1451,10 @@ describe("SettingUpdates", () => {
     const section = prereleaseSection();
     const stableHeading = container.querySelector("#app-updates-heading");
     expect(stableHeading).not.toBeNull();
-    // Below, not merely elsewhere: the stable flow must still be the first
-    // thing the user reads in this panel.
     expect(
       (stableHeading as Element).compareDocumentPosition(section) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    // Visually distinct: its own bordered, tinted box rather than another
-    // paragraph in the stable flow's own run of controls.
     expect(section.className).toContain("border");
     expect(section.className).toContain("rounded");
     expect(section.className).toContain("bg-secondary/40");
@@ -1558,8 +1462,6 @@ describe("SettingUpdates", () => {
       tEn("settings.updates.prerelease.title"),
     );
 
-    // Its OWN check button — a different control from the stable one, not a
-    // second rendering of it.
     const prereleaseCheck = buttonNamed(
       section,
       tEn("settings.updates.prerelease.checkButton"),
@@ -1572,7 +1474,6 @@ describe("SettingUpdates", () => {
     expect(section.contains(stableCheck)).toBe(false);
     expectPrimaryStyles(prereleaseCheck);
 
-    // Its own result line, inside its own box.
     expect(section.textContent).toContain(
       tEn("settings.updates.prerelease.idleDescription"),
     );
@@ -1591,12 +1492,9 @@ describe("SettingUpdates", () => {
         tEn("settings.updates.prerelease.checkButton"),
       ),
     );
-    // A pre-release check never reaches the stable API.
     expect(api.checkForPrerelease).toHaveBeenCalledTimes(1);
     expect(api.checkForUpdates).not.toHaveBeenCalled();
 
-    // ...nor does the answer it produces, arriving on the separate broadcast
-    // channel, rewrite a word of the section above.
     await act(async () => {
       prereleaseListener?.(
         prereleaseReady("available", {
@@ -1729,9 +1627,7 @@ describe("SettingUpdates", () => {
 
     await click(switchButton);
 
-    // No dialog is asserted here on purpose: the confirm is a native
-    // `dialog.showMessageBox` owned by main, so the renderer's whole
-    // contract is "the call was made".
+    // The confirm is main's own dialog; the renderer's whole contract is the call.
     expect(api.switchToPrerelease).toHaveBeenCalledTimes(1);
     expect(api.revertToStable).not.toHaveBeenCalled();
     expect(api.installUpdate).not.toHaveBeenCalled();
@@ -1767,8 +1663,7 @@ describe("SettingUpdates", () => {
       readyState("up-to-date"),
       prereleaseReady("available", { offeredVersion: BETA_VERSION }),
     );
-    // A declined confirm is a complete no-op in main — nothing published — so
-    // the returned descriptor is the only trace the user can be shown.
+    // A decline is a no-op in main: the returned descriptor is the only trace.
     api.switchToPrerelease.mockResolvedValueOnce({
       success: false,
       error: msg("settings.updates.prerelease.switchCancelledMessage"),
@@ -1786,7 +1681,6 @@ describe("SettingUpdates", () => {
       tEn("settings.updates.prerelease.switchCancelledMessage"),
     );
     expect(section.querySelector('[role="alert"]')).toBeNull();
-    // The offer survives a decline: the user can still press Switch again.
     expect(
       maybeButtonNamed(
         section,
@@ -1796,12 +1690,9 @@ describe("SettingUpdates", () => {
   });
 
   it("announces a published channel-op failure once, in the error region only", async () => {
-    // The ownership rule: a descriptor main PUBLISHED belongs to the phase
-    // box; the notice carries only what main reported back WITHOUT
-    // publishing. Every channel-op failure that reaches a `publishPrerelease`
-    // also returns the identical `Message`, so setting the notice from it
-    // renders one sentence in two live regions — an `alert` and a `status` —
-    // and a screen reader announces it twice.
+    // Ownership rule: a descriptor main PUBLISHED belongs to the phase box, so
+    // setting the notice from it too renders one sentence in an `alert` and a
+    // `status` at once and a screen reader announces it twice.
     await render(
       readyState("up-to-date"),
       prereleaseReady("idle", { activeChannel: "beta" }),
@@ -1837,19 +1728,10 @@ describe("SettingUpdates", () => {
   });
 
   /**
-   * Revert is the one channel action that deliberately asks NOTHING, so
-   * `canRevertToStable` is the whole gate in front of a detached Homebrew
-   * uninstall-then-install and an app quit. One row per term, each holding the
-   * other three satisfied, so no term can be dropped without a red test.
-   *
-   * Written as a table rather than one test because only the `unsupported`
-   * term ever had one: the three it was added alongside were each droppable in
-   * silence, and the worst of them — `activeChannel === "beta"` — arms that
-   * unconfirmed subprocess for every ordinary stable user the moment they
-   * press Check.
-   *
-   * None of these are combinations main publishes today. That is the point:
-   * the predicate must fail safe rather than rely on main never producing one.
+   * Revert asks NOTHING, so `canRevertToStable` is the whole gate in front of a
+   * detached Homebrew uninstall-then-install and an app quit. One row per term,
+   * each holding the other three, so no term drops without a red test. None of
+   * these combinations are ones main publishes: the predicate must fail safe.
    */
   const REVERT_REFUSALS: readonly (readonly [string, PrereleaseState])[] = [
     [
@@ -1893,11 +1775,8 @@ describe("SettingUpdates", () => {
   );
 
   it("still announces a channel-op failure the phase box does not render", async () => {
-    // The other half of the ownership rule: suppression is only correct when
-    // the published phase ACTUALLY renders the descriptor. `message` is a
-    // plain optional field on a flat state, so a phase that carries one
-    // without rendering it must not silence the notice too — the sentence
-    // would then appear nowhere at all.
+    // Suppression is correct only when the published phase ACTUALLY renders the
+    // descriptor; otherwise the sentence appears nowhere at all.
     await render(
       readyState("up-to-date"),
       prereleaseReady("idle", { activeChannel: "beta" }),
@@ -1930,17 +1809,8 @@ describe("SettingUpdates", () => {
   });
 
   it("pins which pre-release phases render main's descriptor themselves", async () => {
-    // The set the ownership rule above is derived from. Pushed through the
-    // LIVE component one phase at a time, so adding a `tm(message)` to a phase
-    // — or dropping one — fails here instead of silently desynchronising the
-    // suppression rule from what is on screen.
-    //
-    // The expectation comes from the component's OWN predicate, imported, not
-    // from a list restated here. A local copy pins "the JSX matches this
-    // file's opinion" and never "the JSX matches the source set", which is
-    // what let `installing` and `restart-required` be deleted from that set
-    // with the whole suite green — leaving the suppression rule claiming a
-    // sentence is on screen that nothing renders.
+    // Pushed through the LIVE component one phase at a time, expectation taken
+    // from the imported predicate rather than a list restated here.
     const allPhases: PrereleaseState["phase"][] = [
       "unsupported",
       "idle",
@@ -1991,8 +1861,7 @@ describe("SettingUpdates", () => {
     expect(alert?.textContent).toBe(
       tEn("settings.updates.prerelease.bothCasksMessage", BOTH_CASKS_PARAMS),
     );
-    // The explanation is useless unless it names the two tokens and the exact
-    // command that removes one of them.
+    // Useless unless it names both tokens and the command that removes one.
     expect(alert?.textContent).toContain(STABLE_CASK_TOKEN);
     expect(alert?.textContent).toContain(BETA_CASK_TOKEN);
     expect(alert?.textContent).toContain(BOTH_CASKS_PARAMS.fixCommand);
@@ -2040,9 +1909,7 @@ describe("SettingUpdates", () => {
   });
 
   it("offers a beta install the GitHub link rather than a switch it cannot run", async () => {
-    // `switchToPrerelease` refuses unless `activeChannel` is exactly
-    // `"stable"`, so a newer beta offered to a beta install has no one-click
-    // path — showing the button anyway would only produce a refusal.
+    // `switchToPrerelease` refuses unless `activeChannel` is exactly `"stable"`.
     await render(
       readyState("up-to-date"),
       prereleaseReady("available", {
@@ -2067,7 +1934,6 @@ describe("SettingUpdates", () => {
     expect(section.querySelector("a[href]")?.textContent).toBe(
       tEn("settings.updates.downloadButton"),
     );
-    // Reverting stays available — it is the way back out of that build.
     expect(
       maybeButtonNamed(
         section,
@@ -2077,9 +1943,8 @@ describe("SettingUpdates", () => {
   });
 
   it("sends a beta install to Revert rather than to a manual DMG install", async () => {
-    // `canInstall` is false on a beta install (no stable cask is staged, so
-    // `brew upgrade` would refuse the token) — but this user is on Homebrew,
-    // and the DMG instructions would send them to replace their own bundle.
+    // `canInstall` is false on a beta install (no stable cask staged, so `brew
+    // upgrade` refuses the token), but a DMG instruction is the wrong route.
     await render(
       {
         ...readyState("available"),
@@ -2095,11 +1960,8 @@ describe("SettingUpdates", () => {
     expect(container.textContent).not.toContain(
       tEn("settings.updates.installInstructions"),
     );
-    // The static "How to update" reference at the bottom keeps its own copy
-    // of the quarantine command, so this counts rather than excludes: the
-    // offer's own DMG block must not add a second one.
+    // The static "How to update" reference holds its own copy, so this counts.
     expect(quarantineCommandCount(container.textContent ?? "")).toBe(1);
-    // The route the copy points at has to actually be on screen.
     expect(
       maybeButtonNamed(
         prereleaseSection(),
@@ -2117,10 +1979,8 @@ describe("SettingUpdates", () => {
       },
       prereleaseReady("available", { offeredVersion: BETA_VERSION }),
     );
-    // Main claims its SHARED `installing` flag before awaiting the confirm,
-    // and that dialog has no parent window — so this panel stays on screen,
-    // still reading `available` / `canInstall: true`, for as long as the
-    // dialog is up.
+    // Main claims its SHARED `installing` flag before awaiting a confirm with no
+    // parent window, so this panel stays clickable reading `available` beneath it.
     let resolveSwitch: ((result: { success: boolean }) => void) | undefined;
     api.switchToPrerelease.mockReturnValueOnce(
       new Promise<{ success: boolean }>((resolve) => {
@@ -2138,9 +1998,7 @@ describe("SettingUpdates", () => {
     const install = buttonNamed(container, tEn("settings.updates.installNow"));
     expect(install.disabled).toBe(true);
     await click(install);
-    // Without this, `installUpdate()` resolves `{ success: true }`, publishes
-    // nothing, and the app quits into a channel switch the stable section
-    // never mentioned.
+    // Otherwise the app quits into a channel switch this section never mentioned.
     expect(api.installUpdate).not.toHaveBeenCalled();
     expect(
       buttonNamed(container, tEn("settings.updates.checkButton")).disabled,
@@ -2151,9 +2009,7 @@ describe("SettingUpdates", () => {
   });
 
   it("keeps the stable Install button live during a pre-release CHECK", async () => {
-    // The other half of the rule above: a check never claims main's
-    // `installing` flag, so freezing the stable section for one would be a
-    // regression of its own.
+    // A check never claims `installing`, so freezing here is its own regression.
     await render(
       {
         ...readyState("available"),
@@ -2185,12 +2041,8 @@ describe("SettingUpdates", () => {
   });
 
   it("disables the pre-release Check button while the stable flow is busy", async () => {
-    // The INVERSE of the two rules above, and the one the stable flow cannot
-    // signal for itself: `checkForPrerelease` bails on main's shared
-    // `installing` flag, and unlike `switchToPrerelease`/`revertToStable` it
-    // returns the UNCHANGED `PrereleaseState` with no `success` field — so
-    // `runPrerelease`, which only recognises `{ success: false }`, surfaces
-    // nothing at all. A live button here round-trips into silence.
+    // `checkForPrerelease` bails on main's shared `installing` flag but returns
+    // UNCHANGED state with no `success` field, so a live button here is silence.
     await render(
       {
         ...readyState("available"),
@@ -2219,8 +2071,7 @@ describe("SettingUpdates", () => {
     resolveInstall?.();
     await waitForUi();
 
-    // ...and once main publishes the phase, on the phase alone: the state
-    // event clears `actionPending`, so this is not the click's own latch.
+    // The state event clears `actionPending`, so this is the phase, not the click.
     await act(async () => {
       updateListener?.({
         ...readyState("installing"),
@@ -2236,14 +2087,9 @@ describe("SettingUpdates", () => {
   });
 
   it("keeps the pre-release Check button live during a stable CHECK", async () => {
-    // The narrow half of the rule above. A stable check claims main's
-    // `checking` flag and NEVER `installing`, and `checkForPrerelease` bails
-    // only on `installing` — so a pre-release check pressed here would have
-    // succeeded outright. Freezing on the shared `actionPending` flag (which
-    // `run()` sets for every stable action, check and download included)
-    // reintroduces exactly the freeze the excluded `state.phase === "checking"`
-    // term exists to avoid: the two windows coincide, because the stable
-    // check's promise only resolves once main clears `checking`.
+    // A stable check claims `checking`, never `installing`, so a pre-release
+    // check pressed here would have succeeded. Freezing on the broad
+    // `actionPending` flag reinstates the freeze its exclusion exists to avoid.
     await render(readyState("idle"), prereleaseReady("idle"));
     let resolveCheck: (() => void) | undefined;
     api.checkForUpdates.mockReturnValueOnce(
@@ -2259,8 +2105,7 @@ describe("SettingUpdates", () => {
       tEn("settings.updates.prerelease.checkButton"),
     );
     expect(prereleaseCheck.disabled).toBe(false);
-    // Not merely enabled: a spinner here would claim a pre-release check is
-    // running when none was ever started.
+    // Not merely enabled: a spinner would claim a check nobody started.
     expect(prereleaseCheck.querySelector("svg")).toBeNull();
     await click(prereleaseCheck);
     expect(api.checkForPrerelease).toHaveBeenCalledTimes(1);
@@ -2270,10 +2115,8 @@ describe("SettingUpdates", () => {
   });
 
   it("disables the pre-release Check button while the stable flow is DOWNLOADING", async () => {
-    // The phase term on its own, with no stable request in flight: main
-    // publishes `downloading` and holds `installing` for the whole fetch,
-    // which outlives any one renderer promise. Rendered straight into the
-    // phase so nothing but that disjunct can be what shuts the button.
+    // Phase term alone: main holds `installing` for the whole fetch, outliving
+    // any one renderer promise.
     await render(
       {
         ...readyState("downloading"),
@@ -2313,8 +2156,7 @@ describe("SettingUpdates", () => {
       ),
     );
 
-    // A switch claims the same `installing` flag the check bails on, and the
-    // confirm dialog it awaits leaves this panel clickable behind it.
+    // A switch claims the same flag, and its confirm leaves this panel clickable.
     const check = buttonNamed(
       prereleaseSection(),
       tEn("settings.updates.prerelease.checkButton"),
@@ -2328,17 +2170,10 @@ describe("SettingUpdates", () => {
   });
 
   it("disables the pre-release Check button once the stable flow reaches restart-required", async () => {
-    // The phase the OTHER busy terms all miss, and the only one that is
-    // PERMANENT: `publishRestartRequired` sets main's shared `installing`
-    // flag and nothing ever clears it, so `checkForPrerelease` refuses for
-    // the rest of the session — and refuses by returning the UNCHANGED
-    // state with no `success` field, which `runPrerelease` cannot see. A
-    // live button here is a control that does nothing at all, forever.
-    //
-    // Reached on the nominal success path: an ordinary stable in-app update
-    // finishes after the app quits, the user reopens, and
-    // `reconcileLastInstall` publishes `restart-required` with no channel
-    // operation — so `PrereleaseState` is still the constructor's `idle`.
+    // The PERMANENT one: `publishRestartRequired` claims main's shared
+    // `installing` flag and nothing clears it, so a check refuses invisibly for
+    // the rest of the session. Reached on the nominal path too, with
+    // `PrereleaseState` still `idle`.
     await render(
       { ...readyState("restart-required"), availableVersion: "0.2.0" },
       prereleaseReady("idle"),
@@ -2349,8 +2184,7 @@ describe("SettingUpdates", () => {
       tEn("settings.updates.prerelease.checkButton"),
     );
     expect(check.disabled).toBe(true);
-    // Disabled, but NOT spinning: `restart-required` never clears, so a
-    // spinner here would claim a pre-release check is running forever.
+    // Disabled but NOT spinning: `restart-required` never clears.
     expect(check.querySelector("svg")).toBeNull();
     await click(check);
     expect(api.checkForPrerelease).not.toHaveBeenCalled();
@@ -2376,8 +2210,7 @@ describe("SettingUpdates", () => {
 
     await click(revert);
 
-    // A revert fetches from Homebrew before anything is published, so without
-    // a spinner the only feedback is a button that went grey.
+    // A revert fetches before anything is published; otherwise it just greys out.
     expect(
       buttonNamed(
         prereleaseSection(),
@@ -2390,13 +2223,9 @@ describe("SettingUpdates", () => {
   });
 
   it("keeps the pre-release Check button shut for the length of its own check", async () => {
-    // The section's OWN busy term, as opposed to the five it borrows from the
-    // stable flow — every one of those arrived with a regression test and this
-    // one did not. `onPrereleaseStateChanged` CLEARS the pending flag the
-    // instant main broadcasts `checking`, so from that moment until the result
-    // lands the phase is the only thing holding the button shut. Each extra
-    // press is another unauthenticated GitHub release-LIST request, against a
-    // 60/hour budget, on the endpoint the check deliberately pages.
+    // The section's OWN busy term: the pending flag is cleared the instant main
+    // broadcasts `checking`, so the phase alone holds the button shut — and each
+    // extra press spends another of 60 unauthenticated GitHub requests an hour.
     await render(readyState("up-to-date"), prereleaseReady("idle"));
     let resolveCheck: ((next: PrereleaseState) => void) | undefined;
     api.checkForPrerelease.mockReturnValueOnce(
@@ -2411,7 +2240,6 @@ describe("SettingUpdates", () => {
         tEn("settings.updates.prerelease.checkButton"),
       ),
     );
-    // Before main answers, the pending flag is what spins.
     expect(
       buttonNamed(
         prereleaseSection(),
@@ -2428,8 +2256,7 @@ describe("SettingUpdates", () => {
       tEn("settings.updates.prerelease.checkButton"),
     );
     expect(check.disabled).toBe(true);
-    // ...and after it answers, the phase is what spins. Both halves, because
-    // a spinner that stops mid-check reads as a check that finished.
+    // A spinner that stopped mid-check would read as a check that finished.
     expect(check.querySelector("svg")).not.toBeNull();
     await click(check);
     expect(api.checkForPrerelease).toHaveBeenCalledTimes(1);
@@ -2451,14 +2278,10 @@ describe("SettingUpdates", () => {
   ] satisfies (readonly [string, PrereleaseState])[])(
     "freezes the stable Install button while a channel switch is %s",
     async (_phase, prerelease) => {
-      // The half of `isBusy` that `channelActionPending` cannot cover: that
-      // flag only lives while THIS renderer's own invoke is outstanding. Main
-      // published `downloading`/`installing` on the pre-release channel and
-      // this renderer never started it — the app relaunched mid-switch and read
-      // the phase from `getPrereleaseState()`, or another window pressed
-      // Switch. The stable section still reads `available` + `canInstall`, and
-      // a press here starts a second brew operation into the first one's
-      // download lock — the documented way to make the button look dead.
+      // The half of `isBusy` that `channelActionPending` cannot cover: it lives
+      // only while THIS renderer's invoke is outstanding, yet main can be
+      // mid-switch from a relaunch or another window — and a press here starts a
+      // second brew operation into the first one's download lock.
       await render(
         {
           ...readyState("available"),
@@ -2495,16 +2318,10 @@ describe("SettingUpdates", () => {
   ] as const)(
     "surfaces a broken $action bridge instead of swallowing it",
     async ({ prerelease, button, bridge, expected }) => {
-      // `runPrerelease`'s catch, which nothing exercised. The Switch and Revert
-      // buttons live on `available`/`idle`, and NEITHER phase renders
-      // `prereleaseState.message` — so without the catch moving the section to
-      // `error`, the descriptor lands on a phase that shows it nowhere and the
-      // notice is never set on this path either. The user presses the button,
-      // the spinner stops, and nothing at all changes on screen.
-      //
-      // These are also the only two paths that reach the component's own bound
-      // descriptors: every other failure prefers main's, so `switchErrorMessage`
-      // and `revertErrorMessage` render here or nowhere.
+      // `runPrerelease`'s catch. Switch and Revert live on `available`/`idle`,
+      // neither of which renders `prereleaseState.message`, so without the catch
+      // moving the section to `error` nothing changes on screen. These are also
+      // the only paths reaching the component's own bound descriptors.
       await render(readyState("up-to-date"), prerelease);
       api[bridge].mockRejectedValueOnce(new Error("bridge is gone"));
 
@@ -2542,12 +2359,9 @@ describe("SettingUpdates", () => {
   ])(
     "still announces a channel-op failure when $case",
     async ({ published, reported }) => {
-      // The MESSAGE half of the ownership rule — `isSameMessage` — which no
-      // test decided: every suppression case above turns on the PHASE half
-      // alone, so both degenerate forms of the helper (including a bare
-      // `return true`) passed the whole suite. `return true` suppresses every
-      // notice, and the specific reason a channel op refused is the only trace
-      // of a refusal main deliberately does not publish.
+      // The MESSAGE half of the ownership rule — `isSameMessage`. Every case
+      // above turns on the PHASE half alone, so a bare `return true` passes them
+      // while suppressing every notice of a refusal main does not publish.
       await render(
         readyState("up-to-date"),
         prereleaseReady("idle", { activeChannel: "beta" }),
@@ -2598,16 +2412,15 @@ describe("SettingUpdates", () => {
     );
 
     const section = prereleaseSection();
-    // A switch waits on a native confirm main owns, so without a spinner the
-    // only feedback is a button that went grey.
+    // A switch waits on main's native confirm; otherwise it just greys out.
     expect(
       buttonNamed(
         section,
         tEn("settings.updates.prerelease.switchButton"),
       ).querySelector("svg"),
     ).not.toBeNull();
-    // Every control here shares one disabled flag, so a second spinner would
-    // stop the spinner naming which control was actually pressed.
+    // Every control shares one disabled flag, so the spinner is what names the
+    // control that was pressed.
     expect(
       buttonNamed(
         section,
@@ -2620,12 +2433,9 @@ describe("SettingUpdates", () => {
   });
 
   it("does not let a late pre-release snapshot overwrite a newer channel event", async () => {
-    // The "subscribe before fetch" discipline, on the pre-release channel this
-    // time. The stable effect carries this test and its two siblings; the
-    // effect written as its deliberate mirror inherited none of them, so a
-    // reorder there would drop the first state update and leave the section
-    // reading `idle` during a live channel operation — re-arming Switch and
-    // Check over a Homebrew run that has already started.
+    // "Subscribe before fetch" on the pre-release channel: a reorder leaves the
+    // section reading `idle` over a Homebrew run that already started, re-arming
+    // Switch and Check.
     let resolveInitial: ((state: PrereleaseState) => void) | undefined;
     const initial = new Promise<PrereleaseState>((resolve) => {
       resolveInitial = resolve;
@@ -2670,11 +2480,8 @@ describe("SettingUpdates", () => {
   });
 
   it("reports a pre-release bridge that fails at mount rather than reading as unsupported", async () => {
-    // `getPrereleaseState()` rejecting — a broken preload, an IPC handler that
-    // threw — used to leave the section sitting on `unsupported` with no error
-    // anywhere, so the user read "pre-release updates are not available on
-    // this install" when what actually happened is that the bridge failed.
-    // They have no way to tell those apart and no reason to retry.
+    // Without this, a rejecting `getPrereleaseState()` reads as "not available
+    // on this install" — indistinguishable from a broken bridge, and no retry.
     unsubscribe = vi.fn();
     await renderWithApi({
       getUpdateState: vi.fn().mockResolvedValue(readyState("up-to-date")),
@@ -2701,14 +2508,12 @@ describe("SettingUpdates", () => {
     expect(section.textContent).not.toContain(
       tEn("settings.updates.prerelease.unsupported"),
     );
-    // The stable flow beside it is untouched by the pre-release bridge failing.
     expect(container.textContent).toContain(tEn("settings.updates.upToDate"));
   });
 
   it("unsubscribes from the pre-release channel on unmount", async () => {
-    // Its own channel, its own teardown: this component also mounts inside the
-    // About tab, so a listener left behind writes into an unmounted tree every
-    // time main publishes a channel state.
+    // This also mounts in the About tab: a leftover listener writes into an
+    // unmounted tree on every channel-state publish.
     await render(readyState("up-to-date"), prereleaseReady("idle"));
 
     expect(api.onPrereleaseStateChanged).toHaveBeenCalledTimes(1);
@@ -2723,15 +2528,11 @@ describe("SettingUpdates", () => {
 
   it("leaves the pre-release section unsupported on a preload without the channel bridge", async () => {
     // The compatibility path the effect's early return exists for: an older
-    // preload exposes neither pre-release method, and this component also
-    // mounts inside the About tab, where a throwing effect would tear down
-    // the user guide alongside it.
+    // preload exposes neither method, and this also mounts in the About tab.
     unsubscribe = vi.fn();
     await renderWithApi(
-      // The five `PRERELEASE_BRIDGE_MEMBERS` are the point of this test: an
-      // old preload exposes none of them, so they are absent rather than
-      // mocked. `checkForPrerelease`/`switchToPrerelease`/`revertToStable`
-      // are never reachable without a rendered control to press.
+      // An old preload exposes none of `PRERELEASE_BRIDGE_MEMBERS`, so they are
+      // absent rather than mocked; the rest need a rendered control to reach.
       legacyPreloadApi({
         getUpdateState: vi.fn().mockResolvedValue(readyState("up-to-date")),
         checkForUpdates: vi.fn().mockResolvedValue(undefined),
@@ -2749,9 +2550,7 @@ describe("SettingUpdates", () => {
       }),
     );
 
-    // The absence is the fixture, so it is asserted rather than described: a
-    // stray member would make the component take the live path and the test
-    // would stop covering the compatibility branch at all.
+    // The absence IS the fixture: a stray member silently stops covering it.
     for (const member of PRERELEASE_BRIDGE_MEMBERS) {
       expect(member in api).toBe(false);
     }
@@ -2760,7 +2559,6 @@ describe("SettingUpdates", () => {
     expect(section.textContent).toContain(
       tEn("settings.updates.prerelease.unsupported"),
     );
-    // Not a half-live section: no control the bridge could not service.
     for (const label of [
       tEn("settings.updates.prerelease.checkButton"),
       tEn("settings.updates.prerelease.switchButton"),
@@ -2768,7 +2566,6 @@ describe("SettingUpdates", () => {
     ] as const) {
       expect(maybeButtonNamed(section, label)).toBeUndefined();
     }
-    // The stable flow above it is untouched by the missing bridge.
     expect(container.textContent).toContain(tEn("settings.updates.upToDate"));
   });
 
@@ -2788,9 +2585,7 @@ describe("SettingUpdates", () => {
     ] as const) {
       const jaExpected = tJa(key);
       expect(section.textContent).toContain(jaExpected);
-      // Proves the JA catalog is actually being read rather than falling
-      // back to English — a byte-identical "translation" would pass a
-      // contains-check against either catalog.
+      // A byte-identical "translation" would pass against either catalog.
       expect(jaExpected).not.toBe(tEn(key));
     }
 
