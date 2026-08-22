@@ -4,8 +4,8 @@
  * provider request (OpenAI, OpenRouter) and by the connection prewarmer
  * (`./prewarm`).
  *
- * Node's global `fetch` is backed by undici, which already pools connections
- * per origin — but its default agent's keep-alive window is only a few
+ * Undici already pools connections per origin — but its default agent's
+ * keep-alive window is only a few
  * seconds, long enough to survive one multi-turn conversation, too short to
  * survive the gap between two hotkey presses. A dedicated `undici.Agent` with
  * a multi-minute `keepAliveTimeout` keeps the socket to api.openai.com /
@@ -17,13 +17,13 @@
  * undici's `Agent` pools per-origin internally, so sharing an instance never
  * mixes their sockets.
  *
- * `dispatcher` is a non-standard `RequestInit` extension undici adds to
- * Node's global `fetch` (confirmed against the installed `undici` version's
- * `types/fetch.d.ts`, and against a live request through this exact repo's
- * Node runtime) — `lib.dom`'s `RequestInit` type doesn't know about it, hence
- * the local extension below instead of widening to `unknown`.
+ * `fetch` and `Agent` must come from the same undici package. Node and Electron
+ * embed their own undici version, whose dispatcher handler contract can differ
+ * from the installed package. Passing an installed v8 Agent to Node's embedded
+ * v7 fetch, for example, fails before connecting with
+ * `invalid onRequestStart method`.
  */
-import { Agent } from "undici";
+import { Agent, fetch as undiciFetch } from "undici";
 import type { Dispatcher } from "undici";
 
 /** Long enough that back-to-back hotkey presses minutes apart reuse a socket. */
@@ -37,8 +37,6 @@ const keepAliveAgent: Dispatcher = new Agent({
   keepAliveMaxTimeout: KEEP_ALIVE_MAX_TIMEOUT_MS,
 });
 
-type RequestInitWithDispatcher = RequestInit & { dispatcher?: Dispatcher };
-
 /**
  * Drop-in replacement for `globalThis.fetch`, bound to {@link keepAliveAgent}.
  * Pass this as the `fetch` option to `createOpenAI` / `createOpenRouter` so
@@ -48,4 +46,6 @@ type RequestInitWithDispatcher = RequestInit & { dispatcher?: Dispatcher };
  * (Homebrew/GitHub update checks, etc.) is unaffected.
  */
 export const keepAliveFetch: typeof fetch = (input, init) =>
-  fetch(input, { ...(init ?? {}), dispatcher: keepAliveAgent } as RequestInitWithDispatcher);
+  undiciFetch(input, { ...(init ?? {}), dispatcher: keepAliveAgent } as Parameters<typeof undiciFetch>[1]) as ReturnType<
+    typeof fetch
+  >;
