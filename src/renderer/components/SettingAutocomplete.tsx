@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   AUTOCOMPLETE_INHERIT_ASK_MODEL,
-  DEFAULT_DAILY_COST_CAP_USD,
   MAX_DAILY_COST_CAP_USD,
+  normalizeAutocompleteSettings,
   normalizeDailyCostCapUsd,
   type AutocompleteSettings,
 } from "~/features/autocomplete/shared/autocompleteSettings";
@@ -62,11 +62,16 @@ const PRIVACY_HINT_KEYS: readonly MessageKey[] = [
   "settings.autocomplete.privacy.localProvider",
 ];
 
-const DEFAULT_SETTINGS: AutocompleteSettings = {
-  enabled: false,
-  model: AUTOCOMPLETE_INHERIT_ASK_MODEL,
-  dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
-};
+/**
+ * Closed readings: this renders before IPC replies, and must not flash a lie.
+ *
+ * Derived from the shared normalizer rather than written out here, because a
+ * hand-written copy drifted: it had `excludedApps: []` where the seed is the
+ * shipped credential apps. Every control persists the WHOLE object, so a failed
+ * read followed by an unrelated toggle wrote that empty list back and erased the
+ * password-manager exclusions for good.
+ */
+const DEFAULT_SETTINGS: AutocompleteSettings = normalizeAutocompleteSettings({});
 
 const emptyRollup = (): AutocompleteDayRollup => ({
   date: "",
@@ -120,16 +125,48 @@ export const SettingAutocomplete: React.FC = () => {
    */
   const [capDraft, setCapDraft] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  /**
+   * False until a read actually returns, and false again from the moment a
+   * reload starts. Writes send the WHOLE object, so writing while this is false
+   * would persist state belonging to a different profile, or defaults the user
+   * never chose.
+   *
+   * NOT a complete guard on its own: `get-autocomplete-settings` answers a
+   * failed store read with normalized DEFAULTS rather than a rejection, so a
+   * read failure inside main still arrives here as an ordinary success. That
+   * path reseeds the shipped exclusions (it cannot erase them) but does silently
+   * reset the model, cap, allow-list and consent. Closing it means giving the
+   * channel a way to say "failed", which is a main/preload contract change.
+   */
+  const [settingsAreAuthoritative, setSettingsAreAuthoritative] = useState(false);
+  /** Monotonic per-load token; only the newest reply may apply. */
+  const loadGeneration = useRef(0);
   const [status, setStatus] = useState<StatusDescriptor | null>(null);
   const [statusIsError, setStatusIsError] = useState(false);
 
   const loadSettings = useCallback(async () => {
+    // Invalidated SYNCHRONOUSLY, before the await. A reload means the profile
+    // under this card may already have changed — `notifyActiveProfileChanged`
+    // fires only after main has flipped `currentProfileId` — so from here until
+    // the reply lands, `settings` describes a profile that is no longer the
+    // write target. Leaving authority set through that window let a click send
+    // the OLD profile's whole object into the NEW profile.
+    setSettingsAreAuthoritative(false);
+    const generation = loadGeneration.current + 1;
+    loadGeneration.current = generation;
     try {
       const stored = await window.electronAPI.getAutocompleteSettings();
+      // A superseded reply is discarded, never applied: two rapid switches can
+      // settle in either order, and without this an older profile's reply wins
+      // by arriving last.
+      if (loadGeneration.current !== generation) return;
       setSettings(stored);
+      setSettingsAreAuthoritative(true);
     } catch (error) {
       console.error("Failed to load autocomplete settings:", error);
+      if (loadGeneration.current !== generation) return;
       setSettings(DEFAULT_SETTINGS);
+      setSettingsAreAuthoritative(false);
     }
   }, []);
 
@@ -180,6 +217,21 @@ export const SettingAutocomplete: React.FC = () => {
   }, [loadSettings]);
 
   /**
+   * KNOWN LIMIT, unchanged by this file's scope work and deliberately not fixed
+   * here: writes are not serialized. Each call sends a payload spread from the
+   * render snapshot it was created in and rolls back to a captured `previous`,
+   * so overlapping edits can clobber a newer value, a rejected value can ride
+   * into the next successful write, and a late failure can overwrite a newer
+   * success. That is the repo-wide `Setting*.tsx` pattern (see the
+   * `fixlang-settings-writes` skill), not something introduced here.
+   *
+   * What DID change is the blast radius: `scopeMode`, `allowedApps`,
+   * `excludedApps` and `cloudScopeConsent` now ride along on every unrelated
+   * toggle, so a stale payload is a privacy question rather than a cosmetic one.
+   * There is no second writer for those fields today — this panel is the only
+   * one — which is why serializing is a follow-up rather than a blocker, and why
+   * it must land before any other surface can write them.
+   *
    * Optimistic, but only past the guard: `setAutocompleteSettings` returns
    * `{ success: false }` for a payload the main-process guard rejects, and
    * the store is never written in that case — so the checkbox/picker must
@@ -187,6 +239,14 @@ export const SettingAutocomplete: React.FC = () => {
    * actually persisted.
    */
   const persist = async (previous: AutocompleteSettings, next: AutocompleteSettings) => {
+    // Refuse rather than clobber. `next` is spread from whatever is in state,
+    // so on top of the fallback it carries defaults for every field the user
+    // never touched — the erasure this guard exists for is silent otherwise.
+    if (!settingsAreAuthoritative) {
+      setStatusIsError(true);
+      setStatus(plainStatus("settings.autocomplete.loadError"));
+      return;
+    }
     setSettings(next);
     try {
       const result = await window.electronAPI.setAutocompleteSettings(next);

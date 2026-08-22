@@ -32,6 +32,31 @@ export const sanitizeLmStudioHost = (raw: unknown): string | null => {
   return host;
 };
 
+/**
+ * Whether this host keeps traffic on the machine.
+ *
+ * `sanitizeLmStudioHost` accepts ANY hostname, so "Ollama" and "LM Studio" name
+ * a protocol, not a destination — a user may point either at `192.168.1.50` or
+ * a public host. Anything that decides "this text never leaves the machine"
+ * must ask this, not the provider id.
+ *
+ * Answers only for forms it is certain about: `localhost`, 127.0.0.0/8, and
+ * IPv6 `::1`. Every other host — including a name that happens to resolve to
+ * loopback — reads as NOT loopback, because resolution is not available here
+ * and the wrong answer in that direction is the one that leaks.
+ */
+export const isLoopbackHost = (raw: unknown): boolean => {
+  if (typeof raw !== "string") return false;
+  const host = raw.trim().toLowerCase().replace(/^\[|\]$/g, "");
+  if (host === "localhost") return true;
+  if (host === "::1" || host === "0:0:0:0:0:0:0:1") return true;
+  const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (!ipv4) return false;
+  const octets = ipv4.slice(1).map(Number);
+  if (octets.some((octet) => octet > 255)) return false;
+  return octets[0] === 127;
+};
+
 export const sanitizeLmStudioPort = (raw: unknown): number | null => {
   const port =
     typeof raw === "number"

@@ -14,30 +14,10 @@
  */
 import { ipcRenderer } from "electron";
 import {
+  isAutocompleteSettingsShape as isAutocompleteSettings,
   normalizeAutocompleteSettings,
   type AutocompleteSettings,
 } from "~/features/autocomplete/shared/autocompleteSettings";
-
-/**
- * Field-by-field check, mirroring `~/features/ask/preload/ask.ts`: the shape
- * is small enough that widening any field to `unknown` would just move a
- * crash into React instead of preventing it.
- */
-const isAutocompleteSettings = (
-  value: unknown,
-): value is AutocompleteSettings => {
-  if (typeof value !== "object" || value === null) return false;
-  const record = value as Record<string, unknown>;
-  return (
-    typeof record.enabled === "boolean" &&
-    typeof record.model === "string" &&
-    // Finite, for the same reason the main-process guard requires it: `NaN` and
-    // `Infinity` are both `number` and both make the day's cap comparison
-    // silently always-false, which is a budget that never fires.
-    typeof record.dailyCostCapUsd === "number" &&
-    Number.isFinite(record.dailyCostCapUsd)
-  );
-};
 
 export const autocompleteSettingsFeature = {
   /** A malformed main-process reply falls back to normalized defaults. */

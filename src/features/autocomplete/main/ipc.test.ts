@@ -99,6 +99,7 @@ describe("registerAutocompleteHandlers", () => {
         prefix: "the quick brown fox",
         suffix: " jumps",
         sessionId: "3",
+        surface: "own",
       });
     });
 
@@ -123,7 +124,25 @@ describe("registerAutocompleteHandlers", () => {
         prefix: "",
         suffix: undefined,
         sessionId: "2",
+        surface: "own",
       });
+    });
+
+    it("states surface own even for junk, so a scope gate is never skipped by omission", async () => {
+      serviceMocks.requestAutocompleteSuggestion.mockResolvedValue({ requestId: 0, suggestion: null });
+
+      await getHandler("autocomplete-suggest")(eventFrom(2), {
+        requestId: 1,
+        prefix: "twelve characters or more",
+        surface: "system",
+        appBundleId: "com.apple.mail",
+      });
+
+      const [request] = serviceMocks.requestAutocompleteSuggestion.mock.calls[0] as [
+        Record<string, unknown>,
+      ];
+      expect(request.surface).toBe("own");
+      expect(request).not.toHaveProperty("appBundleId");
     });
 
     /**

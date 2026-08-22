@@ -4,6 +4,7 @@
  */
 import Store from "electron-store";
 import { DEFAULT_LANGUAGE, resolveDefaultModel } from "~/const";
+import { DEFAULT_EXCLUDED_BUNDLE_IDS } from "~/features/autocomplete/shared/autocompleteScope";
 import {
   AUTOCOMPLETE_INHERIT_ASK_MODEL,
   DEFAULT_DAILY_COST_CAP_USD,
@@ -1227,15 +1228,35 @@ export const apiStoreSchema = {
                 // `normalizeDailyCostCapUsd`, not fail validation and wipe the
                 // whole config.
                 dailyCostCapUsd: { type: "number", default: DEFAULT_DAILY_COST_CAP_USD },
+                // Bare types, no `enum`/`items` — see the note at the top of
+                // this node. `normalizeAutocompleteSettings` decides validity.
+                scopeMode: { type: "string", default: "allowlist" },
+                allowedApps: { type: "array" },
+                excludedApps: { type: "array" },
+                cloudScopeConsent: { type: "string", default: "" },
               },
               // Belt and braces for the whole-node-absent case only.
               // `useDefaults` injects an *object* default, so a stored object
               // missing just `enabled` never receives it — that case is carried
               // by `normalizeAutocompleteSettings`, which is the load-bearing one.
+              //
+              // `excludedApps` SEEDS here and must keep agreeing with
+              // `normalizeExcludedApps`, which seeds from `undefined` and reads
+              // `[]` as "the user cleared the list". Writing `[]` would hand a
+              // whole-node-absent profile no password-manager exclusions at all.
+              // `allowedApps` starts EMPTY for the opposite reason: it is the
+              // fail-closed mode's list, and a seeded allow-list starts open.
+              // Sharing this one array across injections is safe because every
+              // read goes through `getProfileSetting`, which re-normalizes into
+              // a fresh array before any caller sees it.
               default: {
                 enabled: false,
                 model: "",
                 dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+                scopeMode: "allowlist" as const,
+                allowedApps: [],
+                excludedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
+                cloudScopeConsent: "",
               },
             },
           },
@@ -1785,10 +1806,16 @@ const buildDefaultProfileSettings = (): SettingsStore =>
       autoCopy: false,
       model: "",
     },
+    // Spelled out, not left to the normalizer: the blanket cast below already
+    // fails for an unrelated reason, so a field missing here would be invisible.
     settingsAutocomplete: {
       enabled: false,
       model: AUTOCOMPLETE_INHERIT_ASK_MODEL,
       dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+      scopeMode: "allowlist",
+      allowedApps: [],
+      excludedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
+      cloudScopeConsent: "",
     },
   }) as SettingsStore;
 
@@ -1903,9 +1930,17 @@ export const toExportableProfile = (profile: Profile): Profile => {
       },
       // The ref is per-machine model state; `enabled` is a genuine preference
       // and travels with the profile.
+      //
+      // `cloudScopeConsent` does NOT travel. It records that THIS user agreed to
+      // send keystrokes from other apps to a named provider — an act of consent
+      // by one person, not a portable preference. This same function sanitizes
+      // IMPORTS, so carrying it would let a shared profile pre-consent its
+      // recipient: they connect the named provider and system-wide dispatch
+      // skips the gate for a decision they never made.
       settingsAutocomplete: {
         ...normalizeAutocompleteSettings(settings.settingsAutocomplete),
         model: AUTOCOMPLETE_INHERIT_ASK_MODEL,
+        cloudScopeConsent: "",
       },
     },
   } as Profile;

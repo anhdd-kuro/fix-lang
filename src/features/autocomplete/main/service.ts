@@ -60,13 +60,26 @@ import {
   wastedSuggestionLogLevel,
 } from "~/features/autocomplete/shared/autocompleteDiagnostics";
 import { resolveAutocompleteModelRef } from "~/features/autocomplete/shared/autocompleteModel";
+import {
+  decideAppScope,
+  normalizeBundleId,
+  requiresCloudScopeConsent,
+} from "~/features/autocomplete/shared/autocompleteScope";
 import { normalizeDailyCostCapUsd } from "~/features/autocomplete/shared/autocompleteSettings";
 import { MIN_PREFIX_CHARS } from "~/features/autocomplete/shared/autocompleteWire";
 import { autocompleteUsageStore } from "~/features/autocomplete/store/autocompleteUsageStore";
 import {
+  isLoopbackHost,
+  resolveLmStudioEndpoint,
+} from "~/features/providers/shared/lmstudioEndpoint";
+import { parseModelRef, resolveProviderForModelRef } from "~/features/providers/shared/modelRef";
+import { resolveOllamaEndpoint } from "~/features/providers/shared/ollamaEndpoint";
+import { isLocalProvider } from "~/features/providers/shared/providers";
+import {
   getCurrentProfileId,
   getDefaultModelId,
   getProfileSetting,
+  getProviderEndpoint,
 } from "~/features/providers/store/apiStore";
 import { isFullyMaskable, scanForSecrets } from "~/features/secretGuard/shared/detectSecrets";
 import { redactSecretsIrreversibly } from "~/features/secretGuard/shared/maskSecrets";
@@ -77,6 +90,7 @@ import { buildAutocompletePrompt } from "./prompt";
 import { sanitizeSuggestion } from "./sanitize";
 import type { AutocompleteAskContext } from "./prompt";
 import type { AutocompleteWastedReason } from "~/features/autocomplete/shared/autocompleteDiagnostics";
+import type { AutocompleteSurfaceKind } from "~/features/autocomplete/shared/autocompleteScope";
 import type {
   AutocompleteDayRollup,
   AutocompleteSuggestReply,
@@ -202,6 +216,20 @@ export const RATE_LIMIT_MEMORY_MAX_ENTRIES = 8;
 export type AutocompleteRequest = AutocompleteSuggestRequest & {
   /** Identifies the typing surface, so one surface aborts only its own request. */
   sessionId: string;
+  /**
+   * MAIN-ONLY, kept off `AutocompleteSuggestRequest` so a renderer cannot claim
+   * them — they decide whether another app's text may be sent to a provider.
+   * Only a main-process driver sets them, by calling this function directly;
+   * `autocomplete-suggest` is an `ipcMain.handle` channel a renderer reaches.
+   *
+   * REQUIRED, not optional-defaulting-to-`"own"`. `"own"` bypasses BOTH the
+   * app-scope gate and the cloud-consent gate and, by design, logs nothing when
+   * it does — so a system-wide caller that omitted the field would upload every
+   * keystroke from every app with no error, no failing test, and no log line.
+   * Requiring it makes each new call site state its surface or fail to compile.
+   */
+  surface: AutocompleteSurfaceKind;
+  appBundleId?: string;
 };
 
 /** Same shape the renderer receives; aliased so the two cannot drift. */
@@ -587,7 +615,12 @@ export type AutocompleteSkipReason =
   | "no-model"
   | "cache-hit"
   | "rate-limited"
-  | "secret-in-text";
+  | "secret-in-text"
+  | "app-unidentified"
+  | "app-not-allowed"
+  | "app-excluded"
+  | "scope-unreadable"
+  | "cloud-consent-missing";
 
 /**
  * Level and wording per reason, in one table so neither can drift from the
@@ -666,6 +699,32 @@ const SKIP_LINES: Record<
     level: "warn",
     message:
       "Suggestion skipped: the daily request backstop was reached, which no normal typing can produce",
+  },
+  /** `debug`: a configured refusal, on every keystroke in every unnamed app. */
+  "app-not-allowed": {
+    level: "debug",
+    message: "Suggestion skipped: this app is not on the autocomplete allowlist",
+  },
+  "app-excluded": {
+    level: "debug",
+    message: "Suggestion skipped: this app is on the autocomplete denylist",
+  },
+  /** `warn`: our surface failed its one job, and every app goes quiet. */
+  "app-unidentified": {
+    level: "warn",
+    message:
+      "Suggestion skipped: the system-wide surface did not report which app the text came from",
+  },
+  /** Unreachable in a working build; a line here means normalization broke. */
+  "scope-unreadable": {
+    level: "warn",
+    message: "Suggestion skipped: the app scope list could not be read, so scope cannot be enforced",
+  },
+  /** `warn`: usually a model change to an unconsented provider, and invisible. */
+  "cloud-consent-missing": {
+    level: "warn",
+    message:
+      "Suggestion skipped: system-wide autocomplete has not been confirmed for this cloud provider",
   },
 };
 
@@ -834,10 +893,53 @@ const countDispatch = (now: Date): boolean => {
   }
 };
 
+/**
+ * Whether the request this ref would produce stays on the machine.
+ *
+ * Reads the SAME endpoint the request path reads (`getProviderEndpoint` through
+ * the same resolvers used by `llm/providers/{ollama,lmstudio}/request.ts`), so
+ * the gate cannot answer about one host while the request goes to another.
+ * Provider identity alone is not enough: both local providers take a
+ * configurable host and the sanitizer accepts any hostname, so "Ollama" may
+ * mean a LAN box or a public server.
+ */
+const isLoopbackDestination = (provider: ProviderId | null): boolean => {
+  if (provider === null || !isLocalProvider(provider)) return false;
+  try {
+    const endpoint =
+      provider === "ollama"
+        ? resolveOllamaEndpoint(getProviderEndpoint("ollama"))
+        : resolveLmStudioEndpoint(getProviderEndpoint("lmstudio"));
+    return isLoopbackHost(endpoint.host);
+  } catch {
+    // An unreadable endpoint is an unknown destination, and unknown is not
+    // loopback — the answer that asks for consent rather than skipping it.
+    return false;
+  }
+};
+
+/**
+ * The provider the consent gate must ask about, resolved like `makeAIRequest`
+ * resolves it so a legacy BARE id is not permanently unconsentable.
+ *
+ * Never throws. This runs behind an `ipcMain.handle` whose contract is "no
+ * ghost text, never a rejected invoke", and the model cache is disk-backed. On
+ * failure it falls back to the ref's own prefix, which is still trustworthy;
+ * a bare id then yields `null`, which the gate treats as the cautious case.
+ */
+const resolveProviderForConsent = async (modelRef: string): Promise<ProviderId | null> => {
+  try {
+    const { getCachedModels } = await import("~/main/ai.request/shared");
+    return resolveProviderForModelRef(modelRef, getCachedModels());
+  } catch {
+    return parseModelRef(modelRef).provider;
+  }
+};
+
 export const requestAutocompleteSuggestion = async (
   request: AutocompleteRequest,
 ): Promise<AutocompleteResult> => {
-  const { requestId, sessionId, prefix, suffix = "" } = request;
+  const { requestId, sessionId, prefix, suffix = "", surface, appBundleId } = request;
   /**
    * ONE instant for everything this request records. Reading the clock again
    * when the response came back booked a request dispatched at 23:59:59.9 and
@@ -858,6 +960,35 @@ export const requestAutocompleteSuggestion = async (
     logSkip("prefix-too-short", startedAt, {
       prefixLength: prefix.length,
       minPrefixChars: MIN_PREFIX_CHARS,
+    });
+    return none(requestId);
+  }
+
+  // ABOVE THE CACHE, same reason as the secret-guard gate below: those ask "is
+  // this worth paying for" (a cache hit is free, so exempt); this asks "may
+  // this text be involved at all" (a hit isn't exempt from that). Serving a
+  // cached suggestion into a denied app would still expose text that app's
+  // cache entry was built from.
+  //
+  // Placed FIRST because it is also the cheapest check here — a set lookup
+  // against settings already in hand, no clock, no store read, no model
+  // resolution — so a disallowed app's request doesn't walk any counter before
+  // being refused. `getProfileSetting` returns these already normalized.
+  const appScope = decideAppScope({
+    surface,
+    bundleId: appBundleId ?? null,
+    scopeMode: settings.scopeMode,
+    allowedApps: settings.allowedApps,
+    excludedApps: settings.excludedApps,
+  });
+  if (!appScope.permitted) {
+    logSkip(appScope.reason, startedAt, {
+      // The NORMALIZED id, which is what the gate compared — and what is safe to
+      // write. `appBundleId` is another process's self-report, so raw it is
+      // unbounded, control-character-bearing text landing in an exportable
+      // JSONL file that this feature otherwise keeps to lengths and counts.
+      bundleId: normalizeBundleId(appBundleId ?? null),
+      scopeMode: settings.scopeMode,
     });
     return none(requestId);
   }
@@ -921,6 +1052,40 @@ export const requestAutocompleteSuggestion = async (
   if (!modelRef) {
     logSkip("no-model", startedAt, {
       checkedSources: ["settingsAutocomplete.model", "askPreset.model", "profileDefaultModel"],
+    });
+    return none(requestId);
+  }
+
+  // BELOW model resolution because it is a question about the resolved provider,
+  // and there is no provider to ask about until `modelRef` exists. Still ABOVE
+  // the cache, for the reason given at the app-scope gate: a cache hit is free,
+  // and "free" is not an answer to "may this app's text go to this company".
+  //
+  // Resolved the way `makeAIRequest` resolves it, not by `parseModelRef` alone.
+  // A legacy BARE id (`"llama3"`) has no prefix, so `parseModelRef` yields
+  // `null` while the request path still routes it through `PROVIDER_ORDER` — a
+  // null provider can never match a stored consent, so the gate would refuse
+  // that ref forever, including bare Ollama models that need no consent at all.
+  // Still falls back to `null` when nothing resolves, which stays closed.
+  // Gated on the surface first: `own` can never require consent, and resolving
+  // the provider costs a dynamic import plus two synchronous profile-store reads
+  // on a path that runs per keystroke. The check below would reach the same
+  // answer — this only declines to pay for it.
+  const provider = surface === "system" ? await resolveProviderForConsent(modelRef) : null;
+  if (
+    requiresCloudScopeConsent({
+      surface,
+      destinationIsLoopback: isLoopbackDestination(provider),
+      providerId: provider,
+      cloudScopeConsent: settings.cloudScopeConsent,
+    })
+  ) {
+    // Provider ids, not the model id: the model id is user-editable text and
+    // this line is exportable. Both ids, so a provider change is legible.
+    logSkip("cloud-consent-missing", startedAt, {
+      provider,
+      consentedProvider: settings.cloudScopeConsent || null,
+      scopeMode: settings.scopeMode,
     });
     return none(requestId);
   }

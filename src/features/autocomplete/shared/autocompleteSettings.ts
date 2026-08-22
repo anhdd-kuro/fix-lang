@@ -4,6 +4,15 @@
  *
  * Electron-free — shared by main, preload, and renderer.
  */
+import {
+  DEFAULT_EXCLUDED_BUNDLE_IDS,
+  isAutocompleteScopeMode,
+  isUnusableAppList,
+  normalizeAllowedApps,
+  normalizeExcludedApps,
+  type AutocompleteScopeMode,
+} from "~/features/autocomplete/shared/autocompleteScope";
+
 
 export type AutocompleteSettings = {
   /** Absent or non-boolean reads as `false`; only a stored `true` enables. */
@@ -37,6 +46,62 @@ export type AutocompleteSettings = {
    * `DAILY_REQUEST_BACKSTOP` for that half.
    */
   dailyCostCapUsd: number;
+  scopeMode: AutocompleteScopeMode;
+  /**
+   * Lower-cased bundle ids autocomplete may read, consulted in `allowlist` mode
+   * only. Defaults to EMPTY: `allowlist` is the fail-closed mode and must start
+   * closed.
+   */
+  allowedApps: string[];
+  /**
+   * Lower-cased bundle ids autocomplete must never read, consulted in BOTH
+   * modes. Seeded with password managers and Keychain Access.
+   *
+   * Deliberately a second list rather than one `scopedApps` whose meaning flips
+   * with `scopeMode`. One list cannot carry both meanings: seeded with the
+   * password managers it reads as "run ONLY in 1Password" the moment the mode is
+   * `allowlist` — which is the default — and a user switching modes would have
+   * their allow-list silently reinterpreted as a deny-list.
+   */
+  excludedApps: string[];
+  /** Provider id consented to for system-wide reach, or `""`. Never a boolean. */
+  cloudScopeConsent: string;
+};
+
+/**
+ * Run independently at both IPC boundaries, defined once so they cannot drift.
+ * Two copies meant a new field could be added to one only, and the failure is
+ * silent: the loose side passes a reply through with `undefined` fields, React
+ * writes them back, the strict side rejects, and settings become unsaveable.
+ *
+ * `Number.isFinite` matters — `NaN`/`Infinity` are `number` and make the cap
+ * comparison always-false.
+ */
+export const isAutocompleteSettingsShape = (
+  value: unknown,
+): value is AutocompleteSettings => {
+  if (typeof value !== "object" || value === null) return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.enabled === "boolean" &&
+    typeof record.model === "string" &&
+    typeof record.dailyCostCapUsd === "number" &&
+    Number.isFinite(record.dailyCostCapUsd) &&
+    // Rejected, not coerced: a sender disagreeing with us about the modes must
+    // not silently store `allowlist` behind a UI that says otherwise.
+    isAutocompleteScopeMode(record.scopeMode) &&
+    // `isUnusableAppList` and not merely `Array.isArray` + `every(string)`: a
+    // sender must not be able to launder a list the STORE would have rejected
+    // through the IPC boundary. `["", " ", "x".repeat(500)]` is every-entry-a-
+    // string and still normalizes to `[]`, which under `denylist` excludes
+    // nothing. Absent is not a valid payload here — unlike the store, where it
+    // means "predates the feature" — so the presence check stays.
+    Array.isArray(record.allowedApps) &&
+    !isUnusableAppList(record.allowedApps) &&
+    Array.isArray(record.excludedApps) &&
+    !isUnusableAppList(record.excludedApps) &&
+    typeof record.cloudScopeConsent === "string"
+  );
 };
 
 export const AUTOCOMPLETE_INHERIT_ASK_MODEL = "";
@@ -80,6 +145,10 @@ export const normalizeDailyCostCapUsd = (raw: unknown): number => {
  *
  * Junk also reads as `false`, for the same reason: only an explicit `true`
  * turns the feature on.
+ *
+ * The scope fields fail CLOSED, inverting the cap rule above deliberately: a
+ * corrupt cap reading `0` merely looks broken, whereas a corrupt `scopeMode`
+ * reading `denylist` uploads every keystroke in every app.
  */
 export const normalizeAutocompleteSettings = (raw: unknown): AutocompleteSettings => {
   const value = (raw ?? {}) as Partial<Record<keyof AutocompleteSettings, unknown>>;
@@ -87,5 +156,23 @@ export const normalizeAutocompleteSettings = (raw: unknown): AutocompleteSetting
     enabled: value.enabled === true,
     model: typeof value.model === "string" ? value.model.trim() : AUTOCOMPLETE_INHERIT_ASK_MODEL,
     dailyCostCapUsd: normalizeDailyCostCapUsd(value.dailyCostCapUsd),
+    // A stored-but-unusable list closes the WHOLE scope, not just its own field.
+    // Normalizing `excludedApps: "junk"` to `[]` while keeping a valid
+    // `scopeMode: "denylist"` is an empty deny-list, which permits every app —
+    // corruption widening access is the one outcome this must never have.
+    // `allowlist` + empty `allowedApps` permits nothing.
+    ...(isUnusableAppList(value.allowedApps) || isUnusableAppList(value.excludedApps)
+      ? {
+          scopeMode: "allowlist" as const,
+          allowedApps: [],
+          excludedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
+        }
+      : {
+          scopeMode: isAutocompleteScopeMode(value.scopeMode) ? value.scopeMode : "allowlist",
+          allowedApps: normalizeAllowedApps(value.allowedApps),
+          excludedApps: normalizeExcludedApps(value.excludedApps),
+        }),
+    cloudScopeConsent:
+      typeof value.cloudScopeConsent === "string" ? value.cloudScopeConsent.trim() : "",
   };
 };

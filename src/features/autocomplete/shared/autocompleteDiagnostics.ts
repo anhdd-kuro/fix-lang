@@ -62,6 +62,12 @@ export const AUTOCOMPLETE_RENDERER_SKIP_REASONS = [
   /** The preload bridge is missing the suggest method — nothing can dispatch. */
   "bridge-unavailable",
   /**
+   * A secure field (password input), refused by the surface before reading it —
+   * reported here rather than in `service.ts` because main never receives the
+   * text at all, which is the point.
+   */
+  "secure-field",
+  /**
    * A suggestion came back, and the surface had already moved on — so it was
    * discarded unseen. The odd one out in this list: a request WAS dispatched
    * and WAS billed, and the failure is that the model took longer than the user

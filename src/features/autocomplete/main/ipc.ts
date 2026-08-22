@@ -54,7 +54,11 @@ const toAutocompleteRequest = (raw: unknown, sessionId: string): AutocompleteReq
   // The prompt is built OUTSIDE the service's try, so a non-string suffix
   // throws out of `ipcMain.handle` rather than returning "no suggestion".
   const suffix = typeof record.suffix === "string" ? record.suffix : undefined;
-  return { requestId, prefix, suffix, sessionId };
+  // `surface` is stated, not defaulted: it is absent from the wire type, so it
+  // is this channel — not the payload — asserting that everything arriving here
+  // is FixLang's own input window. `appBundleId` stays unset for the same
+  // reason, and a renderer claiming either field cannot be read.
+  return { requestId, prefix, suffix, sessionId, surface: "own" };
 };
 
 /**

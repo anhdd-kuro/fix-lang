@@ -20,6 +20,12 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_EXCLUDED_BUNDLE_IDS } from "~/features/autocomplete/shared/autocompleteScope";
+import {
+  isAutocompleteSettingsShape,
+  normalizeAutocompleteSettings,
+  type AutocompleteSettings,
+} from "~/features/autocomplete/shared/autocompleteSettings";
 import { createTranslator } from "~/features/i18n/shared/translate";
 import { SettingAutocomplete } from "./SettingAutocomplete";
 import { I18nProvider } from "../i18n/I18nProvider";
@@ -88,10 +94,34 @@ const usageSnapshot = (
   ...overrides,
 });
 
+/**
+ * A FULL, valid `AutocompleteSettings` — not the three fields this panel shows.
+ *
+ * The fixtures here used to be `{ enabled, model, dailyCostCapUsd }`, which the
+ * real preload predicate REJECTS: `isAutocompleteSettingsShape` requires the
+ * scope and consent fields, and the bridge refuses such a payload before any IPC
+ * happens. So the suite was asserting against objects production would never
+ * accept, and — because neither the mocked read nor the expected payload carried
+ * `scopeMode`/`allowedApps`/`excludedApps`/`cloudScopeConsent` — it could not
+ * have noticed a write that dropped or reset them.
+ *
+ * Built from the shared normalizer so a newly added field appears here for free
+ * rather than being silently omitted again.
+ */
+const storedSettings = (
+  overrides: Partial<AutocompleteSettings> = {},
+): AutocompleteSettings => ({
+  ...normalizeAutocompleteSettings({}),
+  enabled: true,
+  model: "",
+  dailyCostCapUsd: 5,
+  ...overrides,
+});
+
 const baseElectronAPI = (
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> => ({
-  getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+  getAutocompleteSettings: vi.fn().mockResolvedValue(storedSettings()),
   setAutocompleteSettings: vi.fn().mockResolvedValue({ success: true }),
   getAutocompleteUsage: vi.fn().mockResolvedValue(usageSnapshot()),
   onSettingsUpdated: vi.fn().mockReturnValue(vi.fn()),
@@ -165,7 +195,7 @@ describe("SettingAutocomplete", () => {
     const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
     await mount(
       baseElectronAPI({
-        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        getAutocompleteSettings: vi.fn().mockResolvedValue(storedSettings()),
         setAutocompleteSettings,
       }),
     );
@@ -177,12 +207,221 @@ describe("SettingAutocomplete", () => {
     await clickCheckbox(input);
     await settleUi();
 
-    expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith({
-      enabled: false,
-      model: "",
-      dailyCostCapUsd: 5,
-    });
+    expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith(
+      storedSettings({
+        enabled: false,
+        model: "",
+        dailyCostCapUsd: 5,
+      }),
+    );
     expect(checkbox()?.checked).toBe(false);
+  });
+
+  /**
+   * A failed READ must not be able to become a destructive WRITE.
+   *
+   * Every control here persists the whole settings object, so after a rejected
+   * load the fallback in state is what a later unrelated toggle would send. The
+   * fallback used to carry `excludedApps: []` against a seeded store, so
+   * flipping the checkbox silently erased the shipped password-manager
+   * exclusions — a scope change from an action that has nothing to do with
+   * scope, through UI that shows no scope controls at all.
+   *
+   * Asserting the write never happens, not merely that the click occurred:
+   * a dispatched click on a controlled checkbox can make zero writes and still
+   * look green.
+   */
+  it("refuses to write after a failed load, so the seeded exclusions survive", async () => {
+    const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
+    await mount(
+      baseElectronAPI({
+        getAutocompleteSettings: vi.fn().mockRejectedValue(new Error("ipc down")),
+        setAutocompleteSettings,
+      }),
+    );
+
+    const input = checkbox();
+    if (!input) throw new Error("autocomplete checkbox not rendered");
+
+    await clickCheckbox(input);
+    await settleUi();
+
+    expect(setAutocompleteSettings).not.toHaveBeenCalled();
+  });
+
+  // The guard above is only half the fix: if the fallback itself were still
+  // `[]`, any future writable path would reintroduce the erasure.
+  it("falls back to the shared seed, never to an empty exclusion list", () => {
+    expect(normalizeAutocompleteSettings({}).excludedApps).toEqual([
+      ...DEFAULT_EXCLUDED_BUNDLE_IDS,
+    ]);
+  });
+
+  // Guards the fixture itself. The old three-field fixture was refused by the
+  // real bridge, so every assertion built on it described a payload production
+  // would never see.
+  it("uses a fixture the real preload predicate accepts", () => {
+    expect(isAutocompleteSettingsShape(storedSettings())).toBe(true);
+    expect(isAutocompleteSettingsShape({ enabled: true, model: "", dailyCostCapUsd: 5 })).toBe(
+      false,
+    );
+  });
+
+  /**
+   * The scope and consent fields have no UI, so nothing on screen would show
+   * them being dropped — only the write payload can. Toggling `enabled` must
+   * carry a non-default scope through untouched.
+   */
+  it("preserves scope and consent through an unrelated toggle", async () => {
+    const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
+    const stored = storedSettings({
+      scopeMode: "denylist",
+      allowedApps: ["com.apple.notes"],
+      excludedApps: ["com.1password.1password"],
+      cloudScopeConsent: "openai",
+    });
+    await mount(
+      baseElectronAPI({
+        getAutocompleteSettings: vi.fn().mockResolvedValue(stored),
+        setAutocompleteSettings,
+      }),
+    );
+
+    const input = checkbox();
+    if (!input) throw new Error("autocomplete checkbox not rendered");
+    await clickCheckbox(input);
+    await settleUi();
+
+    expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith({
+      ...stored,
+      enabled: false,
+    });
+  });
+
+  /**
+   * A reload means the profile under this card may already have changed, so
+   * until the new read lands there is nothing safe to write. The write here
+   * would otherwise carry the OLD profile's whole object into the NEW profile —
+   * a click in the ordinary gap between a profile-switch hotkey and the IPC
+   * round-trip, not adversarial timing.
+   */
+  it("refuses a write while a profile-switch reload is still in flight", async () => {
+    const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
+    let releaseReload: (value: AutocompleteSettings) => void = () => {
+      throw new Error("reload promise was never captured");
+    };
+    let notifyProfileChanged: () => void = () => {
+      throw new Error("onActiveProfileChanged was never subscribed");
+    };
+    const getAutocompleteSettings = vi
+      .fn()
+      .mockResolvedValueOnce(storedSettings())
+      .mockImplementationOnce(
+        () =>
+          new Promise<AutocompleteSettings>((resolve) => {
+            releaseReload = resolve;
+          }),
+      );
+
+    await mount(
+      baseElectronAPI({
+        getAutocompleteSettings,
+        setAutocompleteSettings,
+        onActiveProfileChanged: vi.fn().mockImplementation((handler: () => void) => {
+          notifyProfileChanged = handler;
+          return vi.fn();
+        }),
+      }),
+    );
+
+    await act(async () => {
+      notifyProfileChanged();
+    });
+
+    const input = checkbox();
+    if (!input) throw new Error("autocomplete checkbox not rendered");
+    await clickCheckbox(input);
+    await settleUi();
+
+    expect(setAutocompleteSettings).not.toHaveBeenCalled();
+
+    await act(async () => {
+      releaseReload(storedSettings({ enabled: false }));
+    });
+    await settleUi();
+  });
+
+  /**
+   * Two rapid switches can settle in either order. Without a generation token
+   * the older reply wins by arriving last, leaving the card describing a profile
+   * that is no longer active — and the next write sends it there.
+   */
+  it("discards a superseded reload reply", async () => {
+    const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
+    let releaseFirst: (value: AutocompleteSettings) => void = () => {
+      throw new Error("first reload promise was never captured");
+    };
+    let releaseSecond: (value: AutocompleteSettings) => void = () => {
+      throw new Error("second reload promise was never captured");
+    };
+    let notifyProfileChanged: () => void = () => {
+      throw new Error("onActiveProfileChanged was never subscribed");
+    };
+    const getAutocompleteSettings = vi
+      .fn()
+      .mockResolvedValueOnce(storedSettings())
+      .mockImplementationOnce(
+        () =>
+          new Promise<AutocompleteSettings>((resolve) => {
+            releaseFirst = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<AutocompleteSettings>((resolve) => {
+            releaseSecond = resolve;
+          }),
+      );
+
+    await mount(
+      baseElectronAPI({
+        getAutocompleteSettings,
+        setAutocompleteSettings,
+        onActiveProfileChanged: vi.fn().mockImplementation((handler: () => void) => {
+          notifyProfileChanged = handler;
+          return vi.fn();
+        }),
+      }),
+    );
+
+    await act(async () => {
+      notifyProfileChanged();
+    });
+    await act(async () => {
+      notifyProfileChanged();
+    });
+
+    // Newest resolves first, then the superseded one — the losing order.
+    await act(async () => {
+      releaseSecond(storedSettings({ model: "openai::newest" }));
+    });
+    await settleUi();
+    await act(async () => {
+      releaseFirst(storedSettings({ model: "openai::stale" }));
+    });
+    await settleUi();
+
+    // Asserted through the WRITE, not through the rendered model field: that
+    // field shows a display name, never the raw ref, so reading it back would
+    // pass whichever reply won.
+    const input = checkbox();
+    if (!input) throw new Error("autocomplete checkbox not rendered");
+    await clickCheckbox(input);
+    await settleUi();
+
+    expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith(
+      storedSettings({ model: "openai::newest", enabled: false }),
+    );
   });
 
   const capField = (): HTMLInputElement | null =>
@@ -214,7 +453,7 @@ describe("SettingAutocomplete", () => {
         baseElectronAPI({
           getAutocompleteSettings: vi
             .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+            .mockResolvedValue(storedSettings()),
         }),
       );
 
@@ -234,7 +473,7 @@ describe("SettingAutocomplete", () => {
         baseElectronAPI({
           getAutocompleteSettings: vi
             .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+            .mockResolvedValue(storedSettings()),
           setAutocompleteSettings,
         }),
       );
@@ -243,11 +482,13 @@ describe("SettingAutocomplete", () => {
 
       await typeCap("2.5");
 
-      expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith({
-        enabled: true,
-        model: "",
-        dailyCostCapUsd: 2.5,
-      });
+      expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith(
+        storedSettings({
+          enabled: true,
+          model: "",
+          dailyCostCapUsd: 2.5,
+        }),
+      );
     });
 
     /**
@@ -261,7 +502,7 @@ describe("SettingAutocomplete", () => {
         baseElectronAPI({
           getAutocompleteSettings: vi
             .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+            .mockResolvedValue(storedSettings()),
           setAutocompleteSettings,
         }),
       );
@@ -278,7 +519,7 @@ describe("SettingAutocomplete", () => {
         baseElectronAPI({
           getAutocompleteSettings: vi
             .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+            .mockResolvedValue(storedSettings()),
           setAutocompleteSettings,
         }),
       );
@@ -297,18 +538,20 @@ describe("SettingAutocomplete", () => {
         baseElectronAPI({
           getAutocompleteSettings: vi
             .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+            .mockResolvedValue(storedSettings()),
           setAutocompleteSettings,
         }),
       );
 
       await typeCap("5000");
 
-      expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith({
-        enabled: true,
-        model: "",
-        dailyCostCapUsd: 100,
-      });
+      expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith(
+        storedSettings({
+          enabled: true,
+          model: "",
+          dailyCostCapUsd: 100,
+        }),
+      );
     });
 
     // A zero cap refuses every request, and nothing else on screen says so.
@@ -331,7 +574,7 @@ describe("SettingAutocomplete", () => {
         baseElectronAPI({
           getAutocompleteSettings: vi
             .fn()
-            .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+            .mockResolvedValue(storedSettings()),
         }),
       );
 
@@ -358,7 +601,7 @@ describe("SettingAutocomplete", () => {
     const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: true });
     await mount(
       baseElectronAPI({
-        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        getAutocompleteSettings: vi.fn().mockResolvedValue(storedSettings()),
         setAutocompleteSettings,
       }),
     );
@@ -372,11 +615,13 @@ describe("SettingAutocomplete", () => {
     });
     await settleUi();
 
-    expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith({
-      enabled: true,
-      model: "openai::gpt-5-mini",
-      dailyCostCapUsd: 5,
-    });
+    expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith(
+      storedSettings({
+        enabled: true,
+        model: "openai::gpt-5-mini",
+        dailyCostCapUsd: 5,
+      }),
+    );
   });
 
   // A profile switch broadcasts `active-profile-changed`, not
@@ -430,7 +675,7 @@ describe("SettingAutocomplete", () => {
   it('shows "Same as Ask AI" for the empty inherit sentinel instead of a blank picker', async () => {
     await mount(
       baseElectronAPI({
-        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        getAutocompleteSettings: vi.fn().mockResolvedValue(storedSettings()),
       }),
     );
 
@@ -656,7 +901,7 @@ describe("SettingAutocomplete", () => {
     const setAutocompleteSettings = vi.fn().mockResolvedValue({ success: false });
     await mount(
       baseElectronAPI({
-        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        getAutocompleteSettings: vi.fn().mockResolvedValue(storedSettings()),
         setAutocompleteSettings,
       }),
     );
@@ -666,11 +911,13 @@ describe("SettingAutocomplete", () => {
     await clickCheckbox(input);
     await settleUi();
 
-    expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith({
-      enabled: false,
-      model: "",
-      dailyCostCapUsd: 5,
-    });
+    expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith(
+      storedSettings({
+        enabled: false,
+        model: "",
+        dailyCostCapUsd: 5,
+      }),
+    );
     // The store was never written, so the checkbox must not keep showing the
     // rejected value — a silent stale-success UI is worse than the reload the
     // user would otherwise reach for.
@@ -691,7 +938,7 @@ describe("SettingAutocomplete", () => {
       .mockRejectedValue(new Error("ipc channel closed"));
     await mount(
       baseElectronAPI({
-        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        getAutocompleteSettings: vi.fn().mockResolvedValue(storedSettings()),
         setAutocompleteSettings,
       }),
     );
@@ -701,11 +948,13 @@ describe("SettingAutocomplete", () => {
     await clickCheckbox(input);
     await settleUi();
 
-    expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith({
-      enabled: false,
-      model: "",
-      dailyCostCapUsd: 5,
-    });
+    expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith(
+      storedSettings({
+        enabled: false,
+        model: "",
+        dailyCostCapUsd: 5,
+      }),
+    );
     expect(checkbox()?.checked).toBe(true);
     expect(container.textContent).toContain(
       tEn("settings.autocomplete.saveError"),
@@ -724,7 +973,7 @@ describe("SettingAutocomplete", () => {
       .mockRejectedValue(new Error("ipc channel closed"));
     await mount(
       baseElectronAPI({
-        getAutocompleteSettings: vi.fn().mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
+        getAutocompleteSettings: vi.fn().mockResolvedValue(storedSettings()),
         setAutocompleteSettings,
       }),
     );
@@ -738,11 +987,13 @@ describe("SettingAutocomplete", () => {
     });
     await settleUi();
 
-    expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith({
-      enabled: true,
-      model: "openai::gpt-5-mini",
-      dailyCostCapUsd: 5,
-    });
+    expect(setAutocompleteSettings).toHaveBeenCalledExactlyOnceWith(
+      storedSettings({
+        enabled: true,
+        model: "openai::gpt-5-mini",
+        dailyCostCapUsd: 5,
+      }),
+    );
     // Back to the inherit sentinel, whose caption is the visible proof.
     expect(container.textContent).toContain(
       tEn("settings.autocomplete.model.sameAsAskAI"),

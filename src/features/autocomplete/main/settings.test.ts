@@ -1,6 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_EXCLUDED_BUNDLE_IDS } from "~/features/autocomplete/shared/autocompleteScope";
 import { DEFAULT_DAILY_COST_CAP_USD } from "~/features/autocomplete/shared/autocompleteSettings";
 import { registerAutocompleteSettingsHandlers } from "./settings";
+
+const NORMALIZED_SCOPE_DEFAULTS = {
+  scopeMode: "allowlist" as const,
+  allowedApps: [],  excludedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
+  cloudScopeConsent: "",
+};
+
+const VALID_SCOPE_PAYLOAD = {
+  scopeMode: "allowlist" as const,
+  allowedApps: [] as string[],
+  excludedApps: [] as string[],
+  cloudScopeConsent: "",
+};
 
 const { electronMocks, apiStoreMocks } = vi.hoisted(() => ({
   electronMocks: { handle: vi.fn() },
@@ -43,6 +57,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
         enabled: false,
         model: "openai::gpt-5",
         dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+        ...NORMALIZED_SCOPE_DEFAULTS,
       });
     });
 
@@ -57,6 +72,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
         enabled: false,
         model: "",
         dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+        ...NORMALIZED_SCOPE_DEFAULTS,
       });
     });
 
@@ -73,6 +89,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
         enabled: false,
         model: "openai::gpt-5",
         dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+        ...NORMALIZED_SCOPE_DEFAULTS,
       });
     });
 
@@ -88,6 +105,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
         enabled: false,
         model: "",
         dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+        ...NORMALIZED_SCOPE_DEFAULTS,
       });
     });
 
@@ -100,6 +118,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
         enabled: false,
         model: "",
         dailyCostCapUsd: DEFAULT_DAILY_COST_CAP_USD,
+        ...NORMALIZED_SCOPE_DEFAULTS,
       });
     });
   });
@@ -112,11 +131,17 @@ describe("registerAutocompleteSettingsHandlers", () => {
         enabled: true,
         model: "ollama::llama3",
         dailyCostCapUsd: 2.5,
+        ...VALID_SCOPE_PAYLOAD,
       });
 
       expect(apiStoreMocks.updateProfileSetting).toHaveBeenCalledWith(
         "settingsAutocomplete",
-        { enabled: true, model: "ollama::llama3", dailyCostCapUsd: 2.5 },
+        {
+          enabled: true,
+          model: "ollama::llama3",
+          dailyCostCapUsd: 2.5,
+          ...VALID_SCOPE_PAYLOAD,
+        },
       );
       expect(result).toEqual({ success: true });
     });
@@ -131,6 +156,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
         enabled: true,
         model: "",
         dailyCostCapUsd: 5,
+        ...VALID_SCOPE_PAYLOAD,
       });
 
       expect(result).toEqual({ success: false, error: "write failed" });
@@ -233,6 +259,34 @@ describe("registerAutocompleteSettingsHandlers", () => {
       },
     );
 
+    // Every fixture above omits all three scope fields, so each is rejected for
+    // two reasons at once and none of them would notice a weakened scope check.
+    // These vary ONE scope field against an otherwise-valid payload.
+    it.each([
+      ["an unknown scopeMode", { ...VALID_SCOPE_PAYLOAD, scopeMode: "everywhere" }],
+      ["a non-string scopeMode", { ...VALID_SCOPE_PAYLOAD, scopeMode: 42 }],
+      ["a non-array excludedApps", { ...VALID_SCOPE_PAYLOAD, allowedApps: [], excludedApps: "com.apple.mail" }],
+      // The array-shape check and the ELEMENT-type check are two conditions;
+      // a fixture that is simply the wrong type passes the first and exercises
+      // neither `.every`, so each list needs a well-shaped array of junk too.
+      ["a non-string element in allowedApps", { ...VALID_SCOPE_PAYLOAD, allowedApps: [42] }],
+      ["a non-string element in excludedApps", { ...VALID_SCOPE_PAYLOAD, excludedApps: [null] }],
+      ["a non-string cloudScopeConsent", { ...VALID_SCOPE_PAYLOAD, cloudScopeConsent: true }],
+    ])("rejects %s in an otherwise-valid payload", async (_description, scope) => {
+      const result = await getHandler("set-autocomplete-settings")(undefined, {
+        enabled: true,
+        model: "ollama::llama3",
+        dailyCostCapUsd: 5,
+        ...scope,
+      });
+
+      expect(apiStoreMocks.updateProfileSetting).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        success: false,
+        error: "Malformed autocomplete settings",
+      });
+    });
+
     it("catches an updateProfileSetting throw and reports it instead of rejecting the promise", async () => {
       apiStoreMocks.updateProfileSetting.mockImplementation(() => {
         throw new Error("disk full");
@@ -242,6 +296,7 @@ describe("registerAutocompleteSettingsHandlers", () => {
         enabled: true,
         model: "",
         dailyCostCapUsd: 5,
+        ...VALID_SCOPE_PAYLOAD,
       });
 
       expect(result).toEqual({ success: false, error: "disk full" });

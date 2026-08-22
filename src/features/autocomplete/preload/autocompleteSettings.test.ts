@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_EXCLUDED_BUNDLE_IDS } from "~/features/autocomplete/shared/autocompleteScope";
 import { autocompleteSettingsFeature } from "./autocompleteSettings";
+import type { AutocompleteSettings } from "~/features/autocomplete/shared/autocompleteSettings";
+
+const NORMALIZED_SCOPE_DEFAULTS = {
+  scopeMode: "allowlist" as const,
+  allowedApps: [],  excludedApps: [...DEFAULT_EXCLUDED_BUNDLE_IDS],
+  cloudScopeConsent: "",
+};
 
 const electronMocks = vi.hoisted(() => ({
   invoke: vi.fn(),
@@ -20,6 +28,9 @@ describe("autocompleteSettings preload boundary", () => {
         enabled: false,
         model: "openai::gpt-5",
         dailyCostCapUsd: 5,
+        scopeMode: "denylist",
+        allowedApps: [],        excludedApps: ["com.apple.mail"],
+        cloudScopeConsent: "openai",
       });
 
       const result = await autocompleteSettingsFeature.getAutocompleteSettings();
@@ -31,6 +42,9 @@ describe("autocompleteSettings preload boundary", () => {
         enabled: false,
         model: "openai::gpt-5",
         dailyCostCapUsd: 5,
+        scopeMode: "denylist",
+        allowedApps: [],        excludedApps: ["com.apple.mail"],
+        cloudScopeConsent: "openai",
       });
     });
 
@@ -59,7 +73,12 @@ describe("autocompleteSettings preload boundary", () => {
 
         const result = await autocompleteSettingsFeature.getAutocompleteSettings();
 
-        expect(result).toEqual({ enabled: false, model: "", dailyCostCapUsd: 5 });
+        expect(result).toEqual({
+          enabled: false,
+          model: "",
+          dailyCostCapUsd: 5,
+          ...NORMALIZED_SCOPE_DEFAULTS,
+        });
       },
     );
   });
@@ -72,11 +91,21 @@ describe("autocompleteSettings preload boundary", () => {
         enabled: true,
         model: "ollama::llama3",
         dailyCostCapUsd: 5,
+        scopeMode: "denylist",
+        allowedApps: [],        excludedApps: ["com.apple.mail"],
+        cloudScopeConsent: "",
       });
 
       expect(electronMocks.invoke).toHaveBeenCalledWith(
         "set-autocomplete-settings",
-        { enabled: true, model: "ollama::llama3", dailyCostCapUsd: 5 },
+        {
+          enabled: true,
+          model: "ollama::llama3",
+          dailyCostCapUsd: 5,
+          scopeMode: "denylist",
+          allowedApps: [],          excludedApps: ["com.apple.mail"],
+          cloudScopeConsent: "",
+        },
       );
       expect(result).toEqual({ success: true });
     });
@@ -91,6 +120,9 @@ describe("autocompleteSettings preload boundary", () => {
         enabled: true,
         model: "",
         dailyCostCapUsd: 5,
+        scopeMode: "allowlist",
+        allowedApps: [],        excludedApps: [],
+        cloudScopeConsent: "",
       });
 
       expect(result).toEqual({ success: false, error: "write failed" });
@@ -115,16 +147,36 @@ describe("autocompleteSettings preload boundary", () => {
       "rejects a malformed payload without invoking the main process (case %#): %j",
       async (payload) => {
         const result = await autocompleteSettingsFeature.setAutocompleteSettings(
-          payload as unknown as {
-            enabled: boolean;
-            model: string;
-            dailyCostCapUsd: number;
-          },
+          payload as unknown as AutocompleteSettings,
         );
 
         expect(electronMocks.invoke).not.toHaveBeenCalled();
         expect(result).toEqual({ success: false });
       },
     );
+
+    // Every fixture above omits all three scope fields, so each is rejected for
+    // two reasons at once and none of them would notice a weakened scope check.
+    // These vary ONE scope field against an otherwise-valid payload.
+    it.each([
+      ["an unknown scopeMode", { scopeMode: "everywhere", allowedApps: [], excludedApps: [], cloudScopeConsent: "" }],
+      ["a non-array excludedApps", { scopeMode: "allowlist", allowedApps: [], excludedApps: "com.apple.mail", cloudScopeConsent: "" }],
+      // The array-shape check and the ELEMENT-type check are two conditions;
+      // a fixture that is simply the wrong type passes the first and exercises
+      // neither `.every`, so each list needs a well-shaped array of junk too.
+      ["a non-string element in allowedApps", { scopeMode: "allowlist", allowedApps: [42], excludedApps: [], cloudScopeConsent: "" }],
+      ["a non-string element in excludedApps", { scopeMode: "allowlist", allowedApps: [], excludedApps: [null], cloudScopeConsent: "" }],
+      ["a non-string cloudScopeConsent", { scopeMode: "allowlist", allowedApps: [], excludedApps: [], cloudScopeConsent: true }],
+    ])("rejects %s in an otherwise-valid payload", async (_description, scope) => {
+      const result = await autocompleteSettingsFeature.setAutocompleteSettings({
+        enabled: true,
+        model: "ollama::llama3",
+        dailyCostCapUsd: 5,
+        ...scope,
+      } as unknown as AutocompleteSettings);
+
+      expect(electronMocks.invoke).not.toHaveBeenCalled();
+      expect(result).toEqual({ success: false });
+    });
   });
 });

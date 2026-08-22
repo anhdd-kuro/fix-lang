@@ -20,6 +20,10 @@
  * that could name its own session could abort another window's in-flight
  * request. Main derives the session id from `event.sender.id` instead — see
  * `main/ipc.ts`.
+ *
+ * `surface`/`appBundleId` are off this type for the same reason, with more at
+ * stake: they live on `AutocompleteRequest` in `main/service.ts` so a renderer
+ * cannot express them.
  */
 
 /**

@@ -36,6 +36,8 @@ vi.mock("electron", () => ({
 }));
 // Imports (after mocks) — the real implementation under test.
 import { resolveDefaultModel, resolveDefaultOpenAIModel } from "~/const";
+import { DEFAULT_EXCLUDED_BUNDLE_IDS } from "~/features/autocomplete/shared/autocompleteScope";
+import { normalizeAutocompleteSettings } from "~/features/autocomplete/shared/autocompleteSettings";
 import { migrateProfileForModelRefs } from "~/features/profiles/store/profileMigration";
 import { modelRefForModel } from "~/features/providers/shared/modelRef";
 import {
@@ -492,6 +494,9 @@ describe("the profile-bound variants write to the id they are handed, not the ac
               enabled: true,
               model: "openai::gpt-4o",
               dailyCostCapUsd: 5,
+              scopeMode: "allowlist",
+              allowedApps: [],              excludedApps: [],
+              cloudScopeConsent: "",
             },
           }),
         }),
@@ -520,6 +525,9 @@ describe("the profile-bound variants write to the id they are handed, not the ac
               enabled: true,
               model: "openrouter::llama",
               dailyCostCapUsd: 5,
+              scopeMode: "allowlist",
+              allowedApps: [],              excludedApps: [],
+              cloudScopeConsent: "",
             },
           }),
         }),
@@ -1192,6 +1200,34 @@ describe("apiStoreSchema — settingsCorrect default carries all eight built-in 
 //
 // Proof in `.scratch/caveman-preset/evidence/05-fix/schema-hash-delta-proof.json`
 // and `.../schema-node-analysis.txt`.
+//
+// Updated for autocomplete's scope fields, merged on top of everything above.
+// Four bare-type leaves join `settingsAutocomplete.properties` — `scopeMode`,
+// `allowedApps`, `excludedApps`, `cloudScopeConsent` — and the whole-node
+// `default` gains the same four, with `excludedApps` SEEDED from
+// `DEFAULT_EXCLUDED_BUNDLE_IDS` while `allowedApps` starts EMPTY. That asymmetry
+// is the point: the exclusions are the fail-closed list and must ship populated,
+// whereas a seeded allow-list would start the fail-closed mode open. The seed is
+// also why the default cannot be written as `[]` — it has to keep agreeing with
+// `normalizeExcludedApps`, which reads `[]` as "the user cleared it".
+//
+// No `enum`, no `items`, no `required` entry, so `clearInvalidConfig` still has
+// nothing to wipe over: no installed profile can hold these four keys at the
+// wrong type, because no shipped build has ever written them.
+//
+// Derived, not assumed, and derived against the MERGED schema rather than
+// either parent — this branch and `main` both edited this node's neighbourhood,
+// so a hash carried over from either side would be wrong:
+//
+//   - the merged serialisation is 74860 bytes and hashes to
+//     `ce4fae55c446a983e36dd8c25e078481d3f37b89dbbe6d62817cd661ba09d6a5`
+//   - the properties insertion (166 bytes) occurs exactly ONCE, and the default
+//     insertion (364 bytes) exactly ONCE
+//   - deleting just those two substrings leaves 74330 bytes — 74860 − 166 − 364,
+//     so nothing else moved — and reproduces `main`'s snapshot
+//     `b78c6b4141412b66cc6cc23ddf8faa464df6373ac5a6cf28bd70f2dd7e44f860`
+//     byte-for-byte, which is what proves the merge preserved `extraOptions`
+//     and the `schemaVersion` bump intact.
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
@@ -1200,8 +1236,27 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "b78c6b4141412b66cc6cc23ddf8faa464df6373ac5a6cf28bd70f2dd7e44f860",
+      "ce4fae55c446a983e36dd8c25e078481d3f37b89dbbe6d62817cd661ba09d6a5",
     );
+  });
+
+  /**
+   * The ajv default and `normalizeExcludedApps` have to agree on what "absent"
+   * means, and only one of them can say it. `normalizeExcludedApps` seeds the
+   * shipped exclusions from `undefined` and treats `[]` as "the user cleared
+   * the list", so an ajv default carrying `allowedApps: [],excludedApps: []` silently hands a
+   * whole-node-absent profile an empty exclusion list — and in `denylist` mode
+   * that is 1Password and Keychain Access readable, with nothing on screen.
+   */
+  it("seeds the exclusions in the node default, matching what the normalizer would", () => {
+    const fallback = apiStoreSchema.profiles.items.properties.settings.properties
+      .settingsAutocomplete.default;
+
+    expect(fallback.excludedApps).toEqual([...DEFAULT_EXCLUDED_BUNDLE_IDS]);
+    // `[]` here would survive the normalizer unchanged — it reads as "cleared".
+    expect(normalizeAutocompleteSettings(fallback).excludedApps).toEqual([
+      ...DEFAULT_EXCLUDED_BUNDLE_IDS,
+    ]);
   });
 });
 
@@ -1429,6 +1484,10 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
           enabled: false,
           model: "openai::gpt-4o",
           dailyCostCapUsd: 2.5,
+          scopeMode: "denylist",
+          allowedApps: ["com.apple.mail"],
+          excludedApps: ["com.1password.1password"],
+          cloudScopeConsent: "openai",
         },
       }),
     });
@@ -1453,6 +1512,28 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
     // So is the spend cap: it names no provider, account or machine, and an
     // export that reset it would hand the recipient a budget they never chose.
     expect(result.settings.settingsAutocomplete.dailyCostCapUsd).toBe(2.5);
+  });
+
+  /**
+   * `cloudScopeConsent` records that ONE person agreed to send keystrokes from
+   * other apps to a named provider. It is not a portable preference, and this
+   * same function sanitizes IMPORTS — so a shared profile carrying it would
+   * pre-consent its recipient to a decision they never made.
+   */
+  it("clears cloudScopeConsent on export", () => {
+    const result = toExportableProfile(exportableFixture());
+
+    expect(result.settings.settingsAutocomplete.cloudScopeConsent).toBe("");
+    // The app lists are the user's own configuration and do travel.
+    expect(result.settings.settingsAutocomplete.excludedApps).toEqual([
+      "com.1password.1password",
+    ]);
+  });
+
+  it("clears cloudScopeConsent on import, so a shared profile cannot pre-consent", () => {
+    const result = sanitizeImportedProfile(exportableFixture());
+
+    expect(result.settings.settingsAutocomplete.cloudScopeConsent).toBe("");
   });
 
   it("keeps every non-model setting, so an export is still a usable profile", () => {
@@ -1515,7 +1596,13 @@ describe("toExportableProfile — strips apiKey and every model field, keeping t
         },
         settingsPromptGen: { ...secretsOnly.settings.settingsPromptGen, model: "" },
         settingsSummarize: { ...secretsOnly.settings.settingsSummarize, model: "" },
-        settingsAutocomplete: { ...secretsOnly.settings.settingsAutocomplete, model: "" },
+        settingsAutocomplete: {
+          ...secretsOnly.settings.settingsAutocomplete,
+          model: "",
+          // One person's consent to upload other apps' keystrokes, not a
+          // portable setting — and this function also sanitizes imports.
+          cloudScopeConsent: "",
+        },
       },
     };
     expect(exportable).toEqual(blanked);
