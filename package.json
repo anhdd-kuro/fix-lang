@@ -1,6 +1,6 @@
 {
   "name": "fix-lang",
-  "version": "0.34.0",
+  "version": "0.35.0",
   "description": "Local macOS menu-bar app: AI text correction and writing tools via OpenAI, OpenRouter, Anthropic, AWS Bedrock, Ollama, or LM Studio",
   "author": {
     "name": "Anhdd Kuro",
