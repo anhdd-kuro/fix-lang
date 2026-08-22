@@ -1,12 +1,25 @@
 ---
 name: fixlang-release-homebrew
-description: "Use when cutting a FixLang release, editing .github/workflows/release.yml, or working on the Homebrew tap (anhdd-kuro/homebrew-tap: scripts/sync-fixlang.mjs, sync-fixlang.yml, the generated Casks/fixlang.rb). Examples: \"release 0.3.0\", \"brew install fails\", \"tap sync red\", \"node:sqlite bundle error in release\", \"new blank line at EOF\", \"casks must be in a tap\", \"brew upgrade proof\". Covers release trigger, orphan-tag resume, cask generation + brew style/audit traps."
+description: "Use when cutting a FixLang release, editing .github/workflows/release.yml, working on the Homebrew tap (anhdd-kuro/homebrew-tap: scripts/sync-fixlang.mjs, sync-fixlang.yml, the generated Casks/fixlang.rb and fixlang@beta.rb), or touching the in-app update service, its in-flight claim, or release-notes rendering. Examples: \"release 0.3.0\", \"brew install fails\", \"tap sync red\", \"cask conflicts_with\", \"node:sqlite bundle error in release\", \"new blank line at EOF\", \"casks must be in a tap\", \"brew upgrade proof\", \"release notes render wrong\". Covers release trigger, orphan-tag resume, cask generation + brew style/audit traps, the TWO cask tokens the tap must emit, the single in-flight flag, and untrusted release notes."
 ---
 
 # FixLang — Release + Homebrew Distribution Traps
 
 Two repos. App = `anhdd-kuro/fix-lang`. Tap = `anhdd-kuro/homebrew-tap` (separate).
 GitHub Releases = source of truth. Tap copies validated metadata only. Apple Silicon / arm64 only. App unsigned, not notarized — never automate Gatekeeper/`xattr`.
+
+**TWO cask tokens, not one.** `fixlang` (stable) and `fixlang@beta` (pre-release),
+emitted by **one** sync run so they cannot drift, each declaring `conflicts_with`
+the other so brew itself refuses both at once. This is not decoration: it is the
+only channel mechanism Homebrew offers (no cask downgrade exists), and the app
+switches channels by uninstalling one token and installing the other. Ship one
+cask, or two without the mutual `conflicts_with`, and both install on every
+machine — the app then reads `activeChannel: "both"` and **refuses both the
+switch and the Revert**, i.e. the escape hatch is gone for everyone, and no test
+in THIS repository can catch it because the tap is a different repo. Everywhere
+below that says `fixlang` in a Caskroom path or a brew argv, the code takes a
+**token parameter**. Before touching the tap, the update service, or anything
+that names a cask: read [Pre-release channel](../fixlang-prerelease-channel/SKILL.md).
 
 ## Cut release
 
@@ -125,7 +138,7 @@ Rules now baked into `pendingInstall.ts` + `updateService.ts`:
 - Marker carries `startedAt`. Missing/garbage timestamp parses to `0` = long expired (old markers keep old behavior).
 - `reconcilePendingInstall` order matters: version changed → `installed`; else Caskroom has target → `restart-required`; else inside `UPGRADE_GRACE_MS` (20 min) → `in-progress`; else `failed`.
 - `in-progress` **keeps** the marker and sets `installing = true`, which also makes `checkForUpdates` bail — otherwise a check republishes `available` and re-arms the button mid-upgrade.
-- Completion probe is `<prefix>/Caskroom/fixlang/<version>` (plain `statSync`, no subprocess, still true after the helper exits). Version string is pattern-checked so it cannot escape the directory.
+- Completion probe is `<prefix>/Caskroom/<token>/<version>` (plain `statSync`, no subprocess, still true after the helper exits). Version string is pattern-checked so it cannot escape the directory. **`<token>` is the marker's TARGET token, never the literal `fixlang`** — hardcoding it makes a correct beta install report `failed` after the grace period, and the prerelease skill records a one-accessor version of that mutant surviving a 5069-test run.
 - Poll it every 15s while waiting, deadline `startedAt + grace` (not `launch + grace`).
 - `restart-required` restarts with `app.relaunch()` + `app.exit(0)`. **Never `open -b`** — that is the trap above. `execPath` is the replaced bundle, so re-exec runs the new version.
 
@@ -167,6 +180,59 @@ Must `rm` the link: the later smoke step refuses to run if `anhdd-kuro/tap` is a
 - One blank line before `app "FixLang.app"` — StanzaGrouping.
 - Keep real `sha256` (never `:no_check`). No `auto_updates`, `livecheck`, `preflight`, `postflight`, no automatic `xattr`.
 Update the pinned contract test (`scripts/sync-fixlang.test.mjs`) byte-for-byte when changing renderCask output.
+
+## One in-flight flag — every Homebrew-driven operation shares it
+
+`updateService.ts` arbitrates the stable install, the channel switch and the
+revert on **one** `installing` boolean. **A new periodic check, auto-update, or
+third Homebrew action does NOT get its own flag.** Adding one is the locally
+sensible choice and it is wrong: two detached `/bin/sh` helpers can then run
+against an app that has already quit, one `brew uninstall`ing while the other
+`brew upgrade`s off the same download lock, with `/Applications/FixLang.app`
+removed by whichever wins. Each path passes its own tests the whole time.
+
+Three properties that look like tidying and are not:
+
+- **The claim is read again at PUBLISH time, not only at entry**
+  (`inFlightOperationOwnsState`). Both checks already refuse to *start* while
+  the flag is held; that is only half. A check already in flight when an
+  operation begins used to publish its stale answer over the live one — a revert
+  mid-download had its byte progress replaced by "a beta is available".
+- **The check abandons its answer; the operation does not refuse to start.**
+  Deliberate: refusing would fail a Revert press for as long as a GitHub scan
+  runs (10 s per request, up to three), and Revert is the one direction that
+  exists to rescue a user from a bad build.
+- **The hand-off, not the returned result, releases the claim.**
+  `withInstallingClaim` passes `markHandedOff` INTO the body rather than
+  inferring it from what the body resolves to, because the statement that spawns
+  the detached helper is not the last one — a log line and `quitApp` follow, and
+  either can throw. Releasing there re-arms a button whose next press spawns a
+  second helper against casks the first already owns. A body that forgets to
+  call `markHandedOff` fails **closed** (a resolved `success` still counts as a
+  hand-off), which is the safe direction.
+
+## Untrusted release notes — one normalizer, both channels
+
+Release bodies are attacker-choosable text rendered inside the app. Two controls,
+both easy to mistake for formatting:
+
+- **`normalizeReleaseNotes` has exactly ONE definition**, in
+  `src/main/update/releaseAsset.ts`, imported by the stable path
+  (`updateService.ts`) and by the pre-release path (`githubReleaseSource.ts`).
+  It strips bidi control characters (`U+061C`, `U+200E/200F`, `U+202A-202E`, `U+2066-2069` — written as escapes in `BIDI_CONTROL_CHARACTERS`, never pasted literally into a doc); it truncates
+  at `RELEASE_NOTES_MAX_LENGTH`, backing off a split surrogate pair, closing an
+  open code fence and appending a truncation marker. **Do not re-fork it per
+  channel.** An earlier doc described it as duplicated-and-diverged and handed
+  the next agent a migration that had already landed — "simplifying" the stable
+  path back to a private copy is how the bidi strip disappears with nothing red.
+  Its docblock owns the rules.
+- **A link whose LABEL claims one destination while its `href` opens another is
+  displayed as the href** (`SettingUpdates.tsx`). This is a security control over
+  attacker-chosen input sitting in an otherwise ordinary UI component, and it
+  will make some honest links render worse. **That is not a cosmetic regression
+  to delete — tighten what counts as a destination claim instead.** The exact
+  mechanism is deliberately not described here: it is being reworked, and a
+  description would be stale on landing. The invariant is what must survive.
 
 ## Reproduce brew checks LOCALLY (skip slow CI loops)
 

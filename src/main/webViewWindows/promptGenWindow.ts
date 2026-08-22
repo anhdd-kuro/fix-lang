@@ -1,6 +1,7 @@
 import path from "path";
 import { BrowserWindow, screen, ipcMain, app } from "electron";
 import { attachThemeSync } from "./attachThemeSync";
+import { applyExternalNavigationGuard } from "./externalNavigationGuard";
 import { buildPromptGenWindowTitle } from "./windowTitles";
 import appIcon from "../../../resources/icon.ico?asset";
 
@@ -41,6 +42,7 @@ export function createPromptGenWindow() {
     visibleOnFullScreen: true,
   });
   attachThemeSync(promptGenWindow);
+  applyExternalNavigationGuard(promptGenWindow);
 
   // Electron's default behavior re-titles the native window from the loaded
   // document's <title> tag (a static, English-only fallback in index.html)

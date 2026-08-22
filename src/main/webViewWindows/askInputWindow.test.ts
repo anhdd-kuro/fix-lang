@@ -54,7 +54,13 @@ class BrowserWindowMock {
   loadFile = vi.fn();
   setPosition = vi.fn();
   setSize = vi.fn();
-  webContents = { id: WEB_CONTENTS_ID, send: vi.fn(), on: vi.fn() };
+  webContents = {
+    id: WEB_CONTENTS_ID,
+    send: vi.fn(),
+    on: vi.fn(),
+    setWindowOpenHandler: vi.fn(),
+    getURL: vi.fn(() => ""),
+  };
 }
 
 let lastWindow: BrowserWindowMock | null = null;

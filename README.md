@@ -125,6 +125,64 @@ If you disconnect a provider, only the presets and settings that were using it g
   instead of failing silently; details are in
   `~/Library/Application Support/fix-lang/logs/homebrew-update.log`.
 
+### Pre-release builds and reverting
+
+- The **About** tab has a **Pre-release** section below the ordinary update flow,
+  with its own check button and its own result line. Nothing about it runs on a
+  routine update check — you only see a pre-release build when you ask for one,
+  and the normal update flow never offers you one by accident.
+- **Trying a pre-release** shows the version and its release notes first, then
+  asks you to confirm a dialog naming that exact version. Cancelling does nothing
+  at all. The dialog states the mechanics — FixLang quits, downloads with
+  Homebrew and reopens, and reverting needs no confirmation — and one risk:
+  settings a pre-release writes may not be readable by the stable build
+  afterwards. That is the only warning it carries, and it is spelled out below.
+- **Going back is one button and asks for no confirmation.** *Revert to stable*
+  installs the current stable release even though it is an *older* version than
+  the pre-release you are running — that is the point. Escaping a build that
+  misbehaves should be fast. (One setup does not get that button at all — see
+  the note below on Homebrew in a non-standard location.)
+- **The switch itself never touches your data.** Settings, profiles, presets,
+  hotkeys, API keys, and history all live in
+  `~/Library/Application Support/fix-lang/`, outside either app bundle, and
+  neither direction removes or rewrites them.
+- **Pre-releases have had less time in front of users — the automated gates are
+  identical (see [Publishing a pre-release](#publishing-a-pre-release)) — and
+  both channels share that one data directory.** FixLang's stored config only ever migrates *forward* — there is
+  no downgrade path — so a pre-release that changes the shape of something it
+  stores can leave the stable build unable to read it on the way back. If that
+  happens, the stable build does not fall back to a default or ignore the one
+  bad value: it **discards the whole stored configuration** on its next launch —
+  every profile, preset, and API key reference — and reverting does not bring
+  any of it back. Local history is unaffected. The confirm dialog tells you this
+  at the moment you switch, and gives the only precaution there is: export your
+  profiles from **Settings → Profiles** first if you want a copy.
+- Homebrew has no way to downgrade a cask, so FixLang publishes the pre-release
+  stream as a second cask (`fixlang@beta`) and a switch uninstalls one and
+  installs the other. The download happens while the app is still running; there
+  is a brief window during the swap where FixLang is not in `/Applications`. If
+  the install fails, it is retried once and then the build you started from is
+  reinstalled, so a failed switch leaves you where you were. If even that fails,
+  the recovery command is written to
+  `~/Library/Application Support/fix-lang/logs/homebrew-channel-switch.log` —
+  a separate file from the ordinary update's `homebrew-update.log`, because at
+  that point there may be no FixLang left to report through.
+- While a pre-release build is installed, newer pre-releases are offered in that
+  section and a newer *stable* release is still offered as an ordinary update.
+- **One case where the Revert button is not there.** FixLang looks for Homebrew
+  only at `/opt/homebrew/bin/brew` and `/usr/local/bin/brew`. If yours lives
+  somewhere else, the app cannot tell which cask you are running, reports itself
+  as stable, and shows no Pre-release controls at all — including no *Revert to
+  stable* — even while a pre-release is installed. Nothing is broken and your
+  data is untouched; you just have to switch by hand, with the commands under
+  [With Homebrew](#with-homebrew-apple-silicon). The same is true if you
+  installed the beta cask yourself rather than through the button.
+- **Manual DMG installs** see the pre-release version and its notes with a
+  **Download from GitHub** link instead of a one-click button, exactly as they do
+  for ordinary updates. If you have somehow forced both casks to be installed at
+  once, FixLang refuses to switch and names both tokens plus the command that
+  resolves it, rather than guessing which copy to remove.
+
 ## Installation
 
 ### From release
@@ -202,6 +260,41 @@ To remove it:
 ```bash
 brew uninstall --cask fixlang
 ```
+
+The tap also carries a pre-release cask, `anhdd-kuro/tap/fixlang@beta`, which
+tracks pre-release builds. The two casks declare a conflict with each other, so
+Homebrew installs at most one of them. **Use the Pre-release section of the
+About tab rather than these commands.** It stages the download before it removes
+anything, retries the install once, and puts the build you started from back if
+the switch fails — none of which happens when you run the commands yourself.
+
+Homebrew cannot downgrade or re-point a cask, so switching by hand is an
+uninstall followed by an install, and between those two there is no FixLang in
+`/Applications`. Stage the download *first*, so a missing cask or a dropped
+network fails while you still have an app:
+
+```bash
+brew fetch --cask anhdd-kuro/tap/fixlang@beta     # nothing removed yet
+brew uninstall --cask fixlang
+brew install --cask anhdd-kuro/tap/fixlang@beta \
+  || brew install --cask anhdd-kuro/tap/fixlang   # put the stable build back
+```
+
+To go back to stable — the direction you want when a pre-release misbehaves, and
+the one to use if the in-app *Revert to stable* button is not available to you:
+
+```bash
+brew fetch --cask anhdd-kuro/tap/fixlang         # nothing removed yet
+brew uninstall --cask fixlang@beta
+brew install --cask anhdd-kuro/tap/fixlang \
+  || brew install --cask anhdd-kuro/tap/fixlang@beta   # put the beta back
+```
+
+Neither direction passes `--zap` or `--force`, and neither cask has a `zap`
+stanza, so your settings, profiles, keys, and history in
+`~/Library/Application Support/fix-lang/` survive both. If the `fixlang@beta`
+cask has not been published to the tap yet, the first `brew fetch` in the switch
+recipe fails and stops there — which is why it runs first.
 
 Homebrew may ask you to review and trust this third-party cask. You can approve
 that prompt, or explicitly trust only this cask first:
@@ -353,6 +446,56 @@ The protected `v*` tag ruleset allows new tag creation by the repository
 deleted. The workflow independently validates every release tag against `main`
 and `package.json`. Keep the repository public: the in-app check reads public
 GitHub Releases.
+
+### Publishing a pre-release
+
+Pre-releases are cut from a `beta/**` branch, never from `main`. Set that
+branch's `package.json` version to `X.Y.Z-beta.N` — that exact grammar, nothing
+else is accepted — and push:
+
+```bash
+git switch -c beta/0.33.0
+# set version to 0.33.0-beta.1 in package.json
+git commit package.json -m "chore(prerelease): 0.33.0-beta.1"
+git push -u origin beta/0.33.0
+```
+
+Name the paths you are committing. That push publishes a public, unsigned DMG
+built from exactly this commit, with no pull request in between, so a `-a` that
+sweeps in an unrelated modified file ships it.
+
+`.github/workflows/prerelease.yml` runs the same build gates as a stable release
+— lint, tests, i18n catalog, build, bundle externals, and the same
+mount-and-inspect DMG validation — and publishes the result as a GitHub
+pre-release. The gates are identical; the **provenance** is not. `release.yml`
+also requires the release tag to point at a commit that is an ancestor of
+`main`, and a `beta/**` commit is by definition not, so nothing in the
+pre-release workflow proves the code was reviewed. That gap is what the
+`prerelease` environment below exists to close.
+
+**The tap goes first.** The Homebrew tap emits both casks — `fixlang` and
+`fixlang@beta` — from one sync run, with the mutual `conflicts_with` generated on
+both sides so the pair cannot drift. Until that sync has published
+`fixlang@beta`, the in-app channel switch has nothing to install, so a beta cut
+before the tap carries the token cannot be verified end to end and its first
+live exercise is a failed switch. Publish, let the tap sync (or dispatch it), and
+only then switch a machine onto the beta.
+
+The stable release workflow is untouched by this. Never merge a `-beta.N` version
+back into `main`: the main branch's manifest stays plain stable, which is what
+keeps the monotonic-version guard working. The tag ruleset excludes
+`v*-beta.*` from update and deletion protection, so a botched pre-release tag can
+be deleted and recut; stable `v*` tags keep their full protection.
+
+The publish job declares `environment: prerelease`. Create a GitHub environment
+of that name with required reviewers in repository settings — without it, that
+declaration enforces nothing and any push to a `beta/**` branch publishes
+straight to the public release feed. **This paragraph is where that item's status
+lives.** When the environment is created, update it here to say who reviews, and
+in the same commit update the three copies that exist to stop an agent assuming
+the gate works: the *Pre-release trigger* bullet in `AGENTS.md`, the ⚠️ section in
+`.claude/skills/fixlang/fixlang-prerelease-channel/SKILL.md`, and the comment on
+the `release` job in `.github/workflows/prerelease.yml`.
 
 ## Security
 

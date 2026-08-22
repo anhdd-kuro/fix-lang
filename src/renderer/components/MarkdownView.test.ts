@@ -10,12 +10,13 @@
  *    injected answer encodes the selection into the path. The release-notes
  *    renderer in `SettingUpdates.tsx` already suppresses `img` for the same
  *    reason; this one had no `img` override at all.
- * 2. **Links must go to the system browser, not a new BrowserWindow.** Neither
- *    Ask window installs a `setWindowOpenHandler`, so a bare
- *    `target="_blank"` gets Electron's default window-open behaviour: an
- *    unmanaged, app-owned window outside the result-window cap and lifecycle,
- *    rendering a remote page with a preload attached. Clicks route through the
- *    `openExternalLink` bridge (main-side http/https validated) instead.
+ * 2. **Links must go to the system browser, not a new BrowserWindow.** Clicks
+ *    route through the `openExternalLink` bridge (main-side http/https
+ *    validated). Every window now also installs a `setWindowOpenHandler` that
+ *    denies and delegates to that same policy
+ *    (`~/main/webViewWindows/externalNavigationGuard.ts`) — which is what
+ *    catches the click this handler cannot see, a MIDDLE click, since that
+ *    fires `auxclick` and never `click`.
  *
  * Drives the component with `react-dom/client` + `act` (Vitest collects
  * `.test.ts` only), same as `CorrectionResultWindow/index.test.ts`.
