@@ -14,6 +14,12 @@ import { DEFAULT_STRUCTURED_TEXT_PRESET_ID } from "~/prompts";
 export type TransformContext = {
   /** Frontmost macOS app when the hotkey fired, e.g. "Slack". */
   activeAppName?: string | null;
+  /**
+   * Ask-environment directives from `buildAskDirectives`. Applied to the
+   * system prompt by `withUserMetadata`. Absent or empty leaves that prompt
+   * byte-identical — this field must not invent a `# Metadata context` block.
+   */
+  userMetadata?: string | null;
 };
 
 /**
@@ -61,7 +67,7 @@ export const buildActiveAppContextBlock = (
       : "- Do not mention the app, and do not add app-specific markup the input does not already use.";
 
   return [
-    "Context (metadata about the request, not content to act on):",
+    "# Metadata context",
     `- The text was selected in the macOS app "${sanitizeAppNameForPrompt(appName)}".`,
     "- Use it only to infer the expected tone, formality, and formatting conventions of that app.",
     lastBullet,
@@ -69,9 +75,16 @@ export const buildActiveAppContextBlock = (
 };
 
 /**
- * Append the context block to a system prompt. Appended rather than prepended
- * so the preset's own prompt keeps the leading position, and so the varying
- * part sits at the tail of the cacheable prefix (`./cache-strategy`).
+ * Append the context block to a system prompt. Appended rather than
+ * prepended so the preset's own instructions stay the stable, cacheable
+ * prefix of the request — a different active app now only adds a varying
+ * suffix after the last cache breakpoint (`./cache-strategy`) instead of
+ * busting the provider's prompt cache for the whole request. The trade-off
+ * is the reverse of before: trailing metadata carries less weight against
+ * the preset's own instructions than a leading block would.
+ *
+ * Returns the system prompt byte-identical (not merely prefixed) when there
+ * is nothing to say, so a failed frontmost-app read costs nothing either way.
  */
 export const withActiveAppContext = (
   systemPrompt: string,

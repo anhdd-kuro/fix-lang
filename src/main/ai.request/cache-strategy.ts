@@ -9,7 +9,7 @@
  *   provider caches automatically when the same prefix is repeated
  * - Everything else: no caching support, pass messages through unchanged
  */
-import { stripModelRefPrefix } from "~/shared/modelRef";
+import { stripModelRefPrefix } from "~/features/providers/shared/modelRef";
 
 export enum CacheProvider {
   ANTHROPIC = "ANTHROPIC",

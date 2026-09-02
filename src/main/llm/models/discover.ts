@@ -4,10 +4,10 @@
  */
 import fs from "fs";
 import path from "path";
-import { resolveOllamaEndpoint } from "~/shared/ollamaEndpoint";
-import { getProviderEndpoint, type Model } from "~/stores/apiStore";
+import { resolveOllamaEndpoint } from "~/features/providers/shared/ollamaEndpoint";
+import { getProviderEndpoint, type Model } from "~/features/providers/store/apiStore";
 import { createOllamaClient } from "../providers/ollama/client";
-import type { ProviderEndpoint } from "~/shared/lmstudioEndpoint";
+import type { ProviderEndpoint } from "~/features/providers/shared/lmstudioEndpoint";
 
 /**
  * Format model size into a human-readable string (e.g., 7B, 13B)

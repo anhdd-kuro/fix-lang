@@ -29,13 +29,13 @@ vi.mock("~/utils", () => ({
   promptAccessibilityPermission: promptAccessibilityPermissionMock,
 }));
 
-// `~/main/notifications/error` imports `mainT` (reads `~/stores/localeStore`)
+// `~/main/notifications/error` imports `mainT` (reads `~/features/i18n/store/localeStore`)
 // and `showErrorPopup` (transitively reads `themeStore`) — both backed by
 // real `electron-store`, which throws without a `projectName` in a test
 // environment. Mock both directly — same pattern as
 // `correctionNotifications.test.ts` / `error.test.ts` — so this file never
 // touches the filesystem or real Electron `app`.
-vi.mock("~/stores/localeStore", () => ({
+vi.mock("~/features/i18n/store/localeStore", () => ({
   getLocale: vi.fn().mockReturnValue("en"),
 }));
 

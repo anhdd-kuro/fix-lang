@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createTranslator } from "~/shared/i18n/translate";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import {
   PROVIDER_ORDER,
   PROVIDER_SUPPORTS_PROVISIONING_KEY,
-} from "~/shared/providers";
+} from "~/features/providers/shared/providers";
 import {
   ADMIN_KEY_MESSAGE_KEYS,
   buildProviderCards,

@@ -16,6 +16,7 @@ import { LogsPanel } from "../components/LogsPanel";
 import ModelManagerDialog from "../components/ModelManagerDialog";
 import { ModelsPanel } from "../components/ModelsPanel";
 import { OverviewPanel } from "../components/OverviewPanel";
+import { SecurityStatsPanel } from "../components/security/SecurityStatsPanel";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { SettingsButton } from "../components/SettingsIcon";
 import {
@@ -25,14 +26,15 @@ import {
 } from "../components/SettingsModal";
 import { TextAreaBox } from "../components/TextAreaBox";
 import { UsagePanel } from "../components/usage/UsagePanel";
+import { useAppearanceTypography } from "../hooks/useAppearanceTypography";
 import { useTheme } from "../hooks/useTheme";
 import { useUsageCacheInvalidation } from "../hooks/useUsageCacheInvalidation";
 import { useI18n } from "../i18n/useI18n";
 import type { DashboardTabId } from "./dashboardTabs";
 import type { AnalyticsRange } from "../analytics/shared";
-import type { MessageKey } from "~/shared/i18n/message";
-import type { ProviderId } from "~/shared/providers";
-import type { HistoryEntry, HistoryFeatureId } from "~/stores/historyStore";
+import type { HistoryEntry, HistoryFeatureId } from "~/features/history/store/historyStore";
+import type { MessageKey } from "~/features/i18n/shared/message";
+import type { ProviderId } from "~/features/providers/shared/providers";
 
 /**
  * Range options for the analytics tabs (shared header pill group). Kept as a
@@ -47,7 +49,7 @@ const RANGES: { id: AnalyticsRange; labelKey: MessageKey }[] = [
 ];
 
 /** Tabs that read the shared time-range pills. */
-const RANGE_AWARE_TABS = new Set(["overview", "models"]);
+const RANGE_AWARE_TABS = new Set(["overview", "models", "security"]);
 
 /**
  * Main App component for FixLang Preview UI.
@@ -59,6 +61,7 @@ const RANGE_AWARE_TABS = new Set(["overview", "models"]);
  */
 const App: React.FC = () => {
   useTheme();
+  useAppearanceTypography();
   useUsageCacheInvalidation();
   // Resolves DASHBOARD_TABS[]/RANGES[] labelKeys plus every other
   // user-facing string in this file (headings, TextAreaBox labels,
@@ -305,6 +308,7 @@ const App: React.FC = () => {
       />
     ),
     logs: <LogsPanel />,
+    security: <SecurityStatsPanel range={range} />,
     // Two sub-tabs: the update controls (default) and the user guide. The
     // wrapping card lives inside AboutPanel, below its sub-tab bar.
     about: (

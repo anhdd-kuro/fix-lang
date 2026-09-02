@@ -1,11 +1,11 @@
+import { serializeHistorySession } from "~/features/history/shared/historySession";
+import { estimateTextTokens } from "~/features/history/store/historyStore";
+import { getProfileSetting } from "~/features/providers/store/apiStore";
 import { DEFAULT_PROMPT_GEN_PROMPT } from "~/prompts";
-import { serializeHistorySession } from "~/shared/historySession";
-import { getProfileSetting } from "~/stores/apiStore";
-import { estimateTextTokens } from "~/stores/historyStore";
 import { StringPrettifier } from "~/utils";
 import { makeAIRequest } from "./shared";
 import { withActiveAppContext } from "./transform-context";
-import type { ProviderId } from "~/stores/apiStore";
+import type { ProviderId } from "~/features/providers/store/apiStore";
 
 /**
  * Settings for prompt generation

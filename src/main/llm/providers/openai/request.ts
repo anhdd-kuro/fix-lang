@@ -9,6 +9,9 @@
  */
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
+import { reasoningForAiSdk } from "~/features/correction/shared/reasoningEffort";
+import { getCurrentProfileId } from "~/features/providers/store/apiStore";
+import { getProfileSecret } from "~/features/providers/store/profileSecretStore";
 import {
   sumTokenField,
   toConversation,
@@ -16,10 +19,8 @@ import {
   type AIRequestOptions,
 } from "~/main/ai.request/requestTypes";
 import { extractResolvedModel } from "~/main/ai.request/resolve-model";
-import { showErrorNotification } from "~/main/notifications/error";
-import { reasoningForAiSdk } from "~/shared/reasoningEffort";
-import { getCurrentProfileId } from "~/stores/apiStore";
-import { getProfileSecret } from "~/stores/profileSecretStore";
+import { keepAliveFetch } from "~/main/llm/httpKeepAlive";
+import { notifyRequestError } from "~/main/notifications/error";
 
 export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
   const profileId = getCurrentProfileId();
@@ -28,7 +29,7 @@ export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
     : null;
   if (!apiKey) {
     const error = new Error("OpenAI API key is missing.");
-    showErrorNotification(error);
+    notifyRequestError(options, error);
     throw error;
   }
 
@@ -39,7 +40,7 @@ export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
 
   try {
     const modelId = options.model as string;
-    const openai = createOpenAI({ apiKey: apiKey.trim() });
+    const openai = createOpenAI({ apiKey: apiKey.trim(), fetch: keepAliveFetch });
     const conversation = toConversation(rawMessages);
     const request = () =>
       generateText({
@@ -52,6 +53,10 @@ export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
           return reasoning !== undefined ? { reasoning } : {};
         })(),
         ...(options.stop ? { stopSequences: options.stop } : {}),
+        ...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
+        ...(options.maxOutputTokens !== undefined
+          ? { maxOutputTokens: options.maxOutputTokens }
+          : {}),
       });
     const responses = await Promise.all(
       Array.from({ length: Math.max(1, options.n ?? 1) }, request),
@@ -74,7 +79,7 @@ export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
     };
   } catch (error) {
     console.error("makeOpenAIAIRequest error:", error);
-    showErrorNotification(error, "Failed to get a response from OpenAI.");
+    notifyRequestError(options, error, "Failed to get a response from OpenAI.");
     throw error;
   }
 };

@@ -7,14 +7,14 @@
  * range filter + cost-sum from `../analytics/shared` (no duplication). No
  * electron/sqlite/DOM dependency — unit-tested directly.
  */
-import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
+import { messageLabel, textLabel, type Label } from "~/features/i18n/shared/message";
 import {
   denseDayKeys,
   dayKeyOfIso,
   isPricedEntry,
   type AnalyticsRange,
 } from "../analytics/shared";
-import type { HistoryEntry } from "~/stores/historyStore";
+import type { HistoryEntry } from "~/features/history/store/historyStore";
 
 /**
  * Identity/grouping-key sentinel for entries whose served model id is absent

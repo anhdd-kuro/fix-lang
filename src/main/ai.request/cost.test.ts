@@ -11,7 +11,7 @@ import {
   normalizeModelId,
   type PriceMap,
 } from "./cost";
-import type { Model } from "~/stores/apiStore";
+import type { Model } from "~/features/providers/store/apiStore";
 
 // Fixture: prompt $0.000002/token, completion $0.000008/token for gpt-4o.
 const priceMap: PriceMap = new Map([
@@ -70,6 +70,24 @@ describe("computeCost", () => {
       },
       buildPriceMap([
         { id: "openai/gpt-4o", name: "GPT-4o", created: 0, pricing: { prompt: "0.000002", completion: "0.000008", image: "0", request: "0", input_cache_read: "0", input_cache_write: "0", web_search: "0", internal_reasoning: "0" } },
+      ]),
+    );
+    expect(result).toMatchObject({ status: "na", estimatedCostUsd: null });
+  });
+  it("returns N/A for direct Anthropic, whose ids fuzzy-match the WRONG OpenRouter entry", () => {
+    // Measured, not hypothetical: without the short-circuit, `claude-opus-4-5`
+    // matches `anthropic/claude-opus-4.1` under the threshold and is billed at
+    // Opus 4.1's rate — 3x the real price, reported as `status: "ok"`. A
+    // confidently wrong number is worse than N/A.
+    const result = computeCost(
+      {
+        provider: "anthropic",
+        resolvedModel: "claude-opus-4-5",
+        promptTokens: 1000,
+        completionTokens: 500,
+      },
+      new Map([
+        ["anthropic/claude-opus-4.1", { prompt: "0.000015", completion: "0.000075" }],
       ]),
     );
     expect(result).toMatchObject({ status: "na", estimatedCostUsd: null });

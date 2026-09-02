@@ -13,7 +13,7 @@
  * never diverges from what main actually holds.
  */
 
-import { DEFAULT_LOCALE, LOCALE_META, type Locale, type TextDirection } from "~/shared/i18n/registry";
+import { DEFAULT_LOCALE, LOCALE_META, type Locale, type TextDirection } from "~/features/i18n/shared/registry";
 
 // ---------------------------------------------------------------------------
 // State + reducer

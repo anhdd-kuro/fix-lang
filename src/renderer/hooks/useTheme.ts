@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { DEFAULT_THEME_ID, type ThemeId } from "~/stores/themeIds";
+import { DEFAULT_THEME_ID, type ThemeId } from "~/features/theme/store/themeIds";
 import { applyThemeToDocument } from "../themes";
 
 type UseThemeResult = {

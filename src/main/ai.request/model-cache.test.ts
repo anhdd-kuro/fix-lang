@@ -58,10 +58,10 @@ vi.mock("openai", () => ({
     models = { list: openAIModelsListMock };
   },
 }));
-vi.mock("~/stores/apiKeyStore", () => ({
+vi.mock("~/features/providers/store/apiKeyStore", () => ({
   getApiKey: vi.fn().mockResolvedValue("test-api-key"),
 }));
-vi.mock("~/stores/profileSecretStore", () => ({
+vi.mock("~/features/providers/store/profileSecretStore", () => ({
   getProfileSecret: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("~/main/llm/models/discover", () => ({
@@ -72,9 +72,9 @@ vi.mock("~/main/llm/providers/ollama/client", () => ({
   createOllamaClient: () => ({ chat: vi.fn() }), ollamaClient: { chat: vi.fn() },
 }));
 // Imports (after mocks) — the real implementation under test.
-import { apiStore, getProfiles } from "~/stores/apiStore";
+import { apiStore, getProfiles } from "~/features/providers/store/apiStore";
 import { fetchAvailableModels, fetchModelsForProviders } from "./shared";
-import type { Model, Profile, SettingsStore } from "~/stores/apiStore";
+import type { Model, Profile, SettingsStore } from "~/features/providers/store/apiStore";
 
 // ---------------------------------------------------------------------------
 // Fixtures

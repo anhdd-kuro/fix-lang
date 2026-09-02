@@ -4,6 +4,10 @@
  */
 import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
 import { generateText } from "ai";
+import { reasoningForAiSdk } from "~/features/correction/shared/reasoningEffort";
+import { resolveBedrockRegion } from "~/features/providers/shared/bedrockEndpoint";
+import { getCurrentProfileId, getProviderEndpoint } from "~/features/providers/store/apiStore";
+import { getProfileSecret } from "~/features/providers/store/profileSecretStore";
 import {
   sumTokenField,
   toConversation,
@@ -11,17 +15,13 @@ import {
   type AIRequestOptions,
 } from "~/main/ai.request/requestTypes";
 import { extractResolvedModel } from "~/main/ai.request/resolve-model";
-import { showErrorNotification } from "~/main/notifications/error";
-import { resolveBedrockRegion } from "~/shared/bedrockEndpoint";
-import { reasoningForAiSdk } from "~/shared/reasoningEffort";
-import { getCurrentProfileId, getProviderEndpoint } from "~/stores/apiStore";
-import { getProfileSecret } from "~/stores/profileSecretStore";
+import { notifyRequestError } from "~/main/notifications/error";
 
 export const makeBedrockAIRequest = async (options: AIRequestOptions) => {
   const profileId = getCurrentProfileId();
   if (!profileId) {
     const error = new Error("No active profile.");
-    showErrorNotification(error);
+    notifyRequestError(options, error);
     throw error;
   }
 
@@ -29,7 +29,7 @@ export const makeBedrockAIRequest = async (options: AIRequestOptions) => {
   const secretAccessKey = await getProfileSecret(profileId, "bedrock", "secret");
   if (!accessKeyId || !secretAccessKey) {
     const error = new Error("AWS Bedrock credentials are missing.");
-    showErrorNotification(error);
+    notifyRequestError(options, error);
     throw error;
   }
 
@@ -58,6 +58,10 @@ export const makeBedrockAIRequest = async (options: AIRequestOptions) => {
           return reasoning !== undefined ? { reasoning } : {};
         })(),
         ...(options.stop ? { stopSequences: options.stop } : {}),
+        ...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
+        ...(options.maxOutputTokens !== undefined
+          ? { maxOutputTokens: options.maxOutputTokens }
+          : {}),
       });
     const responses = await Promise.all(
       Array.from({ length: Math.max(1, options.n ?? 1) }, request),
@@ -80,7 +84,7 @@ export const makeBedrockAIRequest = async (options: AIRequestOptions) => {
     };
   } catch (error) {
     console.error("makeBedrockAIRequest error:", error);
-    showErrorNotification(error, "Failed to get a response from AWS Bedrock.");
+    notifyRequestError(options, error, "Failed to get a response from AWS Bedrock.");
     throw error;
   }
 };

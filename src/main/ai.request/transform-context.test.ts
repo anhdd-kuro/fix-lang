@@ -1,6 +1,6 @@
 /**
  * @file transform-context.test.ts
- * @description Tests for the shared source-app context block appended to the
+ * @description Tests for the shared source-app context block prepended to the
  * system prompt of transform and PromptGen requests. Pure unit tests.
  */
 import { describe, expect, it } from "vitest";
@@ -16,7 +16,7 @@ describe("buildActiveAppContextBlock", () => {
     expect(block).toContain('"Slack"');
     expect(block).toMatch(/do not mention/i);
     // Must read as metadata, so the model does not transform the block itself.
-    expect(block).toMatch(/not content to act on/i);
+    expect(block).toMatch(/# Metadata context/);
   });
 
   it("returns null when there is no usable app name", () => {
@@ -48,12 +48,17 @@ describe("buildActiveAppContextBlock", () => {
 
 describe("withActiveAppContext", () => {
   it("appends the block after the caller's system prompt", () => {
-    const result = withActiveAppContext("Fix grammar.", {
-      activeAppName: "Slack",
-    });
+    const context = { activeAppName: "Slack" };
+    const result = withActiveAppContext("Fix grammar.", context);
+    const block = buildActiveAppContextBlock(context);
 
     expect(result.startsWith("Fix grammar.")).toBe(true);
+    expect(result.endsWith(block as string)).toBe(true);
     expect(result).toContain('"Slack"');
+    // The preset text is the stable prefix; the block trails it.
+    expect(result.indexOf("Fix grammar.")).toBeLessThan(
+      result.indexOf("# Metadata context"),
+    );
   });
 
   it("returns the system prompt untouched when no app name is known", () => {
@@ -65,6 +70,20 @@ describe("withActiveAppContext", () => {
       "Fix grammar.",
     );
   });
+
+  it("keeps the preset's system prompt as a stable prefix regardless of which app is reported", () => {
+    // The whole point of trailing placement: two requests that differ only in
+    // active app must share an identical leading prefix, so a provider's
+    // prefix-based cache (explicit breakpoint or automatic) can still match
+    // the preset's own instructions even though the trailing metadata varies.
+    const preset = "Fix grammar. Preserve meaning. Keep tone unchanged.";
+    const slack = withActiveAppContext(preset, { activeAppName: "Slack" });
+    const mail = withActiveAppContext(preset, { activeAppName: "Mail" });
+
+    expect(slack.startsWith(preset)).toBe(true);
+    expect(mail.startsWith(preset)).toBe(true);
+    expect(slack).not.toBe(mail);
+  });
 });
 
 describe("buildActiveAppContextBlock — formatting policy", () => {
@@ -73,7 +92,7 @@ describe("buildActiveAppContextBlock — formatting policy", () => {
 
     expect(block).toBe(
       [
-        "Context (metadata about the request, not content to act on):",
+        "# Metadata context",
         '- The text was selected in the macOS app "Slack".',
         "- Use it only to infer the expected tone, formality, and formatting conventions of that app.",
         "- Do not mention the app, and do not add app-specific markup the input does not already use.",
@@ -89,7 +108,7 @@ describe("buildActiveAppContextBlock — formatting policy", () => {
 
     expect(block).toBe(
       [
-        "Context (metadata about the request, not content to act on):",
+        "# Metadata context",
         '- The text was selected in the macOS app "Slack".',
         "- Use it only to infer the expected tone, formality, and formatting conventions of that app.",
         "- Do not mention the app, and do not add app-specific markup the input does not already use.",
@@ -104,7 +123,7 @@ describe("buildActiveAppContextBlock — formatting policy", () => {
     );
 
     expect(block).not.toBeNull();
-    expect(block).toContain("Context (metadata about the request, not content to act on):");
+    expect(block).toContain("# Metadata context");
     expect(block).toContain('"Slack"');
     expect(block).not.toContain(
       "do not add app-specific markup the input does not already use",

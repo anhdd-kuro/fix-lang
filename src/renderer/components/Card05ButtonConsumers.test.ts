@@ -4,7 +4,7 @@ import { colord, extend } from "colord";
 import a11yPlugin from "colord/plugins/a11y";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
-import { THEME_IDS } from "~/stores/themeIds";
+import { THEME_IDS } from "~/features/theme/store/themeIds";
 
 type ButtonElement = {
   opening: string;
@@ -216,7 +216,7 @@ const consumers = [
       variant: '"ghost"',
       "aria-label": '{t("models.select.refetch")}',
       title: '{t("models.select.refetch")}',
-      className: '"px-2 py-1 rounded"',
+      className: '{twJoin("rounded leading-none", compact ? "px-2.5 py-2 text-lg" : "px-2.5 py-1.5 text-base",)}',
       onClick: "{() => fetchModels(true)}",
       disabled: "{modelsLoading}",
     },
@@ -264,7 +264,7 @@ const consumers = [
       "aria-controls": "{isOpen ? listId : undefined}",
       onClick: "{() => setIsOpen((open) => !open)}",
       className:
-        '{twMerge(selectControlClassName, "flex w-full items-center justify-between gap-2 px-2 py-1.5 text-sm",)}',
+        '{twMerge(selectControlClassName, "flex w-full items-center justify-between gap-2",)}',
     },
   },
   {

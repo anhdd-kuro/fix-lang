@@ -59,6 +59,8 @@ describe("Checkbox", () => {
 
     const box = container.querySelector('span[aria-hidden="true"]');
     expect(box?.className).toContain("peer-checked:bg-primary");
+    expect(box?.className).toContain("peer-focus-visible:ring-ring");
+    expect(box?.className).toContain("peer-focus-visible:ring-offset-background");
     // The tick is present but transparent while unchecked.
     expect(container.querySelector("svg")?.getAttribute("class")).toContain(
       "opacity-0",

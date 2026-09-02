@@ -24,14 +24,14 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
-import { createTranslator } from "~/shared/i18n/translate";
+import { messageLabel, textLabel, type Label } from "~/features/i18n/shared/message";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import ModelManagerDialog from "./ModelManagerDialog";
 import ProfileManager from "./ProfileManager";
 import { SettingGeneral } from "./SettingGeneral";
 import { SettingPromptGen } from "./SettingPromptGen";
 import { I18nProvider } from "../i18n/I18nProvider";
-import type { Locale } from "~/shared/i18n/registry";
+import type { Locale } from "~/features/i18n/shared/registry";
 
 // Expected copy is derived through the real translator kernel — never
 // hand-written — so a catalog reword can't silently break this file, and an
@@ -64,6 +64,28 @@ const buttonNamed = (
   return button;
 };
 
+
+
+const selectProviderTab = async (root: HTMLElement, label: string) => {
+  const tab = [...root.querySelectorAll("button")].find(
+    (candidate) => candidate.textContent === label,
+  );
+  if (!tab) {
+    throw new Error(`Expected a provider tab named "${label}"`);
+  }
+  await click(tab);
+  await waitForUi();
+};
+
+const segmentedGroup = (root: HTMLElement, ariaLabel: string): HTMLElement => {
+  const group = [...root.querySelectorAll<HTMLElement>('[role="group"]')].find(
+    (candidate) => candidate.getAttribute("aria-label") === ariaLabel,
+  );
+  if (!group) {
+    throw new Error(`Expected a segmented control named "${ariaLabel}"`);
+  }
+  return group;
+};
 
 const connectButtonNear = (
   root: HTMLElement,
@@ -99,6 +121,13 @@ type SettingGeneralApi = {
   getSelectedModel: ReturnType<typeof vi.fn>;
   setSelectedModel: ReturnType<typeof vi.fn>;
   onSettingsUpdated: ReturnType<typeof vi.fn>;
+  // Kept stubbed although `SettingGeneral` no longer embeds
+  // `<SettingAutocomplete>`: the "no longer renders" test proves the move by
+  // asserting these are never called, which needs them to exist and be
+  // callable.
+  getAutocompleteSettings: ReturnType<typeof vi.fn>;
+  getAutocompleteUsage: ReturnType<typeof vi.fn>;
+  setAutocompleteSettings: ReturnType<typeof vi.fn>;
   // `SettingGeneral` renders inside `<I18nProvider>`, which reads these off
   // `window.electronAPI` on mount (see `localeState.ts`'s `LocaleBridge`).
   getLocale: ReturnType<typeof vi.fn>;
@@ -125,6 +154,24 @@ const providerState = (overrides: Record<string, unknown> = {}) => ({
   provisioningKeySet: false,
   modelCount: 0,
   ...overrides,
+});
+
+const autocompleteRollup = () => ({
+  date: "",
+  requests: 0,
+  responses: 0,
+  tokenlessResponses: 0,
+  unpricedResponses: 0,
+  promptTokens: 0,
+  completionTokens: 0,
+  estimatedCostUsd: 0,
+});
+
+const autocompleteUsage = () => ({
+  today: autocompleteRollup(),
+  month: autocompleteRollup(),
+  days: [],
+  dailyCostCapUsd: 1500,
 });
 
 const componentSource = (fileName: string) =>
@@ -395,6 +442,7 @@ describe("SettingGeneral", () => {
       openrouter: providerState(),
       ollama: providerState(),
     },
+    apiOverrides: Record<string, unknown> = {},
   ) => {
     api = {
       // Set on every render, not in a `beforeEach`: `vi.clearAllMocks()`
@@ -415,12 +463,22 @@ describe("SettingGeneral", () => {
       getSelectedModel: vi.fn().mockResolvedValue(""),
       setSelectedModel: vi.fn().mockResolvedValue({ success: true }),
       onSettingsUpdated: vi.fn().mockReturnValue(vi.fn()),
+      getAutocompleteSettings: vi
+        .fn()
+        .mockResolvedValue({ enabled: true, model: "" }),
+      getAutocompleteUsage: vi.fn().mockResolvedValue(autocompleteUsage()),
+      setAutocompleteSettings: vi.fn().mockResolvedValue({ success: true }),
+      getAppearanceTypography: vi.fn().mockResolvedValue({ fontSize: "md", fontFamily: "system" }),
+      setAppearanceFontSize: vi.fn().mockResolvedValue({ success: true, typography: { fontSize: "md", fontFamily: "system" } }),
+      setAppearanceFontFamily: vi.fn().mockResolvedValue({ success: true, typography: { fontSize: "md", fontFamily: "system" } }),
+      onAppearanceTypographyChanged: vi.fn().mockReturnValue(vi.fn()),
       getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
       setLocale: vi.fn().mockResolvedValue({ success: true }),
       onLocaleChanged: vi.fn((callback: (locale: Locale) => void) => {
         localeListener = callback;
         return vi.fn();
       }),
+      ...apiOverrides,
     };
     Object.defineProperty(window, "electronAPI", {
       configurable: true,
@@ -495,7 +553,7 @@ describe("SettingGeneral", () => {
   it("re-resolves a wrapped provider-reported reset error in Japanese, keeping the raw error text untranslated", async () => {
     // Main now boundary-wraps `resetCurrentProfileSettings()`'s pass-through
     // error text as an opaque `textLabel` (see `wrapStoreResult` in
-    // `~/main/ipc/features/ipcResultLabel.ts`) rather than a bare string —
+    // `~/features/settings/main/ipcResultLabel.ts`) rather than a bare string —
     // mock the real preload/IPC shape, not the pre-migration one.
     await render({ success: false, error: textLabel("disk full") });
 
@@ -525,61 +583,82 @@ describe("SettingGeneral", () => {
     expect(jaWrapped).toContain("disk full");
   });
 
-  it("re-resolves an app-authored output-mode error Label directly (no double `textLabel` wrap) in Japanese", async () => {
-    // PR #87 review finding: `set-correction-output-mode`'s "Invalid
-    // correction output mode" used to be a raw string the renderer wrapped
-    // with `textLabel(result.error)`. Main now returns a `messageLabel(...)`
-    // `Label` directly — if this component still wrapped it in `textLabel`,
-    // the resolved text would stay frozen in whatever locale was active at
-    // the moment of the click instead of re-translating below.
+
+  // The autocomplete card moved out of General into its own Settings tab
+  // (`SettingsModal.test.ts` owns the guarantee that it still renders, and
+  // that its toggle and model picker are reachable there). This is the other
+  // half: General must not keep a second copy, which would give the user two
+  // toggles writing the same per-profile setting.
+  it("no longer renders the autocomplete card — it lives in its own tab", async () => {
     await render({ success: true });
-    api.setCorrectionOutputMode.mockResolvedValueOnce({
-      success: false,
-      error: messageLabel("settings.general.outputMode.invalid"),
-    });
+    // Enough ticks that the card would be past its own loading state if it
+    // were still mounted here; absence must mean absent, not just slow.
+    await waitForUi();
+    await waitForUi();
 
-    const popupRadio = [
-      ...container.querySelectorAll('button[role="radio"]'),
-    ].find(
-      (candidate) =>
-        candidate.querySelector("span")?.textContent ===
-        tEn("settings.general.correctionOutput.popup.label"),
+    expect(
+      [...container.querySelectorAll("h2")].map((element) => element.textContent),
+    ).not.toContain(tEn("settings.autocomplete.heading"));
+    expect(container.textContent).not.toContain(
+      tEn("settings.autocomplete.enabled.label"),
     );
-    if (!popupRadio) {
-      throw new Error("Expected the 'popup' output-mode radio button");
-    }
-    await click(popupRadio);
-    await waitForUi();
-    await waitForUi();
+    expect(container.textContent).not.toContain(
+      tEn("settings.autocomplete.privacy.typing"),
+    );
+    expect(container.textContent).not.toContain(
+      tEn("settings.autocomplete.loading"),
+    );
+    expect(api.getAutocompleteSettings).not.toHaveBeenCalled();
+    expect(api.getAutocompleteUsage).not.toHaveBeenCalled();
+  });
 
-    const statuses = () =>
-      [...container.querySelectorAll('[role="status"]')].map(
-        (el) => el.textContent,
+  describe("the global Transform output mode uses segmented tabs", () => {
+    const outputModeGroup = (): HTMLElement =>
+      segmentedGroup(container, tEn("settings.general.correctionOutput.title"));
+
+    const outputModeButtons = (): HTMLButtonElement[] =>
+      Array.from(outputModeGroup().querySelectorAll("button"));
+
+    it("renders paste and popup as a segmented control", async () => {
+      await render({ success: true });
+
+      expect(outputModeGroup().getAttribute("aria-label")).toBe(
+        tEn("settings.general.correctionOutput.title"),
       );
-    const enWrapped = tEn("settings.general.error", {
-      message: tEn("settings.general.outputMode.invalid"),
+      expect(outputModeButtons().map((button) => button.textContent)).toEqual([
+        tEn("settings.general.correctionOutput.paste.label"),
+        tEn("settings.general.correctionOutput.popup.label"),
+      ]);
+      expect(container.querySelector("input#correction-output-mode")).toBeNull();
     });
-    expect(statuses()).toContain(enWrapped);
 
-    await act(async () => {
-      localeListener?.("ja");
-    });
-    await waitForUi();
+    it("persists the chosen mode through setCorrectionOutputMode", async () => {
+      await render({ success: true });
+      api.setCorrectionOutputMode.mockResolvedValueOnce({
+        success: true,
+        mode: "popup",
+      });
 
-    // Only the "Error: " wrapper AND the message both re-translate — proving
-    // the underlying error is a `Message` resolved via `tl()`, not raw text
-    // frozen by a stray `textLabel(result.error)` wrap.
-    const jaWrapped = tJa("settings.general.error", {
-      message: tJa("settings.general.outputMode.invalid"),
+      const popup = outputModeButtons().find(
+        (button) =>
+          button.textContent ===
+          tEn("settings.general.correctionOutput.popup.label"),
+      );
+      if (!popup) throw new Error("popup button not rendered");
+      await click(popup);
+      await waitForUi();
+
+      expect(api.setCorrectionOutputMode).toHaveBeenCalledWith("popup");
+      expect(popup.getAttribute("aria-pressed")).toBe("true");
     });
-    expect(statuses()).toContain(jaWrapped);
-    expect(jaWrapped).not.toBe(enWrapped);
   });
 
   describe("provider cards", () => {
-    it("renders one card per provider, each with its own connection state", async () => {
+    it("renders provider tabs and the active provider card", async () => {
       await render({ success: true });
 
+      const providerGroup = container.querySelector('[role="group"][aria-label="' + tEn("settings.general.providers.title") + '"]');
+      expect(providerGroup).toBeTruthy();
       for (const key of [
         "models.select.provider.openai",
         "models.select.provider.openrouter",
@@ -590,16 +669,20 @@ describe("SettingGeneral", () => {
       expect(container.textContent).toContain(
         tEn("settings.general.providers.card.connected"),
       );
-      expect(container.textContent).toContain(
-        tEn("settings.general.providers.card.notConnected"),
-      );
-      expect(container.textContent).toContain(
-        tEn("settings.general.providers.card.modelCount", { count: 3 }),
-      );
+      expect(container.querySelector("#api-key-openai")).toBeTruthy();
+      expect(container.querySelector("#api-key-openrouter")).toBeNull();
     });
 
     it("connects one provider without a modelId and without touching the others", async () => {
       await render({ success: true });
+
+      const openrouterTab = [...container.querySelectorAll("button")].find(
+        (button) =>
+          button.textContent === tEn("models.select.provider.openrouter"),
+      );
+      if (!openrouterTab) throw new Error("expected an OpenRouter tab");
+      await click(openrouterTab);
+      await waitForUi();
 
       const input = container.querySelector<HTMLInputElement>(
         "#api-key-openrouter",
@@ -618,6 +701,115 @@ describe("SettingGeneral", () => {
       });
       // Connecting never seeds a default model — that is the picker's job.
       expect(api.setSelectedModel).not.toHaveBeenCalled();
+    });
+
+    it("omits the OpenAI project id until the stored value has been read", async () => {
+      // Main treats a submitted "" as a deliberate clear, so connecting while the
+      // read is still in flight would WIPE a stored project id — silently, since
+      // nothing else in the Connect flow mentions it.
+      await render(
+        { success: true },
+        {
+          openai: providerState({
+            connected: true,
+            configured: true,
+            apiKeySet: true,
+          }),
+          openrouter: providerState(),
+          ollama: providerState(),
+        },
+        // Never resolves: the field stays in its not-yet-read state.
+        { getCurrentProfile: vi.fn(() => new Promise(vi.fn())) },
+      );
+
+      const field = container.querySelector<HTMLInputElement>(
+        "#openai-project-id",
+      );
+      expect(field?.disabled).toBe(true);
+
+      await click(connectButtonNear(container, "#api-key-openai"));
+      await waitForUi();
+
+      expect(api.connectProvider).toHaveBeenCalledTimes(1);
+      expect(api.connectProvider.mock.calls[0][0]).not.toHaveProperty("projectId");
+    });
+
+    it("submits the stored OpenAI project id, and an empty field as a clear", async () => {
+      await render(
+        { success: true },
+        {
+          openai: providerState({
+            connected: true,
+            configured: true,
+            apiKeySet: true,
+          }),
+          openrouter: providerState(),
+          ollama: providerState(),
+        },
+        {
+          getCurrentProfile: vi.fn().mockResolvedValue({
+            currentProfile: { settings: { openaiProjectId: "proj_stored" } },
+          }),
+        },
+      );
+
+      const field = container.querySelector<HTMLInputElement>(
+        "#openai-project-id",
+      );
+      if (!field) throw new Error("expected the OpenAI project id field");
+      expect(field.disabled).toBe(false);
+      expect(field.value).toBe("proj_stored");
+
+      await click(connectButtonNear(container, "#api-key-openai"));
+      await waitForUi();
+      expect(api.connectProvider.mock.calls[0][0]).toMatchObject({
+        provider: "openai",
+        projectId: "proj_stored",
+      });
+
+      await type(field, "");
+      await click(connectButtonNear(container, "#api-key-openai"));
+      await waitForUi();
+      expect(api.connectProvider.mock.calls[1][0]).toMatchObject({
+        provider: "openai",
+        projectId: "",
+      });
+    });
+
+    it("flags a malformed project id as it is typed, not only after Connect", async () => {
+      await render(
+        { success: true },
+        {
+          openai: providerState({
+            connected: true,
+            configured: true,
+            apiKeySet: true,
+          }),
+          openrouter: providerState(),
+          ollama: providerState(),
+        },
+        {
+          getCurrentProfile: vi
+            .fn()
+            .mockResolvedValue({ currentProfile: { settings: {} } }),
+        },
+      );
+
+      const field = container.querySelector<HTMLInputElement>(
+        "#openai-project-id",
+      );
+      if (!field) throw new Error("expected the OpenAI project id field");
+      // Empty is "unset", never an error.
+      expect(field.getAttribute("aria-invalid")).toBe("false");
+      expect(container.textContent).toContain(
+        tEn("settings.general.providers.openai.projectId.hint"),
+      );
+
+      await type(field, "org-not-a-project");
+      expect(field.getAttribute("aria-invalid")).toBe("true");
+      expect(container.textContent).toContain(
+        tEn("settings.general.providers.openai.projectId.invalid"),
+      );
     });
 
     it("requires an explicit confirm before disconnecting, and can be cancelled", async () => {
@@ -690,8 +882,9 @@ describe("SettingGeneral", () => {
     it("keeps credential fields masked and out of browser autofill", async () => {
       await render({ success: true });
 
+      await selectProviderTab(container, tEn("models.select.provider.openrouter"));
+
       for (const id of [
-        "#api-key-openai",
         "#api-key-openrouter",
         "#provisioning-key-openrouter",
       ]) {
@@ -709,6 +902,8 @@ describe("SettingGeneral", () => {
     it("drops the typed key from renderer state as soon as main has it", async () => {
       await render({ success: true });
 
+      await selectProviderTab(container, tEn("models.select.provider.openrouter"));
+
       const input = () =>
         container.querySelector<HTMLInputElement>("#api-key-openrouter");
       const field = input();
@@ -725,6 +920,8 @@ describe("SettingGeneral", () => {
 
     it("drops the typed key after a disconnect too", async () => {
       await render({ success: true });
+
+      await selectProviderTab(container, tEn("models.select.provider.openai"));
 
       const input = () =>
         container.querySelector<HTMLInputElement>("#api-key-openai");
@@ -746,6 +943,8 @@ describe("SettingGeneral", () => {
 
     it("keeps one provider's in-flight connect from unlocking another's button", async () => {
       await render({ success: true });
+
+      await selectProviderTab(container, tEn("models.select.provider.openrouter"));
 
       // Hold OpenRouter's connect open.
       let settle: (value: unknown) => void = () => undefined;
@@ -779,6 +978,7 @@ describe("SettingGeneral", () => {
       expect(testing).toHaveLength(1);
 
       // Ollama needs no key and must still be connectable meanwhile.
+      await selectProviderTab(container, tEn("models.select.provider.ollama"));
       const ollamaConnect = connectButtons().find(
         (button) =>
           button.textContent === tEn("settings.general.providers.card.connect"),
@@ -793,6 +993,8 @@ describe("SettingGeneral", () => {
 
     it("refuses to attempt a connect with no stored and no typed key", async () => {
       await render({ success: true });
+
+      await selectProviderTab(container, tEn("models.select.provider.openrouter"));
 
       // OpenRouter: no stored key, nothing typed.
       expect(connectButtonNear(container, "#api-key-openrouter").disabled).toBe(true);
@@ -872,6 +1074,8 @@ describe("SettingGeneral", () => {
         },
       );
 
+      await selectProviderTab(container, tEn("models.select.provider.ollama"));
+
       await click(
         buttonNamed(
           container,
@@ -906,6 +1110,8 @@ describe("SettingGeneral", () => {
         },
       );
 
+      await selectProviderTab(container, tEn("models.select.provider.openrouter"));
+
       const near = (id: string): string => {
         const field = container.querySelector(id);
         return field?.parentElement?.textContent ?? "";
@@ -931,9 +1137,11 @@ describe("SettingGeneral", () => {
         },
       );
 
+      await selectProviderTab(container, tEn("models.select.provider.openrouter"));
+
       const field = container.querySelector("#provisioning-key-openrouter");
       const near = field?.parentElement?.textContent ?? "";
-      expect(near).toContain(tEn("settings.general.secret.connected"));
+      expect(near).toContain(tEn("settings.general.secret.adminConnected"));
       expect(near).not.toContain(tEn("settings.general.secret.set"));
     });
 
@@ -979,36 +1187,22 @@ describe("SettingGeneral", () => {
   it("uses shared selected, disabled, and destructive button variants", async () => {
     await render({ success: true });
 
-    const selectedOutput = container.querySelector<HTMLButtonElement>(
-      'button[role="radio"][aria-checked="true"]',
-    );
-    const disabledConnect = [
-      ...container.querySelectorAll<HTMLButtonElement>("button"),
-    ].find(
-      (button) =>
-        button.textContent === tEn("settings.general.providers.card.connect") &&
-        button.disabled,
-    );
+    const primaryConnect = connectButtonNear(container, "#api-key-openai");
 
+    await selectProviderTab(container, tEn("models.select.provider.openrouter"));
+    const disabledConnect = connectButtonNear(container, "#api-key-openrouter");
+
+    await selectProviderTab(container, tEn("models.select.provider.openai"));
     await click(
       buttonNamed(container, tEn("settings.general.providers.card.disconnect")),
     );
     const destructiveConfirm = confirmDisconnectButton();
 
-    expect(selectedOutput?.className).toContain(
+    expect(primaryConnect.className).toContain(
       "[&:where(:enabled:hover)]:bg-primary-hover",
     );
-    expect(
-      selectedOutput
-        ?.querySelector("span.mt-0\\.5")
-        ?.classList.contains("text-muted-foreground"),
-    ).toBe(false);
-    expect(
-      selectedOutput
-        ?.querySelector("span.mt-0\\.5")
-        ?.classList.contains("text-inherit"),
-    ).toBe(true);
-    expect(disabledConnect?.className).toContain("disabled:cursor-not-allowed");
+    expect(disabledConnect.disabled).toBe(true);
+    expect(disabledConnect.className).toContain("disabled:cursor-not-allowed");
     expect(destructiveConfirm.type).toBe("button");
     expect(destructiveConfirm.className).toContain("bg-destructive");
   });

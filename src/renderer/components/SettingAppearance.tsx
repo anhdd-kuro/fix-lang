@@ -1,10 +1,14 @@
 import React, { useMemo, useState } from "react";
 import { twJoin } from "tailwind-merge";
+import { useAppearanceTypography } from "../hooks/useAppearanceTypography";
 import { useTheme } from "../hooks/useTheme";
 import { useI18n } from "../i18n/useI18n";
 import { THEME_PRESETS } from "../themes";
 import { Button } from "./Button";
-import type { ThemeId } from "~/stores/themeIds";
+import { FontFamilyTabs } from "./FontFamilyTabs";
+import { FontSizeTabs } from "./FontSizeTabs";
+import { Input } from "./Input";
+import type { ThemeId } from "~/features/theme/store/themeIds";
 
 const THEME_CARD_MIN = "9.5rem";
 const THEME_CARD_MAX = "13rem";
@@ -15,6 +19,14 @@ const THEME_CARD_MAX = "13rem";
 export const SettingAppearance: React.FC = () => {
   const { t } = useI18n();
   const { themeId, setTheme, isLoading } = useTheme();
+  const {
+    typography,
+    setFontSize,
+    setFontFamily,
+    setCustomFontSize,
+    setCustomFontFamily,
+    isLoading: typographyLoading,
+  } = useAppearanceTypography();
   const [query, setQuery] = useState("");
 
   const filteredPresets = useMemo(() => {
@@ -39,7 +51,119 @@ export const SettingAppearance: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <div className="flex flex-col gap-4">
+      <section className="shrink-0">
+        <h3 className="text-lg font-medium text-foreground">
+          {t("settings.appearance.fontSize.title")}
+        </h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {t("settings.appearance.fontSize.description")}
+        </p>
+        <div className="mt-3">
+          <FontSizeTabs
+            value={typography.fontSize}
+            onChange={(fontSize) => {
+              void setFontSize(fontSize);
+            }}
+            disabled={typographyLoading}
+            className="w-full"
+          />
+        </div>
+        {typography.fontSize === "custom" ? (
+          <div className="mt-3 flex flex-col gap-1">
+            <label
+              htmlFor="appearance-custom-font-size"
+              className="text-sm text-card-foreground"
+            >
+              {t("settings.appearance.fontSize.customLabel")}
+            </label>
+            <Input
+              key={typography.customFontSize}
+              id="appearance-custom-font-size"
+              type="text"
+              defaultValue={typography.customFontSize}
+              disabled={typographyLoading}
+              placeholder={t("settings.appearance.fontSize.customPlaceholder")}
+              className="w-full"
+              onBlur={(event) => {
+                const trimmed = event.target.value.trim();
+                if (trimmed.length === 0 || trimmed === typography.customFontSize) {
+                  event.target.value = typography.customFontSize;
+                  return;
+                }
+                void setCustomFontSize(trimmed).catch(() => {
+                  event.target.value = typography.customFontSize;
+                });
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.currentTarget.blur();
+                }
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("settings.appearance.fontSize.customHint")}
+            </p>
+          </div>
+        ) : null}
+      </section>
+
+      <section className="shrink-0">
+        <h3 className="text-lg font-medium text-foreground">
+          {t("settings.appearance.fontFamily.title")}
+        </h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {t("settings.appearance.fontFamily.description")}
+        </p>
+        <div className="mt-3">
+          <FontFamilyTabs
+            value={typography.fontFamily}
+            onChange={(fontFamily) => {
+              void setFontFamily(fontFamily);
+            }}
+            disabled={typographyLoading}
+            className="w-full"
+          />
+        </div>
+        {typography.fontFamily === "custom" ? (
+          <div className="mt-3 flex flex-col gap-1">
+            <label
+              htmlFor="appearance-custom-font-family"
+              className="text-sm text-card-foreground"
+            >
+              {t("settings.appearance.fontFamily.customLabel")}
+            </label>
+            <Input
+              key={typography.customFontFamily}
+              id="appearance-custom-font-family"
+              type="text"
+              defaultValue={typography.customFontFamily}
+              disabled={typographyLoading}
+              placeholder={t("settings.appearance.fontFamily.customPlaceholder")}
+              className="w-full"
+              onBlur={(event) => {
+                const trimmed = event.target.value.trim();
+                if (trimmed.length === 0 || trimmed === typography.customFontFamily) {
+                  event.target.value = typography.customFontFamily;
+                  return;
+                }
+                void setCustomFontFamily(trimmed).catch(() => {
+                  event.target.value = typography.customFontFamily;
+                });
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.currentTarget.blur();
+                }
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("settings.appearance.fontFamily.customHint")}
+            </p>
+          </div>
+        ) : null}
+      </section>
+
       <div className="shrink-0">
         <h3 className="text-lg font-medium text-foreground">
           {t("settings.appearance.title")}
@@ -53,14 +177,14 @@ export const SettingAppearance: React.FC = () => {
 
       <label className="block shrink-0">
         <span className="sr-only">{t("settings.appearance.searchLabel")}</span>
-        <input
+        <Input
           type="search"
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
           }}
           placeholder={t("settings.appearance.searchPlaceholder")}
-          className="w-full rounded-md border border-control-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="w-full"
         />
       </label>
 
@@ -70,7 +194,7 @@ export const SettingAppearance: React.FC = () => {
         </p>
       ) : (
         <div
-          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-1"
+          className="p-1"
           role="radiogroup"
           aria-label={t("settings.appearance.radioGroupLabel")}
         >

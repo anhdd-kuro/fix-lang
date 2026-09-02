@@ -9,6 +9,9 @@
  */
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
+import { reasoningForAiSdk } from "~/features/correction/shared/reasoningEffort";
+import { getApiKey } from "~/features/providers/store/apiKeyStore";
+import { apiStore, getProfileSetting } from "~/features/providers/store/apiStore";
 import {
   buildCachedMessages,
   extractCacheUsage,
@@ -19,10 +22,8 @@ import {
   type AIRequestOptions,
 } from "~/main/ai.request/requestTypes";
 import { extractResolvedModel } from "~/main/ai.request/resolve-model";
-import { showErrorNotification } from "~/main/notifications/error";
-import { reasoningForAiSdk } from "~/shared/reasoningEffort";
-import { getApiKey } from "~/stores/apiKeyStore";
-import { apiStore, getProfileSetting } from "~/stores/apiStore";
+import { keepAliveFetch } from "~/main/llm/httpKeepAlive";
+import { notifyRequestError } from "~/main/notifications/error";
 
 export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
   const apiKey =
@@ -33,7 +34,7 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
     "";
   if (!apiKey) {
     const error = new Error("OpenRouter API key is missing.");
-    showErrorNotification(error);
+    notifyRequestError(options, error);
     throw error;
   }
 
@@ -42,7 +43,7 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
       `Sending request to OpenRouter with model: ${options.model}, top_p: ${options.top_p}, reasoning: ${options.reasoning ?? "provider-default"}`,
     );
 
-    const openRouter = createOpenRouter({ apiKey: apiKey.trim() });
+    const openRouter = createOpenRouter({ apiKey: apiKey.trim(), fetch: keepAliveFetch });
     const modelId = options.model as string;
     const modelOpenRouter = openRouter(modelId, {
       extraBody: {
@@ -81,6 +82,10 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
       ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: conversationMessages as never,
       ...(reasoning !== undefined ? { reasoning } : {}),
+      ...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
+      ...(options.maxOutputTokens !== undefined
+        ? { maxOutputTokens: options.maxOutputTokens }
+        : {}),
     });
     const { usage, text, reasoningText } = genResponse;
     const normalizedUsage = usageCounts(usage);
@@ -150,7 +155,7 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
     };
   } catch (error) {
     console.error("makeOpenRouterAIRequest error:", error);
-    showErrorNotification(error, "Failed to get a response from the AI provider.");
+    notifyRequestError(options, error, "Failed to get a response from the AI provider.");
     throw error;
   }
 };

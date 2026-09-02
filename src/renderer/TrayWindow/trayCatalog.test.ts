@@ -3,21 +3,21 @@
  * @description Parity guard for the `tray.*` and `common.*` keys added by the
  * Chunk 7 renderer migration (tray window + small shared components). Reads
  * the raw JSON catalogs directly rather than the merged `CATALOGS` export
- * from `~/shared/i18n/locales` — this migration wave owns `common.json` and
+ * from `~/features/i18n/shared/locales` — this migration wave owns `common.json` and
  * `tray.json` exclusively, so the test should not need to change if other
  * namespace files (owned by concurrent migration waves) gain or lose keys.
  *
  * Plural note: EN may define both `_one` and `_other` for a plural key; JA
  * (whose `Intl.PluralRules` category set is just "other") only needs
- * `_other` — see `src/shared/i18n/translate.ts`. Every non-plural key must
+ * `_other` — see `src/features/i18n/shared/translate.ts`. Every non-plural key must
  * exist verbatim in both catalogs.
  */
 
 import { describe, expect, it } from "vitest";
-import enCommon from "~/shared/i18n/locales/en/common.json";
-import enTray from "~/shared/i18n/locales/en/tray.json";
-import jaCommon from "~/shared/i18n/locales/ja/common.json";
-import jaTray from "~/shared/i18n/locales/ja/tray.json";
+import enCommon from "~/features/i18n/shared/locales/en/common.json";
+import enTray from "~/features/i18n/shared/locales/en/tray.json";
+import jaCommon from "~/features/i18n/shared/locales/ja/common.json";
+import jaTray from "~/features/i18n/shared/locales/ja/tray.json";
 
 type Catalog = Record<string, string>;
 

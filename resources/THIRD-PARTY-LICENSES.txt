@@ -10,8 +10,8 @@ directory, so the original LICENSE files of those packages are not otherwise
 present — while MIT requires its notice to accompany substantial portions, and
 Apache-2.0 section 4(a) requires recipients to receive a copy of the licence.
 
-Packages covered: 252 (the full runtime dependency closure).
-Licences: 201 × MIT, 39 × Apache-2.0, 4 × BSD-3-Clause, 4 × ISC, 1 × (AFL-2.1 OR BSD-3-Clause), 1 × (MIT OR CC0-1.0), 1 × 0BSD, 1 × BSD-2-Clause.
+Packages covered: 256 (the full runtime dependency closure).
+Licences: 202 × MIT, 42 × Apache-2.0, 4 × BSD-3-Clause, 4 × ISC, 1 × (AFL-2.1 OR BSD-3-Clause), 1 × (MIT OR CC0-1.0), 1 × 0BSD, 1 × BSD-2-Clause.
 
 Identical licence texts are reproduced once and shared, with every package
 they cover listed above the text. Theme and other non-npm attribution lives in
@@ -111,61 +111,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 ------------------------------------------------------------------------------
-[3] license — applies to 13 package(s):
+[3] LICENSE — applies to 13 package(s):
 
-    estree-util-is-identifier-name@3.0.0
-    mdast-util-gfm-autolink-literal@2.0.1
-    mdast-util-gfm-strikethrough@2.0.0
-    mdast-util-gfm-table@2.0.0
-    mdast-util-gfm-task-list-item@2.0.0
-    mdast-util-mdx-expression@2.0.1
-    mdast-util-mdx-jsx@3.2.0
-    mdast-util-mdxjs-esm@2.0.1
-    micromark-extension-gfm-autolink-literal@2.1.0
-    micromark-extension-gfm-strikethrough@2.1.0
-    micromark-extension-gfm-tagfilter@2.0.0
-    micromark-extension-gfm-task-list-item@2.1.0
-    micromark-extension-gfm@3.0.0
-------------------------------------------------------------------------------
-
-(The MIT License)
-
-Copyright (c) 2020 Titus Wormer <tituswormer@gmail.com>
-
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-'Software'), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
-
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-------------------------------------------------------------------------------
-[4] LICENSE — applies to 12 package(s):
-
-    @aws-sdk/credential-provider-env@3.972.63
-    @aws-sdk/credential-provider-ini@3.973.8
-    @aws-sdk/credential-provider-node@3.972.74
-    @aws-sdk/token-providers@3.1097.0
-    @aws-sdk/types@3.974.2
-    @aws-sdk/xml-builder@3.972.37
-    @smithy/credential-provider-imds@4.4.15
+    @aws-sdk/credential-provider-env@3.972.70
+    @aws-sdk/credential-provider-ini@3.973.15
+    @aws-sdk/credential-provider-node@3.972.81
+    @aws-sdk/token-providers@3.1116.0
+    @aws-sdk/types@3.974.5
+    @aws-sdk/xml-builder@3.972.40
+    @smithy/credential-provider-imds@4.5.2
     @smithy/eventstream-codec@4.4.15
-    @smithy/fetch-http-handler@5.6.12
-    @smithy/node-http-handler@4.9.12
+    @smithy/fetch-http-handler@5.7.2
+    @smithy/node-http-handler@4.11.3
     @smithy/signature-v4@5.6.11
+    @smithy/signature-v4@5.7.3
     @smithy/util-utf8@4.4.15
 ------------------------------------------------------------------------------
 
@@ -373,6 +332,48 @@ Apache License
 
 
 ------------------------------------------------------------------------------
+[4] license — applies to 13 package(s):
+
+    estree-util-is-identifier-name@3.0.0
+    mdast-util-gfm-autolink-literal@2.0.1
+    mdast-util-gfm-strikethrough@2.0.0
+    mdast-util-gfm-table@2.0.0
+    mdast-util-gfm-task-list-item@2.0.0
+    mdast-util-mdx-expression@2.0.1
+    mdast-util-mdx-jsx@3.2.0
+    mdast-util-mdxjs-esm@2.0.1
+    micromark-extension-gfm-autolink-literal@2.1.0
+    micromark-extension-gfm-strikethrough@2.1.0
+    micromark-extension-gfm-tagfilter@2.0.0
+    micromark-extension-gfm-task-list-item@2.1.0
+    micromark-extension-gfm@3.0.0
+------------------------------------------------------------------------------
+
+(The MIT License)
+
+Copyright (c) 2020 Titus Wormer <tituswormer@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+'Software'), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+------------------------------------------------------------------------------
 [5] LICENSE — applies to 11 package(s):
 
     @emotion/babel-plugin@11.13.5
@@ -422,7 +423,7 @@ SOFTWARE.
     @types/ms@2.1.0
     @types/parse-json@4.0.2
     @types/react-transition-group@4.4.12
-    @types/react@19.2.17
+    @types/react@19.2.18
     @types/unist@2.0.11
     @types/unist@3.0.3
 ------------------------------------------------------------------------------
@@ -596,14 +597,16 @@ limitations under the License.
 
 
 ------------------------------------------------------------------------------
-[11] LICENSE — applies to 6 package(s):
+[11] LICENSE — applies to 8 package(s):
 
-    @aws-sdk/credential-provider-process@3.972.63
-    @aws-sdk/credential-provider-sso@3.973.7
-    @aws-sdk/credential-provider-web-identity@3.972.69
-    @aws-sdk/signature-v4-multi-region@3.996.42
+    @aws-sdk/credential-provider-process@3.972.70
+    @aws-sdk/credential-provider-sso@3.973.14
+    @aws-sdk/credential-provider-web-identity@3.972.76
+    @aws-sdk/signature-v4-multi-region@3.996.46
     @smithy/core@3.31.0
+    @smithy/core@3.33.3
     @smithy/types@4.16.1
+    @smithy/types@4.17.2
 ------------------------------------------------------------------------------
 
 Apache License
@@ -954,8 +957,8 @@ SOFTWARE.
 ------------------------------------------------------------------------------
 [17] LICENSE — applies to 2 package(s):
 
-    @tanstack/react-virtual@3.14.8
-    @tanstack/virtual-core@3.17.6
+    @tanstack/react-virtual@3.14.10
+    @tanstack/virtual-core@3.17.8
 ------------------------------------------------------------------------------
 
 MIT License
@@ -1165,7 +1168,7 @@ THE SOFTWARE.
 ------------------------------------------------------------------------------
 [24] LICENSE — applies to 1 package(s):
 
-    @aws-sdk/client-bedrock@3.1097.0
+    @aws-sdk/client-bedrock@3.1116.0
 ------------------------------------------------------------------------------
 
 Apache License
@@ -1374,7 +1377,7 @@ Apache License
 ------------------------------------------------------------------------------
 [25] LICENSE — applies to 1 package(s):
 
-    @aws-sdk/core@3.977.2
+    @aws-sdk/core@3.977.9
 ------------------------------------------------------------------------------
 
 Apache License
@@ -2523,7 +2526,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 ------------------------------------------------------------------------------
 [42] LICENSE.md — applies to 1 package(s):
 
-    colord@2.9.3
+    colord@2.10.0
 ------------------------------------------------------------------------------
 
 MIT License
@@ -4820,7 +4823,36 @@ express Statement of Purpose.
 
 
 ------------------------------------------------------------------------------
-[99] license — applies to 1 package(s):
+[99] LICENSE — applies to 1 package(s):
+
+    undici@8.10.0
+------------------------------------------------------------------------------
+
+MIT License
+
+Copyright (c) Matteo Collina and Undici contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+------------------------------------------------------------------------------
+[100] license — applies to 1 package(s):
 
     unist-util-is@6.0.1
 ------------------------------------------------------------------------------
@@ -4850,7 +4882,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[100] LICENSE — applies to 1 package(s):
+[101] LICENSE — applies to 1 package(s):
 
     use-isomorphic-layout-effect@1.2.1
 ------------------------------------------------------------------------------
@@ -4879,9 +4911,9 @@ SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[101] LICENSE.md — applies to 1 package(s):
+[102] LICENSE.md — applies to 1 package(s):
 
-    uuid@14.0.1
+    uuid@14.0.2
 ------------------------------------------------------------------------------
 
 The MIT License (MIT)
@@ -4896,7 +4928,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 ------------------------------------------------------------------------------
-[102] LICENSE — applies to 1 package(s):
+[103] LICENSE — applies to 1 package(s):
 
     whatwg-fetch@3.6.20
 ------------------------------------------------------------------------------
@@ -4924,7 +4956,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[103] LICENSE — applies to 1 package(s):
+[104] LICENSE — applies to 1 package(s):
 
     yaml@1.10.3
 ------------------------------------------------------------------------------
@@ -4945,7 +4977,7 @@ THIS SOFTWARE.
 
 
 ------------------------------------------------------------------------------
-[104] LICENSE — applies to 1 package(s):
+[105] LICENSE — applies to 1 package(s):
 
     zod@4.4.3
 ------------------------------------------------------------------------------
@@ -4982,9 +5014,9 @@ The canonical text of the declared licence follows this section.
 
     @ai-sdk/provider-utils@5.0.12 — Apache-2.0
     @ai-sdk/provider-utils@5.0.14 — Apache-2.0
-    @aws-sdk/credential-provider-http@3.972.65 — Apache-2.0
-    @aws-sdk/credential-provider-login@3.972.70 — Apache-2.0
-    @aws-sdk/nested-clients@3.997.37 — Apache-2.0
+    @aws-sdk/credential-provider-http@3.972.72 — Apache-2.0
+    @aws-sdk/credential-provider-login@3.972.77 — Apache-2.0
+    @aws-sdk/nested-clients@3.997.44 — Apache-2.0
 
 ------------------------------------------------------------------------------
 Apache License 2.0 — canonical text

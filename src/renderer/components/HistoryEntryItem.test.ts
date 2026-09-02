@@ -4,7 +4,7 @@
  * pattern in `HistoryEntryItem.tsx`: passing `{ locale: dateFnsLocale }` only
  * localized month/day *names* — the literal `"MM/dd HH:mm"` field order and
  * separators stayed fixed regardless of locale. The fix routes the timestamp
- * through the shared `formatDateTime` formatter (`~/shared/i18n/format.ts`),
+ * through the shared `formatDateTime` formatter (`~/features/i18n/shared/format.ts`),
  * which resolves field order/separators/12h-vs-24h convention per locale via
  * `Intl.DateTimeFormat`.
  *
@@ -23,11 +23,11 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createFormatters } from "~/shared/i18n/format";
+import { createFormatters } from "~/features/i18n/shared/format";
 import HistoryEntryItem from "./HistoryEntryItem";
 import { I18nProvider } from "../i18n/I18nProvider";
-import type { Locale } from "~/shared/i18n/registry";
-import type { HistoryEntry } from "~/stores/historyStore";
+import type { HistoryEntry } from "~/features/history/store/historyStore";
+import type { Locale } from "~/features/i18n/shared/registry";
 
 const fEn = createFormatters("en");
 const fJa = createFormatters("ja");
@@ -119,5 +119,84 @@ describe("HistoryEntryItem", () => {
     const jaExpected = fJa.formatDateTime(entry.timestamp);
     expect(container.textContent).toContain(jaExpected);
     expect(jaExpected).toBe(enExpected);
+  });
+
+  it("truncates the preset badge instead of wrapping it onto a second line", async () => {
+    const entry = makeEntry({ presetName: "Context-Aware Structured Text" });
+    await render(entry);
+
+    const badge = container.querySelector<HTMLElement>(
+      `span[title="${entry.presetName}"]`,
+    );
+
+    expect(badge?.textContent).toBe(entry.presetName);
+    // `truncate` = overflow-hidden + text-ellipsis + whitespace-nowrap, so a
+    // long preset name can never make one row taller than its neighbours.
+    expect(badge?.className).toContain("truncate");
+  });
+
+  it("appends no literal ellipsis to a preview that already fits", async () => {
+    const entry = makeEntry({ original: "short" });
+    await render(entry);
+
+    const preview = container.querySelector<HTMLElement>(
+      `p[title="${entry.original}"]`,
+    );
+
+    expect(preview?.textContent).toBe("short");
+  });
+
+  /**
+   * `truncate`/`line-clamp` silently do nothing on a flex child whose ancestors
+   * keep the default `min-width: auto`: the child refuses to shrink below its
+   * longest word, the row grows past the list, and `overflow-y-auto` on the
+   * list (whose `overflow-x: visible` then computes to `auto`) answers with a
+   * horizontal scrollbar. Every ancestor on the path from a truncating element
+   * up to the row root must therefore carry `min-w-0` — including the ones
+   * whose only flex marker is `flex-1`, which is a flex ITEM, not a container,
+   * and is exactly the ancestor an earlier version of this guard missed.
+   */
+  it("gives every ancestor of a truncating element the min-w-0 that makes truncation work", async () => {
+    const entry = makeEntry({
+      original: "a".repeat(400),
+      model: "anthropic.claude-3-5-sonnet-20241022-v2:0",
+      presetName: "Context-Aware Structured Text",
+    });
+    await render(entry);
+
+    const truncating = [...container.querySelectorAll<HTMLElement>(".truncate")];
+    expect(truncating.length).toBeGreaterThanOrEqual(3);
+
+    for (const element of truncating) {
+      for (
+        let ancestor = element.parentElement;
+        ancestor && ancestor !== container;
+        ancestor = ancestor.parentElement
+      ) {
+        expect([...ancestor.classList]).toContain("min-w-0");
+      }
+    }
+  });
+
+  it("places the session-details control before the history title", async () => {
+    const entry = makeEntry({
+      sessionJson: JSON.stringify({
+        messages: [],
+        model: "gpt-4.1-mini",
+        provider: "openai",
+        responses: [],
+        promptTokens: 1,
+        completionTokens: 1,
+      }),
+    });
+    await render(entry);
+
+    const control = container.querySelector(
+      'button[aria-label="View session details"]',
+    );
+    const title = container.querySelector(`p[title="${entry.original}"]`);
+
+    expect(control).not.toBeNull();
+    expect(title?.parentElement?.firstElementChild).toBe(control?.parentElement);
   });
 });

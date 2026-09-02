@@ -12,7 +12,7 @@
  * would put an estimate next to real billed dollars with nothing marking it as
  * one; that is deliberately not done here.
  */
-import type { UsageCostSlice, UsageDailyPoint, UsageModelRow } from "~/shared/usage";
+import type { UsageCostSlice, UsageDailyPoint, UsageModelRow } from "~/features/usage/shared/usage";
 
 /** Independent per-card result — mirrors the OpenRouter parsers' contract. */
 export type CardResult<T> =

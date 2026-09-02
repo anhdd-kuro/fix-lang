@@ -13,8 +13,8 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LOCALE_OPTIONS } from "~/shared/i18n/registry";
-import { createTranslator } from "~/shared/i18n/translate";
+import { LOCALE_OPTIONS } from "~/features/i18n/shared/registry";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import { LanguageTabs } from "./LanguageTabs";
 import { I18nProvider } from "../i18n/I18nProvider";
 

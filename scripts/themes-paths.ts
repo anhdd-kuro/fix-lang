@@ -25,7 +25,7 @@ export const THEME_CSS_DIR = path.join(
 export const THEME_IMPORTS_CSS = path.join(THEME_CSS_DIR, "imports.css");
 export const THEME_IDS_GENERATED = path.join(
   projectRoot,
-  "src/stores/themeIds.generated.ts",
+  "src/features/theme/store/themeIds.generated.ts",
 );
 export const THEME_MANIFEST_GENERATED = path.join(
   projectRoot,

@@ -2,7 +2,7 @@ import path from "node:path";
 import { app, BrowserWindow, ipcMain, screen } from "electron";
 import { attachThemeSync } from "./attachThemeSync";
 import { buildCorrectionResultWindowTitle } from "./windowTitles";
-import type { CorrectionResultPayload } from "~/shared/correctionResult";
+import type { CorrectionResultPayload } from "~/features/correction/shared/correctionResult";
 
 const WINDOW_WIDTH = 560;
 const WINDOW_HEIGHT = 400;

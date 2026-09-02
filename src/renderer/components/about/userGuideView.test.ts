@@ -6,7 +6,7 @@
  * description would otherwise silently vanish from the guide.
  */
 import { describe, expect, it } from "vitest";
-import { EN_CATALOG } from "~/shared/i18n/locales";
+import { EN_CATALOG } from "~/features/i18n/shared/locales";
 import {
   buildDashboardRows,
   buildPresetRows,
@@ -133,7 +133,19 @@ describe("GUIDE_TOPICS", () => {
   });
 
   it("points every title at a real settings tab", () => {
-    const validTabs = ["profiles", "general", "appearance", "correction", "promptGen"];
+    // Mirrors the `SettingsTabId` union in `SettingsModal.tsx`, including the
+    // tabs no topic currently points at — a topic aimed at a tab that does not
+    // exist opens Profiles instead, silently.
+    const validTabs = [
+      "profiles",
+      "general",
+      "appearance",
+      "correction",
+      "combos",
+      "autocomplete",
+      "security",
+      "promptGen",
+    ];
     for (const topic of GUIDE_TOPICS) {
       expect(validTabs).toContain(topic.settingsTab);
     }
@@ -146,5 +158,14 @@ describe("GUIDE_TOPICS", () => {
         .includes("{hotkey}");
       expect(topic.interpolatesHotkey === true).toBe(usesHotkey);
     }
+  });
+
+  it("has a combo topic mentioning the Control+Escape cancel", () => {
+    const combo = GUIDE_TOPICS.find((topic) => topic.id === "combo");
+    expect(combo).toBeDefined();
+    expect(combo?.settingsTab).toBe("combos");
+    expect(
+      EN_CATALOG[combo?.bodyKey as keyof typeof EN_CATALOG],
+    ).toContain("Control+Escape");
   });
 });

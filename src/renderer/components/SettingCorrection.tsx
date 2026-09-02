@@ -1,7 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  CAVEMAN_MODE_OPTION_KEY,
+  presetOptionDefinitions,
+  resolvePresetOptionValue,
+  withPresetOptions,
+} from "~/features/correction/shared/presetOptions";
+import { msg, messageLabel, type Message } from "~/features/i18n/shared/message";
+import {
+  DEFAULT_ASK_PRESET_ID,
+  DEFAULT_ASK_PRESET_PROMPT,
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
   DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
+  DEFAULT_CAVEMAN_PRESET_ID,
+  DEFAULT_CAVEMAN_PRESET_PROMPT,
   DEFAULT_CORRECTION_PRESET_ID,
   DEFAULT_CUSTOM_PROMPT,
   DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
@@ -13,12 +24,19 @@ import {
   DEFAULT_TRANSLATE_PRESET_ID,
   DEFAULT_TRANSLATE_PRESET_PROMPT,
 } from "~/prompts/correction";
-import { msg, messageLabel, type Message } from "~/shared/i18n/message";
 import { useI18n } from "../i18n/useI18n";
 import { splitHotkey } from "./about/userGuideView";
 import { Button } from "./Button";
+import { Checkbox } from "./Checkbox";
+import {
+  collectComboErrors,
+  hasBlockingComboErrors,
+} from "./comboEditorView";
+import { captureHotkey } from "./hotkeyCapture";
+import { Input, Textarea } from "./Input";
 import { ModelSelect } from "./ModelSelect";
 import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
+import { SearchableSelect } from "./SearchableSelect";
 import {
   plainStatus,
   wrappedError,
@@ -26,8 +44,27 @@ import {
   type StatusDescriptor,
 } from "./statusDescriptor";
 import { validateHotkeys } from "./validateHotkeys";
-import type { ReasoningEffort } from "~/shared/reasoningEffort";
-import type { CorrectionPreset, CorrectionSettings } from "~/stores/apiStore";
+import type { ReasoningEffort } from "~/features/correction/shared/reasoningEffort";
+import type {
+  CorrectionPreset,
+  CorrectionSettings,
+} from "~/features/providers/store/apiStore";
+
+type PresetOutputMode = NonNullable<CorrectionPreset["outputMode"]>;
+type PresetOutputModeOption = { value: PresetOutputMode; label: string };
+type PresetOptionChoice = { value: string; label: string };
+
+const PRESET_OUTPUT_MODE_FIELD_ID = "preset-output-mode";
+const PRESET_OUTPUT_MODE_CONTROL_ID = "preset-output-mode-control";
+
+const PRESET_OUTPUT_MODES = [
+  { mode: "inherit", labelKey: "settings.correction.outputMode.inherit" },
+  { mode: "paste", labelKey: "settings.correction.outputMode.paste" },
+  { mode: "popup", labelKey: "settings.correction.outputMode.popup" },
+] as const satisfies readonly {
+  readonly mode: PresetOutputMode;
+  readonly labelKey: string;
+}[];
 
 /**
  * Read-only hotkey chips for the preset list. Matches `HotkeyChips` in
@@ -62,7 +99,7 @@ const PresetHotkeyChips = ({
       {keys.map((key, index) => (
         <li
           key={`${String(index)}-${key}`}
-          className={`inline-block rounded-lg border px-1.5 py-0.5 text-[10px] font-semibold ${
+          className={`inline-block rounded-lg border px-1.5 py-0.5 text-2xs font-semibold ${
             selected
               ? "border-primary-foreground/35 bg-primary-foreground/15 text-inherit"
               : "border-control-border bg-muted text-foreground"
@@ -100,7 +137,7 @@ export const makeBuiltInPresetDefaults = (): Record<
     systemPrompt: DEFAULT_PROMPT_OPTIMIZATION_PROMPT,
     model: "", // empty = inherit the global default model
     isBuiltIn: true,
-    reasoning: "minimal",
+    reasoning: "low",
   },
   [DEFAULT_SUMMARIZE_PRESET_ID]: {
     id: DEFAULT_SUMMARIZE_PRESET_ID,
@@ -125,7 +162,7 @@ export const makeBuiltInPresetDefaults = (): Record<
     systemPrompt: DEFAULT_BUSINESS_WRITING_PRESET_PROMPT,
     model: "", // empty = inherit the global default model
     isBuiltIn: true,
-    reasoning: "minimal",
+    reasoning: "low",
   },
   [DEFAULT_STRUCTURED_TEXT_PRESET_ID]: {
     id: DEFAULT_STRUCTURED_TEXT_PRESET_ID,
@@ -134,6 +171,31 @@ export const makeBuiltInPresetDefaults = (): Record<
     systemPrompt: DEFAULT_STRUCTURED_TEXT_PRESET_PROMPT,
     model: "", // empty = inherit the global default model
     isBuiltIn: true,
+  },
+  [DEFAULT_ASK_PRESET_ID]: {
+    id: DEFAULT_ASK_PRESET_ID,
+    name: "Ask AI",
+    hotkey: "Control+Shift+A",
+    systemPrompt: DEFAULT_ASK_PRESET_PROMPT,
+    model: "", // empty = inherit the global default model
+    isBuiltIn: true,
+    // Kept in field-for-field parity with `makeDefaultCorrectionPresets()`;
+    // `minimal` was retired upstream and is no longer a `ReasoningEffort`.
+    reasoning: "low",
+    requiresInput: true,
+    outputMode: "popup",
+    markdownOutput: true,
+  },
+  [DEFAULT_CAVEMAN_PRESET_ID]: {
+    id: DEFAULT_CAVEMAN_PRESET_ID,
+    name: "Caveman",
+    hotkey: "Control+Shift+C",
+    systemPrompt: DEFAULT_CAVEMAN_PRESET_PROMPT,
+    model: "", // empty = inherit the global default model
+    isBuiltIn: true,
+    // Field-for-field parity with `makeDefaultCorrectionPresets()`; the drift
+    // guard in `builtInPresetDefaults.test.ts` fails the moment these disagree.
+    extraOptions: { [CAVEMAN_MODE_OPTION_KEY]: "full" },
   },
 });
 
@@ -150,27 +212,6 @@ const makeCustomPreset = (count: number): CorrectionPreset => ({
   model: "", // empty = inherit the global default model
   isBuiltIn: false,
 });
-
-const captureHotkey = (
-  event: React.KeyboardEvent<HTMLInputElement>,
-): string => {
-  event.preventDefault();
-
-  const parts: string[] = [];
-
-  if (event.ctrlKey) parts.push("Control");
-  if (event.metaKey) parts.push("Command");
-  if (event.altKey) parts.push("Alt");
-  if (event.shiftKey) parts.push("Shift");
-
-  const key = event.key.length === 1 ? event.key.toUpperCase() : event.key;
-
-  if (!["Control", "Command", "Alt", "Shift"].includes(key)) {
-    parts.push(key);
-  }
-
-  return parts.join("+");
-};
 
 /**
  * Validates form fields (name + systemPrompt) on each preset.
@@ -212,10 +253,44 @@ export const SettingCorrection: React.FC = () => {
 
   const builtInDefaults = useMemo(() => makeBuiltInPresetDefaults(), []);
 
+  // `t` changes identity on a locale switch, so it must stay in the deps or the
+  // rows keep the previous language.
+  const outputModeOptions = useMemo<PresetOutputModeOption[]>(
+    () =>
+      PRESET_OUTPUT_MODES.map(({ mode, labelKey }) => ({
+        value: mode,
+        label: t(labelKey),
+      })),
+    [t],
+  );
+
   const activePreset =
     correctionSettings.presets.find(
       (preset) => preset.id === correctionSettings.selectedPresetId,
     ) || correctionSettings.presets[0];
+
+  const selectedOutputModeOption =
+    outputModeOptions.find(
+      (option) => option.value === (activePreset?.outputMode ?? "inherit"),
+    ) ?? null;
+
+  // Absent reads as `[]` — the whole migration (see `CorrectionSettings.combos`).
+  // Memoized so a bare `?? []` fallback does not mint a new array reference
+  // every render and defeat `comboErrorsById`'s memoization below.
+  const combos = useMemo(
+    () => correctionSettings.combos ?? [],
+    [correctionSettings.combos],
+  );
+
+  // Combos are edited in their own tab, but they are validated here too: this
+  // tab can DELETE a preset a stored combo step points at, and the resulting
+  // orphan is only visible from the combo side. Blocking Save is what stops a
+  // preset deletion here from silently breaking a combo over there.
+  const comboErrorsById = useMemo(
+    () => collectComboErrors(combos, correctionSettings.presets),
+    [combos, correctionSettings.presets],
+  );
+
 
   const loadSettings = async () => {
     try {
@@ -260,10 +335,37 @@ export const SettingCorrection: React.FC = () => {
     }));
   };
 
+  /**
+   * Writes one declared option without going through `updatePreset`: the merged
+   * `extraOptions` has to be built from the preset held in state WHEN THE WRITE
+   * RUNS, not from the render snapshot this handler closed over. A preset that
+   * declares two options would otherwise lose the first edit to the second —
+   * the whole-object clobber described in the fixlang-settings-writes skill,
+   * one nesting level down.
+   */
+  const updatePresetOption = (
+    presetId: string,
+    optionKey: string,
+    value: string,
+  ) => {
+    setCorrectionSettings((current) => ({
+      ...current,
+      presets: current.presets.map((preset) =>
+        preset.id === presetId
+          ? {
+              ...preset,
+              extraOptions: { ...preset.extraOptions, [optionKey]: value },
+            }
+          : preset,
+      ),
+    }));
+  };
+
   const handleAddPreset = () => {
     const nextPreset = makeCustomPreset(correctionSettings.presets.length + 1);
 
     setCorrectionSettings((current) => ({
+      ...current,
       presets: [...current.presets, nextPreset],
       selectedPresetId: nextPreset.id,
     }));
@@ -276,15 +378,28 @@ export const SettingCorrection: React.FC = () => {
       return;
     }
 
+    // `PRESET_OPTION_DEFINITIONS` is keyed by BUILT-IN preset id, so a
+    // duplicate's fresh `custom-*` id declares no options: the Settings
+    // control that lets the original preset choose e.g. Caveman's intensity
+    // would silently disappear, and the directive it used to inject would
+    // never reach the model even though the copied prompt text still refers
+    // to it. Baking the resolved fragments into `systemPrompt` up front makes
+    // the duplicate a self-contained plain custom preset — the same shape
+    // every other custom preset already is — instead of teaching the
+    // registry to follow a lineage that does not exist yet.
+    const { extraOptions: _extraOptions, ...activePresetWithoutOptions } =
+      activePreset;
     const duplicatedPreset: CorrectionPreset = {
-      ...activePreset,
+      ...activePresetWithoutOptions,
       id: `custom-${Date.now()}`,
       name: `${activePreset.name} Copy`,
       hotkey: "",
       isBuiltIn: false,
+      systemPrompt: withPresetOptions(activePreset.systemPrompt, activePreset),
     };
 
     setCorrectionSettings((current) => ({
+      ...current,
       presets: [...current.presets, duplicatedPreset],
       selectedPresetId: duplicatedPreset.id,
     }));
@@ -306,6 +421,7 @@ export const SettingCorrection: React.FC = () => {
         presets[0];
 
       return {
+        ...current,
         presets,
         selectedPresetId: fallbackPreset?.id || DEFAULT_CORRECTION_PRESET_ID,
       };
@@ -324,15 +440,22 @@ export const SettingCorrection: React.FC = () => {
       return;
     }
 
-    // Explicitly include reasoning so Reset restores the built-in effort even
-    // when the current preset carries a user override.
+    // Explicitly include these so Reset restores the built-in value even when
+    // the current preset carries an override — a spread alone only overwrites
+    // keys `defaultPreset` actually has, so an override sitting on a key the
+    // built-in default omits (undefined) would otherwise survive the reset.
     updatePreset(activePreset.id, {
       ...defaultPreset,
       reasoning: defaultPreset.reasoning,
+      requiresInput: defaultPreset.requiresInput,
+      outputMode: defaultPreset.outputMode,
+      markdownOutput: defaultPreset.markdownOutput,
+      extraOptions: defaultPreset.extraOptions,
     });
     setStatus(null);
     setStatusIsError(false);
   };
+
 
   const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -345,12 +468,21 @@ export const SettingCorrection: React.FC = () => {
       return;
     }
 
-    // Hotkey conflict validation: fetch latest app keybindings and check
-    // all preset hotkeys against each other and against promptGen/profileSwitch.
+    // Blocks Save while ANY combo has a validateCombo error. The errors
+    // themselves are on screen in the Combos tab, not this one, so the banner
+    // has to name the problem rather than point at it.
+    if (hasBlockingComboErrors(comboErrorsById)) {
+      setStatusIsError(true);
+      setStatus(plainStatus("settings.correction.combos.saveBlocked"));
+      return;
+    }
+
+    // Every hotkey: presets, combos, app keybindings, reserved cancel chord.
     const latestKeyBindings = await window.electronAPI.getKeyBindings();
     const conflict = validateHotkeys(
       correctionSettings.presets,
       latestKeyBindings,
+      correctionSettings.combos,
     );
     if (conflict) {
       setStatusIsError(true);
@@ -398,6 +530,10 @@ export const SettingCorrection: React.FC = () => {
       </div>
     );
   }
+
+  // A frozen registry lookup, so it is read here rather than memoized above the
+  // two early returns.
+  const activePresetOptions = presetOptionDefinitions(activePreset.id);
 
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-6">
@@ -461,7 +597,7 @@ export const SettingCorrection: React.FC = () => {
                           emptyLabel={t("settings.correction.noHotkeyAssigned")}
                         />
                       </div>
-                      <span className="shrink-0 whitespace-nowrap rounded-full bg-secondary px-2 py-1 text-[11px] text-card-foreground">
+                      <span className="shrink-0 whitespace-nowrap rounded-full bg-secondary px-2 py-1 text-xxs text-card-foreground">
                         {preset.isBuiltIn
                           ? t("settings.correction.badge.builtIn")
                           : t("settings.correction.badge.custom")}
@@ -523,14 +659,14 @@ export const SettingCorrection: React.FC = () => {
               >
                 {t("settings.correction.presetName")}
               </label>
-              <input
+              <Input
                 id="preset-name"
                 type="text"
                 value={activePreset.name}
                 onChange={(event) =>
                   updatePreset(activePreset.id, { name: event.target.value })
                 }
-                className="h-10 rounded-md border border-control-border bg-secondary px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="w-full"
               />
             </div>
 
@@ -541,7 +677,7 @@ export const SettingCorrection: React.FC = () => {
               >
                 {t("settings.correction.hotkeyLabel")}
               </label>
-              <input
+              <Input
                 id="preset-hotkey"
                 type="text"
                 value={activePreset.hotkey}
@@ -558,7 +694,7 @@ export const SettingCorrection: React.FC = () => {
                 }}
                 placeholder={t("settings.hotkeys.pressShortcut")}
                 readOnly
-                className="h-10 rounded-md border border-control-border bg-secondary px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="w-full"
               />
               <Button
                 type="button"
@@ -611,6 +747,111 @@ export const SettingCorrection: React.FC = () => {
             </p>
           </div>
 
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <label
+                htmlFor={PRESET_OUTPUT_MODE_FIELD_ID}
+                className="text-sm text-card-foreground"
+              >
+                {t("settings.correction.outputMode.label")}
+              </label>
+              <SearchableSelect<PresetOutputModeOption>
+                id={PRESET_OUTPUT_MODE_CONTROL_ID}
+                inputId={PRESET_OUTPUT_MODE_FIELD_ID}
+                className="w-full text-sm"
+                value={selectedOutputModeOption}
+                options={outputModeOptions}
+                noOptionsMessage={t("common.select.noOptions")}
+                onChange={(option) => {
+                  if (option) {
+                    updatePreset(activePreset.id, { outputMode: option.value });
+                  }
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("settings.correction.outputMode.hint")}
+              </p>
+            </div>
+
+            {activePreset.requiresInput && (
+              <div className="flex flex-col gap-2">
+                <span aria-hidden="true" className="hidden h-5 md:block" />
+                <Checkbox
+                  name="preset-markdown-output"
+                  checked={activePreset.markdownOutput ?? false}
+                  onChange={(markdownOutput) =>
+                    updatePreset(activePreset.id, { markdownOutput })
+                  }
+                  label={t("settings.correction.markdownOutput.label")}
+                  className="text-card-foreground md:h-10"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("settings.correction.markdownOutput.hint")}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/*
+            Preset-scoped options, rendered from what the preset DECLARES in
+            `presetOptions.ts` — never from its id. A preset that declares
+            nothing renders nothing here, and a future preset that declares an
+            option gets its control with no change to this file.
+          */}
+          {activePresetOptions.length > 0 && (
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              {activePresetOptions.map((option) => {
+                const fieldId = `preset-option-${option.key}`;
+                const controlId = `preset-option-${option.key}-control`;
+                const choiceOptions: PresetOptionChoice[] = option.choices.map(
+                  (choice) => ({
+                    value: choice.value,
+                    label: t(choice.labelKey),
+                  }),
+                );
+                const resolvedValue = resolvePresetOptionValue(
+                  activePreset,
+                  option.key,
+                );
+                const selectedChoiceOption =
+                  choiceOptions.find(
+                    (choiceOption) => choiceOption.value === resolvedValue,
+                  ) ?? null;
+
+                return (
+                  <div key={option.key} className="flex flex-col gap-2">
+                    <label
+                      htmlFor={fieldId}
+                      className="text-sm text-card-foreground"
+                    >
+                      {t(option.labelKey)}
+                    </label>
+                    <SearchableSelect<PresetOptionChoice>
+                      id={controlId}
+                      inputId={fieldId}
+                      className="w-full text-sm"
+                      value={selectedChoiceOption}
+                      options={choiceOptions}
+                      noOptionsMessage={t("common.select.noOptions")}
+                      onChange={(choiceOption) => {
+                        if (choiceOption) {
+                          updatePresetOption(
+                            activePreset.id,
+                            option.key,
+                            choiceOption.value,
+                          );
+                        }
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {t(option.hintKey)}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <div className="mt-4 flex flex-col gap-2">
             <label
               htmlFor="system-prompt"
@@ -618,7 +859,7 @@ export const SettingCorrection: React.FC = () => {
             >
               {t("settings.correction.systemPrompt")}
             </label>
-            <textarea
+            <Textarea
               id="system-prompt"
               value={activePreset.systemPrompt}
               onChange={(event) =>
@@ -627,7 +868,7 @@ export const SettingCorrection: React.FC = () => {
                 })
               }
               rows={16}
-              className="min-h-72 rounded-md border border-control-border bg-secondary p-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="min-h-72 w-full"
             />
           </div>
         </section>

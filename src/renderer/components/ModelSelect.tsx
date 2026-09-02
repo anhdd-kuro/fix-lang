@@ -2,10 +2,10 @@ import { format as formatDateFns } from "date-fns";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { components as reactSelectComponents } from "react-select";
 import { twJoin } from "tailwind-merge";
-import { messageLabel, textLabel, type Label } from "~/shared/i18n/message";
-// Value import: `~/stores/apiStore`'s re-export shim would pull
+import { messageLabel, textLabel, type Label } from "~/features/i18n/shared/message";
+// Value import: `~/features/providers/store/apiStore`'s re-export shim would pull
 // `electron-store` into the renderer bundle.
-import { isProviderId } from "~/shared/providers";
+import { isProviderId } from "~/features/providers/shared/providers";
 import { Button } from "./Button";
 import {
   buildModelOptionGroups,
@@ -19,11 +19,12 @@ import {
   type ModelOptionGroup,
 } from "./modelSelectOptions";
 import { SearchableSelect } from "./SearchableSelect";
+import { selectOptionClassName } from "./selectOptionSurface";
 import SettingsButton from "./SettingsIcon";
 import { useI18n } from "../i18n/useI18n";
 import type { GroupBase, GroupHeadingProps } from "react-select";
-import type { TranslationKey } from "~/shared/i18n/keys";
-import type { Model, ProviderId } from "~/stores/apiStore";
+import type { TranslationKey } from "~/features/i18n/shared/keys";
+import type { Model, ProviderId } from "~/features/providers/store/apiStore";
 
 /** Stable identity so an errorless fetch does not invalidate the option memo. */
 const NO_PROVIDER_ERRORS: Partial<Record<ProviderId, string>> = Object.freeze({});
@@ -300,12 +301,12 @@ return (
               return (
                 <div className="px-3 pt-2 pb-1">
                   {group.label ? (
-                    <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <span className="block text-xxs font-semibold uppercase tracking-wide text-muted-foreground">
                       {group.label}
                     </span>
                   ) : null}
                   {group.error ? (
-                    <span className="block text-[11px] text-destructive" role="alert">
+                    <span className="block text-xxs text-destructive" role="alert">
                       {group.error}
                     </span>
                   ) : null}
@@ -326,7 +327,14 @@ return (
               if (data.isDisabled) {
                 return (
                   <p
-                    className="px-4 py-1.5 text-xs italic text-muted-foreground"
+                    className={twJoin(
+                      "px-4 py-1.5 text-xs italic",
+                      selectOptionClassName({
+                        isFocused,
+                        isSelected,
+                        isDisabled: true,
+                      }),
+                    )}
                     title={text}
                     {...innerProps}
                   >
@@ -339,8 +347,8 @@ return (
                 return (
                   <p
                     className={twJoin(
-                      "px-4 py-1.5 text-foreground cursor-pointer truncate",
-                      isSelected ? "bg-primary" : isFocused ? "bg-secondary" : "",
+                      "px-4 py-1.5 cursor-pointer truncate",
+                      selectOptionClassName({ isFocused, isSelected }),
                     )}
                     title={text}
                     {...innerProps}
@@ -361,8 +369,8 @@ return (
               return (
                 <p
                   className={twJoin(
-                    "flex flex-wrap items-center gap-1.5 px-3 py-1.5 text-foreground cursor-pointer",
-                    isSelected ? "bg-primary" : isFocused ? "bg-secondary" : "",
+                    "flex flex-wrap items-center gap-1.5 px-3 py-1.5 cursor-pointer",
+                    selectOptionClassName({ isFocused, isSelected }),
                   )}
                   title={text}
                   {...innerProps}
@@ -373,8 +381,13 @@ return (
                   {createdAt ? (
                     <span
                       className={twJoin(
-                        "shrink-0 text-xs text-foreground rounded px-2 py-1",
-                        isFocused || isSelected ? "bg-card" : "bg-secondary",
+                        "shrink-0 text-xs rounded px-2 py-1",
+                        // Each badge background takes its own paired foreground:
+                        // `text-foreground` over `card`/`secondary` drops below
+                        // 3:1 in 37 of the 149 themes.
+                        isFocused || isSelected
+                          ? "bg-card text-card-foreground"
+                          : "bg-secondary text-secondary-foreground",
                       )}
                     >
                       {createdAt}
@@ -383,12 +396,12 @@ return (
                   {data.detail ? (
                     <span
                       className={twJoin(
-                        "shrink-0 text-xs text-foreground rounded px-2 py-1",
+                        "shrink-0 text-xs rounded px-2 py-1",
                         data.isLocal
-                          ? "bg-success"
+                          ? "bg-success text-success-foreground"
                           : isFocused || isSelected
-                            ? "bg-card"
-                            : "bg-secondary",
+                            ? "bg-card text-card-foreground"
+                            : "bg-secondary text-secondary-foreground",
                       )}
                     >
                       {data.isLocal ? (
@@ -413,7 +426,10 @@ return (
           variant="ghost"
           aria-label={t("models.select.refetch")}
           title={t("models.select.refetch")}
-          className="px-2 py-1 rounded"
+          className={twJoin(
+            "rounded leading-none",
+            compact ? "px-2.5 py-2 text-lg" : "px-2.5 py-1.5 text-base",
+          )}
           onClick={() => fetchModels(true)}
           disabled={modelsLoading}
         >

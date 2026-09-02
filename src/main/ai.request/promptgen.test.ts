@@ -26,7 +26,7 @@ vi.mock("electron", () => ({
 vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
   showErrorPopup: vi.fn(),
 }));
-vi.mock("~/stores/apiStore", async (importOriginal) => {
+vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
   const real = await importOriginal<any>();
   return {
@@ -36,7 +36,7 @@ vi.mock("~/stores/apiStore", async (importOriginal) => {
   };
 });
 vi.mock("./shared", () => ({ makeAIRequest: vi.fn() }));
-import { getProfileSetting } from "~/stores/apiStore";
+import { getProfileSetting } from "~/features/providers/store/apiStore";
 import { generatePrompt } from "./promptgen";
 import { makeAIRequest } from "./shared";
 import type { Mock } from "vitest";

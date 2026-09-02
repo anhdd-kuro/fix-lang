@@ -29,6 +29,9 @@ import {
   UsageDailyTokenChart,
 } from "./UsageCharts";
 import { UsagePanelSkeleton } from "../Skeleton";
+import type { TranslationKey } from "~/features/i18n/shared/keys";
+import type { Translator } from "~/features/i18n/shared/translate";
+import type { OpenRouterRange } from "~/features/usage/preload/openrouter";
 import type {
   Activity,
   CardResult,
@@ -36,9 +39,6 @@ import type {
   EnabledKeys,
   KeyUsage,
 } from "~/main/llm/providers/openrouter/parsers";
-import type { OpenRouterRange } from "~/preload/features/openrouter";
-import type { TranslationKey } from "~/shared/i18n/keys";
-import type { Translator } from "~/shared/i18n/translate";
 
 type OpenRouterUsagePanelProps = {
   /** Opens the Settings modal (General tab) for the empty-state affordance. */

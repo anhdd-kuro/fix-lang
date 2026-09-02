@@ -1,20 +1,26 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { BEDROCK_DEFAULT_REGION } from "~/shared/bedrockEndpoint";
-import { messageLabel, type Label, type Message } from "~/shared/i18n/message";
-import { LMSTUDIO_DEFAULT_ENDPOINT } from "~/shared/lmstudioEndpoint";
-import { OLLAMA_DEFAULT_ENDPOINT } from "~/shared/ollamaEndpoint";
+import { messageLabel, type Label, type Message } from "~/features/i18n/shared/message";
+import { BEDROCK_DEFAULT_REGION } from "~/features/providers/shared/bedrockEndpoint";
+import { LMSTUDIO_DEFAULT_ENDPOINT } from "~/features/providers/shared/lmstudioEndpoint";
+import { OLLAMA_DEFAULT_ENDPOINT } from "~/features/providers/shared/ollamaEndpoint";
+import { isMalformedOpenAIProjectId } from "~/features/providers/shared/openaiProject";
+import { PROVIDER_ORDER } from "~/features/providers/shared/providers";
 import { Button } from "./Button";
+import { Input } from "./Input";
 import { LanguageTabs } from "./LanguageTabs";
 import { ModelSelect } from "./ModelSelect";
 import { PROVIDER_LABEL_KEYS } from "./modelSelectOptions";
+import { OutputModeTabs } from "./OutputModeTabs";
 import {
   ADMIN_KEY_MESSAGE_KEYS,
   buildProviderCards,
   describeDisconnectImpact,
+  OPENAI_PROJECT_SETTINGS_URL,
   type ProviderCardState,
   type ProviderConnectionState,
   type TypedProviderKeys,
 } from "./providerCards";
+import { ProviderTabs } from "./ProviderTabs";
 import { ReasoningEffortSlider } from "./ReasoningEffortSlider";
 import {
   plainStatus,
@@ -23,9 +29,8 @@ import {
   type StatusDescriptor,
 } from "./statusDescriptor";
 import { useI18n } from "../i18n/useI18n";
-import type { CorrectionOutputMode } from "~/shared/outputMode";
-import type { ReasoningEffort } from "~/shared/reasoningEffort";
-import type { ProviderId } from "~/stores/apiStore";
+import type { ReasoningEffort } from "~/features/correction/shared/reasoningEffort";
+import type { ProviderId } from "~/features/providers/store/apiStore";
 
 type ProviderStatus = {
   status?: StatusDescriptor;
@@ -44,12 +49,7 @@ export const SettingGeneral: React.FC = () => {
   // Descriptors, never resolved strings — see `StatusDescriptor` above for why.
   const [resetStatus, setResetStatus] = useState<StatusDescriptor | null>(null);
   const [resetIsError, setResetIsError] = useState<boolean>(false);
-  const [correctionOutputMode, setCorrectionOutputMode] =
-    useState<CorrectionOutputMode>("paste");
-  const [outputModeStatus, setOutputModeStatus] =
-    useState<StatusDescriptor | null>(null);
-  const [outputModeIsError, setOutputModeIsError] = useState<boolean>(false);
-  const [savingOutputMode, setSavingOutputMode] = useState(false);
+  const [activeProvider, setActiveProvider] = useState<ProviderId>(PROVIDER_ORDER[0]);
   const [defaultReasoningEffort, setDefaultReasoningEffort] =
     useState<ReasoningEffort>("none");
   const [savingReasoning, setSavingReasoning] = useState(false);
@@ -75,6 +75,17 @@ export const SettingGeneral: React.FC = () => {
       port: "0",
     },
   });
+  // Non-secret, so unlike a key it is read back and shown. `undefined` means the
+  // stored value has not been read yet, and is NOT the same as "".
+  //
+  // Load-bearing: main treats a submitted `""` as a deliberate clear. Connecting
+  // while the read was still in flight would therefore WIPE a stored project id,
+  // and after a profile switch a retained value would be written into the profile
+  // just switched to. Both are silent. The connect omits the field entirely until
+  // this resolves, and a profile change resets it to `undefined` synchronously.
+  const [typedOpenAIProjectId, setTypedOpenAIProjectId] = useState<
+    string | undefined
+  >(undefined);
   // Per provider, not one slot: concurrent connects would otherwise clear each
   // other's flag and re-enable a button whose request is still running.
   const [busyProviders, setBusyProviders] = useState<
@@ -106,6 +117,9 @@ export const SettingGeneral: React.FC = () => {
       if (states) setProviderStates(states);
 
       const profileResult = await window.electronAPI?.getCurrentProfile?.();
+      setTypedOpenAIProjectId(
+        profileResult?.currentProfile?.settings?.openaiProjectId ?? "",
+      );
       const endpoints = profileResult?.currentProfile?.settings?.providerEndpoints;
       setTypedEndpoints((current) => {
         const next = { ...current };
@@ -155,6 +169,9 @@ export const SettingGeneral: React.FC = () => {
     };
     const offProfile = window.electronAPI?.onProfileUpdated?.(() => {
       setTypedKeys({});
+      // Before the async re-read below: holding the previous profile's id across
+      // the gap would let a Connect write it into the profile just switched to.
+      setTypedOpenAIProjectId(undefined);
       setProviderStatus({});
       setConfirmDisconnect(null);
       setDisconnectReport(null);
@@ -162,6 +179,8 @@ export const SettingGeneral: React.FC = () => {
       reloadReasoningEffort();
     });
     const offActiveProfile = window.electronAPI?.onActiveProfileChanged?.(() => {
+      setTypedOpenAIProjectId(undefined);
+      refreshProviderStates();
       reloadReasoningEffort();
     });
     // Another window's connect/disconnect broadcasts `settings-updated`;
@@ -179,7 +198,6 @@ export const SettingGeneral: React.FC = () => {
     };
   }, [refreshProviderStates]);
 
-  // Correction output mode is global — load once on mount.
   useEffect(() => {
     window.electronAPI
       ?.getDefaultReasoningEffort?.()
@@ -189,18 +207,6 @@ export const SettingGeneral: React.FC = () => {
       .catch((error: unknown) => {
         console.error("SettingGeneral: Error loading default reasoning:", error);
       });
-    window.electronAPI
-      ?.getCorrectionOutputMode?.()
-      .then(setCorrectionOutputMode)
-      .catch((error: unknown) => {
-        console.error("SettingGeneral: Error loading output mode:", error);
-        setOutputModeIsError(true);
-        setOutputModeStatus(
-          wrappedError(messageLabel("settings.general.outputMode.unavailable")),
-        );
-      });
-    // Descriptor-only now — no `t()` call in this effect, so no locale
-    // dependency to worry about; load-once on mount is correct as written.
   }, []);
 
   const handleDefaultReasoningChange = async (effort: ReasoningEffort) => {
@@ -233,48 +239,6 @@ export const SettingGeneral: React.FC = () => {
       ...current,
       [provider]: { ...current[provider], [field]: value },
     }));
-  };
-
-  const handleOutputModeChange = async (mode: CorrectionOutputMode) => {
-    if (!window.electronAPI?.setCorrectionOutputMode) {
-      setOutputModeIsError(true);
-      setOutputModeStatus(
-        wrappedError(messageLabel("settings.general.outputMode.unavailable")),
-      );
-      return;
-    }
-
-    const previousMode = correctionOutputMode;
-    setCorrectionOutputMode(mode);
-    setSavingOutputMode(true);
-    setOutputModeIsError(false);
-    setOutputModeStatus(plainStatus("settings.general.outputMode.saving"));
-
-    try {
-      const result = await window.electronAPI.setCorrectionOutputMode(mode);
-      if (!result.success) {
-        setCorrectionOutputMode(previousMode);
-        setOutputModeIsError(true);
-        setOutputModeStatus(
-          wrappedError(
-            result.error ??
-              messageLabel("settings.general.outputMode.saveFailed"),
-          ),
-        );
-        return;
-      }
-      setCorrectionOutputMode(result.mode ?? mode);
-      setOutputModeIsError(false);
-      setOutputModeStatus(plainStatus("settings.general.outputMode.saved"));
-      setTimeout(() => setOutputModeStatus(null), 2000);
-    } catch (error) {
-      console.error("SettingGeneral: Error saving output mode:", error);
-      setCorrectionOutputMode(previousMode);
-      setOutputModeIsError(true);
-      setOutputModeStatus(plainStatus("settings.general.outputMode.saveError"));
-    } finally {
-      setSavingOutputMode(false);
-    }
   };
 
   const reportProvider = (
@@ -311,6 +275,11 @@ export const SettingGeneral: React.FC = () => {
         apiKey: typed?.apiKey || undefined,
         secretKey: typed?.secretKey || undefined,
         provisioningKey: typed?.provisioningKey || undefined,
+        // Sent even when empty — clearing the field must clear the stored id —
+        // but only once the stored value has been read; see the state comment.
+        ...(provider === "openai" && typedOpenAIProjectId !== undefined
+          ? { projectId: typedOpenAIProjectId }
+          : {}),
         ...(provider === "lmstudio" || provider === "ollama"
           ? {
               host: endpoint?.host?.trim() || undefined,
@@ -516,11 +485,11 @@ export const SettingGeneral: React.FC = () => {
                 >
                   {t(hostKey)}
                 </label>
-                <input
+                <Input
                   id={`${provider}-host`}
                   type="text"
                   autoComplete="off"
-                  className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full"
                   value={endpoint?.host ?? defaults.host}
                   onChange={(event) =>
                     setTypedEndpoints((current) => ({
@@ -542,12 +511,12 @@ export const SettingGeneral: React.FC = () => {
                 >
                   {t(portKey)}
                 </label>
-                <input
+                <Input
                   id={`${provider}-port`}
                   type="text"
                   inputMode="numeric"
                   autoComplete="off"
-                  className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full"
                   value={endpoint?.port ?? String(defaults.port)}
                   onChange={(event) =>
                     setTypedEndpoints((current) => ({
@@ -573,11 +542,11 @@ export const SettingGeneral: React.FC = () => {
             >
               {t("settings.general.providers.bedrock.region")}
             </label>
-            <input
+            <Input
               id="bedrock-region"
               type="text"
               autoComplete="off"
-              className="w-full p-2 bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full"
               value={typedEndpoints.bedrock?.host ?? BEDROCK_DEFAULT_REGION}
               onChange={(event) =>
                 setTypedEndpoints((current) => ({
@@ -613,11 +582,11 @@ export const SettingGeneral: React.FC = () => {
                 ? t("settings.general.secret.set")
                 : t("settings.general.secret.unset")}
             </p>
-            <input
+            <Input
               id={`api-key-${provider}`}
               type="password"
               autoComplete="off"
-              className="w-full p-2 bg-secondary border border-control-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full"
               value={typed.apiKey ?? ""}
               onChange={(event) =>
                 setTypedKey(provider, "apiKey", event.target.value)
@@ -658,11 +627,11 @@ export const SettingGeneral: React.FC = () => {
                 ? t("settings.general.secret.set")
                 : t("settings.general.secret.unset")}
             </p>
-            <input
+            <Input
               id="bedrock-secret-key"
               type="password"
               autoComplete="off"
-              className="w-full p-2 bg-secondary border border-control-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full"
               value={typed.secretKey ?? ""}
               onChange={(event) =>
                 setTypedKey(provider, "secretKey", event.target.value)
@@ -699,11 +668,11 @@ export const SettingGeneral: React.FC = () => {
                 ? t("settings.general.secret.adminConnected")
                 : t("settings.general.secret.unset")}
             </p>
-            <input
+            <Input
               id={`provisioning-key-${provider}`}
               type="password"
               autoComplete="off"
-              className="w-full p-2 bg-secondary border border-control-border rounded text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full"
               value={typed.provisioningKey ?? ""}
               onChange={(event) =>
                 setTypedKey(provider, "provisioningKey", event.target.value)
@@ -731,6 +700,57 @@ export const SettingGeneral: React.FC = () => {
               className="mt-1 inline-block text-xs text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {t(adminKeyMessages.help)}
+            </a>
+          </div>
+        )}
+
+        {/* OpenAI only, and directly under the admin key it depends on: the key
+            is organization-scoped, so nothing in it names a project. */}
+        {provider === "openai" && (
+          <div className="mt-2">
+            <label
+              htmlFor="openai-project-id"
+              className="block text-xs font-medium text-card-foreground mb-1"
+            >
+              {t("settings.general.providers.openai.projectId.label")}
+            </label>
+            <Input
+              id="openai-project-id"
+              type="text"
+              autoComplete="off"
+              spellCheck={false}
+              className="w-full"
+              value={typedOpenAIProjectId ?? ""}
+              disabled={typedOpenAIProjectId === undefined}
+              onChange={(event) => setTypedOpenAIProjectId(event.target.value)}
+              placeholder={t(
+                "settings.general.providers.openai.projectId.placeholder",
+              )}
+              aria-label={t("settings.general.providers.openai.projectId.label")}
+              aria-invalid={isMalformedOpenAIProjectId(typedOpenAIProjectId ?? "")}
+            />
+            {/* Shown while typing, not only after a rejected Connect: the id is
+                pasted, and a wrong paste is silent until spend reads as $0. */}
+            {isMalformedOpenAIProjectId(typedOpenAIProjectId ?? "") ? (
+              <p className="mt-1 text-xs text-destructive" role="status">
+                {t("settings.general.providers.openai.projectId.invalid")}
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t("settings.general.providers.openai.projectId.hint")}
+              </p>
+            )}
+            <a
+              href={OPENAI_PROJECT_SETTINGS_URL}
+              onClick={(event) => {
+                event.preventDefault();
+                void window.electronAPI.openExternalLink(
+                  OPENAI_PROJECT_SETTINGS_URL,
+                );
+              }}
+              className="mt-1 inline-block text-xs text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {t("settings.general.providers.openai.projectId.help")}
             </a>
           </div>
         )}
@@ -857,72 +877,9 @@ export const SettingGeneral: React.FC = () => {
         <p className="mt-1 text-xs text-muted-foreground">
           {t("settings.general.correctionOutput.description")}
         </p>
-        <div
-          className="mt-3 grid grid-cols-2 gap-2"
-          role="radiogroup"
-          aria-label={t("settings.general.correctionOutput.title")}
-        >
-          <Button
-            type="button"
-            variant={correctionOutputMode === "paste" ? "primary" : "outline"}
-            role="radio"
-            aria-checked={correctionOutputMode === "paste"}
-            disabled={savingOutputMode}
-            onClick={() => void handleOutputModeChange("paste")}
-            className={`rounded border px-3 py-2 text-left transition-colors disabled:opacity-60 ${
-              correctionOutputMode === "paste"
-                ? "border-primary"
-                : "border-card-control-border hover:bg-secondary"
-            }`}
-          >
-            <span className="block text-sm font-medium">
-              {t("settings.general.correctionOutput.paste.label")}
-            </span>
-            <span
-              className={`mt-0.5 block text-xs ${
-                correctionOutputMode === "paste"
-                  ? "text-inherit"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {t("settings.general.correctionOutput.paste.description")}
-            </span>
-          </Button>
-          <Button
-            type="button"
-            variant={correctionOutputMode === "popup" ? "primary" : "outline"}
-            role="radio"
-            aria-checked={correctionOutputMode === "popup"}
-            disabled={savingOutputMode}
-            onClick={() => void handleOutputModeChange("popup")}
-            className={`rounded border px-3 py-2 text-left transition-colors disabled:opacity-60 ${
-              correctionOutputMode === "popup"
-                ? "border-primary"
-                : "border-card-control-border hover:bg-secondary"
-            }`}
-          >
-            <span className="block text-sm font-medium">
-              {t("settings.general.correctionOutput.popup.label")}
-            </span>
-            <span
-              className={`mt-0.5 block text-xs ${
-                correctionOutputMode === "popup"
-                  ? "text-inherit"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {t("settings.general.correctionOutput.popup.description")}
-            </span>
-          </Button>
+        <div className="mt-3">
+          <OutputModeTabs size="md" className="w-full" showSaveStatus />
         </div>
-        {outputModeStatus && (
-          <p
-            className={`mt-1 text-xs ${outputModeIsError ? "text-destructive" : "text-success"}`}
-            role="status"
-          >
-            {resolveStatus(outputModeStatus)}
-          </p>
-        )}
       </section>
 
       <section className="mb-4">
@@ -958,7 +915,15 @@ export const SettingGeneral: React.FC = () => {
           {t("settings.general.providers.description")}
         </p>
         <div className="mt-3 flex flex-col gap-3">
-          {cards.map(renderProviderCard)}
+          <ProviderTabs
+            value={activeProvider}
+            onChange={setActiveProvider}
+            className="w-full overflow-x-auto"
+          />
+          {(() => {
+            const card = cards.find(({ provider }) => provider === activeProvider);
+            return card ? renderProviderCard(card) : null;
+          })()}
         </div>
       </section>
 

@@ -16,9 +16,9 @@
  * caller-supplied translator + `formatNumber` so currency grouping/decimal
  * conventions follow the active locale.
  */
-import type { Formatters } from "~/shared/i18n/format";
-import type { Translator } from "~/shared/i18n/translate";
-import type { HistoryEntry } from "~/stores/historyStore";
+import type { HistoryEntry } from "~/features/history/store/historyStore";
+import type { Formatters } from "~/features/i18n/shared/format";
+import type { Translator } from "~/features/i18n/shared/translate";
 
 /** Intent for rendering a history entry's cost — not yet a formatted string. */
 export type CostDisplay =

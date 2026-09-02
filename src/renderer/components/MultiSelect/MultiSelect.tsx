@@ -13,6 +13,7 @@ import { twMerge } from "tailwind-merge";
 import { Button } from "../Button";
 import { Checkbox } from "../Checkbox";
 import { selectControlClassName } from "../Select";
+import { selectOptionHoverClassName } from "../selectOptionSurface";
 
 export type MultiSelectOption = {
   value: string;
@@ -102,7 +103,7 @@ export const MultiSelect = ({
         onClick={() => setIsOpen((open) => !open)}
         className={twMerge(
           selectControlClassName,
-          "flex w-full items-center justify-between gap-2 px-2 py-1.5 text-sm",
+          "flex w-full items-center justify-between gap-2",
         )}
       >
         <span className="truncate">{triggerLabel}</span>
@@ -135,7 +136,10 @@ export const MultiSelect = ({
                 onChange(toggleSelection(options, selected, option.value))
               }
               label={option.label}
-              className="w-full rounded px-1 py-0.5 whitespace-nowrap hover:bg-accent hover:text-accent-foreground"
+              className={twMerge(
+                "w-full rounded px-1 py-0.5 whitespace-nowrap",
+                selectOptionHoverClassName,
+              )}
             />
           ))}
         </div>

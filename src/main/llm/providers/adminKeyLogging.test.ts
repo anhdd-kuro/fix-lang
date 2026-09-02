@@ -8,7 +8,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createOpenAIUsageClient } from "./openai/usage.client";
 import { createOpenRouterClient } from "./openrouter/client";
-import type { LogContext, LogLevel } from "~/shared/logging";
+import type { LogContext, LogLevel } from "~/features/logs/shared/logging";
 
 // `vi.mock` is hoisted above every top-level binding, so the sink it writes into
 // has to be hoisted with it.

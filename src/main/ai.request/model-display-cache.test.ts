@@ -59,10 +59,10 @@ vi.mock("openai", () => ({
     models = { list: openAIModelsListMock };
   },
 }));
-vi.mock("~/stores/apiKeyStore", () => ({
+vi.mock("~/features/providers/store/apiKeyStore", () => ({
   getApiKey: vi.fn().mockResolvedValue("test-api-key"),
 }));
-vi.mock("~/stores/profileSecretStore", () => ({
+vi.mock("~/features/providers/store/profileSecretStore", () => ({
   getProfileSecret: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("~/main/llm/models/discover", () => ({
@@ -71,7 +71,7 @@ vi.mock("~/main/llm/models/discover", () => ({
 vi.mock("~/main/llm/providers/ollama/client", () => ({
   createOllamaClient: () => ({ chat: vi.fn() }), ollamaClient: { chat: vi.fn() },
 }));
-import type { Model, Profile, SettingsStore } from "~/stores/apiStore";
+import type { Model, Profile, SettingsStore } from "~/features/providers/store/apiStore";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -127,7 +127,7 @@ const cachedOpenAiModel: Model = {
  */
 const loadFresh = async (seed: Model[]) => {
   vi.resetModules();
-  const apiStoreModule = await import("~/stores/apiStore");
+  const apiStoreModule = await import("~/features/providers/store/apiStore");
   apiStoreModule.apiStore.set("profiles", [buildProfile(seed)]);
   apiStoreModule.apiStore.set("currentProfileId", "profile_1");
   const sharedModule = await import("./shared");

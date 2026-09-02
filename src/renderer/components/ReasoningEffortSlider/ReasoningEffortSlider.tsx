@@ -1,6 +1,6 @@
 /**
  * @file ReasoningEffortSlider.tsx
- * @description Discrete 6-step None→Faster↔Smarter slider for AI SDK reasoning.
+ * @description Discrete 4-step None→Faster↔Smarter slider for generic AI reasoning.
  */
 import React, { useId } from "react";
 import {
@@ -9,8 +9,9 @@ import {
   stepIndexToReasoningEffort,
   type ReasoningEffort,
   type ReasoningEffortSliderStep,
-} from "~/shared/reasoningEffort";
+} from "~/features/correction/shared/reasoningEffort";
 import { useI18n } from "../../i18n/useI18n";
+import { controlFocusClassName } from "../Input";
 
 type ReasoningEffortSliderProps = {
   value: ReasoningEffort | undefined;
@@ -18,6 +19,14 @@ type ReasoningEffortSliderProps = {
   disabled?: boolean;
   /** When set, unset/`provider-default` values map to this step instead of None. */
   inheritFrom?: ReasoningEffort;
+  /** Overrides the default "Reasoning effort" label text. */
+  label?: React.ReactNode;
+  /**
+   * Adornment rendered next to the label (e.g. a help tooltip). Kept outside
+   * the `aria-labelledby` span so it never leaks into the slider's accessible
+   * name.
+   */
+  labelAdornment?: React.ReactNode;
 };
 
 const stepLabelKey = (
@@ -34,6 +43,8 @@ export const ReasoningEffortSlider: React.FC<ReasoningEffortSliderProps> = ({
   onChange,
   disabled = false,
   inheritFrom,
+  label,
+  labelAdornment,
 }) => {
   const { t } = useI18n();
   const labelId = useId();
@@ -47,12 +58,15 @@ export const ReasoningEffortSlider: React.FC<ReasoningEffortSliderProps> = ({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span
-          id={`${labelId}-label`}
-          className="font-medium text-card-foreground"
-        >
-          {t("settings.correction.reasoning.label")}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span
+            id={`${labelId}-label`}
+            className="font-medium text-card-foreground"
+          >
+            {label ?? t("settings.correction.reasoning.label")}
+          </span>
+          {labelAdornment}
+        </div>
         {inheritsGlobal ? (
           <span className="tabular-nums">
             {t("settings.correction.reasoning.inheritGlobal", {
@@ -94,10 +108,10 @@ export const ReasoningEffortSlider: React.FC<ReasoningEffortSliderProps> = ({
           onChange={(event) => {
             onChange(stepIndexToReasoningEffort(Number(event.target.value)));
           }}
-          className="reasoning-effort-slider absolute inset-0 z-10 h-8 w-full cursor-pointer appearance-none bg-transparent disabled:cursor-not-allowed disabled:opacity-50"
+          className={`reasoning-effort-slider absolute inset-0 z-10 h-8 w-full cursor-pointer appearance-none bg-transparent disabled:cursor-not-allowed disabled:opacity-50 ${controlFocusClassName}`}
         />
       </div>
-      <div className="relative h-4 text-[11px] leading-none" aria-hidden="true">
+      <div className="relative h-4 text-xxs leading-none" aria-hidden="true">
         {REASONING_EFFORT_SLIDER_STEPS.map((step, index) => (
           <span
             key={step}

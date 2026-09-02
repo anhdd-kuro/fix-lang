@@ -8,8 +8,8 @@ import {
   buildLmStudioBaseUrl,
   resolveLmStudioEndpoint,
   type ProviderEndpoint,
-} from "~/shared/lmstudioEndpoint";
-import type { Model } from "~/shared/providers";
+} from "~/features/providers/shared/lmstudioEndpoint";
+import type { Model } from "~/features/providers/shared/providers";
 
 export type LmStudioProbe = {
   reachable: boolean;

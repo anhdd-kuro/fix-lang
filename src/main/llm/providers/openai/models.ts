@@ -7,7 +7,7 @@
  * from fabricated numbers.
  */
 import { OpenAI } from "openai";
-import type { Model } from "~/shared/providers";
+import type { Model } from "~/features/providers/shared/providers";
 
 export const fetchOpenAIModels = async (apiKey: string): Promise<Model[]> => {
   const client = new OpenAI({ apiKey, timeout: 5000, maxRetries: 0 });

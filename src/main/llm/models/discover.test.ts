@@ -11,7 +11,7 @@ vi.mock("../providers/ollama/client", () => ({
   createOllamaClient: () => ({ list: listMock }),
   ollamaClient: { list: listMock },
 }));
-vi.mock("~/stores/apiStore", () => ({
+vi.mock("~/features/providers/store/apiStore", () => ({
   getProviderEndpoint: vi.fn(() => undefined),
 }));
 import { getLocalModels, probeOllama } from "./discover";

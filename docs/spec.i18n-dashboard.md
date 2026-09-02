@@ -16,8 +16,8 @@ anything below that contradicts them.
 1. **Step 0 is already done.** `translate.ts`, `format.ts`, `registry.ts`, `detect.ts`, `keys.ts`,
    `locales/index.ts`, the locale store, the IPC transport, and the renderer `I18nProvider`/`useI18n`
    are all on disk and committed. Do not rewrite them.
-2. **`PluralBaseKey` already exists** in `src/shared/i18n/translate.ts` and is re-exported from
-   `src/shared/i18n/keys.ts` as part of `TKey`. Import key types from `keys.ts`. `message.ts` must
+2. **`PluralBaseKey` already exists** in `src/features/i18n/shared/translate.ts` and is re-exported from
+   `src/features/i18n/shared/keys.ts` as part of `TKey`. Import key types from `keys.ts`. `message.ts` must
    reuse those, not redeclare a second `StripPlural` ladder.
 3. **All 59 keys go in `dashboard.json`**, including the `models.*` ones. Section 3.1 below says
    `models.*` belongs in `models.json`; that file is owned by a different agent working in parallel,
@@ -29,7 +29,7 @@ Number formatting (section 1.4 rule 2) is **implemented as specified**: `t()` lo
 ## 1. Descriptor type
 
 ### 1.1 Location
-New file: `src/shared/i18n/message.ts`. Import `TranslationKey`/`TKey` with `import type` only, so the
+New file: `src/features/i18n/shared/message.ts`. Import `TranslationKey`/`TKey` with `import type` only, so the
 module has **zero runtime dependencies** and importing `msg()` into a pure aggregation module does not
 pull the JSON catalogs into that module's runtime graph.
 
@@ -190,7 +190,7 @@ formatted, do not touch". That is the only formatting convention in this chunk.
 ## 3. Key naming
 
 ### 3.1 File placement
-All 59 keys go in `src/shared/i18n/locales/{en,ja}/dashboard.json` — see orchestrator amendment 3.
+All 59 keys go in `src/features/i18n/shared/locales/{en,ja}/dashboard.json` — see orchestrator amendment 3.
 Keys stay globally unique and alphabetically sorted (Chunk 11 guardrail).
 
 ### 3.2 `overview.*` — 28 keys
@@ -335,11 +335,11 @@ Assert with `toEqual` on the whole descriptor — never `toMatchObject`, or a wr
 
 | File | Asserts descriptors | Asserts rendered strings (EN **and** JA) |
 | --- | --- | --- |
-| `src/shared/i18n/message.test.ts` | `msg`/`textLabel`/`messageLabel` shapes; `resolveLabel` picks text vs message; `resolveMessage` forwards params | — |
+| `src/features/i18n/shared/message.test.ts` | `msg`/`textLabel`/`messageLabel` shapes; `resolveLabel` picks text vs message; `resolveMessage` forwards params | — |
 | `src/renderer/components/tokenActivityView.test.ts` | `tooltipMessageForCell` for 3 modes × {0, 1, N corrections}; placeholder cell → `undefined`; `weeklyRangeOf` Sunday-start boundaries; `peakHourMessage(null)` → `overview.value.empty`, `peakHourMessage(9)` → `{hour:"09"}` | one case per mode + the singular/plural pair via `createTranslator("en")` / `("ja")` |
 | `src/renderer/components/presetChartView.test.ts` | `donutTooltipMessage` singular/plural; `weightPercent` rounding | `charts.presetShare.tooltip` in en/ja for count 1 and 12 |
 | `src/renderer/components/modelsView.test.ts` | `barTooltipMessage`; `showMoreMessage(true, n)` → `showLess`; `showMoreMessage(false, 3)` → `{key:"models.table.showMore", params:{count:3}}` | `models.usage.barTooltip` en/ja |
-| `src/shared/i18n/dashboardKeys.test.ts` | every key this spec introduces exists in `EN_CATALOG`; every `_one` has an `_other`; every ja plural family has `_other`; placeholder sets match across en/ja per key; no non-plural key ends in a plural suffix | — |
+| `src/features/i18n/shared/dashboardKeys.test.ts` | every key this spec introduces exists in `EN_CATALOG`; every `_one` has an `_other`; every ja plural family has `_other`; placeholder sets match across en/ja per key; no non-plural key ends in a plural suffix | — |
 
 Locale-rendering tests live at the **view-module** level (pure `.ts`, `createTranslator` imported
 directly), *not* the component level (no RTL installed). One representative case per sentence family;
@@ -357,7 +357,7 @@ the exact flaw being removed. No catalog snapshots; parity is asserted structura
 | Step | Edit | Why here |
 | --- | --- | --- |
 | 0 | ~~Land `translate.ts` / `format.ts`~~ | **Already done — see orchestrator amendment 1** |
-| 1 | `src/shared/i18n/message.ts` + `message.test.ts` | Types used by every step below |
+| 1 | `src/features/i18n/shared/message.ts` + `message.test.ts` | Types used by every step below |
 | 2 | **Add all 59 keys** to `en/dashboard.json` + `ja/dashboard.json` | `TranslationKey = keyof EN_CATALOG`; a descriptor with a missing key is a **compile error**, so keys must exist before any producer |
 | 3 | Add `tm`/`tl` to `useI18n.ts` | Steps 6-7 call them at runtime |
 | 4 | **Pilot: `modelsAggregations.ts` + test** (4 symbols, ~5 test lines) | Smallest closed loop; proves the descriptor shape before the 23.8KB file |

@@ -1,6 +1,8 @@
 import React from "react";
 import Select from "react-select";
 import { normalizeForSearch } from "~/const";
+import { controlFocusBoxShadow } from "./Input";
+import { selectOptionStyle, withThemeColors } from "./selectOptionSurface";
 import type {
   GroupBase,
   GroupHeadingProps,
@@ -55,7 +57,7 @@ export const DefaultGroupHeading = <Option extends SearchableOption>({
   const label = typeof data.label === "string" ? data.label : "";
   if (label === "") return null;
   return (
-    <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="px-3 pt-2 pb-1 text-xxs font-semibold uppercase tracking-wide text-muted-foreground">
       {label}
     </div>
   );
@@ -126,15 +128,54 @@ export const SearchableSelect = <Option extends SearchableOption>({
       menuPosition={menuPortal ? "fixed" : "absolute"}
       menuShouldScrollIntoView={false}
       maxMenuHeight={menuPortal ? resolvedMaxHeight : undefined}
+      theme={withThemeColors}
       styles={{
-        control: (base) => ({
+        option: selectOptionStyle,
+        // Control chrome matches Settings → General → API key (`--secondary`).
+        // Text uses the paired `--secondary-foreground` (4.5:1 in all 149);
+        // `foreground` on `secondary` fails that floor. See selectContrast.test.ts.
+        placeholder: (base) => ({
           ...base,
-          backgroundColor: "var(--input)",
-          borderColor: "var(--border)",
+          color: "var(--secondary-foreground)",
+        }),
+        // Renders inside the menu, so its surface is `popover`, where
+        // `muted-foreground` drops to 2.02:1 (`#9e9e9e` on `#e0e0e0`). It is
+        // also the select's only feedback when a search matches nothing.
+        noOptionsMessage: (base) => ({
+          ...base,
+          color: "var(--popover-foreground)",
+        }),
+        // Icons, so the floor is 3:1 (WCAG 1.4.11) rather than 4.5:1 — which is
+        // what lets these stay dimmer than the text beside them. Hover lifts to
+        // the same token the value uses.
+        dropdownIndicator: (base) => ({
+          ...base,
+          color: "var(--accent-foreground)",
+          "&:hover": {
+            color: "var(--secondary-foreground)",
+          },
+        }),
+        clearIndicator: (base) => ({
+          ...base,
+          color: "var(--accent-foreground)",
+          "&:hover": {
+            color: "var(--secondary-foreground)",
+          },
+        }),
+        indicatorSeparator: (base) => ({
+          ...base,
+          backgroundColor: "var(--card-control-border)",
+        }),
+        control: (base, state) => ({
+          ...base,
+          backgroundColor: "var(--secondary)",
+          borderColor: "var(--control-border)",
+          borderRadius: "0.25rem",
+          outline: "none",
+          boxShadow: state.isFocused ? controlFocusBoxShadow : "none",
           "&:hover": {
             borderColor: "var(--ring)",
           },
-          boxShadow: "none",
         }),
         menu: (base) => ({
           ...base,
@@ -152,11 +193,13 @@ export const SearchableSelect = <Option extends SearchableOption>({
         }),
         singleValue: (base) => ({
           ...base,
-          color: "var(--foreground)",
+          color: "var(--secondary-foreground)",
         }),
         input: (base) => ({
           ...base,
-          color: "var(--foreground)",
+          color: "var(--secondary-foreground)",
+          outline: "none",
+          boxShadow: "none",
         }),
         group: (base) => ({
           ...base,

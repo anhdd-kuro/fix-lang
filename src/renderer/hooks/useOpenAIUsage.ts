@@ -17,8 +17,8 @@ import {
   USAGE_CACHE_TTL_MS,
 } from "./usageRequestCache";
 import { useActiveProfileId } from "./useActiveProfileId";
+import type { UsageRange } from "~/features/usage/shared/usage";
 import type { OpenAIUsage } from "~/main/llm/providers/openai/usage.client";
-import type { UsageRange } from "~/shared/usage";
 
 export const OPENAI_USAGE_CACHE_TTL_MS = USAGE_CACHE_TTL_MS;
 

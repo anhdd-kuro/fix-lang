@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import Fuse from "fuse.js";
 import { useMemo } from "react";
-import type { HistoryEntry } from "~/stores/historyStore";
+import type { HistoryEntry } from "~/features/history/store/historyStore";
 
 // Use a shared config type to avoid duplicating the config
 type FuseConfig = {

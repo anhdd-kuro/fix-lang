@@ -6,7 +6,7 @@ import {
   BedrockClient,
   ListFoundationModelsCommand,
 } from "@aws-sdk/client-bedrock";
-import type { Model } from "~/shared/providers";
+import type { Model } from "~/features/providers/shared/providers";
 
 export type BedrockCredentials = {
   accessKeyId: string;

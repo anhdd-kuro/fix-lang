@@ -14,7 +14,7 @@ import {
   deriveAvailableFilters,
   toggleFilter,
 } from "./dashboardTabs";
-import type { HistoryEntry } from "~/stores/historyStore";
+import type { HistoryEntry } from "~/features/history/store/historyStore";
 
 const makeEntry = (overrides: Partial<HistoryEntry> = {}): HistoryEntry => ({
   original: "hello",
@@ -24,13 +24,14 @@ const makeEntry = (overrides: Partial<HistoryEntry> = {}): HistoryEntry => ({
 });
 
 describe("DASHBOARD_TABS", () => {
-  it("exposes the six tabs in order Overview/History/Models/OpenRouter/Logs/About", () => {
+  it("exposes the seven tabs in order Overview/History/Models/Usage/Logs/Security/About", () => {
     expect(DASHBOARD_TABS.map((t) => t.id)).toEqual([
       "overview",
       "history",
       "models",
       "usage",
       "logs",
+      "security",
       "about",
     ]);
     // Labels are translation keys, not prose — this file must stay
@@ -42,8 +43,25 @@ describe("DASHBOARD_TABS", () => {
       "dashboard.tab.models",
       "dashboard.tab.usage",
       "dashboard.tab.logs",
+      "dashboard.tab.security",
       "dashboard.tab.about",
     ]);
+  });
+
+  // Autocomplete usage is a sub-tab of Usage, not a top-level tab: it reports
+  // spend, and spend already has a home. A stray top-level entry would mean the
+  // move left one of the two copies behind.
+  it("keeps autocomplete out of the top-level bar", () => {
+    const ids = DASHBOARD_TABS.map((t) => t.id);
+    expect(ids).not.toContain("autocomplete");
+    expect(ids[ids.length - 1]).toBe("about");
+  });
+
+  // Security is the last tab before About: it configures the transform path
+  // rather than reporting on it, so it sits after every reporting tab.
+  it("places security immediately before about", () => {
+    const ids = DASHBOARD_TABS.map((t) => t.id);
+    expect(ids[ids.length - 2]).toBe("security");
   });
 
   it("defaults the active tab to Overview (index 0)", () => {

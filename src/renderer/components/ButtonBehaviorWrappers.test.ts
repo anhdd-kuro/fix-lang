@@ -227,14 +227,25 @@ describe("Button behavioral wrappers", () => {
       ],
     ],
     [
-      "TrayCreditBalance",
-      "src/renderer/TrayWindow/components/TrayCreditBalance.tsx",
+      "TrayProviderSummary tabs",
+      "src/renderer/TrayWindow/components/TrayProviderSummary.tsx",
       [
-        'variant="outline"',
+        'variant={isActive ? "primary" : "ghost"}',
         'type="button"',
-        "onClick={openOpenRouterTab}",
-        "w-full rounded-lg border border-card-control-border bg-card px-3 py-2",
-        "text-left hover:bg-accent transition-colors",
+        'role="tab"',
+        "aria-selected={isActive}",
+        "onClick={() => setChosenProvider(tab.provider)}",
+        "rounded-md px-2 py-0.5 text-xs font-medium",
+      ],
+    ],
+    [
+      "TrayProviderSummary panel",
+      "src/renderer/TrayWindow/components/TrayProviderSummary.tsx",
+      [
+        'variant="ghost"',
+        'type="button"',
+        "onClick={() => openUsageTab(activeProvider)}",
+        "-mx-1 w-full rounded-md px-1 py-0.5 text-left hover:bg-accent",
       ],
     ],
     [

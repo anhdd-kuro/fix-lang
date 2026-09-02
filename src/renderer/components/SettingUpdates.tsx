@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { msg, type Message } from "~/shared/i18n/message";
+import { msg, type Message } from "~/features/i18n/shared/message";
 import { Button } from "./Button";
 import CopyButton from "./CopyButton";
 import { Spinner } from "./Spinner";
 import { useI18n } from "../i18n/useI18n";
-import type { UpdateState } from "~/shared/update";
+import type { UpdateState } from "~/features/update/shared/update";
 
 /** Author GitHub profile — opened from the About tab header icon. */
 const GITHUB_PROFILE_URL = "https://github.com/anhdd-kuro";
@@ -159,7 +159,7 @@ export const SettingUpdates = () => {
   // Locale-free descriptor for the ONE error message the mount effect below
   // can produce (`getUpdateState()` rejecting before any live event arrives).
   // Kept as separate state from `state.message` (also a `Message` descriptor
-  // on the shared `UpdateState` type from `~/shared/update`, but one only
+  // on the shared `UpdateState` type from `~/features/update/shared/update`, but one only
   // ever set by `run()` below or a live broadcast) so a mount-time IPC
   // failure is never confused with a service-reported error state. Cleared
   // whenever fresher state arrives (a live broadcast, the initial snapshot,

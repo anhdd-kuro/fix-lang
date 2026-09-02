@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { createFormatters, __resetFormatCachesForTests } from "~/shared/i18n/format";
+import { createFormatters, __resetFormatCachesForTests } from "~/features/i18n/shared/format";
 import {
   costDonutSlices,
   dailyCostSeries,
@@ -10,7 +10,7 @@ import {
   MAX_DONUT_SLICES,
   sharePercent,
 } from "./usageChartView";
-import type { UsageDailyPoint } from "~/shared/usage";
+import type { UsageDailyPoint } from "~/features/usage/shared/usage";
 
 const point = (overrides: Partial<UsageDailyPoint> = {}): UsageDailyPoint => ({
   date: "2026-07-01",

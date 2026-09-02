@@ -1,8 +1,8 @@
 import {
   logEntryMatchesLevels,
   logEntryMatchesSearch,
-} from "~/shared/logging";
-import type { LogEntry, LogLevel } from "~/shared/logging";
+} from "~/features/logs/shared/logging";
+import type { LogEntry, LogLevel } from "~/features/logs/shared/logging";
 
 /** Stable virtual-row identity; indexes change whenever live entries prepend. */
 export const logRowKey = (

@@ -56,7 +56,7 @@ export const Checkbox = ({
         "flex size-4 shrink-0 items-center justify-center rounded border transition-colors",
         "border-control-border bg-input text-primary-foreground",
         "peer-checked:border-primary peer-checked:bg-primary",
-        "peer-focus-visible:ring-2 peer-focus-visible:ring-ring",
+        "peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background",
       )}
     >
       <svg

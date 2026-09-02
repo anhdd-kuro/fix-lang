@@ -27,7 +27,7 @@ vi.mock("electron", () => ({
   ipcMain: { handle: vi.fn(), on: vi.fn() },
   app: { getPath: vi.fn().mockReturnValue("/tmp") },
 }));
-vi.mock("~/stores/apiStore", async (importOriginal) => {
+vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
   // We want the real normalizeCorrectionSettings for the normalize tests,
   // but mock getProfileSetting so fixGrammar tests work independently.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.importActual returns unknown module shape
@@ -51,16 +51,22 @@ vi.mock("./shared", () => ({
 // ---------------------------------------------------------------------------
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
-import { DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID } from "~/prompts";
 import {
   getDefaultModelId,
   getProfileSetting,
   normalizeCorrectionSettings,
-} from "~/stores/apiStore";
-import { fixGrammar } from "./correction";
+} from "~/features/providers/store/apiStore";
+import { DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID } from "~/prompts";
+import {
+  DEFAULT_CAVEMAN_FULL_DIRECTIVE,
+  DEFAULT_CAVEMAN_LITE_DIRECTIVE,
+  DEFAULT_CAVEMAN_PRESET_ID,
+  DEFAULT_CAVEMAN_ULTRA_DIRECTIVE,
+} from "~/prompts/correction";
+import { effectiveModelRef, fixGrammar } from "./correction";
 import { makeAIRequest } from "./shared";
 import type { Mock } from "vitest";
-import type { CorrectionPreset, CorrectionSettings } from "~/stores/apiStore";
+import type { CorrectionPreset, CorrectionSettings } from "~/features/providers/store/apiStore";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -122,9 +128,8 @@ describe("fixGrammar — per-preset reasoning", () => {
 });
 
 
-describe("fixGrammar — prompt-optimization target model id", () => {
+describe("fixGrammar — prompt-optimization user prompt", () => {
   const PROMPT_OPTIMIZATION_REF = "openrouter::google/gemma-2-9b-it";
-  const PROMPT_OPTIMIZATION_RAW_ID = "google/gemma-2-9b-it";
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -136,14 +141,13 @@ describe("fixGrammar — prompt-optimization target model id", () => {
     );
   });
 
-  it("names the RAW model id in the user prompt, never the composite ref", async () => {
+  it("does not inject the preset model into the user prompt", async () => {
     await fixGrammar("draft prompt");
 
     const { userPrompt } = (makeAIRequest as Mock).mock.calls[0][0];
-    expect(userPrompt).toContain(
-      `- The selected target model ID is: ${PROMPT_OPTIMIZATION_RAW_ID}.`,
-    );
+    expect(userPrompt).not.toContain("target model");
     expect(userPrompt).not.toContain("openrouter::");
+    expect(userPrompt).not.toContain("google/gemma-2-9b-it");
   });
 
   it("still routes on the composite ref", async () => {
@@ -151,20 +155,6 @@ describe("fixGrammar — prompt-optimization target model id", () => {
 
     const { model } = (makeAIRequest as Mock).mock.calls[0][0];
     expect(model).toBe(PROMPT_OPTIMIZATION_REF);
-  });
-
-  it("names the inherited default's raw id when the preset inherits", async () => {
-    setupMockSettings(
-      makePreset({ id: DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID, model: "" }),
-    );
-    (getDefaultModelId as Mock).mockReturnValue("ollama::llama3.2:3b");
-
-    await fixGrammar("draft prompt");
-
-    const { userPrompt, model } = (makeAIRequest as Mock).mock.calls[0][0];
-    expect(userPrompt).toContain("- The selected target model ID is: llama3.2:3b.");
-    expect(userPrompt).not.toContain("ollama::");
-    expect(model).toBe("ollama::llama3.2:3b");
   });
 });
 
@@ -256,11 +246,200 @@ describe("fixGrammar — empty input early return", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Tests: fixGrammar composes the preset's declared options onto the system
+// prompt. `withPresetOptions` is the INNERMOST wrapper, so the directive lands
+// directly after the preset's own instructions, and the ambient blocks — the
+// source-app `# Metadata context` section and the per-press user metadata —
+// trail it, exactly as they do for the other seven presets.
+//
+// The directive being LAST is not the contract and must not be asserted here.
+// The text to transform is sent as a separate user message
+// (`buildCorrectionUserPrompt`), so nothing that trails the directive in the
+// system prompt is input; the prompt asset draws the instruction/input boundary
+// by message role. See the COMPOSITION ORDER note in `src/prompts/correction.ts`.
+// ---------------------------------------------------------------------------
+
+describe("fixGrammar — Caveman intensity composed into the system prompt", () => {
+  const CAVEMAN_BASE_PROMPT = "Compress the text.";
+
+  // Hardcoded, not read back out of the registry: an expectation recomputed
+  // the way the implementation computes it would move in lockstep with a
+  // mutated fragment and never catch the regression. The three literals below
+  // are the ones `src/prompts/correction.ts` exports for each level.
+  const DIRECTIVE_BY_MODE: Record<string, string> = {
+    lite: DEFAULT_CAVEMAN_LITE_DIRECTIVE,
+    full: DEFAULT_CAVEMAN_FULL_DIRECTIVE,
+    ultra: DEFAULT_CAVEMAN_ULTRA_DIRECTIVE,
+  };
+
+  const setupCaveman = (extraOptions?: Record<string, string>) => {
+    setupMockSettings(
+      makePreset({
+        id: DEFAULT_CAVEMAN_PRESET_ID,
+        name: "Caveman",
+        systemPrompt: CAVEMAN_BASE_PROMPT,
+        ...(extraOptions ? { extraOptions } : {}),
+      }),
+    );
+  };
+
+  const systemPromptOfLastCall = (): string =>
+    (makeAIRequest as Mock).mock.calls[0][0].systemPrompt;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each(["lite", "full", "ultra"])(
+    "appends the %s directive, and only that one",
+    async (mode) => {
+      setupCaveman({ cavemanMode: mode });
+
+      await fixGrammar("some text");
+
+      const systemPrompt = systemPromptOfLastCall();
+      expect(systemPrompt).toBe(
+        `${CAVEMAN_BASE_PROMPT}\n\n${DIRECTIVE_BY_MODE[mode]}`,
+      );
+
+      for (const [otherMode, directive] of Object.entries(DIRECTIVE_BY_MODE)) {
+        if (otherMode === mode) continue;
+        expect(systemPrompt).not.toContain(directive);
+      }
+    },
+  );
+
+  it("falls back to the registry default when the preset stores no option", async () => {
+    setupCaveman();
+
+    await fixGrammar("some text");
+
+    expect(systemPromptOfLastCall()).toBe(
+      `${CAVEMAN_BASE_PROMPT}\n\n${DEFAULT_CAVEMAN_FULL_DIRECTIVE}`,
+    );
+  });
+
+  it("falls back to the registry default when the stored value is unrecognized", async () => {
+    setupCaveman({ cavemanMode: "supersonic" });
+
+    await fixGrammar("some text");
+
+    expect(systemPromptOfLastCall()).toBe(
+      `${CAVEMAN_BASE_PROMPT}\n\n${DEFAULT_CAVEMAN_FULL_DIRECTIVE}`,
+    );
+  });
+
+  it("seats the directive directly after the base prompt, ambient blocks trailing", async () => {
+    setupCaveman({ cavemanMode: "ultra" });
+
+    await fixGrammar("some text", undefined, {
+      activeAppName: "Slack",
+      userMetadata: "App locale: en",
+    });
+
+    const systemPrompt = systemPromptOfLastCall();
+    // The contract: base prompt, then exactly one directive, with nothing
+    // wedged between them. `startsWith(base)` plus an index comparison would
+    // pass with an extra block spliced in the middle, which is the arrangement
+    // the base prompt is written against.
+    expect(
+      systemPrompt.startsWith(
+        `${CAVEMAN_BASE_PROMPT}\n\n${DEFAULT_CAVEMAN_ULTRA_DIRECTIVE}`,
+      ),
+    ).toBe(true);
+    // Ambient context trails the directive, in wrapper order. This is NOT a
+    // claim that the directive is the final line — it deliberately is not.
+    expect(systemPrompt.indexOf("# Metadata context")).toBeLessThan(
+      systemPrompt.indexOf("App locale: en"),
+    );
+  });
+
+  it("leaves a preset that declares no options byte-identical", async () => {
+    setupMockSettings(makePreset({ systemPrompt: "Fix grammar." }));
+
+    await fixGrammar("some text");
+
+    expect(systemPromptOfLastCall()).toBe("Fix grammar.");
+  });
+
+  it("ignores a cavemanMode stored against a preset that never declared it", async () => {
+    setupMockSettings(
+      makePreset({
+        systemPrompt: "Fix grammar.",
+        extraOptions: { cavemanMode: "ultra" },
+      }),
+    );
+
+    await fixGrammar("some text");
+
+    expect(systemPromptOfLastCall()).toBe("Fix grammar.");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: effectiveModelRef — the inherit rule the connection prewarmer
+// (`~/main/llm/prewarm.ts`) reuses to know what to warm before the real
+// request is built.
+// ---------------------------------------------------------------------------
+
+describe("effectiveModelRef", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns the preset's own (trimmed) model ref when it has one", () => {
+    (getDefaultModelId as Mock).mockReturnValue("openrouter::should-not-be-used");
+
+    expect(effectiveModelRef(makePreset({ model: "  openai::gpt-4o  " }))).toBe(
+      "openai::gpt-4o",
+    );
+    expect(getDefaultModelId).not.toHaveBeenCalled();
+  });
+
+  it("inherits the global default when the preset's model is empty", () => {
+    (getDefaultModelId as Mock).mockReturnValue("ollama::llama3.2:3b");
+
+    expect(effectiveModelRef(makePreset({ model: "" }))).toBe("ollama::llama3.2:3b");
+  });
+
+  it("inherits the global default when the preset's model is whitespace-only", () => {
+    (getDefaultModelId as Mock).mockReturnValue("openai::gpt-4o");
+
+    expect(effectiveModelRef(makePreset({ model: "   " }))).toBe("openai::gpt-4o");
+  });
+
+  it("propagates the inherit sentinel when the global default is also unset", () => {
+    (getDefaultModelId as Mock).mockReturnValue("");
+
+    expect(effectiveModelRef(makePreset({ model: "" }))).toBe("");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Tests: normalizeCorrectionSettings reasoning handling
 // ---------------------------------------------------------------------------
 
 describe("normalizeCorrectionSettings — reasoning field", () => {
   it("preserves a valid reasoning effort on a stored preset", () => {
+    const result = normalizeCorrectionSettings({
+      presets: [
+        {
+          id: "custom-1",
+          name: "Custom",
+          hotkey: "",
+          systemPrompt: "Do the thing.",
+          model: "",
+          isBuiltIn: false,
+          reasoning: "high",
+        },
+      ],
+      selectedPresetId: "custom-1",
+    });
+    const preset = result.presets.find((p) => p.id === "custom-1");
+    expect(preset?.reasoning).toBe("high");
+  });
+
+  it("steps a retired reasoning effort down instead of dropping it", () => {
     const result = normalizeCorrectionSettings({
       presets: [
         {
@@ -276,7 +455,7 @@ describe("normalizeCorrectionSettings — reasoning field", () => {
       selectedPresetId: "custom-1",
     });
     const preset = result.presets.find((p) => p.id === "custom-1");
-    expect(preset?.reasoning).toBe("xhigh");
+    expect(preset?.reasoning).toBe("high");
   });
 
   it("drops an unknown reasoning value from a stored preset", () => {

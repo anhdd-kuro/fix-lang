@@ -2,14 +2,14 @@
  * @file profileSwitchNotification.test.ts
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createTranslator } from "~/shared/i18n/translate";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import { buildProfileSwitchHotkeyNotification } from "./profileSwitchNotification";
 
 const localeStoreMocks = vi.hoisted(() => ({
   getLocale: vi.fn(),
 }));
 
-vi.mock("~/stores/localeStore", () => ({
+vi.mock("~/features/i18n/store/localeStore", () => ({
   getLocale: localeStoreMocks.getLocale,
 }));
 

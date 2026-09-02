@@ -7,21 +7,22 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { format } from "date-fns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { twJoin } from "tailwind-merge";
-import { msg, type Message } from "~/shared/i18n/message";
+import { msg, type Message } from "~/features/i18n/shared/message";
 import {
   isLogLevel,
   LOG_LEVEL_ORDER,
   LOG_QUERY_PAGE_SIZE,
   logEntryMatchesLevels,
   logEntryMatchesSearch,
-} from "~/shared/logging";
+} from "~/features/logs/shared/logging";
 import { Button } from "./Button";
 import { Checkbox } from "./Checkbox";
+import { Input } from "./Input";
 import { logRowKey, timeZoneLabel } from "./logsView";
 import { MultiSelect } from "./MultiSelect";
 import { useI18n } from "../i18n/useI18n";
-import type { TranslationKey } from "~/shared/i18n/keys";
-import type { LogEntry, LogLevel } from "~/shared/logging";
+import type { TranslationKey } from "~/features/i18n/shared/keys";
+import type { LogEntry, LogLevel } from "~/features/logs/shared/logging";
 
 const LEVEL_CLASS: Record<LogLevel, string> = {
   debug: "text-muted-foreground",
@@ -307,12 +308,12 @@ export const LogsPanel = () => {
       <div className="flex flex-wrap items-center gap-2">
         <label className="min-w-48 flex-1">
           <span className="sr-only">{t("logs.panel.search")}</span>
-          <input
+          <Input
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={t("logs.panel.search")}
-            className="w-full rounded-md border border-card-control-border bg-card px-3 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
+            className="w-full"
           />
         </label>
 

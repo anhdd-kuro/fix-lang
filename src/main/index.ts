@@ -8,16 +8,23 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { app, BrowserWindow } from "electron";
+import { isPromptGenEnabled } from "~/features/core/shared/features";
+import { guardStore } from "~/features/guards/store/guardStore";
+import { initializeLocaleFromSystem } from "~/features/i18n/store/localeStore";
+import * as clipboardChangeTracker from "~/main/clipboard/clipboardChangeTracker";
 import { showErrorNotification } from "~/main/notifications/error";
-import { isPromptGenEnabled } from "~/shared/features";
-import { initializeLocaleFromSystem } from "~/stores/localeStore";
 import {
   isMacOSAccessibilityGranted,
   promptAccessibilityPermission,
 } from "../utils";
 import {
+  registerAppearanceHandlers,
   registerApiHandlers,
+  registerAutocompleteHandlers,
+  registerAutocompleteSettingsHandlers,
   registerCorrectionHandlers,
+  registerSecurityStatsHandlers,
+  registerSelectionGuardHandlers,
   setupHistoryManagerHandlers,
   registerLocaleHandlers,
   registerLogHandlers,
@@ -25,12 +32,13 @@ import {
   registerOpenRouterHandlers,
   registerProfileHandlers,
   registerPromptGenHandlers,
+  registerSecretGuardHandlers,
   registerSettingsHandlers,
   registerThemeHandlers,
   registerUiHandlers,
   registerUpdateHandlers,
-} from "./ipc/features";
-import { registerHotkeys, unregisterHotkeys } from "./keybindings";
+} from "./ipc";
+import { registerHotkeys, reloadHotkeys, unregisterHotkeys } from "./keybindings";
 import { startModelMonitoring } from "./llm/models/monitor";
 import { initializeUpdateService, type UpdateService } from "./update";
 import { shouldCheckForUpdatesOnLaunch } from "./update/installationPath";
@@ -115,7 +123,10 @@ const registerIpcHandlers = (): UpdateService => {
   // Register all feature handlers in a specific order (UI-first approach)
   registerUiHandlers();
   registerApiHandlers();
+  registerAutocompleteHandlers();
+  registerAutocompleteSettingsHandlers();
   registerSettingsHandlers();
+  registerAppearanceHandlers();
   registerThemeHandlers();
 
   // One-time system-locale detection: a no-op once the user has chosen a
@@ -132,6 +143,18 @@ const registerIpcHandlers = (): UpdateService => {
 
   // Register centralized history handler first (dependency for feature handlers)
   setupHistoryManagerHandlers();
+
+  // Selection guards (stale-clipboard age, size cap, app deny-list) — before
+  // correction so its hotkey handler can read guardStore from the first press.
+  registerSelectionGuardHandlers();
+
+  // Guard-activity roll-up for the Security dashboard tab. Read-only over the
+  // persisted logs, so it has no ordering requirement of its own.
+  registerSecurityStatsHandlers();
+
+  // Secret guard settings — same reason, and its hotkey handlers read the
+  // store per press so a settings change never waits for a hotkey reload.
+  registerSecretGuardHandlers();
 
   // Register feature-specific handlers
   registerCorrectionHandlers();
@@ -210,6 +233,11 @@ function initializeApp() {
       setupTray();
     }
 
+    // Starts (or leaves off) the 1 Hz stale-clipboard poll to match whatever
+    // was persisted from a previous launch — `guardStore`'s own writes keep
+    // this in sync afterward, this call only covers app start.
+    clipboardChangeTracker.applySettings(guardStore.getSelectionGuardSettings());
+
     registerHotkeys(mainWindow); // Register global shortcuts, passing the window
   });
 
@@ -246,7 +274,33 @@ function initializeApp() {
   app.on("will-quit", () => {
     // Unregister all shortcuts on quit to be safe
     unregisterHotkeys();
+    clipboardChangeTracker.stop();
   });
 }
 
-initializeApp();
+// Without this lock, launching FixLang a second time (e.g. a stray login-item
+// launch racing a manual one) spins up a second tray icon and tray
+// BrowserWindow with its own independent OpenRouter-analytics cache -- the two
+// windows land at nearly the same screen position and their credit cards
+// visually stack on top of each other.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    const mainWindow = getMainWindow();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    } else {
+      createMainWindow();
+      // Hotkeys were registered once at startup against the original main
+      // window, so a freshly created one here never gets rebound -- rebind
+      // now, same as after a profile switch or settings change.
+      reloadHotkeys();
+    }
+  });
+
+  initializeApp();
+}

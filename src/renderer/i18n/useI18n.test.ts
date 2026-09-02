@@ -20,10 +20,10 @@
 import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createTranslator } from "~/shared/i18n/translate";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import { I18nProvider } from "./I18nProvider";
 import { useI18n, type UseI18nResult } from "./useI18n";
-import type { Locale } from "~/shared/i18n/registry";
+import type { Locale } from "~/features/i18n/shared/registry";
 
 // Expected text is derived through the real translator kernel (never
 // hand-replicated) so a catalog reword doesn't break this test, and so an

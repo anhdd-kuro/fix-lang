@@ -9,7 +9,7 @@ import {
   type LocaleBridge,
   type LocaleState,
 } from "./localeState";
-import type { Locale } from "~/shared/i18n/registry";
+import type { Locale } from "~/features/i18n/shared/registry";
 
 describe("localeReducer", () => {
   it("starts loading with the default locale", () => {

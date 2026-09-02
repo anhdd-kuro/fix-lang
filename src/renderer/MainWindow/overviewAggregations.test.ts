@@ -6,7 +6,7 @@
  * of the runner's timezone.
  */
 import { describe, expect, it } from "vitest";
-import { estimateTextTokens, type HistoryEntry } from "~/stores/historyTypes";
+import { estimateTextTokens, type HistoryEntry } from "~/features/history/store/historyTypes";
 import {
   activeDays,
   costTotal,

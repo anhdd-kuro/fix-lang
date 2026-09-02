@@ -11,7 +11,7 @@ import {
   HOURS_PER_BLOCK,
   sevenDayHourBlockHeatmap,
 } from "../../MainWindow/overviewAggregations";
-import type { HistoryEntry } from "~/stores/historyTypes";
+import type { HistoryEntry } from "~/features/history/store/historyTypes";
 
 const blockHourLabel = (blockIndex: number): string => {
   const start = blockIndex * HOURS_PER_BLOCK;
@@ -78,7 +78,7 @@ export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
           </div>
 
           <div
-            className="grid gap-0.5 text-[10px] text-muted-foreground text-center"
+            className="grid gap-0.5 text-2xs text-muted-foreground text-center"
             style={{
               gridTemplateColumns: `repeat(${heatmap.days.length}, minmax(0, 1fr))`,
             }}

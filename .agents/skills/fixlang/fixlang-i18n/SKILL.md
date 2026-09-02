@@ -1,24 +1,24 @@
 ---
 name: fixlang-i18n
-description: "Use when adding translatable strings, migrating existing English text to use t(), or editing the i18n infrastructure. Covers src/shared/i18n/, src/main/i18n.ts, locale IPC transport, and renderer I18nProvider. Examples: \"add a translation string\", \"why did the interface stay in English after switching languages\", \"migrate the tray window to use translations\"."
+description: "Use when adding translatable strings, migrating existing English text to use t(), or editing the i18n infrastructure. Covers src/features/i18n/, src/main/i18n.ts, locale IPC transport, and renderer I18nProvider. Examples: \"add a translation string\", \"why did the interface stay in English after switching languages\", \"migrate the tray window to use translations\"."
 ---
 
 # FixLang — i18n Traps
 
-Code: `src/shared/i18n/` (catalogs, registry, translate, format, message, keys), `src/main/i18n.ts`, `src/stores/localeStore.ts`, `src/main/ipc/features/locale.ts`, `src/preload/features/locale.ts`, `src/renderer/i18n/` (I18nProvider, useI18n, localeState), `src/shared/i18n/locales/{en,ja}/*.json` (catalogs).
+Code: `src/features/i18n/shared/` (catalogs, registry, translate, format, message, keys), `src/main/i18n.ts`, `src/features/i18n/store/localeStore.ts`, `src/features/i18n/main/locale.ts`, `src/features/i18n/preload/locale.ts`, `src/renderer/i18n/` (I18nProvider, useI18n, localeState), `src/features/i18n/shared/locales/{en,ja}/*.json` (catalogs).
 
 ## Type-checked keys, untyped placeholders
 
 JSON string **values** widen to `string` in TypeScript, so placeholder names inside `{token}` brackets are **not type-checked**. A missing `{expectedToken}` in a call site or a typo in the JSON value both compile clean; the interpolation silently leaves the unreplaced text in the output at runtime (e.g., `"Hello {userName}"` → `"Hello {userName}"` if `userName` param is missing).
 
-**Guard:** Parity tests in `src/shared/i18n/dashboardKeys.test.ts` assert that placeholder names match across English and Japanese for every key. If you add a new key, add a test case.
+**Guard:** Parity tests in `src/features/i18n/shared/dashboardKeys.test.ts` assert that placeholder names match across English and Japanese for every key. If you add a new key, add a test case.
 
 ## Tests are `.test.ts`, not `.test.tsx`
 
 `@testing-library/react` is **not** installed, so component rendering in tests will fail. Vitest collects `src/**/*.test.{ts,js}` only, not `.tsx`. For components that call `useI18n()`:
 
 1. Extract the locale-independent logic into a sibling `.ts` file
-2. Unit-test the `.ts` file directly (import `createTranslator` from `~/shared/i18n/translate`)
+2. Unit-test the `.ts` file directly (import `createTranslator` from `~/features/i18n/shared/translate`)
 3. Keep the `.tsx` file thin — just UI wiring and `useI18n()` calls
 
 **Example** — `OverviewPanel.tsx` calls `useI18n()` and passes result to a view module:

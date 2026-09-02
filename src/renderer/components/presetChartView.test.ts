@@ -5,8 +5,8 @@
  * through `createTranslator` (EN + JA).
  */
 import { describe, expect, it } from "vitest";
-import { resolveMessage } from "~/shared/i18n/message";
-import { createTranslator } from "~/shared/i18n/translate";
+import { resolveMessage } from "~/features/i18n/shared/message";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import { CHART_TITLE_KEYS, donutTooltipMessage, weightPercent } from "./presetChartView";
 
 describe("CHART_TITLE_KEYS", () => {

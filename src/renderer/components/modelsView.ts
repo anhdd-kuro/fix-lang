@@ -4,7 +4,7 @@
  * extracted from `ModelsPanel.tsx` (Chunk 8) so the descriptor logic is
  * unit-testable without a DOM testing library (none is installed).
  */
-import { msg, type Message, type MessageKey } from "~/shared/i18n/message";
+import { msg, type Message, type MessageKey } from "~/features/i18n/shared/message";
 import type { ModelRow, TokenDayBar } from "../MainWindow/modelsAggregations";
 
 /** Parses a dense local-day key ("YYYY-MM-DD") into a local `Date` — never round-trip through the ISO string (a UTC-midnight parse can render as the previous day in a negative-offset timezone). Mirrors `tokenActivityView.ts`'s helper of the same name. */

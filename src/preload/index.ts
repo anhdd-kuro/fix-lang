@@ -6,6 +6,10 @@
 import { contextBridge } from "electron";
 import {
   apiFeature,
+  appearanceFeature,
+  askFeature,
+  autocompleteFeature,
+  autocompleteSettingsFeature,
   correctionFeature,
   correctionResultFeature,
   localeFeature,
@@ -13,15 +17,21 @@ import {
   openaiUsageFeature,
   promptGenFeature,
   profilesFeature,
+  secretGuardFeature,
+  selectionGuardsFeature,
   settingsFeature,
   themeFeature,
   uiFeature,
   historyFeature,
   openrouterFeature,
   updateFeature,
-} from "./features";
+} from "~/features/preload";
 import type {
   ApiFeature,
+  AppearanceFeature,
+  AskFeature,
+  AutocompleteFeature,
+  AutocompleteSettingsFeature,
   CorrectionFeature,
   CorrectionResultFeature,
   HistoryFeature,
@@ -31,11 +41,13 @@ import type {
   OpenRouterFeature,
   ProfilesFeature,
   PromptGenFeature,
+  SecretGuardFeature,
+  SelectionGuardsFeature,
   SettingsFeature,
   ThemeFeature,
   UIFeature,
   UpdateFeature,
-} from "./features";
+} from "~/features/preload";
 
 // Log that preload script is being executed
 console.log("Preload script is being executed");
@@ -43,13 +55,19 @@ console.log("Preload script is being executed");
 // Expose a controlled API to the renderer process
 contextBridge.exposeInMainWorld("electronAPI", {
   ...historyFeature,
+  ...appearanceFeature,
   ...apiFeature,
+  ...askFeature,
+  ...autocompleteFeature,
+  ...autocompleteSettingsFeature,
   ...correctionFeature,
   ...correctionResultFeature,
   ...localeFeature,
   ...logsFeature,
   ...promptGenFeature,
   ...profilesFeature,
+  ...secretGuardFeature,
+  ...selectionGuardsFeature,
   ...settingsFeature,
   ...themeFeature,
   ...uiFeature,
@@ -63,13 +81,19 @@ console.log(
 );
 
 export type ElectronAPI = HistoryFeature &
+  AppearanceFeature &
   PromptGenFeature &
+  AskFeature &
+  AutocompleteFeature &
+  AutocompleteSettingsFeature &
   CorrectionFeature &
   CorrectionResultFeature &
   ApiFeature &
   LocaleFeature &
   LogsFeature &
   ProfilesFeature &
+  SecretGuardFeature &
+  SelectionGuardsFeature &
   SettingsFeature &
   ThemeFeature &
   UIFeature &

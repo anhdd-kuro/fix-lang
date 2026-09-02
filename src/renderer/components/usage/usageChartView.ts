@@ -5,7 +5,7 @@
  * labels, series values and slice ordering are unit-testable directly (no DOM
  * testing library is installed). Mirrors the `presetChartView.ts` split.
  */
-import type { UsageCostSlice, UsageDailyPoint } from "~/shared/usage";
+import type { UsageCostSlice, UsageDailyPoint } from "~/features/usage/shared/usage";
 
 /** Largest slices first, with a "+N more" bucket so the donut stays readable. */
 export const MAX_DONUT_SLICES = 6;

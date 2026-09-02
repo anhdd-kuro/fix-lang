@@ -156,7 +156,7 @@ const generateManifestFile = async (entries: ThemeEntry[]): Promise<void> => {
  * AUTO-GENERATED — do not edit.
  * Run \`bun run themes:generate\` to regenerate.
  */
-import type { ThemeId } from "~/stores/themeIds";
+import type { ThemeId } from "~/features/theme/store/themeIds";
 
 export type ThemePreset = {
   id: ThemeId;

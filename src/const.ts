@@ -1,6 +1,6 @@
 import type { Model as OpenAIModel } from "openai/resources.mjs";
-import type { Model } from "~/shared/providers";
-import type { KeyBindings } from "~/stores/apiStore";
+import type { Model } from "~/features/providers/shared/providers";
+import type { KeyBindings } from "~/features/providers/store/apiStore";
 
 /**
  * Default OpenAI model id. No longer a runtime default resolved from a live

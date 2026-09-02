@@ -11,7 +11,7 @@
  * check-for-updates button and every release note link land on this tab
  * expecting the update controls to be what they see.
  */
-import type { MessageKey } from "~/shared/i18n/message";
+import type { MessageKey } from "~/features/i18n/shared/message";
 
 export type AboutTabId = "updates" | "guide";
 

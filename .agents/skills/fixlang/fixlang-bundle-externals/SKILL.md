@@ -1,6 +1,6 @@
 ---
 name: fixlang-bundle-externals
-description: "Use when adding, upgrading, or importing a runtime dependency (dependencies or devDependencies used at runtime), when debugging a packaged app that dies at launch or a window that loses IPC while dev/test/lint were all green, or when touching `build.files`, `electron.vite.config.ts` output format, or `scripts/check-bundle-externals.ts` / `src/shared/bundleExternals.ts`. Examples: \"add a new npm package\", \"packaged app crashes but dev works fine\", \"MODULE_NOT_FOUND in production\", \"why is app.asar so small now\"."
+description: "Use when adding, upgrading, or importing a runtime dependency (dependencies or devDependencies used at runtime), when debugging a packaged app that dies at launch or a window that loses IPC while dev/test/lint were all green, or when touching `build.files`, `electron.vite.config.ts` output format, or `scripts/check-bundle-externals.ts` / `src/features/core/shared/bundleExternals.ts`. Examples: \"add a new npm package\", \"packaged app crashes but dev works fine\", \"MODULE_NOT_FOUND in production\", \"why is app.asar so small now\"."
 ---
 
 # FixLang — Bundle Externals Playbook
@@ -32,7 +32,7 @@ bun run check:bundle
 ```
 
 `check:bundle` (`scripts/check-bundle-externals.ts`, logic in
-`src/shared/bundleExternals.ts`) AST-scans everything under `out/` for a
+`src/features/core/shared/bundleExternals.ts`) AST-scans everything under `out/` for a
 `require()`/`import()` call whose argument is a bare specifier that is not a
 Node builtin, not an Electron-runtime specifier, and not on the (empty, and it
 should stay empty — see the comment on `ALLOWLIST`) allowlist. It exits
@@ -64,7 +64,7 @@ looks silently broken, not just the feature that added the dependency).
 
 ## Do not touch
 
-`scripts/check-bundle-externals.ts` and `src/shared/bundleExternals.ts` (and
+`scripts/check-bundle-externals.ts` and `src/features/core/shared/bundleExternals.ts` (and
 their tests) are the scanner itself. If the scanner looks wrong or incomplete,
 that is a distinct, deliberately-owned piece of work — flag it, don't patch it
 inline as part of an unrelated change.

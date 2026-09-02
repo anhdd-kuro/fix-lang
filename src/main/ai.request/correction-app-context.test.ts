@@ -2,6 +2,17 @@
  * @file correction-app-context.test.ts
  * @description Tests for the frontmost-app context block that `fixGrammar`
  * appends to the preset's system prompt. Pure unit tests — no Electron, no network.
+ *
+ * THIS FILE IS THE END-TO-END COMPOSITION GUARD. It drives `fixGrammar` and
+ * reads the system prompt actually handed to `makeAIRequest`, so it is what
+ * catches a new or reordered system-prompt wrapper (`withPresetOptions`,
+ * `withUserMetadata`, anything added later) disturbing the trailing context
+ * blocks. Do not weaken or delete an assertion here on the grounds that
+ * `transform-context.test.ts` covers it: that file unit-tests
+ * `buildActiveAppContextBlock`/`withActiveAppContext` in isolation and never
+ * calls `fixGrammar`, so it stays fully green against a wrapper that corrupts
+ * every composed prompt — proven by mutation, not assumed. The two files have
+ * different scopes and only this one is probative about composition.
  */
 // ---------------------------------------------------------------------------
 // Mocks — must be hoisted before imports
@@ -24,7 +35,7 @@ vi.mock("electron", () => ({
   ipcMain: { handle: vi.fn(), on: vi.fn() },
   app: { getPath: vi.fn().mockReturnValue("/tmp") },
 }));
-vi.mock("~/stores/apiStore", async (importOriginal) => {
+vi.mock("~/features/providers/store/apiStore", async (importOriginal) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- importOriginal returns unknown module shape
   const real = await importOriginal<any>();
   return {
@@ -50,6 +61,7 @@ vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
 // ---------------------------------------------------------------------------
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
+import { getProfileSetting } from "~/features/providers/store/apiStore";
 import {
   DEFAULT_BUSINESS_WRITING_PRESET_ID,
   DEFAULT_CORRECTION_PRESET_ID,
@@ -57,12 +69,11 @@ import {
   DEFAULT_STRUCTURED_TEXT_PRESET_ID,
   DEFAULT_SUMMARIZE_PRESET_ID,
 } from "~/prompts";
-import { getProfileSetting } from "~/stores/apiStore";
 import { fixGrammar } from "./correction";
 import { generatePrompt } from "./promptgen";
 import { makeAIRequest } from "./shared";
 import type { Mock } from "vitest";
-import type { CorrectionPreset, CorrectionSettings } from "~/stores/apiStore";
+import type { CorrectionPreset, CorrectionSettings } from "~/features/providers/store/apiStore";
 
 const PRESERVE_MARKUP_BULLET =
   "do not add app-specific markup the input does not already use";
@@ -115,7 +126,8 @@ describe("fixGrammar — active app context", () => {
     await fixGrammar("hello world", undefined, { activeAppName: "Slack" });
 
     const { systemPrompt } = lastCall();
-    // The preset's own instructions keep the leading position.
+    // The context block trails so the preset's own instructions stay the
+    // stable, cacheable prefix of the request (see ./cache-strategy).
     expect(systemPrompt.startsWith("Fix grammar.")).toBe(true);
     expect(systemPrompt).toContain('"Slack"');
     expect(systemPrompt).toMatch(/do not mention/i);
@@ -239,6 +251,63 @@ describe("fixGrammar — active app context", () => {
     await fixGrammar("hello world", id, { activeAppName: "Slack" });
 
     expect(lastCall().systemPrompt).toContain(PRESERVE_MARKUP_BULLET);
+  });
+});
+
+describe("fixGrammar — user metadata", () => {
+  const DIRECTIVES = [
+    "App locale: en",
+    "Keyboard input source: ABC",
+    "Current time: 2026-08-11T14:32:05+09:00 (Asia/Tokyo)",
+  ].join("\n");
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("appends the directive block to the system prompt", async () => {
+    setup(makePreset({ systemPrompt: "Fix grammar." }));
+
+    await fixGrammar("hello world", undefined, { userMetadata: DIRECTIVES });
+
+    const { systemPrompt } = lastCall();
+    expect(systemPrompt.startsWith("Fix grammar.")).toBe(true);
+    expect(systemPrompt).toContain("Keyboard input source: ABC");
+    expect(systemPrompt).not.toContain("# Metadata context");
+  });
+
+  it.each([
+    ["omitted", undefined],
+    ["an empty string", ""],
+    ["whitespace only", "  \n  "],
+  ])("leaves the system prompt byte-identical when user metadata is %s", async (_label, userMetadata) => {
+    setup(makePreset({ systemPrompt: "Fix grammar." }));
+
+    await fixGrammar("hello world", undefined, { userMetadata });
+
+    expect(lastCall().systemPrompt).toBe("Fix grammar.");
+  });
+
+  it("trails the source-app block so the pinned Metadata context wording is unchanged", async () => {
+    setup(makePreset({ systemPrompt: "Fix grammar." }));
+
+    await fixGrammar("hello world", undefined, {
+      activeAppName: "Slack",
+      userMetadata: DIRECTIVES,
+    });
+
+    const { systemPrompt } = lastCall();
+    expect(systemPrompt).toContain(
+      [
+        "# Metadata context",
+        '- The text was selected in the macOS app "Slack".',
+        "- Use it only to infer the expected tone, formality, and formatting conventions of that app.",
+        "- Do not mention the app, and do not add app-specific markup the input does not already use.",
+      ].join("\n"),
+    );
+    expect(systemPrompt.indexOf("# Metadata context")).toBeLessThan(
+      systemPrompt.indexOf("App locale: en"),
+    );
   });
 });
 

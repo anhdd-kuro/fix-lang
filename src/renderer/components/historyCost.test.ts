@@ -4,8 +4,8 @@
  * behavioral coverage of formatCostLabel's rendering in both shipped locales.
  */
 import { describe, expect, it } from "vitest";
-import { createFormatters } from "~/shared/i18n/format";
-import { createTranslator } from "~/shared/i18n/translate";
+import { createFormatters } from "~/features/i18n/shared/format";
+import { createTranslator } from "~/features/i18n/shared/translate";
 import { formatCostLabel, resolveCostDisplay } from "./historyCost";
 
 describe("resolveCostDisplay", () => {

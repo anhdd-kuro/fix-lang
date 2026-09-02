@@ -178,17 +178,16 @@ describe("MultiSelect", () => {
 
     const classes = [
       "border",
-      "border-card-control-border",
-      "bg-input",
+      "border-control-border",
+      "bg-secondary",
       "text-foreground",
       "flex",
       "w-full",
       "items-center",
       "justify-between",
       "gap-2",
-      "rounded-md",
-      "px-2",
-      "py-1.5",
+      "rounded",
+      "p-2",
       "text-sm",
       "hover:border-ring",
     ];

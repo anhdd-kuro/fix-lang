@@ -7,7 +7,7 @@
  * `DASHBOARD_TABS.findIndex`, which returned -1, and the button silently did
  * nothing — no error, no navigation, nothing to catch but a click.
  *
- * The union now lives once in `~/shared/dashboardTabIds`, which makes the type
+ * The union now lives once in `~/features/core/shared/dashboardTabIds`, which makes the type
  * half compile-time impossible. This covers the other half: that every id
  * actually PASSED to `showMainWindowTab` names a tab that exists. A literal is
  * type-correct and still wrong the moment a tab is renamed and one call site is
@@ -50,7 +50,7 @@ describe("dashboard tab navigation targets", () => {
     // make every assertion below vacuously true.
     expect(targets.length).toBeGreaterThan(0);
     expect(targets.map((target) => target.file)).toContain(
-      "TrayWindow/components/TrayCreditBalance.tsx",
+      "TrayWindow/components/TrayProviderSummary.tsx",
     );
   });
 

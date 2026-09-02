@@ -3,7 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "electron-vite";
 import commonjs from "vite-plugin-commonjs";
 import tsconfigPaths from "vite-tsconfig-paths";
-import { parseFeatureFlags } from "./src/shared/features";
+import { parseFeatureFlags } from "./src/features/core/shared/features";
 
 export const rendererPort = 5175;
 
@@ -27,6 +27,10 @@ const rendererInput = {
     __dirname,
     "src/renderer/CorrectionResultWindow/index.html",
   ),
+  // Ask AI windows are unconditional (never feature-tagged) — unlike
+  // PromptGen below, both entries always ship.
+  askInput: resolve(__dirname, "src/renderer/AskInputWindow/index.html"),
+  askResult: resolve(__dirname, "src/renderer/AskResultWindow/index.html"),
   // Omitted when the tag is off so no PromptGen bundle/html is emitted at all.
   ...(features.promptGen
     ? {

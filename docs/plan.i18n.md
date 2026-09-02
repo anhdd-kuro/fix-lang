@@ -12,7 +12,7 @@ tray tooltip, overlay/error popup).
 
 | Decision | Choice | Why |
 | --- | --- | --- |
-| Library | Hand-rolled typed module in `src/shared/i18n/` | No new dep; works in main + preload + renderer + vitest; repo already hand-rolls stores (no zustand) |
+| Library | Hand-rolled typed module in `src/features/i18n/shared/` | No new dep; works in main + preload + renderer + vitest; repo already hand-rolls stores (no zustand) |
 | Catalog format | **JSON**, flat dotted keys, one file per locale | `keyof typeof en` gives a compile-time key union with `resolveJsonModule` (already on in `tsconfig.json`) |
 | Locale state | `electron-store` + IPC broadcast, mirroring `themeStore` / `ipc/features/theme.ts` | Tray, dashboard, PromptGen, overlay stay in sync; main process can translate too |
 | Detection | `app.getLocale()` in main → `ja` if it starts with `ja`, else `en`; user override persisted | Single source of truth in main; renderer never guesses |
@@ -29,7 +29,7 @@ tray tooltip, overlay/error popup).
 ## Architecture
 
 ```
-src/shared/i18n/
+src/features/i18n/shared/
 ├── locales/
 │   ├── en/
 │   │   ├── common.json           — source of truth for common keys
@@ -61,10 +61,10 @@ src/shared/i18n/
 ├── format.test.ts
 └── detect.test.ts
 
-src/stores/localeStore.ts          — persisted locale (electron-store name: "locale")
+src/features/i18n/store/localeStore.ts          — persisted locale (electron-store name: "locale")
 src/main/i18n.ts                   — sync main-process translator (no React)
-src/main/ipc/features/locale.ts    — get-locale / set-locale / broadcastLocale / syncLocaleToWindow
-src/preload/features/locale.ts     — localeFeature (getLocale / setLocale / onLocaleChanged)
+src/features/i18n/main/locale.ts    — get-locale / set-locale / broadcastLocale / syncLocaleToWindow
+src/features/i18n/preload/locale.ts     — localeFeature (getLocale / setLocale / onLocaleChanged)
 src/renderer/i18n/I18nProvider.tsx — context + <html lang dir> sync
 src/renderer/i18n/useI18n.ts       — { t, locale, setLocale, format* , dir }
 src/renderer/components/LanguageSelect.tsx
@@ -74,7 +74,7 @@ src/renderer/components/LanguageSelect.tsx
 
 Keys are globally unique and dotted (`"common.cancel"`, `"overview.stat.sessions"`), split across per-namespace files to prevent merge conflicts. At build time, all namespaces for each locale are merged into a single flat catalog (`EN_CATALOG` and `JA_CATALOG`).
 
-`src/shared/i18n/locales/en/common.json` (excerpt)
+`src/features/i18n/shared/locales/en/common.json` (excerpt)
 
 ```json
 {
@@ -83,7 +83,7 @@ Keys are globally unique and dotted (`"common.cancel"`, `"overview.stat.sessions
 }
 ```
 
-`src/shared/i18n/locales/en/overview.json` or `en/dashboard.json` (excerpt)
+`src/features/i18n/shared/locales/en/overview.json` or `en/dashboard.json` (excerpt)
 
 ```json
 {
@@ -92,7 +92,7 @@ Keys are globally unique and dotted (`"common.cancel"`, `"overview.stat.sessions
 }
 ```
 
-`src/shared/i18n/locales/ja/common.json` (excerpt)
+`src/features/i18n/shared/locales/ja/common.json` (excerpt)
 
 ```json
 {
@@ -101,7 +101,7 @@ Keys are globally unique and dotted (`"common.cancel"`, `"overview.stat.sessions
 }
 ```
 
-`src/shared/i18n/locales/ja/dashboard.json` (excerpt)
+`src/features/i18n/shared/locales/ja/dashboard.json` (excerpt)
 
 ```json
 {
@@ -133,7 +133,7 @@ Each chunk is independently shippable: `bun run lint` + `bun run test` green at 
 
 ---
 
-### Chunk 1 — i18n kernel (`src/shared/i18n/`)
+### Chunk 1 — i18n kernel (`src/features/i18n/shared/`)
 
 - [x] `registry.ts`: `LOCALE_CODES = ["en", "ja"] as const`, `Locale` type, `LOCALE_META` with
       `label` / `nativeLabel` / `dir` / `intlTag` / `dateFnsLocale` key, `DEFAULT_LOCALE = "en"`
@@ -151,7 +151,7 @@ Each chunk is independently shippable: `bun run lint` + `bun run test` green at 
 
 ---
 
-### Chunk 2 — Locale-aware formatters (`src/shared/i18n/format.ts`)
+### Chunk 2 — Locale-aware formatters (`src/features/i18n/shared/format.ts`)
 
 - [ ] `createFormatters(locale)` → `formatNumber`, `formatCompactNumber`, `formatCurrency`,
       `formatPercent`, `formatDate`, `formatDateTime`, `formatRelativeTime`
@@ -167,16 +167,16 @@ Each chunk is independently shippable: `bun run lint` + `bun run test` green at 
 
 ### Chunk 3 — Persistence, detection, IPC transport
 
-- [ ] `src/stores/localeStore.ts` — mirror `themeStore.ts`: `getLocale()` / `setLocale()`,
+- [ ] `src/features/i18n/store/localeStore.ts` — mirror `themeStore.ts`: `getLocale()` / `setLocale()`,
       `clearInvalidConfig: true`, store name `"locale"`, `undefined` stored value → detect from
       `app.getLocale()` once and persist
-- [ ] `src/main/ipc/features/locale.ts` — `get-locale` / `set-locale` handlers (reject non-`Locale`
+- [ ] `src/features/i18n/main/locale.ts` — `get-locale` / `set-locale` handlers (reject non-`Locale`
       input with `{ success: false, error }`, same shape as `set-theme`), `broadcastLocale()` over all
-      `BrowserWindow`s + `syncLocaleToWindow()` on load; register in `src/main/ipc/features/index.ts`
+      `BrowserWindow`s + `syncLocaleToWindow()` on load; register in `src/features/main/index.ts`
       and wherever `registerThemeHandlers` is called
-- [ ] `src/preload/features/locale.ts` — `localeFeature` = `getLocale` / `setLocale` /
+- [ ] `src/features/i18n/preload/locale.ts` — `localeFeature` = `getLocale` / `setLocale` /
       `onLocaleChanged` (returns unsubscribe, exactly like `onThemeChanged`); add to
-      `src/preload/features/index.ts`, spread into `exposeInMainWorld`, add `LocaleFeature` to the
+      `src/features/preload/index.ts`, spread into `exposeInMainWorld`, add `LocaleFeature` to the
       `ElectronAPI` intersection in `src/preload/index.ts`
 - [ ] Tests: store default/roundtrip/invalid-value, handler validation rejects `"fr"` and non-strings
 
@@ -295,7 +295,7 @@ Each chunk is independently shippable: `bun run lint` + `bun run test` green at 
 
 ### Adding a new translatable string
 
-1. Add to `src/shared/i18n/locales/en/{namespace}.json` (e.g. `en/models.json`):
+1. Add to `src/features/i18n/shared/locales/en/{namespace}.json` (e.g. `en/models.json`):
 
 ```json
 {
@@ -303,7 +303,7 @@ Each chunk is independently shippable: `bun run lint` + `bun run test` green at 
 }
 ```
 
-2. Add the JA value to `src/shared/i18n/locales/ja/{namespace}.json` (e.g. `ja/models.json`):
+2. Add the JA value to `src/features/i18n/shared/locales/ja/{namespace}.json` (e.g. `ja/models.json`):
 
 ```json
 {
@@ -340,7 +340,7 @@ t("history.count", { count: formatNumber(n) }); // picks _one/_other via Intl.Pl
 ### Switching locale at runtime
 
 ```tsx
-import { LOCALE_CODES, LOCALE_META } from "~/shared/i18n/registry";
+import { LOCALE_CODES, LOCALE_META } from "~/features/i18n/shared/registry";
 import { useI18n } from "~/renderer/i18n/useI18n";
 
 export function LanguageSelect() {
@@ -389,7 +389,7 @@ new Notification({
 
 ## Adding a third language later
 
-1. `src/shared/i18n/locales/fr.json` — partial is fine; missing keys fall back to EN.
+1. `src/features/i18n/shared/locales/fr.json` — partial is fine; missing keys fall back to EN.
 2. Add `fr` to `LOCALE_CODES` and one `LOCALE_META` entry (`label`, `nativeLabel`, `dir`, `intlTag`,
    `dateFnsLocale`).
 

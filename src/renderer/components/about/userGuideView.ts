@@ -8,12 +8,12 @@
  * connected providers) rather than describing defaults, so it cannot drift from
  * what the app actually does after the user edits a preset or a shortcut.
  */
-import { PROVIDER_ORDER, type ProviderId } from "~/shared/providers";
+import { PROVIDER_ORDER, type ProviderId } from "~/features/providers/shared/providers";
 import { DASHBOARD_TABS, type DashboardTabId } from "../../MainWindow/dashboardTabs";
 import { PROVIDER_LABEL_KEYS } from "../modelSelectOptions";
 import type { SettingsTabId } from "../SettingsModal";
-import type { MessageKey } from "~/shared/i18n/message";
-import type { CorrectionOutputMode } from "~/shared/outputMode";
+import type { CorrectionOutputMode } from "~/features/correction/shared/outputMode";
+import type { MessageKey } from "~/features/i18n/shared/message";
 
 /** Minimal preset shape the guide reads — deliberately narrower than `CorrectionPreset`. */
 export type GuidePresetInput = {
@@ -112,6 +112,7 @@ const DASHBOARD_BODY_KEYS: Readonly<Record<DashboardTabId, MessageKey | null>> =
     models: "guide.dashboard.models",
     usage: "guide.dashboard.usage",
     logs: "guide.dashboard.logs",
+    security: "guide.dashboard.security",
     // The reader is already on About; describing it back to them is noise.
     about: null,
   });
@@ -189,5 +190,20 @@ export const GUIDE_TOPICS: readonly GuideTopic[] = Object.freeze([
     titleKey: "guide.topic.adminKey.title",
     bodyKey: "guide.topic.adminKey.body",
     settingsTab: "general",
+  },
+  {
+    id: "combo",
+    titleKey: "guide.topic.combo.title",
+    bodyKey: "guide.topic.combo.body",
+    settingsTab: "combos",
+  },
+  // The guard rails are the one feature that is ON without the user turning it
+  // on, so a first-timer meeting a confirmation dialog needs somewhere to read
+  // what it is and where to change it.
+  {
+    id: "guards",
+    titleKey: "guide.topic.guards.title",
+    bodyKey: "guide.topic.guards.body",
+    settingsTab: "security",
   },
 ] satisfies GuideTopic[]);

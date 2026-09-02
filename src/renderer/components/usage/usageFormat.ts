@@ -10,7 +10,7 @@
  * strings name a "provisioning key", which is the wrong thing to tell someone
  * looking at the OpenAI panel, where the credential is an Admin key.
  */
-import type { Translator } from "~/shared/i18n/translate";
+import type { Translator } from "~/features/i18n/shared/translate";
 
 /**
  * Format USD amounts for provider spend display. Providers bill in USD

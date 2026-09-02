@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "./Button";
 import { useI18n } from "../i18n/useI18n";
-import type { Model } from "~/stores/apiStore";
+import type { Model } from "~/features/providers/store/apiStore";
 
 // Define the model installation status for UI feedback
 type ModelInstallStatus = "idle" | "installing" | "success" | "error";

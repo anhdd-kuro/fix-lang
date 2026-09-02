@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createTranslator } from "~/shared/i18n/translate";
-import { AccessibilityPermissionError, LocalizedError, showErrorNotification } from "./error";
+import { createTranslator } from "~/features/i18n/shared/translate";
+import {
+  AccessibilityPermissionError,
+  LocalizedError,
+  notifyRequestError,
+  showErrorNotification,
+  showNotificationWithFallback,
+} from "./error";
 
 const {
   notificationConstructorMock,
@@ -26,11 +32,11 @@ vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
 }));
 
 // The desktop-notification title/fallback body are built via `mainT()`,
-// which reads `~/stores/localeStore` (backed by `electron-store`, itself
+// which reads `~/features/i18n/store/localeStore` (backed by `electron-store`, itself
 // backed by real `app.getPath`). Mocking the store directly — the same
 // pattern `correctionNotifications.test.ts` and `windowTitles.test.ts` use —
 // keeps this test from touching the filesystem or the real Electron `app`.
-vi.mock("~/stores/localeStore", () => ({
+vi.mock("~/features/i18n/store/localeStore", () => ({
   getLocale: localeStoreMocks.getLocale,
 }));
 
@@ -63,6 +69,60 @@ vi.mock("electron", () => ({
     }
   },
 }));
+
+/**
+ * The generic wrapper, extracted so a warning that is the ONLY explanation for
+ * something the app just did differently cannot be delivered by a bare
+ * `new Notification(...).show()`.
+ *
+ * FixLang ships unsigned, and macOS refuses notifications from an unsigned
+ * bundle with `Application is not code signed` — reported asynchronously on
+ * the `failed` event, NOT as a throw. So the naive call reports success and
+ * shows the user nothing at all, which is how the secret-guard restore
+ * failure used to leave a popup full of placeholders with nothing to say why.
+ */
+describe("showNotificationWithFallback", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    notificationState.failNextDelivery = false;
+    notificationState.isReady = true;
+    notificationState.readyListener = undefined;
+    notificationState.failedListener = undefined;
+    localeStoreMocks.getLocale.mockReturnValue("en");
+  });
+
+  it("shows a desktop notification with the given title and body", () => {
+    showNotificationWithFallback({ title: "Result not pasted", body: "Review it first." });
+
+    expect(notificationConstructorMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Result not pasted", body: "Review it first." }),
+    );
+    expect(notificationShowMock).toHaveBeenCalledOnce();
+    expect(showErrorPopupMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the in-app popup when delivery fails on the unsigned-app path", () => {
+    showNotificationWithFallback({ title: "Result not pasted", body: "Review it first." });
+    notificationState.failedListener?.({}, "Application is not code signed");
+
+    expect(showErrorPopupMock).toHaveBeenCalledWith("Review it first.");
+  });
+
+  it("falls back to the in-app popup when constructing the notification throws", () => {
+    notificationState.failNextDelivery = true;
+
+    showNotificationWithFallback({ title: "Result not pasted", body: "Review it first." });
+
+    expect(notificationShowMock).not.toHaveBeenCalled();
+    expect(showErrorPopupMock).toHaveBeenCalledWith("Review it first.");
+  });
+
+  it("omits urgency entirely rather than passing undefined when none is given", () => {
+    showNotificationWithFallback({ title: "T", body: "B" });
+
+    expect(Object.keys(notificationConstructorMock.mock.calls[0][0])).not.toContain("urgency");
+  });
+});
 
 describe("showErrorNotification", () => {
   beforeEach(() => {
@@ -290,6 +350,98 @@ describe("showErrorNotification", () => {
 
       expect(error).toBeInstanceOf(LocalizedError);
       expect(error.messageKey).toBe("notifications.error.accessibilityDenied.body");
+    });
+  });
+
+  // A caller that cancels its own request already knows the outcome. This
+  // matters most for autocomplete, which supersedes the in-flight request on
+  // every keystroke: without suppression each abort rejects through a provider
+  // `catch` that notifies, so the user gets one notification per character.
+  describe("cancellation", () => {
+    const abortError = (): Error => {
+      const error = new Error("The operation was aborted.");
+      error.name = "AbortError";
+      return error;
+    };
+
+    it("stays silent for an aborted request", () => {
+      showErrorNotification(abortError());
+
+      expect(notificationConstructorMock).not.toHaveBeenCalled();
+      expect(showErrorPopupMock).not.toHaveBeenCalled();
+    });
+
+    it("stays silent for a timed-out request", () => {
+      const error = new Error("The operation timed out.");
+      error.name = "TimeoutError";
+
+      showErrorNotification(error);
+
+      expect(notificationConstructorMock).not.toHaveBeenCalled();
+      expect(showErrorPopupMock).not.toHaveBeenCalled();
+    });
+
+    // The AI SDK re-wraps the underlying fetch rejection, so the abort is not
+    // the outermost error by the time a provider `catch` sees it.
+    it("stays silent for an abort wrapped by another error", () => {
+      const wrapped = new Error("Failed to get a response.", { cause: abortError() });
+
+      showErrorNotification(wrapped);
+
+      expect(notificationConstructorMock).not.toHaveBeenCalled();
+      expect(showErrorPopupMock).not.toHaveBeenCalled();
+    });
+
+    it("does not suppress a genuine failure that merely mentions aborting", () => {
+      showErrorNotification(new Error("The provider aborted the stream."));
+
+      expect(notificationConstructorMock).toHaveBeenCalledOnce();
+    });
+
+    // A self-referencing `cause` must not hang the walk.
+    it("terminates on a cyclic cause chain", () => {
+      const error = new Error("Cyclic.") as Error & { cause?: unknown };
+      error.cause = error;
+
+      showErrorNotification(error);
+
+      expect(notificationConstructorMock).toHaveBeenCalledOnce();
+    });
+  });
+
+  // The eleven provider notify sites all route through this helper, so its
+  // polarity is the single thing standing between a quiet request and a
+  // notification per keystroke.
+  describe("notifyRequestError", () => {
+    it("notifies for a request that did not ask to stay quiet", () => {
+      notifyRequestError({}, new Error("The AI request failed."));
+
+      expect(notificationConstructorMock).toHaveBeenCalledOnce();
+    });
+
+    it("stays silent for a quiet request", () => {
+      notifyRequestError({ quiet: true }, new Error("The AI request failed."));
+
+      expect(notificationConstructorMock).not.toHaveBeenCalled();
+      expect(showErrorPopupMock).not.toHaveBeenCalled();
+    });
+
+    it("passes a caller fallback through for a non-Error value", () => {
+      notifyRequestError({}, "not an error", "Failed to reach the provider.");
+
+      expect(notificationConstructorMock).toHaveBeenCalledWith(
+        expect.objectContaining({ body: "Failed to reach the provider." }),
+      );
+    });
+
+    // Omitting the argument must fall through to the localized default rather
+    // than passing `undefined` as the body.
+    it("uses the localized default body when no fallback is given", () => {
+      notifyRequestError({}, "not an error");
+
+      expect(notificationConstructorMock).toHaveBeenCalledWith(
+        expect.objectContaining({ body: tEn("notifications.error.body") }),
+      );
     });
   });
 });

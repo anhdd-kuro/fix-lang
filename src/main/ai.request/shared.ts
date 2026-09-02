@@ -9,20 +9,14 @@
  * symbols are re-exported at the bottom so existing call sites and tests keep
  * importing them from this module.
  */
-import { mainT } from "~/main/i18n";
-import { probeOllama } from "~/main/llm/models/discover";
-import { providerCapabilities } from "~/main/llm/providers";
-import { probeLmStudio } from "~/main/llm/providers/lmstudio/client";
-import { logger } from "~/main/logging/logService";
-import { showErrorNotification } from "~/main/notifications/error";
-import { resolveLmStudioEndpoint } from "~/shared/lmstudioEndpoint";
-import { parseModelRef, resolveModelRef } from "~/shared/modelRef";
-import { describeKeyShape, findKeyShapeMismatch } from "~/shared/providerKeyShapes";
+import { resolveLmStudioEndpoint } from "~/features/providers/shared/lmstudioEndpoint";
+import { parseModelRef, resolveModelRef } from "~/features/providers/shared/modelRef";
+import { describeKeyShape, findKeyShapeMismatch } from "~/features/providers/shared/providerKeyShapes";
 import {
   modelsForProvider,
   PROVIDER_ORDER,
   PROVIDER_REQUIRES_API_KEY,
-} from "~/shared/providers";
+} from "~/features/providers/shared/providers";
 import {
   apiStore,
   getDefaultModelId,
@@ -30,15 +24,22 @@ import {
   getProviderEndpoint,
   isModelForProvider,
   updateProfileSetting,
-} from "~/stores/apiStore";
+} from "~/features/providers/store/apiStore";
+import { mainT } from "~/main/i18n";
+import { probeOllama } from "~/main/llm/models/discover";
+import { providerCapabilities } from "~/main/llm/providers";
+import { probeLmStudio } from "~/main/llm/providers/lmstudio/client";
+import { logger } from "~/main/logging/logService";
+import { notifyRequestError } from "~/main/notifications/error";
 import type { AIRequestOptions, CoreMessage } from "./requestTypes";
-import type { HistorySessionData } from "~/shared/historySession";
-import type { TKey } from "~/shared/i18n/translate";
-import type { Model, ProviderId } from "~/stores/apiStore";
+import type { HistorySessionData } from "~/features/history/shared/historySession";
+import type { TKey } from "~/features/i18n/shared/translate";
+import type { Model, ProviderId } from "~/features/providers/store/apiStore";
 
 const PROVIDER_NAME_KEYS = {
   openai: "models.select.provider.openai",
   openrouter: "models.select.provider.openrouter",
+  anthropic: "models.select.provider.anthropic",
   ollama: "models.select.provider.ollama",
   lmstudio: "models.select.provider.lmstudio",
   bedrock: "models.select.provider.bedrock",
@@ -408,7 +409,7 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
   const modelId = options.model || getDefaultModelId();
   if (!modelId) {
     const error = new Error("You have to select a model first.");
-    showErrorNotification(error);
+    notifyRequestError(options, error);
     throw error;
   }
 
@@ -441,7 +442,7 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
             model: parsed.modelId,
           }),
     );
-    showErrorNotification(error);
+    notifyRequestError(options, error);
     throw error;
   }
 
@@ -468,8 +469,6 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
   }
   const response = await makeRequest(request);
   const session: HistorySessionData = {
-    systemPrompt: finalSystemPrompt,
-    userPrompt: options.userPrompt ?? "",
     messages: messages.map((message) => ({
       role: message.role,
       content: message.content,

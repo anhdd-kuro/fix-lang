@@ -2,25 +2,43 @@
 
 ## Overview
 
-Local macOS menu-bar app: fixes grammar and improves writing on selected text via AI (OpenAI, OpenRouter, Ollama, LM Studio). Electron + React + TypeScript, runs on **bun**.
+Local macOS menu-bar app: fixes grammar and improves writing on selected text via AI (OpenAI, OpenRouter, Anthropic, AWS Bedrock, Ollama, LM Studio). Electron + React + TypeScript, runs on **bun**.
+
+Current release: **v0.34.0**.
 
 ## Main Features
 
-- **Transform** — fix grammar/style or otherwise rewrite selected text via per-preset global hotkeys.
-- **Source-app context** — Transform and PromptGen append the frontmost app name ("Slack", "Mail") to the **system prompt** (`src/main/ai.request/transform-context.ts`), so the model can match that app's register. Best-effort: dropped entirely when the read fails or FixLang itself is frontmost, leaving the system prompt byte-identical. Every read is logged under scope `accessibility.activeApp` (debug on read/drop, warn on failure). The block carries an `AppContextFormattingPolicy` (`"preserve-input-markup" | "adapt-to-app"`), resolved per preset by the pure `appContextPolicyForPreset(presetId)`; only the `structured-text` built-in gets `adapt-to-app`, and every other preset plus PromptGen keep the default `preserve-input-markup` variant — whose wording is byte-identical to the pre-policy block, which is load-bearing (it is what keeps every other preset's and PromptGen's prompt unchanged) and is pinned by a literal-string test.
-- **Presets** — built-in Correction, Summarize, Translate, Prompt optimization, Business Writing, Context-Aware Structured Text; each preset has its own hotkey, model, system prompt, and Faster↔Smarter reasoning effort (AI SDK `reasoning`: minimal/low/medium/high/xhigh).
-- **Prompt generation** — build AI prompts from selected text (PromptGen window).
-- **Profiles** — switch transform presets; switch reloads hotkeys + settings + history.
-- **Multi-provider** — connect multiple providers (OpenAI, OpenRouter, Ollama, LM Studio) at once, each with its own model discovery/compat/monitor; every connected provider appears in a grouped model picker; a preset can use any connected provider; model ref is composite `<providerId>::<rawModelId>` in config, raw id downstream. Each provider owns a folder under `src/main/llm/providers/` and one entry in that folder's `index.ts` capability registry (`supportsAdminKey`, `supportsUsage`, `fetchModels?`, `makeRequest?`); `ai.request/shared.ts` dispatches THROUGH the registry, so a new provider adds no branch there. The registry's behaviour slots load their module via lazy `import()` on purpose — `~/main/llm` is imported for the Ollama client alone, and eager loading drags the provider SDKs and `electron-store` in with it.
-- **Admin keys** — `PROVIDER_SUPPORTS_PROVISIONING_KEY` now covers **OpenAI (Admin API key) and OpenRouter (provisioning key)**. The slot, its settings field, profile-delete cleanup, and the disconnect warning are all derived from that table (`secretKindsForProvider`), so flipping it is what adds a provider. Every accessor in `provisioningKeyStore` and all three IPC channels take an explicit `ProviderId` — never defaulted, because a missed argument would silently read/write another provider's key. Each field carries a "where to get this key" link to the provider's own console, held with the label/placeholder keys in `ADMIN_KEY_MESSAGE_KEYS` (`renderer/components/providerCards.ts`) and opened via `openExternalLink` — main only permits http/https, so a mistyped scheme makes the link a silent no-op, which `providerCards.test.ts` asserts against. **Provider-scoped storage is not the same as a provider-correct value**: a key pasted into the wrong slot used to store fine and show "Key set" (existence is all `hasProfileSecret` can see without decrypting), then 401 forever. `shared/providerKeyShapes.ts` classifies a key by prefix and `findKeyShapeMismatch(provider, kind, raw)` refuses a positively-identified foreign one at BOTH the `connect-provider` handler and `setProfileSecret` (the chokepoint a future writer cannot skip). An **unrecognized** format is still accepted on purpose — refusing it would lock out legacy `sk-…` keys and any future format.
-- **Credential requests are logged, keys never are** — every admin-request (`provider.openai.admin`, `provider.openrouter.admin`) and model-list fetch (`provider.models`) logs the key's *shape label*, plus `storedKeyBelongsToAnother{Provider,Slot}` when a pre-guard key is still on disk. That flag is the whole diagnosis for an otherwise opaque `Unauthorized`. Log the shape, never the value, and keep labels free of a `sk-…` prefix: `redactLogMessage` would rewrite them to `[REDACTED]`. **A provider 401 body quotes the submitted key back partially starred** (`Incorrect API key provided: sk-abc12*********wxyz`), and the `sk-…` pattern alone CANNOT catch that — the star run interrupts it one character before its 6-char minimum, so a short visible prefix used to reach the persisted JSONL. `redactLogMessage` now strips the whole masked token first (`MASKED_SECRET_RUN`), and `logModelFetch` additionally splits the exact key out of provider error text, because a key with no recognizable prefix (LM Studio's) matches no pattern at all.
-- **History** — SQLite-backed transform + PromptGen history with cost tracking. Each new entry may store a `sessionJson` raw completion snapshot (prompts, reasoning effort, responses, usage) shown via the History row eye / Show details control.
-- **Analytics** — Overview dashboard: stat cards, preset donut/time-series charts (`PresetWeightChart`), token activity calendar; shared All/30d/7d range with Models tab (`RANGE_AWARE_TABS` in `MainWindow/App.tsx`). Models tab: Chart.js token-usage bars (axis labels + caption) and **Model Breakdown** (share donut above the ranked table) in `ModelsCharts.tsx` / `ModelsPanel.tsx`. Dashboard tabs: overview, history, models, usage, logs, about (`MainWindow/dashboardTabs.ts`).
-- **Usage** — account-level spend/usage, one sub-tab per **connected** usage-capable provider (OpenAI, OpenRouter; the local ones bill nothing). Sub-tab visibility/order is pure logic in `renderer/components/usage/usageTabs.ts` — keyed providers first, then `PROVIDER_ORDER`. Each panel owns its 7d/30d pills, combined IPC and 60s TTL cache (`openrouter-analytics`, `openai-usage`); the three charts live in `usage/UsageCharts.tsx` over pure builders in `usage/usageChartView.ts`. **OpenAI's cards are deliberately not symmetric with OpenRouter's**: OpenAI exposes no credit-balance or key-limit endpoint, and `/organization/costs` groups by `line_item`/`project_id` but NEVER by model — so its per-model table carries tokens only, its donut slices line items, and no per-model dollar figure is estimated (see the MONEY RULE in `providers/openai/usage.parsers.ts`). **`project_id` is the one non-line-item grouping, so per-project spend IS real billed dollars** — a "Spend by project" table + donut, requested as its OWN `/costs` call rather than a second `group_by` on the line-item one, so either card can fail alone. Names come from `/organization/projects` (`include_archived=true`: an archived project still carries range spend), which paginates by `after=<last_id>`, NOT the `next_page` cursor the usage endpoints use — hence the separate `nextAfterCursor`. That lookup is skipped when nothing was billed, and a failed lookup degrades a row to its raw `proj_…` id instead of sinking the card. Still spend, never balance: no per-project budget or credit endpoint exists to read.
-- **Logs** — structured, redacted JSONL persistence (`userData/logs/{YYYY-MM-DD}/fixlang.jsonl`); Logs tab with multi-select level filter (`LogQueryRequest.levels`; empty array = every level), search, copy/export, virtual infinite scroll, timezone stated once in the footer instead of per row.
-- **Hotkeys** — customizable global shortcuts (promptGen, profileSwitch) plus per-preset transform hotkeys. `normalizeCorrectionSettings` is the single funnel that keeps a **default-sourced** preset hotkey from colliding: it is relinquished when a stored preset already claims it, or when it equals a (remappable) `promptGen`/`profileSwitch` binding — the latter would otherwise show in Settings as assigned while `registerCorrectionShortcut` skips it as reserved. A **stored** hotkey is never rewritten there; that stays the pre-save `validateHotkeys` gate's job.
-- **About** — the tab is a two-sub-tab shell (`renderer/components/about/AboutPanel.tsx`, same pattern as `UsagePanel`): **App updates** (`SettingUpdates`) stays first and is the default, because the tray's update button and every release link land here expecting the update controls. **User guide** (`UserGuidePanel`) is onboarding copy that reads the user's REAL config — presets and their hotkeys, output mode, connected providers, profile-switch binding — so an edited preset can never leave the guide describing defaults the app no longer uses; those reads fire only once the guide sub-tab is opened. It also explains why History/Usage can look empty (Connect vs Admin/Provisioning) with an **Open settings** button to General. It also explains why History/Usage can look empty (Connect vs Admin/Provisioning) with an **Open settings** button to General. Derivations stay pure in `about/userGuideView.ts`, which reuses `DASHBOARD_TABS` label keys and the Settings radio's own output-mode strings rather than restating either. Every topic title under "Settings worth knowing" and every row title under "Where to look afterwards" is a primary-link `Button` (`onOpenSettings(tabId)` / `onNavigateToTab(tabId)`) so the guide is also a navigation shortcut, not just a description — `GUIDE_TOPICS` in `userGuideView.ts` carries the target `SettingsTabId` per topic.
-- **Updates** — the dashboard's **About** tab (`SettingUpdates`, not a Settings-modal tab) checks Homebrew for cask installs and GitHub Releases for manual DMG installs; cask installs get a one-click **Update now** that delegates to `brew upgrade --cask fixlang` (`src/main/update/homebrew.ts`). Tray toolbar has a check-only button that reports via native dialog. No self-updater.
+What the user gets. Implementation traps live under [Known Gotchas](#known-gotchas) — read the matching skill before touching that area.
+
+- **Writing transforms**
+  - **Transform** — select text in any app, press a preset hotkey, get a rewrite back via Direct paste or Show popup (global default, overridable per preset).
+  - **Selection read** — every hotkey (including Ask AI) reads selection the same way, with clipboard fallback when the copy produces nothing; Ask labels clipboard-sourced context as From clipboard.
+  - **Presets** — eight built-ins (Correction, Summarize, Prompt optimization, Translate, Business Writing, Context-Aware Structured Text, Ask AI, Caveman) plus custom ones; each has its own hotkey, model, system prompt, reasoning effort, and output mode.
+  - **Preset-scoped options** — a preset can declare its own settings through the registry in `src/features/correction/shared/presetOptions.ts`, persisted on `CorrectionPreset.extraOptions` and composed into the system prompt by `withPresetOptions`. Caveman uses it for its three intensity levels (lite/full/ultra). Settings renders whatever a preset declares with no per-preset UI code, so a new option needs a registry entry and its localized strings — a label, a hint, and one label per choice, in each locale (five keys per locale for Caveman's three levels) — not an interface change.
+  - **Combos** — one hotkey runs 2–5 presets in sequence and delivers only the last step; includes a built-in Perfect prompt combo, Correction → Prompt optimization → Caveman (no default hotkey), and a Combos Settings tab.
+  - **Source-app context** — frontmost app name shapes tone (and markup for Context-Aware Structured Text); dropped when unreadable or when FixLang is frontmost.
+  - **Hotkeys** — remappable preset, PromptGen, and profile-switch bindings; conflicts refused before save.
+- **Ask & autocomplete**
+  - **Ask AI** — optional selection as context; opens an input window and answers in cascading popups, both rendered by the shared `ChatTranscript` (selection → question → markdown answer).
+  - **Request transparency** — the input window shows the exact system prompt and the exact context appended to the request, both rendered by main and shown verbatim, in a row that is 40px collapsed and overlays the window when expanded, showing both texts unfolded so one click reveals them.
+  - **Request context** — resolved once per press (`askEnvironment.ts`): app locale, macOS system language, active keyboard input source (best-effort, absent when unreadable), current local time, and the last 5 transforms as **preset names and timestamps only** — never their text. Rendered by `buildAskDirectives` and applied to system prompts by `withUserMetadata` (`ai.request/user-metadata.ts`) for every preset and Autocomplete; Ask still appends the same string to the submitted user message. The secret gate scans this block with the selection (`companionText`): confirm covers both in one dialog, and mask redacts companion spans as `[redacted]` rather than restore placeholders (the model is not asked to echo metadata). Autocomplete redacts fully-maskable environment spans the same way and refuses the ghost when a span is not fully maskable. Empty/absent directives leave the prompt byte-identical.
+  - **Autocomplete** — opt-in ghost-text suggestions in the Ask AI input (Tab accept; Esc clears ghost, then closes); Settings toggle, model picker, daily cost cap, and Usage rollups.
+  - **Prompt generation** — PromptGen builds AI prompts from selected text (`Control+Shift+G`); feature-tagged, OFF in release builds.
+  - **Security guard rails** — four checks before text leaves the machine: a frontmost-app deny-list, a stale/unknown-age clipboard confirm, a selection-size confirm, and a secret guard (`off`/`confirm`/`mask`). Configured from **Settings → Security**; the **Security** dashboard tab is the read-only roll-up of what they did (masked requests, blocked apps, cancelled confirms), derived from the persisted JSONL logs. Autocomplete cannot show a dialog, so it refuses to dispatch instead. See [Security guard rails](.claude/skills/fixlang/fixlang-security-guards/SKILL.md).
+- **Providers & profiles**
+  - **Multi-provider** — OpenAI, OpenRouter, Anthropic, AWS Bedrock, Ollama, and LM Studio can all be connected; any preset can use any connected model.
+  - **Admin keys** — OpenAI Admin / OpenRouter provisioning keys unlock that provider's Usage sub-tab (encrypted, main-process-only).
+  - **Profiles** — named configs cycled with `Control+Shift+P`; a switch reloads hotkeys, settings, and history together.
+- **History, usage & diagnostics**
+  - **History** — local SQLite history for transforms, Ask, and PromptGen with cost tracking and raw completion snapshots.
+  - **Analytics** — Overview and Models dashboards for token stats, presets, and model breakdown (All / 30d / 7d).
+  - **Usage** — account-level spend and tokens for providers with a billing API (OpenAI, OpenRouter).
+  - **Logs** — redacted JSONL logs with a searchable Logs tab (filter, copy/export).
+  - **Latency logging** — one per-press latency line with phase breakdown for what the user actually felt.
+- **App shell**
+  - **Tray popover** — quick access to provider credit/spend, language, output mode, model, reasoning effort, updates, and dashboard.
+  - **About** — app updates (Homebrew upgrade) and a user guide built from the user's real config.
+  - **Appearance & language** — 149 terminal-inspired themes; English and Japanese, switchable without restart.
 
 ## Purpose
 
@@ -35,31 +53,51 @@ Electron app with main/preload/renderer split. Highest-risk areas: global hotkey
 ```
 fix-lang/
 ├── src/
+│   ├── features/           — domain modules (shared / store / main / preload per feature)
+│   │   ├── core/shared/    — ipcChannels, features (build tags), bundleExternals, dashboardTabIds
+│   │   ├── providers/      — API keys, model refs, provider registry, apiStore
+│   │   ├── correction/     — presets output mode, reasoning effort, keybindings store
+│   │   ├── history/        — SQLite history, session snapshots
+│   │   ├── i18n/           — catalogs, locale store, locale IPC
+│   │   ├── logs/           — structured logging types + Logs IPC
+│   │   ├── profiles/       — profile import/export, migration
+│   │   ├── settings/       — settings IPC, ipc result labels
+│   │   ├── theme/          — theme store + theme IPC
+│   │   ├── update/         — in-app update types + IPC
+│   │   ├── usage/          — OpenAI/OpenRouter usage IPC
+│   │   ├── ask/            — Ask AI preload bridge
+│   │   ├── ui/             — window/focus IPC
+│   │   ├── promptgen/      — PromptGen IPC (feature-tagged)
+│   │   ├── main/index.ts   — barrel: all main-process IPC handlers
+│   │   └── preload/index.ts — barrel: all preload bridges
 │   ├── main/               — Electron main process
 │   │   ├── ai.request/     — cross-provider: model cache, request routing, cost, requestTypes
-│   │   ├── ipc/features/   — IPC handlers (api, correction, history, logs, …)
+│   │   ├── ipc/            — re-exports ~/features/main
 │   │   ├── keybindings/    — global hotkeys (presets, promptGen, profileSwitch)
 │   │   ├── logging/        — structured JSONL write/query
 │   │   ├── llm/
 │   │   │   ├── models/     — cross-provider discovery/compat/monitor
 │   │   │   └── providers/  — one folder per ProviderId + index.ts capability registry
-│   │   │                     (openai, openrouter: models/request/usage; ollama, lmstudio: client/request)
 │   │   ├── update/         — Homebrew probe/fetch/upgrade + pending-update marker
-│   │   └── webViewWindows/ — main, promptGen, overlay, tray
-│   ├── renderer/           — React UI (MainWindow dashboard, TrayWindow, …)
-│   ├── preload/features/   — IPC bridge (validate here)
-│   ├── stores/             — historyDb (sqlite), apiStore, keybindingStore
-│   ├── prompts/            — bundled AI prompt assets (build-time)
-│   └── shared/             — Electron-free, shared across main/preload/renderer
-│       ├── providers.ts    — provider identity, card/group ordering, model filtering
-│       ├── modelRef.ts     — parse/format/resolve composite refs (`<providerId>::<rawModelId>`)
-│       ├── logging.ts      — log types + redaction
-│       ├── features.ts     — build-time feature tags
-│       └── bundleExternals.ts — bundle-externals scanner core (unit-tested)
+│   │   ├── profileChange.ts — single funnel for profile activation
+│   │   └── webViewWindows/ — main, promptGen, overlay, tray, askInput/askResult, error popup
+│   ├── renderer/           — React UI
+│   │   ├── components/     — SHARED UI primitives + the dashboard panels. Look here BEFORE
+│   │   │                     writing any control: Button, Select, SearchableSelect,
+│   │   │                     MultiSelect, Checkbox, Input, Dialog, HotkeyInput, ModelSelect,
+│   │   │                     ReasoningEffortSlider, CopyButton, MarkdownView, ChatTranscript,
+│   │   │                     …; sub-dirs about/, security/, usage/ hold that tab's screens
+│   │   ├── hooks/          — shared renderer hooks
+│   │   ├── i18n/           — I18nProvider, useI18n
+│   │   ├── analytics/, appearance/, themes/ — dashboard sections + generated theme tokens
+│   │   └── MainWindow/, TrayWindow/, AskInputWindow/, AskResultWindow/,
+│   │       CorrectionResultWindow/, PromptGenWindow/ — one root per BrowserWindow
+│   ├── preload/            — re-exports ~/features/preload; exposeInMainWorld entry
+│   └── prompts/            — bundled AI prompt assets (build-time)
 ├── scripts/                — bun CLIs: check-bundle-externals, i18n-check, theme gen
-├── .github/workflows/release.yml — tag → checks → DMG → validate → publish
-├── README.md               — user-facing features and usage
-└── .claude/skills/fixlang/ — project-specific traps (read on demand)
+├── .github/workflows/release.yml
+├── README.md
+└── .claude/skills/fixlang/
 ```
 
 ## Tech Stack
@@ -69,7 +107,7 @@ fix-lang/
 - Frontend
   - React 19.2, TypeScript 6.0 (stay on 6.x until typescript-eslint supports 7), Tailwind 4.3
 - AI
-  - openai 6.49, @ai-sdk/openai 4.0, @openrouter/ai-sdk-provider 3.0, ai 7.0, ollama 0.6 — each wired in its own `src/main/llm/providers/<id>/request.ts` and reached through the capability registry; LM Studio and Ollama both use a configurable local host/port (LM Studio via OpenAI-compatible `baseURL`; Ollama via its daemon URL)
+  - openai 6.49, @ai-sdk/openai 4.0, @openrouter/ai-sdk-provider 3.0, @ai-sdk/anthropic 4.0.23 (pinned — see below), @ai-sdk/amazon-bedrock 5.0 + @aws-sdk/client-bedrock 3.x, ai 7.0, ollama 0.6 — each wired in its own `src/main/llm/providers/<id>/request.ts` and reached through the capability registry; LM Studio and Ollama both use a configurable local host/port (LM Studio via OpenAI-compatible `baseURL`; Ollama via its daemon URL), and Bedrock stores its AWS region in `providerEndpoints.bedrock.host` (`src/features/providers/shared/bedrockEndpoint.ts`, default `us-east-1`)
 - Persistence
   - node:sqlite (history) + electron-store 11 + JSONL logs under userData — no zustand
 - Testing
@@ -89,9 +127,10 @@ bun run i18n:check      # catalog parity/plural/sort audit + JA coverage
 bun run build:promptgen # feature-tag build (also dev:promptgen, pack:mac:promptgen)
 ```
 
-- **The packaged app ships no `node_modules`** (`build.files` excludes it) — every runtime dependency must be inlined by Vite into `out/`. Adding a dependency and importing it passes `dev`, `test`, and `lint` unchanged; only `bun run check:bundle` against a real `bun run build` catches a dependency Vite left external. The scanner lives in `src/shared/bundleExternals.ts` (AST walk via the TypeScript compiler API, not a regex); `scripts/check-bundle-externals.ts` is a CLI-only wrapper that runs under **bun**, whose TS parser differs from vitest's esbuild — which is why an integration test drives that exact file under bun. `ALLOWLIST` is empty on purpose: an entry hides a `MODULE_NOT_FOUND` for users instead of fixing it. Every packaging script (`pack`, `pack:mac`, `pack:mac:prod`, `release:mac`) runs the check. See [Bundle externals](.claude/skills/fixlang/fixlang-bundle-externals/SKILL.md).
+- **The packaged app ships no `node_modules`** (`build.files` excludes it) — every runtime dependency must be inlined by Vite into `out/`. Adding a dependency and importing it passes `dev`, `test`, and `lint` unchanged; only `bun run check:bundle` against a real `bun run build` catches a dependency Vite left external. The scanner lives in `src/features/core/shared/bundleExternals.ts` (AST walk via the TypeScript compiler API, not a regex); `scripts/check-bundle-externals.ts` is a CLI-only wrapper that runs under **bun**, whose TS parser differs from vitest's esbuild — which is why an integration test drives that exact file under bun. `ALLOWLIST` is empty on purpose: an entry hides a `MODULE_NOT_FOUND` for users instead of fixing it. Every packaging script (`pack`, `pack:mac`, `pack:mac:prod`, `release:mac`) runs the check. See [Bundle externals](.claude/skills/fixlang/fixlang-bundle-externals/SKILL.md).
+- **`@ai-sdk/anthropic` is pinned to `4.0.23`, and the pin is the bundle check, not taste** — from `4.0.24` it depends on `@ai-sdk/provider-utils` ≥ `5.0.15`, which bun installs as a NESTED copy (the other providers hold the hoisted `5.0.12`/`5.0.14`). That copy resolves `undici` through a runtime `createRequire` for its file-download path — a specifier Vite cannot inline and a `node_modules`-free `app.asar` cannot resolve. Same reason Anthropic's model list is a plain `keepAliveFetch` against `/v1/models` rather than `@anthropic-ai/sdk`, which carries the identical require. Re-run `bun run check:bundle` after any bump.
 - **`dependencies` vs `devDependencies` no longer signals what ships** — nothing resolves from `node_modules` at runtime, so the split is bookkeeping only; what ships is whatever Vite inlined into `out/`. Do not "fix" a runtime import by moving its package between the two sections.
-- **Feature tags are opt-in** — features listed in `src/shared/features.ts` are excluded unless the build carries their tag (`FIXLANG_FEATURES=promptgen` env, or `--promptgen` CLI). Flag-off builds emit no renderer bundle for the feature and skip its hotkey, IPC handlers, and settings tab. Read flags at runtime via `isPromptGenEnabled()`, never `__FEATURE_PROMPT_GEN__` directly (the define is absent under vitest). Plain `bun run build` (what the release workflow runs) ships PromptGen OFF.
+- **Feature tags are opt-in** — features listed in `src/features/core/shared/features.ts` are excluded unless the build carries their tag (`FIXLANG_FEATURES=promptgen` env, or `--promptgen` CLI). Flag-off builds emit no renderer bundle for the feature and skip its hotkey, IPC handlers, and settings tab. Read flags at runtime via `isPromptGenEnabled()`, never `__FEATURE_PROMPT_GEN__` directly (the define is absent under vitest). Plain `bun run build` (what the release workflow runs) ships PromptGen OFF.
 
 ## Internationalization (i18n)
 
@@ -99,22 +138,22 @@ The app supports **English** and **Japanese** (easily extensible to a third lang
 
 ### Catalog structure
 
-Translation strings live in `src/shared/i18n/locales/{en,ja}/` as per-namespace JSON files (`common.json`, `dashboard.json`, `tray.json`, `notifications.json`, etc.). This split prevents merge conflicts when separate features add keys to the same catalog.
+Translation strings live in `src/features/i18n/shared/locales/{en,ja}/` as per-namespace JSON files (`common.json`, `dashboard.json`, `tray.json`, `notifications.json`, etc.). This split prevents merge conflicts when separate features add keys to the same catalog.
 
 - Keys are globally unique and dotted (`"settings.general.language.label"`).
 - English (`en/`) is the source of truth — every key must exist there; Japanese (`ja/`) may be partial (missing keys fall back to English).
-- Both catalogs are merged at build time into `EN_CATALOG` and `JA_CATALOG` in `src/shared/i18n/locales/index.ts`.
+- Both catalogs are merged at build time into `EN_CATALOG` and `JA_CATALOG` in `src/features/i18n/shared/locales/index.ts`.
 - Key names are type-checked at compile time: `t("key")` is a compile error if `"key"` is absent.
 
 ### Add a translatable string (recipe)
 
-1. **English**: Add the key-value pair to `src/shared/i18n/locales/en/{namespace}.json`:
+1. **English**: Add the key-value pair to `src/features/i18n/shared/locales/en/{namespace}.json`:
 
    ```json
    { "overview.stat.sessions": "Sessions" }
    ```
 
-2. **Japanese**: Add the translation to `src/shared/i18n/locales/ja/{namespace}.json`:
+2. **Japanese**: Add the translation to `src/features/i18n/shared/locales/ja/{namespace}.json`:
 
    ```json
    { "overview.stat.sessions": "セッション" }
@@ -168,7 +207,7 @@ t("model.lastUsed", {
 
 ### Adding a third language
 
-Add the language to `LOCALE_CODES` and `LOCALE_META` in `src/shared/i18n/registry.ts`; then create one JSON file per namespace under `src/shared/i18n/locales/{code}/` (e.g., `src/shared/i18n/locales/fr/common.json`). The language picker grows automatically; IPC, formatters, and storage need no changes.
+Add the language to `LOCALE_CODES` and `LOCALE_META` in `src/features/i18n/shared/registry.ts`; then create one JSON file per namespace under `src/features/i18n/shared/locales/{code}/` (e.g., `src/features/i18n/shared/locales/fr/common.json`). The language picker grows automatically; IPC, formatters, and storage need no changes.
 
 ### Main process strings
 
@@ -185,10 +224,10 @@ new Notification({
 
 ### Locale persistence and broadcast
 
-- The user's locale choice is persisted via `electron-store` in `src/stores/localeStore.ts`.
+- The user's locale choice is persisted via `electron-store` in `src/features/i18n/store/localeStore.ts`.
 - On first run, the system locale (from `app.getLocale()`) is auto-detected and stored.
 - Changing the language via Settings broadcasts the new locale to every open window (tray, dashboard, PromptGen) via IPC, so they update immediately without an app restart.
-- See `src/main/ipc/features/locale.ts` for the IPC handlers; `src/preload/features/locale.ts` for the bridge; `src/renderer/i18n/I18nProvider.tsx` for the context subscription.
+- See `src/features/i18n/main/locale.ts` for the IPC handlers; `src/features/i18n/preload/locale.ts` for the bridge; `src/renderer/i18n/I18nProvider.tsx` for the context subscription.
 
 ## How to Work
 
@@ -207,18 +246,19 @@ new Notification({
 
 ✅ Always:
 
-- Work in the work tree if the user does not ask for a new branch or directly mention a branch name.
-- Keep prompts bundled locally from `src/prompts/` — no runtime fetch.
-- Store SQLite/JSONL under `app.getPath("userData")` — never inside the signed bundle.
-- Use async I/O only in the main process.
-- Consider spawning sub-agents to avoid flooding the main agent context window.
-- Write gotchas in caveman style.
-- Anything unclear after exploring — use batch-grill-me before guessing.
-- Before declaring tasks done:
-  - Spawn fresh sub-agent to review the changes before committing.
-  - Run linting and testing to verify changes.
-  - Update AGENTS.md instructions if needed.
-- Use clear function and variable names so the code speaks for itself. Avoid JavaScript comments unless they are absolutely necessary to explain non-obvious intent or constraints. Prioritize readability through naming, structure, and small, focused functions.
+- Work in work tree unless user requests new branch or names branch.
+- Use shared components first: inspect `src/renderer/components/`; prefer control already used by same-panel siblings. Hand-rolled controls bypass theme tokens, i18n, and focus/keyboard behavior, with drift appearing on theme/locale changes. Extend shared component when needed; fork only with why-comment.
+- Bundle prompts locally from `src/prompts/`; no runtime fetch.
+- Store SQLite/JSONL under `app.getPath("userData")`; never signed bundle.
+- Use async I/O only in main process.
+- Consider sub-agents to reduce main-agent context load.
+- Write gotchas caveman-style.
+- If unclear after exploring, use batch-grill-me before guessing.
+- Before declaring done:
+  - Spawn fresh sub-agent to review changes before committing.
+  - Run linting and tests.
+  - Update AGENTS.md when needed.
+- Use clear, descriptive function/variable names. Prefer readable meaningful naming, straightforward structure, and small focused functions. Avoid comments unless explaining non-obvious intent, constraints, or decisions not expressible clearly in code.
 
 ⚠️ Ask first:
 
@@ -226,14 +266,16 @@ new Notification({
 
 🚫 Never:
 
-- Commit secrets, `.env`, `node_modules`, `out/`, `release/`, `coverage/`, or agent scratch space (`.scratch/`, `.claude/settings.local.json`) — all gitignored.
+- Commit secrets, `.env`, `node_modules`, `out/`, `release/`, `coverage/`, or agent scratch space (`.scratch/`, `.claude/settings.local.json`)—all gitignored.
 - Reintroduce pnpm or bypass preload IPC validation.
-- Use `any` without a why-comment.
+- Use `any` without why-comment.
 - Bump TypeScript to 7.x until ESLint support lands.
 
 ## CI
 
-- **PR + push to `main`** — `.github/workflows/ci.yml` runs `bun run lint` then `bun run test` on `ubuntu-latest` (Bun 1.3.14, Node 24 for `node:sqlite`). Concurrency cancels superseded runs. Release packaging stays in `release.yml` only.
+- **PR + push to `main`** — `.github/workflows/ci.yml` runs two independent jobs on `ubuntu-latest` (Bun 1.3.14; the test job also sets up Node 24 for `node:sqlite`): a `lint` job, and a `test` job fanned out over a 3-way `--shard` matrix with `fail-fast: false` so one shard's failure still reports the others. Concurrency cancels superseded runs. Release packaging stays in `release.yml` only.
+- **Vitest runs as two projects, and the split is the whole reason CI is fast** — `node` (everything outside `src/renderer/`) and `renderer` (`src/renderer/**`, `jsdom`). jsdom costs roughly 0.75 s of environment setup **per test file**, so running all 188 files under it spent ~143 s of cumulative environment time for the 33 files that actually need a DOM; the split cut a full local run from 24.7 s to 13.4 s with no change to what is tested. A new test outside `src/renderer/` that reaches for `document`/`window` will fail under the `node` project — move it under `src/renderer/`, or give that one file a `// @vitest-environment jsdom` docblock, rather than widening the `renderer` project's globs.
+- **Coverage is off by default** (`coverage.enabled: false`); run `bun run test:coverage` for a report. Nothing gates on it, and a sharded run only ever sees its own third of the files, so a coverage number collected in CI would be a lie.
 
 ## Release & Distribution
 
@@ -259,6 +301,9 @@ new Notification({
 Project-specific traps under `.claude/skills/fixlang/`:
 
 - [Hotkeys](.claude/skills/fixlang/fixlang-hotkeys/SKILL.md) — preset hotkey reload on profile switch (silent failures) + pre-save conflict validation + frontmost-app read must precede the overlay spinner.
+- [Presets](.claude/skills/fixlang/fixlang-presets/SKILL.md) — retired reasoning efforts must MAP, not vanish; per-preset `outputMode` must be resolved on BOTH delivery paths; Ask AI's optional selection and its markdown answer are both untrusted; the `# Metadata context` block's default wording is byte-pinned.
+- [Providers](.claude/skills/fixlang/fixlang-provider/SKILL.md) — nine-step recipe for adding a provider (which tables the compiler forces, which files need nothing, which test fixtures always break), then the invariants: capability registry is the only dispatch table (and its `import()`s must stay lazy); secret slots are per profile + provider + kind; a foreign-shaped key is refused at both write chokepoints; log the key's shape, never its value; per-provider cost honesty rules; a new provider's slot in `PROVIDER_ORDER` reroutes bare ids and is a billing decision.
+- [Usage & analytics](.claude/skills/fixlang/fixlang-usage-analytics/SKILL.md) — OpenAI's MONEY RULE (tokens per model, dollars per line item/project, never per-model dollars or a balance); split Spend card so one failed half cannot blank the other; tray siblings keyed by `profileId` need distinct key prefixes or a duplicate card survives.
 - [i18n](.claude/skills/fixlang/fixlang-i18n/SKILL.md) — JSON values widen to `string` (params not type-checked); tests must be `.test.ts` (no RTL); aggregations return descriptors; memoized callbacks over `t` or formatters must list them in deps; `date-fns` needs explicit `{ locale }`; main process uses `mainT()`, not `useI18n()`.
 - [Prompt bundling](.claude/skills/fixlang/fixlang-prompt-bundling/SKILL.md) — prompts bundle at build time from `src/prompts/`, not `~/.agents/`; rebuild + reinstall to apply.
 - [Profile state](.claude/skills/fixlang/fixlang-profile-state/SKILL.md) — profile switch must atomically reload hotkeys + settings UI + history; connecting a provider does NOT wipe presets.
@@ -266,4 +311,6 @@ Project-specific traps under `.claude/skills/fixlang/`:
 - [Theme mapping](.claude/skills/fixlang/fixlang-theme-mapping/SKILL.md) — derive-ladder + composite-alpha strategy; run `bun run themes:generate` after theme .ts edits, then `bun run test` to validate all 149 themes.
 - [Package upgrade](.claude/skills/fixlang/fixlang-pkg-upgrade/SKILL.md) — wave-based bun upgrades; pin TypeScript to 6.x; Electron 43+ requires main/preload CommonJS (`.cjs`) or app shows white screen; unset `ELECTRON_RUN_AS_NODE` when launching Electron from Cursor's terminal.
 - [Release + Homebrew](.claude/skills/fixlang/fixlang-release-homebrew/SKILL.md) — release trigger + orphan-tag resume; release Test step needs Node 24 on macos-14 (`node:sqlite` builtin); tap cask write uses `jq -je` (not `-er`); `brew style/audit` need a registered tap + `#{version}` URL + `depends_on :macos`; genuine-release-only `brew upgrade` proof.
+- [Settings panel writes](.claude/skills/fixlang/fixlang-settings-writes/SKILL.md) — every `Setting*.tsx` persists the WHOLE settings object, so overlapping writes clobber, a writer-computed rollback target is never trustworthy, and a value the store REJECTED can ride into the next write and become real. Serialize per store; claim the status line at the user's action and never re-claim late. The renderer harness hides all of it — a dispatched click on a controlled checkbox makes zero writes and still reports green.
+- [Security guard rails](.claude/skills/fixlang/fixlang-security-guards/SKILL.md) — clipboard age carries an ORIGIN (a baseline is a lower bound, not an age); the age guards CONFIRM rather than block because an identical re-copy is indistinguishable from no copy; `SECRET_SEND_SITE_POLICY` is the one table; restore enforces multiplicity and non-relocation; and every natural log key in the feature is blanked by `redactLogContext`.
 - [Bundle externals](.claude/skills/fixlang/fixlang-bundle-externals/SKILL.md) — `app.asar` ships no `node_modules`; a new runtime dependency must be Vite-inlined or it dies at launch in a packaged build only, never in `dev`/`test`/`lint`. Run `bun run check:bundle` after `bun run build`.

@@ -1,9 +1,9 @@
 /**
  * Theme preset metadata for the renderer UI.
  */
-import type { ThemeId } from "~/stores/themeIds";
+import type { ThemeId } from "~/features/theme/store/themeIds";
 
-export type { ThemeId } from "~/stores/themeIds";
+export type { ThemeId } from "~/features/theme/store/themeIds";
 export { THEME_PRESETS, type ThemePreset } from "./manifest.generated";
 
 /**

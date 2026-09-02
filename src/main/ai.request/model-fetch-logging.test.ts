@@ -71,10 +71,10 @@ vi.mock("openai", () => ({
     models = { list: openAIModelsListMock };
   },
 }));
-vi.mock("~/stores/apiKeyStore", () => ({
+vi.mock("~/features/providers/store/apiKeyStore", () => ({
   getApiKey: vi.fn().mockResolvedValue("test-api-key"),
 }));
-vi.mock("~/stores/profileSecretStore", () => ({
+vi.mock("~/features/providers/store/profileSecretStore", () => ({
   getProfileSecret: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("~/main/llm/models/discover", () => ({
@@ -84,9 +84,9 @@ vi.mock("~/main/llm/models/discover", () => ({
 vi.mock("~/main/llm/providers/ollama/client", () => ({
   createOllamaClient: () => ({ chat: vi.fn() }), ollamaClient: { chat: vi.fn() },
 }));
-import { redactLogContext } from "~/shared/logging";
+import { redactLogContext } from "~/features/logs/shared/logging";
 import { fetchAvailableModels } from "./shared";
-import type { LogContext, LogLevel } from "~/shared/logging";
+import type { LogContext, LogLevel } from "~/features/logs/shared/logging";
 
 const OPENAI_KEY = "sk-proj-realkeymaterial0123456789";
 

@@ -1,8 +1,8 @@
 // Copy is derived through the real translator kernel, not a stub, so a catalog
 // reword cannot silently pass.
 import { describe, expect, it } from "vitest";
-import { createTranslator } from "~/shared/i18n/translate";
-import { PROVIDER_ORDER, type Model } from "~/shared/providers";
+import { createTranslator } from "~/features/i18n/shared/translate";
+import { PROVIDER_ORDER, type Model } from "~/features/providers/shared/providers";
 import {
   buildModelOptionGroups,
   EMPTY_GROUP_OPTION_PREFIX,
@@ -73,6 +73,7 @@ describe("buildModelOptionGroups — grouping, ordering and the value/label cont
     expect(groups.map((group) => group.provider)).toEqual([
       "openai",
       "openrouter",
+      "anthropic",
       "bedrock",
       "ollama",
       "lmstudio",
@@ -80,6 +81,7 @@ describe("buildModelOptionGroups — grouping, ordering and the value/label cont
     expect(groups.map((group) => group.label)).toEqual([
       t("models.select.provider.openai"),
       t("models.select.provider.openrouter"),
+      t("models.select.provider.anthropic"),
       t("models.select.provider.bedrock"),
       t("models.select.provider.ollama"),
       t("models.select.provider.lmstudio"),
@@ -147,10 +149,12 @@ describe("the search filter still hits raw model ids", () => {
   });
 
   it("never puts the provider name in an option label", () => {
+    // Asserted as identity with the raw id rather than as absence of a provider
+    // substring: a vendor-prefixed OpenRouter id ("anthropic/claude-opus-4.5")
+    // legitimately contains another provider's name, and the invariant that
+    // matters is that nothing was decorated onto the id at all.
     for (const option of build().flatMap((group) => group.options)) {
-      for (const provider of PROVIDER_ORDER) {
-        expect(option.label.toLowerCase()).not.toContain(provider);
-      }
+      expect(option.label).toBe(option.modelId);
     }
   });
 

@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { twJoin } from "tailwind-merge";
-import { isPromptGenEnabled } from "~/shared/features";
+import { isPromptGenEnabled } from "~/features/core/shared/features";
 import { Button } from "./Button";
 import ProfileManager from "./ProfileManager";
+import { SettingSecurity } from "./security/SettingSecurity";
 import { SettingAppearance } from "./SettingAppearance";
+import { SettingAutocomplete } from "./SettingAutocomplete";
+import { SettingCombos } from "./SettingCombos";
 import { SettingCorrection } from "./SettingCorrection";
 import { SettingGeneral } from "./SettingGeneral";
 import { SettingPromptGen } from "./SettingPromptGen";
 import { useI18n } from "../i18n/useI18n";
-import type { TranslationKey } from "~/shared/i18n/keys";
+import type { TranslationKey } from "~/features/i18n/shared/keys";
 
 // Define the tab configuration type
 // `labelKey` (not a translated string) is resolved via `t()` at render time,
@@ -27,15 +30,31 @@ export type SettingsTabId =
   | "general"
   | "appearance"
   | "correction"
+  | "combos"
+  | "autocomplete"
+  | "security"
   | "promptGen";
 
 /**
  * Visible tab ids for the current build (promptGen only when the feature tag
  * is on). Lets callers outside this file (e.g. the user guide) resolve a tab
  * id to an index without importing the tabs' JSX.
+ *
+ * `autocomplete` is listed unconditionally, unlike `promptGen`: it has no
+ * build-time feature tag, only a runtime `enabled` toggle that ships OFF —
+ * and this tab is where that toggle lives, so hiding it while the feature is
+ * off would leave no route to turning it on.
  */
 export const visibleSettingsTabIds = (): SettingsTabId[] => {
-  const ids: SettingsTabId[] = ["profiles", "general", "correction", "appearance"];
+  const ids: SettingsTabId[] = [
+    "profiles",
+    "general",
+    "correction",
+    "combos",
+    "autocomplete",
+    "security",
+    "appearance",
+  ];
   if (isPromptGenEnabled()) {
     ids.push("promptGen");
   }
@@ -53,8 +72,9 @@ type SettingsModalProps = {
   onClose: () => void;
   /**
    * Initial active tab index (0-based) into the *visible* tab list
-   * (Profiles, General, Transform, Appearance, and PromptGen only when the
-   * PromptGen feature tag is built in). Out-of-range values are clamped.
+   * (Profiles, General, Transform, Autocomplete, Appearance, and PromptGen
+   * only when the PromptGen feature tag is built in). Out-of-range values are
+   * clamped.
    */
   initialTab?: number;
 };
@@ -120,8 +140,93 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     {
       id: "correction",
       labelKey: "settings.modal.tabs.correction",
-      icon: <></>,
+      icon: (
+        <svg
+          className="h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+          />
+        </svg>
+      ),
       component: <SettingCorrection />,
+    },
+    // Directly after Transform: a combo is a chain of the presets edited there,
+    // and the two tabs write the same `settingsCorrect` store node.
+    {
+      id: "combos",
+      labelKey: "settings.modal.tabs.combos",
+      icon: (
+        <svg
+          className="h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 6h6m0 0a2 2 0 104 0 2 2 0 00-4 0zm4 0h8M4 18h8m0 0a2 2 0 104 0 2 2 0 00-4 0zm4 0h4"
+          />
+        </svg>
+      ),
+      component: <SettingCombos />,
+    },
+    // Beside Transform, not inside General: both are per-feature areas.
+    {
+      id: "autocomplete",
+      labelKey: "settings.modal.tabs.autocomplete",
+      icon: (
+        <svg
+          className="h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 7h8M4 11h6M4 15h4M14 8h6M14 12h4M14 16h5"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M14 8l3 3m0 0l3-3m-3 3V5"
+            opacity={0.55}
+          />
+        </svg>
+      ),
+      component: <SettingAutocomplete />,
+    },
+    // Configuration only; what the guards DID is the Security dashboard tab.
+    {
+      id: "security",
+      labelKey: "settings.modal.tabs.security",
+      icon: (
+        <svg
+          className="h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+          />
+        </svg>
+      ),
+      component: <SettingSecurity />,
     },
     {
       id: "appearance",
@@ -149,7 +254,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {
             id: "promptGen",
             labelKey: "settings.modal.tabs.promptGen",
-            icon: <></>,
+            icon: (
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                />
+              </svg>
+            ),
             component: <SettingPromptGen />,
           },
         ] satisfies SettingsTab[])

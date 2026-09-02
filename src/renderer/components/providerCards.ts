@@ -1,4 +1,4 @@
-import { msg, type Message } from "~/shared/i18n/message";
+import { msg, type Message } from "~/features/i18n/shared/message";
 import {
   isProviderConfigured,
   PROVIDER_ORDER,
@@ -6,8 +6,8 @@ import {
   PROVIDER_SUPPORTS_API_KEY,
   PROVIDER_SUPPORTS_PROVISIONING_KEY,
   type ProviderId,
-} from "~/shared/providers";
-import type { TranslationKey } from "~/shared/i18n/keys";
+} from "~/features/providers/shared/providers";
+import type { TranslationKey } from "~/features/i18n/shared/keys";
 
 export type ProviderConnectionState = {
   connected: boolean;
@@ -60,6 +60,14 @@ export const ADMIN_KEY_MESSAGE_KEYS: Partial<
     helpUrl: "https://openrouter.ai/settings/provisioning-keys",
   },
 };
+
+/**
+ * Where the OpenAI project id is found. Kept beside `ADMIN_KEY_MESSAGE_KEYS`
+ * because it shares their constraint: main only permits http/https, so a mistyped
+ * scheme makes the link a silent no-op rather than an error.
+ */
+export const OPENAI_PROJECT_SETTINGS_URL =
+  "https://platform.openai.com/settings/organization/projects";
 
 export type ProviderCardState = {
   provider: ProviderId;

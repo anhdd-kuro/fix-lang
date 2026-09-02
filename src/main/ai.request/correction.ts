@@ -1,23 +1,25 @@
-import {
-  DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
-  DEFAULT_SUMMARIZE_PRESET_ID,
-} from "~/prompts";
-import { serializeHistorySession } from "~/shared/historySession";
-import { parseModelRef, stripModelRefPrefix } from "~/shared/modelRef";
-import { resolveReasoningEffort } from "~/shared/reasoningEffort";
+import { withPresetOptions } from "~/features/correction/shared/presetOptions";
+import { resolveReasoningEffort } from "~/features/correction/shared/reasoningEffort";
+import { serializeHistorySession } from "~/features/history/shared/historySession";
+import { estimateTextTokens } from "~/features/history/store/historyStore";
+import { parseModelRef } from "~/features/providers/shared/modelRef";
 import {
   getDefaultModelId,
   getDefaultReasoningEffort,
   getProfileSetting,
   type CorrectionPreset,
   type ProviderId,
-} from "~/stores/apiStore";
-import { estimateTextTokens } from "~/stores/historyStore";
+} from "~/features/providers/store/apiStore";
+import {
+  DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID,
+  DEFAULT_SUMMARIZE_PRESET_ID,
+} from "~/prompts";
 import { makeAIRequest } from "./shared";
 import {
   appContextPolicyForPreset,
   withActiveAppContext,
 } from "./transform-context";
+import { withUserMetadata } from "./user-metadata";
 import type { TransformContext } from "./transform-context";
 
 type CorrectionResult = {
@@ -38,11 +40,28 @@ type CorrectionResult = {
   sessionJson?: string;
 };
 
-/** A preset's pinned model, or the profile default when it inherits (""). */
-const effectiveModelRef = (preset: CorrectionPreset): string =>
+/**
+ * A preset's pinned model, or the profile default when it inherits ("").
+ * Exported so callers outside the request path (the connection prewarmer in
+ * `~/main/llm/prewarm`) can resolve the same target a real `fixGrammar` call
+ * would route to, without duplicating the inherit rule.
+ */
+export const effectiveModelRef = (preset: CorrectionPreset): string =>
   preset.model?.trim() || getDefaultModelId();
 
-const getCorrectionPreset = (presetId?: string): CorrectionPreset => {
+/**
+ * The preset a `fixGrammar(text, presetId)` call will actually run.
+ *
+ * Exported so the Ask hotkey can state that preset's system prompt in the input
+ * window's transparency row WITHOUT re-deriving it. The window promises to show
+ * what will be sent, and the id-to-preset lookup (with its fall back to the
+ * profile's selected preset, then to the first one) is precisely the step where
+ * a second implementation would quietly show a different preset's prompt than
+ * the request carries. Reading a preset captured at hotkey-registration time has
+ * the same failure by another route: `fixGrammar` re-resolves at SUBMIT, so a
+ * settings edit in between would leave the row quoting a prompt nobody sent.
+ */
+export const resolveCorrectionPreset = (presetId?: string): CorrectionPreset => {
   const correctionSettings = getProfileSetting("settingsCorrect");
   const selectedPreset = presetId
     ? correctionSettings.presets.find((preset) => preset.id === presetId)
@@ -56,7 +75,6 @@ const getCorrectionPreset = (presetId?: string): CorrectionPreset => {
 const buildCorrectionUserPrompt = (
   text: string,
   preset: CorrectionPreset,
-  rawTargetModelId: string,
 ): string => {
   if (preset.id !== DEFAULT_PROMPT_OPTIMIZATION_PRESET_ID) {
     if (preset.id !== DEFAULT_SUMMARIZE_PRESET_ID) {
@@ -82,10 +100,7 @@ const buildCorrectionUserPrompt = (
     "Optimize the draft prompt below immediately.",
     "Requirements:",
     "- Treat the selected text as the rough prompt to improve.",
-    `- The selected target model ID is: ${rawTargetModelId}.`,
-    "- If the model ID is provider-specific or not listed exactly, infer the closest supported model or tool family from the ID and optimize for that family.",
     "- If the draft already names a target AI tool, use it.",
-    "- Otherwise, default to the selected target model above instead of assuming ChatGPT.",
     "- Preserve the draft's structural shape (sections, bullets, XML tags) unless restructuring is clearly needed for clarity.",
     "- When the draft targets an AI coding agent harness, preserve agent-native terms (skill, sub-agent, MCP, tool calls, etc.) — do not rewrite into a generic chat task.",
     "- Do not ask clarifying questions.",
@@ -122,7 +137,7 @@ export const fixGrammar = async (
     // nothing to a user. The log line is kept for that defensive case.
     console.log("fixGrammar called with empty or whitespace-only text.");
 
-    const preset = getCorrectionPreset(presetId);
+    const preset = resolveCorrectionPreset(presetId);
 
     // Reports `provider: undefined` for a bare or empty ref rather than
     // guessing: a wrong provider is silently written into history and priced.
@@ -141,7 +156,7 @@ export const fixGrammar = async (
     };
   }
 
-  const preset = getCorrectionPreset(presetId);
+  const preset = resolveCorrectionPreset(presetId);
   // Empty preset model inherits the global default (dynamic latest GPT mini).
   const effectiveModel = effectiveModelRef(preset);
 
@@ -149,16 +164,31 @@ export const fixGrammar = async (
     const response = await makeAIRequest({
       // Source-app context goes on the system prompt, not the user prompt:
       // metadata beside the text to transform is easy to mistake for content.
-      systemPrompt: withActiveAppContext(
-        preset.systemPrompt,
-        context,
-        appContextPolicyForPreset(preset.id),
+      //
+      // NESTING ORDER, innermost first: the preset's own instructions, then
+      // its declared options, then the source-app `# Metadata context` block,
+      // then the per-press user metadata. All three wrappers APPEND, so the
+      // innermost one lands nearest the preset prompt and the outermost one
+      // ends the string. `withPresetOptions` is innermost because a chosen
+      // option is part of what the preset instructs, not ambient metadata
+      // about the press. Wrapping it any further out would make the preset
+      // that declares options the only one whose `# Metadata context` block is
+      // not trailing, special-casing it against the other seven for no gain:
+      // the text to transform is sent as a SEPARATE USER MESSAGE by
+      // `buildCorrectionUserPrompt`, so nothing trailing a preset's own
+      // instructions in the system prompt is input, whatever a prompt asset
+      // may claim about position. `correction-app-context.test.ts` is the
+      // end-to-end guard on this composition — it drives `fixGrammar` itself,
+      // which is what makes it probative here.
+      systemPrompt: withUserMetadata(
+        withActiveAppContext(
+          withPresetOptions(preset.systemPrompt, preset),
+          context,
+          appContextPolicyForPreset(preset.id),
+        ),
+        context?.userMetadata,
       ),
-      userPrompt: buildCorrectionUserPrompt(
-        text,
-        preset,
-        stripModelRefPrefix(effectiveModel),
-      ),
+      userPrompt: buildCorrectionUserPrompt(text, preset),
       model: effectiveModel,
       reasoning: resolveReasoningEffort(preset.reasoning, getDefaultReasoningEffort()),
     });

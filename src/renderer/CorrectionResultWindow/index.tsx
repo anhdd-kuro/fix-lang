@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Button } from "../components/Button";
 import CopyButton from "../components/CopyButton";
+import { useAppearanceTypography } from "../hooks/useAppearanceTypography";
 import { useTheme } from "../hooks/useTheme";
 import { I18nProvider } from "../i18n/I18nProvider";
 import { useI18n } from "../i18n/useI18n";
 import "../main.css";
-import type { CorrectionResultPayload } from "~/shared/correctionResult";
+import type { CorrectionResultPayload } from "~/features/correction/shared/correctionResult";
 
 /**
  * Exported (not just used below for the entry-point auto-render) so
@@ -19,6 +20,7 @@ import type { CorrectionResultPayload } from "~/shared/correctionResult";
  */
 export const CorrectionResultWindow = () => {
   useTheme();
+  useAppearanceTypography();
   const { t } = useI18n();
   const [payload, setPayload] = useState<CorrectionResultPayload | null>(null);
 

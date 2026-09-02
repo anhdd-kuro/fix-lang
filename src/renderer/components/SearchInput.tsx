@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "./Button";
+import { Input } from "./Input";
 import { useI18n } from "../i18n/useI18n";
 
 type SearchInputProps = {
@@ -59,12 +60,12 @@ export const SearchInput: React.FC<SearchInputProps> = ({
 
   return (
     <div className={`relative ${className}`}>
-      <input
+      <Input
         type="text"
         value={inputValue}
         onChange={handleChange}
         placeholder={placeholder ?? t("common.searchInput.placeholder")}
-        className="w-full bg-input border border-control-border text-foreground px-8 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+        className="w-full px-8"
         aria-label={t("common.searchInput.ariaLabel")}
         list={dataListId}
         autoComplete="on"
