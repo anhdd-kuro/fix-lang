@@ -1192,6 +1192,23 @@ describe("apiStoreSchema — settingsCorrect default carries all eight built-in 
 //
 // Proof in `.scratch/caveman-preset/evidence/05-fix/schema-hash-delta-proof.json`
 // and `.../schema-node-analysis.txt`.
+//
+// Updated once more for the Prompt optimization rewrite
+// (`src/prompts/enhance-prompt.md`). Again NO schema node changed: the prompt
+// is embedded only inside the two built-in preset `default` values, and a
+// default cannot reject stored data under `clearInvalidConfig: true`.
+//
+// Verified directly against the committed prompt and schema:
+//
+//   - the JSON-encoded new prompt occurs exactly 2× — once under
+//     `presets.default`, once under `settingsCorrect.default`
+//   - the encoded prompt shrank from 18721 to 7578 UTF-16 code units per
+//     occurrence, so the serialised schema shrank from 74330 to 52044 code
+//     units: the expected and actual deltas are both -22286
+//   - substituting the old encoded prompt for both new occurrences reproduces
+//     the previous snapshot
+//     `b78c6b4141412b66cc6cc23ddf8faa464df6373ac5a6cf28bd70f2dd7e44f860`
+//     byte-for-byte, proving no other part of the schema moved
 describe("apiStoreSchema — serialised schema is byte-identical (regression guard)", () => {
   it("matches the committed sha256 snapshot", async () => {
     const crypto = await import("node:crypto");
@@ -1200,7 +1217,7 @@ describe("apiStoreSchema — serialised schema is byte-identical (regression gua
       .update(JSON.stringify(apiStoreSchema))
       .digest("hex");
     expect(hash).toBe(
-      "b78c6b4141412b66cc6cc23ddf8faa464df6373ac5a6cf28bd70f2dd7e44f860",
+      "849eb482a73960373c2ec0601b50aaf1e121e480114e778fa0506696cc9843cc",
     );
   });
 });
@@ -2022,6 +2039,5 @@ describe("resolveDefaultOpenAIModel — legacy delegate stays byte-for-byte comp
     expect(resolveDefaultOpenAIModel([])).toBe("openai/gpt-4.1-mini");
   });
 });
-
 
 
