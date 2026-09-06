@@ -1,11 +1,29 @@
 import { msg, type Message } from "~/features/i18n/shared/message";
 import {
+  BETA_CASK_TOKEN,
+  STABLE_CASK_TOKEN,
+  type ActiveCaskChannel,
+  type CaskToken,
+  type HomebrewUpgrader,
+} from "./homebrew";
+import {
   reconcilePendingInstall,
   UPGRADE_GRACE_MS,
+  type PendingInstall,
   type PendingInstallStore,
 } from "./pendingInstall";
+import {
+  comparePrereleaseOrder,
+  parsePrereleaseVersion,
+  type OrderableVersion,
+  type PrereleaseVersion,
+} from "./prereleaseVersion";
+import { normalizeReleaseNotes } from "./releaseAsset";
 import type { GitHubReleaseSource } from "./githubReleaseSource";
-import type { HomebrewUpgrader } from "./homebrew";
+import type {
+  PrereleaseChannel,
+  PrereleaseState,
+} from "~/features/update/shared/prerelease";
 import type {
   InstallUpdateResult,
   UpdateActionResult,
@@ -19,6 +37,17 @@ export type UpdateService = {
   restartForUpdate: () => UpdateActionResult;
   getReleaseUrl: () => string | null;
   subscribe: (listener: (state: UpdateState) => void) => () => void;
+  /** Second, independently published state — see `PrereleaseState`. */
+  getPrereleaseState: () => PrereleaseState;
+  /** The only caller of `releaseSource.getLatestPrerelease`. */
+  checkForPrerelease: () => Promise<PrereleaseState>;
+  /** stable -> beta, gated by `confirmPrereleaseSwitch`. */
+  switchToPrerelease: () => Promise<UpdateActionResult>;
+  /** beta -> stable, with no confirm — reverting is the safe direction. */
+  revertToStable: () => Promise<UpdateActionResult>;
+  subscribeToPrereleaseState: (
+    listener: (state: PrereleaseState) => void,
+  ) => () => void;
 };
 
 type UpdateServiceOptions = {
@@ -32,23 +61,39 @@ type UpdateServiceOptions = {
   pendingInstall?: PendingInstallStore;
   /**
    * `.app` root of the running process. Recorded in the pending marker so the
-   * helper reopens this exact bundle and the next launch can tell it apart
-   * from another copy of FixLang carrying the same bundle id.
+   * next launch can tell it from another copy sharing the same bundle id.
    */
   appPath?: string | null;
   /** Called after the detached helper starts, so it can replace the bundle. */
   quitApp?: () => void;
-  /**
-   * Restarts into the updated app. With a target path, that bundle is opened
-   * (this process is running a different one); otherwise the current bundle —
-   * which Homebrew already replaced — is re-executed.
-   */
+  /** Restarts into the updated app: a given path is opened, else re-exec. */
   relaunchApp?: (targetPath: string | null) => void;
   onLog?: (level: "info" | "warn" | "error", message: string) => void;
   /** Injectable clock so marker ages are testable. */
   now?: () => number;
   /** Injectable repeating timer; returns its own cancel function. */
   schedulePoll?: (run: () => void, intervalMs: number) => () => void;
+  /**
+   * Which cask token(s) are staged in the Caskroom now. `null` means "could
+   * not be determined": displayed as `"stable"`, never allowed into
+   * `canSwitch` — see `detectChannel`.
+   */
+  detectActiveCaskChannel?: () => ActiveCaskChannel | null;
+  /**
+   * Confirms a channel switch before any side effect runs. Absent, or a
+   * resolved `false`, refuses the switch outright. Never used by a revert.
+   */
+  confirmPrereleaseSwitch?: (targetVersion: string) => Promise<boolean>;
+  /**
+   * Starts the detached channel-switch helper. Not a `HomebrewUpgrader`
+   * method: that type is bound to one token for life, while a switch needs a
+   * (current, target) pair decided per call. Throws when it cannot start.
+   */
+  startChannelSwitch?: (
+    currentToken: CaskToken,
+    targetToken: CaskToken,
+    appPath: string | null,
+  ) => void;
 };
 
 type StableVersion = Readonly<{
@@ -65,12 +110,8 @@ type ValidatedRelease = Readonly<{
   dmgSize: number;
 }>;
 
-const RELEASE_NOTES_MAX_LENGTH = 12_000;
-// These are locale-free descriptors, not prose — the strings underneath
-// live in `settings.updates.*` (en/ja), and the renderer resolves them via
-// `tm()` so an already-open Settings panel updates on a locale switch
-// instead of freezing in whatever locale was active when this state was
-// published (see `~/features/update/shared/update.ts`'s `UpdateState.message`).
+// Locale-free descriptors: the renderer resolves them via `tm()`, so an open
+// Settings panel re-renders on a locale switch instead of freezing.
 const UPDATE_ERROR_MESSAGE: Message = msg("settings.updates.checkErrorMessage");
 const INSTALL_ERROR_MESSAGE: Message = msg("settings.updates.installErrorMessage");
 const INSTALL_INCOMPLETE_MESSAGE: Message = msg(
@@ -79,31 +120,44 @@ const INSTALL_INCOMPLETE_MESSAGE: Message = msg(
 const RESTART_ERROR_MESSAGE: Message = msg("settings.updates.restartErrorMessage");
 const DOWNLOAD_ERROR_MESSAGE: Message = msg("settings.updates.downloadErrorMessage");
 
+const SWITCH_ERROR_MESSAGE: Message = msg("settings.updates.prerelease.switchErrorMessage");
+const SWITCH_CANCELLED_MESSAGE: Message = msg(
+  "settings.updates.prerelease.switchCancelledMessage",
+);
+const REVERT_ERROR_MESSAGE: Message = msg("settings.updates.prerelease.revertErrorMessage");
+const PRERELEASE_DOWNLOAD_ERROR_MESSAGE: Message = msg(
+  "settings.updates.prerelease.downloadErrorMessage",
+);
+
+/**
+ * A channel operation that ended back on the cask it started from, at that
+ * channel's CURRENT version. `PrereleaseState` carries no outcome
+ * discriminator, so `message` is the only way this outcome reaches the user.
+ */
+const switchRolledBackMessage = (current: string): Message =>
+  msg("settings.updates.prerelease.switchRolledBackMessage", {
+    currentVersion: current,
+  });
+const revertRolledBackMessage = (current: string): Message =>
+  msg("settings.updates.prerelease.revertRolledBackMessage", {
+    currentVersion: current,
+  });
+
 /** How often a background upgrade is re-checked while the app is reopened. */
 const UPGRADE_POLL_INTERVAL_MS = 15_000;
 /** Fast enough that a progress bar looks live without churning the renderer. */
 const DOWNLOAD_POLL_INTERVAL_MS = 500;
 
-/**
- * Homebrew is still working and this app was reopened before it finished. Not
- * an error — saying so is the whole point.
- */
 const backgroundInstallMessage = (target: string): Message =>
   msg("settings.updates.backgroundInstallMessage", { targetVersion: target });
 
-/**
- * The bundle on disk is already the new version; only this process is stale.
- * The helper's closing `open -b` cannot fix that — it just focuses the running
- * app — so the user is offered an explicit restart instead.
- */
+/** Bundle on disk is new; only this process is stale — see `restartForUpdate`. */
 const restartRequiredMessage = (target: string): Message =>
   msg("settings.updates.restartRequiredMessage", { targetVersion: target });
 
 /**
- * The upgrade succeeded, but a *different* copy of FixLang was reopened — one
- * that shares the bundle id, so `open -b` could resolve to it. Naming the
- * upgraded bundle is the whole point: the stray copy is usually a forgotten
- * `pack:mac` build in a checkout, and nothing else on screen would reveal it.
+ * `open -b` resolves by bundle id, so a forgotten `pack:mac` build can win.
+ * Names both paths — nothing else on screen reveals a second copy exists.
  */
 const wrongBundleMessage = (target: string, targetPath: string): Message =>
   msg("settings.updates.wrongBundleMessage", {
@@ -122,9 +176,8 @@ const defaultSchedulePoll = (
 };
 
 /**
- * Releases reach GitHub before the Homebrew tap picks them up, so the app can
- * advertise a version the cask cannot install yet. Say so instead of quitting
- * for an upgrade that would silently no-op.
+ * The tap lags GitHub, so the app can advertise a version the cask cannot
+ * install yet. Saying so beats quitting for an upgrade that would no-op.
  */
 const tapBehindMessage = (target: string, offered: string): Message =>
   msg("settings.updates.tapBehindMessage", {
@@ -132,13 +185,41 @@ const tapBehindMessage = (target: string, offered: string): Message =>
     offeredVersion: offered,
   });
 
-/**
- * A release exists but Homebrew cannot install it yet. Reported instead of
- * offering a button that would have nothing to do — the check now answers
- * "what can be installed", not "what has been published".
- */
 const tapPendingMessage = (published: string): Message =>
   msg("settings.updates.tapPendingMessage", { publishedVersion: published });
+
+/**
+ * Both tokens staged means a previous switch died between installing the
+ * target and uninstalling the source. Guessing which is active risks
+ * uninstalling the running bundle, so this names the fix instead.
+ */
+const BOTH_CASKS_FIX_COMMAND = `brew uninstall --cask ${BETA_CASK_TOKEN}`;
+const bothCasksInstalledMessage = (): Message =>
+  msg("settings.updates.prerelease.bothCasksMessage", {
+    stableToken: STABLE_CASK_TOKEN,
+    betaToken: BETA_CASK_TOKEN,
+    fixCommand: BOTH_CASKS_FIX_COMMAND,
+  });
+
+/**
+ * Which published state a pending marker's outcome belongs to, and for a
+ * channel operation which direction the user clicked. `caskToken` cannot
+ * answer it — a revert targets the stable token too — so `fromCaskToken` wins
+ * over any inference, and `fromVersion`'s shape is a lossy fallback for older
+ * markers: a rollback can stage a plain `X.Y.Z` build on the beta cask.
+ */
+type ChannelOperation = "switch" | "revert";
+
+const pendingChannelOperation = (
+  pending: PendingInstall,
+): ChannelOperation | null => {
+  if (pending.caskToken === BETA_CASK_TOKEN) return "switch";
+  if (pending.fromCaskToken !== undefined) {
+    return pending.fromCaskToken === BETA_CASK_TOKEN ? "revert" : null;
+  }
+  return parsePrereleaseVersion(pending.fromVersion) === null ? null : "revert";
+};
+
 const RELEASES_URL = "https://github.com/anhdd-kuro/fix-lang/releases";
 const STABLE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
@@ -163,21 +244,15 @@ const parseStableVersion = (value: unknown): StableVersion | null => {
   return Object.freeze({ raw: value, major, minor, patch });
 };
 
-const compareVersions = (left: StableVersion, right: StableVersion): number => {
-  for (const part of ["major", "minor", "patch"] as const) {
-    if (left[part] !== right[part]) return left[part] - right[part];
-  }
-  return 0;
-};
+/**
+ * The installed version is `X.Y.Z`, or `X.Y.Z-beta.N` on the pre-release
+ * channel. Both satisfy `OrderableVersion`, so the two can be ranked.
+ */
+const parseCurrentVersion = (
+  value: string,
+): StableVersion | PrereleaseVersion | null =>
+  parseStableVersion(value) ?? parsePrereleaseVersion(value);
 
-const normalizeReleaseNotes = (raw: string | undefined): string | undefined => {
-  const trimmed = raw?.trim();
-  return trimmed && trimmed.length > 0
-    ? trimmed.slice(0, RELEASE_NOTES_MAX_LENGTH)
-    : undefined;
-};
-
-/** Size of the expected, fully uploaded DMG asset, or null when absent. */
 const expectedDmgSize = (
   assets: unknown,
   version: StableVersion,
@@ -229,11 +304,12 @@ const safeErrorName = (error: unknown): string => {
 const freezeState = (state: UpdateState): UpdateState =>
   Object.freeze({ ...state });
 
+const freezePrereleaseState = (state: PrereleaseState): PrereleaseState =>
+  Object.freeze({ ...state });
+
 /**
  * Owns release state plus the Homebrew-only install action. GitHub metadata is
- * untrusted until validated; the release URL is derived locally rather than
- * accepted from the response, and the upgrade itself is delegated to Homebrew
- * so nothing here has to automate Gatekeeper.
+ * untrusted: the release URL is derived locally, never read off the response.
  */
 export const createUpdateService = (
   options: UpdateServiceOptions,
@@ -241,7 +317,16 @@ export const createUpdateService = (
   const currentVersion = options.getCurrentVersion();
   const supported =
     options.isPackaged && options.platform === "darwin" && options.arch === "arm64";
-  const canInstall = supported && (options.upgrader?.canInstall ?? false);
+  /**
+   * The ordinary flow upgrades the STABLE cask in place, so it requires exactly
+   * that channel: a beta install has no stable Caskroom entry and `startUpgrade`
+   * would throw only after the press, and with `"both"` staged ownership of
+   * `/Applications/FixLang.app` is ambiguous. Beta's route out is `revertToStable`.
+   */
+  const canInstall =
+    supported &&
+    (options.upgrader?.canInstall ?? false) &&
+    (options.detectActiveCaskChannel?.() ?? null) === "stable";
   const listeners = new Set<(state: UpdateState) => void>();
   const now = options.now ?? Date.now;
   const schedulePoll = options.schedulePoll ?? defaultSchedulePoll;
@@ -250,11 +335,12 @@ export const createUpdateService = (
   let releaseUrl: string | null = null;
   /** Denominator for download progress; only known after a successful check. */
   let availableDmgSize: number | null = null;
+  /** Same role as `availableDmgSize`, for the pre-release channel's offer. */
+  let availablePrereleaseDmgSize: number | null = null;
   const appPath = options.appPath ?? null;
   /**
-   * Bundle a restart must open instead of re-executing this one. Set only when
-   * this process turns out to be a different copy of FixLang than the one that
-   * was upgraded, where re-exec would just relaunch the wrong app again.
+   * Bundle a restart must open instead of re-executing this one — set only
+   * when this process is a different copy from the one that was upgraded.
    */
   let restartTargetPath: string | null = null;
 
@@ -274,14 +360,77 @@ export const createUpdateService = (
     for (const listener of listeners) listener(state);
   };
 
-  /** The bundle is new but this process is not; only a restart fixes that. */
-  const publishRestartRequired = (targetVersion: string): void => {
+  /** Second, independent state — shares nothing with `state`/`publish`. */
+  let prereleaseChecking = false;
+  const prereleaseListeners = new Set<(state: PrereleaseState) => void>();
+
+  /**
+   * `canSwitch` needs exactly one real token: `null` (undetectable, e.g. a
+   * manual DMG install) and `"both"` (ambiguous) refuse, `"stable"` and
+   * `"beta"` both allow. Never `canInstall`, which is scoped to the stable
+   * cask a beta install does not have.
+   */
+  const detectChannel = (): Pick<PrereleaseState, "activeChannel" | "canSwitch"> => {
+    const raw = options.detectActiveCaskChannel?.() ?? null;
+    return {
+      // Undetected displays as "stable"; never reaches `canSwitch` below.
+      activeChannel: raw ?? "stable",
+      canSwitch: raw !== null && raw !== "both",
+    };
+  };
+
+  let prereleaseState: PrereleaseState = supported
+    ? freezePrereleaseState({ phase: "idle", ...detectChannel() })
+    : freezePrereleaseState({
+        phase: "unsupported",
+        activeChannel: "stable",
+        canSwitch: false,
+        message: msg("settings.updates.unsupported"),
+      });
+
+  const publishPrerelease = (next: PrereleaseState): void => {
+    prereleaseState = freezePrereleaseState(next);
+    for (const listener of prereleaseListeners) listener(prereleaseState);
+  };
+
+  /**
+   * Whether an install or a channel operation claimed the app while a check was
+   * awaiting GitHub. Read again at PUBLISH time, not only at entry, and the
+   * operation wins: making it wait would kill a Revert press for the length of
+   * a GitHub scan.
+   */
+  const inFlightOperationOwnsState = (): boolean => {
+    if (!installing) return false;
+    options.onLog?.(
+      "info",
+      "Discarding a stale update check: an install or channel operation claimed the app while it was in flight",
+    );
+    return true;
+  };
+
+  /**
+   * Published into BOTH states even for a channel operation: `restartForUpdate`
+   * is gated on `state.phase`, so a pre-release-only publish would leave the
+   * Restart button refusing an install that already landed.
+   */
+  const publishRestartRequired = (
+    targetVersion: string,
+    channelOperation: ChannelOperation | null = null,
+  ): void => {
     // Keeps the install button inert: there is nothing left to install.
     installing = true;
     options.onLog?.(
       "info",
       `Homebrew installed ${targetVersion}; restart required to run it`,
     );
+    if (channelOperation !== null) {
+      publishPrerelease({
+        phase: "restart-required",
+        ...detectChannel(),
+        offeredVersion: targetVersion,
+        message: restartRequiredMessage(targetVersion),
+      });
+    }
     publish({
       phase: "restart-required",
       currentVersion,
@@ -290,10 +439,33 @@ export const createUpdateService = (
     });
   };
 
-  const publishIncomplete = (): void => {
+  /**
+   * A channel operation reports its failure ONLY into the pre-release state:
+   * the ordinary section never started that work, and its wording names an
+   * update rather than a switch or a revert.
+   */
+  const publishIncomplete = (
+    channelOperation: ChannelOperation | null = null,
+    /** Overridden by a rollback: the version DID change, onto the source. */
+    logMessage = "Homebrew update did not change the app version",
+    /** Overridden too, so a rollback is visible in the UI, not just the log. */
+    channelMessage?: Message,
+  ): void => {
     installing = false;
     options.pendingInstall?.clear();
-    options.onLog?.("warn", "Homebrew update did not change the app version");
+    options.onLog?.("warn", logMessage);
+    if (channelOperation !== null) {
+      publishPrerelease({
+        phase: "error",
+        ...detectChannel(),
+        message:
+          channelMessage ??
+          (channelOperation === "switch"
+            ? SWITCH_ERROR_MESSAGE
+            : REVERT_ERROR_MESSAGE),
+      });
+      return;
+    }
     publish({
       phase: "error",
       currentVersion,
@@ -301,39 +473,33 @@ export const createUpdateService = (
     });
   };
 
-  /**
-   * The helper reopens FixLang when it is done, but a user who reopened it
-   * early is already running: that `open -b` only focuses the stale process.
-   * Poll the Caskroom so this session still learns the upgrade landed.
-   */
+  /** The helper only focuses this process, so poll to see the upgrade land. */
   const watchBackgroundUpgrade = (
     targetVersion: string,
     /** Measured from when the helper started, not from this launch. */
     deadline: number,
+    /** The marker's own token, never the upgrader's bound (stable) channel. */
+    caskToken: CaskToken,
+    channelOperation: ChannelOperation | null,
   ): void => {
     const stop = schedulePoll(() => {
-      if (options.upgrader?.isVersionInstalled(targetVersion) === true) {
+      if (options.upgrader?.isVersionInstalled(targetVersion, caskToken) === true) {
         stop();
         options.pendingInstall?.clear();
-        publishRestartRequired(targetVersion);
+        publishRestartRequired(targetVersion, channelOperation);
         return;
       }
       if (now() < deadline) return;
 
       stop();
-      publishIncomplete();
+      publishIncomplete(channelOperation);
     }, UPGRADE_POLL_INTERVAL_MS);
   };
 
   /**
    * Homebrew finishes after this app has quit, so the previous run's marker is
-   * the only evidence of what happened.
-   *
-   * Reopening FixLang while the helper is mid-download must not be mistaken
-   * for a failed upgrade: that used to clear the marker, show an error, and
-   * leave the button live, so the next click raced the running helper and died
-   * on Homebrew's download lock. An unchanged version is only a failure once
-   * the grace window has passed with nothing installed.
+   * the only evidence. An unchanged version counts as a failure only after the
+   * grace window — otherwise a live button races the helper into brew's lock.
    */
   const reconcileLastInstall = (): void => {
     const store = options.pendingInstall;
@@ -342,10 +508,14 @@ export const createUpdateService = (
     const pending = store.read();
     if (pending === null) return;
 
+    const channelOperation = pendingChannelOperation(pending);
+
     const outcome = reconcilePendingInstall(pending, currentVersion, {
       now: now(),
-      isTargetInstalled:
-        options.upgrader?.isVersionInstalled(pending.toVersion) ?? false,
+      // The resolver, never a pre-resolved boolean: reconcile has to aim the
+      // probe at `pending.caskToken`, and at the source cask for a rollback.
+      isVersionInstalled: (version, caskToken) =>
+        options.upgrader?.isVersionInstalled(version, caskToken) ?? false,
       runningAppPath: appPath,
     });
     if (outcome === "none") return;
@@ -353,15 +523,26 @@ export const createUpdateService = (
     if (outcome === "in-progress") {
       // Marker stays: the helper still owns this upgrade and will finish it.
       installing = true;
-      publish({
-        phase: "installing",
-        currentVersion,
-        availableVersion: pending.toVersion,
-        message: backgroundInstallMessage(pending.toVersion),
-      });
+      if (channelOperation !== null) {
+        publishPrerelease({
+          phase: "installing",
+          ...detectChannel(),
+          offeredVersion: pending.toVersion,
+          message: backgroundInstallMessage(pending.toVersion),
+        });
+      } else {
+        publish({
+          phase: "installing",
+          currentVersion,
+          availableVersion: pending.toVersion,
+          message: backgroundInstallMessage(pending.toVersion),
+        });
+      }
       watchBackgroundUpgrade(
         pending.toVersion,
         pending.startedAt + UPGRADE_GRACE_MS,
+        pending.caskToken,
+        channelOperation,
       );
       return;
     }
@@ -369,25 +550,35 @@ export const createUpdateService = (
     store.clear();
     if (outcome === "installed") {
       options.onLog?.("info", `App updated to ${currentVersion} via Homebrew`);
+      if (channelOperation !== null) {
+        publishPrerelease({ phase: "up-to-date", ...detectChannel() });
+      }
       publish({ phase: "up-to-date", currentVersion });
       return;
     }
 
     if (outcome === "restart-required") {
-      publishRestartRequired(pending.toVersion);
+      publishRestartRequired(pending.toVersion, channelOperation);
       return;
     }
 
     if (outcome === "wrong-bundle") {
-      // Homebrew did its job; something else reopened. Say which bundle is
-      // running — a version number alone reads as a failed update, and the
-      // user would have no idea a second copy of the app exists.
       options.onLog?.(
         "warn",
         `Reopened ${currentVersion} from ${appPath ?? "an unknown bundle"} instead of ${pending.toVersion} from ${pending.appPath}`,
       );
       restartTargetPath = pending.appPath;
       installing = true;
+      if (channelOperation !== null) {
+        // Path-free: `PrereleaseState`'s contract forbids file paths, so the
+        // stray-bundle detail rides the stable message published below.
+        publishPrerelease({
+          phase: "restart-required",
+          ...detectChannel(),
+          offeredVersion: pending.toVersion,
+          message: restartRequiredMessage(pending.toVersion),
+        });
+      }
       publish({
         phase: "restart-required",
         currentVersion,
@@ -397,25 +588,36 @@ export const createUpdateService = (
       return;
     }
 
-    publishIncomplete();
+    if (outcome === "rolled-back") {
+      // The helper put the source cask back, normally at that channel's
+      // current version — so the version moved while the operation failed.
+      publishIncomplete(
+        channelOperation,
+        `Channel ${channelOperation ?? "operation"} rolled back: now running ${currentVersion} on the cask it started from`,
+        channelOperation === "switch"
+          ? switchRolledBackMessage(currentVersion)
+          : revertRolledBackMessage(currentVersion),
+      );
+      return;
+    }
+
+    publishIncomplete(channelOperation);
   };
 
   reconcileLastInstall();
 
   /**
-   * Runs `brew fetch` while publishing byte progress from the download cache.
-   *
-   * Progress is read from the cache file rather than parsed out of brew's
-   * output: the `.incomplete` file grows in place, its final size is the
-   * release asset size GitHub already told us, and no output format can drift
-   * underneath us. Resolves false when the download failed.
+   * Runs `brew fetch` while publishing byte progress read from the growing
+   * cache file — never parsed out of brew's output, whose format can drift.
+   * Names the STABLE token explicitly; see `probeInstallableVersion`.
    */
   const downloadWithProgress = async (
     targetVersion: string,
   ): Promise<boolean> => {
     const publishProgress = (): void => {
       const downloadedBytes =
-        options.upgrader?.getDownloadedBytes(targetVersion) ?? null;
+        options.upgrader?.getDownloadedBytes(targetVersion, STABLE_CASK_TOKEN) ??
+        null;
       if (downloadedBytes === null) return;
       publish({
         phase: "downloading",
@@ -428,7 +630,7 @@ export const createUpdateService = (
 
     const stop = schedulePoll(publishProgress, DOWNLOAD_POLL_INTERVAL_MS);
     try {
-      await options.upgrader?.downloadUpdate();
+      await options.upgrader?.downloadUpdate(STABLE_CASK_TOKEN);
       return true;
     } catch (error) {
       options.onLog?.(
@@ -447,13 +649,16 @@ export const createUpdateService = (
     }
   };
 
-  /** True only for a parsed version strictly newer than the installed one. */
+  /**
+   * `current` must stay `OrderableVersion`: narrowing it to `StableVersion`
+   * still compiles but drops `beta`, so `1.2.3-beta.1` would rank as older.
+   */
   const isNewerThan = (
     candidate: string | null,
-    current: StableVersion,
+    current: OrderableVersion,
   ): boolean => {
     const parsed = parseStableVersion(candidate);
-    return parsed !== null && compareVersions(parsed, current) > 0;
+    return parsed !== null && comparePrereleaseOrder(parsed, current) > 0;
   };
 
   /** Never rejects: GitHub is optional once Homebrew can answer. */
@@ -469,12 +674,20 @@ export const createUpdateService = (
     }
   };
 
-  /** Never rejects: a broken probe must not strand the install flow. */
+  /**
+   * Never rejects: a broken probe must not strand the install flow. DOCTRINE
+   * FOR THIS FILE: every Homebrew call names the cask it means and none
+   * inherits `upgrader`'s binding, which does not expose its own token — so a
+   * future rebind cannot silently steer this flow onto the wrong cask.
+   */
   const probeInstallableVersion = async (
     refreshTap = true,
+    caskToken: CaskToken = STABLE_CASK_TOKEN,
   ): Promise<string | null> => {
     try {
-      return (await options.upgrader?.getInstallableVersion(refreshTap)) ?? null;
+      return (
+        (await options.upgrader?.getInstallableVersion(refreshTap, caskToken)) ?? null
+      );
     } catch (error) {
       options.onLog?.(
         "warn",
@@ -494,58 +707,463 @@ export const createUpdateService = (
     });
   };
 
+  type ChannelSwitchParams = Readonly<{
+    currentToken: CaskToken;
+    targetToken: CaskToken;
+    targetVersion: string;
+  }>;
+
+  /**
+   * Shared tail of `switchToPrerelease`/`revertToStable`. ORDER is the whole
+   * correctness story: download with the app still running, THEN hand off to
+   * the helper and quit — the reverse leaves the user staring at a vanished
+   * app. `activeChannel`/`canSwitch` are carried forward, not re-probed: the
+   * switch in flight is what changes the Caskroom this would read.
+   */
+  const runChannelSwitch = async (
+    { currentToken, targetToken, targetVersion }: ChannelSwitchParams,
+    helperErrorMessage: Message,
+    /** Held from the moment the helper is spawned — see `withInstallingClaim`. */
+    markHandedOff: () => void,
+  ): Promise<UpdateActionResult> => {
+    const { activeChannel, canSwitch } = prereleaseState;
+    const totalBytes =
+      targetToken === BETA_CASK_TOKEN ? (availablePrereleaseDmgSize ?? undefined) : undefined;
+
+    installing = true;
+    publishPrerelease({
+      phase: "downloading",
+      activeChannel,
+      canSwitch,
+      offeredVersion: targetVersion,
+      downloadedBytes: 0,
+      totalBytes,
+    });
+
+    const publishProgress = (): void => {
+      const downloadedBytes =
+        options.upgrader?.getDownloadedBytes(targetVersion, targetToken) ?? null;
+      if (downloadedBytes === null) return;
+      publishPrerelease({
+        phase: "downloading",
+        activeChannel,
+        canSwitch,
+        offeredVersion: targetVersion,
+        downloadedBytes,
+        totalBytes,
+      });
+    };
+
+    const stopPoll = schedulePoll(publishProgress, DOWNLOAD_POLL_INTERVAL_MS);
+    let downloaded = false;
+    try {
+      await options.upgrader?.downloadUpdate(targetToken);
+      downloaded = true;
+    } catch (error) {
+      options.onLog?.(
+        "warn",
+        `Could not download ${targetToken} (${safeErrorName(error)})`,
+      );
+    } finally {
+      stopPoll();
+    }
+
+    if (!downloaded) {
+      installing = false;
+      publishPrerelease({
+        phase: "error",
+        activeChannel,
+        canSwitch,
+        message: PRERELEASE_DOWNLOAD_ERROR_MESSAGE,
+      });
+      return { success: false, error: PRERELEASE_DOWNLOAD_ERROR_MESSAGE };
+    }
+
+    publishPrerelease({
+      phase: "installing",
+      activeChannel,
+      canSwitch,
+      offeredVersion: targetVersion,
+    });
+
+    try {
+      options.startChannelSwitch?.(currentToken, targetToken, appPath);
+    } catch (error) {
+      installing = false;
+      options.onLog?.(
+        "error",
+        `Channel switch helper could not start (${safeErrorName(error)})`,
+      );
+      publishPrerelease({
+        phase: "error",
+        activeChannel,
+        canSwitch,
+        message: helperErrorMessage,
+      });
+      return { success: false, error: helperErrorMessage };
+    }
+
+    // The helper owns both casks now; the claim is never released from here.
+    markHandedOff();
+
+    try {
+      options.pendingInstall?.write({
+        fromVersion: currentVersion,
+        toVersion: targetVersion,
+        startedAt: now(),
+        appPath: appPath ?? "",
+        // The TARGET token, so reconcile resolves a revert (a version LOWER
+        // than the one running) against the right Caskroom.
+        caskToken: targetToken,
+        // Recorded rather than inferred from `fromVersion`'s shape, which
+        // cannot tell a rolled-back operation from a completed update.
+        fromCaskToken: currentToken,
+      });
+    } catch (error) {
+      // The switch still runs; only the outcome report is lost.
+      options.onLog?.(
+        "warn",
+        `Could not record the pending channel switch (${safeErrorName(error)})`,
+      );
+    }
+
+    // Tokens and version only: this log line must not leak a path.
+    options.onLog?.(
+      "info",
+      `Channel switch from ${currentToken} to ${targetToken} started, targeting ${targetVersion}`,
+    );
+    options.quitApp?.();
+    return { success: true };
+  };
+
+  /**
+   * Re-reads the Caskroom before committing to a SOURCE token: this tray app
+   * stays open for days, and `prereleaseState.activeChannel` is a cached value
+   * a terminal `brew install` can invalidate. A stale token makes the helper
+   * quit the app and then exit on `|| exit 1` with nothing on screen to say why.
+   */
+  const activeChannelStillIs = (
+    expected: PrereleaseChannel,
+    errorMessage: Message,
+  ): boolean => {
+    const probed = detectChannel();
+    if (probed.canSwitch === true && probed.activeChannel === expected) {
+      return true;
+    }
+    options.onLog?.(
+      "warn",
+      `Refusing a channel switch: expected the ${expected} cask, the Caskroom now reports ${
+        probed.canSwitch === true ? probed.activeChannel : "no single staged cask"
+      }`,
+    );
+    publishPrerelease({ phase: "error", ...probed, message: errorMessage });
+    return false;
+  };
+
+  /**
+   * Claims the shared in-flight flag and releases it unless the operation
+   * handed off. The HAND-OFF, not the returned result, is the boundary: a log
+   * line and `quitApp` follow the spawn and either can throw, and releasing
+   * there would let the next press spawn a SECOND helper against casks the
+   * first already owns. A resolved `success` also counts, so a body that
+   * forgets `markHandedOff` fails in the safe direction. The explicit releases
+   * inside the bodies stay: they run BEFORE their failure state is published.
+   */
+  const withInstallingClaim = async (
+    operation: (markHandedOff: () => void) => Promise<UpdateActionResult>,
+  ): Promise<UpdateActionResult> => {
+    installing = true;
+    let handedOff = false;
+    const markHandedOff = (): void => {
+      handedOff = true;
+    };
+    try {
+      const result = await operation(markHandedOff);
+      if (result.success) markHandedOff();
+      return result;
+    } finally {
+      if (!handedOff) installing = false;
+    }
+  };
+
+  /** Everything a switch does once `installing` is claimed. */
+  const runPrereleaseSwitch = async (
+    targetVersion: string,
+    markHandedOff: () => void,
+  ): Promise<UpdateActionResult> => {
+    const confirmed = (await options.confirmPrereleaseSwitch?.(targetVersion)) ?? false;
+    if (!confirmed) {
+      installing = false;
+      return { success: false, error: SWITCH_CANCELLED_MESSAGE };
+    }
+
+    // Tap-lag gate for the beta cask: a beta reaches GitHub hours before the
+    // tap syncs `fixlang@beta`. A null or unparseable probe means brew could
+    // not be asked, not that it is behind — proceed.
+    const offeredRaw = await probeInstallableVersion(true, BETA_CASK_TOKEN);
+    const offered = offeredRaw === null ? null : parseCurrentVersion(offeredRaw);
+    const target = parseCurrentVersion(targetVersion);
+    if (offered && target && comparePrereleaseOrder(offered, target) < 0) {
+      installing = false;
+      options.onLog?.(
+        "warn",
+        `Homebrew still offers ${offered.raw} on the pre-release channel; ${targetVersion} is not installable yet`,
+      );
+      const message = tapBehindMessage(targetVersion, offered.raw);
+      publishPrerelease({
+        phase: "error",
+        ...detectChannel(),
+        offeredVersion: targetVersion,
+        message,
+      });
+      return { success: false, error: message };
+    }
+
+    if (!activeChannelStillIs("stable", SWITCH_ERROR_MESSAGE)) {
+      installing = false;
+      return { success: false, error: SWITCH_ERROR_MESSAGE };
+    }
+
+    return runChannelSwitch(
+      { currentToken: STABLE_CASK_TOKEN, targetToken: BETA_CASK_TOKEN, targetVersion },
+      SWITCH_ERROR_MESSAGE,
+      markHandedOff,
+    );
+  };
+
+  /**
+   * Confirms the offered version before any side effect, so a decline is a
+   * complete no-op. `installing` is claimed before the confirm await so a
+   * second click cannot start a second switch while the dialog is up.
+   */
+  const switchToPrerelease = async (): Promise<UpdateActionResult> => {
+    if (!prereleaseState.canSwitch || !options.upgrader) {
+      return { success: false, error: SWITCH_ERROR_MESSAGE };
+    }
+    if (installing) {
+      return { success: false, error: SWITCH_ERROR_MESSAGE };
+    }
+    if (
+      prereleaseState.phase !== "available" ||
+      prereleaseState.offeredVersion === undefined ||
+      prereleaseState.activeChannel !== "stable"
+    ) {
+      return { success: false, error: SWITCH_ERROR_MESSAGE };
+    }
+
+    const targetVersion = prereleaseState.offeredVersion;
+    return withInstallingClaim((markHandedOff) =>
+      runPrereleaseSwitch(targetVersion, markHandedOff),
+    );
+  };
+
+  const runRevertToStable = async (
+    markHandedOff: () => void,
+  ): Promise<UpdateActionResult> => {
+    const targetVersion = await probeInstallableVersion(true, STABLE_CASK_TOKEN);
+    if (targetVersion === null) {
+      installing = false;
+      // `getInstallableVersion` resolves null rather than throwing when brew
+      // cannot be asked, so `probeInstallableVersion`'s catch never runs here.
+      options.onLog?.(
+        "warn",
+        "Cannot revert: Homebrew could not say which stable version it would install",
+      );
+      publishPrerelease({
+        phase: "error",
+        ...detectChannel(),
+        message: REVERT_ERROR_MESSAGE,
+      });
+      return { success: false, error: REVERT_ERROR_MESSAGE };
+    }
+
+    if (!activeChannelStillIs("beta", REVERT_ERROR_MESSAGE)) {
+      installing = false;
+      return { success: false, error: REVERT_ERROR_MESSAGE };
+    }
+
+    return runChannelSwitch(
+      { currentToken: BETA_CASK_TOKEN, targetToken: STABLE_CASK_TOKEN, targetVersion },
+      REVERT_ERROR_MESSAGE,
+      markHandedOff,
+    );
+  };
+
+  /**
+   * No confirm, ever: reverting is the safe direction. The claim precedes the
+   * tap probe, which is slow enough for a second click to land inside it.
+   */
+  const revertToStable = async (): Promise<UpdateActionResult> => {
+    if (!prereleaseState.canSwitch || !options.upgrader) {
+      return { success: false, error: REVERT_ERROR_MESSAGE };
+    }
+    if (installing) {
+      return { success: false, error: REVERT_ERROR_MESSAGE };
+    }
+    if (prereleaseState.activeChannel !== "beta") {
+      return { success: false, error: REVERT_ERROR_MESSAGE };
+    }
+
+    return withInstallingClaim(runRevertToStable);
+  };
+
+  const runInstallUpdate = async (
+    /** Passed in: the presence guard lives in the caller, so no assertion. */
+    upgrader: HomebrewUpgrader,
+    targetVersion: string,
+    markHandedOff: () => void,
+  ): Promise<InstallUpdateResult> => {
+    publish({
+      phase: "downloading",
+      currentVersion,
+      availableVersion: targetVersion,
+      downloadedBytes: 0,
+      totalBytes: availableDmgSize ?? undefined,
+    });
+
+    const offeredRaw = await probeInstallableVersion();
+    const offered =
+      offeredRaw === null ? null : parseCurrentVersion(offeredRaw);
+    const target = parseCurrentVersion(targetVersion);
+    // The two nulls mean opposite things: a null `offered` is brew declining
+    // to answer ("unknown", so proceed), while a null `target` is our own
+    // published state being unparseable and must never pass this gate.
+    if (target === null) {
+      installing = false;
+      options.onLog?.("error", "Refusing to install an unparseable version");
+      publish({
+        phase: "error",
+        currentVersion,
+        message: INSTALL_ERROR_MESSAGE,
+      });
+      return { success: false, error: INSTALL_ERROR_MESSAGE };
+    }
+    if (offered && comparePrereleaseOrder(offered, target) < 0) {
+      installing = false;
+      options.onLog?.(
+        "warn",
+        `Homebrew still offers ${offered.raw}; ${targetVersion} is not installable yet`,
+      );
+      const message = tapBehindMessage(targetVersion, offered.raw);
+      publish({
+        phase: "error",
+        currentVersion,
+        availableVersion: targetVersion,
+        message,
+      });
+      return { success: false, error: message };
+    }
+
+    // `brew fetch` only fills the download cache, so nothing is replaced yet
+    // and the app can stay up showing progress.
+    const downloaded = await downloadWithProgress(targetVersion);
+    if (!downloaded) {
+      installing = false;
+      return { success: false, error: DOWNLOAD_ERROR_MESSAGE };
+    }
+
+    publish({
+      phase: "installing",
+      currentVersion,
+      availableVersion: targetVersion,
+    });
+
+    try {
+      // The STABLE token, named rather than inherited (see
+      // `probeInstallableVersion`); `homebrew.ts` re-validates it against its
+      // own Caskroom, so a wrong binding fails loudly into the catch below.
+      upgrader.startUpgrade(appPath, STABLE_CASK_TOKEN);
+    } catch (error) {
+      installing = false;
+      options.onLog?.(
+        "error",
+        `Homebrew update could not start (${safeErrorName(error)})`,
+      );
+      publish({
+        phase: "error",
+        currentVersion,
+        availableVersion: targetVersion,
+        message: INSTALL_ERROR_MESSAGE,
+      });
+      return { success: false, error: INSTALL_ERROR_MESSAGE };
+    }
+
+    markHandedOff();
+
+    try {
+      options.pendingInstall?.write({
+        fromVersion: currentVersion,
+        toVersion: targetVersion,
+        // Stamped so the next launch can tell "still working" from "failed".
+        startedAt: now(),
+        appPath: appPath ?? "",
+        // The ordinary flow only ever upgrades the stable cask.
+        caskToken: STABLE_CASK_TOKEN,
+      });
+    } catch (error) {
+      // The upgrade still runs; only the outcome report is lost.
+      options.onLog?.(
+        "warn",
+        `Could not record the pending update (${safeErrorName(error)})`,
+      );
+    }
+
+    options.onLog?.("info", `Homebrew update to ${targetVersion} started`);
+    options.quitApp?.();
+    return { success: true };
+  };
+
   return {
     getState: () => state,
 
     getReleaseUrl: () => releaseUrl,
 
     checkForUpdates: async (): Promise<void> => {
-      // An upgrade already in flight owns the state; a check would overwrite
-      // it with "available" and re-arm a button that must stay inert.
+      // An in-flight upgrade owns the state; a check would re-arm the button.
       if (!supported || checking || installing) return;
 
       checking = true;
       publish({ phase: "checking", currentVersion });
       try {
-        const current = parseStableVersion(currentVersion);
+        const current = parseCurrentVersion(currentVersion);
         if (!current) throw new Error("Invalid installed version");
 
-        // GitHub is asked in parallel because it is the only source of release
-        // notes and of the DMG size the download bar needs. It does not get to
-        // decide what is offered.
+        // GitHub only supplies notes and the DMG size; it never decides the
+        // offer.
         const [release, cached] = await Promise.all([
           readLatestRelease(),
-          // Cheap read of the local tap clone: `brew update` is a git fetch
-          // across every tap, far too heavy for a routine check.
+          // Local tap clone only: `brew update` is a git fetch across every
+          // tap, far too heavy for a routine check.
           canInstall ? probeInstallableVersion(false) : Promise.resolve(null),
         ]);
 
         const newerOnGitHub =
-          release !== null && compareVersions(release.version, current) > 0;
-        // The clone can lag a release that already exists. Pay for one refresh
-        // only when GitHub says there is something to look for.
+          release !== null && comparePrereleaseOrder(release.version, current) > 0;
+        // Pay for a tap refresh only when GitHub says something is newer.
         const installable = parseStableVersion(
           canInstall && newerOnGitHub && !isNewerThan(cached, current)
             ? await probeInstallableVersion(true)
             : cached,
         );
 
-        // For a cask install Homebrew has the only answer that matters: it is
-        // what the button runs. GitHub is the fallback for manual installs,
-        // and for a cask whose brew probe could not answer at all.
+        // Second read — see `inFlightOperationOwnsState`. Everything below
+        // publishes, and the app may already be quitting into an operation.
+        if (inFlightOperationOwnsState()) return;
+
+        // Homebrew is what the button runs, so it decides for a cask install;
+        // GitHub is the fallback for manual installs and unanswered probes.
         const target =
           (canInstall ? installable : null) ?? release?.version ?? null;
         if (target === null) {
           throw new Error("No usable update source");
         }
 
-        if (compareVersions(target, current) > 0) {
+        if (comparePrereleaseOrder(target, current) > 0) {
           releaseUrl = `${RELEASES_URL}/tag/v${target.raw}`;
-          // Only attach notes and a download size when GitHub is describing
-          // the very version being offered; otherwise they belong to a
-          // different release and would misreport both.
+          // Notes and size only when GitHub describes the exact version
+          // offered; otherwise they belong to a different release.
           const describesTarget =
-            release !== null && compareVersions(release.version, target) === 0;
+            release !== null && comparePrereleaseOrder(release.version, target) === 0;
           availableDmgSize = describesTarget ? release.dmgSize : null;
           publish({
             phase: "available",
@@ -557,10 +1175,8 @@ export const createUpdateService = (
         }
 
         const pendingRelease = newerOnGitHub && release !== null ? release : null;
-        // Nothing installable, but a release does exist — say so rather than
-        // claiming the app is current, and never offer an install button that
-        // cannot work yet. The release page still can be opened, so point at
-        // that exact tag rather than at the generic /releases/latest fallback.
+        // A release exists but is not installable yet: point at its exact tag
+        // rather than the generic /releases/latest fallback.
         releaseUrl =
           pendingRelease === null
             ? null
@@ -569,8 +1185,6 @@ export const createUpdateService = (
         publish({
           phase: "up-to-date",
           currentVersion,
-          // Notes are safe to show here: unlike the size, they describe the
-          // release the message names, not some other version.
           ...(pendingRelease === null
             ? {}
             : {
@@ -579,6 +1193,9 @@ export const createUpdateService = (
               }),
         });
       } catch (error) {
+        // Unreachable today but kept: any `await` added ahead of a throw
+        // would let a failed check publish `error` over a live operation.
+        if (inFlightOperationOwnsState()) return;
         releaseUrl = null;
         availableDmgSize = null;
         fail(error);
@@ -589,15 +1206,12 @@ export const createUpdateService = (
 
     /**
      * Starts the detached Homebrew helper and quits so it can replace this
-     * bundle. Only a validated `available` state may trigger it, and only for
-     * a cask install — never for a manually placed DMG copy.
-     *
-     * The tap is checked first: `brew upgrade` exits 0 when it has nothing
-     * newer, so without this gate a lagging tap would quit and reopen the app
-     * unchanged, which reads as the button doing nothing at all.
+     * bundle. Never delete the tap gate: `brew upgrade` exits 0 when it has
+     * nothing newer, so a lagging tap would quit and reopen the app unchanged.
      */
     installUpdate: async (): Promise<InstallUpdateResult> => {
-      if (!canInstall || !options.upgrader) {
+      const upgrader = options.upgrader;
+      if (!canInstall || !upgrader) {
         return { success: false, error: INSTALL_ERROR_MESSAGE };
       }
       if (installing) return { success: true };
@@ -606,103 +1220,18 @@ export const createUpdateService = (
       }
 
       const targetVersion = state.availableVersion;
-      // Claimed before the first await: the tap probe is slow enough that a
-      // second click would otherwise start a second upgrade.
-      installing = true;
-      publish({
-        phase: "downloading",
-        currentVersion,
-        availableVersion: targetVersion,
-        downloadedBytes: 0,
-        totalBytes: availableDmgSize ?? undefined,
-      });
-
-      const offered = parseStableVersion(await probeInstallableVersion());
-      const target = parseStableVersion(targetVersion);
-      // A null probe means brew could not be asked, not that it is behind.
-      if (offered && target && compareVersions(offered, target) < 0) {
-        installing = false;
-        options.onLog?.(
-          "warn",
-          `Homebrew still offers ${offered.raw}; ${targetVersion} is not installable yet`,
-        );
-        const message = tapBehindMessage(targetVersion, offered.raw);
-        publish({
-          phase: "error",
-          currentVersion,
-          availableVersion: targetVersion,
-          message,
-        });
-        return { success: false, error: message };
-      }
-
-      // Download first, with the app still running. `brew fetch` only fills
-      // the download cache, so nothing is replaced yet and the user can watch
-      // progress instead of staring at an app that vanished for a minute.
-      const downloaded = await downloadWithProgress(targetVersion);
-      if (!downloaded) {
-        installing = false;
-        return { success: false, error: DOWNLOAD_ERROR_MESSAGE };
-      }
-
-      // Everything left is a local file move, so the app is only away for a
-      // few seconds.
-      publish({
-        phase: "installing",
-        currentVersion,
-        availableVersion: targetVersion,
-      });
-
-      try {
-        options.upgrader.startUpgrade(appPath);
-      } catch (error) {
-        installing = false;
-        options.onLog?.(
-          "error",
-          `Homebrew update could not start (${safeErrorName(error)})`,
-        );
-        publish({
-          phase: "error",
-          currentVersion,
-          availableVersion: targetVersion,
-          message: INSTALL_ERROR_MESSAGE,
-        });
-        return { success: false, error: INSTALL_ERROR_MESSAGE };
-      }
-
-      try {
-        options.pendingInstall?.write({
-          fromVersion: currentVersion,
-          toVersion: targetVersion,
-          // Stamped so the next launch can tell "still working" from "failed".
-          startedAt: now(),
-          // Recorded so the next launch can tell "the upgrade landed" from
-          // "some other copy of FixLang opened instead".
-          appPath,
-        });
-      } catch (error) {
-        // The upgrade still runs; only the outcome report is lost.
-        options.onLog?.(
-          "warn",
-          `Could not record the pending update (${safeErrorName(error)})`,
-        );
-      }
-
-      options.onLog?.("info", `Homebrew update to ${targetVersion} started`);
-      options.quitApp?.();
-      return { success: true };
+      // Claimed before the first publish: the tap probe is slow enough for a
+      // second click to land inside it.
+      return withInstallingClaim((markHandedOff) =>
+        runInstallUpdate(upgrader, targetVersion, markHandedOff),
+      );
     },
 
     /**
-     * Re-executes the bundle Homebrew already replaced. Allowed only from
-     * `restart-required`, so a renderer message can never restart the app at
-     * an arbitrary moment. Re-exec is not `open -b`: LaunchServices would find
-     * this process and merely focus it, which is exactly the trap that leaves
-     * the user on the old binary.
-     *
-     * When the running process is a different copy of FixLang, re-exec would
-     * relaunch that same wrong copy forever, so the upgraded bundle's path is
-     * handed over instead.
+     * Re-executes the bundle Homebrew replaced, gated on `restart-required` so
+     * a renderer message cannot restart at will. Re-exec, not `open -b`:
+     * LaunchServices would find this process and merely focus it. A different
+     * copy of FixLang is restarted by path instead.
      */
     restartForUpdate: (): UpdateActionResult => {
       if (state.phase !== "restart-required" || !options.relaunchApp) {
@@ -724,6 +1253,91 @@ export const createUpdateService = (
     subscribe: (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+
+    getPrereleaseState: () => prereleaseState,
+
+    /**
+     * The only caller of `releaseSource.getLatestPrerelease`, so an ordinary
+     * check still costs one unauthenticated GitHub request, not two.
+     */
+    checkForPrerelease: async (): Promise<PrereleaseState> => {
+      // `installing`: a switch in flight owns this state — same reason
+      // `checkForUpdates` carries it.
+      if (!supported || prereleaseChecking || installing) return prereleaseState;
+
+      prereleaseChecking = true;
+      const { activeChannel, canSwitch } = detectChannel();
+
+      if (activeChannel === "both") {
+        prereleaseChecking = false;
+        publishPrerelease({
+          phase: "error",
+          activeChannel,
+          canSwitch,
+          message: bothCasksInstalledMessage(),
+        });
+        return prereleaseState;
+      }
+
+      publishPrerelease({ phase: "checking", activeChannel, canSwitch });
+
+      try {
+        const current = parseCurrentVersion(currentVersion);
+        if (!current) throw new Error("Invalid installed version");
+
+        // Called directly, not through a tolerant wrapper: this channel has
+        // no second source, so a request failure must surface as an error
+        // rather than collapse into the `null` that means nothing published.
+        const candidate = await options.releaseSource.getLatestPrerelease();
+        // Second read — the entry guard only stops a check that STARTS during
+        // an operation, not one already waiting on GitHub.
+        if (inFlightOperationOwnsState()) return prereleaseState;
+        if (
+          candidate !== null &&
+          comparePrereleaseOrder(candidate.version, current) > 0
+        ) {
+          availablePrereleaseDmgSize = candidate.dmgSize;
+          publishPrerelease({
+            phase: "available",
+            activeChannel,
+            canSwitch,
+            offeredVersion: candidate.version.raw,
+            releaseNotes: candidate.releaseNotes,
+          });
+          return prereleaseState;
+        }
+
+        availablePrereleaseDmgSize = null;
+        publishPrerelease({ phase: "up-to-date", activeChannel, canSwitch });
+        return prereleaseState;
+      } catch (error) {
+        options.onLog?.(
+          "warn",
+          `Pre-release check failed (${safeErrorName(error)})`,
+        );
+        // Logged before this check, so the failure is recorded even when an
+        // operation owns the state and the message is dropped.
+        if (inFlightOperationOwnsState()) return prereleaseState;
+        publishPrerelease({
+          phase: "error",
+          activeChannel,
+          canSwitch,
+          message: UPDATE_ERROR_MESSAGE,
+        });
+        return prereleaseState;
+      } finally {
+        prereleaseChecking = false;
+      }
+    },
+
+    switchToPrerelease,
+
+    revertToStable,
+
+    subscribeToPrereleaseState: (listener) => {
+      prereleaseListeners.add(listener);
+      return () => prereleaseListeners.delete(listener);
     },
   };
 };

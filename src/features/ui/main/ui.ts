@@ -2,14 +2,8 @@
  * @file ui.ts
  * @description IPC handlers for UI-related functionality
  */
-import {
-  ipcMain,
-  app,
-  BrowserWindow,
-  clipboard,
-  dialog,
-  shell,
-} from "electron";
+import { ipcMain, app, BrowserWindow, clipboard, dialog } from "electron";
+import { openExternalUrl } from "~/main/webViewWindows/externalNavigationGuard";
 import {
   getMainWindow,
   createMainWindow,
@@ -141,29 +135,14 @@ export const registerUiHandlers = () => {
     }
   );
 
-  // External links
+  // External links. The scheme check and the `shell.openExternal` call live in
+  // `externalNavigationGuard.ts` because the same decision has to be made for
+  // a link the renderer never sees clicked — a middle-click reaches main as a
+  // window-open, with no `onClick` having run. One policy, both entry points.
   ipcMain.handle(
     "open-external-link",
-    async (_event: Electron.IpcMainInvokeEvent, url: string) => {
-      try {
-        let parsed: URL;
-        try {
-          parsed = new URL(url);
-        } catch {
-          return { success: false, error: "Unsupported URL scheme" };
-        }
-        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-          return { success: false, error: "Unsupported URL scheme" };
-        }
-        await shell.openExternal(url);
-        return { success: true };
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        };
-      }
-    }
+    async (_event: Electron.IpcMainInvokeEvent, url: string) =>
+      openExternalUrl(url)
   );
 
   // Window handling

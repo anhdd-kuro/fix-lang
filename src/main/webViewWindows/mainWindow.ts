@@ -6,6 +6,7 @@
 import path from "node:path";
 import { app, BrowserWindow } from "electron";
 import { attachThemeSync } from "./attachThemeSync";
+import { applyExternalNavigationGuard } from "./externalNavigationGuard";
 import appIcon from "../../../resources/icon.ico?asset";
 import type { BrowserWindowConstructorOptions } from "electron";
 
@@ -52,6 +53,7 @@ export const createMainWindow = (
   });
   setMainWindow(win);
   attachThemeSync(win);
+  applyExternalNavigationGuard(win);
 
   // Set mainWindow to null when the window is closed
   win.on("closed", () => {

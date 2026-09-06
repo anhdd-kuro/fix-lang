@@ -34,14 +34,36 @@ const workflowStepSecrets = (workflow: string, stepName: string): string[] =>
     (match) => match[1],
   );
 
+const workflowJob = (workflow: string, jobId: string): string => {
+  const marker = `\n  ${jobId}:\n`;
+  const start = workflow.indexOf(marker);
+  if (start === -1) throw new Error(`Missing workflow job: ${jobId}`);
+
+  const body = workflow.slice(start + marker.length);
+  const next = body.search(/\n {2}[A-Za-z0-9_-]+:\n/);
+  return next === -1 ? body : body.slice(0, next);
+};
+
+const shellLines = (step: string): string[] =>
+  step
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"));
+
+// What a step actually executes: raw text would accept a commented-out line.
+const executedShell = (step: string): string => shellLines(step).join("\n");
+
+// A version publishable from *some* branch: stable, or X.Y.Z-beta.N from beta/*.
+// Stable-only-on-main is release.yml's stable_version_pattern, pinned below.
+const RELEASE_VERSION =
+  /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-beta\.(0|[1-9][0-9]*))?$/;
+
 describe("unsigned GitHub Releases distribution", () => {
   it("builds an explicitly unsigned arm64 DMG without an updater runtime", () => {
     const packageJson = readPackageJson();
     const build = buildConfiguration(packageJson);
 
-    expect(packageJson.version).toMatch(
-      /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/,
-    );
+    expect(packageJson.version).toMatch(RELEASE_VERSION);
     expect(packageJson.dependencies).not.toHaveProperty("electron-updater");
     // Prevent repository-based publish inference from embedding app-update.yml.
     expect(build.publish).toBeNull();
@@ -114,6 +136,8 @@ describe("unsigned GitHub Releases distribution", () => {
     expect(workflow).toContain("shasum -a 256");
     expect(workflow).toContain("gh release upload");
     expect(workflow).toContain("--draft=false");
+    // A --prerelease here takes genuine releases off the stable feed.
+    expect(workflow).not.toContain("--prerelease");
     expect(workflow).not.toContain("--clobber");
     expect(workflow).not.toContain("MAC_CSC_");
     expect(workflow).not.toContain("APPLE_API_");
@@ -126,7 +150,17 @@ describe("unsigned GitHub Releases distribution", () => {
     expect(validateStep).toContain('test -s "release/FixLang-${package_version}-arm64.dmg"');
     expect(validateStep).toContain('hdiutil verify "release/FixLang-${package_version}-arm64.dmg"');
     expect(validateStep).toContain('CFBundleShortVersionString');
+    // Without these the DMG can be a MODULE_NOT_FOUND or white-screen app.
+    expect(executedShell(validateStep)).toContain("bunx @electron/asar list");
+    expect(executedShell(validateStep)).toContain("/node_modules/");
+    expect(executedShell(validateStep)).toContain("^/out/renderer/");
     expect(draftStep).toContain("refusing to replace its assets");
+
+    const publishStep = workflowStep(workflow, "Publish completed release");
+    expect(publishStep).toContain("gh release edit");
+    expect(publishStep).toContain("--draft=false");
+    expect(publishStep).toContain("--latest");
+    expect(publishStep).not.toContain("--prerelease");
     expect(workflow.indexOf("Validate unsigned arm64 artifacts")).toBeLessThan(
       workflow.indexOf("Create or resume draft release"),
     );
@@ -220,5 +254,218 @@ describe("unsigned GitHub Releases distribution", () => {
       "update",
       "deletion",
     ]);
+  });
+
+  it("excludes beta tags from update/deletion protection while keeping stable tags protected", () => {
+    const ruleset = JSON.parse(
+      readProjectFile(".github/release-tag-ruleset.json"),
+    ) as {
+      conditions: { ref_name: { exclude: string[]; include: string[] } };
+      rules: { type: string }[];
+    };
+
+    expect(ruleset.conditions.ref_name.include).toEqual(["refs/tags/v*"]);
+    expect(ruleset.conditions.ref_name.exclude).toEqual([
+      "refs/tags/v*-beta.*",
+    ]);
+    // Re-assert (not re-relax) the stable protection this exclusion sits next to.
+    expect(ruleset.rules.map((rule) => rule.type)).toEqual([
+      "update",
+      "deletion",
+    ]);
+  });
+
+  it("publishes beta builds as GitHub prereleases under the same gates as stable, without touching the stable workflow", () => {
+    const workflowPath = ".github/workflows/prerelease.yml";
+    const fullPath = path.join(projectRoot, workflowPath);
+    expect(existsSync(fullPath), `${workflowPath} must exist`).toBe(true);
+
+    const workflow = readFileSync(fullPath, "utf8");
+    expect(workflow).toMatch(/branches:\s*\[\s*['"]beta\/\*\*['"]\s*\]/);
+    expect(workflow).toContain("contents: write");
+    // Tag, draft and two immutable uploads are one non-atomic remote sequence:
+    // cancelling mid-way wedges the channel until a human deletes the tag.
+    expect(workflow).toContain("group: fixlang-prerelease-");
+    expect(workflow).toContain("cancel-in-progress: false");
+    expect(workflow).not.toContain("cancel-in-progress: true");
+    // The review anchor must sit on the publishing job: on prepare it gates nothing.
+    const prepareJob = workflowJob(workflow, "prepare");
+    const releaseJob = workflowJob(workflow, "release");
+    expect(releaseJob).toMatch(/^\s{4}environment: prerelease$/m);
+    expect(workflow).toContain("Resolve prerelease version and tag");
+    expect(workflow).toContain(
+      "beta_version_pattern='^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)-beta\\.(0|[1-9][0-9]*)$'",
+    );
+    expect(workflow).toContain(
+      'if ! [[ "${package_version}" =~ ${beta_version_pattern} ]]; then',
+    );
+    expect(workflow).toContain(
+      "package.json version must be a pre-release semantic version",
+    );
+    expect(workflow).toContain("should_publish=true");
+    expect(workflow).toContain("should_publish=false");
+    expect(workflow).toContain("repos/${GITHUB_REPOSITORY}/git/refs");
+    expect(workflow).toContain("bun install --frozen-lockfile");
+    expect(workflow).toContain("bun run lint");
+    expect(workflow).toContain("bun run test");
+    expect(workflow).toContain("bun run i18n:check");
+    expect(workflow).toContain("bun run build");
+    expect(workflow).toContain("bun run check:bundle");
+    expect(workflow).toContain('CSC_IDENTITY_AUTO_DISCOVERY: "false"');
+    expect(workflow).toContain("electron-builder --mac --arm64 --publish never");
+    expect(workflow).toContain("hdiutil verify");
+    expect(workflow).toContain("SHA256SUMS.txt");
+    expect(workflow).toContain("shasum -a 256");
+    expect(workflow).toContain("gh release upload");
+    expect(workflow).toContain("--prerelease");
+    expect(workflow).toContain("--draft=false");
+    expect(workflow).not.toContain("--latest");
+    expect(workflow).not.toContain("--clobber");
+    expect(workflow).not.toContain("MAC_CSC_");
+    expect(workflow).not.toContain("APPLE_API_");
+    expect(workflow).not.toContain("codesign");
+    expect(workflow).not.toContain("spctl");
+    expect(workflow).not.toContain("xcrun stapler");
+
+    const validateStep = workflowStep(workflow, "Validate unsigned arm64 artifacts");
+    const draftStep = workflowStep(workflow, "Create or resume draft prerelease");
+    expect(validateStep).toContain('test -s "release/FixLang-${package_version}-arm64.dmg"');
+    expect(validateStep).toContain('hdiutil verify "release/FixLang-${package_version}-arm64.dmg"');
+    expect(validateStep).toContain("CFBundleShortVersionString");
+    expect(executedShell(validateStep)).toContain("/node_modules/");
+    expect(executedShell(validateStep)).toContain("^/out/renderer/");
+    // A bare `test -s` reports only an exit code, so a mangled "-beta.N" hides.
+    expect(validateStep).toContain("ls -la release/");
+    expect(executedShell(draftStep)).toContain("--prerelease");
+    expect(draftStep).toContain("refusing to replace its assets");
+    expect(workflow.indexOf("Validate unsigned arm64 artifacts")).toBeLessThan(
+      workflow.indexOf("Create or resume draft prerelease"),
+    );
+
+    // Drift guard: the beta artifact may never be validated more weakly than the
+    // stable one. Extra diagnostic lines are allowed; dropped ones are not.
+    const stableWorkflow = readProjectFile(".github/workflows/release.yml");
+    const stableValidateStep = workflowStep(
+      stableWorkflow,
+      "Validate unsigned arm64 artifacts",
+    );
+    const executedValidation = executedShell(validateStep);
+    for (const line of shellLines(stableValidateStep)) {
+      expect(
+        executedValidation,
+        `prerelease.yml validation is missing a line release.yml runs: ${line}`,
+      ).toContain(line);
+    }
+
+    // Positions, not presence: presence passes for gates parked after packaging.
+    const positionOf = (needle: string): number => {
+      const index = releaseJob.indexOf(needle);
+      expect(
+        index,
+        `prerelease.yml release job is missing: ${needle}`,
+      ).toBeGreaterThan(-1);
+      return index;
+    };
+    const buildIndex = positionOf("run: bun run build");
+    const packageIndex = positionOf(
+      "electron-builder --mac --arm64 --publish never",
+    );
+    expect(positionOf("run: bun run lint")).toBeLessThan(buildIndex);
+    expect(positionOf("run: bun run test")).toBeLessThan(buildIndex);
+    expect(positionOf("run: bun run i18n:check")).toBeLessThan(buildIndex);
+    expect(buildIndex).toBeLessThan(positionOf("run: bun run check:bundle"));
+    expect(positionOf("run: bun run check:bundle")).toBeLessThan(packageIndex);
+    expect(packageIndex).toBeLessThan(
+      positionOf("- name: Validate unsigned arm64 artifacts"),
+    );
+    expect(positionOf("- name: Create or resume draft prerelease")).toBeLessThan(
+      positionOf("- name: Publish completed prerelease"),
+    );
+
+    // Asserted on the publishing call: a file-wide match is satisfied by the draft.
+    const publishStep = executedShell(
+      workflowStep(workflow, "Publish completed prerelease"),
+    );
+    expect(publishStep).toContain("gh release edit");
+    expect(publishStep).toContain("--draft=false");
+    expect(publishStep).toContain("--prerelease");
+    expect(workflow).toContain(
+      "docs/superpowers/specs/2026-07-22-homebrew-distribution-design.md",
+    );
+    expect(
+      existsSync(
+        path.join(
+          projectRoot,
+          "docs/superpowers/specs/2026-07-22-homebrew-distribution-design.md",
+        ),
+      ),
+    ).toBe(true);
+
+    const checkoutStep = workflowStep(workflow, "Check out the release commit");
+    // Beta tags can be retargeted, so the build input is prepare's commit. Declared
+    // anywhere else the output is empty, and checkout then takes the branch head.
+    expect(prepareJob).toContain("release_sha: ${{ github.sha }}");
+    expect(checkoutStep).toContain("ref: ${{ needs.prepare.outputs.release_sha }}");
+    expect(checkoutStep).not.toContain("needs.prepare.outputs.release_tag");
+    expect(executedShell(draftStep)).toContain("--generate-notes");
+    expect(executedShell(draftStep)).toContain(
+      '--notes "Built from commit ${RELEASE_SHA}."',
+    );
+
+    expect(workflowStepSecrets(workflow, "Check out branch history")).toEqual([]);
+    expect(workflowStepSecrets(workflow, "Resolve prerelease version and tag")).toEqual([
+      "GITHUB_TOKEN",
+    ]);
+    expect(workflowStepSecrets(workflow, "Create or resume draft prerelease")).toEqual([
+      "GITHUB_TOKEN",
+    ]);
+    expect(workflowStepSecrets(workflow, "Upload validated release assets")).toEqual([
+      "GITHUB_TOKEN",
+    ]);
+    expect(workflowStepSecrets(workflow, "Verify uploaded release assets")).toEqual([
+      "GITHUB_TOKEN",
+    ]);
+    expect(workflowStepSecrets(workflow, "Publish completed prerelease")).toEqual([
+      "GITHUB_TOKEN",
+    ]);
+  });
+
+  it("keeps the stable-only guard rejecting beta-shaped versions in release.yml", () => {
+    const stableWorkflow = readProjectFile(".github/workflows/release.yml");
+    const stableVersionPattern = /stable_version_pattern='([^']+)'/.exec(
+      stableWorkflow,
+    );
+    expect(stableVersionPattern).not.toBeNull();
+
+    const pattern = new RegExp(stableVersionPattern?.[1] ?? "");
+    expect(pattern.test("1.2.3-beta.1")).toBe(false);
+    expect(pattern.test("1.2.3")).toBe(true);
+  });
+
+  it("accepts and rejects the expected beta version shapes", () => {
+    const betaVersion =
+      /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-beta\.(0|[1-9][0-9]*)$/;
+    const betaTag =
+      /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-beta\.(0|[1-9][0-9]*)$/;
+
+    expect(betaVersion.test("0.32.0-beta.1")).toBe(true);
+    expect(betaVersion.test("0.32.0-beta.0")).toBe(true);
+    expect(betaVersion.test("0.32.0")).toBe(false);
+    expect(betaVersion.test("0.32.0-beta.01")).toBe(false);
+    expect(betaVersion.test("0.32.0-alpha.1")).toBe(false);
+    expect(betaTag.test("v0.32.0-beta.1")).toBe(true);
+    expect(betaTag.test("0.32.0-beta.1")).toBe(false);
+
+    // Widening this to accept betas must not widen it to accept anything else.
+    expect(RELEASE_VERSION.test("0.32.0")).toBe(true);
+    expect(RELEASE_VERSION.test("0.32.0-beta.1")).toBe(true);
+    expect(RELEASE_VERSION.test("0.32.0-beta.0")).toBe(true);
+    expect(RELEASE_VERSION.test("0.32.0-beta")).toBe(false);
+    expect(RELEASE_VERSION.test("0.32.0-beta.01")).toBe(false);
+    expect(RELEASE_VERSION.test("0.32.0-beta.1.2")).toBe(false);
+    expect(RELEASE_VERSION.test("0.32.0-alpha.1")).toBe(false);
+    expect(RELEASE_VERSION.test("0.32.0-rc.1")).toBe(false);
+    expect(RELEASE_VERSION.test("01.32.0")).toBe(false);
+    expect(RELEASE_VERSION.test("v0.32.0")).toBe(false);
   });
 });

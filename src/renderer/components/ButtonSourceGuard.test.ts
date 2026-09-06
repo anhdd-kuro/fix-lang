@@ -14,7 +14,8 @@ type FindingKind =
   | "native JSX alias"
   | "namespaced native JSX"
   | 'createElement("button")'
-  | "PrimaryButton";
+  | "PrimaryButton"
+  | "foreign Button module";
 
 type Finding = {
   file: string;
@@ -91,8 +92,55 @@ const sourceFileFor = (fileName: string, source: string): ts.SourceFile =>
 const lineOf = (sourceFile: ts.SourceFile, node: ts.Node): number =>
   sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
 
-const isButtonModule = (moduleName: string): boolean =>
-  /(?:^|\/)Button(?:\.tsx?)?$/.test(moduleName);
+const buttonLeafModule = buttonLeafPath.replace(/\.tsx$/, "");
+
+const toPosixPath = (value: string): string => value.replaceAll("\\", "/");
+
+const isRendererSourcePath = (file: string): boolean =>
+  toPosixPath(file).startsWith("src/renderer/");
+
+const hasButtonModuleName = (moduleName: string): boolean =>
+  /(?:^|\/)Button(?:\.tsx?)?$/.test(toPosixPath(moduleName));
+
+// A module merely *named* Button is not the sanctioned leaf: the scanner reads only files
+// under src/renderer, so basename matching would accept `<button {...props} />` from an
+// unread src/features/ui/shared/Button.tsx as a consumer of the design-system Button.
+const resolvesToButtonLeaf = (
+  moduleName: string,
+  importerFile: string,
+): boolean => {
+  const specifier = toPosixPath(moduleName);
+  // `~/*` maps to `./src/*` (tsconfig paths, via vite-tsconfig-paths) and is this repo's
+  // canonical import form, so `~/renderer/components/Button` is the leaf itself.
+  const resolved = specifier.startsWith("~/")
+    ? `src/${specifier.slice("~/".length)}`
+    : specifier.startsWith(".")
+      ? path.posix.normalize(
+          path.posix.join(
+            path.posix.dirname(toPosixPath(importerFile)),
+            specifier,
+          ),
+        )
+      : null;
+  return (
+    resolved !== null && resolved.replace(/\.tsx?$/, "") === buttonLeafModule
+  );
+};
+
+// Real renderer sources must resolve to the leaf. This file's synthetic fixture paths are
+// not in the tree and resolve to nothing, so they keep the basename rule.
+const isButtonModule = (moduleName: string, importerFile: string): boolean =>
+  isRendererSourcePath(importerFile)
+    ? resolvesToButtonLeaf(moduleName, importerFile)
+    : hasButtonModuleName(moduleName);
+
+const importsForeignButtonModule = (
+  moduleName: string,
+  importerFile: string,
+): boolean =>
+  isRendererSourcePath(importerFile) &&
+  hasButtonModuleName(moduleName) &&
+  !resolvesToButtonLeaf(moduleName, importerFile);
 
 const isPrimaryButtonModule = (moduleName: string): boolean => {
   const baseName = path.posix.basename(moduleName.replaceAll("\\", "/"));
@@ -362,7 +410,7 @@ const buildLexicalAliasResolver = (
           null,
           moduleName === "react"
             ? "react-namespace"
-            : isButtonModule(moduleName)
+            : isButtonModule(moduleName, sourceFile.fileName)
               ? "button-component"
               : isPrimaryButtonModule(moduleName)
                 ? "primary-button-component"
@@ -378,7 +426,7 @@ const buildLexicalAliasResolver = (
           null,
           moduleName === "react"
             ? "react-namespace"
-            : isButtonModule(moduleName)
+            : isButtonModule(moduleName, sourceFile.fileName)
               ? "button-namespace"
               : isPrimaryButtonModule(moduleName)
                 ? "primary-button-namespace"
@@ -394,7 +442,8 @@ const buildLexicalAliasResolver = (
             null,
             moduleName === "react" && importedName === "createElement"
               ? "create-element"
-              : isButtonModule(moduleName) && importedName === "Button"
+              : isButtonModule(moduleName, sourceFile.fileName) &&
+                  importedName === "Button"
                 ? "button-component"
                 : isPrimaryButtonModule(moduleName) &&
                     importedName === "PrimaryButton"
@@ -1381,6 +1430,18 @@ const scanSource = (file: string, source: string): SourceScanResult => {
         `export from ${statement.moduleSpecifier.text}`,
       );
     }
+    if (
+      ts.isExportDeclaration(statement) &&
+      statement.moduleSpecifier &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      importsForeignButtonModule(statement.moduleSpecifier.text, file)
+    ) {
+      addFinding(
+        statement,
+        "foreign Button module",
+        `export from ${statement.moduleSpecifier.text}`,
+      );
+    }
     if (!ts.isImportDeclaration(statement)) {
       continue;
     }
@@ -1390,6 +1451,13 @@ const scanSource = (file: string, source: string): SourceScanResult => {
       : "";
     if (isPrimaryButtonModule(moduleName)) {
       addFinding(statement, "PrimaryButton", `import from ${moduleName}`);
+    }
+    if (importsForeignButtonModule(moduleName, file)) {
+      addFinding(
+        statement,
+        "foreign Button module",
+        `import from ${moduleName}`,
+      );
     }
     if (!statement.importClause) {
       continue;
@@ -1524,7 +1592,7 @@ const scanRenderer = async (): Promise<ScanResult> => {
 };
 
 const consumerContractRows = [
-    [
+  [
     "BTN-001",
     "SITE-377098cab4701111-01",
     "LIVE-377098cab4701111",
@@ -1532,860 +1600,948 @@ const consumerContractRows = [
     117,
     9,
   ],
-    [
+  [
     "BTN-002",
-    "SITE-22b46580f1bd13d0-01",
-    "LIVE-22b46580f1bd13d0",
-    "src/renderer/CorrectionResultWindow/index.tsx",
-    63,
-    9,
-  ],
-    [
-    "BTN-003",
-    "SITE-212540f76558cdfa-01",
-    "LIVE-212540f76558cdfa",
-    "src/renderer/MainWindow/App.tsx",
-    350,
-    15,
-  ],
-    [
-    "BTN-004",
-    "SITE-3fc2016e431469db-01",
-    "LIVE-3fc2016e431469db",
-    "src/renderer/TrayWindow/components/TrayProviderSummary.tsx",
-    203,
-    17,
-  ],
-    [
-    "BTN-005",
-    "SITE-5889a078aeafb4c2-01",
-    "LIVE-5889a078aeafb4c2",
-    "src/renderer/TrayWindow/components/TrayProviderSummary.tsx",
-    233,
-    13,
-  ],
-    [
-    "BTN-006",
-    "SITE-022a9db6eed9fbc4-01",
-    "LIVE-022a9db6eed9fbc4",
-    "src/renderer/TrayWindow/components/TrayToolbar.tsx",
-    23,
-    3,
-  ],
-    [
-    "BTN-007",
-    "SITE-a8490affbbc66fbf-01",
-    "LIVE-a8490affbbc66fbf",
-    "src/renderer/components/CopyButton/index.tsx",
-    47,
-    5,
-  ],
-    [
-    "BTN-008",
-    "SITE-ffaaad62c6e612d8-01",
-    "LIVE-ffaaad62c6e612d8",
-    "src/renderer/components/Dialog.tsx",
-    32,
-    11,
-  ],
-    [
-    "BTN-009",
-    "SITE-a5b58a39e0be1f98-01",
-    "LIVE-a5b58a39e0be1f98",
-    "src/renderer/components/HistoryEntryItem.tsx",
-    100,
-    17,
-  ],
-    [
-    "BTN-010",
-    "SITE-8264f7f6bcd8085d-01",
-    "LIVE-8264f7f6bcd8085d",
-    "src/renderer/components/HistoryPanel.tsx",
-    89,
-    11,
-  ],
-    [
-    "BTN-011",
-    "SITE-8975613823778fc5-01",
-    "LIVE-8975613823778fc5",
-    "src/renderer/components/HistoryPanel.tsx",
-    97,
-    13,
-  ],
-    [
-    "BTN-012",
-    "SITE-5cbddd24a7826d4b-01",
-    "LIVE-5cbddd24a7826d4b",
-    "src/renderer/components/HistoryReviewModal.tsx",
-    82,
-    11,
-  ],
-    [
-    "BTN-013",
-    "SITE-ae28524fa5a91a81-01",
-    "LIVE-ae28524fa5a91a81",
-    "src/renderer/components/HistorySessionDetailsModal.tsx",
-    139,
-    15,
-  ],
-    [
-    "BTN-014",
-    "SITE-36b0efef55fb64e4-01",
-    "LIVE-36b0efef55fb64e4",
-    "src/renderer/components/HistorySessionDetailsModal.tsx",
-    192,
-    11,
-  ],
-    [
-    "BTN-015",
-    "SITE-5961fe9e2b8ba32a-01",
-    "LIVE-5961fe9e2b8ba32a",
-    "src/renderer/components/HotkeyInput.tsx",
-    221,
-    9,
-  ],
-    [
-    "BTN-016",
-    "SITE-97e7bb1c3ab4305f-01",
-    "LIVE-97e7bb1c3ab4305f",
-    "src/renderer/components/KeyBinding.tsx",
-    28,
-    7,
-  ],
-    [
-    "BTN-017",
-    "SITE-700a4122e599ffe1-01",
-    "LIVE-700a4122e599ffe1",
-    "src/renderer/components/LogsPanel.tsx",
-    336,
-    9,
-  ],
-    [
-    "BTN-018",
-    "SITE-501f82e78a2b09c9-01",
-    "LIVE-501f82e78a2b09c9",
-    "src/renderer/components/LogsPanel.tsx",
-    343,
-    9,
-  ],
-    [
-    "BTN-019",
-    "SITE-29f318d8be62f1d9-01",
-    "LIVE-29f318d8be62f1d9",
-    "src/renderer/components/LogsPanel.tsx",
-    350,
-    9,
-  ],
-    [
-    "BTN-020",
-    "SITE-7197db62a76969f7-01",
-    "LIVE-7197db62a76969f7",
-    "src/renderer/components/ModelManagerDialog.tsx",
-    195,
-    11,
-  ],
-    [
-    "BTN-021",
-    "SITE-67f4724e126c10d4-01",
-    "LIVE-67f4724e126c10d4",
-    "src/renderer/components/ModelManagerDialog.tsx",
-    207,
-    11,
-  ],
-    [
-    "BTN-022",
-    "SITE-04748a61b30e3ef8-01",
-    "LIVE-04748a61b30e3ef8",
-    "src/renderer/components/ModelManagerDialog.tsx",
-    218,
-    11,
-  ],
-    [
-    "BTN-023",
-    "SITE-7c4301fb38c9808d-01",
-    "LIVE-7c4301fb38c9808d",
-    "src/renderer/components/ModelManagerDialog.tsx",
-    230,
-    13,
-  ],
-    [
-    "BTN-024",
-    "SITE-fc298046a960042d-01",
-    "LIVE-fc298046a960042d",
-    "src/renderer/components/ModelManagerDialog.tsx",
-    256,
-    19,
-  ],
-    [
-    "BTN-025",
-    "SITE-c09e1d790b99f3f9-01",
-    "LIVE-c09e1d790b99f3f9",
-    "src/renderer/components/ModelManagerDialog.tsx",
-    276,
-    27,
-  ],
-    [
-    "BTN-026",
-    "SITE-e25d0c965e5599f3-01",
-    "LIVE-e25d0c965e5599f3",
-    "src/renderer/components/ModelManagerDialog.tsx",
-    330,
-    27,
-  ],
-    [
-    "BTN-027",
-    "SITE-5526ee17ec81f974-01",
-    "LIVE-5526ee17ec81f974",
-    "src/renderer/components/ModelManagerDialog.tsx",
-    405,
-    17,
-  ],
-    [
-    "BTN-028",
-    "SITE-73361c5a5c8f4108-01",
-    "LIVE-73361c5a5c8f4108",
-    "src/renderer/components/ModelManagerDialog.tsx",
-    412,
-    17,
-  ],
-    [
-    "BTN-029",
-    "SITE-0bb225c5fce87465-01",
-    "LIVE-0bb225c5fce87465",
-    "src/renderer/components/ModelSelect.tsx",
-    425,
-    9,
-  ],
-    [
-    "BTN-030",
-    "SITE-38539922a7e16c77-01",
-    "LIVE-38539922a7e16c77",
-    "src/renderer/components/ModelSelect.tsx",
-    456,
-    11,
-  ],
-    [
-    "BTN-031",
-    "SITE-edf192add08f8fcb-01",
-    "LIVE-edf192add08f8fcb",
-    "src/renderer/components/ModelsPanel.tsx",
-    161,
-    15,
-  ],
-    [
-    "BTN-032",
-    "SITE-f817bc24bfff4be1-01",
-    "LIVE-264ac29656e00cd9",
-    "src/renderer/components/MultiSelect/MultiSelect.tsx",
-    96,
-    7,
-  ],
-    [
-    "BTN-033",
-    "SITE-73a48ff1f5f9296f-01",
-    "LIVE-73a48ff1f5f9296f",
-    "src/renderer/components/ProfileManager.tsx",
-    279,
-    11,
-  ],
-    [
-    "BTN-034",
-    "SITE-e99c02ce9aba9550-01",
-    "LIVE-e99c02ce9aba9550",
-    "src/renderer/components/ProfileManager.tsx",
-    287,
-    11,
-  ],
-    [
-    "BTN-035",
-    "SITE-7c9f643148cf3085-01",
-    "LIVE-7c9f643148cf3085",
-    "src/renderer/components/ProfileManager.tsx",
-    360,
-    23,
-  ],
-    [
-    "BTN-036",
-    "SITE-0a1b7ac2d9c1f374-01",
-    "LIVE-0a1b7ac2d9c1f374",
-    "src/renderer/components/ProfileManager.tsx",
-    368,
-    21,
-  ],
-    [
-    "BTN-037",
-    "SITE-6da333e1baf89565-01",
-    "LIVE-6da333e1baf89565",
-    "src/renderer/components/ProfileManager.tsx",
-    377,
-    23,
-  ],
-    [
-    "BTN-038",
-    "SITE-34a9863fc49e6b83-01",
-    "LIVE-34a9863fc49e6b83",
-    "src/renderer/components/ProfileManager.tsx",
-    437,
-    13,
-  ],
-    [
-    "BTN-039",
-    "SITE-826dace3c3bc2a71-01",
-    "LIVE-826dace3c3bc2a71",
-    "src/renderer/components/ProfileManager.tsx",
-    445,
-    13,
-  ],
-    [
-    "BTN-040",
-    "SITE-ea57f4d3fc631133-01",
-    "LIVE-ea57f4d3fc631133",
-    "src/renderer/components/ProfileManager.tsx",
-    481,
-    13,
-  ],
-    [
-    "BTN-041",
-    "SITE-0a4e93dbd86acef1-01",
-    "LIVE-0a4e93dbd86acef1",
-    "src/renderer/components/ProfileManager.tsx",
-    489,
-    13,
-  ],
-    [
-    "BTN-042",
-    "SITE-7e4c2589c888f87d-01",
-    "LIVE-7e4c2589c888f87d",
-    "src/renderer/components/ProfileManager.tsx",
-    525,
-    13,
-  ],
-    [
-    "BTN-043",
-    "SITE-d89fe00914eba1d2-01",
-    "LIVE-d89fe00914eba1d2",
-    "src/renderer/components/ProfileManager.tsx",
-    533,
-    13,
-  ],
-    [
-    "BTN-044",
-    "SITE-d971b19360ec4666-01",
-    "LIVE-d971b19360ec4666",
-    "src/renderer/components/SearchInput.tsx",
-    96,
-    9,
-  ],
-    [
-    "BTN-045",
-    "SITE-19310a96f693ae27-01",
-    "LIVE-19310a96f693ae27",
-    "src/renderer/components/SegmentedControl.tsx",
-    62,
-    11,
-  ],
-    [
-    "BTN-046",
-    "SITE-9568e1f27af6a345-01",
-    "LIVE-9568e1f27af6a345",
-    "src/renderer/components/SettingAppearance.tsx",
-    211,
-    17,
-  ],
-    [
-    "BTN-047",
-    "SITE-e1edc22effccf2d2-01",
-    "LIVE-e1edc22effccf2d2",
-    "src/renderer/components/SettingCombos.tsx",
-    590,
-    11,
-  ],
-    [
-    "BTN-048",
-    "SITE-0aee59564402ec3a-01",
-    "LIVE-6a491ec61d9d725b",
-    "src/renderer/components/SettingCombos.tsx",
-    617,
-    19,
-  ],
-    [
-    "BTN-049",
-    "SITE-65a1273b03b9d8fb-01",
-    "LIVE-65a1273b03b9d8fb",
-    "src/renderer/components/SettingCombos.tsx",
-    759,
-    21,
-  ],
-    [
-    "BTN-050",
-    "SITE-88523f64c949d38d-01",
-    "LIVE-88523f64c949d38d",
-    "src/renderer/components/SettingCombos.tsx",
-    794,
-    23,
-  ],
-    [
-    "BTN-051",
-    "SITE-16265e474e2f98ca-01",
-    "LIVE-16265e474e2f98ca",
-    "src/renderer/components/SettingCombos.tsx",
-    967,
-    31,
-  ],
-    [
-    "BTN-052",
-    "SITE-376a2f482e57e0e5-01",
-    "LIVE-376a2f482e57e0e5",
-    "src/renderer/components/SettingCombos.tsx",
-    1018,
-    31,
-  ],
-    [
-    "BTN-053",
-    "SITE-5c07a3dcdb7ff819-01",
-    "LIVE-81d3f6b70313cfa7",
-    "src/renderer/components/SettingCombos.tsx",
-    1070,
-    21,
-  ],
-    [
-    "BTN-054",
-    "SITE-4b84063b743490d2-01",
-    "LIVE-4b84063b743490d2",
-    "src/renderer/components/SettingCombos.tsx",
-    1088,
-    9,
-  ],
-    [
-    "BTN-055",
-    "SITE-bc36161d674c7650-01",
-    "LIVE-bc36161d674c7650",
-    "src/renderer/components/SettingCorrection.tsx",
-    555,
-    13,
-  ],
-    [
-    "BTN-056",
-    "SITE-6a514323795e6dd7-01",
-    "LIVE-6a514323795e6dd7",
-    "src/renderer/components/SettingCorrection.tsx",
-    569,
-    19,
-  ],
-    [
-    "BTN-057",
-    "SITE-31930ebb84cc797f-01",
-    "LIVE-31930ebb84cc797f",
-    "src/renderer/components/SettingCorrection.tsx",
-    625,
-    15,
-  ],
-    [
-    "BTN-058",
-    "SITE-be46cc9ab1065d84-01",
-    "LIVE-be46cc9ab1065d84",
-    "src/renderer/components/SettingCorrection.tsx",
-    633,
-    15,
-  ],
-    [
-    "BTN-059",
-    "SITE-6b4e0c40672f1a9f-01",
-    "LIVE-6b4e0c40672f1a9f",
-    "src/renderer/components/SettingCorrection.tsx",
-    642,
-    15,
-  ],
-    [
-    "BTN-060",
-    "SITE-d092e1365d74f58e-01",
-    "LIVE-d092e1365d74f58e",
-    "src/renderer/components/SettingCorrection.tsx",
-    699,
-    15,
-  ],
-    [
-    "BTN-061",
-    "SITE-526689e2a7d58f90-01",
-    "LIVE-526689e2a7d58f90",
-    "src/renderer/components/SettingCorrection.tsx",
-    732,
-    15,
-  ],
-    [
-    "BTN-062",
-    "SITE-7ddd61f39a4603c1-01",
-    "LIVE-7ddd61f39a4603c1",
-    "src/renderer/components/SettingCorrection.tsx",
-    878,
-    9,
-  ],
-    [
-    "BTN-063",
-    "SITE-07f2a8ba23e043f1-01",
-    "LIVE-07f2a8ba23e043f1",
-    "src/renderer/components/SettingGeneral.tsx",
-    759,
-    11,
-  ],
-    [
-    "BTN-064",
-    "SITE-c4546c1f1b582275-01",
-    "LIVE-c4546c1f1b582275",
-    "src/renderer/components/SettingGeneral.tsx",
-    772,
-    13,
-  ],
-    [
-    "BTN-065",
-    "SITE-f528b6225f5af211-01",
-    "LIVE-f528b6225f5af211",
-    "src/renderer/components/SettingGeneral.tsx",
-    806,
-    15,
-  ],
-    [
-    "BTN-066",
-    "SITE-d3d535844d3ea12d-01",
-    "LIVE-d3d535844d3ea12d",
-    "src/renderer/components/SettingGeneral.tsx",
-    814,
-    15,
-  ],
-    [
-    "BTN-067",
-    "SITE-9366f8ce82dfacc2-01",
-    "LIVE-9366f8ce82dfacc2",
-    "src/renderer/components/SettingGeneral.tsx",
-    932,
-    9,
-  ],
-    [
-    "BTN-068",
-    "SITE-f3c8ca23590954fc-01",
-    "LIVE-f3c8ca23590954fc",
-    "src/renderer/components/SettingPromptGen.tsx",
-    270,
-    15,
-  ],
-    [
-    "BTN-069",
-    "SITE-f3f343d2e0482049-01",
-    "LIVE-f3f343d2e0482049",
-    "src/renderer/components/SettingPromptGen.tsx",
-    290,
-    15,
-  ],
-    [
-    "BTN-070",
-    "SITE-b3f4857089946438-01",
-    "LIVE-b3f4857089946438",
-    "src/renderer/components/SettingPromptGen.tsx",
-    365,
-    9,
-  ],
-    [
-    "BTN-071",
-    "SITE-69e4e918b6516bfe-01",
-    "LIVE-69e4e918b6516bfe",
-    "src/renderer/components/SettingPromptGen.tsx",
-    371,
-    9,
-  ],
-    [
-    "BTN-072",
-    "SITE-c0f45b98e17a7b20-01",
-    "LIVE-c0f45b98e17a7b20",
-    "src/renderer/components/SettingTabBtn.tsx",
-    31,
-    5,
-  ],
-    [
-    "BTN-073",
-    "SITE-f63727c376cb5050-01",
-    "LIVE-f63727c376cb5050",
-    "src/renderer/components/SettingUpdates.tsx",
-    308,
-    11,
-  ],
-    [
-    "BTN-074",
-    "SITE-31d2760b23787e23-01",
-    "LIVE-31d2760b23787e23",
-    "src/renderer/components/SettingUpdates.tsx",
-    333,
-    11,
-  ],
-    [
-    "BTN-075",
-    "SITE-91ba4b4f640490e2-01",
-    "LIVE-91ba4b4f640490e2",
-    "src/renderer/components/SettingUpdates.tsx",
-    361,
-    13,
-  ],
-    [
-    "BTN-076",
-    "SITE-663c55705a5cc3f0-01",
-    "LIVE-663c55705a5cc3f0",
-    "src/renderer/components/SettingUpdates.tsx",
-    381,
-    15,
-  ],
-    [
-    "BTN-077",
-    "SITE-43414753ace2ab81-01",
-    "LIVE-43414753ace2ab81",
-    "src/renderer/components/SettingUpdates.tsx",
-    430,
-    15,
-  ],
-    [
-    "BTN-078",
-    "SITE-ad68949b3a58f46b-01",
-    "LIVE-ad68949b3a58f46b",
-    "src/renderer/components/SettingUpdates.tsx",
-    447,
-    15,
-  ],
-    [
-    "BTN-079",
-    "SITE-c11f9621b2e3d72c-01",
-    "LIVE-c11f9621b2e3d72c",
-    "src/renderer/components/SettingUpdates.tsx",
-    462,
-    15,
-  ],
-    [
-    "BTN-080",
-    "SITE-f4ccea28d324b33f-01",
-    "LIVE-f4ccea28d324b33f",
-    "src/renderer/components/SettingUpdates.tsx",
-    475,
-    13,
-  ],
-    [
-    "BTN-081",
-    "SITE-fbcd67d29270d287-01",
-    "LIVE-fbcd67d29270d287",
-    "src/renderer/components/SettingUpdates.tsx",
-    491,
-    13,
-  ],
-    [
-    "BTN-082",
-    "SITE-bfa98039be039f30-01",
-    "LIVE-bfa98039be039f30",
-    "src/renderer/components/SettingUpdates.tsx",
-    587,
-    13,
-  ],
-    [
-    "BTN-083",
-    "SITE-5815552ee2096fa5-01",
-    "LIVE-5815552ee2096fa5",
-    "src/renderer/components/SettingUpdates.tsx",
-    616,
-    13,
-  ],
-    [
-    "BTN-084",
-    "SITE-8d81c1044d88aa9b-01",
-    "LIVE-8d81c1044d88aa9b",
-    "src/renderer/components/SettingUpdates.tsx",
-    628,
-    13,
-  ],
-    [
-    "BTN-085",
-    "SITE-ccaa63ee68a2a8a1-01",
-    "LIVE-ccaa63ee68a2a8a1",
-    "src/renderer/components/SettingsIcon.tsx",
-    28,
-    5,
-  ],
-    [
-    "BTN-086",
-    "SITE-426eacdcf8f96389-01",
-    "LIVE-426eacdcf8f96389",
-    "src/renderer/components/SettingsModal.tsx",
-    316,
-    11,
-  ],
-    [
-    "BTN-087",
-    "SITE-131332cadfcd6d7c-01",
-    "LIVE-131332cadfcd6d7c",
-    "src/renderer/components/SettingsModal.tsx",
-    358,
-    17,
-  ],
-    [
-    "BTN-088",
-    "SITE-d2dc6b542709b453-01",
-    "LIVE-d2dc6b542709b453",
-    "src/renderer/components/TrashButton.tsx",
-    23,
-    5,
-  ],
-    [
-    "BTN-089",
     "SITE-08e5c95965d6039a-01",
     "LIVE-08e5c95965d6039a",
     "src/renderer/components/about/AboutPanel.tsx",
     47,
     13,
   ],
-    [
-    "BTN-090",
+  [
+    "BTN-003",
     "SITE-ef98536bd53f7615-01",
     "LIVE-ef98536bd53f7615",
     "src/renderer/components/about/UserGuidePanel.tsx",
     242,
     9,
   ],
-    [
-    "BTN-091",
+  [
+    "BTN-004",
     "SITE-52877eaef757f7ef-01",
     "LIVE-52877eaef757f7ef",
     "src/renderer/components/about/UserGuidePanel.tsx",
     319,
     11,
   ],
-    [
-    "BTN-092",
+  [
+    "BTN-005",
     "SITE-3bc4fcee3f1b9bd6-01",
     "LIVE-3bc4fcee3f1b9bd6",
     "src/renderer/components/about/UserGuidePanel.tsx",
     325,
     11,
   ],
-    [
-    "BTN-093",
+  [
+    "BTN-006",
     "SITE-d625f04039490f68-01",
     "LIVE-d625f04039490f68",
     "src/renderer/components/about/UserGuidePanel.tsx",
     340,
     17,
   ],
-    [
-    "BTN-094",
+  [
+    "BTN-007",
     "SITE-b3521eab8d34cca7-01",
     "LIVE-b3521eab8d34cca7",
     "src/renderer/components/about/UserGuidePanel.tsx",
     358,
     17,
   ],
-    [
-    "BTN-095",
+  [
+    "BTN-008",
     "SITE-d29b2d638d60e13e-01",
     "LIVE-d29b2d638d60e13e",
     "src/renderer/components/about/UserGuidePanel.tsx",
     387,
     17,
   ],
-    [
-    "BTN-096",
+  [
+    "BTN-009",
+    "SITE-a8490affbbc66fbf-01",
+    "LIVE-a8490affbbc66fbf",
+    "src/renderer/components/CopyButton/index.tsx",
+    47,
+    5,
+  ],
+  [
+    "BTN-010",
+    "SITE-ffaaad62c6e612d8-01",
+    "LIVE-ffaaad62c6e612d8",
+    "src/renderer/components/Dialog.tsx",
+    32,
+    11,
+  ],
+  [
+    "BTN-011",
+    "SITE-a5b58a39e0be1f98-01",
+    "LIVE-a5b58a39e0be1f98",
+    "src/renderer/components/HistoryEntryItem.tsx",
+    100,
+    17,
+  ],
+  [
+    "BTN-012",
+    "SITE-8264f7f6bcd8085d-01",
+    "LIVE-8264f7f6bcd8085d",
+    "src/renderer/components/HistoryPanel.tsx",
+    89,
+    11,
+  ],
+  [
+    "BTN-013",
+    "SITE-8975613823778fc5-01",
+    "LIVE-8975613823778fc5",
+    "src/renderer/components/HistoryPanel.tsx",
+    97,
+    13,
+  ],
+  [
+    "BTN-014",
+    "SITE-5cbddd24a7826d4b-01",
+    "LIVE-5cbddd24a7826d4b",
+    "src/renderer/components/HistoryReviewModal.tsx",
+    82,
+    11,
+  ],
+  [
+    "BTN-015",
+    "SITE-ae28524fa5a91a81-01",
+    "LIVE-ae28524fa5a91a81",
+    "src/renderer/components/HistorySessionDetailsModal.tsx",
+    139,
+    15,
+  ],
+  [
+    "BTN-016",
+    "SITE-36b0efef55fb64e4-01",
+    "LIVE-36b0efef55fb64e4",
+    "src/renderer/components/HistorySessionDetailsModal.tsx",
+    192,
+    11,
+  ],
+  [
+    "BTN-017",
+    "SITE-5961fe9e2b8ba32a-01",
+    "LIVE-5961fe9e2b8ba32a",
+    "src/renderer/components/HotkeyInput.tsx",
+    221,
+    9,
+  ],
+  [
+    "BTN-018",
+    "SITE-97e7bb1c3ab4305f-01",
+    "LIVE-97e7bb1c3ab4305f",
+    "src/renderer/components/KeyBinding.tsx",
+    28,
+    7,
+  ],
+  [
+    "BTN-019",
+    "SITE-700a4122e599ffe1-01",
+    "LIVE-700a4122e599ffe1",
+    "src/renderer/components/LogsPanel.tsx",
+    336,
+    9,
+  ],
+  [
+    "BTN-020",
+    "SITE-501f82e78a2b09c9-01",
+    "LIVE-501f82e78a2b09c9",
+    "src/renderer/components/LogsPanel.tsx",
+    343,
+    9,
+  ],
+  [
+    "BTN-021",
+    "SITE-29f318d8be62f1d9-01",
+    "LIVE-29f318d8be62f1d9",
+    "src/renderer/components/LogsPanel.tsx",
+    350,
+    9,
+  ],
+  [
+    "BTN-022",
+    "SITE-7197db62a76969f7-01",
+    "LIVE-7197db62a76969f7",
+    "src/renderer/components/ModelManagerDialog.tsx",
+    195,
+    11,
+  ],
+  [
+    "BTN-023",
+    "SITE-67f4724e126c10d4-01",
+    "LIVE-67f4724e126c10d4",
+    "src/renderer/components/ModelManagerDialog.tsx",
+    207,
+    11,
+  ],
+  [
+    "BTN-024",
+    "SITE-04748a61b30e3ef8-01",
+    "LIVE-04748a61b30e3ef8",
+    "src/renderer/components/ModelManagerDialog.tsx",
+    218,
+    11,
+  ],
+  [
+    "BTN-025",
+    "SITE-7c4301fb38c9808d-01",
+    "LIVE-7c4301fb38c9808d",
+    "src/renderer/components/ModelManagerDialog.tsx",
+    230,
+    13,
+  ],
+  [
+    "BTN-026",
+    "SITE-fc298046a960042d-01",
+    "LIVE-fc298046a960042d",
+    "src/renderer/components/ModelManagerDialog.tsx",
+    256,
+    19,
+  ],
+  [
+    "BTN-027",
+    "SITE-c09e1d790b99f3f9-01",
+    "LIVE-c09e1d790b99f3f9",
+    "src/renderer/components/ModelManagerDialog.tsx",
+    276,
+    27,
+  ],
+  [
+    "BTN-028",
+    "SITE-e25d0c965e5599f3-01",
+    "LIVE-e25d0c965e5599f3",
+    "src/renderer/components/ModelManagerDialog.tsx",
+    330,
+    27,
+  ],
+  [
+    "BTN-029",
+    "SITE-5526ee17ec81f974-01",
+    "LIVE-5526ee17ec81f974",
+    "src/renderer/components/ModelManagerDialog.tsx",
+    405,
+    17,
+  ],
+  [
+    "BTN-030",
+    "SITE-73361c5a5c8f4108-01",
+    "LIVE-73361c5a5c8f4108",
+    "src/renderer/components/ModelManagerDialog.tsx",
+    412,
+    17,
+  ],
+  [
+    "BTN-031",
+    "SITE-0bb225c5fce87465-01",
+    "LIVE-0bb225c5fce87465",
+    "src/renderer/components/ModelSelect.tsx",
+    425,
+    9,
+  ],
+  [
+    "BTN-032",
+    "SITE-38539922a7e16c77-01",
+    "LIVE-38539922a7e16c77",
+    "src/renderer/components/ModelSelect.tsx",
+    456,
+    11,
+  ],
+  [
+    "BTN-033",
+    "SITE-edf192add08f8fcb-01",
+    "LIVE-edf192add08f8fcb",
+    "src/renderer/components/ModelsPanel.tsx",
+    161,
+    15,
+  ],
+  [
+    "BTN-034",
+    "SITE-f817bc24bfff4be1-01",
+    "LIVE-264ac29656e00cd9",
+    "src/renderer/components/MultiSelect/MultiSelect.tsx",
+    96,
+    7,
+  ],
+  [
+    "BTN-035",
+    "SITE-73a48ff1f5f9296f-01",
+    "LIVE-73a48ff1f5f9296f",
+    "src/renderer/components/ProfileManager.tsx",
+    279,
+    11,
+  ],
+  [
+    "BTN-036",
+    "SITE-e99c02ce9aba9550-01",
+    "LIVE-e99c02ce9aba9550",
+    "src/renderer/components/ProfileManager.tsx",
+    287,
+    11,
+  ],
+  [
+    "BTN-037",
+    "SITE-7c9f643148cf3085-01",
+    "LIVE-7c9f643148cf3085",
+    "src/renderer/components/ProfileManager.tsx",
+    360,
+    23,
+  ],
+  [
+    "BTN-038",
+    "SITE-0a1b7ac2d9c1f374-01",
+    "LIVE-0a1b7ac2d9c1f374",
+    "src/renderer/components/ProfileManager.tsx",
+    368,
+    21,
+  ],
+  [
+    "BTN-039",
+    "SITE-6da333e1baf89565-01",
+    "LIVE-6da333e1baf89565",
+    "src/renderer/components/ProfileManager.tsx",
+    377,
+    23,
+  ],
+  [
+    "BTN-040",
+    "SITE-34a9863fc49e6b83-01",
+    "LIVE-34a9863fc49e6b83",
+    "src/renderer/components/ProfileManager.tsx",
+    437,
+    13,
+  ],
+  [
+    "BTN-041",
+    "SITE-826dace3c3bc2a71-01",
+    "LIVE-826dace3c3bc2a71",
+    "src/renderer/components/ProfileManager.tsx",
+    445,
+    13,
+  ],
+  [
+    "BTN-042",
+    "SITE-ea57f4d3fc631133-01",
+    "LIVE-ea57f4d3fc631133",
+    "src/renderer/components/ProfileManager.tsx",
+    481,
+    13,
+  ],
+  [
+    "BTN-043",
+    "SITE-0a4e93dbd86acef1-01",
+    "LIVE-0a4e93dbd86acef1",
+    "src/renderer/components/ProfileManager.tsx",
+    489,
+    13,
+  ],
+  [
+    "BTN-044",
+    "SITE-7e4c2589c888f87d-01",
+    "LIVE-7e4c2589c888f87d",
+    "src/renderer/components/ProfileManager.tsx",
+    525,
+    13,
+  ],
+  [
+    "BTN-045",
+    "SITE-d89fe00914eba1d2-01",
+    "LIVE-d89fe00914eba1d2",
+    "src/renderer/components/ProfileManager.tsx",
+    533,
+    13,
+  ],
+  [
+    "BTN-046",
+    "SITE-d971b19360ec4666-01",
+    "LIVE-d971b19360ec4666",
+    "src/renderer/components/SearchInput.tsx",
+    96,
+    9,
+  ],
+  [
+    "BTN-047",
     "SITE-38b41e9662ef85eb-01",
     "LIVE-38b41e9662ef85eb",
     "src/renderer/components/security/SettingSecurity.tsx",
     732,
     17,
   ],
-    [
-    "BTN-097",
+  [
+    "BTN-048",
     "SITE-b1fefcea3824a139-01",
     "LIVE-6a59bc31fcc6d246",
     "src/renderer/components/security/SettingSecurity.tsx",
     757,
     11,
   ],
-    [
-    "BTN-098",
+  [
+    "BTN-049",
     "SITE-fd75f166a3e391cd-01",
     "LIVE-0ec083a0c6614349",
     "src/renderer/components/security/SettingSecurity.tsx",
     760,
     11,
   ],
-    [
-    "BTN-099",
+  [
+    "BTN-050",
     "SITE-8afb88035a3e0cf1-01",
     "LIVE-8afb88035a3e0cf1",
     "src/renderer/components/security/SettingSecurity.tsx",
     783,
     17,
   ],
-    [
-    "BTN-100",
+  [
+    "BTN-051",
     "SITE-73eb9ca62146352c-01",
     "LIVE-73eb9ca62146352c",
     "src/renderer/components/security/SettingSecurity.tsx",
     908,
     9,
   ],
-    [
-    "BTN-101",
+  [
+    "BTN-052",
+    "SITE-19310a96f693ae27-01",
+    "LIVE-19310a96f693ae27",
+    "src/renderer/components/SegmentedControl.tsx",
+    62,
+    11,
+  ],
+  [
+    "BTN-053",
+    "SITE-9568e1f27af6a345-01",
+    "LIVE-9568e1f27af6a345",
+    "src/renderer/components/SettingAppearance.tsx",
+    211,
+    17,
+  ],
+  [
+    "BTN-054",
+    "SITE-e1edc22effccf2d2-01",
+    "LIVE-e1edc22effccf2d2",
+    "src/renderer/components/SettingCombos.tsx",
+    590,
+    11,
+  ],
+  [
+    "BTN-055",
+    "SITE-0aee59564402ec3a-01",
+    "LIVE-6a491ec61d9d725b",
+    "src/renderer/components/SettingCombos.tsx",
+    617,
+    19,
+  ],
+  [
+    "BTN-056",
+    "SITE-65a1273b03b9d8fb-01",
+    "LIVE-65a1273b03b9d8fb",
+    "src/renderer/components/SettingCombos.tsx",
+    759,
+    21,
+  ],
+  [
+    "BTN-057",
+    "SITE-88523f64c949d38d-01",
+    "LIVE-88523f64c949d38d",
+    "src/renderer/components/SettingCombos.tsx",
+    794,
+    23,
+  ],
+  [
+    "BTN-058",
+    "SITE-16265e474e2f98ca-01",
+    "LIVE-16265e474e2f98ca",
+    "src/renderer/components/SettingCombos.tsx",
+    967,
+    31,
+  ],
+  [
+    "BTN-059",
+    "SITE-376a2f482e57e0e5-01",
+    "LIVE-376a2f482e57e0e5",
+    "src/renderer/components/SettingCombos.tsx",
+    1018,
+    31,
+  ],
+  [
+    "BTN-060",
+    "SITE-5c07a3dcdb7ff819-01",
+    "LIVE-81d3f6b70313cfa7",
+    "src/renderer/components/SettingCombos.tsx",
+    1070,
+    21,
+  ],
+  [
+    "BTN-061",
+    "SITE-4b84063b743490d2-01",
+    "LIVE-4b84063b743490d2",
+    "src/renderer/components/SettingCombos.tsx",
+    1088,
+    9,
+  ],
+  [
+    "BTN-062",
+    "SITE-bc36161d674c7650-01",
+    "LIVE-bc36161d674c7650",
+    "src/renderer/components/SettingCorrection.tsx",
+    555,
+    13,
+  ],
+  [
+    "BTN-063",
+    "SITE-6a514323795e6dd7-01",
+    "LIVE-6a514323795e6dd7",
+    "src/renderer/components/SettingCorrection.tsx",
+    569,
+    19,
+  ],
+  [
+    "BTN-064",
+    "SITE-31930ebb84cc797f-01",
+    "LIVE-31930ebb84cc797f",
+    "src/renderer/components/SettingCorrection.tsx",
+    625,
+    15,
+  ],
+  [
+    "BTN-065",
+    "SITE-be46cc9ab1065d84-01",
+    "LIVE-be46cc9ab1065d84",
+    "src/renderer/components/SettingCorrection.tsx",
+    633,
+    15,
+  ],
+  [
+    "BTN-066",
+    "SITE-6b4e0c40672f1a9f-01",
+    "LIVE-6b4e0c40672f1a9f",
+    "src/renderer/components/SettingCorrection.tsx",
+    642,
+    15,
+  ],
+  [
+    "BTN-067",
+    "SITE-d092e1365d74f58e-01",
+    "LIVE-d092e1365d74f58e",
+    "src/renderer/components/SettingCorrection.tsx",
+    699,
+    15,
+  ],
+  [
+    "BTN-068",
+    "SITE-526689e2a7d58f90-01",
+    "LIVE-526689e2a7d58f90",
+    "src/renderer/components/SettingCorrection.tsx",
+    732,
+    15,
+  ],
+  [
+    "BTN-069",
+    "SITE-7ddd61f39a4603c1-01",
+    "LIVE-7ddd61f39a4603c1",
+    "src/renderer/components/SettingCorrection.tsx",
+    878,
+    9,
+  ],
+  [
+    "BTN-070",
+    "SITE-07f2a8ba23e043f1-01",
+    "LIVE-07f2a8ba23e043f1",
+    "src/renderer/components/SettingGeneral.tsx",
+    759,
+    11,
+  ],
+  [
+    "BTN-071",
+    "SITE-c4546c1f1b582275-01",
+    "LIVE-c4546c1f1b582275",
+    "src/renderer/components/SettingGeneral.tsx",
+    772,
+    13,
+  ],
+  [
+    "BTN-072",
+    "SITE-f528b6225f5af211-01",
+    "LIVE-f528b6225f5af211",
+    "src/renderer/components/SettingGeneral.tsx",
+    806,
+    15,
+  ],
+  [
+    "BTN-073",
+    "SITE-d3d535844d3ea12d-01",
+    "LIVE-d3d535844d3ea12d",
+    "src/renderer/components/SettingGeneral.tsx",
+    814,
+    15,
+  ],
+  [
+    "BTN-074",
+    "SITE-9366f8ce82dfacc2-01",
+    "LIVE-9366f8ce82dfacc2",
+    "src/renderer/components/SettingGeneral.tsx",
+    932,
+    9,
+  ],
+  [
+    "BTN-075",
+    "SITE-f3c8ca23590954fc-01",
+    "LIVE-f3c8ca23590954fc",
+    "src/renderer/components/SettingPromptGen.tsx",
+    270,
+    15,
+  ],
+  [
+    "BTN-076",
+    "SITE-f3f343d2e0482049-01",
+    "LIVE-f3f343d2e0482049",
+    "src/renderer/components/SettingPromptGen.tsx",
+    290,
+    15,
+  ],
+  [
+    "BTN-077",
+    "SITE-b3f4857089946438-01",
+    "LIVE-b3f4857089946438",
+    "src/renderer/components/SettingPromptGen.tsx",
+    365,
+    9,
+  ],
+  [
+    "BTN-078",
+    "SITE-69e4e918b6516bfe-01",
+    "LIVE-69e4e918b6516bfe",
+    "src/renderer/components/SettingPromptGen.tsx",
+    371,
+    9,
+  ],
+  [
+    "BTN-079",
+    "SITE-ccaa63ee68a2a8a1-01",
+    "LIVE-ccaa63ee68a2a8a1",
+    "src/renderer/components/SettingsIcon.tsx",
+    28,
+    5,
+  ],
+  [
+    "BTN-080",
+    "SITE-426eacdcf8f96389-01",
+    "LIVE-426eacdcf8f96389",
+    "src/renderer/components/SettingsModal.tsx",
+    316,
+    11,
+  ],
+  [
+    "BTN-081",
+    "SITE-131332cadfcd6d7c-01",
+    "LIVE-131332cadfcd6d7c",
+    "src/renderer/components/SettingsModal.tsx",
+    358,
+    17,
+  ],
+  [
+    "BTN-082",
+    "SITE-c0f45b98e17a7b20-01",
+    "LIVE-c0f45b98e17a7b20",
+    "src/renderer/components/SettingTabBtn.tsx",
+    31,
+    5,
+  ],
+  [
+    "BTN-083",
+    "SITE-f63727c376cb5050-01",
+    "LIVE-f63727c376cb5050",
+    "src/renderer/components/SettingUpdates.tsx",
+    558,
+    11,
+  ],
+  [
+    "BTN-084",
+    "SITE-31d2760b23787e23-01",
+    "LIVE-31d2760b23787e23",
+    "src/renderer/components/SettingUpdates.tsx",
+    583,
+    11,
+  ],
+  [
+    "BTN-085",
+    "SITE-91ba4b4f640490e2-01",
+    "LIVE-91ba4b4f640490e2",
+    "src/renderer/components/SettingUpdates.tsx",
+    610,
+    13,
+  ],
+  [
+    "BTN-086",
+    "SITE-663c55705a5cc3f0-01",
+    "LIVE-663c55705a5cc3f0",
+    "src/renderer/components/SettingUpdates.tsx",
+    628,
+    15,
+  ],
+  [
+    "BTN-087",
+    "SITE-43414753ace2ab81-01",
+    "LIVE-da3e264ff5bff86c",
+    "src/renderer/components/SettingUpdates.tsx",
+    683,
+    15,
+  ],
+  [
+    "BTN-088",
+    "SITE-ad68949b3a58f46b-01",
+    "LIVE-ad68949b3a58f46b",
+    "src/renderer/components/SettingUpdates.tsx",
+    704,
+    15,
+  ],
+  [
+    "BTN-089",
+    "SITE-c11f9621b2e3d72c-01",
+    "LIVE-c11f9621b2e3d72c",
+    "src/renderer/components/SettingUpdates.tsx",
+    719,
+    15,
+  ],
+  [
+    "BTN-090",
+    "SITE-f4ccea28d324b33f-01",
+    "LIVE-f4ccea28d324b33f",
+    "src/renderer/components/SettingUpdates.tsx",
+    732,
+    13,
+  ],
+  [
+    "BTN-091",
+    "SITE-fbcd67d29270d287-01",
+    "LIVE-fbcd67d29270d287",
+    "src/renderer/components/SettingUpdates.tsx",
+    746,
+    13,
+  ],
+  [
+    "BTN-092",
+    "SITE-bfa98039be039f30-01",
+    "LIVE-bfa98039be039f30",
+    "src/renderer/components/SettingUpdates.tsx",
+    840,
+    13,
+  ],
+  [
+    "BTN-093",
+    "SITE-5815552ee2096fa5-01",
+    "LIVE-5815552ee2096fa5",
+    "src/renderer/components/SettingUpdates.tsx",
+    869,
+    13,
+  ],
+  [
+    "BTN-094",
+    "SITE-8d81c1044d88aa9b-01",
+    "LIVE-8d81c1044d88aa9b",
+    "src/renderer/components/SettingUpdates.tsx",
+    881,
+    13,
+  ],
+  [
+    "BTN-095",
+    "SITE-cfd38745f41c80f2-01",
+    "LIVE-0d366a2b4a3aa757",
+    "src/renderer/components/SettingUpdates.tsx",
+    1086,
+    15,
+  ],
+  [
+    "BTN-096",
+    "SITE-2b5e02b82b63d6af-01",
+    "LIVE-1a247b82dcc22868",
+    "src/renderer/components/SettingUpdates.tsx",
+    1107,
+    15,
+  ],
+  [
+    "BTN-097",
+    "SITE-e1569fb1897b6372-01",
+    "LIVE-a3ccf02b8ad14fce",
+    "src/renderer/components/SettingUpdates.tsx",
+    1126,
+    15,
+  ],
+  [
+    "BTN-098",
+    "SITE-d2dc6b542709b453-01",
+    "LIVE-d2dc6b542709b453",
+    "src/renderer/components/TrashButton.tsx",
+    23,
+    5,
+  ],
+  [
+    "BTN-099",
     "SITE-57f775bd4fae66ec-01",
     "LIVE-57f775bd4fae66ec",
     "src/renderer/components/usage/OpenAIUsagePanel.tsx",
     154,
     11,
   ],
-    [
-    "BTN-102",
+  [
+    "BTN-100",
     "SITE-faf927e806407b15-01",
     "LIVE-faf927e806407b15",
     "src/renderer/components/usage/OpenAIUsagePanel.tsx",
     191,
     9,
   ],
-    [
-    "BTN-103",
+  [
+    "BTN-101",
     "SITE-3c1c72456ff99197-01",
     "LIVE-3c1c72456ff99197",
     "src/renderer/components/usage/OpenRouterUsagePanel.tsx",
     113,
     11,
   ],
-    [
-    "BTN-104",
+  [
+    "BTN-102",
     "SITE-aff47f3a90bf9c5b-01",
     "LIVE-aff47f3a90bf9c5b",
     "src/renderer/components/usage/OpenRouterUsagePanel.tsx",
     150,
     9,
   ],
-    [
-    "BTN-105",
+  [
+    "BTN-103",
     "SITE-4375aafcfe900c3b-01",
     "LIVE-4375aafcfe900c3b",
     "src/renderer/components/usage/UsagePanel.tsx",
     117,
     13,
   ],
-    [
-    "BTN-106",
+  [
+    "BTN-104",
     "SITE-cda3ee060bf9b96d-01",
     "LIVE-cda3ee060bf9b96d",
     "src/renderer/components/usage/UsagePanel.tsx",
     162,
     15,
   ],
+  [
+    "BTN-105",
+    "SITE-22b46580f1bd13d0-01",
+    "LIVE-22b46580f1bd13d0",
+    "src/renderer/CorrectionResultWindow/index.tsx",
+    63,
+    9,
+  ],
+  [
+    "BTN-106",
+    "SITE-212540f76558cdfa-01",
+    "LIVE-212540f76558cdfa",
+    "src/renderer/MainWindow/App.tsx",
+    350,
+    15,
+  ],
+  [
+    "BTN-107",
+    "SITE-3fc2016e431469db-01",
+    "LIVE-3fc2016e431469db",
+    "src/renderer/TrayWindow/components/TrayProviderSummary.tsx",
+    203,
+    17,
+  ],
+  [
+    "BTN-108",
+    "SITE-5889a078aeafb4c2-01",
+    "LIVE-5889a078aeafb4c2",
+    "src/renderer/TrayWindow/components/TrayProviderSummary.tsx",
+    233,
+    13,
+  ],
+  [
+    "BTN-109",
+    "SITE-022a9db6eed9fbc4-01",
+    "LIVE-022a9db6eed9fbc4",
+    "src/renderer/TrayWindow/components/TrayToolbar.tsx",
+    23,
+    3,
+  ],
 ] as const;
 
-const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
-  ([id, stableId, semanticId, file, line, column]) => ({
-    column,
-    file,
-    id,
-    line,
+type ConsumerContractRow = readonly [
+  id: string,
+  stableId: string,
+  semanticId: string,
+  file: string,
+  line: number,
+  column: number,
+];
+
+// The single reviewed count, read by every assertion and title below. Its digits also
+// appear in row ids, line numbers and hashes, so a search-and-replace hits them silently.
+const EXPECTED_CONSUMER_COUNT = 109;
+
+// The one place a row tuple becomes a consumer object. The regeneration block reuses it so
+// the emitted sha256 hashes the same key order — JSON.stringify is key-order sensitive.
+const toChecklistConsumer = ([
+  id,
+  stableId,
+  semanticId,
+  file,
+  line,
+  column,
+]: ConsumerContractRow): ChecklistConsumer => ({
+  column,
+  file,
+  id,
+  line,
+  semanticId,
+  stableId,
+});
+
+const expectedButtonConsumers: ChecklistConsumer[] =
+  consumerContractRows.map(toChecklistConsumer);
+const consumerContractSha256 =
+  "419a3ff53fb2cc8897e16e8ed5dc9bfd4d3e5d819cf8ed6ccde431d80b75db8c";
+
+// A row's stableId mirrors its own semanticId (SITE-<hash>-01 for LIVE-<hash>), diverging
+// only where a site was edited in place: the carry keeps one lineage across the moved hash.
+// These pairs are the complete set of rows whose stableId is not derivable from the row.
+const carriedStableIdentities: readonly (readonly [string, string])[] = [
+  ["SITE-f817bc24bfff4be1-01", "LIVE-264ac29656e00cd9"],
+  ["SITE-b1fefcea3824a139-01", "LIVE-6a59bc31fcc6d246"],
+  ["SITE-fd75f166a3e391cd-01", "LIVE-0ec083a0c6614349"],
+  ["SITE-0aee59564402ec3a-01", "LIVE-6a491ec61d9d725b"],
+  ["SITE-5c07a3dcdb7ff819-01", "LIVE-81d3f6b70313cfa7"],
+  ["SITE-43414753ace2ab81-01", "LIVE-da3e264ff5bff86c"],
+  ["SITE-cfd38745f41c80f2-01", "LIVE-0d366a2b4a3aa757"],
+  ["SITE-2b5e02b82b63d6af-01", "LIVE-1a247b82dcc22868"],
+  ["SITE-e1569fb1897b6372-01", "LIVE-a3ccf02b8ad14fce"],
+];
+
+const carriedStableIdBySemanticId = new Map(
+  carriedStableIdentities.map(([stableId, semanticId]) => [
     semanticId,
     stableId,
-  }),
+  ]),
 );
-const consumerContractSha256 =
-  "f367190ce422be1fe5e83612bba632010276d24d09049fb44cca3824311f026e";
+
+// stableId is the only durable identity here and the sha256 cannot protect it: regeneration
+// replaces the sha, so the seal is redefined exactly when the artifact changes. This rule
+// binds every stableId to its own row's semanticId, which the live scan pins to a coordinate.
+//
+// The -NN suffix is the occurrence of that semanticId, not decoration: two byte-identical
+// Buttons in one component hash the same (semanticIdentityFor sees neither line nor column),
+// so the suffix is what keeps their stableIds distinct.
+const deriveStableIds = (semanticIds: readonly string[]): string[] => {
+  const occurrences = new Map<string, number>();
+  return semanticIds.map((semanticId) => {
+    const occurrence = (occurrences.get(semanticId) ?? 0) + 1;
+    occurrences.set(semanticId, occurrence);
+    const carried = carriedStableIdBySemanticId.get(semanticId);
+    return carried !== undefined && occurrence === 1
+      ? carried
+      : `SITE-${semanticId.replace(/^LIVE-/, "")}-${String(occurrence).padStart(2, "0")}`;
+  });
+};
 
 const compareConsumers = (
   left: ButtonConsumer,
@@ -2739,6 +2895,66 @@ describe("renderer Button source guard", () => {
     });
   });
 
+  it("counts a renderer import that resolves to the sanctioned Button leaf", () => {
+    // Both spellings: the relative one consumers use, and the canonical `~/` alias.
+    for (const moduleName of ["../Button", "~/renderer/components/Button"]) {
+      const result = scanSource(
+        "src/renderer/components/probe/Fixture.tsx",
+        [
+          `import { Button } from "${moduleName}";`,
+          "const Example = () => <Button />;",
+        ].join("\n"),
+      );
+
+      expect(result.findings).toEqual([]);
+      expect(result.buttonConsumers).toHaveLength(1);
+    }
+  });
+
+  it("rejects a renderer re-export of a Button module outside the sanctioned leaf", () => {
+    const result = scanSource(
+      "src/renderer/components/probe/Fixture.tsx",
+      ['export { Button } from "~/features/ui/shared/Button";'].join("\n"),
+    );
+
+    expect(result.findings).toEqual([
+      {
+        file: "src/renderer/components/probe/Fixture.tsx",
+        line: 1,
+        kind: "foreign Button module",
+        detail: "export from ~/features/ui/shared/Button",
+      },
+    ]);
+  });
+
+  it("rejects a renderer import of a Button module outside the sanctioned leaf", () => {
+    // The scanner reads only src/renderer, so a Button-named module elsewhere is never
+    // inspected: by basename, `<button {...props} />` ships behind a repointed import.
+    for (const moduleName of [
+      "~/features/ui/shared/Button",
+      "../../../features/ui/shared/Button",
+      "@acme/design-system/Button",
+    ]) {
+      const result = scanSource(
+        "src/renderer/components/probe/Fixture.tsx",
+        [
+          `import { Button } from "${moduleName}";`,
+          "const Example = () => <Button />;",
+        ].join("\n"),
+      );
+
+      expect(result.findings).toEqual([
+        {
+          file: "src/renderer/components/probe/Fixture.tsx",
+          line: 1,
+          kind: "foreign Button module",
+          detail: `import from ${moduleName}`,
+        },
+      ]);
+      expect(result.buttonConsumers).toEqual([]);
+    }
+  });
+
   it("rejects dynamic import and CommonJS require PrimaryButton paths", () => {
     const result = scanSource(
       "fixture.tsx",
@@ -2897,74 +3113,80 @@ describe("renderer Button source guard", () => {
       'variant="primary" type="submit" onClick={save} aria-label="Save" disabled={busy} className="h-8"',
       'variant="primary" type="button" onClick={save} aria-label="Save" disabled={ready} className="h-8"',
       'variant="primary" type="button" onClick={save} aria-label="Save" disabled={busy} className="w-8"',
+      // An attribute the contract knows nothing about, merely appended. semanticIdentityFor
+      // fingerprints the whole attribute list, so one fixture settles it for every site.
+      'variant="primary" type="button" onClick={save} aria-label="Save" disabled={busy} className="h-8" data-probe="1"',
     ]) {
       expect(scanConsumer(mutation)).not.toEqual(baseline);
     }
   });
 
-  it("changes every one of the 106 live identities under a stable-coordinate mutation", async () => {
-    const sourceByFile = new Map<string, string>();
-    let mutatedIdentityCount = 0;
+  // STATED GAP, in place of a byte-offset mutation test: nothing now asserts the literal text
+  // `<Button` at a pinned coordinate, so a Button re-bound locally (`import { Button as Btn }`,
+  // `<ButtonNs.Button …>`) at an unchanged coordinate with unchanged props is invisible. That
+  // is a rename of the sanctioned component, which the alias resolver above accepts anyway.
+  // Its other two claims are covered: a coordinate naming no real site is missing from the live
+  // scan below, and an injected attribute moves the hash by the fixture above.
 
-    for (const expected of expectedButtonConsumers) {
-      let source = sourceByFile.get(expected.file);
-      if (!source) {
-        source = await readFile(
-          path.join(repositoryRoot, expected.file),
-          "utf8",
-        );
-        sourceByFile.set(expected.file, source);
-      }
-      const lines = source.split("\n");
-      const precedingLines = lines.slice(0, expected.line - 1);
-      const offset =
-        precedingLines.reduce((total, line) => total + line.length + 1, 0) +
-        expected.column -
-        1;
-      expect(source.slice(offset, offset + "<Button".length)).toBe("<Button");
-
-      const mutatedSource =
-        source.slice(0, offset + "<Button".length) +
-        ` data-card08-mutation="${expected.id}"` +
-        source.slice(offset + "<Button".length);
-      const mutatedConsumer = scanSource(
-        expected.file,
-        mutatedSource,
-      ).buttonConsumers.find(
-        ({ column, file, line }) =>
-          file === expected.file &&
-          line === expected.line &&
-          column === expected.column,
-      );
-
-      expect(mutatedConsumer).toBeDefined();
-      expect(mutatedConsumer?.semanticId).not.toBe(expected.semanticId);
-      mutatedIdentityCount += 1;
-    }
-
-    expect(mutatedIdentityCount).toBe(106);
-  });
-
-  it("allows the shared native leaf and the exact 106-consumer migration inventory", async () => {
+  it(`allows the shared native leaf and the exact ${EXPECTED_CONSUMER_COUNT}-consumer migration inventory`, async () => {
     const result = await scanRenderer();
     const locations = expectedButtonConsumers.map(
       ({ file, line, column }) => `${file}:${line}:${column}`,
     );
 
-    expect(expectedButtonConsumers).toHaveLength(106);
+    expect(expectedButtonConsumers).toHaveLength(EXPECTED_CONSUMER_COUNT);
     expect(sha256(JSON.stringify(expectedButtonConsumers))).toBe(
       consumerContractSha256,
     );
     expect(expectedButtonConsumers.map(({ id }) => id)).toEqual(
       Array.from(
-        { length: 106 },
+        { length: EXPECTED_CONSUMER_COUNT },
         (_, index) => `BTN-${String(index + 1).padStart(3, "0")}`,
       ),
     );
     expect(
       new Set(expectedButtonConsumers.map(({ stableId }) => stableId)).size,
-    ).toBe(106);
-    expect(new Set(locations).size).toBe(106);
+    ).toBe(EXPECTED_CONSUMER_COUNT);
+    expect(new Set(locations).size).toBe(EXPECTED_CONSUMER_COUNT);
+    // BTN-NNN is positional, so row ORDER is the label-to-button binding and nothing else
+    // pins it: the live comparison re-sorts both sides and the sha256 is regenerated from
+    // whatever order the file holds, so a repin sorted by ASCII is otherwise green.
+    expect(expectedButtonConsumers).toEqual(
+      [...expectedButtonConsumers].sort(compareConsumers),
+    );
+    // Binds each stableId to its own row's semanticId, which the live comparison binds to a
+    // coordinate. Without it the SITE- column can be rotated onto the wrong buttons and stay
+    // green once the sha256 is refreshed.
+    expect(expectedButtonConsumers.map(({ stableId }) => stableId)).toEqual(
+      deriveStableIds(
+        expectedButtonConsumers.map(({ semanticId }) => semanticId),
+      ),
+    );
+    // A carried entry whose semanticId left the inventory is a stale exemption, and not a
+    // harmless one: an edit restoring a previous state re-derives it and the entry adopts it.
+    expect(
+      carriedStableIdentities
+        .map(([, semanticId]) => semanticId)
+        .filter(
+          (semanticId) =>
+            !expectedButtonConsumers.some(
+              (consumer) => consumer.semanticId === semanticId,
+            ),
+        ),
+    ).toEqual([]);
+    // A carry always names a RETIRED identity. One naming an identity some row still has is
+    // the escape hatch blessing a stableId that belongs to a different button.
+    expect(
+      carriedStableIdentities
+        .map(([stableId]) => stableId)
+        .filter((stableId) =>
+          expectedButtonConsumers.some(
+            ({ semanticId }) =>
+              semanticId.replace(/^LIVE-/, "") ===
+              stableId.replace(/^SITE-/, "").replace(/-\d+$/, ""),
+          ),
+        ),
+    ).toEqual([]);
     expect(result.findings).toEqual([]);
     expect(result.sourceFiles.filter(isPrimaryButtonModule)).toEqual([]);
     expect(result.nativeLeaves).toHaveLength(1);
@@ -2985,37 +3207,105 @@ describe("renderer Button source guard", () => {
     );
   });
 
+  // REGENERATION PROCEDURE — kept here in full, and the only correct copy, because the file
+  // it rewrites is 3000 lines of pinned data.
+  //
+  //   1. `REGEN_BUTTON_CONTRACT=1 bun run test src/renderer/components/ButtonSourceGuard.test.ts`
+  //   2. Read `.scratch/button-contract.json`. `reconciliation` lists what changed: `added`
+  //      and `dropped` coordinates, and `identityChanges` — sites at an unchanged coordinate
+  //      whose semanticId moved. Every entry must be explained by the diff you just made; an
+  //      unexplained `dropped` + `added` pair is one button that moved, not two events.
+  //   3. For each `identityChanges` entry that is still the same button, add
+  //      `[<old stableId>, <new semanticId>]` to `carriedStableIdentities` above — that, not a
+  //      commit message, carries the site's history. If that site was carried before, DELETE
+  //      its old entry: it now names a semanticId no site has, and a dead exemption waits to
+  //      adopt a row.
+  //   4. **Regenerate again.** `rowsSource` is built from `carriedStableIdentities` as it stood
+  //      when the run started, so step 1's artifact still carries the derived stableId for
+  //      anything you exempted in step 3; pasting it fails on the stableId, not the sha.
+  //   5. Paste `rowsSource` over `consumerContractRows` and `sha256` over
+  //      `consumerContractSha256`. Do NOT search-and-replace the count: edit
+  //      EXPECTED_CONSUMER_COUNT, the one place it lives.
+  //   6. Re-run the test. Nothing is ever copied out of `Received:` — not the sha, which
+  //      hollows out the seal, and not a stableId, which reassigns a lineage. A mismatch of
+  //      either means the paste or step 3 is wrong; fix it and regenerate.
   if (process.env.REGEN_BUTTON_CONTRACT === "1") {
     it("regenerates consumer contract artifact", async () => {
       const { writeFile, mkdir } = await import("node:fs/promises");
       const result = await scanRenderer();
       const sorted = [...result.buttonConsumers].sort(compareConsumers);
-      const rows = sorted.map((consumer, index) => {
-        const hash = consumer.semanticId.replace(/^LIVE-/, "");
-        return [
-          `BTN-${String(index + 1).padStart(3, "0")}`,
-          `SITE-${hash}-01`,
-          consumer.semanticId,
-          consumer.file,
-          consumer.line,
-          consumer.column,
-        ];
-      });
-      const consumers = rows.map(
-        ([id, stableId, semanticId, file, line, column]) => ({
-          id,
-          stableId,
-          semanticId,
-          file,
-          line,
-          column,
-        }),
+      const stableIds = deriveStableIds(
+        sorted.map(({ semanticId }) => semanticId),
       );
+      const rows: ConsumerContractRow[] = sorted.map((consumer, index) => [
+        `BTN-${String(index + 1).padStart(3, "0")}`,
+        stableIds[index],
+        consumer.semanticId,
+        consumer.file,
+        consumer.line,
+        consumer.column,
+      ]);
+      const locationOf = ({ file, line, column }: ButtonConsumer): string =>
+        `${file}:${line}:${column}`;
+      const liveByLocation = new Map(
+        sorted.map((consumer) => [locationOf(consumer), consumer]),
+      );
+      const pinnedByLocation = new Map(
+        expectedButtonConsumers.map((consumer) => [
+          locationOf(consumer),
+          consumer,
+        ]),
+      );
+      const reconciliation = {
+        added: [...liveByLocation.keys()].filter(
+          (location) => !pinnedByLocation.has(location),
+        ),
+        dropped: [...pinnedByLocation.keys()].filter(
+          (location) => !liveByLocation.has(location),
+        ),
+        identityChanges: [...pinnedByLocation.entries()]
+          .filter(
+            ([location, pinned]) =>
+              liveByLocation.get(location) !== undefined &&
+              liveByLocation.get(location)?.semanticId !== pinned.semanticId,
+          )
+          .map(([location, pinned]) => ({
+            location,
+            id: pinned.id,
+            stableId: pinned.stableId,
+            was: pinned.semanticId,
+            now: liveByLocation.get(location)?.semanticId,
+          })),
+      };
+      const rowsSource = [
+        "const consumerContractRows = [",
+        ...rows.map(([id, stableId, semanticId, file, line, column]) =>
+          [
+            "  [",
+            `    "${id}",`,
+            `    "${stableId}",`,
+            `    "${semanticId}",`,
+            `    "${file}",`,
+            `    ${line},`,
+            `    ${column},`,
+            "  ],",
+          ].join("\n"),
+        ),
+        "] as const;",
+      ].join("\n");
+
       await mkdir(".scratch", { recursive: true });
       await writeFile(
         ".scratch/button-contract.json",
         JSON.stringify(
-          { rows, sha256: sha256(JSON.stringify(consumers)) },
+          {
+            count: rows.length,
+            reconciliation,
+            rows,
+            rowsSource,
+            // Hashed through the same mapping the assertion uses, so a drop-in paste agrees.
+            sha256: sha256(JSON.stringify(rows.map(toChecklistConsumer))),
+          },
           null,
           2,
         ),

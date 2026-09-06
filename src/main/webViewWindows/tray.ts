@@ -5,6 +5,7 @@
 import path from "path";
 import { Tray, nativeImage, app, BrowserWindow, ipcMain } from "electron";
 import { attachThemeSync } from "./attachThemeSync";
+import { applyExternalNavigationGuard } from "./externalNavigationGuard";
 import appIcon from "../../../resources/tray.png?asset";
 
 let trayWindow: BrowserWindow | null = null;
@@ -46,6 +47,7 @@ export function createTrayWindow(): BrowserWindow {
   // Load standalone HTML for tray tray
   trayWindow.loadFile(trayWindowHtml);
   attachThemeSync(trayWindow);
+  applyExternalNavigationGuard(trayWindow);
   trayWindow.on("blur", hideTrayWindow);
   return trayWindow;
 }
