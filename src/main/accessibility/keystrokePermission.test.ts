@@ -78,3 +78,39 @@ describe("isKeystrokePermissionDenied", () => {
     ).toBe(false);
   });
 });
+
+describe("isKeystrokePermissionDenied — thrown-value shapes", () => {
+  const DENIAL = "osascript is not allowed to send keystrokes. (1002)";
+
+  it.each<[string, unknown, boolean]>([
+    ["a boxed String", new String(DENIAL), false],
+    ["NaN", Number.NaN, false],
+    [
+      "a function carrying a message",
+      Object.defineProperty(() => undefined, "message", { value: DENIAL }),
+      false,
+    ],
+    [
+      "an array carrying a message",
+      Object.assign([], { message: DENIAL }),
+      true,
+    ],
+    [
+      "a null-prototype object",
+      Object.assign(Object.create(null), { message: DENIAL }),
+      true,
+    ],
+    [
+      "a class instance with an inherited message getter",
+      new (class {
+        get message() {
+          return DENIAL;
+        }
+      })(),
+      true,
+    ],
+    ["an object with extra keys", { message: DENIAL, code: 1002 }, true],
+  ])("reads %s as %s", (_label, thrown, expected) => {
+    expect(isKeystrokePermissionDenied(thrown)).toBe(expected);
+  });
+});

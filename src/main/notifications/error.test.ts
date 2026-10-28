@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTranslator } from "~/features/i18n/shared/translate";
 import {
   AccessibilityPermissionError,
+  isAbortError,
   LocalizedError,
   notifyRequestError,
   showErrorNotification,
@@ -90,6 +91,61 @@ vi.mock("electron", () => ({
  * shows the user nothing at all, which is how the secret-guard restore
  * failure used to leave a popup full of placeholders with nothing to say why.
  */
+describe("isAbortError — thrown-value shapes", () => {
+  const cyclic = new Error("cyclic");
+  cyclic.cause = cyclic;
+
+  it.each<[string, unknown, boolean]>([
+    ["undefined", undefined, false],
+    ["the bare string AbortError", "AbortError", false],
+    ["an AbortError DOMException", new DOMException("a", "AbortError"), true],
+    [
+      "a TimeoutError DOMException",
+      new DOMException("t", "TimeoutError"),
+      true,
+    ],
+    [
+      "an abort two causes deep",
+      new Error("a", {
+        cause: new Error("b", { cause: { name: "AbortError" } }),
+      }),
+      true,
+    ],
+    [
+      "a cause that is a string",
+      new Error("a", { cause: "AbortError" }),
+      false,
+    ],
+    ["a cyclic cause chain", cyclic, false],
+    [
+      "a function named AbortError",
+      Object.defineProperty(() => undefined, "name", { value: "AbortError" }),
+      false,
+    ],
+    [
+      "an array named TimeoutError",
+      Object.assign([], { name: "TimeoutError" }),
+      true,
+    ],
+    [
+      "a null-prototype object",
+      Object.assign(Object.create(null), { name: "TimeoutError" }),
+      true,
+    ],
+    [
+      "an inherited name getter",
+      Object.create({
+        get name() {
+          return "AbortError";
+        },
+      }),
+      true,
+    ],
+  ])("reads %s as %s", (_label, thrown, expected) => {
+    expect(isAbortError(thrown)).toBe(expected);
+  });
+});
+
 describe("showNotificationWithFallback", () => {
   beforeEach(() => {
     vi.clearAllMocks();
