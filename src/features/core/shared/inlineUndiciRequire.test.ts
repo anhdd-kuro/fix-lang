@@ -43,6 +43,14 @@ describe("inlineUndiciCreateRequire", () => {
     );
   });
 
+  it.each([
+    'const { Agent, fetch } = loadBuiltinModule("node:module").createRequire(getCurrentModulePath())("undici");',
+    'const { Agent, fetch } = m?.createRequire(getCurrentModulePath())("undici");',
+    'const { Agent, fetch } = ns.mod.createRequire(getCurrentModulePath())("undici");',
+  ])("fails the build instead of half-rewriting a deeper member chain: %s", (code) => {
+    expect(() => inlineUndiciCreateRequire(code)).toThrow(/unsupported createRequire\("undici"\) shape/);
+  });
+
   it("leaves modules without an undici createRequire untouched", () => {
     expect(inlineUndiciCreateRequire('import { Agent } from "undici";')).toBeNull();
     expect(inlineUndiciCreateRequire('createRequire(here())("left-pad")')).toBeNull();

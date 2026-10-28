@@ -24,16 +24,32 @@ export const BUNDLED_UNDICI_BINDING = "__fixlangBundledUndici";
 
 /**
  * `createRequire(<fn>())("undici")`, optionally called as `<ns>.createRequire`.
- * Anything else stays untouched, and `check:bundle` remains the backstop for a
- * shape this does not match.
+ * The lookbehind refuses a match that starts mid member chain
+ * (`f().createRequire`, `m?.createRequire`, `a.b.createRequire`): replacing
+ * only its tail would leave `f().__fixlangBundledUndici`, which is `undefined`
+ * at runtime yet passes `check:bundle` because the static import still lands.
  */
 const UNDICI_CREATE_REQUIRE =
-  /\b(?:[A-Za-z_$][\w$]*\s*\.\s*)?createRequire\(\s*[A-Za-z_$][\w$]*\(\s*\)\s*\)\(\s*(["'])undici\1\s*\)/g;
+  /(?<![\w$)\].?])(?:[A-Za-z_$][\w$]*\s*\.\s*)?createRequire\(\s*[A-Za-z_$][\w$]*\(\s*\)\s*\)\(\s*(["'])undici\1\s*\)/g;
 
-/** Returns the rewritten module source, or `null` when nothing matched. */
+/** Any `createRequire(...)("undici")` left over after the rewrite. */
+const LEFTOVER_UNDICI_CREATE_REQUIRE =
+  /createRequire\([\s\S]{0,120}?\)\(\s*["']undici["']\s*\)/;
+
+/**
+ * Returns the rewritten module source, or `null` when nothing matched.
+ * Throws when an undici `createRequire` survives, so a dependency bump that
+ * changes the call shape fails the build here instead of shipping a bare
+ * require (or a half-rewritten expression).
+ */
 export function inlineUndiciCreateRequire(code: string): string | null {
   if (!code.includes("createRequire") || !code.includes("undici")) return null;
   const rewritten = code.replace(UNDICI_CREATE_REQUIRE, BUNDLED_UNDICI_BINDING);
+  if (LEFTOVER_UNDICI_CREATE_REQUIRE.test(rewritten)) {
+    throw new Error(
+      'inlineUndiciRequire: unsupported createRequire("undici") shape; extend UNDICI_CREATE_REQUIRE',
+    );
+  }
   if (rewritten === code) return null;
   return `import * as ${BUNDLED_UNDICI_BINDING} from "undici";\n${rewritten}`;
 }
