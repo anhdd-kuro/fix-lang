@@ -40,6 +40,8 @@ import { notifyRequestError } from "~/main/notifications/error";
  */
 const BodyChoicesSchema = z.object({ choices: z.array(z.any()) });
 
+type ResponseBodyOption = { include?: { responseBody: true } };
+
 export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
   const apiKey =
     (await getApiKey()) ||
@@ -98,7 +100,7 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
     const wantsMultipleChoices = (options.n ?? 1) > 1;
     // `ai` v7 leaves `response.body` undefined unless asked; only the `n > 1`
     // choices below need it. Model and cache counts come from the SDK result.
-    const responseBodyOption: { include?: { responseBody: true } } = {};
+    const responseBodyOption: ResponseBodyOption = {};
     if (wantsMultipleChoices)
       responseBodyOption.include = { responseBody: true };
     const genResponse = await generateText({

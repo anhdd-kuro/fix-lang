@@ -13,6 +13,7 @@ import {
   chatCompletionUsage,
   fakeGenerateText,
 } from "~/main/llm/providers/testing/fakeGenerateText";
+import type { AIRequestOptions } from "~/main/ai.request/requestTypes";
 import { makeOpenRouterAIRequest } from "./request";
 
 const { generateTextMock, createOpenRouterMock } = vi.hoisted(() => ({
@@ -40,17 +41,19 @@ vi.mock("~/main/llm/httpKeepAlive", () => ({ keepAliveFetch: vi.fn() }));
 const REQUESTED_MODEL = "~openai/gpt-mini-latest";
 const SERVED_MODEL = "openai/gpt-5.4-mini-20260317";
 
-const request = (n?: number) =>
-  makeOpenRouterAIRequest({
+const request = (n?: number) => {
+  const options: AIRequestOptions = {
     systemPrompt: "",
     userPrompt: "",
     model: REQUESTED_MODEL,
-    ...(n !== undefined ? { n } : {}),
     messages: [
       { role: "system", content: "Fix grammar." },
       { role: "user", content: "teh text" },
     ],
-  });
+  };
+  if (n !== undefined) options.n = n;
+  return makeOpenRouterAIRequest(options);
+};
 
 describe("makeOpenRouterAIRequest response body", () => {
   beforeEach(() => {

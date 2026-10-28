@@ -6,6 +6,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeGenerateText } from "~/main/llm/providers/testing/fakeGenerateText";
+import type { AIRequestOptions } from "~/main/ai.request/requestTypes";
 import { makeAnthropicAIRequest } from "./request";
 
 const { generateTextMock, createAnthropicMock, notifyRequestErrorMock } =
@@ -32,7 +33,7 @@ vi.mock("~/features/providers/store/profileSecretStore", () => ({
 const REQUESTED_MODEL = "claude-sonnet-4-5";
 const SERVED_MODEL = "claude-sonnet-4-5-20250929";
 
-const request = (overrides: Record<string, unknown> = {}) =>
+const request = (overrides: Partial<AIRequestOptions> = {}) =>
   makeAnthropicAIRequest({
     systemPrompt: "Fix grammar.",
     userPrompt: "he go home",

@@ -11,10 +11,6 @@
  */
 import { stripModelRefPrefix } from "~/features/providers/shared/modelRef";
 import { contentAsText } from "./requestTypes";
-import {
-  AnyNumberSchema,
-  objectLike,
-} from "~/features/core/shared/schemaGuard";
 
 export enum CacheProvider {
   ANTHROPIC = "ANTHROPIC",

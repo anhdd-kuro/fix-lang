@@ -6,6 +6,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeGenerateText } from "~/main/llm/providers/testing/fakeGenerateText";
+import type { AIRequestOptions } from "~/main/ai.request/requestTypes";
 import { makeBedrockAIRequest } from "./request";
 
 const { generateTextMock, getProfileSecretMock, notifyRequestErrorMock } =
@@ -36,7 +37,7 @@ vi.mock("~/main/notifications/error", () => ({
 
 const MODEL = "us.anthropic.claude-sonnet-4-5-20250929-v1:0";
 
-const request = (overrides: Record<string, unknown> = {}) =>
+const request = (overrides: Partial<AIRequestOptions> = {}) =>
   makeBedrockAIRequest({
     systemPrompt: "",
     userPrompt: "",

@@ -29,7 +29,9 @@ describe("inlineUndiciCreateRequire", () => {
 
     const rewritten = inlineUndiciCreateRequire(code);
 
-    expect(rewritten).toContain(`const { Agent, fetch } = ${BUNDLED_UNDICI_BINDING};`);
+    expect(rewritten).toContain(
+      `const { Agent, fetch } = ${BUNDLED_UNDICI_BINDING};`,
+    );
     expect(rewritten?.startsWith(IMPORT_LINE)).toBe(true);
     expect(rewritten).not.toMatch(/createRequire\([^)]*\)\)\(/);
   });
@@ -47,21 +49,34 @@ describe("inlineUndiciCreateRequire", () => {
     'const { Agent, fetch } = loadBuiltinModule("node:module").createRequire(getCurrentModulePath())("undici");',
     'const { Agent, fetch } = m?.createRequire(getCurrentModulePath())("undici");',
     'const { Agent, fetch } = ns.mod.createRequire(getCurrentModulePath())("undici");',
-  ])("fails the build instead of half-rewriting a deeper member chain: %s", (code) => {
-    expect(() => inlineUndiciCreateRequire(code)).toThrow(/unsupported createRequire\("undici"\) shape/);
-  });
+  ])(
+    "fails the build instead of half-rewriting a deeper member chain: %s",
+    (code) => {
+      expect(() => inlineUndiciCreateRequire(code)).toThrow(
+        /unsupported createRequire\("undici"\) shape/,
+      );
+    },
+  );
 
   it("leaves modules without an undici createRequire untouched", () => {
-    expect(inlineUndiciCreateRequire('import { Agent } from "undici";')).toBeNull();
-    expect(inlineUndiciCreateRequire('createRequire(here())("left-pad")')).toBeNull();
+    expect(
+      inlineUndiciCreateRequire('import { Agent } from "undici";'),
+    ).toBeNull();
+    expect(
+      inlineUndiciCreateRequire('createRequire(here())("left-pad")'),
+    ).toBeNull();
     expect(inlineUndiciCreateRequire("const x = 1;")).toBeNull();
   });
 });
 
 describe("inlineUndiciRequirePlugin", () => {
-  const transform = (code: string, id: string): unknown => {
+  type TransformResult = { code: string; map: null } | null;
+  const transform = (code: string, id: string): TransformResult => {
     const plugin = inlineUndiciRequirePlugin();
-    const hook = plugin.transform as (code: string, id: string) => unknown;
+    const hook = plugin.transform as (
+      code: string,
+      id: string,
+    ) => TransformResult;
     return hook.call({}, code, id);
   };
   const hostile = 'x = module.createRequire(getCurrentModulePath())("undici");';
@@ -69,7 +84,10 @@ describe("inlineUndiciRequirePlugin", () => {
   it("only touches modules resolved from node_modules", () => {
     expect(transform(hostile, "/repo/src/main/index.ts")).toBeNull();
     expect(
-      transform(hostile, "/repo/node_modules/@ai-sdk/provider-utils/dist/index.js"),
+      transform(
+        hostile,
+        "/repo/node_modules/@ai-sdk/provider-utils/dist/index.js",
+      ),
     ).toEqual({
       code: `${IMPORT_LINE}\nx = ${BUNDLED_UNDICI_BINDING};`,
       map: null,
@@ -88,7 +106,8 @@ describe("inlineUndiciRequirePlugin", () => {
  */
 describe("installed dependencies that createRequire undici", () => {
   const resolveFromRepo = createRequire(import.meta.url);
-  const LOOSE_UNDICI_CREATE_REQUIRE = /createRequire\([\s\S]{0,120}?\)\(\s*["']undici["']\s*\)/;
+  const LOOSE_UNDICI_CREATE_REQUIRE =
+    /createRequire\([\s\S]{0,120}?\)\(\s*["']undici["']\s*\)/;
 
   it.each(["@ai-sdk/provider-utils", "@openrouter/ai-sdk-provider"])(
     "%s is fully rewritten",
