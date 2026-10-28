@@ -88,6 +88,7 @@ vi.mock("~/main/llm/providers/ollama/client", () => ({
   ollamaClient: { chat: vi.fn() },
 }));
 import { redactLogContext } from "~/features/logs/shared/logging";
+import { KEY_FAMILY_LOG_FIELD } from "~/features/providers/shared/providerKeyFamilies";
 import { fetchAvailableModels } from "./shared";
 import type { LogContext, LogLevel } from "~/features/logs/shared/logging";
 
@@ -110,7 +111,7 @@ describe("model-list fetch logging", () => {
     expect(fetched?.context).toMatchObject({
       provider: "openai",
       keyPresent: true,
-      keyShape: "openai-project",
+      [KEY_FAMILY_LOG_FIELD]: "openai-project",
     });
     expect(JSON.stringify(entries)).not.toContain(OPENAI_KEY);
   });
@@ -157,6 +158,6 @@ describe("model-list fetch logging", () => {
       (entry) => entry.scope === "provider.models",
     );
     expect(fetched?.context?.keyPresent).toBe(false);
-    expect(fetched?.context?.keyShape).toBeUndefined();
+    expect(fetched?.context?.[KEY_FAMILY_LOG_FIELD]).toBeUndefined();
   });
 });

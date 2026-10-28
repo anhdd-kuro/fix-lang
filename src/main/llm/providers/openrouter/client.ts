@@ -13,9 +13,10 @@
  * timeout (mirrors the existing model-list fetch in ai.request/shared.ts).
  */
 import {
-  describeKeyShape,
-  findKeyShapeMismatch,
-} from "~/features/providers/shared/providerKeyShapes";
+  describeKeyFamily,
+  findKeyFamilyMismatch,
+  KEY_FAMILY_LOG_FIELD,
+} from "~/features/providers/shared/providerKeyFamilies";
 import { getProvisioningKey } from "~/features/providers/store/provisioningKeyStore";
 import { logger } from "~/main/logging/logService";
 import {
@@ -69,12 +70,12 @@ const logAdminRequest = (
   key: string,
   outcome: { ok: boolean; status?: number; reason?: string },
 ): void => {
-  const shape = describeKeyShape(key);
+  const keyFamily = describeKeyFamily(key);
   const foreign =
-    findKeyShapeMismatch("openrouter", "provisioning", key) !== null;
+    findKeyFamilyMismatch("openrouter", "provisioning", key) !== null;
   const context = {
     endpoint: path,
-    keyShape: shape,
+    [KEY_FAMILY_LOG_FIELD]: keyFamily,
     ...(outcome.status !== undefined ? { status: outcome.status } : {}),
     ...(outcome.reason !== undefined ? { reason: outcome.reason } : {}),
     // Only ever true for a key stored before the write-time shape guard existed.

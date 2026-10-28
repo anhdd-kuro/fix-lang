@@ -44,7 +44,7 @@ type ChecklistConsumer = ButtonConsumer & {
   stableId: string;
 };
 
-type StableSiteShape = {
+type StableSiteFingerprintInput = {
   currentElement: string;
   disabledRule: string | null;
   file: string;
@@ -64,7 +64,7 @@ type StableSiteShape = {
 const sha256 = (value: string): string =>
   createHash("sha256").update(value).digest("hex");
 
-const stableSiteFingerprint = (site: StableSiteShape): string =>
+const stableSiteFingerprint = (site: StableSiteFingerprintInput): string =>
   sha256(
     JSON.stringify({
       file: site.file,

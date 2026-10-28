@@ -55,7 +55,7 @@ const RANGES: { id: UsageRange; labelKey: TranslationKey }[] = [
   { id: "30d", labelKey: "usage.range.30d" },
 ];
 
-type CardShape = { ok: false; reason: string } | { ok: true };
+type CardOutcome = { ok: false; reason: string } | { ok: true };
 
 const CardShell = ({
   title,
@@ -83,7 +83,7 @@ const CardBody = ({
   t,
   children,
 }: {
-  result: CardShape;
+  result: CardOutcome;
   t: Translator;
   children: React.ReactNode;
 }) =>
@@ -105,7 +105,7 @@ const Card = ({
   children,
 }: {
   title: string;
-  result: CardShape;
+  result: CardOutcome;
   t: Translator;
   children: React.ReactNode;
 }) => (

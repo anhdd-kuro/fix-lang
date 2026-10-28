@@ -30,7 +30,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import {
   MAX_APP_BUNDLE_PATHS,
-  hasAppBundlePathShape,
+  looksLikeAppBundlePath,
   type AppBundleIdsResult,
 } from "~/features/guards/shared/appBundleIds";
 import { normalizeBundleId } from "~/features/guards/shared/guardSettings";
@@ -45,11 +45,11 @@ const PLIST_BUDDY_MAX_BUFFER = 64 * 1024;
 
 /**
  * Shape check plus the existence check main is the only process allowed to
- * make. Kept separate from `hasAppBundlePathShape` (shared, pure) so the
+ * make. Kept separate from `looksLikeAppBundlePath` (shared, pure) so the
  * renderer can pre-filter a drop without pretending to know the filesystem.
  */
 export const isExistingAppBundlePath = (value: unknown): value is string =>
-  hasAppBundlePathShape(value) && existsSync(value);
+  looksLikeAppBundlePath(value) && existsSync(value);
 
 /**
  * Reads one bundle's `CFBundleIdentifier`, returning `null` when the bundle

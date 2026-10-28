@@ -1575,22 +1575,23 @@ describe("scanForSecrets", () => {
      * quotes into the span, and a wrapper's own quote is no longer allowed to
      * corroborate the password's.
      */
-    const SHAPES: readonly [string, (password: string) => string][] = [
-      ["a DSN", (password) => `postgres://user:${password}@host:5432/db`],
-      ["an assignment", (password) => `password=${password}`],
-      ["a single-quoted assignment", (password) => `password='${password}'`],
-      ["a double-quoted assignment", (password) => `password="${password}"`],
-      ["a markdown code span", (password) => `\`password=${password}\``],
+    const PASSWORD_CONTEXTS: readonly [string, (password: string) => string][] =
       [
-        "a JSON string wrapper",
-        (password) => `{"note": "password=${password}"}`,
-      ],
-    ];
+        ["a DSN", (password) => `postgres://user:${password}@host:5432/db`],
+        ["an assignment", (password) => `password=${password}`],
+        ["a single-quoted assignment", (password) => `password='${password}'`],
+        ["a double-quoted assignment", (password) => `password="${password}"`],
+        ["a markdown code span", (password) => `\`password=${password}\``],
+        [
+          "a JSON string wrapper",
+          (password) => `{"note": "password=${password}"}`,
+        ],
+      ];
 
-    const CENSUS = SHAPES.flatMap(([shape, buildText]) =>
+    const CENSUS = PASSWORD_CONTEXTS.flatMap(([context, buildText]) =>
       ALPHABETS.map(
         ([alphabet, characters]) =>
-          [shape, alphabet, characters, buildText] as [
+          [context, alphabet, characters, buildText] as [
             string,
             string,
             string,
@@ -1601,7 +1602,7 @@ describe("scanForSecrets", () => {
 
     it.each(CENSUS)(
       "%s of %s passwords",
-      (_shape, _alphabet, characters, buildText) => {
+      (_context, _alphabet, characters, buildText) => {
         const partials = CENSUS_SEEDS.reduce(
           (total, seed) =>
             total +

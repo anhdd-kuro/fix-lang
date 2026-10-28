@@ -13,9 +13,10 @@
  * mirroring the OpenRouter client.
  */
 import {
-  describeKeyShape,
-  findKeyShapeMismatch,
-} from "~/features/providers/shared/providerKeyShapes";
+  describeKeyFamily,
+  findKeyFamilyMismatch,
+  KEY_FAMILY_LOG_FIELD,
+} from "~/features/providers/shared/providerKeyFamilies";
 import { getProvisioningKey } from "~/features/providers/store/provisioningKeyStore";
 import {
   usageRangeDays,
@@ -75,10 +76,10 @@ const logAdminRequest = (
   key: string,
   outcome: { ok: boolean; status?: number; reason?: string },
 ): void => {
-  const foreign = findKeyShapeMismatch("openai", "provisioning", key) !== null;
+  const foreign = findKeyFamilyMismatch("openai", "provisioning", key) !== null;
   const context = {
     endpoint: path,
-    keyShape: describeKeyShape(key),
+    [KEY_FAMILY_LOG_FIELD]: describeKeyFamily(key),
     ...(outcome.status !== undefined ? { status: outcome.status } : {}),
     ...(outcome.reason !== undefined ? { reason: outcome.reason } : {}),
     // Only ever true for a key stored before the write-time shape guard existed.

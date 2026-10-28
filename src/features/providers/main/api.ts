@@ -19,9 +19,10 @@ import {
 } from "~/features/providers/shared/ollamaEndpoint";
 import { isMalformedOpenAIProjectId } from "~/features/providers/shared/openaiProject";
 import {
-  findKeyShapeMismatch,
+  findKeyFamilyMismatch,
+  KEY_FAMILY_LOG_FIELD,
   type KeySlotKind,
-} from "~/features/providers/shared/providerKeyShapes";
+} from "~/features/providers/shared/providerKeyFamilies";
 import {
   isModelForProvider,
   isProviderConfigured,
@@ -198,19 +199,19 @@ export const parseProviderConnect = (
  * nothing in the logs to explain it. The refusal is logged with the shape label
  * only; the key itself never reaches a log.
  */
-const keyShapeMismatchLabel = (
+const keyFamilyMismatchLabel = (
   provider: ProviderId,
   kind: KeySlotKind,
   raw: string | undefined,
 ): Label | null => {
   if (!raw?.trim()) return null;
-  const mismatch = findKeyShapeMismatch(provider, kind, raw);
+  const mismatch = findKeyFamilyMismatch(provider, kind, raw);
   if (!mismatch) return null;
 
   logger.warn("provider.key", "Refused a key that belongs to another slot", {
     provider,
     slot: kind,
-    keyShape: mismatch.shape,
+    [KEY_FAMILY_LOG_FIELD]: mismatch.family,
   });
 
   return messageLabel(
@@ -503,15 +504,15 @@ export const registerApiHandlers = (): void => {
     }
     // Checked before the provider round-trip below: a key pasted into the wrong
     // slot must not be spent on a request, and must never reach the store.
-    const shapeError =
-      keyShapeMismatchLabel(payload.provider, "api", payload.apiKey) ??
-      keyShapeMismatchLabel(
+    const keyFamilyError =
+      keyFamilyMismatchLabel(payload.provider, "api", payload.apiKey) ??
+      keyFamilyMismatchLabel(
         payload.provider,
         "provisioning",
         payload.provisioningKey,
       );
-    if (shapeError) {
-      return { success: false, error: shapeError };
+    if (keyFamilyError) {
+      return { success: false, error: keyFamilyError };
     }
     // Refused rather than sanitized away: storing "" for a malformed entry would
     // report "connected" while the tray's project card stays permanently empty.

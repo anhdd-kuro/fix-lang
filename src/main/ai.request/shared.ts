@@ -15,9 +15,10 @@ import {
   resolveModelRef,
 } from "~/features/providers/shared/modelRef";
 import {
-  describeKeyShape,
-  findKeyShapeMismatch,
-} from "~/features/providers/shared/providerKeyShapes";
+  describeKeyFamily,
+  findKeyFamilyMismatch,
+  KEY_FAMILY_LOG_FIELD,
+} from "~/features/providers/shared/providerKeyFamilies";
 import {
   modelsForProvider,
   PROVIDER_ORDER,
@@ -150,8 +151,10 @@ const logModelFetch = (
   const context = {
     provider,
     keyPresent: apiKey.trim().length > 0,
-    ...(apiKey.trim() ? { keyShape: describeKeyShape(apiKey) } : {}),
-    ...(apiKey.trim() && findKeyShapeMismatch(provider, "api", apiKey)
+    ...(apiKey.trim()
+      ? { [KEY_FAMILY_LOG_FIELD]: describeKeyFamily(apiKey) }
+      : {}),
+    ...(apiKey.trim() && findKeyFamilyMismatch(provider, "api", apiKey)
       ? { keyBelongsToAnotherProvider: true }
       : {}),
     ...(outcome.liveFetch !== undefined

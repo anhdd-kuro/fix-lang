@@ -7,7 +7,7 @@
  *
  * The shape check is deliberately separate from "does this path exist?": only
  * main may touch the filesystem, and only main may act on the answer. A
- * renderer that pre-filters with `hasAppBundlePathShape` is a convenience for
+ * renderer that pre-filters with `looksLikeAppBundlePath` is a convenience for
  * the user (a dropped .txt is reported, not silently swallowed), never the
  * check that protects the filesystem — `~/features/guards/main/appBundleIds.ts`
  * re-validates every path it is handed and rejects rather than coerces.
@@ -39,7 +39,7 @@ export const MAX_APP_BUNDLE_PATH_LENGTH = 1024;
 // oxlint-disable-next-line no-control-regex -- rejecting control chars is the point
 const CONTROL_CHARACTERS_PATTERN = /[\x00-\x1f\x7f-\x9f]/;
 
-export const hasAppBundlePathShape = (value: unknown): value is string => {
+export const looksLikeAppBundlePath = (value: unknown): value is string => {
   if (typeof value !== "string") return false;
   if (value.length === 0 || value.length > MAX_APP_BUNDLE_PATH_LENGTH)
     return false;

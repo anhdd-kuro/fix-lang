@@ -9,7 +9,7 @@
 import { rm, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { app, safeStorage } from "electron";
-import { findKeyShapeMismatch } from "~/features/providers/shared/providerKeyShapes";
+import { findKeyFamilyMismatch } from "~/features/providers/shared/providerKeyFamilies";
 import {
   PROVIDER_IDS,
   PROVIDER_LOG_LABELS,
@@ -95,7 +95,7 @@ const validateSecret = (
 ): { value: string } | { error: string } => {
   const value = raw.trim();
   if (!value) return { error: "API key must not be empty" };
-  const mismatch = findKeyShapeMismatch(provider, kind, value);
+  const mismatch = findKeyFamilyMismatch(provider, kind, value);
   if (mismatch) {
     return {
       error: `That key does not belong to ${PROVIDER_LOG_LABELS[provider]}'s ${

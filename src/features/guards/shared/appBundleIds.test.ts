@@ -12,21 +12,21 @@ import { describe, expect, it } from "vitest";
 import { messageLabel, textLabel } from "~/features/i18n/shared/message";
 import {
   MAX_APP_BUNDLE_PATH_LENGTH,
-  hasAppBundlePathShape,
+  looksLikeAppBundlePath,
   isAppBundleIdsResult,
 } from "./appBundleIds";
 
-describe("hasAppBundlePathShape", () => {
+describe("looksLikeAppBundlePath", () => {
   it("accepts an absolute path to a .app bundle", () => {
-    expect(hasAppBundlePathShape("/Applications/Slack.app")).toBe(true);
+    expect(looksLikeAppBundlePath("/Applications/Slack.app")).toBe(true);
   });
 
   it("accepts a .APP suffix — the Finder preserves whatever case the bundle was created with", () => {
-    expect(hasAppBundlePathShape("/Applications/Legacy.APP")).toBe(true);
+    expect(looksLikeAppBundlePath("/Applications/Legacy.APP")).toBe(true);
   });
 
   it("accepts a path containing spaces and quotes, which only a shell would choke on", () => {
-    expect(hasAppBundlePathShape("/Applications/My App's; Tool.app")).toBe(
+    expect(looksLikeAppBundlePath("/Applications/My App's; Tool.app")).toBe(
       true,
     );
   });
@@ -46,13 +46,13 @@ describe("hasAppBundlePathShape", () => {
     ["a NUL byte", "/Applications/Slack\u0000.app"],
     ["a newline", "/Applications/Sla\nck.app"],
   ])("rejects %s", (_label, value) => {
-    expect(hasAppBundlePathShape(value)).toBe(false);
+    expect(looksLikeAppBundlePath(value)).toBe(false);
   });
 
   it("rejects a path longer than macOS could ever name", () => {
     const tooLong = `/${"a".repeat(MAX_APP_BUNDLE_PATH_LENGTH)}.app`;
     expect(tooLong.length).toBeGreaterThan(MAX_APP_BUNDLE_PATH_LENGTH);
-    expect(hasAppBundlePathShape(tooLong)).toBe(false);
+    expect(looksLikeAppBundlePath(tooLong)).toBe(false);
   });
 });
 

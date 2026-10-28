@@ -67,7 +67,7 @@ describe("scanBundleSource", () => {
     expect(details('import("left-pad");')).toEqual(["left-pad"]);
   });
 
-  // ---- M2: require-like call shapes beyond a literal `require` identifier ----
+  // ---- M2: require-like call sourcesByFile beyond a literal `require` identifier ----
 
   it("flags an immediately-invoked createRequire() result", () => {
     expect(details('createRequire(import.meta.url)("left-pad");')).toEqual([
@@ -974,7 +974,7 @@ describe("check-bundle-externals CLI under bun", () => {
 
   it("exits 1 on every require-like shape, including aliased and derived ones", () => {
     // One shape per file so a single miss cannot hide behind another's hit.
-    const shapes: Record<string, string> = {
+    const sourcesByFile: Record<string, string> = {
       "main/bare.cjs": 'require("left-pad");',
       "main/aliased.cjs": 'var r = require;\nr("left-pad");',
       "main/createRequireIife.cjs":
@@ -1020,7 +1020,7 @@ describe("check-bundle-externals CLI under bun", () => {
       "preload/chunks/testChunk.cjs": 'require("left-pad");',
     };
 
-    for (const [file, source] of Object.entries(shapes)) {
+    for (const [file, source] of Object.entries(sourcesByFile)) {
       rmSync(outDir, { recursive: true, force: true });
       mkdirSync(outDir, { recursive: true });
       write(file, source);

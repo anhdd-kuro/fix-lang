@@ -217,7 +217,7 @@ describe("modelRefForModel", () => {
 });
 
 describe("modelRefForModel / resolveModelRef round trip", () => {
-  const shapes: { label: string; model: Model; provider: string }[] = [
+  const modelCases: { label: string; model: Model; provider: string }[] = [
     {
       label: "tagged cloud",
       model: { id: "gpt-4o", name: "gpt-4o", created: 1, provider: "openai" },
@@ -250,7 +250,7 @@ describe("modelRefForModel / resolveModelRef round trip", () => {
     },
   ];
 
-  for (const { label, model, provider } of shapes) {
+  for (const { label, model, provider } of modelCases) {
     it(`round-trips a ${label} model`, () => {
       const ref = modelRefForModel(model);
       const resolved = resolveModelRef(ref, [model]);

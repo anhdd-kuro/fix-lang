@@ -602,18 +602,18 @@ describe("restoreSecrets", () => {
    * restoring what it can.
    */
   describe("a mangled placeholder is a missing placeholder", () => {
-    const MANGLED_REPLIES: readonly { shape: string; reply: string }[] = [
-      { shape: "absent", reply: "The identifier did not come back at all." },
-      { shape: "lowercased", reply: "id [[fixlang_secret_a1b2c3_01]] end" },
-      { shape: "spaced", reply: "id [[ FIXLANG_SECRET_A1B2C3_01 ]] end" },
+    const MANGLED_REPLIES: readonly { mangling: string; reply: string }[] = [
+      { mangling: "absent", reply: "The identifier did not come back at all." },
+      { mangling: "lowercased", reply: "id [[fixlang_secret_a1b2c3_01]] end" },
+      { mangling: "spaced", reply: "id [[ FIXLANG_SECRET_A1B2C3_01 ]] end" },
       {
-        shape: "re-bracketed into 「」",
+        mangling: "re-bracketed into 「」",
         reply: "id 「FIXLANG_SECRET_A1B2C3_01」 end",
       },
-      { shape: "truncated", reply: "id [[FIXLANG_SECRET_A1B2C3_0 end" },
+      { mangling: "truncated", reply: "id [[FIXLANG_SECRET_A1B2C3_0 end" },
     ];
 
-    it.each(MANGLED_REPLIES)("$shape → ok:false", ({ reply }) => {
+    it.each(MANGLED_REPLIES)("$mangling → ok:false", ({ reply }) => {
       const masking = maskSecrets(`id ${AWS_DOC_ACCESS_KEY_ID} end`, {
         salt: FIXED_SALT,
       });

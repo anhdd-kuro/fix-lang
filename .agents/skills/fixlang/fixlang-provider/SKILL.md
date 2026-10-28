@@ -1,6 +1,6 @@
 ---
 name: fixlang-provider
-description: 'Step-by-step guide to adding or changing an AI provider, plus the credential/cost invariants that outlive the recipe. Use when adding a provider, touching API/admin key storage, the capability registry, model discovery, credential logging, or per-provider cost rules. Examples: "add a provider", "why is this admin key 401ing", "store an extra secret for a provider", "is this log line leaking a key", "why does this model show N/A cost". Covers src/main/llm/providers/, src/features/providers/shared/providers.ts, providerKeyShapes.ts, store/profileSecretStore.ts, src/main/ai.request/{shared,cost}.ts.'
+description: 'Step-by-step guide to adding or changing an AI provider, plus the credential/cost invariants that outlive the recipe. Use when adding a provider, touching API/admin key storage, the capability registry, model discovery, credential logging, or per-provider cost rules. Examples: "add a provider", "why is this admin key 401ing", "store an extra secret for a provider", "is this log line leaking a key", "why does this model show N/A cost". Covers src/main/llm/providers/, src/features/providers/shared/providers.ts, providerKeyFamilies.ts, store/profileSecretStore.ts, src/main/ai.request/{shared,cost}.ts.'
 ---
 
 # FixLang — Providers
@@ -34,11 +34,11 @@ Do NOT set `PROVIDER_SUPPORTS_PROVISIONING_KEY` "for later": that table drives t
 
 ### Step 2 — Refuse foreign keys
 
-`src/features/providers/shared/providerKeyShapes.ts`, if the key has a recognizable prefix:
+`src/features/providers/shared/providerKeyFamilies.ts`, if the key has a recognizable prefix:
 
-1. Add the shape to `ProviderKeyShape` and a prefix row to `SHAPE_PREFIXES` (match order matters — a longer prefix that shares a stem must be tested first, as `sk-or-` is before any bare `sk-`).
+1. Add the shape to `ProviderKeyFamily` and a prefix row to `KEY_FAMILY_PREFIXES` (match order matters — a longer prefix that shares a stem must be tested first, as `sk-or-` is before any bare `sk-`).
 2. Add `"<id>:api"` to `EXPECTED_PREFIX`.
-3. Add `"<id>:api"` to `FOREIGN_SHAPES` listing every OTHER shape, **and add your new shape to the other providers' lists**. A one-way entry only refuses the paste in one direction.
+3. Add `"<id>:api"` to `FOREIGN_KEY_FAMILIES` listing every OTHER shape, **and add your new shape to the other providers' lists**. A one-way entry only refuses the paste in one direction.
 
 One shape per provider is usually enough even when the provider mints several kinds: `sk-ant-` covers both `sk-ant-api…` and `sk-ant-admin…`, because FixLang stores only the request key and an admin key is equally foreign everywhere else.
 
@@ -134,7 +134,7 @@ Every accessor in `provisioningKeyStore` and all three IPC channels take an expl
 
 ### Provider-scoped storage ≠ a provider-correct value
 
-A key pasted into the wrong slot used to store fine and show "Key set" (existence is all `hasProfileSecret` can see without decrypting), then 401 forever. `findKeyShapeMismatch(provider, kind, raw)` refuses a positively-identified foreign key at BOTH the `connect-provider` handler and `setProfileSecret` (the chokepoint a future writer cannot skip). Slot-level, not provider-level: OpenAI's admin endpoints reject a project key and its chat endpoints reject an admin key, so both wrong-slot-same-account cases are refused too.
+A key pasted into the wrong slot used to store fine and show "Key set" (existence is all `hasProfileSecret` can see without decrypting), then 401 forever. `findKeyFamilyMismatch(provider, kind, raw)` refuses a positively-identified foreign key at BOTH the `connect-provider` handler and `setProfileSecret` (the chokepoint a future writer cannot skip). Slot-level, not provider-level: OpenAI's admin endpoints reject a project key and its chat endpoints reject an admin key, so both wrong-slot-same-account cases are refused too.
 
 An **unrecognized** format is still accepted on purpose — refusing it would lock out legacy `sk-…` keys, LM Studio's arbitrary local key, and any future format.
 

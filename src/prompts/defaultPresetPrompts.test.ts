@@ -453,7 +453,7 @@ type IntensityMove = {
    * stronger level does too. `level label` — a register or nickname that
    * belongs to exactly one level and does not accumulate.
    */
-  readonly shape: "cumulative" | "level label";
+  readonly form: "cumulative" | "level label";
   readonly byLevel: Record<IntensityLevel, LevelStance>;
 };
 
@@ -472,7 +472,7 @@ const withholds = (...wording: RegExp[]): LevelStance => ({
 const INTENSITY_MATRIX: readonly IntensityMove[] = [
   {
     move: "cut filler, hedging, and pleasantries",
-    shape: "cumulative",
+    form: "cumulative",
     byLevel: {
       lite: instructs(/Drop only filler words, hedging, and pleasantries/i),
       full: instructs(),
@@ -481,7 +481,7 @@ const INTENSITY_MATRIX: readonly IntensityMove[] = [
   },
   {
     move: "drop articles",
-    shape: "cumulative",
+    form: "cumulative",
     byLevel: {
       lite: withholds(/keep every article/i),
       full: instructs(/drop articles/i),
@@ -490,7 +490,7 @@ const INTENSITY_MATRIX: readonly IntensityMove[] = [
   },
   {
     move: "sentence fragments",
-    shape: "cumulative",
+    form: "cumulative",
     byLevel: {
       lite: withholds(/write full grammatical sentences/i),
       full: instructs(/Sentence fragments are fine/i),
@@ -499,7 +499,7 @@ const INTENSITY_MATRIX: readonly IntensityMove[] = [
   },
   {
     move: "short synonyms for long phrases",
-    shape: "cumulative",
+    form: "cumulative",
     byLevel: {
       lite: withholds(/Do not swap words for shorter synonyms/i),
       full: instructs(/Use short synonyms in place of long phrases/i),
@@ -508,7 +508,7 @@ const INTENSITY_MATRIX: readonly IntensityMove[] = [
   },
   {
     move: "shorten general technical terms",
-    shape: "cumulative",
+    form: "cumulative",
     byLevel: {
       lite: withholds(/do not shorten any term/i),
       full: withholds(
@@ -523,7 +523,7 @@ const INTENSITY_MATRIX: readonly IntensityMove[] = [
   },
   {
     move: "shortening list gated to the input's own language",
-    shape: "cumulative",
+    form: "cumulative",
     byLevel: {
       lite: withholds(),
       full: withholds(),
@@ -537,7 +537,7 @@ const INTENSITY_MATRIX: readonly IntensityMove[] = [
   },
   {
     move: "strip conjunctions",
-    shape: "cumulative",
+    form: "cumulative",
     byLevel: {
       lite: withholds(),
       full: withholds(),
@@ -546,7 +546,7 @@ const INTENSITY_MATRIX: readonly IntensityMove[] = [
   },
   {
     move: "arrows for causality",
-    shape: "cumulative",
+    form: "cumulative",
     byLevel: {
       lite: withholds(),
       full: withholds(),
@@ -555,7 +555,7 @@ const INTENSITY_MATRIX: readonly IntensityMove[] = [
   },
   {
     move: "one word when one word is enough",
-    shape: "cumulative",
+    form: "cumulative",
     byLevel: {
       lite: withholds(),
       full: withholds(),
@@ -564,7 +564,7 @@ const INTENSITY_MATRIX: readonly IntensityMove[] = [
   },
   {
     move: "professional but tight register",
-    shape: "level label",
+    form: "level label",
     byLevel: {
       lite: instructs(/Stay professional but tight/i),
       full: withholds(),
@@ -573,7 +573,7 @@ const INTENSITY_MATRIX: readonly IntensityMove[] = [
   },
   {
     move: "classic caveman",
-    shape: "level label",
+    form: "level label",
     byLevel: {
       lite: withholds(),
       full: instructs(/Classic caveman compression/i),
@@ -641,7 +641,7 @@ const negatedWording = (text: string, wording: RegExp): boolean => {
 describe("the intensity matrix is internally consistent", () => {
   it("never lets a cumulative move fall back to withholds at a stronger level", () => {
     const violations = INTENSITY_MATRIX.filter(
-      (move) => move.shape === "cumulative",
+      (move) => move.form === "cumulative",
     ).flatMap((move) => {
       const stances = INTENSITY_LEVELS.map(
         (level) => move.byLevel[level].stance,

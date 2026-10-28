@@ -1285,10 +1285,10 @@ export const apiStore = new Store<{ profiles: Profile[] }>({
  * (`"configVresion"`) type-checks even if `configVersion` is added to the store
  * generic. This narrower view has no such fallback, so tsc rejects the typo.
  */
-type ConfigVersionShape = { configVersion: number };
+type ConfigVersionCarrier = { configVersion: number };
 type ConfigVersionStore = {
-  get(key: keyof ConfigVersionShape, defaultValue: number): number;
-  set(key: keyof ConfigVersionShape, value: number): void;
+  get(key: keyof ConfigVersionCarrier, defaultValue: number): number;
+  set(key: keyof ConfigVersionCarrier, value: number): void;
 };
 const configVersionStore = apiStore as unknown as ConfigVersionStore;
 

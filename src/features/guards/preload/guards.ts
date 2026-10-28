@@ -14,7 +14,7 @@
 import { ipcRenderer, webUtils } from "electron";
 import {
   MAX_APP_BUNDLE_PATHS,
-  hasAppBundlePathShape,
+  looksLikeAppBundlePath,
   isAppBundleIdsResult,
 } from "~/features/guards/shared/appBundleIds";
 import {
@@ -145,7 +145,7 @@ export const selectionGuardsFeature = {
       // is narrowed by what follows instead — a throw and a non-`.app` result
       // both come back as `null`.
       const filePath = webUtils.getPathForFile(file as File);
-      return hasAppBundlePathShape(filePath) ? filePath : null;
+      return looksLikeAppBundlePath(filePath) ? filePath : null;
     } catch {
       return null;
     }
@@ -163,7 +163,7 @@ export const selectionGuardsFeature = {
     if (
       !Array.isArray(paths) ||
       paths.length > MAX_APP_BUNDLE_PATHS ||
-      !paths.every(hasAppBundlePathShape)
+      !paths.every(looksLikeAppBundlePath)
     ) {
       return {
         success: false,

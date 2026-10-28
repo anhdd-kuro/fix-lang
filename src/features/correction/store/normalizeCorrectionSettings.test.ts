@@ -2528,7 +2528,7 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
   // replaces a chain the user built. Each case below is one step away from
   // the legacy triple in a different direction; a matcher that only counts
   // steps, or only looks at the first one, rewrites all three.
-  const untouchedShapes: readonly (readonly [
+  const untouchedChains: readonly (readonly [
     string,
     readonly Record<string, string>[],
   ])[] = [
@@ -2562,7 +2562,7 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
     ],
   ];
 
-  for (const [label, steps] of untouchedShapes) {
+  for (const [label, steps] of untouchedChains) {
     it(`leaves ${label} byte-identical`, () => {
       const stored = storedPerfectPrompt({ steps: [...steps] });
 
