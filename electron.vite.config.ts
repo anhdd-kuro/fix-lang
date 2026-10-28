@@ -4,6 +4,7 @@ import { defineConfig } from "electron-vite";
 import commonjs from "vite-plugin-commonjs";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { parseFeatureFlags } from "./src/features/core/shared/features";
+import { inlineUndiciRequirePlugin } from "./src/features/core/shared/inlineUndiciRequire";
 
 export const rendererPort = 5175;
 
@@ -45,7 +46,7 @@ const rendererInput = {
 export default defineConfig({
   main: {
     define: featureDefine,
-    plugins: [tsconfigPaths(), tailwindcss()],
+    plugins: [inlineUndiciRequirePlugin(), tsconfigPaths(), tailwindcss()],
     build: {
       outDir: "out/main",
       rollupOptions: {
