@@ -353,9 +353,10 @@ export const registerProfileHandlers = () => {
       try {
         // Parse the JSON profile
         const profileData = sanitizeImportedProfile(
-          // SAFETY: not checked here. A non-object makes
-          // `sanitizeImportedProfile` throw into this try's catch, and an
-          // object without id/name/settings is refused right below.
+          // SAFETY: not checked here. `null` makes `sanitizeImportedProfile`
+          // throw into this try's catch; any other non-object comes back with
+          // no id/name/settings and, like an object missing them, is refused
+          // right below. Nothing reaches the store either way.
           JSON.parse(profileJson) as Profile,
         );
 

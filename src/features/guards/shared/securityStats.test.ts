@@ -342,6 +342,14 @@ describe("IPC payload guards", () => {
         ruleCounts: { jwt: "3" },
       }).success,
     ).toBe(false);
+    // An own `__proto__` key survives JSON.parse but not zod's object copy;
+    // the count check must read the original record.
+    expect(
+      SecurityStatsSchema.safeParse({
+        ...EMPTY_SECURITY_STATS,
+        ruleCounts: JSON.parse('{"__proto__":"b"}'),
+      }).success,
+    ).toBe(false);
     expect(
       SecurityStatsSchema.safeParse({
         ...EMPTY_SECURITY_STATS,

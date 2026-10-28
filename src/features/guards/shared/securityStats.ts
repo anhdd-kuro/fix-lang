@@ -24,6 +24,7 @@
  * transform count from history compares different populations.
  */
 import { z } from "zod";
+import { schemaGuard } from "~/features/core/shared/schemaGuard";
 import type { LogEntry } from "~/features/logs/shared/logging";
 
 /** Matches the dashboard's shared analytics range pills (`AnalyticsRange`). */
@@ -289,21 +290,19 @@ const CountSchema = z
 /** Any non-array, non-function object (a Date included) — not only a plain one. */
 const ObjectRecordSchema = z.looseObject({});
 
+const isObjectRecord = schemaGuard(ObjectRecordSchema);
+
 /**
- * Every own enumerable value a count. Checked against the record's
- * `Object.values` rather than with `z.record`, which refuses non-plain objects
- * and inspects symbol and non-enumerable keys too; the object itself is the
- * parse result.
+ * Every own enumerable value a count. Checked against the ORIGINAL record's
+ * `Object.values` — not the zod copy, which drops an own `__proto__` key — and
+ * not with `z.record`, which refuses non-plain objects and inspects symbol and
+ * non-enumerable keys too; the object itself is the parse result.
  */
-const RuleCountsSchema = z.custom<Record<string, number>>((value) => {
-  const record = ObjectRecordSchema.safeParse(value);
-  return (
-    record.success &&
-    Object.values(record.data).every(
-      (count) => CountSchema.safeParse(count).success,
-    )
-  );
-});
+const RuleCountsSchema = z.custom<Record<string, number>>(
+  (value) =>
+    isObjectRecord(value) &&
+    Object.values(value).every((count) => CountSchema.safeParse(count).success),
+);
 
 /** Validated independently on both sides of the IPC boundary. */
 export const SecurityStatsSchema = z.looseObject({

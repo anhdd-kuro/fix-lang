@@ -167,8 +167,10 @@ export const rowToEntry = (row: HistoryRow): HistoryEntry => {
     entry.priceCompletion = row.price_completion;
   }
   if (row.cost_status !== null) {
-    // SAFETY: stored as TEXT; the only writer (`entryToParams`) persists
-    // `entry.costStatus`, whose type is the union, or NULL (handled above).
+    // SAFETY: not validated at runtime. `entryToParams` writes typed entries'
+    // union value or NULL (handled above); legacy-bucket entries are imported
+    // unvalidated, so an out-of-union string from old JSON passes through
+    // unchanged, as it did before.
     entry.costStatus = row.cost_status as HistoryEntry["costStatus"];
   }
   if (row.session_json !== null) {

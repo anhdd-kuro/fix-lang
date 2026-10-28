@@ -89,8 +89,9 @@ const migratePresets = (
   storedRecordEntries(value).map(
     (preset) =>
       // SAFETY: only `model` is rewritten here; every other preset field is
-      // carried over as stored, and `apiStore.set("profiles", …)` re-validates
-      // the whole profile against `apiStoreSchema` before it is written back.
+      // carried over as stored, and `apiStore.set("profiles", …)` checks the
+      // properties `apiStoreSchema` declares before it is written back
+      // (undeclared nested keys pass unchecked, as they always have).
       ({
         ...preset,
         model: prefixStoredModelRef(legacyProvider, preset.model),
@@ -205,7 +206,7 @@ export const migrateProfileForModelRefs = <Input>(profile: Input): Profile => {
 
   // SAFETY: only model-ref strings and `enabledProviders` are rewritten; the
   // rest is the stored settings as read, and `apiStore.set("profiles", …)`
-  // re-validates the whole profile against `apiStoreSchema` before writing it.
+  // checks the properties `apiStoreSchema` declares before writing it.
   const migratedSettings: MigratedSettingsStore = {
     ...settings,
     selectedModel: prefixStoredModelRef(legacyProvider, settings.selectedModel),
@@ -233,7 +234,8 @@ export const migrateProfileForModelRefs = <Input>(profile: Input): Profile => {
 
   const { provider: _legacyProviderField, ...profileWithoutProvider } = raw;
   // SAFETY: same invariant as `migratedSettings` above — identity fields are
-  // carried over as stored and `apiStoreSchema` re-validates on write.
+  // carried over as stored and `apiStoreSchema` checks its declared
+  // properties on write.
   return {
     ...profileWithoutProvider,
     settings: migratedSettings,

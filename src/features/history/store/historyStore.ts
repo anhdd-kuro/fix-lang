@@ -195,10 +195,13 @@ export const migrateLegacyHistoryBuckets = (): void => {
     store.get("summarize"),
   ].map(
     (bucket) =>
-      // SAFETY: entries are deliberately not re-validated. `historySchema`
-      // pins each bucket only as an array, and a malformed entry fails
-      // `insertEntry` inside `migrateLegacyBuckets`' transaction, which rolls
-      // back and rethrows rather than half-migrating.
+      // SAFETY: entries are deliberately imported as stored, not
+      // re-validated; `LegacyHistoryBucketSchema` checks only that the bucket
+      // is an array. An entry that cannot be read throws in
+      // `mergeLegacyHistoryEntries` (before BEGIN) or in `insertEntry` (inside
+      // the transaction, which rolls back), so the migration never
+      // half-applies. A wrong-typed scalar can still insert through SQLite
+      // type affinity, exactly as before.
       LegacyHistoryBucketSchema.parse(bucket) as HistoryEntry[],
   );
 
