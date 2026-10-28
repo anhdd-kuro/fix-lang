@@ -49,7 +49,7 @@ vi.mock("~/features/providers/store/apiStore", () => ({
   getProfileSetting: vi.fn(),
   resetCurrentProfileSettings: vi.fn(),
   updateProfileSetting: vi.fn(),
-  withoutProfileSecrets: vi.fn((profile: unknown) => profile),
+  withoutProfileSecrets: vi.fn((profile: Profile) => profile),
 }));
 vi.mock("~/features/correction/store/keybindingStore", () => ({
   keybindingStore: { resetKeyBindings: vi.fn() },
@@ -63,6 +63,7 @@ vi.mock("~/features/providers/store/profileSecretStore", () => ({
 }));
 // Import (after mocks) — the real function under test.
 import { parseProviderConnect } from "./api";
+import type { Profile } from "~/features/providers/store/apiStore";
 
 describe("parseProviderConnect", () => {
   it("accepts a bare provider — no modelId is required or carried", () => {

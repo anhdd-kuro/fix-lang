@@ -21,6 +21,7 @@
  * `textLabel` rather than guessing at translatability.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { IpcMainInvokeEvent, ipcMain } from "electron";
 import { isLabel, resolveLabel } from "~/features/i18n/shared/message";
 import { createTranslator } from "~/features/i18n/shared/translate";
 // `registerApiHandlers` (registers the real handlers into `handlers`) and the
@@ -31,13 +32,15 @@ import { createTranslator } from "~/features/i18n/shared/translate";
 // the trailing `type`-only group).
 import { registerApiHandlers } from "./api";
 import type { Label } from "~/features/i18n/shared/message";
+import type { ProviderId } from "~/features/providers/shared/providers";
+import type { Profile } from "~/features/providers/store/apiStore";
 
 const tEn = createTranslator("en");
 const tJa = createTranslator("ja");
 
 type ResolvedInBothLocales = { en: string; ja: string };
 
-const resolveBoth = (label: unknown): ResolvedInBothLocales => {
+const resolveBoth = (label: Label | undefined): ResolvedInBothLocales => {
   expect(isLabel(label)).toBe(true);
   return {
     en: resolveLabel(label as Label, tEn),
@@ -45,16 +48,14 @@ const resolveBoth = (label: unknown): ResolvedInBothLocales => {
   };
 };
 
-const handlers = new Map<
-  string,
-  (event: unknown, ...args: unknown[]) => unknown
->();
+// Electron's own listener contract: its `any` args and result are Electron's
+// declaration, not ours. The handlers under test never read the event.
+type IpcInvokeListener = Parameters<typeof ipcMain.handle>[1];
+const unusedEvent = {} as IpcMainInvokeEvent;
+const handlers = new Map<string, IpcInvokeListener>();
 vi.mock("electron", () => ({
   ipcMain: {
-    handle: (
-      channel: string,
-      listener: (event: unknown, ...args: unknown[]) => unknown,
-    ) => {
+    handle: (channel: string, listener: IpcInvokeListener) => {
       handlers.set(channel, listener);
     },
     on: vi.fn(),
@@ -142,7 +143,7 @@ vi.mock("~/features/providers/store/apiStore", () => ({
     raw && typeof raw === "object" ? raw : {},
   resetCurrentProfileSettings: resetCurrentProfileSettingsMock,
   updateProfileSetting: updateProfileSettingMock,
-  withoutProfileSecrets: vi.fn((profile: unknown) => profile),
+  withoutProfileSecrets: vi.fn((profile: Profile) => profile),
 }));
 vi.mock("~/features/correction/store/keybindingStore", () => ({
   keybindingStore: { resetKeyBindings: vi.fn() },
@@ -182,9 +183,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
 
   it("set-api-key: a non-string key is a translatable 'Invalid key' Message", async () => {
     const handler = handlers.get("set-api-key");
-    const result = (await handler?.(undefined, 42)) as {
+    const result = (await handler?.(unusedEvent, 42)) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -196,9 +197,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
 
   it("fetch-provider-models: an unparseable payload is a translatable 'Invalid provider setup' Message", async () => {
     const handler = handlers.get("fetch-provider-models");
-    const result = (await handler?.(undefined, { provider: "bogus" })) as {
+    const result = (await handler?.(unusedEvent, { provider: "bogus" })) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -210,10 +211,10 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
 
   it("fetch-provider-models: an admin key on a provider without that slot is a translatable Message", async () => {
     const handler = handlers.get("fetch-provider-models");
-    const result = (await handler?.(undefined, {
+    const result = (await handler?.(unusedEvent, {
       provider: "lmstudio",
       provisioningKey: "sk-x",
-    })) as { success: boolean; error?: unknown };
+    })) as { success: boolean; error?: Label };
 
     expect(result.success).toBe(false);
     const { en, ja } = resolveBoth(result.error);
@@ -225,9 +226,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
   it("fetch-provider-models: a missing API key is a translatable, parameterized Message naming the provider", async () => {
     getProfileSecretMock.mockResolvedValue(null);
     const handler = handlers.get("fetch-provider-models");
-    const result = (await handler?.(undefined, { provider: "openai" })) as {
+    const result = (await handler?.(unusedEvent, { provider: "openai" })) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -247,9 +248,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
 
   it("connect-provider: an unparseable payload is a translatable 'Invalid provider setup' Message", async () => {
     const handler = handlers.get("connect-provider");
-    const result = (await handler?.(undefined, { provider: "bogus" })) as {
+    const result = (await handler?.(unusedEvent, { provider: "bogus" })) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -262,9 +263,11 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
   it("connect-provider: a missing API key is a translatable, parameterized Message naming the provider", async () => {
     getProfileSecretMock.mockResolvedValue(null);
     const handler = handlers.get("connect-provider");
-    const result = (await handler?.(undefined, { provider: "openrouter" })) as {
+    const result = (await handler?.(unusedEvent, {
+      provider: "openrouter",
+    })) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -291,9 +294,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
     const handler = handlers.get("connect-provider");
     // No `apiKey` supplied and `hasProfileSecret` resolves false — the
     // "already verified" branch fails without writing a new secret.
-    const result = (await handler?.(undefined, { provider: "openai" })) as {
+    const result = (await handler?.(unusedEvent, { provider: "openai" })) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -311,9 +314,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
     ]);
     connectProviderToActiveProfileMock.mockReturnValue(null);
     const handler = handlers.get("connect-provider");
-    const result = (await handler?.(undefined, { provider: "openai" })) as {
+    const result = (await handler?.(unusedEvent, { provider: "openai" })) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -330,9 +333,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
       error: "ECONNREFUSED",
     });
     const handler = handlers.get("connect-provider");
-    const result = (await handler?.(undefined, { provider: "ollama" })) as {
+    const result = (await handler?.(unusedEvent, { provider: "ollama" })) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -345,9 +348,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
   it("connect-provider: the reachable-but-empty Ollama note is a translatable Message on a SUCCESS", async () => {
     probeOllamaMock.mockResolvedValue({ reachable: true, models: [] });
     const handler = handlers.get("connect-provider");
-    const result = (await handler?.(undefined, { provider: "ollama" })) as {
+    const result = (await handler?.(unusedEvent, { provider: "ollama" })) as {
       success: boolean;
-      note?: unknown;
+      note?: Label;
     };
 
     expect(result.success).toBe(true);
@@ -359,9 +362,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
 
   it("disconnect-provider: an unknown provider is a translatable 'Invalid provider setup' Message", async () => {
     const handler = handlers.get("disconnect-provider");
-    const result = (await handler?.(undefined, "bogus")) as {
+    const result = (await handler?.(unusedEvent, "bogus")) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -378,9 +381,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
         : ["openai"],
     );
     const handler = handlers.get("set-selected-model");
-    const result = (await handler?.(undefined, "openrouter::x")) as {
+    const result = (await handler?.(unusedEvent, "openrouter::x")) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -392,9 +395,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
 
   it("set-feature-model: an unsupported feature is a translatable Message", async () => {
     const handler = handlers.get("set-feature-model");
-    const result = (await handler?.(undefined, "notAFeature", "model-x")) as {
+    const result = (await handler?.(unusedEvent, "notAFeature", "model-x")) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -407,9 +410,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
   it("check-model-compatibility: an unknown model is a translatable, parameterized Message", async () => {
     findRecommendedModelMock.mockReturnValue(undefined);
     const handler = handlers.get("check-model-compatibility");
-    const result = (await handler?.(undefined, "no-such-model")) as {
+    const result = (await handler?.(unusedEvent, "no-such-model")) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);
@@ -432,9 +435,9 @@ describe("api.ts IPC handlers — app-authored validation errors are translatabl
       error: "Active profile not found",
     });
     const handler = handlers.get("reset-profile-settings");
-    const result = (await handler?.(undefined)) as {
+    const result = (await handler?.(unusedEvent)) as {
       success: boolean;
-      error?: unknown;
+      error?: Label;
     };
 
     expect(result.success).toBe(false);

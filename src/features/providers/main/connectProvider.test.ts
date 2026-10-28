@@ -8,6 +8,7 @@
  * hand-written stand-in for the predicate under refactor tests the stand-in.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { IpcMainInvokeEvent, ipcMain } from "electron";
 import { isLabel } from "~/features/i18n/shared/message";
 const {
   fetchAvailableModelsMock,
@@ -44,16 +45,14 @@ const {
   clearProfileSecretMock: vi.fn(),
   withoutProfileSecretsMock: vi.fn(),
 }));
-const handlers = new Map<
-  string,
-  (event: unknown, ...args: unknown[]) => unknown
->();
+// Electron's own listener contract: its `any` args and result are Electron's
+// declaration, not ours. The handlers under test never read the event.
+type IpcInvokeListener = Parameters<typeof ipcMain.handle>[1];
+const unusedEvent = {} as IpcMainInvokeEvent;
+const handlers = new Map<string, IpcInvokeListener>();
 vi.mock("electron", () => ({
   ipcMain: {
-    handle: (
-      channel: string,
-      listener: (event: unknown, ...args: unknown[]) => unknown,
-    ) => {
+    handle: (channel: string, listener: IpcInvokeListener) => {
       handlers.set(channel, listener);
     },
     on: vi.fn(),
@@ -147,9 +146,12 @@ type HandlerResult = {
   profile?: unknown;
 };
 
-const connect = async (payload: unknown): Promise<HandlerResult> =>
+/** The single payload argument after the event, as Electron declares it. */
+type IpcPayload = Parameters<IpcInvokeListener>[1];
+
+const connect = async (payload: IpcPayload): Promise<HandlerResult> =>
   (await handlers.get("connect-provider")?.(
-    undefined,
+    unusedEvent,
     payload,
   )) as HandlerResult;
 
