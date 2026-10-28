@@ -57,6 +57,16 @@ const NA: CostSnapshot = {
 };
 
 /**
+ * Parse an OpenRouter price string to a finite, non-negative number, or null.
+ * OpenRouter lists "-1" as a sentinel for variable pricing (e.g.
+ * `openrouter/auto`); treating it as a price yields a negative cost.
+ */
+const parsePrice = (raw: string): number | null => {
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+};
+
+/**
  * Build a price map from the already-fetched `Model[]`. Models without
  * `pricing` are skipped (they can't be priced). Keys are stripped to the raw
  * id so a composite-ref entry still matches a served id instead of becoming a
@@ -65,7 +75,11 @@ const NA: CostSnapshot = {
 export const buildPriceMap = (models: Model[]): PriceMap => {
   const map: PriceMap = new Map();
   for (const model of models) {
-    if (model.pricing) {
+    if (
+      model.pricing &&
+      parsePrice(model.pricing.prompt) !== null &&
+      parsePrice(model.pricing.completion) !== null
+    ) {
       map.set(stripModelRefPrefix(model.id).toLowerCase(), {
         prompt: model.pricing.prompt,
         completion: model.pricing.completion,
@@ -90,12 +104,6 @@ export const normalizeModelId = (id: string): string => {
   const slash = trimmed.indexOf("/");
   const withoutPrefix = slash >= 0 ? trimmed.slice(slash + 1) : trimmed;
   return withoutPrefix.toLowerCase().trim();
-};
-
-/** Parse an OpenRouter price string to a finite number, or null. */
-const parsePrice = (raw: string): number | null => {
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : null;
 };
 
 const lookupExact = (id: string, priceMap: PriceMap) =>

@@ -439,3 +439,52 @@ describe("computeCost — served id vs requested id matching order", () => {
     });
   });
 });
+
+// OpenRouter lists "-1" as a sentinel for variable pricing (`openrouter/auto`).
+// The requested-id exact lookup can land on that row; it must never become a
+// negative cost.
+describe("computeCost — negative sentinel prices", () => {
+  const sentinelModel = (id: string): Model => ({
+    id,
+    name: id,
+    created: 0,
+    pricing: {
+      prompt: "-1",
+      completion: "-1",
+      image: "0",
+      request: "0",
+      input_cache_read: "0",
+      input_cache_write: "0",
+      web_search: "0",
+      internal_reasoning: "0",
+    },
+  });
+  const request = {
+    model: "openrouter/auto",
+    resolvedModel: "anthropic/claude-sonnet-4-20250514",
+    promptTokens: 1000,
+    completionTokens: 500,
+  };
+
+  it("buildPriceMap skips a row whose prices are negative", () => {
+    expect(buildPriceMap([sentinelModel("openrouter/auto")]).size).toBe(0);
+  });
+
+  it("never reports a negative cost for a '-1' row hit via the requested id", () => {
+    const sentinelMap: PriceMap = new Map([
+      ["openrouter/auto", { prompt: "-1", completion: "-1" }],
+    ]);
+    const result = computeCost(request, sentinelMap);
+    expect(result.status).toBe("na");
+    expect(result.estimatedCostUsd).toBeNull();
+  });
+
+  it("is N/A through the real catalogue path too", () => {
+    const result = computeCost(
+      request,
+      buildPriceMap([sentinelModel("openrouter/auto")]),
+    );
+    expect(result.status).toBe("na");
+    expect(result.estimatedCostUsd).toBeNull();
+  });
+});
