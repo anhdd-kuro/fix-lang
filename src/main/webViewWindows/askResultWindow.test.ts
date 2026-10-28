@@ -89,12 +89,15 @@ const loadModule = async () => {
   return import("./askResultWindow");
 };
 
+/** The one field of `IpcMainEvent` the handlers read. */
+type IpcEventFake = { sender: BrowserWindowMock["webContents"] };
+
 const getIpcHandler = (channel: string) => {
   const call = electronMocks.ipcMainOn.mock.calls.find(
     ([name]) => name === channel,
   );
   if (!call) throw new Error(`no ipcMain.on handler for "${channel}"`);
-  return call[1] as (event: unknown) => void;
+  return call[1] as (event: IpcEventFake) => void;
 };
 
 /** Simulates the renderer inside `win` announcing readiness. */

@@ -4,6 +4,7 @@
  * — the only signal that says whether a request carried app context. `exec` and
  * the log service are mocked; no osascript runs.
  */
+import type { ExecOptions } from "node:child_process";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getActiveApp } from "./activeApp";
 
@@ -30,7 +31,7 @@ const mockExec = (error: Error | null, stdout = "") => {
   execMock.mockImplementation(
     (
       _cmd: string,
-      _opts: unknown,
+      _opts: ExecOptions,
       cb: (e: Error | null, out: string, err: string) => void,
     ) => {
       cb(error, stdout, "");

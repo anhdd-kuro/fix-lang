@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { JsonValue } from "~/main/jsonValue";
 
 const keepAliveFetchMock = vi.fn();
 
@@ -8,7 +9,7 @@ vi.mock("~/main/llm/httpKeepAlive", () => ({
 
 const { fetchAnthropicModels } = await import("./models");
 
-const okResponse = (data: unknown) => ({
+const okResponse = (data: JsonValue) => ({
   ok: true,
   status: 200,
   json: () => Promise.resolve({ data }),

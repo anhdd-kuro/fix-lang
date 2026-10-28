@@ -221,8 +221,8 @@ describe("updateComboProgress — one executeJavaScript per step boundary (O5)",
     );
 
     let unhandledRejection: unknown;
-    const onUnhandledRejection = (reason: unknown) => {
-      unhandledRejection = reason;
+    const onUnhandledRejection = (cause: unknown) => {
+      unhandledRejection = cause;
     };
     process.on("unhandledRejection", onUnhandledRejection);
 

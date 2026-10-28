@@ -38,7 +38,7 @@ const emptyPage = {
 };
 
 const clientWith = (
-  fetchImpl: (url: string, init: unknown) => Promise<StubResponse>,
+  fetchImpl: (url: string, init: RequestInit) => Promise<StubResponse>,
   key: string | null = KEY,
 ) =>
   createOpenAIUsageClient({

@@ -18,6 +18,7 @@
  * `keybindings/utils.test.ts` use, avoids touching Electron or the
  * filesystem at all.
  */
+import type { ExecOptions } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { redactLogContext } from "~/features/logs/shared/logging";
 import { logger } from "~/main/logging/logService";
@@ -140,7 +141,7 @@ const mockCopyExec = ({
     // instead of silently receiving the options object as its callback.
     (
       _cmd: string,
-      optionsOrCallback: unknown,
+      optionsOrCallback: ExecOptions | ExecCallback,
       maybeCallback?: ExecCallback,
     ) => {
       const callback =
@@ -439,7 +440,7 @@ describe("getHighlightedTextWithActiveApp — combined frontmost-app + copy read
     execMock.mockImplementation(
       (
         _cmd: string,
-        optionsOrCallback: unknown,
+        optionsOrCallback: ExecOptions | ExecCallback,
         maybeCallback?: ExecCallback,
       ) => {
         const callback =

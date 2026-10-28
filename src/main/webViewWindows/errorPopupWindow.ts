@@ -107,8 +107,8 @@ const displayErrorPopup = (message: string): void => {
         hideErrorPopup();
       }, ERROR_POPUP_DURATION_MS);
     })
-    .catch((error: unknown) => {
-      console.error("Unable to render error popup:", error);
+    .catch((cause: unknown) => {
+      console.error("Unable to render error popup:", cause);
     });
 };
 

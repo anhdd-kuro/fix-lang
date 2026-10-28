@@ -114,19 +114,19 @@ const CLIPBOARD_CHANGE_TIMEOUT_MS = 500;
  * actionable re-grant prompt; anything else becomes a generic wrapper that
  * still carries the original failure as `cause`.
  */
-const toSelectionError = (error: unknown): Error => {
-  if (isKeystrokePermissionDenied(error)) {
+const toSelectionError = (cause: unknown): Error => {
+  if (isKeystrokePermissionDenied(cause)) {
     return new AccessibilityPermissionError();
   }
-  return new Error("Failed to get highlighted text", { cause: error });
+  return new Error("Failed to get highlighted text", { cause });
 };
 
-const logCopyKeystrokeFailure = (error: unknown, startedAt: number): void => {
+const logCopyKeystrokeFailure = (cause: unknown, startedAt: number): void => {
   logger.warn("clipboard.copy", "Copy keystroke failed", {
     elapsedMs: Date.now() - startedAt,
-    permissionDenied: isKeystrokePermissionDenied(error),
+    permissionDenied: isKeystrokePermissionDenied(cause),
   });
-  console.error(error);
+  console.error(cause);
 };
 
 /**

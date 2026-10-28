@@ -9,6 +9,7 @@
  */
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
+import { z } from "zod";
 import { getApiKey } from "~/features/providers/store/apiKeyStore";
 import {
   apiStore,
@@ -29,8 +30,21 @@ import {
   aiSdkCallSettings,
   aiSdkSystemOption,
 } from "~/main/llm/providers/aiSdkCallSettings";
+import { messageContentText } from "~/main/llm/providers/messageContentText";
 import { keepAliveFetch } from "~/main/llm/httpKeepAlive";
 import { notifyRequestError } from "~/main/notifications/error";
+
+/**
+ * Raw response body readers. A body without the key reads as `undefined`, the
+ * same as the key holding `undefined`.
+ */
+const BodyUsageSchema = z.object({ usage: z.unknown() });
+/**
+ * `z.any()` on purpose: each choice is read as `choice.message?.content` and
+ * trimmed, exactly as before this schema existed, so a malformed choice still
+ * fails the request the way it always has instead of being skipped.
+ */
+const BodyChoicesSchema = z.object({ choices: z.array(z.any()) });
 
 export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
   const apiKey =
@@ -78,9 +92,7 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
     // system prompt must be passed via the dedicated `system` option instead.
     const systemPrompt = rawMessages
       .filter((m) => m.role === "system")
-      .map((m) =>
-        typeof m.content === "string" ? m.content : JSON.stringify(m.content),
-      )
+      .map((m) => messageContentText(m.content))
       .join("\n\n");
     const conversationMessages = buildCachedMessages(
       rawMessages.filter((m) => m.role !== "system"),
@@ -112,10 +124,8 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
     const completionTokens = normalizedUsage.completionTokens;
 
     // Extract cache-usage metadata from raw OpenRouter response body
-    const rawUsage =
-      resBody && typeof resBody === "object" && "usage" in resBody
-        ? resBody.usage
-        : undefined;
+    const bodyUsage = BodyUsageSchema.safeParse(resBody);
+    const rawUsage = bodyUsage.success ? bodyUsage.data.usage : undefined;
     const { cachedTokens, cacheWriteTokens } = extractCacheUsage(rawUsage);
     if (cachedTokens > 0 || cacheWriteTokens > 0) {
       console.log(
@@ -127,16 +137,11 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
     let processedContent: string[] = [text];
 
     // If multiple responses were requested
-    if (
-      options.n &&
-      options.n > 1 &&
-      resBody &&
-      typeof resBody === "object" &&
-      "choices" in resBody &&
-      Array.isArray(resBody.choices)
-    ) {
+    const bodyChoices =
+      options.n && options.n > 1 ? BodyChoicesSchema.safeParse(resBody) : null;
+    if (bodyChoices?.success) {
       // Extract all responses
-      const contents = resBody.choices
+      const contents = bodyChoices.data.choices
         .flatMap((choice) =>
           choice.message?.content ? choice.message.content.trim() : [],
         )
@@ -164,7 +169,7 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
       cachedTokens,
       cacheWriteTokens,
     };
-    if (typeof reasoningText === "string" && reasoningText.length > 0) {
+    if (reasoningText !== undefined && reasoningText.length > 0) {
       result.reasoningTexts = [reasoningText];
     }
     return result;

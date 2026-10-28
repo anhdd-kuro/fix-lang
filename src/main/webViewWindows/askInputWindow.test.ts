@@ -10,6 +10,7 @@
  * this never boots a real window.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { JsonValue } from "~/main/jsonValue";
 
 const windowTitlesMocks = vi.hoisted(() => ({
   buildAskInputWindowTitle: vi.fn(() => "Ask AI"),
@@ -97,7 +98,8 @@ const getIpcHandler = (channel: string) => {
     ([name]) => name === channel,
   );
   if (!call) throw new Error(`no ipcMain.on handler for "${channel}"`);
-  return call[1] as (event: unknown, arg?: unknown) => void;
+  // The handlers never read the event; the argument is whatever the renderer sent.
+  return call[1] as (event: undefined, arg?: JsonValue) => void;
 };
 
 describe("askInputWindow", () => {

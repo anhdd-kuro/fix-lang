@@ -10,6 +10,7 @@ import { KEY_FAMILY_LOG_FIELD } from "~/features/providers/shared/providerKeyFam
 import { createOpenAIUsageClient } from "./openai/usage.client";
 import { createOpenRouterClient } from "./openrouter/client";
 import type { LogContext, LogLevel } from "~/features/logs/shared/logging";
+import type { JsonValue } from "~/main/jsonValue";
 
 // `vi.mock` is hoisted above every top-level binding, so the sink it writes into
 // has to be hoisted with it.
@@ -48,7 +49,7 @@ const errResponse = (status: number) => ({
   json: async () => ({}),
 });
 
-const okResponse = (body: unknown) => ({
+const okResponse = (body: JsonValue) => ({
   ok: true,
   status: 200,
   json: async () => body,

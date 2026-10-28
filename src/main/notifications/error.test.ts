@@ -1,3 +1,7 @@
+import type {
+  Event as ElectronEvent,
+  NotificationConstructorOptions,
+} from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTranslator } from "~/features/i18n/shared/translate";
 import {
@@ -22,7 +26,7 @@ const {
     isReady: true,
     readyListener: undefined as (() => void) | undefined,
     failedListener: undefined as
-      | ((event: unknown, error: string) => void)
+      | ((event: Partial<ElectronEvent>, error: string) => void)
       | undefined,
   },
   showErrorPopupMock: vi.fn(),
@@ -55,7 +59,7 @@ vi.mock("electron", () => ({
     },
   },
   Notification: class {
-    constructor(options: unknown) {
+    constructor(options: NotificationConstructorOptions) {
       notificationConstructorMock(options);
       if (notificationState.failNextDelivery) {
         notificationState.failNextDelivery = false;
@@ -65,7 +69,10 @@ vi.mock("electron", () => ({
 
     show = notificationShowMock;
 
-    on(event: string, listener: (event: unknown, error: string) => void) {
+    on(
+      event: string,
+      listener: (event: Partial<ElectronEvent>, error: string) => void,
+    ) {
       if (event === "failed") notificationState.failedListener = listener;
       return this;
     }

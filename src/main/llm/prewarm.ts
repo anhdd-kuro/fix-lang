@@ -197,10 +197,10 @@ export const prewarmProviderConnection = (modelRef: string): void => {
         lastPrewarmAt.set(provider, Date.now());
         logger.debug(LOG_SCOPE, "Prewarm connection established", { provider });
       },
-      (error: unknown) => {
+      (cause: unknown) => {
         logger.debug(LOG_SCOPE, "Prewarm request failed", {
           provider,
-          error: error instanceof Error ? error.message : String(error),
+          error: cause instanceof Error ? cause.message : String(cause),
         });
       },
     );

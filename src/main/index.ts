@@ -6,6 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { app, BrowserWindow } from "electron";
+import { z } from "zod";
 import { isPromptGenEnabled } from "~/features/core/shared/features";
 import { guardStore } from "~/features/guards/store/guardStore";
 import { initializeLocaleFromSystem } from "~/features/i18n/store/localeStore";
@@ -61,25 +62,30 @@ const LOG_FILE = path.join(
 );
 const UPDATE_CHECK_DELAY_MS = 1_500;
 
-const serializeLogArg = (arg: unknown): string => {
-  if (arg instanceof Error) {
-    return `${arg.name}: ${arg.message}\n${arg.stack || ""}`;
-  }
-  if (typeof arg === "string") return arg;
-  try {
-    return JSON.stringify(arg);
-  } catch {
-    return String(arg);
-  }
-};
+const LogTextArgSchema = z.string();
+
+/** One console call's arguments, each rendered the way it reads best in a file. */
+const serializeLogArgs = (args: readonly unknown[]): string =>
+  args
+    .map((arg) => {
+      if (arg instanceof Error) {
+        return `${arg.name}: ${arg.message}\n${arg.stack || ""}`;
+      }
+      const text = LogTextArgSchema.safeParse(arg);
+      if (text.success) return text.data;
+      try {
+        return JSON.stringify(arg);
+      } catch {
+        return String(arg);
+      }
+    })
+    .join(" ");
 
 const appendRuntimeLog = (level: string, ...args: unknown[]): void => {
   try {
     fs.mkdirSync(LOG_DIR, { recursive: true });
     const timestamp = new Date().toISOString();
-    const line = `[${timestamp}] [${level}] ${args
-      .map((arg) => serializeLogArg(arg))
-      .join(" ")}\n`;
+    const line = `[${timestamp}] [${level}] ${serializeLogArgs(args)}\n`;
     fs.appendFileSync(LOG_FILE, line);
   } catch {
     // no-op

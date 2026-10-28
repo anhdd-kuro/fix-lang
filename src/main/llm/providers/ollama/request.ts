@@ -9,7 +9,9 @@ import { getProviderEndpoint } from "~/features/providers/store/apiStore";
 import { getLocalModels } from "~/main/llm/models/discover";
 import { notifyRequestError } from "~/main/notifications/error";
 import { createOllamaClient } from "./client";
-import type { Options } from "ollama";
+import type { ChatResponse, Options } from "ollama";
+import { z } from "zod";
+import { messageContentText } from "~/main/llm/providers/messageContentText";
 import type { AIRequestOptions } from "~/main/ai.request/requestTypes";
 
 /**
@@ -30,8 +32,12 @@ import type { AIRequestOptions } from "~/main/ai.request/requestTypes";
  * trusted. The `ollama` package types both counts as a required `number`, but an
  * older daemon or a proxy in front of it can omit them.
  */
-const tokenCount = (raw: unknown): number | null =>
-  typeof raw === "number" && Number.isFinite(raw) ? raw : null;
+const TokenCountSchema = z.number();
+
+const tokenCount = (raw: ChatResponse["eval_count"]): number | null => {
+  const count = TokenCountSchema.safeParse(raw);
+  return count.success ? count.data : null;
+};
 
 export const makeLocalAIRequest = async (options: AIRequestOptions) => {
   // SAFETY: production calls arrive only through the provider registry from
@@ -82,10 +88,7 @@ export const makeLocalAIRequest = async (options: AIRequestOptions) => {
           : msg.role === "system"
             ? "system"
             : "user",
-      content:
-        typeof msg.content === "string"
-          ? msg.content
-          : JSON.stringify(msg.content),
+      content: messageContentText(msg.content),
     }));
     // Make the request to the local LLM.
     //

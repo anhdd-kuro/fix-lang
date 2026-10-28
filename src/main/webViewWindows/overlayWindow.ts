@@ -184,7 +184,7 @@ export const updateComboProgress = (view: ComboProgressView): void => {
   const style = buildComboProgressStyle(view);
   overlayWindow.webContents
     .executeJavaScript(`window.__setComboProgress(${JSON.stringify(style)})`)
-    .catch((error: unknown) => {
-      console.debug("Dropped combo progress update:", error);
+    .catch((cause: unknown) => {
+      console.debug("Dropped combo progress update:", cause);
     });
 };
