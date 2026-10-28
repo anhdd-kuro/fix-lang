@@ -373,3 +373,179 @@ describe("buildPriceMap — composite model refs", () => {
     expect(map.has("openrouter::openai/gpt-4o")).toBe(false);
   });
 });
+
+// `resolvedModel` is now the provider-reported served id, usually a dated
+// variant. Exact lookups on served then requested must precede any fuzzy pass,
+// or a dated id lands on a NEIGHBOURING dated row (or N/A) instead of the slug
+// the catalogue prices.
+describe("computeCost — served id vs requested id matching order", () => {
+  const datedCatalogue: PriceMap = new Map([
+    // Deliberately the neighbouring dated row, listed first and priced
+    // differently, so a fuzzy hit on it is distinguishable.
+    [
+      "openai/gpt-4o-2024-08-06",
+      { prompt: "0.000777", completion: "0.000777" },
+    ],
+    ["openai/gpt-4o", { prompt: "0.000002", completion: "0.000008" }],
+  ]);
+  const tokens = { promptTokens: 1000, completionTokens: 500 };
+
+  it("prices a dated served id at the requested slug, not a neighbouring dated row", () => {
+    const result = computeCost(
+      {
+        model: "openai/gpt-4o",
+        resolvedModel: "openai/gpt-4o-2024-11-20",
+        ...tokens,
+      },
+      datedCatalogue,
+    );
+    expect(result.status).toBe("ok");
+    expect(result.pricePrompt).toBe("0.000002");
+    expect(result.priceCompletion).toBe("0.000008");
+  });
+
+  it("prices a dated served id at the requested slug when the catalogue holds no dated rows", () => {
+    // Without the requested-id lookup this id falls below the fuzzy threshold
+    // and the request, which used to price exactly, turns into N/A.
+    const result = computeCost(
+      {
+        model: "openai/gpt-4o",
+        resolvedModel: "openai/gpt-4o-2024-11-20",
+        ...tokens,
+      },
+      priceMap,
+    );
+    expect(result).toMatchObject({ status: "ok", pricePrompt: "0.000002" });
+  });
+
+  it("lets an exact match on the served id beat the requested slug", () => {
+    const result = computeCost(
+      {
+        model: "openai/gpt-4o",
+        resolvedModel: "openai/gpt-4o-2024-08-06",
+        ...tokens,
+      },
+      datedCatalogue,
+    );
+    expect(result.pricePrompt).toBe("0.000777");
+  });
+
+  it("matches the requested id exactly through a composite ref", () => {
+    const result = computeCost(
+      {
+        model: "openrouter::openai/gpt-4o",
+        resolvedModel: "openai/gpt-4o-2024-11-20",
+        ...tokens,
+      },
+      datedCatalogue,
+    );
+    expect(result.pricePrompt).toBe("0.000002");
+  });
+
+  it("still fuzzy-matches the served id when neither id is an exact key", () => {
+    const result = computeCost(
+      {
+        model: "gpt-4o-latest-alias",
+        resolvedModel: "OpenRouter/GPT-4o",
+        ...tokens,
+      },
+      priceMap,
+    );
+    expect(result).toMatchObject({ status: "ok", pricePrompt: "0.000002" });
+  });
+
+  describe("floating aliases", () => {
+    const aliasCatalogue: PriceMap = new Map([
+      [
+        "~openai/gpt-mini-latest",
+        { prompt: "0.0000004", completion: "0.0000016" },
+      ],
+      ["openai/gpt-4o", { prompt: "0.000002", completion: "0.000008" }],
+    ]);
+
+    it("prices a catalogued alias at the alias row when the served id is a dated model", () => {
+      const result = computeCost(
+        {
+          model: "~openai/gpt-mini-latest",
+          resolvedModel: "openai/gpt-5-mini-2025-08-07",
+          ...tokens,
+        },
+        aliasCatalogue,
+      );
+      expect(result).toMatchObject({ status: "ok", pricePrompt: "0.0000004" });
+    });
+
+    it("never invents a price for an uncatalogued alias whose served id matches nothing", () => {
+      const result = computeCost(
+        {
+          model: "~openai/gpt-mini-latest",
+          resolvedModel: "openai/gpt-5-mini-2025-08-07",
+          ...tokens,
+        },
+        priceMap,
+      );
+      expect(result).toMatchObject({ status: "na", estimatedCostUsd: null });
+    });
+
+    it("prices an uncatalogued alias from its exactly catalogued served id", () => {
+      const result = computeCost(
+        {
+          model: "~openai/gpt-latest",
+          resolvedModel: "openai/gpt-4o",
+          ...tokens,
+        },
+        aliasCatalogue,
+      );
+      expect(result).toMatchObject({ status: "ok", pricePrompt: "0.000002" });
+    });
+  });
+});
+
+// OpenRouter lists "-1" as a sentinel for variable pricing (`openrouter/auto`).
+// The requested-id exact lookup can land on that row; it must never become a
+// negative cost.
+describe("computeCost — negative sentinel prices", () => {
+  const sentinelModel = (id: string): Model => ({
+    id,
+    name: id,
+    created: 0,
+    pricing: {
+      prompt: "-1",
+      completion: "-1",
+      image: "0",
+      request: "0",
+      input_cache_read: "0",
+      input_cache_write: "0",
+      web_search: "0",
+      internal_reasoning: "0",
+    },
+  });
+  const request = {
+    model: "openrouter/auto",
+    resolvedModel: "anthropic/claude-sonnet-4-20250514",
+    promptTokens: 1000,
+    completionTokens: 500,
+  };
+
+  it("buildPriceMap skips a row whose prices are negative", () => {
+    expect(buildPriceMap([sentinelModel("openrouter/auto")]).size).toBe(0);
+  });
+
+  it("never reports a negative cost for a '-1' row hit via the requested id", () => {
+    const sentinelMap: PriceMap = new Map([
+      ["openrouter/auto", { prompt: "-1", completion: "-1" }],
+    ]);
+    const result = computeCost(request, sentinelMap);
+    expect(result.status).toBe("na");
+    expect(result.estimatedCostUsd).toBeNull();
+  });
+
+  it("is N/A through the real catalogue path too", () => {
+    const result = computeCost(
+      request,
+      buildPriceMap([sentinelModel("openrouter/auto")]),
+    );
+    expect(result.status).toBe("na");
+    expect(result.estimatedCostUsd).toBeNull();
+  });
+});

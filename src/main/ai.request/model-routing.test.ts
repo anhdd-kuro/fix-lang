@@ -106,6 +106,7 @@ vi.mock("~/main/llm/providers/ollama/client", () => ({
   ollamaClient: { chat: ollamaChatMock },
 }));
 import { apiStore } from "~/features/providers/store/apiStore";
+import { fakeGenerateText } from "~/main/llm/providers/testing/fakeGenerateText";
 import * as sharedModule from "./shared";
 import { isLocalModelId, makeAIRequest } from "./shared";
 import type {
@@ -191,11 +192,12 @@ describe("makeAIRequest — ref-based routing", () => {
       message: { content: "local answer" },
       total_duration: 1,
     });
-    generateTextMock.mockResolvedValue({
-      text: "answer",
-      usage: { promptTokens: 1, completionTokens: 2 },
-      response: { body: {} },
-    });
+    generateTextMock.mockImplementation(
+      fakeGenerateText({
+        text: "answer",
+        usage: { inputTokens: 1, outputTokens: 2 },
+      }),
+    );
   });
 
   it("an openai:: ref routes to the OpenAI path with the RAW id", async () => {
@@ -246,18 +248,36 @@ describe("makeAIRequest — ref-based routing", () => {
     expect(ollamaChatMock).toHaveBeenCalledOnce();
   });
 
+  // The served model is read from `response.modelId`, never from the raw body.
   it("keeps AIRequestResponse.model and resolvedModel raw, never composite", async () => {
-    generateTextMock.mockResolvedValue({
-      text: "answer",
-      usage: { promptTokens: 1, completionTokens: 2 },
-      response: { body: { model: "gpt-4o-2024-11-20" } },
-    });
+    generateTextMock.mockImplementation(
+      fakeGenerateText({
+        text: "answer",
+        usage: { inputTokens: 1, outputTokens: 2 },
+        modelId: "gpt-4o-2024-11-20",
+      }),
+    );
 
     const response = await request("openai::gpt-4o");
 
     expect(response.model).not.toContain("::");
     expect(response.resolvedModel).toBe("gpt-4o-2024-11-20");
     expect(response.resolvedModel).not.toContain("::");
+  });
+
+  it("an openrouter:: ref reports the served model from response.modelId", async () => {
+    generateTextMock.mockImplementation(
+      fakeGenerateText({
+        text: "answer",
+        usage: { inputTokens: 1, outputTokens: 2 },
+        modelId: "anthropic/claude-3.5-sonnet-20241022",
+      }),
+    );
+
+    const response = await request("openrouter::anthropic/claude-3.5-sonnet");
+
+    expect(response.model).toBe("anthropic/claude-3.5-sonnet");
+    expect(response.resolvedModel).toBe("anthropic/claude-3.5-sonnet-20241022");
   });
 
   it("a prefixed unresolvable ref throws naming both the provider and the model id", async () => {

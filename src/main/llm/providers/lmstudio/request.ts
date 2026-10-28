@@ -21,7 +21,6 @@ import {
   type AIRequestOptions,
   type AIRequestResponse,
 } from "~/main/ai.request/requestTypes";
-import { extractResolvedModel } from "~/main/ai.request/resolve-model";
 import {
   aiSdkCallSettings,
   aiSdkSystemOption,
@@ -57,11 +56,11 @@ export const makeLmStudioAIRequest = async (options: AIRequestOptions) => {
         topP: options.top_p,
         ...aiSdkCallSettings(options),
       });
+    // `n` is not forwarded: sibling responses are N separate calls, like every other provider.
     const responses = await Promise.all(
       Array.from({ length: Math.max(1, options.n ?? 1) }, request),
     );
     const counts = responses.map((response) => usageCounts(response.usage));
-    const firstBody = responses[0]?.response.body;
 
     const reasoningTexts = responses
       .map((response) => response.reasoningText)
@@ -73,7 +72,8 @@ export const makeLmStudioAIRequest = async (options: AIRequestOptions) => {
       completionTokens: sumTokenField(counts, "completionTokens"),
       model: modelId,
       provider: "lmstudio",
-      resolvedModel: extractResolvedModel(firstBody, modelId),
+      // `response.modelId` is the model the provider reports having served; no `include` needed.
+      resolvedModel: responses[0]?.response.modelId ?? modelId,
     };
     if (reasoningTexts.length > 0) result.reasoningTexts = reasoningTexts;
     return result;

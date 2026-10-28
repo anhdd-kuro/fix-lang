@@ -6,7 +6,6 @@ import { describe, expect, it } from "vitest";
 import {
   CacheProvider,
   buildCachedMessages,
-  extractCacheUsage,
   resolveCacheProvider,
 } from "./cache-strategy";
 
@@ -265,81 +264,5 @@ describe("buildCachedMessages", () => {
   // W8: empty messages array should return empty array without error
   it("returns empty array unchanged for ANTHROPIC", () => {
     expect(buildCachedMessages([], CacheProvider.ANTHROPIC)).toEqual([]);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// extractCacheUsage
-// ---------------------------------------------------------------------------
-
-describe("extractCacheUsage", () => {
-  it("extracts both cache fields when present", () => {
-    const usage = {
-      cache_read_input_tokens: 500,
-      cache_creation_input_tokens: 200,
-    };
-    expect(extractCacheUsage(usage)).toEqual({
-      cachedTokens: 500,
-      cacheWriteTokens: 200,
-    });
-  });
-
-  it("defaults missing cache_read_input_tokens to 0", () => {
-    expect(extractCacheUsage({ cache_creation_input_tokens: 100 })).toEqual({
-      cachedTokens: 0,
-      cacheWriteTokens: 100,
-    });
-  });
-
-  it("defaults missing cache_creation_input_tokens to 0", () => {
-    expect(extractCacheUsage({ cache_read_input_tokens: 300 })).toEqual({
-      cachedTokens: 300,
-      cacheWriteTokens: 0,
-    });
-  });
-
-  it("returns zeros when usage is null", () => {
-    expect(extractCacheUsage(null)).toEqual({
-      cachedTokens: 0,
-      cacheWriteTokens: 0,
-    });
-  });
-
-  it("returns zeros when usage is undefined", () => {
-    expect(extractCacheUsage(undefined)).toEqual({
-      cachedTokens: 0,
-      cacheWriteTokens: 0,
-    });
-  });
-
-  it("returns zeros when usage is an empty object", () => {
-    expect(extractCacheUsage({})).toEqual({
-      cachedTokens: 0,
-      cacheWriteTokens: 0,
-    });
-  });
-
-  it("ignores non-numeric cache fields", () => {
-    expect(
-      extractCacheUsage({
-        cache_read_input_tokens: "300",
-        cache_creation_input_tokens: null,
-      }),
-    ).toEqual({ cachedTokens: 0, cacheWriteTokens: 0 });
-  });
-
-  // W9: primitive non-object values should return zeros without throwing
-  it("returns zeros when usage is a number", () => {
-    expect(extractCacheUsage(42)).toEqual({
-      cachedTokens: 0,
-      cacheWriteTokens: 0,
-    });
-  });
-
-  it("returns zeros when usage is a string", () => {
-    expect(extractCacheUsage("some string")).toEqual({
-      cachedTokens: 0,
-      cacheWriteTokens: 0,
-    });
   });
 });

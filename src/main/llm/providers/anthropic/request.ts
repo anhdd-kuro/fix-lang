@@ -20,7 +20,6 @@ import {
   type AIRequestOptions,
   type AIRequestResponse,
 } from "~/main/ai.request/requestTypes";
-import { extractResolvedModel } from "~/main/ai.request/resolve-model";
 import {
   aiSdkCallSettings,
   aiSdkSystemOption,
@@ -66,12 +65,11 @@ export const makeAnthropicAIRequest = async (options: AIRequestOptions) => {
         ...aiSdkCallSettings(options),
       });
     // The Messages API has no `n`, so sibling responses are N separate calls —
-    // the same shape the Bedrock path uses for the identical reason.
+    // the same shape every other provider uses.
     const responses = await Promise.all(
       Array.from({ length: Math.max(1, options.n ?? 1) }, request),
     );
     const counts = responses.map((response) => usageCounts(response.usage));
-    const firstBody = responses[0]?.response.body;
 
     const reasoningTexts = responses
       .map((response) => response.reasoningText)
@@ -83,7 +81,8 @@ export const makeAnthropicAIRequest = async (options: AIRequestOptions) => {
       completionTokens: sumTokenField(counts, "completionTokens"),
       model: modelId,
       provider: "anthropic",
-      resolvedModel: extractResolvedModel(firstBody, modelId),
+      // `response.modelId` is the model the provider reports having served; no `include` needed.
+      resolvedModel: responses[0]?.response.modelId ?? modelId,
     };
     if (reasoningTexts.length > 0) result.reasoningTexts = reasoningTexts;
     return result;

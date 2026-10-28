@@ -8,13 +8,8 @@
  * here.
  */
 import { describe, expect, it } from "vitest";
-import {
-  buildCachedMessages,
-  CacheProvider,
-  extractCacheUsage,
-} from "./cache-strategy";
+import { buildCachedMessages, CacheProvider } from "./cache-strategy";
 import { toConversation, usageCounts } from "./requestTypes";
-import { extractResolvedModel } from "./resolve-model";
 
 const OUTPUT_TOKENS = 3;
 
@@ -80,59 +75,6 @@ describe("provider response readers equivalence", () => {
       ...CONTAINER_EDGES,
     ] as const)("%s", (_label, usage) => {
       expect(usageCounts(usage)).toMatchSnapshot("verdict");
-    });
-  });
-
-  describe("extractCacheUsage", () => {
-    it.each(
-      ["cache_read_input_tokens", "cache_creation_input_tokens"].flatMap(
-        (field) =>
-          VALUE_EDGES.map(([label, value]) => [field, label, value] as const),
-      ),
-    )("%s = %s", (field, _label, value) => {
-      expect(extractCacheUsage({ [field]: value })).toMatchSnapshot("verdict");
-    });
-
-    it.each([
-      [
-        "array carrying the fields",
-        Object.assign([], { cache_read_input_tokens: 4 }),
-      ],
-      ...CONTAINER_EDGES,
-    ] as const)("%s", (_label, usage) => {
-      expect(extractCacheUsage(usage)).toMatchSnapshot("verdict");
-    });
-  });
-
-  describe("extractResolvedModel", () => {
-    it.each([
-      ["string", "served/model"],
-      ["padded", "  served/model  "],
-      ["blank", "   "],
-      ["empty", ""],
-      ["boxed", new String("served/model")],
-      ["number", 4],
-      ["null", null],
-      ["undefined", undefined],
-      ["array", ["served/model"]],
-    ] as const)("model = %s", (_label, model) => {
-      expect(extractResolvedModel({ model }, "fallback")).toMatchSnapshot(
-        "verdict",
-      );
-    });
-
-    it.each([
-      [
-        "array carrying the field",
-        Object.assign([], { model: "served/model" }),
-      ],
-      [
-        "function carrying the field",
-        Object.assign(() => 1, { model: "served/model" }),
-      ],
-      ...CONTAINER_EDGES,
-    ] as const)("%s", (_label, body) => {
-      expect(extractResolvedModel(body, "fallback")).toMatchSnapshot("verdict");
     });
   });
 
