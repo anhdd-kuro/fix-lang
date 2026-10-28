@@ -4,6 +4,7 @@ import {
   MAX_DENIED_BUNDLE_IDS,
 } from "~/features/guards/shared/guardSettings";
 import { registerSelectionGuardHandlers } from "./guards";
+import type { IpcMain, IpcMainInvokeEvent } from "electron";
 
 const {
   electronMocks,
@@ -30,7 +31,10 @@ vi.mock("~/features/guards/store/guardStore", () => ({
 vi.mock("~/main/accessibility/recentActiveApps", () => recentActiveAppsMocks);
 vi.mock("~/features/guards/main/appBundleIds", () => appBundleIdMocks);
 
-type Handler = (event: unknown, raw?: unknown) => unknown;
+type Handler = Parameters<IpcMain["handle"]>[1];
+
+/** The handlers under test never read their event; this stands in for Electron's. */
+const ipcEvent = {} as IpcMainInvokeEvent;
 
 const getHandler = (channel: string): Handler => {
   const call = electronMocks.handle.mock.calls.find(
@@ -56,7 +60,7 @@ describe("registerSelectionGuardHandlers", () => {
     it("returns whatever guardStore reports, unmodified", async () => {
       guardStoreMocks.getSelectionGuardSettings.mockReturnValue(validSettings);
 
-      const result = await getHandler("get-selection-guards")(undefined);
+      const result = await getHandler("get-selection-guards")(ipcEvent);
 
       expect(guardStoreMocks.getSelectionGuardSettings).toHaveBeenCalledWith();
       expect(result).toEqual(validSettings);
@@ -66,7 +70,7 @@ describe("registerSelectionGuardHandlers", () => {
   describe("set-selection-guards", () => {
     it("persists a valid payload through guardStore", async () => {
       const result = await getHandler("set-selection-guards")(
-        undefined,
+        ipcEvent,
         validSettings,
       );
 
@@ -94,7 +98,7 @@ describe("registerSelectionGuardHandlers", () => {
       "rejects a malformed payload without ever calling guardStore (case %#): %j",
       async (payload) => {
         const result = await getHandler("set-selection-guards")(
-          undefined,
+          ipcEvent,
           payload,
         );
 
@@ -122,7 +126,7 @@ describe("registerSelectionGuardHandlers", () => {
       "rejects a value the normalizer would coerce to 0 (case %#): %j",
       async (payload) => {
         const result = await getHandler("set-selection-guards")(
-          undefined,
+          ipcEvent,
           payload,
         );
 
@@ -142,7 +146,7 @@ describe("registerSelectionGuardHandlers", () => {
       "still accepts an explicit 0 as a deliberate disable (case %#): %j",
       async (payload) => {
         const result = await getHandler("set-selection-guards")(
-          undefined,
+          ipcEvent,
           payload,
         );
 
@@ -166,7 +170,7 @@ describe("registerSelectionGuardHandlers", () => {
       "rejects a deniedBundleIds entry the normalizer would drop (case %#): %j",
       async (payload) => {
         const result = await getHandler("set-selection-guards")(
-          undefined,
+          ipcEvent,
           payload,
         );
 
@@ -185,7 +189,7 @@ describe("registerSelectionGuardHandlers", () => {
         (_, index) => `com.example.app${index}`,
       );
 
-      const result = await getHandler("set-selection-guards")(undefined, {
+      const result = await getHandler("set-selection-guards")(ipcEvent, {
         ...validSettings,
         deniedBundleIds: tooMany,
       });
@@ -204,7 +208,7 @@ describe("registerSelectionGuardHandlers", () => {
       const payload = { ...validSettings, deniedBundleIds: exactlyAtCap };
 
       const result = await getHandler("set-selection-guards")(
-        undefined,
+        ipcEvent,
         payload,
       );
 
@@ -223,7 +227,7 @@ describe("registerSelectionGuardHandlers", () => {
       });
 
       const result = await getHandler("set-selection-guards")(
-        undefined,
+        ipcEvent,
         validSettings,
       );
 
@@ -239,7 +243,7 @@ describe("registerSelectionGuardHandlers", () => {
       const apps = [{ name: "Slack", bundleId: "com.tinyspeck.slackmacgap" }];
       recentActiveAppsMocks.getRecentActiveApps.mockReturnValue(apps);
 
-      const result = await getHandler("get-recent-active-apps")(undefined);
+      const result = await getHandler("get-recent-active-apps")(ipcEvent);
 
       expect(result).toEqual(apps);
     });
@@ -256,7 +260,7 @@ describe("registerSelectionGuardHandlers", () => {
       const failure = { success: false, error: { kind: "text", text: "nope" } };
       appBundleIdMocks.resolveAppBundleIds.mockResolvedValue(failure);
 
-      const result = await getHandler("resolve-app-bundle-ids")(undefined, [
+      const result = await getHandler("resolve-app-bundle-ids")(ipcEvent, [
         "../evil",
       ]);
 
@@ -274,7 +278,7 @@ describe("registerSelectionGuardHandlers", () => {
         filePaths: [],
       });
 
-      await getHandler("choose-denied-apps")(undefined);
+      await getHandler("choose-denied-apps")(ipcEvent);
 
       expect(electronMocks.showOpenDialog).toHaveBeenCalledWith({
         properties: ["openFile", "multiSelections"],
@@ -290,7 +294,7 @@ describe("registerSelectionGuardHandlers", () => {
         filePaths: [],
       });
 
-      const result = await getHandler("choose-denied-apps")(undefined);
+      const result = await getHandler("choose-denied-apps")(ipcEvent);
 
       expect(result).toEqual({ success: true, bundleIds: [] });
       expect(appBundleIdMocks.resolveAppBundleIds).not.toHaveBeenCalled();
@@ -309,7 +313,7 @@ describe("registerSelectionGuardHandlers", () => {
         bundleIds: ["com.tinyspeck.slackmacgap"],
       });
 
-      const result = await getHandler("choose-denied-apps")(undefined);
+      const result = await getHandler("choose-denied-apps")(ipcEvent);
 
       expect(appBundleIdMocks.resolveAppBundleIds).toHaveBeenCalledWith([
         "/Applications/Slack.app",

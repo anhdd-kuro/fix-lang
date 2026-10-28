@@ -15,17 +15,26 @@ import {
 import { guardStore } from "./guardStore";
 import type { SelectionGuardSettings } from "~/features/guards/shared/guardSettings";
 
+/** What an electron-store file can hold: the backing data of the mock below. */
+type StoredJson =
+  | string
+  | number
+  | boolean
+  | null
+  | StoredJson[]
+  | { [key: string]: StoredJson };
+
 const { storeData, applySettingsMock } = vi.hoisted(() => ({
-  storeData: {} as Record<string, unknown>,
+  storeData: {} as Record<string, StoredJson>,
   applySettingsMock: vi.fn(),
 }));
 
 vi.mock("electron-store", () => {
   class MockStore {
-    get(key: string, defaultValue?: unknown) {
+    get(key: string, defaultValue?: StoredJson) {
       return key in storeData ? storeData[key] : defaultValue;
     }
-    set(key: string, value: unknown) {
+    set(key: string, value: StoredJson) {
       storeData[key] = value;
     }
     store = {};

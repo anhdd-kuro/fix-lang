@@ -46,6 +46,13 @@ import {
 import type { Profile } from "~/features/providers/store/apiStore";
 
 /**
+ * The pre-profiles store kept a plaintext `apiKey` at its root. `apiStore`'s
+ * type no longer names that key, but the file of an upgrading user still holds
+ * it, so this is the one capability the scrub below needs.
+ */
+type LegacyRootApiKeyStore = { delete(key: "apiKey"): void };
+
+/**
  * Moves legacy global credentials only after the active profile exists. The
  * destination is written first; a legacy encrypted file is removed only after
  * that write succeeds, so a failed migration cannot discard the only key.
@@ -95,7 +102,13 @@ const migrateLegacySecretsToActiveProfile = async (): Promise<void> => {
   // settings. It is copied into safeStorage first, then scrubbed only after a
   // successful write. It is never exported or imported below.
   const legacyPlaintext =
-    profile.settings.apiKey || (apiStore.get("apiKey") as string) || "";
+    profile.settings.apiKey ||
+    // SAFETY: not narrowed here. A truthy non-string root `apiKey` never
+    // becomes a secret: `setProfileSecret` throws on `raw.trim()` inside its
+    // own try and returns `success: false`, so this function returns before
+    // the scrub below unless the profile already holds a secret.
+    (apiStore.get("apiKey") as string) ||
+    "";
   if (
     legacyPlaintext &&
     !(await hasProfileSecret(profile.id, "openrouter", "api"))
@@ -118,7 +131,8 @@ const migrateLegacySecretsToActiveProfile = async (): Promise<void> => {
       profiles[index] = withoutProfileSecrets(profiles[index]);
       apiStore.set("profiles", profiles);
     }
-    (apiStore as unknown as { delete: (key: string) => void }).delete("apiKey");
+    const legacyRootKeyStore: LegacyRootApiKeyStore = apiStore;
+    legacyRootKeyStore.delete("apiKey");
   }
 };
 
@@ -130,9 +144,9 @@ const migrateLegacySecretsToActiveProfile = async (): Promise<void> => {
  * reusing the identical existing `models.select.error.unknown` catalog entry
  * rather than adding a duplicate key.
  */
-const catchLabel = (error: unknown): Label =>
-  error instanceof Error
-    ? textLabel(error.message)
+const catchLabel = (cause: unknown): Label =>
+  cause instanceof Error
+    ? textLabel(cause.message)
     : messageLabel("models.select.error.unknown");
 
 /**
@@ -339,6 +353,9 @@ export const registerProfileHandlers = () => {
       try {
         // Parse the JSON profile
         const profileData = sanitizeImportedProfile(
+          // SAFETY: not checked here. A non-object makes
+          // `sanitizeImportedProfile` throw into this try's catch, and an
+          // object without id/name/settings is refused right below.
           JSON.parse(profileJson) as Profile,
         );
 

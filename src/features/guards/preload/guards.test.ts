@@ -8,6 +8,23 @@ import {
   MAX_DENIED_BUNDLE_IDS,
 } from "~/features/guards/shared/guardSettings";
 import { selectionGuardsFeature } from "./guards";
+import type { SelectionGuardSettings } from "~/features/guards/shared/guardSettings";
+
+/** Anything structured clone can carry that a test feeds across the bridge. */
+type IpcJson =
+  | string
+  | number
+  | boolean
+  | null
+  | IpcJson[]
+  | { [key: string]: IpcJson | undefined };
+
+/**
+ * Hands junk to the typed bridge method the way an untyped renderer could —
+ * the preload validates at runtime precisely because this compiles away.
+ */
+const asSettingsArgument = (payload: IpcJson | undefined) =>
+  payload as SelectionGuardSettings;
 
 const electronMocks = vi.hoisted(() => ({
   invoke: vi.fn(),
@@ -118,7 +135,7 @@ describe("selectionGuardsFeature preload boundary", () => {
       "rejects a malformed payload without ever invoking the main process: %j",
       async (payload) => {
         const result = await selectionGuardsFeature.setSelectionGuards(
-          payload as unknown as typeof validSettings,
+          asSettingsArgument(payload),
         );
 
         expect(electronMocks.invoke).not.toHaveBeenCalled();
@@ -288,8 +305,10 @@ describe("selectionGuardsFeature preload boundary", () => {
     it.each([
       ["a relative path", ["Applications/Slack.app"]],
       ["a non-.app path", ["/Users/me/notes.txt"]],
-      ["a non-string entry", [42] as unknown as string[]],
-      ["a non-array payload", "/Applications/Slack.app" as unknown as string[]],
+      // Junk the parameter type cannot express, arriving through a JSON
+      // boundary the way it would from an untyped renderer.
+      ["a non-string entry", JSON.parse("[42]")],
+      ["a non-array payload", JSON.parse('"/Applications/Slack.app"')],
       [
         "more paths than the deny-list can hold",
         Array.from(

@@ -19,20 +19,30 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SECRET_GUARD_MODES } from "~/features/secretGuard/shared/secretGuardSettings";
 import { registerSecretGuardHandlers } from "./settings";
 import type { SecretGuardSettings } from "~/features/secretGuard/shared/secretGuardSettings";
+import type { IpcMain, IpcMainInvokeEvent } from "electron";
+
+/** What an electron-store file can hold: the backing data of the mock below. */
+type StoredJson =
+  | string
+  | number
+  | boolean
+  | null
+  | StoredJson[]
+  | { [key: string]: StoredJson };
 
 const { electronMocks, storeData } = vi.hoisted(() => ({
   electronMocks: { handle: vi.fn() },
-  storeData: {} as Record<string, unknown>,
+  storeData: {} as Record<string, StoredJson>,
 }));
 
 vi.mock("electron", () => ({ ipcMain: { handle: electronMocks.handle } }));
 
 vi.mock("electron-store", () => {
   class MockStore {
-    get(key: string, defaultValue?: unknown) {
+    get(key: string, defaultValue?: StoredJson) {
       return key in storeData ? storeData[key] : defaultValue;
     }
-    set(key: string, value: unknown) {
+    set(key: string, value: StoredJson) {
       storeData[key] = value;
     }
     store = {};
@@ -42,7 +52,10 @@ vi.mock("electron-store", () => {
   return { default: MockStore };
 });
 
-type Handler = (event: unknown, raw?: unknown) => unknown;
+type Handler = Parameters<IpcMain["handle"]>[1];
+
+/** The handlers under test never read their event; this stands in for Electron's. */
+const ipcEvent = {} as IpcMainInvokeEvent;
 
 const getHandler = (channel: string): Handler => {
   const call = electronMocks.handle.mock.calls.find(
@@ -52,9 +65,9 @@ const getHandler = (channel: string): Handler => {
   return call[1] as Handler;
 };
 
-const read = async () => getHandler("get-secret-guard-settings")(undefined);
-const write = async (payload: unknown) =>
-  (await getHandler("set-secret-guard-settings")(undefined, payload)) as {
+const read = async () => getHandler("get-secret-guard-settings")(ipcEvent);
+const write = async (payload: StoredJson | undefined) =>
+  (await getHandler("set-secret-guard-settings")(ipcEvent, payload)) as {
     success: boolean;
     error?: unknown;
   };

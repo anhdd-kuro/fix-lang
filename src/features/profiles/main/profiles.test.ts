@@ -28,26 +28,31 @@ import { createTranslator } from "~/features/i18n/shared/translate";
 // resolves against the mocked modules despite appearing before them here —
 // matching import/order's required relative-import group placement.
 import { registerProfileHandlers } from "./profiles";
+import type { Profile } from "~/features/providers/store/apiStore";
+import type { IpcMain, IpcMainInvokeEvent } from "electron";
+
+/** `withoutProfileSecrets` / `toExportableProfile`: a stored profile in, a stripped copy out. */
+type StripProfile = (profile: Profile) => object;
 
 const tEn = createTranslator("en");
 const tJa = createTranslator("ja");
 
-const handlers = new Map<
-  string,
-  (event: unknown, ...args: unknown[]) => unknown
->();
-const onHandlers = new Map<string, (...args: unknown[]) => unknown>();
+type IpcInvokeHandler = Parameters<IpcMain["handle"]>[1];
+type IpcOnListener = Parameters<IpcMain["on"]>[1];
+
+/** The handlers under test never read their event; this stands in for Electron's. */
+const ipcEvent = {} as IpcMainInvokeEvent;
+
+const handlers = new Map<string, IpcInvokeHandler>();
+const onHandlers = new Map<string, IpcOnListener>();
 const notificationShow = vi.fn();
 
 vi.mock("electron", () => ({
   ipcMain: {
-    handle: (
-      channel: string,
-      listener: (event: unknown, ...args: unknown[]) => unknown,
-    ) => {
+    handle: (channel: string, listener: IpcInvokeHandler) => {
       handlers.set(channel, listener);
     },
-    on: (channel: string, listener: (...args: unknown[]) => unknown) => {
+    on: (channel: string, listener: IpcOnListener) => {
       onHandlers.set(channel, listener);
     },
   },
@@ -110,9 +115,9 @@ const {
   switchToNextProfileMock: vi.fn(),
   getProfileByIdMock: vi.fn(),
   initializeDefaultProfileMock: vi.fn(),
-  withoutProfileSecretsMock: vi.fn((profile: unknown) => profile),
-  toExportableProfileMock: vi.fn((profile: unknown) => profile),
-  sanitizeImportedProfileMock: vi.fn((profile: unknown) => profile),
+  withoutProfileSecretsMock: vi.fn<StripProfile>((profile) => profile),
+  toExportableProfileMock: vi.fn<StripProfile>((profile) => profile),
+  sanitizeImportedProfileMock: vi.fn<StripProfile>((profile) => profile),
   apiStoreSetMock: vi.fn(),
   apiStoreGetMock: vi.fn().mockReturnValue([]),
 }));
@@ -144,18 +149,16 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
     // implementations, so leaked ones would decide later tests — and a leaked
     // profile makes the fire-and-forget legacy migration reject unhandled.
     getProfileByIdMock.mockReturnValue(undefined);
-    withoutProfileSecretsMock.mockImplementation((profile: unknown) => profile);
-    toExportableProfileMock.mockImplementation((profile: unknown) => profile);
-    sanitizeImportedProfileMock.mockImplementation(
-      (profile: unknown) => profile,
-    );
+    withoutProfileSecretsMock.mockImplementation((profile) => profile);
+    toExportableProfileMock.mockImplementation((profile) => profile);
+    sanitizeImportedProfileMock.mockImplementation((profile) => profile);
     registerProfileHandlers();
   });
 
   it("update-profile: 'Profile not found' resolves to different EN/JA text via the catalog", async () => {
     updateProfileMock.mockReturnValue(null);
     const handler = handlers.get("update-profile");
-    const result = (await handler?.(undefined, { profileId: "missing" })) as {
+    const result = (await handler?.(ipcEvent, { profileId: "missing" })) as {
       success: boolean;
       error?: unknown;
     };
@@ -178,7 +181,7 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
   it("export-profile: 'Profile not found' resolves to different EN/JA text via the catalog", async () => {
     getProfileByIdMock.mockReturnValue(undefined);
     const handler = handlers.get("export-profile");
-    const result = (await handler?.(undefined, { profileId: "missing" })) as {
+    const result = (await handler?.(ipcEvent, { profileId: "missing" })) as {
       success: boolean;
       error?: unknown;
     };
@@ -219,7 +222,7 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
     });
 
     const handler = handlers.get("export-profile");
-    const result = (await handler?.(undefined, { profileId: "profile_1" })) as {
+    const result = (await handler?.(ipcEvent, { profileId: "profile_1" })) as {
       success: boolean;
       profileJson?: string;
     };
@@ -252,10 +255,8 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
     getProfileByIdMock.mockReturnValue(storedProfile);
     getProfilesMock.mockReturnValue([storedProfile]);
     // Mirrors the real narrow helper: secrets out, everything else untouched.
-    withoutProfileSecretsMock.mockImplementation((profile: unknown) => {
-      const { settings, ...rest } = profile as {
-        settings: Record<string, unknown>;
-      };
+    withoutProfileSecretsMock.mockImplementation((profile) => {
+      const { settings, ...rest } = profile;
       const { apiKey: _apiKey, ...restSettings } = settings;
       return { ...rest, settings: restSettings };
     });
@@ -272,10 +273,10 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
 
     const [key, written] = apiStoreSetMock.mock.calls.at(-1) as [
       string,
-      unknown[],
+      Profile[],
     ];
     expect(key).toBe("profiles");
-    const writtenProfile = written[0] as { settings: Record<string, unknown> };
+    const writtenProfile = written[0];
     expect(writtenProfile.settings.apiKey).toBeUndefined();
     expect(writtenProfile.settings.models).toEqual(
       storedProfile.settings.models,
@@ -293,7 +294,7 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
   it("switch-to-next-profile: 'No profiles available' resolves to different EN/JA text via the catalog", async () => {
     switchToNextProfileMock.mockReturnValue(null);
     const handler = handlers.get("switch-to-next-profile");
-    const result = (await handler?.(undefined)) as {
+    const result = (await handler?.(ipcEvent)) as {
       success: boolean;
       error?: unknown;
     };
@@ -315,7 +316,7 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
   it("import-profile: 'Invalid profile format' resolves to different EN/JA text via the catalog", async () => {
     sanitizeImportedProfileMock.mockReturnValue({});
     const handler = handlers.get("import-profile");
-    const result = (await handler?.(undefined, { profileJson: "{}" })) as {
+    const result = (await handler?.(ipcEvent, { profileJson: "{}" })) as {
       success: boolean;
       error?: unknown;
     };
@@ -339,7 +340,7 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
       throw "boom";
     });
     const handler = handlers.get("create-profile");
-    const result = (await handler?.(undefined, { name: "x" })) as {
+    const result = (await handler?.(ipcEvent, { name: "x" })) as {
       success: boolean;
       error?: unknown;
     };
@@ -363,7 +364,7 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
       throw new Error("disk full");
     });
     const handler = handlers.get("create-profile");
-    const result = (await handler?.(undefined, { name: "x" })) as {
+    const result = (await handler?.(ipcEvent, { name: "x" })) as {
       success: boolean;
       error?: unknown;
     };
@@ -381,7 +382,7 @@ describe("profiles.ts IPC handlers — app-authored validation errors are transl
       error: "Profile not found",
     });
     const handler = handlers.get("apply-profile");
-    const result = (await handler?.(undefined, { profileId: "x" })) as {
+    const result = (await handler?.(ipcEvent, { profileId: "x" })) as {
       success: boolean;
       error?: unknown;
     };

@@ -20,11 +20,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ACTIVE_PROFILE_CHANGED } from "~/features/core/shared/ipcChannels";
 import { dismissAskInputWindow } from "~/main/webViewWindows/askInputWindow";
 import { registerProfileHandlers } from "./profiles";
+import type { Profile } from "~/features/providers/store/apiStore";
+import type { IpcMain, IpcMainInvokeEvent } from "electron";
 
-const handlers = new Map<
-  string,
-  (event: unknown, ...args: unknown[]) => unknown
->();
+type IpcInvokeHandler = Parameters<IpcMain["handle"]>[1];
+
+/** The handlers under test never read their event; this stands in for Electron's. */
+const ipcEvent = {} as IpcMainInvokeEvent;
+
+const handlers = new Map<string, IpcInvokeHandler>();
 
 const { getAllWindowsMock } = vi.hoisted(() => ({
   getAllWindowsMock: vi.fn(),
@@ -32,10 +36,7 @@ const { getAllWindowsMock } = vi.hoisted(() => ({
 
 vi.mock("electron", () => ({
   ipcMain: {
-    handle: (
-      channel: string,
-      listener: (event: unknown, ...args: unknown[]) => unknown,
-    ) => {
+    handle: (channel: string, listener: IpcInvokeHandler) => {
       handlers.set(channel, listener);
     },
     on: vi.fn(),
@@ -93,9 +94,9 @@ vi.mock("~/features/providers/store/apiStore", () => ({
     .mockReturnValue({ id: "profile_2", name: "Work", settings: {} }),
   initializeDefaultProfile: vi.fn(),
   apiStore: { get: vi.fn().mockReturnValue([]), set: vi.fn(), delete: vi.fn() },
-  withoutProfileSecrets: vi.fn((profile: unknown) => profile),
-  toExportableProfile: vi.fn((profile: unknown) => profile),
-  sanitizeImportedProfile: vi.fn((profile: unknown) => profile),
+  withoutProfileSecrets: vi.fn((profile: Profile) => profile),
+  toExportableProfile: vi.fn((profile: Profile) => profile),
+  sanitizeImportedProfile: vi.fn((profile: Profile) => profile),
 }));
 
 const fakeWindow = (isDestroyed: boolean) => ({
@@ -121,7 +122,7 @@ describe("an active-profile switch is broadcast to every window", () => {
   });
 
   it("apply-profile notifies every live window, and skips destroyed ones", async () => {
-    await handlers.get("apply-profile")?.({}, { profileId: "profile_2" });
+    await handlers.get("apply-profile")?.(ipcEvent, { profileId: "profile_2" });
 
     expect(live.webContents.send).toHaveBeenCalledWith(ACTIVE_PROFILE_CHANGED);
     expect(alsoLive.webContents.send).toHaveBeenCalledWith(
@@ -131,7 +132,7 @@ describe("an active-profile switch is broadcast to every window", () => {
   });
 
   it("switch-to-next-profile notifies every live window", async () => {
-    await handlers.get("switch-to-next-profile")?.({});
+    await handlers.get("switch-to-next-profile")?.(ipcEvent);
 
     expect(live.webContents.send).toHaveBeenCalledWith(ACTIVE_PROFILE_CHANGED);
     expect(alsoLive.webContents.send).toHaveBeenCalledWith(
@@ -140,13 +141,13 @@ describe("an active-profile switch is broadcast to every window", () => {
   });
 
   it("apply-profile also dismisses a pending Ask input, so its question cannot be sent through the new profile's key", async () => {
-    await handlers.get("apply-profile")?.({}, { profileId: "profile_2" });
+    await handlers.get("apply-profile")?.(ipcEvent, { profileId: "profile_2" });
 
     expect(dismissAskInputWindow).toHaveBeenCalledTimes(1);
   });
 
   it("switch-to-next-profile also dismisses a pending Ask input", async () => {
-    await handlers.get("switch-to-next-profile")?.({});
+    await handlers.get("switch-to-next-profile")?.(ipcEvent);
 
     expect(dismissAskInputWindow).toHaveBeenCalledTimes(1);
   });
@@ -155,8 +156,8 @@ describe("an active-profile switch is broadcast to every window", () => {
     applyProfileMock.mockReturnValue({ success: false, error: "Not found" });
     switchToNextProfileMock.mockReturnValue(null);
 
-    await handlers.get("apply-profile")?.({}, { profileId: "nope" });
-    await handlers.get("switch-to-next-profile")?.({});
+    await handlers.get("apply-profile")?.(ipcEvent, { profileId: "nope" });
+    await handlers.get("switch-to-next-profile")?.(ipcEvent);
 
     // A spurious broadcast would drop good cached data and refetch every
     // window's account usage for nothing.

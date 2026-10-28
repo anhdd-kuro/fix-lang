@@ -57,6 +57,7 @@ import {
   filterHistoryByPreset,
   getHistory,
   mergeLegacyHistoryEntries,
+  migrateLegacyHistoryBuckets,
   overrideHistory,
   removeHistoryEntry,
 } from "./historyStore";
@@ -307,5 +308,51 @@ describe("mergeLegacyHistoryEntries", () => {
     ];
     const result = mergeLegacyHistoryEntries(corrections, {});
     expect(result).toEqual(corrections);
+  });
+});
+
+describe("migrateLegacyHistoryBuckets — reads the retired electron-store buckets", () => {
+  it("passes each array bucket's entries through unvalidated, in order", () => {
+    const corrections = [makeEntry({ original: "c" })];
+    const promptGen = [makeEntry({ original: "p" }), { junk: true }, 7];
+    const translations = [makeEntry({ original: "t" })];
+    const summarize = [null];
+    storeMap.set("corrections", corrections);
+    storeMap.set("promptGen", promptGen);
+    storeMap.set("translations", translations);
+    storeMap.set("summarize", summarize);
+
+    migrateLegacyHistoryBuckets();
+
+    expect(repoMock.migrateLegacyBuckets).toHaveBeenCalledTimes(1);
+    expect(repoMock.migrateLegacyBuckets).toHaveBeenCalledWith(
+      corrections,
+      promptGen,
+      { translations, summarize },
+    );
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["null", null],
+    ["a string", "entries"],
+    ["a number", 3],
+    ["an object", { 0: makeEntry() }],
+  ])("reads a %s bucket as empty", (_label, bucket) => {
+    for (const key of [
+      "corrections",
+      "promptGen",
+      "translations",
+      "summarize",
+    ]) {
+      storeMap.set(key, bucket);
+    }
+
+    migrateLegacyHistoryBuckets();
+
+    expect(repoMock.migrateLegacyBuckets).toHaveBeenCalledWith([], [], {
+      translations: [],
+      summarize: [],
+    });
   });
 });
