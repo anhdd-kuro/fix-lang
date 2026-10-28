@@ -6,17 +6,17 @@ import Store from "electron-store";
 import { DEFAULT_THEME_ID, isThemeId, type ThemeId } from "./themeIds";
 
 /** Maps legacy preset IDs to tm-themes JSON stems. */
-const LEGACY_THEME_IDS: Record<string, ThemeId> = {
-  "ocean-dark": "material-theme-ocean",
-  "cursor-dark": "brand-cursor-dark",
-  atom: "one-dark-pro",
-  dracula: "dracula",
-  copilot: "night-owl",
-  "github-dark": "github-dark-default",
-  "ayu-dark": "ayu-dark",
-  "claude-code-dark": "brand-claude-code-dark",
-  default: "dark-plus",
-};
+const LEGACY_THEME_IDS = new Map<string, ThemeId>([
+  ["ocean-dark", "material-theme-ocean"],
+  ["cursor-dark", "brand-cursor-dark"],
+  ["atom", "one-dark-pro"],
+  ["dracula", "dracula"],
+  ["copilot", "night-owl"],
+  ["github-dark", "github-dark-default"],
+  ["ayu-dark", "ayu-dark"],
+  ["claude-code-dark", "brand-claude-code-dark"],
+  ["default", "dark-plus"],
+]);
 
 const resolveThemeId = (stored: unknown): ThemeId => {
   if (typeof stored !== "string") {
@@ -25,7 +25,7 @@ const resolveThemeId = (stored: unknown): ThemeId => {
   if (isThemeId(stored)) {
     return stored;
   }
-  const migrated = LEGACY_THEME_IDS[stored];
+  const migrated = LEGACY_THEME_IDS.get(stored);
   return migrated ?? DEFAULT_THEME_ID;
 };
 

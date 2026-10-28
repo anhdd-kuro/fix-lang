@@ -22,9 +22,9 @@ export type FeatureFlags = Record<FeatureId, boolean>;
  * Feature id -> CLI/env tag. The CLI form is `--<tag>`, the env form is a bare
  * `<tag>` inside `FIXLANG_FEATURES`.
  */
-export const FEATURE_TAGS: Readonly<Record<FeatureId, string>> = {
+export const FEATURE_TAGS = {
   promptGen: "promptgen",
-};
+} satisfies Readonly<Record<FeatureId, string>>;
 
 /** Enables every feature when it appears in `FIXLANG_FEATURES`. */
 export const FEATURE_ENV_ALL = "all";

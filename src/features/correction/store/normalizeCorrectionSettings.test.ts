@@ -891,7 +891,7 @@ const storedPromptOptimization = {
   isBuiltIn: true,
 };
 
-const storedCustom = (id: string, hotkey: string): Record<string, unknown> => ({
+const storedCustom = (id: string, hotkey: string) => ({
   id,
   name: `Custom ${id}`,
   hotkey,
@@ -1301,7 +1301,7 @@ describe("normalizeCorrectionSettings — an inherited default hotkey is not a s
  * bindings through that same parameter's default.
  */
 describe("normalizeCorrectionSettings — a materialized default gives up a reserved app accelerator", () => {
-  const storedOnly = (...presets: Record<string, unknown>[]) => ({
+  const storedOnly = (...presets: StoredRecord[]) => ({
     presets,
     selectedPresetId: "correction",
   });
@@ -1757,9 +1757,7 @@ describe("normalizeCorrectionSettings — Ask relinquishes its default hotkey on
 // Tests: Combo sanitizer
 // ---------------------------------------------------------------------------
 
-const storedCombo = (
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> => ({
+const storedCombo = (overrides: StoredRecord = {}) => ({
   id: "combo-1",
   name: "Polish and Translate",
   hotkey: "Control+Shift+K",
@@ -2023,7 +2021,7 @@ describe("normalizeCorrectionSettings — combo sanitizer keeps step ids unique 
 });
 
 describe("normalizeCorrectionSettings — combo outputMode / markdownOutput / schemaVersion", () => {
-  const comboFrom = (overrides: Record<string, unknown>) =>
+  const comboFrom = (overrides: StoredRecord) =>
     storedCombosOf(
       normalizeCorrectionSettings({
         presets: [storedCorrection],
@@ -2133,8 +2131,7 @@ describe("normalizeCorrectionSettings — combo hotkeys pass through untouched",
   });
 
   it("leaves a combo with no hotkey field blank", () => {
-    const stored = storedCombo();
-    delete stored.hotkey;
+    const { hotkey: _omitted, ...stored } = storedCombo();
 
     const result = normalizeCorrectionSettings({
       presets: [storedCorrection],
@@ -2523,9 +2520,7 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
     },
   ];
 
-  const storedPerfectPrompt = (
-    overrides: Record<string, unknown> = {},
-  ): Record<string, unknown> => ({
+  const storedPerfectPrompt = (overrides: StoredRecord = {}) => ({
     id: DEFAULT_PERFECT_PROMPT_COMBO_ID,
     name: "Perfect prompt",
     hotkey: "",
@@ -2534,7 +2529,7 @@ describe("normalizeCorrectionSettings — the Perfect prompt resequencing upgrad
     ...overrides,
   });
 
-  const readBack = (stored: Record<string, unknown>) =>
+  const readBack = (stored: StoredRecord) =>
     combosOf(
       normalizeCorrectionSettings({
         presets: [storedCorrection],

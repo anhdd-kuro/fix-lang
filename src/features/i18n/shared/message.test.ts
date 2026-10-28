@@ -17,8 +17,10 @@ import {
   type Translate,
 } from "./message";
 
+type RecordingTranslate = { t: Translate; calls: [string, unknown][] };
+
 /** Records every call so tests can assert both the return value and the forwarded args. */
-const fakeTranslate = (): { t: Translate; calls: [string, unknown][] } => {
+const fakeTranslate = (): RecordingTranslate => {
   const calls: [string, unknown][] = [];
   const t: Translate = (key, params) => {
     calls.push([key, params]);

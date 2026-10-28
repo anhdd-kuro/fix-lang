@@ -47,7 +47,10 @@ export type TKey = TranslationKey | PluralBaseKey;
 export type Translator = (key: TKey, params?: TranslateParams) => string;
 
 /** Catalog shape accepted by {@link createTranslator}; matches `CATALOGS`. */
-type CatalogSource = Record<Locale, Partial<Record<TranslationKey, string>>>;
+export type CatalogSource = Record<
+  Locale,
+  Partial<Record<TranslationKey, string>>
+>;
 
 const missingKeyWarnings = new Set<string>();
 const missingParamWarnings = new Set<string>();

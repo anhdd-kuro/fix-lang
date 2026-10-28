@@ -59,7 +59,7 @@ export type TranslationKey = keyof typeof EN_CATALOG;
  * incrementally and fall back to English. `ja` completeness is enforced by test,
  * not by the type system.
  */
-export const JA_CATALOG: Partial<Record<TranslationKey, string>> = {
+export const JA_CATALOG: Partial<typeof EN_CATALOG> = {
   ...jaCommon,
   ...jaDashboard,
   ...jaHistory,
@@ -72,13 +72,10 @@ export const JA_CATALOG: Partial<Record<TranslationKey, string>> = {
   ...jaUsage,
 };
 
-export const CATALOGS: Record<
-  Locale,
-  Partial<Record<TranslationKey, string>>
-> = {
+export const CATALOGS = {
   en: EN_CATALOG,
   ja: JA_CATALOG,
-};
+} satisfies Record<Locale, Partial<Record<TranslationKey, string>>>;
 
 /** Namespace file stems, used by the catalog integrity tests. */
 export const CATALOG_NAMESPACES = [

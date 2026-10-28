@@ -67,6 +67,10 @@ describe("sanitizeReasoningEffort / type guards", () => {
     expect(sanitizeReasoningEffort("turbo")).toBeUndefined();
     expect(sanitizeReasoningEffort(1)).toBeUndefined();
     expect(sanitizeReasoningEffort(null)).toBeUndefined();
+    // Inherited Object.prototype names are not retired efforts.
+    expect(sanitizeReasoningEffort("constructor")).toBeUndefined();
+    expect(sanitizeReasoningEffort("toString")).toBeUndefined();
+    expect(sanitizeReasoningEffort("__proto__")).toBeUndefined();
     expect(isReasoningEffortStep("none")).toBe(false);
     expect(isReasoningEffortStep("provider-default")).toBe(false);
   });

@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTranslator, resetTranslatorDiagnostics } from "./translate";
-import type { TranslationKey } from "./locales";
-import type { Locale } from "./registry";
-import type { TKey } from "./translate";
+import type { CatalogSource, TKey } from "./translate";
 import type { MockInstance } from "vitest";
 
 // why: fixture catalogs inject keys beyond the seeded `common.*` contract
@@ -10,8 +8,6 @@ import type { MockInstance } from "vitest";
 // editing the frozen locale JSON files. `TranslationKey` is a literal union
 // derived from that JSON, so a fixture with extra keys needs a structural
 // cast rather than a direct annotation.
-type FixtureCatalogs = Record<Locale, Partial<Record<TranslationKey, string>>>;
-
 const fixtureCatalogs = {
   en: {
     "common.cancel": "Cancel",
@@ -31,7 +27,7 @@ const fixtureCatalogs = {
     "fixture.count_other": "{count} 件",
     "fixture.preformatted": "{date} に {amount} 使用",
   },
-} as unknown as FixtureCatalogs;
+} as CatalogSource;
 
 let warnSpy: MockInstance<(...args: unknown[]) => void>;
 

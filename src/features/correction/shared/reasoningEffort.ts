@@ -16,10 +16,10 @@ export const REASONING_EFFORT_STEPS = ["low", "medium", "high"] as const;
  * `undefined` reads as `provider-default`, which silently changes a preset's
  * behaviour instead of stepping it down one notch.
  */
-const RETIRED_EFFORTS: Record<string, ReasoningEffortStep> = {
-  minimal: "low",
-  xhigh: "high",
-};
+const RETIRED_EFFORTS = new Map<string, ReasoningEffortStep>([
+  ["minimal", "low"],
+  ["xhigh", "high"],
+]);
 
 export type ReasoningEffortStep = (typeof REASONING_EFFORT_STEPS)[number];
 
@@ -70,8 +70,9 @@ export const isReasoningEffort = (value: unknown): value is ReasoningEffort =>
 export const sanitizeReasoningEffort = (
   raw: unknown,
 ): ReasoningEffort | undefined => {
-  if (typeof raw === "string" && raw in RETIRED_EFFORTS)
-    return RETIRED_EFFORTS[raw];
+  const retired =
+    typeof raw === "string" ? RETIRED_EFFORTS.get(raw) : undefined;
+  if (retired !== undefined) return retired;
   if (!isReasoningEffort(raw)) return undefined;
   return raw;
 };

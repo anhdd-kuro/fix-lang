@@ -38,6 +38,9 @@ import {
   scanBundleSource,
 } from "./bundleExternals";
 
+/** Exit status and combined output of one CLI invocation. */
+type CliRun = { status: number | null; stdout: string };
+
 const kinds = (source: string): string[] =>
   scanBundleSource(source, "fixture.cjs").map((v) => v.kind);
 
@@ -949,7 +952,7 @@ describe("check-bundle-externals CLI under bun", () => {
     writeFileSync(target, contents, "utf8");
   };
 
-  const runCli = (): { status: number | null; stdout: string } => {
+  const runCli = (): CliRun => {
     const result = spawnSync("bun", ["run", cliPath, outDir], {
       encoding: "utf8",
     });
@@ -974,7 +977,7 @@ describe("check-bundle-externals CLI under bun", () => {
 
   it("exits 1 on every require-like shape, including aliased and derived ones", () => {
     // One shape per file so a single miss cannot hide behind another's hit.
-    const sourcesByFile: Record<string, string> = {
+    const sourcesByFile = {
       "main/bare.cjs": 'require("left-pad");',
       "main/aliased.cjs": 'var r = require;\nr("left-pad");',
       "main/createRequireIife.cjs":
@@ -1130,7 +1133,7 @@ describe("check-bundle-externals CLI from a path containing spaces", () => {
   });
 
   /** Invoked with no outDir argument, exactly as `bun run check:bundle` does. */
-  const runCli = (): { status: number | null; stdout: string } => {
+  const runCli = (): CliRun => {
     const result = spawnSync(
       "bun",
       ["run", path.join(root, "scripts", "check-bundle-externals.ts")],

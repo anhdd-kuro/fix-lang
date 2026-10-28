@@ -191,14 +191,17 @@ const formatDateTimeImpl = (_locale: Locale, value: DateInput): string => {
 // Relative time
 // ---------------------------------------------------------------------------
 
+/** A relative-time amount and the `Intl` unit it is expressed in. */
+type RelativeTimeDivision = {
+  amount: number;
+  unit: Intl.RelativeTimeFormatUnit;
+};
+
 /**
  * Cascading unit thresholds (seconds → minutes → hours → days → months →
  * years), the standard `Intl.RelativeTimeFormat` "pick a unit" algorithm.
  */
-const RELATIVE_TIME_DIVISIONS: readonly {
-  amount: number;
-  unit: Intl.RelativeTimeFormatUnit;
-}[] = [
+const RELATIVE_TIME_DIVISIONS: readonly RelativeTimeDivision[] = [
   { amount: 60, unit: "second" },
   { amount: 60, unit: "minute" },
   { amount: 24, unit: "hour" },
@@ -207,9 +210,7 @@ const RELATIVE_TIME_DIVISIONS: readonly {
   { amount: Number.POSITIVE_INFINITY, unit: "year" },
 ];
 
-const selectRelativeUnit = (
-  deltaSeconds: number,
-): { amount: number; unit: Intl.RelativeTimeFormatUnit } => {
+const selectRelativeUnit = (deltaSeconds: number): RelativeTimeDivision => {
   let duration = deltaSeconds;
   for (const division of RELATIVE_TIME_DIVISIONS) {
     if (Math.abs(duration) < division.amount) {
@@ -243,10 +244,10 @@ const formatRelativeTimeImpl = (
 // date-fns locale mapping
 // ---------------------------------------------------------------------------
 
-const DATE_FNS_LOCALES: Record<Locale, DateFnsLocale> = {
+const DATE_FNS_LOCALES = {
   en: enUS,
   ja,
-};
+} satisfies Record<Locale, DateFnsLocale>;
 
 /** Maps a FixLang {@link Locale} to its `date-fns/locale` object. */
 export const dateFnsLocaleFor = (locale: Locale): DateFnsLocale =>
@@ -257,6 +258,13 @@ export const dateFnsLocaleFor = (locale: Locale): DateFnsLocale =>
 // ---------------------------------------------------------------------------
 
 const formattersCache = new Map<Locale, Formatters>();
+
+/** Entry counts of each `Intl.*` memoization cache. */
+type FormatCacheSizes = {
+  numberFormat: number;
+  dateTimeFormat: number;
+  relativeTimeFormat: number;
+};
 
 /**
  * Test-only escape hatch: peek at the cached `Intl.*` instances (and cache
@@ -282,11 +290,7 @@ export const __peekFormatCachesForTests = {
     options?: Intl.RelativeTimeFormatOptions,
   ): Intl.RelativeTimeFormat | undefined =>
     relativeTimeFormatCache.get(cacheKey(locale, options)),
-  sizes: (): {
-    numberFormat: number;
-    dateTimeFormat: number;
-    relativeTimeFormat: number;
-  } => ({
+  sizes: (): FormatCacheSizes => ({
     numberFormat: numberFormatCache.size,
     dateTimeFormat: dateTimeFormatCache.size,
     relativeTimeFormat: relativeTimeFormatCache.size,

@@ -92,7 +92,7 @@ describe("detect", () => {
 
     // Type guard validation: check that isLocale narrows properly
     it("should act as a type guard", () => {
-      const value: unknown = "en";
+      const value = String("en");
 
       if (isLocale(value)) {
         // TypeScript should recognize value as Locale here

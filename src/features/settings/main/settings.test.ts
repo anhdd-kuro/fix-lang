@@ -30,7 +30,9 @@ import type { Label } from "~/features/i18n/shared/message";
 const tEn = createTranslator("en");
 const tJa = createTranslator("ja");
 
-const resolveBoth = (label: unknown): { en: string; ja: string } => {
+type LabelInBothLocales = { en: string; ja: string };
+
+const resolveBoth = (label: unknown): LabelInBothLocales => {
   expect(isLabel(label)).toBe(true);
   return {
     en: resolveLabel(label as Label, tEn),

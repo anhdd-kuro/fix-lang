@@ -325,6 +325,11 @@ const hasWithStatement = (sourceFile: ts.SourceFile): boolean => {
   return found;
 };
 
+type ScopeResolver = {
+  readonly sourceFile: ts.SourceFile;
+  readonly resolve: ResolveBinding;
+};
+
 /**
  * Scope resolution, delegated to the compiler's own binder rather than
  * reimplemented.
@@ -347,7 +352,7 @@ const hasWithStatement = (sourceFile: ts.SourceFile): boolean => {
 const createScopeResolver = (
   source: string,
   fileName: string,
-): { readonly sourceFile: ts.SourceFile; readonly resolve: ResolveBinding } => {
+): ScopeResolver => {
   const host: ts.CompilerHost = {
     // Parent pointers are required for scope-chain resolution, so unlike the
     // rest of this file's parsing they are switched on here.
@@ -495,6 +500,12 @@ const isRequireExpression = (
   );
 };
 
+type AliasGraph = {
+  seed: (binding: BindingId) => void;
+  link: (source: BindingId, dependent: BindingId) => void;
+  resolve: () => ReadonlySet<BindingId>;
+};
+
 /**
  * Accumulates a set of names from direct seeds plus `name = otherName` copy
  * edges, resolved with a worklist rather than a re-walk-the-tree-until-stable
@@ -502,11 +513,7 @@ const isRequireExpression = (
  * the binding they derive from, which would let a pathological bundle hang the
  * release job — a CPU-bound scan cannot be interrupted by a CI timeout.
  */
-const createAliasGraph = (): {
-  seed: (binding: BindingId) => void;
-  link: (source: BindingId, dependent: BindingId) => void;
-  resolve: () => ReadonlySet<BindingId>;
-} => {
+const createAliasGraph = (): AliasGraph => {
   const members = new Set<BindingId>();
   /** alias source binding -> bindings that copy it. */
   const dependents = new Map<BindingId, BindingId[]>();
