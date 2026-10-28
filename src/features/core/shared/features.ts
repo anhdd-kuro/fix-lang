@@ -123,8 +123,16 @@ export const parseFeatureFlags = (input: {
  * Runtime accessor for the PromptGen feature.
  *
  * `__FEATURE_PROMPT_GEN__` is injected by `electron.vite.config.ts` via
- * `define`. The `typeof` guard keeps this `false` under vitest, where no
- * bundler define exists.
+ * `define`, which rewrites the bare identifier below into a literal. Under
+ * vitest no bundler define exists, so reading it throws a ReferenceError and
+ * this answers `false`. It must stay a bare identifier: `"…" in globalThis`
+ * would escape the rewrite and read `false` in every build.
  */
-export const isPromptGenEnabled = (): boolean =>
-  typeof __FEATURE_PROMPT_GEN__ !== "undefined" && __FEATURE_PROMPT_GEN__;
+export const isPromptGenEnabled = (): boolean => {
+  try {
+    const flag = __FEATURE_PROMPT_GEN__;
+    return flag === undefined ? false : flag;
+  } catch {
+    return false;
+  }
+};

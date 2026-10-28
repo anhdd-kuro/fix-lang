@@ -67,7 +67,7 @@ describe("locale preload boundary", () => {
       expect.any(Function),
     );
     const listener = electronMocks.on.mock.calls[0][1] as (
-      event: unknown,
+      event: undefined,
       locale: string,
     ) => void;
 

@@ -1,5 +1,6 @@
 // Settings-related preload functionality
 import { ipcRenderer } from "electron";
+import { z } from "zod";
 import {
   sanitizeReasoningEffort,
   type ReasoningEffort,
@@ -110,7 +111,7 @@ export const settingsFeature = {
     provider: ProviderId,
     key: string,
   ): Promise<{ success: boolean; error?: Label }> => {
-    if (!supportsAdminKey(provider) || typeof key !== "string") {
+    if (!supportsAdminKey(provider) || !z.string().safeParse(key).success) {
       return {
         success: false,
         error: messageLabel("settings.general.provisioningKey.invalid"),

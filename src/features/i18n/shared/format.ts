@@ -15,6 +15,8 @@
  */
 
 import { enUS, ja, type Locale as DateFnsLocale } from "date-fns/locale";
+import { z } from "zod";
+import { schemaGuard } from "~/features/core/shared/schemaGuard";
 import { LOCALE_META, type Locale } from "./registry";
 
 /** Anything a caller might reasonably hand us as a point in time. */
@@ -111,12 +113,19 @@ const getRelativeTimeFormat = (
 // Safe input coercion
 // ---------------------------------------------------------------------------
 
+const isNonFiniteNumber = schemaGuard(
+  z.union([
+    z.nan(),
+    z.literal([Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]),
+  ]),
+);
+
 /** Parses `value` into a valid `Date`, or `null` if it can't be. */
 const toValidDate = (value: DateInput): Date | null => {
   if (value instanceof Date) {
     return Number.isNaN(value.getTime()) ? null : value;
   }
-  if (typeof value === "number" && !Number.isFinite(value)) {
+  if (isNonFiniteNumber(value)) {
     return null;
   }
   const parsed = new Date(value);

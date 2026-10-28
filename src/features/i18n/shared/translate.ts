@@ -22,8 +22,16 @@
  * not spam the console. `resetTranslatorDiagnostics()` clears them for tests.
  */
 
+import { z } from "zod";
+import {
+  AnyNumberSchema,
+  schemaGuard,
+} from "~/features/core/shared/schemaGuard";
 import { CATALOGS, type TranslationKey } from "./locales";
 import { LOCALE_META, type Locale } from "./registry";
+
+/** Any JS number, NaN and ±Infinity included — never a numeric string. */
+const isAnyNumber = schemaGuard(AnyNumberSchema);
 
 /** Values interpolated into `{token}` placeholders. */
 export type TranslateParams = Record<string, string | number>;
@@ -61,7 +69,7 @@ const missingParamWarnings = new Set<string>();
  * before touching `process.env`.
  */
 const isDevDiagnostics = (): boolean =>
-  typeof process !== "undefined" && process.env.NODE_ENV !== "production";
+  "process" in globalThis && process.env.NODE_ENV !== "production";
 
 const warnOnce = (
   seen: Set<string>,
@@ -191,7 +199,7 @@ const interpolate = (
       return match;
     }
     const value = values[token];
-    return typeof value === "number"
+    return isAnyNumber(value)
       ? formatNumberParam(value, locale)
       : String(value);
   });
@@ -200,10 +208,9 @@ const interpolate = (
 const toFiniteCount = (
   params: TranslateParams | undefined,
 ): number | undefined => {
-  const count = params?.count;
-  return typeof count === "number" && Number.isFinite(count)
-    ? count
-    : undefined;
+  // `z.number()` admits finite numbers only.
+  const count = z.number().safeParse(params?.count);
+  return count.success ? count.data : undefined;
 };
 
 /**

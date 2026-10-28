@@ -825,8 +825,8 @@ const consoleIo: BundleCheckIo = {
   },
 };
 
-const describeError = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
+const describeError = (cause: unknown): string =>
+  cause instanceof Error ? cause.message : String(cause);
 
 /**
  * Scans every bundle under `outDir` and prints a per-file summary.

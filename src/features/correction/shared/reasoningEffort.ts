@@ -8,6 +8,9 @@
  * that inherit the profile-wide default; it is not a slider step.
  */
 
+import { z } from "zod";
+import { schemaGuard } from "~/features/core/shared/schemaGuard";
+
 export const REASONING_EFFORT_STEPS = ["low", "medium", "high"] as const;
 
 /**
@@ -40,41 +43,35 @@ export const DEFAULT_REASONING_STEP_INDEX = 0;
 
 export const DEFAULT_REASONING_EFFORT: ReasoningEffort = "none";
 
-const STEP_SET = new Set<string>(REASONING_EFFORT_STEPS);
-const SLIDER_STEP_SET = new Set<string>(REASONING_EFFORT_SLIDER_STEPS);
-
-const ALL_EFFORTS = new Set<string>([
+const ReasoningEffortSchema = z.enum([
   "provider-default",
   "none",
   ...REASONING_EFFORT_STEPS,
 ]);
 
-export const isReasoningEffortStep = (
-  value: unknown,
-): value is ReasoningEffortStep =>
-  typeof value === "string" && STEP_SET.has(value);
+export const isReasoningEffortStep = schemaGuard(
+  z.enum(REASONING_EFFORT_STEPS),
+);
 
-export const isReasoningEffortSliderStep = (
-  value: unknown,
-): value is ReasoningEffortSliderStep =>
-  typeof value === "string" && SLIDER_STEP_SET.has(value);
+export const isReasoningEffortSliderStep = schemaGuard(
+  z.enum(REASONING_EFFORT_SLIDER_STEPS),
+);
 
-export const isReasoningEffort = (value: unknown): value is ReasoningEffort =>
-  typeof value === "string" && ALL_EFFORTS.has(value);
+export const isReasoningEffort = schemaGuard(ReasoningEffortSchema);
 
 /**
  * Normalize a stored/raw value. A retired effort steps down to its replacement;
  * anything else unknown becomes undefined (caller treats as provider-default /
  * omit from the request).
  */
-export const sanitizeReasoningEffort = (
-  raw: unknown,
+export const sanitizeReasoningEffort = <Raw>(
+  raw: Raw,
 ): ReasoningEffort | undefined => {
-  const retired =
-    typeof raw === "string" ? RETIRED_EFFORTS.get(raw) : undefined;
+  const stored = z.string().safeParse(raw);
+  const retired = stored.success ? RETIRED_EFFORTS.get(stored.data) : undefined;
   if (retired !== undefined) return retired;
-  if (!isReasoningEffort(raw)) return undefined;
-  return raw;
+  const effort = ReasoningEffortSchema.safeParse(raw);
+  return effort.success ? effort.data : undefined;
 };
 
 /** Slider index for a stored effort. `provider-default` falls back to `fallback`. */

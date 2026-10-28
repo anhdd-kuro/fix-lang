@@ -10,14 +10,14 @@
 import { textLabel, type Label } from "~/features/i18n/shared/message";
 
 /**
- * Wraps an unexpected exception's message as an opaque `Label` — `error` may
+ * Wraps an unexpected exception's message as an opaque `Label` — `cause` may
  * be anything a `catch` clause receives, so this never assumes `Error`.
  * These messages are diagnostic runtime text (a bug, a network failure, a
  * provider's SDK message), never app-authored UI copy, so they are always
  * `textLabel` (raw passthrough) — never translated.
  */
-export const exceptionLabel = (error: unknown): Label =>
-  textLabel(error instanceof Error ? error.message : String(error));
+export const exceptionLabel = (cause: unknown): Label =>
+  textLabel(cause instanceof Error ? cause.message : String(cause));
 
 /**
  * Boundary-wraps a `{ success, error?: string }` result from a store module

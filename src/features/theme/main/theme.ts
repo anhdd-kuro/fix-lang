@@ -41,7 +41,7 @@ export const registerThemeHandlers = (): void => {
     themeId: themeStore.getThemeId(),
   }));
 
-  ipcMain.handle("set-theme", async (_event, raw: unknown) => {
+  ipcMain.handle("set-theme", async (_event, raw) => {
     if (!isThemeId(raw)) {
       return {
         success: false,

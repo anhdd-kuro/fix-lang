@@ -3,6 +3,7 @@
  * @description IPC handlers for application settings
  */
 import { BrowserWindow, ipcMain, Notification } from "electron";
+import { z } from "zod";
 import { DEFAULT_KEY_BINDINGS } from "~/const";
 import { normalizeCorrectionOutputMode } from "~/features/correction/shared/outputMode";
 import { sanitizeReasoningEffort } from "~/features/correction/shared/reasoningEffort";
@@ -39,7 +40,7 @@ export const registerSettingsHandlers = () => {
 
   ipcMain.handle(
     "set-default-reasoning-effort",
-    async (_event: Electron.IpcMainInvokeEvent, raw: unknown) => {
+    async (_event: Electron.IpcMainInvokeEvent, raw) => {
       const effort = sanitizeReasoningEffort(raw);
       if (effort === undefined) {
         return {
@@ -57,7 +58,7 @@ export const registerSettingsHandlers = () => {
 
   ipcMain.handle(
     "set-correction-output-mode",
-    async (_event: Electron.IpcMainInvokeEvent, raw: unknown) => {
+    async (_event: Electron.IpcMainInvokeEvent, raw) => {
       if (raw !== "paste" && raw !== "popup") {
         return {
           success: false,
@@ -147,14 +148,11 @@ export const registerSettingsHandlers = () => {
   // ---------------------------------------------------------------------------
   ipcMain.handle(
     "set-provisioning-key",
-    async (
-      _event: Electron.IpcMainInvokeEvent,
-      rawProvider: unknown,
-      raw: unknown,
-    ) => {
+    async (_event: Electron.IpcMainInvokeEvent, rawProvider, raw) => {
       // Defense-in-depth: re-validate the IPC payload in main (preload also
       // guards). Reject bad provider/non-strings without touching the store.
-      if (!supportsAdminKey(rawProvider) || typeof raw !== "string") {
+      const key = z.string().safeParse(raw);
+      if (!supportsAdminKey(rawProvider) || !key.success) {
         return {
           success: false,
           error: messageLabel("settings.general.provisioningKey.invalid"),
@@ -165,13 +163,13 @@ export const registerSettingsHandlers = () => {
       // via `wrapStoreResult` rather than guessed at as translatable, and it
       // keeps this handler's `error` field uniformly `Label`-shaped so the
       // preload boundary's `asLabel()` never has to drop a legitimate string.
-      return wrapStoreResult(await setProvisioningKey(rawProvider, raw));
+      return wrapStoreResult(await setProvisioningKey(rawProvider, key.data));
     },
   );
 
   ipcMain.handle(
     "clear-provisioning-key",
-    async (_event: Electron.IpcMainInvokeEvent, rawProvider: unknown) => {
+    async (_event: Electron.IpcMainInvokeEvent, rawProvider) => {
       if (!supportsAdminKey(rawProvider)) {
         return {
           success: false,
@@ -184,7 +182,7 @@ export const registerSettingsHandlers = () => {
 
   ipcMain.handle(
     "has-provisioning-key",
-    async (_event: Electron.IpcMainInvokeEvent, rawProvider: unknown) =>
+    async (_event: Electron.IpcMainInvokeEvent, rawProvider) =>
       supportsAdminKey(rawProvider) ? hasProvisioningKey(rawProvider) : false,
   );
 
