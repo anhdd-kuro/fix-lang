@@ -32,13 +32,16 @@ vi.mock("~/main/notifications/error", () => ({ notifyRequestError: vi.fn() }));
 const REQUESTED_MODEL = "qwen3-8b";
 const SERVED_MODEL = "qwen/qwen3-8b@q4_k_m";
 
-const requestOptions = (n?: number): AIRequestOptions => ({
-  systemPrompt: "",
-  userPrompt: "",
-  model: REQUESTED_MODEL,
-  messages: [{ role: "user" as const, content: "fix this" }],
-  ...(n !== undefined ? { n } : {}),
-});
+const requestOptions = (n?: number): AIRequestOptions => {
+  const options: AIRequestOptions = {
+    systemPrompt: "",
+    userPrompt: "",
+    model: REQUESTED_MODEL,
+    messages: [{ role: "user" as const, content: "fix this" }],
+  };
+  if (n !== undefined) options.n = n;
+  return options;
+};
 
 describe("makeLmStudioAIRequest", () => {
   beforeEach(() => {

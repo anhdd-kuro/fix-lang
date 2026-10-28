@@ -33,6 +33,13 @@
  * Imported only by tests — never from production code, so it never ships.
  */
 
+import { z } from "zod";
+import {
+  AnyNumberSchema,
+  objectLike,
+} from "~/features/core/shared/schemaGuard";
+import type { JsonObject } from "~/main/jsonValue";
+
 export type FakeUsage = {
   inputTokens?: number;
   outputTokens?: number;
@@ -45,7 +52,7 @@ export type FakeGenerateTextSpec = {
   text?: string;
   reasoningText?: string;
   usage?: FakeUsage;
-  providerMetadata?: Record<string, Record<string, unknown>>;
+  providerMetadata?: Record<string, JsonObject>;
   /** Raw provider response body. Visible only with `include.responseBody`. */
   body?: unknown;
   /**
@@ -70,16 +77,43 @@ export type FakeGenerateTextCallOptions = {
     requestMessages?: boolean;
     responseBody?: boolean;
   };
-  [option: string]: unknown;
+  prompt?: string;
 };
 
 const FALLBACK_MODEL_ID = "fake-model";
 const FAKE_TIMESTAMP = new Date(0);
 
-const stringField = (value: unknown, key: string): string | undefined => {
-  if (!value || typeof value !== "object" || !(key in value)) return undefined;
-  const field = (value as Record<string, unknown>)[key];
-  return typeof field === "string" ? field : undefined;
+const optionalString = z.string().optional().catch(undefined);
+const optionalNumber = AnyNumberSchema.optional().catch(undefined);
+
+const BodyModelSchema = objectLike({ model: optionalString });
+const RequestedModelSchema = objectLike({ modelId: optionalString });
+const BodyUsageSchema = objectLike({
+  usage: objectLike({
+    prompt_tokens: optionalNumber,
+    completion_tokens: optionalNumber,
+    prompt_tokens_details: objectLike({
+      cached_tokens: optionalNumber,
+      cache_write_tokens: optionalNumber,
+    })
+      .optional()
+      .catch(undefined),
+    completion_tokens_details: objectLike({ reasoning_tokens: optionalNumber })
+      .optional()
+      .catch(undefined),
+  })
+    .optional()
+    .catch(undefined),
+});
+
+const servedModelOf = <Input>(body: Input): string | undefined => {
+  const parsed = BodyModelSchema.safeParse(body);
+  return parsed.success ? parsed.data.model : undefined;
+};
+
+const requestedModelIdOf = <Input>(model: Input): string | undefined => {
+  const parsed = RequestedModelSchema.safeParse(model);
+  return parsed.success ? parsed.data.modelId : undefined;
 };
 
 const sumDefined = (...values: (number | undefined)[]): number | undefined =>
@@ -120,39 +154,27 @@ const toSdkUsage = (usage: FakeUsage = {}, noCacheOverride?: number) => {
   };
 };
 
-const numberField = (value: unknown, key: string): number | undefined => {
-  if (!value || typeof value !== "object" || !(key in value)) return undefined;
-  const field = (value as Record<string, unknown>)[key];
-  return typeof field === "number" ? field : undefined;
-};
-
-const objectField = (value: unknown, key: string): unknown =>
-  value && typeof value === "object"
-    ? (value as Record<string, unknown>)[key]
-    : undefined;
-
 /**
  * What `@openrouter/ai-sdk-provider`'s `computeTokenUsage` makes of a chat
  * completion body: absent cache-read and reasoning details count as 0, an
  * absent `cache_write_tokens` stays `undefined`, and `noCache` only subtracts
  * cache reads. Returns `undefined` for a body with no OpenAI-shaped usage.
  */
-const deriveUsageFromBody = (
-  body: unknown,
+const deriveUsageFromBody = <Input>(
+  body: Input,
 ): { usage: FakeUsage; noCacheTokens: number } | undefined => {
-  const raw = objectField(body, "usage");
-  const promptTokens = numberField(raw, "prompt_tokens");
-  if (promptTokens === undefined) return undefined;
-  const promptDetails = objectField(raw, "prompt_tokens_details");
-  const completionDetails = objectField(raw, "completion_tokens_details");
-  const cacheReadTokens = numberField(promptDetails, "cached_tokens") ?? 0;
+  const parsed = BodyUsageSchema.safeParse(body);
+  const raw = parsed.success ? parsed.data.usage : undefined;
+  const promptTokens = raw?.prompt_tokens;
+  if (raw === undefined || promptTokens === undefined) return undefined;
+  const cacheReadTokens = raw.prompt_tokens_details?.cached_tokens ?? 0;
   return {
     usage: {
       inputTokens: promptTokens,
-      outputTokens: numberField(raw, "completion_tokens") ?? 0,
+      outputTokens: raw.completion_tokens ?? 0,
       cacheReadTokens,
-      cacheWriteTokens: numberField(promptDetails, "cache_write_tokens"),
-      reasoningTokens: numberField(completionDetails, "reasoning_tokens") ?? 0,
+      cacheWriteTokens: raw.prompt_tokens_details?.cache_write_tokens,
+      reasoningTokens: raw.completion_tokens_details?.reasoning_tokens ?? 0,
     },
     noCacheTokens: promptTokens - cacheReadTokens,
   };
@@ -192,8 +214,8 @@ const buildResult = (
   const usage = resolveUsage(spec);
   const modelId =
     spec.modelId ??
-    stringField(spec.body, "model") ??
-    stringField(options.model, "modelId") ??
+    servedModelOf(spec.body) ??
+    requestedModelIdOf(options.model) ??
     FALLBACK_MODEL_ID;
   const reasoning =
     spec.reasoningText === undefined
@@ -286,25 +308,39 @@ export const chatCompletionUsage = ({
   cacheWriteTokens?: number;
   reasoningTokens?: number;
   cost?: number;
-}): ChatCompletionUsage => ({
-  prompt_tokens: promptTokens,
-  completion_tokens: completionTokens,
-  total_tokens: promptTokens + completionTokens,
-  ...(cachedTokens !== undefined || cacheWriteTokens !== undefined
-    ? {
-        prompt_tokens_details: {
-          cached_tokens: cachedTokens ?? 0,
-          ...(cacheWriteTokens !== undefined
-            ? { cache_write_tokens: cacheWriteTokens }
-            : {}),
-        },
-      }
-    : {}),
-  ...(reasoningTokens !== undefined
-    ? { completion_tokens_details: { reasoning_tokens: reasoningTokens } }
-    : {}),
-  ...(cost !== undefined ? { cost } : {}),
-});
+}): ChatCompletionUsage => {
+  const usage: ChatCompletionUsage = {
+    prompt_tokens: promptTokens,
+    completion_tokens: completionTokens,
+    total_tokens: promptTokens + completionTokens,
+  };
+  if (cachedTokens !== undefined || cacheWriteTokens !== undefined) {
+    const promptDetails: NonNullable<
+      ChatCompletionUsage["prompt_tokens_details"]
+    > = { cached_tokens: cachedTokens ?? 0 };
+    if (cacheWriteTokens !== undefined) {
+      promptDetails.cache_write_tokens = cacheWriteTokens;
+    }
+    usage.prompt_tokens_details = promptDetails;
+  }
+  if (reasoningTokens !== undefined) {
+    usage.completion_tokens_details = { reasoning_tokens: reasoningTokens };
+  }
+  if (cost !== undefined) usage.cost = cost;
+  return usage;
+};
+
+export type ChatCompletionBody = {
+  id: string;
+  object: string;
+  model: string;
+  choices: {
+    index: number;
+    message: { role: string; content: string };
+    finish_reason: string;
+  }[];
+  usage?: ChatCompletionUsage;
+};
 
 /**
  * An OpenAI-compatible Chat Completions body (the shape OpenRouter returns),
@@ -320,7 +356,7 @@ export const chatCompletionBody = ({
   model: string;
   contents: readonly string[];
   usage?: ChatCompletionUsage;
-}) => {
+}): ChatCompletionBody => {
   const impossible = ANTHROPIC_USAGE_KEYS.filter(
     (key) => usage && key in usage,
   );
@@ -330,7 +366,7 @@ export const chatCompletionBody = ({
         "use prompt_tokens_details.{cached_tokens,cache_write_tokens} (see chatCompletionUsage).",
     );
   }
-  return {
+  const body: ChatCompletionBody = {
     id: "fake-chatcmpl-id",
     object: "chat.completion",
     model,
@@ -339,6 +375,7 @@ export const chatCompletionBody = ({
       message: { role: "assistant", content },
       finish_reason: "stop",
     })),
-    ...(usage ? { usage } : {}),
   };
+  if (usage) body.usage = usage;
+  return body;
 };

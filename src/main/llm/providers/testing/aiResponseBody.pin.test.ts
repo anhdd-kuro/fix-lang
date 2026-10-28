@@ -16,6 +16,7 @@ import {
   chatCompletionBody,
   chatCompletionUsage,
   fakeGenerateText,
+  type ChatCompletionBody,
   type FakeGenerateTextCallOptions,
 } from "./fakeGenerateText";
 
@@ -37,21 +38,31 @@ const providerUsage = {
 };
 const finishReason = { unified: "stop" as const, raw: "stop" };
 
+type ProviderResponse = {
+  id: string;
+  timestamp: Date;
+  modelId?: string;
+  body: ChatCompletionBody;
+};
+
 const mockModel = ({ reportsModelId = true } = {}) =>
   new MockLanguageModelV4({
     modelId: REQUESTED_MODEL,
-    doGenerate: async () => ({
-      content: [{ type: "text", text: "first" }],
-      finishReason,
-      usage: providerUsage,
-      warnings: [],
-      response: {
+    doGenerate: async () => {
+      const response: ProviderResponse = {
         id: "response-1",
         timestamp: new Date(0),
-        ...(reportsModelId ? { modelId: SERVED_MODEL } : {}),
         body: PROVIDER_BODY,
-      },
-    }),
+      };
+      if (reportsModelId) response.modelId = SERVED_MODEL;
+      return {
+        content: [{ type: "text", text: "first" }],
+        finishReason,
+        usage: providerUsage,
+        warnings: [],
+        response,
+      };
+    },
     doStream: async () => ({
       stream: convertArrayToReadableStream([
         { type: "response-metadata", id: "response-1", modelId: SERVED_MODEL },
@@ -133,10 +144,15 @@ describe("ai v7 response body (real SDK)", () => {
   });
 });
 
-const jsonResponse = (body: unknown) =>
+const jsonResponse = <Body>(body: Body) =>
   new Response(JSON.stringify(body), {
     status: 200,
     headers: { "content-type": "application/json" },
+  });
+
+const stubFetch = <Body>(body: Body): typeof globalThis.fetch =>
+  Object.assign(async () => jsonResponse(body), {
+    preconnect: () => undefined,
   });
 
 describe("real @openrouter/ai-sdk-provider through generateText", () => {
@@ -154,16 +170,16 @@ describe("real @openrouter/ai-sdk-provider through generateText", () => {
 
   const run = (
     include?: { responseBody?: boolean },
-    body: unknown = openRouterBody,
+    body: ChatCompletionBody = openRouterBody,
   ) => {
-    const fetch = (async () =>
-      jsonResponse(body)) as unknown as typeof globalThis.fetch;
-    const openRouter = createOpenRouter({ apiKey: "sk-or-test", fetch });
-    return generateText({
-      model: openRouter(REQUESTED_MODEL),
-      prompt: "hi",
-      ...(include ? { include } : {}),
+    const openRouter = createOpenRouter({
+      apiKey: "sk-or-test",
+      fetch: stubFetch(body),
     });
+    const model = openRouter(REQUESTED_MODEL);
+    return include
+      ? generateText({ model, prompt: "hi", include })
+      : generateText({ model, prompt: "hi" });
   };
 
   it("exposes the served model and cache counts with no include", async () => {
@@ -227,18 +243,15 @@ describe("real @ai-sdk/amazon-bedrock through generateText", () => {
   };
 
   const run = (include?: { responseBody?: boolean }) => {
-    const fetch = (async () =>
-      jsonResponse(converseBody)) as unknown as typeof globalThis.fetch;
     const bedrock = createAmazonBedrock({
       region: "us-east-1",
       apiKey: "bedrock-test",
-      fetch,
+      fetch: stubFetch(converseBody),
     });
-    return generateText({
-      model: bedrock(BEDROCK_MODEL),
-      prompt: "hi",
-      ...(include ? { include } : {}),
-    });
+    const model = bedrock(BEDROCK_MODEL);
+    return include
+      ? generateText({ model, prompt: "hi", include })
+      : generateText({ model, prompt: "hi" });
   };
 
   it("returns no response.body even with include: { responseBody: true }", async () => {
@@ -269,20 +282,20 @@ describe("real @ai-sdk/amazon-bedrock through generateText", () => {
 
 describe("fakeGenerateText matches the real SDK", () => {
   const callBoth = async (include?: FakeGenerateTextCallOptions["include"]) => {
-    const real = await generateText({
-      model: mockModel(),
+    const model = mockModel();
+    const real = include
+      ? await generateText({ model, prompt: "hi", include })
+      : await generateText({ model, prompt: "hi" });
+    const fakeCall: FakeGenerateTextCallOptions = {
+      model: { modelId: REQUESTED_MODEL },
       prompt: "hi",
-      ...(include ? { include } : {}),
-    });
+    };
+    if (include) fakeCall.include = include;
     const fake = await fakeGenerateText({
       text: "first",
       body: PROVIDER_BODY,
       usage: { inputTokens: 10, outputTokens: 4, cacheReadTokens: 6 },
-    })({
-      model: { modelId: REQUESTED_MODEL },
-      prompt: "hi",
-      ...(include ? { include } : {}),
-    });
+    })(fakeCall);
     return { real, fake };
   };
 

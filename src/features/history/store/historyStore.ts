@@ -168,8 +168,12 @@ export function removeHistoryEntry(
  * accepted that through a loose `set(string, unknown)` overload that v12
  * dropped; the casts keep the stored shape unchanged.
  */
-const storedLastActionHistory = (value: HistoryEntry | Record<string, never>): LastActionHistory =>
-  value as unknown as LastActionHistory;
+const storedLastActionHistory = (
+  value: HistoryEntry | Record<string, never>,
+): LastActionHistory =>
+  // SAFETY: the only inputs are a bare `HistoryEntry` or `{}`, the shapes every caller stored
+  // before electron-store 12; `never` carries them through `set` unchanged, unvalidated.
+  value as never;
 
 export function setLastActionHistory(entry: HistoryEntry): void {
   getHistoryStore().set("lastActionHistory", storedLastActionHistory(entry));
