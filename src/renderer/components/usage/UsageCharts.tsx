@@ -84,7 +84,7 @@ const EMBEDDED_CHART_HEIGHT_PX = 180;
 
 /** Resolve a CSS custom property to a color Chart.js can paint. */
 const readCssColor = (varName: string, fallback: string): string => {
-  if (typeof document === "undefined") return fallback;
+  if (!("document" in globalThis)) return fallback;
   const value = getComputedStyle(document.documentElement)
     .getPropertyValue(varName)
     .trim();

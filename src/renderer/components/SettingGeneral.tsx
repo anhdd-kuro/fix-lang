@@ -170,10 +170,10 @@ export const SettingGeneral: React.FC = () => {
         .then((effort) => {
           if (effort) setDefaultReasoningEffort(effort);
         })
-        .catch((error: unknown) => {
+        .catch((cause: unknown) => {
           console.error(
             "SettingGeneral: Error reloading default reasoning on profile switch:",
-            error,
+            cause,
           );
         });
     };
@@ -216,10 +216,10 @@ export const SettingGeneral: React.FC = () => {
       .then((effort) => {
         if (effort) setDefaultReasoningEffort(effort);
       })
-      .catch((error: unknown) => {
+      .catch((cause: unknown) => {
         console.error(
           "SettingGeneral: Error loading default reasoning:",
-          error,
+          cause,
         );
       });
   }, []);

@@ -305,8 +305,8 @@ ${importLines.join("\n")}
   );
 };
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
+main().catch((cause: unknown) => {
+  const message = cause instanceof Error ? cause.message : String(cause);
   console.error(`Theme generation failed: ${message}`);
   process.exit(1);
 });

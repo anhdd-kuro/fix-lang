@@ -77,7 +77,7 @@ const OVER_TIME_HEIGHT_PX = 280;
  * Falls back when the variable is unset (SSR / missing theme).
  */
 const readCssColor = (varName: string, fallback: string): string => {
-  if (typeof document === "undefined") {
+  if (!("document" in globalThis)) {
     return fallback;
   }
   const value = getComputedStyle(document.documentElement)

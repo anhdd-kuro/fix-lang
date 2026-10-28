@@ -34,10 +34,10 @@ export const DefaultReasoningEffortSlider: React.FC<
           setEffort(value);
         }
       })
-      .catch((error: unknown) => {
+      .catch((cause: unknown) => {
         console.error(
           "DefaultReasoningEffortSlider: failed to load default",
-          error,
+          cause,
         );
       });
   }, []);
@@ -75,10 +75,10 @@ export const DefaultReasoningEffortSlider: React.FC<
                 setEffort(previous);
               }
             })
-            .catch((error: unknown) => {
+            .catch((cause: unknown) => {
               console.error(
                 "DefaultReasoningEffortSlider: failed to save",
-                error,
+                cause,
               );
               setEffort(previous);
             });

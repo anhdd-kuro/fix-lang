@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { z } from "zod";
 import { msg, type Message } from "~/features/i18n/shared/message";
 import { Button } from "./Button";
 import CopyButton from "./CopyButton";
@@ -139,6 +140,9 @@ const initialState: UpdateState = {
 
 const updateApi = () => window.electronAPI;
 
+/** A resolved action that main reported as failed (`{ success: false }`). */
+const FailedActionResultSchema = z.object({ success: z.literal(false) });
+
 const BYTES_PER_MEGABYTE = 1024 * 1024;
 
 /**
@@ -227,12 +231,7 @@ export const SettingUpdates = () => {
     setActionPending(true);
     try {
       const result = await request();
-      if (
-        typeof result === "object" &&
-        result !== null &&
-        "success" in result &&
-        result.success === false
-      ) {
+      if (FailedActionResultSchema.safeParse(result).success) {
         reportFailure();
         return;
       }

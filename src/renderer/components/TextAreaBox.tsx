@@ -56,7 +56,7 @@ export const TextAreaBox = ({
 
         {/* Prompt token count display for original text */}
         <TextCount
-          textOrCount={textCount}
+          count={textCount}
           className="text-shadow-white ml-auto"
           aria-live="polite"
           aria-label={t("common.textAreaBox.promptTokensAriaLabel")}
@@ -68,12 +68,12 @@ export const TextAreaBox = ({
 };
 
 const TextCount = ({
-  textOrCount,
+  count,
   className,
   label,
   titleAttribute,
 }: {
-  textOrCount: string | number | null | undefined;
+  count: number | null | undefined;
   className?: string;
   label?: string;
   titleAttribute?: string;
@@ -88,8 +88,7 @@ const TextCount = ({
       aria-label={t("common.textAreaBox.textLengthAriaLabel")}
       title={titleAttribute}
     >
-      {resolvedLabel}{" "}
-      {typeof textOrCount === "number" ? textOrCount : textOrCount?.length || 0}
+      {resolvedLabel} {count ?? 0}
     </span>
   );
 };

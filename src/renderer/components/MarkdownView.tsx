@@ -61,8 +61,7 @@ const components: Components = {
     </blockquote>
   ),
   code: ({ node: _node, className, children, ...props }) => {
-    const isFenced =
-      typeof className === "string" && className.startsWith("language-");
+    const isFenced = className?.startsWith("language-") === true;
     return isFenced ? (
       <code {...props} className={className}>
         {children}

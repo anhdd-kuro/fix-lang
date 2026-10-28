@@ -87,8 +87,8 @@ export const OutputModeTabs: React.FC<OutputModeTabsProps> = ({
           setMode(value);
         }
       })
-      .catch((error: unknown) => {
-        console.error("OutputModeTabs: Error loading output mode:", error);
+      .catch((cause: unknown) => {
+        console.error("OutputModeTabs: Error loading output mode:", cause);
         if (mounted && showSaveStatus) {
           setSaveIsError(true);
           setSaveStatus(

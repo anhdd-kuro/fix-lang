@@ -982,9 +982,12 @@ describe("SettingGeneral", () => {
       );
 
       // Hold OpenRouter's connect open.
-      let settle: (value: unknown) => void = () => undefined;
+      type ConnectResult = Awaited<
+        ReturnType<Window["electronAPI"]["connectProvider"]>
+      >;
+      let settle: (value: ConnectResult) => void = () => undefined;
       api.connectProvider.mockReturnValueOnce(
-        new Promise((resolve) => {
+        new Promise<ConnectResult>((resolve) => {
           settle = resolve;
         }),
       );

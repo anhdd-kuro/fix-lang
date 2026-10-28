@@ -59,7 +59,7 @@ export const DefaultGroupHeading = <Option extends SearchableOption>({
   false,
   GroupBase<Option>
 >): React.ReactElement | null => {
-  const label = typeof data.label === "string" ? data.label : "";
+  const label = data.label ?? "";
   if (label === "") return null;
   return (
     <div className="px-3 pt-2 pb-1 text-xxs font-semibold uppercase tracking-wide text-muted-foreground">

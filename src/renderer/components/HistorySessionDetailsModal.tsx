@@ -176,7 +176,7 @@ export const HistorySessionDetailsModal: React.FC<
                 return {
                   role: message.role,
                   label: roleLabelKey ? t(roleLabelKey) : message.role,
-                  content: displayHistoryMessageContent(message.content),
+                  content: displayHistoryMessageContent(message),
                 };
               })}
             />

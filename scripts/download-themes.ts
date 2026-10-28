@@ -75,8 +75,8 @@ const main = async (): Promise<void> => {
   );
 };
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
+main().catch((cause: unknown) => {
+  const message = cause instanceof Error ? cause.message : String(cause);
   console.error(`Theme download failed: ${message}`);
   process.exit(1);
 });

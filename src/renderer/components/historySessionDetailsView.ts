@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
   type ReasoningEffort,
   type ReasoningEffortStep,
@@ -82,11 +83,14 @@ export const historyChatMessages = (raw: string): HistorySessionMessage[] => {
   ];
 };
 
-export const displayHistoryMessageContent = (content: unknown): string => {
-  if (typeof content === "string") return content;
+export const displayHistoryMessageContent = (
+  message: HistorySessionMessage,
+): string => {
+  const text = z.string().safeParse(message.content);
+  if (text.success) return text.data;
   try {
-    return JSON.stringify(content, null, 2) ?? "";
+    return JSON.stringify(message.content, null, 2) ?? "";
   } catch {
-    return String(content);
+    return String(message.content);
   }
 };

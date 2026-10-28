@@ -21,6 +21,7 @@ import {
 } from "chart.js";
 import { useEffect, useMemo, useState } from "react";
 import { Bar, Doughnut } from "react-chartjs-2";
+import { z } from "zod";
 import {
   barDateLabel,
   barTooltipMessage,
@@ -68,7 +69,7 @@ const BAR_HEIGHT_PX = 220;
 const DONUT_HEIGHT_PX = 240;
 
 const readCssColor = (varName: string, fallback: string): string => {
-  if (typeof document === "undefined") {
+  if (!("document" in globalThis)) {
     return fallback;
   }
   const value = getComputedStyle(document.documentElement)
@@ -168,8 +169,12 @@ export const ModelsTokenUsageChart = ({ bars }: { bars: TokenDayBar[] }) => {
           },
           ticks: {
             color: muted,
-            callback: (value) =>
-              typeof value === "number" ? formatNumber(value) : String(value),
+            callback: (value) => {
+              const textTick = z.string().safeParse(value);
+              return textTick.success
+                ? textTick.data
+                : formatNumber(Number(value));
+            },
           },
           grid: { color: border },
           border: { color: border },

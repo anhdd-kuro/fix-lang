@@ -404,10 +404,7 @@ export const useGhostText = ({
         // is indistinguishable from every other silent path this file now
         // reports. The Ask window's payload arriving proves the preload loaded,
         // so the reporting method below is reachable even when this one is not.
-        if (
-          typeof window.electronAPI?.requestAutocompleteSuggestion !==
-          "function"
-        ) {
+        if (!window.electronAPI?.requestAutocompleteSuggestion) {
           reportSkip("bridge-unavailable", prefix.length);
           invalidate();
           return;

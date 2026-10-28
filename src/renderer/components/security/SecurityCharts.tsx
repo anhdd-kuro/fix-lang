@@ -22,6 +22,7 @@ import {
 } from "chart.js";
 import { useEffect, useMemo, useState } from "react";
 import { Bar, Doughnut } from "react-chartjs-2";
+import { z } from "zod";
 import {
   SECURITY_CHART_KEYS,
   joinChartAriaSummary,
@@ -71,7 +72,7 @@ const DONUT_HEIGHT_PX = 240;
 const BAR_HEIGHT_PX = 220;
 
 const readCssColor = (varName: string, fallback: string): string => {
-  if (typeof document === "undefined") {
+  if (!("document" in globalThis)) {
     return fallback;
   }
   const value = getComputedStyle(document.documentElement)
@@ -319,8 +320,12 @@ export const SecurityRulesBar = ({
           ticks: {
             color: muted,
             precision: 0,
-            callback: (value) =>
-              typeof value === "number" ? formatNumber(value) : String(value),
+            callback: (value) => {
+              const textTick = z.string().safeParse(value);
+              return textTick.success
+                ? textTick.data
+                : formatNumber(Number(value));
+            },
           },
           grid: { color: border },
           border: { color: border },

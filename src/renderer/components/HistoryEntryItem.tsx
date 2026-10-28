@@ -61,7 +61,7 @@ const HistoryEntryItem: React.FC<HistoryEntryItemProps> = ({
   const { t, formatNumber, formatDateTime } = useI18n();
   const [showDetails, setShowDetails] = useState(false);
   const sessionJson = entry.sessionJson;
-  const hasSession = typeof sessionJson === "string" && sessionJson.length > 0;
+  const hasSession = (sessionJson ?? "").length > 0;
   const presetLabel = entry.presetName ?? t("common.unknown");
   const modelLineage = formatModelLineage(entry.model, entry.resolvedModel);
 

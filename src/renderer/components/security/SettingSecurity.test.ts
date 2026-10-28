@@ -505,12 +505,15 @@ describe("SettingSecurity", () => {
    * therefore carry BOTH ids.
    */
   it("merges a second app resolution onto the first instead of erasing it", async () => {
-    let resolveFirst: ((value: unknown) => void) | null = null;
+    type ChooseResult = Awaited<
+      ReturnType<Window["electronAPI"]["chooseDeniedApps"]>
+    >;
+    let resolveFirst: ((value: ChooseResult) => void) | null = null;
     const chooseDeniedApps = vi
       .fn()
       .mockImplementationOnce(
         () =>
-          new Promise((resolve) => {
+          new Promise<ChooseResult>((resolve) => {
             resolveFirst = resolve;
           }),
       )
