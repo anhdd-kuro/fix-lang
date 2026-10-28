@@ -325,3 +325,66 @@ describe("registerSelectionGuardHandlers", () => {
     });
   });
 });
+
+describe("set-selection-guards — payload edge inputs", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    registerSelectionGuardHandlers();
+  });
+
+  const write = async (payload: Parameters<Handler>[1]) =>
+    getHandler("set-selection-guards")(ipcEvent, payload);
+
+  it("accepts -0, a huge integer, extra keys and non-canonical entries", async () => {
+    const payload = {
+      clipboardMaxAgeSeconds: -0,
+      maxSelectionChars: 1e20,
+      deniedBundleIds: ["  COM.Example.App "],
+      extra: 1,
+    };
+    expect(await write(payload)).toEqual({ success: true });
+    expect(guardStoreMocks.setSelectionGuardSettings).toHaveBeenCalledWith(
+      payload,
+    );
+  });
+
+  it("accepts null-prototype and inherited-field payloads", async () => {
+    expect(
+      await write(Object.assign(Object.create(null), validSettings)),
+    ).toEqual({ success: true });
+    expect(
+      await write(
+        Object.assign(Object.create({ clipboardMaxAgeSeconds: 3 }), {
+          maxSelectionChars: 4,
+          deniedBundleIds: [],
+        }),
+      ),
+    ).toEqual({ success: true });
+    expect(
+      guardStoreMocks.setSelectionGuardSettings.mock.calls[1][0]
+        .clipboardMaxAgeSeconds,
+    ).toBe(3);
+  });
+
+  it("accepts a deny-list with a hole, as Array#every skips it", async () => {
+    const deniedBundleIds = ["com.example.app"];
+    deniedBundleIds.length = 2;
+    expect(await write({ ...validSettings, deniedBundleIds })).toEqual({
+      success: true,
+    });
+  });
+
+  it.each([
+    ["a boxed number", { ...validSettings, maxSelectionChars: new Number(1) }],
+    ["a fraction", { ...validSettings, clipboardMaxAgeSeconds: 0.5 }],
+    ["a boxed entry", { ...validSettings, deniedBundleIds: [new String("a")] }],
+    [
+      "an entry over the RAW length bound",
+      { ...validSettings, deniedBundleIds: [` ${"a".repeat(120)}`] },
+    ],
+    ["a function", Object.assign(() => 1, validSettings)],
+  ])("rejects %s without touching the store", async (_label, payload) => {
+    expect(await write(payload)).toMatchObject({ success: false });
+    expect(guardStoreMocks.setSelectionGuardSettings).not.toHaveBeenCalled();
+  });
+});

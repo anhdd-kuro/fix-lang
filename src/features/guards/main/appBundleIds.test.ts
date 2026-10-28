@@ -184,4 +184,33 @@ describe("resolveAppBundleIds", () => {
       success: false,
     });
   });
+
+  it("accepts exactly MAX_APP_BUNDLE_PATHS paths", async () => {
+    const atCap = Array.from({ length: 200 }, () => SLACK);
+
+    await expect(resolveAppBundleIds(atCap)).resolves.toMatchObject({
+      success: true,
+    });
+  });
+
+  it.each([
+    ["a boxed path", [new String(SLACK)]],
+    ["an upper-case suffix that does not exist", ["/Applications/SLACK.APP"]],
+  ])("rejects %s without spawning anything", async (_label, payload) => {
+    await expect(resolveAppBundleIds(payload)).resolves.toMatchObject({
+      success: false,
+    });
+    expect(execFileMock).not.toHaveBeenCalled();
+  });
+
+  // Documents current behavior rather than endorsing it: `every` skips the
+  // hole, then the read loop meets `undefined` and `path.join` throws, so the
+  // invoke rejects instead of resolving.
+  it("rejects (throws) on a path list with a hole", async () => {
+    const holey = [SLACK];
+    holey.length = 2;
+    holey.reverse();
+
+    await expect(resolveAppBundleIds(holey)).rejects.toThrow(TypeError);
+  });
 });
