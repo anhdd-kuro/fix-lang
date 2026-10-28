@@ -20,7 +20,16 @@ const featureDefine = {
   __FEATURE_PROMPT_GEN__: JSON.stringify(features.promptGen),
 };
 
-const rendererInput = {
+type RendererInput = {
+  main: string;
+  tray: string;
+  correctionResult: string;
+  askInput: string;
+  askResult: string;
+  promptGen?: string;
+};
+
+const rendererInput: RendererInput = {
   main: resolve(__dirname, "src/renderer/MainWindow/index.html"),
   tray: resolve(__dirname, "src/renderer/TrayWindow/index.html"),
   correctionResult: resolve(
@@ -31,16 +40,14 @@ const rendererInput = {
   // PromptGen below, both entries always ship.
   askInput: resolve(__dirname, "src/renderer/AskInputWindow/index.html"),
   askResult: resolve(__dirname, "src/renderer/AskResultWindow/index.html"),
-  // Omitted when the tag is off so no PromptGen bundle/html is emitted at all.
-  ...(features.promptGen
-    ? {
-        promptGen: resolve(
-          __dirname,
-          "src/renderer/PromptGenWindow/index.html",
-        ),
-      }
-    : {}),
 };
+// Omitted when the tag is off so no PromptGen bundle/html is emitted at all.
+if (features.promptGen) {
+  rendererInput.promptGen = resolve(
+    __dirname,
+    "src/renderer/PromptGenWindow/index.html",
+  );
+}
 
 export default defineConfig({
   main: {

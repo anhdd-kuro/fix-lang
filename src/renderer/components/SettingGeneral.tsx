@@ -287,27 +287,26 @@ export const SettingGeneral: React.FC = () => {
         portRaw && Number.isInteger(Number(portRaw))
           ? Number(portRaw)
           : undefined;
-      const result = await window.electronAPI.connectProvider({
+      const connectInput: Parameters<
+        typeof window.electronAPI.connectProvider
+      >[0] = {
         provider,
         apiKey: typed?.apiKey || undefined,
         secretKey: typed?.secretKey || undefined,
         provisioningKey: typed?.provisioningKey || undefined,
-        // Sent even when empty — clearing the field must clear the stored id —
-        // but only once the stored value has been read; see the state comment.
-        ...(provider === "openai" && typedOpenAIProjectId !== undefined
-          ? { projectId: typedOpenAIProjectId }
-          : {}),
-        ...(provider === "lmstudio" || provider === "ollama"
-          ? {
-              host: endpoint?.host?.trim() || undefined,
-              ...(port !== undefined ? { port } : {}),
-            }
-          : provider === "bedrock"
-            ? {
-                region: endpoint?.host?.trim() || undefined,
-              }
-            : {}),
-      });
+      };
+      // Sent even when empty — clearing the field must clear the stored id —
+      // but only once the stored value has been read; see the state comment.
+      if (provider === "openai" && typedOpenAIProjectId !== undefined) {
+        connectInput.projectId = typedOpenAIProjectId;
+      }
+      if (provider === "lmstudio" || provider === "ollama") {
+        connectInput.host = endpoint?.host?.trim() || undefined;
+        if (port !== undefined) connectInput.port = port;
+      } else if (provider === "bedrock") {
+        connectInput.region = endpoint?.host?.trim() || undefined;
+      }
+      const result = await window.electronAPI.connectProvider(connectInput);
       if (result.success) {
         // Never keep a credential around after main has stored it.
         setTypedKeys((current) => ({ ...current, [provider]: {} }));

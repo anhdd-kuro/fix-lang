@@ -2025,7 +2025,7 @@ const consumerContractRows = [
     "SITE-07f2a8ba23e043f1-01",
     "LIVE-07f2a8ba23e043f1",
     "src/renderer/components/SettingGeneral.tsx",
-    789,
+    788,
     11,
   ],
   [
@@ -2033,7 +2033,7 @@ const consumerContractRows = [
     "SITE-c4546c1f1b582275-01",
     "LIVE-c4546c1f1b582275",
     "src/renderer/components/SettingGeneral.tsx",
-    802,
+    801,
     13,
   ],
   [
@@ -2041,7 +2041,7 @@ const consumerContractRows = [
     "SITE-f528b6225f5af211-01",
     "LIVE-f528b6225f5af211",
     "src/renderer/components/SettingGeneral.tsx",
-    836,
+    835,
     15,
   ],
   [
@@ -2049,7 +2049,7 @@ const consumerContractRows = [
     "SITE-d3d535844d3ea12d-01",
     "LIVE-d3d535844d3ea12d",
     "src/renderer/components/SettingGeneral.tsx",
-    844,
+    843,
     15,
   ],
   [
@@ -2057,7 +2057,7 @@ const consumerContractRows = [
     "SITE-9366f8ce82dfacc2-01",
     "LIVE-9366f8ce82dfacc2",
     "src/renderer/components/SettingGeneral.tsx",
-    964,
+    963,
     9,
   ],
   [
@@ -2385,7 +2385,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "a11bb3d575fcd2f3986aaa30bd8579e236b812a578dbaafb0bd87eae5d4fdd06";
+  "8f0de7f98d72dd5715dc7409cd8d08e8ed5e1af524eade5da648b39562936d3e";
 
 const compareConsumers = (
   left: ButtonConsumer,

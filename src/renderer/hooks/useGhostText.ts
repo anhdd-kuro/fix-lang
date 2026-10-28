@@ -319,12 +319,15 @@ export const useGhostText = ({
     ): void => {
       const decision = skipThrottleRef.current.admit(reason, Date.now());
       if (!decision.emit) return;
-      window.electronAPI?.reportAutocompleteSkip?.({
+      const skipReport: Parameters<
+        NonNullable<typeof window.electronAPI.reportAutocompleteSkip>
+      >[0] = {
         reason,
         prefixLength,
         suppressedSincePrevious: decision.suppressedSincePrevious,
-        ...(requestId === undefined ? {} : { requestId }),
-      });
+      };
+      if (requestId !== undefined) skipReport.requestId = requestId;
+      window.electronAPI?.reportAutocompleteSkip?.(skipReport);
     },
     [],
   );

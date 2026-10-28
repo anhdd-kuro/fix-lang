@@ -49,13 +49,17 @@ const cloud = (
   },
 });
 
-const local = (id: string, size?: number): Model => ({
-  id,
-  name: id,
-  created: 1_700_000_000_000,
-  provider: "ollama",
-  local: { path: `/models/${id}`, ...(size === undefined ? {} : { size }) },
-});
+const local = (id: string, size?: number): Model => {
+  const localInfo: NonNullable<Model["local"]> = { path: `/models/${id}` };
+  if (size !== undefined) localInfo.size = size;
+  return {
+    id,
+    name: id,
+    created: 1_700_000_000_000,
+    provider: "ollama",
+    local: localInfo,
+  };
+};
 
 const MODELS: Model[] = [
   cloud("gpt-5-mini", "openai"),

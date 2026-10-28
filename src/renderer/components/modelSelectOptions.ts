@@ -148,17 +148,16 @@ export const buildModelOptionGroups = (
     );
 
     const error = errors?.[provider];
-    return {
+    const group: ModelOptionGroup = {
       label: providerName,
       provider,
       options:
         groupOptions.length > 0 ? groupOptions : [emptyPlaceholder(provider)],
-      ...(error === undefined
-        ? {}
-        : {
-            error: t("models.select.group.error", { provider: providerName }),
-          }),
     };
+    if (error !== undefined) {
+      group.error = t("models.select.group.error", { provider: providerName });
+    }
+    return group;
   });
 };
 
