@@ -103,6 +103,12 @@ export type ReconcileContext = ReconcileContextBase &
 export const UPGRADE_GRACE_MS = 20 * 60_000;
 
 /**
+ * One chokepoint for a stored token, routed through `isCaskToken` so the set
+ * of channels is still declared once, in `homebrew.ts`.
+ */
+const CaskTokenSchema = z.string().refine(isCaskToken);
+
+/**
  * The marker as written to disk. Both versions are required; the later fields
  * fall back instead of rejecting a marker written before they existed.
  */
@@ -112,30 +118,20 @@ const PendingInstallMarkerSchema = z.object({
   /** Missing or nonsensical timestamps read as "long ago", never as "just now". */
   startedAt: z.number().int().positive().catch(0),
   appPath: z.string().catch(""),
-  // Arrow-wrapped: both helpers are declared below this schema.
+  /**
+   * Missing, corrupt, or foreign values fall back to the stable token rather
+   * than rejecting the marker: a real marker on disk predates this field.
+   */
   caskToken: z
-    .unknown()
-    .optional()
-    .transform((value) => parseCaskToken(value)),
-  fromCaskToken: z
-    .unknown()
-    .optional()
-    .transform((value) => parseOptionalCaskToken(value)),
+    .optional(CaskTokenSchema)
+    .catch(undefined)
+    .transform((token) => token ?? STABLE_CASK_TOKEN),
+  /**
+   * The source token has no safe default: guessing "stable" asserts the app
+   * started there, which is what turns a rolled-back revert into a success.
+   */
+  fromCaskToken: z.optional(CaskTokenSchema).catch(undefined),
 });
-
-/**
- * Missing, corrupt, or foreign values fall back to the stable token rather
- * than rejecting the marker: a real marker on disk predates this field.
- */
-const parseCaskToken = (value: unknown): CaskToken =>
-  typeof value === "string" && isCaskToken(value) ? value : STABLE_CASK_TOKEN;
-
-/**
- * The source token has no safe default: guessing "stable" asserts the app
- * started there, which is what turns a rolled-back revert into a success.
- */
-const parseOptionalCaskToken = (value: unknown): CaskToken | undefined =>
-  typeof value === "string" && isCaskToken(value) ? value : undefined;
 
 /** Parses the marker defensively; a corrupt file must never break startup. */
 export const parsePendingInstall = (raw: string): PendingInstall | null => {
@@ -162,7 +158,9 @@ export const parsePendingInstall = (raw: string): PendingInstall | null => {
  * `X.Y.Z-beta.N`, the stable cask the only publisher of plain triples.
  */
 const caskTokenForVersion = (version: string): CaskToken =>
-  parsePrereleaseVersion(version) === null ? STABLE_CASK_TOKEN : BETA_CASK_TOKEN;
+  parsePrereleaseVersion(version) === null
+    ? STABLE_CASK_TOKEN
+    : BETA_CASK_TOKEN;
 
 /**
  * Recovered from `fromVersion` when `fromCaskToken` is unset, which is exact

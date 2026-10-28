@@ -217,7 +217,7 @@ removed by whichever wins. Each path passes its own tests the whole time.
 Three properties that look like tidying and are not:
 
 - **The claim is read again at PUBLISH time, not only at entry**
-  (`inFlightOperationOwnsState`). Both checks already refuse to *start* while
+  (`inFlightOperationOwnsState`). Both checks already refuse to _start_ while
   the flag is held; that is only half. A check already in flight when an
   operation begins used to publish its stale answer over the live one — a revert
   mid-download had its byte progress replaced by "a beta is available".

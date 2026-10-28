@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { JsonValue } from "~/main/jsonValue";
 import { createTranslator } from "~/features/i18n/shared/translate";
 import { BETA_CASK_TOKEN, STABLE_CASK_TOKEN } from "./homebrew";
 
@@ -9,7 +10,7 @@ import { BETA_CASK_TOKEN, STABLE_CASK_TOKEN } from "./homebrew";
  */
 vi.mock("electron-store", () => {
   class MockStore {
-    get(_key: string, defaultValue?: unknown) {
+    get(_key: string, defaultValue?: JsonValue) {
       return defaultValue;
     }
     set(): void {
@@ -22,9 +23,8 @@ vi.mock("electron-store", () => {
   return { default: MockStore };
 });
 
-const { buildPrereleaseConfirmDetail, chooseBoundCaskToken } = await import(
-  "./index"
-);
+const { buildPrereleaseConfirmDetail, chooseBoundCaskToken } =
+  await import("./index");
 
 /**
  * Collapsing this to an unconditional `STABLE_CASK_TOKEN` must fail here: on a
@@ -61,9 +61,7 @@ describe("buildPrereleaseConfirmDetail", () => {
   it("states the config risk alongside the mechanics, in English", () => {
     const detail = buildPrereleaseConfirmDetail(tEn);
 
-    expect(detail).toContain(
-      tEn("settings.updates.prerelease.confirm.detail"),
-    );
+    expect(detail).toContain(tEn("settings.updates.prerelease.confirm.detail"));
     expect(detail).toContain(
       tEn("settings.updates.prerelease.confirm.configWarning"),
     );

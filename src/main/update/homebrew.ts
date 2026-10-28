@@ -181,7 +181,9 @@ export const detectActiveCaskChannel = (
   const stableInstalled = directoryExists(
     caskroomRoot(brewBinary, STABLE_CASK_TOKEN),
   );
-  const betaInstalled = directoryExists(caskroomRoot(brewBinary, BETA_CASK_TOKEN));
+  const betaInstalled = directoryExists(
+    caskroomRoot(brewBinary, BETA_CASK_TOKEN),
+  );
 
   if (stableInstalled && betaInstalled) return "both";
   if (betaInstalled) return "beta";
@@ -264,7 +266,8 @@ const readInstallableVersion = async (
  * test rather than a regex, so nothing rests on how an escape is spelled.
  */
 const isSafeDoubleQuotedText = (candidate: string): boolean =>
-  !/["`$\\]/.test(candidate) && [...candidate].every((character) => character >= " ");
+  !/["`$\\]/.test(candidate) &&
+  [...candidate].every((character) => character >= " ");
 
 const isSafeShellPath = (candidate: string): boolean =>
   candidate.startsWith("/") && isSafeDoubleQuotedText(candidate);
@@ -375,7 +378,9 @@ export const buildUpgradeScript = (
   caskToken: string = STABLE_CASK_TOKEN,
 ): string => {
   if (!isCaskToken(caskToken)) {
-    throw new Error(`Refusing to build an upgrade script for an unknown cask token: ${caskToken}`);
+    throw new Error(
+      `Refusing to build an upgrade script for an unknown cask token: ${caskToken}`,
+    );
   }
 
   return buildHelperScript({
@@ -549,7 +554,8 @@ export const createHomebrewUpgrader = (
   // "../../../../Applications" to "/Applications" and probe whatever lives there.
   const boundCaskroomPath =
     brewBinary !== null ? caskroomPath(brewBinary, boundCaskToken) : null;
-  const canInstall = boundCaskroomPath !== null && directoryExists(boundCaskroomPath);
+  const canInstall =
+    boundCaskroomPath !== null && directoryExists(boundCaskroomPath);
 
   return Object.freeze({
     canInstall,
@@ -568,12 +574,16 @@ export const createHomebrewUpgrader = (
       const versionPath = caskVersionPath(brewBinary, version, caskToken);
       return versionPath !== null && directoryExists(versionPath);
     },
-    downloadUpdate: async (caskToken: string = boundCaskToken): Promise<void> => {
+    downloadUpdate: async (
+      caskToken: string = boundCaskToken,
+    ): Promise<void> => {
       if (!canInstall || brewBinary === null) {
         throw new Error("FixLang was not installed with the Homebrew cask");
       }
       if (!isCaskToken(caskToken)) {
-        throw new Error(`Refusing to fetch an unknown cask token: ${caskToken}`);
+        throw new Error(
+          `Refusing to fetch an unknown cask token: ${caskToken}`,
+        );
       }
       // `fetch` fills the download cache only, so it is safe with the app open.
       await runBrew(

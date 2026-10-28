@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { JsonObject } from "~/main/jsonValue";
 import {
   expectedDmgSize,
   isRecord,
@@ -78,9 +79,9 @@ describe("release asset helpers", () => {
       const openers = truncated.match(/^ {0,3}(?:`{3,}|~{3,})/gm) ?? [];
 
       expect(openers).toHaveLength(2);
-      expect(truncated.endsWith(`\n${fence}${RELEASE_NOTES_TRUNCATION_MARKER}`)).toBe(
-        true,
-      );
+      expect(
+        truncated.endsWith(`\n${fence}${RELEASE_NOTES_TRUNCATION_MARKER}`),
+      ).toBe(true);
     });
 
     it("leaves a balanced fence alone when the cut lands outside it", () => {
@@ -164,7 +165,7 @@ describe("release asset helpers", () => {
   describe("isRecord", () => {
     it.each([
       ["a plain object", {}, true],
-      ["a null-prototype object", Object.create(null) as unknown, true],
+      ["a null-prototype object", Object.create(null) as JsonObject, true],
       ["null", null, false],
       ["undefined", undefined, false],
       ["an array", [], false],
@@ -177,7 +178,7 @@ describe("release asset helpers", () => {
 
   describe("expectedDmgSize", () => {
     const version = { raw: "1.2.3-beta.4" };
-    const asset = (overrides: Record<string, unknown> = {}) => ({
+    const asset = (overrides: JsonObject = {}) => ({
       name: releaseDmgName(version),
       state: "uploaded",
       size: 42,
@@ -190,8 +191,11 @@ describe("release asset helpers", () => {
     });
 
     it.each([
-      ["assets is not an array", "nope" as unknown],
-      ["the asset is named for another version", [asset({ name: "other.dmg" })]],
+      ["assets is not an array", "nope"],
+      [
+        "the asset is named for another version",
+        [asset({ name: "other.dmg" })],
+      ],
       ["the asset is still uploading", [asset({ state: "starter" })]],
       ["the size is zero", [asset({ size: 0 })]],
       ["the size is not a safe integer", [asset({ size: 1.5 })]],

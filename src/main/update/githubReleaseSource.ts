@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { JsonValue } from "~/main/jsonValue";
 import { logger } from "~/main/logging/logService";
 import {
@@ -5,11 +6,7 @@ import {
   parsePrereleaseVersion,
   type PrereleaseVersion,
 } from "./prereleaseVersion";
-import {
-  expectedDmgSize,
-  isRecord,
-  normalizeReleaseNotes,
-} from "./releaseAsset";
+import { expectedDmgSize, normalizeReleaseNotes } from "./releaseAsset";
 
 const GITHUB_LATEST_RELEASE_URL =
   "https://api.github.com/repos/anhdd-kuro/fix-lang/releases/latest";
@@ -127,30 +124,40 @@ const nextPageUrl = (linkHeader: string | null): string | null => {
 };
 
 /**
+ * The release-list fields this scan trusts. A non-array `assets` is kept and
+ * emptied rather than rejected here, so the missing DMG below is what
+ * disqualifies the item — the same answer the stable path gives.
+ */
+const PrereleaseListItemSchema = z.object({
+  draft: z.literal(false),
+  prerelease: z.literal(true),
+  tag_name: z.string(),
+  assets: z.array(z.json()).catch([]),
+  // GitHub returns JSON null when a release has no notes.
+  body: z.string().nullish(),
+});
+
+/**
  * Null when only this item is disqualified, so one malformed release in the
  * list never fails the whole scan.
  */
-const validatePrereleaseItem = (value: unknown): PrereleaseCandidate | null => {
-  if (!isRecord(value) || value.draft !== false || value.prerelease !== true) {
-    return null;
-  }
-  if (typeof value.tag_name !== "string") return null;
+const validatePrereleaseItem = (
+  value: JsonValue,
+): PrereleaseCandidate | null => {
+  const item = PrereleaseListItemSchema.safeParse(value);
+  if (!item.success) return null;
 
-  const tagMatch = /^v(.+)$/.exec(value.tag_name);
+  const tagMatch = /^v(.+)$/.exec(item.data.tag_name);
   const version = tagMatch ? parsePrereleaseVersion(tagMatch[1]) : null;
   if (!version) return null;
 
-  const dmgSize = expectedDmgSize(value.assets, version);
+  const dmgSize = expectedDmgSize(item.data.assets, version);
   if (dmgSize === null) return null;
-  // GitHub returns JSON null when a release has no notes.
-  if (value.body != null && typeof value.body !== "string") return null;
 
   return Object.freeze({
     version,
     dmgSize,
-    releaseNotes: normalizeReleaseNotes(
-      typeof value.body === "string" ? value.body : undefined,
-    ),
+    releaseNotes: normalizeReleaseNotes(item.data.body ?? undefined),
   });
 };
 
@@ -197,16 +204,20 @@ export const createGitHubReleaseSource = (
      */
     const failPage = (error: Error): PrereleaseCandidate => {
       if (!winner) throw error;
-      logger.warn(LOG_SCOPE, "Returning the beta found before the scan failed", {
-        reason: error.message,
-      });
+      logger.warn(
+        LOG_SCOPE,
+        "Returning the beta found before the scan failed",
+        {
+          reason: error.message,
+        },
+      );
       return winner;
     };
 
     for (let page = 0; page < RELEASE_LIST_MAX_PAGES && url; page += 1) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-      let payload: unknown;
+      let payload: JsonValue | undefined;
 
       try {
         const response = await fetchLatest(url, {

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { JsonObject, JsonValue } from "~/main/jsonValue";
 import { logger } from "~/main/logging/logService";
 import { createGitHubReleaseSource } from "./githubReleaseSource";
 import { RELEASE_NOTES_TRUNCATION_MARKER } from "./releaseAsset";
@@ -17,9 +18,9 @@ const RELEASE_LIST_URL =
  */
 const validPrereleaseItem = (
   tagName: string,
-  overrides: Record<string, unknown> = {},
-  assetOverrides: Record<string, unknown> = {},
-): Record<string, unknown> => {
+  overrides: JsonObject = {},
+  assetOverrides: JsonObject = {},
+) => {
   const finalTagName =
     typeof overrides.tag_name === "string" ? overrides.tag_name : tagName;
   const rawVersion = finalTagName.startsWith("v")
@@ -43,7 +44,10 @@ const validPrereleaseItem = (
   };
 };
 
-const listResponse = (payload: unknown, linkHeader: string | null = null) => ({
+const listResponse = (
+  payload: JsonValue,
+  linkHeader: string | null = null,
+) => ({
   ok: true,
   status: 200,
   headers: { get: vi.fn().mockReturnValue(linkHeader) },
@@ -122,7 +126,9 @@ describe("GitHub release source", () => {
     it("requests the release-list endpoint with the same fixed headers", async () => {
       const fetchLatest = vi
         .fn()
-        .mockResolvedValue(listResponse([validPrereleaseItem("v1.2.3-beta.1")]));
+        .mockResolvedValue(
+          listResponse([validPrereleaseItem("v1.2.3-beta.1")]),
+        );
       const source = createGitHubReleaseSource(fetchLatest);
 
       await source.getLatestPrerelease();
@@ -173,7 +179,9 @@ describe("GitHub release source", () => {
       const source = createGitHubReleaseSource(
         vi
           .fn()
-          .mockResolvedValue(listResponse([validPrereleaseItem("v1.2.3-beta.4")])),
+          .mockResolvedValue(
+            listResponse([validPrereleaseItem("v1.2.3-beta.4")]),
+          ),
       );
 
       await expect(source.getLatestPrerelease()).resolves.toEqual({
@@ -185,13 +193,15 @@ describe("GitHub release source", () => {
 
     it("picks the greatest surviving item, ordered by the prerelease version module", async () => {
       const source = createGitHubReleaseSource(
-        vi.fn().mockResolvedValue(
-          listResponse([
-            validPrereleaseItem("v1.2.3-beta.9"),
-            validPrereleaseItem("v1.2.3-beta.10"),
-            validPrereleaseItem("v1.2.2-beta.99"),
-          ]),
-        ),
+        vi
+          .fn()
+          .mockResolvedValue(
+            listResponse([
+              validPrereleaseItem("v1.2.3-beta.9"),
+              validPrereleaseItem("v1.2.3-beta.10"),
+              validPrereleaseItem("v1.2.2-beta.99"),
+            ]),
+          ),
       );
 
       const result = await source.getLatestPrerelease();
@@ -218,16 +228,8 @@ describe("GitHub release source", () => {
         { assets: [{ name: "other.dmg", state: "uploaded", size: 1 }] },
         {},
       ],
-      [
-        "a release whose DMG asset is not uploaded",
-        {},
-        { state: "pending" },
-      ],
-      [
-        "a release whose DMG asset has non-positive size",
-        {},
-        { size: 0 },
-      ],
+      ["a release whose DMG asset is not uploaded", {}, { state: "pending" }],
+      ["a release whose DMG asset has non-positive size", {}, { size: 0 }],
       ["a release with a non-string body", { body: 42 }, {}],
     ] as const)(
       "drops %s without failing the whole batch",
@@ -235,8 +237,8 @@ describe("GitHub release source", () => {
         const good = validPrereleaseItem("v0.9.0-beta.1");
         const bad = validPrereleaseItem(
           "v9.9.9-beta.9",
-          overrides as Record<string, unknown>,
-          assetOverrides as Record<string, unknown>,
+          overrides as JsonObject,
+          assetOverrides as JsonObject,
         );
         const source = createGitHubReleaseSource(
           vi.fn().mockResolvedValue(listResponse([bad, good])),
@@ -364,13 +366,15 @@ describe("GitHub release source", () => {
         });
 
         const pending = source.getLatestPrerelease();
-        const rejection = expect(pending).rejects.toThrow("body read aborted");
+        // Claims the rejection NOW so advancing timers cannot trip an unhandled
+        // rejection; the assertion below still reads the real outcome.
+        pending.catch(() => undefined);
 
         await vi.advanceTimersByTimeAsync(0);
         expect(call).toBe(stalledPage);
 
         await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS);
-        await rejection;
+        await expect(pending).rejects.toThrow("body read aborted");
       },
     );
 
@@ -385,7 +389,9 @@ describe("GitHub release source", () => {
     ])(
       "refuses to follow a Link header pointing at %s",
       async (_label, target) => {
-        const warn = vi.spyOn(logger, "warn").mockReturnValue(undefined as never);
+        const warn = vi
+          .spyOn(logger, "warn")
+          .mockReturnValue(undefined as never);
         const fetchLatest = vi
           .fn()
           .mockResolvedValueOnce(
@@ -534,7 +540,9 @@ describe("GitHub release source", () => {
       const source = createGitHubReleaseSource(
         vi
           .fn()
-          .mockResolvedValue(listResponse([validPrereleaseItem("v1.0.0-beta.1")])),
+          .mockResolvedValue(
+            listResponse([validPrereleaseItem("v1.0.0-beta.1")]),
+          ),
       );
 
       await source.getLatestPrerelease();
@@ -547,7 +555,9 @@ describe("GitHub release source", () => {
         vi
           .fn()
           .mockResolvedValue(
-            listResponse([validPrereleaseItem("v1.0.0-beta.1", { draft: true })]),
+            listResponse([
+              validPrereleaseItem("v1.0.0-beta.1", { draft: true }),
+            ]),
           ),
       );
 
@@ -559,7 +569,9 @@ describe("GitHub release source", () => {
       const source = createGitHubReleaseSource(
         vi.fn().mockResolvedValue(
           listResponse([
-            validPrereleaseItem("v1.0.0-beta.1", { body: `  ${longNotes}  ` }),
+            validPrereleaseItem("v1.0.0-beta.1", {
+              body: `  ${longNotes}  `,
+            }),
           ]),
         ),
       );
@@ -573,9 +585,13 @@ describe("GitHub release source", () => {
 
     it("normalizes an empty or whitespace-only body to undefined notes", async () => {
       const source = createGitHubReleaseSource(
-        vi.fn().mockResolvedValue(
-          listResponse([validPrereleaseItem("v1.0.0-beta.1", { body: "   " })]),
-        ),
+        vi
+          .fn()
+          .mockResolvedValue(
+            listResponse([
+              validPrereleaseItem("v1.0.0-beta.1", { body: "   " }),
+            ]),
+          ),
       );
 
       const result = await source.getLatestPrerelease();
@@ -584,9 +600,13 @@ describe("GitHub release source", () => {
 
     it("normalizes a null body (no release notes) to undefined", async () => {
       const source = createGitHubReleaseSource(
-        vi.fn().mockResolvedValue(
-          listResponse([validPrereleaseItem("v1.0.0-beta.1", { body: null })]),
-        ),
+        vi
+          .fn()
+          .mockResolvedValue(
+            listResponse([
+              validPrereleaseItem("v1.0.0-beta.1", { body: null }),
+            ]),
+          ),
       );
 
       const result = await source.getLatestPrerelease();

@@ -1078,7 +1078,9 @@ describe("SettingUpdates", () => {
     expect(link.querySelector("code")?.textContent).toBe(
       "github.com/anhdd-kuro/fix-lang",
     );
-    expect(link.textContent).toBe("github.com/anhdd-kuro/fix-lang (github.com)");
+    expect(link.textContent).toBe(
+      "github.com/anhdd-kuro/fix-lang (github.com)",
+    );
   });
 
   it("leaves a link that differs from its label only cosmetically alone", async () => {
@@ -1593,7 +1595,9 @@ describe("SettingUpdates", () => {
     const section = prereleaseSection();
     const progress = section.querySelector('[role="progressbar"]');
     expect(progress?.getAttribute("aria-valuenow")).toBe("25");
-    expect(section.querySelector('[role="status"] .text-primary')?.textContent).toBe(
+    expect(
+      section.querySelector('[role="status"] .text-primary')?.textContent,
+    ).toBe(
       tEn("settings.updates.downloadingSize", {
         downloaded: "30.0 MB",
         total: "120.0 MB",
@@ -1601,10 +1605,7 @@ describe("SettingUpdates", () => {
     );
     // Homebrew owns the app from here; nothing in this section may re-arm.
     expect(
-      maybeButtonNamed(
-        section,
-        tEn("settings.updates.prerelease.checkButton"),
-      ),
+      maybeButtonNamed(section, tEn("settings.updates.prerelease.checkButton")),
     ).toBeUndefined();
     expect(
       maybeButtonNamed(
@@ -1808,7 +1809,9 @@ describe("SettingUpdates", () => {
 
     const expected = tEn("settings.updates.prerelease.revertErrorMessage");
     const announcing = [
-      ...prereleaseSection().querySelectorAll('[role="alert"], [role="status"]'),
+      ...prereleaseSection().querySelectorAll(
+        '[role="alert"], [role="status"]',
+      ),
     ].filter((node) => node.textContent === expected);
     expect(announcing).toHaveLength(1);
     expect(announcing[0]?.getAttribute("role")).toBe("status");
@@ -2280,7 +2283,10 @@ describe("SettingUpdates", () => {
         totalBytes: 4_000,
       }),
     ],
-    ["installing", prereleaseReady("installing", { offeredVersion: BETA_VERSION })],
+    [
+      "installing",
+      prereleaseReady("installing", { offeredVersion: BETA_VERSION }),
+    ],
   ] satisfies (readonly [string, PrereleaseState])[])(
     "freezes the stable Install button while a channel switch is %s",
     async (_phase, prerelease) => {
@@ -2297,7 +2303,10 @@ describe("SettingUpdates", () => {
         prerelease,
       );
 
-      const install = buttonNamed(container, tEn("settings.updates.installNow"));
+      const install = buttonNamed(
+        container,
+        tEn("settings.updates.installNow"),
+      );
       expect(install.disabled).toBe(true);
       await click(install);
       expect(api.installUpdate).not.toHaveBeenCalled();
@@ -2373,12 +2382,16 @@ describe("SettingUpdates", () => {
         prereleaseReady("idle", { activeChannel: "beta" }),
       );
       api.revertToStable.mockImplementationOnce(async () => {
-        prereleaseListener?.({
+        const failure: PrereleaseState = {
           phase: "error",
           activeChannel: "beta",
           canSwitch: true,
-          ...(published === undefined ? {} : { message: published }),
-        });
+        };
+        prereleaseListener?.(
+          published === undefined
+            ? failure
+            : { ...failure, message: published },
+        );
         return { success: false, error: reported };
       });
 
@@ -2501,7 +2514,9 @@ describe("SettingUpdates", () => {
         return unsubscribe;
       }),
       ...prereleaseBridge(prereleaseReady("idle")),
-      getPrereleaseState: vi.fn().mockRejectedValue(new Error("bridge is gone")),
+      getPrereleaseState: vi
+        .fn()
+        .mockRejectedValue(new Error("bridge is gone")),
       getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
       setLocale: vi.fn().mockResolvedValue({ success: true }),
       onLocaleChanged: vi.fn().mockReturnValue(vi.fn()),

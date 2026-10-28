@@ -48,7 +48,8 @@ let updateService: UpdateService | null = null;
 /** Exported so the binding choice is testable without Electron's singletons. */
 export const chooseBoundCaskToken = (
   activeChannel: ActiveCaskChannel | null,
-): CaskToken => (activeChannel === "beta" ? BETA_CASK_TOKEN : STABLE_CASK_TOKEN);
+): CaskToken =>
+  activeChannel === "beta" ? BETA_CASK_TOKEN : STABLE_CASK_TOKEN;
 
 /**
  * The `detail` body of the switch confirm: the quit/download/reopen mechanics,
@@ -94,7 +95,12 @@ export const initializeUpdateService = (): UpdateService => {
       throw new Error("FixLang was not installed with the Homebrew cask");
     }
     startDetachedHelper(
-      buildChannelSwitchScript(brewBinary, currentToken, targetToken, targetAppPath),
+      buildChannelSwitchScript(
+        brewBinary,
+        currentToken,
+        targetToken,
+        targetAppPath,
+      ),
       path.join(userDataPath, "logs", "homebrew-channel-switch.log"),
     );
   };
@@ -106,7 +112,9 @@ export const initializeUpdateService = (): UpdateService => {
    * every revert fails. Read once at startup — the active channel only changes
    * through a switch or a revert, and both quit the app.
    */
-  const boundCaskToken: CaskToken = chooseBoundCaskToken(probeActiveCaskChannel());
+  const boundCaskToken: CaskToken = chooseBoundCaskToken(
+    probeActiveCaskChannel(),
+  );
 
   // One dialog at a time: a reentrant call while one is on screen fails CLOSED.
   let prereleaseConfirmInFlight = false;
@@ -116,7 +124,9 @@ export const initializeUpdateService = (): UpdateService => {
    * AWAITED `dialog.showMessageBox`, because the sync form has frozen main
    * behind stacked modals in this codebase before.
    */
-  const confirmPrereleaseSwitch = async (targetVersion: string): Promise<boolean> => {
+  const confirmPrereleaseSwitch = async (
+    targetVersion: string,
+  ): Promise<boolean> => {
     if (prereleaseConfirmInFlight) return false;
     prereleaseConfirmInFlight = true;
     try {

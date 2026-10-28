@@ -1,10 +1,12 @@
 /**
  * Release-asset validation shared by the stable (`updateService.ts`) and
- * pre-release (`githubReleaseSource.ts`) discovery paths; dependency-free, and
- * keyed on a version's `raw` string so neither caller imports the other's
- * version type. Do not re-fork `normalizeReleaseNotes` — its truncation rules
- * are what the shared `<ReleaseNotes>` component is rendered against.
+ * pre-release (`githubReleaseSource.ts`) discovery paths; keyed on a version's
+ * `raw` string so neither caller imports the other's version type. Do not
+ * re-fork `normalizeReleaseNotes` — its truncation rules are what the shared
+ * `<ReleaseNotes>` component is rendered against.
  */
+import { z } from "zod";
+import type { JsonObject, JsonValue } from "~/main/jsonValue";
 
 export const RELEASE_NOTES_MAX_LENGTH = 12_000;
 
@@ -14,8 +16,14 @@ export const RELEASE_NOTES_MAX_LENGTH = 12_000;
  */
 export const RELEASE_NOTES_TRUNCATION_MARKER = "\n\n…";
 
-export const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+/**
+ * Deliberately NOT `isJsonObject`: that one tests `instanceof Object`, which
+ * is false for a null-prototype object. A schema keeps both shapes accepted.
+ */
+const JsonObjectSchema = z.record(z.string(), z.json());
+
+export const isRecord = (value: JsonValue | undefined): value is JsonObject =>
+  JsonObjectSchema.safeParse(value).success;
 
 /**
  * `slice` counts UTF-16 code units, so an astral character straddling the
@@ -55,7 +63,8 @@ const danglingCodeFence = (text: string): string | null => {
  * content. Deliberately not a general invisible-character sweep: ZWJ and
  * variation selectors carry real meaning in emoji and Indic scripts.
  */
-const BIDI_CONTROL_CHARACTERS = /[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
+const BIDI_CONTROL_CHARACTERS =
+  /[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
 
 export const normalizeReleaseNotes = (
   raw: string | undefined,
@@ -78,21 +87,29 @@ export const normalizeReleaseNotes = (
 export const releaseDmgName = (version: Readonly<{ raw: string }>): string =>
   `FixLang-${version.raw}-arm64.dmg`;
 
+/** A fully uploaded asset with a positive, safe-integer byte size. */
+const UploadedAssetSchema = z.object({
+  name: z.string(),
+  state: z.literal("uploaded"),
+  size: z.number().int().positive(),
+});
+
+/** A non-array `assets` cannot hold the DMG, so it yields no size. */
+const ReleaseAssetListSchema = z.array(z.json());
+
 export const expectedDmgSize = (
-  assets: unknown,
+  assets: JsonValue | undefined,
   version: Readonly<{ raw: string }>,
 ): number | null => {
-  if (!Array.isArray(assets)) return null;
+  const list = ReleaseAssetListSchema.safeParse(assets);
+  if (!list.success) return null;
   const expectedName = releaseDmgName(version);
 
-  const asset = assets.find(
-    (candidate) =>
-      isRecord(candidate) &&
-      candidate.name === expectedName &&
-      candidate.state === "uploaded" &&
-      typeof candidate.size === "number" &&
-      Number.isSafeInteger(candidate.size) &&
-      candidate.size > 0,
-  );
-  return isRecord(asset) && typeof asset.size === "number" ? asset.size : null;
+  for (const candidate of list.data) {
+    const asset = UploadedAssetSchema.safeParse(candidate);
+    if (asset.success && asset.data.name === expectedName) {
+      return asset.data.size;
+    }
+  }
+  return null;
 };

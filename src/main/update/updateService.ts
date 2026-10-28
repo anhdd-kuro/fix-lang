@@ -128,11 +128,15 @@ const DOWNLOAD_ERROR_MESSAGE: Message = msg(
   "settings.updates.downloadErrorMessage",
 );
 
-const SWITCH_ERROR_MESSAGE: Message = msg("settings.updates.prerelease.switchErrorMessage");
+const SWITCH_ERROR_MESSAGE: Message = msg(
+  "settings.updates.prerelease.switchErrorMessage",
+);
 const SWITCH_CANCELLED_MESSAGE: Message = msg(
   "settings.updates.prerelease.switchCancelledMessage",
 );
-const REVERT_ERROR_MESSAGE: Message = msg("settings.updates.prerelease.revertErrorMessage");
+const REVERT_ERROR_MESSAGE: Message = msg(
+  "settings.updates.prerelease.revertErrorMessage",
+);
 const PRERELEASE_DOWNLOAD_ERROR_MESSAGE: Message = msg(
   "settings.updates.prerelease.downloadErrorMessage",
 );
@@ -394,7 +398,10 @@ export const createUpdateService = (
    * `"beta"` both allow. Never `canInstall`, which is scoped to the stable
    * cask a beta install does not have.
    */
-  const detectChannel = (): Pick<PrereleaseState, "activeChannel" | "canSwitch"> => {
+  const detectChannel = (): Pick<
+    PrereleaseState,
+    "activeChannel" | "canSwitch"
+  > => {
     const raw = options.detectActiveCaskChannel?.() ?? null;
     return {
       // Undetected displays as "stable"; never reaches `canSwitch` below.
@@ -507,7 +514,9 @@ export const createUpdateService = (
     channelOperation: ChannelOperation | null,
   ): void => {
     const stop = schedulePoll(() => {
-      if (options.upgrader?.isVersionInstalled(targetVersion, caskToken) === true) {
+      if (
+        options.upgrader?.isVersionInstalled(targetVersion, caskToken) === true
+      ) {
         stop();
         options.pendingInstall?.clear();
         publishRestartRequired(targetVersion, channelOperation);
@@ -640,8 +649,10 @@ export const createUpdateService = (
   ): Promise<boolean> => {
     const publishProgress = (): void => {
       const downloadedBytes =
-        options.upgrader?.getDownloadedBytes(targetVersion, STABLE_CASK_TOKEN) ??
-        null;
+        options.upgrader?.getDownloadedBytes(
+          targetVersion,
+          STABLE_CASK_TOKEN,
+        ) ?? null;
       if (downloadedBytes === null) return;
       publish({
         phase: "downloading",
@@ -710,7 +721,10 @@ export const createUpdateService = (
   ): Promise<string | null> => {
     try {
       return (
-        (await options.upgrader?.getInstallableVersion(refreshTap, caskToken)) ?? null
+        (await options.upgrader?.getInstallableVersion(
+          refreshTap,
+          caskToken,
+        )) ?? null
       );
     } catch (error) {
       options.onLog?.(
@@ -755,7 +769,9 @@ export const createUpdateService = (
   ): Promise<UpdateActionResult> => {
     const { activeChannel, canSwitch } = prereleaseState;
     const totalBytes =
-      targetToken === BETA_CASK_TOKEN ? (availablePrereleaseDmgSize ?? undefined) : undefined;
+      targetToken === BETA_CASK_TOKEN
+        ? (availablePrereleaseDmgSize ?? undefined)
+        : undefined;
 
     installing = true;
     publishPrerelease({
@@ -769,7 +785,8 @@ export const createUpdateService = (
 
     const publishProgress = (): void => {
       const downloadedBytes =
-        options.upgrader?.getDownloadedBytes(targetVersion, targetToken) ?? null;
+        options.upgrader?.getDownloadedBytes(targetVersion, targetToken) ??
+        null;
       if (downloadedBytes === null) return;
       publishPrerelease({
         phase: "downloading",
@@ -880,7 +897,9 @@ export const createUpdateService = (
     options.onLog?.(
       "warn",
       `Refusing a channel switch: expected the ${expected} cask, the Caskroom now reports ${
-        probed.canSwitch === true ? probed.activeChannel : "no single staged cask"
+        probed.canSwitch === true
+          ? probed.activeChannel
+          : "no single staged cask"
       }`,
     );
     publishPrerelease({ phase: "error", ...probed, message: errorMessage });
@@ -918,7 +937,8 @@ export const createUpdateService = (
     targetVersion: string,
     markHandedOff: () => void,
   ): Promise<UpdateActionResult> => {
-    const confirmed = (await options.confirmPrereleaseSwitch?.(targetVersion)) ?? false;
+    const confirmed =
+      (await options.confirmPrereleaseSwitch?.(targetVersion)) ?? false;
     if (!confirmed) {
       installing = false;
       return { success: false, error: SWITCH_CANCELLED_MESSAGE };
@@ -928,7 +948,8 @@ export const createUpdateService = (
     // tap syncs `fixlang@beta`. A null or unparseable probe means brew could
     // not be asked, not that it is behind — proceed.
     const offeredRaw = await probeInstallableVersion(true, BETA_CASK_TOKEN);
-    const offered = offeredRaw === null ? null : parseCurrentVersion(offeredRaw);
+    const offered =
+      offeredRaw === null ? null : parseCurrentVersion(offeredRaw);
     const target = parseCurrentVersion(targetVersion);
     if (offered && target && comparePrereleaseOrder(offered, target) < 0) {
       installing = false;
@@ -952,7 +973,11 @@ export const createUpdateService = (
     }
 
     return runChannelSwitch(
-      { currentToken: STABLE_CASK_TOKEN, targetToken: BETA_CASK_TOKEN, targetVersion },
+      {
+        currentToken: STABLE_CASK_TOKEN,
+        targetToken: BETA_CASK_TOKEN,
+        targetVersion,
+      },
       SWITCH_ERROR_MESSAGE,
       markHandedOff,
     );
@@ -987,7 +1012,10 @@ export const createUpdateService = (
   const runRevertToStable = async (
     markHandedOff: () => void,
   ): Promise<UpdateActionResult> => {
-    const targetVersion = await probeInstallableVersion(true, STABLE_CASK_TOKEN);
+    const targetVersion = await probeInstallableVersion(
+      true,
+      STABLE_CASK_TOKEN,
+    );
     if (targetVersion === null) {
       installing = false;
       // `getInstallableVersion` resolves null rather than throwing when brew
@@ -1010,7 +1038,11 @@ export const createUpdateService = (
     }
 
     return runChannelSwitch(
-      { currentToken: BETA_CASK_TOKEN, targetToken: STABLE_CASK_TOKEN, targetVersion },
+      {
+        currentToken: BETA_CASK_TOKEN,
+        targetToken: STABLE_CASK_TOKEN,
+        targetVersion,
+      },
       REVERT_ERROR_MESSAGE,
       markHandedOff,
     );
@@ -1165,7 +1197,8 @@ export const createUpdateService = (
         ]);
 
         const newerOnGitHub =
-          release !== null && comparePrereleaseOrder(release.version, current) > 0;
+          release !== null &&
+          comparePrereleaseOrder(release.version, current) > 0;
         // Pay for a tap refresh only when GitHub says something is newer.
         const installable = parseStableVersion(
           canInstall && newerOnGitHub && !isNewerThan(cached, current)
@@ -1190,7 +1223,8 @@ export const createUpdateService = (
           // Notes and size only when GitHub describes the exact version
           // offered; otherwise they belong to a different release.
           const describesTarget =
-            release !== null && comparePrereleaseOrder(release.version, target) === 0;
+            release !== null &&
+            comparePrereleaseOrder(release.version, target) === 0;
           availableDmgSize = describesTarget ? release.dmgSize : null;
           publish({
             phase: "available",
@@ -1294,7 +1328,8 @@ export const createUpdateService = (
     checkForPrerelease: async (): Promise<PrereleaseState> => {
       // `installing`: a switch in flight owns this state — same reason
       // `checkForUpdates` carries it.
-      if (!supported || prereleaseChecking || installing) return prereleaseState;
+      if (!supported || prereleaseChecking || installing)
+        return prereleaseState;
 
       prereleaseChecking = true;
       const { activeChannel, canSwitch } = detectChannel();

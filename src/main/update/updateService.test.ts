@@ -24,9 +24,9 @@ const INSTALLED_APP_PATH = "/Applications/FixLang.app";
 /** Same bundle id, different copy — a forgotten `pack:mac` build. */
 const STRAY_APP_PATH = "/Users/dev/fix-lang/release/mac-arm64/FixLang.app";
 
-// Every absolute-path SHAPE a line could leak, not one literal a later edit can
+// Every absolute path a log line could leak, not one literal a later edit can
 // sidestep. `Applications` is listed: the permitted path is placeholdered first.
-const ABSOLUTE_PATH_SHAPE =
+const LEAKED_FILESYSTEM_PATH =
   /\/(Applications|Users|Library|Volumes|System|Network|opt|usr|bin|sbin|etc|var|tmp|private|home)\//;
 
 // Blanks the one path the criterion allows: the app bundle path logged elsewhere.
@@ -56,7 +56,9 @@ const stableRelease = (
 // Already validated upstream, so the fake returns a shaped candidate, not JSON.
 const prereleaseCandidate = (
   raw = "0.2.0-beta.1",
-  overrides: Partial<Pick<PrereleaseCandidate, "releaseNotes" | "dmgSize">> = {},
+  overrides: Partial<
+    Pick<PrereleaseCandidate, "releaseNotes" | "dmgSize">
+  > = {},
 ): PrereleaseCandidate => {
   const version = parsePrereleaseVersion(raw);
   if (!version) throw new Error(`invalid test fixture version: ${raw}`);
@@ -122,7 +124,9 @@ const createService = (
       ),
     getLatestPrerelease: vi
       .fn<() => Promise<PrereleaseCandidate | null>>()
-      .mockImplementation(overrides.getLatestPrerelease ?? (() => Promise.resolve(null))),
+      .mockImplementation(
+        overrides.getLatestPrerelease ?? (() => Promise.resolve(null)),
+      ),
   };
   const detectActiveCaskChannel = vi.fn<() => ActiveCaskChannel | null>(() => {
     if (overrides.activeChannel !== undefined) return overrides.activeChannel;
@@ -143,9 +147,10 @@ const createService = (
   const betaInstalledVersions = new Set(overrides.betaInstalledVersions ?? []);
   const isVersionInstalled = vi.fn(
     (version: string, caskToken: string = STABLE_CASK_TOKEN) =>
-      (caskToken === BETA_CASK_TOKEN ? betaInstalledVersions : installedVersions).has(
-        version,
-      ),
+      (caskToken === BETA_CASK_TOKEN
+        ? betaInstalledVersions
+        : installedVersions
+      ).has(version),
   );
   const downloadUpdate = vi.fn<(caskToken?: string) => Promise<void>>(
     overrides.downloadUpdate ?? (() => Promise.resolve()),
@@ -160,9 +165,9 @@ const createService = (
   };
   const quitApp = vi.fn();
   const relaunchApp = vi.fn();
-  const confirmPrereleaseSwitch = vi.fn<(targetVersion: string) => Promise<boolean>>(
-    overrides.confirmPrereleaseSwitch ?? (() => Promise.resolve(true)),
-  );
+  const confirmPrereleaseSwitch = vi.fn<
+    (targetVersion: string) => Promise<boolean>
+  >(overrides.confirmPrereleaseSwitch ?? (() => Promise.resolve(true)));
   const startChannelSwitch = vi.fn(overrides.startChannelSwitch);
   // Collected instead of timed: tests drive the poll by hand.
   const polls: (() => void)[] = [];
@@ -389,9 +394,9 @@ describe("GitHub update service", () => {
     it("closes a code fence the cut left open", async () => {
       const notes = await notesFor(`\`\`\`js\n${"a".repeat(13_000)}\n\`\`\``);
 
-      expect(notes?.endsWith(`\n\`\`\`${RELEASE_NOTES_TRUNCATION_MARKER}`)).toBe(
-        true,
-      );
+      expect(
+        notes?.endsWith(`\n\`\`\`${RELEASE_NOTES_TRUNCATION_MARKER}`),
+      ).toBe(true);
     });
 
     // `releaseAsset.test.ts` pins the stripping; this pins that the stable flow
@@ -486,7 +491,10 @@ describe("Homebrew one-click install", () => {
 
     expect(startUpgrade).toHaveBeenCalledTimes(1);
     // The bundle is named because the id can resolve to another copy of FixLang.
-    expect(startUpgrade).toHaveBeenCalledWith(INSTALLED_APP_PATH, STABLE_CASK_TOKEN);
+    expect(startUpgrade).toHaveBeenCalledWith(
+      INSTALLED_APP_PATH,
+      STABLE_CASK_TOKEN,
+    );
     expect(pendingInstall.write).toHaveBeenCalledWith({
       fromVersion: "0.1.0",
       toVersion: "0.2.0",
@@ -671,7 +679,9 @@ describe("checking against Homebrew rather than GitHub", () => {
     await service.checkForUpdates();
 
     // `brew update` is a git fetch across every tap; a routine check must not.
-    expect(getInstallableVersion.mock.calls).toEqual([[false, STABLE_CASK_TOKEN]]);
+    expect(getInstallableVersion.mock.calls).toEqual([
+      [false, STABLE_CASK_TOKEN],
+    ]);
   });
 
   it("pays for one tap refresh when the clone looks stale", async () => {
@@ -768,8 +778,13 @@ describe("checking against Homebrew rather than GitHub", () => {
 describe("Homebrew tap lag", () => {
   it("refuses to quit for a version the tap cannot install yet", async () => {
     // The gate still covers a brew that could not answer at check time.
-    const { service, startUpgrade, pendingInstall, quitApp, getInstallableVersion } =
-      createService({ canInstall: true, installableVersion: null });
+    const {
+      service,
+      startUpgrade,
+      pendingInstall,
+      quitApp,
+      getInstallableVersion,
+    } = createService({ canInstall: true, installableVersion: null });
     await service.checkForUpdates();
     getInstallableVersion.mockResolvedValueOnce("0.1.0");
 
@@ -1278,8 +1293,13 @@ describe("pre-release channel discovery", () => {
   });
 
   it("refuses to guess which cask is live when both are staged, and starts no brew subprocess", async () => {
-    const { service, startUpgrade, downloadUpdate, getInstallableVersion, releaseSource } =
-      createService({ canInstall: true, activeChannel: "both" });
+    const {
+      service,
+      startUpgrade,
+      downloadUpdate,
+      getInstallableVersion,
+      releaseSource,
+    } = createService({ canInstall: true, activeChannel: "both" });
 
     const result = await service.checkForPrerelease();
 
@@ -1364,7 +1384,10 @@ describe("pre-release channel discovery", () => {
 
     const result = await service.checkForPrerelease();
 
-    expect(result).toMatchObject({ phase: "up-to-date", activeChannel: "stable" });
+    expect(result).toMatchObject({
+      phase: "up-to-date",
+      activeChannel: "stable",
+    });
     expect(result.offeredVersion).toBeUndefined();
   });
 
@@ -1386,7 +1409,9 @@ describe("pre-release channel discovery", () => {
   });
 
   it("prevents a duplicate pre-release check while one is active", async () => {
-    let resolveCandidate: ((candidate: PrereleaseCandidate | null) => void) | undefined;
+    let resolveCandidate:
+      | ((candidate: PrereleaseCandidate | null) => void)
+      | undefined;
     const pending = new Promise<PrereleaseCandidate | null>((resolve) => {
       resolveCandidate = resolve;
     });
@@ -1404,7 +1429,9 @@ describe("pre-release channel discovery", () => {
   });
 
   it("stays unsupported and never probes the Caskroom on an unsupported build", async () => {
-    const { service, detectActiveCaskChannel } = createService({ isPackaged: false });
+    const { service, detectActiveCaskChannel } = createService({
+      isPackaged: false,
+    });
 
     expect(service.getPrereleaseState().phase).toBe("unsupported");
     const result = await service.checkForPrerelease();
@@ -1416,7 +1443,9 @@ describe("pre-release channel discovery", () => {
   it("notifies pre-release subscribers with immutable snapshots", async () => {
     const { service } = createService({ canInstall: true });
     const phases: string[] = [];
-    const unsubscribe = service.subscribeToPrereleaseState((s) => phases.push(s.phase));
+    const unsubscribe = service.subscribeToPrereleaseState((s) =>
+      phases.push(s.phase),
+    );
 
     await service.checkForPrerelease();
     unsubscribe();
@@ -1499,12 +1528,17 @@ describe("reconciling a marker against its OWN cask token", () => {
   });
 
   it("keeps polling the marker's own token while a channel switch is still running", () => {
-    const { service, betaInstalledVersions, tickPoll, pendingInstall, cancelPoll } =
-      createService({
-        canInstall: true,
-        currentVersion: "0.2.0-beta.1",
-        pending: betaPending(NOW - 10_000),
-      });
+    const {
+      service,
+      betaInstalledVersions,
+      tickPoll,
+      pendingInstall,
+      cancelPoll,
+    } = createService({
+      canInstall: true,
+      currentVersion: "0.2.0-beta.1",
+      pending: betaPending(NOW - 10_000),
+    });
 
     tickPoll();
     // LIMIT: this pins the token the poll probes, not which state it lands on —
@@ -1590,9 +1624,10 @@ describe("switching to a pre-release build", () => {
       order.push(`confirm:${targetVersion}`);
       return true;
     });
-    const { service, downloadUpdate, pendingInstall, quitApp } = await readyToSwitch({
-      confirmPrereleaseSwitch,
-    });
+    const { service, downloadUpdate, pendingInstall, quitApp } =
+      await readyToSwitch({
+        confirmPrereleaseSwitch,
+      });
     downloadUpdate.mockImplementation(() => {
       order.push("download");
       return Promise.resolve();
@@ -1605,14 +1640,24 @@ describe("switching to a pre-release build", () => {
     expect(result).toEqual({ success: true });
     expect(confirmPrereleaseSwitch).toHaveBeenCalledTimes(1);
     expect(confirmPrereleaseSwitch).toHaveBeenCalledWith("0.2.0-beta.3");
-    expect(order).toEqual(["confirm:0.2.0-beta.3", "download", "marker", "quit"]);
+    expect(order).toEqual([
+      "confirm:0.2.0-beta.3",
+      "download",
+      "marker",
+      "quit",
+    ]);
   });
 
   it("leaves state, the marker, and quitApp completely untouched when the user declines", async () => {
-    const { service, pendingInstall, quitApp, downloadUpdate, startChannelSwitch } =
-      await readyToSwitch({
-        confirmPrereleaseSwitch: () => Promise.resolve(false),
-      });
+    const {
+      service,
+      pendingInstall,
+      quitApp,
+      downloadUpdate,
+      startChannelSwitch,
+    } = await readyToSwitch({
+      confirmPrereleaseSwitch: () => Promise.resolve(false),
+    });
     const before = service.getPrereleaseState();
 
     const result = await service.switchToPrerelease();
@@ -1680,15 +1725,16 @@ describe("switching to a pre-release build", () => {
     // "No path BEYOND the app bundle path", as a shape after placeholdering the one
     // permitted: a single-literal check lets every other path through.
     expect(withoutTheAllowedAppBundlePath(logText)).not.toMatch(
-      ABSOLUTE_PATH_SHAPE,
+      LEAKED_FILESYSTEM_PATH,
     );
   });
 
   it("refuses when nothing has been offered yet", async () => {
-    const { service, confirmPrereleaseSwitch, startChannelSwitch } = createService({
-      canInstall: true,
-      activeChannel: "stable",
-    });
+    const { service, confirmPrereleaseSwitch, startChannelSwitch } =
+      createService({
+        canInstall: true,
+        activeChannel: "stable",
+      });
 
     const result = await service.switchToPrerelease();
 
@@ -1844,7 +1890,10 @@ describe("reverting to stable", () => {
       phase: "error",
       message: msg("settings.updates.prerelease.revertErrorMessage"),
     });
-    expect(onLog).toHaveBeenCalledWith("warn", expect.stringContaining("revert"));
+    expect(onLog).toHaveBeenCalledWith(
+      "warn",
+      expect.stringContaining("revert"),
+    );
   });
 
   // The same staleness in the revert direction, where the stale token exits the
@@ -1968,12 +2017,16 @@ describe("both cask tokens staged at check time", () => {
 describe("mutual exclusion between a stable install and a channel switch", () => {
   it("refuses a channel switch while a stable install is in flight, with no brew work", async () => {
     const candidate = prereleaseCandidate("0.2.0-beta.1");
-    const { service, downloadUpdate, startChannelSwitch, confirmPrereleaseSwitch } =
-      createService({
-        canInstall: true,
-        activeChannel: "stable",
-        getLatestPrerelease: () => Promise.resolve(candidate),
-      });
+    const {
+      service,
+      downloadUpdate,
+      startChannelSwitch,
+      confirmPrereleaseSwitch,
+    } = createService({
+      canInstall: true,
+      activeChannel: "stable",
+      getLatestPrerelease: () => Promise.resolve(candidate),
+    });
     await service.checkForUpdates();
     await service.checkForPrerelease();
     void service.installUpdate();
@@ -2017,7 +2070,9 @@ describe("a check already in flight when a channel operation starts", () => {
   ): ReturnType<typeof createService> & {
     resolveCandidate: (candidate: PrereleaseCandidate | null) => void;
   } => {
-    let resolveCandidate: ((candidate: PrereleaseCandidate | null) => void) | undefined;
+    let resolveCandidate:
+      | ((candidate: PrereleaseCandidate | null) => void)
+      | undefined;
     const harness = createService({
       canInstall: true,
       activeChannel: "beta",
@@ -2152,12 +2207,15 @@ describe("releasing the in-flight claim when a collaborator throws", () => {
       canInstall: true,
       activeChannel: "stable",
       getLatestPrerelease: () => Promise.resolve(candidate),
-      confirmPrereleaseSwitch: () => Promise.reject(new Error("dialog blew up")),
+      confirmPrereleaseSwitch: () =>
+        Promise.reject(new Error("dialog blew up")),
     });
     await service.checkForPrerelease();
     releaseSource.getLatestPrerelease.mockClear();
 
-    await expect(service.switchToPrerelease()).rejects.toThrow("dialog blew up");
+    await expect(service.switchToPrerelease()).rejects.toThrow(
+      "dialog blew up",
+    );
 
     // A stranded flag makes the check return its old state without asking GitHub.
     await service.checkForPrerelease();
@@ -2165,17 +2223,20 @@ describe("releasing the in-flight claim when a collaborator throws", () => {
   });
 
   it("does not strand the flag when the Caskroom probe throws mid-revert", async () => {
-    const { service, detectActiveCaskChannel, startChannelSwitch } = createService({
-      canInstall: true,
-      activeChannel: "beta",
-      currentVersion: "0.2.0-beta.1",
-      installableVersion: "0.1.9",
-    });
+    const { service, detectActiveCaskChannel, startChannelSwitch } =
+      createService({
+        canInstall: true,
+        activeChannel: "beta",
+        currentVersion: "0.2.0-beta.1",
+        installableVersion: "0.1.9",
+      });
     detectActiveCaskChannel.mockImplementationOnce(() => {
       throw new Error("Caskroom unreadable");
     });
 
-    await expect(service.revertToStable()).rejects.toThrow("Caskroom unreadable");
+    await expect(service.revertToStable()).rejects.toThrow(
+      "Caskroom unreadable",
+    );
 
     expect(await service.revertToStable()).toEqual({ success: true });
     expect(startChannelSwitch).toHaveBeenCalledTimes(1);
@@ -2392,15 +2453,21 @@ describe("claiming the app for the whole hand-off, not just the return value", (
 describe("the ordinary flow names one cask end to end", () => {
   it("passes the stable token to every Homebrew call and records it in the marker", async () => {
     let finishDownload: (() => void) | undefined;
-    const { service, downloadUpdate, getDownloadedBytes, startUpgrade, pendingInstall, tickPoll } =
-      createService({
-        canInstall: true,
-        downloadedBytes: 512,
-        downloadUpdate: () =>
-          new Promise<void>((resolve) => {
-            finishDownload = resolve;
-          }),
-      });
+    const {
+      service,
+      downloadUpdate,
+      getDownloadedBytes,
+      startUpgrade,
+      pendingInstall,
+      tickPoll,
+    } = createService({
+      canInstall: true,
+      downloadedBytes: 512,
+      downloadUpdate: () =>
+        new Promise<void>((resolve) => {
+          finishDownload = resolve;
+        }),
+    });
     await service.checkForUpdates();
 
     const install = service.installUpdate();
@@ -2412,7 +2479,10 @@ describe("the ordinary flow names one cask end to end", () => {
 
     expect(downloadUpdate).toHaveBeenCalledWith(STABLE_CASK_TOKEN);
     expect(getDownloadedBytes).toHaveBeenCalledWith("0.2.0", STABLE_CASK_TOKEN);
-    expect(startUpgrade).toHaveBeenCalledWith(INSTALLED_APP_PATH, STABLE_CASK_TOKEN);
+    expect(startUpgrade).toHaveBeenCalledWith(
+      INSTALLED_APP_PATH,
+      STABLE_CASK_TOKEN,
+    );
     expect(pendingInstall.write).toHaveBeenCalledWith(
       expect.objectContaining({ caskToken: STABLE_CASK_TOKEN }),
     );

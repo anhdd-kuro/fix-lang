@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { z } from "zod";
+import { schemaGuard } from "~/features/core/shared/schemaGuard";
 import { isMessage, msg, type Message } from "~/features/i18n/shared/message";
 import { Button } from "./Button";
 import CopyButton from "./CopyButton";
@@ -35,14 +37,14 @@ const CommandBlock = ({ command }: { command: string }) => {
   const { t } = useI18n();
   return (
     <div className="relative mt-1 rounded border border-control-border bg-secondary/60">
-      <pre className="overflow-x-auto whitespace-pre-wrap break-all px-2 py-1.5 pr-6 font-mono text-sm text-card-foreground">
+      <pre className="overflow-x-auto px-2 py-1.5 pr-6 font-mono text-sm break-all whitespace-pre-wrap text-card-foreground">
         {command}
       </pre>
       <CopyButton
         value={command}
         label={t("settings.updates.copyCommand", { command })}
         size="sm"
-        className="absolute right-1 top-1"
+        className="absolute top-1 right-1"
       />
     </div>
   );
@@ -184,7 +186,54 @@ const initialPrereleaseState: PrereleaseState = {
 
 const updateApi = () => window.electronAPI;
 
+const CallableSchema = z.custom<() => void>(
+  (value) => value instanceof Function,
+);
+
+/**
+ * The two pre-release members this section calls. The preload TYPE declares
+ * them unconditionally, so only a parse can tell the running bridge apart
+ * from an older one that answers without them.
+ */
+type PrereleaseBridge = {
+  getPrereleaseState: () => Promise<PrereleaseState>;
+  onPrereleaseStateChanged: (
+    listener: (state: PrereleaseState) => void,
+  ) => () => void;
+};
+
+const PrereleaseBridgeSchema = z.custom<PrereleaseBridge>(
+  (value) =>
+    z
+      .object({
+        getPrereleaseState: CallableSchema,
+        onPrereleaseStateChanged: CallableSchema,
+      })
+      .safeParse(value).success,
+);
+
+/** True only when the running bridge serves the pre-release channel. */
+const servesPrerelease = schemaGuard(PrereleaseBridgeSchema);
+
+/** Unknown keys are kept so the reported descriptor is read off main's own value. */
+const FailedActionSchema = z.looseObject({ success: z.literal(false) });
+
 /** A resolved action that main reported as failed (`{ success: false }`). */
+type ActionFailure = {
+  /** The descriptor main named, or null when it named none a renderer can resolve. */
+  readonly reported: Message | null;
+};
+
+/** Everything a stable or pre-release request can resolve with. */
+type RequestOutcome = UpdateState | PrereleaseState | UpdateActionResult;
+
+/** The failure a resolved request reported, or null when it reported none. */
+const actionFailureIn = (result: RequestOutcome): ActionFailure | null => {
+  const parsed = FailedActionSchema.safeParse(result);
+  if (!parsed.success) return null;
+  const { error } = parsed.data;
+  return { reported: isMessage(error) ? error : null };
+};
 
 const BYTES_PER_MEGABYTE = 1024 * 1024;
 
@@ -293,10 +342,7 @@ export const SettingUpdates = () => {
     const api = updateApi();
     // This also mounts inside the About tab, where a throwing effect would tear
     // down the user guide; an unanswerable bridge leaves it on `unsupported`.
-    if (
-      typeof api.onPrereleaseStateChanged !== "function" ||
-      typeof api.getPrereleaseState !== "function"
-    ) {
+    if (!servesPrerelease(api)) {
       return;
     }
 
@@ -315,10 +361,10 @@ export const SettingUpdates = () => {
 
     void api
       .getPrereleaseState()
-      .then((next) => {
+      .then((nextState) => {
         if (mounted && !receivedLivePrereleaseState) {
           setPrereleaseMountLoadError(null);
-          applyPrereleaseState(next);
+          applyPrereleaseState(nextState);
         }
       })
       .catch(() => {
@@ -362,16 +408,9 @@ export const SettingUpdates = () => {
     setActionPending(true);
     if (isInstallRequest) setInstallActionPending(true);
     try {
-      const result = await request();
-      if (
-        typeof result === "object" &&
-        result !== null &&
-        "success" in result &&
-        result.success === false
-      ) {
-        reportFailure(
-          "error" in result && isMessage(result.error) ? result.error : null,
-        );
+      const failure = actionFailureIn(await request());
+      if (failure) {
+        reportFailure(failure.reported);
         return;
       }
     } catch {
@@ -391,7 +430,7 @@ export const SettingUpdates = () => {
    * held, phase mismatch), which is those guards' sole visible trace.
    */
   const runPrerelease = async (
-    request: () => Promise<unknown>,
+    request: () => Promise<PrereleaseState | UpdateActionResult>,
     failureMessage: Message,
     isChannelOperation: boolean,
   ) => {
@@ -401,16 +440,9 @@ export const SettingUpdates = () => {
     setPrereleaseActionNotice(null);
     if (isChannelOperation) setChannelActionPending(true);
     try {
-      const result = await request();
-      if (
-        typeof result === "object" &&
-        result !== null &&
-        "success" in result &&
-        result.success === false
-      ) {
-        const reported =
-          "error" in result && isMessage(result.error) ? result.error : null;
-        const notice = reported ?? failureMessage;
+      const failure = actionFailureIn(await request());
+      if (failure) {
+        const notice = failure.reported ?? failureMessage;
         // A phase can carry a `message` it never renders, so matching on the
         // descriptor alone would leave the sentence nowhere at all.
         const alreadyOnScreen =
@@ -537,7 +569,7 @@ export const SettingUpdates = () => {
             event.preventDefault();
             void window.electronAPI.openExternalLink(GITHUB_PROFILE_URL);
           }}
-          className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           aria-label={t("settings.updates.githubLinkLabel")}
           title={t("settings.updates.githubLinkLabel")}
         >
@@ -987,7 +1019,7 @@ export const SettingUpdates = () => {
                   event.preventDefault();
                   void window.electronAPI.openExternalLink(GITHUB_RELEASES_URL);
                 }}
-                className="mt-2 inline-block text-sm text-primary underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="mt-2 inline-block text-sm text-primary underline hover:no-underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
                 {t("settings.updates.downloadButton")}
               </a>
@@ -1085,7 +1117,9 @@ export const SettingUpdates = () => {
           </p>
         )}
 
-        {(canSwitchToPrerelease || showPrereleaseCheck || canRevertToStable) && (
+        {(canSwitchToPrerelease ||
+          showPrereleaseCheck ||
+          canRevertToStable) && (
           <div className="mt-2 flex flex-wrap gap-2">
             {canSwitchToPrerelease && (
               <Button

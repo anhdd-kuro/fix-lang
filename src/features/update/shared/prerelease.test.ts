@@ -37,9 +37,9 @@ describe("prerelease-state preload boundary", () => {
   });
 
   it("rejects an activeChannel outside stable/beta/both", () => {
-    expect(
-      isPrereleaseState({ phase: "idle", activeChannel: "alpha" }),
-    ).toBe(false);
+    expect(isPrereleaseState({ phase: "idle", activeChannel: "alpha" })).toBe(
+      false,
+    );
   });
 
   it("accepts the both-installed anomaly carrying a fix-it message", () => {

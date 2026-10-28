@@ -137,8 +137,8 @@ If you disconnect a provider, only the presets and settings that were using it g
   Homebrew and reopens, and reverting needs no confirmation — and one risk:
   settings a pre-release writes may not be readable by the stable build
   afterwards. That is the only warning it carries, and it is spelled out below.
-- **Going back is one button and asks for no confirmation.** *Revert to stable*
-  installs the current stable release even though it is an *older* version than
+- **Going back is one button and asks for no confirmation.** _Revert to stable_
+  installs the current stable release even though it is an _older_ version than
   the pre-release you are running — that is the point. Escaping a build that
   misbehaves should be fast. (One setup does not get that button at all — see
   the note below on Homebrew in a non-standard location.)
@@ -148,7 +148,7 @@ If you disconnect a provider, only the presets and settings that were using it g
   neither direction removes or rewrites them.
 - **Pre-releases have had less time in front of users — the automated gates are
   identical (see [Publishing a pre-release](#publishing-a-pre-release)) — and
-  both channels share that one data directory.** FixLang's stored config only ever migrates *forward* — there is
+  both channels share that one data directory.** FixLang's stored config only ever migrates _forward_ — there is
   no downgrade path — so a pre-release that changes the shape of something it
   stores can leave the stable build unable to read it on the way back. If that
   happens, the stable build does not fall back to a default or ignore the one
@@ -168,12 +168,12 @@ If you disconnect a provider, only the presets and settings that were using it g
   a separate file from the ordinary update's `homebrew-update.log`, because at
   that point there may be no FixLang left to report through.
 - While a pre-release build is installed, newer pre-releases are offered in that
-  section and a newer *stable* release is still offered as an ordinary update.
+  section and a newer _stable_ release is still offered as an ordinary update.
 - **One case where the Revert button is not there.** FixLang looks for Homebrew
   only at `/opt/homebrew/bin/brew` and `/usr/local/bin/brew`. If yours lives
   somewhere else, the app cannot tell which cask you are running, reports itself
-  as stable, and shows no Pre-release controls at all — including no *Revert to
-  stable* — even while a pre-release is installed. Nothing is broken and your
+  as stable, and shows no Pre-release controls at all — including no _Revert to
+  stable_ — even while a pre-release is installed. Nothing is broken and your
   data is untouched; you just have to switch by hand, with the commands under
   [With Homebrew](#with-homebrew-apple-silicon). The same is true if you
   installed the beta cask yourself rather than through the button.
@@ -273,7 +273,7 @@ the switch fails — none of which happens when you run the commands yourself.
 
 Homebrew cannot downgrade or re-point a cask, so switching by hand is an
 uninstall followed by an install, and between those two there is no FixLang in
-`/Applications`. Stage the download *first*, so a missing cask or a dropped
+`/Applications`. Stage the download _first_, so a missing cask or a dropped
 network fails while you still have an app:
 
 ```bash
@@ -284,7 +284,7 @@ brew install --cask anhdd-kuro/tap/fixlang@beta \
 ```
 
 To go back to stable — the direction you want when a pre-release misbehaves, and
-the one to use if the in-app *Revert to stable* button is not available to you:
+the one to use if the in-app _Revert to stable_ button is not available to you:
 
 ```bash
 brew fetch --cask anhdd-kuro/tap/fixlang         # nothing removed yet
@@ -497,7 +497,7 @@ declaration enforces nothing and any push to a `beta/**` branch publishes
 straight to the public release feed. **This paragraph is where that item's status
 lives.** When the environment is created, update it here to say who reviews, and
 in the same commit update the three copies that exist to stop an agent assuming
-the gate works: the *Pre-release trigger* bullet in `AGENTS.md`, the ⚠️ section in
+the gate works: the _Pre-release trigger_ bullet in `AGENTS.md`, the ⚠️ section in
 `.claude/skills/fixlang/fixlang-prerelease-channel/SKILL.md`, and the comment on
 the `release` job in `.github/workflows/prerelease.yml`.
 

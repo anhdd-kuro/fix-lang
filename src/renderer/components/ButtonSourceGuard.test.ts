@@ -45,7 +45,7 @@ type ChecklistConsumer = ButtonConsumer & {
   stableId: string;
 };
 
-type StableSiteShape = {
+type FingerprintedSite = {
   currentElement: string;
   disabledRule: string | null;
   file: string;
@@ -65,7 +65,7 @@ type StableSiteShape = {
 const sha256 = (value: string): string =>
   createHash("sha256").update(value).digest("hex");
 
-const stableSiteFingerprint = (site: StableSiteShape): string =>
+const stableSiteFingerprint = (site: FingerprintedSite): string =>
   sha256(
     JSON.stringify({
       file: site.file,
@@ -217,9 +217,8 @@ const unwrapExpression = (expression: ts.Expression): ts.Expression => {
   return current;
 };
 
-const buildLexicalAliasResolver = (
-  sourceFile: ts.SourceFile,
-): {
+/** Answers, for one source file, what an expression at a position resolves to. */
+type LexicalAliasResolver = {
   resolvesToButton: (
     expression: ts.JsxTagNameExpression,
     atNode: ts.Node,
@@ -241,7 +240,11 @@ const buildLexicalAliasResolver = (
     expression: ts.JsxTagNameExpression,
     atNode: ts.Node,
   ) => boolean;
-} => {
+};
+
+const buildLexicalAliasResolver = (
+  sourceFile: ts.SourceFile,
+): LexicalAliasResolver => {
   const rootScope: AliasScope = {
     bindings: new Map(),
     isFunctionScope: true,
@@ -535,14 +538,7 @@ const buildLexicalAliasResolver = (
     return null;
   };
 
-  const bindingStateAt = (
-    binding: AliasBinding,
-    atNode: ts.Node,
-  ): {
-    bindingSource: BindingSource | null;
-    evaluationNode: ts.Node;
-    importedKind: ImportedKind;
-  } => {
+  const bindingStateAt = (binding: AliasBinding, atNode: ts.Node) => {
     const readPosition = atNode.getStart(sourceFile);
     let bindingSource = binding.bindingSource;
     let evaluationNode = binding.declaration;
@@ -2253,7 +2249,7 @@ const consumerContractRows = [
     "SITE-f63727c376cb5050-01",
     "LIVE-f63727c376cb5050",
     "src/renderer/components/SettingUpdates.tsx",
-    563,
+    595,
     11,
   ],
   [
@@ -2261,7 +2257,7 @@ const consumerContractRows = [
     "SITE-31d2760b23787e23-01",
     "LIVE-31d2760b23787e23",
     "src/renderer/components/SettingUpdates.tsx",
-    588,
+    620,
     11,
   ],
   [
@@ -2269,7 +2265,7 @@ const consumerContractRows = [
     "SITE-91ba4b4f640490e2-01",
     "LIVE-91ba4b4f640490e2",
     "src/renderer/components/SettingUpdates.tsx",
-    615,
+    647,
     13,
   ],
   [
@@ -2277,7 +2273,7 @@ const consumerContractRows = [
     "SITE-663c55705a5cc3f0-01",
     "LIVE-663c55705a5cc3f0",
     "src/renderer/components/SettingUpdates.tsx",
-    633,
+    665,
     15,
   ],
   [
@@ -2285,7 +2281,7 @@ const consumerContractRows = [
     "SITE-43414753ace2ab81-01",
     "LIVE-da3e264ff5bff86c",
     "src/renderer/components/SettingUpdates.tsx",
-    688,
+    720,
     15,
   ],
   [
@@ -2293,7 +2289,7 @@ const consumerContractRows = [
     "SITE-ad68949b3a58f46b-01",
     "LIVE-ad68949b3a58f46b",
     "src/renderer/components/SettingUpdates.tsx",
-    709,
+    741,
     15,
   ],
   [
@@ -2301,7 +2297,7 @@ const consumerContractRows = [
     "SITE-c11f9621b2e3d72c-01",
     "LIVE-c11f9621b2e3d72c",
     "src/renderer/components/SettingUpdates.tsx",
-    724,
+    756,
     15,
   ],
   [
@@ -2309,7 +2305,7 @@ const consumerContractRows = [
     "SITE-f4ccea28d324b33f-01",
     "LIVE-f4ccea28d324b33f",
     "src/renderer/components/SettingUpdates.tsx",
-    737,
+    769,
     13,
   ],
   [
@@ -2317,7 +2313,7 @@ const consumerContractRows = [
     "SITE-fbcd67d29270d287-01",
     "LIVE-fbcd67d29270d287",
     "src/renderer/components/SettingUpdates.tsx",
-    751,
+    783,
     13,
   ],
   [
@@ -2325,7 +2321,7 @@ const consumerContractRows = [
     "SITE-bfa98039be039f30-01",
     "LIVE-bfa98039be039f30",
     "src/renderer/components/SettingUpdates.tsx",
-    845,
+    877,
     13,
   ],
   [
@@ -2333,7 +2329,7 @@ const consumerContractRows = [
     "SITE-5815552ee2096fa5-01",
     "LIVE-5815552ee2096fa5",
     "src/renderer/components/SettingUpdates.tsx",
-    874,
+    906,
     13,
   ],
   [
@@ -2341,7 +2337,7 @@ const consumerContractRows = [
     "SITE-8d81c1044d88aa9b-01",
     "LIVE-8d81c1044d88aa9b",
     "src/renderer/components/SettingUpdates.tsx",
-    886,
+    918,
     13,
   ],
   [
@@ -2349,7 +2345,7 @@ const consumerContractRows = [
     "SITE-cfd38745f41c80f2-01",
     "LIVE-0d366a2b4a3aa757",
     "src/renderer/components/SettingUpdates.tsx",
-    1091,
+    1125,
     15,
   ],
   [
@@ -2357,7 +2353,7 @@ const consumerContractRows = [
     "SITE-2b5e02b82b63d6af-01",
     "LIVE-1a247b82dcc22868",
     "src/renderer/components/SettingUpdates.tsx",
-    1112,
+    1146,
     15,
   ],
   [
@@ -2365,7 +2361,7 @@ const consumerContractRows = [
     "SITE-e1569fb1897b6372-01",
     "LIVE-a3ccf02b8ad14fce",
     "src/renderer/components/SettingUpdates.tsx",
-    1131,
+    1165,
     15,
   ],
   [
@@ -2500,7 +2496,7 @@ const toChecklistConsumer = ([
 const expectedButtonConsumers: ChecklistConsumer[] =
   consumerContractRows.map(toChecklistConsumer);
 const consumerContractSha256 =
-  "d580f92058c34fc27055a3477c624494ba1c3e84ada9c809ac165a064d676604";
+  "c51d3bbfeb5def0cdc3f1f8368bbeb49494f346fffd26ea4c114913ade77604e";
 
 // A row's stableId mirrors its own semanticId (SITE-<hash>-01 for LIVE-<hash>), diverging
 // only where a site was edited in place: the carry keeps one lineage across the moved hash.
@@ -3235,8 +3231,14 @@ describe("renderer Button source guard", () => {
   //   6. Re-run the test. Nothing is ever copied out of `Received:` — not the sha, which
   //      hollows out the seal, and not a stableId, which reassigns a lineage. A mismatch of
   //      either means the paste or step 3 is wrong; fix it and regenerate.
-  if (process.env.REGEN_BUTTON_CONTRACT === "1") {
-    it("regenerates consumer contract artifact", async () => {
+  // The condition stays OUT of the test body: an `if` wrapped around `it`
+  // unregisters the case, so the runner cannot report it as skipped.
+  const regeneratingConsumerContract =
+    process.env.REGEN_BUTTON_CONTRACT === "1";
+
+  it.runIf(regeneratingConsumerContract)(
+    "regenerates consumer contract artifact",
+    async () => {
       const { writeFile, mkdir } = await import("node:fs/promises");
       const result = await scanRenderer();
       const sorted = [...result.buttonConsumers].sort(compareConsumers);
@@ -3317,6 +3319,6 @@ describe("renderer Button source guard", () => {
         ),
       );
       expect(rows.length).toBeGreaterThan(0);
-    });
-  }
+    },
+  );
 });

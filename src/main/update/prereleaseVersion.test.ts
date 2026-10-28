@@ -165,7 +165,11 @@ describe("compareVersionOrder (alias)", () => {
   });
 
   it("orders two stable versions numerically, matching its documented stable-vs-stable use in updateService.ts", () => {
-    expect(compareVersionOrder(stable(1, 2, 10), stable(1, 2, 9))).toBeGreaterThan(0);
-    expect(compareVersionOrder(stable(1, 2, 9), stable(1, 2, 10))).toBeLessThan(0);
+    expect(
+      compareVersionOrder(stable(1, 2, 10), stable(1, 2, 9)),
+    ).toBeGreaterThan(0);
+    expect(compareVersionOrder(stable(1, 2, 9), stable(1, 2, 10))).toBeLessThan(
+      0,
+    );
   });
 });

@@ -92,13 +92,13 @@ const broadcastPrereleaseState = (state: PrereleaseState): void => {
  * the separation is in the channel names, where it matters, rather than in a
  * second call site somebody has to remember to make.
  */
-const registerPrereleaseHandlers = (
-  service: PrereleaseUpdateService,
-): void => {
+const registerPrereleaseHandlers = (service: PrereleaseUpdateService): void => {
   ipcMain.handle("updates:prerelease:get-state", () =>
     service.getPrereleaseState(),
   );
-  ipcMain.handle("updates:prerelease:check", () => service.checkForPrerelease());
+  ipcMain.handle("updates:prerelease:check", () =>
+    service.checkForPrerelease(),
+  );
   // Input-free like `updates:install`: the offered version and target
   // channel are both decided in main, never by the renderer.
   ipcMain.handle("updates:prerelease:switch", () =>

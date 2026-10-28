@@ -8,6 +8,7 @@
  * serves stable-vs-stable comparisons too (aliased `compareVersionOrder` for
  * grep); do not add a second one.
  */
+import { z } from "zod";
 
 export type OrderableVersion = Readonly<{
   major: number;
@@ -27,18 +28,27 @@ export type PrereleaseVersion = Readonly<{
 const PRERELEASE_VERSION_PATTERN =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-beta\.(0|[1-9]\d*)$/;
 
-/** Strict `X.Y.Z-beta.N`; null for anything else. */
-export const parsePrereleaseVersion = (
-  value: unknown,
+const VersionTextSchema = z.string();
+
+/**
+ * Strict `X.Y.Z-beta.N`; null for anything else.
+ *
+ * Generic over the caller's input rather than taking `unknown`, the way
+ * `schemaGuard` is: a tag name pulled out of GitHub release JSON arrives
+ * typed as whatever its own reader produced, and the schema decides.
+ */
+export const parsePrereleaseVersion = <Input>(
+  value: Input,
 ): PrereleaseVersion | null => {
-  if (typeof value !== "string") return null;
-  const match = PRERELEASE_VERSION_PATTERN.exec(value);
+  const text = VersionTextSchema.safeParse(value);
+  if (!text.success) return null;
+  const match = PRERELEASE_VERSION_PATTERN.exec(text.data);
   if (!match) return null;
 
   const [major, minor, patch, beta] = match.slice(1).map(Number);
   if (![major, minor, patch, beta].every(Number.isSafeInteger)) return null;
 
-  return Object.freeze({ raw: value, major, minor, patch, beta });
+  return Object.freeze({ raw: text.data, major, minor, patch, beta });
 };
 
 /**

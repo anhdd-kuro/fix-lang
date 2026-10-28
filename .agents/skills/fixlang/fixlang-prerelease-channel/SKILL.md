@@ -1,6 +1,6 @@
 ---
 name: fixlang-prerelease-channel
-description: "Use when touching the pre-release channel or the revert-to-stable path: the two cask tokens, `.github/workflows/prerelease.yml`, `src/main/update/prereleaseVersion.ts`, the channel-switch helper in `homebrew.ts`, the pre-release half of `updateService.ts`, or the Pre-release section of `SettingUpdates.tsx`. Examples: \"cut a beta\", \"Revert button missing\", \"switch left no app installed\", \"beta not offered\", \"marker says installed but user is still on beta\". Covers switch ordering, token-parameterised probes, the marker token, the helper traps, and what this feature deliberately cannot do."
+description: 'Use when touching the pre-release channel or the revert-to-stable path: the two cask tokens, `.github/workflows/prerelease.yml`, `src/main/update/prereleaseVersion.ts`, the channel-switch helper in `homebrew.ts`, the pre-release half of `updateService.ts`, or the Pre-release section of `SettingUpdates.tsx`. Examples: "cut a beta", "Revert button missing", "switch left no app installed", "beta not offered", "marker says installed but user is still on beta". Covers switch ordering, token-parameterised probes, the marker token, the helper traps, and what this feature deliberately cannot do.'
 ---
 
 # FixLang — Pre-release channel & revert traps
@@ -13,7 +13,7 @@ description: "Use when touching the pre-release channel or the revert-to-stable 
   eslint here while failing `tsc --noEmit` (TS2550). Run `bunx tsc --noEmit`.
   Also: `bun run test`, never `bun test`.
 - **Never `bunx prettier --write` on these files.** There is no prettier config,
-  and `eslint.config.js` uses `eslint-config-prettier`, which *disables*
+  and `eslint.config.js` uses `eslint-config-prettier`, which _disables_
   formatting rules rather than enforcing them — so prettier reformats against
   its own defaults, wholesale, and buries the real diff. This is the one trap in
   the feature with no detector and no recovery once it is in a commit.
@@ -48,6 +48,7 @@ an **uninstall of one token and an install of the other** — the same mechanism
 `google-chrome@beta` and `zed@preview` use.
 
 Consequences people trip over:
+
 - A revert installs a **LOWER** version by design. Any code that assumes the
   target is newer is wrong here (that is why card 04 exists).
 - Cask "outdated" is an **inequality**, not a less-than. Rolling the tap's stable
@@ -94,7 +95,7 @@ wait for FixLang to exit  →  fetch target  →  uninstall CURRENT token
   `confirm.detail` by `buildPrereleaseConfirmDetail` (`src/main/update/index.ts`);
   `index.test.ts` pins that it is appended in both locales. Two rules, and this
   feature has already made each mistake once:
-  - **Do not trim or delete that string.** No test asserts its *content* — only
+  - **Do not trim or delete that string.** No test asserts its _content_ — only
     that the key is appended — so cutting the risk sentence out of the catalog
     value keeps the entire suite green. It is long because it is a disclosure,
     not because someone pasted twice. (Routed follow-up: a test pinning the
@@ -127,12 +128,12 @@ wait for FixLang to exit  →  fetch target  →  uninstall CURRENT token
   back on any failing step. Arming it earlier double-opens; arming it later loses
   the recovery.
 - **The reopen is a shell FUNCTION (`reopen_fixlang`), not inline trap text.** A
-  trap body is *quoted shell*. Spelling the `open -a "<path>"` command inside the
+  trap body is _quoted shell_. Spelling the `open -a "<path>"` command inside the
   trap would make the trap the one place a bundle path's quoting can escape.
 - **`abort_without_reopen` on `HUP INT TERM`, and its `trap - EXIT` is
   load-bearing.** Delete that one line and the handler's own `exit` fires the
   EXIT trap anyway — which reopens the app at T+1 while an orphaned `brew`
-  replaces the bundle at T+4, i.e. reopening *inside the switch's no-app window*.
+  replaces the bundle at T+4, i.e. reopening _inside the switch's no-app window_.
   This regression was INTRODUCED by the fix for the previous bullet; it is not
   hypothetical.
 - Non-interactive bash **ignores SIGINT/SIGQUIT entirely** — an "early reopen on
@@ -225,7 +226,7 @@ already on disk still reconcile).
   mid-flight the source cask is legitimately still installed, and treating that
   as a rollback would report an in-flight switch as failed. Pinned by a test that
   an in-flight switch still reads `in-progress`.
-- Without that outcome, a revert whose restore reinstalled the tap's *current*
+- Without that outcome, a revert whose restore reinstalled the tap's _current_
   beta (`2.0.0-beta.4`, not the `.3` the user had — the NORMAL case on that
   channel) reported **`installed`**: marker cleared, log said "App updated via
   Homebrew", panel said up-to-date, while the user who asked to LEAVE the channel
@@ -297,16 +298,16 @@ of these files.)
 - **`unknown` channel is not representable.** When brew lives outside
   `/opt/homebrew` and `/usr/local`, `findBrewBinary` returns `null` **by design**,
   and a machine running the **beta** cask then publishes `activeChannel: "stable"`
-  + `canSwitch: false` — byte-identical to a manual-DMG stable install. That user
-  gets **no beta note and no Revert button**: the feature's escape hatch is
-  silently absent for them. Not fixable in the renderer — the pair is ambiguous by
-  construction. The correct fix is an `"unknown"` member on
-  `PrereleaseActiveChannel` (`src/features/update/shared/prerelease.ts`), which
-  reopens the state/validator/panel work. **This one has a user-facing half**:
-  such a user can still install `fixlang@beta` by hand and then find no Revert
-  button. `README.md` → "Pre-release builds and reverting" carries the caveat and
-  the manual exit command; if this limitation is ever fixed or widened, that
-  README caveat moves with it.
+  - `canSwitch: false` — byte-identical to a manual-DMG stable install. That user
+    gets **no beta note and no Revert button**: the feature's escape hatch is
+    silently absent for them. Not fixable in the renderer — the pair is ambiguous by
+    construction. The correct fix is an `"unknown"` member on
+    `PrereleaseActiveChannel` (`src/features/update/shared/prerelease.ts`), which
+    reopens the state/validator/panel work. **This one has a user-facing half**:
+    such a user can still install `fixlang@beta` by hand and then find no Revert
+    button. `README.md` → "Pre-release builds and reverting" carries the caveat and
+    the manual exit command; if this limitation is ever fixed or widened, that
+    README caveat moves with it.
 - **`release.yml`'s `v*.*.*` tag trigger also matches beta tags.** GitHub forbids
   `tags` and `tags-ignore` in the same `on.push`, and narrowing the stable glob
   would break the byte-frozen stable path. Cost is alarm fatigue only: the run
@@ -325,7 +326,7 @@ of these files.)
 `.github/workflows/prerelease.yml`'s publish job declares:
 
 ```yaml
-    environment: prerelease
+environment: prerelease
 ```
 
 That is the only in-repo review anchor a beta branch can carry — a beta tag is by

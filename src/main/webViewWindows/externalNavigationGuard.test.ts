@@ -33,10 +33,19 @@ type NavigationListener = (
 
 const CURRENT_URL = "file:///app/out/renderer/MainWindow/index.html";
 
+/** The three `webContents` members the guard touches; nothing else is read. */
+type FakeWindow = {
+  webContents: {
+    setWindowOpenHandler: (handler: WindowOpenHandler) => void;
+    on: (event: string, listener: NavigationListener) => void;
+    getURL: () => string;
+  };
+};
+
 const createWindow = () => {
   const listeners = new Map<string, NavigationListener>();
   let windowOpenHandler: WindowOpenHandler | undefined;
-  const win = {
+  const win: FakeWindow = {
     webContents: {
       setWindowOpenHandler: vi.fn((handler: WindowOpenHandler) => {
         windowOpenHandler = handler;
@@ -48,9 +57,13 @@ const createWindow = () => {
     },
   };
   return {
-    win: win as unknown as BrowserWindow,
+    // SAFETY: `applyExternalNavigationGuard` reads only the three
+    // `webContents` members declared on `FakeWindow` above, so the rest of a
+    // real `BrowserWindow` is never touched by the code under test.
+    win: win as BrowserWindow,
     openWindow: (url: string) => {
-      if (!windowOpenHandler) throw new Error("no window-open handler installed");
+      if (!windowOpenHandler)
+        throw new Error("no window-open handler installed");
       return windowOpenHandler({ url });
     },
     navigate: (url: string) => {
@@ -69,24 +82,28 @@ describe("openExternalUrl", () => {
   });
 
   it("opens an http(s) URL in the user's own browser", async () => {
-    await expect(openExternalUrl("https://example.com/notes")).resolves.toEqual({
-      success: true,
-    });
+    await expect(openExternalUrl("https://example.com/notes")).resolves.toEqual(
+      {
+        success: true,
+      },
+    );
     expect(electronMocks.openExternal).toHaveBeenCalledWith(
       "https://example.com/notes",
     );
   });
 
-  it.each(["file:///etc/hosts", "javascript:alert(1)", "data:text/html,<b>", "not a url"])(
-    "refuses %s without handing it to the OS",
-    async (url) => {
-      await expect(openExternalUrl(url)).resolves.toEqual({
-        success: false,
-        error: "Unsupported URL scheme",
-      });
-      expect(electronMocks.openExternal).not.toHaveBeenCalled();
-    },
-  );
+  it.each([
+    "file:///etc/hosts",
+    "javascript:alert(1)",
+    "data:text/html,<b>",
+    "not a url",
+  ])("refuses %s without handing it to the OS", async (url) => {
+    await expect(openExternalUrl(url)).resolves.toEqual({
+      success: false,
+      error: "Unsupported URL scheme",
+    });
+    expect(electronMocks.openExternal).not.toHaveBeenCalled();
+  });
 
   it("reports a failing shell handoff instead of throwing", async () => {
     electronMocks.openExternal.mockRejectedValueOnce(new Error("no handler"));

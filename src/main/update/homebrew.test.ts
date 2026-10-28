@@ -1,4 +1,10 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -19,6 +25,7 @@ import {
   STABLE_CASK_TOKEN,
   type BrewRunner,
   type CaskToken,
+  type HomebrewUpgraderOptions,
 } from "./homebrew";
 import type * as NodeChildProcess from "node:child_process";
 
@@ -99,7 +106,10 @@ const runHelperScript = (
   // `open`, `pgrep` and `sleep` are absolute paths in the emitted text (never
   // resolved from PATH), so stubbing them means rewriting those literals.
   const script = buildScript(brewStub)
-    .replaceAll("/usr/bin/open", writeStub("open", 'echo "open $1 $2" >> "$TRACE"'))
+    .replaceAll(
+      "/usr/bin/open",
+      writeStub("open", 'echo "open $1 $2" >> "$TRACE"'),
+    )
     .replaceAll("/usr/bin/pgrep", writeStub("pgrep", "exit 1"))
     .replaceAll("/bin/sleep", writeStub("sleep", "exit 0"));
 
@@ -135,9 +145,8 @@ const runHelperScriptAndSignal = async (
   buildScript: (brewBinary: string) => string,
   signal: NodeJS.Signals,
 ): Promise<{ readonly trace: readonly string[]; readonly stderr: string }> => {
-  const { spawn: realSpawn } = await vi.importActual<typeof NodeChildProcess>(
-    "node:child_process",
-  );
+  const { spawn: realSpawn } =
+    await vi.importActual<typeof NodeChildProcess>("node:child_process");
   const directory = mkdtempSync(path.join(tmpdir(), "fixlang-signal-"));
   const tracePath = path.join(directory, "trace.log");
 
@@ -158,7 +167,10 @@ const runHelperScriptAndSignal = async (
     ].join("\n"),
   );
   const script = buildScript(brewStub)
-    .replaceAll("/usr/bin/open", writeStub("open", 'echo "open $1 $2" >> "$TRACE"'))
+    .replaceAll(
+      "/usr/bin/open",
+      writeStub("open", 'echo "open $1 $2" >> "$TRACE"'),
+    )
     .replaceAll("/usr/bin/pgrep", writeStub("pgrep", "exit 1"))
     .replaceAll("/bin/sleep", writeStub("sleep", "exit 0"));
 
@@ -174,7 +186,9 @@ const runHelperScriptAndSignal = async (
       if (readTrace().some((line) => line.startsWith(prefix))) return;
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
-    throw new Error(`Timed out waiting for "${prefix}" in ${readTrace().join(" | ")}`);
+    throw new Error(
+      `Timed out waiting for "${prefix}" in ${readTrace().join(" | ")}`,
+    );
   };
 
   const child = realSpawn("/bin/sh", ["-c", script], {
@@ -184,7 +198,9 @@ const runHelperScriptAndSignal = async (
   child.stderr?.on("data", (chunk: Buffer) => {
     stderr += chunk.toString();
   });
-  const exited = new Promise<void>((resolve) => child.on("close", () => resolve()));
+  const exited = new Promise<void>((resolve) =>
+    child.on("close", () => resolve()),
+  );
 
   await waitForTraceLine("brew-start");
   child.kill(signal);
@@ -195,8 +211,10 @@ const runHelperScriptAndSignal = async (
   return { trace: readTrace(), stderr };
 };
 
-const caskInfoJson = (version: string, token: string = STABLE_CASK_TOKEN): string =>
-  JSON.stringify({ casks: [{ token, version }] });
+const caskInfoJson = (
+  version: string,
+  token: string = STABLE_CASK_TOKEN,
+): string => JSON.stringify({ casks: [{ token, version }] });
 
 const upgrader = (
   overrides: Partial<{
@@ -218,25 +236,29 @@ const upgrader = (
     overrides.runBrew ?? (() => Promise.resolve(caskInfoJson("0.2.0"))),
   );
 
+  const baseOptions: HomebrewUpgraderOptions = {
+    isInstalledApp: overrides.isInstalledApp ?? true,
+    logFilePath: "/tmp/userData/logs/homebrew-update.log",
+    fileExists: (candidate) => files.has(candidate),
+    directoryExists: (candidate) => directories.has(candidate),
+    cacheDir: "/cache/downloads",
+    listDirectory: () => overrides.cacheEntries ?? [],
+    fileSize: (candidate) => (overrides.fileSizes ?? {})[candidate] ?? null,
+    startDetached,
+    runBrew,
+  };
+  // Overrides arrive as `string` so a test can pass an unrecognized token; the
+  // cast only satisfies the option's narrower type. Omitted entirely when
+  // absent, so the upgrader falls back to its own default token.
+  const options: HomebrewUpgraderOptions =
+    overrides.caskToken === undefined
+      ? baseOptions
+      : { ...baseOptions, caskToken: overrides.caskToken as CaskToken };
+
   return {
     startDetached,
     runBrew,
-    instance: createHomebrewUpgrader({
-      isInstalledApp: overrides.isInstalledApp ?? true,
-      logFilePath: "/tmp/userData/logs/homebrew-update.log",
-      // Overrides arrive as `string` so a test can pass an unrecognized token;
-      // the cast only satisfies the option's narrower type.
-      ...(overrides.caskToken === undefined
-        ? {}
-        : { caskToken: overrides.caskToken as CaskToken }),
-      fileExists: (candidate) => files.has(candidate),
-      directoryExists: (candidate) => directories.has(candidate),
-      cacheDir: "/cache/downloads",
-      listDirectory: () => overrides.cacheEntries ?? [],
-      fileSize: (candidate) => (overrides.fileSizes ?? {})[candidate] ?? null,
-      startDetached,
-      runBrew,
-    }),
+    instance: createHomebrewUpgrader(options),
   };
 };
 
@@ -364,7 +386,9 @@ describe("upgrade script", () => {
   });
 
   it("reopens the app after a successful upgrade", () => {
-    expect(runHelperScript((brew) => buildUpgradeScript(brew, APP_PATH))).toMatchObject({
+    expect(
+      runHelperScript((brew) => buildUpgradeScript(brew, APP_PATH)),
+    ).toMatchObject({
       trace: ["brew upgrade fixlang", REOPENED],
       status: 0,
     });
@@ -399,7 +423,12 @@ describe("a signal that kills the helper shell must not reopen the app", () => {
   it("leaves FixLang closed when a signal arrives mid-switch", async () => {
     const { trace } = await runHelperScriptAndSignal(
       (brew) =>
-        buildChannelSwitchScript(brew, STABLE_CASK_TOKEN, BETA_CASK_TOKEN, APP_PATH),
+        buildChannelSwitchScript(
+          brew,
+          STABLE_CASK_TOKEN,
+          BETA_CASK_TOKEN,
+          APP_PATH,
+        ),
       "SIGTERM",
     );
 
@@ -414,7 +443,12 @@ describe("a signal that kills the helper shell must not reopen the app", () => {
     expect(
       runHelperScript(
         (brew) =>
-          buildChannelSwitchScript(brew, STABLE_CASK_TOKEN, BETA_CASK_TOKEN, APP_PATH),
+          buildChannelSwitchScript(
+            brew,
+            STABLE_CASK_TOKEN,
+            BETA_CASK_TOKEN,
+            APP_PATH,
+          ),
         ["install:fixlang@beta"],
       ).trace.filter((line) => line.startsWith("open")),
     ).toEqual([REOPENED]);
@@ -445,7 +479,10 @@ describe("every message the helper echoes is inert shell text", () => {
     expect(lines.length).toBeGreaterThan(0);
     for (const line of lines) {
       // Everything between the opening and closing quote of `echo "..."`.
-      const body = line.slice(line.indexOf('echo "') + 6, line.lastIndexOf('"'));
+      const body = line.slice(
+        line.indexOf('echo "') + 6,
+        line.lastIndexOf('"'),
+      );
       expect(body).not.toMatch(/[`$\\]/);
       expect([...body].every((character) => character >= " ")).toBe(true);
     }
@@ -518,7 +555,10 @@ describe("cask version parsing", () => {
   // own token matches, so without the guard `find` succeeds and returns "9.9.9".
   it("refuses a version even when the payload's own entry matches the unrecognized token", () => {
     expect(
-      parseCaskVersion(caskInfoJson("9.9.9", "fixlang-nightly"), "fixlang-nightly"),
+      parseCaskVersion(
+        caskInfoJson("9.9.9", "fixlang-nightly"),
+        "fixlang-nightly",
+      ),
     ).toBeNull();
   });
 });
@@ -755,12 +795,18 @@ describe("token-parameterised Caskroom paths", () => {
   });
 
   it("refuses a token that is not one of the two known constants", () => {
-    expect(caskroomPath("/opt/homebrew/bin/brew", "fixlang-nightly")).toBeNull();
+    expect(
+      caskroomPath("/opt/homebrew/bin/brew", "fixlang-nightly"),
+    ).toBeNull();
   });
 
   it("derives a beta version directory from an explicit token", () => {
     expect(
-      caskVersionPath("/opt/homebrew/bin/brew", "0.33.0-beta.1", BETA_CASK_TOKEN),
+      caskVersionPath(
+        "/opt/homebrew/bin/brew",
+        "0.33.0-beta.1",
+        BETA_CASK_TOKEN,
+      ),
     ).toBe("/opt/homebrew/Caskroom/fixlang@beta/0.33.0-beta.1");
   });
 
@@ -772,12 +818,17 @@ describe("token-parameterised Caskroom paths", () => {
 
   it("reads the beta cask's version from `brew info` output for an explicit token", () => {
     expect(
-      parseCaskVersion(caskInfoJson("0.33.0-beta.1", BETA_CASK_TOKEN), BETA_CASK_TOKEN),
+      parseCaskVersion(
+        caskInfoJson("0.33.0-beta.1", BETA_CASK_TOKEN),
+        BETA_CASK_TOKEN,
+      ),
     ).toBe("0.33.0-beta.1");
   });
 
   it("refuses to parse against an unknown token", () => {
-    expect(parseCaskVersion(caskInfoJson("0.2.0"), "fixlang-nightly")).toBeNull();
+    expect(
+      parseCaskVersion(caskInfoJson("0.2.0"), "fixlang-nightly"),
+    ).toBeNull();
   });
 
   it("refuses to build an upgrade script for an unknown token", () => {
@@ -810,10 +861,13 @@ describe("beta channel probing", () => {
     const { instance, runBrew } = upgrader({
       caskToken: BETA_CASK_TOKEN,
       directories: ["/opt/homebrew/Caskroom/fixlang@beta"],
-      runBrew: () => Promise.resolve(caskInfoJson("0.33.0-beta.1", BETA_CASK_TOKEN)),
+      runBrew: () =>
+        Promise.resolve(caskInfoJson("0.33.0-beta.1", BETA_CASK_TOKEN)),
     });
 
-    await expect(instance.getInstallableVersion()).resolves.toBe("0.33.0-beta.1");
+    await expect(instance.getInstallableVersion()).resolves.toBe(
+      "0.33.0-beta.1",
+    );
 
     expect(runBrew.mock.calls.map(([, args]) => [...args])).toEqual([
       ["update", "--quiet"],
@@ -876,7 +930,9 @@ describe("refuses an unknown cask token before it reaches a path or an argv", ()
     const directoryExists = vi.fn(() => true);
     const { instance } = (() => {
       const startDetached = vi.fn();
-      const runBrew = vi.fn<BrewRunner>(() => Promise.resolve(caskInfoJson("0.2.0")));
+      const runBrew = vi.fn<BrewRunner>(() =>
+        Promise.resolve(caskInfoJson("0.2.0")),
+      );
       return {
         instance: createHomebrewUpgrader({
           isInstalledApp: true,
@@ -923,26 +979,30 @@ describe("active channel detection", () => {
     const directoryExists = (candidate: string): boolean =>
       candidate === "/opt/homebrew/Caskroom/fixlang";
 
-    expect(detectActiveCaskChannel("/opt/homebrew/bin/brew", directoryExists)).toBe(
-      "stable",
-    );
+    expect(
+      detectActiveCaskChannel("/opt/homebrew/bin/brew", directoryExists),
+    ).toBe("stable");
   });
 
   it("reports beta when only the beta Caskroom entry exists", () => {
     const directoryExists = (candidate: string): boolean =>
       candidate === "/opt/homebrew/Caskroom/fixlang@beta";
 
-    expect(detectActiveCaskChannel("/opt/homebrew/bin/brew", directoryExists)).toBe(
-      "beta",
-    );
+    expect(
+      detectActiveCaskChannel("/opt/homebrew/bin/brew", directoryExists),
+    ).toBe("beta");
   });
 
   it("reports both when stable and beta are both staged", () => {
-    expect(detectActiveCaskChannel("/opt/homebrew/bin/brew", () => true)).toBe("both");
+    expect(detectActiveCaskChannel("/opt/homebrew/bin/brew", () => true)).toBe(
+      "both",
+    );
   });
 
   it("reports neither as null", () => {
-    expect(detectActiveCaskChannel("/opt/homebrew/bin/brew", () => false)).toBeNull();
+    expect(
+      detectActiveCaskChannel("/opt/homebrew/bin/brew", () => false),
+    ).toBeNull();
   });
 
   it("never spawns a subprocess — only the two directory probes decide the answer", () => {
@@ -951,7 +1011,9 @@ describe("active channel detection", () => {
     detectActiveCaskChannel("/opt/homebrew/bin/brew", directoryExists);
 
     expect(directoryExists).toHaveBeenCalledTimes(2);
-    expect(directoryExists).toHaveBeenCalledWith("/opt/homebrew/Caskroom/fixlang");
+    expect(directoryExists).toHaveBeenCalledWith(
+      "/opt/homebrew/Caskroom/fixlang",
+    );
     expect(directoryExists).toHaveBeenCalledWith(
       "/opt/homebrew/Caskroom/fixlang@beta",
     );
@@ -973,7 +1035,6 @@ describe("active channel detection", () => {
     expect(childProcessExecFileSyncMock).not.toHaveBeenCalled();
   });
 });
-
 
 describe("channel switch script", () => {
   const escapeRegExp = (value: string): string =>
@@ -1008,7 +1069,9 @@ describe("channel switch script", () => {
     verb: string,
     token: string,
   ): readonly number[] =>
-    [...script.matchAll(caskCommandPattern(verb, token))].map((match) => match.index);
+    [...script.matchAll(caskCommandPattern(verb, token))].map(
+      (match) => match.index,
+    );
 
   const script = buildChannelSwitchScript(
     "/opt/homebrew/bin/brew",
@@ -1018,12 +1081,25 @@ describe("channel switch script", () => {
 
   const pgrepIdx = script.indexOf("/usr/bin/pgrep -x FixLang");
   const fetchIdx = indexOfCaskCommand(script, "fetch", BETA_CASK_TOKEN);
-  const uninstallIdx = indexOfCaskCommand(script, "uninstall", STABLE_CASK_TOKEN);
-  const firstInstallIdx = indexOfCaskCommand(script, "install", BETA_CASK_TOKEN);
+  const uninstallIdx = indexOfCaskCommand(
+    script,
+    "uninstall",
+    STABLE_CASK_TOKEN,
+  );
+  const firstInstallIdx = indexOfCaskCommand(
+    script,
+    "install",
+    BETA_CASK_TOKEN,
+  );
   const secondInstallIdx =
     firstInstallIdx === -1
       ? -1
-      : indexOfCaskCommand(script, "install", BETA_CASK_TOKEN, firstInstallIdx + 1);
+      : indexOfCaskCommand(
+          script,
+          "install",
+          BETA_CASK_TOKEN,
+          firstInstallIdx + 1,
+        );
   const restoreSearchStart = Math.max(uninstallIdx, secondInstallIdx) + 1;
   const restoreIdx = indexOfCaskCommand(
     script,
@@ -1036,7 +1112,12 @@ describe("channel switch script", () => {
   const waitLoopEndIdx = script.indexOf("\ndone\n");
 
   const switchScript = (brew: string): string =>
-    buildChannelSwitchScript(brew, STABLE_CASK_TOKEN, BETA_CASK_TOKEN, APP_PATH);
+    buildChannelSwitchScript(
+      brew,
+      STABLE_CASK_TOKEN,
+      BETA_CASK_TOKEN,
+      APP_PATH,
+    );
 
   it("waits for the app to exit before touching either cask", () => {
     expect(pgrepIdx).toBeGreaterThanOrEqual(0);
@@ -1109,7 +1190,9 @@ describe("channel switch script", () => {
   });
 
   it("reopens the app it made quit when the target fetch fails", () => {
-    const { trace, status } = runHelperScript(switchScript, ["fetch:fixlang@beta"]);
+    const { trace, status } = runHelperScript(switchScript, [
+      "fetch:fixlang@beta",
+    ]);
 
     // Nothing was uninstalled, so the user is still running the app.
     expect(trace).toEqual(["brew fetch fixlang@beta", REOPENED]);
@@ -1119,7 +1202,9 @@ describe("channel switch script", () => {
   // A cask uninstall that fails partway can already have removed the bundle, so
   // an abort here leaves no app in /Applications and no indication why.
   it("reinstalls the current cask and reopens when the uninstall fails", () => {
-    const { trace, status, stderr } = runHelperScript(switchScript, ["uninstall:fixlang"]);
+    const { trace, status, stderr } = runHelperScript(switchScript, [
+      "uninstall:fixlang",
+    ]);
 
     expect(trace).toEqual([
       "brew fetch fixlang@beta",
@@ -1133,7 +1218,9 @@ describe("channel switch script", () => {
   });
 
   it("restores the original token and reopens when both target installs fail", () => {
-    const { trace, status } = runHelperScript(switchScript, ["install:fixlang@beta"]);
+    const { trace, status } = runHelperScript(switchScript, [
+      "install:fixlang@beta",
+    ]);
 
     expect(trace).toEqual([
       "brew fetch fixlang@beta",
@@ -1167,9 +1254,13 @@ describe("channel switch script", () => {
   // A rollback that WORKS is still a failed switch, and has to say which of the
   // two happened rather than leave it inferred from which line came last.
   it("says the switch did not happen when the rollback succeeds", () => {
-    const { status, stderr } = runHelperScript(switchScript, ["install:fixlang@beta"]);
+    const { status, stderr } = runHelperScript(switchScript, [
+      "install:fixlang@beta",
+    ]);
 
-    expect(stderr).toContain("Restored fixlang; the switch to fixlang@beta did not happen.");
+    expect(stderr).toContain(
+      "Restored fixlang; the switch to fixlang@beta did not happen.",
+    );
     expect(status).toBe(1);
   });
 
@@ -1190,19 +1281,28 @@ describe("channel switch script", () => {
   // revert handed a user with no app `brew install --cask fixlang@beta`.
   it("names the REQUESTED channel in the recovery line, in both directions", () => {
     const revertScript = (brew: string): string =>
-      buildChannelSwitchScript(brew, BETA_CASK_TOKEN, STABLE_CASK_TOKEN, APP_PATH);
+      buildChannelSwitchScript(
+        brew,
+        BETA_CASK_TOKEN,
+        STABLE_CASK_TOKEN,
+        APP_PATH,
+      );
     const { stderr, status } = runHelperScript(revertScript, [
       "install:fixlang",
       "install:fixlang@beta",
     ]);
 
     expect(stderr).toContain("Recover with: brew install --cask fixlang\n");
-    expect(stderr).not.toContain("Recover with: brew install --cask fixlang@beta");
+    expect(stderr).not.toContain(
+      "Recover with: brew install --cask fixlang@beta",
+    );
     expect(status).toBe(1);
   });
 
   it("pre-stages the rollback download but never blocks the switch on it", () => {
-    const { trace, status, stderr } = runHelperScript(switchScript, ["fetch:fixlang"]);
+    const { trace, status, stderr } = runHelperScript(switchScript, [
+      "fetch:fixlang",
+    ]);
 
     expect(trace).toEqual([
       "brew fetch fixlang@beta",
@@ -1267,7 +1367,11 @@ describe("channel switch script", () => {
       BETA_CASK_TOKEN,
       STABLE_CASK_TOKEN,
     );
-    const revertUninstallIdx = indexOfCaskCommand(revert, "uninstall", BETA_CASK_TOKEN);
+    const revertUninstallIdx = indexOfCaskCommand(
+      revert,
+      "uninstall",
+      BETA_CASK_TOKEN,
+    );
     const revertRestoreIdx = indexOfCaskCommand(
       revert,
       "install",

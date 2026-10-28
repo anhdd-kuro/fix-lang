@@ -14,11 +14,24 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { registerUpdateHandlers } from "./update";
+import type { IpcMainInvokeEvent } from "electron";
 import type { PrereleaseState } from "~/features/update/shared/prerelease";
-import type { UpdateState } from "~/features/update/shared/update";
+import type {
+  UpdateActionResult,
+  UpdateState,
+} from "~/features/update/shared/update";
 import type { UpdateService } from "~/main/update";
 
-type Handler = (event: unknown, ...args: unknown[]) => unknown;
+/** Every registered handler ignores the event, so the tests pass a stand-in. */
+type InvokeEvent = Partial<IpcMainInvokeEvent>;
+
+/** The three payload shapes `registerUpdateHandlers` answers with. */
+type HandlerResult = UpdateState | PrereleaseState | UpdateActionResult;
+
+type Handler = (
+  event: InvokeEvent,
+  ...args: unknown[]
+) => HandlerResult | Promise<HandlerResult>;
 
 const handlers = new Map<string, Handler>();
 
@@ -157,7 +170,8 @@ describe("registerUpdateHandlers wires every update channel", () => {
     expect(handlers.get("updates:get-state")?.({})).toEqual(stableState);
     await handlers.get("updates:check")?.({});
     await handlers.get("updates:install")?.({});
-    handlers.get("updates:restart")?.({});
+    // Synchronous in main; awaited only because `Handler` allows either.
+    await handlers.get("updates:restart")?.({});
 
     expect(service.checkForUpdates).toHaveBeenCalledTimes(1);
     expect(service.installUpdate).toHaveBeenCalledTimes(1);
@@ -263,7 +277,9 @@ describe("the tray never subscribes to the pre-release channel", () => {
     const toolbar = traySources.find((file) =>
       file.endsWith("components/TrayToolbar.tsx"),
     );
-    expect(readFileSync(toolbar as string, "utf8")).toContain("checkForUpdates");
+    expect(readFileSync(toolbar as string, "utf8")).toContain(
+      "checkForUpdates",
+    );
   });
 
   it.each([

@@ -1,4 +1,9 @@
-import { isMessage, type Message } from "~/features/i18n/shared/message";
+import { z } from "zod";
+import {
+  NonArrayObjectSchema,
+  schemaGuard,
+} from "~/features/core/shared/schemaGuard";
+import { MessageSchema, type Message } from "~/features/i18n/shared/message";
 
 export type PrereleaseChannel = "stable" | "beta";
 
@@ -46,7 +51,7 @@ export type PrereleaseState = Readonly<{
   totalBytes?: number;
 }>;
 
-const PRERELEASE_STATE_KEYS = new Set<keyof PrereleaseState>([
+const PRERELEASE_STATE_KEYS = new Set<string>([
   "phase",
   "activeChannel",
   "offeredVersion",
@@ -57,7 +62,7 @@ const PRERELEASE_STATE_KEYS = new Set<keyof PrereleaseState>([
   "totalBytes",
 ]);
 
-const PRERELEASE_PHASES = new Set<PrereleasePhase>([
+const PrereleasePhaseSchema = z.enum([
   "unsupported",
   "idle",
   "checking",
@@ -69,43 +74,37 @@ const PRERELEASE_PHASES = new Set<PrereleasePhase>([
   "error",
 ]);
 
-const PRERELEASE_ACTIVE_CHANNELS = new Set<PrereleaseActiveChannel>([
-  "stable",
-  "beta",
-  "both",
-]);
+const PrereleaseActiveChannelSchema = z.enum(["stable", "beta", "both"]);
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const isNonArrayObject = schemaGuard(NonArrayObjectSchema);
 
-const isOptionalByteCount = (value: unknown): boolean =>
-  value === undefined ||
-  (typeof value === "number" && Number.isSafeInteger(value) && value >= 0);
+/** Byte counts cross the bridge as plain non-negative safe integers. */
+const ByteCountSchema = z
+  .number()
+  .refine((count) => Number.isSafeInteger(count) && count >= 0);
+
+const PrereleaseStateFieldsSchema = z.object({
+  phase: PrereleasePhaseSchema,
+  activeChannel: PrereleaseActiveChannelSchema,
+  offeredVersion: z.string().optional(),
+  releaseNotes: z.string().optional(),
+  message: MessageSchema.optional(),
+  canSwitch: z.boolean().optional(),
+  downloadedBytes: ByteCountSchema.optional(),
+  totalBytes: ByteCountSchema.optional(),
+});
+
+/**
+ * The snapshot crossing the preload boundary. Own keys are checked with
+ * `Object.keys` rather than left to the object schema, which would strip a
+ * stray key instead of refusing the snapshot that carried it.
+ */
+const PrereleaseStateSchema = z.custom<PrereleaseState>(
+  (value) =>
+    isNonArrayObject(value) &&
+    Object.keys(value).every((key) => PRERELEASE_STATE_KEYS.has(key)) &&
+    PrereleaseStateFieldsSchema.safeParse(value).success,
+);
 
 /** Validates the snapshot crossing the preload boundary. */
-export const isPrereleaseState = (value: unknown): value is PrereleaseState => {
-  if (
-    !isRecord(value) ||
-    Object.keys(value).some(
-      (key) => !PRERELEASE_STATE_KEYS.has(key as keyof PrereleaseState),
-    ) ||
-    typeof value.phase !== "string" ||
-    !PRERELEASE_PHASES.has(value.phase as PrereleasePhase) ||
-    typeof value.activeChannel !== "string" ||
-    !PRERELEASE_ACTIVE_CHANNELS.has(value.activeChannel as PrereleaseActiveChannel)
-  ) {
-    return false;
-  }
-  if (
-    (value.offeredVersion !== undefined &&
-      typeof value.offeredVersion !== "string") ||
-    (value.releaseNotes !== undefined && typeof value.releaseNotes !== "string") ||
-    (value.message !== undefined && !isMessage(value.message)) ||
-    (value.canSwitch !== undefined && typeof value.canSwitch !== "boolean") ||
-    !isOptionalByteCount(value.downloadedBytes) ||
-    !isOptionalByteCount(value.totalBytes)
-  ) {
-    return false;
-  }
-  return true;
-};
+export const isPrereleaseState = schemaGuard(PrereleaseStateSchema);

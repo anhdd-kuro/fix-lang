@@ -117,13 +117,14 @@ export const updateFeature = {
   onPrereleaseStateChanged: (
     callback: (state: PrereleaseState) => void,
   ): (() => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, state: unknown) => {
+    const listener: Parameters<typeof ipcRenderer.on>[1] = (_event, state) => {
       if (isPrereleaseState(state)) {
         callback(state);
       }
     };
     ipcRenderer.on("updates:prerelease-state", listener);
-    return () => ipcRenderer.removeListener("updates:prerelease-state", listener);
+    return () =>
+      ipcRenderer.removeListener("updates:prerelease-state", listener);
   },
 };
 

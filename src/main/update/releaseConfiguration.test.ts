@@ -336,7 +336,9 @@ describe("ad-hoc signed GitHub Releases distribution", () => {
     expect(workflow).toContain("bun run build");
     expect(workflow).toContain("bun run check:bundle");
     expect(workflow).toContain('CSC_IDENTITY_AUTO_DISCOVERY: "false"');
-    expect(workflow).toContain("electron-builder --mac --arm64 --publish never");
+    expect(workflow).toContain(
+      "electron-builder --mac --arm64 --publish never",
+    );
     expect(workflow).toContain("hdiutil verify");
     expect(workflow).toContain("SHA256SUMS.txt");
     expect(workflow).toContain("shasum -a 256");
@@ -352,10 +354,20 @@ describe("ad-hoc signed GitHub Releases distribution", () => {
     expect(workflow).not.toContain("spctl");
     expect(workflow).not.toContain("xcrun stapler");
 
-    const validateStep = workflowStep(workflow, "Validate ad-hoc signed arm64 artifacts");
-    const draftStep = workflowStep(workflow, "Create or resume draft prerelease");
-    expect(validateStep).toContain('test -s "release/FixLang-${package_version}-arm64.dmg"');
-    expect(validateStep).toContain('hdiutil verify "release/FixLang-${package_version}-arm64.dmg"');
+    const validateStep = workflowStep(
+      workflow,
+      "Validate ad-hoc signed arm64 artifacts",
+    );
+    const draftStep = workflowStep(
+      workflow,
+      "Create or resume draft prerelease",
+    );
+    expect(validateStep).toContain(
+      'test -s "release/FixLang-${package_version}-arm64.dmg"',
+    );
+    expect(validateStep).toContain(
+      'hdiutil verify "release/FixLang-${package_version}-arm64.dmg"',
+    );
     expect(validateStep).toContain("CFBundleShortVersionString");
     expect(executedShell(validateStep)).toContain("/node_modules/");
     expect(executedShell(validateStep)).toContain("^/out/renderer/");
@@ -363,9 +375,9 @@ describe("ad-hoc signed GitHub Releases distribution", () => {
     expect(validateStep).toContain("ls -la release/");
     expect(executedShell(draftStep)).toContain("--prerelease");
     expect(draftStep).toContain("refusing to replace its assets");
-    expect(workflow.indexOf("Validate ad-hoc signed arm64 artifacts")).toBeLessThan(
-      workflow.indexOf("Create or resume draft prerelease"),
-    );
+    expect(
+      workflow.indexOf("Validate ad-hoc signed arm64 artifacts"),
+    ).toBeLessThan(workflow.indexOf("Create or resume draft prerelease"));
 
     // Drift guard: the beta artifact may never be validated more weakly than the
     // stable one. Extra diagnostic lines are allowed; dropped ones are not.
@@ -403,9 +415,9 @@ describe("ad-hoc signed GitHub Releases distribution", () => {
     expect(packageIndex).toBeLessThan(
       positionOf("- name: Validate ad-hoc signed arm64 artifacts"),
     );
-    expect(positionOf("- name: Create or resume draft prerelease")).toBeLessThan(
-      positionOf("- name: Publish completed prerelease"),
-    );
+    expect(
+      positionOf("- name: Create or resume draft prerelease"),
+    ).toBeLessThan(positionOf("- name: Publish completed prerelease"));
 
     // Asserted on the publishing call: a file-wide match is satisfied by the draft.
     const publishStep = executedShell(
@@ -430,29 +442,33 @@ describe("ad-hoc signed GitHub Releases distribution", () => {
     // Beta tags can be retargeted, so the build input is prepare's commit. Declared
     // anywhere else the output is empty, and checkout then takes the branch head.
     expect(prepareJob).toContain("release_sha: ${{ github.sha }}");
-    expect(checkoutStep).toContain("ref: ${{ needs.prepare.outputs.release_sha }}");
+    expect(checkoutStep).toContain(
+      "ref: ${{ needs.prepare.outputs.release_sha }}",
+    );
     expect(checkoutStep).not.toContain("needs.prepare.outputs.release_tag");
     expect(executedShell(draftStep)).toContain("--generate-notes");
     expect(executedShell(draftStep)).toContain(
       '--notes "Built from commit ${RELEASE_SHA}."',
     );
 
-    expect(workflowStepSecrets(workflow, "Check out branch history")).toEqual([]);
-    expect(workflowStepSecrets(workflow, "Resolve prerelease version and tag")).toEqual([
-      "GITHUB_TOKEN",
-    ]);
-    expect(workflowStepSecrets(workflow, "Create or resume draft prerelease")).toEqual([
-      "GITHUB_TOKEN",
-    ]);
-    expect(workflowStepSecrets(workflow, "Upload validated release assets")).toEqual([
-      "GITHUB_TOKEN",
-    ]);
-    expect(workflowStepSecrets(workflow, "Verify uploaded release assets")).toEqual([
-      "GITHUB_TOKEN",
-    ]);
-    expect(workflowStepSecrets(workflow, "Publish completed prerelease")).toEqual([
-      "GITHUB_TOKEN",
-    ]);
+    expect(workflowStepSecrets(workflow, "Check out branch history")).toEqual(
+      [],
+    );
+    expect(
+      workflowStepSecrets(workflow, "Resolve prerelease version and tag"),
+    ).toEqual(["GITHUB_TOKEN"]);
+    expect(
+      workflowStepSecrets(workflow, "Create or resume draft prerelease"),
+    ).toEqual(["GITHUB_TOKEN"]);
+    expect(
+      workflowStepSecrets(workflow, "Upload validated release assets"),
+    ).toEqual(["GITHUB_TOKEN"]);
+    expect(
+      workflowStepSecrets(workflow, "Verify uploaded release assets"),
+    ).toEqual(["GITHUB_TOKEN"]);
+    expect(
+      workflowStepSecrets(workflow, "Publish completed prerelease"),
+    ).toEqual(["GITHUB_TOKEN"]);
   });
 
   it("keeps the stable-only guard rejecting beta-shaped versions in release.yml", () => {
