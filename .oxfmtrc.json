@@ -22,6 +22,7 @@
     "src/themes/fixtures/**",
     "src/renderer/themes/generated/**",
     "**/*.generated.ts",
-    "src/main/webViewWindows/overlay.html"
+    "src/main/webViewWindows/overlay.html",
+    "tools/oxlint/anti-slop/**"
   ]
 }

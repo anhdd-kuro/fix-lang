@@ -30,6 +30,7 @@
     "lint": "oxlint --type-aware --report-unused-disable-directives-severity=error && oxfmt --check",
     "lint:fix": "oxlint --type-aware --fix && oxfmt --write",
     "format": "oxfmt --write",
+    "test:rules": "node --test 'tools/oxlint/**/*.test.ts'",
     "i18n:check": "bun run scripts/i18n-check.ts",
     "check:bundle": "bun run scripts/check-bundle-externals.ts",
     "vitest": "vitest",

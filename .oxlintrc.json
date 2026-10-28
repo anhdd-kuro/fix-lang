@@ -25,6 +25,12 @@
     "tools/oxlint/anti-slop/**",
     "**/*.generated.ts"
   ],
+  "jsPlugins": [
+    {
+      "name": "anti-slop",
+      "specifier": "./tools/oxlint/anti-slop/index.ts"
+    }
+  ],
   "env": {
     "builtin": true
   },
@@ -190,5 +196,15 @@
     "vitest/expect-expect": "off",
     "vitest/no-conditional-expect": "off",
     "vitest/require-to-throw-message": "off"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx"],
+      "rules": {
+        "anti-slop/no-module-mocking": "off",
+        "anti-slop/no-runtime-typeof": "off",
+        "anti-slop/require-safety-comment-for-type-assertion": "off"
+      }
+    }
+  ]
 }

@@ -40,6 +40,9 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      - name: Test anti-slop lint rules
+        run: bun run test:rules
+
   test:
     name: Test (shard ${{ matrix.shard }}/${{ matrix.total }})
     runs-on: ubuntu-latest
