@@ -55,11 +55,13 @@
  * `reasoning.test.ts` pins that with a source guard.
  */
 import { createHash } from "node:crypto";
+import { z } from "zod";
 import {
   createSkipThrottle,
   wastedSuggestionLogLevel,
 } from "~/features/autocomplete/shared/autocompleteDiagnostics";
 import { resolveAutocompleteModelRef } from "~/features/autocomplete/shared/autocompleteModel";
+import { AnyNumberSchema } from "~/features/autocomplete/shared/autocompleteSchemas";
 import { normalizeDailyCostCapUsd } from "~/features/autocomplete/shared/autocompleteSettings";
 import { MIN_PREFIX_CHARS } from "~/features/autocomplete/shared/autocompleteWire";
 import { autocompleteUsageStore } from "~/features/autocomplete/store/autocompleteUsageStore";
@@ -794,11 +796,14 @@ const logUnparseableReply = (nowMs: number, context: LogContext): void => {
  */
 type FailureDescription = { errorName: string; status?: number };
 
-const describeFailure = (error: unknown): FailureDescription => {
-  if (!(error instanceof Error)) return { errorName: typeof error };
-  const status = (error as { status?: unknown }).status;
-  const failure: FailureDescription = { errorName: error.name };
-  if (typeof status === "number") failure.status = status;
+/** The HTTP status SDK errors carry, when they carry a number there. */
+const ErrorStatusSchema = z.object({ status: AnyNumberSchema });
+
+const describeFailure = (cause: unknown): FailureDescription => {
+  if (!(cause instanceof Error)) return { errorName: typeof cause };
+  const failure: FailureDescription = { errorName: cause.name };
+  const status = ErrorStatusSchema.safeParse(cause);
+  if (status.success) failure.status = status.data.status;
   return failure;
 };
 
@@ -813,10 +818,10 @@ const describeFailure = (error: unknown): FailureDescription => {
  * pricing step reads a store too and can fail without any write having been
  * attempted, and a line claiming a failed write would misdescribe it.
  */
-const usageBookkeepingFailed = (stage: string, error: unknown): void => {
+const usageBookkeepingFailed = (stage: string, cause: unknown): void => {
   logger.warn("autocomplete", "Usage rollup step failed", {
     stage,
-    ...describeFailure(error),
+    ...describeFailure(cause),
   });
 };
 

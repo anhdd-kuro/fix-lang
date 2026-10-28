@@ -4,6 +4,8 @@
  *
  * Electron-free — shared by main, preload, and renderer.
  */
+import { z } from "zod";
+import { objectLike } from "./autocompleteSchemas";
 
 export type AutocompleteSettings = {
   /** Absent or non-boolean reads as `false`; only a stored `true` enables. */
@@ -55,17 +57,28 @@ export const MAX_DAILY_COST_CAP_USD = 100;
 /**
  * Clamps a stored cap into `[0, MAX_DAILY_COST_CAP_USD]`.
  *
- * Anything unreadable — absent, NaN, Infinity, a string — falls back to the
- * DEFAULT rather than to `0`: a corrupt field must not silently turn the
- * feature into "refuse everything", which looks exactly like a broken feature.
- * A negative number is the one case that clamps to `0`, because a user who
- * typed one meant "stop spending", not "spend the default".
+ * Anything unreadable — NaN, Infinity — falls back to the DEFAULT rather than
+ * to `0`: a corrupt field must not silently turn the feature into "refuse
+ * everything", which looks exactly like a broken feature. A negative number is
+ * the one case that clamps to `0`, because a user who typed one meant "stop
+ * spending", not "spend the default". Non-numbers never get this far: the
+ * stored-settings schema below reads them as absent, which is the default too.
  */
-export const normalizeDailyCostCapUsd = (raw: unknown): number => {
-  if (typeof raw !== "number" || !Number.isFinite(raw))
-    return DEFAULT_DAILY_COST_CAP_USD;
+export const normalizeDailyCostCapUsd = (raw: number): number => {
+  if (!Number.isFinite(raw)) return DEFAULT_DAILY_COST_CAP_USD;
   return Math.min(MAX_DAILY_COST_CAP_USD, Math.max(0, raw));
 };
+
+/**
+ * Stored settings, field by field: a field that is not the right kind reads as
+ * ABSENT, and the whole node does when it is not an object at all — absent
+ * being what every default below keys on.
+ */
+const StoredAutocompleteSettingsSchema = objectLike({
+  enabled: z.unknown().optional(),
+  model: z.string().optional().catch(undefined),
+  dailyCostCapUsd: z.number().optional().catch(undefined),
+}).catch({});
 
 /**
  * Coerces stored JSON into {@link AutocompleteSettings}.
@@ -85,15 +98,13 @@ export const normalizeDailyCostCapUsd = (raw: unknown): number => {
 export const normalizeAutocompleteSettings = (
   raw: unknown,
 ): AutocompleteSettings => {
-  const value = (raw ?? {}) as Partial<
-    Record<keyof AutocompleteSettings, unknown>
-  >;
+  const value = StoredAutocompleteSettingsSchema.parse(raw);
   return {
     enabled: value.enabled === true,
-    model:
-      typeof value.model === "string"
-        ? value.model.trim()
-        : AUTOCOMPLETE_INHERIT_ASK_MODEL,
-    dailyCostCapUsd: normalizeDailyCostCapUsd(value.dailyCostCapUsd),
+    model: value.model?.trim() ?? AUTOCOMPLETE_INHERIT_ASK_MODEL,
+    dailyCostCapUsd:
+      value.dailyCostCapUsd === undefined
+        ? DEFAULT_DAILY_COST_CAP_USD
+        : normalizeDailyCostCapUsd(value.dailyCostCapUsd),
   };
 };

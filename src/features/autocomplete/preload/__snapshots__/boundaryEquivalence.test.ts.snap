@@ -398,7 +398,16 @@ exports[`autocomplete preload boundary equivalence > getAutocompleteUsage: array
     "tokenlessResponses": 0,
     "unpricedResponses": 1,
   },
-  "today": [],
+  "today": {
+    "completionTokens": 12,
+    "date": "2026-07-31",
+    "estimatedCostUsd": 0.02,
+    "promptTokens": 40,
+    "requests": 3,
+    "responses": 3,
+    "tokenlessResponses": 0,
+    "unpricedResponses": 1,
+  },
 }
 `;
 

@@ -9,7 +9,9 @@ import { MAX_SUGGESTION_CHARS, sanitizeSuggestion } from "./sanitize";
  * needs a prefix ending mid-word to fire at all, so `""` keeps it out of the way
  * of assertions that are not about it; its own cases live in `sanitize.test.ts`.
  */
-const suggestionFor = (raw: unknown): string | null => {
+const suggestionFor = (
+  raw: Parameters<typeof parseAutocompleteReply>[0],
+): string | null => {
   const parsed = parseAutocompleteReply(raw);
   return parsed.ok ? sanitizeSuggestion(parsed.suggestion, "") : null;
 };

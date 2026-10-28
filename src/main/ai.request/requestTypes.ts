@@ -10,9 +10,42 @@
  *
  * `shared.ts` re-exports everything here, so existing call sites are unaffected.
  */
+import { z } from "zod";
 import type { ReasoningEffort } from "~/features/correction/shared/reasoningEffort";
 import type { HistorySessionData } from "~/features/history/shared/historySession";
 import type { ProviderId } from "~/features/providers/shared/providers";
+
+/**
+ * Any number primitive, NaN and ±Infinity included — exactly what
+ * `typeof value === "number"` admits, where `z.number()` alone rejects the
+ * three non-finite values.
+ */
+export const AnyNumberSchema = z.union([
+  z.number(),
+  z.nan(),
+  z.literal(Infinity),
+  z.literal(-Infinity),
+]);
+
+/**
+ * An object schema that, like `typeof value === "object" && value !== null`,
+ * also admits an ARRAY carrying the named fields, read through the array's
+ * own enumerable keys. Inherited fields are read, as a property access reads
+ * them.
+ */
+export const objectLike = <Fields extends Parameters<typeof z.looseObject>[0]>(
+  fields: Fields,
+) =>
+  z.preprocess(
+    (value) => (Array.isArray(value) ? { ...value } : value),
+    z.looseObject(fields),
+  );
+
+/** Message content as text: a string as-is, anything else as its JSON. */
+export const contentAsText = (content: CoreMessage["content"]): string => {
+  const text = z.string().safeParse(content);
+  return text.success ? text.data : JSON.stringify(content);
+};
 
 export type CoreMessage = {
   role: "system" | "user" | "assistant" | "tool";
@@ -97,11 +130,7 @@ export type AIRequestResponse = {
 export const toConversation = (messages: CoreMessage[]) => {
   const system = messages
     .filter((message) => message.role === "system")
-    .map((message) =>
-      typeof message.content === "string"
-        ? message.content
-        : JSON.stringify(message.content),
-    )
+    .map((message) => contentAsText(message.content))
     .join("\n\n");
   return {
     system,
@@ -120,18 +149,31 @@ export type UsageCounts = {
   completionTokens: number | null;
 };
 
+/**
+ * Both generations of field name. Each is read as-is: a v6 field that holds a
+ * non-null non-number still shadows its v7 sibling, as `??` would have it.
+ */
+const UsageFieldsSchema = objectLike({
+  promptTokens: z.unknown().optional(),
+  inputTokens: z.unknown().optional(),
+  completionTokens: z.unknown().optional(),
+  outputTokens: z.unknown().optional(),
+});
+
 export const usageCounts = (usage: unknown): UsageCounts => {
-  if (!usage || typeof usage !== "object") {
+  const fields = UsageFieldsSchema.safeParse(usage);
+  if (!fields.success) {
     return { promptTokens: null, completionTokens: null };
   }
-  const value = usage as Record<string, unknown>;
-  const count = (primary: string, fallback: string): number | null => {
-    const raw = value[primary] ?? value[fallback];
-    return typeof raw === "number" ? raw : null;
-  };
+  const prompt = AnyNumberSchema.safeParse(
+    fields.data.promptTokens ?? fields.data.inputTokens,
+  );
+  const completion = AnyNumberSchema.safeParse(
+    fields.data.completionTokens ?? fields.data.outputTokens,
+  );
   return {
-    promptTokens: count("promptTokens", "inputTokens"),
-    completionTokens: count("completionTokens", "outputTokens"),
+    promptTokens: prompt.success ? prompt.data : null,
+    completionTokens: completion.success ? completion.data : null,
   };
 };
 

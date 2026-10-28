@@ -469,7 +469,7 @@ describe("runCombo — E7: fail fast, completed steps stay in history", () => {
     // error would fall through to the generic "something failed" banner,
     // which for a multi-provider combo says nothing useful.
     const rejection = await runCombo({ combo, input: "start" }, deps).catch(
-      (error: unknown) => error,
+      (cause: unknown) => cause,
     );
     expect(rejection).toBeInstanceOf(ComboStepError);
     const stepError = rejection as ComboStepError;

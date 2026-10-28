@@ -10,6 +10,7 @@
  * - Everything else: no caching support, pass messages through unchanged
  */
 import { stripModelRefPrefix } from "~/features/providers/shared/modelRef";
+import { AnyNumberSchema, contentAsText, objectLike } from "./requestTypes";
 
 export enum CacheProvider {
   ANTHROPIC = "ANTHROPIC",
@@ -93,10 +94,7 @@ export function buildCachedMessages(
       return { ...msg, content: [...blocks.slice(0, -1), last] };
     }
 
-    const textContent =
-      typeof msg.content === "string"
-        ? msg.content
-        : JSON.stringify(msg.content);
+    const textContent = contentAsText(msg.content);
 
     return {
       ...msg,
@@ -120,22 +118,18 @@ export type CacheUsage = {
   cacheWriteTokens: number;
 };
 
+/** A count when the field holds a number primitive (NaN included), else `0`. */
+const CacheCountSchema = AnyNumberSchema.catch(0);
+
+const CacheUsageFieldsSchema = objectLike({
+  cache_read_input_tokens: CacheCountSchema,
+  cache_creation_input_tokens: CacheCountSchema,
+}).catch({ cache_read_input_tokens: 0, cache_creation_input_tokens: 0 });
+
 export function extractCacheUsage(usage: unknown): CacheUsage {
-  if (!usage || typeof usage !== "object") {
-    return { cachedTokens: 0, cacheWriteTokens: 0 };
-  }
-
-  const u = usage as Record<string, unknown>;
-
-  const cachedTokens =
-    typeof u["cache_read_input_tokens"] === "number"
-      ? u["cache_read_input_tokens"]
-      : 0;
-
-  const cacheWriteTokens =
-    typeof u["cache_creation_input_tokens"] === "number"
-      ? u["cache_creation_input_tokens"]
-      : 0;
-
-  return { cachedTokens, cacheWriteTokens };
+  const fields = CacheUsageFieldsSchema.parse(usage);
+  return {
+    cachedTokens: fields.cache_read_input_tokens,
+    cacheWriteTokens: fields.cache_creation_input_tokens,
+  };
 }

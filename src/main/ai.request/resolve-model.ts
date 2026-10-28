@@ -6,6 +6,11 @@
  * the underlying pinned id (e.g. "openai/gpt-5.4-mini-20260317"), which differs
  * from the requested id. No electron dependency — primary test seam.
  */
+import { z } from "zod";
+import { objectLike } from "./requestTypes";
+
+/** A body naming the model that served it. */
+const ServedModelBodySchema = objectLike({ model: z.string() });
 
 /**
  * Extract the resolved model id from a raw provider response body.
@@ -17,11 +22,6 @@ export const extractResolvedModel = (
   resBody: unknown,
   fallback: string,
 ): string => {
-  if (resBody && typeof resBody === "object" && "model" in resBody) {
-    const served = (resBody as Record<string, unknown>).model;
-    if (typeof served === "string" && served.trim()) {
-      return served;
-    }
-  }
-  return fallback;
+  const body = ServedModelBodySchema.safeParse(resBody);
+  return body.success && body.data.model.trim() ? body.data.model : fallback;
 };

@@ -132,7 +132,7 @@ const respondWith = (text: string) =>
   });
 
 /** A reply exactly as the provider returned it, contract or not. */
-const respondRaw = (raw: unknown) =>
+const respondRaw = (raw: string) =>
   makeAIRequestMock.mockResolvedValue({
     content: [raw],
     model: "ornith-1.0-9b",

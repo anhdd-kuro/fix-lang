@@ -52,9 +52,15 @@
  * bound on a RAMBLING model — the length rule lives in the system prompt now,
  * and a prompt is a request, not a limit.
  */
+import { z } from "zod";
 
 /** The one field read out of the reply. Everything else in the object is ignored. */
 export const AUTOCOMPLETE_REPLY_FIELD = "suggestion";
+
+/** The one shape a reply may take. Extra fields are tolerated and ignored. */
+const ReplyEnvelopeSchema = z.object({
+  [AUTOCOMPLETE_REPLY_FIELD]: z.string(),
+});
 
 /**
  * `ok: false` is "the model did not answer in the contract" — a model or
@@ -90,9 +96,10 @@ const unwrapFence = (text: string): string => {
 export const parseAutocompleteReply = (
   raw: unknown,
 ): AutocompleteReplyParse => {
-  if (typeof raw !== "string") return REFUSED;
+  const text = z.string().safeParse(raw);
+  if (!text.success) return REFUSED;
 
-  const candidate = unwrapFence(raw.trim());
+  const candidate = unwrapFence(text.data.trim());
   if (!candidate) return REFUSED;
 
   let parsed: unknown;
@@ -102,13 +109,13 @@ export const parseAutocompleteReply = (
     return REFUSED;
   }
 
-  // An array is `typeof "object"` too, and `null` most of all.
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
-    return REFUSED;
-
-  const value = (parsed as Record<string, unknown>)[AUTOCOMPLETE_REPLY_FIELD];
-  // A number, an object, an array or `null` is not a suggestion. Only a string
-  // is, and an empty one means "nothing to suggest" — the contract's own way of
-  // declining, which is what replaced the prose instruction that caused this.
-  return typeof value === "string" ? { ok: true, suggestion: value } : REFUSED;
+  // An array is not the envelope, and `null` least of all. A number, an
+  // object, an array or `null` in the field is not a suggestion either. Only a
+  // string is, and an empty one means "nothing to suggest" — the contract's own
+  // way of declining, which is what replaced the prose instruction that caused
+  // this.
+  const envelope = ReplyEnvelopeSchema.safeParse(parsed);
+  return envelope.success
+    ? { ok: true, suggestion: envelope.data[AUTOCOMPLETE_REPLY_FIELD] }
+    : REFUSED;
 };

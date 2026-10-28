@@ -142,8 +142,8 @@ const resolveAskContextUnderGuards = (
  * before `deliver` — rather than leaving `signal.throwIfAborted()`'s
  * `DOMException("AbortError")` to be recognized by `.name` string-sniffing.
  */
-const isComboCancelledError = (error: unknown): boolean =>
-  error instanceof ComboCancelledError;
+const isComboCancelledError = (cause: unknown): boolean =>
+  cause instanceof ComboCancelledError;
 
 /**
  * The abort check for the part of a combo run that happens OUTSIDE
@@ -257,48 +257,48 @@ const buildComboRunDependencies = (
  * user-initiated cancel. Anything else (a bug, not a modeled outcome) still
  * goes through `handleError` so it is never silently swallowed.
  */
-const handleComboError = (error: unknown, combo: ComboPreset): void => {
-  if (isComboCancelledError(error)) {
+const handleComboError = (cause: unknown, combo: ComboPreset): void => {
+  if (isComboCancelledError(cause)) {
     logger.info("correction.hotkey", "Combo cancelled", { comboId: combo.id });
     new Notification(buildComboCancelledNotification(combo.name)).show();
     return;
   }
 
-  if (error instanceof ComboValidationFailedError) {
+  if (cause instanceof ComboValidationFailedError) {
     logger.warn(
       "correction.hotkey",
       "Combo failed validation before any request ran",
       {
         comboId: combo.id,
-        errors: error.errors.map((validationError) => validationError.code),
+        errors: cause.errors.map((validationError) => validationError.code),
       },
     );
     new Notification(buildComboInvalidNotification(combo.name)).show();
     return;
   }
 
-  if (error instanceof ComboStepError) {
+  if (cause instanceof ComboStepError) {
     const stepFailureContext: LogContext = {
       comboId: combo.id,
-      stepIndex: error.stepIndex,
-      code: error.code,
+      stepIndex: cause.stepIndex,
+      code: cause.code,
     };
     // Present only for `step-failed`, where the real reason (an API error,
     // an auth failure, a network drop) is the wrapped cause — the notification
     // deliberately shows only the step, so the diagnosis has to live here.
     // Omitted rather than `undefined`: `LogValue` has no undefined.
-    if (error.cause !== undefined) {
+    if (cause.cause !== undefined) {
       stepFailureContext.cause =
-        error.cause instanceof Error
-          ? error.cause.message
-          : String(error.cause);
+        cause.cause instanceof Error
+          ? cause.cause.message
+          : String(cause.cause);
     }
     logger.error("correction.hotkey", "Combo step failed", stepFailureContext);
     new Notification(
       buildComboStepFailedNotification({
-        stepPosition: error.stepIndex + 1,
+        stepPosition: cause.stepIndex + 1,
         totalSteps: combo.steps.length,
-        presetName: presetNameForStep(error.step),
+        presetName: presetNameForStep(cause.step),
       }),
     ).show();
     return;
@@ -306,9 +306,9 @@ const handleComboError = (error: unknown, combo: ComboPreset): void => {
 
   logger.error("correction.hotkey", "Combo failed", {
     comboId: combo.id,
-    error: error instanceof Error ? error.message : String(error),
+    error: cause instanceof Error ? cause.message : String(cause),
   });
-  handleError(error);
+  handleError(cause);
 };
 
 /**

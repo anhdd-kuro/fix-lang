@@ -75,11 +75,11 @@ vi.mock("~/main/notifications/error", () => ({
   showErrorNotification: showErrorNotificationMock,
   notifyRequestError: (
     options: { quiet?: boolean },
-    error: unknown,
+    cause: unknown,
     fallback?: string,
   ) => {
     if (options.quiet) return;
-    showErrorNotificationMock(error, fallback);
+    showErrorNotificationMock(cause, fallback);
   },
 }));
 vi.mock("@openrouter/ai-sdk-provider", () => ({
@@ -268,8 +268,8 @@ describe("makeAIRequest — ref-based routing", () => {
 
   it("a bare unresolvable id throws naming the model id and no guessed provider", async () => {
     let message = "";
-    await request("ghost-model").catch((error: unknown) => {
-      message = error instanceof Error ? error.message : String(error);
+    await request("ghost-model").catch((cause: unknown) => {
+      message = cause instanceof Error ? cause.message : String(cause);
     });
 
     expect(message).toContain("ghost-model");

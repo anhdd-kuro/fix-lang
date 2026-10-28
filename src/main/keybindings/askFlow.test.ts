@@ -155,7 +155,7 @@ const syncedEntry = () => {
 };
 
 /** Mirrors the History row's own gate — `HistoryEntryItem.tsx:54`. */
-const showsDetailsControl = (sessionJson: unknown): boolean =>
+const showsDetailsControl = (sessionJson: string | undefined): boolean =>
   typeof sessionJson === "string" && sessionJson.length > 0;
 
 /** A credential shaped exactly like the `openai-key` rule's pattern. */

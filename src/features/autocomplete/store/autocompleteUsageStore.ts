@@ -33,6 +33,8 @@
  * `dev`, `test` and `lint`, and surfaces only in a packaged build.
  */
 import Store from "electron-store";
+import { z } from "zod";
+import { objectLike } from "~/features/autocomplete/shared/autocompleteSchemas";
 import type { AutocompleteDayRollup } from "~/features/autocomplete/shared/autocompleteWire";
 
 type AutocompleteUsageSchema = {
@@ -56,11 +58,39 @@ const emptyRollup = (date: string): AutocompleteDayRollup => ({
   estimatedCostUsd: 0,
 });
 
-const isFiniteNumber = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
+/** A finite stored counter, or ABSENT when the field is anything else. */
+const StoredCounterSchema = z.number().optional().catch(undefined);
 
-const finiteOr = (value: unknown, fallback: number): number =>
-  isFiniteNumber(value) ? value : fallback;
+/**
+ * One day as read back from disk, field by field: a field that is not the
+ * right kind reads as ABSENT, and the whole day is `null` when it is not an
+ * object at all.
+ */
+const StoredRollupSchema = objectLike({
+  date: z.string().optional().catch(undefined),
+  requests: StoredCounterSchema,
+  responses: StoredCounterSchema,
+  tokenlessResponses: StoredCounterSchema,
+  unpricedResponses: StoredCounterSchema,
+  promptTokens: StoredCounterSchema,
+  completionTokens: StoredCounterSchema,
+  estimatedCostUsd: StoredCounterSchema,
+})
+  .nullable()
+  .catch(null);
+
+type StoredRollup = z.output<typeof StoredRollupSchema>;
+
+/**
+ * The `days` node: a map of day keys, or — as `Object.entries` reads one — an
+ * array keyed by index. Anything else holds no days.
+ */
+const StoredDaysSchema = z
+  .union([
+    z.record(z.string(), StoredRollupSchema),
+    z.array(StoredRollupSchema),
+  ])
+  .catch({});
 
 /**
  * Fills in a rollup read back from disk.
@@ -79,10 +109,12 @@ const finiteOr = (value: unknown, fallback: number): number =>
  * counter unknown AND every sum dropped. Both halves, together: see
  * `coverageWasNeverRecorded`.
  */
-const normalizeRollup = (date: string, raw: unknown): AutocompleteDayRollup => {
-  if (typeof raw !== "object" || raw === null) return emptyRollup(date);
-  const record = raw as Record<string, unknown>;
-  const requests = finiteOr(record.requests, 0);
+const normalizeRollup = (
+  date: string,
+  record: StoredRollup,
+): AutocompleteDayRollup => {
+  if (record === null) return emptyRollup(date);
+  const requests = record.requests ?? 0;
   /**
    * A pre-counter day is recognisable without a version marker: it has
    * `requests` but no `responses`, while a genuinely new empty day has neither.
@@ -114,23 +146,17 @@ const normalizeRollup = (date: string, raw: unknown): AutocompleteDayRollup => {
    * persisted them yet.
    */
   const coverageWasNeverRecorded =
-    !isFiniteNumber(record.responses) && requests > 0;
-  const sumOrDropped = (value: unknown): number =>
-    coverageWasNeverRecorded ? 0 : finiteOr(value, 0);
+    record.responses === undefined && requests > 0;
+  const sumOrDropped = (value: number | undefined): number =>
+    coverageWasNeverRecorded ? 0 : (value ?? 0);
   return {
-    date: typeof record.date === "string" ? record.date : date,
+    date: record.date ?? date,
     requests,
-    responses: coverageWasNeverRecorded
-      ? requests
-      : finiteOr(record.responses, 0),
-    tokenlessResponses: finiteOr(
-      record.tokenlessResponses,
-      coverageWasNeverRecorded ? requests : 0,
-    ),
-    unpricedResponses: finiteOr(
-      record.unpricedResponses,
-      coverageWasNeverRecorded ? requests : 0,
-    ),
+    responses: coverageWasNeverRecorded ? requests : (record.responses ?? 0),
+    tokenlessResponses:
+      record.tokenlessResponses ?? (coverageWasNeverRecorded ? requests : 0),
+    unpricedResponses:
+      record.unpricedResponses ?? (coverageWasNeverRecorded ? requests : 0),
     promptTokens: sumOrDropped(record.promptTokens),
     completionTokens: sumOrDropped(record.completionTokens),
     estimatedCostUsd: sumOrDropped(record.estimatedCostUsd),
@@ -171,10 +197,9 @@ class AutocompleteUsageStore {
   }
 
   private readDays(): Record<string, AutocompleteDayRollup> {
-    const raw: unknown = this.store.get("days", {});
-    if (typeof raw !== "object" || raw === null) return {};
+    const days = StoredDaysSchema.parse(this.store.get("days", {}));
     return Object.fromEntries(
-      Object.entries(raw as Record<string, unknown>).map(([date, rollup]) => [
+      Object.entries(days).map(([date, rollup]) => [
         date,
         normalizeRollup(date, rollup),
       ]),

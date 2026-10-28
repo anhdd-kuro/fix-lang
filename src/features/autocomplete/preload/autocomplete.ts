@@ -1,5 +1,10 @@
 import { ipcRenderer } from "electron";
+import { z } from "zod";
 import { AUTOCOMPLETE_SKIP_CHANNEL } from "~/features/autocomplete/shared/autocompleteDiagnostics";
+import {
+  AnyNumberSchema,
+  objectLike,
+} from "~/features/autocomplete/shared/autocompleteSchemas";
 import type { AutocompleteSkipReport } from "~/features/autocomplete/shared/autocompleteDiagnostics";
 import type {
   AutocompleteDayRollup,
@@ -9,57 +14,41 @@ import type {
 } from "~/features/autocomplete/shared/autocompleteWire";
 
 /**
- * Validates a day rollup crossing the preload boundary field by field.
- * Mirrors `~/features/ask/preload/ask.ts` — the shape is small enough that
- * widening any field to `unknown` would just move the crash into React.
+ * A day rollup crossing the preload boundary, field by field — the shape is
+ * small enough that widening any field would just move the crash into React.
+ *
+ * The coverage counters are what stop the renderer printing "$0.00" over a day
+ * of unpriceable requests. A missing one reads as `undefined`, every comparison
+ * against it is false, and the panel silently returns to fabricating the zero —
+ * so they are required, not optional.
  */
-const isDayRollup = (value: unknown): value is AutocompleteDayRollup => {
-  if (typeof value !== "object" || value === null) return false;
-  const record = value as Record<string, unknown>;
-  return (
-    typeof record.date === "string" &&
-    typeof record.requests === "number" &&
-    // The coverage counters are what stop the renderer printing "$0.00" over a
-    // day of unpriceable requests. A missing one reads as `undefined`, every
-    // comparison against it is false, and the panel silently returns to
-    // fabricating the zero — so they are required, not optional.
-    typeof record.responses === "number" &&
-    typeof record.tokenlessResponses === "number" &&
-    typeof record.unpricedResponses === "number" &&
-    typeof record.promptTokens === "number" &&
-    typeof record.completionTokens === "number" &&
-    typeof record.estimatedCostUsd === "number"
-  );
-};
+const DayRollupSchema = objectLike({
+  date: z.string(),
+  requests: AnyNumberSchema,
+  responses: AnyNumberSchema,
+  tokenlessResponses: AnyNumberSchema,
+  unpricedResponses: AnyNumberSchema,
+  promptTokens: AnyNumberSchema,
+  completionTokens: AnyNumberSchema,
+  estimatedCostUsd: AnyNumberSchema,
+});
 
 /**
  * The suggestion string comes from a language model by way of `sanitize.ts`
  * on the main side — already cleaned there, but defence in depth is the
  * point of this boundary, so it is re-checked here before reaching React.
  */
-const isSuggestReply = (value: unknown): value is AutocompleteSuggestReply => {
-  if (typeof value !== "object" || value === null) return false;
-  const record = value as Record<string, unknown>;
-  if (typeof record.requestId !== "number") return false;
-  if (record.suggestion !== null && typeof record.suggestion !== "string") {
-    return false;
-  }
-  return true;
-};
+const SuggestReplySchema = objectLike({
+  requestId: AnyNumberSchema,
+  suggestion: z.string().nullable(),
+});
 
-const isUsageSnapshot = (
-  value: unknown,
-): value is AutocompleteUsageSnapshot => {
-  if (typeof value !== "object" || value === null) return false;
-  const record = value as Record<string, unknown>;
-  if (!isDayRollup(record.today)) return false;
-  if (!isDayRollup(record.month)) return false;
-  if (!Array.isArray(record.days) || !record.days.every(isDayRollup)) {
-    return false;
-  }
-  if (typeof record.dailyCostCapUsd !== "number") return false;
-  return true;
-};
+const UsageSnapshotSchema = objectLike({
+  today: DayRollupSchema,
+  month: DayRollupSchema,
+  days: z.array(DayRollupSchema),
+  dailyCostCapUsd: AnyNumberSchema,
+});
 
 /**
  * Zero requests, and therefore zero of everything else. Honest precisely
@@ -85,12 +74,14 @@ const emptyRollup = (): AutocompleteDayRollup => ({
  * this is a bug — but on a path that runs per keystroke, "no ghost text" beats
  * a console full of rejections.
  */
-const invokeOrNull = async (
+const invokeParsed = async <Reply>(
+  schema: z.ZodType<Reply>,
   channel: string,
-  ...args: unknown[]
-): Promise<unknown> => {
+  ...args: [request?: AutocompleteSuggestRequest]
+): Promise<Reply | null> => {
   try {
-    return await ipcRenderer.invoke(channel, ...args);
+    const reply = schema.safeParse(await ipcRenderer.invoke(channel, ...args));
+    return reply.success ? reply.data : null;
   } catch {
     return null;
   }
@@ -106,10 +97,12 @@ export const autocompleteFeature = {
   requestAutocompleteSuggestion: async (
     request: AutocompleteSuggestRequest,
   ): Promise<AutocompleteSuggestReply> => {
-    const result = await invokeOrNull("autocomplete-suggest", request);
-    return isSuggestReply(result)
-      ? result
-      : { requestId: request.requestId, suggestion: null };
+    const reply = await invokeParsed(
+      SuggestReplySchema,
+      "autocomplete-suggest",
+      request,
+    );
+    return reply ?? { requestId: request.requestId, suggestion: null };
   },
 
   /**
@@ -146,15 +139,18 @@ export const autocompleteFeature = {
 
   /** A malformed or rejected reply falls back to an empty, honestly-zeroed snapshot. */
   getAutocompleteUsage: async (): Promise<AutocompleteUsageSnapshot> => {
-    const result = await invokeOrNull("autocomplete-usage");
-    return isUsageSnapshot(result)
-      ? result
-      : {
-          today: emptyRollup(),
-          month: emptyRollup(),
-          days: [],
-          dailyCostCapUsd: 0,
-        };
+    const snapshot = await invokeParsed(
+      UsageSnapshotSchema,
+      "autocomplete-usage",
+    );
+    return (
+      snapshot ?? {
+        today: emptyRollup(),
+        month: emptyRollup(),
+        days: [],
+        dailyCostCapUsd: 0,
+      }
+    );
   },
 };
 

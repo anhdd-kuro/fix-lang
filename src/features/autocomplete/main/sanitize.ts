@@ -16,6 +16,7 @@
  * content is only visible next to the text the suggestion will be appended to —
  * see `stripPrefixOverlap`.
  */
+import { z } from "zod";
 
 /** Longest suggestion shown. Beyond this it stops reading as a completion. */
 export const MAX_SUGGESTION_CHARS = 200;
@@ -217,11 +218,14 @@ export const sanitizeSuggestion = (
   raw: unknown,
   prefix: string,
 ): string | null => {
-  if (typeof raw !== "string") {
+  const text = z.string().safeParse(raw);
+  if (!text.success) {
     return null;
   }
 
-  const unfenced = raw.replace(LEADING_FENCE, "").replace(TRAILING_FENCE, "");
+  const unfenced = text.data
+    .replace(LEADING_FENCE, "")
+    .replace(TRAILING_FENCE, "");
   const unquoted = stripWrappingQuotes(
     unfenced
       .replace(CONTROL_CHARACTERS, "")

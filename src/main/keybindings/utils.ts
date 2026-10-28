@@ -52,15 +52,15 @@ export const checkShortcut = (shortcut: boolean) => {
   return true;
 };
 
-export const handleError = (error: unknown) => {
-  console.error("Error during grammar fixing or IPC send:", error);
+export const handleError = (cause: unknown) => {
+  console.error("Error during grammar fixing or IPC send:", cause);
   // No explicit fallback: `showErrorNotification` reads a localized default
   // (`notifications.error.body`) via `mainT()` at call time. The previous
   // hardcoded English literal here ("Failed to correct text...") both broke
   // localization for non-Error values *and* was wrong for three of
   // `handleError`'s four call sites — it's shared by correction, PromptGen,
   // profile-switch, and hotkey-registration failures, not just correction.
-  showErrorNotification(error);
+  showErrorNotification(cause);
 
   // A mid-session Accessibility revocation (e.g. after an unsigned-app
   // update changes the code identity) is otherwise only ever surfaced as a
@@ -69,7 +69,7 @@ export const handleError = (error: unknown) => {
   // 1`). Also prompt the actionable dialog so the user has a real path to
   // fixing it. `promptAccessibilityPermission` throttles itself, so a burst
   // of repeated hotkey failures shows at most one dialog.
-  if (error instanceof AccessibilityPermissionError) {
+  if (cause instanceof AccessibilityPermissionError) {
     void promptAccessibilityPermission();
   }
 };

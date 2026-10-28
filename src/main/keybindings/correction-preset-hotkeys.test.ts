@@ -270,7 +270,9 @@ const fakeMainWindow = (): BrowserWindow => {
 
 type RegisterCall = [string, () => Promise<void>];
 
-const registerFrom = (stored: unknown): RegisterCall[] => {
+const registerFrom = (
+  stored: Parameters<typeof normalizeCorrectionSettings>[0],
+): RegisterCall[] => {
   (getProfileSetting as Mock).mockImplementation((key: string) =>
     key === "models" ? [] : normalizeCorrectionSettings(stored),
   );

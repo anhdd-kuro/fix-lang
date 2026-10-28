@@ -4,14 +4,16 @@ import {
   AUTOCOMPLETE_RENDERER_SKIP_REASONS,
   AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS,
   createSkipThrottle,
-  isAutocompleteRendererSkipReason,
   wastedSuggestionLogLevel,
 } from "./autocompleteDiagnostics";
+import { AutocompleteRendererSkipReasonSchema } from "./autocompleteSchemas";
 import type { AutocompleteWastedReason } from "./autocompleteDiagnostics";
 
-describe("isAutocompleteRendererSkipReason", () => {
+describe("AutocompleteRendererSkipReasonSchema", () => {
   it.each(AUTOCOMPLETE_RENDERER_SKIP_REASONS)("accepts %s", (reason) => {
-    expect(isAutocompleteRendererSkipReason(reason)).toBe(true);
+    expect(AutocompleteRendererSkipReasonSchema.safeParse(reason).success).toBe(
+      true,
+    );
   });
 
   /**
@@ -29,7 +31,9 @@ describe("isAutocompleteRendererSkipReason", () => {
     {},
     [],
   ])("rejects %p", (value) => {
-    expect(isAutocompleteRendererSkipReason(value)).toBe(false);
+    expect(AutocompleteRendererSkipReasonSchema.safeParse(value).success).toBe(
+      false,
+    );
   });
 });
 

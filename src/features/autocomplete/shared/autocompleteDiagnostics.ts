@@ -98,15 +98,6 @@ export type AutocompleteSkipReport = {
   requestId?: number;
 };
 
-const RENDERER_SKIP_REASONS = new Set<string>(
-  AUTOCOMPLETE_RENDERER_SKIP_REASONS,
-);
-
-export const isAutocompleteRendererSkipReason = (
-  value: unknown,
-): value is AutocompleteRendererSkipReason =>
-  typeof value === "string" && RENDERER_SKIP_REASONS.has(value);
-
 /**
  * How long one reason stays quiet after it has been reported. A minute is long
  * enough that a stuck condition costs a handful of lines across a whole typing
