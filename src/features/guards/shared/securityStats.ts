@@ -53,8 +53,6 @@ export const SECRET_MASK_SCOPE = "secretGuard.mask";
 export type SecurityStats = {
   blockedByApp: number;
   declinedLargeSelection: number;
-  declinedStaleClipboard: number;
-  declinedUnknownClipboardAge: number;
   askContextDropped: number;
   secretConfirmed: number;
   secretDeclined: number;
@@ -77,8 +75,6 @@ export type SecurityStats = {
 export const EMPTY_SECURITY_STATS: SecurityStats = Object.freeze({
   blockedByApp: 0,
   declinedLargeSelection: 0,
-  declinedStaleClipboard: 0,
-  declinedUnknownClipboardAge: 0,
   askContextDropped: 0,
   secretConfirmed: 0,
   secretDeclined: 0,
@@ -157,16 +153,10 @@ const countSelectionGuardEvent = (stats: MutableStats, entry: LogEntry): boolean
 
   // An unrecognised reason is dropped, never folded into a neighbouring bucket:
   // a new confirm reason must surface as a missing metric, not an inflated one.
+  // That includes the retired `stale-clipboard` / `unknown-clipboard-age`
+  // declines still sitting in older log archives.
   if (reason === "large-selection") {
     stats.declinedLargeSelection += 1;
-    return true;
-  }
-  if (reason === "stale-clipboard") {
-    stats.declinedStaleClipboard += 1;
-    return true;
-  }
-  if (reason === "unknown-clipboard-age") {
-    stats.declinedUnknownClipboardAge += 1;
     return true;
   }
   return false;
@@ -264,8 +254,6 @@ const isRuleCounts = (value: unknown): value is Record<string, number> =>
 const COUNT_KEYS: readonly (keyof SecurityStats)[] = [
   "blockedByApp",
   "declinedLargeSelection",
-  "declinedStaleClipboard",
-  "declinedUnknownClipboardAge",
   "askContextDropped",
   "secretConfirmed",
   "secretDeclined",

@@ -1,7 +1,7 @@
 /**
  * @file guards.ts
  * @description Preload bridge for the selection-guard settings store
- * (stale-clipboard age, size cap, app deny-list) and the read-only
+ * (size cap, app deny-list) and the read-only
  * "recently used apps" MRU that backs the deny-list editor's chips.
  *
  * Validated in both directions, mirroring
@@ -76,7 +76,6 @@ const isSelectionGuardSettings = (
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
   return (
-    isNonNegativeIntegerSetting(record.clipboardMaxAgeSeconds) &&
     isNonNegativeIntegerSetting(record.maxSelectionChars) &&
     isDeniedBundleIdsPayload(record.deniedBundleIds)
   );

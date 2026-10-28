@@ -30,13 +30,6 @@ import type { MessageKey } from "~/features/i18n/shared/message";
 import type { SecretGuardSettings } from "~/features/secretGuard/shared/secretGuardSettings";
 import type { ActiveApp } from "~/main/accessibility/activeApp";
 
-export type ClipboardAgeView = {
-  maxAgeSeconds: number;
-  /** `false` when `maxAgeSeconds === 0` — the guard AND the background poll are off. */
-  enabled: boolean;
-  hint: StatusDescriptor;
-};
-
 export type SelectionSizeView = {
   maxChars: number;
   /** `false` when `maxChars === 0` — every selection is sent without asking. */
@@ -67,22 +60,10 @@ export type SecretGuardView = {
 };
 
 export type SecurityView = {
-  clipboardAge: ClipboardAgeView;
   selectionSize: SelectionSizeView;
   deniedApps: DeniedAppsView;
   secretGuard: SecretGuardView;
 };
-
-const resolveClipboardAgeView = (
-  settings: SelectionGuardSettings,
-): ClipboardAgeView => ({
-  maxAgeSeconds: settings.clipboardMaxAgeSeconds,
-  enabled: settings.clipboardMaxAgeSeconds > 0,
-  hint:
-    settings.clipboardMaxAgeSeconds === 0
-      ? plainStatus("security.clipboardAge.disabledHint")
-      : plainStatus("security.clipboardAge.description"),
-});
 
 const resolveSelectionSizeView = (
   settings: SelectionGuardSettings,
@@ -146,7 +127,6 @@ export const resolveSecurityView = (
   secretGuardSettings: SecretGuardSettings,
   recentApps: readonly ActiveApp[],
 ): SecurityView => ({
-  clipboardAge: resolveClipboardAgeView(guardSettings),
   selectionSize: resolveSelectionSizeView(guardSettings),
   deniedApps: resolveDeniedAppsView(guardSettings, recentApps),
   secretGuard: resolveSecretGuardView(secretGuardSettings),

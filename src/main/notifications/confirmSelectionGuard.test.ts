@@ -4,9 +4,8 @@
  * `dialog.showMessageBox` (never the sync form that used to freeze the main
  * process behind stacked modals — see `~/main/index.ts` around the
  * accessibility-permission dialog comment), default/cancel both to Cancel,
- * and refuse to open a second modal while one is already pending — including
- * across REASONS, since the age guard and the size guard can both fire on one
- * press and two stacked modals per hotkey is how a consent surface becomes
+ * and refuse to open a second modal while one is already pending, since two
+ * stacked modals over repeated presses is how a consent surface becomes
  * something people click through without reading.
  *
  * `~/main/i18n` transitively instantiates a real `electron-store` at module
@@ -43,20 +42,6 @@ const LARGE_SELECTION = {
   reason: "large-selection",
   chars: 25_000,
   limit: 20_000,
-} as const;
-
-const STALE_CLIPBOARD = {
-  kind: "confirm",
-  reason: "stale-clipboard",
-  ageMs: 600_000,
-  limitMs: 5_000,
-} as const;
-
-const UNKNOWN_AGE = {
-  kind: "confirm",
-  reason: "unknown-clipboard-age",
-  ageMs: 0,
-  limitMs: 5_000,
 } as const;
 
 const deferredResponse = () => {
@@ -128,42 +113,12 @@ describe("confirmSelectionGuard", () => {
     expect(showMessageBoxMock).toHaveBeenCalledTimes(2);
   });
 
-  it("holds one dialog at a time ACROSS reasons, not one per reason", async () => {
-    const first = deferredResponse();
-    showMessageBoxMock.mockReturnValueOnce(first.promise);
-
-    const staleCall = confirmSelectionGuard(STALE_CLIPBOARD);
-    await expect(confirmSelectionGuard(LARGE_SELECTION)).resolves.toBe(false);
-    expect(showMessageBoxMock).toHaveBeenCalledTimes(1);
-
-    first.resolve({ response: 0 });
-    await expect(staleCall).resolves.toBe(false);
-  });
-
-  /**
-   * The two age reasons say DIFFERENT things, and the difference is the whole
-   * point: one is a measurement ("this has been here 10 minutes"), the other
-   * is the absence of one ("this predates FixLang, so there is no telling").
-   * A user deciding whether to send a password needs to know which they are
-   * being shown, so a shared string here would be a real regression.
-   */
-  it("gives each reason its own title and message", async () => {
+  it("substitutes the char count and limit into the real catalog copy", async () => {
     showMessageBoxMock.mockResolvedValue({ response: 0 });
 
     await confirmSelectionGuard(LARGE_SELECTION);
-    await confirmSelectionGuard(STALE_CLIPBOARD);
-    await confirmSelectionGuard(UNKNOWN_AGE);
 
-    const [large, stale, unknown] = showMessageBoxMock.mock.calls.map(([options]) => options);
-    const titles = [large.title, stale.title, unknown.title];
-    expect(new Set(titles).size).toBe(3);
-    const messages = [large.message, stale.message, unknown.message];
-    expect(new Set(messages).size).toBe(3);
-
-    // Real catalog copy, so this proves the age actually reaches the string
-    // rather than an unsubstituted `{seconds}` placeholder shipping to a user.
-    expect(stale.message).toContain("600");
-    expect(stale.message).not.toContain("{");
-    expect(unknown.message).not.toContain("{");
+    const options = showMessageBoxMock.mock.calls[0][0];
+    expect(`${options.message} ${options.detail}`).not.toContain("{");
   });
 });

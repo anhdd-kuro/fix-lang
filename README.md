@@ -43,7 +43,7 @@ Eight tabs, opened from the menu-bar tray or after a transform:
 | **Models** | Token usage over time, Model Breakdown donut + table for the selected range |
 | **Usage** | Account-level spend and token usage, one sub-tab per connected provider that has a billing API (OpenAI, OpenRouter) — daily spend and token charts, spend-share donut, per-model activity, and (OpenAI) billed spend per project |
 | **Logs** | Structured, redacted app events — multi-select level filter, search, copy/export as `.txt` |
-| **Security** | What the four guard rails actually did over the selected range, as charts plus counts — secret-guard mix (masked / confirmed / cancelled / unrestored), selection-guard mix (blocked apps, cancelled size/age confirms, dropped Ask context), and which detectors matched. Read-only; the controls live in **Settings → Security**. Counted from this machine's local logs, so clearing the Logs tab resets the numbers |
+| **Security** | What the three guard rails actually did over the selected range, as charts plus counts — secret-guard mix (masked / confirmed / cancelled / unrestored), selection-guard mix (blocked apps, cancelled size confirms, dropped Ask context), and which detectors matched. Read-only; the controls live in **Settings → Security**. Counted from this machine's local logs, so clearing the Logs tab resets the numbers |
 | **Autocomplete** | Today / month-to-date / 62-day request, token, and estimated-cost rollups for ghost-text suggestions, plus how much of the daily request cap is spent |
 | **About** | Two sub-tabs — **App updates** (version, release notes, install; see [App updates](#app-updates)) and **User guide** (onboarding that shows your own preset shortcuts, output mode, connected providers, and why History/Usage may look empty) |
 
@@ -362,7 +362,7 @@ GitHub Releases.
 - Secrets are scoped to one profile and one provider at a time — switching profiles switches the whole connected set, and neither another profile nor another provider can read a key it did not store.
 - A freshly created profile has no provider connected — nothing is auto-selected or auto-populated from another profile.
 - Requests are sent only to the providers you connect (OpenAI, OpenRouter, Anthropic, AWS Bedrock, Ollama, or LM Studio), and each request carries only that provider's credentials. Structured logs redact keys, tokens, and clipboard content before writing to disk.
-- Four guard rails run before a selection leaves the machine: a frontmost-app deny-list, a stale/unknown-age clipboard confirm, a selection-size confirm, and a secret guard (`off` / `confirm` / `mask`). They are configured in **Settings → Security** — each is adjustable and each can be turned off — and the **Security** dashboard tab shows what they have done. The secret guard is a pattern check, not a guarantee: it will miss a credential that does not look like one, it cannot un-send, and text you send after choosing *Send anyway* is saved to local history like any other transform.
+- Three guard rails run before a selection leaves the machine: a frontmost-app deny-list, a selection-size confirm, and a secret guard (`off` / `confirm` / `mask`). They are configured in **Settings → Security** — each is adjustable and each can be turned off — and the **Security** dashboard tab shows what they have done. The secret guard is a pattern check, not a guarantee: it will miss a credential that does not look like one, it cannot un-send, and text you send after choosing *Send anyway* is saved to local history like any other transform.
 
 ## License
 

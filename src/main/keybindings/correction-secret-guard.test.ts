@@ -86,7 +86,6 @@ vi.mock("~/main/notifications/secretGuardDialog", () => ({
 vi.mock("~/features/i18n/store/localeStore", () => ({
   getLocale: vi.fn().mockReturnValue("en"),
 }));
-vi.mock("../clipboard/clipboardChangeTracker", () => ({ clipboardAge: vi.fn() }));
 vi.mock("../notifications/confirmSelectionGuard", () => ({
   confirmSelectionGuard: vi.fn(),
 }));
@@ -144,7 +143,6 @@ import { registerCorrectionShortcut } from "./correction";
 import { handleError, resetHotkeyThrottleForTests } from "./utils";
 import { getHighlightedTextWithActiveApp, pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
-import * as clipboardChangeTracker from "../clipboard/clipboardChangeTracker";
 import { logger } from "../logging/logService";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
 import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWindow";
@@ -265,11 +263,9 @@ beforeEach(() => {
   resetHotkeyThrottleForTests();
   (globalShortcut.register as Mock).mockReturnValue(true);
   (guardStore.getSelectionGuardSettings as Mock).mockReturnValue({
-    clipboardMaxAgeSeconds: 0,
     maxSelectionChars: 20_000,
     deniedBundleIds: [],
   });
-  (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue(null);
   setGuardMode({ mode: "confirm" });
   (confirmSecretSend as Mock).mockResolvedValue(true);
   mockReply((sent) => sent.replace("please", "Please"));

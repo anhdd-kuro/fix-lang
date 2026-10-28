@@ -7,9 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { app, BrowserWindow } from "electron";
 import { isPromptGenEnabled } from "~/features/core/shared/features";
-import { guardStore } from "~/features/guards/store/guardStore";
 import { initializeLocaleFromSystem } from "~/features/i18n/store/localeStore";
-import * as clipboardChangeTracker from "~/main/clipboard/clipboardChangeTracker";
 import { showErrorNotification } from "~/main/notifications/error";
 import {
   isMacOSAccessibilityGranted,
@@ -142,7 +140,7 @@ const registerIpcHandlers = (): UpdateService => {
   // Register centralized history handler first (dependency for feature handlers)
   setupHistoryManagerHandlers();
 
-  // Selection guards (stale-clipboard age, size cap, app deny-list) — before
+  // Selection guards (size cap, app deny-list) — before
   // correction so its hotkey handler can read guardStore from the first press.
   registerSelectionGuardHandlers();
 
@@ -231,11 +229,6 @@ function initializeApp() {
       setupTray();
     }
 
-    // Starts (or leaves off) the 1 Hz stale-clipboard poll to match whatever
-    // was persisted from a previous launch — `guardStore`'s own writes keep
-    // this in sync afterward, this call only covers app start.
-    clipboardChangeTracker.applySettings(guardStore.getSelectionGuardSettings());
-
     registerHotkeys(mainWindow); // Register global shortcuts, passing the window
   });
 
@@ -272,7 +265,6 @@ function initializeApp() {
   app.on("will-quit", () => {
     // Unregister all shortcuts on quit to be safe
     unregisterHotkeys();
-    clipboardChangeTracker.stop();
   });
 }
 

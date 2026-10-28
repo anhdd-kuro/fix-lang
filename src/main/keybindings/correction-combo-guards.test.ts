@@ -5,14 +5,14 @@
  *
  * The combo branch and the ordinary preset branch landed on separate branches
  * and were merged without being connected, so for one release a combo hotkey
- * read a selection and handed it to `runCombo` with none of the four guard
+ * read a selection and handed it to `runCombo` with none of the guard
  * rails and no secret gate — and a combo is worse than a single transform
  * here, not better: it sends the same selection to N models in sequence.
  * These tests exist so a future edit cannot quietly reopen that gap.
  *
  * `evaluateSelectionGuards`, `runSecretGate`, `scanForSecrets`, `maskSecrets`
  * and `runCombo` are all kept REAL — only their electron-touching neighbours
- * (`guardStore`, `secretGuardStore`, `clipboardChangeTracker`,
+ * (`guardStore`, `secretGuardStore`,
  * `confirmSelectionGuard`, `confirmSecretSend`) are mocked. A mocked gate
  * would let a call site that re-derives the per-site policy pass, which is
  * exactly the failure `SECRET_SEND_SITE_POLICY` exists to prevent.
@@ -77,7 +77,6 @@ vi.mock("~/features/secretGuard/store/secretGuardStore", () => ({
 vi.mock("~/main/notifications/secretGuardDialog", () => ({
   confirmSecretSend: vi.fn(),
 }));
-vi.mock("../clipboard/clipboardChangeTracker", () => ({ clipboardAge: vi.fn() }));
 vi.mock("../notifications/confirmSelectionGuard", () => ({
   confirmSelectionGuard: vi.fn(),
 }));
@@ -139,7 +138,6 @@ import { COMBO_LOCK_MAX_HOLD_MS, registerCorrectionShortcut } from "./correction
 import { handleError, resetHotkeyThrottleForTests } from "./utils";
 import { getHighlightedTextWithActiveApp, pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
-import * as clipboardChangeTracker from "../clipboard/clipboardChangeTracker";
 import { logger } from "../logging/logService";
 import { confirmSelectionGuard } from "../notifications/confirmSelectionGuard";
 import {
@@ -203,12 +201,10 @@ const fakeMainWindow = () =>
 
 const defaultGuardSettings = (
   overrides: Partial<{
-    clipboardMaxAgeSeconds: number;
     maxSelectionChars: number;
     deniedBundleIds: string[];
   }> = {},
 ) => ({
-  clipboardMaxAgeSeconds: 5,
   maxSelectionChars: 20_000,
   deniedBundleIds: ["com.1password.1password"],
   ...overrides,
@@ -295,7 +291,6 @@ beforeEach(() => {
   resetActiveComboForTests();
   (globalShortcut.register as Mock).mockReturnValue(true);
   (guardStore.getSelectionGuardSettings as Mock).mockReturnValue(defaultGuardSettings());
-  (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue(null);
   setSecretGuardMode({ mode: "off" });
   mockSelection({ text: "some selected text" });
   // Each step returns text derived from what it was handed, so no assertion
@@ -321,39 +316,6 @@ describe("combo selection guards — allow", () => {
     expect(pasteText).toHaveBeenCalledTimes(1);
     expect(handleError).not.toHaveBeenCalled();
     expect(latencyOutcome()).toMatchObject({ outcome: "delivered" });
-  });
-});
-
-describe("combo selection guards — confirm: stale-clipboard", () => {
-  it("asks before any provider call, and runs nothing when declined", async () => {
-    mockSelection({ text: "a password copied 40 minutes ago", changed: false });
-    (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({ ms: 2_400_000, origin: "change" });
-    (confirmSelectionGuard as Mock).mockResolvedValue(false);
-
-    const handler = registerComboHandler();
-    await handler();
-
-    expect(confirmSelectionGuard).toHaveBeenCalledWith({
-      kind: "confirm",
-      reason: "stale-clipboard",
-      ageMs: 2_400_000,
-      limitMs: 5_000,
-    });
-    expectComboNeverRan();
-    expect(latencyOutcome()).toMatchObject({ outcome: "declined-stale" });
-    expect(hideOverlaySpinner).toHaveBeenCalled();
-    // Cancel is a decision, not an error.
-    expect(handleError).not.toHaveBeenCalled();
-
-    const info = (logger.info as Mock).mock.calls.find(
-      ([, message]) => message === "Combo declined at a selection-guard confirm",
-    );
-    expect(info?.[2]).toMatchObject({
-      comboId: "combo-1",
-      guardReason: "stale-clipboard",
-      selectionAgeMs: 2_400_000,
-      ageLimitMs: 5_000,
-    });
   });
 });
 
@@ -402,9 +364,21 @@ describe("combo selection guards — confirm: Cancel", () => {
     });
     expectComboNeverRan();
     expect(latencyOutcome()).toMatchObject({ outcome: "declined-size" });
+    expect(hideOverlaySpinner).toHaveBeenCalled();
     // Cancel is a choice, not an error: no toast, no notification.
     expect(handleError).not.toHaveBeenCalled();
     expect(Notification).not.toHaveBeenCalled();
+
+    const info = (logger.info as Mock).mock.calls.find(
+      ([, message]) => message === "Combo declined at a selection-guard confirm",
+    );
+    expect(info?.[2]).toMatchObject({
+      comboId: "combo-1",
+      guardEvent: "declined",
+      guardReason: "large-selection",
+      textLength: 40,
+      charLimit: 10,
+    });
   });
 });
 
@@ -548,13 +522,6 @@ describe("combo guard logging — log key redaction safety", () => {
       .map(([, , context]) => (context ?? {}) as LogContext);
 
   it.each([
-    [
-      "a stale-clipboard block",
-      () => {
-        mockSelection({ text: "a password copied 40 minutes ago", changed: false });
-        (clipboardChangeTracker.clipboardAge as Mock).mockReturnValue({ ms: 2_400_000, origin: "change" });
-      },
-    ],
     [
       "a denied-app block",
       () => {

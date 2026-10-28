@@ -6,7 +6,7 @@
  * `api_key|authorization|bearer|token|secret|password|clipboard|selected_text|
  * original_text` — case-insensitively, and with ZERO separator for
  * `selected[-_]?text`. It does it silently, with no error, so the obvious names
- * (`secretCount`, `tokensMasked`, `clipboardAgeMs`) persist as `"[REDACTED]"`
+ * (`secretCount`, `tokensMasked`, `clipboardChanged`) persist as `"[REDACTED]"`
  * and the metric is destroyed without anybody noticing. This test documents why
  * the approved names are what they are, and it runs the REAL redactor rather
  * than a copy of the regex.
@@ -24,8 +24,6 @@ const APPROVED: LogContext = {
   guardEvent: "blocked",
   guardReason: "denied-app",
   deniedBundleId: "com.1password.1password",
-  selectionAgeMs: 41_000,
-  ageLimitMs: 5_000,
   textLength: 24_812,
   charLimit: 20_000,
   matchCount: 3,
@@ -33,7 +31,7 @@ const APPROVED: LogContext = {
   guardMode: "mask",
   appliedMode: "popup",
   gateDecision: "confirmed",
-  reason: "stale-clipboard",
+  reason: "partial-mask",
   placeholderCount: 2,
   missingCount: 1,
   confirmMs: 1_450,
@@ -48,9 +46,6 @@ const APPROVED: LogContext = {
  * the approved name that replaces it.
  */
 const REJECTED: readonly (readonly [string, string])[] = [
-  ["clipboardAgeMs", "selectionAgeMs"],
-  ["clipboardStale", "guardReason"],
-  ["clipboardMaxAgeMs", "ageLimitMs"],
   ["clipboardChanged", "selectionChanged"],
   ["selectedTextLength", "textLength"],
   ["selectedtextLength", "textLength"],

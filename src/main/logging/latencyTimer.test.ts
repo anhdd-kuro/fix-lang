@@ -200,8 +200,6 @@ describe("startLatencyTimer", () => {
     const guardOutcomes: readonly LatencyOutcome[] = [
       "denied-app",
       "declined-size",
-      "declined-stale",
-      "declined-unknown-age",
       "secret-declined",
     ];
 
@@ -219,15 +217,5 @@ describe("startLatencyTimer", () => {
       expect(infoMock).toHaveBeenCalledTimes(1);
       expect(infoMock.mock.calls[0][2]).toMatchObject({ outcome });
     }
-  });
-
-  it("pins a guard outcome value as redaction-safe — 'stale-clipboard' is a VALUE, not a key", () => {
-    // redactLogContext key-matches `clipboard` as a substring on KEY names
-    // only; redactLogMessage (run on string VALUES) has no such rule. The
-    // next reader will correctly flinch at a value containing "clipboard" —
-    // this pins that it is safe.
-    expect(redactLogContext({ outcome: "stale-clipboard" })).toEqual({
-      outcome: "stale-clipboard",
-    });
   });
 });

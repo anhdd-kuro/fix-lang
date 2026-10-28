@@ -7,8 +7,7 @@
  * constraint — never touching disk.
  *
  * The module is a singleton MRU list, so every test loads a fresh module
- * graph via `vi.resetModules()` + dynamic `import()`, the same idiom
- * `clipboardChangeTracker.test.ts` uses for its own singleton.
+ * graph via `vi.resetModules()` + dynamic `import()`.
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";

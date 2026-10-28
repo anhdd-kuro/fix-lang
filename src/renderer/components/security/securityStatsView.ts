@@ -54,8 +54,6 @@ export type SecurityStatCardId =
   | "restoreFailures"
   | "blockedByApp"
   | "declinedLargeSelection"
-  | "declinedStaleClipboard"
-  | "declinedUnknownClipboardAge"
   | "askContextDropped";
 
 /**
@@ -178,18 +176,6 @@ export const resolveSecurityStatsView = (stats: SecurityStats): SecurityStatsVie
         "security.stats.declinedLargeSelection.label",
         "security.stats.declinedLargeSelection.hint",
         stats.declinedLargeSelection,
-      ),
-      card(
-        "declinedStaleClipboard",
-        "security.stats.declinedStaleClipboard.label",
-        "security.stats.declinedStaleClipboard.hint",
-        stats.declinedStaleClipboard,
-      ),
-      card(
-        "declinedUnknownClipboardAge",
-        "security.stats.declinedUnknownClipboardAge.label",
-        "security.stats.declinedUnknownClipboardAge.hint",
-        stats.declinedUnknownClipboardAge,
       ),
       card(
         "askContextDropped",

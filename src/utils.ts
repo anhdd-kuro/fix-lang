@@ -2,11 +2,6 @@ import { exec, execSync } from "child_process";
 import { clipboard, dialog, shell } from "electron";
 import { logActiveAppRead, parseActiveApp } from "~/main/accessibility/activeApp";
 import { isKeystrokePermissionDenied } from "~/main/accessibility/keystrokePermission";
-import {
-  beginSelfManagedRead,
-  endSelfManagedRead,
-  observeNow,
-} from "~/main/clipboard/clipboardChangeTracker";
 import { logger } from "~/main/logging/logService";
 import { AccessibilityPermissionError } from "~/main/notifications/error";
 import type { ActiveApp } from "~/main/accessibility/activeApp";
@@ -195,12 +190,6 @@ const readSelection = async (): Promise<SelectionRead> => {
   const previousClipboardContent = clipboard.readText();
   const startedAt = Date.now();
   clipboardOperationsInFlight += 1;
-  observeNow(previousClipboardContent);
-  // Opened BEFORE the try, so `clearClipboardForSelectionRead` below — a
-  // pasteboard write of ours — lands inside the bracket. Outside it, the 1 Hz
-  // observer would record our own clearing as a user copy and reset the age
-  // the stale-clipboard guard reads.
-  beginSelfManagedRead();
 
   logger.debug("clipboard.copy", "Sending copy keystroke", {
     previousLength: previousClipboardContent.length,
@@ -237,7 +226,6 @@ const readSelection = async (): Promise<SelectionRead> => {
     throw toSelectionError(error);
   } finally {
     clipboard.writeText(previousClipboardContent);
-    endSelfManagedRead(previousClipboardContent);
     clipboardOperationsInFlight -= 1;
     logger.debug("clipboard.copy", "Previous clipboard restored", {
       elapsedMs: Date.now() - startedAt,
@@ -302,8 +290,6 @@ export type AskContext = {
   text: string;
   source: "selection" | "clipboard";
   activeApp: ActiveApp | null;
-  /** Same meaning as on {@link HighlightedSelectionWithActiveApp}. */
-  changed: boolean;
 };
 
 export const getAskContext = async (): Promise<AskContext> => {
@@ -312,7 +298,6 @@ export const getAskContext = async (): Promise<AskContext> => {
     text,
     source: changed ? "selection" : "clipboard",
     activeApp,
-    changed,
   };
 };
 
@@ -321,9 +306,7 @@ export type HighlightedSelectionWithActiveApp = {
   activeApp: ActiveApp | null;
   /**
    * True when the copy itself produced `text`; false when it fell back to the
-   * clipboard snapshot. The selection guards read this: a fallback read is the
-   * only one whose text can be arbitrarily old, so the stale-clipboard age
-   * limit applies to it and never to a genuine selection.
+   * clipboard snapshot. `getAskContext` turns this into its source label.
    */
   changed: boolean;
 };
@@ -367,8 +350,6 @@ export const getHighlightedTextWithActiveApp = async (
   const previousClipboardContent = clipboard.readText();
   const startedAt = Date.now();
   clipboardOperationsInFlight += 1;
-  observeNow(previousClipboardContent);
-  beginSelfManagedRead();
 
   logger.debug("clipboard.copy", "Sending copy keystroke with frontmost-app read", {
     previousLength: previousClipboardContent.length,
@@ -428,7 +409,6 @@ export const getHighlightedTextWithActiveApp = async (
     throw toSelectionError(error);
   } finally {
     clipboard.writeText(previousClipboardContent);
-    endSelfManagedRead(previousClipboardContent);
     clipboardOperationsInFlight -= 1;
     logger.debug("clipboard.copy", "Previous clipboard restored", {
       elapsedMs: Date.now() - startedAt,
@@ -515,7 +495,6 @@ export const pasteText = (text: string): Promise<void> => {
   clipboardOperationsInFlight += 1;
   return new Promise((resolve, reject) => {
     clipboard.writeText(text);
-    beginSelfManagedRead();
 
     logger.debug("clipboard.paste", "Sending paste keystroke", {
       textLength: text.length,
@@ -556,7 +535,6 @@ export const pasteText = (text: string): Promise<void> => {
         resolve();
       } finally {
         clipboard.writeText(previousClipboardContent);
-        endSelfManagedRead(previousClipboardContent);
       }
     });
   });

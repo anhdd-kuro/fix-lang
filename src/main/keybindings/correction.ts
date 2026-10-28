@@ -50,7 +50,6 @@ import { checkShortcut, handleError, withHotkeyThrottle } from "./utils";
 import { effectiveModelRef, resolveCorrectionPreset } from "../ai.request/correction";
 import { buildPriceMap, computeCost } from "../ai.request/cost";
 import { getCachedModels, isLocalModelId } from "../ai.request/shared";
-import * as clipboardChangeTracker from "../clipboard/clipboardChangeTracker";
 import { prewarmProviderConnection } from "../llm/prewarm";
 import {
   startLatencyTimer,
@@ -73,13 +72,11 @@ import type { ComboProgressView } from "~/main/webViewWindows/comboProgressView"
 
 /**
  * One decline outcome per confirm reason, so a latency line says which
- * dialog the user backed out of rather than collapsing three different
- * decisions into one number.
+ * dialog the user backed out of rather than collapsing different decisions
+ * into one number.
  */
 const SELECTION_GUARD_DECLINE_OUTCOME = {
   "large-selection": "declined-size",
-  "stale-clipboard": "declined-stale",
-  "unknown-clipboard-age": "declined-unknown-age",
 } as const satisfies Record<SelectionGuardConfirmVerdict["reason"], LatencyOutcome>;
 
 /**
@@ -486,7 +483,7 @@ const runComboFromHotkey = async (
         const environmentPromise = resolveAskEnvironment({
           systemLocale: app.getSystemLocale(),
         });
-        const { text: selectedText, activeApp, changed } = await getHighlightedTextWithActiveApp(
+        const { text: selectedText, activeApp } = await getHighlightedTextWithActiveApp(
           () => {
             latency.mark("keystrokeSent");
             showOverlaySpinner();
@@ -531,9 +528,7 @@ const runComboFromHotkey = async (
         // "nothing selected" keeps its own, more basic message.
         const verdict = evaluateSelectionGuards({
           text: selectedText,
-          changed,
           activeApp,
-          age: clipboardChangeTracker.clipboardAge(),
           settings: guardStore.getSelectionGuardSettings(),
         });
 
@@ -796,17 +791,15 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
             text: askText,
             source: contextSource,
             activeApp: askActiveApp,
-            changed: askChanged,
           } = await getAskContext();
           latency.mark("selectionRead");
 
           // Ask reaches the same guards as every other preset, and reaches
           // them HERE — before the window opens — rather than at submit.
           // The window is a consent surface for what it displays, not a
-          // substitute for the rules the user configured: a denied app, a
-          // clipboard of unknown age and a whole selected document are all
-          // things they asked to be stopped on, and none of them is answered
-          // by a label. Attaching nothing is a supported state for this
+          // substitute for the rules the user configured: a denied app and
+          // a whole selected document are both things they asked to be
+          // stopped on, and neither is answered by a label. Attaching nothing is a supported state for this
           // preset, so a refusal here drops the CONTEXT and still opens the
           // window — the question can stand alone, and killing the press
           // outright would make the guard read as a broken hotkey.
@@ -817,9 +810,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
           // it needs to be.
           const askVerdict = evaluateSelectionGuards({
             text: askText,
-            changed: askChanged,
             activeApp: askActiveApp,
-            age: clipboardChangeTracker.clipboardAge(),
             settings: guardStore.getSelectionGuardSettings(),
           });
           const context = resolveAskContextUnderGuards(askVerdict, askText, preset.id);
@@ -890,7 +881,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         // earliest point it is still safe to show the overlay spinner: the
         // frontmost-app read must precede any FixLang window becoming
         // visible, since afterwards it would report FixLang and yield null.
-        const { text: selectedText, activeApp, changed } = await getHighlightedTextWithActiveApp(
+        const { text: selectedText, activeApp } = await getHighlightedTextWithActiveApp(
           () => {
             // Splits the osascript spawn from the clipboard-change poll that
             // follows it — the two fail slow for completely different reasons
@@ -936,9 +927,7 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
         // restored, it just never reaches a provider.
         const verdict = evaluateSelectionGuards({
           text: selectedText,
-          changed,
           activeApp,
-          age: clipboardChangeTracker.clipboardAge(),
           settings: guardStore.getSelectionGuardSettings(),
         });
 

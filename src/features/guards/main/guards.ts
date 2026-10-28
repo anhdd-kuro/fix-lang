@@ -1,7 +1,7 @@
 /**
  * @file guards.ts
  * @description IPC handlers for the selection-guard settings store
- * (stale-clipboard age, size cap, app deny-list) plus the read-only
+ * (size cap, app deny-list) plus the read-only
  * "recently used apps" MRU that backs the deny-list editor's chips.
  *
  * Raw string channels (`get-selection-guards`, `set-selection-guards`,
@@ -81,7 +81,6 @@ const isSelectionGuardSettings = (
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
   return (
-    isNonNegativeIntegerSetting(record.clipboardMaxAgeSeconds) &&
     isNonNegativeIntegerSetting(record.maxSelectionChars) &&
     isDeniedBundleIdsPayload(record.deniedBundleIds)
   );

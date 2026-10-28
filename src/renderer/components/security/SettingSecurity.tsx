@@ -1,9 +1,8 @@
 /**
  * @file SettingSecurity.tsx
- * @description Settings → Security: one scrolling page configuring all four
- * guard rails (stale-clipboard age, selection size cap, app deny-list, secret
- * guard). Self-fetching load/error/ready panel, same shape as
- * `AutocompletePanel.tsx`.
+ * @description Settings → Security: one scrolling page configuring all three
+ * guard rails (selection size cap, app deny-list, secret guard).
+ * Self-fetching load/error/ready panel, same shape as `AutocompletePanel.tsx`.
  *
  * Configuration only. What the guards DID is the Security dashboard tab
  * (`SecurityStatsPanel.tsx`), which reads the persisted logs and never writes
@@ -16,7 +15,7 @@
  * except through `getAppBundlePathForFile` (Electron 43 removed `File.path`),
  * and never derives a bundle id from a filename.
  *
- * All derivation — the age/size guard's "running" vs. "disabled" hint, the
+ * All derivation — the size guard's "running" vs. "disabled" hint, the
  * deny-list's empty states, the secret guard's mask hint, and the
  * `isBundleIdDenied`-derived chip state — lives in `securityView.ts`, which
  * returns `StatusDescriptor`s rather than resolved strings. Nothing here
@@ -36,7 +35,6 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
   DEFAULT_DENIED_BUNDLE_IDS,
   DEFAULT_MAX_SELECTION_CHARS,
   MAX_DENIED_BUNDLE_IDS,
@@ -89,7 +87,6 @@ type PersistResult = { success: true } | { success: false; error: StatusDescript
 type WriteOptions = { readonly derivesFromBase?: boolean };
 
 const defaultGuardSettings = (): SelectionGuardSettings => ({
-  clipboardMaxAgeSeconds: DEFAULT_CLIPBOARD_MAX_AGE_SECONDS,
   maxSelectionChars: DEFAULT_MAX_SELECTION_CHARS,
   deniedBundleIds: [...DEFAULT_DENIED_BUNDLE_IDS],
 });
@@ -452,21 +449,11 @@ export const SettingSecurity = () => {
     })();
   };
 
-  // Both numeric handlers rebuild from the base they are given rather than a
+  // The numeric handler rebuilds from the base it is given rather than a
   // captured snapshot, for the same reason the deny-list ones do: a scalar
   // edit made while an app resolution is still pending must carry that
   // deny-list forward, or persisting the whole object here would erase the app
   // the user just blocked.
-  const handleClipboardAgeChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
-    const raw = Number(event.target.value);
-    persistGuardUpdate((base) => ({
-      ...base,
-      clipboardMaxAgeSeconds: Number.isFinite(raw)
-        ? Math.max(0, Math.floor(raw))
-        : base.clipboardMaxAgeSeconds,
-    }));
-  };
-
   const handleSelectionSizeChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
     const raw = Number(event.target.value);
     persistGuardUpdate((base) => ({
@@ -797,33 +784,7 @@ export const SettingSecurity = () => {
         </div>
       </section>
 
-      {/* 2. Stale clipboard */}
-      <section className="flex flex-col gap-3 rounded-lg border border-card-control-border bg-card p-4">
-        <h2 className="text-base font-semibold text-foreground">
-          {t("security.clipboardAge.title")}
-        </h2>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="security-clipboard-age" className="text-sm text-card-foreground">
-            {t("security.clipboardAge.limitLabel")}
-          </label>
-          <div className="flex items-center gap-2">
-            <Input
-              id="security-clipboard-age"
-              type="number"
-              min={0}
-              value={view.clipboardAge.maxAgeSeconds}
-              onChange={handleClipboardAgeChange}
-              className="w-24"
-            />
-            <span className="text-sm text-muted-foreground">
-              {t("security.clipboardAge.limitUnit")}
-            </span>
-          </div>
-        </div>
-        <p className="text-sm text-muted-foreground">{resolve(view.clipboardAge.hint)}</p>
-      </section>
-
-      {/* 3. Large selections */}
+      {/* 2. Large selections */}
       <section className="flex flex-col gap-3 rounded-lg border border-card-control-border bg-card p-4">
         <h2 className="text-base font-semibold text-foreground">
           {t("security.selectionSize.title")}
@@ -849,7 +810,7 @@ export const SettingSecurity = () => {
         <p className="text-sm text-muted-foreground">{resolve(view.selectionSize.hint)}</p>
       </section>
 
-      {/* 4. Secret guard */}
+      {/* 3. Secret guard */}
       <section className="flex flex-col gap-3 rounded-lg border border-card-control-border bg-card p-4">
         <h2 className="text-base font-semibold text-foreground">
           {t("security.secretGuard.title")}
