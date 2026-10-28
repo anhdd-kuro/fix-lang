@@ -7,11 +7,14 @@
  * OpenRouter cache usage, OpenRouter `n > 1` choices). Since v7 that body is
  * dropped unless the call opts in with `include: { responseBody: true }`.
  */
+import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText, streamText } from "ai";
 import { MockLanguageModelV4, convertArrayToReadableStream } from "ai/test";
 import { describe, expect, it } from "vitest";
 import {
   chatCompletionBody,
+  chatCompletionUsage,
   fakeGenerateText,
   type FakeGenerateTextCallOptions,
 } from "./fakeGenerateText";
@@ -21,12 +24,12 @@ const SERVED_MODEL = "openai/gpt-5.4-mini-20260317";
 const PROVIDER_BODY = chatCompletionBody({
   model: SERVED_MODEL,
   contents: ["first", "second"],
-  usage: { prompt_tokens: 10, completion_tokens: 4, cache_read_input_tokens: 6 },
+  usage: chatCompletionUsage({ promptTokens: 10, completionTokens: 4, cachedTokens: 6 }),
 });
 
 const providerUsage = {
   inputTokens: { total: 10, noCache: 4, cacheRead: 6, cacheWrite: undefined },
-  outputTokens: { total: 4, text: 4, reasoning: undefined },
+  outputTokens: { total: 4, text: 4, reasoning: 0 },
 };
 const finishReason = { unified: "stop" as const, raw: "stop" };
 
@@ -126,6 +129,126 @@ describe("ai v7 response body (real SDK)", () => {
   });
 });
 
+const jsonResponse = (body: unknown) =>
+  new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+
+describe("real @openrouter/ai-sdk-provider through generateText", () => {
+  const openRouterBody = chatCompletionBody({
+    model: SERVED_MODEL,
+    contents: ["first"],
+    usage: chatCompletionUsage({
+      promptTokens: 40,
+      completionTokens: 9,
+      cachedTokens: 6,
+      cacheWriteTokens: 2,
+      reasoningTokens: 3,
+    }),
+  });
+
+  const run = (include?: { responseBody?: boolean }, body: unknown = openRouterBody) => {
+    const fetch = (async () => jsonResponse(body)) as unknown as typeof globalThis.fetch;
+    const openRouter = createOpenRouter({ apiKey: "sk-or-test", fetch });
+    return generateText({
+      model: openRouter(REQUESTED_MODEL),
+      prompt: "hi",
+      ...(include ? { include } : {}),
+    });
+  };
+
+  it("exposes the served model and cache counts with no include", async () => {
+    const result = await run();
+
+    expect(result.response.modelId).toBe(SERVED_MODEL);
+    expect(result.usage.inputTokens).toBe(40);
+    expect(result.usage.inputTokenDetails.cacheReadTokens).toBe(6);
+    expect(result.usage.inputTokenDetails.cacheWriteTokens).toBe(2);
+    expect(result.usage.inputTokenDetails.noCacheTokens).toBe(34);
+    expect(result.usage.outputTokenDetails.reasoningTokens).toBe(3);
+  });
+
+  it("returns response.body only with include: { responseBody: true }", async () => {
+    expect((await run()).response.body).toBeUndefined();
+    expect((await run({ responseBody: true })).response.body).toEqual(openRouterBody);
+  });
+
+  it("reports cache reads as 0 and cache writes as undefined when the body omits details", async () => {
+    const result = await run(
+      undefined,
+      chatCompletionBody({
+        model: SERVED_MODEL,
+        contents: ["first"],
+        usage: chatCompletionUsage({ promptTokens: 40, completionTokens: 9 }),
+      }),
+    );
+
+    expect(result.usage.inputTokenDetails.cacheReadTokens).toBe(0);
+    expect(result.usage.inputTokenDetails.cacheWriteTokens).toBeUndefined();
+  });
+
+  it("fakeGenerateText derives the same usage from the same body", async () => {
+    const real = await run();
+    const fake = await fakeGenerateText({ text: "first", body: openRouterBody })({
+      model: { modelId: REQUESTED_MODEL },
+    });
+
+    expect(fake.usage).toEqual({ ...real.usage, raw: undefined });
+    expect(fake.response.modelId).toBe(real.response.modelId);
+  });
+});
+
+describe("real @ai-sdk/amazon-bedrock through generateText", () => {
+  const BEDROCK_MODEL = "us.anthropic.claude-sonnet-4-5-20250929-v1:0";
+  const converseBody = {
+    output: { message: { role: "assistant", content: [{ text: "first" }] } },
+    stopReason: "end_turn",
+    usage: {
+      inputTokens: 40,
+      outputTokens: 9,
+      totalTokens: 49,
+      cacheReadInputTokens: 6,
+      cacheWriteInputTokens: 2,
+    },
+  };
+
+  const run = (include?: { responseBody?: boolean }) => {
+    const fetch = (async () => jsonResponse(converseBody)) as unknown as typeof globalThis.fetch;
+    const bedrock = createAmazonBedrock({ region: "us-east-1", apiKey: "bedrock-test", fetch });
+    return generateText({
+      model: bedrock(BEDROCK_MODEL),
+      prompt: "hi",
+      ...(include ? { include } : {}),
+    });
+  };
+
+  it("returns no response.body even with include: { responseBody: true }", async () => {
+    const result = await run({ responseBody: true });
+
+    expect(result.text).toBe("first");
+    expect(result.response.body).toBeUndefined();
+  });
+
+  it("reports the requested model id and cache counts in usage", async () => {
+    const result = await run();
+
+    expect(result.response.modelId).toBe(BEDROCK_MODEL);
+    expect(result.usage.inputTokenDetails.cacheReadTokens).toBe(6);
+    expect(result.usage.inputTokenDetails.cacheWriteTokens).toBe(2);
+  });
+
+  it("fakeGenerateText with no body also returns none under include", async () => {
+    const fake = await fakeGenerateText({ text: "first" })({
+      model: { modelId: BEDROCK_MODEL },
+      include: { responseBody: true },
+    });
+
+    expect(fake.response.body).toBeUndefined();
+    expect(fake.response.modelId).toBe(BEDROCK_MODEL);
+  });
+});
+
 describe("fakeGenerateText matches the real SDK", () => {
   const callBoth = async (include?: FakeGenerateTextCallOptions["include"]) => {
     const real = await generateText({
@@ -178,6 +301,79 @@ describe("fakeGenerateText", () => {
     });
 
     expect(result.response.modelId).toBe(REQUESTED_MODEL);
+  });
+
+  it("derives SDK usage from an OpenRouter-shaped body.usage when the spec gives none", async () => {
+    const result = await fakeGenerateText({
+      text: "x",
+      body: chatCompletionBody({
+        model: SERVED_MODEL,
+        contents: ["x"],
+        usage: chatCompletionUsage({
+          promptTokens: 40,
+          completionTokens: 9,
+          cachedTokens: 6,
+          cacheWriteTokens: 2,
+          reasoningTokens: 3,
+        }),
+      }),
+    })({});
+
+    expect(result.usage).toMatchObject({
+      inputTokens: 40,
+      outputTokens: 9,
+      inputTokenDetails: { noCacheTokens: 34, cacheReadTokens: 6, cacheWriteTokens: 2 },
+      outputTokenDetails: { textTokens: 6, reasoningTokens: 3 },
+    });
+  });
+
+  it("accepts an explicit spec.usage that agrees with body.usage", async () => {
+    const result = await fakeGenerateText({
+      text: "x",
+      usage: { inputTokens: 40, outputTokens: 9, cacheReadTokens: 6 },
+      body: chatCompletionBody({
+        model: SERVED_MODEL,
+        contents: ["x"],
+        usage: chatCompletionUsage({ promptTokens: 40, completionTokens: 9, cachedTokens: 6 }),
+      }),
+    })({});
+
+    expect(result.usage.inputTokenDetails.cacheReadTokens).toBe(6);
+  });
+
+  it("throws when spec.usage contradicts body.usage", async () => {
+    const generate = fakeGenerateText({
+      text: "x",
+      usage: { inputTokens: 40, outputTokens: 9, cacheReadTokens: 6 },
+      body: chatCompletionBody({
+        model: SERVED_MODEL,
+        contents: ["x"],
+        usage: chatCompletionUsage({ promptTokens: 40, completionTokens: 9 }),
+      }),
+    });
+
+    await expect(generate({})).rejects.toThrow(/cacheReadTokens \(6\) contradicts body\.usage/);
+  });
+
+  it("leaves usage to spec.usage when the body carries no usage", async () => {
+    const result = await fakeGenerateText({
+      text: "x",
+      usage: { inputTokens: 10, outputTokens: 2 },
+      body: { model: SERVED_MODEL },
+    })({});
+
+    expect(result.usage.inputTokens).toBe(10);
+    expect(result.usage.inputTokenDetails.cacheReadTokens).toBeUndefined();
+  });
+
+  it("chatCompletionBody refuses Anthropic cache keys OpenRouter never sends", () => {
+    expect(() =>
+      chatCompletionBody({
+        model: SERVED_MODEL,
+        contents: ["x"],
+        usage: { cache_read_input_tokens: 6 } as never,
+      }),
+    ).toThrow(/cache_read_input_tokens/);
   });
 
   it("passes reasoning and providerMetadata through", async () => {
