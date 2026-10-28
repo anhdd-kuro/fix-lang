@@ -126,12 +126,40 @@ describe("parseCosts", () => {
     expect(result.data.totalUsd).toBe(2);
   });
 
+  it("reads numeric-string amounts and ignores amounts it cannot read", () => {
+    const result = parseCosts(
+      page([
+        {
+          start_time: DAY_1,
+          results: [
+            { amount: { value: "1.5", currency: "usd" } },
+            { amount: " 2 " },
+            { amount: { value: " " } },
+            { amount: "Infinity" },
+            { amount: [4] },
+            { amount: true },
+          ],
+        },
+      ]),
+    );
+
+    expect(result.ok ? result.data.totalUsd : null).toBe(3.5);
+  });
+
   it("reports parse_error for a payload that is not a page", () => {
     expect(parseCosts({ nope: true })).toEqual({
       ok: false,
       reason: "parse_error",
     });
     expect(parseCosts(null)).toEqual({ ok: false, reason: "parse_error" });
+    expect(parseCosts([{ data: [] }])).toEqual({
+      ok: false,
+      reason: "parse_error",
+    });
+    expect(parseCosts({ data: { start_time: DAY_1 } })).toEqual({
+      ok: false,
+      reason: "parse_error",
+    });
   });
 
   it("reads an empty page as zero spend, not as a parse failure", () => {
@@ -401,5 +429,11 @@ describe("nextPageCursor", () => {
       nextPageCursor(page([], { has_more: true, next_page: null })),
     ).toBeNull();
     expect(nextPageCursor("nope")).toBeNull();
+    expect(
+      nextPageCursor(page([], { has_more: "true", next_page: "cursor-2" })),
+    ).toBeNull();
+    expect(
+      nextPageCursor(page([], { has_more: true, next_page: 2 })),
+    ).toBeNull();
   });
 });

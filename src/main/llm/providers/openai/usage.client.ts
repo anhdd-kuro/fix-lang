@@ -24,7 +24,7 @@ import {
   type UsageRange,
 } from "~/features/usage/shared/usage";
 import type { LogContext } from "~/features/logs/shared/logging";
-import type { JsonValue } from "~/main/jsonValue";
+import { jsonField, type JsonValue } from "~/main/jsonValue";
 import { logger } from "~/main/logging/logService";
 import {
   nextAfterCursor,
@@ -120,7 +120,7 @@ export type OpenAIUsageClient = {
 
 /** One request's outcome, before any endpoint-specific parsing. */
 type FetchOutcome =
-  | { ok: true; json: unknown }
+  | { ok: true; json: JsonValue }
   | { ok: false; reason: "unauthorized" | "unavailable" };
 
 export const createOpenAIUsageClient = (
@@ -175,7 +175,7 @@ export const createOpenAIUsageClient = (
   const call = async <T>(
     path: string,
     range: UsageRange,
-    parse: (json: unknown) => CardResult<T>,
+    parse: (json: JsonValue) => CardResult<T>,
     groupBy?: string,
   ): Promise<ClientCardResult<T>> => {
     const key = await getKey();
@@ -197,7 +197,7 @@ export const createOpenAIUsageClient = (
     // ungrouped buckets, which both parsers already tolerate.
     if (groupBy !== undefined) params.append("group_by", groupBy);
 
-    const buckets: unknown[] = [];
+    const buckets: JsonValue[] = [];
     let page: string | null = null;
 
     for (let fetched = 0; fetched < MAX_PAGES; fetched += 1) {
@@ -214,7 +214,7 @@ export const createOpenAIUsageClient = (
         return parsedPage;
       }
 
-      const data = (json as { data?: unknown }).data;
+      const data = jsonField(json, "data");
       if (Array.isArray(data)) buckets.push(...data);
 
       page = nextPageCursor(json);

@@ -11,9 +11,12 @@
  * documented field names; real per-endpoint JSON should be captured against a
  * live account to lock the fixtures (see #59 plan HITL #1 — flagged for QA).
  */
-import { z } from "zod";
 import { utcDayKey, type UsageDailyPoint } from "~/features/usage/shared/usage";
 import { isJsonObject, type JsonValue } from "~/main/jsonValue";
+import {
+  readUsageNumber as asNumber,
+  readUsageString as asString,
+} from "~/main/llm/providers/usageFieldReaders";
 
 /** Independent per-card result so one failing endpoint doesn't sink the tab. */
 export type CardResult<T> =
@@ -22,34 +25,6 @@ export type CardResult<T> =
 
 /** Low-balance threshold (USD). Single source of truth (#59 plan HITL #2). */
 export const LOW_BALANCE_THRESHOLD_USD = 5;
-
-// ---------------------------------------------------------------------------
-// Safe accessors — narrow a JSON field without throwing.
-// ---------------------------------------------------------------------------
-/** `z.number()` refuses NaN and ±Infinity: only finite numbers pass. */
-const FiniteNumberSchema = z.number();
-const TextSchema = z.string();
-
-const asNumber = (v: JsonValue | undefined): number | null => {
-  const number = FiniteNumberSchema.safeParse(v);
-  if (number.success) {
-    return number.data;
-  }
-  const text = TextSchema.safeParse(v);
-  if (
-    text.success &&
-    text.data.trim() !== "" &&
-    Number.isFinite(Number(text.data))
-  ) {
-    return Number(text.data);
-  }
-  return null;
-};
-
-const asString = (v: JsonValue | undefined): string | null => {
-  const text = TextSchema.safeParse(v);
-  return text.success ? text.data : null;
-};
 
 /** Unwrap an optional `{ data: ... }` envelope (OpenRouter wraps most payloads). */
 const unwrapData = (json: JsonValue): JsonValue | undefined =>
