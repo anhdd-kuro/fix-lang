@@ -1833,7 +1833,8 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
                 model: "",
                 isBuiltIn: true,
                 requiresInput: true,
-                outputMode: "banana" as unknown as "popup",
+                // @ts-expect-error -- deliberately unrecognized stored value
+                outputMode: "banana",
                 markdownOutput: true,
               },
             ],
@@ -1885,8 +1886,9 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
             ...settings.settingsCorrect,
             combos: [
               // Every field the wrong type, plus a missing one.
+              // @ts-expect-error -- deliberately malformed stored combo
               { id: 7, name: null, steps: "nope", schemaVersion: "one" },
-            ] as unknown as NonNullable<CorrectionSettings["combos"]>,
+            ],
           },
         },
       });
@@ -1974,14 +1976,20 @@ describe("apiStoreSchema — real schema round trip (clearInvalidConfig safety)"
         // The hand edit: replace the option OBJECT with a bare value, exactly
         // as a user reaching for `"extraOptions": "ultra"` would.
         const configPath = path.join(cwd, "config.json");
+        // The file is what a hand edit sees: `extraOptions` may hold anything
+        // the editor typed, not only what `CorrectionPreset` allows.
+        type HandEditedPreset = Omit<CorrectionPreset, "extraOptions"> & {
+          extraOptions?: CorrectionPreset["extraOptions"] | typeof garbage;
+        };
         const onDisk = JSON.parse(fs.readFileSync(configPath, "utf8")) as {
-          profiles: { settings: { settingsCorrect: CorrectionSettings } }[];
+          profiles: {
+            settings: { settingsCorrect: { presets: HandEditedPreset[] } };
+          }[];
         };
         const editedPreset =
           onDisk.profiles[0].settings.settingsCorrect.presets[0];
         expect(editedPreset.extraOptions).toEqual({ cavemanMode: "ultra" });
-        editedPreset.extraOptions =
-          garbage as unknown as CorrectionPreset["extraOptions"];
+        editedPreset.extraOptions = garbage;
         fs.writeFileSync(configPath, JSON.stringify(onDisk, null, "\t"));
 
         // Reopening is what a relaunch does, and it is where

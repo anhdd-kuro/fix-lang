@@ -79,24 +79,24 @@ export const sanitizeProviderEndpoints = (
   raw: unknown,
 ): ProviderEndpointMap => {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-  const result: ProviderEndpointMap = {};
-  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    if (!isProviderId(key)) continue;
-    // Local OpenAI-compatible / Ollama daemons persist host:port.
-    if (key === "bedrock") {
-      const region = sanitizeBedrockRegion(
-        typeof value === "object" && value !== null && "host" in value
-          ? (value as { host: unknown }).host
-          : value,
-      );
-      if (region) result[key] = { host: region, port: 0 };
-      continue;
-    }
-    if (key !== "lmstudio" && key !== "ollama") continue;
-    const endpoint = sanitizeProviderEndpoint(value);
-    if (endpoint) result[key] = endpoint;
-  }
-  return result;
+  const entries = Object.entries(raw as Record<string, unknown>).flatMap(
+    ([key, value]): [ProviderId, ProviderEndpoint][] => {
+      if (!isProviderId(key)) return [];
+      // Local OpenAI-compatible / Ollama daemons persist host:port.
+      if (key === "bedrock") {
+        const region = sanitizeBedrockRegion(
+          typeof value === "object" && value !== null && "host" in value
+            ? (value as { host: unknown }).host
+            : value,
+        );
+        return region ? [[key, { host: region, port: 0 }]] : [];
+      }
+      if (key !== "lmstudio" && key !== "ollama") return [];
+      const endpoint = sanitizeProviderEndpoint(value);
+      return endpoint ? [[key, endpoint]] : [];
+    },
+  );
+  return Object.fromEntries(entries);
 };
 
 export const getProviderEndpoint = (
@@ -1296,7 +1296,14 @@ type ConfigVersionStore = {
   get(key: keyof ConfigVersionCarrier, defaultValue: number): number;
   set(key: keyof ConfigVersionCarrier, value: number): void;
 };
-const configVersionStore = apiStore as unknown as ConfigVersionStore;
+const configVersionStore: ConfigVersionStore = apiStore;
+
+/**
+ * Same kind of view, for removing a retired top-level key the typed generic no
+ * longer names (`conf`'s `.delete` is typed `keyof T` only, but deletes any key).
+ */
+type RetiredKeyStore = { delete(key: "selectedModel"): void };
+const retiredKeyStore: RetiredKeyStore = apiStore;
 
 export const getOpenAIKey = () => {
   const apiKey = apiStore.get("apiKey");
@@ -1692,14 +1699,15 @@ export const getProfileSetting = <K extends keyof SettingsStore>(
   return settings[settingType];
 };
 
+/** Outcome of a profile write; `error` is store-authored English, wrapped by the IPC layer. */
+export type ProfileWriteResult = { success: boolean; error?: string };
+
 /**
  * Applies settings from a profile
  * @param profileId Profile ID to apply
  * @returns Success status and error message if applicable
  */
-export const applyProfile = (
-  profileId: string,
-): { success: boolean; error?: string } => {
+export const applyProfile = (profileId: string): ProfileWriteResult => {
   try {
     const profile = getProfileById(profileId);
     if (!profile) {
@@ -1730,7 +1738,7 @@ export const applyProfile = (
 export const updateProfileSetting = <K extends keyof SettingsStore>(
   settingType: K,
   value: SettingsStore[K],
-): { success: boolean; error?: string } => {
+): ProfileWriteResult => {
   try {
     const normalizedValue =
       settingType === "settingsCorrect"
@@ -1838,10 +1846,7 @@ const buildDefaultProfileSettings = (): SettingsStore =>
  * `models` and `enabledProviders` — dropping `enabledProviders` leaves the
  * Settings page showing Connected provider cards with zero models.
  */
-export const resetCurrentProfileSettings = (): {
-  success: boolean;
-  error?: string;
-} => {
+export const resetCurrentProfileSettings = (): ProfileWriteResult => {
   try {
     const currentProfileId = getCurrentProfileId();
     if (!currentProfileId) {
@@ -1874,9 +1879,7 @@ export const resetCurrentProfileSettings = (): {
 
     // Clear the legacy top-level selected model (not part of the typed schema)
     // so get-selected-model falls back to the dynamic default after reset.
-    (apiStore as unknown as { delete: (key: string) => void }).delete(
-      "selectedModel",
-    );
+    retiredKeyStore.delete("selectedModel");
 
     return { success: true };
   } catch (error) {

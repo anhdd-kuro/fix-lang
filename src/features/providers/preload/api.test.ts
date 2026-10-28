@@ -130,7 +130,8 @@ describe("every mutating method validates BEFORE it invokes", () => {
   });
 
   it("setSelectedModel rejects a non-string without crossing the boundary", async () => {
-    const result = await apiFeature.setSelectedModel(42 as unknown as string);
+    // @ts-expect-error -- a non-string is exactly what this guard must refuse
+    const result = await apiFeature.setSelectedModel(42);
 
     expect(result.success).toBe(false);
     expect(invokeMock).not.toHaveBeenCalled();
