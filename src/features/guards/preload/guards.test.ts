@@ -253,6 +253,8 @@ describe("selectionGuardsFeature preload boundary", () => {
   });
 
   describe("getAppBundlePathForFile", () => {
+    const droppedFile = new File([], "Slack.app");
+
     /**
      * `File.path` is gone in Electron 43, and `webUtils` only exists on this
      * side of the bridge — so the renderer must never learn the path any other
@@ -261,7 +263,7 @@ describe("selectionGuardsFeature preload boundary", () => {
     it("returns the path webUtils reports for an .app bundle", () => {
       electronMocks.getPathForFile.mockReturnValue("/Applications/Slack.app");
 
-      expect(selectionGuardsFeature.getAppBundlePathForFile({})).toBe(
+      expect(selectionGuardsFeature.getAppBundlePathForFile(droppedFile)).toBe(
         "/Applications/Slack.app",
       );
     });
@@ -269,7 +271,9 @@ describe("selectionGuardsFeature preload boundary", () => {
     it("returns null for a dropped file that is not an .app bundle", () => {
       electronMocks.getPathForFile.mockReturnValue("/Users/me/notes.txt");
 
-      expect(selectionGuardsFeature.getAppBundlePathForFile({})).toBeNull();
+      expect(
+        selectionGuardsFeature.getAppBundlePathForFile(droppedFile),
+      ).toBeNull();
     });
 
     // `instanceof File` cannot be the guard (the object crosses contexts), so
@@ -280,8 +284,11 @@ describe("selectionGuardsFeature preload boundary", () => {
         throw new TypeError("not a File");
       });
 
+      // A non-File, arriving through a JSON boundary the way it could from an
+      // untyped renderer.
+      const notAFile: File = JSON.parse('"nonsense"');
       expect(
-        selectionGuardsFeature.getAppBundlePathForFile("nonsense"),
+        selectionGuardsFeature.getAppBundlePathForFile(notAFile),
       ).toBeNull();
     });
   });

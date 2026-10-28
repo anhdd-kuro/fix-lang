@@ -167,7 +167,8 @@ export const rowToEntry = (row: HistoryRow): HistoryEntry => {
     entry.priceCompletion = row.price_completion;
   }
   if (row.cost_status !== null) {
-    // Stored as TEXT; the writer only ever persists the union values.
+    // SAFETY: stored as TEXT; the only writer (`entryToParams`) persists
+    // `entry.costStatus`, whose type is the union, or NULL (handled above).
     entry.costStatus = row.cost_status as HistoryEntry["costStatus"];
   }
   if (row.session_json !== null) {
@@ -249,6 +250,8 @@ const COST_COLUMNS: readonly { name: string; ddl: string }[] = [
  * (→ N/A). Safe to run repeatedly and on `:memory:`.
  */
 const ensureCostColumns = (db: DatabaseSync): void => {
+  // SAFETY: `PRAGMA table_info` yields one row per column, each with a TEXT
+  // `name` — SQLite's documented result shape for this pragma.
   const existing = new Set(
     (db.prepare("PRAGMA table_info(history)").all() as { name: string }[]).map(
       (c) => c.name,
@@ -280,6 +283,8 @@ const COMBO_COLUMNS: readonly { name: string; ddl: string }[] = [
 ];
 
 const ensureComboColumns = (db: DatabaseSync): void => {
+  // SAFETY: `PRAGMA table_info` yields one row per column, each with a TEXT
+  // `name` — SQLite's documented result shape for this pragma.
   const existing = new Set(
     (db.prepare("PRAGMA table_info(history)").all() as { name: string }[]).map(
       (c) => c.name,
@@ -355,6 +360,9 @@ export const createHistoryRepo = (db: DatabaseSync): HistoryRepo => {
   };
 
   const getByFeature = (featureId: HistoryFeatureId): HistoryEntry[] => {
+    // SAFETY: `SELECT *` on `history`, whose columns are `HistoryRow`'s plus
+    // the unread `id` — created and back-filled by `ensureSchema`, which
+    // `createHistoryRepo` runs before any read.
     const rows = db
       .prepare(
         "SELECT * FROM history WHERE feature_id = ? ORDER BY timestamp DESC",
@@ -391,6 +399,7 @@ export const createHistoryRepo = (db: DatabaseSync): HistoryRepo => {
     const safeLimit = Number.isFinite(limit)
       ? Math.max(0, Math.trunc(limit))
       : 0;
+    // SAFETY: the SELECT names exactly `RecentHistoryRow`'s two columns.
     const rows = db
       .prepare(
         "SELECT preset_name, timestamp FROM history WHERE feature_id = ? ORDER BY timestamp DESC LIMIT ?",
@@ -448,6 +457,7 @@ export const createHistoryRepo = (db: DatabaseSync): HistoryRepo => {
       params.push(range.to);
     }
     const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+    // SAFETY: `SELECT *` on `history` — same invariant as `getByFeature`.
     const rows = db
       .prepare(`SELECT * FROM history ${where} ORDER BY timestamp DESC`)
       .all(...params) as HistoryRow[];
@@ -455,6 +465,8 @@ export const createHistoryRepo = (db: DatabaseSync): HistoryRepo => {
   };
 
   const isMigrated = (): boolean => {
+    // SAFETY: `meta.value` is TEXT (nullable), and the only use below is
+    // `=== "1"`, which a NULL fails exactly as an absent row does.
     const row = db
       .prepare("SELECT value FROM meta WHERE key = ?")
       .get(MIGRATION_META_KEY) as { value: string } | undefined;

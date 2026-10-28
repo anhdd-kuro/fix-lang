@@ -94,6 +94,8 @@ export function setupHistoryManagerHandlers() {
         return { success: true };
       } catch (error) {
         console.error(`Failed to add history entry for ${featureId}:`, error);
+        // SAFETY: not narrowed — the store calls in reach throw `Error`s, and a
+        // non-Error is read for `.message` exactly as before this comment.
         return { success: false, error: (error as Error).message };
       }
     },
@@ -119,6 +121,8 @@ export function setupHistoryManagerHandlers() {
           `Failed to remove history entry for ${featureId}:`,
           error,
         );
+        // SAFETY: not narrowed — the store calls in reach throw `Error`s, and a
+        // non-Error is read for `.message` exactly as before this comment.
         return { success: false, error: (error as Error).message };
       }
     },
@@ -146,6 +150,8 @@ export function setupHistoryManagerHandlers() {
         return { success: true };
       } catch (error) {
         console.error("Error clearing history:", error);
+        // SAFETY: not narrowed — the store calls in reach throw `Error`s, and a
+        // non-Error is read for `.message` exactly as before this comment.
         return { success: false, error: (error as Error).message };
       }
     },
@@ -177,6 +183,8 @@ export function setupHistoryManagerHandlers() {
         return { success: true };
       } catch (error) {
         console.error("Error setting last action history:", error);
+        // SAFETY: not narrowed — the store calls in reach throw `Error`s, and a
+        // non-Error is read for `.message` exactly as before this comment.
         return { success: false, error: (error as Error).message };
       }
     },

@@ -137,14 +137,14 @@ export const selectionGuardsFeature = {
    * bundle, so a stray text file drop is reported to the user instead of being
    * sent to main as a path it will only reject.
    */
-  getAppBundlePathForFile: (file: unknown): string | null => {
+  getAppBundlePathForFile: (file: File): string | null => {
     try {
       // `instanceof File` is NOT the guard here: the object arrives from the
       // renderer's world through `contextBridge`, so its prototype is not this
-      // context's `File` and the check would reject every real drop. The cast
+      // context's `File` and the check would reject every real drop. The type
       // is narrowed by what follows instead — a throw and a non-`.app` result
       // both come back as `null`.
-      const filePath = webUtils.getPathForFile(file as File);
+      const filePath = webUtils.getPathForFile(file);
       return looksLikeAppBundlePath(filePath) ? filePath : null;
     } catch {
       return null;
