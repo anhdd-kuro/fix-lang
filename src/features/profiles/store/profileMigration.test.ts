@@ -53,8 +53,18 @@ const buildSettings = (overrides: Partial<SettingsStore> = {}): SettingsStore =>
     ...overrides,
   }) as SettingsStore;
 
-/** Builds a raw, on-disk-shaped profile — `unknown` in, like the real driver reads. */
-const buildRawProfile = (overrides: Record<string, unknown> = {}): unknown => ({
+/** A raw, on-disk-shaped profile — `provider` is the retired legacy field. */
+type RawProfile = {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  provider?: string;
+  settings: object;
+};
+
+/** Builds a raw, on-disk-shaped profile, like the real driver reads. */
+const buildRawProfile = (overrides: Partial<RawProfile> = {}): RawProfile => ({
   id: "profile_1",
   name: "Test Profile",
   createdAt: "2000-01-01T00:00:00.000Z",
@@ -194,7 +204,7 @@ describe("migrateProfileForModelRefs — a profile with no provider key migrates
     const raw = buildRawProfile({
       settings: buildSettings({ selectedModel: "some-model" }),
     });
-    delete (raw as Record<string, unknown>).provider;
+    delete raw.provider;
 
     const migrated = migrateProfileForModelRefs(raw);
 
@@ -386,7 +396,7 @@ describe("migrateProfileForModelRefs — second pass stays inert for a fresh (po
         selectedModel: "",
       }),
     });
-    delete (raw as Record<string, unknown>).provider;
+    delete raw.provider;
 
     const migrated = migrateProfileForModelRefs(raw);
 
@@ -408,10 +418,10 @@ describe("migrateProfileForModelRefs — fifth model field: settingsTranslate.mo
 
     const migrated = migrateProfileForModelRefs(raw);
 
-    expect(
-      (migrated.settings as unknown as { settingsTranslate: { model: string } })
-        .settingsTranslate.model,
-    ).toBe("openrouter::anthropic/claude-3");
+    expect(migrated.settings).toHaveProperty(
+      "settingsTranslate.model",
+      "openrouter::anthropic/claude-3",
+    );
   });
 
   it("leaves other settingsTranslate fields untouched", () => {
@@ -428,13 +438,10 @@ describe("migrateProfileForModelRefs — fifth model field: settingsTranslate.mo
 
     const migrated = migrateProfileForModelRefs(raw);
 
-    expect(
-      (
-        migrated.settings as unknown as {
-          settingsTranslate: { destinationLang: string };
-        }
-      ).settingsTranslate.destinationLang,
-    ).toBe("ja");
+    expect(migrated.settings).toHaveProperty(
+      "settingsTranslate.destinationLang",
+      "ja",
+    );
   });
 
   it("does not add a settingsTranslate field when the raw profile never had one", () => {
@@ -458,8 +465,9 @@ describe("migrateProfileForModelRefs — sixth model field found via grep: setti
 
     const migrated = migrateProfileForModelRefs(raw);
 
-    expect(
-      (migrated.settings.settingsCorrect as unknown as { model: string }).model,
-    ).toBe("openai::gpt-4-legacy");
+    expect(migrated.settings.settingsCorrect).toHaveProperty(
+      "model",
+      "openai::gpt-4-legacy",
+    );
   });
 });
