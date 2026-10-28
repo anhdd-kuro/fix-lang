@@ -48,6 +48,9 @@ export default defineConfig({
     define: featureDefine,
     plugins: [inlineUndiciRequirePlugin(), tsconfigPaths(), tailwindcss()],
     build: {
+      // electron-vite 6 externalizes `dependencies` by default; app.asar ships
+      // no node_modules, so every runtime dep must be inlined instead.
+      externalizeDeps: false,
       outDir: "out/main",
       rollupOptions: {
         // Keep Electron 43's CommonJS runtime boundary intact.
@@ -70,6 +73,7 @@ export default defineConfig({
     define: featureDefine,
     plugins: [tsconfigPaths()],
     build: {
+      externalizeDeps: false, // see main: app.asar ships no node_modules
       outDir: "out/preload",
       rollupOptions: {
         external: ["electron"],
