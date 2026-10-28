@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_DAILY_COST_CAP_USD } from "~/features/autocomplete/shared/autocompleteSettings";
 import { registerAutocompleteSettingsHandlers } from "./settings";
+import type { ipcMain } from "electron";
 
 const { electronMocks, apiStoreMocks } = vi.hoisted(() => ({
   electronMocks: { handle: vi.fn() },
@@ -13,7 +14,14 @@ const { electronMocks, apiStoreMocks } = vi.hoisted(() => ({
 vi.mock("electron", () => ({ ipcMain: { handle: electronMocks.handle } }));
 vi.mock("~/features/providers/store/apiStore", () => apiStoreMocks);
 
-type Handler = (event: unknown, raw?: unknown) => unknown;
+/**
+ * Electron types every IPC argument and reply as `any`, and these tests feed the
+ * handlers deliberately malformed payloads, so Electron's own wire type is the
+ * honest one for them.
+ */
+type IpcWireValue = Parameters<Parameters<typeof ipcMain.handle>[1]>[1];
+type FakeIpcEvent = { sender: { id: number } } | undefined;
+type Handler = (event: FakeIpcEvent, raw?: IpcWireValue) => IpcWireValue;
 
 const getHandler = (channel: string): Handler => {
   const call = electronMocks.handle.mock.calls.find(

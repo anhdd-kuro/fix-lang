@@ -187,7 +187,7 @@ import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWi
 import type * as KeybindingUtils from "./utils";
 import type { BrowserWindow, WebContents } from "electron";
 import type { Mock } from "vitest";
-import type { LogContext } from "~/features/logs/shared/logging";
+import type { LogContext, LogValue } from "~/features/logs/shared/logging";
 
 /** Translate's built-in default accelerator — the one a stored preset claims. */
 const TRANSLATE_DEFAULT_HOTKEY = "Control+Shift+T";
@@ -289,14 +289,14 @@ const registerFrom = (stored: unknown): RegisterCall[] => {
 
 const presetIdBehindHandler = async (
   handler: () => Promise<void>,
-): Promise<unknown> => {
+): Promise<LogValue | undefined> => {
   (logger.info as Mock).mockClear();
   await handler();
   const triggered = (logger.info as Mock).mock.calls.find(
     ([scope, message]) =>
       scope === "correction.hotkey" && message === "Hotkey triggered",
   );
-  return (triggered?.[2] as { presetId?: unknown } | undefined)?.presetId;
+  return (triggered?.[2] as LogContext | undefined)?.presetId;
 };
 
 describe("correction preset hotkeys — a materialized built-in never outranks a stored preset", () => {

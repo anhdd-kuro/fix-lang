@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AUTOCOMPLETE_SKIP_LOG_INTERVAL_MS } from "~/features/autocomplete/shared/autocompleteDiagnostics";
 import { redactLogContext } from "~/features/logs/shared/logging";
 import { registerAutocompleteHandlers } from "./ipc";
+import type { ipcMain } from "electron";
+import type { AutocompleteSkipReport } from "~/features/autocomplete/shared/autocompleteDiagnostics";
 import type { LogContext } from "~/features/logs/shared/logging";
 
 const {
@@ -44,7 +46,14 @@ vi.mock("~/features/autocomplete/store/autocompleteUsageStore", () => ({
 vi.mock("~/features/providers/store/apiStore", () => apiStoreMocks);
 vi.mock("~/main/logging/logService", () => ({ logger: loggerMock }));
 
-type Handler = (event: unknown, raw?: unknown) => unknown;
+/**
+ * Electron types every IPC argument and reply as `any`, and these tests feed the
+ * handlers deliberately malformed payloads, so Electron's own wire type is the
+ * honest one for them.
+ */
+type IpcWireValue = Parameters<Parameters<typeof ipcMain.handle>[1]>[1];
+type FakeIpcEvent = { sender: { id: number } } | undefined;
+type Handler = (event: FakeIpcEvent, raw?: IpcWireValue) => IpcWireValue;
 
 const getHandler = (channel: string): Handler => {
   const call = electronMocks.handle.mock.calls.find(
@@ -247,14 +256,29 @@ describe("registerAutocompleteHandlers", () => {
       vi.useRealTimers();
     });
 
-    const report = (overrides: Record<string, unknown> = {}): unknown => ({
+    /** Every field a report could carry, including ones main must ignore. */
+    type SkipReportProbe = Partial<
+      Record<
+        | keyof AutocompleteSkipReport
+        | "model"
+        | "provider"
+        | "latencyMs"
+        | "prefix"
+        | "suffix"
+        | "suggestion"
+        | "text",
+        IpcWireValue
+      >
+    >;
+
+    const report = (overrides: SkipReportProbe = {}): SkipReportProbe => ({
       reason: "prefix-too-short",
       prefixLength: 4,
       suppressedSincePrevious: 0,
       ...overrides,
     });
 
-    const send = (raw: unknown): void => {
+    const send = (raw: IpcWireValue): void => {
       getListener("autocomplete-skip")(eventFrom(1), raw);
     };
 
@@ -299,7 +323,7 @@ describe("registerAutocompleteHandlers", () => {
         latencyMs: 24484,
       };
 
-      const lateReport = (overrides: Record<string, unknown> = {}): unknown =>
+      const lateReport = (overrides: SkipReportProbe = {}): SkipReportProbe =>
         report({
           reason: "reply-too-late",
           requestId: 4,

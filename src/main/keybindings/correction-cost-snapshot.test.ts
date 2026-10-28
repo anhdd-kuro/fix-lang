@@ -90,7 +90,10 @@ vi.mock("./utils", () => ({
   checkShortcut: vi.fn(),
   handleError: vi.fn(),
   // Passthrough: this suite exercises cost snapshot wiring, not throttle.
-  withHotkeyThrottle: (_accelerator: string, handler: () => unknown) => handler,
+  withHotkeyThrottle: (
+    _accelerator: string,
+    handler: () => void | Promise<void>,
+  ) => handler,
 }));
 // `notifications/error` reaches `overlay.html?asset`, which vite cannot parse
 // as JS under vitest. Stub that leaf so `LocalizedError` stays real.

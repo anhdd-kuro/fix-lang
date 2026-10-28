@@ -102,7 +102,10 @@ vi.mock("./askEnvironment", () => ({
 vi.mock("./utils", () => ({
   checkShortcut: vi.fn(),
   handleError: vi.fn(),
-  withHotkeyThrottle: (_accelerator: string, handler: () => unknown) => handler,
+  withHotkeyThrottle: (
+    _accelerator: string,
+    handler: () => void | Promise<void>,
+  ) => handler,
 }));
 vi.mock("~/main/webViewWindows/errorPopupWindow", () => ({
   showErrorPopup: vi.fn(),
