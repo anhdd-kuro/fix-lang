@@ -107,30 +107,3 @@ export function buildCachedMessages(
     };
   });
 }
-
-/**
- * Safely extracts cache-usage fields from an OpenRouter usage object.
- * These fields are present only when caching is active for the request.
- */
-export function extractCacheUsage(usage: unknown): {
-  cachedTokens: number;
-  cacheWriteTokens: number;
-} {
-  if (!usage || typeof usage !== "object") {
-    return { cachedTokens: 0, cacheWriteTokens: 0 };
-  }
-
-  const u = usage as Record<string, unknown>;
-
-  const cachedTokens =
-    typeof u["cache_read_input_tokens"] === "number"
-      ? u["cache_read_input_tokens"]
-      : 0;
-
-  const cacheWriteTokens =
-    typeof u["cache_creation_input_tokens"] === "number"
-      ? u["cache_creation_input_tokens"]
-      : 0;
-
-  return { cachedTokens, cacheWriteTokens };
-}

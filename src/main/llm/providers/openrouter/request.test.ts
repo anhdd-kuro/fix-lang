@@ -91,6 +91,7 @@ describe("makeOpenRouterAIRequest response body", () => {
   });
 
   it("falls back to the requested model when the SDK reports none", async () => {
+    // Defensive only: the real SDK always returns a `response` with a `modelId`; this guards a malformed result.
     generateTextMock.mockResolvedValue({
       text: "the text",
       usage: { inputTokens: 1, outputTokens: 1 },

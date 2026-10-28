@@ -3,7 +3,10 @@
  * @description Verifies shared AI request logs never expose prompt or response content.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fakeGenerateText } from "~/main/llm/providers/testing/fakeGenerateText";
+import {
+  chatCompletionBody,
+  fakeGenerateText,
+} from "~/main/llm/providers/testing/fakeGenerateText";
 import { makeAIRequest, makeOpenAIAIRequest, makeRemoteAIRequest } from "./shared";
 const { createOpenAIMock, generateTextMock, getProfileSecretMock, notificationShowMock } = vi.hoisted(() => ({
   createOpenAIMock: vi.fn(() => ({ chat: vi.fn(() => ({ provider: "openai" })) })),
@@ -85,41 +88,56 @@ vi.mock("~/main/llm/providers/ollama/client", () => ({
 describe("shared AI request logging", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // `ai` v7 returns `response.body` only when the call passes
-    // `include: { responseBody: true }`; the realistic fake enforces that.
+  });
+
+  it("does not log full prompts or provider response payloads", async () => {
+    // The OpenRouter `n > 1` path is the one that requests the raw response
+    // body (`include.responseBody`), so the payload really reaches the request
+    // code; the fake returns a body only to a caller that asks for it.
     generateTextMock.mockImplementation(
       fakeGenerateText({
         text: "PRIVATE_RESPONSE_TEXT",
         usage: { inputTokens: 3, outputTokens: 4 },
+        modelId: "openai/gpt-4.1-mini-2025-04-14",
         body: {
-          model: "openai/gpt-4.1-mini-2025-04-14",
+          ...chatCompletionBody({
+            model: "openai/gpt-4.1-mini-2025-04-14",
+            contents: ["PRIVATE_CHOICE_ONE", "PRIVATE_CHOICE_TWO"],
+          }),
           privatePayload: "PRIVATE_PROVIDER_PAYLOAD",
         },
       }),
     );
-  });
-
-  it("does not log full prompts or provider response payloads", async () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     const response = await makeRemoteAIRequest({
       systemPrompt: "PRIVATE_SYSTEM_PROMPT",
       userPrompt: "PRIVATE_USER_PROMPT",
       model: "openai/gpt-4.1-mini",
+      n: 2,
       messages: [
         { role: "system", content: "PRIVATE_SYSTEM_PROMPT" },
         { role: "user", content: "PRIVATE_USER_PROMPT" },
       ],
     });
 
-    const serializedLogs = JSON.stringify(logSpy.mock.calls);
+    // The body was requested and delivered: the choices came out of it.
+    expect(generateTextMock.mock.calls[0]?.[0].include).toEqual({
+      responseBody: true,
+    });
+    expect(response.content).toEqual(["PRIVATE_CHOICE_ONE", "PRIVATE_CHOICE_TWO"]);
+    expect(response.resolvedModel).toBe("openai/gpt-4.1-mini-2025-04-14");
+
+    const serializedLogs = JSON.stringify([
+      ...logSpy.mock.calls,
+      ...errorSpy.mock.calls,
+    ]);
     expect(serializedLogs).not.toContain("PRIVATE_SYSTEM_PROMPT");
     expect(serializedLogs).not.toContain("PRIVATE_USER_PROMPT");
     expect(serializedLogs).not.toContain("PRIVATE_RESPONSE_TEXT");
+    expect(serializedLogs).not.toContain("PRIVATE_CHOICE_ONE");
     expect(serializedLogs).not.toContain("PRIVATE_PROVIDER_PAYLOAD");
-    // Proves the body actually reached the request code, so the payload
-    // assertion above is not passing merely because no body was returned.
-    expect(response.resolvedModel).toBe("openai/gpt-4.1-mini-2025-04-14");
   });
 
   it("shows a desktop notification when a request cannot resolve its model", async () => {

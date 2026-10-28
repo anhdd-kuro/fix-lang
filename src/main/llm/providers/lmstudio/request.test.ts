@@ -86,6 +86,7 @@ describe("makeLmStudioAIRequest", () => {
   });
 
   it("falls back to the requested id when the SDK reports no model", async () => {
+    // Defensive only: the real SDK always returns a `response` with a `modelId`; this guards a malformed result.
     generateTextMock.mockImplementation(async () => ({
       text: "fixed",
       usage: {},

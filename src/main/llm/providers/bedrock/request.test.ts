@@ -79,6 +79,7 @@ describe("makeBedrockAIRequest", () => {
   });
 
   it("falls back to the requested model when the SDK result names none", async () => {
+    // Defensive only: the real SDK always returns a `response` with a `modelId`; this guards a malformed result.
     generateTextMock.mockImplementation(
       vi.fn(async () => ({ text: "the text", usage: {}, response: {} })),
     );

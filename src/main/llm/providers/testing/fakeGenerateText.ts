@@ -81,12 +81,13 @@ const sumDefined = (...values: (number | undefined)[]): number | undefined =>
 const toSdkUsage = (usage: FakeUsage = {}, noCacheOverride?: number) => {
   const { inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasoningTokens } =
     usage;
-  const cachedInput = sumDefined(cacheReadTokens, cacheWriteTokens) ?? 0;
   return {
     inputTokens,
     inputTokenDetails: {
+      // The real SDK subtracts cache reads only; cache writes stay in `noCache`.
       noCacheTokens:
-        noCacheOverride ?? (inputTokens === undefined ? undefined : inputTokens - cachedInput),
+        noCacheOverride ??
+        (inputTokens === undefined ? undefined : inputTokens - (cacheReadTokens ?? 0)),
       cacheReadTokens,
       cacheWriteTokens,
     },

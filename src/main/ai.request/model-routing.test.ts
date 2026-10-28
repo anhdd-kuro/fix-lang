@@ -219,15 +219,13 @@ describe("makeAIRequest — ref-based routing", () => {
     expect(ollamaChatMock).toHaveBeenCalledOnce();
   });
 
-  // `ai` v7 hands back `response.body` only to a call that passed
-  // `include: { responseBody: true }`; the realistic fake enforces that, so a
-  // provider that forgets it reports the requested id instead of the served one.
+  // The served model is read from `response.modelId`, never from the raw body.
   it("keeps AIRequestResponse.model and resolvedModel raw, never composite", async () => {
     generateTextMock.mockImplementation(
       fakeGenerateText({
         text: "answer",
         usage: { inputTokens: 1, outputTokens: 2 },
-        body: { model: "gpt-4o-2024-11-20" },
+        modelId: "gpt-4o-2024-11-20",
       }),
     );
 
@@ -238,12 +236,12 @@ describe("makeAIRequest — ref-based routing", () => {
     expect(response.resolvedModel).not.toContain("::");
   });
 
-  it("an openrouter:: ref reports the served model from the response body", async () => {
+  it("an openrouter:: ref reports the served model from response.modelId", async () => {
     generateTextMock.mockImplementation(
       fakeGenerateText({
         text: "answer",
         usage: { inputTokens: 1, outputTokens: 2 },
-        body: { model: "anthropic/claude-3.5-sonnet-20241022" },
+        modelId: "anthropic/claude-3.5-sonnet-20241022",
       }),
     );
 
