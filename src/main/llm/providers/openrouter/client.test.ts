@@ -7,14 +7,15 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { createOpenRouterClient } from "./client";
+import type { JsonValue } from "~/main/jsonValue";
 
 type StubResponse = {
   ok: boolean;
   status: number;
-  json: () => Promise<unknown>;
+  json: () => Promise<JsonValue>;
 };
 
-const okResponse = (body: unknown): StubResponse => ({
+const okResponse = (body: JsonValue): StubResponse => ({
   ok: true,
   status: 200,
   json: async () => body,

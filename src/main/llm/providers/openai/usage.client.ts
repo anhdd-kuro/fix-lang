@@ -24,6 +24,7 @@ import {
   type UsageRange,
 } from "~/features/usage/shared/usage";
 import type { LogContext } from "~/features/logs/shared/logging";
+import type { JsonValue } from "~/main/jsonValue";
 import { logger } from "~/main/logging/logService";
 import {
   nextAfterCursor,
@@ -55,7 +56,7 @@ export type OpenAIUsage = {
 type FetchLike = (
   url: string,
   init: { headers: Record<string, string>; signal: AbortSignal },
-) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
+) => Promise<{ ok: boolean; status: number; json: () => Promise<JsonValue> }>;
 
 type ClientDeps = {
   fetch?: FetchLike;

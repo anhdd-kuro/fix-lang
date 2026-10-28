@@ -95,7 +95,7 @@ export const resolveProviderForModelRef = (
  * tear the connection down instead, which is the opposite of the goal.
  */
 const drain = async (response: {
-  arrayBuffer: () => Promise<unknown>;
+  arrayBuffer: () => Promise<ArrayBuffer>;
 }): Promise<void> => {
   await response.arrayBuffer();
 };

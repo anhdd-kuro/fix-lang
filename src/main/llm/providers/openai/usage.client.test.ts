@@ -15,10 +15,10 @@ const KEY = "sk-admin-secret";
 type StubResponse = {
   ok: boolean;
   status: number;
-  json: () => Promise<unknown>;
+  json: () => Promise<JsonValue>;
 };
 
-const okResponse = (body: unknown): StubResponse => ({
+const okResponse = (body: JsonValue): StubResponse => ({
   ok: true,
   status: 200,
   json: async () => body,
@@ -204,7 +204,7 @@ describe("createOpenAIUsageClient", () => {
     const client = clientWith(async (url) => {
       const page = new URL(url).searchParams.get("page") ?? "";
       requestedPages.push(page);
-      return okResponse(pages.get(page));
+      return okResponse(pages.get(page) ?? null);
     });
 
     const result = await client.getCosts("7d");

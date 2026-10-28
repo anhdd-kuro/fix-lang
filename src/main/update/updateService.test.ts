@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { msg } from "~/features/i18n/shared/message";
-import type { JsonObject } from "~/main/jsonValue";
+import type { JsonObject, JsonValue } from "~/main/jsonValue";
 import { UPGRADE_GRACE_MS } from "./pendingInstall";
 import { createUpdateService } from "./updateService";
 
@@ -53,13 +53,13 @@ const createService = (
     } | null;
     appPath: string | null;
     now: () => number;
-    getLatestRelease: () => Promise<unknown>;
+    getLatestRelease: () => Promise<JsonValue>;
     onLog: (level: "info" | "warn" | "error", message: string) => void;
   }> = {},
 ) => {
   const releaseSource = {
     getLatestRelease: vi
-      .fn<() => Promise<unknown>>()
+      .fn<() => Promise<JsonValue>>()
       .mockImplementation(
         overrides.getLatestRelease ?? (() => Promise.resolve(stableRelease())),
       ),
@@ -268,8 +268,8 @@ describe("unsigned GitHub update service", () => {
   });
 
   it("prevents duplicate checks while the first request is active", async () => {
-    let resolveRelease: ((release: unknown) => void) | undefined;
-    const pendingRelease = new Promise<unknown>((resolve) => {
+    let resolveRelease: ((release: JsonValue) => void) | undefined;
+    const pendingRelease = new Promise<JsonValue>((resolve) => {
       resolveRelease = resolve;
     });
     const { service, releaseSource } = createService({
@@ -1058,7 +1058,9 @@ describe("restarting into an installed update", () => {
    * that older copy comes up reporting a completed update.
    */
   describe("when a different copy of FixLang reopened", () => {
-    const strayLaunch = (onLog?: ReturnType<typeof vi.fn>) =>
+    const strayLaunch = (
+      onLog?: (level: "info" | "warn" | "error", message: string) => void,
+    ) =>
       createService({
         canInstall: true,
         currentVersion: "0.1.5",

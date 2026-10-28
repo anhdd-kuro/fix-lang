@@ -19,6 +19,7 @@ import {
 } from "~/features/providers/shared/providerKeyFamilies";
 import { getProvisioningKey } from "~/features/providers/store/provisioningKeyStore";
 import type { LogContext } from "~/features/logs/shared/logging";
+import type { JsonValue } from "~/main/jsonValue";
 import { logger } from "~/main/logging/logService";
 import {
   parseActivity,
@@ -48,7 +49,7 @@ export type OpenRouterAnalytics = {
 type FetchLike = (
   url: string,
   init: { headers: Record<string, string>; signal: AbortSignal },
-) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
+) => Promise<{ ok: boolean; status: number; json: () => Promise<JsonValue> }>;
 
 type ClientDeps = {
   fetch?: FetchLike;
