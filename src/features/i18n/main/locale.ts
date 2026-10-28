@@ -40,7 +40,9 @@ export const broadcastLocale = (locale: Locale): void => {
 /**
  * Sends the current locale to a single window after it finishes loading.
  */
-export const syncLocaleToWindow = (webContents: Electron.WebContents): void => {
+export const syncLocaleToWindow = (
+  webContents: Pick<Electron.WebContents, "isDestroyed" | "send">,
+): void => {
   const locale = getLocale();
   if (!webContents.isDestroyed()) {
     webContents.send("locale-changed", locale);

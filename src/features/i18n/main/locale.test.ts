@@ -156,7 +156,7 @@ describe("syncLocaleToWindow", () => {
     localeStoreMocks.getLocale.mockReturnValue("en");
     const webContents = { isDestroyed: () => false, send: vi.fn() };
 
-    syncLocaleToWindow(webContents as unknown as Electron.WebContents);
+    syncLocaleToWindow(webContents);
 
     expect(webContents.send).toHaveBeenCalledWith("locale-changed", "en");
   });
@@ -165,7 +165,7 @@ describe("syncLocaleToWindow", () => {
     localeStoreMocks.getLocale.mockReturnValue("en");
     const webContents = { isDestroyed: () => true, send: vi.fn() };
 
-    syncLocaleToWindow(webContents as unknown as Electron.WebContents);
+    syncLocaleToWindow(webContents);
 
     expect(webContents.send).not.toHaveBeenCalled();
   });

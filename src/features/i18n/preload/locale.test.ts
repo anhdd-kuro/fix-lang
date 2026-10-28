@@ -47,7 +47,7 @@ describe("locale preload boundary", () => {
   it("setLocale rejects an invalid locale without an IPC round-trip", async () => {
     // why: locale is typed `Locale` for TS call sites, but the renderer is
     // untrusted at runtime — cast past the type to simulate a bad caller.
-    const invalid = "not-a-real-locale" as unknown as Parameters<
+    const invalid = String("not-a-real-locale") as Parameters<
       typeof localeFeature.setLocale
     >[0];
 

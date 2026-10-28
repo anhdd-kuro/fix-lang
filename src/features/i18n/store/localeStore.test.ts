@@ -58,7 +58,7 @@ describe("localeStore", () => {
 
     it("falls back to en for an invalid persisted value", () => {
       // why: force garbage into the store to exercise the invalid-value fallback path
-      setLocale("fr" as unknown as Locale);
+      setLocale(String("fr") as Locale);
       expect(getLocale()).toBe("en");
     });
   });
