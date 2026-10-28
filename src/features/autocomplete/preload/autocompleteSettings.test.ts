@@ -122,7 +122,7 @@ describe("autocompleteSettings preload boundary", () => {
       async (payload) => {
         const result =
           await autocompleteSettingsFeature.setAutocompleteSettings(
-            payload as unknown as {
+            payload as {
               enabled: boolean;
               model: string;
               dailyCostCapUsd: number;

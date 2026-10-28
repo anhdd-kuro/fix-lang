@@ -113,7 +113,7 @@ import { registerCorrectionShortcut } from "./correction";
 import { pasteText } from "../../utils";
 import { fixGrammar } from "../ai.request";
 import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWindow";
-import type { BrowserWindow } from "electron";
+import type { BrowserWindow, WebContents } from "electron";
 import type { Mock } from "vitest";
 import type { CorrectionOutputMode } from "~/features/correction/shared/outputMode";
 import type { PresetOutputMode } from "~/features/correction/shared/presetOutputMode";
@@ -121,11 +121,19 @@ import type { CorrectionPreset } from "~/features/providers/store/apiStore";
 
 const HOTKEY = "Control+Shift+F";
 
-const fakeMainWindow = () =>
-  ({
+/** The two members the hotkey path touches; everything else is never read. */
+type FakeMainWindow = {
+  isDestroyed: BrowserWindow["isDestroyed"];
+  webContents: Pick<WebContents, "send">;
+};
+
+const fakeMainWindow = (): BrowserWindow => {
+  const fake: FakeMainWindow = {
     isDestroyed: () => false,
     webContents: { send: vi.fn() },
-  }) as unknown as BrowserWindow;
+  };
+  return fake as BrowserWindow;
+};
 
 /**
  * Runs the ordinary (non-`requiresInput`) preset hotkey with a given

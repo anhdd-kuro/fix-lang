@@ -127,9 +127,9 @@ describe("withComboCancel", () => {
     // is entered and can throw synchronously (e.g. a corrupt electron-store
     // read) — the callback passed here reproduces that: it throws before ever
     // producing a promise, instead of rejecting one.
-    const throwingRun = vi.fn(() => {
+    const throwingRun = vi.fn<(signal: AbortSignal) => Promise<string>>(() => {
       throw new Error("sync boom");
-    }) as unknown as (signal: AbortSignal) => Promise<string>;
+    });
 
     await expect(withComboCancel(throwingRun, vi.fn())).rejects.toThrow(
       "sync boom",

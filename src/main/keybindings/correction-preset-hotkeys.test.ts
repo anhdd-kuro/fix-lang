@@ -185,7 +185,7 @@ import {
 import { showAskInputWindow } from "../webViewWindows/askInputWindow";
 import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWindow";
 import type * as KeybindingUtils from "./utils";
-import type { BrowserWindow } from "electron";
+import type { BrowserWindow, WebContents } from "electron";
 import type { Mock } from "vitest";
 import type { LogContext } from "~/features/logs/shared/logging";
 
@@ -252,11 +252,19 @@ const STORED_WITH_CUSTOM_ON_A_BUILTIN_DEFAULT = {
   selectedPresetId: "correction",
 };
 
-const fakeMainWindow = () =>
-  ({
+/** The two members the hotkey path touches; everything else is never read. */
+type FakeMainWindow = {
+  isDestroyed: BrowserWindow["isDestroyed"];
+  webContents: Pick<WebContents, "send">;
+};
+
+const fakeMainWindow = (): BrowserWindow => {
+  const fake: FakeMainWindow = {
     isDestroyed: () => false,
     webContents: { send: vi.fn() },
-  }) as unknown as BrowserWindow;
+  };
+  return fake as BrowserWindow;
+};
 
 type RegisterCall = [string, () => Promise<void>];
 

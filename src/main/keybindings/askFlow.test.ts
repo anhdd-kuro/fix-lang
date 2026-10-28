@@ -99,7 +99,7 @@ import { startLatencyTimer } from "../logging/latencyTimer";
 import { logger } from "../logging/logService";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
 import { showAskResultWindow } from "../webViewWindows/askResultWindow";
-import type { BrowserWindow } from "electron";
+import type { BrowserWindow, WebContents } from "electron";
 import type { Mock } from "vitest";
 import type { CorrectionPreset } from "~/features/providers/store/apiStore";
 
@@ -115,11 +115,19 @@ const basePreset: CorrectionPreset = {
   markdownOutput: true,
 };
 
-const fakeMainWindow = () =>
-  ({
+/** The two members the hotkey path touches; everything else is never read. */
+type FakeMainWindow = {
+  isDestroyed: BrowserWindow["isDestroyed"];
+  webContents: Pick<WebContents, "send">;
+};
+
+const fakeMainWindow = (): BrowserWindow => {
+  const fake: FakeMainWindow = {
     isDestroyed: () => false,
     webContents: { send: vi.fn() },
-  }) as unknown as BrowserWindow;
+  };
+  return fake as BrowserWindow;
+};
 
 const askSessionJson = JSON.stringify({
   systemPrompt: "Ask AI system prompt.",

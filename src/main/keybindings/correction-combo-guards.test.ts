@@ -164,7 +164,7 @@ import {
 } from "../webViewWindows";
 import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWindow";
 import type * as KeybindingUtils from "./utils";
-import type { BrowserWindow } from "electron";
+import type { BrowserWindow, WebContents } from "electron";
 import type { Mock } from "vitest";
 import type { LogContext } from "~/features/logs/shared/logging";
 import type { SecretGuardSettings } from "~/features/secretGuard/shared/secretGuardSettings";
@@ -210,11 +210,19 @@ const TWO_STEP_COMBO_PROFILE = {
 
 const mainWindowSend = vi.fn();
 
-const fakeMainWindow = () =>
-  ({
+/** The two members the hotkey path touches; everything else is never read. */
+type FakeMainWindow = {
+  isDestroyed: BrowserWindow["isDestroyed"];
+  webContents: Pick<WebContents, "send">;
+};
+
+const fakeMainWindow = (): BrowserWindow => {
+  const fake: FakeMainWindow = {
     isDestroyed: () => false,
     webContents: { send: mainWindowSend },
-  }) as unknown as BrowserWindow;
+  };
+  return fake as BrowserWindow;
+};
 
 const defaultGuardSettings = (
   overrides: Partial<{

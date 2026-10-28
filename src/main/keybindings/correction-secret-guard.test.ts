@@ -158,7 +158,7 @@ import { logger } from "../logging/logService";
 import { hideOverlaySpinner, showOverlaySpinner } from "../webViewWindows";
 import { showCorrectionResultWindow } from "../webViewWindows/correctionResultWindow";
 import type * as KeybindingUtils from "./utils";
-import type { BrowserWindow } from "electron";
+import type { BrowserWindow, WebContents } from "electron";
 import type { Mock } from "vitest";
 import type { SecretGuardSettings } from "~/features/secretGuard/shared/secretGuardSettings";
 
@@ -188,11 +188,19 @@ const SINGLE_BUILT_IN_PROFILE = {
   selectedPresetId: "correction",
 };
 
-const fakeMainWindow = () =>
-  ({
+/** The two members the hotkey path touches; everything else is never read. */
+type FakeMainWindow = {
+  isDestroyed: BrowserWindow["isDestroyed"];
+  webContents: Pick<WebContents, "send">;
+};
+
+const fakeMainWindow = (): BrowserWindow => {
+  const fake: FakeMainWindow = {
     isDestroyed: () => false,
     webContents: { send: vi.fn() },
-  }) as unknown as BrowserWindow;
+  };
+  return fake as BrowserWindow;
+};
 
 const registerCorrectionHandler = (): (() => Promise<void>) => {
   (getProfileSetting as Mock).mockImplementation((key: string) =>

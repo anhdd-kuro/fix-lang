@@ -32,14 +32,13 @@ vi.mock("../webViewWindows/mainWindow", () => ({
 }));
 import { rearmCancelAcceleratorForActiveCombo } from "./comboCancel";
 import { registerCorrectionShortcut } from "./correction";
-import type { BrowserWindow } from "electron";
 import type { Mock } from "vitest";
 import { reloadHotkeys, unregisterHotkeys } from "./index";
 
 describe("reloadHotkeys", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.mainWindow = { id: "main" } as unknown as BrowserWindow;
+    mocks.mainWindow = { id: "main" };
   });
 
   it("unregisters, re-registers, then re-arms the cancel accelerator — in that order", () => {

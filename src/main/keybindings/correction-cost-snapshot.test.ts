@@ -101,7 +101,7 @@ import { syncHistory } from "~/features/history/main/history";
 import { getProfileSetting } from "~/features/providers/store/apiStore";
 import { fixGrammar } from "../ai.request";
 import { registerCorrectionShortcut } from "./correction";
-import type { BrowserWindow } from "electron";
+import type { BrowserWindow, WebContents } from "electron";
 import type { Mock } from "vitest";
 import type { Model, ProviderId } from "~/features/providers/store/apiStore";
 
@@ -155,11 +155,19 @@ const CORRECTION_SETTINGS = {
   selectedPresetId: "correction-default",
 };
 
-const fakeMainWindow = () =>
-  ({
+/** The two members the hotkey path touches; everything else is never read. */
+type FakeMainWindow = {
+  isDestroyed: BrowserWindow["isDestroyed"];
+  webContents: Pick<WebContents, "send">;
+};
+
+const fakeMainWindow = (): BrowserWindow => {
+  const fake: FakeMainWindow = {
     isDestroyed: () => false,
     webContents: { send: vi.fn() },
-  }) as unknown as BrowserWindow;
+  };
+  return fake as BrowserWindow;
+};
 
 const runHotkey = async (provider: ProviderId | undefined) => {
   (getProfileSetting as Mock).mockImplementation((key: string) =>

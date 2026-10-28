@@ -103,8 +103,8 @@ const makeDeps = (overrides: MakeDepsOverrides = {}): RunComboDependencies => {
     fixGrammar: vi.fn(async (text: string) =>
       makeResult({ correctedText: `${text}-fixed` }),
     ),
-    recordStepHistory: vi.fn() as unknown as RecordComboStepHistory,
-    deliver: vi.fn(async () => "pasted") as unknown as ComboDeliver,
+    recordStepHistory: vi.fn<RecordComboStepHistory>(),
+    deliver: vi.fn<ComboDeliver>(async () => "pasted"),
     defaultOutputMode: "paste",
     ...rest,
   };
@@ -132,10 +132,10 @@ describe("runCombo — E2: nothing pasted mid-chain", () => {
         callOrder.push(`fixGrammar:${presetId}`);
         return makeResult({ correctedText: `${text}-${presetId}` });
       }),
-      deliver: vi.fn(async () => {
+      deliver: vi.fn<ComboDeliver>(async () => {
         callOrder.push("deliver");
         return "pasted";
-      }) as unknown as ComboDeliver,
+      }),
     });
 
     const result = await runCombo({ combo, input: "hello" }, deps);
@@ -558,7 +558,7 @@ describe("runCombo — H1: one history row per completed step", () => {
       .fn()
       .mockResolvedValueOnce(results[0])
       .mockResolvedValueOnce(results[1]);
-    const recordStepHistory = vi.fn() as unknown as RecordComboStepHistory;
+    const recordStepHistory = vi.fn<RecordComboStepHistory>();
     const deps = makeDeps({ fixGrammar, recordStepHistory });
 
     await runCombo({ combo, input: "start" }, deps);
@@ -581,11 +581,7 @@ describe("runCombo — H1: one history row per completed step", () => {
       }),
     );
 
-    const [firstCallArgs, secondCallArgs] = (
-      recordStepHistory as unknown as {
-        mock: { calls: unknown[][] };
-      }
-    ).mock.calls as [{ runId: string }][];
+    const [firstCallArgs, secondCallArgs] = recordStepHistory.mock.calls;
     expect(firstCallArgs[0].runId).toBe(secondCallArgs[0].runId);
   });
 });
@@ -840,11 +836,11 @@ describe("runCombo — f1: cancel mid-run never delivers", () => {
     // written — i.e. strictly BETWEEN steps, not mid-request — so this pins
     // the top-of-loop check on the NEXT iteration, distinct from the
     // in-flight race covered by the other tests in this block.
-    const recordStepHistory = vi.fn((payload) => {
+    const recordStepHistory = vi.fn<RecordComboStepHistory>((payload) => {
       if (payload.stepIndex === 0) {
         controller.abort();
       }
-    }) as unknown as RecordComboStepHistory;
+    });
     const deps = makeDeps({ recordStepHistory });
 
     await expect(
@@ -900,11 +896,11 @@ describe("runCombo — f1: cancel mid-run never delivers", () => {
     // Cancel lands right after the last step's history row is written — the
     // loop is already done (no next iteration to catch it), so only the
     // dedicated pre-deliver check can still stop delivery here.
-    const recordStepHistory = vi.fn((payload) => {
+    const recordStepHistory = vi.fn<RecordComboStepHistory>((payload) => {
       if (payload.stepIndex === 1) {
         controller.abort();
       }
-    }) as unknown as RecordComboStepHistory;
+    });
     const deps = makeDeps({ recordStepHistory });
 
     await expect(
@@ -928,7 +924,7 @@ describe("runCombo — markdownOutput applies to the final step only", () => {
         makePreset("translate", { name: "Translate", markdownOutput: false }),
       ],
     });
-    const deliver = vi.fn(async () => "popup") as unknown as ComboDeliver;
+    const deliver = vi.fn<ComboDeliver>(async () => "popup");
     const deps = makeDeps({ settings, deliver });
 
     await runCombo({ combo, input: "start" }, deps);
@@ -952,7 +948,7 @@ describe("runCombo — markdownOutput applies to the final step only", () => {
         makePreset("translate", { name: "Translate", markdownOutput: true }),
       ],
     });
-    const deliver = vi.fn(async () => "popup") as unknown as ComboDeliver;
+    const deliver = vi.fn<ComboDeliver>(async () => "popup");
     const deps = makeDeps({ settings, deliver });
 
     await runCombo({ combo, input: "start" }, deps);

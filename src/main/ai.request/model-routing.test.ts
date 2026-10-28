@@ -106,8 +106,10 @@ import type {
   SettingsStore,
 } from "~/features/providers/store/apiStore";
 
-const buildSettings = (models: Model[], selectedModel = ""): SettingsStore =>
-  ({
+const buildSettings = (models: Model[], selectedModel = ""): SettingsStore => {
+  // Partial, then narrowed: no per-profile fixture sets `profiles`/
+  // `currentProfileId`, and a fixture missing keys cannot be a SettingsStore.
+  const fixture: Partial<SettingsStore> = {
     apiKey: "",
     models,
     selectedModel,
@@ -131,9 +133,9 @@ const buildSettings = (models: Model[], selectedModel = ""): SettingsStore =>
       autoCopy: false,
       model: "",
     },
-    // Via `unknown`: no per-profile fixture sets `profiles`/`currentProfileId`,
-    // so a direct `as SettingsStore` is a TS2352 no-overlap error.
-  }) as unknown as SettingsStore;
+  };
+  return fixture as SettingsStore;
+};
 
 const seed = (models: Model[], selectedModel = ""): void => {
   apiStore.set("profiles", [
