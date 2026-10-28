@@ -1645,7 +1645,7 @@ const consumerContractRows = [
     "SITE-5961fe9e2b8ba32a-01",
     "LIVE-5961fe9e2b8ba32a",
     "src/renderer/components/HotkeyInput.tsx",
-    232,
+    233,
     9,
   ],
   [
@@ -2389,7 +2389,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "9967070b040ca84077421c223f68d6e2907d263c16995f174f9ad6a9285370fe";
+  "072b0026e99b26fde087907bcd889574720c55be9d4cd30d1620564d1b6477e6";
 
 const compareConsumers = (
   left: ButtonConsumer,
