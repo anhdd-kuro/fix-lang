@@ -1540,7 +1540,8 @@ export const migrateStoredProfilesForModelRefs = (): void => {
   if (configVersionStore.get("configVersion", 0) >= 1) {
     return;
   }
-  const raw = apiStore.get("profiles", []) as unknown[];
+  // Typed as unknown on purpose: on-disk entries predate the `Profile` shape.
+  const raw: readonly unknown[] = apiStore.get("profiles", []);
   const next = raw.map(migrateProfileForModelRefs);
   apiStore.set("profiles", next);
   configVersionStore.set("configVersion", 1);
@@ -1571,7 +1572,7 @@ export const createProfile = (
   } satisfies Profile;
 
   // Add to profiles array
-  const profiles = apiStore.get("profiles", []) as Profile[];
+  const profiles = apiStore.get("profiles", []);
   profiles.push(profile);
   apiStore.set("profiles", profiles);
 
@@ -1586,7 +1587,7 @@ export const createProfile = (
  * @returns Array of saved profiles
  */
 export const getProfiles = (): Profile[] => {
-  return apiStore.get("profiles", []) as Profile[];
+  return apiStore.get("profiles", []);
 };
 
 /**
@@ -1594,7 +1595,7 @@ export const getProfiles = (): Profile[] => {
  * @returns Current profile ID or empty string if none
  */
 export const getCurrentProfileId = (): string => {
-  return apiStore.get("currentProfileId", "") as string;
+  return apiStore.get("currentProfileId", "");
 };
 
 /**
@@ -1611,14 +1612,24 @@ export const getProfileById = (profileId: string): Profile | null => {
  * Gets all settings from the current profile
  * @returns All settings from the current profile (or creates a default profile if none active)
  */
+/**
+ * The pre-profile build's single top-level `settings` object, or `{}`. Reached
+ * only while no profile is active — `initializeDefaultProfile` selects or
+ * creates one at startup.
+ */
+const readPreProfileSettings = (): SettingsStore =>
+  // SAFETY: NOT validated — `settings` is outside `apiStoreSchema`. The claim
+  // rests on the pre-profile build having written this key whole as its
+  // `SettingsStore`, and `{}` stands in for every field being absent; both are
+  // the long-standing fallback this read has always returned.
+  (apiStore.get("settings") as SettingsStore) || ({} as SettingsStore);
+
 export const getCurrentProfileSettings = (): SettingsStore => {
   const currentProfileId = apiStore.get("currentProfileId", "");
 
   // If no current profile, return the default settings object
   if (!currentProfileId) {
-    const defaultSettings =
-      (apiStore.get("settings") as SettingsStore) || ({} as SettingsStore);
-    return defaultSettings;
+    return readPreProfileSettings();
   }
 
   const profiles = getProfiles();
@@ -1626,7 +1637,7 @@ export const getCurrentProfileSettings = (): SettingsStore => {
 
   // If profile not found, return default settings
   if (!currentProfile) {
-    return (apiStore.get("settings") as SettingsStore) || ({} as SettingsStore);
+    return readPreProfileSettings();
   }
 
   return currentProfile.settings;
@@ -1662,41 +1673,38 @@ const extractLegacyTranslateSettings = (
  * @param settingType The type of setting to retrieve
  * @returns The requested setting from the current profile
  */
+/**
+ * Per-setting read normalizers, keyed by setting so each one is typed against
+ * its own `SettingsStore[K]`. A setting absent here reads back as stored.
+ */
+type SettingReaders = {
+  [K in keyof SettingsStore]?: (settings: SettingsStore) => SettingsStore[K];
+};
+
+const SETTING_READERS: SettingReaders = {
+  settingsCorrect: (settings) =>
+    normalizeCorrectionSettings(
+      settings.settingsCorrect,
+      // Carry over the retired standalone-Translate settings (still present in
+      // the raw store for upgrading users; no longer on the SettingsStore type).
+      extractLegacyTranslateSettings(settings),
+    ),
+  providerEndpoints: (settings) =>
+    sanitizeProviderEndpoints(settings.providerEndpoints),
+  openaiProjectId: (settings) =>
+    sanitizeOpenAIProjectId(settings.openaiProjectId),
+  // Reading through the normalizer is what keeps the feature off for a profile
+  // that predates it: the stored node is absent, and absent reads as disabled.
+  settingsAutocomplete: (settings) =>
+    normalizeAutocompleteSettings(settings.settingsAutocomplete),
+};
+
 export const getProfileSetting = <K extends keyof SettingsStore>(
   settingType: K,
 ): SettingsStore[K] => {
   const settings = getCurrentProfileSettings();
-
-  if (settingType === "settingsCorrect") {
-    return normalizeCorrectionSettings(
-      settings[settingType],
-      // Carry over the retired standalone-Translate settings (still present in
-      // the raw store for upgrading users; no longer on the SettingsStore type).
-      extractLegacyTranslateSettings(settings),
-    ) as SettingsStore[K];
-  }
-
-  if (settingType === "providerEndpoints") {
-    return sanitizeProviderEndpoints(
-      settings.providerEndpoints,
-    ) as SettingsStore[K];
-  }
-
-  if (settingType === "openaiProjectId") {
-    return sanitizeOpenAIProjectId(
-      settings.openaiProjectId,
-    ) as SettingsStore[K];
-  }
-
-  // Reading through the normalizer is what keeps the feature off for a profile
-  // that predates it: the stored node is absent, and absent reads as disabled.
-  if (settingType === "settingsAutocomplete") {
-    return normalizeAutocompleteSettings(
-      settings.settingsAutocomplete,
-    ) as SettingsStore[K];
-  }
-
-  return settings[settingType];
+  const read = SETTING_READERS[settingType];
+  return read ? read(settings) : settings[settingType];
 };
 
 /** Outcome of a profile write; `error` is store-authored English, wrapped by the IPC layer. */
@@ -1735,23 +1743,27 @@ export const applyProfile = (profileId: string): ProfileWriteResult => {
  * @param value The new value for the setting
  * @returns Success status and error message if applicable
  */
+/** Per-setting write normalizers; a setting absent here is stored as given. */
+type SettingWriters = {
+  [K in keyof SettingsStore]?: (value: SettingsStore[K]) => SettingsStore[K];
+};
+
+const SETTING_WRITERS: SettingWriters = {
+  settingsCorrect: (value) => normalizeCorrectionSettings(value),
+  providerEndpoints: (value) => sanitizeProviderEndpoints(value),
+  // "" rather than undefined: the schema types this as a string, and a
+  // deleted key would read back as the ajv default anyway.
+  openaiProjectId: (value) => sanitizeOpenAIProjectId(value) ?? "",
+  settingsAutocomplete: (value) => normalizeAutocompleteSettings(value),
+};
+
 export const updateProfileSetting = <K extends keyof SettingsStore>(
   settingType: K,
   value: SettingsStore[K],
 ): ProfileWriteResult => {
   try {
-    const normalizedValue =
-      settingType === "settingsCorrect"
-        ? (normalizeCorrectionSettings(value) as SettingsStore[K])
-        : settingType === "providerEndpoints"
-          ? (sanitizeProviderEndpoints(value) as SettingsStore[K])
-          : settingType === "openaiProjectId"
-            ? // "" rather than undefined: the schema types this as a string, and a
-              // deleted key would read back as the ajv default anyway.
-              ((sanitizeOpenAIProjectId(value) ?? "") as SettingsStore[K])
-            : settingType === "settingsAutocomplete"
-              ? (normalizeAutocompleteSettings(value) as SettingsStore[K])
-              : value;
+    const write = SETTING_WRITERS[settingType];
+    const normalizedValue = write ? write(value) : value;
 
     const currentProfileId = apiStore.get("currentProfileId", "");
 
@@ -1808,6 +1820,9 @@ export const updateProfileSetting = <K extends keyof SettingsStore>(
  * preserve them (e.g. profile reset) overwrite those fields afterwards.
  */
 const buildDefaultProfileSettings = (): SettingsStore =>
+  // SAFETY: the only `SettingsStore` fields left out are `profiles` and
+  // `currentProfileId`, which belong to the top-level store, are absent from
+  // the per-profile schema node, and are never read off a profile's settings.
   ({
     apiKey: "",
     models: [],
@@ -1903,12 +1918,15 @@ export const resetCurrentProfileSettings = (): ProfileWriteResult => {
  * {@link toExportableProfile}.
  */
 export const withoutProfileSecrets = (profile: Profile): Profile => {
-  const settings = { ...profile.settings } as SettingsStore;
-  delete (settings as Partial<SettingsStore>).apiKey;
+  const settings: Partial<SettingsStore> = { ...profile.settings };
+  delete settings.apiKey;
   return {
     ...profile,
-    settings,
-  } as Profile;
+    // SAFETY: only the deprecated `apiKey` is missing. Written back to disk it
+    // reads as "" (its schema node's `default`); in memory every reader of it
+    // falls back with `??`/`||`.
+    settings: settings as SettingsStore,
+  };
 };
 
 /**
@@ -1954,7 +1972,7 @@ export const toExportableProfile = (profile: Profile): Profile => {
         model: AUTOCOMPLETE_INHERIT_ASK_MODEL,
       },
     },
-  } as Profile;
+  };
 };
 
 /** An imported profile is untrusted: its plaintext key and model state both go. */

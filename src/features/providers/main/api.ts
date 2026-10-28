@@ -276,8 +276,19 @@ const providerApiKeys = async (
       ];
     }),
   );
-  return Object.fromEntries(entries) as Partial<Record<ProviderId, string>>;
+  return Object.fromEntries(entries);
 };
+
+// SECURITY: provider failure text can quote back a key read from disk.
+const redactedProviderErrors = (
+  errors: Partial<Record<ProviderId, string>>,
+): Partial<Record<ProviderId, string>> =>
+  Object.fromEntries(
+    Object.entries(errors).map(([provider, message]) => [
+      provider,
+      redactLogMessage(message).replace(MASK_RUN, "[REDACTED]"),
+    ]),
+  );
 
 const readProviderStates = async (): Promise<ProviderStates> => {
   const profileId = getCurrentProfileId();
@@ -322,6 +333,8 @@ const readProviderStates = async (): Promise<ProviderStates> => {
     }),
   );
 
+  // SAFETY: `entries` maps `PROVIDER_IDS` one-to-one, so every `ProviderId`
+  // key is present exactly once.
   return Object.fromEntries(entries) as ProviderStates;
 };
 
@@ -380,6 +393,8 @@ export const registerApiHandlers = (): void => {
     } catch (error) {
       // All-false reports nothing as connected rather than inventing a connection.
       console.error("Error reading provider states:", error);
+      // SAFETY: built by mapping `PROVIDER_IDS`, so every `ProviderId` key is
+      // present exactly once.
       return Object.fromEntries(
         PROVIDER_IDS.map((provider) => [
           provider,
@@ -867,13 +882,7 @@ export const registerApiHandlers = (): void => {
         models: models.filter((model) =>
           providers.some((provider) => isModelForProvider(model, provider)),
         ),
-        // SECURITY: provider failure text can quote back a key read from disk.
-        errors: Object.fromEntries(
-          Object.entries(errors).map(([provider, message]) => [
-            provider,
-            redactLogMessage(message).replace(MASK_RUN, "[REDACTED]"),
-          ]),
-        ) as Partial<Record<ProviderId, string>>,
+        errors: redactedProviderErrors(errors),
       };
     } catch (error) {
       console.error(
