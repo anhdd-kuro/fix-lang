@@ -29,9 +29,18 @@ Pin versions in `package.json` (no `^` for app deps). Keep `bun.lock` in the sam
 
 ## Known pin / break traps
 
-### TypeScript — stay on 6.x
+### TypeScript — two packages: `typescript` 6.x + `@typescript/seven` 7.x
 
-ESLint is gone (oxlint + oxfmt now), so typescript-eslint no longer pins TS. What still does: `src/features/core/shared/bundleExternals.ts` (the `check:bundle` scanner) and three renderer tests (`ButtonSourceGuard`, `Card05ButtonConsumers`, `SettingGeneral`) import `typescript` for its JS compiler API (`ts.createSourceFile`, AST walk). TS 7 is the native Go port; verify that API still exists in the same form before bumping. oxlint-tsgolint ships its own TS build — not a blocker. Leave `typescript` at latest 6.x until checked.
+TS 7 (Go port) exports only `./unstable/*` + a native `tsc`. No `ts.createSourceFile`, no in-process `createProgram`/checker — parsing + symbols need the spawned API server. Classic-API users break:
+
+- `src/features/core/shared/bundleExternals.ts` (→ `check:bundle`; scope resolution uses `checker.getSymbolAtLocation`)
+- `ButtonSourceGuard.test.ts`, `Card05ButtonConsumers.test.ts`, `SettingGeneral.test.ts` (TSX AST walks)
+
+ESLint is gone (oxlint + oxfmt), so typescript-eslint no longer pins anything, and oxlint-tsgolint bundles its own TS. So `typescript` stays latest 6.x; TS 7 rides as `"@typescript/seven": "npm:typescript@7.0.2"`. Bump both together.
+
+Bin clash: both ship `tsc`; bun links `.bin/tsc` → **TS 7**. `bunx tsc` is TS 7. Use `bun run typecheck` (TS 7) / `bun run typecheck:ts6` — explicit paths, no ambiguity. Same error set on both, TS 7 ~6× faster.
+
+Drop the alias + move `typescript` to 7 only after all of these consumers leave the classic API (candidates: `oxc-parser` + a scope analyser for the scanner; TS 7 `unstable/sync` API server).
 
 ### Electron 43+ — main/preload must be CommonJS
 
@@ -50,6 +59,20 @@ Symptom: **empty white screen** (main crashes before UI). Renderer is fine; main
 - All `BrowserWindow` preload paths: `out/preload/index.cjs` (mainWindow, tray, promptGenWindow)
 
 Renderer stays ESM. Do **not** switch main/preload back to ESM without verifying Electron named-export support.
+
+### Electron 44+ — main-process `clipboard` is async
+
+Electron 44/45 aligned `clipboard` with the W3C API: `readText()` returns `Promise<string>`, `writeText()` returns `Promise<void>`, in the **main** process too. Selection read, paste-back and clipboard restore (`src/utils.ts`, `clipboardChangeTracker.ts`, `ui/main/ui.ts`) all call them synchronously.
+
+Tests stay green — clipboard is mocked sync. Only `bun run typecheck` shows it (~19 new errors). Held on 43.x until that flow is ported to async and checked by hand in `bun run dev` (copy timing, paste, restore).
+
+### electron-vite 6 — externalizes deps by default
+
+v6 defaults `build.externalizeDeps` on → `out/` gets bare `require("electron-store")`, `openai`, … → `check:bundle` fails (packaged app would `MODULE_NOT_FOUND`). Keep `externalizeDeps: false` on main + preload.
+
+### AI SDK undici — `inlineUndiciRequirePlugin`
+
+`@ai-sdk/provider-utils` ≥ 5.0.15 and `@openrouter/ai-sdk-provider` ≥ 3.1 do `createRequire(...)("undici")`. Main build rewrites it to a static import (`src/features/core/shared/inlineUndiciRequire.ts`). A bump that changes the call shape fails `inlineUndiciRequire.test.ts` (scans the installed dist files) and `check:bundle` — widen the regex, never `ALLOWLIST`.
 
 ### AI SDK majors — bump as a pair
 
