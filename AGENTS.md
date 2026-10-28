@@ -105,7 +105,7 @@ fix-lang/
 - Runtime/build
   - Electron 43.2, electron-vite 5.0, Vite 8.1, bun
 - Frontend
-  - React 19.2, TypeScript 6.0 (stay on 6.x until typescript-eslint supports 7), Tailwind 4.3
+  - React 19.2, TypeScript 6.0.3 as `typescript` (classic compiler API for `bundleExternals` + AST guard tests) and 7.0.2 as `@typescript/seven` (type-check only, `bun run typecheck`), Tailwind 4.3
 - AI
   - openai 6.49, @ai-sdk/openai 4.0, @openrouter/ai-sdk-provider 3.0, @ai-sdk/anthropic 4.0.23 (pinned — see below), @ai-sdk/amazon-bedrock 5.0 + @aws-sdk/client-bedrock 3.x, ai 7.0, ollama 0.6 — each wired in its own `src/main/llm/providers/<id>/request.ts` and reached through the capability registry; LM Studio and Ollama both use a configurable local host/port (LM Studio via OpenAI-compatible `baseURL`; Ollama via its daemon URL), and Bedrock stores its AWS region in `providerEndpoints.bedrock.host` (`src/features/providers/shared/bedrockEndpoint.ts`, default `us-east-1`)
 - Persistence
@@ -119,6 +119,7 @@ fix-lang/
 bun run dev             # hot reload (predev runs build)
 bun run test            # verify changes — use `bun run test`, not `bun test`
 bun run lint            # ESLint (cached)
+bun run typecheck       # TS 7 tsc --noEmit (~0.7 s); typecheck:ts6 for the 6.x compiler
 bun run pack:mac        # dev-identity app → release/mac-arm64/FixLang Dev.app
 bun run pack:mac:prod   # production-identity app (pack:install builds this one)
 bun run check:bundle    # after `bun run build` — no runtime dep may need node_modules
@@ -269,7 +270,7 @@ new Notification({
 - Commit secrets, `.env`, `node_modules`, `out/`, `release/`, `coverage/`, or agent scratch space (`.scratch/`, `.claude/settings.local.json`)—all gitignored.
 - Reintroduce pnpm or bypass preload IPC validation.
 - Use `any` without why-comment.
-- Bump TypeScript to 7.x until ESLint support lands.
+- Bump the `typescript` package itself to 7.x: TS 7 ships no in-process compiler API, and `bundleExternals.ts` plus `ButtonSourceGuard` / `Card05ButtonConsumers` / `SettingGeneral` tests parse with it. TS 7 lives under the `@typescript/seven` alias.
 
 ## CI
 
@@ -309,7 +310,7 @@ Project-specific traps under `.claude/skills/fixlang/`:
 - [Profile state](.claude/skills/fixlang/fixlang-profile-state/SKILL.md) — profile switch must atomically reload hotkeys + settings UI + history; connecting a provider does NOT wipe presets.
 - [Model refs](.claude/skills/fixlang/fixlang-model-refs/SKILL.md) — composite ref `<providerId>::<rawModelId>` lives in config only; SQLite history and downstream API calls get the raw id only. Leaking the prefix into a `startsWith` check gives a silent wrong answer with no error.
 - [Theme mapping](.claude/skills/fixlang/fixlang-theme-mapping/SKILL.md) — derive-ladder + composite-alpha strategy; run `bun run themes:generate` after theme .ts edits, then `bun run test` to validate all 149 themes.
-- [Package upgrade](.claude/skills/fixlang/fixlang-pkg-upgrade/SKILL.md) — wave-based bun upgrades; pin TypeScript to 6.x; Electron 43+ requires main/preload CommonJS (`.cjs`) or app shows white screen; unset `ELECTRON_RUN_AS_NODE` when launching Electron from Cursor's terminal.
+- [Package upgrade](.claude/skills/fixlang/fixlang-pkg-upgrade/SKILL.md) — wave-based bun upgrades; `typescript` stays 6.x (TS 7 is the `@typescript/seven` alias); Electron 43+ requires main/preload CommonJS (`.cjs`) or app shows white screen; unset `ELECTRON_RUN_AS_NODE` when launching Electron from Cursor's terminal.
 - [Release + Homebrew](.claude/skills/fixlang/fixlang-release-homebrew/SKILL.md) — release trigger + orphan-tag resume; release Test step needs Node 24 on macos-14 (`node:sqlite` builtin); tap cask write uses `jq -je` (not `-er`); `brew style/audit` need a registered tap + `#{version}` URL + `depends_on :macos`; genuine-release-only `brew upgrade` proof.
 - [Settings panel writes](.claude/skills/fixlang/fixlang-settings-writes/SKILL.md) — every `Setting*.tsx` persists the WHOLE settings object, so overlapping writes clobber, a writer-computed rollback target is never trustworthy, and a value the store REJECTED can ride into the next write and become real. Serialize per store; claim the status line at the user's action and never re-claim late. The renderer harness hides all of it — a dispatched click on a controlled checkbox makes zero writes and still reports green.
 - [Security guard rails](.claude/skills/fixlang/fixlang-security-guards/SKILL.md) — clipboard age carries an ORIGIN (a baseline is a lower bound, not an age); the age guards CONFIRM rather than block because an identical re-copy is indistinguishable from no copy; `SECRET_SEND_SITE_POLICY` is the one table; restore enforces multiplicity and non-relocation; and every natural log key in the feature is blanked by `redactLogContext`.
