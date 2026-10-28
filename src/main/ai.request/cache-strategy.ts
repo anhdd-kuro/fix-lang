@@ -10,7 +10,11 @@
  * - Everything else: no caching support, pass messages through unchanged
  */
 import { stripModelRefPrefix } from "~/features/providers/shared/modelRef";
-import { AnyNumberSchema, contentAsText, objectLike } from "./requestTypes";
+import { contentAsText } from "./requestTypes";
+import {
+  AnyNumberSchema,
+  objectLike,
+} from "~/features/core/shared/schemaGuard";
 
 export enum CacheProvider {
   ANTHROPIC = "ANTHROPIC",

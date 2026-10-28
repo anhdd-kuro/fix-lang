@@ -11,35 +11,13 @@
  * `shared.ts` re-exports everything here, so existing call sites are unaffected.
  */
 import { z } from "zod";
+import {
+  objectLike,
+  AnyNumberSchema,
+} from "~/features/core/shared/schemaGuard";
 import type { ReasoningEffort } from "~/features/correction/shared/reasoningEffort";
 import type { HistorySessionData } from "~/features/history/shared/historySession";
 import type { ProviderId } from "~/features/providers/shared/providers";
-
-/**
- * Any number primitive, NaN and ±Infinity included — exactly what
- * `typeof value === "number"` admits, where `z.number()` alone rejects the
- * three non-finite values.
- */
-export const AnyNumberSchema = z.union([
-  z.number(),
-  z.nan(),
-  z.literal(Infinity),
-  z.literal(-Infinity),
-]);
-
-/**
- * An object schema that, like `typeof value === "object" && value !== null`,
- * also admits an ARRAY carrying the named fields, read through the array's
- * own enumerable keys. Inherited fields are read, as a property access reads
- * them.
- */
-export const objectLike = <Fields extends Parameters<typeof z.looseObject>[0]>(
-  fields: Fields,
-) =>
-  z.preprocess(
-    (value) => (Array.isArray(value) ? { ...value } : value),
-    z.looseObject(fields),
-  );
 
 /** Message content as text: a string as-is, anything else as its JSON. */
 export const contentAsText = (content: CoreMessage["content"]): string => {

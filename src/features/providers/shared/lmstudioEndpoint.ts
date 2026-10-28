@@ -5,7 +5,7 @@
  * Electron-free — shared by main, preload, and renderer.
  */
 import { z } from "zod";
-import { objectLike } from "~/features/providers/shared/objectLike";
+import { strippingObjectLike } from "~/features/providers/shared/strippingObjectLike";
 
 export type ProviderEndpoint = {
   host: string;
@@ -53,7 +53,7 @@ export const LocalPortSchema = z
   .pipe(z.number().int().min(1).max(65535));
 
 /** A local daemon endpoint: both fields must parse, extra fields are dropped. */
-export const ProviderEndpointSchema = objectLike({
+export const ProviderEndpointSchema = strippingObjectLike({
   host: LocalHostSchema,
   port: LocalPortSchema,
 });

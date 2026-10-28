@@ -1,5 +1,6 @@
 import { ipcRenderer } from "electron";
 import { z } from "zod";
+import { objectLike } from "~/features/core/shared/schemaGuard";
 import type {
   AskInputPayload,
   AskResultPayload,
@@ -7,20 +8,6 @@ import type {
 
 /** `ipcRenderer.on`'s listener; Electron types the payload it hands over `any`. */
 type IpcRendererListener = Parameters<typeof ipcRenderer.on>[1];
-
-/**
- * An object schema that, like `typeof value === "object" && value !== null`,
- * also admits an ARRAY carrying the named fields, read through the array's
- * own enumerable keys. Unknown keys are kept, as the guard passed the payload
- * it was handed through to the window.
- */
-const objectLike = <Fields extends Parameters<typeof z.looseObject>[0]>(
-  fields: Fields,
-) =>
-  z.preprocess(
-    (value) => (Array.isArray(value) ? { ...value } : value),
-    z.looseObject(fields),
-  );
 
 /**
  * The ask-input payload crossing the preload boundary. Narrow types are

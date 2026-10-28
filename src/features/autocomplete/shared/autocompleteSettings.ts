@@ -5,7 +5,7 @@
  * Electron-free — shared by main, preload, and renderer.
  */
 import { z } from "zod";
-import { objectLike } from "./autocompleteSchemas";
+import { objectLike } from "~/features/core/shared/schemaGuard";
 
 export type AutocompleteSettings = {
   /** Absent or non-boolean reads as `false`; only a stored `true` enables. */

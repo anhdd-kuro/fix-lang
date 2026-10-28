@@ -34,7 +34,7 @@
  */
 import Store from "electron-store";
 import { z } from "zod";
-import { objectLike } from "~/features/autocomplete/shared/autocompleteSchemas";
+import { objectLike } from "~/features/core/shared/schemaGuard";
 import type { AutocompleteDayRollup } from "~/features/autocomplete/shared/autocompleteWire";
 
 type AutocompleteUsageSchema = {

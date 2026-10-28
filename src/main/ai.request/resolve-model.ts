@@ -7,7 +7,7 @@
  * from the requested id. No electron dependency — primary test seam.
  */
 import { z } from "zod";
-import { objectLike } from "./requestTypes";
+import { objectLike } from "~/features/core/shared/schemaGuard";
 
 /** A body naming the model that served it. */
 const ServedModelBodySchema = objectLike({ model: z.string() });

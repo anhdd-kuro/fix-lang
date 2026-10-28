@@ -10,6 +10,7 @@
  */
 import { ipcMain } from "electron";
 import { z } from "zod";
+import { objectLike } from "~/features/core/shared/schemaGuard";
 import {
   requestAutocompleteSuggestion,
   takeAutocompleteResolution,
@@ -19,10 +20,7 @@ import {
   createSkipThrottle,
   wastedSuggestionLogLevel,
 } from "~/features/autocomplete/shared/autocompleteDiagnostics";
-import {
-  AutocompleteRendererSkipReasonSchema,
-  objectLike,
-} from "~/features/autocomplete/shared/autocompleteSchemas";
+import { AutocompleteRendererSkipReasonSchema } from "~/features/autocomplete/shared/autocompleteSchemas";
 import { normalizeDailyCostCapUsd } from "~/features/autocomplete/shared/autocompleteSettings";
 import { autocompleteUsageStore } from "~/features/autocomplete/store/autocompleteUsageStore";
 import { getProfileSetting } from "~/features/providers/store/apiStore";

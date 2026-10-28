@@ -60,3 +60,18 @@ export const AnyNumberSchema = z.union([
   z.nan(),
   z.literal([Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]),
 ]);
+
+/**
+ * An object schema that, like `typeof value === "object" && value !== null`,
+ * also admits an ARRAY carrying the named fields, read through the array's
+ * own enumerable keys. Unknown keys are kept (`looseObject`), as the guards
+ * this replaces kept the value they were handed; inherited fields are read,
+ * as a property access reads them.
+ */
+export const objectLike = <Fields extends Parameters<typeof z.looseObject>[0]>(
+  fields: Fields,
+) =>
+  z.preprocess(
+    (value) => (Array.isArray(value) ? { ...value } : value),
+    z.looseObject(fields),
+  );

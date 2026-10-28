@@ -1,10 +1,10 @@
 import { ipcRenderer } from "electron";
 import { z } from "zod";
-import { AUTOCOMPLETE_SKIP_CHANNEL } from "~/features/autocomplete/shared/autocompleteDiagnostics";
 import {
   AnyNumberSchema,
   objectLike,
-} from "~/features/autocomplete/shared/autocompleteSchemas";
+} from "~/features/core/shared/schemaGuard";
+import { AUTOCOMPLETE_SKIP_CHANNEL } from "~/features/autocomplete/shared/autocompleteDiagnostics";
 import type { AutocompleteSkipReport } from "~/features/autocomplete/shared/autocompleteDiagnostics";
 import type {
   AutocompleteDayRollup,

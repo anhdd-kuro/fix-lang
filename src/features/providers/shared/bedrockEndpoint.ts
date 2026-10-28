@@ -6,7 +6,7 @@
  * Electron-free — shared by main, preload, and renderer.
  */
 import { z } from "zod";
-import { objectLike } from "~/features/providers/shared/objectLike";
+import { strippingObjectLike } from "~/features/providers/shared/strippingObjectLike";
 import type { ProviderEndpoint } from "~/features/providers/shared/lmstudioEndpoint";
 
 export const BEDROCK_DEFAULT_REGION = "us-east-1";
@@ -30,7 +30,9 @@ export const BedrockRegionSchema = z
  */
 export const StoredBedrockRegionSchema = z.union([
   BedrockRegionSchema,
-  objectLike({ host: BedrockRegionSchema }).transform(({ host }) => host),
+  strippingObjectLike({ host: BedrockRegionSchema }).transform(
+    ({ host }) => host,
+  ),
 ]);
 
 export const sanitizeBedrockRegion = (raw: string): string | null => {

@@ -14,7 +14,7 @@ import {
   resolveLmStudioEndpoint,
 } from "~/features/providers/shared/lmstudioEndpoint";
 import { resolveModelRef } from "~/features/providers/shared/modelRef";
-import { objectLike } from "~/features/providers/shared/objectLike";
+import { strippingObjectLike } from "~/features/providers/shared/strippingObjectLike";
 import {
   OLLAMA_DEFAULT_ENDPOINT,
   resolveOllamaEndpoint,
@@ -144,7 +144,7 @@ type ProviderConnectPayload = {
  * stale `modelId` and any other extra field are dropped. Accepts whatever
  * object-like value IPC delivers, arrays carrying named fields included.
  */
-export const ProviderConnectPayloadSchema = objectLike({
+export const ProviderConnectPayloadSchema = strippingObjectLike({
   provider: ProviderIdSchema,
   apiKey: z.string().optional(),
   provisioningKey: z.string().optional(),

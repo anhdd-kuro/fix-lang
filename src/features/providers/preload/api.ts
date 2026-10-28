@@ -2,7 +2,7 @@
 import { ipcRenderer } from "electron";
 import { z } from "zod";
 import { messageLabel, type Label } from "~/features/i18n/shared/message";
-import { objectLike } from "~/features/providers/shared/objectLike";
+import { strippingObjectLike } from "~/features/providers/shared/strippingObjectLike";
 // From the shared registry, never a local copy: a hand-written chain would let
 // this boundary silently reject a newly added provider with no type error.
 import { ProviderIdSchema } from "~/features/providers/shared/providers";
@@ -41,7 +41,7 @@ export type ProviderConnectInput = {
  * looser than main's parse: `host` may be any string and `port` any integer or
  * any string — main sanitizes both and refuses what it cannot use.
  */
-export const ProviderConnectInputSchema = objectLike({
+export const ProviderConnectInputSchema = strippingObjectLike({
   provider: ProviderIdSchema,
   apiKey: z.string().optional(),
   provisioningKey: z.string().optional(),

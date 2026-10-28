@@ -56,12 +56,12 @@
  */
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import { AnyNumberSchema } from "~/features/core/shared/schemaGuard";
 import {
   createSkipThrottle,
   wastedSuggestionLogLevel,
 } from "~/features/autocomplete/shared/autocompleteDiagnostics";
 import { resolveAutocompleteModelRef } from "~/features/autocomplete/shared/autocompleteModel";
-import { AnyNumberSchema } from "~/features/autocomplete/shared/autocompleteSchemas";
 import { normalizeDailyCostCapUsd } from "~/features/autocomplete/shared/autocompleteSettings";
 import { MIN_PREFIX_CHARS } from "~/features/autocomplete/shared/autocompleteWire";
 import { autocompleteUsageStore } from "~/features/autocomplete/store/autocompleteUsageStore";

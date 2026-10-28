@@ -37,9 +37,9 @@ import {
   parseModelRef,
 } from "~/features/providers/shared/modelRef";
 import {
-  objectLike,
+  strippingObjectLike,
   ObjectLikeSchema,
-} from "~/features/providers/shared/objectLike";
+} from "~/features/providers/shared/strippingObjectLike";
 import { sanitizeOpenAIProjectId } from "~/features/providers/shared/openaiProject";
 import {
   isModelForProvider,
@@ -260,7 +260,7 @@ const resolveUniqueStepId = (
 };
 
 /** A stored combo step's fields; whether the step is usable is decided below. */
-const StoredComboStepSchema = objectLike({
+const StoredComboStepSchema = strippingObjectLike({
   presetId: StoredTrimmedStringSchema,
   id: StoredTrimmedStringSchema,
   // Kept verbatim: it is free text the model receives. Whitespace-only is a
@@ -288,7 +288,7 @@ const sanitizeComboStep = (
  * A stored combo's fields. A step that is not even object-like reads as `null`
  * and a `steps` that is not an array reads as `null`; both cost the combo.
  */
-const StoredComboSchema = objectLike({
+const StoredComboSchema = strippingObjectLike({
   id: StoredTrimmedStringSchema,
   name: StoredTrimmedStringSchema,
   // Never rewritten here, not even onto a hotkey some preset or app binding
@@ -790,14 +790,14 @@ export const readReservedAppAccelerators = (): readonly string[] => {
  * (or `[]` for combos) when it is not the expected kind of value; the legacy
  * pre-preset fields are read separately, below.
  */
-const StoredCorrectionSettingsSchema = objectLike({
+const StoredCorrectionSettingsSchema = strippingObjectLike({
   presets: z.array(z.unknown()).optional().catch(undefined),
   combos: StoredCombosSchema,
   selectedPresetId: z.string().optional().catch(undefined),
 });
 
 /** Only the id, to tell whether a stored Translate preset already exists. */
-const StoredTranslatePresetSchema = objectLike({
+const StoredTranslatePresetSchema = strippingObjectLike({
   id: z.literal(DEFAULT_TRANSLATE_PRESET_ID),
 });
 
@@ -805,7 +805,7 @@ const StoredTranslatePresetSchema = objectLike({
  * The preset fields that are parsed rather than read as-typed. `reasoning` and
  * `extraOptions` stay raw: their own sanitizers decide what they mean.
  */
-const StoredPresetFieldsSchema = objectLike({
+const StoredPresetFieldsSchema = strippingObjectLike({
   hotkey: z.string().optional().catch(undefined),
   reasoning: z.unknown().optional(),
   requiresInput: StoredOptionalBooleanSchema,
@@ -1706,7 +1706,7 @@ export const getCurrentProfileSettings = (): SettingsStore => {
  * carry over.
  */
 const StoredLegacyTranslateCarrierSchema = z.object({
-  settingsTranslate: objectLike({
+  settingsTranslate: strippingObjectLike({
     destinationLang: z.string().optional().catch(undefined),
     includeExplanation: z.boolean().optional().catch(undefined),
     model: z.string().optional().catch(undefined),
