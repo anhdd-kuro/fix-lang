@@ -29,8 +29,17 @@
     {
       "name": "anti-slop",
       "specifier": "./tools/oxlint/anti-slop/index.ts"
-    }
+    },
+    "oxlint-tailwindcss"
   ],
+  "settings": {
+    "tailwindcss": {
+      "entryPoint": "src/renderer/main.css",
+      "exclude": {
+        "variablePatterns": ["^styles?$"]
+      }
+    }
+  },
   "env": {
     "builtin": true
   },
@@ -210,7 +219,36 @@
       {
         "maxArgs": 2
       }
-    ]
+    ],
+    "tailwindcss/no-unknown-classes": [
+      "error",
+      {
+        "allowlist": ["tab", "reasoning-effort-slider"]
+      }
+    ],
+    "tailwindcss/no-duplicate-classes": "error",
+    "tailwindcss/no-conflicting-classes": "error",
+    "tailwindcss/no-deprecated-classes": "error",
+    "tailwindcss/no-unnecessary-whitespace": "error",
+    "tailwindcss/no-dark-without-light": "warn",
+    "tailwindcss/no-contradicting-variants": "warn",
+    "tailwindcss/enforce-canonical": "warn",
+    "tailwindcss/enforce-sort-order": "warn",
+    "tailwindcss/enforce-shorthand": "warn",
+    "tailwindcss/enforce-logical": "off",
+    "tailwindcss/enforce-physical": "off",
+    "tailwindcss/enforce-consistent-important-position": "error",
+    "tailwindcss/enforce-negative-arbitrary-values": "error",
+    "tailwindcss/enforce-consistent-variable-syntax": "error",
+    "tailwindcss/consistent-variant-order": "error",
+    "tailwindcss/max-class-count": "off",
+    "tailwindcss/enforce-consistent-line-wrapping": "off",
+    "tailwindcss/no-restricted-classes": "warn",
+    "tailwindcss/no-arbitrary-value": "off",
+    "tailwindcss/no-hardcoded-colors": "error",
+    "tailwindcss/no-unnecessary-arbitrary-value": "error",
+    "tailwindcss/prefer-scale-token": "error",
+    "tailwindcss/prefer-theme-tokens": "error"
   },
   "overrides": [
     {

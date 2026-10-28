@@ -127,7 +127,7 @@ const Tooltip: React.FC<TooltipProps> = ({
   const popupClassName = `py-2 px-4 ${width} max-w-xs bg-card border border-card-control-border rounded shadow-lg text-card-foreground h-max`;
 
   const popupContent = (
-    <pre className="text-xs whitespace-pre-wrap break-words">
+    <pre className="text-xs whitespace-pre-wrap wrap-break-word">
       {tooltipText.trim()}
     </pre>
   );

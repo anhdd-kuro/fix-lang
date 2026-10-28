@@ -293,7 +293,7 @@ export const OpenRouterUsagePanel = ({
                     className="border-t border-card-control-border"
                   >
                     <td
-                      className="py-1 pr-2 text-foreground max-w-[10rem] truncate"
+                      className="py-1 pr-2 text-foreground max-w-40 truncate"
                       title={row.model}
                     >
                       {row.model}
@@ -359,7 +359,7 @@ export const OpenRouterUsagePanel = ({
                       className="border-t border-card-control-border"
                     >
                       <td
-                        className="py-1 pr-2 text-foreground max-w-[12rem] truncate"
+                        className="py-1 pr-2 text-foreground max-w-48 truncate"
                         title={
                           key.name.trim() === ""
                             ? t("models.openrouter.enabledKeys.unnamed")

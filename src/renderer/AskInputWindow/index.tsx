@@ -347,7 +347,7 @@ export const AskInputWindow = () => {
           />
         ) : null}
         <div className="flex justify-end" data-ask-question-input>
-          <div className="relative w-full max-w-[80%] min-w-[12rem] rounded-lg bg-primary p-3 text-primary-foreground">
+          <div className="relative w-full max-w-[80%] min-w-48 rounded-lg bg-primary p-3 text-primary-foreground">
             <h3 className="mb-1 text-xs font-medium uppercase tracking-wide opacity-70">
               {t("notifications.window.askResult.questionLabel")}
             </h3>

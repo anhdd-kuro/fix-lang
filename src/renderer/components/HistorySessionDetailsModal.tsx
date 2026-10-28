@@ -162,7 +162,7 @@ export const HistorySessionDetailsModal: React.FC<
         >
           {activeTab === "json" ? (
             <pre
-              className="text-xs text-foreground whitespace-pre-wrap break-words"
+              className="text-xs text-foreground whitespace-pre-wrap wrap-break-word"
               aria-label={t("history.details.ariaLabel")}
             >
               {pretty}

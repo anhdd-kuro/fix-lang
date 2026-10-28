@@ -290,7 +290,7 @@ export const UserGuidePanel = ({
                   key={preset.id}
                   className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
                 >
-                  <span className="min-w-0 break-words text-sm text-card-foreground">
+                  <span className="min-w-0 wrap-break-word text-sm text-card-foreground">
                     {preset.name}
                   </span>
                   <HotkeyChips keys={preset.keys} fallback={noHotkeyText} />

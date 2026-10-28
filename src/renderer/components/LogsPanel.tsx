@@ -412,13 +412,13 @@ export const LogsPanel = () => {
                     >
                       {entry.level}
                     </span>
-                    <span className="min-w-0 break-words [overflow-wrap:anywhere] text-foreground">
+                    <span className="min-w-0 wrap-break-word text-foreground">
                       <span className="text-muted-foreground">
                         [{entry.scope}]
                       </span>{" "}
                       {entry.message}
                       {entry.context ? (
-                        <span className="ml-2 break-words [overflow-wrap:anywhere] text-muted-foreground">
+                        <span className="ml-2 wrap-break-word text-muted-foreground">
                           {JSON.stringify(entry.context)}
                         </span>
                       ) : null}

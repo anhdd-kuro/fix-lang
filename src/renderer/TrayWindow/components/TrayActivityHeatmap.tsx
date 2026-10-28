@@ -73,7 +73,7 @@ export const TrayActivityHeatmap: React.FC<TrayActivityHeatmapProps> = ({
                     key={`${dayKey}-${blockIndex}`}
                     title={tooltip}
                     className={twJoin(
-                      "aspect-square min-h-[10px]",
+                      "aspect-square min-h-2.5",
                       heatmapCellClass(heatmapRatioClass(count, heatmap.max)),
                     )}
                   />

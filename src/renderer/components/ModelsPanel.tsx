@@ -122,7 +122,7 @@ export const ModelsPanel = ({ history, range }: ModelsPanelProps) => {
                           style={{ backgroundColor: markerColor(rank) }}
                         />
                         <span
-                          className="max-w-[16rem] truncate"
+                          className="max-w-3xs truncate"
                           // Raw model id — identity, never translated (see
                           // spec.i18n-dashboard.md §1.3). Display text below
                           // uses `modelLabel` instead. Except the

@@ -247,7 +247,7 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
                             className="border-t border-card-control-border"
                           >
                             <td
-                              className="py-1 pr-2 text-foreground max-w-[14rem] truncate"
+                              className="py-1 pr-2 text-foreground max-w-56 truncate"
                               title={label}
                             >
                               {label}
@@ -342,7 +342,7 @@ export const OpenAIUsagePanel = ({ onOpenSettings }: OpenAIUsagePanelProps) => {
                     className="border-t border-card-control-border"
                   >
                     <td
-                      className="py-1 pr-2 text-foreground max-w-[10rem] truncate"
+                      className="py-1 pr-2 text-foreground max-w-40 truncate"
                       title={row.model}
                     >
                       {row.model}
