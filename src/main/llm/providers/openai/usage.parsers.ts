@@ -198,6 +198,9 @@ export const parseProjectCosts = (
 };
 
 /** id → display name from `/organization/projects`. Unnamed entries are skipped. */
+/** Project id → display name, as `/organization/projects` lists them. */
+export type OpenAIProjectNames = Record<string, string>;
+
 export const parseProjectNames = (
   json: unknown,
 ): CardResult<Record<string, string>> => {

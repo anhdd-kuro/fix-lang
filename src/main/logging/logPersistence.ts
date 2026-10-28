@@ -61,14 +61,14 @@ export const readDayLogEntries = async (
   }
 };
 
-const normalizeQuery = (
-  request: LogQueryRequest,
-): {
+type NormalizedLogQuery = {
   beforeTimestamp: string | undefined;
   limit: number;
   levels: LogLevel[];
   search: string;
-} => {
+};
+
+const normalizeQuery = (request: LogQueryRequest): NormalizedLogQuery => {
   const limitRaw = request.limit;
   const limit =
     typeof limitRaw === "number" && Number.isFinite(limitRaw)

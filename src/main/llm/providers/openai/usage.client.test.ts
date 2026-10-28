@@ -7,6 +7,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { createOpenAIUsageClient } from "./usage.client";
+import type { JsonObject, JsonValue } from "~/main/jsonValue";
 
 const NOW = new Date("2026-07-28T15:04:05.000Z");
 const KEY = "sk-admin-secret";
@@ -178,26 +179,32 @@ describe("createOpenAIUsageClient", () => {
         { amount: { value: amount, currency: "usd" }, line_item: "gpt-5" },
       ],
     });
-    const pages: Record<string, unknown> = {
-      "": {
-        object: "page",
-        data: [bucket(Date.UTC(2026, 6, 22) / 1000, 1)],
-        has_more: true,
-        next_page: "cursor-2",
-      },
-      "cursor-2": {
-        object: "page",
-        data: [bucket(Date.UTC(2026, 6, 23) / 1000, 2)],
-        has_more: false,
-        next_page: null,
-      },
-    };
+    const pages = new Map<string, JsonValue>([
+      [
+        "",
+        {
+          object: "page",
+          data: [bucket(Date.UTC(2026, 6, 22) / 1000, 1)],
+          has_more: true,
+          next_page: "cursor-2",
+        },
+      ],
+      [
+        "cursor-2",
+        {
+          object: "page",
+          data: [bucket(Date.UTC(2026, 6, 23) / 1000, 2)],
+          has_more: false,
+          next_page: null,
+        },
+      ],
+    ]);
     const requestedPages: string[] = [];
 
     const client = clientWith(async (url) => {
       const page = new URL(url).searchParams.get("page") ?? "";
       requestedPages.push(page);
-      return okResponse(pages[page]);
+      return okResponse(pages.get(page));
     });
 
     const result = await client.getCosts("7d");
@@ -261,7 +268,7 @@ describe("createOpenAIUsageClient", () => {
 describe("createOpenAIUsageClient project spend", () => {
   const projectCostPage = (
     rows: { amount: number; project_id: string }[],
-  ): unknown => ({
+  ): JsonObject => ({
     object: "page",
     data: [
       {
@@ -278,9 +285,9 @@ describe("createOpenAIUsageClient project spend", () => {
   });
 
   const projectList = (
-    data: unknown[],
-    extra: Record<string, unknown> = {},
-  ): unknown => ({
+    data: JsonValue[],
+    extra: JsonObject = {},
+  ): JsonObject => ({
     object: "list",
     data,
     has_more: false,

@@ -37,6 +37,7 @@ import {
   type OpenAICompletionsUsage,
   type OpenAICosts,
   type OpenAIProjectCosts,
+  type OpenAIProjectNames,
 } from "./usage.parsers";
 
 /** Adds the `no_key` reason (admin key not configured) to the per-card result. */
@@ -247,11 +248,11 @@ export const createOpenAIUsageClient = (
    * gathered so far rather than a reason — an unresolved name only degrades a row
    * to its raw `proj_…` id, and must never sink the spend card itself.
    */
-  const getProjectNames = async (): Promise<Record<string, string>> => {
+  const getProjectNames = async (): Promise<OpenAIProjectNames> => {
     const key = await getKey();
     if (!key) return {};
 
-    let names: Record<string, string> = {};
+    let names: OpenAIProjectNames = {};
     let after: string | null = null;
 
     for (let fetched = 0; fetched < MAX_PAGES; fetched += 1) {

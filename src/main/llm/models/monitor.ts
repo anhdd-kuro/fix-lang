@@ -209,6 +209,8 @@ export async function checkForModelChanges(): Promise<void> {
   }
 }
 
+type ModelChanges = { hasChanges: boolean; added: Model[]; removed: Model[] };
+
 /**
  * Detect if there are changes between stored and current models
  * @returns Object containing change status and details
@@ -216,7 +218,7 @@ export async function checkForModelChanges(): Promise<void> {
 function detectModelChanges(
   storedModels: Model[],
   currentModels: Model[],
-): { hasChanges: boolean; added: Model[]; removed: Model[] } {
+): ModelChanges {
   // Create maps for faster lookups
   const storedModelMap = new Map(
     storedModels.map((model) => [model.id, model]),

@@ -165,13 +165,14 @@ const warmAnthropic = async (): Promise<void> => {
  * rather than a plain `fetch`, so it has no warm-up implementation here and is
  * skipped like a local provider — see this file's own report for the call.
  */
-const WARM_BY_PROVIDER: Readonly<
-  Partial<Record<ProviderId, () => Promise<void>>>
-> = {
-  openai: warmOpenAI,
-  openrouter: warmOpenRouter,
-  anthropic: warmAnthropic,
-};
+const WARM_BY_PROVIDER: ReadonlyMap<ProviderId, () => Promise<void>> = new Map<
+  ProviderId,
+  () => Promise<void>
+>([
+  ["openai", warmOpenAI],
+  ["openrouter", warmOpenRouter],
+  ["anthropic", warmAnthropic],
+]);
 
 export const prewarmProviderConnection = (modelRef: string): void => {
   try {
@@ -179,7 +180,7 @@ export const prewarmProviderConnection = (modelRef: string): void => {
     const provider = resolveProviderForModelRef(modelRef, getCachedModels());
     if (provider === null || LOCAL_PROVIDERS.has(provider)) return;
 
-    const warm = WARM_BY_PROVIDER[provider];
+    const warm = WARM_BY_PROVIDER.get(provider);
     if (!warm) return;
 
     const warmedAt = lastPrewarmAt.get(provider);

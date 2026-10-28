@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { msg } from "~/features/i18n/shared/message";
+import type { JsonObject } from "~/main/jsonValue";
 import { UPGRADE_GRACE_MS } from "./pendingInstall";
 import { createUpdateService } from "./updateService";
 
@@ -11,8 +12,8 @@ const STRAY_APP_PATH = "/Users/dev/fix-lang/release/mac-arm64/FixLang.app";
 
 const stableRelease = (
   tagName = "v0.2.0",
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> => ({
+  overrides: JsonObject = {},
+): JsonObject => ({
   tag_name: tagName,
   name: `FixLang ${tagName}`,
   body: "Improved update reliability.",
@@ -190,9 +191,13 @@ describe("unsigned GitHub update service", () => {
   it.each([null, undefined])(
     "accepts a stable release whose body is %s",
     async (body) => {
+      // A parsed JSON body cannot hold `undefined`; that case is the absent key.
+      const { body: _notes, ...withoutBody } = stableRelease("v0.2.0");
       const { service } = createService({
         getLatestRelease: () =>
-          Promise.resolve(stableRelease("v0.2.0", { body })),
+          Promise.resolve(
+            body === null ? stableRelease("v0.2.0", { body }) : withoutBody,
+          ),
       });
 
       await service.checkForUpdates();
