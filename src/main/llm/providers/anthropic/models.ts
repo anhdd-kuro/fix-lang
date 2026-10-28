@@ -13,6 +13,8 @@
  * Anthropic requests from fabricated numbers. `cost.ts` short-circuits the
  * provider to N/A for the same reason.
  */
+import { z } from "zod";
+import { jsonField, type JsonValue } from "~/main/jsonValue";
 import { keepAliveFetch } from "~/main/llm/httpKeepAlive";
 import type { Model } from "~/features/providers/shared/providers";
 
@@ -31,16 +33,14 @@ const PAGE_LIMIT = 1000;
 /** Matches the OpenAI client's ceiling: provider setup blocks on this call. */
 const TIMEOUT_MS = 5000;
 
-type AnthropicModel = {
-  id?: unknown;
-  display_name?: unknown;
-  created_at?: unknown;
-};
+const ModelIdSchema = z.string().min(1);
+const DisplayNameSchema = z.string().min(1);
+const CreatedAtSchema = z.string();
 
 /** Anthropic stamps `created_at` as ISO 8601; every other provider reports epoch seconds. */
-const toEpochSeconds = (createdAt: unknown): number => {
-  const parsed =
-    typeof createdAt === "string" ? Date.parse(createdAt) : Number.NaN;
+const toEpochSeconds = (createdAt: JsonValue | undefined): number => {
+  const stamp = CreatedAtSchema.safeParse(createdAt);
+  const parsed = stamp.success ? Date.parse(stamp.data) : Number.NaN;
   return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : 0;
 };
 
@@ -67,24 +67,29 @@ export const fetchAnthropicModels = async (
     );
   }
 
-  const body = (await response.json()) as { data?: unknown };
-  const entries = Array.isArray(body.data)
-    ? (body.data as AnthropicModel[])
-    : [];
-  return entries
-    .filter(
-      (entry): entry is AnthropicModel & { id: string } =>
-        typeof entry.id === "string" && entry.id.length > 0,
-    )
-    .map((entry) => ({
-      id: entry.id,
-      // The raw id is what the model picker searches on; `display_name` is only
-      // a friendlier label, and an absent one must not blank the row.
-      name:
-        typeof entry.display_name === "string" && entry.display_name
-          ? entry.display_name
-          : entry.id,
-      created: toEpochSeconds(entry.created_at),
-      provider: "anthropic" as const,
-    }));
+  const body: JsonValue = await response.json();
+  const data = jsonField(body, "data");
+  const entries = Array.isArray(data) ? data : [];
+  // Every id is checked before any row is built, so a `null` entry anywhere
+  // fails the whole list exactly as a property read on it always has.
+  const ids = entries.map((entry) =>
+    ModelIdSchema.safeParse(jsonField(entry, "id")),
+  );
+  return entries.flatMap((entry, index) => {
+    const id = ids[index];
+    if (!id.success) return [];
+    // The raw id is what the model picker searches on; `display_name` is only
+    // a friendlier label, and an absent one must not blank the row.
+    const displayName = DisplayNameSchema.safeParse(
+      jsonField(entry, "display_name"),
+    );
+    return [
+      {
+        id: id.data,
+        name: displayName.success ? displayName.data : id.data,
+        created: toEpochSeconds(jsonField(entry, "created_at")),
+        provider: "anthropic" as const,
+      },
+    ];
+  });
 };

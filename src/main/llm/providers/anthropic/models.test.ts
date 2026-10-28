@@ -124,6 +124,32 @@ describe("fetchAnthropicModels", () => {
     );
   });
 
+  it("skips non-object entries but fails the list on a null entry or body", async () => {
+    keepAliveFetchMock.mockResolvedValue(
+      okResponse(["claude-x", 5, ["claude-y"], { id: "claude-a" }]),
+    );
+    await expect(fetchAnthropicModels("sk-ant-api03-test")).resolves.toEqual([
+      expect.objectContaining({ id: "claude-a" }),
+    ]);
+
+    keepAliveFetchMock.mockResolvedValue(
+      okResponse([{ id: "claude-a" }, null]),
+    );
+    await expect(fetchAnthropicModels("sk-ant-api03-test")).rejects.toThrow(
+      TypeError,
+    );
+
+    keepAliveFetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(null),
+      text: () => Promise.resolve(""),
+    });
+    await expect(fetchAnthropicModels("sk-ant-api03-test")).rejects.toThrow(
+      TypeError,
+    );
+  });
+
   it("tolerates a body with no data array", async () => {
     keepAliveFetchMock.mockResolvedValue({
       ok: true,
