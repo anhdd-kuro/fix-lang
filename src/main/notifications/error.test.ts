@@ -85,8 +85,8 @@ vi.mock("electron", () => ({
  * something the app just did differently cannot be delivered by a bare
  * `new Notification(...).show()`.
  *
- * FixLang ships unsigned, and macOS refuses notifications from an unsigned
- * bundle with `Application is not code signed` — reported asynchronously on
+ * FixLang is not Developer ID signed, and macOS has refused notifications from
+ * its bundle with `Application is not code signed` — reported asynchronously on
  * the `failed` event, NOT as a throw. So the naive call reports success and
  * shows the user nothing at all, which is how the secret-guard restore
  * failure used to leave a popup full of placeholders with nothing to say why.

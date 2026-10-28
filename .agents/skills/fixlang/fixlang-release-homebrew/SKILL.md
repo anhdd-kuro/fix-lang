@@ -6,7 +6,7 @@ description: 'Use when cutting a FixLang release, editing .github/workflows/rele
 # FixLang — Release + Homebrew Distribution Traps
 
 Two repos. App = `anhdd-kuro/fix-lang`. Tap = `anhdd-kuro/homebrew-tap` (separate).
-GitHub Releases = source of truth. Tap copies validated metadata only. Apple Silicon / arm64 only. App unsigned, not notarized — never automate Gatekeeper/`xattr`.
+GitHub Releases = source of truth. Tap copies validated metadata only. Apple Silicon / arm64 only. App ad-hoc signed (`identity: "-"`), not notarized — never automate Gatekeeper/`xattr`. `identity: null` = no seal = "damaged" on download; keep `-`.
 
 ## Cut release
 

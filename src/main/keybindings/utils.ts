@@ -62,8 +62,8 @@ export const handleError = (cause: unknown) => {
   // profile-switch, and hotkey-registration failures, not just correction.
   showErrorNotification(cause);
 
-  // A mid-session Accessibility revocation (e.g. after an unsigned-app
-  // update changes the code identity) is otherwise only ever surfaced as a
+  // A mid-session Accessibility revocation (e.g. after an update changes the
+  // code identity) is otherwise only ever surfaced as a
   // desktop notification — easy to miss, and the log shows desktop
   // notifications can *also* fail in this exact state (`UNErrorDomain error
   // 1`). Also prompt the actionable dialog so the user has a real path to

@@ -35,8 +35,8 @@ const workflowStepSecrets = (workflow: string, stepName: string): string[] =>
     (match) => match[1],
   );
 
-describe("unsigned GitHub Releases distribution", () => {
-  it("builds an explicitly unsigned arm64 DMG without an updater runtime", () => {
+describe("ad-hoc signed GitHub Releases distribution", () => {
+  it("builds an ad-hoc signed, un-notarized arm64 DMG without an updater runtime", () => {
     const packageJson = readPackageJson();
     const build = buildConfiguration(packageJson);
 
@@ -50,7 +50,9 @@ describe("unsigned GitHub Releases distribution", () => {
     expect(build.mac).toEqual(
       expect.objectContaining({
         target: ["dmg"],
-        identity: null,
+        // `null` skips signing entirely: only the linker stub on the Electron
+        // binary survives and macOS reports every downloaded copy as damaged.
+        identity: "-",
         notarize: false,
         hardenedRuntime: false,
         gatekeeperAssess: false,
@@ -68,7 +70,7 @@ describe("unsigned GitHub Releases distribution", () => {
     expect(viteConfig).not.toContain("electron-updater");
   });
 
-  it("publishes only a validated unsigned DMG and checksum after monotonic version resolution", () => {
+  it("publishes only a validated ad-hoc signed DMG and checksum after monotonic version resolution", () => {
     const workflowPath = ".github/workflows/release.yml";
     const fullPath = path.join(projectRoot, workflowPath);
     expect(existsSync(fullPath), `${workflowPath} must exist`).toBe(true);
@@ -124,13 +126,12 @@ describe("unsigned GitHub Releases distribution", () => {
     expect(workflow).not.toContain("--clobber");
     expect(workflow).not.toContain("MAC_CSC_");
     expect(workflow).not.toContain("APPLE_API_");
-    expect(workflow).not.toContain("codesign");
     expect(workflow).not.toContain("spctl");
     expect(workflow).not.toContain("xcrun stapler");
 
     const validateStep = workflowStep(
       workflow,
-      "Validate unsigned arm64 artifacts",
+      "Validate ad-hoc signed arm64 artifacts",
     );
     const draftStep = workflowStep(workflow, "Create or resume draft release");
     expect(validateStep).toContain(
@@ -140,10 +141,15 @@ describe("unsigned GitHub Releases distribution", () => {
       'hdiutil verify "release/FixLang-${package_version}-arm64.dmg"',
     );
     expect(validateStep).toContain("CFBundleShortVersionString");
-    expect(draftStep).toContain("refusing to replace its assets");
-    expect(workflow.indexOf("Validate unsigned arm64 artifacts")).toBeLessThan(
-      workflow.indexOf("Create or resume draft release"),
+    expect(validateStep).toContain(
+      'codesign --verify --deep --strict "${app_path}"',
     );
+    expect(validateStep).toContain("grep -qx 'Identifier=com.fixlang.app'");
+    expect(validateStep).toContain("grep -qx 'Signature=adhoc'");
+    expect(draftStep).toContain("refusing to replace its assets");
+    expect(
+      workflow.indexOf("Validate ad-hoc signed arm64 artifacts"),
+    ).toBeLessThan(workflow.indexOf("Create or resume draft release"));
     expect(
       workflow.indexOf(
         'if ! [[ "${package_version}" =~ ${stable_version_pattern} ]]; then',

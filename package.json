@@ -117,7 +117,7 @@
       ],
       "category": "public.app-category.productivity",
       "darkModeSupport": true,
-      "identity": null,
+      "identity": "-",
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "notarize": false,
