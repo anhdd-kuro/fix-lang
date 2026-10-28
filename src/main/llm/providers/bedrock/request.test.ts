@@ -1,8 +1,8 @@
 /**
  * @file request.test.ts
- * @description Bedrock request path against the realistic `generateText` fake,
- * which — like `ai` v7 — returns `response.body` only to a call that passed
- * `include: { responseBody: true }`.
+ * @description Bedrock request path against the `generateText` fake in no-body
+ * mode: the real Bedrock SDK returns no response body, so the served model
+ * comes from `response.modelId`.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeGenerateText } from "~/main/llm/providers/testing/fakeGenerateText";
@@ -30,14 +30,6 @@ vi.mock("~/main/notifications/error", () => ({ notifyRequestError: notifyRequest
 
 const MODEL = "us.anthropic.claude-sonnet-4-5-20250929-v1:0";
 
-/** A Bedrock Converse response body: it carries no `model` field. */
-const converseBody = (text: string) => ({
-  output: { message: { role: "assistant", content: [{ text }] } },
-  stopReason: "end_turn",
-  usage: { inputTokens: 10, outputTokens: 4, totalTokens: 14 },
-  metrics: { latencyMs: 120 },
-});
-
 const request = (overrides: Record<string, unknown> = {}) =>
   makeBedrockAIRequest({
     systemPrompt: "",
@@ -61,20 +53,20 @@ describe("makeBedrockAIRequest", () => {
     );
   });
 
-  it("asks the SDK for the response body it reads", async () => {
+  it("does not ask for a response body Bedrock never returns", async () => {
     generateTextMock.mockImplementation(fakeGenerateText({ text: "the text" }));
 
     await request();
 
-    expect(generateTextMock.mock.calls[0]?.[0].include).toEqual({ responseBody: true });
+    expect(generateTextMock.mock.calls[0]?.[0].include).toBeUndefined();
   });
 
-  it("reports the served model from the body when the body names one", async () => {
+  it("reports the model the SDK names on response.modelId", async () => {
     generateTextMock.mockImplementation(
       fakeGenerateText({
         text: "the text",
         usage: { inputTokens: 10, outputTokens: 4 },
-        body: { model: "us.anthropic.claude-sonnet-4-5-20250929-v1:0-served" },
+        modelId: "us.anthropic.claude-sonnet-4-5-20250929-v1:0-served",
       }),
     );
 
@@ -86,9 +78,9 @@ describe("makeBedrockAIRequest", () => {
     expect(result.completionTokens).toBe(4);
   });
 
-  it("falls back to the requested model for a real Converse body", async () => {
+  it("falls back to the requested model when the SDK result names none", async () => {
     generateTextMock.mockImplementation(
-      fakeGenerateText({ text: "the text", body: converseBody("the text") }),
+      vi.fn(async () => ({ text: "the text", usage: {}, response: {} })),
     );
 
     const result = await request();
@@ -102,7 +94,7 @@ describe("makeBedrockAIRequest", () => {
         {
           text: "first",
           usage: { inputTokens: 10, outputTokens: 3 },
-          body: { model: "served-model" },
+          modelId: "served-model",
         },
         { text: "second", usage: { inputTokens: 10, outputTokens: 5 } },
       ]),

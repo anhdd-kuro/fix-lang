@@ -1,10 +1,9 @@
 /**
  * @file request.test.ts
- * @description Direct OpenAI requests read the served model id from the raw
- * response body. Since `ai` v7, `generateText` returns that body only when the
- * call passes `include: { responseBody: true }`; without it every request
- * reported the requested alias as the resolved model. The realistic fake
- * withholds the body the same way, so these tests fail if the flag is dropped.
+ * @description Direct OpenAI requests report the model the provider served.
+ * `ai` v7 exposes it on `response.modelId` with no `include` option, so the
+ * request must read it from there and never fall back to the requested alias
+ * while the provider named a model.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeGenerateText } from "~/main/llm/providers/testing/fakeGenerateText";
@@ -52,22 +51,12 @@ describe("makeOpenAIAIRequest", () => {
     getProfileSecretMock.mockResolvedValue("sk-test");
   });
 
-  it("asks the SDK for the raw response body", async () => {
-    generateTextMock.mockImplementation(
-      fakeGenerateText({ text: "I have an apple.", body: { model: SERVED_MODEL } }),
-    );
-
-    await request();
-
-    expect(generateTextMock.mock.calls[0]?.[0].include).toEqual({ responseBody: true });
-  });
-
-  it("reports the served model from the response body, not the requested alias", async () => {
+  it("reports the served model from response.modelId, not the requested alias", async () => {
     generateTextMock.mockImplementation(
       fakeGenerateText({
         text: "I have an apple.",
         usage: { inputTokens: 11, outputTokens: 5 },
-        body: { model: SERVED_MODEL },
+        modelId: SERVED_MODEL,
       }),
     );
 
@@ -83,28 +72,37 @@ describe("makeOpenAIAIRequest", () => {
     });
   });
 
+  it("does not ask the SDK for the raw response body", async () => {
+    generateTextMock.mockImplementation(fakeGenerateText({ text: "ok", modelId: SERVED_MODEL }));
+
+    await request();
+
+    expect(generateTextMock.mock.calls[0]?.[0].include).toBeUndefined();
+  });
+
   it("fans n > 1 out into one call per choice and resolves the model from the first", async () => {
     generateTextMock.mockImplementation(
       fakeGenerateText([
-        { text: "first", usage: { inputTokens: 10, outputTokens: 2 }, body: { model: SERVED_MODEL } },
-        { text: "second", usage: { inputTokens: 10, outputTokens: 3 }, body: { model: "other" } },
+        { text: "first", usage: { inputTokens: 10, outputTokens: 2 }, modelId: SERVED_MODEL },
+        { text: "second", usage: { inputTokens: 10, outputTokens: 3 }, modelId: "other" },
       ]),
     );
 
     const result = await request({ n: 2 });
 
     expect(generateTextMock).toHaveBeenCalledTimes(2);
-    // Only the first choice's body is read, so only that call pays for it.
-    expect(generateTextMock.mock.calls[0]?.[0].include).toEqual({ responseBody: true });
-    expect(generateTextMock.mock.calls[1]?.[0].include).toBeUndefined();
     expect(result.content).toEqual(["first", "second"]);
     expect(result.resolvedModel).toBe(SERVED_MODEL);
     expect(result.promptTokens).toBe(20);
     expect(result.completionTokens).toBe(5);
   });
 
-  it("falls back to the requested model when the body omits it", async () => {
-    generateTextMock.mockImplementation(fakeGenerateText({ text: "ok", body: {} }));
+  it("falls back to the requested model when the SDK reports none", async () => {
+    generateTextMock.mockImplementation(async () => ({
+      text: "ok",
+      usage: {},
+      response: {},
+    }));
 
     const result = await request();
 

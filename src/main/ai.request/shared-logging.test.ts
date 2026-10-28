@@ -145,12 +145,12 @@ describe("shared AI request logging", () => {
         {
           text: "first",
           usage: { inputTokens: 2, outputTokens: 3 },
-          body: { model: "gpt-4.1-mini-2025" },
+          modelId: "gpt-4.1-mini-2025",
         },
         {
           text: "second",
           usage: { inputTokens: 5, outputTokens: 7 },
-          body: { model: "gpt-4.1-mini-2025" },
+          modelId: "gpt-4.1-mini-2025",
         },
       ]),
     );
@@ -174,9 +174,7 @@ describe("shared AI request logging", () => {
       fetch: expect.any(Function),
     });
     expect(generateTextMock).toHaveBeenCalledTimes(2);
-    expect(generateTextMock.mock.calls[0]?.[0]).toMatchObject({
-      include: { responseBody: true },
-    });
+    expect(generateTextMock.mock.calls[0]?.[0]).not.toHaveProperty("include");
     expect(response).toMatchObject({
       content: ["first", "second"],
       provider: "openai",

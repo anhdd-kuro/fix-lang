@@ -1,8 +1,7 @@
 /**
  * @file request.test.ts
- * @description `makeLmStudioAIRequest` against the realistic `generateText`
- * fake: `ai` v7 hands back `response.body` only when the call asks for it, so
- * the served model id (read from the body) is the regression this pins.
+ * @description `makeLmStudioAIRequest` reports the model LM Studio served, read
+ * from `response.modelId` (`ai` v7 needs no `include` for it).
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeGenerateText } from "~/main/llm/providers/testing/fakeGenerateText";
@@ -43,56 +42,55 @@ describe("makeLmStudioAIRequest", () => {
     generateTextMock.mockReset();
   });
 
-  it("reports the served model from the response body, not the requested id", async () => {
+  it("reports the served model from response.modelId, not the requested id", async () => {
     generateTextMock.mockImplementation(
       fakeGenerateText({
         text: "fixed",
         usage: { inputTokens: 3, outputTokens: 4 },
-        // `modelId` set apart from the body so only a body read can yield SERVED_MODEL.
-        modelId: REQUESTED_MODEL,
-        body: { model: SERVED_MODEL },
+        modelId: SERVED_MODEL,
       }),
     );
 
     const result = await makeLmStudioAIRequest(requestOptions());
 
     expect(result.resolvedModel).toBe(SERVED_MODEL);
-    expect(generateTextMock.mock.calls[0]?.[0].include).toEqual({ responseBody: true });
     expect(result.model).toBe(REQUESTED_MODEL);
     expect(result.content).toEqual(["fixed"]);
     expect(result.promptTokens).toBe(3);
     expect(result.completionTokens).toBe(4);
   });
 
-  it("fans out n > 1 into one call per choice and reads the first call's body", async () => {
+  it("does not ask the SDK for the raw response body", async () => {
+    generateTextMock.mockImplementation(fakeGenerateText({ text: "fixed", modelId: SERVED_MODEL }));
+
+    await makeLmStudioAIRequest(requestOptions());
+
+    expect(generateTextMock.mock.calls[0]?.[0].include).toBeUndefined();
+  });
+
+  it("fans out n > 1 into one call per choice and resolves the model from the first", async () => {
     generateTextMock.mockImplementation(
       fakeGenerateText([
-        {
-          text: "first",
-          usage: { inputTokens: 2, outputTokens: 1 },
-          modelId: REQUESTED_MODEL,
-          body: { model: SERVED_MODEL },
-        },
-        { text: "second", usage: { inputTokens: 2, outputTokens: 5 }, modelId: REQUESTED_MODEL },
+        { text: "first", usage: { inputTokens: 2, outputTokens: 1 }, modelId: SERVED_MODEL },
+        { text: "second", usage: { inputTokens: 2, outputTokens: 5 }, modelId: "other" },
       ]),
     );
 
     const result = await makeLmStudioAIRequest(requestOptions(2));
 
     expect(generateTextMock).toHaveBeenCalledTimes(2);
-    for (const [callOptions] of generateTextMock.mock.calls) {
-      expect(callOptions.include).toEqual({ responseBody: true });
-    }
     expect(result.content).toEqual(["first", "second"]);
     expect(result.promptTokens).toBe(4);
     expect(result.completionTokens).toBe(6);
     expect(result.resolvedModel).toBe(SERVED_MODEL);
   });
 
-  it("falls back to the requested id when the body names no model", async () => {
-    generateTextMock.mockImplementation(
-      fakeGenerateText({ text: "fixed", modelId: REQUESTED_MODEL, body: {} }),
-    );
+  it("falls back to the requested id when the SDK reports no model", async () => {
+    generateTextMock.mockImplementation(async () => ({
+      text: "fixed",
+      usage: {},
+      response: {},
+    }));
 
     const result = await makeLmStudioAIRequest(requestOptions());
 

@@ -1,11 +1,8 @@
 /**
  * @file request.test.ts
- * @description The served model must come back from the Anthropic path.
- *
- * Since `ai` v7, `generateText` resolves `response.body` only when the call
- * passes `include: { responseBody: true }`. Without it, `resolvedModel` silently
- * collapses to the requested id. The shared fake keeps that v7 rule, so these
- * tests fail the way production does.
+ * @description The served model must come back from the Anthropic path. `ai` v7
+ * exposes it on `response.modelId` with no `include` option, so the request reads
+ * it from there and must not collapse to the requested id.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeGenerateText } from "~/main/llm/providers/testing/fakeGenerateText";
@@ -55,18 +52,12 @@ describe("makeAnthropicAIRequest", () => {
       fakeGenerateText({
         text: "He goes home.",
         usage: { inputTokens: 12, outputTokens: 4 },
-        body: { model: SERVED_MODEL },
+        modelId: SERVED_MODEL,
       }),
     );
   });
 
-  it("asks the SDK for the response body", async () => {
-    await request();
-
-    expect(generateTextMock.mock.calls[0]?.[0].include).toEqual({ responseBody: true });
-  });
-
-  it("reports the served model from the response body, not the requested id", async () => {
+  it("reports the served model from response.modelId, not the requested id", async () => {
     const result = await request();
 
     expect(result.resolvedModel).toBe(SERVED_MODEL);
@@ -76,28 +67,35 @@ describe("makeAnthropicAIRequest", () => {
     expect(result.completionTokens).toBe(4);
   });
 
+  it("does not ask the SDK for the raw response body", async () => {
+    await request();
+
+    expect(generateTextMock.mock.calls[0]?.[0].include).toBeUndefined();
+  });
+
   it("fans n > 1 out into separate calls and resolves the model from the first", async () => {
     generateTextMock.mockImplementation(
       fakeGenerateText([
-        { text: "first", usage: { inputTokens: 10, outputTokens: 2 }, body: { model: SERVED_MODEL } },
-        { text: "second", usage: { inputTokens: 10, outputTokens: 3 }, body: { model: "other" } },
+        { text: "first", usage: { inputTokens: 10, outputTokens: 2 }, modelId: SERVED_MODEL },
+        { text: "second", usage: { inputTokens: 10, outputTokens: 3 }, modelId: "other" },
       ]),
     );
 
     const result = await request({ n: 2 });
 
     expect(generateTextMock).toHaveBeenCalledTimes(2);
-    for (const [options] of generateTextMock.mock.calls) {
-      expect(options.include).toEqual({ responseBody: true });
-    }
     expect(result.content).toEqual(["first", "second"]);
     expect(result.resolvedModel).toBe(SERVED_MODEL);
     expect(result.promptTokens).toBe(20);
     expect(result.completionTokens).toBe(5);
   });
 
-  it("falls back to the requested id when the body names no model", async () => {
-    generateTextMock.mockImplementation(fakeGenerateText({ text: "ok", body: {} }));
+  it("falls back to the requested id when the SDK reports no model", async () => {
+    generateTextMock.mockImplementation(async () => ({
+      text: "ok",
+      usage: {},
+      response: {},
+    }));
 
     const result = await request();
 

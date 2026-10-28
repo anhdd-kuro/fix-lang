@@ -18,7 +18,6 @@ import {
   usageCounts,
   type AIRequestOptions,
 } from "~/main/ai.request/requestTypes";
-import { extractResolvedModel } from "~/main/ai.request/resolve-model";
 import { keepAliveFetch } from "~/main/llm/httpKeepAlive";
 import { notifyRequestError } from "~/main/notifications/error";
 
@@ -42,11 +41,9 @@ export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
     const modelId = options.model as string;
     const openai = createOpenAI({ apiKey: apiKey.trim(), fetch: keepAliveFetch });
     const conversation = toConversation(rawMessages);
-    // `ai` v7 drops `response.body` unless asked; only the first body is read.
-    const request = (choiceIndex: number) =>
+    const request = () =>
       generateText({
         model: openai.chat(modelId),
-        ...(choiceIndex === 0 ? { include: { responseBody: true } } : {}),
         ...(conversation.system ? { system: conversation.system } : {}),
         messages: conversation.messages,
         topP: options.top_p,
@@ -60,13 +57,12 @@ export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
           ? { maxOutputTokens: options.maxOutputTokens }
           : {}),
       });
+    // Chat Completions `n` is not used: the SDK emits one text per call, so
+    // sibling responses are N separate calls (same shape as the other providers).
     const responses = await Promise.all(
-      Array.from({ length: Math.max(1, options.n ?? 1) }, (_, choiceIndex) =>
-        request(choiceIndex),
-      ),
+      Array.from({ length: Math.max(1, options.n ?? 1) }, request),
     );
     const counts = responses.map((response) => usageCounts(response.usage));
-    const firstBody = responses[0]?.response.body;
 
     const reasoningTexts = responses
       .map((response) => response.reasoningText)
@@ -78,7 +74,8 @@ export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
       completionTokens: sumTokenField(counts, "completionTokens"),
       model: modelId,
       provider: "openai" as const,
-      resolvedModel: extractResolvedModel(firstBody, modelId),
+      // `response.modelId` is the model the provider reports having served; no `include` needed.
+      resolvedModel: responses[0]?.response.modelId ?? modelId,
       ...(reasoningTexts.length > 0 ? { reasoningTexts } : {}),
     };
   } catch (error) {

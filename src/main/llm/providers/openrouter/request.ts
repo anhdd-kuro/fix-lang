@@ -3,9 +3,10 @@
  * @description OpenRouter Chat Completions through the AI SDK. Moved verbatim
  * from `ai.request/shared.ts`.
  *
- * This is the only provider path that applies prompt-cache controls and reads the
- * raw response body (for `n > 1` choices, cache usage, and the concretely served
- * model behind a floating alias).
+ * This is the only provider path that applies prompt-cache controls. The served
+ * model (`response.modelId`) and cache counts (`usage.inputTokenDetails`) come
+ * from the SDK with no `include`; the raw response body is requested only for
+ * the `n > 1` choices fan-out.
  */
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText } from "ai";
@@ -14,14 +15,12 @@ import { getApiKey } from "~/features/providers/store/apiKeyStore";
 import { apiStore, getProfileSetting } from "~/features/providers/store/apiStore";
 import {
   buildCachedMessages,
-  extractCacheUsage,
   resolveCacheProvider,
 } from "~/main/ai.request/cache-strategy";
 import {
   usageCounts,
   type AIRequestOptions,
 } from "~/main/ai.request/requestTypes";
-import { extractResolvedModel } from "~/main/ai.request/resolve-model";
 import { keepAliveFetch } from "~/main/llm/httpKeepAlive";
 import { notifyRequestError } from "~/main/notifications/error";
 
@@ -76,14 +75,15 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
       cacheProvider,
     );
 
+    const wantsMultipleChoices = (options.n ?? 1) > 1;
     const reasoning = reasoningForAiSdk(options.reasoning);
     const genResponse = await generateText({
       model: modelOpenRouter,
       ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: conversationMessages as never,
-      // `ai` v7 leaves `response.body` undefined unless asked; the served model,
-      // cache usage and `n > 1` choices below are all read from it.
-      include: { responseBody: true },
+      // `ai` v7 leaves `response.body` undefined unless asked; only the `n > 1`
+      // choices below need it. Model and cache counts come from the SDK result.
+      ...(wantsMultipleChoices ? { include: { responseBody: true } } : {}),
       ...(reasoning !== undefined ? { reasoning } : {}),
       ...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
       ...(options.maxOutputTokens !== undefined
@@ -100,12 +100,10 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
     const promptTokens = normalizedUsage.promptTokens;
     const completionTokens = normalizedUsage.completionTokens;
 
-    // Extract cache-usage metadata from raw OpenRouter response body
-    const rawUsage =
-      resBody && typeof resBody === "object" && "usage" in resBody
-        ? (resBody as Record<string, unknown>)["usage"]
-        : undefined;
-    const { cachedTokens, cacheWriteTokens } = extractCacheUsage(rawUsage);
+    // The SDK maps OpenRouter's `prompt_tokens_details.cached_tokens` / `cache_write_tokens`
+    // into normalized `inputTokenDetails`; the raw body is not needed for this.
+    const cachedTokens = usage.inputTokenDetails?.cacheReadTokens ?? 0;
+    const cacheWriteTokens = usage.inputTokenDetails?.cacheWriteTokens ?? 0;
     if (cachedTokens > 0 || cacheWriteTokens > 0) {
       console.log(
         `[cache] provider=${cacheProvider} read=${cachedTokens} write=${cacheWriteTokens}`,
@@ -117,8 +115,7 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
 
     // If multiple responses were requested
     if (
-      options.n &&
-      options.n > 1 &&
+      wantsMultipleChoices &&
       resBody &&
       typeof resBody === "object" &&
       "choices" in resBody &&
@@ -136,10 +133,9 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
       }
     }
 
-    // The provider reports the model it actually served in the response body.
-    // For floating aliases (e.g. "~openai/gpt-mini-latest") this is the concrete
-    // pinned id; falls back to the requested id when absent.
-    const resolvedModel = extractResolvedModel(resBody, options.model as string);
+    // The SDK reports the model OpenRouter actually served. For floating aliases
+    // (e.g. "~openai/gpt-mini-latest") this is the concrete pinned id.
+    const resolvedModel = genResponse.response?.modelId?.trim() || modelId;
 
     // Return the processed content and token information
     return {

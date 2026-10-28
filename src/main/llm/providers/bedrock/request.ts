@@ -14,7 +14,6 @@ import {
   usageCounts,
   type AIRequestOptions,
 } from "~/main/ai.request/requestTypes";
-import { extractResolvedModel } from "~/main/ai.request/resolve-model";
 import { notifyRequestError } from "~/main/notifications/error";
 
 export const makeBedrockAIRequest = async (options: AIRequestOptions) => {
@@ -52,8 +51,6 @@ export const makeBedrockAIRequest = async (options: AIRequestOptions) => {
         model: bedrock(modelId),
         ...(conversation.system ? { system: conversation.system } : {}),
         messages: conversation.messages,
-        // ai v7 drops `response.body` unless asked; `extractResolvedModel` reads it.
-        include: { responseBody: true },
         topP: options.top_p,
         ...(() => {
           const reasoning = reasoningForAiSdk(options.reasoning);
@@ -69,7 +66,6 @@ export const makeBedrockAIRequest = async (options: AIRequestOptions) => {
       Array.from({ length: Math.max(1, options.n ?? 1) }, request),
     );
     const counts = responses.map((response) => usageCounts(response.usage));
-    const firstBody = responses[0]?.response.body;
 
     const reasoningTexts = responses
       .map((response) => response.reasoningText)
@@ -81,7 +77,8 @@ export const makeBedrockAIRequest = async (options: AIRequestOptions) => {
       completionTokens: sumTokenField(counts, "completionTokens"),
       model: modelId,
       provider: "bedrock" as const,
-      resolvedModel: extractResolvedModel(firstBody, modelId),
+      // Converse returns no response body (so no `include`); the SDK reports the model on `response.modelId`.
+      resolvedModel: responses[0]?.response.modelId ?? modelId,
       ...(reasoningTexts.length > 0 ? { reasoningTexts } : {}),
     };
   } catch (error) {

@@ -1,13 +1,18 @@
 /**
  * @file request.test.ts
- * @description `makeOpenRouterAIRequest` reads three things off the raw
- * response body: the served model, cache usage, and `n > 1` choices. `ai` v7
- * returns that body only when `generateText` is called with
- * `include: { responseBody: true }`, so these tests run on the shared realistic
- * fake, which withholds the body otherwise.
+ * @description `makeOpenRouterAIRequest` takes the served model from
+ * `response.modelId` and cache counts from `usage.inputTokenDetails`, both
+ * available from `ai` v7 with no `include`. Only the `n > 1` choices fan-out
+ * needs the raw body (`include: { responseBody: true }`). The shared fake
+ * withholds the body otherwise and builds usage in the real OpenRouter shape
+ * (`prompt_tokens_details.cached_tokens`), so reading the wrong field fails here.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { chatCompletionBody, fakeGenerateText } from "~/main/llm/providers/testing/fakeGenerateText";
+import {
+  chatCompletionBody,
+  chatCompletionUsage,
+  fakeGenerateText,
+} from "~/main/llm/providers/testing/fakeGenerateText";
 import { makeOpenRouterAIRequest } from "./request";
 
 const { generateTextMock, createOpenRouterMock } = vi.hoisted(() => ({
@@ -48,36 +53,68 @@ describe("makeOpenRouterAIRequest response body", () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
   });
 
-  it("asks the SDK for the response body", async () => {
+  it("does not request the response body for a single choice", async () => {
     generateTextMock.mockImplementation(
       fakeGenerateText({ text: "the text", body: chatCompletionBody({ model: SERVED_MODEL, contents: ["the text"] }) }),
     );
 
     await request();
+    await request(1);
+
+    expect(generateTextMock.mock.calls[0]?.[0].include).toBeUndefined();
+    expect(generateTextMock.mock.calls[1]?.[0].include).toBeUndefined();
+  });
+
+  it("requests the response body when n > 1", async () => {
+    generateTextMock.mockImplementation(
+      fakeGenerateText({
+        text: "first",
+        body: chatCompletionBody({ model: SERVED_MODEL, contents: ["first", "second"] }),
+      }),
+    );
+
+    await request(2);
 
     expect(generateTextMock.mock.calls[0]?.[0].include).toEqual({ responseBody: true });
   });
 
-  it("reports the concretely served model behind a floating alias", async () => {
+  it("reports the concretely served model behind a floating alias without the body", async () => {
     generateTextMock.mockImplementation(
       fakeGenerateText({ text: "the text", body: chatCompletionBody({ model: SERVED_MODEL, contents: ["the text"] }) }),
     );
 
     const result = await request();
 
+    expect(generateTextMock.mock.calls[0]?.[0].include).toBeUndefined();
     expect(result.model).toBe(REQUESTED_MODEL);
     expect(result.resolvedModel).toBe(SERVED_MODEL);
   });
 
-  it("reads cache read/write tokens from the body usage", async () => {
+  it("falls back to the requested model when the SDK reports none", async () => {
+    generateTextMock.mockResolvedValue({
+      text: "the text",
+      usage: { inputTokens: 1, outputTokens: 1 },
+      response: {},
+    });
+
+    const result = await request();
+
+    expect(result.resolvedModel).toBe(REQUESTED_MODEL);
+  });
+
+  it("reads cache read/write tokens from the SDK usage built from the real body shape", async () => {
     generateTextMock.mockImplementation(
       fakeGenerateText({
         text: "the text",
-        usage: { inputTokens: 40, outputTokens: 5 },
         body: chatCompletionBody({
           model: SERVED_MODEL,
           contents: ["the text"],
-          usage: { cache_read_input_tokens: 6, cache_creation_input_tokens: 2 },
+          usage: chatCompletionUsage({
+            promptTokens: 40,
+            completionTokens: 5,
+            cachedTokens: 6,
+            cacheWriteTokens: 2,
+          }),
         }),
       }),
     );
@@ -88,6 +125,24 @@ describe("makeOpenRouterAIRequest response body", () => {
     expect(result.cacheWriteTokens).toBe(2);
     expect(result.promptTokens).toBe(40);
     expect(result.completionTokens).toBe(5);
+  });
+
+  it("reports zero cache tokens when the provider sends no details", async () => {
+    generateTextMock.mockImplementation(
+      fakeGenerateText({
+        text: "the text",
+        body: chatCompletionBody({
+          model: SERVED_MODEL,
+          contents: ["the text"],
+          usage: chatCompletionUsage({ promptTokens: 40, completionTokens: 5 }),
+        }),
+      }),
+    );
+
+    const result = await request();
+
+    expect(result.cachedTokens).toBe(0);
+    expect(result.cacheWriteTokens).toBe(0);
   });
 
   it("returns every choice when n > 1", async () => {

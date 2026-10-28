@@ -20,7 +20,6 @@ import {
   usageCounts,
   type AIRequestOptions,
 } from "~/main/ai.request/requestTypes";
-import { extractResolvedModel } from "~/main/ai.request/resolve-model";
 import { keepAliveFetch } from "~/main/llm/httpKeepAlive";
 import { notifyRequestError } from "~/main/notifications/error";
 
@@ -66,16 +65,13 @@ export const makeAnthropicAIRequest = async (options: AIRequestOptions) => {
         ...(options.maxOutputTokens !== undefined
           ? { maxOutputTokens: options.maxOutputTokens }
           : {}),
-        // ai v7 resolves `response.body` only on request; `resolvedModel` reads it.
-        include: { responseBody: true },
       });
     // The Messages API has no `n`, so sibling responses are N separate calls —
-    // the same shape the Bedrock path uses for the identical reason.
+    // the same shape every other provider uses.
     const responses = await Promise.all(
       Array.from({ length: Math.max(1, options.n ?? 1) }, request),
     );
     const counts = responses.map((response) => usageCounts(response.usage));
-    const firstBody = responses[0]?.response.body;
 
     const reasoningTexts = responses
       .map((response) => response.reasoningText)
@@ -87,7 +83,8 @@ export const makeAnthropicAIRequest = async (options: AIRequestOptions) => {
       completionTokens: sumTokenField(counts, "completionTokens"),
       model: modelId,
       provider: "anthropic" as const,
-      resolvedModel: extractResolvedModel(firstBody, modelId),
+      // `response.modelId` is the model the provider reports having served; no `include` needed.
+      resolvedModel: responses[0]?.response.modelId ?? modelId,
       ...(reasoningTexts.length > 0 ? { reasoningTexts } : {}),
     };
   } catch (error) {
