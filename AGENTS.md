@@ -103,15 +103,15 @@ fix-lang/
 ## Tech Stack
 
 - Runtime/build
-  - Electron 43.2, electron-vite 5.0, Vite 8.1, bun
+  - Electron 43.8 (44+ held: async main-process clipboard), electron-vite 6.0 (`externalizeDeps: false`), Vite 8.3, bun
 - Frontend
-  - React 19.2, TypeScript 6.0.3 as `typescript` (classic compiler API for `bundleExternals` + AST guard tests) and 7.0.2 as `@typescript/seven` (type-check only, `bun run typecheck`), Tailwind 4.3
+  - React 19.3, TypeScript 6.0.3 as `typescript` (classic compiler API for `bundleExternals` + AST guard tests) and 7.0.2 as `@typescript/seven` (type-check only, `bun run typecheck`), Tailwind 4.3
 - AI
-  - openai 6.49, @ai-sdk/openai 4.0, @openrouter/ai-sdk-provider 3.0, @ai-sdk/anthropic 4.0.23 (pinned — see below), @ai-sdk/amazon-bedrock 5.0 + @aws-sdk/client-bedrock 3.x, ai 7.0, ollama 0.6 — each wired in its own `src/main/llm/providers/<id>/request.ts` and reached through the capability registry; LM Studio and Ollama both use a configurable local host/port (LM Studio via OpenAI-compatible `baseURL`; Ollama via its daemon URL), and Bedrock stores its AWS region in `providerEndpoints.bedrock.host` (`src/features/providers/shared/bedrockEndpoint.ts`, default `us-east-1`)
+  - openai 7.45, @ai-sdk/openai 4.0, @openrouter/ai-sdk-provider 3.1, @ai-sdk/anthropic 4.0 (undici rewrite — see below), @ai-sdk/amazon-bedrock 5.0 + @aws-sdk/client-bedrock 3.x, ai 7.0, ollama 0.6, undici 8.12 — each wired in its own `src/main/llm/providers/<id>/request.ts` and reached through the capability registry; LM Studio and Ollama both use a configurable local host/port (LM Studio via OpenAI-compatible `baseURL`; Ollama via its daemon URL), and Bedrock stores its AWS region in `providerEndpoints.bedrock.host` (`src/features/providers/shared/bedrockEndpoint.ts`, default `us-east-1`)
 - Persistence
-  - node:sqlite (history) + electron-store 11 + JSONL logs under userData — no zustand
+  - node:sqlite (history) + electron-store 12 + JSONL logs under userData — no zustand
 - Testing
-  - Vitest 4.1, jsdom
+  - Vitest 5.0, jsdom 30
 
 ## Key Commands
 
