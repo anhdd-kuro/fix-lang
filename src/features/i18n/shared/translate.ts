@@ -66,10 +66,17 @@ const missingParamWarnings = new Set<string>();
 /**
  * True outside production. The renderer runs with `contextIsolation` and no
  * Node integration, so `process` may not exist there — guard its presence
- * before touching `process.env`.
+ * before touching `process.env`. The bare `process` read (not
+ * `"process" in globalThis`) also finds a sandboxed preload's wrapper
+ * parameter, and a missing binding lands in the `catch`.
  */
-const isDevDiagnostics = (): boolean =>
-  "process" in globalThis && process.env.NODE_ENV !== "production";
+const isDevDiagnostics = (): boolean => {
+  try {
+    return process !== undefined && process.env.NODE_ENV !== "production";
+  } catch {
+    return false;
+  }
+};
 
 const warnOnce = (
   seen: Set<string>,
