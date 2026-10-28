@@ -54,7 +54,7 @@
     "@types/react-dom": "19.3.0",
     "@typescript/seven": "npm:typescript@7.0.2",
     "@vitest/coverage-v8": "5.0.5",
-    "ai": "7.0.155",
+    "ai": "7.0.156",
     "autoprefixer": "10.6.2",
     "colord": "2.10.0",
     "electron": "43.8.4",
@@ -76,11 +76,11 @@
     "vitest": "5.0.5"
   },
   "dependencies": {
-    "@ai-sdk/amazon-bedrock": "5.0.126",
-    "@ai-sdk/anthropic": "4.0.90",
+    "@ai-sdk/amazon-bedrock": "5.0.127",
+    "@ai-sdk/anthropic": "4.0.91",
     "@ai-sdk/openai": "4.0.104",
     "@ai-sdk/provider-utils": "5.0.70",
-    "@aws-sdk/client-bedrock": "3.1158.0",
+    "@aws-sdk/client-bedrock": "3.1159.0",
     "@tanstack/react-virtual": "3.14.23",
     "chart.js": "4.6.1",
     "date-fns": "4.4.0",
