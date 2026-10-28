@@ -112,6 +112,12 @@ export const PROVIDER_SUPPORTS_PROVISIONING_KEY: Readonly<
 export const supportsAdminKey = (value: unknown): value is ProviderId =>
   isProviderId(value) && PROVIDER_SUPPORTS_PROVISIONING_KEY[value];
 
+/**
+ * One tuning value of a local model, as Ollama's model info reports it
+ * (`temperature 0.7`, `num_ctx 4096`, a `stop` sequence list).
+ */
+export type LocalModelParameterValue = string | number | boolean | string[];
+
 export type Model = {
   id: string;
   name: string;
@@ -135,7 +141,7 @@ export type Model = {
       temperature?: number;
       top_p?: number;
       repeat_penalty?: number;
-      [key: string]: unknown;
+      [key: string]: LocalModelParameterValue | undefined;
     };
   };
 };

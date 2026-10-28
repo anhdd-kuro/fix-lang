@@ -1053,7 +1053,7 @@ type TypedSchemaFor<T> = T extends Model[]
         items?: TypedSchemaFor<Item>;
         default?: T;
       }
-    : T extends Record<string, unknown>
+    : T extends object
       ? Omit<ValueSchemaObject, "properties" | "required" | "default"> & {
           properties?: { [K in keyof T]?: TypedSchemaFor<T[K]> };
           required?: readonly (keyof T & string)[];

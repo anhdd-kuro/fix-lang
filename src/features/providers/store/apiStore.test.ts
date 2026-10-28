@@ -7,16 +7,26 @@
  */
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+/** What `conf` persists: JSON, plus `undefined` for an absent key. */
+type StoredJson =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | StoredJson[]
+  | { [key: string]: StoredJson };
+
 // Stateful mock of electron-store: get/set operate over an in-memory object
 // so seeded profiles/currentProfileId are readable by the real apiStore.ts
 // helpers, and writes made by those helpers are observable by assertions.
 vi.mock("electron-store", () => {
   class MockStore {
-    private data: Record<string, unknown> = {};
-    get(key: string, defaultValue?: unknown) {
+    private data: Record<string, StoredJson> = {};
+    get(key: string, defaultValue?: StoredJson) {
       return key in this.data ? this.data[key] : defaultValue;
     }
-    set(key: string, value: unknown) {
+    set(key: string, value: StoredJson) {
       this.data[key] = value;
     }
     delete(key: string) {
@@ -690,30 +700,22 @@ describe("apiStore re-exports from ~/features/providers/shared/providers", () =>
 });
 
 describe("apiStoreSchema — provider removal and enabledProviders", () => {
-  const profileSchemaProperties = apiStoreSchema.profiles.items
-    .properties as Record<string, unknown>;
-  const settingsSchemaProperties = (
-    profileSchemaProperties.settings as {
-      properties: Record<string, unknown>;
-    }
-  ).properties;
+  const profileSchemaProperties = apiStoreSchema.profiles.items.properties;
+  const settingsSchemaProperties = profileSchemaProperties.settings.properties;
 
   it("the profile schema has no `provider` property", () => {
     expect(profileSchemaProperties).not.toHaveProperty("provider");
   });
 
   it("enabledProviders is a bare string array with no ajv `enum`, defaulting to []", () => {
-    const enabledProviders =
-      settingsSchemaProperties.enabledProviders as Record<string, unknown>;
+    const enabledProviders = settingsSchemaProperties.enabledProviders;
     expect(enabledProviders).toEqual({
       type: "array",
       items: { type: "string" },
       default: [],
     });
     expect(enabledProviders).not.toHaveProperty("enum");
-    expect(
-      enabledProviders.items as Record<string, unknown>,
-    ).not.toHaveProperty("enum");
+    expect(enabledProviders.items).not.toHaveProperty("enum");
   });
 
   it("required stays [id, name, createdAt, settings] — no provider requirement", () => {
@@ -784,24 +786,9 @@ describe("apiStoreSchema — model defaults are the inherit sentinel", () => {
 });
 
 describe("apiStoreSchema — settingsCorrect default carries all eight built-in presets", () => {
-  const settingsCorrectSchema = (
-    apiStoreSchema.profiles.items.properties.settings as {
-      properties: {
-        settingsCorrect: {
-          properties: {
-            presets: {
-              default?: unknown[];
-              items: {
-                properties: Record<string, unknown>;
-                required: string[];
-              };
-            };
-          };
-          default: { presets?: unknown[] };
-        };
-      };
-    }
-  ).properties.settingsCorrect;
+  const settingsCorrectSchema =
+    apiStoreSchema.profiles.items.properties.settings.properties
+      .settingsCorrect;
 
   const presetItemSchema = settingsCorrectSchema.properties.presets.items;
 
@@ -884,11 +871,7 @@ describe("apiStoreSchema — settingsCorrect default carries all eight built-in 
     expect(presetItemSchema.properties.extraOptions).toEqual({});
     // `toEqual({})` alone passes for `{ type: undefined }`; this is the pin
     // that the node carries no keyword whatsoever.
-    expect(
-      Object.keys(
-        presetItemSchema.properties.extraOptions as Record<string, unknown>,
-      ),
-    ).toEqual([]);
+    expect(Object.keys(presetItemSchema.properties.extraOptions)).toEqual([]);
     expect(presetItemSchema.required).not.toContain("extraOptions");
     expect(presetItemSchema.required).toEqual([
       "id",
@@ -1707,7 +1690,9 @@ describe("migrateStoredProfilesForModelRefs", () => {
 
     migrateStoredProfilesForModelRefs();
 
-    const rawProfiles = apiStore.get("profiles") as Record<string, unknown>[];
+    // The driver must leave the retired `provider` field on disk untouched.
+    type StoredLegacyProfile = Profile & { provider?: string };
+    const rawProfiles = apiStore.get("profiles") as StoredLegacyProfile[];
     expect(rawProfiles[0].provider).toBe("openai");
     expect((rawProfiles[0].settings as SettingsStore).selectedModel).toBe(
       "gpt-4o",
