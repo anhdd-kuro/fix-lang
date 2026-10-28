@@ -9,6 +9,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeLocalAIRequest } from "./request";
+import type { ChatResponse } from "ollama";
+import type { AIRequestOptions } from "~/main/ai.request/requestTypes";
 
 const {
   chatMock,
@@ -39,7 +41,7 @@ vi.mock("~/features/providers/store/apiStore", () => ({
 const MODEL = "llama3.2:3b";
 
 /** What the daemon actually returns, minus the fields this module ignores. */
-const chatResponse = (overrides: Record<string, unknown> = {}) => ({
+const chatResponse = (overrides: Partial<ChatResponse> = {}) => ({
   message: { content: " over the lazy dog." },
   total_duration: 1_000,
   prompt_eval_count: 42,
@@ -47,7 +49,7 @@ const chatResponse = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const request = (overrides: Record<string, unknown> = {}) =>
+const request = (overrides: Partial<AIRequestOptions> = {}) =>
   makeLocalAIRequest({
     systemPrompt: "You continue text.",
     userPrompt: "The quick brown fox jumps",

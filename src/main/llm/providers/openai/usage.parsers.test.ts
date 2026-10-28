@@ -8,6 +8,7 @@ import {
   parseProjectNames,
   withProjectNames,
 } from "./usage.parsers";
+import type { JsonObject, JsonValue } from "~/main/jsonValue";
 
 /** 2026-07-01T00:00:00Z and the two following days, as unix seconds. */
 const DAY_1 = Date.UTC(2026, 6, 1) / 1000;
@@ -54,7 +55,7 @@ const usageBucket = (
   })),
 });
 
-const page = (data: unknown[], extra: Record<string, unknown> = {}) => ({
+const page = (data: JsonValue[], extra: JsonObject = {}) => ({
   object: "page",
   data,
   has_more: false,
@@ -323,7 +324,7 @@ describe("parseProjectCosts", () => {
 });
 
 describe("parseProjectNames", () => {
-  const list = (data: unknown[], extra: Record<string, unknown> = {}) => ({
+  const list = (data: JsonValue[], extra: JsonObject = {}) => ({
     object: "list",
     data,
     has_more: false,

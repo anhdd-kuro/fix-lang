@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import type { JsonObject } from "~/main/jsonValue";
 
 const projectRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -11,11 +12,11 @@ const projectRoot = path.resolve(
 const readProjectFile = (relativePath: string): string =>
   readFileSync(path.join(projectRoot, relativePath), "utf8");
 
-const readPackageJson = (): Record<string, unknown> =>
-  JSON.parse(readProjectFile("package.json")) as Record<string, unknown>;
+const readPackageJson = (): JsonObject =>
+  JSON.parse(readProjectFile("package.json")) as JsonObject;
 
-const buildConfiguration = (packageJson: Record<string, unknown>) =>
-  packageJson.build as Record<string, unknown>;
+const buildConfiguration = (packageJson: JsonObject) =>
+  packageJson.build as JsonObject;
 
 const workflowStep = (workflow: string, stepName: string): string => {
   const marker = `      - name: ${stepName}`;

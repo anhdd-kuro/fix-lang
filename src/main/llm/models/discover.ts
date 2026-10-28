@@ -11,6 +11,7 @@ import {
 } from "~/features/providers/store/apiStore";
 import { createOllamaClient } from "../providers/ollama/client";
 import type { ProviderEndpoint } from "~/features/providers/shared/lmstudioEndpoint";
+import type { JsonObject } from "~/main/jsonValue";
 
 /**
  * Format model size into a human-readable string (e.g., 7B, 13B)
@@ -49,7 +50,7 @@ export type ModelMetadata = {
   size?: number;
   family?: string;
   quantization?: string;
-  parameters?: Record<string, unknown> & { parameter_size?: number };
+  parameters?: JsonObject & { parameter_size?: number };
 };
 
 /**

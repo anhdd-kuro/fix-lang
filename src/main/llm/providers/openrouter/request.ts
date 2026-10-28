@@ -111,7 +111,7 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
     // Extract cache-usage metadata from raw OpenRouter response body
     const rawUsage =
       resBody && typeof resBody === "object" && "usage" in resBody
-        ? (resBody as Record<string, unknown>)["usage"]
+        ? resBody.usage
         : undefined;
     const { cachedTokens, cacheWriteTokens } = extractCacheUsage(rawUsage);
     if (cachedTokens > 0 || cacheWriteTokens > 0) {
