@@ -28,6 +28,7 @@ import {
 } from "./service";
 import type { AskContextSource } from "~/features/ask/shared/ask";
 import type { LogContext } from "~/features/logs/shared/logging";
+import type { ProviderEndpointMap } from "~/features/providers/store/apiStore";
 
 const {
   makeAIRequestMock,
@@ -158,7 +159,7 @@ let dailyCostCapUsd = DEFAULT_DAILY_COST_CAP_USD;
  * first; editing a local provider's host moves the second without any switch.
  */
 let currentProfileId = "profile-a";
-let providerEndpoints: Record<string, { host: string; port: number }> = {};
+let providerEndpoints: ProviderEndpointMap = {};
 
 /** Leaves every request in flight so it can be superseded and aborted. */
 const pendingRequests = (): AbortSignal[] => {

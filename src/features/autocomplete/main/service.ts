@@ -621,10 +621,7 @@ export type AutocompleteSkipReason =
  * per day rather than by the interval below, and that behaviour is kept exactly
  * as it was. It gains only the machine-readable `reason` the others now carry.
  */
-const SKIP_LINES: Record<
-  Exclude<AutocompleteSkipReason, "cap-reached">,
-  { level: Extract<LogLevel, "debug" | "warn">; message: string }
-> = {
+const SKIP_LINES = {
   disabled: {
     level: "debug",
     message: "Suggestion skipped: autocomplete is off for this profile",
@@ -685,7 +682,10 @@ const SKIP_LINES: Record<
     message:
       "Suggestion skipped: the daily request backstop was reached, which no normal typing can produce",
   },
-};
+} satisfies Record<
+  Exclude<AutocompleteSkipReason, "cap-reached">,
+  { level: Extract<LogLevel, "debug" | "warn">; message: string }
+>;
 
 const skipThrottle = createSkipThrottle();
 
@@ -829,12 +829,12 @@ const usageBookkeepingFailed = (stage: string, error: unknown): void => {
  * per request — and a second line beside the throttled `usage-unreadable` skip
  * the caller emits, saying the same thing twice. The caller owns the line.
  */
-const readToday = (
-  now: Date,
-): {
+type TodayRead = {
   day: AutocompleteDayRollup | null;
-  failure?: ReturnType<typeof describeFailure>;
-} => {
+  failure?: FailureDescription;
+};
+
+const readToday = (now: Date): TodayRead => {
   try {
     return { day: autocompleteUsageStore.getDay(now) };
   } catch (error) {

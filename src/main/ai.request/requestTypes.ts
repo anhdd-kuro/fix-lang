@@ -110,9 +110,12 @@ export const toConversation = (messages: CoreMessage[]) => {
 };
 
 /** Read token counts under either the v6 or v7 AI SDK usage field names. */
-export const usageCounts = (
-  usage: unknown,
-): { promptTokens: number | null; completionTokens: number | null } => {
+export type UsageCounts = {
+  promptTokens: number | null;
+  completionTokens: number | null;
+};
+
+export const usageCounts = (usage: unknown): UsageCounts => {
   if (!usage || typeof usage !== "object") {
     return { promptTokens: null, completionTokens: null };
   }

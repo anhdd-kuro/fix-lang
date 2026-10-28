@@ -112,10 +112,12 @@ export function buildCachedMessages(
  * Safely extracts cache-usage fields from an OpenRouter usage object.
  * These fields are present only when caching is active for the request.
  */
-export function extractCacheUsage(usage: unknown): {
+export type CacheUsage = {
   cachedTokens: number;
   cacheWriteTokens: number;
-} {
+};
+
+export function extractCacheUsage(usage: unknown): CacheUsage {
   if (!usage || typeof usage !== "object") {
     return { cachedTokens: 0, cacheWriteTokens: 0 };
   }

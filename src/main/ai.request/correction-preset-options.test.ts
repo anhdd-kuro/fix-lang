@@ -272,7 +272,7 @@ describe("fixGrammar — Caveman intensity composed into the system prompt", () 
   // the way the implementation computes it would move in lockstep with a
   // mutated fragment and never catch the regression. The three literals below
   // are the ones `src/prompts/correction.ts` exports for each level.
-  const DIRECTIVE_BY_MODE: Record<string, string> = {
+  const DIRECTIVE_BY_MODE = {
     lite: DEFAULT_CAVEMAN_LITE_DIRECTIVE,
     full: DEFAULT_CAVEMAN_FULL_DIRECTIVE,
     ultra: DEFAULT_CAVEMAN_ULTRA_DIRECTIVE,
@@ -295,7 +295,7 @@ describe("fixGrammar — Caveman intensity composed into the system prompt", () 
     vi.clearAllMocks();
   });
 
-  it.each(["lite", "full", "ultra"])(
+  it.each(["lite", "full", "ultra"] as const)(
     "appends the %s directive, and only that one",
     async (mode) => {
       setupCaveman({ cavemanMode: mode });

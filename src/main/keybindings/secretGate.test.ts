@@ -99,9 +99,14 @@ type AroundDialog = NonNullable<SecretGateInput["aroundDialog"]>;
  * on a counter beside it, so the assertions below stay about the wrapper's
  * behaviour rather than about a mock's shape.
  */
+type CountingAroundDialog = {
+  aroundDialog: AroundDialog;
+  callCount: () => number;
+};
+
 const countingAroundDialog = (
   body: AroundDialog = (show) => show(),
-): { aroundDialog: AroundDialog; callCount: () => number } => {
+): CountingAroundDialog => {
   let calls = 0;
   return {
     aroundDialog: (show) => {
