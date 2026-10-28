@@ -66,6 +66,8 @@ export const makeAnthropicAIRequest = async (options: AIRequestOptions) => {
         ...(options.maxOutputTokens !== undefined
           ? { maxOutputTokens: options.maxOutputTokens }
           : {}),
+        // ai v7 resolves `response.body` only on request; `resolvedModel` reads it.
+        include: { responseBody: true },
       });
     // The Messages API has no `n`, so sibling responses are N separate calls —
     // the same shape the Bedrock path uses for the identical reason.

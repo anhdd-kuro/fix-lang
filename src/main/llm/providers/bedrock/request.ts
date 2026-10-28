@@ -52,6 +52,8 @@ export const makeBedrockAIRequest = async (options: AIRequestOptions) => {
         model: bedrock(modelId),
         ...(conversation.system ? { system: conversation.system } : {}),
         messages: conversation.messages,
+        // ai v7 drops `response.body` unless asked; `extractResolvedModel` reads it.
+        include: { responseBody: true },
         topP: options.top_p,
         ...(() => {
           const reasoning = reasoningForAiSdk(options.reasoning);

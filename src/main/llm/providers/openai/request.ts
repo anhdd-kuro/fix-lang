@@ -42,9 +42,11 @@ export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
     const modelId = options.model as string;
     const openai = createOpenAI({ apiKey: apiKey.trim(), fetch: keepAliveFetch });
     const conversation = toConversation(rawMessages);
-    const request = () =>
+    // `ai` v7 drops `response.body` unless asked; only the first body is read.
+    const request = (choiceIndex: number) =>
       generateText({
         model: openai.chat(modelId),
+        ...(choiceIndex === 0 ? { include: { responseBody: true } } : {}),
         ...(conversation.system ? { system: conversation.system } : {}),
         messages: conversation.messages,
         topP: options.top_p,
@@ -59,7 +61,9 @@ export const makeOpenAIAIRequest = async (options: AIRequestOptions) => {
           : {}),
       });
     const responses = await Promise.all(
-      Array.from({ length: Math.max(1, options.n ?? 1) }, request),
+      Array.from({ length: Math.max(1, options.n ?? 1) }, (_, choiceIndex) =>
+        request(choiceIndex),
+      ),
     );
     const counts = responses.map((response) => usageCounts(response.usage));
     const firstBody = responses[0]?.response.body;

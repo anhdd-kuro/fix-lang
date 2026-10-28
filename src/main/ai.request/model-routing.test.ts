@@ -91,6 +91,7 @@ vi.mock("~/main/llm/models/discover", () => ({
 }));
 vi.mock("~/main/llm/providers/ollama/client", () => ({ createOllamaClient: () => ({ chat: ollamaChatMock }), ollamaClient: { chat: ollamaChatMock } }));
 import { apiStore } from "~/features/providers/store/apiStore";
+import { fakeGenerateText } from "~/main/llm/providers/testing/fakeGenerateText";
 import * as sharedModule from "./shared";
 import { isLocalModelId, makeAIRequest } from "./shared";
 import type { Model, Profile, SettingsStore } from "~/features/providers/store/apiStore";
@@ -165,11 +166,9 @@ describe("makeAIRequest — ref-based routing", () => {
       message: { content: "local answer" },
       total_duration: 1,
     });
-    generateTextMock.mockResolvedValue({
-      text: "answer",
-      usage: { promptTokens: 1, completionTokens: 2 },
-      response: { body: {} },
-    });
+    generateTextMock.mockImplementation(
+      fakeGenerateText({ text: "answer", usage: { inputTokens: 1, outputTokens: 2 } }),
+    );
   });
 
   it("an openai:: ref routes to the OpenAI path with the RAW id", async () => {
@@ -220,18 +219,38 @@ describe("makeAIRequest — ref-based routing", () => {
     expect(ollamaChatMock).toHaveBeenCalledOnce();
   });
 
+  // `ai` v7 hands back `response.body` only to a call that passed
+  // `include: { responseBody: true }`; the realistic fake enforces that, so a
+  // provider that forgets it reports the requested id instead of the served one.
   it("keeps AIRequestResponse.model and resolvedModel raw, never composite", async () => {
-    generateTextMock.mockResolvedValue({
-      text: "answer",
-      usage: { promptTokens: 1, completionTokens: 2 },
-      response: { body: { model: "gpt-4o-2024-11-20" } },
-    });
+    generateTextMock.mockImplementation(
+      fakeGenerateText({
+        text: "answer",
+        usage: { inputTokens: 1, outputTokens: 2 },
+        body: { model: "gpt-4o-2024-11-20" },
+      }),
+    );
 
     const response = await request("openai::gpt-4o");
 
     expect(response.model).not.toContain("::");
     expect(response.resolvedModel).toBe("gpt-4o-2024-11-20");
     expect(response.resolvedModel).not.toContain("::");
+  });
+
+  it("an openrouter:: ref reports the served model from the response body", async () => {
+    generateTextMock.mockImplementation(
+      fakeGenerateText({
+        text: "answer",
+        usage: { inputTokens: 1, outputTokens: 2 },
+        body: { model: "anthropic/claude-3.5-sonnet-20241022" },
+      }),
+    );
+
+    const response = await request("openrouter::anthropic/claude-3.5-sonnet");
+
+    expect(response.model).toBe("anthropic/claude-3.5-sonnet");
+    expect(response.resolvedModel).toBe("anthropic/claude-3.5-sonnet-20241022");
   });
 
   it("a prefixed unresolvable ref throws naming both the provider and the model id", async () => {

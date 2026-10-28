@@ -55,6 +55,8 @@ export const makeLmStudioAIRequest = async (options: AIRequestOptions) => {
         ...(options.maxOutputTokens !== undefined
           ? { maxOutputTokens: options.maxOutputTokens }
           : {}),
+        // `ai` v7 drops `response.body` unless asked; `extractResolvedModel` reads it.
+        include: { responseBody: true },
       });
     const responses = await Promise.all(
       Array.from({ length: Math.max(1, options.n ?? 1) }, request),

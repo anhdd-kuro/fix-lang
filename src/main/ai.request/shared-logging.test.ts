@@ -3,6 +3,7 @@
  * @description Verifies shared AI request logs never expose prompt or response content.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fakeGenerateText } from "~/main/llm/providers/testing/fakeGenerateText";
 import { makeAIRequest, makeOpenAIAIRequest, makeRemoteAIRequest } from "./shared";
 const { createOpenAIMock, generateTextMock, getProfileSecretMock, notificationShowMock } = vi.hoisted(() => ({
   createOpenAIMock: vi.fn(() => ({ chat: vi.fn(() => ({ provider: "openai" })) })),
@@ -84,25 +85,24 @@ vi.mock("~/main/llm/providers/ollama/client", () => ({
 describe("shared AI request logging", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    generateTextMock.mockResolvedValue({
-      text: "PRIVATE_RESPONSE_TEXT",
-      usage: {
-        promptTokens: 3,
-        completionTokens: 4,
-      },
-      response: {
+    // `ai` v7 returns `response.body` only when the call passes
+    // `include: { responseBody: true }`; the realistic fake enforces that.
+    generateTextMock.mockImplementation(
+      fakeGenerateText({
+        text: "PRIVATE_RESPONSE_TEXT",
+        usage: { inputTokens: 3, outputTokens: 4 },
         body: {
-          model: "openai/gpt-4.1-mini",
+          model: "openai/gpt-4.1-mini-2025-04-14",
           privatePayload: "PRIVATE_PROVIDER_PAYLOAD",
         },
-      },
-    });
+      }),
+    );
   });
 
   it("does not log full prompts or provider response payloads", async () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
-    await makeRemoteAIRequest({
+    const response = await makeRemoteAIRequest({
       systemPrompt: "PRIVATE_SYSTEM_PROMPT",
       userPrompt: "PRIVATE_USER_PROMPT",
       model: "openai/gpt-4.1-mini",
@@ -117,6 +117,9 @@ describe("shared AI request logging", () => {
     expect(serializedLogs).not.toContain("PRIVATE_USER_PROMPT");
     expect(serializedLogs).not.toContain("PRIVATE_RESPONSE_TEXT");
     expect(serializedLogs).not.toContain("PRIVATE_PROVIDER_PAYLOAD");
+    // Proves the body actually reached the request code, so the payload
+    // assertion above is not passing merely because no body was returned.
+    expect(response.resolvedModel).toBe("openai/gpt-4.1-mini-2025-04-14");
   });
 
   it("shows a desktop notification when a request cannot resolve its model", async () => {
@@ -137,17 +140,20 @@ describe("shared AI request logging", () => {
 
   it("uses the direct OpenAI Chat Completions provider and fans out n requests", async () => {
     getProfileSecretMock.mockResolvedValue("direct-openai-key");
-    generateTextMock
-      .mockResolvedValueOnce({
-        text: "first",
-        usage: { inputTokens: 2, outputTokens: 3 },
-        response: { body: { model: "gpt-4.1-mini-2025" } },
-      })
-      .mockResolvedValueOnce({
-        text: "second",
-        usage: { inputTokens: 5, outputTokens: 7 },
-        response: { body: { model: "gpt-4.1-mini-2025" } },
-      });
+    generateTextMock.mockImplementation(
+      fakeGenerateText([
+        {
+          text: "first",
+          usage: { inputTokens: 2, outputTokens: 3 },
+          body: { model: "gpt-4.1-mini-2025" },
+        },
+        {
+          text: "second",
+          usage: { inputTokens: 5, outputTokens: 7 },
+          body: { model: "gpt-4.1-mini-2025" },
+        },
+      ]),
+    );
 
     const response = await makeOpenAIAIRequest({
       systemPrompt: "system",
@@ -168,6 +174,9 @@ describe("shared AI request logging", () => {
       fetch: expect.any(Function),
     });
     expect(generateTextMock).toHaveBeenCalledTimes(2);
+    expect(generateTextMock.mock.calls[0]?.[0]).toMatchObject({
+      include: { responseBody: true },
+    });
     expect(response).toMatchObject({
       content: ["first", "second"],
       provider: "openai",

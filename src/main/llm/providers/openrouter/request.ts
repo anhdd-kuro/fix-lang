@@ -81,6 +81,9 @@ export const makeOpenRouterAIRequest = async (options: AIRequestOptions) => {
       model: modelOpenRouter,
       ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: conversationMessages as never,
+      // `ai` v7 leaves `response.body` undefined unless asked; the served model,
+      // cache usage and `n > 1` choices below are all read from it.
+      include: { responseBody: true },
       ...(reasoning !== undefined ? { reasoning } : {}),
       ...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
       ...(options.maxOutputTokens !== undefined
