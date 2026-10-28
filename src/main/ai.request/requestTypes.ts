@@ -105,6 +105,11 @@ export const toConversation = (messages: CoreMessage[]) => {
     .join("\n\n");
   return {
     system,
+    // SAFETY: `makeAIRequest` is the only producer of these messages and
+    // builds them from the system and user prompt strings, so once system
+    // entries are folded into `system` above, every remaining turn is
+    // `{ role: "user", content: string }` — valid in every provider SDK's
+    // message type. `never` because each SDK names that type differently.
     messages: messages.filter((message) => message.role !== "system") as never,
   };
 };

@@ -82,8 +82,11 @@ export function buildCachedMessages(
     // If content is already an array of content blocks, append cache_control
     // to the last block rather than re-wrapping (avoids double-serialization).
     if (Array.isArray(msg.content)) {
+      // SAFETY: an array `content` is a chat-API content-block list, and every
+      // block in that contract is an object (`{ type, text, ... }`).
       const blocks = [...(msg.content as object[])];
       const last = {
+        // SAFETY: `blocks` holds content-block objects, per the line above.
         ...(blocks[blocks.length - 1] as object),
         cache_control: { type: "ephemeral" },
       };

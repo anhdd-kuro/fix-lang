@@ -57,7 +57,11 @@ const isCachedForProvider = isModelForProvider;
 
 /** Active-profile cache; legacy global storage is read only for old installs. */
 const getStoredModels = (): Model[] =>
-  getProfileSetting("models") || (apiStore.get("models") as Model[]) || [];
+  getProfileSetting("models") ||
+  // SAFETY: top-level `models` is the pre-profile cache. Only releases before
+  // profiles wrote it, always as `Model[]`, and nothing writes it today.
+  (apiStore.get("models") as Model[]) ||
+  [];
 
 const cacheModelsForProvider = (
   provider: ProviderId,
@@ -458,7 +462,7 @@ export const makeAIRequest = async (options: AIRequestOptions) => {
     ([
       { role: "system", content: finalSystemPrompt },
       { role: "user", content: options.userPrompt },
-    ] as CoreMessage[]);
+    ] satisfies CoreMessage[]);
 
   // Routing comes from the model ref, not a profile-wide provider: one profile
   // can have all three providers connected at once.
