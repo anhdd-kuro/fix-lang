@@ -1068,8 +1068,8 @@ export const registerCorrectionShortcut = (mainWindow: BrowserWindow) => {
             placeholderCount: gate.masking?.placeholderCount ?? 0,
           });
           // Not a bare `new Notification` — this warning is the ONLY thing
-          // explaining a popup full of placeholders, and an unsigned build
-          // fails notification delivery on the async `failed` event.
+          // explaining a popup full of placeholders, and a non-Developer-ID
+          // build can fail notification delivery on the async `failed` event.
           showNotificationWithFallback({
             title: mainT("notifications.secretGuard.restoreFailed.title"),
             body: mainT("notifications.secretGuard.restoreFailed.body"),

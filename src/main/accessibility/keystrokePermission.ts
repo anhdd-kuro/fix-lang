@@ -4,8 +4,9 @@
  * permission revoked" failure mode when synthesizing keystrokes via
  * `osascript` (the `System Events` `keystroke` command).
  *
- * Why this exists: after an unsigned app update, macOS invalidates the app's
- * TCC (Accessibility) grant because its code identity changed. Every
+ * Why this exists: after an update, macOS invalidates the app's TCC
+ * (Accessibility) grant because its code identity changed (each ad-hoc signed
+ * release has a new one). Every
  * subsequent keystroke synthesis then fails with a message shaped like:
  *
  *   66:98: execution error: System Events got an error: osascript is not

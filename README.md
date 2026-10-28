@@ -144,9 +144,11 @@ If you disconnect a provider, only the presets and settings that were using it g
    [Provider setup](#provider-setup-settings--general)), and grant Accessibility
    permission when prompted.
 
-FixLang releases are unsigned and not notarized. macOS Gatekeeper may warn or
-block the app. Only if you downloaded a release you trust and Gatekeeper blocks
-it, run:
+FixLang releases are ad-hoc signed but not notarized, so on first launch macOS
+refuses to open the app. Open **System Settings → Privacy & Security** and click
+**Open Anyway** (on macOS 14 and earlier you can instead Control-click the app
+and choose **Open**). Only if you downloaded a release you trust and macOS
+still refuses to open it, run:
 
 ```bash
 xattr -dr com.apple.quarantine "/Applications/FixLang.app"
@@ -210,9 +212,9 @@ that prompt, or explicitly trust only this cask first:
 brew trust --cask anhdd-kuro/tap/fixlang
 ```
 
-FixLang remains unsigned. Homebrew does not bypass Gatekeeper or grant
-Accessibility permission. If macOS blocks a release you trust, use the manual
-`xattr` command above; grant Accessibility permission when FixLang asks. The
+FixLang is not notarized. Homebrew does not bypass Gatekeeper or grant
+Accessibility permission. If macOS blocks a release you trust, use **Open
+Anyway** as described above; grant Accessibility permission when FixLang asks. The
 app's **About** tab delegates its **Update now** button to `brew upgrade --cask
 fixlang` — it is not a self-updater, and it never touches Gatekeeper.
 
@@ -309,9 +311,9 @@ bun run themes:generate  # after editing theme .ts files
 
 ## Publishing a macOS release
 
-FixLang distributes unsigned Apple Silicon macOS releases through public GitHub
-Releases. No Apple ID, Developer ID certificate, notarization, or GitHub Actions
-secrets are required. This keeps publishing simple, but users will encounter the
+FixLang distributes ad-hoc signed Apple Silicon macOS releases through public
+GitHub Releases. No Apple ID, Developer ID certificate, notarization, or GitHub
+Actions secrets are required. This keeps publishing simple, but users will encounter the
 Gatekeeper warning described above.
 
 Release a version by increasing `package.json` to a strictly higher stable

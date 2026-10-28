@@ -139,7 +139,7 @@ const createService = (
   };
 };
 
-describe("unsigned GitHub update service", () => {
+describe("GitHub update service", () => {
   it("does not contact GitHub from development builds", async () => {
     const { service, releaseSource } = createService({ isPackaged: false });
 

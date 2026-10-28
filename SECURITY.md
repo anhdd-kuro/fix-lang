@@ -69,8 +69,8 @@ explicitly connected, and each provider only ever receives its own key.
   and cannot defend against that position — see *Known limitations* below.
 - The behaviour, availability, or data handling of the AI providers you choose to
   connect. Their terms govern text you send them.
-- Missing code signing and notarization. This is a known, deliberate property of
-  the current distribution — see below.
+- Missing Developer ID signing and notarization. This is a known, deliberate
+  property of the current distribution — see below.
 - Anything requiring a modified FixLang build, or physical access to an unlocked
   machine.
 
@@ -79,11 +79,13 @@ explicitly connected, and each provider only ever receives its own key.
 These are properties of the current design, not undisclosed bugs. They are listed
 so you can decide whether to install FixLang.
 
-- **Builds are unsigned and un-notarized.** Releases are arm64 DMGs built without
-  an Apple Developer identity, so macOS Gatekeeper will warn on first launch and
-  you must allow the app yourself. There is no signature for you to verify
-  against — only the published `SHA256SUMS.txt`. Never automate a Gatekeeper or
-  `xattr` bypass.
+- **Builds are ad-hoc signed and un-notarized.** Releases are arm64 DMGs signed
+  without an Apple Developer identity (`codesign --sign -`), so macOS Gatekeeper
+  will warn on first launch and you must allow the app yourself. An ad-hoc
+  signature is self-consistent, not proof of origin: anyone can modify the
+  bundle and re-sign it. The only thing to verify the download against is the
+  published `SHA256SUMS.txt`. Never automate
+  a Gatekeeper or `xattr` bypass.
 - **FixLang requires macOS Accessibility permission.** That is how it reads your
   current text selection and identifies the frontmost app. It is a broad
   privilege: granting it means trusting this app with what you have selected in

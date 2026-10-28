@@ -38,8 +38,8 @@ export class LocalizedError extends Error {
 
 /**
  * Thrown by `getHighlightedText`/`pasteText` (`~/utils`) when macOS's
- * Accessibility permission has been revoked — e.g. after an unsigned-app
- * update changes the app's code identity — so keystroke synthesis via
+ * Accessibility permission has been revoked — e.g. after an update changes the
+ * app's code identity (each ad-hoc signed release has a new one) — so keystroke synthesis via
  * `osascript` fails with "not allowed to send keystrokes. (1002)" (detected
  * by `isKeystrokePermissionDenied` in `~/main/accessibility/keystrokePermission`).
  *
@@ -132,8 +132,8 @@ const resolveNotificationBody = (
  * Shows a desktop notification, falling back to the in-app error popup when
  * the platform cannot deliver one.
  *
- * FixLang ships unsigned, and macOS refuses notifications from an unsigned
- * bundle with `Application is not code signed` — delivered asynchronously on
+ * FixLang is not Developer ID signed, and macOS has refused notifications from
+ * its bundle with `Application is not code signed` — delivered asynchronously on
  * the `failed` event, not as a throw, so a bare `new Notification(...).show()`
  * reports success and shows the user nothing. Any warning that is the only
  * explanation for something the app just did differently must come through
