@@ -37,10 +37,10 @@ export { filterByRange };
 
 // Day spans for the bounded ranges — used locally by the dense heatmap to size
 // the window. (filterByRange uses its own copy in the shared module.)
-const RANGE_DAYS: Record<Exclude<OverviewRange, "all">, number> = {
+const RANGE_DAYS = {
   "30d": 30,
   "7d": 7,
-};
+} satisfies Record<Exclude<OverviewRange, "all">, number>;
 
 /** Local-day key "YYYY-MM-DD" for an ISO timestamp (local timezone). */
 export const localDayKey = (iso: string): string => {

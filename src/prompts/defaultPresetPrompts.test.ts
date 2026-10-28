@@ -432,11 +432,11 @@ type IntensityLevel = "lite" | "full" | "ultra";
 /** Weakest to strongest. The cumulative order the SKILL table is written in. */
 const INTENSITY_LEVELS = ["lite", "full", "ultra"] as const;
 
-const DIRECTIVE_BY_LEVEL: Record<IntensityLevel, string> = {
+const DIRECTIVE_BY_LEVEL = {
   lite: DEFAULT_CAVEMAN_LITE_DIRECTIVE,
   full: DEFAULT_CAVEMAN_FULL_DIRECTIVE,
   ultra: DEFAULT_CAVEMAN_ULTRA_DIRECTIVE,
-};
+} satisfies Record<IntensityLevel, string>;
 
 type Stance = "instructs" | "withholds";
 

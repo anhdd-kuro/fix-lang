@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import { CAVEMAN_MODE_OPTION_KEY } from "~/features/correction/shared/presetOptions";
 import { createTranslator } from "~/features/i18n/shared/translate";
 import {
@@ -207,9 +207,12 @@ const chooseOption = async (
   });
 };
 
+/** Every key is a real `ElectronAPI` member, so a misspelt override fails to compile. */
+type ElectronAPIMocks = { [K in keyof Window["electronAPI"]]?: Mock };
+
 const baseElectronAPI = (
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> => ({
+  overrides: ElectronAPIMocks = {},
+): ElectronAPIMocks => ({
   getKeyBindings: vi.fn().mockResolvedValue({}),
   onSettingsUpdated: vi.fn().mockReturnValue(vi.fn()),
   fetchAIModels: vi.fn().mockResolvedValue({ success: true, models: [] }),

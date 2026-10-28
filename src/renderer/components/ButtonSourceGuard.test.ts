@@ -169,9 +169,7 @@ const unwrapExpression = (expression: ts.Expression): ts.Expression => {
   return current;
 };
 
-const buildLexicalAliasResolver = (
-  sourceFile: ts.SourceFile,
-): {
+type LexicalAliasResolver = {
   resolvesToButton: (
     expression: ts.JsxTagNameExpression,
     atNode: ts.Node,
@@ -193,7 +191,17 @@ const buildLexicalAliasResolver = (
     expression: ts.JsxTagNameExpression,
     atNode: ts.Node,
   ) => boolean;
-} => {
+};
+
+type BindingState = {
+  bindingSource: BindingSource | null;
+  evaluationNode: ts.Node;
+  importedKind: ImportedKind;
+};
+
+const buildLexicalAliasResolver = (
+  sourceFile: ts.SourceFile,
+): LexicalAliasResolver => {
   const rootScope: AliasScope = {
     bindings: new Map(),
     isFunctionScope: true,
@@ -489,11 +497,7 @@ const buildLexicalAliasResolver = (
   const bindingStateAt = (
     binding: AliasBinding,
     atNode: ts.Node,
-  ): {
-    bindingSource: BindingSource | null;
-    evaluationNode: ts.Node;
-    importedKind: ImportedKind;
-  } => {
+  ): BindingState => {
     const readPosition = atNode.getStart(sourceFile);
     let bindingSource = binding.bindingSource;
     let evaluationNode = binding.declaration;
@@ -1633,7 +1637,7 @@ const consumerContractRows = [
     "SITE-36b0efef55fb64e4-01",
     "LIVE-36b0efef55fb64e4",
     "src/renderer/components/HistorySessionDetailsModal.tsx",
-    189,
+    190,
     11,
   ],
   [
@@ -1961,7 +1965,7 @@ const consumerContractRows = [
     "SITE-bc36161d674c7650-01",
     "LIVE-bc36161d674c7650",
     "src/renderer/components/SettingCorrection.tsx",
-    554,
+    559,
     13,
   ],
   [
@@ -1969,7 +1973,7 @@ const consumerContractRows = [
     "SITE-6a514323795e6dd7-01",
     "LIVE-6a514323795e6dd7",
     "src/renderer/components/SettingCorrection.tsx",
-    568,
+    573,
     19,
   ],
   [
@@ -1977,7 +1981,7 @@ const consumerContractRows = [
     "SITE-31930ebb84cc797f-01",
     "LIVE-31930ebb84cc797f",
     "src/renderer/components/SettingCorrection.tsx",
-    624,
+    629,
     15,
   ],
   [
@@ -1985,7 +1989,7 @@ const consumerContractRows = [
     "SITE-be46cc9ab1065d84-01",
     "LIVE-be46cc9ab1065d84",
     "src/renderer/components/SettingCorrection.tsx",
-    632,
+    637,
     15,
   ],
   [
@@ -1993,7 +1997,7 @@ const consumerContractRows = [
     "SITE-6b4e0c40672f1a9f-01",
     "LIVE-6b4e0c40672f1a9f",
     "src/renderer/components/SettingCorrection.tsx",
-    641,
+    646,
     15,
   ],
   [
@@ -2001,7 +2005,7 @@ const consumerContractRows = [
     "SITE-d092e1365d74f58e-01",
     "LIVE-d092e1365d74f58e",
     "src/renderer/components/SettingCorrection.tsx",
-    698,
+    703,
     15,
   ],
   [
@@ -2009,7 +2013,7 @@ const consumerContractRows = [
     "SITE-526689e2a7d58f90-01",
     "LIVE-526689e2a7d58f90",
     "src/renderer/components/SettingCorrection.tsx",
-    731,
+    736,
     15,
   ],
   [
@@ -2017,7 +2021,7 @@ const consumerContractRows = [
     "SITE-7ddd61f39a4603c1-01",
     "LIVE-7ddd61f39a4603c1",
     "src/renderer/components/SettingCorrection.tsx",
-    877,
+    882,
     9,
   ],
   [
@@ -2385,7 +2389,7 @@ const expectedButtonConsumers: ChecklistConsumer[] = consumerContractRows.map(
   }),
 );
 const consumerContractSha256 =
-  "8f0de7f98d72dd5715dc7409cd8d08e8ed5e1af524eade5da648b39562936d3e";
+  "b1f3c70a9370c91e46016f9dbf5b811930e052b25bc2e36cdb479b19d73ef60f";
 
 const compareConsumers = (
   left: ButtonConsumer,

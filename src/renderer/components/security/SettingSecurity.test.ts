@@ -39,10 +39,12 @@ const waitForUi = async () => {
  * timing, so the timing has to be deliberate rather than left to however
  * `mockResolvedValue` happens to schedule two already-resolved promises.
  */
-const deferred = <T>(): {
+type Deferred<T> = {
   promise: Promise<T>;
   resolve: (value: T) => void;
-} => {
+};
+
+const deferred = <T>(): Deferred<T> => {
   let resolveFn!: (value: T) => void;
   const promise = new Promise<T>((res) => {
     resolveFn = res;
@@ -60,32 +62,32 @@ describe("SettingSecurity", () => {
   let container: HTMLDivElement;
   let root: Root;
   let localeListener: ((locale: Locale) => void) | undefined;
-  let api: Record<string, ReturnType<typeof vi.fn>>;
+  const defaultApi = () => ({
+    getSelectionGuards: vi.fn().mockResolvedValue(defaultGuardSettings()),
+    setSelectionGuards: vi.fn().mockResolvedValue({ success: true }),
+    getRecentActiveApps: vi.fn().mockResolvedValue([]),
+    getSecretGuardSettings: vi
+      .fn()
+      .mockResolvedValue(DEFAULT_SECRET_GUARD_SETTINGS),
+    setSecretGuardSettings: vi.fn().mockResolvedValue({ success: true }),
+    chooseDeniedApps: vi
+      .fn()
+      .mockResolvedValue({ success: true, bundleIds: [] }),
+    resolveAppBundleIds: vi
+      .fn()
+      .mockResolvedValue({ success: true, bundleIds: [] }),
+    getAppBundlePathForFile: vi.fn().mockReturnValue(null),
+    getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
+    setLocale: vi.fn().mockResolvedValue({ success: true }),
+    onLocaleChanged: vi.fn((callback: (locale: Locale) => void) => {
+      localeListener = callback;
+      return vi.fn();
+    }),
+  });
+  let api: ReturnType<typeof defaultApi>;
 
   const render = async (overrides: Partial<typeof api> = {}) => {
-    api = {
-      getSelectionGuards: vi.fn().mockResolvedValue(defaultGuardSettings()),
-      setSelectionGuards: vi.fn().mockResolvedValue({ success: true }),
-      getRecentActiveApps: vi.fn().mockResolvedValue([]),
-      getSecretGuardSettings: vi
-        .fn()
-        .mockResolvedValue(DEFAULT_SECRET_GUARD_SETTINGS),
-      setSecretGuardSettings: vi.fn().mockResolvedValue({ success: true }),
-      chooseDeniedApps: vi
-        .fn()
-        .mockResolvedValue({ success: true, bundleIds: [] }),
-      resolveAppBundleIds: vi
-        .fn()
-        .mockResolvedValue({ success: true, bundleIds: [] }),
-      getAppBundlePathForFile: vi.fn().mockReturnValue(null),
-      getLocale: vi.fn().mockResolvedValue({ locale: "en" }),
-      setLocale: vi.fn().mockResolvedValue({ success: true }),
-      onLocaleChanged: vi.fn((callback: (locale: Locale) => void) => {
-        localeListener = callback;
-        return vi.fn();
-      }),
-      ...overrides,
-    };
+    api = { ...defaultApi(), ...overrides };
     Object.defineProperty(window, "electronAPI", {
       configurable: true,
       value: api,

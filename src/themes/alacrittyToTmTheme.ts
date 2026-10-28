@@ -104,7 +104,7 @@ export const alacrittyToTmTheme = (
   const panel = palette.brightBlack;
   const border = palette.brightBlack;
 
-  const colors: Record<string, string> = {
+  const colors = {
     foreground: palette.foreground,
     focusBorder: accent,
     "editor.background": palette.background,
@@ -164,7 +164,7 @@ export const alacrittyToTmTheme = (
     "terminal.ansiBrightWhite": palette.brightWhite,
     "gitDecoration.addedResourceForeground": palette.green,
     errorForeground: palette.red,
-  };
+  } satisfies Record<string, string>;
 
   const [family, ...variantParts] = slug.split("-");
   const variant = variantParts.join("-") || "default";

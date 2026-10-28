@@ -533,9 +533,7 @@ function never(): never {
 function indexByProvider(
   groups: readonly ModelOptionGroup[],
 ): Partial<Record<string, ModelOptionGroup>> {
-  const indexed: Partial<Record<string, ModelOptionGroup>> = {};
-  for (const group of groups) {
-    indexed[group.provider ?? "none"] = group;
-  }
-  return indexed;
+  return Object.fromEntries(
+    groups.map((group) => [group.provider ?? "none", group]),
+  );
 }

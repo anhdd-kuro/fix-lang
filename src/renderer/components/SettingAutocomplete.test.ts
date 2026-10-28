@@ -19,7 +19,7 @@
  */
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import { createTranslator } from "~/features/i18n/shared/translate";
 import { SettingAutocomplete } from "./SettingAutocomplete";
 import { I18nProvider } from "../i18n/I18nProvider";
@@ -88,9 +88,12 @@ const usageSnapshot = (
   ...overrides,
 });
 
+/** Every key is a real `ElectronAPI` member, so a misspelt override fails to compile. */
+type ElectronAPIMocks = { [K in keyof Window["electronAPI"]]?: Mock };
+
 const baseElectronAPI = (
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> => ({
+  overrides: ElectronAPIMocks = {},
+): ElectronAPIMocks => ({
   getAutocompleteSettings: vi
     .fn()
     .mockResolvedValue({ enabled: true, model: "", dailyCostCapUsd: 5 }),
@@ -114,7 +117,7 @@ describe("SettingAutocomplete", () => {
   let container: HTMLDivElement;
   let root: Root;
 
-  const mount = async (api: Record<string, unknown>) => {
+  const mount = async (api: ElectronAPIMocks) => {
     Object.defineProperty(window, "electronAPI", {
       configurable: true,
       value: api,

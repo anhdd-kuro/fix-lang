@@ -94,7 +94,7 @@ describe("buildProviderCards", () => {
 
   it("carries admin-key field strings for exactly the providers that have the slot", () => {
     for (const provider of PROVIDER_ORDER) {
-      const messages = ADMIN_KEY_MESSAGE_KEYS[provider];
+      const messages = ADMIN_KEY_MESSAGE_KEYS.get(provider);
       if (!PROVIDER_SUPPORTS_PROVISIONING_KEY[provider]) {
         expect(messages).toBeUndefined();
         continue;

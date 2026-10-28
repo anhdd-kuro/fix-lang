@@ -10,10 +10,10 @@ import type { HistoryEntry } from "~/features/history/store/historyStore";
 
 export type AnalyticsRange = "all" | "30d" | "7d";
 
-const RANGE_DAYS: Record<Exclude<AnalyticsRange, "all">, number> = {
+const RANGE_DAYS = {
   "30d": 30,
   "7d": 7,
-};
+} satisfies Record<Exclude<AnalyticsRange, "all">, number>;
 
 /**
  * Filter entries to a range window using each entry's timestamp. "all" returns

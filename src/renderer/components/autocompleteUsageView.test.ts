@@ -310,7 +310,10 @@ describe("formatAutocompleteCount / formatAutocompleteCost / formatAutocompleteC
   // Hand-computed literals — copied from the catalog JSON by eye, never read
   // back through `t()`, so a wrong catalog value or a wrong `kind === "na"`
   // branch in the implementation cannot pass by construction.
-  const naLiteral: Record<"en" | "ja", string> = { en: "N/A", ja: "未計測" };
+  const naLiteral = { en: "N/A", ja: "未計測" } satisfies Record<
+    "en" | "ja",
+    string
+  >;
 
   it.each(localeCases)(
     "renders the translated N/A for an unmeasured count in %s",

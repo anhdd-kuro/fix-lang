@@ -72,6 +72,8 @@ type ElectronApiMock = {
   requestAutocompleteSuggestion: ReturnType<typeof vi.fn>;
 };
 
+type PendingSuggestion = { resolve: (suggestion: string) => void };
+
 const waitForUi = async () => {
   await act(async () => {
     await Promise.resolve();
@@ -516,9 +518,7 @@ describe("AskInputWindow", () => {
      * required for the "a request was still in flight when the user gave up"
      * cases, which cannot be expressed with an already-resolved mock.
      */
-    const mockPendingSuggestion = (): {
-      resolve: (suggestion: string) => void;
-    } => {
+    const mockPendingSuggestion = (): PendingSuggestion => {
       let settle!: (reply: AutocompleteSuggestReply) => void;
       let requestId = -1;
       api.requestAutocompleteSuggestion.mockImplementation(

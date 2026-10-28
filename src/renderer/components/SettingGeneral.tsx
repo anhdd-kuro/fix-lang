@@ -449,7 +449,7 @@ export const SettingGeneral: React.FC = () => {
     const typed = typedKeys[provider] ?? {};
     const busy = busyProviders[provider] === true;
     const status = providerStatus[provider];
-    const adminKeyMessages = ADMIN_KEY_MESSAGE_KEYS[provider];
+    const adminKeyMessages = ADMIN_KEY_MESSAGE_KEYS.get(provider);
 
     return (
       <div

@@ -33,10 +33,10 @@ export type SegmentedControlProps<T extends string> = {
   className?: string;
 };
 
-const SIZE_CLASSES: Record<SegmentedControlSize, string> = {
+const SIZE_CLASSES = {
   sm: "px-3 py-1 text-xs",
   md: "px-3 py-1.5 text-sm",
-};
+} satisfies Record<SegmentedControlSize, string>;
 
 export function SegmentedControl<T extends string>({
   value,

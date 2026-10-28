@@ -34,10 +34,25 @@ export const dailyTickLabel = (
 ): string =>
   formatDate(dateFromDayKey(dayKey), { month: "short", day: "numeric" });
 
+type DailyCostSeries = { dates: string[]; costs: number[] };
+
+type DailyTokenSeries = {
+  dates: string[];
+  inputTokens: number[];
+  outputTokens: number[];
+};
+
+type CostDonutRemainder = { count: number; costUsd: number };
+
+type CostDonut = {
+  slices: UsageCostSlice[];
+  remainder: CostDonutRemainder | null;
+};
+
 /** Bars: one real billed figure per day. Days the provider never priced are 0. */
 export const dailyCostSeries = (
   points: readonly UsageDailyPoint[],
-): { dates: string[]; costs: number[] } => ({
+): DailyCostSeries => ({
   dates: points.map((point) => point.date),
   costs: points.map((point) => point.costUsd ?? 0),
 });
@@ -45,7 +60,7 @@ export const dailyCostSeries = (
 /** Lines: input vs output tokens per day, aligned to the same date axis. */
 export const dailyTokenSeries = (
   points: readonly UsageDailyPoint[],
-): { dates: string[]; inputTokens: number[]; outputTokens: number[] } => ({
+): DailyTokenSeries => ({
   dates: points.map((point) => point.date),
   inputTokens: points.map((point) => point.inputTokens),
   outputTokens: points.map((point) => point.outputTokens),
@@ -70,10 +85,7 @@ export const hasTokenData = (points: readonly UsageDailyPoint[]): boolean =>
 export const costDonutSlices = (
   slices: readonly UsageCostSlice[],
   maxSlices: number = MAX_DONUT_SLICES,
-): {
-  slices: UsageCostSlice[];
-  remainder: { count: number; costUsd: number } | null;
-} => {
+): CostDonut => {
   const positive = slices
     .filter((slice) => slice.costUsd > 0)
     .sort((a, b) => b.costUsd - a.costUsd);

@@ -5,10 +5,10 @@ import { Button, type ButtonVariant } from "../Button";
 /** Icon footprint for copy/check glyphs. `sm` fits dense panels (About command blocks). */
 type CopyButtonSize = "sm" | "md";
 
-const SIZE_CLASSES: Record<CopyButtonSize, { hit: string; icon: string }> = {
+const SIZE_CLASSES = {
   sm: { hit: "min-w-3.5 min-h-3.5", icon: "size-3.5" },
   md: { hit: "min-w-6 min-h-6", icon: "size-6" },
-};
+} satisfies Record<CopyButtonSize, { hit: string; icon: string }>;
 
 const CopyButton: React.FC<{
   value: string;

@@ -35,10 +35,10 @@ export type UsageSubTab = {
   hasAdminKey: boolean;
 };
 
-const LABEL_KEYS: Readonly<Partial<Record<ProviderId, MessageKey>>> = {
-  openai: "usage.provider.openai",
-  openrouter: "usage.provider.openrouter",
-};
+const LABEL_KEYS: ReadonlyMap<ProviderId, MessageKey> = new Map([
+  ["openai", "usage.provider.openai"],
+  ["openrouter", "usage.provider.openrouter"],
+]);
 
 export const isUsageProvider = (provider: ProviderId): boolean =>
   USAGE_PROVIDERS.includes(provider);
@@ -55,7 +55,7 @@ export const buildUsageSubTabs = (
     (provider) =>
       isUsageProvider(provider) &&
       states[provider]?.connected === true &&
-      LABEL_KEYS[provider] !== undefined,
+      LABEL_KEYS.get(provider) !== undefined,
   );
 
   const withKey = visible.filter(
@@ -67,7 +67,7 @@ export const buildUsageSubTabs = (
 
   return [...withKey, ...withoutKey].map((provider) => ({
     provider,
-    labelKey: LABEL_KEYS[provider] as MessageKey,
+    labelKey: LABEL_KEYS.get(provider) as MessageKey,
     hasAdminKey: states[provider]?.provisioningKeySet === true,
   }));
 };

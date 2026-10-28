@@ -62,9 +62,9 @@ const addDays = (date: Date, days: number): Date => {
  * Locale-free — the renderer formats `start`/`end` via `fmt.date` before
  * interpolating them into a `Message`.
  */
-export const weeklyRangeOf = (
-  dayKey: string,
-): { start: string; end: string } => {
+type WeeklyRange = { start: string; end: string };
+
+export const weeklyRangeOf = (dayKey: string): WeeklyRange => {
   const day = dateFromDayKey(dayKey);
   const start = addDays(day, -day.getDay());
   const end = addDays(start, 6);

@@ -301,7 +301,7 @@ const App: React.FC = () => {
 
   // Tab panel contents. Analytics tabs read the shared range; History hosts the
   // list + preview; Usage keeps its own per-provider data hooks.
-  const tabPanels: Record<string, React.ReactNode> = {
+  const tabPanels = {
     overview: <OverviewPanel history={correctionsHistory} range={range} />,
     history: historyTab,
     models: <ModelsPanel history={correctionsHistory} range={range} />,
@@ -334,7 +334,7 @@ const App: React.FC = () => {
         }}
       />
     ),
-  };
+  } satisfies Record<DashboardTabId, React.ReactNode>;
 
   const activeTabId = DASHBOARD_TABS[activeDashboardTab]?.id ?? "overview";
   const showRange = RANGE_AWARE_TABS.has(activeTabId);

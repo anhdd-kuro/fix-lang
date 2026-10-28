@@ -21,13 +21,13 @@ type HistorySessionDetailsModalProps = {
   onClose: () => void;
 };
 
-const ROLE_LABEL_KEYS: Record<string, TKey> = {
-  assistant: "history.details.role.assistant",
-  reasoning: "history.details.role.reasoning",
-  system: "history.details.role.system",
-  tool: "history.details.role.tool",
-  user: "history.details.role.user",
-};
+const ROLE_LABEL_KEYS = new Map<string, TKey>([
+  ["assistant", "history.details.role.assistant"],
+  ["reasoning", "history.details.role.reasoning"],
+  ["system", "history.details.role.system"],
+  ["tool", "history.details.role.tool"],
+  ["user", "history.details.role.user"],
+]);
 
 export const HistorySessionDetailsModal: React.FC<
   HistorySessionDetailsModalProps
@@ -91,13 +91,13 @@ export const HistorySessionDetailsModal: React.FC<
       (tab) => tab.id === activeTab,
     );
     const lastIndex = HISTORY_SESSION_DETAILS_TABS.length - 1;
-    const indexByKey: Partial<Record<string, number>> = {
-      ArrowLeft: currentIndex === 0 ? lastIndex : currentIndex - 1,
-      ArrowRight: currentIndex === lastIndex ? 0 : currentIndex + 1,
-      End: lastIndex,
-      Home: 0,
-    };
-    const nextIndex = indexByKey[event.key];
+    const indexByKey = new Map<string, number>([
+      ["ArrowLeft", currentIndex === 0 ? lastIndex : currentIndex - 1],
+      ["ArrowRight", currentIndex === lastIndex ? 0 : currentIndex + 1],
+      ["End", lastIndex],
+      ["Home", 0],
+    ]);
+    const nextIndex = indexByKey.get(event.key);
     if (nextIndex === undefined) return;
 
     event.preventDefault();
@@ -171,13 +171,14 @@ export const HistorySessionDetailsModal: React.FC<
             <ChatTranscript
               ariaLabel={t("history.details.chatAriaLabel")}
               meta={chatMeta ? metaItems : undefined}
-              messages={chatMessages.map((message) => ({
-                role: message.role,
-                label: ROLE_LABEL_KEYS[message.role]
-                  ? t(ROLE_LABEL_KEYS[message.role])
-                  : message.role,
-                content: displayHistoryMessageContent(message.content),
-              }))}
+              messages={chatMessages.map((message) => {
+                const roleLabelKey = ROLE_LABEL_KEYS.get(message.role);
+                return {
+                  role: message.role,
+                  label: roleLabelKey ? t(roleLabelKey) : message.role,
+                  content: displayHistoryMessageContent(message.content),
+                };
+              })}
             />
           ) : (
             <p className="text-sm text-muted-foreground">
